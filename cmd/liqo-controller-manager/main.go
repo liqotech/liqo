@@ -45,12 +45,13 @@ import (
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	searchdomainoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/search-domain-operator"
+	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
-	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
+	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -97,6 +98,7 @@ func main() {
 	liqoNamespace := flag.String("liqo-namespace", defaultNamespace,
 		"Name of the namespace where the liqo components are running")
 	foreignClusterWorkers := flag.Uint("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
+	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
 
 	// Discovery parameters
 	clusterName := flag.String(consts.ClusterNameParameter, "", "A mnemonic name associated with the current cluster")
@@ -144,7 +146,7 @@ func main() {
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
 
-	errorsmanagement.InitFlags(nil)
+	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -308,6 +310,15 @@ func main() {
 	}
 
 	if err = namespaceOffloadingReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	shadowPodReconciler := &shadowpodctrl.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+
+	if err = shadowPodReconciler.SetupWithManager(mgr, *shadowPodWorkers); err != nil {
 		klog.Fatal(err)
 	}
 

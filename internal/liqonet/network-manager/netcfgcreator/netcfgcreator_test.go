@@ -31,9 +31,9 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	"github.com/liqotech/liqo/pkg/utils/syncset"
-	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 var _ = Describe("NetworkConfigCreator Controller", func() {
@@ -79,7 +79,7 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 		// The deletion of namespace in test environment does not work.
 		// https://github.com/kubernetes-sigs/controller-runtime/issues/880
 		ns = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-		Expect(testutil.IgnoreAlreadyExists(ncc.Create(ctx, ns))).To(Succeed())
+		Expect(liqoerrors.IgnoreAlreadyExists(ncc.Create(ctx, ns))).To(Succeed())
 
 		fc = &discoveryv1alpha1.ForeignCluster{
 			ObjectMeta: metav1.ObjectMeta{Name: foreigncluster},
