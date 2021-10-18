@@ -34,7 +34,10 @@ type ClusterArgs struct {
 
 // HandleRemoveCommand handles the remove command, configuring all the resources required to disable an outgoing peering.
 func HandleRemoveCommand(ctx context.Context, t *ClusterArgs) error {
-	restConfig := common.GetLiqoctlRestConfOrDie()
+	restConfig, err := common.GetLiqoctlRestConf()
+	if err != nil {
+		return err
+	}
 
 	k8sClient, err := client.New(restConfig, client.Options{})
 	if err != nil {

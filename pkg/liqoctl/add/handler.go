@@ -45,7 +45,10 @@ type ClusterArgs struct {
 
 // HandleAddCommand handles the add command, configuring all the resources required to configure an outgoing peering.
 func HandleAddCommand(ctx context.Context, t *ClusterArgs) error {
-	restConfig := common.GetLiqoctlRestConfOrDie()
+	restConfig, err := common.GetLiqoctlRestConf()
+	if err != nil {
+		return err
+	}
 
 	klog.Info("* Initializing 🔌... ")
 	clientSet, err := kubernetes.NewForConfig(restConfig)
