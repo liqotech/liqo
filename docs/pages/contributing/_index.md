@@ -28,7 +28,7 @@ Liqo leverages lerna-changelog to create the changelog of a certain version. PRs
 * bug (:bug: Bug Fix)
 * documentation (:memo: Documentation)
 
-### Local development
+## Local development
 
 Liqo components can be developed locally. We provide a [deployment script](/examples/kind.sh) to spawn multiple 
 kubernetes clusters by using [Kind](https://kind.sigs.k8s.io/) with Liqo installed. This script can be used as a starting
@@ -39,31 +39,48 @@ point to improve/replace one Liqo component:
   3. `scale --replicas=0` the component;
   4. run the component on the host, with the command-line flags you copied before.
 
-#### Running tests
+### Testing
 
-You can use the `liqo-test` Docker image (in `build/liqo-test`) to run tests: just mount the repository in `/go/src/github.com/liqotech/liqo` inside the container.
+Most tests can be run "directly" using `ginkgo`, which in turn supports the standard testing API (`go test`, IDE features, ...). Some tests however require an isolated environment, for which you can use the `liqo-test` Docker image (in `build/liqo-test`). Just mount the repository in `/go/src/github.com/liqotech/liqo` inside the container:
+
+```sh
+docker run --name=liqo-test -v $PATH_TO_LIQO:/go/src/github.com/liqotech/liqo liqo-test
+
+# To run a specific test
+docker run --name=liqo-test -v $PATH_TO_LIQO:/go/src/github.com/liqotech/liqo liqo-test --entrypoint="" go test $PACKAGE
+```
+
+#### Debugging tests
 
 If you want to debug tests, you can use Delve for remote debugging:
 
   1. Start the container with an idle entrypoint, exposing a port of choice (e.g. 2345):
 
-    docker run --name=liqo-test -d -p 2345:2345 -v /c/liqo:/go/src/github.com/liqotech/liqo --entrypoint="" liqo-test tail -f /dev/null
+```sh
+docker run --name=liqo-test -d -p 2345:2345 -v $PATH_TO_LIQO:/go/src/github.com/liqotech/liqo --entrypoint="" liqo-test tail -f /dev/null
+```
 
   2. Open a shell into the container:
 
-    docker exec -it liqo-test bash
+```sh
+docker exec -it liqo-test bash
+```
 
   3. Once inside the container, install Delve:
 
-    go install github.com/go-delve/delve/cmd/dlv@latest
+```sh
+go install github.com/go-delve/delve/cmd/dlv@latest
+```
 
-  4. Run a specific test inside the container:
+  4. Run a specific test inside the container: (note that `$TEST_PATH` must refer to a directory)
 
-    dlv test --headless --listen=:2345 --api-version=2 --accept-multiclient ./pkg/liqo-controller-manager/foreign-cluster-operator/
+```sh
+dlv test --headless --listen=:2345 --api-version=2 --accept-multiclient ./$TEST_PATH
+```
 
   5. From the host, connect to `localhost:2345` with your remote debugging client of choice (e.g. [GoLand](https://www.jetbrains.com/help/go/attach-to-running-go-processes-with-debugger.html#step-3-create-the-remote-run-debug-configuration-on-the-client-computer)).
 
-### Pull Requests
+## Pull Requests
 
 The process described here has several goals:
 
@@ -71,7 +88,7 @@ The process described here has several goals:
 * Fix problems that are important to users
 * Engage the community in working toward the best possible Liqo and to embrace new possible use-cases
 
-#### Styleguides
+## Styleguides
 
 ### Git Commit Messages
 
@@ -80,7 +97,7 @@ The process described here has several goals:
 * Limit the first line to 72 characters or less
 * Reference issues and pull requests liberally after the first line
 
-#### Credits
+## Credits
 
 [Atom Contributing Guidelines](https://github.com/atom/atom/blob/master/CONTRIBUTING.md) inspired us when writing this 
 document. Many thanks!
