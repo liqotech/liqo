@@ -35,7 +35,10 @@ func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, 
 		klog.SetLogFilter(logsutils.LogFilter{})
 	}
 
-	config := common.GetLiqoctlRestConfOrDie()
+	config, err := common.GetLiqoctlRestConf()
+	if err != nil {
+		return err
+	}
 	providerInstance := getProviderInstance(providerName)
 
 	if providerInstance == nil {

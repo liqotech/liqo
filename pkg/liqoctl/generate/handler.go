@@ -35,7 +35,10 @@ import (
 
 // HandleGenerateAddCommand outputs the liqoctl add command to use to add the target cluster.
 func HandleGenerateAddCommand(ctx context.Context, liqoNamespace string, printOnlyCommand bool, commandName string) error {
-	restConfig := common.GetLiqoctlRestConfOrDie()
+	restConfig, err := common.GetLiqoctlRestConf()
+	if err != nil {
+		return err
+	}
 
 	clientSet, err := client.New(restConfig, client.Options{})
 	if err != nil {

@@ -29,7 +29,10 @@ type Args struct {
 
 // Handler implements the logic of the status command.
 func (a *Args) Handler(ctx context.Context) error {
-	restConfig := common.GetLiqoctlRestConfOrDie()
+	restConfig, err := common.GetLiqoctlRestConf()
+	if err != nil {
+		return err
+	}
 
 	clientSet, err := k8s.NewForConfig(restConfig)
 	if err != nil {

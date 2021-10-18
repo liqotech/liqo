@@ -19,14 +19,23 @@ import (
 	"strings"
 
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
-// GetLiqoctlRestConfOrDie gets a valid REST config and set a default value for the RateLimiters. It dies otherwise.
-func GetLiqoctlRestConfOrDie() *rest.Config {
-	return restcfg.SetRateLimiter(config.GetConfigOrDie())
+// GetLiqoctlRestConf gets a valid REST config and set a default value for the RateLimiters.
+func GetLiqoctlRestConf() (*rest.Config, error) {
+	restConfig, err := config.GetConfig()
+	if err != nil {
+		if strings.HasSuffix(err.Error(), clientcmd.ErrEmptyConfig.Error()) {
+			// Rewrite the error message (you likely want KUBECONFIG rather than KUBERNETES_MASTER)
+			return nil, fmt.Errorf("no configuration provided, please set the environment variable KUBECONFIG")
+		}
+		return nil, err
+	}
+	return restcfg.SetRateLimiter(restConfig), nil
 }
 
 // ExtractValueFromArgumentList extracts the argument value from an argument list.
