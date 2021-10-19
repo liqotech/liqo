@@ -146,6 +146,8 @@ func (f *apiForger) forgePodSpec(inputPodSpec corev1.PodSpec) corev1.PodSpec {
 	outputPodSpec.Containers = forgeContainers(inputPodSpec.Containers, outputPodSpec.Volumes)
 	outputPodSpec.Tolerations = Tolerations(inputPodSpec.Tolerations)
 	outputPodSpec.EnableServiceLinks = inputPodSpec.EnableServiceLinks
+	outputPodSpec.Hostname = inputPodSpec.Hostname
+	outputPodSpec.Subdomain = inputPodSpec.Subdomain
 
 	return outputPodSpec
 }

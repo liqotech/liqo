@@ -16,6 +16,7 @@ package forge_test
 
 import (
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
@@ -72,47 +73,66 @@ var _ = Describe("Services Forging", func() {
 
 	Describe("the RemoteServiceSpec function", func() {
 		var (
-			input  *corev1.ServiceSpec
-			output *corev1apply.ServiceSpecApplyConfiguration
+			getService = func(serviceType corev1.ServiceType, clusterIP string) *corev1.ServiceSpec {
+				trafpol := corev1.ServiceInternalTrafficPolicyCluster
+				ipfampol := corev1.IPFamilyPolicyPreferDualStack
+				return &corev1.ServiceSpec{
+					Type:     serviceType,
+					Selector: map[string]string{"key": "value"},
+					Ports:    []corev1.ServicePort{{Name: "port"}},
+
+					AllocateLoadBalancerNodePorts: pointer.Bool(true),
+					ExternalTrafficPolicy:         corev1.ServiceExternalTrafficPolicyTypeCluster,
+					InternalTrafficPolicy:         &trafpol,
+					IPFamilyPolicy:                &ipfampol,
+					LoadBalancerClass:             pointer.String("class"),
+					LoadBalancerSourceRanges:      []string{"0.0.0.0/0"},
+					PublishNotReadyAddresses:      *pointer.Bool(true),
+					SessionAffinity:               corev1.ServiceAffinityNone,
+					ClusterIP:                     clusterIP,
+				}
+			}
 		)
 
-		BeforeEach(func() {
-			trafpol := corev1.ServiceInternalTrafficPolicyCluster
-			ipfampol := corev1.IPFamilyPolicyPreferDualStack
-			input = &corev1.ServiceSpec{
-				Type:     corev1.ServiceTypeNodePort,
-				Selector: map[string]string{"key": "value"},
-				Ports:    []corev1.ServicePort{{Name: "port"}},
+		type remoteServiceTestcase struct {
+			input               *corev1.ServiceSpec
+			expectedClusterIP   OmegaMatcher
+			expectedServiceType OmegaMatcher
+		}
 
-				AllocateLoadBalancerNodePorts: pointer.Bool(true),
-				ExternalTrafficPolicy:         corev1.ServiceExternalTrafficPolicyTypeCluster,
-				InternalTrafficPolicy:         &trafpol,
-				IPFamilyPolicy:                &ipfampol,
-				LoadBalancerClass:             pointer.String("class"),
-				LoadBalancerSourceRanges:      []string{"0.0.0.0/0"},
-				PublishNotReadyAddresses:      *pointer.Bool(true),
-				SessionAffinity:               corev1.ServiceAffinityNone,
-			}
-		})
+		DescribeTable("RemoteServiceSpec table", func(c remoteServiceTestcase) {
+			output := forge.RemoteServiceSpec(c.input.DeepCopy())
 
-		JustBeforeEach(func() { output = forge.RemoteServiceSpec(input.DeepCopy()) })
+			By("should correctly replicate the core fields", func() {
+				Expect(output.Type).To(PointTo(c.expectedServiceType))
+				Expect(output.Selector).To(HaveKeyWithValue("key", "value"))
+				Expect(output.Ports).To(HaveLen(1))
+			})
 
-		It("should correctly replicate the core fields", func() {
-			Expect(output.Type).To(PointTo(Equal(corev1.ServiceTypeNodePort)))
-			Expect(output.Selector).To(HaveKeyWithValue("key", "value"))
-			Expect(output.Ports).To(HaveLen(1))
-		})
-
-		It("should correctly replicate the accessory fields", func() {
-			Expect(output.AllocateLoadBalancerNodePorts).To(PointTo(BeTrue()))
-			Expect(output.ExternalTrafficPolicy).To(PointTo(Equal(corev1.ServiceExternalTrafficPolicyTypeCluster)))
-			Expect(output.InternalTrafficPolicy).To(PointTo(Equal(corev1.ServiceInternalTrafficPolicyCluster)))
-			Expect(output.IPFamilyPolicy).To(PointTo(Equal(corev1.IPFamilyPolicyPreferDualStack)))
-			Expect(output.LoadBalancerClass).To(PointTo(Equal("class")))
-			Expect(output.LoadBalancerSourceRanges).To(ConsistOf("0.0.0.0/0"))
-			Expect(output.PublishNotReadyAddresses).To(PointTo(BeTrue()))
-			Expect(output.SessionAffinity).To(PointTo(Equal(corev1.ServiceAffinityNone)))
-		})
+			By("should correctly replicate the accessory fields", func() {
+				Expect(output.AllocateLoadBalancerNodePorts).To(PointTo(BeTrue()))
+				Expect(output.ExternalTrafficPolicy).To(PointTo(Equal(corev1.ServiceExternalTrafficPolicyTypeCluster)))
+				Expect(output.InternalTrafficPolicy).To(PointTo(Equal(corev1.ServiceInternalTrafficPolicyCluster)))
+				Expect(output.IPFamilyPolicy).To(PointTo(Equal(corev1.IPFamilyPolicyPreferDualStack)))
+				Expect(output.LoadBalancerClass).To(PointTo(Equal("class")))
+				Expect(output.LoadBalancerSourceRanges).To(ConsistOf("0.0.0.0/0"))
+				Expect(output.PublishNotReadyAddresses).To(PointTo(BeTrue()))
+				Expect(output.SessionAffinity).To(PointTo(Equal(corev1.ServiceAffinityNone)))
+				Expect(output.ClusterIP).To(c.expectedClusterIP)
+			})
+		}, Entry("NodePort Service", remoteServiceTestcase{
+			input:               getService(corev1.ServiceTypeNodePort, ""),
+			expectedClusterIP:   BeNil(),
+			expectedServiceType: Equal(corev1.ServiceTypeNodePort),
+		}), Entry("ClusterIP Service", remoteServiceTestcase{
+			input:               getService(corev1.ServiceTypeClusterIP, ""),
+			expectedClusterIP:   BeNil(),
+			expectedServiceType: Equal(corev1.ServiceTypeClusterIP),
+		}), Entry("Headless Service", remoteServiceTestcase{
+			input:               getService(corev1.ServiceTypeClusterIP, corev1.ClusterIPNone),
+			expectedClusterIP:   PointTo(Equal(corev1.ClusterIPNone)),
+			expectedServiceType: Equal(corev1.ServiceTypeClusterIP),
+		}))
 	})
 
 	Describe("the RemoteServicePorts function", func() {

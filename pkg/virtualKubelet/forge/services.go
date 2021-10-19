@@ -17,6 +17,7 @@ package forge
 import (
 	corev1 "k8s.io/api/core/v1"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	"k8s.io/utils/pointer"
 )
 
 // nodePortUnset -> the value representing an unset NodePort.
@@ -48,6 +49,10 @@ func RemoteServiceSpec(local *corev1.ServiceSpec) *corev1apply.ServiceSpecApplyC
 	remote.LoadBalancerSourceRanges = local.LoadBalancerSourceRanges
 	remote.PublishNotReadyAddresses = &local.PublishNotReadyAddresses
 	remote.SessionAffinity = &local.SessionAffinity
+
+	if local.ClusterIP == corev1.ClusterIPNone {
+		remote.ClusterIP = pointer.String(corev1.ClusterIPNone)
+	}
 
 	return remote
 }
