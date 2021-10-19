@@ -38,7 +38,7 @@ spec:
               containerPort: 6000
           args:
             - --run-as=liqo-network-manager
-            - --manager.cluster-id=$(CLUSTER-ID)
+            - --manager.cluster-id=$(CLUSTER_ID)
             - --manager.pod-cidr={{ .Values.networkManager.config.podCIDR }}
             - --manager.service-cidr={{ .Values.networkManager.config.serviceCIDR }}
             {{- if .Values.networkManager.config.reservedSubnets }}

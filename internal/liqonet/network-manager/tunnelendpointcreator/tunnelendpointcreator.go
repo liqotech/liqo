@@ -176,14 +176,16 @@ func (tec *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 	})
 	if err != nil {
 		klog.Error(err)
+		return err
 	}
 	remoteNetConfPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			liqoconst.ReplicationDestinationLabel: tec.ClusterID,
+			"destination": tec.ClusterID,
 		},
 	})
 	if err != nil {
 		klog.Error(err)
+		return err
 	}
 	filterPassthroughNetConf := predicate.Or(localNetConfPredicate, remoteNetConfPredicate)
 	return ctrl.NewControllerManagedBy(mgr).

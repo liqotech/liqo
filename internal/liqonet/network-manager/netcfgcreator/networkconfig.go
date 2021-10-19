@@ -74,7 +74,7 @@ func GetLocalNetworkConfig(ctx context.Context, c client.Client, clusterID, name
 // GetRemoteNetworkConfig returns the remote NetworkConfig associated with a given cluster ID.
 func GetRemoteNetworkConfig(ctx context.Context, c client.Client, clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{"destination": clusterID}
+	labels := client.MatchingLabels{consts.ReplicationOriginLabel: clusterID}
 
 	if err := c.List(ctx, networkConfigList, labels, client.InNamespace(namespace)); err != nil {
 		klog.Errorf("An error occurred while listing NetworkConfigs: %v", err)
