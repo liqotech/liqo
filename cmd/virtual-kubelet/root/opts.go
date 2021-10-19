@@ -34,11 +34,12 @@ const (
 	DefaultMetricsAddr                            = ":10255"
 	DefaultListenPort                             = 10250
 
-	DefaultPodWorkers           = 10
-	DefaultServiceWorkers       = 3
-	DefaultEndpointSliceWorkers = 10
-	DefaultConfigMapWorkers     = 3
-	DefaultSecretWorkers        = 3
+	DefaultPodWorkers                  = 10
+	DefaultServiceWorkers              = 3
+	DefaultEndpointSliceWorkers        = 10
+	DefaultConfigMapWorkers            = 3
+	DefaultSecretWorkers               = 3
+	DefaultPersistenVolumeClaimWorkers = 3
 
 	DefaultKubeletNamespace = "default"
 	DefaultLiqoIpamServer   = consts.NetworkManagerServiceName
@@ -60,12 +61,13 @@ type Opts struct {
 
 	MetricsAddr string
 
-	// Number of workers to use to handle pod and resource reflection
-	PodWorkers           uint
-	ServiceWorkers       uint
-	EndpointSliceWorkers uint
-	ConfigMapWorkers     uint
-	SecretWorkers        uint
+	// Number of workers to use to handle pod notifications and resource reflection
+	PodWorkers                  uint
+	ServiceWorkers              uint
+	EndpointSliceWorkers        uint
+	ConfigMapWorkers            uint
+	SecretWorkers               uint
+	PersistenVolumeClaimWorkers uint
 
 	InformerResyncPeriod     time.Duration
 	LiqoInformerResyncPeriod time.Duration
@@ -83,6 +85,10 @@ type Opts struct {
 
 	NodeExtraAnnotations argsutils.StringMap
 	NodeExtraLabels      argsutils.StringMap
+
+	EnableStorage              bool
+	VirtualStorageClassName    string
+	RemoteRealStorageClassName string
 }
 
 // SetDefaultOpts sets default options for unset values on the passed in option struct.
@@ -118,6 +124,10 @@ func SetDefaultOpts(c *Opts) error {
 
 	if c.SecretWorkers == 0 {
 		c.SecretWorkers = DefaultSecretWorkers
+	}
+
+	if c.PersistenVolumeClaimWorkers == 0 {
+		c.PersistenVolumeClaimWorkers = DefaultPersistenVolumeClaimWorkers
 	}
 
 	if c.ListenPort == 0 {

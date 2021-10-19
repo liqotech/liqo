@@ -16,18 +16,24 @@ package storageprovisioner
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	"github.com/onsi/gomega/types"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/scheme"
+	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
+	corev1listers "k8s.io/client-go/listers/core/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
@@ -53,8 +59,8 @@ var _ = Describe("Test Storage Provisioner", func() {
 		)
 
 		var (
-			forgeNode = func(name string, isVirtual bool) *v1.Node {
-				node := &v1.Node{
+			forgeNode = func(name string, isVirtual bool) *corev1.Node {
+				node := &corev1.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
 						Labels: map[string]string{},
@@ -68,16 +74,16 @@ var _ = Describe("Test Storage Provisioner", func() {
 				return node
 			}
 
-			forgePVC = func(name, namespace string) *v1.PersistentVolumeClaim {
-				pvc := &v1.PersistentVolumeClaim{
+			forgePVC = func(name, namespace string) *corev1.PersistentVolumeClaim {
+				pvc := &corev1.PersistentVolumeClaim{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
 					},
-					Spec: v1.PersistentVolumeClaimSpec{
-						Resources: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								v1.ResourceStorage: *resource.NewQuantity(10, resource.BinarySI),
+					Spec: corev1.PersistentVolumeClaimSpec{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: *resource.NewQuantity(10, resource.BinarySI),
 							},
 						},
 					},
@@ -130,8 +136,8 @@ var _ = Describe("Test Storage Provisioner", func() {
 		)
 
 		type provisionRealTestcase struct {
-			pvc                       *v1.PersistentVolumeClaim
-			node                      *v1.Node
+			pvc                       *corev1.PersistentVolumeClaim
+			node                      *corev1.Node
 			localRealStorageClassName string
 			pvName                    string
 			realPvName                string
@@ -150,8 +156,8 @@ var _ = Describe("Test Storage Provisioner", func() {
 							ObjectMeta: metav1.ObjectMeta{
 								Name: virtualStorageClassName,
 							},
-							ReclaimPolicy: func() *v1.PersistentVolumeReclaimPolicy {
-								policy := v1.PersistentVolumeReclaimDelete
+							ReclaimPolicy: func() *corev1.PersistentVolumeReclaimPolicy {
+								policy := corev1.PersistentVolumeReclaimDelete
 								return &policy
 							}(),
 						},
@@ -170,7 +176,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 				Expect(state).To(Equal(controller.ProvisioningInBackground))
 				Expect(pv).To(BeNil())
 
-				var realPvc v1.PersistentVolumeClaim
+				var realPvc corev1.PersistentVolumeClaim
 				Expect(k8sClient.Get(ctx, apitypes.NamespacedName{
 					Name:      c.pvc.GetName(),
 					Namespace: storageNamespace,
@@ -189,16 +195,16 @@ var _ = Describe("Test Storage Provisioner", func() {
 				Expect(pv).To(BeNil())
 
 				By("second attempt with real pvc provisioned")
-				realPv := &v1.PersistentVolume{
+				realPv := &corev1.PersistentVolume{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: c.realPvName,
 					},
-					Spec: v1.PersistentVolumeSpec{
-						Capacity: v1.ResourceList{
-							v1.ResourceStorage: *resource.NewQuantity(10, resource.BinarySI),
+					Spec: corev1.PersistentVolumeSpec{
+						Capacity: corev1.ResourceList{
+							corev1.ResourceStorage: *resource.NewQuantity(10, resource.BinarySI),
 						},
-						PersistentVolumeSource: v1.PersistentVolumeSource{
-							HostPath: &v1.HostPathVolumeSource{
+						PersistentVolumeSource: corev1.PersistentVolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/test",
 							},
 						},
@@ -233,6 +239,108 @@ var _ = Describe("Test Storage Provisioner", func() {
 				realPvName:                "real-pv-name-2",
 			}),
 		)
+
+		Context("ProvisionRemotePVC", func() {
+
+			const (
+				LocalNamespace  = "local-namespace"
+				RemoteNamespace = "remote-namespace"
+
+				virtualNodeName      = "virtual-node"
+				pvcName              = "test-remote"
+				pvName               = "pv-name"
+				realStorageClassName = "other-class"
+			)
+
+			var (
+				ctx context.Context
+
+				remotePersistentVolumeClaims        corev1listers.PersistentVolumeClaimNamespaceLister
+				remotePersistentVolumesClaimsClient corev1clients.PersistentVolumeClaimInterface
+			)
+
+			BeforeEach(func() {
+				ctx = context.Background()
+
+				_, err := testEnvClient.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: RemoteNamespace,
+					},
+				}, metav1.CreateOptions{})
+				if err != nil && !apierrors.IsAlreadyExists(err) {
+					Expect(err).ToNot(HaveOccurred())
+				}
+
+				factory := informers.NewSharedInformerFactory(testEnvClient, 10*time.Hour)
+				remote := factory.Core().V1().PersistentVolumeClaims()
+
+				remotePersistentVolumeClaims = remote.Lister().PersistentVolumeClaims(RemoteNamespace)
+				remotePersistentVolumesClaimsClient = testEnvClient.CoreV1().PersistentVolumeClaims(RemoteNamespace)
+
+				factory.Start(ctx.Done())
+			})
+
+			AfterEach(func() {
+				err := testEnvClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Delete(ctx, pvcName, metav1.DeleteOptions{})
+				Expect(client.IgnoreNotFound(err)).ToNot(HaveOccurred())
+			})
+
+			It("provision remote pvc", func() {
+				tester := func() error {
+					pv, state, err := ProvisionRemotePVC(ctx, controller.ProvisionOptions{
+						SelectedNode: &corev1.Node{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: virtualNodeName,
+							},
+						},
+						PVC: &corev1.PersistentVolumeClaim{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      pvcName,
+								Namespace: RemoteNamespace,
+							},
+							Spec: corev1.PersistentVolumeClaimSpec{
+								StorageClassName: pointer.String(virtualStorageClassName),
+								Resources: corev1.ResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceStorage: *resource.NewQuantity(10, resource.BinarySI),
+									},
+								},
+								AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+							},
+						},
+						PVName: pvName,
+						StorageClass: &storagev1.StorageClass{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: virtualStorageClassName,
+							},
+							ReclaimPolicy: func() *corev1.PersistentVolumeReclaimPolicy {
+								policy := corev1.PersistentVolumeReclaimDelete
+								return &policy
+							}(),
+						},
+					}, RemoteNamespace, realStorageClassName, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient)
+
+					if err != nil {
+						return err
+					}
+					Expect(state).To(Equal(controller.ProvisioningFinished))
+					Expect(pv).ToNot(BeNil())
+					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key).To(Equal(corev1.LabelHostname))
+					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Operator).To(Equal(corev1.NodeSelectorOpIn))
+					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values).To(ContainElement(virtualNodeName))
+
+					_, err = testEnvClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+					return err
+				}
+
+				By("the remote real PVC does not exists")
+				Eventually(tester).Should(Succeed())
+
+				By("the remote real PVC already exists, check idempotency")
+				Eventually(tester).Should(Succeed())
+			})
+
+		})
 
 	})
 

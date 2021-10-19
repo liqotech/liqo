@@ -32,6 +32,8 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 		"the number of endpointslice reflection workers")
 	flags.UintVar(&c.ConfigMapWorkers, "configmap-reflection-workers", c.ConfigMapWorkers, "the number of configmap reflection workers")
 	flags.UintVar(&c.SecretWorkers, "secret-reflection-workers", c.SecretWorkers, "the number of secret reflection workers")
+	flags.UintVar(&c.PersistenVolumeClaimWorkers, "persistentvolumeclaim-reflection-workers", c.PersistenVolumeClaimWorkers,
+		"the number of persistentvolumeclaim reflection workers")
 
 	flags.DurationVar(&c.InformerResyncPeriod, "full-resync-period", c.InformerResyncPeriod,
 		"how often to perform a full resync of pods between kubernetes and the provider")
@@ -48,6 +50,10 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 
 	flags.Var(&c.NodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flags.Var(&c.NodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
+
+	flags.BoolVar(&c.EnableStorage, "enable-storage", false, "Enable the Liqo storage reflection")
+	flags.StringVar(&c.VirtualStorageClassName, "virtual-storage-class-name", "liqo", "Name of the virtual storage class")
+	flags.StringVar(&c.RemoteRealStorageClassName, "remote-real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
 
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)

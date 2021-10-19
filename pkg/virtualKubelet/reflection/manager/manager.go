@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
@@ -40,11 +41,12 @@ var _ Manager = (*manager)(nil)
 type manager struct {
 	sync.Mutex
 
-	local      kubernetes.Interface
-	remote     kubernetes.Interface
-	localLiqo  liqoclient.Interface
-	remoteLiqo liqoclient.Interface
-	resync     time.Duration
+	local            kubernetes.Interface
+	remote           kubernetes.Interface
+	localLiqo        liqoclient.Interface
+	remoteLiqo       liqoclient.Interface
+	resync           time.Duration
+	eventBroadcaster record.EventBroadcaster
 
 	reflectors              []Reflector
 	localPodInformerFactory informers.SharedInformerFactory
@@ -54,18 +56,20 @@ type manager struct {
 }
 
 // New returns a new manager to start the reflection towards a remote cluster.
-func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.Interface, resync time.Duration) Manager {
+func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.Interface, resync time.Duration,
+	eb record.EventBroadcaster) Manager {
 	// Configure the field selector to retrieve only the pods scheduled on the current virtual node.
 	localPodTweakListOptions := func(opts *metav1.ListOptions) {
 		opts.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", forge.LiqoNodeName).String()
 	}
 
 	return &manager{
-		local:      local,
-		remote:     remote,
-		localLiqo:  localLiqo,
-		remoteLiqo: remoteLiqo,
-		resync:     resync,
+		local:            local,
+		remote:           remote,
+		localLiqo:        localLiqo,
+		remoteLiqo:       remoteLiqo,
+		resync:           resync,
+		eventBroadcaster: eb,
 
 		reflectors: make([]Reflector, 0),
 		localPodInformerFactory: informers.NewSharedInformerFactoryWithOptions(local, resync,
@@ -145,7 +149,7 @@ func (m *manager) StartNamespace(local, remote string) {
 		opts := options.NewNamespaced().
 			WithLocal(local, m.local, localFactory).WithLiqoLocal(m.localLiqo, localLiqoFactory).
 			WithRemote(remote, m.remote, remoteFactory).WithLiqoRemote(m.remoteLiqo, remoteLiqoFactory).
-			WithReadinessFunc(func() bool { return ready })
+			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster)
 		reflector.StartNamespace(opts)
 	}
 

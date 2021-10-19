@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
@@ -40,6 +41,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/storage"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
@@ -59,12 +61,16 @@ type InitConfig struct {
 	LiqoIpamServer       string
 	InformerResyncPeriod time.Duration
 
-	PodWorkers           uint
-	ServiceWorkers       uint
-	EndpointSliceWorkers uint
+	PodWorkers                  uint
+	ServiceWorkers              uint
+	EndpointSliceWorkers        uint
+	PersistenVolumeClaimWorkers uint
+	ConfigMapWorkers            uint
+	SecretWorkers               uint
 
-	ConfigMapWorkers uint
-	SecretWorkers    uint
+	EnableStorage              bool
+	VirtualStorageClassName    string
+	RemoteRealStorageClassName string
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -76,7 +82,7 @@ type LiqoProvider struct {
 }
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
-func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error) {
+func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadcaster) (*LiqoProvider, error) {
 	forge.Init(cfg.HomeClusterID, cfg.RemoteClusterID, cfg.NodeName, cfg.NodeIP)
 	homeClient := kubernetes.NewForConfigOrDie(cfg.HomeConfig)
 	homeLiqoClient := liqoclient.NewForConfigOrDie(cfg.HomeConfig)
@@ -115,14 +121,19 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 
 	// TODO: make the resync period configurable. This is currently hardcoded since the one specified as part of
 	// the configuration needs to be very low to avoid issues with the legacy reflection.
-	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, 10*time.Hour)
+	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, 10*time.Hour, eb)
 	podreflector := workload.NewPodReflector(remoteRestConfig, foreignMetricsClient.MetricsV1beta1().PodMetricses, ipamClient, cfg.PodWorkers)
 	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers)).
 		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
 		With(configuration.NewSecretReflector(cfg.SecretWorkers)).
-		With(podreflector).Start(ctx)
+		With(podreflector)
+	if cfg.EnableStorage {
+		reflectionManager.With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
+			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName))
+	}
+	reflectionManager.Start(ctx)
 
 	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID,
 		cfg.RemoteClusterID, cfg.Namespace, reflectionManager)
