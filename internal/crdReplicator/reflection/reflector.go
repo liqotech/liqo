@@ -97,8 +97,9 @@ func (r *Reflector) Stop() error {
 			return err
 		}
 	}
-
-	r.cancel()
+	if r.cancel != nil {
+		r.cancel()
+	}
 	return nil
 }
 
@@ -213,8 +214,9 @@ func (r *Reflector) eventHandlers(gvr schema.GroupVersionResource) cache.Resourc
 	eh := func(obj interface{}) {
 		metadata, err := meta.Accessor(obj)
 		utilruntime.Must(err)
-
-		r.workqueue.Add(item{gvr: gvr, name: metadata.GetName()})
+		if r.localNamespace == metadata.GetNamespace() {
+			r.workqueue.Add(item{gvr: gvr, name: metadata.GetName()})
+		}
 	}
 
 	return cache.ResourceEventHandlerFuncs{
