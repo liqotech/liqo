@@ -35,6 +35,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -214,7 +215,15 @@ func (r *Reflector) eventHandlers(gvr schema.GroupVersionResource) cache.Resourc
 	eh := func(obj interface{}) {
 		metadata, err := meta.Accessor(obj)
 		utilruntime.Must(err)
-		if r.localNamespace == metadata.GetNamespace() {
+		if gvr.Resource == netv1alpha1.NetworkConfigGroupResource.Resource {
+			destination, found := metadata.GetLabels()["destination"]
+			if !found {
+				klog.Errorf("resource %s does not have a destination label", metadata.GetName())
+			}
+			if destination == r.remoteClusterID {
+				r.workqueue.Add(item{gvr: gvr, name: metadata.GetName()})
+			}
+		} else {
 			r.workqueue.Add(item{gvr: gvr, name: metadata.GetName()})
 		}
 	}

@@ -294,7 +294,7 @@ func (tec *TunnelEndpointCreator) enforceRemoteNetConfigMeta(ctx context.Context
 
 func (tec *TunnelEndpointCreator) enforceRemoteNetConfigStatus(ctx context.Context, netcfg *netv1alpha1.NetworkConfig) error {
 	tracer := trace.FromContext(ctx)
-	clusterID := netcfg.Spec.ClusterID
+	clusterID := netcfg.Labels[liqoconst.ReplicationOriginLabel]
 
 	// Get the CIDR remappings
 	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netcfg.Spec.PodCIDR, netcfg.Spec.ExternalCIDR, clusterID)

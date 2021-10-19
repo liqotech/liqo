@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
@@ -84,11 +85,20 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 	localUnstr := &unstructured.Unstructured{Object: tmp}
 
 	// Check if the resource has the expected destination cluster
-	if remoteClusterID, ok := localUnstr.GetLabels()[consts.ReplicationDestinationLabel]; !ok || remoteClusterID != r.remoteClusterID {
-		klog.Warningf("[%v] Resource %v with name %q has a mismatching destination cluster ID: %v",
-			r.remoteClusterID, key.gvr, key.name, remoteClusterID)
-		// Do not return an error, since retrying would be pointless
-		return nil
+	if key.gvr.Resource == netv1alpha1.NetworkConfigGroupResource.Resource {
+		if remoteClusterID, ok := localUnstr.GetLabels()["destination"]; !ok || remoteClusterID != r.remoteClusterID {
+			klog.Warningf("[%v] Resource %v with name %q has a mismatching destination cluster ID: %v",
+				r.remoteClusterID, key.gvr, key.name, remoteClusterID)
+			// Do not return an error, since retrying would be pointless
+			return nil
+		}
+	} else {
+		if remoteClusterID, ok := localUnstr.GetLabels()[consts.ReplicationDestinationLabel]; !ok || remoteClusterID != r.remoteClusterID {
+			klog.Warningf("[%v] Resource %v with name %q has a mismatching destination cluster ID: %v",
+				r.remoteClusterID, key.gvr, key.name, remoteClusterID)
+			// Do not return an error, since retrying would be pointless
+			return nil
+		}
 	}
 	tracer.Step("Retrieved the local object")
 
