@@ -155,7 +155,7 @@ func translateContainer(container corev1.Container, volumes []corev1.VolumeMount
 func forgeVolumes(volumesIn []corev1.Volume) []corev1.Volume {
 	volumesOut := make([]corev1.Volume, 0)
 	for _, v := range volumesIn {
-		if v.ConfigMap != nil || v.EmptyDir != nil || v.DownwardAPI != nil || v.Projected != nil {
+		if v.ConfigMap != nil || v.EmptyDir != nil || v.DownwardAPI != nil || v.Projected != nil || v.PersistentVolumeClaim != nil {
 			volumesOut = append(volumesOut, v)
 		}
 		// copy all volumes of type Secret except for the default token

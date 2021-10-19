@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
@@ -80,6 +81,7 @@ var _ = Describe("Options", func() {
 			Expect(opts.RemoteLiqoClient).To(BeNil())
 			Expect(opts.RemoteFactory).To(BeNil())
 			Expect(opts.RemoteLiqoFactory).To(BeNil())
+			Expect(opts.EventBroadcaster).To(BeNil())
 			Expect(opts.HandlerFactory).To(BeNil())
 			Expect(opts.Ready).To(BeNil())
 		})
@@ -95,6 +97,7 @@ var _ = Describe("Options", func() {
 			liqoClient  liqoclient.Interface
 			factory     informers.SharedInformerFactory
 			liqoFactory liqoinformers.SharedInformerFactory
+			broadcaster record.EventBroadcaster
 		)
 
 		BeforeEach(func() {
@@ -102,6 +105,7 @@ var _ = Describe("Options", func() {
 			liqoClient = liqoclientfake.NewSimpleClientset()
 			factory = informers.NewSharedInformerFactory(client, 10*time.Hour)
 			liqoFactory = liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
+			broadcaster = record.NewBroadcaster()
 		})
 
 		JustBeforeEach(func() { original = options.NewNamespaced() })
@@ -122,6 +126,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.RemoteLiqoClient).To(BeNil())
 				Expect(opts.RemoteFactory).To(BeNil())
 				Expect(opts.RemoteLiqoFactory).To(BeNil())
+				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
 			})
@@ -143,6 +148,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.RemoteLiqoClient).To(BeNil())
 				Expect(opts.RemoteFactory).To(BeNil())
 				Expect(opts.RemoteLiqoFactory).To(BeNil())
+				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
 			})
@@ -164,6 +170,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.LocalLiqoFactory).To(BeNil())
 				Expect(opts.RemoteLiqoClient).To(BeNil())
 				Expect(opts.RemoteLiqoFactory).To(BeNil())
+				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
 			})
@@ -185,6 +192,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.LocalLiqoFactory).To(BeNil())
 				Expect(opts.RemoteClient).To(BeNil())
 				Expect(opts.RemoteFactory).To(BeNil())
+				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
 			})
@@ -210,6 +218,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.RemoteLiqoClient).To(BeNil())
 				Expect(opts.RemoteFactory).To(BeNil())
 				Expect(opts.RemoteLiqoFactory).To(BeNil())
+				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
 			})
 		})
@@ -233,7 +242,30 @@ var _ = Describe("Options", func() {
 				Expect(opts.RemoteLiqoClient).To(BeNil())
 				Expect(opts.RemoteFactory).To(BeNil())
 				Expect(opts.RemoteLiqoFactory).To(BeNil())
+				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
+			})
+		})
+
+		Describe("The WithEventBroadcaster function", func() {
+			JustBeforeEach(func() { opts = original.WithEventBroadcaster(broadcaster) })
+
+			It("should return a non-nil pointer", func() { Expect(opts).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(opts).To(BeIdenticalTo(original)) })
+			It("should correctly set the event broadcaster value", func() { Expect(opts.EventBroadcaster).To(BeIdenticalTo(broadcaster)) })
+			It("should leave the other fields unset", func() {
+				Expect(opts.LocalNamespace).To(BeEmpty())
+				Expect(opts.RemoteNamespace).To(BeEmpty())
+				Expect(opts.LocalClient).To(BeNil())
+				Expect(opts.LocalFactory).To(BeNil())
+				Expect(opts.LocalLiqoClient).To(BeNil())
+				Expect(opts.LocalFactory).To(BeNil())
+				Expect(opts.RemoteClient).To(BeNil())
+				Expect(opts.RemoteLiqoClient).To(BeNil())
+				Expect(opts.RemoteFactory).To(BeNil())
+				Expect(opts.RemoteLiqoFactory).To(BeNil())
+				Expect(opts.HandlerFactory).To(BeNil())
+				Expect(opts.Ready).To(BeNil())
 			})
 		})
 	})

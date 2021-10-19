@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/internal/utils/errdefs"
@@ -90,14 +91,20 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		LiqoIpamServer:       c.LiqoIpamServer,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 
-		PodWorkers:           c.PodWorkers,
-		ServiceWorkers:       c.ServiceWorkers,
-		EndpointSliceWorkers: c.EndpointSliceWorkers,
-		ConfigMapWorkers:     c.ConfigMapWorkers,
-		SecretWorkers:        c.SecretWorkers,
+		PodWorkers:                  c.PodWorkers,
+		ServiceWorkers:              c.ServiceWorkers,
+		EndpointSliceWorkers:        c.EndpointSliceWorkers,
+		ConfigMapWorkers:            c.ConfigMapWorkers,
+		SecretWorkers:               c.SecretWorkers,
+		PersistenVolumeClaimWorkers: c.PersistenVolumeClaimWorkers,
+
+		EnableStorage:              c.EnableStorage,
+		VirtualStorageClassName:    c.VirtualStorageClassName,
+		RemoteRealStorageClassName: c.RemoteRealStorageClassName,
 	}
 
-	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg)
+	eb := record.NewBroadcaster()
+	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg, eb)
 	if err != nil {
 		return err
 	}

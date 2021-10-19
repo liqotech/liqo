@@ -21,6 +21,7 @@ import (
 	corev1informers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
@@ -62,6 +63,8 @@ type NamespacedOpts struct {
 	RemoteFactory     informers.SharedInformerFactory
 	LocalLiqoFactory  liqoinformers.SharedInformerFactory
 	RemoteLiqoFactory liqoinformers.SharedInformerFactory
+
+	EventBroadcaster record.EventBroadcaster
 
 	Ready          func() bool
 	HandlerFactory func(Keyer) cache.ResourceEventHandler
@@ -111,5 +114,11 @@ func (ro *NamespacedOpts) WithHandlerFactory(handler func(Keyer) cache.ResourceE
 // WithReadinessFunc configures the readiness function of the NamespacedOpts.
 func (ro *NamespacedOpts) WithReadinessFunc(ready func() bool) *NamespacedOpts {
 	ro.Ready = ready
+	return ro
+}
+
+// WithEventBroadcaster configures the event broadcaster of the NamespacedOpts.
+func (ro *NamespacedOpts) WithEventBroadcaster(broadcaster record.EventBroadcaster) *NamespacedOpts {
+	ro.EventBroadcaster = broadcaster
 	return ro
 }

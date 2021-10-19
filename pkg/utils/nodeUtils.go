@@ -56,3 +56,13 @@ func MergeNodeSelector(ns1, ns2 *corev1.NodeSelector) corev1.NodeSelector {
 	}
 	return mergedNodeSelector
 }
+
+// GetNodeClusterID returns the clusterID given a virtual node.
+func GetNodeClusterID(selectedNode *corev1.Node) (string, bool) {
+	remoteClusterID, ok := selectedNode.Labels[liqoconst.RemoteClusterID]
+	if !ok || remoteClusterID == "" {
+		return "", false
+	}
+
+	return remoteClusterID, true
+}

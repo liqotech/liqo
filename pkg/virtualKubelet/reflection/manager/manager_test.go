@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
@@ -40,6 +41,7 @@ var _ = Describe("Manager tests", func() {
 		remoteClient     kubernetes.Interface
 		localLiqoClient  liqoclient.Interface
 		remoteLiqoClient liqoclient.Interface
+		broadcaster      record.EventBroadcaster
 
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -51,10 +53,13 @@ var _ = Describe("Manager tests", func() {
 		remoteClient = fake.NewSimpleClientset()
 		localLiqoClient = liqoclientfake.NewSimpleClientset()
 		remoteLiqoClient = liqoclientfake.NewSimpleClientset()
+		broadcaster = record.NewBroadcaster()
 	})
 	AfterEach(func() { cancel() })
 
-	JustBeforeEach(func() { mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour) })
+	JustBeforeEach(func() {
+		mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour, broadcaster)
+	})
 
 	Context("a new manager is created", func() {
 		It("should return a non nil manager", func() { Expect(mgr).ToNot(BeNil()) })
@@ -64,6 +69,7 @@ var _ = Describe("Manager tests", func() {
 			Expect(mgr.(*manager).localLiqo).To(Equal(localLiqoClient))
 			Expect(mgr.(*manager).remoteLiqo).To(Equal(remoteLiqoClient))
 			Expect(mgr.(*manager).resync).To(Equal(1 * time.Hour))
+			Expect(mgr.(*manager).eventBroadcaster).To(Equal(broadcaster))
 
 			Expect(mgr.(*manager).reflectors).ToNot(BeNil())
 			Expect(mgr.(*manager).localPodInformerFactory).ToNot(BeNil())
@@ -115,6 +121,7 @@ var _ = Describe("Manager tests", func() {
 						Expect(opts.RemoteLiqoClient).To(Equal(remoteLiqoClient))
 						Expect(opts.RemoteFactory).ToNot(BeNil())
 						Expect(opts.RemoteLiqoFactory).ToNot(BeNil())
+						Expect(opts.EventBroadcaster).To(Equal(broadcaster))
 						Expect(opts.Ready).ToNot(BeNil())
 						Expect(opts.HandlerFactory).To(BeNil())
 					})
