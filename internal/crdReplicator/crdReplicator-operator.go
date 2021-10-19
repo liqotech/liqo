@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -236,7 +237,6 @@ func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config
 	} else {
 		reflectorSet.PublicToTenant.Start(ctx)
 		reflectorSet.TenantToTenant.Start(ctx)
-		reflectorSet.TenantToPublic.Start(ctx)
 	}
 
 	c.Reflectors[remoteClusterID] = reflectorSet
@@ -253,7 +253,7 @@ func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterI
 	phase := c.getPeeringPhase(remoteClusterID)
 	for i := range c.RegisteredResources {
 		res := &c.RegisteredResources[i]
-		if reflectorSet.PublicToTenant != nil {
+		if reflectorSet.PublicToTenant != nil && res.GroupVersionResource != netv1alpha1.NetworkConfigGroupVersionResource {
 			if !deleting && isReplicationEnabled(phase, res) && !reflectorSet.PublicToTenant.ResourceStarted(res) {
 				reflectorSet.PublicToTenant.StartForResource(ctx, res)
 			} else if !isReplicationEnabled(phase, res) && reflectorSet.PublicToTenant.ResourceStarted(res) {
@@ -271,7 +271,7 @@ func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterI
 				}
 			}
 		}
-		if reflectorSet.TenantToPublic != nil {
+		if reflectorSet.TenantToPublic != nil && res.GroupVersionResource != netv1alpha1.NetworkConfigGroupVersionResource {
 			if !deleting && isReplicationEnabled(phase, res) && !reflectorSet.TenantToPublic.ResourceStarted(res) {
 				reflectorSet.TenantToPublic.StartForResource(ctx, res)
 			} else if !isReplicationEnabled(phase, res) && reflectorSet.TenantToPublic.ResourceStarted(res) {
