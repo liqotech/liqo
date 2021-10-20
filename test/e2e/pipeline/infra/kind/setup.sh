@@ -24,6 +24,29 @@ KIND="${BINDIR}/kind"
 
 export DISABLE_KINDNET=false
 
+echo Check local registry ...
+regRunning="$(docker inspect -f '{{.State.Running}}' "${REGISTRY_NAME}" 2>/dev/null || true)"
+regStarted=0
+if [ "${regRunning}" == 'true' ]; then
+  echo -e " Registry is running 🎁"
+else
+  echo -e " No registry running, start ..."
+  mkdir -p "${REGISTRY_STORAGE_PATH}"
+  docker run \
+    --detach \
+    --restart always \
+    --publish "${REGISTRY_PORT}:5000" \
+    --name "${REGISTRY_NAME}" \
+    --volume "${REGISTRY_STORAGE_PATH}":/var/lib/registry \
+    --env REGISTRY_STORAGE_DELETE_ENABLED=true \
+    --env REGISTRY_PROXY_USERNAME="${DOCKER_USERNAME}" \
+    --env REGISTRY_PROXY_PASSWORD="${DOCKER_PASSWORD}" \
+    registry:2
+  echo -e " Registry started 🎁"
+  # Set flag to connect the registry container to a "kind" network later.
+  regStarted=1
+fi
+
 if [[ ${CNI} != "kindnet" ]]; then
 	export DISABLE_KINDNET=true
 fi
