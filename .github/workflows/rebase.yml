@@ -38,7 +38,7 @@ jobs:
                     }
               },
             "repository": {
-                 "full_name": ${{ github.repository }}
+                "full_name": "${{ github.repository }}"
              },
             "slash_command": {
                     "command": "test"
