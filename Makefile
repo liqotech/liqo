@@ -172,7 +172,9 @@ endif
 
 
 # Set the steps for the e2e tests
-E2E_TARGETS = e2e-infra \
+E2E_TARGETS = e2e-dir \
+	e2e-liqoctl \
+	e2e-infra \
 	installer/liqoctl/setup \
 	installer/liqoctl/peer \
 	e2e/postinstall \
@@ -203,7 +205,10 @@ e2e: $(E2E_TARGETS)
 e2e-dir:
 	mkdir -p "${BINDIR}"
 
-e2e-infra: e2e-dir
+e2e-liqoctl:
+	go build -o "${BINDIR}/liqoctl" ./cmd/liqoctl
+
+e2e-infra:
 	${PWD}/test/e2e/pipeline/infra/${INFRA}/pre-requirements.sh
 	${PWD}/test/e2e/pipeline/infra/${INFRA}/clean.sh
 	${PWD}/test/e2e/pipeline/infra/${INFRA}/setup.sh
