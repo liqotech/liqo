@@ -29,6 +29,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -46,6 +47,7 @@ import (
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	searchdomainoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/search-domain-operator"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
+	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -145,6 +147,12 @@ func main() {
 	flag.Var(&kubeletRAMLimits, "kubelet-ram-limits", "RAM limits assigned to the Virtual Kubelet Pod")
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
+
+	// Storage Provisioner parameters
+	enableStorage := flag.Bool("enable-storage", false, "enable the liqo virtual storage class")
+	virtualStorageClassName := flag.String("virtual-storage-class-name", "liqo", "Name of the virtual storage class")
+	realStorageClassName := flag.String("real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
+	storageNamespace := flag.String("storage-namespace", "liqo-storage", "Namespace where the liqo storage-related resources are stored")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -338,6 +346,21 @@ func main() {
 
 	var wg = &sync.WaitGroup{}
 	broadcaster.StartBroadcaster(ctx, wg)
+
+	if enableStorage != nil && *enableStorage {
+		liqoProvisioner := liqostorageprovisioner.NewLiqoLocalStorageProvisioner(mgr.GetClient(),
+			*virtualStorageClassName, *storageNamespace, *realStorageClassName)
+
+		provisionController := controller.NewProvisionController(clientset, consts.StorageProvisionerName, liqoProvisioner,
+			controller.LeaderElection(false),
+		)
+
+		if err = mgr.Add(liqostorageprovisioner.StorageControllerRunnable{
+			Ctrl: provisionController,
+		}); err != nil {
+			klog.Fatal(err)
+		}
+	}
 
 	klog.Info("starting manager as controller manager")
 	if err := mgr.Start(ctx); err != nil {

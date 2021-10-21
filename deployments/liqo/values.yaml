@@ -210,7 +210,9 @@ virtualKubelet:
 storage:
   enable: false
   # -- name to assign to the liqo virtual storage class
-  storageClassName: liqo
+  virtualStorageClassName: liqo
+  # -- name of the real storage class to use in the local cluster
+  realStorageClassName: ""
   # -- namespace where liqo will deploy specific PVCs
   storageNamespace: liqo-storage
 

@@ -42,6 +42,12 @@ spec:
           - --kubelet-image={{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
           - --init-kubelet-image={{ .Values.virtualKubelet.initContainer.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
           - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
+          - --enable-storage={{ .Values.storage.enable }}
+          {{- if .Values.storage.enable }}
+          - --virtual-storage-class-name={{ .Values.storage.virtualStorageClassName }}
+          - --real-storage-class-name={{ .Values.storage.realStorageClassName }}
+          - --storage-namespace={{ .Values.storage.storageNamespace }}
+          {{- end }}
           {{- if .Values.discovery.config.clusterName }}
           - --cluster-name={{ .Values.discovery.config.clusterName }}
           {{- end }}

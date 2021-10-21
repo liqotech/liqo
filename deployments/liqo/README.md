@@ -72,8 +72,9 @@
 | route.pod.extraArgs | list | `[]` | route pod extra arguments |
 | route.pod.labels | object | `{}` | route pod labels |
 | storage.enable | bool | `false` |  |
-| storage.storageClassName | string | `"liqo"` | name to assign to the liqo virtual storage class |
+| storage.realStorageClassName | string | `""` | name of the real storage class to use in the local cluster |
 | storage.storageNamespace | string | `"liqo-storage"` | namespace where liqo will deploy specific PVCs |
+| storage.virtualStorageClassName | string | `"liqo"` | name to assign to the liqo virtual storage class |
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
 | virtualKubelet.extra.annotations | object | `{}` | virtual kubelet pod extra annotations |
 | virtualKubelet.extra.args | list | `[]` | virtual kubelet pod extra arguments |
