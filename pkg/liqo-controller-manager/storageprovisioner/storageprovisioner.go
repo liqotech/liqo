@@ -19,6 +19,9 @@ import (
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 )
 
+// +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims;persistentvolumes,verbs=get;list;watch;create;delete;update
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
+
 type liqoLocalStorageProvisioner struct {
 	client                  client.Client
 	virtualStorageClassName string
