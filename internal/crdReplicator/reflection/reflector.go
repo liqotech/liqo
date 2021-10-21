@@ -136,8 +136,10 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 		var tweakListOptions func(opts *metav1.ListOptions)
 		if r.localNamespace == "liqo-public" {
 			tweakListOptions = func(opts *metav1.ListOptions) { opts.LabelSelector = r.localPassthroughLabelSelector().String() }
-		} else {
+		} else if r.remoteNamespace != "liqo-public" {
 			tweakListOptions = func(opts *metav1.ListOptions) { opts.LabelSelector = r.remoteLabelSelector().String() }
+		} else {
+			tweakListOptions = func(opts *metav1.ListOptions) { opts.LabelSelector = r.localPassthroughLabelSelector().String() }
 		}
 		factoryRemote = dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.remoteClient, r.manager.resync, r.remoteNamespace, tweakListOptions)
 		informer = factoryRemote.ForResource(gvr)
