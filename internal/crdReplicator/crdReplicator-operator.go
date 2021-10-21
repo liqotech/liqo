@@ -253,7 +253,7 @@ func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterI
 	phase := c.getPeeringPhase(remoteClusterID)
 	for i := range c.RegisteredResources {
 		res := &c.RegisteredResources[i]
-		if reflectorSet.PublicToTenant != nil && res.GroupVersionResource == netv1alpha1.NetworkConfigGroupVersionResource && phase == consts.PeeringPhaseInduced {
+		if reflectorSet.PublicToTenant != nil && res.GroupVersionResource == netv1alpha1.NetworkConfigGroupVersionResource {
 			if !deleting && isReplicationEnabled(phase, res) && !reflectorSet.PublicToTenant.ResourceStarted(res) {
 				reflectorSet.PublicToTenant.StartForResource(ctx, res)
 			} else if !isReplicationEnabled(phase, res) && reflectorSet.PublicToTenant.ResourceStarted(res) {

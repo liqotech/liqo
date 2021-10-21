@@ -32,6 +32,7 @@ type Resource struct {
 	PeeringPhase consts.PeeringPhase
 	// Ownership indicates the ownership over this resource.
 	Ownership consts.OwnershipType
+	Duplicate bool
 }
 
 // GetResourcesToReplicate returns the list of resources to be replicated through the CRD replicator.
@@ -51,6 +52,7 @@ func GetResourcesToReplicate() []Resource {
 			GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
 			PeeringPhase:         consts.PeeringPhaseEstablished,
 			Ownership:            consts.OwnershipShared,
+			Duplicate:            true,
 		},
 		{
 			GroupVersionResource: discoveryv1alpha1.NeighborhoodGroupVersionResource,

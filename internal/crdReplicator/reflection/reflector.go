@@ -123,18 +123,40 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 
 	// Create the informer towards the remote cluster
 	klog.Infof("[%v] Starting reflection of %v", r.remoteClusterID, gvr)
-	tweakListOptions := func(opts *metav1.ListOptions) { opts.LabelSelector = r.remoteLabelSelector().String() }
-	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.remoteClient, r.manager.resync, r.remoteNamespace, tweakListOptions)
-	informer := factory.ForResource(gvr)
-	informer.Informer().AddEventHandler(r.eventHandlers(gvr))
+
+	var local cache.GenericNamespaceLister
+	var remote cache.GenericNamespaceLister
+	if resource.Duplicate {
+		factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.manager.client, r.manager.resync, r.localNamespace, nil)
+		informer := factory.ForResource(gvr)
+		informer.Informer().AddEventHandler(r.eventHandlers(gvr))
+		local = informer.Lister().ByNamespace(r.localNamespace)
+		var tweakListOptions func(opts *metav1.ListOptions)
+		if r.localNamespace == "liqo-public" {
+			tweakListOptions = func(opts *metav1.ListOptions) { opts.LabelSelector = r.localPassthroughLabelSelector().String() }
+		} else {
+			tweakListOptions = func(opts *metav1.ListOptions) { opts.LabelSelector = r.remoteLabelSelector().String() }
+		}
+		factory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.remoteClient, r.manager.resync, r.remoteNamespace, tweakListOptions)
+		informer = factory.ForResource(gvr)
+		informer.Informer().AddEventHandler(r.eventHandlers(gvr))
+		remote = informer.Lister().ByNamespace(r.remoteNamespace)
+	} else {
+		local = r.manager.listers[gvr].ByNamespace(r.localNamespace)
+		tweakListOptions := func(opts *metav1.ListOptions) { opts.LabelSelector = r.remoteLabelSelector().String() }
+		factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.remoteClient, r.manager.resync, r.remoteNamespace, tweakListOptions)
+		informer := factory.ForResource(gvr)
+		informer.Informer().AddEventHandler(r.eventHandlers(gvr))
+		remote = informer.Lister().ByNamespace(r.remoteNamespace)
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	r.resources[gvr] = &reflectedResource{
 		gvr:       gvr,
 		ownership: resource.Ownership,
 
-		local:  r.manager.listers[gvr].ByNamespace(r.localNamespace),
-		remote: informer.Lister().ByNamespace(r.remoteNamespace),
+		local:  local,
+		remote: remote,
 
 		cancel: cancel,
 	}
@@ -243,6 +265,12 @@ func (r *Reflector) remoteLabelSelector() labels.Selector {
 	req2, err := labels.NewRequirement(consts.ReplicationStatusLabel, selection.Equals, []string{strconv.FormatBool(true)})
 	utilruntime.Must(err)
 	return labels.NewSelector().Add(*req1, *req2)
+}
+
+func (r *Reflector) localPassthroughLabelSelector() labels.Selector {
+	req, err := labels.NewRequirement("passthrough", selection.Equals, []string{strconv.FormatBool(true)})
+	utilruntime.Must(err)
+	return labels.NewSelector().Add(*req)
 }
 
 // ReplicatedResourcesLabelSelector is an helper function which returns a label selector to list all the replicated resources.
