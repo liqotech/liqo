@@ -126,9 +126,11 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 
 	var local cache.GenericNamespaceLister
 	var remote cache.GenericNamespaceLister
+	var factoryRemote dynamicinformer.DynamicSharedInformerFactory
+	var factoryLocal dynamicinformer.DynamicSharedInformerFactory
 	if resource.Duplicate {
-		factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.manager.client, r.manager.resync, r.localNamespace, nil)
-		informer := factory.ForResource(gvr)
+		factoryLocal = dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.manager.client, r.manager.resync, r.localNamespace, nil)
+		informer := factoryLocal.ForResource(gvr)
 		informer.Informer().AddEventHandler(r.eventHandlers(gvr))
 		local = informer.Lister().ByNamespace(r.localNamespace)
 		var tweakListOptions func(opts *metav1.ListOptions)
@@ -137,15 +139,15 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 		} else {
 			tweakListOptions = func(opts *metav1.ListOptions) { opts.LabelSelector = r.remoteLabelSelector().String() }
 		}
-		factory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.remoteClient, r.manager.resync, r.remoteNamespace, tweakListOptions)
-		informer = factory.ForResource(gvr)
+		factoryRemote = dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.remoteClient, r.manager.resync, r.remoteNamespace, tweakListOptions)
+		informer = factoryRemote.ForResource(gvr)
 		informer.Informer().AddEventHandler(r.eventHandlers(gvr))
 		remote = informer.Lister().ByNamespace(r.remoteNamespace)
 	} else {
 		local = r.manager.listers[gvr].ByNamespace(r.localNamespace)
 		tweakListOptions := func(opts *metav1.ListOptions) { opts.LabelSelector = r.remoteLabelSelector().String() }
-		factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.remoteClient, r.manager.resync, r.remoteNamespace, tweakListOptions)
-		informer := factory.ForResource(gvr)
+		factoryRemote = dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.remoteClient, r.manager.resync, r.remoteNamespace, tweakListOptions)
+		informer := factoryRemote.ForResource(gvr)
 		informer.Informer().AddEventHandler(r.eventHandlers(gvr))
 		remote = informer.Lister().ByNamespace(r.remoteNamespace)
 	}
@@ -167,12 +169,20 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 		defer tracer.LogIfLong(traceutils.LongThreshold())
 
 		// Start the informer, and wait for its caches to sync
-		factory.Start(ctx.Done())
-		synced := factory.WaitForCacheSync(ctx.Done())
+		factoryRemote.Start(ctx.Done())
+		synced := factoryRemote.WaitForCacheSync(ctx.Done())
 
 		if !synced[gvr] {
 			// The context was closed before the cache was ready, let abort the setup
 			return
+		}
+		if resource.Duplicate {
+			factoryLocal.Start(ctx.Done())
+			synced := factoryLocal.WaitForCacheSync(ctx.Done())
+			if !synced[gvr] {
+				// The context was closed before the cache was ready, let abort the setup
+				return
+			}
 		}
 
 		// The informer has synced, and we are now ready to start te replication
@@ -264,7 +274,9 @@ func (r *Reflector) remoteLabelSelector() labels.Selector {
 	utilruntime.Must(err)
 	req2, err := labels.NewRequirement(consts.ReplicationStatusLabel, selection.Equals, []string{strconv.FormatBool(true)})
 	utilruntime.Must(err)
-	return labels.NewSelector().Add(*req1, *req2)
+	req3, err := labels.NewRequirement("passthrough", selection.DoesNotExist, nil)
+	utilruntime.Must(err)
+	return labels.NewSelector().Add(*req1, *req2, *req3)
 }
 
 func (r *Reflector) localPassthroughLabelSelector() labels.Selector {
