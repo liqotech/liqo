@@ -187,10 +187,12 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 		netcfg.Labels = map[string]string{}
 	}
 	netcfg.Labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(true)
-	netcfg.Labels[consts.ReplicationDestinationLabel] = clusterID
 	netcfg.Labels["destination"] = clusterID
 	if fc.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
 		netcfg.Labels["passthrough"] = "true"
+		netcfg.Labels[consts.ReplicationDestinationLabel] = fc.Spec.InducedPeering.OriginClusterIdentity.ClusterID
+	} else {
+		netcfg.Labels[consts.ReplicationDestinationLabel] = clusterID
 	}
 
 	wgEndpointIP, wgEndpointPort := ncc.serviceWatcher.WiregardEndpoint()
