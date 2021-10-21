@@ -316,12 +316,16 @@ func (r *Reflector) mutateLabelsForRemote(labels map[string]string) map[string]s
 	// We don't check if the map is nil, since it has to be initialized because we use the labels to filter the resources
 	// which need to be replicated.
 
+	if _, ok := labels[consts.ReplicationOriginLabel]; !ok {
+		// setting originID i.e clusterID of home cluster
+		labels[consts.ReplicationOriginLabel] = r.localClusterID
+	}
+
 	// setting the replication label to false
 	labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(false)
 	// setting replication status to true
 	labels[consts.ReplicationStatusLabel] = strconv.FormatBool(true)
-	// setting originID i.e clusterID of home cluster
-	labels[consts.ReplicationOriginLabel] = r.localClusterID
+
 	return labels
 }
 

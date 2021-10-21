@@ -41,7 +41,7 @@ const networkConfigNamePrefix = "net-config-"
 // In case more than one NetworkConfig is found, all but the oldest are deleted.
 func GetLocalNetworkConfig(ctx context.Context, c client.Client, clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{consts.ReplicationDestinationLabel: clusterID}
+	labels := client.MatchingLabels{"destination": clusterID}
 
 	if err := c.List(ctx, networkConfigList, labels, client.InNamespace(namespace)); err != nil {
 		klog.Errorf("An error occurred while listing NetworkConfigs: %v", err)
