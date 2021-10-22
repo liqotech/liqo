@@ -16,6 +16,7 @@ package foreignclusterreconciler
 
 import (
 	"context"
+	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,7 +51,6 @@ func (r *InducedForeignClusterReconciler) Reconcile(ctx context.Context, req ctr
 			err = newErr
 		}
 	}
-
 	if err := r.Client.Get(ctx, req.NamespacedName, &foreignCluster); err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -62,6 +62,9 @@ func (r *InducedForeignClusterReconciler) Reconcile(ctx context.Context, req ctr
 	if err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	if reflect.DeepEqual(foreignCluster.Status.TenantNamespace, owner.Status.TenantNamespace) {
+		return result, nil
 	}
 	foreignCluster.Status.TenantNamespace = *owner.Status.TenantNamespace.DeepCopy()
 	// defer the status update function

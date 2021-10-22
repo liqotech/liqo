@@ -191,7 +191,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			peeringconditionsutils.GetMessage(&foreignCluster, discoveryv1alpha1.ProcessForeignClusterStatusCondition))
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: r.ResyncPeriod,
+			RequeueAfter: 10 * time.Hour,
 		}, nil
 	}
 	tracer.Step("Ensured the ForeignCluster is processable")
