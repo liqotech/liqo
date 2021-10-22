@@ -181,7 +181,6 @@ func (ncc *NetworkConfigCreator) updateNetworkConfig(ctx context.Context, netcfg
 // populateNetworkConfig sets the correct parameters of the NetworkConfig.
 func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.NetworkConfig, fc *discoveryv1alpha1.ForeignCluster) error {
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
-	owner := ncc.getNCOwner(fc)
 
 	if netcfg.Labels == nil {
 		netcfg.Labels = map[string]string{}
@@ -209,18 +208,7 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 	netcfg.Spec.BackendConfig[wireguard.PublicKey] = ncc.secretWatcher.WiregardPublicKey()
 	netcfg.Spec.BackendConfig[wireguard.ListeningPort] = wgEndpointPort
 
-	return controllerutil.SetControllerReference(owner, netcfg, ncc.Scheme)
-}
-
-func (ncc *NetworkConfigCreator) getNCOwner(fc *discoveryv1alpha1.ForeignCluster) *discoveryv1alpha1.ForeignCluster {
-	if fc.Spec.InducedPeering.InducedPeeringEnabled != discoveryv1alpha1.PeeringEnabledYes {
-		return fc
-	}
-	owner, err := foreigncluster.GetForeignClusterByID(context.Background(), ncc.Client, fc.Spec.InducedPeering.OriginClusterIdentity.ClusterID)
-	if err != nil {
-		klog.Error(err)
-	}
-	return owner
+	return controllerutil.SetControllerReference(fc, netcfg, ncc.Scheme)
 }
 
 // EnforceNetworkConfigAbsence ensures the absence of local NetworkConfigs associated with the given ForeignCluster.
