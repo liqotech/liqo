@@ -18,7 +18,6 @@ require (
 	github.com/metal-stack/go-ipam v1.8.4-0.20210322080203-5a9da5064b27
 	github.com/miekg/dns v1.1.35
 	github.com/mittwald/go-helm-client v0.8.3-0.20211026133933-a26889186afc
-	github.com/modern-go/reflect2 v1.0.1
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
 	github.com/openshift/api v0.0.0-20210521075222-e273a339932a
@@ -155,6 +154,7 @@ require (
 	github.com/moby/sys/mountinfo v0.4.1 // indirect
 	github.com/moby/term v0.0.0-20210610120745-9d4ed1856297 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect

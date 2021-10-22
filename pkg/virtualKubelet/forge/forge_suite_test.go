@@ -24,6 +24,8 @@ import (
 const (
 	LocalClusterID  = "local-cluster"
 	RemoteClusterID = "remote-cluster"
+	LiqoNodeName    = "local-node"
+	LiqoNodeIP      = "1.1.1.1"
 )
 
 func TestForge(t *testing.T) {

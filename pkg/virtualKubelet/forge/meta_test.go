@@ -25,16 +25,11 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 )
 
 var _ = Describe("Meta forging", func() {
 	Describe("Reflection labels", func() {
-		BeforeEach(func() {
-			localClusterIDOpts := types.NewNetworkingOption(types.LocalClusterID, LocalClusterID)
-			remoteClusterIDOpts := types.NewNetworkingOption(types.RemoteClusterID, RemoteClusterID)
-			forge.InitForger(nil, localClusterIDOpts, remoteClusterIDOpts)
-		})
+		BeforeEach(func() { forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP) })
 
 		Describe("the ReflectionLabels function", func() {
 			It("should set exactly two labels", func() { Expect(forge.ReflectionLabels()).To(HaveLen(2)) })
@@ -74,6 +69,53 @@ var _ = Describe("Meta forging", func() {
 		Describe("the IsReflected function", DescribeTableFactory(func(labels labels.Set) bool {
 			return forge.IsReflected(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Labels: labels}})
 		}))
+	})
+
+	Describe("the RemoteObjectMeta function", func() {
+		var local, remote, original, output metav1.ObjectMeta
+
+		BeforeEach(func() {
+			local = metav1.ObjectMeta{
+				Name: "local-name", Namespace: "local-namespace",
+				Labels:      map[string]string{"foo": "bar"},
+				Annotations: map[string]string{"bar": "baz"},
+			}
+			remote = metav1.ObjectMeta{
+				Name: "remote-name", Namespace: "remote-namespace", UID: "remote-uid",
+				Labels:      map[string]string{"foo": "existing", "bar": "baz"},
+				Annotations: map[string]string{"bar": "existing", "baz": "foo"},
+			}
+		})
+
+		JustBeforeEach(func() {
+			original = *local.DeepCopy()
+			output = forge.RemoteObjectMeta(&local, &remote)
+		})
+
+		It("should correctly preserve the name and namespace, and accessory fields", func() {
+			Expect(output.Name).To(Equal("remote-name"))
+			Expect(output.Namespace).To(Equal("remote-namespace"))
+			Expect(output.UID).To(BeEquivalentTo("remote-uid"))
+		})
+
+		It("should correctly set the labels", func() {
+			// Check whether the reflection labels are present
+			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
+			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+			// Check whether the local labels are present (higher precedence if a remote label matches)
+			Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
+			// Check whether the remote labels are present
+			Expect(output.Labels).To(HaveKeyWithValue("bar", "baz"))
+		})
+
+		It("should correctly set the annotations", func() {
+			// Check whether the local annotations are present (higher precedence if a remote annotation matches)
+			Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
+			// Check whether the remote annotations are present
+			Expect(output.Annotations).To(HaveKeyWithValue("baz", "foo"))
+		})
+
+		It("should not mutate the local object", func() { Expect(local).To(Equal(original)) })
 	})
 
 	Describe("the RemoteObjectReference function", func() {

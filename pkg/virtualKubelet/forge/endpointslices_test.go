@@ -36,11 +36,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 		return outputs
 	}
 
-	BeforeEach(func() {
-		forge.LiqoNodeName = func() string { return "liqo-node" }
-		forge.LocalClusterID = LocalClusterID
-		forge.RemoteClusterID = RemoteClusterID
-	})
+	BeforeEach(func() { forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP) })
 
 	Describe("the RemoteEndpointSlice function", func() {
 		var (
@@ -143,7 +139,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 
 		When("translating an endpoint referring to the remote cluster (topology)", func() {
 			BeforeEach(func() {
-				endpoint.Topology[corev1.LabelHostname] = forge.LiqoNodeName()
+				endpoint.Topology[corev1.LabelHostname] = forge.LiqoNodeName
 				input = []discoveryv1beta1.Endpoint{endpoint, endpoint, endpoint}
 			})
 			It("should return no endpoints", func() { Expect(output).To(HaveLen(0)) })
@@ -151,7 +147,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 
 		When("translating an endpoint referring to the remote cluster (nodename)", func() {
 			BeforeEach(func() {
-				endpoint.NodeName = pointer.String(forge.LiqoNodeName())
+				endpoint.NodeName = pointer.String(forge.LiqoNodeName)
 				input = []discoveryv1beta1.Endpoint{endpoint, endpoint, endpoint}
 			})
 			It("should return no endpoints", func() { Expect(output).To(HaveLen(0)) })

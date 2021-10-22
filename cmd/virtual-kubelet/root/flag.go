@@ -26,7 +26,7 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.StringVar(&c.NodeName, "nodename", c.NodeName, "kubernetes node name")
 	flags.StringVar(&c.MetricsAddr, "metrics-addr", c.MetricsAddr, "address to listen for metrics/stats requests")
 
-	flags.UintVar(&c.PodSyncWorkers, "pod-sync-workers", c.PodSyncWorkers, "the number of pod synchronization workers")
+	flags.UintVar(&c.PodWorkers, "pod-reflection-workers", c.PodWorkers, "the number of pod reflection workers")
 	flags.UintVar(&c.ServiceWorkers, "service-reflection-workers", c.ServiceWorkers, "the number of service reflection workers")
 	flags.UintVar(&c.EndpointSliceWorkers, "endpointslice-reflection-workers", c.EndpointSliceWorkers,
 		"the number of endpointslice reflection workers")

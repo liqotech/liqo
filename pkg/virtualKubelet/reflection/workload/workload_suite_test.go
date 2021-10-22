@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package configuration_test
+package workload_test
 
 import (
 	"context"
@@ -23,11 +23,15 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
+	vkalpha1scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -44,37 +48,23 @@ const (
 )
 
 var (
-	testEnv envtest.Environment
-	client  kubernetes.Interface
-
 	ctx    context.Context
 	cancel context.CancelFunc
 )
 
 func TestService(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Configuration Reflection Suite")
+	RunSpecs(t, "Workload Reflection Suite")
 }
 
 var _ = BeforeSuite(func() {
+	utilruntime.Must(vkalpha1scheme.AddToScheme(scheme.Scheme))
+
 	klog.SetOutput(GinkgoWriter)
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)
 	Expect(flagset.Set("v", "4")).To(Succeed())
 	klog.LogToStderr(false)
-
-	ctx := context.Background()
-
-	testEnv = envtest.Environment{}
-	cfg, err := testEnv.Start()
-	Expect(err).ToNot(HaveOccurred())
-
-	// Need to use a real client, as server side apply seems not to be currently supported by the fake one.
-	client = kubernetes.NewForConfigOrDie(cfg)
-	_, err = client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: LocalNamespace}}, metav1.CreateOptions{})
-	Expect(err).ToNot(HaveOccurred())
-	_, err = client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: RemoteNamespace}}, metav1.CreateOptions{})
-	Expect(err).ToNot(HaveOccurred())
 
 	forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP)
 })
@@ -82,14 +72,44 @@ var _ = BeforeSuite(func() {
 var _ = BeforeEach(func() { ctx, cancel = context.WithCancel(context.Background()) })
 var _ = AfterEach(func() { cancel() })
 
-var _ = AfterSuite(func() {
-	Expect(testEnv.Stop()).To(Succeed())
-})
-
 var FakeEventHandler = func(options.Keyer) cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc:    func(_ interface{}) {},
 		UpdateFunc: func(_, obj interface{}) {},
 		DeleteFunc: func(_ interface{}) {},
 	}
+}
+
+func GetPod(client kubernetes.Interface, namespace, name string) *corev1.Pod {
+	pod, errpod := client.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+	ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
+	return pod
+}
+
+func GetPodError(client kubernetes.Interface, namespace, name string) error {
+	_, errpod := client.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+	return errpod
+}
+
+func GetShadowPod(client liqoclient.Interface, namespace, name string) *vkv1alpha1.ShadowPod {
+	pod, errpod := client.VirtualkubeletV1alpha1().ShadowPods(namespace).Get(ctx, name, metav1.GetOptions{})
+	ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
+	return pod
+}
+
+func GetShadowPodError(client liqoclient.Interface, namespace, name string) error {
+	_, errpod := client.VirtualkubeletV1alpha1().ShadowPods(namespace).Get(ctx, name, metav1.GetOptions{})
+	return errpod
+}
+
+func CreatePod(client kubernetes.Interface, pod *corev1.Pod) *corev1.Pod {
+	pod, errpod := client.CoreV1().Pods(pod.GetNamespace()).Create(ctx, pod, metav1.CreateOptions{})
+	ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
+	return pod
+}
+
+func CreateShadowPod(client liqoclient.Interface, pod *vkv1alpha1.ShadowPod) *vkv1alpha1.ShadowPod {
+	pod, errpod := client.VirtualkubeletV1alpha1().ShadowPods(pod.GetNamespace()).Create(ctx, pod, metav1.CreateOptions{})
+	ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
+	return pod
 }

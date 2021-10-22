@@ -28,7 +28,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"k8s.io/klog/v2"
 
-	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
 // AcceptedCiphers is the list of accepted TLS ciphers, with known weak ciphers elided
@@ -59,8 +59,7 @@ func loadTLSConfig(certPath, keyPath string) (*tls.Config, error) {
 	}, nil
 }
 
-func setupHTTPServer(ctx context.Context, p *podprovider.LiqoProvider, cfg *apiServerConfig,
-	getPodsFromKubernetes api.PodListerFunc) (_ func(), retErr error) {
+func setupHTTPServer(ctx context.Context, handler workload.PodHandler, cfg *apiServerConfig) (_ func(), retErr error) {
 	var closers []io.Closer
 	cancel := func() {
 		for _, c := range closers {
@@ -76,7 +75,7 @@ func setupHTTPServer(ctx context.Context, p *podprovider.LiqoProvider, cfg *apiS
 	if cfg.CertPath == "" || cfg.KeyPath == "" {
 		klog.Error("TLS certificates not provided, not setting up pod http server")
 	} else {
-		s, err := startPodHandlerServer(ctx, p, cfg, getPodsFromKubernetes)
+		s, err := startPodHandlerServer(ctx, handler, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +95,7 @@ func setupHTTPServer(ctx context.Context, p *podprovider.LiqoProvider, cfg *apiS
 		mux := http.NewServeMux()
 
 		podMetricsRoutes := api.PodMetricsConfig{
-			GetStatsSummary: p.GetStatsSummary,
+			GetStatsSummary: handler.Stats,
 		}
 		api.AttachPodMetricsRoutes(podMetricsRoutes, mux)
 		s := &http.Server{
@@ -109,8 +108,7 @@ func setupHTTPServer(ctx context.Context, p *podprovider.LiqoProvider, cfg *apiS
 	return cancel, nil
 }
 
-func startPodHandlerServer(ctx context.Context, p *podprovider.LiqoProvider,
-	cfg *apiServerConfig, getPodsFromKubernetes api.PodListerFunc) (*http.Server, error) {
+func startPodHandlerServer(ctx context.Context, handler workload.PodHandler, cfg *apiServerConfig) (*http.Server, error) {
 	tlsCfg, err := loadTLSConfig(cfg.CertPath, cfg.KeyPath)
 	if err != nil {
 		klog.Error(err)
@@ -126,11 +124,11 @@ func startPodHandlerServer(ctx context.Context, p *podprovider.LiqoProvider,
 	mux := http.NewServeMux()
 
 	podRoutes := api.PodHandlerConfig{
-		RunInContainer:        p.RunInContainer,
-		GetContainerLogs:      p.GetContainerLogs,
-		GetPodsFromKubernetes: getPodsFromKubernetes,
-		GetStatsSummary:       p.GetStatsSummary,
-		GetPods:               p.GetPods,
+		RunInContainer:        handler.Exec,
+		GetContainerLogs:      handler.Logs,
+		GetStatsSummary:       handler.Stats,
+		GetPodsFromKubernetes: handler.List,
+		GetPods:               handler.List,
 	}
 
 	api.AttachPodRoutes(podRoutes, mux, true)

@@ -44,11 +44,11 @@ func IsEndpointSliceManagedByReflection(obj metav1.Object) bool {
 func EndpointToBeReflected(endpoint *discoveryv1beta1.Endpoint) bool {
 	// NodeName needs to be enabled through a feature gate in the v1beta1 API.
 	if endpoint.NodeName != nil {
-		return *endpoint.NodeName != LiqoNodeName()
+		return *endpoint.NodeName != LiqoNodeName
 	}
 
 	// The topology field is deprecated and will be removed when the v1beta1 API is removed (no sooner than kubernetes v1.24).
-	return endpoint.Topology[corev1.LabelHostname] != LiqoNodeName()
+	return endpoint.Topology[corev1.LabelHostname] != LiqoNodeName
 }
 
 // RemoteEndpointSlice forges the apply patch for the reflected endpointslice, given the local one.
