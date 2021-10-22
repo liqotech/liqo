@@ -77,7 +77,7 @@ First, set the variables corresponding to your set-up:
 
 ```
 OS=linux # possible values: linux,windows,darwin
-ARCH=amd64 # possible values: amd64,arm64 
+ARCH=amd64 # possible values: amd64,arm64
 ```
 
 Then, you should execute the following commands to install the latest version of liqoctl:
@@ -89,6 +89,12 @@ sudo mv "liqoctl-${OS}-${ARCH}" /usr/local/bin/liqoctl
 ```
 
 Alternatively, you can directly download liqoctl from the [Liqo releases](https://github.com/liqotech/liqo/releases/) page on GitHub.
+
+#### Install on macOS
+
+```
+brew install liqoctl
+```
 
 
 ### __Provision__ two KinD clusters.
@@ -121,7 +127,7 @@ kubectl create namespace liqo-demo
 kubectl label namespace liqo-demo liqo.io/enabled=true
 ```
 
-Deploy the [Google microservice Shop](https://github.com/GoogleCloudPlatform/microservices-demo) application. 
+Deploy the [Google microservice Shop](https://github.com/GoogleCloudPlatform/microservices-demo) application.
 
 ```bash
 kubectl apply -f https://get.liqo.io/app.yaml -n liqo-demo
