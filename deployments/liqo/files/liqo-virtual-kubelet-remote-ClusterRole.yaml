@@ -3,7 +3,6 @@ rules:
   - ""
   resources:
   - configmaps
-  - pods
   - secrets
   - services
   verbs:
@@ -17,26 +16,10 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods/status
-  - services/status
+  - pods
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - replicasets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
   - watch
 - apiGroups:
   - discovery.k8s.io
@@ -57,4 +40,16 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - shadowpods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch

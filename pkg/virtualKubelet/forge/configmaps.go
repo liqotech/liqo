@@ -19,10 +19,6 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 )
 
-func (f *apiForger) configmapHomeToForeign(homeConfigmap, foreignConfigmap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	panic("to implement")
-}
-
 // RemoteConfigMap forges the apply patch for the reflected configmap, given the local one.
 func RemoteConfigMap(local *corev1.ConfigMap, targetNamespace string) *corev1apply.ConfigMapApplyConfiguration {
 	applyConfig := corev1apply.ConfigMap(local.GetName(), targetNamespace).

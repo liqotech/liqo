@@ -18,6 +18,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -28,17 +30,17 @@ import (
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
-	optTypes "github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
 func init() {
@@ -53,9 +55,11 @@ type InitConfig struct {
 	Namespace       string
 
 	NodeName             string
+	NodeIP               string
 	LiqoIpamServer       string
 	InformerResyncPeriod time.Duration
 
+	PodWorkers           uint
 	ServiceWorkers       uint
 	EndpointSliceWorkers uint
 
@@ -65,21 +69,15 @@ type InitConfig struct {
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type LiqoProvider struct {
-	homeClient           kubernetes.Interface
-	foreignClient        kubernetes.Interface
-	foreignMetricsClient metrics.Interface
-	foreignRestConfig    *rest.Config
-
 	namespaceMapper   namespacesmapping.MapperController
 	reflectionManager manager.Manager
+	podHandler        workload.PodHandler
 	apiController     controller.APIController
-
-	startTime time.Time
-	nodeName  string
 }
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
 func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error) {
+	forge.Init(cfg.HomeClusterID, cfg.RemoteClusterID, cfg.NodeName, cfg.NodeIP)
 	homeClient := kubernetes.NewForConfigOrDie(cfg.HomeConfig)
 	homeLiqoClient := liqoclient.NewForConfigOrDie(cfg.HomeConfig)
 
@@ -107,59 +105,46 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 		return nil, err
 	}
 
-	virtualNodeNameOpt := optTypes.NewNetworkingOption(optTypes.VirtualNodeName, optTypes.NetworkingValue(cfg.NodeName))
-	grpcServerNameOpt := optTypes.NewNetworkingOption(optTypes.LiqoIpamServer, optTypes.NetworkingValue(cfg.LiqoIpamServer))
-	localClusterIDOpt := optTypes.NewNetworkingOption(optTypes.LocalClusterID, optTypes.NetworkingValue(cfg.HomeClusterID))
-	remoteClusterIDOpt := optTypes.NewNetworkingOption(optTypes.RemoteClusterID, optTypes.NetworkingValue(cfg.RemoteClusterID))
-	forge.InitForger(nil, virtualNodeNameOpt, grpcServerNameOpt, localClusterIDOpt, remoteClusterIDOpt)
+	dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer, grpc.WithInsecure(), grpc.WithBlock())
+	cancel()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to establish a connection to the IPAM")
+	}
+	ipamClient := ipam.NewIpamClient(connection)
 
 	// TODO: make the resync period configurable. This is currently hardcoded since the one specified as part of
 	// the configuration needs to be very low to avoid issues with the legacy reflection.
-	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, 10*time.Hour).
+	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, 10*time.Hour)
+	podreflector := workload.NewPodReflector(remoteRestConfig, foreignMetricsClient.MetricsV1beta1().PodMetricses, ipamClient, cfg.PodWorkers)
+	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
-		With(exposition.NewEndpointSliceReflector(forge.IPAMClient(), cfg.EndpointSliceWorkers)).
+		With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers)).
 		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
-		With(configuration.NewSecretReflector(cfg.SecretWorkers))
-	reflectionManager.Start(ctx)
+		With(configuration.NewSecretReflector(cfg.SecretWorkers)).
+		With(podreflector).Start(ctx)
 
-	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID, cfg.RemoteClusterID,
-		cfg.Namespace, reflectionManager)
+	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID,
+		cfg.RemoteClusterID, cfg.Namespace, reflectionManager)
 	if err != nil {
 		return nil, err
 	}
 	mapper.WaitForSync()
 
-	// The initialization is performed in two steps, to prevent circular dependencies.
-	// This will be removed with future improvements.
-	forge.InitForger(mapper)
-
-	opts := forgeOptionsMap(
-		virtualNodeNameOpt,
-		grpcServerNameOpt)
+	// All namespaces with active reflection have been detected, and we can start the podreflector default management for all namespaces.
+	podreflector.StartAllNamespaces()
 
 	return &LiqoProvider{
-		homeClient:           homeClient,
-		foreignClient:        foreignClient,
-		foreignMetricsClient: foreignMetricsClient,
-		foreignRestConfig:    remoteRestConfig,
-
 		namespaceMapper:   mapper,
 		reflectionManager: reflectionManager,
-		apiController:     controller.NewAPIController(homeClient, foreignClient, cfg.InformerResyncPeriod, mapper, opts),
-
-		startTime: time.Now(),
-		nodeName:  cfg.NodeName,
+		podHandler:        podreflector,
+		apiController:     controller.NewAPIController(homeClient, foreignClient, cfg.InformerResyncPeriod, mapper, nil),
 	}, nil
 }
 
-func forgeOptionsMap(opts ...options.Option) map[options.OptionKey]options.Option {
-	outOpts := make(map[options.OptionKey]options.Option)
-
-	for _, o := range opts {
-		outOpts[o.Key()] = o
-	}
-
-	return outOpts
+// PodHandler returns an handler to interact with the pods offloaded to the remote cluster.
+func (p *LiqoProvider) PodHandler() workload.PodHandler {
+	return p.podHandler
 }
 
 // SetProviderStopper sets the provided chan as the stopper for the API reflector.

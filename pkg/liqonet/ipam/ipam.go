@@ -1096,7 +1096,7 @@ func (liqoIPAM *IPAM) GetHomePodIP(ctx context.Context, request *GetHomePodIPReq
 	homeIP, err := liqoIPAM.getHomePodIPInternal(request.GetClusterID(), request.GetIp())
 	if err != nil {
 		return &GetHomePodIPResponse{}, fmt.Errorf("cannot get home Pod IP starting from IP %s: %w",
-			request.GetClusterID(), err)
+			request.GetIp(), err)
 	}
 	return &GetHomePodIPResponse{HomeIP: homeIP}, nil
 }

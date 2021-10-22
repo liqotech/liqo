@@ -1,0 +1,270 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package workload
+
+import (
+	"context"
+	"io"
+	"sync"
+
+	"github.com/virtual-kubelet/virtual-kubelet/node/api"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
+	corev1listers "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
+	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
+	"k8s.io/utils/trace"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/liqotech/liqo/pkg/liqonet/ipam"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+)
+
+var _ manager.Reflector = (*PodReflector)(nil)
+var _ PodHandler = (*PodReflector)(nil)
+var _ manager.FallbackReflector = (*FallbackPodReflector)(nil)
+
+const (
+	// PodReflectorName -> The name associated with the Pod reflector.
+	PodReflectorName = "Pod"
+)
+
+// MetricsFactory represents a function to generate the interface to retrieve the pod metrics for a given namespace.
+type MetricsFactory func(namespace string) metricsv1beta1.PodMetricsInterface
+
+// PodHandler exposes an interface to interact with pods offloaded to the remote cluster.
+type PodHandler interface {
+	// List returns the list of reflected pods.
+	List(context.Context) ([]*corev1.Pod, error)
+	// Exec executes a command in a container of a reflected pod.
+	Exec(ctx context.Context, namespace, pod, container string, cmd []string, attach api.AttachIO) error
+	// Logs retrieves the logs of a container of a reflected pod.
+	Logs(ctx context.Context, namespace, pod, container string, opts api.ContainerLogOpts) (io.ReadCloser, error)
+	// Stats retrieves the stats of the reflected pods.
+	Stats(ctx context.Context) (*statsv1alpha1.Summary, error)
+}
+
+// PodReflector manages the Pod reflection towards a remote cluster.
+type PodReflector struct {
+	manager.Reflector
+
+	localPods corev1listers.PodLister
+
+	remoteRESTConfig     *rest.Config
+	remoteMetricsFactory MetricsFactory
+
+	ready bool
+
+	ipamclient ipam.IpamClient
+	handlers   sync.Map /* implicit signature: map[string]NamespacedPodHandler */
+}
+
+// FallbackPodReflector handles the "orphan" pods outside the managed namespaces.
+type FallbackPodReflector struct {
+	localPods       corev1listers.PodLister
+	localPodsClient func(namespace string) corev1clients.PodInterface
+	ready           func() bool
+}
+
+// NewPodReflector returns a new PodReflector instance.
+func NewPodReflector(
+	remoteRESTConfig *rest.Config, /* required to establish the connection to implement `kubectl exec` */
+	remoteMetricsFactory MetricsFactory, /* required to retrieve the pod metrics from the remote cluster */
+	ipamclient ipam.IpamClient, /* required to translate the remote IP addresses to the corresponding local ones */
+	workers uint) *PodReflector {
+	reflector := &PodReflector{
+		remoteRESTConfig:     remoteRESTConfig,
+		remoteMetricsFactory: remoteMetricsFactory,
+		ipamclient:           ipamclient,
+	}
+
+	genericReflector := generic.NewReflector(PodReflectorName, reflector.NewNamespaced, reflector.NewFallback, workers)
+	reflector.Reflector = genericReflector
+	return reflector
+}
+
+// NewNamespaced returns a new NamespacedPodReflector instance.
+func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.NamespacedReflector {
+	remote := opts.RemoteFactory.Core().V1().Pods()
+	remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowPods()
+	remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+
+	reflector := &NamespacedPodReflector{
+		NamespacedReflector: generic.NewNamespacedReflector(opts),
+
+		localPods:        pr.localPods.Pods(opts.LocalNamespace),
+		remotePods:       remote.Lister().Pods(opts.RemoteNamespace),
+		remoteShadowPods: remoteShadow.Lister().ShadowPods(opts.RemoteNamespace),
+
+		localPodsClient:        opts.LocalClient.CoreV1().Pods(opts.LocalNamespace),
+		remotePodsClient:       opts.RemoteClient.CoreV1().Pods(opts.RemoteNamespace),
+		remoteShadowPodsClient: opts.RemoteLiqoClient.VirtualkubeletV1alpha1().ShadowPods(opts.RemoteNamespace),
+
+		remoteRESTClient: opts.RemoteClient.CoreV1().RESTClient(),
+		remoteRESTConfig: pr.remoteRESTConfig,
+		remoteMetrics:    pr.remoteMetricsFactory(opts.RemoteNamespace),
+
+		ipamclient: pr.ipamclient,
+	}
+
+	pr.handlers.Store(opts.LocalNamespace, NamespacedPodHandler(reflector))
+	return reflector
+}
+
+// NewFallback returns a new FallbackReflector instance.
+func (pr *PodReflector) NewFallback(opts *options.ReflectorOpts) manager.FallbackReflector {
+	opts.LocalPodInformer.Informer().AddEventHandler(opts.HandlerFactory(generic.BasicKeyer()))
+	return &FallbackPodReflector{
+		localPods:       opts.LocalPodInformer.Lister(),
+		localPodsClient: opts.LocalClient.CoreV1().Pods,
+		ready:           func() bool { return pr.ready },
+	}
+}
+
+// Start starts the reflector.
+func (pr *PodReflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
+	pr.localPods = opts.LocalPodInformer.Lister()
+	pr.Reflector.Start(ctx, opts)
+}
+
+// StopNamespace stops the reflection for a given namespace.
+func (pr *PodReflector) StopNamespace(local, remote string) {
+	pr.handlers.Delete(local)
+	pr.Reflector.StopNamespace(local, remote)
+}
+
+// StartAllNamespaces starts reflector to manage "orphan" pods in all namespaces.
+func (pr *PodReflector) StartAllNamespaces() {
+	pr.ready = true
+}
+
+// List returns the list of reflected pods.
+func (pr *PodReflector) List(_ context.Context) ([]*corev1.Pod, error) {
+	return pr.localPods.List(labels.Everything())
+}
+
+// Exec executes a command in a container of a reflected pod.
+func (pr *PodReflector) Exec(ctx context.Context, namespace, pod, container string, cmd []string, attach api.AttachIO) error {
+	if handler, found := pr.handlers.Load(namespace); found {
+		return handler.(NamespacedPodHandler).Exec(ctx, pod, container, cmd, attach)
+	}
+	return kerrors.NewNotFound(corev1.Resource(corev1.ResourcePods.String()), klog.KRef(namespace, pod).String())
+}
+
+// Logs retrieves the logs of a container of a reflected pod.
+func (pr *PodReflector) Logs(ctx context.Context, namespace, pod, container string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
+	if handler, found := pr.handlers.Load(namespace); found {
+		return handler.(NamespacedPodHandler).Logs(ctx, pod, container, opts)
+	}
+	return nil, kerrors.NewNotFound(corev1.Resource(corev1.ResourcePods.String()), klog.KRef(namespace, pod).String())
+}
+
+// Stats retrieves the stats of the reflected pods.
+func (pr *PodReflector) Stats(ctx context.Context) (*statsv1alpha1.Summary, error) {
+	var pods []statsv1alpha1.PodStats
+	var err error
+
+	pr.handlers.Range(func(_, handler interface{}) bool {
+		stats, err := handler.(NamespacedPodHandler).Stats(ctx)
+		pods = append(pods, stats...)
+		return err == nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return forge.LocalNodeStats(pods), nil
+}
+
+// Handle operates as fallback to reconcile pod objects not managed by namespaced handlers.
+func (fpr *FallbackPodReflector) Handle(ctx context.Context, key types.NamespacedName) error {
+	tracer := trace.FromContext(ctx)
+
+	// Retrieve the local object (only not found errors can occur).
+	klog.V(4).Infof("Handling fallback management of local pod %q", klog.KRef(key.Namespace, key.Name))
+	local, err := fpr.localPods.Pods(key.Namespace).Get(key.Name)
+	utilruntime.Must(client.IgnoreNotFound(err))
+	tracer.Step("Retrieved the local object")
+
+	if kerrors.IsNotFound(err) {
+		klog.V(4).Infof("Local pod %q already vanished", klog.KRef(key.Namespace, key.Name))
+		return nil
+	}
+
+	// The local pod is being terminated, hence delete it.
+	if !local.DeletionTimestamp.IsZero() {
+		defer tracer.Step("Ensured the absence of the local terminating object")
+
+		klog.V(4).Infof("Deleting terminating orphan local pod %q", klog.KObj(local))
+		opts := metav1.NewDeleteOptions(0 /* trigger the effective deletion */)
+		opts.Preconditions = metav1.NewUIDPreconditions(string(local.GetUID()))
+		if err := fpr.localPodsClient(key.Namespace).Delete(ctx, key.Name, *opts); err != nil && !kerrors.IsNotFound(err) {
+			klog.Errorf("Failed to delete orphan local terminated pod %q: %v", klog.KObj(local), err)
+			return err
+		}
+		klog.Infof("Local orphan pod %q successfully deleted", klog.KObj(local))
+		return nil
+	}
+
+	// Otherwise, mark the pod as rejected.
+	phase := corev1.PodFailed
+	ctrl := metav1.GetControllerOfNoCopy(local)
+	if ctrl != nil && ctrl.APIVersion == appsv1.SchemeGroupVersion.String() && ctrl.Kind == "DaemonSet" {
+		// Mark orphaned pods originated by daemonsets as pending, to prevent them from being rescheduled forever.
+		phase = corev1.PodPending
+	}
+
+	pod := forge.LocalRejectedPod(local, phase)
+	_, err = fpr.localPodsClient(key.Namespace).UpdateStatus(ctx, pod, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager})
+	if err != nil {
+		klog.Errorf("Failed to mark local pod %q as rejected: %v", klog.KObj(local), err)
+		return err
+	}
+
+	klog.Infof("Pod %q successfully marked as rejected", klog.KObj(local))
+	tracer.Step("Updated the local pod status")
+	return nil
+}
+
+// Keys returns a set of keys to be enqueued for fallback processing for the given namespace pair.
+func (fpr *FallbackPodReflector) Keys(local, _ string) []types.NamespacedName {
+	pods, err := fpr.localPods.Pods(local).List(labels.Everything())
+	utilruntime.Must(err)
+
+	keys := make([]types.NamespacedName, len(pods))
+	keyer := generic.BasicKeyer()
+	for i, pod := range pods {
+		keys[i] = keyer(pod)
+	}
+	return keys
+}
+
+// Ready returns whether the FallbackReflector is completely initialized.
+func (fpr *FallbackPodReflector) Ready() bool {
+	return fpr.ready()
+}

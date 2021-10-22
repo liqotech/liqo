@@ -27,10 +27,7 @@ import (
 )
 
 var _ = Describe("Secrets Forging", func() {
-	BeforeEach(func() {
-		forge.LocalClusterID = LocalClusterID
-		forge.RemoteClusterID = RemoteClusterID
-	})
+	BeforeEach(func() { forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP) })
 
 	Describe("the RemoteSecret function", func() {
 		var (

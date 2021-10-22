@@ -14,7 +14,10 @@
 
 package pod
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/pointer"
+)
 
 // IsPodReady returns true if a pod is ready; false otherwise.
 func IsPodReady(pod *corev1.Pod) bool {
@@ -25,4 +28,44 @@ func IsPodReady(pod *corev1.Pod) bool {
 		}
 	}
 	return false
+}
+
+// IsPodSpecEqual returns whether two pod specs are equal according to the fields that
+// can be modified after start-up time. Refer to the following link for more information:
+// https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement
+// This function is implemented custom instead of relying on reflect.DeepEqual or alike for
+// performance reasons, given the possibly high execution rate when dealing with pod reflection.
+func IsPodSpecEqual(previous, updated *corev1.PodSpec) bool {
+	// The only fields that can be mutated are:
+	// * spec.containers[*].image
+	// * spec.initContainers[*].image
+	// * spec.activeDeadlineSeconds
+	// * spec.tolerations (only new entries can be added)
+	return AreContainersEqual(previous.Containers, updated.Containers) &&
+		AreContainersEqual(previous.InitContainers, updated.InitContainers) &&
+		pointer.Int64Equal(previous.ActiveDeadlineSeconds, updated.ActiveDeadlineSeconds) &&
+		len(previous.Tolerations) == len(updated.Tolerations)
+}
+
+// AreContainersEqual returns whether two container lists are equal according to the
+// fields that can be modified after start-up time (i.e. the image field).
+func AreContainersEqual(previous, updated []corev1.Container) bool {
+	if len(previous) != len(updated) {
+		return false
+	}
+
+outer:
+	for i := range previous {
+		for j := range updated {
+			if previous[i].Name == updated[j].Name {
+				if previous[i].Image == updated[j].Image {
+					continue outer
+				}
+				return false
+			}
+		}
+		return false
+	}
+
+	return true
 }

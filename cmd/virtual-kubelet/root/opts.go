@@ -15,6 +15,7 @@
 package root
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -33,7 +34,7 @@ const (
 	DefaultMetricsAddr                            = ":10255"
 	DefaultListenPort                             = 10250
 
-	DefaultPodSyncWorkers       = 10
+	DefaultPodWorkers           = 10
 	DefaultServiceWorkers       = 3
 	DefaultEndpointSliceWorkers = 10
 	DefaultConfigMapWorkers     = 3
@@ -59,8 +60,8 @@ type Opts struct {
 
 	MetricsAddr string
 
-	// Number of workers to use to handle pod notifications and resource reflection
-	PodSyncWorkers       uint
+	// Number of workers to use to handle pod and resource reflection
+	PodWorkers           uint
 	ServiceWorkers       uint
 	EndpointSliceWorkers uint
 	ConfigMapWorkers     uint
@@ -99,8 +100,8 @@ func SetDefaultOpts(c *Opts) error {
 		c.MetricsAddr = DefaultMetricsAddr
 	}
 
-	if c.PodSyncWorkers == 0 {
-		c.PodSyncWorkers = DefaultPodSyncWorkers
+	if c.PodWorkers == 0 {
+		c.PodWorkers = DefaultPodWorkers
 	}
 
 	if c.ServiceWorkers == 0 {
@@ -138,7 +139,7 @@ func SetDefaultOpts(c *Opts) error {
 		c.HomeKubeconfig = os.Getenv("KUBECONFIG")
 	}
 	if c.LiqoIpamServer == "" {
-		c.LiqoIpamServer = DefaultLiqoIpamServer
+		c.LiqoIpamServer = fmt.Sprintf("%v:%v", consts.NetworkManagerServiceName, consts.NetworkManagerIpamPort)
 	}
 
 	return nil
