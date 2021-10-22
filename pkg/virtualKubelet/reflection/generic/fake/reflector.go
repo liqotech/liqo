@@ -23,36 +23,32 @@ import (
 // Reflector implements a fake Reflector for testing purposes.
 type Reflector struct {
 	Started          bool
-	NamespaceStarted map[string]*options.ReflectorOpts
+	Opts             *options.ReflectorOpts
+	NamespaceStarted map[string]*options.NamespacedOpts
 	NamespaceStopped map[string]string
-	NamespaceReady   map[string]bool
+	NamespaceReady   map[string]func() bool
 }
 
 // NewReflector returns a new fake Reflector.
 func NewReflector() *Reflector {
 	return &Reflector{
-		NamespaceStarted: make(map[string]*options.ReflectorOpts),
+		NamespaceStarted: make(map[string]*options.NamespacedOpts),
 		NamespaceStopped: make(map[string]string),
-		NamespaceReady:   make(map[string]bool),
 	}
 }
 
 // Start marks the reflector as started.
-func (r *Reflector) Start(ctx context.Context) {
+func (r *Reflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
 	r.Started = true
+	r.Opts = opts
 }
 
 // StartNamespace marks the given namespace as started, and stores the given options.
-func (r *Reflector) StartNamespace(opts *options.ReflectorOpts) {
+func (r *Reflector) StartNamespace(opts *options.NamespacedOpts) {
 	r.NamespaceStarted[opts.LocalNamespace] = opts
 }
 
 // StopNamespace marks the given namespace as stopped, and stores the remote namespace name.
 func (r *Reflector) StopNamespace(local, remote string) {
 	r.NamespaceStopped[local] = remote
-}
-
-// SetNamespaceReady marks the given namespace as ready.
-func (r *Reflector) SetNamespaceReady(namespace string) {
-	r.NamespaceReady[namespace] = true
 }

@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
+	corev1informers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -25,8 +26,27 @@ import (
 // Keyer retrieves a NamespacedName referring to the reconciliation target from the object metadata.
 type Keyer func(metadata metav1.Object) types.NamespacedName
 
-// ReflectorOpts is a structure grouping the parameters to start a NamespacedReflector.
+// ReflectorOpts is a structure grouping the parameters to start a Reflector.
 type ReflectorOpts struct {
+	LocalClient      kubernetes.Interface
+	LocalPodInformer corev1informers.PodInformer
+
+	HandlerFactory func(Keyer) cache.ResourceEventHandler
+}
+
+// New returns a new ReflectorOpts object.
+func New(client kubernetes.Interface, podInformer corev1informers.PodInformer) *ReflectorOpts {
+	return &ReflectorOpts{LocalClient: client, LocalPodInformer: podInformer}
+}
+
+// WithHandlerFactory configures the handler factory of the ReflectorOpts.
+func (ro *ReflectorOpts) WithHandlerFactory(handler func(Keyer) cache.ResourceEventHandler) *ReflectorOpts {
+	ro.HandlerFactory = handler
+	return ro
+}
+
+// NamespacedOpts is a structure grouping the parameters to start a NamespacedReflector.
+type NamespacedOpts struct {
 	LocalNamespace  string
 	RemoteNamespace string
 
@@ -36,32 +56,39 @@ type ReflectorOpts struct {
 	LocalFactory  informers.SharedInformerFactory
 	RemoteFactory informers.SharedInformerFactory
 
+	Ready          func() bool
 	HandlerFactory func(Keyer) cache.ResourceEventHandler
 }
 
-// New returns a new ReflectorOpts object.
-func New() *ReflectorOpts {
-	return &ReflectorOpts{}
+// NewNamespaced returns a new NamespacedOpts object.
+func NewNamespaced() *NamespacedOpts {
+	return &NamespacedOpts{}
 }
 
-// WithLocal configures the local parameters of the ReflectorOpts.
-func (ro *ReflectorOpts) WithLocal(namespace string, client kubernetes.Interface, factory informers.SharedInformerFactory) *ReflectorOpts {
+// WithLocal configures the local parameters of the NamespacedOpts.
+func (ro *NamespacedOpts) WithLocal(namespace string, client kubernetes.Interface, factory informers.SharedInformerFactory) *NamespacedOpts {
 	ro.LocalNamespace = namespace
 	ro.LocalClient = client
 	ro.LocalFactory = factory
 	return ro
 }
 
-// WithRemote configures the remote parameters of the ReflectorOpts.
-func (ro *ReflectorOpts) WithRemote(namespace string, client kubernetes.Interface, factory informers.SharedInformerFactory) *ReflectorOpts {
+// WithRemote configures the remote parameters of the NamespacedOpts.
+func (ro *NamespacedOpts) WithRemote(namespace string, client kubernetes.Interface, factory informers.SharedInformerFactory) *NamespacedOpts {
 	ro.RemoteNamespace = namespace
 	ro.RemoteClient = client
 	ro.RemoteFactory = factory
 	return ro
 }
 
-// WithHandlerFactory configures the handler factory of the ReflectorOpts.
-func (ro *ReflectorOpts) WithHandlerFactory(handler func(Keyer) cache.ResourceEventHandler) *ReflectorOpts {
+// WithHandlerFactory configures the handler factory of the NamespacedOpts.
+func (ro *NamespacedOpts) WithHandlerFactory(handler func(Keyer) cache.ResourceEventHandler) *NamespacedOpts {
 	ro.HandlerFactory = handler
+	return ro
+}
+
+// WithReadinessFunc configures the readiness function of the NamespacedOpts.
+func (ro *NamespacedOpts) WithReadinessFunc(ready func() bool) *NamespacedOpts {
+	ro.Ready = ready
 	return ro
 }

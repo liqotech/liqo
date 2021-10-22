@@ -53,11 +53,11 @@ type NamespacedServiceReflector struct {
 
 // NewServiceReflector returns a new ServiceReflector instance.
 func NewServiceReflector(workers uint) manager.Reflector {
-	return generic.NewReflector(ServiceReflectorName, NewNamespacedServiceReflector, workers)
+	return generic.NewReflector(ServiceReflectorName, NewNamespacedServiceReflector, generic.WithoutFallback(), workers)
 }
 
 // NewNamespacedServiceReflector returns a new NamespacedServiceReflector instance.
-func NewNamespacedServiceReflector(opts *options.ReflectorOpts) manager.NamespacedReflector {
+func NewNamespacedServiceReflector(opts *options.NamespacedOpts) manager.NamespacedReflector {
 	local := opts.LocalFactory.Core().V1().Services()
 	remote := opts.RemoteFactory.Core().V1().Services()
 
