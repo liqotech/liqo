@@ -79,18 +79,20 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		JustBeforeEach(func() {
 			ipam = fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
-			reflector = exposition.NewNamespacedEndpointSliceReflector(ipam)(options.New().
+			reflector = exposition.NewNamespacedEndpointSliceReflector(ipam)(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler))
 
 			factory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())
-
-			err = reflector.Handle(trace.ContextWithTrace(ctx, trace.New("EndpointSlice")), EndpointSliceName)
 		})
 
 		Context("object reflection", func() {
+			JustBeforeEach(func() {
+				err = reflector.Handle(trace.ContextWithTrace(ctx, trace.New("EndpointSlice")), EndpointSliceName)
+			})
+
 			When("the local object does not exist", func() {
 				WhenBody := func(createRemote bool) func() {
 					return func() {

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -41,7 +42,8 @@ type manager struct {
 	remote kubernetes.Interface
 	resync time.Duration
 
-	reflectors []Reflector
+	reflectors              []Reflector
+	localPodInformerFactory informers.SharedInformerFactory
 
 	started bool
 	stop    map[string]context.CancelFunc
@@ -49,12 +51,19 @@ type manager struct {
 
 // New returns a new manager to start the reflection towards a remote cluster.
 func New(local, remote kubernetes.Interface, resync time.Duration) Manager {
+	// Configure the field selector to retrieve only the pods scheduled on the current virtual node.
+	localPodTweakListOptions := func(opts *metav1.ListOptions) {
+		opts.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", forge.LiqoNodeName()).String()
+	}
+
 	return &manager{
 		local:  local,
 		remote: remote,
 		resync: resync,
 
 		reflectors: make([]Reflector, 0),
+		localPodInformerFactory: informers.NewSharedInformerFactoryWithOptions(local, resync,
+			informers.WithTweakListOptions(localPodTweakListOptions)),
 
 		started: false,
 		stop:    make(map[string]context.CancelFunc),
@@ -74,13 +83,17 @@ func (m *manager) With(reflector Reflector) Manager {
 // Start starts the reflection manager. It panics if executed twice.
 func (m *manager) Start(ctx context.Context) {
 	if m.started {
-		panic("Attempted to start the service reflection manager while already running")
+		panic("Attempted to start the reflection manager while already running")
 	}
 
 	klog.Info("Starting the reflection manager...")
 	for _, reflector := range m.reflectors {
-		reflector.Start(ctx)
+		reflector.Start(ctx, options.New(m.local, m.localPodInformerFactory.Core().V1().Pods()))
 	}
+
+	// This is a no-op in case no informers/listers have been retrieved.
+	m.localPodInformerFactory.Start(ctx.Done())
+	m.localPodInformerFactory.WaitForCacheSync(ctx.Done())
 
 	m.started = true
 	go func() {
@@ -110,13 +123,20 @@ func (m *manager) StartNamespace(local, remote string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.stop[local] = cancel
 
+	// The local informer factory, which selects all resources in the given namespace.
 	localFactory := informers.NewSharedInformerFactoryWithOptions(m.local, m.resync, informers.WithNamespace(local))
+
+	// The remote informer factory, which selects all resources in the given namespace and with the reflection labels.
 	remoteTweakListOptions := func(opts *metav1.ListOptions) { opts.LabelSelector = forge.ReflectedLabelSelector().String() }
 	remoteFactory := informers.NewSharedInformerFactoryWithOptions(m.remote, m.resync,
 		informers.WithNamespace(remote), informers.WithTweakListOptions(remoteTweakListOptions))
 
+	ready := false
 	for _, reflector := range m.reflectors {
-		opts := options.New().WithLocal(local, m.local, localFactory).WithRemote(remote, m.remote, remoteFactory)
+		opts := options.NewNamespaced().
+			WithLocal(local, m.local, localFactory).
+			WithRemote(remote, m.remote, remoteFactory).
+			WithReadinessFunc(func() bool { return ready })
 		reflector.StartNamespace(opts)
 	}
 
@@ -142,9 +162,7 @@ func (m *manager) StartNamespace(local, remote string) {
 
 		// The factories have synced, and we are now ready to start te replication
 		klog.Infof("Reflection between local namespace %q and remote namespace %q correctly started", local, remote)
-		for _, reflector := range m.reflectors {
-			reflector.SetNamespaceReady(local)
-		}
+		ready = true
 	}()
 }
 

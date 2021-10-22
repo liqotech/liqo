@@ -27,7 +27,7 @@ import (
 
 // NamespacedReflector implements the logic common to all namespaced reflectors.
 type NamespacedReflector struct {
-	ready bool
+	ready func() bool
 
 	local  string
 	remote string
@@ -39,18 +39,13 @@ type ResourceDeleter interface {
 }
 
 // NewNamespacedReflector returns a new NamespacedReflector for the given namespaces.
-func NewNamespacedReflector(opts *options.ReflectorOpts) NamespacedReflector {
-	return NamespacedReflector{local: opts.LocalNamespace, remote: opts.RemoteNamespace}
+func NewNamespacedReflector(opts *options.NamespacedOpts) NamespacedReflector {
+	return NamespacedReflector{local: opts.LocalNamespace, remote: opts.RemoteNamespace, ready: opts.Ready}
 }
 
 // Ready returns whether the NamespacedReflector is completely initialized.
 func (gnr *NamespacedReflector) Ready() bool {
-	return gnr.ready
-}
-
-// SetReady marks the NamespacedReflector as completely initialized.
-func (gnr *NamespacedReflector) SetReady() {
-	gnr.ready = true
+	return gnr.ready()
 }
 
 // LocalNamespace returns the local namespace associated with the reflector.

@@ -20,6 +20,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/informers"
+	corev1informers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
@@ -28,10 +29,42 @@ import (
 )
 
 var _ = Describe("Options", func() {
-	Describe("The New function", func() {
-		var opts *options.ReflectorOpts
+	hf := func(options.Keyer) cache.ResourceEventHandler { return cache.ResourceEventHandlerFuncs{} }
 
-		JustBeforeEach(func() { opts = options.New() })
+	Describe("The New function", func() {
+		var (
+			opts, returned *options.ReflectorOpts
+			client         kubernetes.Interface
+			informer       corev1informers.PodInformer
+		)
+
+		BeforeEach(func() {
+			client = fake.NewSimpleClientset()
+			informer = informers.NewSharedInformerFactory(client, 0).Core().V1().Pods()
+		})
+		JustBeforeEach(func() { opts = options.New(client, informer) })
+		It("should return a non-nil pointer", func() { Expect(opts).ToNot(BeNil()) })
+		It("should correctly configure the given fields", func() {
+			Expect(opts.LocalClient).To(Equal(client))
+			Expect(opts.LocalPodInformer).To(Equal(informer))
+		})
+
+		Describe("The WithHandlerFactory function", func() {
+			JustBeforeEach(func() { returned = opts.WithHandlerFactory(hf) })
+
+			It("should return a non-nil pointer", func() { Expect(returned).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(returned).To(BeIdenticalTo(opts)) })
+			It("should correctly set the handler factory value", func() {
+				// Comparing the values returned by the functions, as failed to find any better way.
+				Expect(opts.HandlerFactory(nil)).To(Equal(opts.HandlerFactory(nil)))
+			})
+		})
+	})
+
+	Describe("The NewNamespaced function", func() {
+		var opts *options.NamespacedOpts
+
+		JustBeforeEach(func() { opts = options.NewNamespaced() })
 		It("should return a non-nil pointer", func() { Expect(opts).ToNot(BeNil()) })
 		It("should leave all fields unset", func() {
 			Expect(opts.LocalNamespace).To(BeEmpty())
@@ -41,14 +74,15 @@ var _ = Describe("Options", func() {
 			Expect(opts.LocalFactory).To(BeNil())
 			Expect(opts.RemoteFactory).To(BeNil())
 			Expect(opts.HandlerFactory).To(BeNil())
+			Expect(opts.Ready).To(BeNil())
 		})
 	})
 
-	Describe("The With functions", func() {
+	Describe("The With functions of NamespacedOpts", func() {
 		const namespace = "namespace"
 
 		var (
-			original, opts *options.ReflectorOpts
+			original, opts *options.NamespacedOpts
 
 			client  kubernetes.Interface
 			factory informers.SharedInformerFactory
@@ -59,7 +93,7 @@ var _ = Describe("Options", func() {
 			factory = informers.NewSharedInformerFactory(client, 10*time.Hour)
 		})
 
-		JustBeforeEach(func() { original = options.New() })
+		JustBeforeEach(func() { original = options.NewNamespaced() })
 
 		Describe("The WithLocal function", func() {
 			JustBeforeEach(func() { opts = original.WithLocal(namespace, client, factory) })
@@ -74,6 +108,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.RemoteClient).To(BeNil())
 				Expect(opts.RemoteFactory).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
+				Expect(opts.Ready).To(BeNil())
 			})
 		})
 
@@ -89,11 +124,11 @@ var _ = Describe("Options", func() {
 				Expect(opts.LocalNamespace).To(BeEmpty())
 				Expect(opts.LocalFactory).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
+				Expect(opts.Ready).To(BeNil())
 			})
 		})
 
 		Describe("The WithHandlerFactory function", func() {
-			hf := func(options.Keyer) cache.ResourceEventHandler { return cache.ResourceEventHandlerFuncs{} }
 			JustBeforeEach(func() { opts = original.WithHandlerFactory(hf) })
 
 			It("should return a non-nil pointer", func() { Expect(opts).ToNot(BeNil()) })
@@ -108,6 +143,25 @@ var _ = Describe("Options", func() {
 				Expect(opts.RemoteClient).To(BeNil())
 				Expect(opts.LocalFactory).To(BeNil())
 				Expect(opts.RemoteFactory).To(BeNil())
+				Expect(opts.Ready).To(BeNil())
+			})
+		})
+
+		Describe("The WithReadinessFunc function", func() {
+			JustBeforeEach(func() { opts = original.WithReadinessFunc(func() bool { return true }) })
+
+			It("should return a non-nil pointer", func() { Expect(opts).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(opts).To(BeIdenticalTo(original)) })
+			It("should correctly set the ready value", func() {
+				Expect(opts.Ready()).To(BeTrue())
+			})
+			It("should leave the other fields unset", func() {
+				Expect(opts.LocalNamespace).To(BeEmpty())
+				Expect(opts.RemoteNamespace).To(BeEmpty())
+				Expect(opts.RemoteClient).To(BeNil())
+				Expect(opts.LocalFactory).To(BeNil())
+				Expect(opts.RemoteFactory).To(BeNil())
+				Expect(opts.HandlerFactory).To(BeNil())
 			})
 		})
 	})

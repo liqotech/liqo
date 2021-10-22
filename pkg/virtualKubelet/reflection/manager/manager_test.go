@@ -36,12 +36,17 @@ var _ = Describe("Manager tests", func() {
 		mgr          Manager
 		localClient  kubernetes.Interface
 		remoteClient kubernetes.Interface
+
+		ctx    context.Context
+		cancel context.CancelFunc
 	)
 
 	BeforeEach(func() {
+		ctx, cancel = context.WithCancel(context.Background())
 		localClient = fake.NewSimpleClientset()
 		remoteClient = fake.NewSimpleClientset()
 	})
+	AfterEach(func() { cancel() })
 
 	JustBeforeEach(func() { mgr = New(localClient, remoteClient, 1*time.Hour) })
 
@@ -53,6 +58,8 @@ var _ = Describe("Manager tests", func() {
 			Expect(mgr.(*manager).resync).To(Equal(1 * time.Hour))
 
 			Expect(mgr.(*manager).reflectors).ToNot(BeNil())
+			Expect(mgr.(*manager).localPodInformerFactory).ToNot(BeNil())
+
 			Expect(mgr.(*manager).started).To(BeFalse())
 			Expect(mgr.(*manager).stop).ToNot(BeNil())
 		})
@@ -72,17 +79,15 @@ var _ = Describe("Manager tests", func() {
 			})
 
 			Context("the manager is started", func() {
-				var (
-					ctx    context.Context
-					cancel context.CancelFunc
-				)
-
-				BeforeEach(func() { ctx, cancel = context.WithCancel(context.Background()) })
 				JustBeforeEach(func() { mgr.Start(ctx) })
-				AfterEach(func() { cancel() })
 
 				It("should set the manager as started", func() { Expect(mgr.(*manager).started).To(BeTrue()) })
 				It("should start the registered reflector", func() { Expect(reflector.Started).To(BeTrue()) })
+				It("should correctly populate the reflector options", func() {
+					Expect(reflector.Opts.LocalClient).To(Equal(localClient))
+					Expect(reflector.Opts.LocalPodInformer).ToNot(BeNil())
+					Expect(reflector.Opts.HandlerFactory).To(BeNil())
+				})
 				It("should panic if started twice", func() { Expect(func() { mgr.Start(ctx) }).To(Panic()) })
 
 				Context("a namespace is started", func() {
@@ -98,10 +103,11 @@ var _ = Describe("Manager tests", func() {
 						Expect(opts.RemoteNamespace).To(Equal(remoteNamespace))
 						Expect(opts.RemoteClient).To(Equal(remoteClient))
 						Expect(opts.RemoteFactory).ToNot(BeNil())
+						Expect(opts.Ready).ToNot(BeNil())
 						Expect(opts.HandlerFactory).To(BeNil())
 					})
 					It("should eventually mark the namespace as ready", func() {
-						Eventually(func() bool { return reflector.NamespaceReady[localNamespace] }).Should(BeTrue())
+						Eventually(reflector.NamespaceStarted[localNamespace].Ready).Should(BeTrue())
 					})
 
 					Context("the same namespace is stopped", func() {

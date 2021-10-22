@@ -38,7 +38,10 @@ import (
 var _ manager.Reflector = (*reflector)(nil)
 
 // NamespacedReflectorFactoryFunc represents the function type to create a new NamespacedReflector.
-type NamespacedReflectorFactoryFunc func(*options.ReflectorOpts) manager.NamespacedReflector
+type NamespacedReflectorFactoryFunc func(*options.NamespacedOpts) manager.NamespacedReflector
+
+// FallbackReflectorFactoryFunc represents the function type to create a new FallbackReflector.
+type FallbackReflectorFactoryFunc func(*options.ReflectorOpts) manager.FallbackReflector
 
 // reflector implements the logic common to all reflectors.
 type reflector struct {
@@ -50,11 +53,14 @@ type reflector struct {
 	workqueue workqueue.RateLimitingInterface
 
 	reflectors map[string]manager.NamespacedReflector
-	factory    NamespacedReflectorFactoryFunc
+	fallback   manager.FallbackReflector
+
+	namespacedFactory NamespacedReflectorFactoryFunc
+	fallbackFactory   FallbackReflectorFactoryFunc
 }
 
 // NewReflector returns a new reflector to implement the reflection towards a remote clusters.
-func NewReflector(name string, factory NamespacedReflectorFactoryFunc, workers uint) manager.Reflector {
+func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc, workers uint) manager.Reflector {
 	return &reflector{
 		name:    name,
 		workers: workers,
@@ -62,13 +68,17 @@ func NewReflector(name string, factory NamespacedReflectorFactoryFunc, workers u
 		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
 
 		reflectors: make(map[string]manager.NamespacedReflector),
-		factory:    factory,
+
+		namespacedFactory: namespaced,
+		fallbackFactory:   fallback,
 	}
 }
 
 // Start starts the reflector.
-func (gr *reflector) Start(ctx context.Context) {
+func (gr *reflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
 	klog.Infof("Starting the %v reflector with %v workers", gr.name, gr.workers)
+	gr.fallback = gr.fallbackFactory(opts.WithHandlerFactory(gr.handlers))
+
 	for i := uint(0); i < gr.workers; i++ {
 		go wait.Until(gr.runWorker, time.Second, ctx.Done())
 	}
@@ -81,7 +91,7 @@ func (gr *reflector) Start(ctx context.Context) {
 }
 
 // StartNamespace starts the reflection for the given namespace.
-func (gr *reflector) StartNamespace(opts *options.ReflectorOpts) {
+func (gr *reflector) StartNamespace(opts *options.NamespacedOpts) {
 	gr.Lock()
 	defer gr.Unlock()
 
@@ -93,7 +103,15 @@ func (gr *reflector) StartNamespace(opts *options.ReflectorOpts) {
 		return
 	}
 
-	gr.reflectors[opts.LocalNamespace] = gr.factory(opts.WithHandlerFactory(gr.handlers))
+	gr.reflectors[opts.LocalNamespace] = gr.namespacedFactory(opts.WithHandlerFactory(gr.handlers))
+
+	// In case a fallback reflector exists, re-enqueue all the elements returned for the given namespace.
+	if gr.fallback != nil {
+		for _, key := range gr.fallback.Keys(opts.LocalNamespace, opts.RemoteNamespace) {
+			gr.workqueue.Add(key)
+		}
+	}
+
 	klog.Infof("%v reflection between local namespace %q and remote namespace %q correctly started",
 		gr.name, opts.LocalNamespace, opts.RemoteNamespace)
 }
@@ -111,17 +129,15 @@ func (gr *reflector) StopNamespace(local, remote string) {
 	}
 
 	delete(gr.reflectors, local)
-	klog.Infof("Reflection between local namespace %q and remote namespace %q correctly stopped", local, remote)
-}
 
-// SetNamespaceReady marks the given namespace as ready for resource reflection.
-func (gr *reflector) SetNamespaceReady(namespace string) {
-	reflector, found := gr.namespace(namespace)
-	if !found {
-		klog.Warningf("Attempting to set %v reflection for local namespace %q ready, but no longer present", gr.name, namespace)
-		return
+	// In case a fallback reflector exists, re-enqueue all the elements returned for the given namespace.
+	if gr.fallback != nil {
+		for _, key := range gr.fallback.Keys(local, remote) {
+			gr.workqueue.Add(key)
+		}
 	}
-	reflector.SetReady()
+
+	klog.Infof("Reflection between local namespace %q and remote namespace %q correctly stopped", local, remote)
 }
 
 // namespace returns the service reflector associated with a given namespace (if any).
@@ -174,23 +190,36 @@ func (gr *reflector) processNextWorkItem() bool {
 
 // handle dispatches the items to be reconciled based on the resource type and namespace.
 func (gr *reflector) handle(ctx context.Context, key types.NamespacedName) error {
+	tracer := trace.New("Handle", trace.Field{Key: "Reflector", Value: gr.name},
+		trace.Field{Key: "Object", Value: key.Namespace}, trace.Field{Key: "Name", Value: key.Name})
+	defer tracer.LogIfLong(traceutils.LongThreshold())
+
 	// Retrieve the reflector associated with the given namespace.
 	reflector, found := gr.namespace(key.Namespace)
 	if !found {
-		klog.Warningf("Failed to retrieve %v reflection information for local namespace %q", gr.name, key.Namespace)
-		return nil
+		// In case none is found and no fallback is configured, just return.
+		if gr.fallback == nil {
+			klog.Warningf("Failed to retrieve %v reflection information for local namespace %q", gr.name, key.Namespace)
+			return nil
+		}
+
+		// The fallback may not be completely initialized in case some namespace reflectors still have to be started.
+		if !gr.fallback.Ready() {
+			klog.Infof("%v fallback reflection not yet completely initialized (item: %q)", gr.name, klog.KRef(key.Namespace, key.Name))
+			return fmt.Errorf("%v fallback reflection not yet completely initialized (item: %q)", gr.name, klog.KRef(key.Namespace, key.Name))
+		}
+
+		// Trigger the actual handle function.
+		return gr.fallback.Handle(trace.ContextWithTrace(ctx, tracer), key)
 	}
 
 	// The reflector may not be completely initialized in case only one of the two informer factories has synced.
 	if !reflector.Ready() {
-		klog.Infof("%v reflection not yet completely initialized for local namespace %q", gr.name, key.Namespace)
-		return fmt.Errorf("%v reflection not yet completely initialized for local namespace %q", gr.name, key.Namespace)
+		klog.Infof("%v reflection not yet completely initialized for local namespace %q (item: %q)", gr.name, key.Namespace, key.Name)
+		return fmt.Errorf("%v reflection not yet completely initialized for local namespace %q (item: %q)", gr.name, key.Namespace, key.Name)
 	}
 
 	// Trigger the actual handle function.
-	tracer := trace.New("Handle", trace.Field{Key: "Reflector", Value: gr.name},
-		trace.Field{Key: "Object", Value: key.Namespace}, trace.Field{Key: "Name", Value: key.Name})
-	defer tracer.LogIfLong(traceutils.LongThreshold())
 	return reflector.Handle(trace.ContextWithTrace(ctx, tracer), key.Name)
 }
 
@@ -210,10 +239,22 @@ func (gr *reflector) handlers(keyer options.Keyer) cache.ResourceEventHandler {
 	}
 }
 
+// BasicKeyer returns a keyer retrieving the name and namespace from the object metadata.
+func BasicKeyer() func(metadata metav1.Object) types.NamespacedName {
+	return func(metadata metav1.Object) types.NamespacedName {
+		return types.NamespacedName{Namespace: metadata.GetNamespace(), Name: metadata.GetName()}
+	}
+}
+
 // NamespacedKeyer returns a keyer associated with the given namespace, retrieving the
 // object name from its metadata.
 func NamespacedKeyer(namespace string) func(metadata metav1.Object) types.NamespacedName {
 	return func(metadata metav1.Object) types.NamespacedName {
 		return types.NamespacedName{Namespace: namespace, Name: metadata.GetName()}
 	}
+}
+
+// WithoutFallback returns a FallbackReflectorFactoryFunc which disables the fallback functionality.
+func WithoutFallback() FallbackReflectorFactoryFunc {
+	return func(ro *options.ReflectorOpts) manager.FallbackReflector { return nil }
 }

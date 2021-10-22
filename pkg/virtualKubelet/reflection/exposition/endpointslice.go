@@ -56,12 +56,12 @@ type NamespacedEndpointSliceReflector struct {
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
 func NewEndpointSliceReflector(ipamclient ipam.IpamClient, workers uint) manager.Reflector {
-	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient), workers)
+	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient), generic.WithoutFallback(), workers)
 }
 
 // NewNamespacedEndpointSliceReflector returns a function generating NamespacedEndpointSliceReflector instances.
-func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*options.ReflectorOpts) manager.NamespacedReflector {
-	return func(opts *options.ReflectorOpts) manager.NamespacedReflector {
+func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*options.NamespacedOpts) manager.NamespacedReflector {
+	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
 		local := opts.LocalFactory.Discovery().V1beta1().EndpointSlices()
 		remote := opts.RemoteFactory.Discovery().V1beta1().EndpointSlices()
 

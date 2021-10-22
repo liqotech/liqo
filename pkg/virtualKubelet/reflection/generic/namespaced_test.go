@@ -38,17 +38,21 @@ var _ = Describe("NamespacedReflector tests", func() {
 	)
 
 	Context("the NewNamespacedReflector function", func() {
-		var nsrfl NamespacedReflector
+		var (
+			nsrfl NamespacedReflector
+			ready bool
+		)
 
+		BeforeEach(func() { ready = false })
 		JustBeforeEach(func() {
-			opts := options.ReflectorOpts{LocalNamespace: localNamespace, RemoteNamespace: remoteNamespace}
+			opts := options.NamespacedOpts{LocalNamespace: localNamespace, RemoteNamespace: remoteNamespace, Ready: func() bool { return ready }}
 			nsrfl = NewNamespacedReflector(&opts)
 		})
 
 		It("should correctly initialize the namespaced reflector", func() {
 			Expect(nsrfl.local).To(BeIdenticalTo(localNamespace))
 			Expect(nsrfl.remote).To(BeIdenticalTo(remoteNamespace))
-			Expect(nsrfl.ready).To(BeFalse())
+			Expect(nsrfl.ready).ToNot(BeNil())
 		})
 
 		Context("the readiness property", func() {
@@ -56,7 +60,7 @@ var _ = Describe("NamespacedReflector tests", func() {
 				It("Ready should return false", func() { Expect(nsrfl.Ready()).To(BeFalse()) })
 			})
 			When("the namespaced reflector is ready", func() {
-				JustBeforeEach(func() { nsrfl.SetReady() })
+				JustBeforeEach(func() { ready = true })
 				It("Ready should return true", func() { Expect(nsrfl.Ready()).To(BeTrue()) })
 			})
 		})

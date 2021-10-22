@@ -17,29 +17,36 @@ package fake
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
 
-// NamespacedReflector implements a fake NamespacedReflector for testing purposes.
-type NamespacedReflector struct {
-	Opts    options.NamespacedOpts
+// FallbackReflector implements a fake FallbackReflector for testing purposes.
+type FallbackReflector struct {
+	Opts    options.ReflectorOpts
 	Handled int
 	ready   bool
 }
 
-// NewNamespacedReflector returns a new fake NamespacedReflector.
-func NewNamespacedReflector(opts *options.NamespacedOpts) *NamespacedReflector {
-	return &NamespacedReflector{Opts: *opts}
+// NewFallbackReflector returns a new fake FallbackReflector.
+func NewFallbackReflector(opts *options.ReflectorOpts) *FallbackReflector {
+	return &FallbackReflector{Opts: *opts}
 }
 
 // Handle increments the Handled counter.
-func (r *NamespacedReflector) Handle(ctx context.Context, name string) error {
+func (r *FallbackReflector) Handle(ctx context.Context, key types.NamespacedName) error {
 	r.Handled++
 	return nil
 }
 
 // Ready returns whether the NamespacedReflector is completely initialized.
-func (r *NamespacedReflector) Ready() bool { return r.ready }
+func (r *FallbackReflector) Ready() bool { return r.ready }
 
 // SetReady marks the NamespacedReflector as completely initialized.
-func (r *NamespacedReflector) SetReady() { r.ready = true }
+func (r *FallbackReflector) SetReady() { r.ready = true }
+
+// Keys returns a key with the namespace equal to the local namespace and the name equal to the remote one.
+func (r *FallbackReflector) Keys(local, remote string) []types.NamespacedName {
+	return []types.NamespacedName{{Namespace: local, Name: remote}}
+}

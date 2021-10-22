@@ -17,6 +17,8 @@ package manager
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
 
@@ -36,22 +38,27 @@ type Manager interface {
 // Reflector implements the reflection between the local and the remote cluster.
 type Reflector interface {
 	// Start starts the reflector.
-	Start(ctx context.Context)
+	Start(ctx context.Context, opts *options.ReflectorOpts)
 	// StartNamespace starts the reflection for the given namespace.
-	StartNamespace(opts *options.ReflectorOpts)
+	StartNamespace(opts *options.NamespacedOpts)
 	// StopNamespace stops the reflection for a given namespace.
-	StopNamespace(localNamespace, remoteNamespace string)
-	// SetNamespaceReady marks the given namespace as ready for resource reflection.
-	SetNamespaceReady(namespace string)
+	StopNamespace(local, remote string)
 }
 
 // NamespacedReflector implements the reflection between a local and a remote namespace.
 type NamespacedReflector interface {
 	// Handle is responsible for reconciling the given object and ensuring it is correctly reflected.
 	Handle(ctx context.Context, name string) error
-
 	// Ready returns whether the NamespacedReflector is completely initialized.
 	Ready() bool
-	// SetReady marks the NamespacedReflector as completely initialized.
-	SetReady()
+}
+
+// FallbackReflector implements fallback reflection for "orphan" local objects not managed by namespaced reflectors.
+type FallbackReflector interface {
+	// Handle is responsible for reconciling the given "orphan" object.
+	Handle(ctx context.Context, key types.NamespacedName) error
+	// Keys returns a set of keys to be enqueued for fallback processing for the given namespace pair.
+	Keys(local, remote string) []types.NamespacedName
+	// Ready returns whether the FallbackReflector is completely initialized.
+	Ready() bool
 }

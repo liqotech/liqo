@@ -76,7 +76,7 @@ var _ = Describe("Service Reflection Tests", func() {
 
 		JustBeforeEach(func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
-			reflector = exposition.NewNamespacedServiceReflector(options.New().
+			reflector = exposition.NewNamespacedServiceReflector(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler))
