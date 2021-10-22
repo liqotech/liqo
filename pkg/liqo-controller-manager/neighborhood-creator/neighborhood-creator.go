@@ -98,7 +98,7 @@ func (r *NeighborhoodCreator) ensureNeighborhoodForCluster(ctx context.Context, 
 		return r.createNeighborhood(ctx, fc, neighbors)
 	}
 
-	// Otherwise, update the resource to ensure it is up-to-date
+	// Otherwise, ensure it is up-to-date
 	return r.updateNeighborhood(ctx, neighborhoodRes, neighbors)
 }
 
@@ -162,7 +162,7 @@ func (r *NeighborhoodCreator) updateNeighborhood(ctx context.Context, neighborho
 		return nil
 	}
 	neighborhoodRes.Spec.NeighborsList = neighbors
-	if err := r.Update(ctx, neighborhoodRes, &client.UpdateOptions{}); err != nil {
+	if err := r.Update(ctx, neighborhoodRes); err != nil {
 		return err
 	}
 	klog.Infof("Resource %s correctly updated", neighborhoodRes.GetName())

@@ -17,6 +17,7 @@ package netcfgcreator
 import (
 	"context"
 	"errors"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -95,11 +96,17 @@ func (ncc *NetworkConfigCreator) Reconcile(ctx context.Context, req ctrl.Request
 
 	// A peering is (being) established, hence we need to ensure the network interconnection.
 	if fc.GetDeletionTimestamp().IsZero() && (foreigncluster.IsIncomingJoined(&fc) || foreigncluster.IsOutgoingJoined(&fc) || foreigncluster.IsInducedEnabled(&fc)) {
-		return ctrl.Result{}, ncc.EnforceNetworkConfigPresence(ctx, &fc)
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: 10 * time.Second,
+		}, ncc.EnforceNetworkConfigPresence(ctx, &fc)
 	}
 
 	// A peering is not established, hence we need to tear down the network interconnection.
-	return ctrl.Result{}, ncc.EnforceNetworkConfigAbsence(ctx, &fc)
+	return ctrl.Result{
+		Requeue:      true,
+		RequeueAfter: 10 * time.Second,
+	}, ncc.EnforceNetworkConfigAbsence(ctx, &fc)
 }
 
 // SetupWithManager registers a new controller for ForeignCluster resources.
