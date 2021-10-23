@@ -491,4 +491,15 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - shadowpod
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 
