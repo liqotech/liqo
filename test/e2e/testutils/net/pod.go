@@ -69,17 +69,17 @@ func CheckTesterPods(ctx context.Context,
 	homeClient, cluster1Client, cluster2Client kubernetes.Interface,
 	homeClusterID string, cluster1, cluster2 *TesterOpts) bool {
 	reflectedNamespace := TestNamespaceName + "-" + homeClusterID
-	if !util.IsPodUp(ctx, homeClient, TestNamespaceName, cluster1.PodName, true) ||
-		!util.IsPodUp(ctx, homeClient, TestNamespaceName, cluster2.PodName, true) {
+	if !util.IsPodUp(ctx, homeClient, TestNamespaceName, cluster1.PodName, util.PodLocal) ||
+		!util.IsPodUp(ctx, homeClient, TestNamespaceName, cluster2.PodName, util.PodLocal) {
 		return false
 	}
 	if cluster1.Offloaded {
-		if !util.IsPodUp(ctx, cluster1Client, reflectedNamespace, cluster1.PodName, false) {
+		if !util.IsPodUp(ctx, cluster1Client, reflectedNamespace, cluster1.PodName, util.PodRemote) {
 			return false
 		}
 	}
 	if cluster2.Offloaded {
-		if !util.IsPodUp(ctx, cluster2Client, reflectedNamespace, cluster2.PodName, false) {
+		if !util.IsPodUp(ctx, cluster2Client, reflectedNamespace, cluster2.PodName, util.PodRemote) {
 			return false
 		}
 	}

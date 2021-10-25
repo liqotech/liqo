@@ -17,53 +17,40 @@ package util
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/utils/pod"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
+)
+
+// PodType -> defines the type of a pod (local/remote).
+type PodType string
+
+const (
+	// PodLocal -> the pod is local.
+	PodLocal = "local"
+	// PodRemote -> the pod is remote.
+	PodRemote = "remote"
 )
 
 // IsPodUp waits for a specific namespace/podName to be ready. It returns true if the pod within the timeout, false otherwise.
-func IsPodUp(ctx context.Context, client kubernetes.Interface, namespace, podName string, isHomePod bool) bool {
-	var podToCheck *corev1.Pod
-	var err error
-	var labelSelector = map[string]string{
-		virtualKubelet.ReflectedpodKey: podName,
+func IsPodUp(ctx context.Context, client kubernetes.Interface, namespace, podName string, podType PodType) bool {
+	klog.Infof("checking if %s pod %s/%s is ready", podType, namespace, podName)
+	podToCheck, err := client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		klog.Errorf("an error occurred while getting %s pod %s/%s: %v", podType, namespace, podName, err)
+		return false
 	}
-	if isHomePod {
-		klog.Infof("checking if local pod %s/%s is ready", namespace, podName)
-		podToCheck, err = client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorf("an error occurred while getting pod %s/%s: %v", namespace, podName, err)
-			return false
-		}
-	} else {
-		labelSelector := labels.SelectorFromSet(labelSelector).String()
-		klog.Infof("checking if remote pod is ready in namespace %s and label selector %s", namespace, labelSelector)
-		pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-			LabelSelector: labelSelector,
-		})
-		if err != nil {
-			klog.Errorf("an error occurred while getting remote pod: %v", err)
-			return false
-		}
-		if len(pods.Items) == 0 {
-			klog.Error("an error occurred: remote pod not found")
-			return false
-		}
-		podToCheck = &pods.Items[0]
+
+	ready := pod.IsPodReady(podToCheck)
+	message := "ready"
+	if !ready {
+		message = "NOT ready"
 	}
-	state := pod.IsPodReady(podToCheck)
-	if isHomePod {
-		klog.Infof("local pod %s/%s is ready", podToCheck.Namespace, podToCheck.Name)
-	} else {
-		klog.Infof("remote pod %s/%s is ready", podToCheck.Namespace, podToCheck.Name)
-	}
-	return state
+
+	klog.Infof("%s pod %s/%s is %s", podType, podToCheck.Namespace, podToCheck.Name, message)
+	return ready
 }
 
 // ArePodsUp check if all the pods of a specific namespace are ready. It returns a list of ready pods, a list of unready
