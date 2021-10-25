@@ -292,6 +292,9 @@ export KUBECONFIG=/your/kubeconfig/path
 ```
 {{% /tab %}}
 {{% tab name="OpenShift Container Platform (OCP)" %}}
+
+Liqo was tested running on OpenShift Container Platform (OCP) 4.8.
+
 ##### Configuration
 
 You only have to export the KUBECONFIG environment variable.
