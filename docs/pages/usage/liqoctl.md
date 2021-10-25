@@ -20,7 +20,7 @@ However, if you want to try an unstable release you can just specify it using th
 liqoctl install kind --version v0.3.1-alpha.1
 ```
 
-It is suggested to use liqoctl of the same version you are installing. You can download liqoctl by the release pages
+It is suggested to use liqoctl of the same version you are installing. You can download liqoctl through the [release page](https://github.com/liqotech/liqo/releases).
 
 ### Generate chart values
 

@@ -37,6 +37,9 @@ jobs:
                         "sha": "${{ steps.rebase-commit-extraction.outputs.rebasedcommit }}"
                     }
               },
+            "repository": {
+                 "full_name": ${{ github.repository }}
+             },
             "slash_command": {
                     "command": "test"
                 }

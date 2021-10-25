@@ -150,7 +150,7 @@ jobs:
 
   post-build:
      runs-on: ubuntu-latest
-     needs: [build, configure]
+     needs: [build, configure, liqoctl]
      steps:
 
        # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
