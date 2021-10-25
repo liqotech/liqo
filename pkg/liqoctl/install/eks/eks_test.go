@@ -54,7 +54,7 @@ var _ = Describe("Extract elements from EKS", func() {
 		cmd := &cobra.Command{}
 
 		GenerateFlags(cmd)
-		cmd.Flags().String("cluster-name", "", "Name to assign to the Liqo Cluster")
+		cmd.Flags().String("cluster-name", "test-cluster", "Name to assign to the Liqo Cluster")
 		cmd.Flags().String("reserved-subnets", "", "")
 
 		flags := cmd.Flags()

@@ -15,7 +15,10 @@
 package provider
 
 import (
+	"fmt"
+
 	flag "github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
@@ -35,6 +38,13 @@ func (p *GenericProvider) ValidateGenericCommandArguments(flags *flag.FlagSet) (
 	p.ClusterName, err = flags.GetString("cluster-name")
 	if err != nil {
 		return err
+	}
+	if p.ClusterName == "" {
+		return fmt.Errorf("the cluster name may not be empty")
+	}
+	errs := validation.IsDNS1123Label(p.ClusterName)
+	if len(errs) != 0 {
+		return fmt.Errorf("the cluster name may only contain lowercase letters, numbers and hyphens, and must not be no longer than 63 characters")
 	}
 
 	subnetString, err := flags.GetString("reserved-subnets")
