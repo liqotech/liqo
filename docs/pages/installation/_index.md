@@ -17,7 +17,7 @@ Before installing Liqo, you should:
 #### liqoctl 
 
 Liqoctl is the swiss-knife CLI tool to install and manage Liqo clusters.
-We strongly recommend to install Liqo using Liqoctl because it automatically handles the required customizations for each supported providers (e.g., AWS, EKS, etc.).
+We strongly recommend installing Liqo using Liqoctl because it automatically handles the required customizations for each supported providers (e.g., AWS, EKS, etc.).
 
 Under the hood, liqoctl uses [Helm 3](https://helm.sh/) to configure and install the Liqo chart available on the official repository. 
 If you prefer to customize the installation configuration, you can use liqoctl as a provider-specific values file generator and then install Liqo with Helm as usual.
@@ -39,6 +39,7 @@ sudo mv "liqoctl-${OS}-${ARCH}" /usr/local/bin/liqoctl
 ```
 
 Alternatively, you can directly download liqoctl from the [Liqo releases](https://github.com/liqotech/liqo/releases/) page on GitHub.
+For more information and options about Liqoctl, you can check out the [related section](/usage/liqoctl)
 
 ##### Command Completion (Optional)
 
@@ -290,6 +291,17 @@ Otherwise, liqoctl will use the kubeconfig in kubectl default path (i.e. `${HOME
 export KUBECONFIG=/your/kubeconfig/path
 ```
 {{% /tab %}}
+{{% tab name="OpenShift Container Platform (OCP)" %}}
+##### Configuration
+
+You only have to export the KUBECONFIG environment variable.
+Otherwise, liqoctl will use the kubeconfig in kubectl default path (i.e. `${HOME}/.kube/config` )
+
+```bash
+export KUBECONFIG=/your/kubeconfig/path
+```
+
+{{% /tab %}}
 {{< /tabs >}}
 
 ### Quick Installation
@@ -333,6 +345,11 @@ liqoctl install gke --project-id ${GKE_PROJECT_ID} \
 {{% tab name="K3s" %}}
 ```bash
 liqoctl install k3s
+```
+{{% /tab %}}
+{{% tab name="OpenShift Container Platform (OCP)" %}}
+```bash
+liqoctl install openshift
 ```
 {{% /tab %}}
 {{< /tabs >}}
