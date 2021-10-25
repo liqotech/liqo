@@ -15,6 +15,8 @@
 package forge
 
 import (
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
@@ -32,4 +34,8 @@ type VirtualKubeletOpts struct {
 	ExtraArgs             []string
 	NodeExtraAnnotations  argsutils.StringMap
 	NodeExtraLabels       argsutils.StringMap
+	RequestsCPU           resource.Quantity
+	LimitsCPU             resource.Quantity
+	RequestsRAM           resource.Quantity
+	LimitsRAM             resource.Quantity
 }

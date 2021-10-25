@@ -85,6 +85,8 @@ func main() {
 	var kubeletExtraAnnotations, kubeletExtraLabels argsutils.StringMap
 	var kubeletExtraArgs argsutils.StringList
 	var nodeExtraAnnotations, nodeExtraLabels argsutils.StringMap
+	var kubeletCPURequests, kubeletCPULimits = argsutils.NewQuantity("250m"), argsutils.NewQuantity("1000m")
+	var kubeletRAMRequests, kubeletRAMLimits = argsutils.NewQuantity("100M"), argsutils.NewQuantity("250M")
 
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
 	probeAddr := flag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
@@ -135,6 +137,10 @@ func main() {
 	flag.Var(&kubeletExtraAnnotations, "kubelet-extra-annotations", "Extra annotations to add to the Virtual Kubelet Deployments and Pods")
 	flag.Var(&kubeletExtraLabels, "kubelet-extra-labels", "Extra labels to add to the Virtual Kubelet Deployments and Pods")
 	flag.Var(&kubeletExtraArgs, "kubelet-extra-args", "Extra arguments to add to the Virtual Kubelet Deployments and Pods")
+	flag.Var(&kubeletCPURequests, "kubelet-cpu-requests", "CPU requests assigned to the Virtual Kubelet Pod")
+	flag.Var(&kubeletCPULimits, "kubelet-cpu-limits", "CPU limits assigned to the Virtual Kubelet Pod")
+	flag.Var(&kubeletRAMRequests, "kubelet-ram-requests", "RAM requests assigned to the Virtual Kubelet Pod")
+	flag.Var(&kubeletRAMLimits, "kubelet-ram-limits", "RAM limits assigned to the Virtual Kubelet Pod")
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
 
@@ -243,6 +249,10 @@ func main() {
 		ExtraArgs:             kubeletExtraArgs.StringList,
 		NodeExtraAnnotations:  nodeExtraAnnotations,
 		NodeExtraLabels:       nodeExtraLabels,
+		RequestsCPU:           kubeletCPURequests.Quantity,
+		RequestsRAM:           kubeletRAMRequests.Quantity,
+		LimitsCPU:             kubeletCPULimits.Quantity,
+		LimitsRAM:             kubeletRAMLimits.Quantity,
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
