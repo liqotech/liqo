@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func TestParseArguments(t *testing.T) {
@@ -251,6 +252,40 @@ var _ = Describe("ParseArguments", func() {
 			}),
 		)
 
+	})
+
+	Context("Quantity", func() {
+		type parseQuantityTestcase struct {
+			str            string
+			expectedError  OmegaMatcher
+			expectedValue  resource.Quantity
+			expectedString string
+		}
+
+		DescribeTable("Quantity table",
+			func(c parseQuantityTestcase) {
+				q := Quantity{}
+				err := q.Set(c.str)
+				Expect(err).To(c.expectedError)
+
+				if err == nil {
+					Expect(q.Quantity.Equal(c.expectedValue)).To(BeTrue())
+					Expect(q.String()).To(Equal(c.expectedString))
+				}
+			},
+
+			Entry("invalid string", parseQuantityTestcase{
+				str:           "11z",
+				expectedError: HaveOccurred(),
+			}),
+
+			Entry("valid string", parseQuantityTestcase{
+				str:            "55m",
+				expectedError:  Not(HaveOccurred()),
+				expectedValue:  *resource.NewScaledQuantity(55, resource.Milli),
+				expectedString: "55m",
+			}),
+		)
 	})
 
 })

@@ -18,16 +18,10 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
-
-const vkCPUResourceReq = "300m"
-const vkMemoryResourceReq = "100M"
-const vkCPUResourceLim = "1000m"
-const vkMemoryResourceLim = "250M"
 
 func forgeVKAffinity() *v1.Affinity {
 	return &v1.Affinity{
@@ -68,7 +62,7 @@ func forgeVKInitContainers(nodeName string, opts *VirtualKubeletOpts) []v1.Conta
 
 	return []v1.Container{
 		{
-			Resources: forgeVKResources(),
+			Resources: forgeVKResources(opts),
 			Name:      "crt-generator",
 			Image:     opts.InitContainerImage,
 			Command: []string{
@@ -136,7 +130,7 @@ func forgeVKContainers(
 	return []v1.Container{
 		{
 			Name:         "virtual-kubelet",
-			Resources:    forgeVKResources(),
+			Resources:    forgeVKResources(opts),
 			Image:        vkImage,
 			Command:      command,
 			Args:         args,
@@ -172,15 +166,15 @@ func forgeVKPodSpec(
 	}
 }
 
-func forgeVKResources() v1.ResourceRequirements {
+func forgeVKResources(opts *VirtualKubeletOpts) v1.ResourceRequirements {
 	return v1.ResourceRequirements{
 		Limits: v1.ResourceList{
-			"cpu":    resource.MustParse(vkCPUResourceLim),
-			"memory": resource.MustParse(vkMemoryResourceLim),
+			v1.ResourceCPU:    opts.LimitsCPU,
+			v1.ResourceMemory: opts.LimitsRAM,
 		},
 		Requests: v1.ResourceList{
-			"cpu":    resource.MustParse(vkCPUResourceReq),
-			"memory": resource.MustParse(vkMemoryResourceReq),
+			v1.ResourceCPU:    opts.RequestsCPU,
+			v1.ResourceMemory: opts.RequestsRAM,
 		},
 	}
 }
