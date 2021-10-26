@@ -38,7 +38,7 @@ Liqo is a platform to enable dynamic and decentralized resource sharing across K
   <a href="https://doc.liqo.io/installation/?provider=GKE"><img src=https://img.shields.io/badge/Google%20GKE-supported-green></a>
   <a href="https://doc.liqo.io/installation/?provider=AKS" ><img src=https://img.shields.io/badge/Azure%20AKS-supported-green></a>
   <a href="https://doc.liqo.io/installation/?provider=EKS"><img src=https://img.shields.io/badge/Amazon%20EKS-supported-green></a>
-  <img src=https://img.shields.io/badge/Openshift-in%20progress-orange>
+  <a href="https://doc.liqo.io/installation/?provider=OpenShift%20Container%20Platform%20(OCP)"><img src=https://img.shields.io/badge/Openshift-supported-green></a>
 </p>
 <br />
 
@@ -156,12 +156,10 @@ If you want to explore the Liqo internals, including how to inspect and interact
 
 ## Roadmap
 
-Planned features for the next release (v0.3, expected early-September, 2021) are the following:
+Planned features for the next release (v0.4, expected early-January, 2022) are the following:
 
-* Support for deployments spanning across more than two clusters.
-* Support for a more balanced scheduling mechanism to distribute jobs across clusters.
-* Support for Amazon Elastic Kubernetes Service.
-* Support for more granular permission control over remote cluster resources.
+* Introduce a first support to Persistent Storage (PVC) on Liqo.
+* Enhance Liqo connectivty in topologies with more than two clusters.
 
 ## Contributing
 
