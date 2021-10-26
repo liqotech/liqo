@@ -36,7 +36,7 @@ jobs:
                     "head": {
                         "sha": "${{ steps.rebase-commit-extraction.outputs.rebasedcommit }}"
                     }
-              }
+            },
             "github": {
                "payload": {
                      "repository": {
