@@ -799,8 +799,8 @@ github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-b
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
 github.com/liqotech/go-helm-client v0.8.1-0.20211011193340-849127b6a8ec h1:bXY7UQkt+GTc+XYc4LrvR+JOxYWrQ5ECZy4R+YVMoRk=
 github.com/liqotech/go-helm-client v0.8.1-0.20211011193340-849127b6a8ec/go.mod h1:+Ks5OpzB0hJw91W8o/8G+FmjUtjrIXxPuJjE87XG/G0=
-github.com/liqotech/virtual-kubelet v1.5.1-0.20210726130647-f2333d82a6de h1:yUmpHCqz5KM8ENgKAtmfmN+puwbkC9DVzPx+REdjt8k=
-github.com/liqotech/virtual-kubelet v1.5.1-0.20210726130647-f2333d82a6de/go.mod h1:Uf0+/KqEDz5Tz6TNQSok5B4A+guFZV6cs4JohQTHdEQ=
+github.com/liqotech/virtual-kubelet v1.5.1-0.20211028083903-28902eb9305f h1:zJ8ine7sLBQTXhpRZtad1d9/n5GC1UpMF9Z3lAoB5Nk=
+github.com/liqotech/virtual-kubelet v1.5.1-0.20211028083903-28902eb9305f/go.mod h1:Uf0+/KqEDz5Tz6TNQSok5B4A+guFZV6cs4JohQTHdEQ=
 github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb h1:FokBo/2VZRYP72Y030Z5bQXiIr7gs/nt/ISqnuCsiq0=
 github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb/go.mod h1:lTKmG1zh86XyCoUeIHSA4FJMBwCJiQmGfcP2PdzytEs=
 github.com/lithammer/dedent v1.1.0/go.mod h1:jrXYCQtgg0nJiN+StA2KgR7w6CiQNv9Fd/Z9BP0jIOc=
