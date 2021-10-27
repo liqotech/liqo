@@ -53,8 +53,7 @@ func GetClusterIDWithControllerClient(ctx context.Context, controllerClient clie
 	if err := controllerClient.List(ctx, &configMapList,
 		client.MatchingLabelsSelector{Selector: consts.ClusterIDConfigMapSelector()},
 		client.InNamespace(namespace)); err != nil {
-		klog.Errorf("%s, unable to get the ClusterID ConfigMap in namespace '%s'", err, namespace)
-		return "", err
+		return "", fmt.Errorf("%w, unable to get the ClusterID ConfigMap in namespace '%s'", err, namespace)
 	}
 
 	return getClusterIDFromConfigMapList(&configMapList)
@@ -69,7 +68,7 @@ func getClusterIDFromConfigMapList(configMapList *corev1.ConfigMapList) (string,
 		}, "clusterid-configmap")
 	case 1:
 		clusterID := configMapList.Items[0].Data[consts.ClusterIDConfigMapKey]
-		klog.Infof("ClusterID is '%s'", clusterID)
+		klog.V(2).Infof("ClusterID is '%s'", clusterID)
 		return clusterID, nil
 	default:
 		return "", fmt.Errorf("multiple clusterID configmaps found")
