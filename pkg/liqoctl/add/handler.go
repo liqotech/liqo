@@ -29,7 +29,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
-	utils2 "github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils"
 	authenticationtokenutils "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
@@ -89,7 +89,7 @@ func processAddCluster(ctx context.Context, t *ClusterArgs, clientSet kubernetes
 		return err
 	}
 
-	clusterID, err := utils2.GetClusterIDWithControllerClient(ctx, k8sClient, t.Namespace)
+	clusterID, err := utils.GetClusterIDWithControllerClient(ctx, k8sClient, t.Namespace)
 	if err != nil {
 		return err
 	}
