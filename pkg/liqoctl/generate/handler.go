@@ -45,7 +45,10 @@ func HandleGenerateAddCommand(ctx context.Context, liqoNamespace string, printOn
 		return err
 	}
 
-	commandString := processGenerateCommand(ctx, clientSet, liqoNamespace, commandName)
+	commandString, err := processGenerateCommand(ctx, clientSet, liqoNamespace, commandName)
+	if err != nil {
+		return err
+	}
 
 	if printOnlyCommand {
 		fmt.Println(commandString)
@@ -56,21 +59,21 @@ func HandleGenerateAddCommand(ctx context.Context, liqoNamespace string, printOn
 	return nil
 }
 
-func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNamespace, commandName string) string {
+func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNamespace, commandName string) (string, error) {
 	localToken, err := auth.GetToken(ctx, clientSet, liqoNamespace)
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return "", err
 	}
 
 	clusterID, err := utils.GetClusterIDWithControllerClient(ctx, clientSet, liqoNamespace)
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return "", err
 	}
 
 	// Retrieve the liqo controller manager deployment args
 	args, err := RetrieveLiqoControllerManagerDeploymentArgs(ctx, clientSet, liqoNamespace)
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return "", err
 	}
 
 	// The error is discarded, since an empty string is returned in case the key is not found, which is fine.
@@ -81,9 +84,9 @@ func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNa
 	authEP, err := foreigncluster.GetHomeAuthURL(ctx, clientSet,
 		authServiceAddressOverride, authServicePortOverride, liqoNamespace)
 	if err != nil {
-		klog.Fatalf("an error occurred while retrieving the liqo-auth service: %s", err)
+		klog.Fatalf(err.Error())
 	}
-	return generateCommandString(commandName, authEP, clusterID, localToken, clusterName)
+	return generateCommandString(commandName, authEP, clusterID, localToken, clusterName), nil
 }
 
 func generateCommandString(commandName, authEP, clusterID, localToken, clusterName string) string {
