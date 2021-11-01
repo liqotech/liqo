@@ -33,3 +33,5 @@ token
 
 # to ease the local development of liqoctl
 /liqoctl
+
+hack/code-generator

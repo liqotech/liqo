@@ -24,29 +24,34 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects.
-	GroupVersion = schema.GroupVersion{Group: "virtualkubelet.liqo.io", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: "virtualkubelet.liqo.io", Version: "v1alpha1"}
 
 	// NamespaceMapResource is the resource name used to register the NamespaceMap CRD.
 	NamespaceMapResource = "namespacemaps"
 
 	// NamespaceMapGroupResource is group resource used to register these objects.
-	NamespaceMapGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: NamespaceMapResource}
+	NamespaceMapGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: NamespaceMapResource}
 
 	// NamespaceMapGroupVersionResource is groupResourceVersion used to register these objects.
-	NamespaceMapGroupVersionResource = GroupVersion.WithResource(NamespaceMapResource)
+	NamespaceMapGroupVersionResource = SchemeGroupVersion.WithResource(NamespaceMapResource)
 
 	// ShadowPodResource is the resource name used to register the ShadowPod CRD.
 	ShadowPodResource = "shadowpods"
 
 	// ShadowPodGroupResource is group resource used to register these objects.
-	ShadowPodGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: ShadowPodResource}
+	ShadowPodGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: ShadowPodResource}
 
 	// ShadowPodGroupVersionResource is groupResourceVersion used to register these objects.
-	ShadowPodGroupVersionResource = GroupVersion.WithResource(ShadowPodResource)
+	ShadowPodGroupVersionResource = SchemeGroupVersion.WithResource(ShadowPodResource)
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
+	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
+
+// Resource takes an unqualified resource and returns a Group qualified GroupResource.
+func Resource(resource string) schema.GroupResource {
+	return SchemeGroupVersion.WithResource(resource).GroupResource()
+}

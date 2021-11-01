@@ -25,6 +25,7 @@ type ShadowPodSpec struct {
 }
 
 // +kubebuilder:object:root=true
+// +genclient
 
 // ShadowPod is the Schema for the Shadowpods API.
 type ShadowPod struct {

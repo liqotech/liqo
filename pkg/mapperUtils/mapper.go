@@ -30,7 +30,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 type LiqoMapper func(c *rest.Config) (meta.RESTMapper, error)
@@ -75,7 +75,7 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	if err = addGroup(dClient, sharingv1alpha1.GroupVersion, mapper); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, virtualKubeletv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, virtualKubeletv1alpha1.SchemeGroupVersion, mapper); err != nil {
 		return err
 	}
 	if err = addGroup(dClient, offv1alpha1.GroupVersion, mapper); err != nil {

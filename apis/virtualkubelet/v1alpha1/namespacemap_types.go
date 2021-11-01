@@ -57,6 +57,7 @@ type NamespaceMapStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +genclient
 
 // NamespaceMap is the Schema for the namespacemaps API.
 type NamespaceMap struct {

@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	vkalpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	cachedclient "github.com/liqotech/liqo/pkg/utils/cachedClient"
 )
 
