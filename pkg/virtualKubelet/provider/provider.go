@@ -25,7 +25,7 @@ import (
 	"k8s.io/klog/v2"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
-	vkalpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"

@@ -2,6 +2,8 @@ run:
   timeout: 10m
   skip-files:
     - "zz_generated.*.go"
+  skip-dirs:
+    - "pkg/client"
 
 linters-settings:
   exhaustive:

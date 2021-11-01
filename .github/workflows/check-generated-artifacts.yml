@@ -26,8 +26,6 @@ jobs:
         working-directory: ./
         run: |
           make generate
-          make manifests
-          make rbacs
 
       - name: Gather the differences
         id: git-diff
@@ -65,10 +63,9 @@ jobs:
           body: |
             The generated artifacts appear to be out-of-date.
 
-            Please, ensure you are using the correct version of `controller-gen` and re-run:
+            Please, ensure you are using the correct version of the generators (eg. `controller-gen`) and re-run:
             ```
             make generate
-            make manifests
             ```
 
             <details>

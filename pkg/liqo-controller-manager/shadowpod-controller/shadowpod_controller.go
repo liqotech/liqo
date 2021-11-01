@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 )
 
