@@ -33,9 +33,9 @@ import (
 // ResourceRequestReconciler reconciles a ResourceRequest object.
 type ResourceRequestReconciler struct {
 	client.Client
-	Scheme                *runtime.Scheme
-	HomeCluster           discoveryv1alpha1.ClusterIdentity
-	Broadcaster           *Broadcaster
+	Scheme      *runtime.Scheme
+	HomeCluster discoveryv1alpha1.ClusterIdentity
+	*OfferUpdater
 	EnableIncomingPeering bool
 }
 
@@ -63,27 +63,27 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	remoteClusterID := resourceRequest.Spec.ClusterIdentity.ClusterID
+	remoteCluster := resourceRequest.Spec.ClusterIdentity
 
 	// ensure the ForeignCluster existence, if not exists we have to add a new one
 	// with IncomingPeering discovery method.
 	foreignCluster, err := r.ensureForeignCluster(ctx, &resourceRequest)
 	if err != nil {
-		klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
+		klog.Errorf("%s -> Error generating resourceOffer: %s", remoteCluster.ClusterName, err)
 		return ctrl.Result{}, err
 	}
 
 	// ensure that the ResourceRequest is controlled by a ForeignCluster
 	requireSpecUpdate, err := r.ensureControllerReference(foreignCluster, &resourceRequest)
 	if err != nil {
-		klog.Errorf("%s -> Error ensuring the controller reference presence: %s", remoteClusterID, err)
+		klog.Errorf("%s -> Error ensuring the controller reference presence: %s", remoteCluster.ClusterName, err)
 		return ctrl.Result{}, err
 	}
 
 	var resourceReqPhase resourceRequestPhase
 	resourceReqPhase, err = r.getResourceRequestPhase(foreignCluster, &resourceRequest)
 	if err != nil {
-		klog.Errorf("%s -> Error getting the ResourceRequest Phase: %s", remoteClusterID, err)
+		klog.Errorf("%s -> Error getting the ResourceRequest Phase: %s", remoteCluster.ClusterName, err)
 		return ctrl.Result{}, err
 	}
 
@@ -93,13 +93,13 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	case deletingResourceRequestPhase, denyResourceRequestPhase:
 		// the local cluster does not allow the peering, ensure the Tenant deletion
 		if newRequireSpecUpdate, err = r.ensureTenantDeletion(ctx, &resourceRequest); err != nil {
-			klog.Errorf("%s -> Error deleting Tenant: %s", remoteClusterID, err)
+			klog.Errorf("%s -> Error deleting Tenant: %s", remoteCluster.ClusterName, err)
 			return ctrl.Result{}, err
 		}
 	case allowResourceRequestPhase:
 		// the local cluster allows the peering, ensure the Tenant creation
 		if newRequireSpecUpdate, err = r.ensureTenant(ctx, &resourceRequest); err != nil {
-			klog.Errorf("%s -> Error creating Tenant: %s", remoteClusterID, err)
+			klog.Errorf("%s -> Error creating Tenant: %s", remoteCluster.ClusterName, err)
 			return ctrl.Result{}, err
 		}
 	}
@@ -126,13 +126,17 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	switch resourceReqPhase {
 	case allowResourceRequestPhase:
 		// ensure that we are offering resources to this remote cluster
-		r.Broadcaster.enqueueForCreationOrUpdate(remoteClusterID)
+		_, err = r.OfferUpdater.CreateOrUpdateOffer(remoteCluster) // don't care about requeue: the controller will requeue anyway
+		if err != nil {
+			klog.Errorf("Error creating a ResourceOffer: %s", err)
+			return ctrl.Result{}, err
+		}
 		resourceRequest.Status.OfferWithdrawalTimestamp = nil
 	case denyResourceRequestPhase, deletingResourceRequestPhase:
 		// ensure to invalidate any resource offered to the remote cluster
 		err = r.invalidateResourceOffer(ctx, &resourceRequest)
 		if err != nil {
-			klog.Errorf("%s -> Error invalidating resourceOffer: %s", remoteClusterID, err)
+			klog.Errorf("%s -> Error invalidating resourceOffer: %s", remoteCluster.ClusterName, err)
 			return ctrl.Result{}, err
 		}
 	}

@@ -17,7 +17,6 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -32,27 +31,20 @@ import (
 	"k8s.io/klog/v2"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
-// Broadcaster is an object which is used to get resources of the cluster.
-type Broadcaster struct {
-	allocatable               corev1.ResourceList
-	resourcePodMap            map[string]corev1.ResourceList
-	lastReadResources         map[string]corev1.ResourceList
-	nodeMutex                 sync.RWMutex
-	podMutex                  sync.RWMutex
-	nodeInformer              cache.SharedIndexInformer
-	podInformer               cache.SharedIndexInformer
-	updater                   interfaces.UpdaterInterface
-	resourceSharingPercentage uint64
-	updateThresholdPercentage uint64
+// LocalResourceMonitor is an object that keeps track of the cluster's resources.
+type LocalResourceMonitor struct {
+	allocatable    corev1.ResourceList
+	resourcePodMap map[string]corev1.ResourceList
+	nodeMutex      sync.RWMutex
+	podMutex       sync.RWMutex
+	notifier       ResourceUpdateNotifier
 }
 
 // PodTransition represents a podReady condition possible transitions.
@@ -69,86 +61,66 @@ const (
 	PendingToPending
 )
 
-// SetupBroadcaster initializes all Broadcaster parameters.
-func (b *Broadcaster) SetupBroadcaster(clientset kubernetes.Interface, updater interfaces.UpdaterInterface,
-	resyncPeriod time.Duration, resourceSharingPercentage, offerUpdateThreshold uint64) error {
-	b.allocatable = corev1.ResourceList{}
-	b.resourceSharingPercentage = resourceSharingPercentage
-	b.updateThresholdPercentage = offerUpdateThreshold
-	b.updater = updater
-	b.resourcePodMap = map[string]corev1.ResourceList{}
-	b.lastReadResources = map[string]corev1.ResourceList{}
-	nodesFactory := informers.NewSharedInformerFactoryWithOptions(clientset, resyncPeriod, informers.WithTweakListOptions(virtualNodeFilter))
-	b.nodeInformer = nodesFactory.Core().V1().Nodes().Informer()
-	b.nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    b.onNodeAdd,
-		UpdateFunc: b.onNodeUpdate,
-		DeleteFunc: b.onNodeDelete,
-	})
-	podsFactory := informers.NewSharedInformerFactoryWithOptions(clientset, resyncPeriod, informers.WithTweakListOptions(shadowPodFilter))
-	b.podInformer = podsFactory.Core().V1().Pods().Informer()
-	b.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    b.onPodAdd,
-		UpdateFunc: b.onPodUpdate,
-		DeleteFunc: b.onPodDelete,
-	})
+// NewLocalMonitor creates a new LocalResourceMonitor.
+func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface,
+	resyncPeriod time.Duration) *LocalResourceMonitor {
+	nodeFactory := informers.NewSharedInformerFactoryWithOptions(
+		clientset, resyncPeriod, informers.WithTweakListOptions(noVirtualNodesFilter),
+	)
+	nodeInformer := nodeFactory.Core().V1().Nodes().Informer()
+	podFactory := informers.NewSharedInformerFactoryWithOptions(
+		clientset, resyncPeriod, informers.WithTweakListOptions(noShadowPodsFilter),
+	)
+	podInformer := podFactory.Core().V1().Pods().Informer()
 
-	return nil
-}
-
-// StartBroadcaster starts two shared Informers, one for nodes and one for pods launching two separated goroutines.
-func (b *Broadcaster) StartBroadcaster(ctx context.Context, group *sync.WaitGroup) {
-	group.Add(3)
-	go b.updater.Start(ctx, group)
-	go b.startNodeInformer(ctx, group)
-	go b.startPodInformer(ctx, group)
-}
-
-func (b *Broadcaster) startNodeInformer(ctx context.Context, group *sync.WaitGroup) {
-	defer group.Done()
-	b.nodeInformer.Run(ctx.Done())
-}
-
-func (b *Broadcaster) startPodInformer(ctx context.Context, group *sync.WaitGroup) {
-	defer group.Done()
-	b.podInformer.Run(ctx.Done())
-}
-
-func (b *Broadcaster) getPodMap() map[string]corev1.ResourceList {
-	b.podMutex.RLock()
-	defer b.podMutex.RUnlock()
-	mapCopy := make(map[string]corev1.ResourceList)
-	for key, value := range b.resourcePodMap {
-		mapCopy[key] = value.DeepCopy()
+	lrm := LocalResourceMonitor{
+		allocatable:    corev1.ResourceList{},
+		resourcePodMap: map[string]corev1.ResourceList{},
 	}
-	return mapCopy
+
+	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    lrm.onNodeAdd,
+		UpdateFunc: lrm.onNodeUpdate,
+		DeleteFunc: lrm.onNodeDelete,
+	})
+	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    lrm.onPodAdd,
+		UpdateFunc: lrm.onPodUpdate,
+		DeleteFunc: lrm.onPodDelete,
+	})
+
+	nodeFactory.Start(ctx.Done())
+	nodeFactory.WaitForCacheSync(ctx.Done())
+	podFactory.Start(ctx.Done())
+	podFactory.WaitForCacheSync(ctx.Done())
+
+	return &lrm
 }
 
-func (b *Broadcaster) getLastRead(remoteClusterID string) corev1.ResourceList {
-	b.podMutex.RLock()
-	defer b.podMutex.RUnlock()
-	return b.lastReadResources[remoteClusterID]
+// Register sets an update notifier.
+func (m *LocalResourceMonitor) Register(notifier ResourceUpdateNotifier) {
+	m.notifier = notifier
 }
 
 // react to a Node Creation/First informer run.
-func (b *Broadcaster) onNodeAdd(obj interface{}) {
+func (m *LocalResourceMonitor) onNodeAdd(obj interface{}) {
 	node := obj.(*corev1.Node)
 	if utils.IsNodeReady(node) {
 		klog.V(4).Infof("Adding Node %s", node.Name)
 		toAdd := &node.Status.Allocatable
-		currentResources := b.readClusterResources()
+		currentResources := m.readClusterResources()
 		addResources(currentResources, *toAdd)
-		b.writeClusterResources(currentResources)
+		m.writeClusterResources(currentResources)
 	}
 }
 
 // react to a Node Update.
-func (b *Broadcaster) onNodeUpdate(oldObj, newObj interface{}) {
+func (m *LocalResourceMonitor) onNodeUpdate(oldObj, newObj interface{}) {
 	oldNode := oldObj.(*corev1.Node)
 	newNode := newObj.(*corev1.Node)
 	oldNodeResources := oldNode.Status.Allocatable
 	newNodeResources := newNode.Status.Allocatable
-	currentResources := b.readClusterResources()
+	currentResources := m.readClusterResources()
 	klog.V(4).Infof("Updating Node %s", oldNode.Name)
 	if utils.IsNodeReady(newNode) {
 		// node was already Ready, update with possible new resources.
@@ -162,52 +134,52 @@ func (b *Broadcaster) onNodeUpdate(oldObj, newObj interface{}) {
 	} else if utils.IsNodeReady(oldNode) && !utils.IsNodeReady(newNode) {
 		subResources(currentResources, oldNodeResources)
 	}
-	b.writeClusterResources(currentResources)
+	m.writeClusterResources(currentResources)
 }
 
 // react to a Node Delete.
-func (b *Broadcaster) onNodeDelete(obj interface{}) {
+func (m *LocalResourceMonitor) onNodeDelete(obj interface{}) {
 	node := obj.(*corev1.Node)
 	toDelete := &node.Status.Allocatable
-	currentResources := b.readClusterResources()
+	currentResources := m.readClusterResources()
 	if utils.IsNodeReady(node) {
 		klog.V(4).Infof("Deleting Node %s", node.Name)
 		subResources(currentResources, *toDelete)
-		b.writeClusterResources(currentResources)
+		m.writeClusterResources(currentResources)
 	}
 }
 
-func (b *Broadcaster) onPodAdd(obj interface{}) {
+func (m *LocalResourceMonitor) onPodAdd(obj interface{}) {
 	podAdded := obj.(*corev1.Pod)
 	klog.V(4).Infof("OnPodAdd: Add for pod %s:%s", podAdded.Namespace, podAdded.Name)
 	// ignore all shadow pods because of ignoring all virtual Nodes
 	if ready, _ := pod.IsPodReady(podAdded); ready {
 		podResources := extractPodResources(podAdded)
-		currentResources := b.readClusterResources()
+		currentResources := m.readClusterResources()
 		// subtract the pod resource from cluster resources. This action is done for all pods to extract actual available resources.
 		subResources(currentResources, podResources)
-		b.writeClusterResources(currentResources)
+		m.writeClusterResources(currentResources)
 		if clusterID := podAdded.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
 			klog.V(4).Infof("OnPodAdd: Pod %s:%s passed ClusterID check. ClusterID = %s", podAdded.Namespace, podAdded.Name, clusterID)
-			currentPodsResources := b.readPodResources(clusterID)
+			currentPodsResources := m.readPodResources(clusterID)
 			// add the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
 			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
 			addResources(currentPodsResources, podResources)
-			b.writePodResources(clusterID, currentPodsResources)
+			m.writePodResources(clusterID, currentPodsResources)
 		}
 	}
 }
 
-func (b *Broadcaster) onPodUpdate(oldObj, newObj interface{}) {
+func (m *LocalResourceMonitor) onPodUpdate(oldObj, newObj interface{}) {
 	oldPod := oldObj.(*corev1.Pod)
 	newPod := newObj.(*corev1.Pod)
 	klog.V(4).Infof("OnPodUpdate: Update for pod %s:%s", newPod.Namespace, newPod.Name)
 	newResources := extractPodResources(newPod)
 	oldResources := extractPodResources(oldPod)
-	currentResources := b.readClusterResources()
+	currentResources := m.readClusterResources()
 	clusterID := newPod.Labels[forge.LiqoOriginClusterIDKey]
 	// empty if clusterID has not a valid value.
-	currentPodsResources := b.readPodResources(clusterID)
+	currentPodsResources := m.readPodResources(clusterID)
 
 	switch getPodTransitionState(oldPod, newPod) {
 	// pod is becoming Ready, same of onPodAdd case.
@@ -234,148 +206,95 @@ func (b *Broadcaster) onPodUpdate(oldObj, newObj interface{}) {
 	case PendingToPending:
 		return
 	}
-	b.writeClusterResources(currentResources)
-	b.writePodResources(clusterID, currentPodsResources)
+	m.writeClusterResources(currentResources)
+	m.writePodResources(clusterID, currentPodsResources)
 }
 
-func (b *Broadcaster) onPodDelete(obj interface{}) {
+func (m *LocalResourceMonitor) onPodDelete(obj interface{}) {
 	podDeleted := obj.(*corev1.Pod)
 	klog.V(4).Infof("OnPodDelete: Delete for pod %s:%s", podDeleted.Namespace, podDeleted.Name)
 	// ignore all shadow pods because of ignoring all virtual Nodes
 	if ready, _ := pod.IsPodReady(podDeleted); ready {
 		podResources := extractPodResources(podDeleted)
-		currentResources := b.readClusterResources()
+		currentResources := m.readClusterResources()
 		// Resources used by the pod will become available again so add them to the total allocatable ones.
 		addResources(currentResources, podResources)
-		b.writeClusterResources(currentResources)
+		m.writeClusterResources(currentResources)
 		if clusterID := podDeleted.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
 			klog.V(4).Infof("OnPodDelete: Pod %s:%s passed ClusterID check. ClusterID = %s", podDeleted.Namespace, podDeleted.Name, clusterID)
-			currentPodsResources := b.readPodResources(clusterID)
+			currentPodsResources := m.readPodResources(clusterID)
 			subResources(currentPodsResources, podResources)
-			b.writePodResources(clusterID, currentPodsResources)
+			m.writePodResources(clusterID, currentPodsResources)
 		}
 	}
 }
 
 // write nodes resources in thread safe mode.
-func (b *Broadcaster) writeClusterResources(newResources corev1.ResourceList) {
+func (m *LocalResourceMonitor) writeClusterResources(newResources corev1.ResourceList) {
 	if !liqoerrors.Must(checkSign(newResources)) {
 		setZero(&newResources)
 	}
-	b.nodeMutex.Lock()
-	b.allocatable = newResources.DeepCopy()
-	b.nodeMutex.Unlock()
-	podMap := b.getPodMap()
-	for clusterID := range podMap {
-		if b.isAboveThreshold(clusterID) {
-			b.enqueueForCreationOrUpdate(clusterID)
-		}
-	}
+	m.nodeMutex.Lock()
+	m.allocatable = newResources.DeepCopy()
+	m.nodeMutex.Unlock()
+	m.notifyOrWarn()
 }
 
 // write pods resources in thread safe mode.
-func (b *Broadcaster) writePodResources(clusterID string, newResources corev1.ResourceList) {
+func (m *LocalResourceMonitor) writePodResources(clusterID string, newResources corev1.ResourceList) {
 	if clusterID == "" {
 		return
 	}
 	if !liqoerrors.Must(checkSign(newResources)) {
 		setZero(&newResources)
 	}
-	b.podMutex.Lock()
-	b.resourcePodMap[clusterID] = newResources.DeepCopy()
-	b.podMutex.Unlock()
-	if b.isAboveThreshold(clusterID) {
-		b.enqueueForCreationOrUpdate(clusterID)
+	m.podMutex.Lock()
+	m.resourcePodMap[clusterID] = newResources.DeepCopy()
+	m.podMutex.Unlock()
+	m.notifyOrWarn()
+}
+
+func (m *LocalResourceMonitor) notifyOrWarn() {
+	if m.notifier == nil {
+		klog.Warning("No notifier is configured, an update will be lost")
+	} else {
+		m.notifier.NotifyChange()
 	}
 }
 
-// ReadResources return in thread safe mode a scaled value of the resources.
-func (b *Broadcaster) ReadResources(clusterID string) corev1.ResourceList {
-	toRead := b.readClusterResources()
-	podsResources := b.readPodResources(clusterID)
+// ReadResources returns the resources available in the cluster (total minus used), multiplied by resourceSharingPercentage.
+func (m *LocalResourceMonitor) ReadResources(clusterID string) corev1.ResourceList {
+	toRead := m.readClusterResources()
+	podsResources := m.readPodResources(clusterID)
 	addResources(toRead, podsResources)
-	b.lastReadResources[clusterID] = toRead.DeepCopy()
-	for resourceName, quantity := range toRead {
-		scaled := quantity
-		b.scaleResources(resourceName, &scaled)
-		toRead[resourceName] = scaled
-	}
 	return toRead
-}
-
-func (b *Broadcaster) enqueueForCreationOrUpdate(clusterID string) {
-	b.podMutex.Lock()
-	// No offloaded pod case. Enforce clusterID in resourcePodMap with empty resources to process ResourceOffer update.
-	if _, ok := b.resourcePodMap[clusterID]; !ok {
-		b.resourcePodMap[clusterID] = corev1.ResourceList{}
-	}
-	b.podMutex.Unlock()
-	// todo: use foreigncluster.GetForeignClusterByID once the Broadcaster refactor is merged
-	b.updater.Push(discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   clusterID,
-		ClusterName: clusterID,
-	})
 }
 
 // RemoveClusterID removes a clusterID from all broadcaster internal structures
 // it is useful when a particular foreign cluster has no more peering and its ResourceRequest has been deleted.
-func (b *Broadcaster) RemoveClusterID(clusterID string) {
-	b.podMutex.Lock()
-	defer b.podMutex.Unlock()
-	delete(b.resourcePodMap, clusterID)
-	delete(b.lastReadResources, clusterID)
+func (m *LocalResourceMonitor) RemoveClusterID(clusterID string) {
+	m.podMutex.Lock()
+	defer m.podMutex.Unlock()
+	delete(m.resourcePodMap, clusterID)
 }
 
-func (b *Broadcaster) readClusterResources() corev1.ResourceList {
-	b.nodeMutex.RLock()
-	defer b.nodeMutex.RUnlock()
-	return b.allocatable.DeepCopy()
+// readClusterResources returns the total resources in the cluster.
+// It performs thread-safe access to allocatable.
+func (m *LocalResourceMonitor) readClusterResources() corev1.ResourceList {
+	m.nodeMutex.RLock()
+	defer m.nodeMutex.RUnlock()
+	return m.allocatable.DeepCopy()
 }
 
-func (b *Broadcaster) readPodResources(clusterID string) corev1.ResourceList {
-	b.podMutex.RLock()
-	defer b.podMutex.RUnlock()
-	if toRead, exists := b.resourcePodMap[clusterID]; exists {
+// readClusterResources returns the resources used by pods in the cluster.
+// It performs thread-safe access to resourcePodMap.
+func (m *LocalResourceMonitor) readPodResources(clusterID string) corev1.ResourceList {
+	m.podMutex.RLock()
+	defer m.podMutex.RUnlock()
+	if toRead, exists := m.resourcePodMap[clusterID]; exists {
 		return toRead.DeepCopy()
 	}
 	return corev1.ResourceList{}
-}
-
-func (b *Broadcaster) setThreshold(threshold uint64) {
-	b.updateThresholdPercentage = threshold
-}
-
-func (b *Broadcaster) isAboveThreshold(clusterID string) bool {
-	podResourceValue := b.getPodMap()[clusterID]
-	clusterResources := b.readClusterResources()
-	lastRead := b.getLastRead(clusterID)
-	for resourceName, resources := range clusterResources {
-		podValue, exists := podResourceValue[resourceName]
-		if !exists {
-			podValue = *resource.NewQuantity(0, "")
-		}
-		lastReadValue := lastRead[resourceName]
-		diff := (resources.Value() + podValue.Value()) - lastReadValue.Value()
-		absDiff := math.Abs(float64(diff))
-		if int64(absDiff) > lastReadValue.Value()*int64(b.updateThresholdPercentage)/100 {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (b *Broadcaster) scaleResources(resourceName corev1.ResourceName, quantity *resource.Quantity) {
-	switch resourceName {
-	case corev1.ResourceCPU:
-		// use millis
-		quantity.SetScaled(quantity.MilliValue()*int64(b.resourceSharingPercentage)/100, resource.Milli)
-	case corev1.ResourceMemory:
-		// use mega
-		quantity.SetScaled(quantity.ScaledValue(resource.Mega)*int64(b.resourceSharingPercentage)/100, resource.Mega)
-	default:
-		quantity.Set(quantity.Value() * int64(b.resourceSharingPercentage) / 100)
-	}
 }
 
 func setZero(resources *corev1.ResourceList) {
@@ -430,7 +349,7 @@ func extractPodResources(podToExtract *corev1.Pod) corev1.ResourceList {
 func checkSign(currentResources corev1.ResourceList) error {
 	for resourceName, value := range currentResources {
 		if value.Sign() == -1 {
-			return fmt.Errorf("resource %s has a negative value %v", resourceName, value)
+			return fmt.Errorf("resource %s has a negative value: %v", resourceName, value.String())
 		}
 	}
 	return nil
@@ -456,7 +375,7 @@ func getPodTransitionState(oldPod, newPod *corev1.Pod) PodTransition {
 }
 
 // this function is used to filter and ignore virtual nodes at informer level.
-func virtualNodeFilter(options *metav1.ListOptions) {
+func noVirtualNodesFilter(options *metav1.ListOptions) {
 	var values []string
 	values = append(values, consts.TypeNode)
 	req, err := labels.NewRequirement(consts.TypeLabel, selection.NotEquals, values)
@@ -467,7 +386,7 @@ func virtualNodeFilter(options *metav1.ListOptions) {
 }
 
 // this function is used to filter and ignore shadow pods at informer level.
-func shadowPodFilter(options *metav1.ListOptions) {
+func noShadowPodsFilter(options *metav1.ListOptions) {
 	var values []string
 	values = append(values, consts.LocalPodLabelValue)
 	req, err := labels.NewRequirement(consts.LocalPodLabelKey, selection.NotEquals, values)

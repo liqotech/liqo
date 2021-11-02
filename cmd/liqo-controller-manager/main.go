@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
@@ -253,20 +252,16 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	broadcaster := &resourceRequestOperator.Broadcaster{}
-	updater := &resourceRequestOperator.OfferUpdater{}
-	updater.Setup(clusterIdentity, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap, *realStorageClassName, *enableStorage)
-	if err := broadcaster.SetupBroadcaster(clientset, updater, *resyncPeriod,
-		resourceSharingPercentage.Val, offerUpdateThreshold.Val); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
-	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
+	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
+	monitor := resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod)
+	scaledMonitor := &resourceRequestOperator.ResourceScaler{Provider: monitor, Factor: float32(resourceSharingPercentage.Val) / 100.}
+	offerUpdater := resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
+		scaledMonitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
+	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),
 		HomeCluster:           clusterIdentity,
-		Broadcaster:           broadcaster,
+		OfferUpdater:          offerUpdater,
 		EnableIncomingPeering: *enableIncomingPeering,
 	}
 
@@ -368,8 +363,9 @@ func main() {
 	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo"))
 	csrWatcher.Start(ctx)
 
-	var wg = &sync.WaitGroup{}
-	broadcaster.StartBroadcaster(ctx, wg)
+	if err = mgr.Add(offerUpdater); err != nil {
+		klog.Fatal(err)
+	}
 
 	if enableStorage != nil && *enableStorage {
 		var liqoProvisioner controller.Provisioner
@@ -407,6 +403,4 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
-
-	wg.Wait()
 }

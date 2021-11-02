@@ -38,6 +38,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	resourcerequestoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
@@ -259,8 +260,8 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	tracer.Step("Checked the TunnelEndpoint status")
 
 	// check if peering request really exists on foreign cluster
-	if err := r.checkIncomingPeeringStatus(ctx, &foreignCluster); err != nil {
-		klog.Error(err)
+	if err = r.checkIncomingPeeringStatus(ctx, &foreignCluster); err != nil {
+		klog.Error("[%s] %s", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
 		return ctrl.Result{}, err
 	}
 	tracer.Step("Checked the incoming peering status")
@@ -399,45 +400,28 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
-	var incomingResourceRequestList discoveryv1alpha1.ResourceRequestList
-	if err := r.Client.List(ctx, &incomingResourceRequestList, client.HasLabels{
-		liqoconst.ReplicationStatusLabel}, client.MatchingLabels{
-		liqoconst.ReplicationOriginLabel: remoteClusterID,
-	}); err != nil {
-		klog.Error(err)
-		return err
+	incomingResourceRequest, err := resourcerequestoperator.GetResourceRequest(ctx, r.Client, remoteClusterID)
+	if err != nil {
+		return fmt.Errorf("reading resource requests: %w", err)
 	}
 
-	status, reason, message, err := getPeeringPhaseList(foreignCluster, &incomingResourceRequestList)
+	status, reason, message, err := getPeeringPhase(foreignCluster, incomingResourceRequest)
 	if err != nil {
-		err = fmt.Errorf("[%v] %w in namespace %v", remoteClusterID, err, localNamespace)
-		klog.Error(err)
-		return err
+		return fmt.Errorf("reading peering phase from namespace %s: %w", localNamespace, err)
 	}
 	peeringconditionsutils.EnsureStatus(foreignCluster,
 		discoveryv1alpha1.IncomingPeeringCondition, status, reason, message)
 	return nil
 }
 
-func getPeeringPhaseList(foreignCluster *discoveryv1alpha1.ForeignCluster,
-	resourceRequestList *discoveryv1alpha1.ResourceRequestList) (status discoveryv1alpha1.PeeringConditionStatusType,
-	reason, message string, err error) {
-	switch len(resourceRequestList.Items) {
-	case 0:
-		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
-			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
-	case 1:
-		return getPeeringPhase(foreignCluster, &resourceRequestList.Items[0])
-	default:
-		err = fmt.Errorf("more than one resource request found")
-		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
-			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), err
-	}
-}
-
 func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) (status discoveryv1alpha1.PeeringConditionStatusType,
 	reason, message string, err error) {
+	if resourceRequest == nil {
+		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
+			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
+	}
+
 	desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
 	deleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
 	offerState := resourceRequest.Status.OfferState

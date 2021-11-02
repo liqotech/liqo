@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package testutils
+package resourcerequestoperator
 
 import (
 	"context"
@@ -30,11 +30,11 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
-// DefaultScalePercentage defines the amount of scaled resources to be computed in resourceOffers.
-const DefaultScalePercentage = 50
+// DefaultScaleFactor defines the amount of scaled resources to be computed in resourceOffers.
+const DefaultScaleFactor = .5
 
-// CreateNewStorageClass creates a new storage class with name *storageClassName* and creates it using the *clientset* client.
-func CreateNewStorageClass(ctx context.Context, clientset kubernetes.Interface,
+// createNewStorageClass creates a new storage class with name *storageClassName* and creates it using the *clientset* client.
+func createNewStorageClass(ctx context.Context, clientset kubernetes.Interface,
 	storageClassName, provisioner string, defaultAnnotation bool) (*storagev1.StorageClass, error) {
 	storageClass := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -52,8 +52,8 @@ func CreateNewStorageClass(ctx context.Context, clientset kubernetes.Interface,
 	return clientset.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{})
 }
 
-// CreateNewNode forges a new node with name *nodeName* and creates it using the *clientset* client.
-func CreateNewNode(ctx context.Context, nodeName string, virtual bool, clientset kubernetes.Interface) (*corev1.Node, error) {
+// createNewNode forges a new node with name *nodeName* and creates it using the *clientset* client.
+func createNewNode(ctx context.Context, nodeName string, virtual bool, clientset kubernetes.Interface) (*corev1.Node, error) {
 	resources := corev1.ResourceList{}
 	resources[corev1.ResourceCPU] = *resource.NewScaledQuantity(5000, resource.Milli)
 	resources[corev1.ResourceMemory] = *resource.NewScaledQuantity(5, resource.Mega)
@@ -84,8 +84,8 @@ func CreateNewNode(ctx context.Context, nodeName string, virtual bool, clientset
 	return node, nil
 }
 
-// CreateNewPod forges a new pod with name *podName* and creates it using the *clientset* client.
-func CreateNewPod(ctx context.Context, podName, clusterID string, shadow bool, clientset kubernetes.Interface) (*corev1.Pod, error) {
+// createNewPod forges a new pod with name *podName* and creates it using the *clientset* client.
+func createNewPod(ctx context.Context, podName, clusterID string, shadow bool, clientset kubernetes.Interface) (*corev1.Pod, error) {
 	resources := corev1.ResourceList{}
 	resources[corev1.ResourceCPU] = *resource.NewQuantity(1, resource.DecimalSI)
 	resources[corev1.ResourceMemory] = *resource.NewQuantity(50000, resource.DecimalSI)
@@ -135,9 +135,9 @@ func CreateNewPod(ctx context.Context, podName, clusterID string, shadow bool, c
 	return pod, nil
 }
 
-// SetPodReadyStatus enforces a status ready/not ready to a pod passed as the *pod* parameter. The readiness/not readiness is
+// setPodReadyStatus enforces a status ready/not ready to a pod passed as the *pod* parameter. The readiness/not readiness is
 // enforced by the *status* bool (true is ready, false is not ready).
-func SetPodReadyStatus(ctx context.Context, pod *corev1.Pod, status bool, clientset kubernetes.Interface) (*corev1.Pod, error) {
+func setPodReadyStatus(ctx context.Context, pod *corev1.Pod, status bool, clientset kubernetes.Interface) (*corev1.Pod, error) {
 	for key, value := range pod.Status.Conditions {
 		if value.Type == corev1.PodReady {
 			if status {
@@ -154,9 +154,9 @@ func SetPodReadyStatus(ctx context.Context, pod *corev1.Pod, status bool, client
 	return pod, err
 }
 
-// SetNodeReadyStatus enforces a status ready/not ready to a node passed as the *node* parameter. The readiness/not readiness is
+// setNodeReadyStatus enforces a status ready/not ready to a node passed as the *node* parameter. The readiness/not readiness is
 // enforced by the *status* bool (true is ready, false is not ready).
-func SetNodeReadyStatus(ctx context.Context, node *corev1.Node, status bool, clientset kubernetes.Interface) (*corev1.Node, error) {
+func setNodeReadyStatus(ctx context.Context, node *corev1.Node, status bool, clientset kubernetes.Interface) (*corev1.Node, error) {
 	for key, value := range node.Status.Conditions {
 		if value.Type == corev1.NodeReady {
 			if status {
@@ -173,14 +173,14 @@ func SetNodeReadyStatus(ctx context.Context, node *corev1.Node, status bool, cli
 	return node, nil
 }
 
-// CheckResourceOfferUpdate returns false if the (1) resource offer does not exist or the get returns an error (2) if the scaled quantity
+// checkResourceOfferUpdate returns false if the (1) resource offer does not exist or the get returns an error (2) if the scaled quantity
 // available in the resourceOffer is not equal to the one present in the cluster. It returns true otherwise.
-func CheckResourceOfferUpdate(ctx context.Context, offerPrefix, homeClusterID, resourcesNamespace string,
+func checkResourceOfferUpdate(ctx context.Context, homeClusterID string,
 	nodeResources, podResources []corev1.ResourceList, k8sClient client.Client) bool {
 	offer := &sharingv1alpha1.ResourceOffer{}
 	err := k8sClient.Get(ctx, types.NamespacedName{
 		Name:      offerPrefix + homeClusterID,
-		Namespace: resourcesNamespace,
+		Namespace: ResourcesNamespace,
 	}, offer)
 	if err != nil {
 		return false
@@ -205,7 +205,7 @@ func CheckResourceOfferUpdate(ctx context.Context, offerPrefix, homeClusterID, r
 
 	for resourceName, quantity := range offerResources {
 		toCheck := testList[resourceName].DeepCopy()
-		Scale(DefaultScalePercentage, resourceName, &toCheck)
+		ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
 		if quantity.Cmp(toCheck) != 0 {
 			return false
 		}
@@ -213,22 +213,8 @@ func CheckResourceOfferUpdate(ctx context.Context, offerPrefix, homeClusterID, r
 	return true
 }
 
-// Scale sets a *percentage* for a given *quantity* of a specific *resourceName*.
-func Scale(percentage int64, resourceName corev1.ResourceName, quantity *resource.Quantity) {
-	switch resourceName {
-	case corev1.ResourceCPU:
-		// use millis
-		quantity.SetScaled(quantity.MilliValue()*percentage/100, resource.Milli)
-	case corev1.ResourceMemory:
-		// use mega
-		quantity.SetScaled(quantity.ScaledValue(resource.Mega)*percentage/100, resource.Mega)
-	default:
-		quantity.Set(quantity.Value() * percentage / 100)
-	}
-}
-
-// IsAllZero returns true if all the values in the ResourceList are zeroes. It returns false otherwise.
-func IsAllZero(resources *corev1.ResourceList) bool {
+// isAllZero returns true if all the values in the ResourceList are zeroes. It returns false otherwise.
+func isAllZero(resources *corev1.ResourceList) bool {
 	for _, value := range *resources {
 		if !value.IsZero() {
 			return false

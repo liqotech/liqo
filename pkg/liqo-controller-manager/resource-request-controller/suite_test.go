@@ -33,20 +33,21 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/testutils"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 )
 
 var (
-	cfg         *rest.Config
-	k8sClient   client.Client
-	homeCluster discoveryv1alpha1.ClusterIdentity
-	clientset   kubernetes.Interface
-	testEnv     *envtest.Environment
-	broadcaster Broadcaster
-	ctx         context.Context
-	cancel      context.CancelFunc
-	group       sync.WaitGroup
+	cfg           *rest.Config
+	k8sClient     client.Client
+	homeCluster   discoveryv1alpha1.ClusterIdentity
+	clientset     kubernetes.Interface
+	testEnv       *envtest.Environment
+	monitor       *LocalResourceMonitor
+	scaledMonitor *ResourceScaler
+	updater       *OfferUpdater
+	ctx           context.Context
+	cancel        context.CancelFunc
+	group         sync.WaitGroup
 )
 
 func TestAPIs(t *testing.T) {
@@ -87,29 +88,29 @@ func createCluster() {
 	// Disabling panic on failure.
 	liqoerrors.SetPanicOnErrorMode(false)
 	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
-
 	homeCluster = discoveryv1alpha1.ClusterIdentity{
 		ClusterID:   "home-cluster-id",
 		ClusterName: "home-cluster-name",
 	}
 
-	// Initializing a new updater and adding it to the manager.
+	k8sClient = k8sManager.GetClient()
+	Expect(k8sClient).ToNot(BeNil())
+
+	// Initializing a new notifier and adding it to the manager.
 	localStorageClassName := ""
 	enableStorage := true
-	updater := OfferUpdater{}
-	updater.Setup(homeCluster, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil, localStorageClassName, enableStorage)
+	monitor = NewLocalMonitor(ctx, clientset, 5*time.Second)
+	scaledMonitor = &ResourceScaler{Provider: monitor, Factor: DefaultScaleFactor}
+	updater = NewOfferUpdater(k8sClient, homeCluster, nil, scaledMonitor, 5, localStorageClassName, enableStorage)
 
-	// Initializing a new broadcaster, starting it and adding it its configuration.
-	err = broadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, testutils.DefaultScalePercentage, 5)
-	Expect(err).ToNot(HaveOccurred())
-	broadcaster.StartBroadcaster(ctx, &group)
+	Expect(k8sManager.Add(updater)).To(Succeed())
 
 	// Adding ResourceRequest reconciler to the manager
 	err = (&ResourceRequestReconciler{
 		Client:                k8sManager.GetClient(),
 		Scheme:                k8sManager.GetScheme(),
 		HomeCluster:           homeCluster,
-		Broadcaster:           &broadcaster,
+		OfferUpdater:          updater,
 		EnableIncomingPeering: true,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
@@ -119,11 +120,6 @@ func createCluster() {
 		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
-
-	k8sClient = k8sManager.GetClient()
-	Expect(k8sClient).ToNot(BeNil())
-
-	ctx = context.TODO()
 }
 
 func destroyCluster() {
