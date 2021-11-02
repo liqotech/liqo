@@ -43,7 +43,7 @@ var (
 	homeCluster discoveryv1alpha1.ClusterIdentity
 	clientset   kubernetes.Interface
 	testEnv     *envtest.Environment
-	broadcaster Broadcaster
+	monitor       *LocalResourceMonitor
 	ctx         context.Context
 	cancel      context.CancelFunc
 	group       sync.WaitGroup
@@ -87,29 +87,30 @@ func createCluster() {
 	// Disabling panic on failure.
 	liqoerrors.SetPanicOnErrorMode(false)
 	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
-
 	homeCluster = discoveryv1alpha1.ClusterIdentity{
 		ClusterID:   "home-cluster-id",
 		ClusterName: "home-cluster-name",
 	}
+	ctx = context.TODO()
+
+	k8sClient = k8sManager.GetClient()
+	Expect(k8sClient).ToNot(BeNil())
 
 	// Initializing a new updater and adding it to the manager.
 	localStorageClassName := ""
 	enableStorage := true
-	updater := OfferUpdater{}
-	updater.Setup(homeCluster, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil, localStorageClassName, enableStorage)
+	updater := NewOfferUpdater(k8sClient, homeCluster, nil, k8sManager.GetScheme(), localStorageClassName, enableStorage)
+	monitor = NewLocalMonitor(clientset, 5*time.Second, updater.OfferQueue, testutils.DefaultScalePercentage, 5)
+	updater.ResourceReader = monitor
 
-	// Initializing a new broadcaster, starting it and adding it its configuration.
-	err = broadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, testutils.DefaultScalePercentage, 5)
-	Expect(err).ToNot(HaveOccurred())
-	broadcaster.StartBroadcaster(ctx, &group)
+	updater.Start(ctx, &group)
 
 	// Adding ResourceRequest reconciler to the manager
 	err = (&ResourceRequestReconciler{
 		Client:                k8sManager.GetClient(),
 		Scheme:                k8sManager.GetScheme(),
 		HomeCluster:           homeCluster,
-		Broadcaster:           &broadcaster,
+		OfferUpdater:          updater,
 		EnableIncomingPeering: true,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
@@ -119,11 +120,6 @@ func createCluster() {
 		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
-
-	k8sClient = k8sManager.GetClient()
-	Expect(k8sClient).ToNot(BeNil())
-
-	ctx = context.TODO()
 }
 
 func destroyCluster() {

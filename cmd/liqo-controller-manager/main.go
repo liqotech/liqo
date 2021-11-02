@@ -253,20 +253,17 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	broadcaster := &resourceRequestOperator.Broadcaster{}
-	updater := &resourceRequestOperator.OfferUpdater{}
-	updater.Setup(clusterIdentity, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap, *realStorageClassName, *enableStorage)
-	if err := broadcaster.SetupBroadcaster(clientset, updater, *resyncPeriod,
-		resourceSharingPercentage.Val, offerUpdateThreshold.Val); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
-	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
+	offerUpdater := resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
+		mgr.GetScheme(), *realStorageClassName, *enableStorage)
+	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
+	klog.Info("Starting accountant...")
+	offerUpdater.ResourceReader = resourceRequestOperator.NewLocalMonitor(clientset, *resyncPeriod, offerUpdater.OfferQueue,
+		resourceSharingPercentage.Val, offerUpdateThreshold.Val)
+	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),
 		HomeCluster:           clusterIdentity,
-		Broadcaster:           broadcaster,
+		OfferUpdater:          offerUpdater,
 		EnableIncomingPeering: *enableIncomingPeering,
 	}
 
@@ -369,7 +366,7 @@ func main() {
 	csrWatcher.Start(ctx)
 
 	var wg = &sync.WaitGroup{}
-	broadcaster.StartBroadcaster(ctx, wg)
+	offerUpdater.Start(ctx, wg)
 
 	if enableStorage != nil && *enableStorage {
 		var liqoProvisioner controller.Provisioner

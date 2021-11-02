@@ -37,7 +37,6 @@ var _ = Describe("Resource Phase", func() {
 
 		BeforeEach(func() {
 			controller = &ResourceRequestReconciler{}
-			controller.Broadcaster = &Broadcaster{}
 			controller.Client = k8sClient
 		})
 
