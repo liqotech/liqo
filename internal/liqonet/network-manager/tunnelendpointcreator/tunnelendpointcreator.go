@@ -287,7 +287,7 @@ func (tec *TunnelEndpointCreator) enforceRemoteNetConfigStatus(ctx context.Conte
 		podCIDR = liqoconst.DefaultCIDRValue
 	}
 	if externalCIDR == netcfg.Spec.ExternalCIDR {
-		podCIDR = liqoconst.DefaultCIDRValue
+		externalCIDR = liqoconst.DefaultCIDRValue
 	}
 
 	// Update the status fields
