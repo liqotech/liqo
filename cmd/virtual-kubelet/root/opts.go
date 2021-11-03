@@ -36,6 +36,7 @@ const (
 	DefaultPodSyncWorkers       = 10
 	DefaultServiceWorkers       = 3
 	DefaultEndpointSliceWorkers = 10
+	DefaultConfigMapWorkers     = 3
 
 	DefaultKubeletNamespace = "default"
 	DefaultLiqoIpamServer   = consts.NetworkManagerServiceName
@@ -61,6 +62,7 @@ type Opts struct {
 	PodSyncWorkers       uint
 	ServiceWorkers       uint
 	EndpointSliceWorkers uint
+	ConfigMapWorkers     uint
 
 	InformerResyncPeriod     time.Duration
 	LiqoInformerResyncPeriod time.Duration
@@ -105,6 +107,10 @@ func SetDefaultOpts(c *Opts) error {
 
 	if c.EndpointSliceWorkers == 0 {
 		c.EndpointSliceWorkers = DefaultEndpointSliceWorkers
+	}
+
+	if c.ConfigMapWorkers == 0 {
+		c.ConfigMapWorkers = DefaultConfigMapWorkers
 	}
 
 	if c.ListenPort == 0 {

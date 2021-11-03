@@ -21,12 +21,7 @@ import (
 )
 
 var ReflectorBuilders = map[apimgmt.ApiType]func(reflector ri.APIReflector, opts map[options.OptionKey]options.Option) ri.OutgoingAPIReflector{
-	apimgmt.Configmaps: configmapsReflectorBuilder,
-	apimgmt.Secrets:    secretsReflectorBuilder,
-}
-
-func configmapsReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionKey]options.Option) ri.OutgoingAPIReflector {
-	return &ConfigmapsReflector{APIReflector: reflector}
+	apimgmt.Secrets: secretsReflectorBuilder,
 }
 
 func secretsReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionKey]options.Option) ri.OutgoingAPIReflector {

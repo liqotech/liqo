@@ -14,8 +14,26 @@
 
 package forge
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+)
 
 func (f *apiForger) configmapHomeToForeign(homeConfigmap, foreignConfigmap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
 	panic("to implement")
+}
+
+// RemoteConfigMap forges the apply patch for the reflected configmap, given the local one.
+func RemoteConfigMap(local *corev1.ConfigMap, targetNamespace string) *corev1apply.ConfigMapApplyConfiguration {
+	applyConfig := corev1apply.ConfigMap(local.GetName(), targetNamespace).
+		WithLabels(local.GetLabels()).WithLabels(ReflectionLabels()).
+		WithAnnotations(local.GetAnnotations()).
+		WithBinaryData(local.BinaryData).
+		WithData(local.Data)
+
+	if local.Immutable != nil {
+		applyConfig = applyConfig.WithImmutable(*local.Immutable)
+	}
+
+	return applyConfig
 }
