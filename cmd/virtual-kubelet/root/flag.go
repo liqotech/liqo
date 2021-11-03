@@ -30,6 +30,7 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.UintVar(&c.ServiceWorkers, "service-reflection-workers", c.ServiceWorkers, "the number of service reflection workers")
 	flags.UintVar(&c.EndpointSliceWorkers, "endpointslice-reflection-workers", c.EndpointSliceWorkers,
 		"the number of endpointslice reflection workers")
+	flags.UintVar(&c.ConfigMapWorkers, "configmap-reflection-workers", c.ConfigMapWorkers, "the number of configmap reflection workers")
 
 	flags.DurationVar(&c.InformerResyncPeriod, "full-resync-period", c.InformerResyncPeriod,
 		"how often to perform a full resync of pods between kubernetes and the provider")

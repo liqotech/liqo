@@ -35,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	optTypes "github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 )
@@ -56,6 +57,8 @@ type InitConfig struct {
 
 	ServiceWorkers       uint
 	EndpointSliceWorkers uint
+
+	ConfigMapWorkers uint
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -106,7 +109,8 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 	// the configuration needs to be very low to avoid issues with the legacy reflection.
 	reflectionManager := manager.New(homeClient, foreignClient, 10*time.Hour).
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
-		With(exposition.NewEndpointSliceReflector(forge.IPAMClient(), cfg.EndpointSliceWorkers))
+		With(exposition.NewEndpointSliceReflector(forge.IPAMClient(), cfg.EndpointSliceWorkers)).
+		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers))
 	reflectionManager.Start(ctx)
 
 	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID, cfg.RemoteClusterID,
