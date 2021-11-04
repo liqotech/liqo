@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -153,7 +153,7 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

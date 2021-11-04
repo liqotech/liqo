@@ -16,7 +16,6 @@ package identitymanager
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -145,7 +144,7 @@ func (tokMan *iamTokenManager) storeToken(remoteClusterID string, tok *token.Tok
 	}
 
 	filename := filepath.Join(tokenDir, remoteClusterID)
-	err = ioutil.WriteFile(filename, []byte(tok.Token), 0600)
+	err = os.WriteFile(filename, []byte(tok.Token), 0600)
 	if err != nil {
 		klog.Error(err)
 		return "", err

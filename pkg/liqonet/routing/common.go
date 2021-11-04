@@ -16,8 +16,8 @@ package routing
 
 import (
 	"errors"
-	"io/ioutil"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -307,7 +307,7 @@ func parseIP(ip string) (net.IP, error) {
 
 // EnableIPForwarding enables ipv4 forwarding in the current network namespace.
 func EnableIPForwarding() error {
-	return ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0600)
+	return os.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0600)
 }
 
 // EnableProxyArp enables proxy arp for the given network interface.
@@ -319,7 +319,7 @@ func EnableProxyArp(iFaceName string) error {
 		return errors.Is(err, unix.ENOENT)
 	}
 	writeToFile := func() error {
-		if err := ioutil.WriteFile(proxyArpFilePath, []byte("1"), 0600); err != nil {
+		if err := os.WriteFile(proxyArpFilePath, []byte("1"), 0600); err != nil {
 			klog.Errorf("an error occurred while enabling proxy arp for interface %s: %v", iFaceName, err)
 			return err
 		}

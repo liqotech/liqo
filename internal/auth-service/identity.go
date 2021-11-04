@@ -17,7 +17,7 @@ package authservice
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -38,7 +38,7 @@ func (authService *Controller) identity(w http.ResponseWriter, r *http.Request, 
 	ctx := trace.ContextWithTrace(r.Context(), tracer)
 	defer tracer.LogIfLong(traceutils.LongThreshold())
 
-	bytes, err := ioutil.ReadAll(r.Body)
+	bytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)

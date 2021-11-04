@@ -17,7 +17,7 @@ package apiserver
 import (
 	"encoding/base64"
 	"flag"
-	"io/ioutil"
+	"os"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -78,7 +78,7 @@ func retrieveAPIServerCA(restcfg *rest.Config) (string, error) {
 	}
 	if restcfg.CAFile != "" {
 		// CAData is not available, read it from the CAFile.
-		data, err := ioutil.ReadFile(restcfg.CAFile)
+		data, err := os.ReadFile(restcfg.CAFile)
 		if err != nil {
 			return "", err
 		}

@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -294,7 +294,7 @@ var _ = Describe("Auth", func() {
 
 				recorder.Flush()
 
-				body, err := ioutil.ReadAll(recorder.Body)
+				body, err := io.ReadAll(recorder.Body)
 				Expect(err).To(Succeed())
 				Expect(string(body)).To(ContainSubstring(string(c.body)))
 				Expect(recorder.Code).To(Equal(c.code))

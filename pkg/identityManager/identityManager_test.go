@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -305,7 +304,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(cnf).NotTo(BeNil())
 			Expect(cnf.BearerTokenFile).ToNot(BeEmpty())
 
-			token, err := ioutil.ReadFile(cnf.BearerTokenFile)
+			token, err := os.ReadFile(cnf.BearerTokenFile)
 			Expect(err).To(Succeed())
 			Expect(token).ToNot(BeEmpty())
 
@@ -324,7 +323,7 @@ var _ = Describe("IdentityManager", func() {
 			err = iamTokenManager.refreshToken(ctx, remoteClusterID, namespacedName)
 			Expect(err).To(Succeed())
 
-			newToken, err := ioutil.ReadFile(cnf.BearerTokenFile)
+			newToken, err := os.ReadFile(cnf.BearerTokenFile)
 			Expect(err).To(Succeed())
 			Expect(newToken).ToNot(BeEmpty())
 			Expect(newToken).ToNot(Equal(token))
