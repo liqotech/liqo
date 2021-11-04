@@ -6,7 +6,7 @@ RUN rustup target add x86_64-unknown-linux-musl
 RUN cargo build --bin boringtun --release
 
 
-FROM golang:1.16 as goBuilder
+FROM golang:1.17 as goBuilder
 WORKDIR /tmp/builder
 
 COPY go.mod ./go.mod
