@@ -3,9 +3,9 @@ title: Liqo-Route
 weight: 3
 ---
 
-The Liqo-Route component is made up by several operators and run on each node of the cluster. It is responsible for:
+The Liqo-Route component is made up by several operators and runs on each node of the cluster. It is responsible for:
 
-* creating a VXLAN interface on the host and add it to the overlay network;
+* creating a VXLAN interface on the host and adding it to the overlay network;
 * configuring routes and policy routing rules to send  cross cluster traffic to the right VTEP of the active Liqo Gateway, when not running on the same node as the Liqo Gateway;
 * configuring routes and policy routing rules to send traffic to the [`liqo-netns`](../gateway#tunnel-operator) network namespace when running on the same node as the Liqo Gateway.
 
@@ -20,7 +20,7 @@ The following diagram illustrates the operators which make up Liqo-Route.
 
 ![Liqo Route Components](../../../../images/liqonet/liqo-route-components.png)
 
-The Liqo-Route component is kept simple as much as possible by design. The reason is to have a solution that is agnostic to supported CNI plugins and cloud providers. It does not interfere with the existing configuration or existing network interfaces. It does that by creating a VXLAN network interface and using a custom routing table for routes needed by the cross cluster traffic. 
+The Liqo-Route component is kept simple as much as possible by design. The reason is to have a solution that is agnostic to supported CNI plugins and cloud providers. It does not interfere with the existing configuration or existing network interfaces. It does that by creating a VXLAN network interface and using a custom routing table for routes needed by the cross cluster traffic.
 
 {{% notice note %}}
 One thing that the component does not is to mess with the `iptables` configuration to prevent the SNATing of the traffic leaving the cluster. Usually the cross cluster traffic is SNATed by the CNI plugins, and if this behaviour is not desired they provide ways to disable the masquerading.
@@ -28,7 +28,7 @@ One thing that the component does not is to mess with the `iptables` configurati
 
 #### Overlay Operator
 
-When the Liqo Route component starts it creates a VXLAN network interface named `liqo.vxlan`. The reference deployment for VXLAN is to use an IP multicast group to join the other VTEPS. Since we can not assume that multicast is supported everywhere, the VXLAN overlay is deployed in `unicast` with static L2 entries. The Overlay Operator is the glue that updates the `FDB` entries for the `liqo.vxlan` device. The logic is straightforward, the operator watches for the Liqo Route pods in the namespace where Liqo is deployed and does the following:
+When the Liqo Route component starts it creates a VXLAN network interface named `liqo.vxlan`. The reference configuration for VXLAN is to use an IP multicast group to join the other VTEPs. Since we cannot assume that multicast is supported everywhere, the VXLAN overlay is deployed in `unicast` mode with static L2 entries. The Overlay Operator is the glue that updates the `FDB` entries for the `liqo.vxlan` device. The logic is straightforward, the operator watches for the Liqo Route pods in the namespace where Liqo is deployed and does the following:
 
 * pod running on the current node: it annotates it with the MAC address of the `liqo.vxlan` device;
 * pod running on different node: it populates the `FDB` of the `liqo.vxlan` device with the information of the remote VTEP.
@@ -53,4 +53,3 @@ Clearly it is a case of asymmetric routing that in most of the cases will not wo
 The Symmetric Routing operator is in charge to configure the routes in order to reach the local pods through the overlay network. It watches all the pods running on the cluster except for the ones running on its own node. For each one of them configures the correct route, in routing table `18952`, toward the right VTEP. Those routes are used only on the node where the active instance of Liqo Gateway is running. The policy routing rule used for the incoming traffic is configured by the [Tunnel Operator](../gateway#tunnel-operator). The following diagram shows how the outgoing and incoming cross cluster traffic flows.
 
 ![Liqo Route Asymmetric Routing](../../../../images/liqonet/liqo-route-symmetric-routing.png)
-
