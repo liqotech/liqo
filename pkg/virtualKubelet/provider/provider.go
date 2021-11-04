@@ -26,6 +26,7 @@ import (
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -79,6 +80,7 @@ type LiqoProvider struct {
 // NewLiqoProvider creates a new NewLiqoProvider instance.
 func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error) {
 	homeClient := kubernetes.NewForConfigOrDie(cfg.HomeConfig)
+	homeLiqoClient := liqoclient.NewForConfigOrDie(cfg.HomeConfig)
 
 	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(homeClient)
 	identityManager := identitymanager.NewCertificateIdentityReader(homeClient, cfg.HomeClusterID, tenantNamespaceManager)
@@ -90,6 +92,11 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 
 	restcfg.SetRateLimiterWithCustomParamenters(remoteRestConfig, virtualKubelet.FOREIGN_CLIENT_QPS, virtualKubelet.FOREIGN_CLIENT_BURST)
 	foreignClient, err := kubernetes.NewForConfig(remoteRestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	foreignLiqoClient, err := liqoclient.NewForConfig(remoteRestConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +114,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 
 	// TODO: make the resync period configurable. This is currently hardcoded since the one specified as part of
 	// the configuration needs to be very low to avoid issues with the legacy reflection.
-	reflectionManager := manager.New(homeClient, foreignClient, 10*time.Hour).
+	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, 10*time.Hour).
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewEndpointSliceReflector(forge.IPAMClient(), cfg.EndpointSliceWorkers)).
 		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers))

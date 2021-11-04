@@ -21,6 +21,9 @@ import (
 	corev1informers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
+	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 )
 
 // Keyer retrieves a NamespacedName referring to the reconciliation target from the object metadata.
@@ -50,11 +53,15 @@ type NamespacedOpts struct {
 	LocalNamespace  string
 	RemoteNamespace string
 
-	LocalClient  kubernetes.Interface
-	RemoteClient kubernetes.Interface
+	LocalClient      kubernetes.Interface
+	RemoteClient     kubernetes.Interface
+	LocalLiqoClient  liqoclient.Interface
+	RemoteLiqoClient liqoclient.Interface
 
-	LocalFactory  informers.SharedInformerFactory
-	RemoteFactory informers.SharedInformerFactory
+	LocalFactory      informers.SharedInformerFactory
+	RemoteFactory     informers.SharedInformerFactory
+	LocalLiqoFactory  liqoinformers.SharedInformerFactory
+	RemoteLiqoFactory liqoinformers.SharedInformerFactory
 
 	Ready          func() bool
 	HandlerFactory func(Keyer) cache.ResourceEventHandler
@@ -73,11 +80,25 @@ func (ro *NamespacedOpts) WithLocal(namespace string, client kubernetes.Interfac
 	return ro
 }
 
+// WithLiqoLocal configures the local liqo client and informer factory parameters of the NamespacedOpts.
+func (ro *NamespacedOpts) WithLiqoLocal(client liqoclient.Interface, factory liqoinformers.SharedInformerFactory) *NamespacedOpts {
+	ro.LocalLiqoClient = client
+	ro.LocalLiqoFactory = factory
+	return ro
+}
+
 // WithRemote configures the remote parameters of the NamespacedOpts.
 func (ro *NamespacedOpts) WithRemote(namespace string, client kubernetes.Interface, factory informers.SharedInformerFactory) *NamespacedOpts {
 	ro.RemoteNamespace = namespace
 	ro.RemoteClient = client
 	ro.RemoteFactory = factory
+	return ro
+}
+
+// WithLiqoRemote configures the remote liqo client and informer factory parameters of the NamespacedOpts.
+func (ro *NamespacedOpts) WithLiqoRemote(client liqoclient.Interface, factory liqoinformers.SharedInformerFactory) *NamespacedOpts {
+	ro.RemoteLiqoClient = client
+	ro.RemoteLiqoFactory = factory
 	return ro
 }
 

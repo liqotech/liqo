@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
+	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
+	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	reflectionfake "github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic/fake"
 )
 
@@ -33,9 +35,11 @@ var _ = Describe("Manager tests", func() {
 	)
 
 	var (
-		mgr          Manager
-		localClient  kubernetes.Interface
-		remoteClient kubernetes.Interface
+		mgr              Manager
+		localClient      kubernetes.Interface
+		remoteClient     kubernetes.Interface
+		localLiqoClient  liqoclient.Interface
+		remoteLiqoClient liqoclient.Interface
 
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -45,16 +49,20 @@ var _ = Describe("Manager tests", func() {
 		ctx, cancel = context.WithCancel(context.Background())
 		localClient = fake.NewSimpleClientset()
 		remoteClient = fake.NewSimpleClientset()
+		localLiqoClient = liqoclientfake.NewSimpleClientset()
+		remoteLiqoClient = liqoclientfake.NewSimpleClientset()
 	})
 	AfterEach(func() { cancel() })
 
-	JustBeforeEach(func() { mgr = New(localClient, remoteClient, 1*time.Hour) })
+	JustBeforeEach(func() { mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour) })
 
 	Context("a new manager is created", func() {
 		It("should return a non nil manager", func() { Expect(mgr).ToNot(BeNil()) })
 		It("should correctly populate the manager fields", func() {
 			Expect(mgr.(*manager).local).To(Equal(localClient))
 			Expect(mgr.(*manager).remote).To(Equal(remoteClient))
+			Expect(mgr.(*manager).localLiqo).To(Equal(localLiqoClient))
+			Expect(mgr.(*manager).remoteLiqo).To(Equal(remoteLiqoClient))
 			Expect(mgr.(*manager).resync).To(Equal(1 * time.Hour))
 
 			Expect(mgr.(*manager).reflectors).ToNot(BeNil())
@@ -99,10 +107,14 @@ var _ = Describe("Manager tests", func() {
 						opts := reflector.NamespaceStarted[localNamespace]
 						Expect(opts.LocalNamespace).To(Equal(localNamespace))
 						Expect(opts.LocalClient).To(Equal(localClient))
+						Expect(opts.LocalLiqoClient).To(Equal(localLiqoClient))
 						Expect(opts.LocalFactory).ToNot(BeNil())
+						Expect(opts.LocalLiqoFactory).ToNot(BeNil())
 						Expect(opts.RemoteNamespace).To(Equal(remoteNamespace))
 						Expect(opts.RemoteClient).To(Equal(remoteClient))
+						Expect(opts.RemoteLiqoClient).To(Equal(remoteLiqoClient))
 						Expect(opts.RemoteFactory).ToNot(BeNil())
+						Expect(opts.RemoteLiqoFactory).ToNot(BeNil())
 						Expect(opts.Ready).ToNot(BeNil())
 						Expect(opts.HandlerFactory).To(BeNil())
 					})
