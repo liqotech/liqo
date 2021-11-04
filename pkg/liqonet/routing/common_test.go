@@ -15,8 +15,8 @@
 package routing
 
 import (
-	"io/ioutil"
 	"net"
+	"os"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -521,7 +521,7 @@ var _ = Describe("Common", func() {
 				var enabled byte = '1'
 				err := EnableIPForwarding()
 				Expect(err).ShouldNot(HaveOccurred())
-				txt, err := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward")
+				txt, err := os.ReadFile("/proc/sys/net/ipv4/ip_forward")
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(txt[0]).Should(Equal(enabled))
 			})
@@ -534,7 +534,7 @@ var _ = Describe("Common", func() {
 				var enabled byte = '1'
 				err := EnableProxyArp(dummylink1.Attrs().Name)
 				Expect(err).ShouldNot(HaveOccurred())
-				txt, err := ioutil.ReadFile("/proc/sys/net/ipv4/conf/" + dummylink1.Attrs().Name + "/proxy_arp")
+				txt, err := os.ReadFile("/proc/sys/net/ipv4/conf/" + dummylink1.Attrs().Name + "/proxy_arp")
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(txt[0]).Should(Equal(enabled))
 			})

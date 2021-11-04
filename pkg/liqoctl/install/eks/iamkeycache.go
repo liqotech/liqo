@@ -15,7 +15,6 @@
 package eks
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -65,11 +64,8 @@ func storeIamAccessKey(iamUserName, accessKeyID, secretAccessKey string) error {
 	}
 
 	fileName := filepath.Join(liqoDirPath, liqoIamCredentialsFile)
-	if err = ioutil.WriteFile(fileName, data, 0600); err != nil {
-		return err
-	}
 
-	return nil
+	return os.WriteFile(fileName, data, 0600)
 }
 
 func retrieveIamAccessKey(iamUserName string) (accessKeyID, secretAccessKey string, err error) {
@@ -98,7 +94,7 @@ func readCache() (iamUserCredentialCache, error) {
 		return iamUserCredentialCache{}, nil
 	}
 
-	data, err := ioutil.ReadFile(filepath.Clean(fileName))
+	data, err := os.ReadFile(filepath.Clean(fileName))
 	if err != nil {
 		return nil, err
 	}

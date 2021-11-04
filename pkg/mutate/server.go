@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -75,7 +75,7 @@ func NewMutationServer(ctx context.Context, c *MutationConfig) (*MutationServer,
 
 func (s *MutationServer) handleMutate(w http.ResponseWriter, r *http.Request) {
 	// read the body / request
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Error(err)
 		standardErrMessage := fmt.Errorf("unable to correctly read the body of the request")

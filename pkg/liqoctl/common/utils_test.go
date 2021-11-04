@@ -15,7 +15,6 @@
 package common
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -39,7 +38,7 @@ var _ = BeforeSuite(func() {
 var _ = Describe("Get REST config", func() {
 	When("A configuration is set", func() {
 		BeforeEach(func() {
-			tmpFile, err := ioutil.TempFile(os.TempDir(), "liqoctl-test-")
+			tmpFile, err := os.CreateTemp(os.TempDir(), "liqoctl-test-")
 			Expect(err).To(BeNil())
 			Expect(os.Getenv("KUBECONFIG")).To(BeEmpty())
 			Expect(os.Setenv("KUBECONFIG", tmpFile.Name())).To(Succeed())
