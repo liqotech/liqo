@@ -45,12 +45,13 @@ var _ = Describe("ConfigMap Reflection", func() {
 		var (
 			reflector manager.NamespacedReflector
 
+			name          string
 			local, remote corev1.ConfigMap
 			err           error
 		)
 
 		GetConfigMap := func(namespace string) *corev1.ConfigMap {
-			cfg, errcfg := client.CoreV1().ConfigMaps(namespace).Get(ctx, ConfigMapName, metav1.GetOptions{})
+			cfg, errcfg := client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 			Expect(errcfg).ToNot(HaveOccurred())
 			return cfg
 		}
@@ -62,14 +63,15 @@ var _ = Describe("ConfigMap Reflection", func() {
 		}
 
 		BeforeEach(func() {
-			local = corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: ConfigMapName, Namespace: LocalNamespace}}
-			remote = corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: ConfigMapName, Namespace: RemoteNamespace}}
+			name = ConfigMapName
+			local = corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: LocalNamespace}}
+			remote = corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: RemoteNamespace}}
 		})
 
 		AfterEach(func() {
-			Expect(client.CoreV1().ConfigMaps(LocalNamespace).Delete(ctx, ConfigMapName, metav1.DeleteOptions{})).To(
+			Expect(client.CoreV1().ConfigMaps(LocalNamespace).Delete(ctx, name, metav1.DeleteOptions{})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
-			Expect(client.CoreV1().ConfigMaps(RemoteNamespace).Delete(ctx, ConfigMapName, metav1.DeleteOptions{})).To(
+			Expect(client.CoreV1().ConfigMaps(RemoteNamespace).Delete(ctx, name, metav1.DeleteOptions{})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
 		})
 
@@ -83,7 +85,7 @@ var _ = Describe("ConfigMap Reflection", func() {
 			factory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())
 
-			err = reflector.Handle(trace.ContextWithTrace(ctx, trace.New("ConfigMap")), ConfigMapName)
+			err = reflector.Handle(trace.ContextWithTrace(ctx, trace.New("ConfigMap")), name)
 		})
 
 		When("the local object does not exist", func() {
@@ -98,7 +100,7 @@ var _ = Describe("ConfigMap Reflection", func() {
 
 					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 					It("the remote object should not be created", func() {
-						_, err = client.CoreV1().ConfigMaps(RemoteNamespace).Get(ctx, ConfigMapName, metav1.GetOptions{})
+						_, err = client.CoreV1().ConfigMaps(RemoteNamespace).Get(ctx, name, metav1.GetOptions{})
 						Expect(err).To(BeNotFound())
 					})
 				}
@@ -172,6 +174,20 @@ var _ = Describe("ConfigMap Reflection", func() {
 					remoteAfter := GetConfigMap(RemoteNamespace)
 					Expect(remoteAfter).To(Equal(remoteBefore))
 				})
+			})
+		})
+
+		When("handling the root CA configmap", func() {
+			BeforeEach(func() {
+				name = "kube-root-ca.crt"
+				local.SetName(name)
+				CreateConfigMap(&local)
+			})
+
+			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+			It("the remote object should not be created", func() {
+				_, err = client.CoreV1().ConfigMaps(RemoteNamespace).Get(ctx, name, metav1.GetOptions{})
+				Expect(err).To(BeNotFound())
 			})
 		})
 	})
