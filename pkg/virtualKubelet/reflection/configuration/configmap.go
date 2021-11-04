@@ -34,6 +34,8 @@ import (
 const (
 	// ConfigMapReflectorName is the name associated with the ConfigMap reflector.
 	ConfigMapReflectorName = "ConfigMap"
+
+	rootCAConfigMapName = "kube-root-ca.crt"
 )
 
 // NamespacedConfigMapReflector manages the ConfigMap reflection.
@@ -74,6 +76,14 @@ func (ncr *NamespacedConfigMapReflector) Handle(ctx context.Context, name string
 
 	// Retrieve the local and remote objects (only not found errors can occur).
 	klog.V(4).Infof("Handling reflection of local ConfigMap %q (remote: %q)", ncr.LocalRef(name), ncr.RemoteRef(name))
+
+	// Abort the reflection of the root CA configmap. The "IsReflected" check performed below
+	// is not sufficient, since we might be faster than the remote controller-manager.
+	if name == rootCAConfigMapName {
+		klog.Infof("Skipping reflection of local root CA ConfigMap %q as already present remotely", ncr.LocalRef(name))
+		return nil
+	}
+
 	local, lerr := ncr.localConfigMaps.Get(name)
 	utilruntime.Must(client.IgnoreNotFound(lerr))
 	remote, rerr := ncr.remoteConfigMaps.Get(name)
