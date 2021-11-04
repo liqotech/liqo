@@ -27,6 +27,8 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
+	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
+	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -38,9 +40,11 @@ var _ Manager = (*manager)(nil)
 type manager struct {
 	sync.Mutex
 
-	local  kubernetes.Interface
-	remote kubernetes.Interface
-	resync time.Duration
+	local      kubernetes.Interface
+	remote     kubernetes.Interface
+	localLiqo  liqoclient.Interface
+	remoteLiqo liqoclient.Interface
+	resync     time.Duration
 
 	reflectors              []Reflector
 	localPodInformerFactory informers.SharedInformerFactory
@@ -50,16 +54,18 @@ type manager struct {
 }
 
 // New returns a new manager to start the reflection towards a remote cluster.
-func New(local, remote kubernetes.Interface, resync time.Duration) Manager {
+func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.Interface, resync time.Duration) Manager {
 	// Configure the field selector to retrieve only the pods scheduled on the current virtual node.
 	localPodTweakListOptions := func(opts *metav1.ListOptions) {
 		opts.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", forge.LiqoNodeName()).String()
 	}
 
 	return &manager{
-		local:  local,
-		remote: remote,
-		resync: resync,
+		local:      local,
+		remote:     remote,
+		localLiqo:  localLiqo,
+		remoteLiqo: remoteLiqo,
+		resync:     resync,
 
 		reflectors: make([]Reflector, 0),
 		localPodInformerFactory: informers.NewSharedInformerFactoryWithOptions(local, resync,
@@ -123,19 +129,22 @@ func (m *manager) StartNamespace(local, remote string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.stop[local] = cancel
 
-	// The local informer factory, which selects all resources in the given namespace.
+	// The local informer factories, which select all resources in the given namespace.
 	localFactory := informers.NewSharedInformerFactoryWithOptions(m.local, m.resync, informers.WithNamespace(local))
+	localLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.localLiqo, m.resync, liqoinformers.WithNamespace(local))
 
-	// The remote informer factory, which selects all resources in the given namespace and with the reflection labels.
+	// The remote informer factories, which select all resources in the given namespace and with the reflection labels.
 	remoteTweakListOptions := func(opts *metav1.ListOptions) { opts.LabelSelector = forge.ReflectedLabelSelector().String() }
 	remoteFactory := informers.NewSharedInformerFactoryWithOptions(m.remote, m.resync,
 		informers.WithNamespace(remote), informers.WithTweakListOptions(remoteTweakListOptions))
+	remoteLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.remoteLiqo, m.resync,
+		liqoinformers.WithNamespace(remote), liqoinformers.WithTweakListOptions(remoteTweakListOptions))
 
 	ready := false
 	for _, reflector := range m.reflectors {
 		opts := options.NewNamespaced().
-			WithLocal(local, m.local, localFactory).
-			WithRemote(remote, m.remote, remoteFactory).
+			WithLocal(local, m.local, localFactory).WithLiqoLocal(m.localLiqo, localLiqoFactory).
+			WithRemote(remote, m.remote, remoteFactory).WithLiqoRemote(m.remoteLiqo, remoteLiqoFactory).
 			WithReadinessFunc(func() bool { return ready })
 		reflector.StartNamespace(opts)
 	}
@@ -147,10 +156,14 @@ func (m *manager) StartNamespace(local, remote string) {
 
 		// Start the factories, and wait for their caches to sync
 		localFactory.Start(ctx.Done())
+		localLiqoFactory.Start(ctx.Done())
 		remoteFactory.Start(ctx.Done())
+		remoteLiqoFactory.Start(ctx.Done())
 
 		localFactory.WaitForCacheSync(ctx.Done())
+		localLiqoFactory.WaitForCacheSync(ctx.Done())
 		remoteFactory.WaitForCacheSync(ctx.Done())
+		remoteLiqoFactory.WaitForCacheSync(ctx.Done())
 
 		// If the context was closed before the cache was ready, let abort the setup
 		select {
