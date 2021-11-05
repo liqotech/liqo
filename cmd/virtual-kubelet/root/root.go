@@ -121,6 +121,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		ServiceWorkers:       c.ServiceWorkers,
 		EndpointSliceWorkers: c.EndpointSliceWorkers,
 		ConfigMapWorkers:     c.ConfigMapWorkers,
+		SecretWorkers:        c.SecretWorkers,
 	}
 
 	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg)

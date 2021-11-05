@@ -26,32 +26,32 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
-var _ = Describe("ConfigMaps Forging", func() {
+var _ = Describe("Secrets Forging", func() {
 	BeforeEach(func() {
 		forge.LocalClusterID = LocalClusterID
 		forge.RemoteClusterID = RemoteClusterID
 	})
 
-	Describe("the RemoteConfigMap function", func() {
+	Describe("the RemoteSecret function", func() {
 		var (
-			input  *corev1.ConfigMap
-			output *corev1apply.ConfigMapApplyConfiguration
+			input  *corev1.Secret
+			output *corev1apply.SecretApplyConfiguration
 		)
 
 		BeforeEach(func() {
-			input = &corev1.ConfigMap{
+			input = &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "name", Namespace: "original",
 					Labels:      map[string]string{"foo": "bar"},
 					Annotations: map[string]string{"bar": "baz"},
 				},
-				Data:       map[string]string{"data-key": "data value"},
-				BinaryData: map[string][]byte{"binary-data-key": []byte("ABC")},
-				Immutable:  pointer.Bool(true),
+				Data:      map[string][]byte{"data-key": []byte("ABC")},
+				Type:      corev1.SecretTypeBasicAuth,
+				Immutable: pointer.Bool(true),
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteConfigMap(input, "reflected") })
+		JustBeforeEach(func() { output = forge.RemoteSecret(input, "reflected") })
 
 		It("should correctly set the name and namespace", func() {
 			Expect(output.Name).To(PointTo(Equal("name")))
@@ -70,12 +70,11 @@ var _ = Describe("ConfigMaps Forging", func() {
 
 		It("should correctly set the data", func() {
 			Expect(output.Data).NotTo(BeNil())
-			Expect(output.Data).To(HaveKeyWithValue("data-key", "data value"))
+			Expect(output.Data).To(HaveKeyWithValue("data-key", []byte("ABC")))
 		})
 
-		It("should correctly set the binary data", func() {
-			Expect(output.BinaryData).NotTo(BeNil())
-			Expect(output.BinaryData).To(HaveKeyWithValue("binary-data-key", []byte("ABC")))
+		It("should correctly set the type", func() {
+			Expect(*output.Type).To(Equal(corev1.SecretTypeBasicAuth))
 		})
 
 		It("should correctly set the immutable field", func() {
