@@ -51,7 +51,7 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=virtualkubelet, Version=v1alpha1
+	// Group=virtualkubelet.liqo.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("namespacemaps"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().NamespaceMaps().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("shadowpods"):

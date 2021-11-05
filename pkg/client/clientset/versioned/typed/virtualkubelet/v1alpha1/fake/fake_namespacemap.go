@@ -35,9 +35,9 @@ type FakeNamespaceMaps struct {
 	ns   string
 }
 
-var namespacemapsResource = schema.GroupVersionResource{Group: "virtualkubelet", Version: "v1alpha1", Resource: "namespacemaps"}
+var namespacemapsResource = schema.GroupVersionResource{Group: "virtualkubelet.liqo.io", Version: "v1alpha1", Resource: "namespacemaps"}
 
-var namespacemapsKind = schema.GroupVersionKind{Group: "virtualkubelet", Version: "v1alpha1", Kind: "NamespaceMap"}
+var namespacemapsKind = schema.GroupVersionKind{Group: "virtualkubelet.liqo.io", Version: "v1alpha1", Kind: "NamespaceMap"}
 
 // Get takes name of the namespaceMap, and returns the corresponding namespaceMap object, and an error if there is any.
 func (c *FakeNamespaceMaps) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.NamespaceMap, err error) {
