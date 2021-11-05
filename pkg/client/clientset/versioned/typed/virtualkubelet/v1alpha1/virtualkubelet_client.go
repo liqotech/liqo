@@ -29,7 +29,7 @@ type VirtualkubeletV1alpha1Interface interface {
 	ShadowPodsGetter
 }
 
-// VirtualkubeletV1alpha1Client is used to interact with features provided by the virtualkubelet group.
+// VirtualkubeletV1alpha1Client is used to interact with features provided by the virtualkubelet.liqo.io group.
 type VirtualkubeletV1alpha1Client struct {
 	restClient rest.Interface
 }
