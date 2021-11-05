@@ -20,10 +20,5 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 )
 
-var ReflectorBuilders = map[apimgmt.ApiType]func(reflector ri.APIReflector, opts map[options.OptionKey]options.Option) ri.OutgoingAPIReflector{
-	apimgmt.Secrets: secretsReflectorBuilder,
-}
-
-func secretsReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionKey]options.Option) ri.OutgoingAPIReflector {
-	return &SecretsReflector{APIReflector: reflector}
-}
+// ReflectorBuilders is a list of outgoing reflector builders.
+var ReflectorBuilders = map[apimgmt.ApiType]func(reflector ri.APIReflector, opts map[options.OptionKey]options.Option) ri.OutgoingAPIReflector{}

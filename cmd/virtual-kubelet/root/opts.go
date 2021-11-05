@@ -37,6 +37,7 @@ const (
 	DefaultServiceWorkers       = 3
 	DefaultEndpointSliceWorkers = 10
 	DefaultConfigMapWorkers     = 3
+	DefaultSecretWorkers        = 3
 
 	DefaultKubeletNamespace = "default"
 	DefaultLiqoIpamServer   = consts.NetworkManagerServiceName
@@ -63,6 +64,7 @@ type Opts struct {
 	ServiceWorkers       uint
 	EndpointSliceWorkers uint
 	ConfigMapWorkers     uint
+	SecretWorkers        uint
 
 	InformerResyncPeriod     time.Duration
 	LiqoInformerResyncPeriod time.Duration
@@ -111,6 +113,10 @@ func SetDefaultOpts(c *Opts) error {
 
 	if c.ConfigMapWorkers == 0 {
 		c.ConfigMapWorkers = DefaultConfigMapWorkers
+	}
+
+	if c.SecretWorkers == 0 {
+		c.SecretWorkers = DefaultSecretWorkers
 	}
 
 	if c.ListenPort == 0 {

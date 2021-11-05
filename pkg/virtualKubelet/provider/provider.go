@@ -60,6 +60,7 @@ type InitConfig struct {
 	EndpointSliceWorkers uint
 
 	ConfigMapWorkers uint
+	SecretWorkers    uint
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -117,7 +118,8 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, 10*time.Hour).
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewEndpointSliceReflector(forge.IPAMClient(), cfg.EndpointSliceWorkers)).
-		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers))
+		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
+		With(configuration.NewSecretReflector(cfg.SecretWorkers))
 	reflectionManager.Start(ctx)
 
 	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID, cfg.RemoteClusterID,
