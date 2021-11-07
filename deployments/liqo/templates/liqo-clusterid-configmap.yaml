@@ -16,4 +16,6 @@ data:
   {{- end }}
   {{- if .Values.discovery.config.clusterName }}
   CLUSTER_NAME: {{ .Values.discovery.config.clusterName }}
+  {{- else }}
+  {{- fail "The cluster name (.Values.discovery.config.clusterName) must be set" }}
   {{- end }}
