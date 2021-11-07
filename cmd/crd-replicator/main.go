@@ -32,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -45,7 +46,7 @@ func init() {
 }
 
 func main() {
-	clusterID := flag.String("cluster-id", "", "The cluster ID identifying the current cluster")
+	clusterFlags := args.NewClusterIdentityFlags(true, nil)
 	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
 	workers := flag.Uint("workers", 1, "The number of workers managing the reflection of each remote cluster")
 
@@ -54,10 +55,7 @@ func main() {
 
 	flag.Parse()
 
-	if *clusterID == "" {
-		klog.Error("The Cluster ID must be provided")
-		os.Exit(1)
-	}
+	clusterIdentity := clusterFlags.ReadOrDie()
 
 	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -78,20 +76,20 @@ func main() {
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 
 	ctx := ctrl.SetupSignalHandler()
-	reflectionManager := reflection.NewManager(dynClient, *clusterID, *workers, *resyncPeriod)
+	reflectionManager := reflection.NewManager(dynClient, clusterIdentity.ClusterID, *workers, *resyncPeriod)
 	reflectionManager.Start(ctx, resources.GetResourcesToReplicate())
 
 	d := &crdreplicator.Controller{
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
-		ClusterID: *clusterID,
+		ClusterID: clusterIdentity.ClusterID,
 
 		RegisteredResources: resources.GetResourcesToReplicate(),
 		ReflectionManager:   reflectionManager,
 		Reflectors:          make(map[string]*reflection.Reflector),
 
 		IdentityReader: identitymanager.NewCertificateIdentityReader(
-			k8sClient, *clusterID, namespaceManager),
+			k8sClient, clusterIdentity, namespaceManager),
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to setup the crdreplicator-operator")

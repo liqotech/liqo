@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
@@ -35,8 +36,8 @@ import (
 // ClusterSelector field.
 type NamespaceOffloadingReconciler struct {
 	client.Client
-	Scheme         *runtime.Scheme
-	LocalClusterID string
+	Scheme       *runtime.Scheme
+	LocalCluster discoveryv1alpha1.ClusterIdentity
 }
 
 const (

@@ -90,8 +90,7 @@ type ForeignClusterReconciler struct {
 	LiqoNamespace string
 
 	ResyncPeriod                         time.Duration
-	ClusterID                            string
-	ClusterName                          string
+	HomeCluster                          discoveryv1alpha1.ClusterIdentity
 	AuthServiceAddressOverride           string
 	AuthServicePortOverride              string
 	AutoJoin                             bool
@@ -333,7 +332,7 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 	var resourceRequest discoveryv1alpha1.ResourceRequest
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: foreignCluster.Status.TenantNamespace.Local,
-		Name:      r.ClusterID,
+		Name:      r.HomeCluster.ClusterID,
 	}, &resourceRequest)
 	if errors.IsNotFound(err) {
 		peeringconditionsutils.EnsureStatus(foreignCluster,

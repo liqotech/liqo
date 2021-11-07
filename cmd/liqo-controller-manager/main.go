@@ -96,14 +96,13 @@ func main() {
 
 	// Global parameters
 	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
-	clusterID := flag.String("cluster-id", "", "The cluster ID identifying the current cluster")
+	clusterIdentityFlags := argsutils.NewClusterIdentityFlags(true, nil)
 	liqoNamespace := flag.String("liqo-namespace", defaultNamespace,
 		"Name of the namespace where the liqo components are running")
 	foreignClusterWorkers := flag.Uint("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
 	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
 
 	// Discovery parameters
-	clusterName := flag.String(consts.ClusterNameParameter, "", "A mnemonic name associated with the current cluster")
 	authServiceAddressOverride := flag.String(consts.AuthServiceAddressOverrideParameter, "",
 		"The address the authentication service is reachable from foreign clusters (automatically retrieved if not set")
 	authServicePortOverride := flag.String(consts.AuthServicePortOverrideParameter, "",
@@ -159,10 +158,7 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	if *clusterID == "" {
-		klog.Error("Cluster ID must be provided")
-		os.Exit(1)
-	}
+	clusterIdentity := clusterIdentityFlags.ReadOrDie()
 
 	ctx := ctrl.SetupSignalHandler()
 
@@ -188,7 +184,7 @@ func main() {
 	}
 
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
-	idManager := identitymanager.NewCertificateIdentityManager(clientset, *clusterID, namespaceManager)
+	idManager := identitymanager.NewCertificateIdentityManager(clientset, clusterIdentity, namespaceManager)
 
 	// populate the lists of ClusterRoles to bind in the different peering states
 	permissions, err := peeringroles.GetPeeringPermission(ctx, clientset)
@@ -199,10 +195,10 @@ func main() {
 	// Setup operators
 
 	searchDomainReconciler := &searchdomainoperator.SearchDomainReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		ResyncPeriod:   *resyncPeriod,
-		LocalClusterID: *clusterID,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		ResyncPeriod: *resyncPeriod,
+		LocalCluster: clusterIdentity,
 	}
 	if err = searchDomainReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
@@ -214,8 +210,7 @@ func main() {
 		LiqoNamespace: *liqoNamespace,
 
 		ResyncPeriod:                         *resyncPeriod,
-		ClusterID:                            *clusterID,
-		ClusterName:                          *clusterName,
+		HomeCluster:                          clusterIdentity,
 		AuthServiceAddressOverride:           *authServiceAddressOverride,
 		AuthServicePortOverride:              *authServicePortOverride,
 		AutoJoin:                             *autoJoin,
@@ -231,7 +226,7 @@ func main() {
 
 	broadcaster := &resourceRequestOperator.Broadcaster{}
 	updater := &resourceRequestOperator.OfferUpdater{}
-	updater.Setup(*clusterID, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap, *realStorageClassName, *enableStorage)
+	updater.Setup(clusterIdentity, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap, *realStorageClassName, *enableStorage)
 	if err := broadcaster.SetupBroadcaster(clientset, updater, *resyncPeriod,
 		resourceSharingPercentage.Val, offerUpdateThreshold.Val); err != nil {
 		klog.Error(err)
@@ -241,7 +236,7 @@ func main() {
 	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),
-		ClusterID:             *clusterID,
+		HomeCluster:           clusterIdentity,
 		Broadcaster:           broadcaster,
 		EnableIncomingPeering: *enableIncomingPeering,
 	}
@@ -266,7 +261,7 @@ func main() {
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
-		mgr, *clusterID, *resyncPeriod, *liqoNamespace, virtualKubeletOpts, *offerDisableAutoAccept)
+		mgr, clusterIdentity, *resyncPeriod, *liqoNamespace, virtualKubeletOpts, *offerDisableAutoAccept)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
@@ -292,7 +287,7 @@ func main() {
 	namespaceMapReconciler := &mapsctrl.NamespaceMapReconciler{
 		Client:                mgr.GetClient(),
 		RemoteClients:         make(map[string]kubernetes.Interface),
-		LocalClusterID:        *clusterID,
+		LocalCluster:          clusterIdentity,
 		IdentityManagerClient: clientset,
 		RequeueTime:           *namespaceMapControllerRequeueTime,
 	}
@@ -312,9 +307,9 @@ func main() {
 	}
 
 	namespaceOffloadingReconciler := &nsoffctrl.NamespaceOffloadingReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		LocalClusterID: *clusterID,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		LocalCluster: clusterIdentity,
 	}
 
 	if err = namespaceOffloadingReconciler.SetupWithManager(mgr); err != nil {

@@ -53,7 +53,7 @@ var _ = Describe("Extract elements from AKS", func() {
 		cmd := &cobra.Command{}
 
 		GenerateFlags(cmd)
-		cmd.Flags().String("cluster-name", "test-cluster", "")
+		cmd.Flags().String("cluster-name", "", "")
 		cmd.Flags().Bool("generate-name", true, "")
 		cmd.Flags().String("reserved-subnets", "", "")
 

@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 )
 
@@ -51,8 +52,8 @@ type mapUser struct {
 	Groups   []string `json:"groups"`
 }
 
-func (identityProvider *iamIdentityProvider) GetRemoteCertificate(clusterID, namespace,
-	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
+func (identityProvider *iamIdentityProvider) GetRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
+	namespace, signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	// this method has no meaning for this identity provider
 	return response, kerrors.NewNotFound(schema.GroupResource{
 		Group:    "v1",
@@ -60,7 +61,7 @@ func (identityProvider *iamIdentityProvider) GetRemoteCertificate(clusterID, nam
 	}, remoteCertificateSecret)
 }
 
-func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
+func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster discoveryv1alpha1.ClusterIdentity,
 	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(identityProvider.awsConfig.AwsRegion),
@@ -78,7 +79,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
 
 	// the IAM username has to have <= 64 charaters, we have to take only a prefix from the local clusterID.
 	prefix := identityProvider.localClusterID[:25]
-	username := fmt.Sprintf("%v-%v", prefix, clusterID)
+	username := fmt.Sprintf("%v-%v", prefix, cluster.ClusterID)
 
 	userArn, err := identityProvider.ensureIamUser(iamSvc, username)
 	if err != nil {
@@ -98,7 +99,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
 		return response, err
 	}
 
-	if err = identityProvider.ensureConfigMap(userArn, clusterID); err != nil {
+	if err = identityProvider.ensureConfigMap(userArn, cluster); err != nil {
 		klog.Error(err)
 		return response, err
 	}
@@ -160,7 +161,7 @@ func (identityProvider *iamIdentityProvider) getEksClusterInfo(sess *session.Ses
 	return describeClusterResult.Cluster, nil
 }
 
-func (identityProvider *iamIdentityProvider) ensureConfigMap(userArn, clusterID string) error {
+func (identityProvider *iamIdentityProvider) ensureConfigMap(userArn string, cluster discoveryv1alpha1.ClusterIdentity) error {
 	ctx := context.TODO()
 	authCm, err := identityProvider.client.CoreV1().ConfigMaps(namespaceKubeSystem).Get(ctx, awsAuthConfigMapName, metav1.GetOptions{})
 	if err != nil {
@@ -176,13 +177,13 @@ func (identityProvider *iamIdentityProvider) ensureConfigMap(userArn, clusterID 
 	}
 
 	if containsUser(users, userArn) {
-		klog.V(4).Infof("the map %v already contains user %v (clusterID: %v)", awsAuthConfigMapName, userArn, clusterID)
+		klog.V(4).Infof("the map %v already contains user %v (cluster: %v)", awsAuthConfigMapName, userArn, cluster.ClusterName)
 		return nil
 	}
 
 	users = append(users, mapUser{
 		UserArn:  userArn,
-		Username: clusterID,
+		Username: cluster.ClusterID,
 		Groups: []string{
 			defaultOrganization,
 		},

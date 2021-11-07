@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -49,10 +50,10 @@ func init() {
 
 // InitConfig is the config passed to initialize the LiqoPodProvider.
 type InitConfig struct {
-	HomeConfig      *rest.Config
-	HomeClusterID   string
-	RemoteClusterID string
-	Namespace       string
+	HomeConfig    *rest.Config
+	HomeCluster   discoveryv1alpha1.ClusterIdentity
+	RemoteCluster discoveryv1alpha1.ClusterIdentity
+	Namespace     string
 
 	NodeName             string
 	NodeIP               string
@@ -80,14 +81,14 @@ type LiqoProvider struct {
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
 func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadcaster) (*LiqoProvider, error) {
-	forge.Init(cfg.HomeClusterID, cfg.RemoteClusterID, cfg.NodeName, cfg.NodeIP)
+	forge.Init(cfg.HomeCluster.ClusterID, cfg.RemoteCluster.ClusterID, cfg.NodeName, cfg.NodeIP)
 	homeClient := kubernetes.NewForConfigOrDie(cfg.HomeConfig)
 	homeLiqoClient := liqoclient.NewForConfigOrDie(cfg.HomeConfig)
 
 	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(homeClient)
-	identityManager := identitymanager.NewCertificateIdentityReader(homeClient, cfg.HomeClusterID, tenantNamespaceManager)
+	identityManager := identitymanager.NewCertificateIdentityReader(homeClient, cfg.HomeCluster, tenantNamespaceManager)
 
-	remoteRestConfig, err := identityManager.GetConfig(cfg.RemoteClusterID, "")
+	remoteRestConfig, err := identityManager.GetConfig(cfg.RemoteCluster, "")
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +129,8 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage))
 	reflectionManager.Start(ctx)
 
-	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID,
-		cfg.RemoteClusterID, cfg.Namespace, reflectionManager)
+	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeCluster.ClusterID,
+		cfg.RemoteCluster.ClusterID, cfg.Namespace, reflectionManager)
 	if err != nil {
 		return nil, err
 	}

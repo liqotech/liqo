@@ -90,10 +90,10 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		return ctrl.Result{}, nil
 	}
 
-	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
-	klog.Infof("[%v] Processing ForeignCluster %q", remoteClusterID, fc.Name)
+	remoteCluster := fc.Spec.ClusterIdentity
+	klog.Infof("[%v] Processing ForeignCluster %q", remoteCluster.ClusterName, fc.Name)
 	// Prevent issues in case the remote cluster ID has not yet been set
-	if remoteClusterID == "" {
+	if remoteCluster.ClusterID == "" {
 		klog.Infof("Remote Cluster ID is not yet set in resource %q", fc.Name)
 		return ctrl.Result{}, nil
 	}
@@ -103,13 +103,13 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		// the object is being deleted
 		if controllerutil.ContainsFinalizer(&fc, finalizer) {
 			// close remote watcher for remote cluster
-			reflector, ok := c.Reflectors[remoteClusterID]
+			reflector, ok := c.Reflectors[remoteCluster.ClusterID]
 			if ok {
 				if err := reflector.Stop(); err != nil {
-					klog.Errorf("[%v] Failed to stop reflection: %v", remoteClusterID, err)
+					klog.Errorf("[%v] Failed to stop reflection: %v", remoteCluster.ClusterName, err)
 					return ctrl.Result{}, err
 				}
-				delete(c.Reflectors, remoteClusterID)
+				delete(c.Reflectors, remoteCluster.ClusterID)
 			}
 
 			// remove the finalizer from the list and update it.
@@ -124,7 +124,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	// Defer the function to start/stop the reflection of the different resources based on the peering status.
 	defer func() {
 		if err == nil {
-			err = c.enforceReflectionStatus(ctx, remoteClusterID, !fc.ObjectMeta.DeletionTimestamp.IsZero())
+			err = c.enforceReflectionStatus(ctx, remoteCluster.ClusterID, !fc.ObjectMeta.DeletionTimestamp.IsZero())
 		}
 	}()
 
@@ -141,23 +141,23 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		return ctrl.Result{}, err
 	}
 
-	if oldPhase := c.getPeeringPhase(remoteClusterID); oldPhase != currentPhase {
-		klog.V(4).Infof("[%v] Peering phase changed: old: %v, new: %v", remoteClusterID, oldPhase, currentPhase)
-		c.setPeeringPhase(remoteClusterID, currentPhase)
+	if oldPhase := c.getPeeringPhase(remoteCluster.ClusterID); oldPhase != currentPhase {
+		klog.V(4).Infof("[%v] Peering phase changed: old: %v, new: %v", remoteCluster.ClusterName, oldPhase, currentPhase)
+		c.setPeeringPhase(remoteCluster.ClusterID, currentPhase)
 	}
 
 	// Check if reflection towards the remote cluster has already been started.
-	if _, found := c.Reflectors[remoteClusterID]; found {
+	if _, found := c.Reflectors[remoteCluster.ClusterID]; found {
 		return ctrl.Result{}, nil
 	}
 
 	if fc.Status.TenantNamespace.Local == "" || fc.Status.TenantNamespace.Remote == "" {
-		klog.Infof("[%v] TenantNamespace is not yet set in resource %q", remoteClusterID, fc.Name)
+		klog.Infof("[%v] TenantNamespace is not yet set in resource %q", remoteCluster.ClusterName, fc.Name)
 		return ctrl.Result{}, nil
 	}
-	config, err := c.IdentityReader.GetConfig(remoteClusterID, fc.Status.TenantNamespace.Local)
+	config, err := c.IdentityReader.GetConfig(remoteCluster, fc.Status.TenantNamespace.Local)
 	if err != nil {
-		klog.Errorf("[%v] Unable to retrieve config from resource %q: %s", remoteClusterID, fc.Name, err)
+		klog.Errorf("[%v] Unable to retrieve config from resource %q: %s", remoteCluster.ClusterName, fc.Name, err)
 		return ctrl.Result{}, nil
 	}
 

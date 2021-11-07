@@ -82,24 +82,30 @@ var _ = Describe("ForeignClusterOperator", func() {
 			os.Exit(1)
 		}
 
-		cID := "local-cluster"
+		homeCluster := discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   "local-cluster-id",
+			ClusterName: "local-cluster-name",
+		}
 
 		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
-		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient(), cID, namespaceManager)
+		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient(), homeCluster, namespaceManager)
 
-		clusterID := "foreign-cluster"
-		tenantNamespace, err = namespaceManager.CreateNamespace(clusterID)
+		foreignCluster := discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   "foreign-cluster-id",
+			ClusterName: "foreign-cluster-name",
+		}
+		tenantNamespace, err = namespaceManager.CreateNamespace(foreignCluster)
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
 		// Make sure the namespace has been cached for subsequent retrieval.
-		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(clusterID) }).Should(Equal(tenantNamespace))
+		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(foreignCluster) }).Should(Equal(tenantNamespace))
 
 		controller = ForeignClusterReconciler{
 			Client:           mgr.GetClient(),
 			Scheme:           mgr.GetScheme(),
-			ClusterID:        cID,
+			HomeCluster:      homeCluster,
 			ResyncPeriod:     300,
 			NamespaceManager: namespaceManager,
 			IdentityManager:  identityManagerCtrl,
@@ -170,15 +176,15 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Entry("peer", peerTestcase{
 				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "foreign-cluster",
+							ClusterID:   "foreign-cluster-id",
 							ClusterName: "ClusterTest2",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -216,7 +222,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
 				// populate the resourcerequest CR
-				c.rr.Name = controller.ClusterID
+				c.rr.Name = controller.HomeCluster.ClusterID
 				c.rr.Namespace = tenantNamespace.Name
 				c.rr.Spec.ClusterIdentity.ClusterID = c.fc.Spec.ClusterIdentity.ClusterID
 				c.rr.Labels = resourceRequestLabels(c.fc.Spec.ClusterIdentity.ClusterID)
@@ -306,15 +312,15 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Entry("unpeer", unpeerTestcase{
 				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "foreign-cluster",
+							ClusterID:   "foreign-cluster-id",
 							ClusterName: "ClusterTest2",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -356,15 +362,15 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Entry("unpeer from not accepted peering", unpeerTestcase{
 				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "foreign-cluster",
+							ClusterID:   "foreign-cluster-id",
 							ClusterName: "ClusterTest2",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -415,7 +421,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					APIVersion: discoveryv1alpha1.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "foreign-cluster",
+					Name: "foreign-cluster-name",
 					Labels: map[string]string{
 						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
 						discovery.ClusterIDLabel:     "foreign-cluster-abcd",
@@ -442,7 +448,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			var ns *v1.Namespace
 			Eventually(func() error {
-				ns, err = controller.NamespaceManager.GetNamespace(foreignCluster.Spec.ClusterIdentity.ClusterID)
+				ns, err = controller.NamespaceManager.GetNamespace(foreignCluster.Spec.ClusterIdentity)
 				return err
 			}).Should(Succeed())
 
@@ -518,7 +524,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						APIVersion: discoveryv1alpha1.GroupVersion.String(),
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
 							discovery.ClusterIDLabel:     "foreign-cluster-abcd",
@@ -796,7 +802,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					By("Delete RoleBindings")
 
 					// create all
-					_, err := controller.NamespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity.ClusterID, &clusterRole1, &clusterRole2)
+					_, err := controller.NamespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity, &clusterRole1, &clusterRole2)
 					Expect(err).To(Succeed())
 
 					Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
@@ -825,16 +831,16 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Entry("none peering", permissionTestcase{
 				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "foreign-cluster",
-							ClusterName: "ClusterTest",
+							ClusterID:   "foreign-cluster-id",
+							ClusterName: "foreign-cluster-name",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -853,16 +859,16 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Entry("incoming peering", permissionTestcase{
 				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "foreign-cluster",
-							ClusterName: "ClusterTest",
+							ClusterID:   "foreign-cluster-id",
+							ClusterName: "foreign-cluster-name",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -893,16 +899,16 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Entry("outgoing peering", permissionTestcase{
 				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "foreign-cluster",
-							ClusterName: "ClusterTest",
+							ClusterID:   "foreign-cluster-id",
+							ClusterName: "foreign-cluster-name",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -933,16 +939,16 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Entry("bidirectional peering", permissionTestcase{
 				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "foreign-cluster",
-							ClusterName: "ClusterTest",
+							ClusterID:   "foreign-cluster-id",
+							ClusterName: "foreign-cluster-name",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -1042,7 +1048,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					Name: "cluster-1",
 					Labels: map[string]string{
 						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-						discovery.ClusterIDLabel:     controller.ClusterID,
+						discovery.ClusterIDLabel:     controller.HomeCluster.ClusterID,
 					},
 				},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -1050,9 +1056,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 					InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					ForeignAuthURL:         "https://example.com",
-					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-						ClusterID: controller.ClusterID,
-					},
+					ClusterIdentity:        controller.HomeCluster,
 				},
 			}
 
@@ -1097,10 +1101,10 @@ var _ = Describe("PeeringPolicy", func() {
 			Entry("peering disabled", isPeeringEnabledTestcase{
 				foreignCluster: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -1115,10 +1119,10 @@ var _ = Describe("PeeringPolicy", func() {
 			Entry("peering enabled", isPeeringEnabledTestcase{
 				foreignCluster: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -1133,10 +1137,10 @@ var _ = Describe("PeeringPolicy", func() {
 			Entry("peering automatic with manual discovery", isPeeringEnabledTestcase{
 				foreignCluster: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -1151,10 +1155,10 @@ var _ = Describe("PeeringPolicy", func() {
 			Entry("peering automatic with incoming discovery", isPeeringEnabledTestcase{
 				foreignCluster: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.IncomingPeeringDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -1169,10 +1173,10 @@ var _ = Describe("PeeringPolicy", func() {
 			Entry("peering automatic with LAN discovery", isPeeringEnabledTestcase{
 				foreignCluster: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.LanDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -1187,10 +1191,10 @@ var _ = Describe("PeeringPolicy", func() {
 			Entry("foreign cluster with deletion timestamp set", isPeeringEnabledTestcase{
 				foreignCluster: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
+						Name: "foreign-cluster-name",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.LanDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster-id",
 						},
 						DeletionTimestamp: &metav1.Time{Time: time.Now()},
 					},

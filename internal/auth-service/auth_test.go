@@ -68,9 +68,9 @@ func (man *tokenManagerMock) createToken() error {
 var _ = Describe("Auth", func() {
 
 	var (
-		cluster     testutil.Cluster
-		clusterID   string
-		authService Controller
+		cluster         testutil.Cluster
+		clusterIdentity discoveryv1alpha1.ClusterIdentity
+		authService     Controller
 
 		tMan tokenManagerMock
 
@@ -95,7 +95,10 @@ var _ = Describe("Auth", func() {
 		secretInformer := informerFactory.Core().V1().Secrets().Informer()
 		secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
-		clusterID = "default"
+		clusterIdentity = discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   "default-cluster-id",
+			ClusterName: "default-cluster-name",
+		}
 
 		stopChan = make(chan struct{})
 		informerFactory.Start(stopChan)
@@ -103,7 +106,7 @@ var _ = Describe("Auth", func() {
 
 		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
 		identityProvider := identitymanager.NewCertificateIdentityProvider(
-			context.Background(), cluster.GetClient(), clusterID, namespaceManager)
+			context.Background(), cluster.GetClient(), clusterIdentity, namespaceManager)
 
 		config := apiserver.Config{Address: cluster.GetCfg().Host, TrustedCA: false}
 		Expect(config.Complete(cluster.GetCfg(), cluster.GetClient())).To(Succeed())
@@ -112,7 +115,7 @@ var _ = Describe("Auth", func() {
 			namespace:            "default",
 			clientset:            cluster.GetClient(),
 			secretInformer:       secretInformer,
-			localClusterID:       clusterID,
+			localCluster:         clusterIdentity,
 			namespaceManager:     namespaceManager,
 			identityProvider:     identityProvider,
 			credentialsValidator: &tokenValidator{},
@@ -235,7 +238,7 @@ var _ = Describe("Auth", func() {
 
 		DescribeTable("Certificate Identity Creation table",
 			func(c certificateTestcase) {
-				req, err := testutil.FakeCSRRequest(authService.localClusterID)
+				req, err := testutil.FakeCSRRequest(authService.localCluster.ClusterID)
 				Expect(err).To(BeNil())
 				c.request.CertificateSigningRequest = base64.StdEncoding.EncodeToString(req)
 

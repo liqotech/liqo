@@ -36,24 +36,25 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // CreateIdentity creates a new key and a new csr to be used as an identity to authenticate with a remote cluster.
-func (certManager *identityManager) CreateIdentity(remoteClusterID string) (*v1.Secret, error) {
-	namespace, err := certManager.namespaceManager.GetNamespace(remoteClusterID)
+func (certManager *identityManager) CreateIdentity(remoteCluster discoveryv1alpha1.ClusterIdentity) (*v1.Secret, error) {
+	namespace, err := certManager.namespaceManager.GetNamespace(remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
-	return certManager.createIdentityInNamespace(remoteClusterID, namespace.Name)
+	return certManager.createIdentityInNamespace(remoteCluster.ClusterID, namespace.Name)
 }
 
 // GetSigningRequest gets the CertificateSigningRequest for a remote cluster.
-func (certManager *identityManager) GetSigningRequest(remoteClusterID string) ([]byte, error) {
-	secret, err := certManager.getSecret(remoteClusterID)
+func (certManager *identityManager) GetSigningRequest(remoteCluster discoveryv1alpha1.ClusterIdentity) ([]byte, error) {
+	secret, err := certManager.getSecret(remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -61,7 +62,8 @@ func (certManager *identityManager) GetSigningRequest(remoteClusterID string) ([
 
 	csrBytes, ok := secret.Data[csrSecretKey]
 	if !ok {
-		err = fmt.Errorf("csr not found in secret %v/%v for clusterid %v", secret.Namespace, secret.Name, remoteClusterID)
+		err = fmt.Errorf("csr not found in secret %v/%v for clusterid %v",
+			secret.Namespace, secret.Name, remoteCluster.ClusterID)
 		klog.Error(err)
 		return nil, err
 	}
@@ -70,8 +72,9 @@ func (certManager *identityManager) GetSigningRequest(remoteClusterID string) ([
 }
 
 // StoreCertificate stores the certificate issued by a remote authority for the specified remoteClusterID.
-func (certManager *identityManager) StoreCertificate(remoteClusterID string, identityResponse *auth.CertificateIdentityResponse) error {
-	secret, err := certManager.getSecret(remoteClusterID)
+func (certManager *identityManager) StoreCertificate(remoteCluster discoveryv1alpha1.ClusterIdentity,
+	identityResponse *auth.CertificateIdentityResponse) error {
+	secret, err := certManager.getSecret(remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -120,22 +123,23 @@ func (certManager *identityManager) StoreCertificate(remoteClusterID string, ide
 }
 
 // getSecret retrieves the identity secret given the clusterID.
-func (certManager *identityManager) getSecret(remoteClusterID string) (*v1.Secret, error) {
-	namespace, err := certManager.namespaceManager.GetNamespace(remoteClusterID)
+func (certManager *identityManager) getSecret(remoteCluster discoveryv1alpha1.ClusterIdentity) (*v1.Secret, error) {
+	namespace, err := certManager.namespaceManager.GetNamespace(remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
-	return certManager.getSecretInNamespace(remoteClusterID, namespace.Name)
+	return certManager.getSecretInNamespace(remoteCluster, namespace.Name)
 }
 
 // getSecretInNamespace retrieves the identity secret in the given Namespace.
-func (certManager *identityManager) getSecretInNamespace(remoteClusterID, namespace string) (*v1.Secret, error) {
+func (certManager *identityManager) getSecretInNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity,
+	namespace string) (*v1.Secret, error) {
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			localIdentitySecretLabel: "true",
-			discovery.ClusterIDLabel: remoteClusterID,
+			discovery.ClusterIDLabel: remoteCluster.ClusterID,
 		},
 	}
 	secretList, err := certManager.client.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{
@@ -151,7 +155,7 @@ func (certManager *identityManager) getSecretInNamespace(remoteClusterID, namesp
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, fmt.Sprintf("Identity for cluster %v in namespace %v", remoteClusterID, namespace))
+		}, fmt.Sprintf("Identity for cluster %v in namespace %v", remoteCluster.ClusterID, namespace))
 		klog.Error(err)
 		return nil, err
 	}
@@ -176,7 +180,7 @@ func (certManager *identityManager) createCSR() (keyBytes, csrBytes []byte, err 
 	}
 
 	subj := pkix.Name{
-		CommonName:   certManager.localClusterID,
+		CommonName:   certManager.localCluster.ClusterID,
 		Organization: []string{defaultOrganization},
 	}
 	rawSubj := subj.ToRDNSequence()

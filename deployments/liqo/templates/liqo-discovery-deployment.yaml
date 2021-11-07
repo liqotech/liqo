@@ -35,6 +35,7 @@ spec:
           command: ["/usr/bin/discovery"]
           args:
           - --cluster-id=$(CLUSTER_ID)
+          - --cluster-name=$(CLUSTER_NAME)
           - --namespace=$(POD_NAMESPACE)
           - --mdns-enable-advertisement={{ .Values.discovery.config.enableAdvertisement }}
           - --mdns-enable-discovery={{ .Values.discovery.config.enableDiscovery }}
@@ -48,6 +49,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "liqo.clusterIdConfig" . }}
                   key: CLUSTER_ID
+            - name: CLUSTER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "liqo.clusterIdConfig" . }}
+                  key: CLUSTER_NAME
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:

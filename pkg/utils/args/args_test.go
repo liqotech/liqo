@@ -15,6 +15,7 @@
 package args
 
 import (
+	"flag"
 	"net"
 	"testing"
 
@@ -204,6 +205,43 @@ var _ = Describe("ParseArguments", func() {
 
 			Entry("incorrect cidr", parseCidrTestCase{
 				cidr:          "10.0.0..0/16",
+				expectedError: HaveOccurred(),
+			}),
+		)
+
+	})
+
+	Context("ClusterIdentity", func() {
+
+		type parseClusterIdentityTestCase struct {
+			args          []string
+			expectedError OmegaMatcher
+		}
+
+		DescribeTable("ClusterIdentity table",
+			func(c parseClusterIdentityTestCase) {
+				flagset := flag.NewFlagSet("test", flag.ContinueOnError)
+				flags := NewClusterIdentityFlags(true, flagset)
+				Expect(flagset.Parse(c.args)).To(Succeed())
+				_, err := flags.Read()
+				Expect(err).To(c.expectedError)
+			},
+
+			Entry("no cluster ID", parseClusterIdentityTestCase{
+				args:          []string{"--cluster-name=foo"},
+				expectedError: HaveOccurred(),
+			}),
+			Entry("no cluster name", parseClusterIdentityTestCase{
+				args:          []string{"--cluster-id=foo"},
+				expectedError: HaveOccurred(),
+			}),
+
+			Entry("invalid cluster ID", parseClusterIdentityTestCase{
+				args:          []string{"--cluster-id=Foo!", "--cluster-name=foo"},
+				expectedError: HaveOccurred(),
+			}),
+			Entry("invalid cluster name", parseClusterIdentityTestCase{
+				args:          []string{"--cluster-id=foo", "--cluster-name=Foo!"},
 				expectedError: HaveOccurred(),
 			}),
 		)

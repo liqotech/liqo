@@ -26,9 +26,10 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
-	authenticationtoken "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
+	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
@@ -95,7 +96,11 @@ func (authService *Controller) handleIdentity(
 	tracer.Step("Credentials checked")
 
 	klog.V(4).Infof("Creating Tenant Namespace for cluster %v", identityRequest.GetClusterID())
-	namespace, err := authService.namespaceManager.CreateNamespace(identityRequest.GetClusterID())
+	clusterIdentity := discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   identityRequest.ClusterID,
+		ClusterName: identityRequest.ClusterID,
+	}
+	namespace, err := authService.namespaceManager.CreateNamespace(clusterIdentity)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -104,7 +109,7 @@ func (authService *Controller) handleIdentity(
 
 	// check that there is no available certificate for that clusterID
 	if _, err = authService.identityProvider.GetRemoteCertificate(
-		identityRequest.ClusterID, namespace.Name, identityRequest.CertificateSigningRequest); err == nil {
+		clusterIdentity, namespace.Name, identityRequest.CertificateSigningRequest); err == nil {
 		klog.Info("multiple identity validations with unique clusterID")
 		err = &kerrors.StatusError{ErrStatus: metav1.Status{
 			Status: metav1.StatusFailure,
@@ -121,7 +126,7 @@ func (authService *Controller) handleIdentity(
 
 	// issue certificate request
 	identityResponse, err := authService.identityProvider.ApproveSigningRequest(
-		identityRequest.ClusterID, identityRequest.CertificateSigningRequest)
+		clusterIdentity, identityRequest.CertificateSigningRequest)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -130,7 +135,7 @@ func (authService *Controller) handleIdentity(
 
 	// bind basic permission required to start the peering
 	if _, err = authService.namespaceManager.BindClusterRoles(
-		identityRequest.GetClusterID(), authService.peeringPermission.Basic...); err != nil {
+		clusterIdentity, authService.peeringPermission.Basic...); err != nil {
 		klog.Error(err)
 		return nil, err
 	}

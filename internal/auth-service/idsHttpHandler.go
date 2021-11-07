@@ -52,7 +52,7 @@ func (authService *Controller) ids(w http.ResponseWriter, r *http.Request, ps ht
 
 func (authService *Controller) getIdsResponse() *auth.ClusterInfo {
 	return &auth.ClusterInfo{
-		ClusterID:   authService.localClusterID,
-		ClusterName: authService.localClusterName,
+		ClusterID:   authService.localCluster.ClusterID,
+		ClusterName: authService.localCluster.ClusterName,
 	}
 }

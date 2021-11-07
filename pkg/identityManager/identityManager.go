@@ -23,6 +23,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
 )
@@ -31,7 +32,7 @@ type identityManager struct {
 	IdentityProvider
 
 	client           kubernetes.Interface
-	localClusterID   string
+	localCluster     discoveryv1alpha1.ClusterIdentity
 	namespaceManager tenantnamespace.Manager
 
 	iamTokenManager tokenManager
@@ -39,24 +40,24 @@ type identityManager struct {
 
 // NewCertificateIdentityReader gets a new certificate identity reader.
 func NewCertificateIdentityReader(client kubernetes.Interface,
-	localClusterID string, namespaceManager tenantnamespace.Manager) IdentityReader {
-	return NewCertificateIdentityManager(client, localClusterID, namespaceManager)
+	localCluster discoveryv1alpha1.ClusterIdentity, namespaceManager tenantnamespace.Manager) IdentityReader {
+	return NewCertificateIdentityManager(client, localCluster, namespaceManager)
 }
 
 // NewCertificateIdentityManager gets a new certificate identity manager.
 func NewCertificateIdentityManager(client kubernetes.Interface,
-	localClusterID string, namespaceManager tenantnamespace.Manager) IdentityManager {
+	localCluster discoveryv1alpha1.ClusterIdentity, namespaceManager tenantnamespace.Manager) IdentityManager {
 	idProvider := &certificateIdentityProvider{
 		namespaceManager: namespaceManager,
 		client:           client,
 	}
 
-	return newIdentityManager(client, localClusterID, namespaceManager, idProvider)
+	return newIdentityManager(client, localCluster, namespaceManager, idProvider)
 }
 
 // NewCertificateIdentityProvider gets a new certificate identity approver.
 func NewCertificateIdentityProvider(ctx context.Context, client kubernetes.Interface,
-	localClusterID string, namespaceManager tenantnamespace.Manager) IdentityProvider {
+	localCluster discoveryv1alpha1.ClusterIdentity, namespaceManager tenantnamespace.Manager) IdentityProvider {
 	req, err := labels.NewRequirement(remoteTenantCSRLabel, selection.Exists, []string{})
 	utilruntime.Must(err)
 
@@ -68,43 +69,43 @@ func NewCertificateIdentityProvider(ctx context.Context, client kubernetes.Inter
 		csrWatcher:       csrWatcher,
 	}
 
-	return newIdentityManager(client, localClusterID, namespaceManager, idProvider)
+	return newIdentityManager(client, localCluster, namespaceManager, idProvider)
 }
 
 // NewIAMIdentityReader gets a new identity reader to handle IAM identities.
 func NewIAMIdentityReader(client kubernetes.Interface,
-	localClusterID string, awsConfig *AwsConfig,
+	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *AwsConfig,
 	namespaceManager tenantnamespace.Manager) IdentityManager {
-	return NewIAMIdentityManager(client, localClusterID, awsConfig, namespaceManager)
+	return NewIAMIdentityManager(client, localCluster, awsConfig, namespaceManager)
 }
 
 // NewIAMIdentityManager gets a new identity manager to handle IAM identities.
 func NewIAMIdentityManager(client kubernetes.Interface,
-	localClusterID string, awsConfig *AwsConfig,
+	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *AwsConfig,
 	namespaceManager tenantnamespace.Manager) IdentityManager {
 	idProvider := &iamIdentityProvider{
 		awsConfig: awsConfig,
 		client:    client,
 	}
 
-	return newIdentityManager(client, localClusterID, namespaceManager, idProvider)
+	return newIdentityManager(client, localCluster, namespaceManager, idProvider)
 }
 
 // NewIAMIdentityProvider gets a new identity approver to handle IAM identities.
 func NewIAMIdentityProvider(client kubernetes.Interface,
-	localClusterID string, awsConfig *AwsConfig,
+	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *AwsConfig,
 	namespaceManager tenantnamespace.Manager) IdentityProvider {
 	idProvider := &iamIdentityProvider{
 		awsConfig:      awsConfig,
 		client:         client,
-		localClusterID: localClusterID,
+		localClusterID: localCluster.ClusterID,
 	}
 
-	return newIdentityManager(client, localClusterID, namespaceManager, idProvider)
+	return newIdentityManager(client, localCluster, namespaceManager, idProvider)
 }
 
 func newIdentityManager(client kubernetes.Interface,
-	localClusterID string,
+	localCluster discoveryv1alpha1.ClusterIdentity,
 	namespaceManager tenantnamespace.Manager,
 	idProvider IdentityProvider) *identityManager {
 	iamTokenManager := &iamTokenManager{
@@ -116,7 +117,7 @@ func newIdentityManager(client kubernetes.Interface,
 
 	return &identityManager{
 		client:           client,
-		localClusterID:   localClusterID,
+		localCluster:     localCluster,
 		namespaceManager: namespaceManager,
 
 		IdentityProvider: idProvider,

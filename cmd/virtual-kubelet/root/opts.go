@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
@@ -73,8 +74,8 @@ type Opts struct {
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
 
-	ForeignClusterID string
-	HomeClusterID    string
+	ForeignCluster   discoveryv1alpha1.ClusterIdentity
+	HomeCluster      discoveryv1alpha1.ClusterIdentity
 	KubeletNamespace string
 
 	LiqoIpamServer string

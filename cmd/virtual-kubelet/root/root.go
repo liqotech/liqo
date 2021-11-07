@@ -59,8 +59,11 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if c.ForeignClusterID == "" {
+	if c.ForeignCluster.ClusterID == "" {
 		return errors.New("cluster id is mandatory")
+	}
+	if c.ForeignCluster.ClusterName == "" {
+		return errors.New("cluster name is mandatory")
 	}
 
 	if c.PodWorkers == 0 || c.ServiceWorkers == 0 || c.EndpointSliceWorkers == 0 || c.ConfigMapWorkers == 0 || c.SecretWorkers == 0 {
@@ -80,9 +83,9 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	// Initialize the pod provider
 	podcfg := podprovider.InitConfig{
-		HomeConfig:      config,
-		HomeClusterID:   c.HomeClusterID,
-		RemoteClusterID: c.ForeignClusterID,
+		HomeConfig:    config,
+		HomeCluster:   c.HomeCluster,
+		RemoteCluster: c.ForeignCluster,
 
 		Namespace: c.KubeletNamespace,
 		NodeName:  c.NodeName,
@@ -112,8 +115,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	// Initialize the node provider
 	nodecfg := nodeprovider.InitConfig{
 		HomeConfig:      config,
-		HomeClusterID:   c.HomeClusterID,
-		RemoteClusterID: c.ForeignClusterID,
+		HomeClusterID:   c.HomeCluster.ClusterID,
+		RemoteClusterID: c.ForeignCluster.ClusterID,
 		Namespace:       c.KubeletNamespace,
 
 		NodeName:         c.NodeName,

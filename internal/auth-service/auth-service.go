@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -61,8 +62,7 @@ type Controller struct {
 	authenticationEnabled bool
 
 	credentialsValidator credentialsValidator
-	localClusterID       string
-	localClusterName     string
+	localCluster         discoveryv1alpha1.ClusterIdentity
 	namespaceManager     tenantnamespace.Manager
 	identityProvider     identitymanager.IdentityProvider
 
@@ -75,7 +75,7 @@ type Controller struct {
 func NewAuthServiceCtrl(config *rest.Config, namespace string,
 	awsConfig identitymanager.AwsConfig, resyncTime time.Duration,
 	apiServerConfig apiserver.Config, authEnabled, useTLS bool,
-	localClusterID, clusterName string) (*Controller, error) {
+	localCluster discoveryv1alpha1.ClusterIdentity) (*Controller, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -99,18 +99,17 @@ func NewAuthServiceCtrl(config *rest.Config, namespace string,
 	var idProvider identitymanager.IdentityProvider
 	if awsConfig.IsEmpty() {
 		idProvider = identitymanager.NewCertificateIdentityProvider(
-			context.Background(), clientset, localClusterID, namespaceManager)
+			context.Background(), clientset, localCluster, namespaceManager)
 	} else {
 		idProvider = identitymanager.NewIAMIdentityProvider(
-			clientset, localClusterID, &awsConfig, namespaceManager)
+			clientset, localCluster, &awsConfig, namespaceManager)
 	}
 
 	return &Controller{
 		namespace:        namespace,
 		clientset:        clientset,
 		secretInformer:   secretInformer,
-		localClusterID:   localClusterID,
-		localClusterName: clusterName,
+		localCluster:     localCluster,
 		namespaceManager: namespaceManager,
 		identityProvider: idProvider,
 
