@@ -58,6 +58,7 @@ spec:
                     type: string
                 required:
                 - clusterID
+                - clusterName
                 type: object
               withdrawalTimestamp:
                 description: WithdrawalTimestamp is set when a graceful deletion is
