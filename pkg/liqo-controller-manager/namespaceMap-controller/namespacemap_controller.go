@@ -24,6 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -32,7 +33,7 @@ type NamespaceMapReconciler struct {
 	client.Client
 	RemoteClients         map[string]kubernetes.Interface
 	IdentityManagerClient kubernetes.Interface
-	LocalClusterID        string
+	LocalCluster          discoveryv1alpha1.ClusterIdentity
 	RequeueTime           time.Duration
 }
 
@@ -81,6 +82,7 @@ func (r *NamespaceMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Create/Delete remote Namespaces if it is necessary, according to NamespaceMap status.
 	if err := r.ensureRemoteNamespaces(ctx, namespaceMap); err != nil {
+		klog.Errorf("Updating remote namespaces: %s", err)
 		return ctrl.Result{}, err
 	}
 

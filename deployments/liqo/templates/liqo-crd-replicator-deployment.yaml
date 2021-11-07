@@ -36,6 +36,7 @@ spec:
           command: ["/usr/bin/crd-replicator"]
           args:
             - --cluster-id=$(CLUSTER_ID)
+            - --cluster-name=$(CLUSTER_NAME)
             {{- if .Values.crdReplicator.pod.extraArgs }}
             {{- toYaml .Values.crdReplicator.pod.extraArgs | nindent 12 }}
             {{- end }}
@@ -45,6 +46,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "liqo.clusterIdConfig" . }}
                   key: CLUSTER_ID
+            - name: CLUSTER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "liqo.clusterIdConfig" . }}
+                  key: CLUSTER_NAME
           resources:
             requests:
               cpu: 30m

@@ -43,9 +43,8 @@ import (
 )
 
 const (
-	timeout   = time.Second * 30
-	interval  = time.Millisecond * 250
-	clusterID = "cluster-id"
+	timeout  = time.Second * 30
+	interval = time.Millisecond * 250
 
 	testNamespace = "default"
 
@@ -54,7 +53,11 @@ const (
 )
 
 var (
-	cluster    testutil.Cluster
+	cluster               testutil.Cluster
+	remoteClusterIdentity = discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   "remote-cluster-id",
+		ClusterName: "remote-cluster-name",
+	}
 	mgr        manager.Manager
 	controller *ResourceOfferReconciler
 	ctx        context.Context
@@ -71,12 +74,13 @@ func TestIdentityManager(t *testing.T) {
 func createForeignCluster() {
 	foreignCluster := &discoveryv1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "foreigncluster",
+			Name: remoteClusterIdentity.ClusterName,
 			Labels: map[string]string{
-				discovery.ClusterIDLabel: clusterID,
+				discovery.ClusterIDLabel: remoteClusterIdentity.ClusterID,
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
+			ClusterIdentity:        remoteClusterIdentity,
 			ForeignAuthURL:         "https://127.0.0.1:8080",
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -105,7 +109,8 @@ var _ = Describe("ResourceOffer Controller", func() {
 			InitContainerImage: initVirtualKubeletImage,
 		}
 
-		controller = NewResourceOfferController(mgr, "remote-id", 10*time.Second, testNamespace, kubeletOpts, true)
+		controller = NewResourceOfferController(mgr, remoteClusterIdentity,
+			10*time.Second, testNamespace, kubeletOpts, true)
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)
@@ -162,7 +167,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId: clusterID,
+					ClusterId: remoteClusterIdentity.ClusterID,
 				},
 			},
 			expectedPhase: sharingv1alpha1.ResourceOfferManualActionRequired, // auto-accept is off
@@ -176,7 +181,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					Namespace: testNamespace,
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId: clusterID,
+					ClusterId: remoteClusterIdentity.ClusterID,
 				},
 			},
 			expectedPhase: "",
@@ -196,7 +201,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId: clusterID,
+					ClusterId: remoteClusterIdentity.ClusterID,
 				},
 			}
 			key := client.ObjectKeyFromObject(resourceOffer)
@@ -257,7 +262,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 
 			// check the existence of the ClusterRoleBinding
 			Eventually(func() int {
-				labels := forge.ClusterRoleLabels(clusterID)
+				labels := forge.ClusterRoleLabels(remoteClusterIdentity.ClusterID)
 				var clusterRoleBindingList rbacv1.ClusterRoleBindingList
 				err := controller.Client.List(ctx, &clusterRoleBindingList, client.MatchingLabels(labels))
 				if err != nil {
@@ -309,7 +314,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 
 			// check the deletion of the ClusterRoleBinding
 			Eventually(func() int {
-				labels := forge.ClusterRoleLabels(clusterID)
+				labels := forge.ClusterRoleLabels(remoteClusterIdentity.ClusterID)
 				var clusterRoleBindingList rbacv1.ClusterRoleBindingList
 				err := controller.Client.List(ctx, &clusterRoleBindingList, client.MatchingLabels(labels))
 				if err != nil {

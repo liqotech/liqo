@@ -51,6 +51,7 @@ func (p *GenericProvider) ValidateGenericCommandArguments(flags *flag.FlagSet) (
 		return fmt.Errorf("you must provide a cluster name or use --generate-name")
 	}
 	if clusterName != "" && generate {
+		fmt.Printf("%#v %#v\n", clusterName, generate)
 		return fmt.Errorf("cannot set a cluster name and use --generate-name at the same time")
 	}
 	if generate {

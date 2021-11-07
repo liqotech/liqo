@@ -29,6 +29,7 @@ import (
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	discovery "github.com/liqotech/liqo/pkg/discoverymanager"
+	"github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -48,8 +49,7 @@ func init() {
 func main() {
 	klog.Info("Starting")
 
-	clusterID := flag.String("cluster-id", "", "The cluster ID of identifying the current cluster")
-
+	clusterFlags := args.NewClusterIdentityFlags(true, nil)
 	namespace := flag.String("namespace", "default", "Namespace where your configs are stored.")
 	requeueAfter := flag.Duration("requeue-after", 30*time.Second,
 		"Period after that the PeeringRequests status is synchronized")
@@ -72,6 +72,8 @@ func main() {
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 	flag.Parse()
+
+	clusterIdentity := clusterFlags.ReadOrDie()
 
 	klog.Info("Namespace: ", *namespace)
 	klog.Info("RequeueAfter: ", *requeueAfter)
@@ -105,7 +107,7 @@ func main() {
 
 	klog.Info("Starting the discovery logic")
 	discoveryCtl := discovery.NewDiscoveryCtrl(mgr.GetClient(), namespacedClient, *namespace,
-		*clusterID, mdnsConfig, *dialTCPTimeout)
+		clusterIdentity, mdnsConfig, *dialTCPTimeout)
 	if err := mgr.Add(discoveryCtl); err != nil {
 		klog.Errorf("Unable to add the discovery controller to the manager: %w", err)
 		os.Exit(1)

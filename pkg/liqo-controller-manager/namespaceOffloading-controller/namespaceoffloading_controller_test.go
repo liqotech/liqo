@@ -116,14 +116,14 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 2 - Check NamespaceMap of virtual nodes 1 ")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				return nms.Items[0].Spec.DesiredMapping[namespace1Name] == namespace1Name
 			}, timeout, interval).Should(BeTrue())
 
 			By(" 2 - Check NamespaceMap of virtual nodes 2 ")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster2.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				_, ok := nms.Items[0].Spec.DesiredMapping[namespace1Name]
 				return !ok
@@ -131,7 +131,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 3 - Check NamespaceMap of virtual node 3 ")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId3})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster3.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				return nms.Items[0].Spec.DesiredMapping[namespace1Name] == namespace1Name
 			}, timeout, interval).Should(BeTrue())
@@ -269,8 +269,8 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 				namespaceOffloading2.Status.RemoteNamespacesConditions = map[string]offv1alpha1.RemoteNamespaceConditions{}
-				namespaceOffloading2.Status.RemoteNamespacesConditions[remoteClusterId1] =
-					append(namespaceOffloading2.Status.RemoteNamespacesConditions[remoteClusterId1], offv1alpha1.RemoteNamespaceCondition{
+				namespaceOffloading2.Status.RemoteNamespacesConditions[remoteCluster1.ClusterID] =
+					append(namespaceOffloading2.Status.RemoteNamespacesConditions[remoteCluster1.ClusterID], offv1alpha1.RemoteNamespaceCondition{
 						Type:               offv1alpha1.NamespaceReady,
 						Status:             corev1.ConditionFalse,
 						LastTransitionTime: metav1.Now(),
@@ -310,7 +310,7 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 				patch := namespaceOffloading2.DeepCopy()
-				delete(namespaceOffloading2.Status.RemoteNamespacesConditions, remoteClusterId1)
+				delete(namespaceOffloading2.Status.RemoteNamespacesConditions, remoteCluster1.ClusterID)
 				err := homeClient.Patch(context.TODO(), namespaceOffloading2, client.MergeFrom(patch))
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
@@ -328,7 +328,7 @@ var _ = Describe("Namespace controller", func() {
 		It(" TEST 3: Create a NamespaceOffloading resource with an empty clusterSelector", func() {
 
 			namespace3Name := "namespace3"
-			remoteNamespace3Name := fmt.Sprintf("%s-%s", namespace3Name, localClusterId)
+			remoteNamespace3Name := fmt.Sprintf("%s-%s", namespace3Name, localCluster.ClusterID)
 			namespace3 := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: namespace3Name,
@@ -601,7 +601,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 2 - Check NamespaceMap of virtual nodes 1 ")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				if value, ok := nms.Items[0].Spec.DesiredMapping[namespace5Name]; !ok || value != namespace5Name {
 					return false
@@ -617,7 +617,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 3 - Check NamespaceMap of virtual nodes 2 ")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster2.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				if _, ok := nms.Items[0].Spec.DesiredMapping[namespace5Name]; ok {
 					return false
@@ -633,7 +633,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 4 - Check NamespaceMap of virtual node 3 ")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId3})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster3.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				if value, ok := nms.Items[0].Spec.DesiredMapping[namespace5Name]; !ok || value != namespace5Name {
 					return false

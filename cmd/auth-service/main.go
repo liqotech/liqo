@@ -25,6 +25,7 @@ import (
 	authservice "github.com/liqotech/liqo/internal/auth-service"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/utils/apiserver"
+	"github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -41,8 +42,7 @@ func main() {
 	keyPath := flag.String("key-path", "/certs/key.pem", "The path to TLS private key")
 	useTLS := flag.Bool("enable-tls", false, "Enable HTTPS server")
 
-	clusterID := flag.String("cluster-id", "", "The cluster ID of identifying the current cluster")
-	clusterName := flag.String("advertise-cluster-name", "", "The cluster name advertised during the peering process")
+	clusterFlags := args.NewClusterIdentityFlags(true, nil)
 	enableAuth := flag.Bool("enable-authentication", true,
 		"Whether to authenticate remote clusters through tokens before granting an identity (warning: disable only for testing purposes)")
 
@@ -62,8 +62,9 @@ func main() {
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
+	clusterIdentity := clusterFlags.ReadOrDie()
 	authService, err := authservice.NewAuthServiceCtrl(
-		config, *namespace, awsConfig, *resync, apiserver.GetConfig(), *enableAuth, *useTLS, *clusterID, *clusterName)
+		config, *namespace, awsConfig, *resync, apiserver.GetConfig(), *enableAuth, *useTLS, clusterIdentity)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)

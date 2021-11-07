@@ -43,7 +43,7 @@ func (discovery *Controller) updateForeignLAN(data *discoveryData) {
 	ctx := context.TODO()
 
 	discoveryType := discoveryPkg.LanDiscovery
-	if data.ClusterInfo.ClusterID == discovery.LocalClusterID {
+	if data.ClusterInfo.ClusterID == discovery.LocalCluster.ClusterID {
 		// is local cluster
 		return
 	}
@@ -66,7 +66,7 @@ func (discovery *Controller) updateForeignLAN(data *discoveryData) {
 // create it. In both cases update the ForeignCluster TTL
 // This function also sets an owner reference and a label to the ForeignCluster pointing to the SearchDomain CR.
 func UpdateForeignWAN(ctx context.Context,
-	cl client.Client, localClusterID string,
+	cl client.Client, localCluster v1alpha1.ClusterIdentity,
 	data []*AuthData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
 	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
 	discoveryType := discoveryPkg.WanDiscovery
@@ -77,7 +77,7 @@ func UpdateForeignWAN(ctx context.Context,
 			continue
 		}
 
-		if clusterInfo.ClusterID == localClusterID {
+		if clusterInfo.ClusterID == localCluster.ClusterID {
 			// is local cluster
 			continue
 		}

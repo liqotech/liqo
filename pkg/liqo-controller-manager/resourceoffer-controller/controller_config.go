@@ -19,12 +19,13 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 // NewResourceOfferController creates and returns a new reconciler for the ResourceOffers.
 func NewResourceOfferController(
-	mgr manager.Manager, clusterID string,
+	mgr manager.Manager, cluster discoveryv1alpha1.ClusterIdentity,
 	resyncPeriod time.Duration, liqoNamespace string,
 	virtualKubeletOpts *forge.VirtualKubeletOpts,
 	disableAutoAccept bool) *ResourceOfferReconciler {
@@ -33,7 +34,7 @@ func NewResourceOfferController(
 		Scheme: mgr.GetScheme(),
 
 		eventsRecorder: mgr.GetEventRecorderFor("ResourceOffer"),
-		clusterID:      clusterID,
+		cluster:        cluster,
 
 		liqoNamespace: liqoNamespace,
 

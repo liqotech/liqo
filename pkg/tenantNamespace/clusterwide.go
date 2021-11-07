@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
@@ -35,13 +36,13 @@ const (
 // BindIncomingClusterWideRole creates and binds a ClusterRole for the cluster-wide permission required
 // to establish the peering by the remote cluster.
 func (nm *tenantNamespaceManager) BindIncomingClusterWideRole(ctx context.Context,
-	clusterID string) (*rbacv1.ClusterRoleBinding, error) {
-	clusterRoleName := getClusterRoleName(clusterID)
+	cluster discoveryv1alpha1.ClusterIdentity) (*rbacv1.ClusterRoleBinding, error) {
+	clusterRoleName := getClusterRoleName(cluster)
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleName,
 			Labels: map[string]string{
-				discovery.ClusterIDLabel: clusterID,
+				discovery.ClusterIDLabel: cluster.ClusterID,
 			},
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -49,7 +50,7 @@ func (nm *tenantNamespaceManager) BindIncomingClusterWideRole(ctx context.Contex
 				APIGroups:     []string{capsulev1beta1.GroupVersion.Group},
 				Resources:     []string{"tenants/finalizers"},
 				Verbs:         []string{"get", "patch", "update"},
-				ResourceNames: []string{getTenantName(clusterID)},
+				ResourceNames: []string{getTenantName(cluster)},
 			},
 		},
 	}
@@ -64,14 +65,14 @@ func (nm *tenantNamespaceManager) BindIncomingClusterWideRole(ctx context.Contex
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleName,
 			Labels: map[string]string{
-				discovery.ClusterIDLabel: clusterID,
+				discovery.ClusterIDLabel: cluster.ClusterID,
 			},
 		},
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:     rbacv1.UserKind,
 				APIGroup: rbacv1.GroupName,
-				Name:     clusterID,
+				Name:     cluster.ClusterID,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -92,8 +93,9 @@ func (nm *tenantNamespaceManager) BindIncomingClusterWideRole(ctx context.Contex
 
 // UnbindIncomingClusterWideRole unbinds and deletes a ClusterRole for the cluster-wide permission required
 // to establish the peering by the remote cluster.
-func (nm *tenantNamespaceManager) UnbindIncomingClusterWideRole(ctx context.Context, clusterID string) error {
-	clusterRoleName := getClusterRoleName(clusterID)
+func (nm *tenantNamespaceManager) UnbindIncomingClusterWideRole(ctx context.Context,
+	cluster discoveryv1alpha1.ClusterIdentity) error {
+	clusterRoleName := getClusterRoleName(cluster)
 
 	err := nm.client.RbacV1().ClusterRoleBindings().Delete(ctx, clusterRoleName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -110,10 +112,10 @@ func (nm *tenantNamespaceManager) UnbindIncomingClusterWideRole(ctx context.Cont
 	return nil
 }
 
-func getClusterRoleName(clusterID string) string {
-	return fmt.Sprintf("%v-%v", clusterRolePrefix, clusterID)
+func getClusterRoleName(cluster discoveryv1alpha1.ClusterIdentity) string {
+	return fmt.Sprintf("%v-%v", clusterRolePrefix, cluster.ClusterID)
 }
 
-func getTenantName(clusterID string) string {
-	return fmt.Sprintf("%v-%v", tenantPrefix, clusterID)
+func getTenantName(cluster discoveryv1alpha1.ClusterIdentity) string {
+	return fmt.Sprintf("%v-%v", tenantPrefix, cluster.ClusterID)
 }

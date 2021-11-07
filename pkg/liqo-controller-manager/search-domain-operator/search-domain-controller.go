@@ -35,8 +35,8 @@ type SearchDomainReconciler struct {
 
 	ResyncPeriod time.Duration
 
-	LocalClusterID string
-	DNSAddress     string
+	LocalCluster discoveryv1alpha1.ClusterIdentity
+	DNSAddress   string
 }
 
 // Reconcile reconciles SearchDomain resources.
@@ -64,7 +64,7 @@ func (r *SearchDomainReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			RequeueAfter: r.ResyncPeriod,
 		}, err
 	}
-	discovery.UpdateForeignWAN(ctx, r.Client, r.LocalClusterID, authData, &sd)
+	discovery.UpdateForeignWAN(ctx, r.Client, r.LocalCluster, authData, &sd)
 
 	klog.Info("SearchDomain " + req.Name + " successfully reconciled")
 	return ctrl.Result{

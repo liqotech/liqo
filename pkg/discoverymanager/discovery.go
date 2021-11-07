@@ -21,6 +21,8 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // clusterRole
@@ -49,7 +51,7 @@ type Controller struct {
 	namespacedClient client.Client
 	namespace        string
 
-	LocalClusterID string
+	LocalCluster discoveryv1alpha1.ClusterIdentity
 
 	serverMux      sync.Mutex
 	dialTCPTimeout time.Duration
@@ -60,13 +62,13 @@ type Controller struct {
 
 // NewDiscoveryCtrl returns a new discovery controller.
 func NewDiscoveryCtrl(cl, namespacedClient client.Client, namespace string,
-	localClusterID string, config MDNSConfig, dialTCPTimeout time.Duration) *Controller {
+	localCluster discoveryv1alpha1.ClusterIdentity, config MDNSConfig, dialTCPTimeout time.Duration) *Controller {
 	return &Controller{
 		Client:           cl,
 		namespacedClient: namespacedClient,
 		namespace:        namespace,
 
-		LocalClusterID: localClusterID,
+		LocalCluster: localCluster,
 
 		mdnsConfig:     config,
 		dialTCPTimeout: dialTCPTimeout,

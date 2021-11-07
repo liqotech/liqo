@@ -24,12 +24,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // add the bindings for the remote clusterid for the given ClusterRoles
 // This method creates RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) BindClusterRoles(clusterID string, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error) {
-	namespace, err := nm.GetNamespace(clusterID)
+func (nm *tenantNamespaceManager) BindClusterRoles(cluster discoveryv1alpha1.ClusterIdentity,
+	clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error) {
+	namespace, err := nm.GetNamespace(cluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -37,7 +40,7 @@ func (nm *tenantNamespaceManager) BindClusterRoles(clusterID string, clusterRole
 
 	bindings := make([]*rbacv1.RoleBinding, len(clusterRoles))
 	for i, clusterRole := range clusterRoles {
-		bindings[i], err = nm.bindClusterRole(clusterID, namespace, clusterRole)
+		bindings[i], err = nm.bindClusterRole(cluster, namespace, clusterRole)
 		if err != nil {
 			klog.Error(err)
 			return nil, err
@@ -48,8 +51,8 @@ func (nm *tenantNamespaceManager) BindClusterRoles(clusterID string, clusterRole
 
 // remove the bindings for the remote clusterid for the given ClusterRoles
 // This method deletes RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) UnbindClusterRoles(clusterID string, clusterRoles ...string) error {
-	namespace, err := nm.GetNamespace(clusterID)
+func (nm *tenantNamespaceManager) UnbindClusterRoles(cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...string) error {
+	namespace, err := nm.GetNamespace(cluster)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -65,7 +68,7 @@ func (nm *tenantNamespaceManager) UnbindClusterRoles(clusterID string, clusterRo
 }
 
 // create a RoleBinding for the given clusterid in the given Namespace.
-func (nm *tenantNamespaceManager) bindClusterRole(clusterID string,
+func (nm *tenantNamespaceManager) bindClusterRole(cluster discoveryv1alpha1.ClusterIdentity,
 	namespace *v1.Namespace, clusterRole *rbacv1.ClusterRole) (*rbacv1.RoleBinding, error) {
 	ownerRef := metav1.OwnerReference{
 		APIVersion: rbacv1.SchemeGroupVersion.String(),
@@ -88,7 +91,7 @@ func (nm *tenantNamespaceManager) bindClusterRole(clusterID string,
 			{
 				Kind:     rbacv1.UserKind,
 				APIGroup: rbacv1.GroupName,
-				Name:     clusterID,
+				Name:     cluster.ClusterID,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{

@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
@@ -53,7 +54,7 @@ type ResourceOfferReconciler struct {
 	Scheme *runtime.Scheme
 
 	eventsRecorder record.EventRecorder
-	clusterID      string
+	cluster        discoveryv1alpha1.ClusterIdentity
 
 	liqoNamespace string
 

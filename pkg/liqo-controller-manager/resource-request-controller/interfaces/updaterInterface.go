@@ -17,6 +17,8 @@ package interfaces
 import (
 	"context"
 	"sync"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // UpdaterInterface represents a generic subset of Updater exported methods to be used instead of a direct access to
@@ -25,5 +27,5 @@ type UpdaterInterface interface {
 	// Start runs an instance of an updater which will be stopped when ctx.Done() is closed.
 	Start(ctx context.Context, group *sync.WaitGroup)
 	// Push adds the clusterID to the internal queue to be processed as soon as possible.
-	Push(clusterID string)
+	Push(cluster discoveryv1alpha1.ClusterIdentity)
 }

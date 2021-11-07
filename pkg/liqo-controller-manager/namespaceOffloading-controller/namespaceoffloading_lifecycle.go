@@ -81,7 +81,7 @@ func (r *NamespaceOffloadingReconciler) initialConfiguration(ctx context.Context
 	if noff.Spec.NamespaceMappingStrategy == offv1alpha1.EnforceSameNameMappingStrategyType {
 		noff.Status.RemoteNamespaceName = noff.Namespace
 	} else {
-		noff.Status.RemoteNamespaceName = fmt.Sprintf("%s-%s", noff.Namespace, r.LocalClusterID)
+		noff.Status.RemoteNamespaceName = fmt.Sprintf("%s-%s", noff.Namespace, r.LocalCluster.ClusterID)
 	}
 	// 4 - Patch the NamespaceOffloading resource.
 	if err := r.Patch(ctx, noff, client.MergeFrom(patch)); err != nil {
