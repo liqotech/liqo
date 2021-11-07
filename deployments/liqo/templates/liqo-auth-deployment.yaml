@@ -68,6 +68,7 @@ spec:
           command: ["/usr/bin/auth-service"]
           args:
           - --cluster-id=$(CLUSTER_ID)
+          - --cluster-name={{ .Values.discovery.config.clusterName }}
           - --namespace=$(POD_NAMESPACE)
           {{- if not .Values.auth.tls}}
           - --address=:5000
@@ -81,9 +82,6 @@ spec:
           {{- end }}
           {{- if .Values.apiServer.trustedCA }}
           - --advertise-api-server-trusted-ca
-          {{- end }}
-          {{- if .Values.discovery.config.clusterName }}
-          - --advertise-cluster-name={{ .Values.discovery.config.clusterName }}
           {{- end }}
           {{- if .Values.awsConfig.accessKeyId }}
           - --aws-access-key-id=$(ACCESS_KEY_ID)

@@ -36,6 +36,7 @@ spec:
         command: ["/usr/bin/liqo-controller-manager"]
         args:
           - --cluster-id=$(CLUSTER_ID)
+          - --cluster-name={{ .Values.discovery.config.clusterName }}
           - --liqo-namespace=$(POD_NAMESPACE)
           - --enable-incoming-peering={{ .Values.discovery.config.incomingPeeringEnabled }}
           - --resource-sharing-percentage={{ .Values.controllerManager.config.resourceSharingPercentage }}
@@ -47,9 +48,6 @@ spec:
           - --virtual-storage-class-name={{ .Values.storage.virtualStorageClassName }}
           - --real-storage-class-name={{ .Values.storage.realStorageClassName }}
           - --storage-namespace={{ .Values.storage.storageNamespace }}
-          {{- end }}
-          {{- if .Values.discovery.config.clusterName }}
-          - --cluster-name={{ .Values.discovery.config.clusterName }}
           {{- end }}
           {{- if .Values.auth.ingress.enable }}
           - --auth-service-address-override={{ .Values.auth.ingress.host }}

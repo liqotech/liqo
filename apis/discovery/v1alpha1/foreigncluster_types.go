@@ -101,7 +101,7 @@ type ClusterIdentity struct {
 	// Foreign Cluster ID, this is a unique identifier of that cluster.
 	ClusterID string `json:"clusterID"`
 	// Foreign Cluster Name to be shown in GUIs.
-	ClusterName string `json:"clusterName,omitempty"`
+	ClusterName string `json:"clusterName"`
 }
 
 // ForeignClusterStatus defines the observed state of ForeignCluster.
