@@ -17,7 +17,6 @@ package namespaceoffloadingctrl
 import (
 	"context"
 	"flag"
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -33,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
@@ -48,11 +48,6 @@ const (
 	virtualNode2Name = "liqo-899890-dsd-323s"
 	virtualNode3Name = "liqo-refc453-ds43d-43rs"
 
-	localClusterId   = "0-789o-uhibi-oioi"
-	remoteClusterId1 = "1-6a0e9f-b52-4ed0"
-	remoteClusterId2 = "2-899890-dsd-323s"
-	remoteClusterId3 = "3-refc453-ds43d-43rs"
-
 	providerLabel = "provider/liqo.io"
 	regionLabel   = "region/liqo.io"
 	regionA       = "A"
@@ -62,6 +57,23 @@ const (
 )
 
 var (
+	localCluster = v1alpha1.ClusterIdentity{
+		ClusterID:   "0-789o-uhibi-oioi",
+		ClusterName: "local-cluster-name",
+	}
+	remoteCluster1 = v1alpha1.ClusterIdentity{
+		ClusterID:   "1-6a0e9f-b52-4ed0",
+		ClusterName: "remote-cluster-1",
+	}
+	remoteCluster2 = v1alpha1.ClusterIdentity{
+		ClusterID:   "2-899890-dsd-323s",
+		ClusterName: "remote-cluster-2",
+	}
+	remoteCluster3 = v1alpha1.ClusterIdentity{
+		ClusterID:   "3-refc453-ds43d-43rs",
+		ClusterName: "remote-cluster-3",
+	}
+
 	homeCfg        *rest.Config
 	homeClient     client.Client
 	homeClusterEnv *envtest.Environment
@@ -126,9 +138,9 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(homeClient).ToNot(BeNil())
 
 	err = (&NamespaceOffloadingReconciler{
-		Client:         homeClient,
-		Scheme:         k8sManager.GetScheme(),
-		LocalClusterID: localClusterId,
+		Client:       homeClient,
+		Scheme:       k8sManager.GetScheme(),
+		LocalCluster: localCluster,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -143,7 +155,7 @@ var _ = BeforeSuite(func(done Done) {
 			Name: virtualNode1Name,
 			Labels: map[string]string{
 				liqoconst.TypeLabel:       liqoconst.TypeNode,
-				liqoconst.RemoteClusterID: remoteClusterId1,
+				liqoconst.RemoteClusterID: remoteCluster1.ClusterID,
 				regionLabel:               regionA,
 				providerLabel:             providerAWS,
 			},
@@ -155,7 +167,7 @@ var _ = BeforeSuite(func(done Done) {
 			Name: virtualNode2Name,
 			Labels: map[string]string{
 				liqoconst.TypeLabel:       liqoconst.TypeNode,
-				liqoconst.RemoteClusterID: remoteClusterId2,
+				liqoconst.RemoteClusterID: remoteCluster2.ClusterID,
 				regionLabel:               regionB,
 				providerLabel:             providerGKE,
 			},
@@ -167,7 +179,7 @@ var _ = BeforeSuite(func(done Done) {
 			Name: virtualNode3Name,
 			Labels: map[string]string{
 				liqoconst.TypeLabel:       liqoconst.TypeNode,
-				liqoconst.RemoteClusterID: remoteClusterId3,
+				liqoconst.RemoteClusterID: remoteCluster3.ClusterID,
 				regionLabel:               regionA,
 				providerLabel:             providerGKE,
 			},
@@ -178,30 +190,30 @@ var _ = BeforeSuite(func(done Done) {
 
 	nm1 = &mapsv1alpha1.NamespaceMap{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteClusterId1),
+			GenerateName: remoteCluster1.ClusterID + "-",
 			Namespace:    mapNamespaceName,
 			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId1,
+				liqoconst.RemoteClusterID: remoteCluster1.ClusterID,
 			},
 		},
 	}
 
 	nm2 = &mapsv1alpha1.NamespaceMap{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteClusterId2),
+			GenerateName: remoteCluster2.ClusterID + "-",
 			Namespace:    mapNamespaceName,
 			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId2,
+				liqoconst.RemoteClusterID: remoteCluster2.ClusterID,
 			},
 		},
 	}
 
 	nm3 = &mapsv1alpha1.NamespaceMap{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteClusterId3),
+			GenerateName: remoteCluster3.ClusterID + "-",
 			Namespace:    mapNamespaceName,
 			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId3,
+				liqoconst.RemoteClusterID: remoteCluster3.ClusterID,
 			},
 		},
 	}

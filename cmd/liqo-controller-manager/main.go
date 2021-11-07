@@ -207,10 +207,10 @@ func main() {
 	// Setup operators
 
 	searchDomainReconciler := &searchdomainoperator.SearchDomainReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		ResyncPeriod:   *resyncPeriod,
-		LocalCluster:   clusterIdentity,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		ResyncPeriod: *resyncPeriod,
+		LocalCluster: clusterIdentity,
 	}
 	if err = searchDomainReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
@@ -320,9 +320,9 @@ func main() {
 	}
 
 	namespaceOffloadingReconciler := &nsoffctrl.NamespaceOffloadingReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		LocalClusterID: *clusterID,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		LocalCluster: clusterIdentity,
 	}
 
 	if err = namespaceOffloadingReconciler.SetupWithManager(mgr); err != nil {
