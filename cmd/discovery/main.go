@@ -48,7 +48,13 @@ func init() {
 func main() {
 	klog.Info("Starting")
 
-	clusterID := flag.String("cluster-id", "", "The cluster ID of identifying the current cluster")
+	clusterID := flag.String("cluster-id", "", "The cluster ID identifying the current cluster")
+	clusterName := flag.String("cluster-name", "", "The cluster name identifying the current cluster")
+
+	if *clusterID == "" || *clusterName == "" {
+		klog.Error("Both --cluster-id and --cluster-name must be provided.")
+		os.Exit(1)
+	}
 
 	namespace := flag.String("namespace", "default", "Namespace where your configs are stored.")
 	requeueAfter := flag.Duration("requeue-after", 30*time.Second,
@@ -68,6 +74,11 @@ func main() {
 
 	dialTCPTimeout := flag.Duration("dial-tcp-timeout", 500*time.Millisecond,
 		"Time to wait for a TCP connection to a remote cluster before to consider it as not reachable")
+
+	clusterIdentity := discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   *clusterID,
+		ClusterName: *clusterName,
+	}
 
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
@@ -105,7 +116,7 @@ func main() {
 
 	klog.Info("Starting the discovery logic")
 	discoveryCtl := discovery.NewDiscoveryCtrl(mgr.GetClient(), namespacedClient, *namespace,
-		*clusterID, mdnsConfig, *dialTCPTimeout)
+		clusterIdentity, mdnsConfig, *dialTCPTimeout)
 	if err := mgr.Add(discoveryCtl); err != nil {
 		klog.Errorf("Unable to add the discovery controller to the manager: %w", err)
 		os.Exit(1)

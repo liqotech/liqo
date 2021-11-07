@@ -43,7 +43,7 @@ func (discovery *Controller) updateForeignLAN(data *discoveryData) {
 	ctx := context.TODO()
 
 	discoveryType := discoveryPkg.LanDiscovery
-	if data.ClusterInfo.ClusterID == discovery.LocalClusterID {
+	if data.ClusterInfo.ClusterID == discovery.LocalCluster.ClusterID {
 		// is local cluster
 		return
 	}
