@@ -163,6 +163,14 @@ func main() {
 		klog.Error("Cluster ID must be provided")
 		os.Exit(1)
 	}
+	if *clusterName == "" {
+		klog.Error("Cluster name must be provided")
+		os.Exit(1)
+	}
+	clusterIdentity := discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   *clusterID,
+		ClusterName: *clusterName,
+	}
 
 	ctx := ctrl.SetupSignalHandler()
 
@@ -202,7 +210,7 @@ func main() {
 		Client:         mgr.GetClient(),
 		Scheme:         mgr.GetScheme(),
 		ResyncPeriod:   *resyncPeriod,
-		LocalClusterID: *clusterID,
+		LocalCluster:   clusterIdentity,
 	}
 	if err = searchDomainReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
