@@ -33,7 +33,6 @@ import (
 // GetCachedClient returns a controller runtime client with the cache initialized only for the resources added to
 // the scheme. The necessary rest.Config is generated inside this function.
 func GetCachedClient(ctx context.Context, scheme *runtime.Scheme) (client.Client, error) {
-
 	conf := ctrl.GetConfigOrDie()
 	if conf == nil {
 		err := fmt.Errorf("unable to get the config file")

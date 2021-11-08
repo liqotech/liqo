@@ -54,7 +54,7 @@ var _ = Describe("Test the generate command works as expected", func() {
 			Expect(forgeNamespaceOffloading(cmd, tc.args, tc.acceptedLabels, tc.deniedLabels)).To(Equal(tc.expected))
 		},
 		Entry("Offload namespace with default parameters", testCase{
-			[]string{"namespace", "test"},
+			[]string{"test"},
 			[]string{},
 			args.StringMap{StringMap: map[string]string{}},
 			args.StringMap{StringMap: map[string]string{}},
@@ -77,7 +77,7 @@ var _ = Describe("Test the generate command works as expected", func() {
 			},
 		}),
 		Entry("Offload namespace with accepted, custom pod-offloading and namespace mapping strategy", testCase{
-			[]string{"namespace", "test"},
+			[]string{"test"},
 			[]string{
 				"--pod-offloading-strategy=Local",
 			},
@@ -117,7 +117,7 @@ var _ = Describe("Test the generate command works as expected", func() {
 			},
 		}),
 		Entry("Offload namespace with default parameters", testCase{
-			[]string{"namespace", "test"},
+			[]string{"test"},
 			[]string{
 				"--pod-offloading-strategy=Local",
 			},
@@ -158,7 +158,7 @@ var _ = Describe("Test the generate command works as expected", func() {
 		}),
 		Entry("Offload namespace with accepted, custom pod-offloading and namespace mapping strategy",
 			testCase{
-				[]string{"namespace", "test"},
+				[]string{"test"},
 				[]string{
 					"--namespace-mapping-strategy=EnforceSameName",
 					"--pod-offloading-strategy=Remote",
@@ -191,7 +191,7 @@ var _ = Describe("Test the generate command works as expected", func() {
 			}),
 		Entry("Offload namespace with denied labels only",
 			testCase{
-				[]string{"namespace", "test"},
+				[]string{"test"},
 				[]string{
 					"--namespace-mapping-strategy=EnforceSameName",
 					"--pod-offloading-strategy=Remote",

@@ -41,7 +41,7 @@ import (
 
 const (
 
-	// namespace where the NamespaceMaps are created
+	// namespace where the NamespaceMaps are created.
 	mapNamespaceName = "default"
 	mapNumber        = 3
 	namespace1Name   = "namespace1"
@@ -56,7 +56,7 @@ var (
 	homeClient     client.Client
 	homeClusterEnv *envtest.Environment
 
-	// Resources
+	// Resources.
 	nms                  *mapsv1alpha1.NamespaceMapList
 	namespace1           *corev1.Namespace
 	namespaceOffloading1 *offv1alpha1.NamespaceOffloading

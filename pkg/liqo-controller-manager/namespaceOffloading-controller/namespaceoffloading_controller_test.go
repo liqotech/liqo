@@ -52,7 +52,7 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 				Expect(len(nms.Items) == mapNumber).To(BeTrue())
-				for i, _ := range nms.Items {
+				for i := range nms.Items {
 					nms.Items[i].Spec.DesiredMapping = nil
 					if err := homeClient.Update(context.TODO(), nms.Items[i].DeepCopy()); err != nil {
 						return false
@@ -67,7 +67,7 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 				Expect(len(nms.Items) == mapNumber).To(BeTrue())
-				for i, _ := range nms.Items {
+				for i := range nms.Items {
 					if nms.Items[i].Spec.DesiredMapping != nil {
 						return false
 					}
@@ -360,7 +360,7 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 				Expect(len(nms.Items) == mapNumber).To(BeTrue())
-				for i, _ := range nms.Items {
+				for i := range nms.Items {
 					if value, ok := nms.Items[i].Spec.DesiredMapping[namespace3Name]; !ok || value != remoteNamespace3Name {
 						return false
 					}
@@ -682,7 +682,7 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 				Expect(len(nms.Items) == mapNumber).To(BeTrue())
-				for i, _ := range nms.Items {
+				for i := range nms.Items {
 					if nms.Items[i].Spec.DesiredMapping != nil {
 						return false
 					}

@@ -40,7 +40,7 @@ import (
 
 const (
 
-	// namespace where the NamespaceMaps are created
+	// namespace where the NamespaceMaps are created.
 	mapNamespaceName = "default"
 	mapNumber        = 3
 
@@ -66,7 +66,7 @@ var (
 	homeClient     client.Client
 	homeClusterEnv *envtest.Environment
 
-	// Resources
+	// Resources.
 	nms          *mapsv1alpha1.NamespaceMapList
 	virtualNode1 *corev1.Node
 	virtualNode2 *corev1.Node
