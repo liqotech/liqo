@@ -29,9 +29,10 @@ func newGenerateAddCommand(ctx context.Context) *cobra.Command {
 	var liqoNamespace string
 	var onlyCommand bool
 	var addCmd = &cobra.Command{
-		Use:   generate.LiqoctlGenerateAddCommand,
-		Short: generate.LiqoctlGenerateShortHelp,
-		Long:  generate.LiqoctlGenerateLongHelp,
+		Use:          generate.LiqoctlGenerateAddCommand,
+		Short:        generate.LiqoctlGenerateShortHelp,
+		Long:         generate.LiqoctlGenerateLongHelp,
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return generate.HandleGenerateAddCommand(ctx, liqoNamespace, onlyCommand, os.Args[0])
 		},

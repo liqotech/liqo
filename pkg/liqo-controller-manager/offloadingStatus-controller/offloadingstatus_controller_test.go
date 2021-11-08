@@ -50,7 +50,7 @@ var _ = Describe("Namespace controller", func() {
 				return false
 			}
 			Expect(len(nms.Items) == mapNumber).To(BeTrue())
-			for i, _ := range nms.Items {
+			for i := range nms.Items {
 				nms.Items[i].Status.CurrentMapping = map[string]mapsv1alpha1.RemoteNamespaceStatus{}
 				if err := homeClient.Update(context.TODO(), nms.Items[i].DeepCopy()); err != nil {
 					return false
@@ -65,7 +65,7 @@ var _ = Describe("Namespace controller", func() {
 				return false
 			}
 			Expect(len(nms.Items) == mapNumber).To(BeTrue())
-			for i, _ := range nms.Items {
+			for i := range nms.Items {
 				if len(nms.Items[i].Status.CurrentMapping) != 0 {
 					return false
 				}
@@ -375,7 +375,7 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 				Expect(len(nms.Items) == mapNumber).To(BeTrue())
-				for i, _ := range nms.Items {
+				for i := range nms.Items {
 					nms.Items[i].Status.CurrentMapping = map[string]mapsv1alpha1.RemoteNamespaceStatus{}
 					if err := homeClient.Update(context.TODO(), nms.Items[i].DeepCopy()); err != nil {
 						return false

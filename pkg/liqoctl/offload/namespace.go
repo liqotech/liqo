@@ -16,6 +16,7 @@ package offload
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -68,6 +69,7 @@ func HandleOffloadCommand(ctx context.Context, command *cobra.Command, args []st
 	if err != nil {
 		return err
 	}
+	fmt.Printf(SuccessfulMessage, args[0], args[0], consts.DefaultNamespaceOffloadingName)
 
 	return nil
 }
@@ -77,7 +79,7 @@ func forgeNamespaceOffloading(command *cobra.Command, args []string,
 	return &offloadingv1alpha1.NamespaceOffloading{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      consts.DefaultNamespaceOffloadingName,
-			Namespace: args[1],
+			Namespace: args[0],
 		},
 		Spec: offloadingv1alpha1.NamespaceOffloadingSpec{
 			NamespaceMappingStrategy: forgeNamespaceMappingStrategy(command),
