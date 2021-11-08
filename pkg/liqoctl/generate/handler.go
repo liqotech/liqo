@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/auth"
@@ -37,16 +36,19 @@ import (
 func HandleGenerateAddCommand(ctx context.Context, liqoNamespace string, printOnlyCommand bool, commandName string) error {
 	restConfig, err := common.GetLiqoctlRestConf()
 	if err != nil {
+		print(liqoctlGenerateRemindInstall)
 		return err
 	}
 
 	clientSet, err := client.New(restConfig, client.Options{})
 	if err != nil {
+		print(liqoctlGenerateRemindInstall)
 		return err
 	}
 
 	commandString, err := processGenerateCommand(ctx, clientSet, liqoNamespace, commandName)
 	if err != nil {
+		print(liqoctlGenerateRemindInstall)
 		return err
 	}
 
@@ -84,7 +86,7 @@ func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNa
 	authEP, err := foreigncluster.GetHomeAuthURL(ctx, clientSet,
 		authServiceAddressOverride, authServicePortOverride, liqoNamespace)
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return "", err
 	}
 	return generateCommandString(commandName, authEP, clusterID, localToken, clusterName), nil
 }

@@ -18,7 +18,13 @@ package generate
 const LiqoctlGenerateShortHelp = "Generate the command to execute on another cluster to peer with the selected cluster."
 
 // LiqoctlGenerateLongHelp contains the short help message for the generate-add-cluster Liqoctl command.
-const LiqoctlGenerateLongHelp = "Generate the command to execute on another cluster to peer with the selected cluster."
+const LiqoctlGenerateLongHelp = `Generate the command to execute on another cluster to peer with the selected cluster.
+
+` + liqoctlGenerateRemindInstall
 
 // LiqoctlGenerateAddCommand contains the use command for the generate-add-cluster Liqoctl command.
 const LiqoctlGenerateAddCommand = "generate-add-command"
+
+// liqoctlGenerateRemindInstall embeds a message to remind Liqo as requirement to use liqoctl generate-add command.
+const liqoctlGenerateRemindInstall = "Notice: 'liqoctl generate-add-command' requires Liqo to be installed on both clusters " +
+	"involved in the peering process.\n"
