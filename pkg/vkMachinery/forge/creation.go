@@ -20,13 +20,14 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
 func VirtualKubeletDeployment(remoteClusterID, vkName, vkNamespace, liqoNamespace,
-	nodeName, homeClusterID string, opts *VirtualKubeletOpts) (*appsv1.Deployment, error) {
+	nodeName, homeClusterID string, opts *VirtualKubeletOpts, resourceOffer *sharingv1alpha1.ResourceOffer) (*appsv1.Deployment, error) {
 	vkLabels := VirtualKubeletLabels(remoteClusterID, opts)
 	annotations := opts.ExtraAnnotations
 	return &appsv1.Deployment{
@@ -45,7 +46,7 @@ func VirtualKubeletDeployment(remoteClusterID, vkName, vkNamespace, liqoNamespac
 					Labels:      vkLabels,
 					Annotations: annotations,
 				},
-				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, remoteClusterID, nodeName, opts),
+				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, remoteClusterID, nodeName, opts, resourceOffer),
 			},
 		},
 	}, nil

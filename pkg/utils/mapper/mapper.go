@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mapperUtils
+package mapper
 
 import (
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -97,7 +98,7 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	if err = addGroup(dClient, rbacv1.SchemeGroupVersion, mapper); err != nil {
 		return err
 	}
-	return nil
+	return addGroup(dClient, storagev1.SchemeGroupVersion, mapper)
 }
 
 // add all the resources in the specified groupVersion to the mapper.

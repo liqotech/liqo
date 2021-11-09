@@ -71,7 +71,7 @@
 | route.pod.annotations | object | `{}` | route pod annotations |
 | route.pod.extraArgs | list | `[]` | route pod extra arguments |
 | route.pod.labels | object | `{}` | route pod labels |
-| storage.enable | bool | `false` |  |
+| storage.enable | bool | `true` | enable the liqo virtual storage class on the local cluster. You will be able to offload your persistent volumes and other clusters will be able to schedule their persistent workloads on the current cluster. |
 | storage.realStorageClassName | string | `""` | name of the real storage class to use in the local cluster |
 | storage.storageNamespace | string | `"liqo-storage"` | namespace where liqo will deploy specific PVCs |
 | storage.virtualStorageClassName | string | `"liqo"` | name to assign to the liqo virtual storage class |

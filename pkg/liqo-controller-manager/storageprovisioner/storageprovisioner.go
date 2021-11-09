@@ -15,12 +15,19 @@
 package storageprovisioner
 
 import (
+	"context"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
+
+	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 )
 
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims;persistentvolumes,verbs=get;list;watch;create;delete;update
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
 
 type liqoLocalStorageProvisioner struct {
 	client                  client.Client
@@ -30,12 +37,22 @@ type liqoLocalStorageProvisioner struct {
 }
 
 // NewLiqoLocalStorageProvisioner creates a new liqoLocalStorageProvisioner provisioner.
-func NewLiqoLocalStorageProvisioner(cl client.Client,
-	virtualStorageClassName, storageNamespace, localRealStorageClass string) controller.Provisioner {
+func NewLiqoLocalStorageProvisioner(ctx context.Context, cl client.Client,
+	virtualStorageClassName, storageNamespace, localRealStorageClass string) (controller.Provisioner, error) {
+	// ensure that the storage namespace exists
+	err := cl.Create(ctx, &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: storageNamespace,
+		},
+	})
+	if liqoerrors.IgnoreAlreadyExists(err) != nil {
+		return nil, err
+	}
+
 	return &liqoLocalStorageProvisioner{
 		client:                  cl,
 		virtualStorageClassName: virtualStorageClassName,
 		storageNamespace:        storageNamespace,
 		localRealStorageClass:   localRealStorageClass,
-	}
+	}, nil
 }

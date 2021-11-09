@@ -208,7 +208,10 @@ virtualKubelet:
       labels: {}
 
 storage:
-  enable: false
+  # -- enable the liqo virtual storage class on the local cluster. You will be able to
+  # offload your persistent volumes and other clusters will be able to schedule their
+  # persistent workloads on the current cluster.
+  enable: true
   # -- name to assign to the liqo virtual storage class
   virtualStorageClassName: liqo
   # -- name of the real storage class to use in the local cluster

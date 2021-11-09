@@ -30,8 +30,8 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
-	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -60,7 +60,7 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 	}
 
 	mgr, err := ctrl.NewManager(restcfg.SetRateLimiter(ctrl.GetConfigOrDie()), ctrl.Options{
-		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+		MapperProvider:     mapper.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: commonFlags.metricsAddr,
 		NewCache: cache.BuilderWithOptions(cache.Options{

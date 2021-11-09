@@ -49,11 +49,11 @@ import (
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
-	"github.com/liqotech/liqo/pkg/mapperUtils"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
+	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -169,7 +169,7 @@ func main() {
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:         mapperUtils.LiqoMapperProvider(scheme),
+		MapperProvider:         mapper.LiqoMapperProvider(scheme),
 		Scheme:                 scheme,
 		MetricsBindAddress:     *metricsAddr,
 		HealthProbeBindAddress: *probeAddr,
@@ -231,7 +231,7 @@ func main() {
 
 	broadcaster := &resourceRequestOperator.Broadcaster{}
 	updater := &resourceRequestOperator.OfferUpdater{}
-	updater.Setup(*clusterID, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap)
+	updater.Setup(*clusterID, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap, *realStorageClassName, *enableStorage)
 	if err := broadcaster.SetupBroadcaster(clientset, updater, *resyncPeriod,
 		resourceSharingPercentage.Val, offerUpdateThreshold.Val); err != nil {
 		klog.Error(err)
@@ -348,8 +348,12 @@ func main() {
 	broadcaster.StartBroadcaster(ctx, wg)
 
 	if enableStorage != nil && *enableStorage {
-		liqoProvisioner := liqostorageprovisioner.NewLiqoLocalStorageProvisioner(mgr.GetClient(),
+		liqoProvisioner, err := liqostorageprovisioner.NewLiqoLocalStorageProvisioner(ctx, mgr.GetClient(),
 			*virtualStorageClassName, *storageNamespace, *realStorageClassName)
+		if err != nil {
+			klog.Errorf("unable to start the liqo storage provisioner: %v", err)
+			os.Exit(1)
+		}
 
 		provisionController := controller.NewProvisionController(clientset, consts.StorageProvisionerName, liqoProvisioner,
 			controller.LeaderElection(false),
