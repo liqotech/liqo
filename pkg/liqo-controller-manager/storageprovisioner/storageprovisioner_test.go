@@ -286,7 +286,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 			})
 
 			It("provision remote pvc", func() {
-				tester := func() error {
+				tester := func(storageClass string) error {
 					pv, state, err := ProvisionRemotePVC(ctx, controller.ProvisionOptions{
 						SelectedNode: &corev1.Node{
 							ObjectMeta: metav1.ObjectMeta{
@@ -296,7 +296,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 						PVC: &corev1.PersistentVolumeClaim{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      pvcName,
-								Namespace: RemoteNamespace,
+								Namespace: LocalNamespace,
 							},
 							Spec: corev1.PersistentVolumeClaimSpec{
 								StorageClassName: pointer.String(virtualStorageClassName),
@@ -318,7 +318,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 								return &policy
 							}(),
 						},
-					}, RemoteNamespace, realStorageClassName, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient)
+					}, RemoteNamespace, storageClass, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient)
 
 					if err != nil {
 						return err
@@ -328,16 +328,30 @@ var _ = Describe("Test Storage Provisioner", func() {
 					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key).To(Equal(corev1.LabelHostname))
 					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Operator).To(Equal(corev1.NodeSelectorOpIn))
 					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values).To(ContainElement(virtualNodeName))
+					Expect(pv.Spec.StorageClassName).To(Equal(virtualStorageClassName))
 
 					_, err = testEnvClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 					return err
 				}
 
 				By("the remote real PVC does not exists")
-				Eventually(tester).Should(Succeed())
+				Eventually(func() error {
+					return tester(realStorageClassName)
+				}).Should(Succeed())
 
 				By("the remote real PVC already exists, check idempotency")
-				Eventually(tester).Should(Succeed())
+				Eventually(func() error {
+					return tester(realStorageClassName)
+				}).Should(Succeed())
+
+				By("using different storage class, it should not modify already existent volumes")
+				Eventually(func() error {
+					return tester("other-class-2")
+				}).Should(Succeed())
+
+				realPvc, err := testEnvClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(realPvc.Spec.StorageClassName).To(PointTo(Equal(realStorageClassName)))
 			})
 
 		})

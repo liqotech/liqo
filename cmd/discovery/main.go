@@ -29,7 +29,7 @@ import (
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	discovery "github.com/liqotech/liqo/pkg/discoverymanager"
-	"github.com/liqotech/liqo/pkg/mapperUtils"
+	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -78,7 +78,7 @@ func main() {
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:   mapperUtils.LiqoMapperProvider(scheme),
+		MapperProvider:   mapper.LiqoMapperProvider(scheme),
 		Scheme:           scheme,
 		LeaderElection:   false,
 		LeaderElectionID: "b3156c4e.liqo.io",
@@ -91,7 +91,7 @@ func main() {
 	// Create an accessory manager restricted to the given namespace only, to avoid introducing
 	// performance overhead and requiring excessively wide permissions when not necessary.
 	auxmgr, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+		MapperProvider:     mapper.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		Namespace:          *namespace,
 		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.

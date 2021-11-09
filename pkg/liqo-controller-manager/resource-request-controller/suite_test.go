@@ -91,7 +91,7 @@ func createCluster() {
 
 	// Initializing a new updater and adding it to the manager.
 	updater := OfferUpdater{}
-	updater.Setup(homeClusterID, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil)
+	updater.Setup(homeClusterID, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil, "", true)
 
 	// Initializing a new broadcaster, starting it and adding it its configuration.
 	err = broadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, testutils.DefaultScalePercentage, 5)

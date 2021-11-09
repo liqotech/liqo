@@ -12,12 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package consts
-
-const (
-	// StorageProvisionerName is the name of the liqo storage provisioner.
-	StorageProvisionerName = "liqo.io/storage"
-
-	// StorageAvailableLabel is the label used to mark if the liqo storage is available on a virtual node.
-	StorageAvailableLabel = "storage.liqo.io/available"
-)
+// Package mapper contains the utility functions for k8s resource REST mapping.
+package mapper

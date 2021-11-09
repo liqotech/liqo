@@ -173,7 +173,17 @@ func (p *LiqoNodeProvider) updateFromResourceOffer(resourceOffer *sharingv1alpha
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	if err := p.patchLabels(resourceOffer.Spec.Labels); err != nil {
+	lbls := resourceOffer.Spec.Labels
+	if lbls == nil {
+		lbls = map[string]string{}
+	}
+	if len(resourceOffer.Spec.StorageClasses) == 0 {
+		lbls[consts.StorageAvailableLabel] = "false"
+	} else {
+		lbls[consts.StorageAvailableLabel] = "true"
+	}
+
+	if err := p.patchLabels(lbls); err != nil {
 		klog.Error(err)
 		return err
 	}

@@ -153,6 +153,25 @@ spec:
                       type: string
                     type: array
                 type: object
+              storageClasses:
+                description: StorageClasses contains the list of the storage classes
+                  offered by the cluster.
+                items:
+                  description: StorageType defines the type of storage offered by
+                    a resource offer.
+                  properties:
+                    default:
+                      description: Default indicates whether this storage class is
+                        the default storage class for Liqo.
+                      type: boolean
+                    storageClassName:
+                      description: StorageClassName indicates the name of the storage
+                        class.
+                      type: string
+                  required:
+                  - storageClassName
+                  type: object
+                type: array
               withdrawalTimestamp:
                 description: WithdrawalTimestamp is set when a graceful deletion is
                   requested by the user.

@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -47,21 +48,25 @@ const maxRandom = 60
 type OfferUpdater struct {
 	queue workqueue.RateLimitingInterface
 	client.Client
-	broadcasterInt interfaces.ClusterResourceInterface
-	homeClusterID  string
-	clusterLabels  map[string]string
-	scheme         *runtime.Scheme
+	broadcasterInt            interfaces.ClusterResourceInterface
+	homeClusterID             string
+	clusterLabels             map[string]string
+	scheme                    *runtime.Scheme
+	localRealStorageClassName string
+	enableStorage             bool
 }
 
 // Setup initializes all parameters of the OfferUpdater component.
 func (u *OfferUpdater) Setup(clusterID string, scheme *runtime.Scheme, broadcaster interfaces.ClusterResourceInterface,
-	k8Client client.Client, clusterLabels map[string]string) {
+	k8Client client.Client, clusterLabels map[string]string, localRealStorageClassName string, enableStorage bool) {
 	u.broadcasterInt = broadcaster
 	u.Client = k8Client
 	u.homeClusterID = clusterID
 	u.scheme = scheme
 	u.clusterLabels = clusterLabels
 	u.queue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Offer update queue")
+	u.localRealStorageClassName = localRealStorageClassName
+	u.enableStorage = enableStorage
 }
 
 // Start runs the OfferUpdate worker.
@@ -123,7 +128,8 @@ func (u *OfferUpdater) processNextItem() bool {
 }
 
 func (u *OfferUpdater) createOrUpdateOffer(clusterID string) (bool, error) {
-	list, err := u.getResourceRequest(clusterID)
+	ctx := context.Background()
+	list, err := u.getResourceRequest(ctx, clusterID)
 	if err != nil {
 		return true, err
 	} else if len(list.Items) != 1 {
@@ -139,7 +145,7 @@ func (u *OfferUpdater) createOrUpdateOffer(clusterID string) (bool, error) {
 		},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(context.Background(), u.Client, offer, func() error {
+	op, err := controllerutil.CreateOrUpdate(ctx, u.Client, offer, func() error {
 		if offer.Labels != nil {
 			offer.Labels[discovery.ClusterIDLabel] = request.Spec.ClusterIdentity.ClusterID
 			offer.Labels[consts.ReplicationRequestedLabel] = "true"
@@ -154,6 +160,12 @@ func (u *OfferUpdater) createOrUpdateOffer(clusterID string) (bool, error) {
 		offer.Spec.ClusterId = u.homeClusterID
 		offer.Spec.ResourceQuota.Hard = resources.DeepCopy()
 		offer.Spec.Labels = u.clusterLabels
+
+		offer.Spec.StorageClasses, err = u.getStorageClasses(ctx)
+		if err != nil {
+			return err
+		}
+
 		return controllerutil.SetControllerReference(&request, offer, u.scheme)
 	})
 
@@ -165,15 +177,47 @@ func (u *OfferUpdater) createOrUpdateOffer(clusterID string) (bool, error) {
 	return true, nil
 }
 
-func (u *OfferUpdater) getResourceRequest(clusterID string) (*discoveryv1alpha1.ResourceRequestList, error) {
+func (u *OfferUpdater) getResourceRequest(ctx context.Context, clusterID string) (*discoveryv1alpha1.ResourceRequestList, error) {
 	resourceRequestList := &discoveryv1alpha1.ResourceRequestList{}
-	err := u.Client.List(context.Background(), resourceRequestList, client.MatchingLabels{
+	err := u.Client.List(ctx, resourceRequestList, client.MatchingLabels{
 		consts.ReplicationOriginLabel: clusterID,
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	return resourceRequestList, nil
+}
+
+func (u *OfferUpdater) getStorageClasses(ctx context.Context) ([]sharingv1alpha1.StorageType, error) {
+	if !u.enableStorage {
+		return []sharingv1alpha1.StorageType{}, nil
+	}
+
+	storageClassList := &storagev1.StorageClassList{}
+	err := u.Client.List(ctx, storageClassList)
+	if err != nil {
+		return nil, err
+	}
+
+	storageTypes := make([]sharingv1alpha1.StorageType, len(storageClassList.Items))
+	for i := range storageClassList.Items {
+		class := &storageClassList.Items[i]
+		storageTypes[i].StorageClassName = class.GetName()
+
+		// set the storage class as default if:
+		// 1. it is the real storage class of the local cluster
+		// 2. no local real storage class is set and it is the cluster default storage class
+		if u.localRealStorageClassName == "" {
+			if val, ok := class.Annotations["storageclass.kubernetes.io/is-default-class"]; ok && val == "true" {
+				storageTypes[i].Default = true
+			}
+		} else if class.GetName() == u.localRealStorageClassName {
+			storageTypes[i].Default = true
+		}
+	}
+
+	return storageTypes, nil
 }
 
 // Push add new clusterID to update queue which will be processes as soon as possible.

@@ -19,6 +19,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
@@ -96,9 +97,19 @@ func forgeVKInitContainers(nodeName string, opts *VirtualKubeletOpts) []v1.Conta
 	}
 }
 
+func getDeafultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharingv1alpha1.StorageType {
+	for _, storageClass := range storageClasses {
+		if storageClass.Default {
+			return storageClass
+		}
+	}
+	return storageClasses[0]
+}
+
 func forgeVKContainers(
 	vkImage string, remoteClusterID,
-	nodeName, vkNamespace, liqoNamespace, homeClusterID string, opts *VirtualKubeletOpts) []v1.Container {
+	nodeName, vkNamespace, liqoNamespace, homeClusterID string, opts *VirtualKubeletOpts,
+	resourceOffer *sharingv1alpha1.ResourceOffer) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
@@ -111,6 +122,12 @@ func forgeVKContainers(
 		stringifyArgument("--ipam-server",
 			fmt.Sprintf("%v.%v:%v", liqoconst.NetworkManagerServiceName, liqoNamespace, liqoconst.NetworkManagerIpamPort)),
 		"--klog.v=4",
+	}
+
+	if len(resourceOffer.Spec.StorageClasses) > 0 {
+		args = append(args, "--enable-storage",
+			stringifyArgument("--remote-real-storage-class-name",
+				getDeafultStorageClass(resourceOffer.Spec.StorageClasses).StorageClassName))
 	}
 
 	if extraAnnotations := opts.NodeExtraAnnotations.StringMap; len(extraAnnotations) != 0 {
@@ -156,12 +173,13 @@ func forgeVKContainers(
 
 func forgeVKPodSpec(
 	vkName, vkNamespace, liqoNamespace, homeClusterID string,
-	remoteClusterID, nodeName string, opts *VirtualKubeletOpts) v1.PodSpec {
+	remoteClusterID, nodeName string, opts *VirtualKubeletOpts,
+	resourceOffer *sharingv1alpha1.ResourceOffer) v1.PodSpec {
 	return v1.PodSpec{
 		Volumes:        forgeVKVolumes(),
 		InitContainers: forgeVKInitContainers(nodeName, opts),
 		Containers: forgeVKContainers(opts.ContainerImage, remoteClusterID,
-			nodeName, vkNamespace, liqoNamespace, homeClusterID, opts),
+			nodeName, vkNamespace, liqoNamespace, homeClusterID, opts, resourceOffer),
 		ServiceAccountName: vkName,
 		Affinity:           forgeVKAffinity(),
 	}

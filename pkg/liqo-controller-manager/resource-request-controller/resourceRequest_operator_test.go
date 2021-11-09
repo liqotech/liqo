@@ -86,12 +86,32 @@ func CreateResourceRequest(ctx context.Context, resourceRequestName, resourcesNa
 }
 
 var _ = Describe("ResourceRequest Operator", func() {
+
+	type storageClassTemplate struct {
+		name        string
+		provisioner string
+		isDefault   bool
+	}
+
 	var (
 		createdResourceRequest *discoveryv1alpha1.ResourceRequest
 		podWithoutLabel        *corev1.Pod
 		node1                  *corev1.Node
 		node2                  *corev1.Node
+		storageClasses         = []storageClassTemplate{
+			{
+				name:        "test-storage-class-1",
+				provisioner: "prov-1",
+				isDefault:   false,
+			},
+			{
+				name:        "test-storage-class-2",
+				provisioner: "prov-2",
+				isDefault:   true,
+			},
+		}
 	)
+
 	BeforeEach(func() {
 		createdResourceRequest = CreateResourceRequest(ctx, ResourceRequestName, ResourcesNamespace, ClusterID1, k8sClient)
 		var err error
@@ -101,6 +121,11 @@ var _ = Describe("ResourceRequest Operator", func() {
 		Expect(err).ToNot(HaveOccurred())
 		podWithoutLabel, err = testutils.CreateNewPod(ctx, "test-pod-2", "", false, clientset)
 		Expect(err).ToNot(HaveOccurred())
+
+		for _, storageClass := range storageClasses {
+			_, err = testutils.CreateNewStorageClass(ctx, clientset, storageClass.name, storageClass.provisioner, storageClass.isDefault)
+			Expect(err).ToNot(HaveOccurred())
+		}
 	})
 	AfterEach(func() {
 		err := k8sClient.DeleteAllOf(ctx, &discoveryv1alpha1.ResourceRequest{}, client.InNamespace(ResourcesNamespace))
@@ -110,6 +135,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 		err = clientset.CoreV1().Pods("default").DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		err = clientset.CoreV1().Nodes().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
+		Expect(err).ToNot(HaveOccurred())
+		err = clientset.StorageV1().StorageClasses().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
 		Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -173,6 +200,15 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Expect(createdResourceOffer.GetOwnerReferences()).Should(ContainElement(MatchFields(IgnoreExtras, Fields{
 				"Name": Equal(createdResourceRequest.Name),
 			})))
+
+			Expect(createdResourceOffer.Spec.StorageClasses).ToNot(BeEmpty())
+			for _, storageClass := range storageClasses {
+				item := sharingv1alpha1.StorageType{
+					StorageClassName: storageClass.name,
+					Default:          storageClass.isDefault,
+				}
+				Expect(createdResourceOffer.Spec.StorageClasses).To(ContainElement(item))
+			}
 
 			By("Checking resources at offer creation")
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)

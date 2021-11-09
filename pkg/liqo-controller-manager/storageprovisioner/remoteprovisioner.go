@@ -18,6 +18,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -35,8 +36,22 @@ func ProvisionRemotePVC(ctx context.Context,
 	remotePvcClient corev1clients.PersistentVolumeClaimInterface) (*corev1.PersistentVolume, controller.ProvisioningState, error) {
 	virtualPvc := options.PVC
 
-	mutation := remotePersistentVolumeClaim(virtualPvc, remoteRealStorageClass, remoteNamespace)
-	_, err := remotePvcClient.Apply(ctx, mutation, forge.ApplyOptions())
+	// get the storage class for the remote PVC,
+	// use its class if denied, otherwise use the default one
+	var remoteStorageClass string
+	remotePvc, err := remotePvcLister.Get(virtualPvc.Name)
+	switch {
+	case apierrors.IsNotFound(err):
+		remoteStorageClass = remoteRealStorageClass
+	case err != nil && !apierrors.IsNotFound(err):
+		return nil, controller.ProvisioningInBackground, err
+	case remotePvc.Spec.StorageClassName != nil:
+		remoteStorageClass = *remotePvc.Spec.StorageClassName
+	default:
+	}
+
+	mutation := remotePersistentVolumeClaim(virtualPvc, remoteStorageClass, remoteNamespace)
+	_, err = remotePvcClient.Apply(ctx, mutation, forge.ApplyOptions())
 	if err != nil {
 		return nil, controller.ProvisioningInBackground, err
 	}

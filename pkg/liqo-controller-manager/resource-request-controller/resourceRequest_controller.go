@@ -52,6 +52,8 @@ const (
 
 // +kubebuilder:rbac:groups=capsule.clastix.io,resources=tenants,verbs=get;list;watch;create;update;patch;delete;
 
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
+
 // Reconcile is the main function of the controller which reconciles ResourceRequest resources.
 func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	var resourceRequest discoveryv1alpha1.ResourceRequest

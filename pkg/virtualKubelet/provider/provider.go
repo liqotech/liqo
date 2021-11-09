@@ -128,11 +128,9 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers)).
 		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
 		With(configuration.NewSecretReflector(cfg.SecretWorkers)).
-		With(podreflector)
-	if cfg.EnableStorage {
-		reflectionManager.With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
-			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName))
-	}
+		With(podreflector).
+		With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
+			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage))
 	reflectionManager.Start(ctx)
 
 	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID,

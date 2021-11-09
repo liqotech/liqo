@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 
-	"github.com/liqotech/liqo/pkg/mapperUtils"
+	"github.com/liqotech/liqo/pkg/utils/mapper"
 )
 
 // GetCachedClient returns a controller runtime client with the cache initialized only for the resources added to
@@ -52,13 +52,13 @@ func GetCachedClientWithConfig(ctx context.Context, scheme *runtime.Scheme, conf
 		return nil, err
 	}
 
-	mapper, err := (mapperUtils.LiqoMapperProvider(scheme))(conf)
+	liqoMapper, err := (mapper.LiqoMapperProvider(scheme))(conf)
 	if err != nil {
 		klog.Errorf("mapper: %s", err)
 		return nil, err
 	}
 
-	clientCache, err := cache.New(conf, cache.Options{Scheme: scheme, Mapper: mapper})
+	clientCache, err := cache.New(conf, cache.Options{Scheme: scheme, Mapper: liqoMapper})
 	if err != nil {
 		klog.Errorf("cache: %s", err)
 		return nil, err
@@ -70,7 +70,7 @@ func GetCachedClientWithConfig(ctx context.Context, scheme *runtime.Scheme, conf
 		}
 	}()
 
-	newClient, err := cluster.DefaultNewClient(clientCache, conf, client.Options{Scheme: scheme, Mapper: mapper})
+	newClient, err := cluster.DefaultNewClient(clientCache, conf, client.Options{Scheme: scheme, Mapper: liqoMapper})
 	if err != nil {
 		klog.Errorf("unable to create the client: %s", err)
 		return nil, err

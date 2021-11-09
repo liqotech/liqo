@@ -18,6 +18,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -25,32 +26,97 @@ import (
 
 var _ = Describe("reflector methods", func() {
 
+	var err error
+
 	Context("Handle method", func() {
 
-		It("the remote PVC does not exist", func() {
-			Expect(reflector.Handle(ctx, remotePvcName)).To(Succeed())
+		Context("storage disabled", func() {
 
-			offloadedPvc, err := k8sClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, remotePvcName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(offloadedPvc).ToNot(BeNil())
+			JustBeforeEach(func() {
+				reflector.storageEnabled = false
+			})
 
-			Expect(offloadedPvc.Spec.StorageClassName).To(PointTo(Equal(RealRemoteStorageClassName)))
+			When("the remote PVC does not exist", func() {
+				JustBeforeEach(func() {
+					err = reflector.Handle(ctx, remotePvcName2)
+				})
 
-			localPvc, err := k8sClient.CoreV1().PersistentVolumeClaims(LocalNamespace).Get(ctx, remotePvcName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(localPvc.Spec.VolumeName).ToNot(BeEmpty())
+				It("should not create the remote PVC", func() {
+					Expect(err).ToNot(HaveOccurred())
 
-			localPv, err := k8sClient.CoreV1().PersistentVolumes().Get(ctx, localPvc.Spec.VolumeName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(localPv).ToNot(BeNil())
+					_, err = k8sClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, remotePvcName2, metav1.GetOptions{})
+					Expect(err).To(BeNotFound())
+				})
+
+				It("should remove the node annotation triggering rescheduling", func() {
+					Expect(err).ToNot(HaveOccurred())
+
+					virtualPvc, err := k8sClient.CoreV1().PersistentVolumeClaims(LocalNamespace).Get(ctx, remotePvcName2, metav1.GetOptions{})
+					Expect(err).ToNot(HaveOccurred())
+					_, found := virtualPvc.Annotations[annSelectedNode]
+					Expect(found).To(BeFalse())
+				})
+			})
+
 		})
 
-		It("the PVC is not on the virtual node", func() {
-			// the function has to succeed, we have not reenqueue this item
-			Expect(reflector.Handle(ctx, localPvcName)).To(Succeed())
+		Context("storage enabled", func() {
 
-			_, err := k8sClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, localPvcName, metav1.GetOptions{})
-			Expect(err).To(BeNotFound())
+			JustBeforeEach(func() {
+				reflector.storageEnabled = true
+			})
+
+			When("the remote PVC does not exist", func() {
+
+				var (
+					localPvc *corev1.PersistentVolumeClaim
+				)
+
+				JustBeforeEach(func() {
+					err = reflector.Handle(ctx, remotePvcName)
+				})
+
+				It("should create the remote PVC", func() {
+					Expect(err).ToNot(HaveOccurred())
+
+					offloadedPvc, err := k8sClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, remotePvcName, metav1.GetOptions{})
+					Expect(err).ToNot(HaveOccurred())
+					Expect(offloadedPvc).ToNot(BeNil())
+
+					Expect(offloadedPvc.Spec.StorageClassName).To(PointTo(Equal(RealRemoteStorageClassName)))
+				})
+
+				It("should update the local PVC", func() {
+					Expect(err).ToNot(HaveOccurred())
+
+					localPvc, err = k8sClient.CoreV1().PersistentVolumeClaims(LocalNamespace).Get(ctx, remotePvcName, metav1.GetOptions{})
+					Expect(err).ToNot(HaveOccurred())
+					Expect(localPvc.Spec.VolumeName).ToNot(BeEmpty())
+				})
+
+				It("should create the local PV", func() {
+					Expect(err).ToNot(HaveOccurred())
+
+					localPv, err := k8sClient.CoreV1().PersistentVolumes().Get(ctx, localPvc.Spec.VolumeName, metav1.GetOptions{})
+					Expect(err).ToNot(HaveOccurred())
+					Expect(localPv).ToNot(BeNil())
+				})
+			})
+
+			When("the PVC is not on the virtual node", func() {
+				JustBeforeEach(func() {
+					// the function has to succeed, we have not to reenqueue this item
+					err = reflector.Handle(ctx, localPvcName)
+				})
+
+				It("should not create the remote PVC", func() {
+					Expect(err).ToNot(HaveOccurred())
+
+					_, err = k8sClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, localPvcName, metav1.GetOptions{})
+					Expect(err).To(BeNotFound())
+				})
+			})
+
 		})
 
 	})

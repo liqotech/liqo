@@ -31,8 +31,8 @@ import (
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	"github.com/liqotech/liqo/pkg/mapperUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -61,7 +61,7 @@ func main() {
 
 	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		MapperProvider: mapperUtils.LiqoMapperProvider(scheme),
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
 		Port:           9443,
 		LeaderElection: false,

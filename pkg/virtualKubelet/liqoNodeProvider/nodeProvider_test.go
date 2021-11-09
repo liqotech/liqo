@@ -98,8 +98,7 @@ var _ = Describe("NodeProvider", func() {
 			client.CoreV1().Nodes().UpdateStatus(ctx, node, metav1.UpdateOptions{})
 		})
 
-		var ready chan struct{}
-		ready = nodeProvider.StartProvider(ctx)
+		ready := nodeProvider.StartProvider(ctx)
 		close(ready)
 	})
 
@@ -169,7 +168,7 @@ var _ = Describe("NodeProvider", func() {
 			}, timeout, interval).Should(ContainElements(c.expectedConditions))
 		},
 
-		Entry("update from Advertisement", nodeProviderTestcase{
+		Entry("update from ResourceOffer", nodeProviderTestcase{
 			resourceOffer: &sharingv1alpha1.ResourceOffer{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ResourceOffer",
