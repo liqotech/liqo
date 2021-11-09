@@ -17,7 +17,6 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -43,14 +42,12 @@ import (
 type LocalResourceMonitor struct {
 	allocatable               corev1.ResourceList
 	resourcePodMap            map[string]corev1.ResourceList
-	lastReadResources         map[string]corev1.ResourceList
 	nodeMutex                 sync.RWMutex
 	podMutex                  sync.RWMutex
 	nodeInformer              cache.SharedIndexInformer
 	podInformer               cache.SharedIndexInformer
 	resourceSharingPercentage uint64
-	updateThresholdPercentage uint64
-	queue 					  OfferQueue
+	updater                   *OfferUpdater
 }
 
 // PodTransition represents a podReady condition possible transitions.
@@ -68,8 +65,8 @@ const (
 )
 
 // NewLocalMonitor creates a new LocalResourceMonitor.
-func NewLocalMonitor(clientset kubernetes.Interface, resyncPeriod time.Duration, queue OfferQueue,
-	resourceSharingPercentage, offerUpdateThreshold uint64) *LocalResourceMonitor {
+func NewLocalMonitor(clientset kubernetes.Interface, resyncPeriod time.Duration, updater *OfferUpdater,
+	resourceSharingPercentage uint64) *LocalResourceMonitor {
 	nodeInformer := informers.NewSharedInformerFactoryWithOptions(
 		clientset, resyncPeriod, informers.WithTweakListOptions(noVirtualNodesFilter),
 	).Core().V1().Nodes().Informer()
@@ -79,15 +76,13 @@ func NewLocalMonitor(clientset kubernetes.Interface, resyncPeriod time.Duration,
 
 	accountant := LocalResourceMonitor{
 		allocatable:               corev1.ResourceList{},
-		resourcePodMap: 		   map[string]corev1.ResourceList{},
-		lastReadResources: 		   map[string]corev1.ResourceList{},
+		resourcePodMap:            map[string]corev1.ResourceList{},
 		nodeMutex:                 sync.RWMutex{},
 		podMutex:                  sync.RWMutex{},
 		nodeInformer:              nodeInformer,
 		podInformer:               podInformer,
 		resourceSharingPercentage: resourceSharingPercentage,
-		updateThresholdPercentage: offerUpdateThreshold,
-		queue: 					   queue,
+		updater:                   updater,
 	}
 
 	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -119,24 +114,6 @@ func (b *LocalResourceMonitor) startNodeInformer(ctx context.Context, group *syn
 func (b *LocalResourceMonitor) startPodInformer(ctx context.Context, group *sync.WaitGroup) {
 	defer group.Done()
 	b.podInformer.Run(ctx.Done())
-}
-
-// getPodMap performs thread-safe access to resourcePodMap.
-func (b *LocalResourceMonitor) getPodMap() map[string]corev1.ResourceList {
-	b.podMutex.RLock()
-	defer b.podMutex.RUnlock()
-	mapCopy := make(map[string]corev1.ResourceList)
-	for key, value := range b.resourcePodMap {
-		mapCopy[key] = value.DeepCopy()
-	}
-	return mapCopy
-}
-
-// getLastRead performs thread-safe access to lastReadResources.
-func (b *LocalResourceMonitor) getLastRead(remoteClusterID string) corev1.ResourceList {
-	b.podMutex.RLock()
-	defer b.podMutex.RUnlock()
-	return b.lastReadResources[remoteClusterID]
 }
 
 // react to a Node Creation/First informer run.
@@ -274,11 +251,7 @@ func (b *LocalResourceMonitor) writeClusterResources(newResources corev1.Resourc
 	b.nodeMutex.Lock()
 	b.allocatable = newResources.DeepCopy()
 	b.nodeMutex.Unlock()
-	for clusterID := range b.getPodMap() {
-		if b.isAboveThreshold(clusterID) {
-			b.queue.Push(clusterID)
-		}
-	}
+	b.updater.NotifyChange()
 }
 
 // write pods resources in thread safe mode.
@@ -292,9 +265,7 @@ func (b *LocalResourceMonitor) writePodResources(clusterID string, newResources 
 	b.podMutex.Lock()
 	b.resourcePodMap[clusterID] = newResources.DeepCopy()
 	b.podMutex.Unlock()
-	if b.isAboveThreshold(clusterID) {
-		b.queue.Push(clusterID)
-	}
+	b.updater.NotifyChange()
 }
 
 // ReadResources returns the resources available in the cluster (total minus used), multiplied by resourceSharingPercentage.
@@ -302,7 +273,6 @@ func (b *LocalResourceMonitor) ReadResources(clusterID string) corev1.ResourceLi
 	toRead := b.readClusterResources()
 	podsResources := b.readPodResources(clusterID)
 	addResources(toRead, podsResources)
-	b.lastReadResources[clusterID] = toRead.DeepCopy()
 	for resourceName, quantity := range toRead {
 		scaled := quantity
 		b.scaleResources(resourceName, &scaled)
@@ -317,7 +287,6 @@ func (b *LocalResourceMonitor) RemoveClusterID(clusterID string) {
 	b.podMutex.Lock()
 	defer b.podMutex.Unlock()
 	delete(b.resourcePodMap, clusterID)
-	delete(b.lastReadResources, clusterID)
 }
 
 // readClusterResources returns the total resources in the cluster.
@@ -337,32 +306,6 @@ func (b *LocalResourceMonitor) readPodResources(clusterID string) corev1.Resourc
 		return toRead.DeepCopy()
 	}
 	return corev1.ResourceList{}
-}
-
-func (b *LocalResourceMonitor) setThreshold(threshold uint64) {
-	b.updateThresholdPercentage = threshold
-}
-
-// isAboveThreshold checks if the resources used by pods in the cluster have changed by at least updateThresholdPercentage
-// since the last call to ReadResources.
-func (b *LocalResourceMonitor) isAboveThreshold(clusterID string) bool {
-	podResourceValue := b.getPodMap()[clusterID]
-	clusterResources := b.readClusterResources()
-	lastRead := b.getLastRead(clusterID)
-	for resourceName, resources := range clusterResources {
-		podValue, exists := podResourceValue[resourceName]
-		if !exists {
-			podValue = *resource.NewQuantity(0, "")
-		}
-		lastReadValue := lastRead[resourceName]
-		diff := (resources.Value() + podValue.Value()) - lastReadValue.Value()
-		absDiff := math.Abs(float64(diff))
-		if int64(absDiff) > lastReadValue.Value()*int64(b.updateThresholdPercentage)/100 {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (b *LocalResourceMonitor) scaleResources(resourceName corev1.ResourceName, quantity *resource.Quantity) {
@@ -430,7 +373,7 @@ func extractPodResources(podToExtract *corev1.Pod) corev1.ResourceList {
 func checkSign(currentResources corev1.ResourceList) error {
 	for resourceName, value := range currentResources {
 		if value.Sign() == -1 {
-			return fmt.Errorf("resource %s has a negative value %v", resourceName, value)
+			return fmt.Errorf("resource %s has a negative value: %v", resourceName, value.String())
 		}
 	}
 	return nil

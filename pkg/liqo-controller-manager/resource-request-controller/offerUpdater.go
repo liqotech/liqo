@@ -17,10 +17,10 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	"math"
+	"sync"
+
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,9 +28,14 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sync"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
+// ResourceReaderInterface represents an interface to read the available resources in this cluster.
 type ResourceReaderInterface interface {
 	Start(ctx context.Context, group *sync.WaitGroup)
 	// ReadResources returns the resources available for usage by the given cluster.
@@ -50,27 +55,37 @@ type OfferUpdater struct {
 	scheme        *runtime.Scheme
 	localRealStorageClassName string
 	enableStorage             bool
+	// currentResources maps the clusters that we intend to offer resources to, to the resource list that we last used
+	// when issuing them a ResourceOffer.
+	currentResources map[string]corev1.ResourceList
+	// updateThresholdPercentage is the change in resources that triggers an update of ResourceOffers.
+	updateThresholdPercentage uint
 }
 
-func NewOfferUpdater(client client.Client, homeCluster discoveryv1alpha1.ClusterIdentity, clusterLabels map[string]string,
-	scheme *runtime.Scheme, localRealStorageClassName string, enableStorage bool) *OfferUpdater {
-	advertiser := &OfferUpdater{
-		client: client,
+// NewOfferUpdater constructs a new OfferUpdater.
+func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.ClusterIdentity, clusterLabels map[string]string,
+	scheme *runtime.Scheme, updateThresholdPercentage uint, localRealStorageClassName string, enableStorage bool) *OfferUpdater {
+	updater := &OfferUpdater{
+		client:                    k8sClient,
 		homeCluster: homeCluster,
-		clusterLabels: clusterLabels,
-		scheme: scheme,
+		clusterLabels:             clusterLabels,
+		scheme:                    scheme,
 		localRealStorageClassName: localRealStorageClassName,
-		enableStorage: enableStorage,
+		enableStorage: 			   enableStorage,
+		currentResources:          map[string]corev1.ResourceList{},
+		updateThresholdPercentage: updateThresholdPercentage,
 	}
-	advertiser.OfferQueue = NewOfferQueue(advertiser)
-	return advertiser
+	updater.OfferQueue = NewOfferQueue(updater)
+	return updater
 }
 
-func (a *OfferUpdater) Start(ctx context.Context, wg *sync.WaitGroup) {
-	a.ResourceReader.Start(ctx, wg)
-	a.OfferQueue.Start(ctx, wg)
+// Start starts the OfferUpdater.
+func (u *OfferUpdater) Start(ctx context.Context, wg *sync.WaitGroup) {
+	u.ResourceReader.Start(ctx, wg)
+	u.OfferQueue.Start(ctx, wg)
 }
 
+// CreateOrUpdateOffer creates an offer into the given cluster, reading resources from the ResourceReader.
 func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIdentity) (requeue bool, err error) {
 	ctx := context.Background()
 	list, err := u.getResourceRequest(ctx, cluster.ClusterID)
@@ -85,8 +100,7 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 	request := list.Items[0]
 	resources := u.ResourceReader.ReadResources(cluster.ClusterID)
 	if resourceIsEmpty(resources) {
-		klog.Warningf("No resources for cluster %s, requeuing", cluster.ClusterName)
-		return true, nil
+		klog.Warningf("No resources for cluster %s", cluster.ClusterName)
 	}
 	offer := &sharingv1alpha1.ResourceOffer{
 		ObjectMeta: metav1.ObjectMeta{
@@ -127,15 +141,39 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 	return false, nil
 }
 
-func (a *OfferUpdater) RemoveClusterID(clusterID string) {
-	a.ResourceReader.RemoveClusterID(clusterID)
-	a.OfferQueue.RemoveClusterID(clusterID)
+// NotifyChange is used by the ResourceReader to notify that resources were added or removed.
+// It checks if any resources have changed by at least a set percentage since we last updated a ResourceOffer, and if so
+// it triggers a new update.
+func (u *OfferUpdater) NotifyChange() {
+	for clusterID := range u.currentResources {
+		if u.isAboveThreshold(clusterID) {
+			var clusterIdentity discoveryv1alpha1.ClusterIdentity
+			cluster, err := foreigncluster.GetForeignClusterByID(context.Background(), u.client, clusterID)
+			if err != nil {
+				klog.Warningf("Could not find ClusterIdentity for cluster %s", clusterID)
+				clusterIdentity = discoveryv1alpha1.ClusterIdentity{
+					ClusterID: clusterID,
+					ClusterName: clusterID,
+				}
+			} else {
+				clusterIdentity = cluster.Spec.ClusterIdentity
+			}
+			u.OfferQueue.Push(clusterIdentity)
+		}
+	}
+}
+
+// RemoveClusterID stops tracking the resources to be offered to a given cluster.
+func (u *OfferUpdater) RemoveClusterID(clusterID string) {
+	delete(u.currentResources, clusterID)
+	u.ResourceReader.RemoveClusterID(clusterID)
+	u.OfferQueue.RemoveClusterID(clusterID)
 }
 
 // getResourceRequest returns the list of ResourceRequests for the given cluster.
-func (a *OfferUpdater) getResourceRequest(ctx context.Context, clusterID string) (*discoveryv1alpha1.ResourceRequestList, error) {
+func (u *OfferUpdater) getResourceRequest(ctx context.Context, clusterID string) (*discoveryv1alpha1.ResourceRequestList, error) {
 	resourceRequestList := &discoveryv1alpha1.ResourceRequestList{}
-	err := a.client.List(ctx, resourceRequestList, client.MatchingLabels{
+	err := u.client.List(ctx, resourceRequestList, client.MatchingLabels{
 		consts.ReplicationOriginLabel: clusterID,
 	})
 	if err != nil {
@@ -174,6 +212,39 @@ func (u *OfferUpdater) getStorageClasses(ctx context.Context) ([]sharingv1alpha1
 	}
 
 	return storageTypes, nil
+}
+
+// SetThreshold sets the threshold for resource updates to trigger an update of the ResourceOffers.
+func (u *OfferUpdater) SetThreshold(updateThresholdPercentage uint) {
+	u.updateThresholdPercentage = updateThresholdPercentage
+	u.NotifyChange()
+}
+
+// isAboveThreshold checks if the resources have changed by at least updateThresholdPercentage since the last update.
+func (u *OfferUpdater) isAboveThreshold(clusterID string) bool {
+	oldResources := u.currentResources[clusterID]
+	newResources := u.ResourceReader.ReadResources(clusterID)
+	// Check for any resources removed
+	for oldResourceName := range oldResources {
+		if _, exists := newResources[oldResourceName]; !exists {
+			return true
+		}
+	}
+	// Check for any resources added
+	for newResourceName := range newResources {
+		if _, exists := oldResources[newResourceName]; !exists {
+			return true
+		}
+	}
+	for resourceName, newValue := range newResources {
+		oldValue := oldResources[resourceName]
+		absDiff := math.Abs(float64(newValue.Value() - oldValue.Value()))
+		if int64(absDiff) > oldValue.Value()*int64(u.updateThresholdPercentage)/100 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // resourceIsEmpty checks if the ResourceList is empty.

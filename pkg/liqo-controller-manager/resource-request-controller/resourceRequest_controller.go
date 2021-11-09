@@ -34,7 +34,7 @@ import (
 // ResourceRequestReconciler reconciles a ResourceRequest object.
 type ResourceRequestReconciler struct {
 	client.Client
-	Scheme                *runtime.Scheme
+	Scheme 				  *runtime.Scheme
 	HomeCluster           discoveryv1alpha1.ClusterIdentity
 	*OfferUpdater
 	EnableIncomingPeering bool
@@ -134,11 +134,10 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			if requeue {
 				return ctrl.Result{
 					Requeue:      true,
-					RequeueAfter: 1*time.Second, // todo: do not hardcode this
+					RequeueAfter: 1 * time.Second,
 				}, err
-			} else {
-				return ctrl.Result{}, err
 			}
+			return ctrl.Result{}, err
 		}
 		resourceRequest.Status.OfferWithdrawalTimestamp = nil
 	case denyResourceRequestPhase, deletingResourceRequestPhase:
@@ -159,11 +158,10 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if requeue {
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: 1*time.Second, // todo: do not hardcode this
+			RequeueAfter: 1 * time.Second,
 		}, nil
-	} else {
-		return ctrl.Result{}, nil
 	}
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager is the setup function of the controller.

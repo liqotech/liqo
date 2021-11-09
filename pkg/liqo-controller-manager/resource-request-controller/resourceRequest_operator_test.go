@@ -318,7 +318,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			node1, err = testutils.SetNodeReadyStatus(ctx, node1, false, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := accountant.ReadResources(ClusterID1)
+				resourcesRead := monitor.ReadResources(ClusterID1)
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
@@ -355,7 +355,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			Eventually(func() bool {
-				resourcesRead := accountant.ReadResources(ClusterID1)
+				resourcesRead := monitor.ReadResources(ClusterID1)
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
@@ -377,7 +377,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := accountant.ReadResources(ClusterID1)
+				resourcesRead := monitor.ReadResources(ClusterID1)
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
@@ -404,7 +404,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			err = clientset.CoreV1().Nodes().Delete(ctx, node1.Name, metav1.DeleteOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := accountant.ReadResources(ClusterID1)
+				resourcesRead := monitor.ReadResources(ClusterID1)
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
@@ -493,14 +493,14 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By("Update threshold with huge amount to test isAboveThreshold function")
-			accountant.setThreshold(80)
+			updater.SetThreshold(80)
 			cpu := node2.Status.Allocatable[corev1.ResourceCPU]
 			cpu.Add(*resource.NewQuantity(2, resource.DecimalSI))
 			node2.Status.Allocatable[corev1.ResourceCPU] = cpu
 			node2, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node2, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
-			Expect(accountant.isAboveThreshold(ClusterID1)).ShouldNot(BeTrue())
-			accountant.setThreshold(4)
+			Expect(updater.isAboveThreshold(ClusterID1)).ShouldNot(BeTrue())
+			updater.SetThreshold(4)
 		})
 	})
 	Context("Testing virtual nodes and shadow pods", func() {

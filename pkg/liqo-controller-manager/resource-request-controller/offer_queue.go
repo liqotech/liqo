@@ -17,13 +17,14 @@ package resourcerequestoperator
 import (
 	"context"
 	"crypto/rand"
+	"math/big"
+	"sync"
+	"time"
+
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"math/big"
-	"sync"
-	"time"
 )
 
 const (
@@ -45,6 +46,7 @@ type OfferQueue struct {
 	identities map[string]discoveryv1alpha1.ClusterIdentity
 }
 
+// NewOfferQueue constructs an OfferQueue.
 func NewOfferQueue(offerUpdater *OfferUpdater) OfferQueue {
 	return OfferQueue{
 		queue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Offer update queue"),
@@ -55,10 +57,14 @@ func NewOfferQueue(offerUpdater *OfferUpdater) OfferQueue {
 
 // Start starts the update loop.
 func (u *OfferQueue) Start(ctx context.Context, group *sync.WaitGroup) {
+	group.Add(1)
 	go func() {
 		// Every two seconds, check if there are new items in the queue and process them
 		wait.Until(u.consumeQueue, 2*time.Second, ctx.Done())
-		// When we receive the stop signal
+	}()
+	go func() {
+		// We wait on ctx.Done() in a new goroutine because wait.Until blocks on u.consumeQueue.
+		<-ctx.Done()
 		u.queue.ShutDown()
 		group.Done()
 	}()
@@ -116,6 +122,7 @@ func (u *OfferQueue) consumeQueue() {
 	}
 }
 
+// RemoveClusterID clears updates for the given cluster.
 func (u *OfferQueue) RemoveClusterID(clusterID string) {
 	u.queue.Forget(clusterID)
 }
