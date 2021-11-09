@@ -63,6 +63,7 @@ type NamespacedPersistentVolumeClaimReflector struct {
 	localPersistentVolumeClaimsClient   corev1clients.PersistentVolumeClaimInterface
 
 	provisionerName string
+	storageEnabled  bool
 
 	virtualStorageClassName    string
 	remoteRealStorageClassName string
@@ -72,15 +73,15 @@ type NamespacedPersistentVolumeClaimReflector struct {
 
 // NewPersistentVolumeClaimReflector returns a new PersistentVolumeClaimReflector instance.
 func NewPersistentVolumeClaimReflector(workers uint,
-	virtualStorageClassName, remoteRealStorageClassName string) manager.Reflector {
+	virtualStorageClassName, remoteRealStorageClassName string, storageEnabled bool) manager.Reflector {
 	return generic.NewReflector(PersistentVolumeClaimReflectorName,
-		NewNamespacedPersistentVolumeClaimReflector(virtualStorageClassName, remoteRealStorageClassName),
+		NewNamespacedPersistentVolumeClaimReflector(virtualStorageClassName, remoteRealStorageClassName, storageEnabled),
 		generic.WithoutFallback(), workers)
 }
 
 // NewNamespacedPersistentVolumeClaimReflector returns a function generating NamespacedPersistentVolumeClaimReflector instances.
 func NewNamespacedPersistentVolumeClaimReflector(virtualStorageClassName,
-	remoteRealStorageClassName string) func(*options.NamespacedOpts) manager.NamespacedReflector {
+	remoteRealStorageClassName string, storageEnabled bool) func(*options.NamespacedOpts) manager.NamespacedReflector {
 	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
 		local := opts.LocalFactory.Core().V1().PersistentVolumeClaims()
 		remote := opts.RemoteFactory.Core().V1().PersistentVolumeClaims()
@@ -104,6 +105,7 @@ func NewNamespacedPersistentVolumeClaimReflector(virtualStorageClassName,
 			localPersistentVolumeClaimsClient:   opts.LocalClient.CoreV1().PersistentVolumeClaims(opts.LocalNamespace),
 
 			provisionerName: consts.StorageProvisionerName,
+			storageEnabled:  storageEnabled,
 
 			virtualStorageClassName:    virtualStorageClassName,
 			remoteRealStorageClassName: remoteRealStorageClassName,
@@ -155,6 +157,18 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 	} else if !should {
 		klog.V(4).Infof("Skipping PersistentVolumeClaim %q since we should not provision it", npvcr.LocalRef(name))
 		return nil
+	}
+
+	// Check if the storage is enabled on the current node.
+	if !npvcr.storageEnabled {
+		msg := fmt.Sprintf("Required PersistentVolumeClaim %q rescheduling since storage is not enabled on the current node", npvcr.LocalRef(name))
+		klog.V(4).Info(msg)
+		npvcr.eventRecorder.Event(local, corev1.EventTypeWarning, "ReschedulingRequired", msg)
+		// The provisioner may remove
+		// annSelectedNode to notify scheduler to reschedule again.
+		delete(local.Annotations, annSelectedNode)
+		_, err := npvcr.localPersistentVolumeClaimsClient.Update(ctx, local, metav1.UpdateOptions{})
+		return err
 	}
 	tracer.Step("Ensured to have to provision the volume")
 

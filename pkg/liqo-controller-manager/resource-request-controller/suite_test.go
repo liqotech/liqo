@@ -90,8 +90,10 @@ func createCluster() {
 	homeClusterID = "test-cluster"
 
 	// Initializing a new updater and adding it to the manager.
+	localStorageClassName := ""
+	enableStorage := true
 	updater := OfferUpdater{}
-	updater.Setup(homeClusterID, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil)
+	updater.Setup(homeClusterID, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil, localStorageClassName, enableStorage)
 
 	// Initializing a new broadcaster, starting it and adding it its configuration.
 	err = broadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, testutils.DefaultScalePercentage, 5)

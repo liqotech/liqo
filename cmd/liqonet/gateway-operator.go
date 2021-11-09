@@ -32,7 +32,7 @@ import (
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
 	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
-	"github.com/liqotech/liqo/pkg/mapperUtils"
+	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -87,7 +87,7 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 		os.Exit(1)
 	}
 	main, err := ctrl.NewManager(restcfg.SetRateLimiter(ctrl.GetConfigOrDie()), ctrl.Options{
-		MapperProvider:                mapperUtils.LiqoMapperProvider(scheme),
+		MapperProvider:                mapper.LiqoMapperProvider(scheme),
 		Scheme:                        scheme,
 		MetricsBindAddress:            metricsAddr,
 		LeaderElection:                enableLeaderElection,

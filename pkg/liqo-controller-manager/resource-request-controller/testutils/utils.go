@@ -18,6 +18,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,6 +32,25 @@ import (
 
 // DefaultScalePercentage defines the amount of scaled resources to be computed in resourceOffers.
 const DefaultScalePercentage = 50
+
+// CreateNewStorageClass creates a new storage class with name *storageClassName* and creates it using the *clientset* client.
+func CreateNewStorageClass(ctx context.Context, clientset kubernetes.Interface,
+	storageClassName, provisioner string, defaultAnnotation bool) (*storagev1.StorageClass, error) {
+	storageClass := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: storageClassName,
+		},
+		Provisioner: provisioner,
+	}
+
+	if defaultAnnotation {
+		storageClass.Annotations = map[string]string{
+			"storageclass.kubernetes.io/is-default-class": "true",
+		}
+	}
+
+	return clientset.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{})
+}
 
 // CreateNewNode forges a new node with name *nodeName* and creates it using the *clientset* client.
 func CreateNewNode(ctx context.Context, nodeName string, virtual bool, clientset kubernetes.Interface) (*corev1.Node, error) {

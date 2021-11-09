@@ -33,7 +33,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
-	"github.com/liqotech/liqo/pkg/mapperUtils"
+	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -94,7 +94,7 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 	}
 	smcLabelSelector := labels.NewSelector().Add(*smcLabelRequirement)
 	mainMgr, err := ctrl.NewManager(restcfg.SetRateLimiter(ctrl.GetConfigOrDie()), ctrl.Options{
-		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+		MapperProvider:     mapper.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: commonFlags.metricsAddr,
 		NewCache: cache.BuilderWithOptions(cache.Options{
@@ -118,7 +118,7 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 	// This manager is used by the overlay operator and it is limited to the pods running
 	// on the same namespace as the operator.
 	overlayMgr, err := ctrl.NewManager(mainMgr.GetConfig(), ctrl.Options{
-		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+		MapperProvider:     mapper.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: ":0",
 		Namespace:          podNamespace,

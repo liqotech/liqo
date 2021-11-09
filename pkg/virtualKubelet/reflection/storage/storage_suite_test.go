@@ -57,6 +57,7 @@ const (
 	RealNodeName    = "real-node"
 	localPvcName    = "pvc-local"
 	remotePvcName   = "pvc-remote"
+	remotePvcName2  = "pvc-remote-2"
 )
 
 var (
@@ -195,17 +196,21 @@ var _ = BeforeEach(func() {
 		},
 	}
 
+	remotePvc2 := remotePvc.DeepCopy()
+	remotePvc2.Name = remotePvcName2
+
 	checkErrIgnoreAlreadyExists(k8sClient.CoreV1().Nodes().Create(ctx, realNode, metav1.CreateOptions{}))
 	checkErrIgnoreAlreadyExists(k8sClient.CoreV1().Nodes().Create(ctx, virtualNode, metav1.CreateOptions{}))
 	checkErrIgnoreAlreadyExists(k8sClient.StorageV1().StorageClasses().Create(ctx, sc1, metav1.CreateOptions{}))
 	checkErrIgnoreAlreadyExists(k8sClient.StorageV1().StorageClasses().Create(ctx, sc2, metav1.CreateOptions{}))
 	checkErrIgnoreAlreadyExists(k8sClient.CoreV1().PersistentVolumeClaims(LocalNamespace).Create(ctx, localPvc, metav1.CreateOptions{}))
 	checkErrIgnoreAlreadyExists(k8sClient.CoreV1().PersistentVolumeClaims(LocalNamespace).Create(ctx, remotePvc, metav1.CreateOptions{}))
+	checkErrIgnoreAlreadyExists(k8sClient.CoreV1().PersistentVolumeClaims(LocalNamespace).Create(ctx, remotePvc2, metav1.CreateOptions{}))
 
 	forge.Init(LocalClusterID, RemoteClusterID, virtualNode.Name, "127.0.0.1")
 
 	reflectorBuilder = NewNamespacedPersistentVolumeClaimReflector(VirtualStorageClassName,
-		RealRemoteStorageClassName)
+		RealRemoteStorageClassName, true)
 	factory = informers.NewSharedInformerFactory(k8sClient, 10*time.Hour)
 })
 
