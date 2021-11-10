@@ -17,7 +17,6 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -110,7 +109,7 @@ func (r *ResourceRequestReconciler) ensureTenantDeletion(ctx context.Context,
 
 func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) error {
-	name := strings.Join([]string{offerPrefix, r.ClusterID}, "")
+	name := offerPrefix + r.HomeCluster.ClusterID
 
 	var resourceOffer sharingv1alpha1.ResourceOffer
 	err := r.Client.Get(ctx, types.NamespacedName{

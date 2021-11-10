@@ -101,7 +101,7 @@ func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context,
 	var offer sharingv1alpha1.ResourceOffer
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: request.GetNamespace(),
-		Name:      offerPrefix + r.ClusterID,
+		Name:      offerPrefix + r.HomeCluster.ClusterID,
 	}, &offer)
 	if apierrors.IsNotFound(err) {
 		// ignore not found errors
@@ -123,7 +123,7 @@ func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context,
 			klog.Error(err)
 			return err
 		}
-		klog.Infof("%s -> Offer: %s/%s", r.ClusterID, offer.Namespace, offer.Name)
+		klog.Infof("%s -> Offer: %s/%s", r.HomeCluster.ClusterName, offer.Namespace, offer.Name)
 		return nil
 	case sharingv1alpha1.VirtualKubeletStatusNone:
 		err = client.IgnoreNotFound(r.Client.Delete(ctx, &offer))
@@ -135,7 +135,7 @@ func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context,
 			now := metav1.Now()
 			request.Status.OfferWithdrawalTimestamp = &now
 		}
-		klog.Infof("%s -> Deleted Offer: %s/%s", r.ClusterID, offer.Namespace, offer.Name)
+		klog.Infof("%s -> Deleted Offer: %s/%s", r.HomeCluster.ClusterName, offer.Namespace, offer.Name)
 		return nil
 	default:
 		err := fmt.Errorf("unknown VirtualKubeletStatus %v", offer.Status.VirtualKubeletStatus)

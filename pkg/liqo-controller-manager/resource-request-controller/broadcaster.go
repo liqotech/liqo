@@ -32,6 +32,7 @@ import (
 	"k8s.io/klog/v2"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -309,7 +310,11 @@ func (b *Broadcaster) enqueueForCreationOrUpdate(clusterID string) {
 		b.resourcePodMap[clusterID] = corev1.ResourceList{}
 	}
 	b.podMutex.Unlock()
-	b.updater.Push(clusterID)
+	// todo: use foreigncluster.GetForeignClusterByID once the Broadcaster refactor is merged
+	b.updater.Push(discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   clusterID,
+		ClusterName: clusterID,
+	})
 }
 
 // RemoveClusterID removes a clusterID from all broadcaster internal structures

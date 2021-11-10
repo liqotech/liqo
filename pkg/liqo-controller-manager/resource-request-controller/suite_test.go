@@ -38,15 +38,15 @@ import (
 )
 
 var (
-	cfg           *rest.Config
-	k8sClient     client.Client
-	homeClusterID string
-	clientset     kubernetes.Interface
-	testEnv       *envtest.Environment
-	broadcaster   Broadcaster
-	ctx           context.Context
-	cancel        context.CancelFunc
-	group         sync.WaitGroup
+	cfg         *rest.Config
+	k8sClient   client.Client
+	homeCluster discoveryv1alpha1.ClusterIdentity
+	clientset   kubernetes.Interface
+	testEnv     *envtest.Environment
+	broadcaster Broadcaster
+	ctx         context.Context
+	cancel      context.CancelFunc
+	group       sync.WaitGroup
 )
 
 func TestAPIs(t *testing.T) {
@@ -87,11 +87,15 @@ func createCluster() {
 	// Disabling panic on failure.
 	liqoerrors.SetPanicOnErrorMode(false)
 	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
-	homeClusterID = "test-cluster"
+
+	homeCluster = discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   "home-cluster-id",
+		ClusterName: "home-cluster-name",
+	}
 
 	// Initializing a new updater and adding it to the manager.
 	updater := OfferUpdater{}
-	updater.Setup(homeClusterID, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil)
+	updater.Setup(homeCluster, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil)
 
 	// Initializing a new broadcaster, starting it and adding it its configuration.
 	err = broadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, testutils.DefaultScalePercentage, 5)
@@ -102,7 +106,7 @@ func createCluster() {
 	err = (&ResourceRequestReconciler{
 		Client:                k8sManager.GetClient(),
 		Scheme:                k8sManager.GetScheme(),
-		ClusterID:             homeClusterID,
+		HomeCluster:           homeCluster,
 		Broadcaster:           &broadcaster,
 		EnableIncomingPeering: true,
 	}).SetupWithManager(k8sManager)

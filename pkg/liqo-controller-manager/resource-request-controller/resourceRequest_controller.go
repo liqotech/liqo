@@ -34,7 +34,7 @@ import (
 type ResourceRequestReconciler struct {
 	client.Client
 	Scheme                *runtime.Scheme
-	ClusterID             string
+	HomeCluster           discoveryv1alpha1.ClusterIdentity
 	Broadcaster           *Broadcaster
 	EnableIncomingPeering bool
 }

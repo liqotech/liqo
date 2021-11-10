@@ -155,7 +155,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			By("Checking Offer creation")
 			createdResourceOffer := &sharingv1alpha1.ResourceOffer{}
 			offerName := types.NamespacedName{
-				Name:      offerPrefix + homeClusterID,
+				Name:      offerPrefix + homeCluster.ClusterID,
 				Namespace: ResourcesNamespace,
 			}
 			klog.Info(offerName)
@@ -164,7 +164,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}, timeout, interval).ShouldNot(HaveOccurred())
 			By("Checking all ResourceOffer parameters")
 
-			Expect(createdResourceOffer.Name).Should(ContainSubstring(homeClusterID))
+			Expect(createdResourceOffer.Name).Should(ContainSubstring(homeCluster.ClusterID))
 			Expect(createdResourceOffer.Labels[discovery.ClusterIDLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
 			Expect(createdResourceOffer.Labels[consts.ReplicationRequestedLabel]).Should(Equal("true"))
 			Expect(createdResourceOffer.Labels[consts.ReplicationDestinationLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
@@ -184,7 +184,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 
 			By("Checking ResourceOffer invalidation on request set deleting phase")
@@ -302,7 +302,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			node1, err = testutils.SetNodeReadyStatus(ctx, node1, true, clientset)
 			Expect(err).ToNot(HaveOccurred())
@@ -316,7 +316,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			Eventually(func() bool {
 				resourcesRead := broadcaster.ReadResources(ClusterID1)
@@ -362,7 +362,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Checking Node Delete")
 			err = clientset.CoreV1().Nodes().Delete(ctx, node1.Name, metav1.DeleteOptions{})
@@ -387,7 +387,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Checking correct update of resource after pod changing Status")
 			podWithoutLabel, err = testutils.SetPodReadyStatus(ctx, podWithoutLabel, false, clientset)
@@ -397,7 +397,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					0: node2.Status.Allocatable,
 				}
 				var podList []corev1.ResourceList
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			// set the pod ready again
 			podWithoutLabel, err = testutils.SetPodReadyStatus(ctx, podWithoutLabel, true, clientset)
@@ -409,7 +409,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Adding pod offloaded by cluster which refers the ResourceOffer. Expected no change in resources")
 			_, err = testutils.CreateNewPod(ctx, "pod-offloaded-"+ClusterID1, ClusterID1, false, clientset)
@@ -421,7 +421,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Adding pods offloaded by a different clusters. Expected change in resources.")
 			podOffloaded, err := testutils.CreateNewPod(ctx, "pod-offloaded-"+ClusterID2, ClusterID2, false, clientset)
@@ -439,7 +439,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					1: podReq2,
 					2: podReq3,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Checking change ready status for offloaded pod. Expected no change in offer.")
 			_, err = testutils.SetPodReadyStatus(ctx, podOffloaded, false, clientset)
@@ -453,7 +453,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					1: podReq2,
 					2: podReq3,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 
 			By("Update threshold with huge amount to test isAboveThreshold function")
@@ -495,7 +495,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 		})
 		It("Testing shadow pod creation", func() {
@@ -523,7 +523,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq1,
 				}
-				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeCluster.ClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
@@ -543,7 +543,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Eventually(func() bool {
 				offer := &sharingv1alpha1.ResourceOffer{}
 				err = k8sClient.Get(ctx, types.NamespacedName{
-					Name:      offerPrefix + homeClusterID,
+					Name:      offerPrefix + homeCluster.ClusterID,
 					Namespace: ResourcesNamespace,
 				}, offer)
 				Expect(err).ToNot(HaveOccurred())

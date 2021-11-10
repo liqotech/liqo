@@ -222,7 +222,7 @@ func main() {
 		LiqoNamespace: *liqoNamespace,
 
 		ResyncPeriod:                         *resyncPeriod,
-		HomeCluster: 						  clusterIdentity,
+		HomeCluster:                          clusterIdentity,
 		AuthServiceAddressOverride:           *authServiceAddressOverride,
 		AuthServicePortOverride:              *authServicePortOverride,
 		AutoJoin:                             *autoJoin,
@@ -238,7 +238,7 @@ func main() {
 
 	broadcaster := &resourceRequestOperator.Broadcaster{}
 	updater := &resourceRequestOperator.OfferUpdater{}
-	updater.Setup(*clusterID, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap)
+	updater.Setup(clusterIdentity, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap)
 	if err := broadcaster.SetupBroadcaster(clientset, updater, *resyncPeriod,
 		resourceSharingPercentage.Val, offerUpdateThreshold.Val); err != nil {
 		klog.Error(err)
@@ -248,7 +248,7 @@ func main() {
 	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),
-		ClusterID:             *clusterID,
+		HomeCluster:           clusterIdentity,
 		Broadcaster:           broadcaster,
 		EnableIncomingPeering: *enableIncomingPeering,
 	}
