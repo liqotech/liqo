@@ -164,7 +164,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	}
 
 	// Do not offload the pod if it was previously rejected, as new copies should have already been re-created.
-	if local.Status.Phase == corev1.PodFailed && local.Status.Reason == forge.PodRejectedReason {
+	if local.Status.Phase == corev1.PodFailed && local.Status.Reason == forge.PodOffloadingAbortedReason {
 		// Ensure the corresponding remote shadowpod is not still present due to transients.
 		if shadowExists && shadow.DeletionTimestamp.IsZero() {
 			defer tracer.Step("Ensured the absence of the remote object")

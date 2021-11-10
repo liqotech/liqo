@@ -28,8 +28,10 @@ import (
 )
 
 const (
-	// PodRejectedReason -> the reason assigned to pods rejected by the virtual kubelet.
-	PodRejectedReason = "OffloadingRejected"
+	// PodOffloadingBackoffReason -> the reason assigned to pods rejected by the virtual kubelet before offloading has started.
+	PodOffloadingBackoffReason = "OffloadingBackoff"
+	// PodOffloadingAbortedReason -> the reason assigned to pods rejected by the virtual kubelet after offloading has started.
+	PodOffloadingAbortedReason = "OffloadingAborted"
 )
 
 // PodIPTranslator defines the function to translate between remote and local IP addresses.
@@ -61,11 +63,18 @@ func LocalPodStatus(remote *corev1.PodStatus, translator PodIPTranslator, restar
 }
 
 // LocalRejectedPod forges the status of a local rejected pod.
-func LocalRejectedPod(local *corev1.Pod, phase corev1.PodPhase) *corev1.Pod {
+func LocalRejectedPod(local *corev1.Pod, phase corev1.PodPhase, reason string) *corev1.Pod {
 	return &corev1.Pod{
 		ObjectMeta: *local.ObjectMeta.DeepCopy(),
-		Status:     corev1.PodStatus{Phase: phase, Reason: PodRejectedReason},
+		Status:     LocalRejectedPodStatus(local.Status.DeepCopy(), phase, reason),
 	}
+}
+
+// LocalRejectedPodStatus forges the status of the local rejected pod.
+func LocalRejectedPodStatus(local *corev1.PodStatus, phase corev1.PodPhase, reason string) corev1.PodStatus {
+	local.Phase = phase
+	local.Reason = reason
+	return *local
 }
 
 // RemoteShadowPod forges the reflected shadowpod, given the local one.

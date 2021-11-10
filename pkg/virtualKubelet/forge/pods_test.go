@@ -68,19 +68,27 @@ var _ = Describe("Pod forging", func() {
 	})
 
 	Describe("the LocalRejectedPod function", func() {
-		var local, output *corev1.Pod
+		var local, original, output *corev1.Pod
 
 		BeforeEach(func() {
-			local = &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "local-name", Namespace: "local-namespace"}}
+			local = &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "local-name", Namespace: "local-namespace"},
+				Status:     corev1.PodStatus{PodIP: "1.1.1.1"},
+			}
 		})
 
-		JustBeforeEach(func() { output = forge.LocalRejectedPod(local, corev1.PodFailed) })
+		JustBeforeEach(func() {
+			original = local.DeepCopy()
+			output = forge.LocalRejectedPod(local, corev1.PodFailed, forge.PodOffloadingAbortedReason)
+		})
 
 		It("should correctly propagate the local object meta", func() { Expect(output.ObjectMeta).To(Equal(local.ObjectMeta)) })
+		It("should not mutate the input object", func() { Expect(local).To(Equal(original)) })
 		It("should correctly set the rejected phase and reason", func() {
 			Expect(output.Status.Phase).To(Equal(corev1.PodFailed))
-			Expect(output.Status.Reason).To(Equal(forge.PodRejectedReason))
+			Expect(output.Status.Reason).To(Equal(forge.PodOffloadingAbortedReason))
 		})
+		It("should preserve the other status fields", func() { Expect(output.Status.PodIP).To(Equal(local.Status.PodIP)) })
 	})
 
 	Describe("the RemoteShadowPod function", func() {
