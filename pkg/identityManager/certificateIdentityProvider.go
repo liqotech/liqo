@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	certificateSigningRequest "github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -49,8 +50,8 @@ type certificateIdentityProvider struct {
 
 // GetRemoteCertificate retrieves a certificate issued in the past,
 // given the clusterid and the signingRequest.
-func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(clusterID, namespace,
-	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
+func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
+	namespace, signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	secret, err := identityProvider.client.CoreV1().Secrets(namespace).Get(context.TODO(), remoteCertificateSecret, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -73,7 +74,7 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 
 	// check that this certificate is related to this signing request
 	if csr := base64.StdEncoding.EncodeToString(signingRequestSecret); csr != signingRequest {
-		err = kerrors.NewBadRequest(fmt.Sprintf("the stored and the provided CSR for cluster %s does not match", clusterID))
+		err = kerrors.NewBadRequest(fmt.Sprintf("the stored and the provided CSR for cluster %s does not match", cluster.ClusterName))
 		klog.Error(err)
 		return response, err
 	}
@@ -97,7 +98,7 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 // ApproveSigningRequest approves a remote CertificateSigningRequest.
 // It creates a CertificateSigningRequest CR to be issued by the local cluster, and approves it.
 // This function will wait (with a timeout) for an available certificate before returning.
-func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clusterID,
+func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(cluster discoveryv1alpha1.ClusterIdentity,
 	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	signingBytes, err := base64.StdEncoding.DecodeString(signingRequest)
 	if err != nil {
@@ -150,7 +151,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 	}
 
 	// store the certificate in a Secret, in this way is possbile to retrieve it again in the future
-	if _, err = identityProvider.storeRemoteCertificate(clusterID, signingBytes, response.Certificate); err != nil {
+	if _, err = identityProvider.storeRemoteCertificate(cluster.ClusterID, signingBytes, response.Certificate); err != nil {
 		klog.Error(err)
 		return response, err
 	}

@@ -16,7 +16,6 @@ package identitymanager
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -30,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 )
 
@@ -51,8 +51,8 @@ type mapUser struct {
 	Groups   []string `json:"groups"`
 }
 
-func (identityProvider *iamIdentityProvider) GetRemoteCertificate(clusterID, namespace,
-	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
+func (identityProvider *iamIdentityProvider) GetRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
+	namespace, signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	// this method has no meaning for this identity provider
 	return response, kerrors.NewNotFound(schema.GroupResource{
 		Group:    "v1",
@@ -60,7 +60,7 @@ func (identityProvider *iamIdentityProvider) GetRemoteCertificate(clusterID, nam
 	}, remoteCertificateSecret)
 }
 
-func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
+func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster discoveryv1alpha1.ClusterIdentity,
 	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(identityProvider.awsConfig.AwsRegion),
@@ -78,7 +78,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
 
 	// the IAM username has to have <= 64 charaters, we have to take only a prefix from the local clusterID.
 	prefix := identityProvider.localClusterID[:25]
-	username := fmt.Sprintf("%v-%v", prefix, clusterID)
+	username := prefix + cluster.ClusterID
 
 	userArn, err := identityProvider.ensureIamUser(iamSvc, username)
 	if err != nil {
@@ -98,7 +98,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
 		return response, err
 	}
 
-	if err = identityProvider.ensureConfigMap(userArn, clusterID); err != nil {
+	if err = identityProvider.ensureConfigMap(userArn, cluster.ClusterID); err != nil {
 		klog.Error(err)
 		return response, err
 	}

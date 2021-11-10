@@ -36,6 +36,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/discovery"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
@@ -60,11 +61,11 @@ var _ = Describe("IdentityManager", func() {
 	var (
 		ctx context.Context
 
-		cluster         testutil.Cluster
-		client          kubernetes.Interface
-		restConfig      *rest.Config
-		localClusterID  string
-		remoteClusterID string
+		cluster       testutil.Cluster
+		client        kubernetes.Interface
+		restConfig    *rest.Config
+		localCluster  discoveryv1alpha1.ClusterIdentity
+		remoteCluster discoveryv1alpha1.ClusterIdentity
 
 		namespace *v1.Namespace
 
@@ -76,8 +77,14 @@ var _ = Describe("IdentityManager", func() {
 	BeforeSuite(func() {
 		ctx = context.Background()
 
-		localClusterID = "local-id"
-		remoteClusterID = "remote-id"
+		localCluster = discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   "local-cluster-id",
+			ClusterName: "local-cluster-name",
+		}
+		remoteCluster = discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   "remote-cluster-id",
+			ClusterName: "remote-cluster-name",
+		}
 
 		var err error
 		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
@@ -90,16 +97,16 @@ var _ = Describe("IdentityManager", func() {
 		restConfig = cluster.GetCfg()
 
 		namespaceManager = tenantnamespace.NewTenantNamespaceManager(client)
-		identityMan = NewCertificateIdentityManager(cluster.GetClient(), localClusterID, namespaceManager)
-		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), localClusterID, namespaceManager)
+		identityMan = NewCertificateIdentityManager(cluster.GetClient(), localCluster, namespaceManager)
+		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
 
-		namespace, err = namespaceManager.CreateNamespace(remoteClusterID)
+		namespace, err = namespaceManager.CreateNamespace(remoteCluster.ClusterID)
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
 		// Make sure the namespace has been cached for subsequent retrieval.
-		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(remoteClusterID) }).Should(Equal(namespace))
+		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(remoteCluster.ClusterID) }).Should(Equal(namespace))
 	})
 
 	AfterSuite(func() {
@@ -113,7 +120,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Local Manager", func() {
 
 		It("Create Identity", func() {
-			secret, err := identityMan.CreateIdentity(remoteClusterID)
+			secret, err := identityMan.CreateIdentity(remoteCluster)
 			Expect(err).To(BeNil())
 			Expect(secret).NotTo(BeNil())
 			Expect(secret.Namespace).To(Equal(namespace.Name))
@@ -123,7 +130,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(ok).To(BeTrue())
 			v, ok := secret.Labels[discovery.ClusterIDLabel]
 			Expect(ok).To(BeTrue())
-			Expect(v).To(Equal(remoteClusterID))
+			Expect(v).To(Equal(remoteCluster.ClusterID))
 
 			Expect(secret.Annotations).NotTo(BeNil())
 			_, ok = secret.Annotations[certificateExpireTimeAnnotation]
@@ -140,23 +147,23 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Get Signing Request", func() {
-			csrBytes, err := identityMan.GetSigningRequest(remoteClusterID)
+			csrBytes, err := identityMan.GetSigningRequest(remoteCluster)
 			Expect(err).To(BeNil())
 
 			b, _ := pem.Decode(csrBytes)
 			csr, err := x509.ParseCertificateRequest(b.Bytes)
 			Expect(err).To(BeNil())
-			Expect(csr.Subject.CommonName).To(Equal(localClusterID))
+			Expect(csr.Subject.CommonName).To(Equal(localCluster.ClusterID))
 		})
 
 		It("Get Signing Request with multiple secrets", func() {
 			// we need that at least 1 second passed since the creation of the previous identity
 			time.Sleep(1 * time.Second)
 
-			secret, err := identityMan.CreateIdentity(remoteClusterID)
+			secret, err := identityMan.CreateIdentity(remoteCluster)
 			Expect(err).To(BeNil())
 
-			csrBytes, err := identityMan.GetSigningRequest(remoteClusterID)
+			csrBytes, err := identityMan.GetSigningRequest(remoteCluster)
 			Expect(err).To(BeNil())
 
 			csrBytesSecret, ok := secret.Data[csrSecretKey]
@@ -175,7 +182,7 @@ var _ = Describe("IdentityManager", func() {
 		var stopChan chan struct{}
 
 		BeforeEach(func() {
-			csrBytes, err = identityMan.GetSigningRequest(remoteClusterID)
+			csrBytes, err = identityMan.GetSigningRequest(remoteCluster)
 			Expect(err).To(BeNil())
 
 			stopChan = make(chan struct{})
@@ -187,21 +194,25 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Approve Signing Request", func() {
-			certificate, err := identityProvider.ApproveSigningRequest(remoteClusterID, base64.StdEncoding.EncodeToString(csrBytes))
+			certificate, err := identityProvider.ApproveSigningRequest(remoteCluster, base64.StdEncoding.EncodeToString(csrBytes))
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
 			Expect(certificate.Certificate).To(Equal([]byte(idManTest.FakeCRT)))
 		})
 
 		It("Retrieve Remote Certificate", func() {
-			certificate, err := identityProvider.GetRemoteCertificate(remoteClusterID, namespace.Name, base64.StdEncoding.EncodeToString(csrBytes))
+			certificate, err := identityProvider.GetRemoteCertificate(remoteCluster, namespace.Name, base64.StdEncoding.EncodeToString(csrBytes))
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
 			Expect(certificate.Certificate).To(Equal([]byte(idManTest.FakeCRT)))
 		})
 
 		It("Retrieve Remote Certificate wrong clusterid", func() {
-			certificate, err := identityProvider.GetRemoteCertificate("fake", "fake", base64.StdEncoding.EncodeToString(csrBytes))
+			fakeIdentity := discoveryv1alpha1.ClusterIdentity{
+				ClusterID:   "fake-cluster-id",
+				ClusterName: "fake-cluster-name",
+			}
+			certificate, err := identityProvider.GetRemoteCertificate(fakeIdentity, "fake", base64.StdEncoding.EncodeToString(csrBytes))
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeTrue())
 			Expect(kerrors.IsBadRequest(err)).To(BeFalse())
@@ -209,7 +220,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Retrieve Remote Certificate wrong CSR", func() {
-			certificate, err := identityProvider.GetRemoteCertificate(remoteClusterID, namespace.Name, base64.StdEncoding.EncodeToString([]byte("fake")))
+			certificate, err := identityProvider.GetRemoteCertificate(remoteCluster, namespace.Name, base64.StdEncoding.EncodeToString([]byte("fake")))
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeFalse())
 			Expect(kerrors.IsBadRequest(err)).To(BeTrue())
@@ -234,17 +245,17 @@ var _ = Describe("IdentityManager", func() {
 			Expect(err).To(BeNil())
 
 			// store the certificate in the secret
-			err = identityMan.StoreCertificate(remoteClusterID, identityResponse)
+			err = identityMan.StoreCertificate(remoteCluster, identityResponse)
 			Expect(err).To(BeNil())
 
 			// retrieve rest config
-			cnf, err := identityMan.GetConfig(remoteClusterID, "")
+			cnf, err := identityMan.GetConfig(remoteCluster, "")
 			Expect(err).To(BeNil())
 			Expect(cnf).NotTo(BeNil())
 			Expect(cnf.Host).To(Equal("https://127.0.0.1"))
 
 			// retrieve the remote tenant namespace
-			remoteNamespace, err := identityMan.GetRemoteTenantNamespace(remoteClusterID, "")
+			remoteNamespace, err := identityMan.GetRemoteTenantNamespace(remoteCluster, "")
 			Expect(err).To(BeNil())
 			Expect(remoteNamespace).To(Equal("remoteNamespace"))
 		})
@@ -277,7 +288,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(err).To(BeNil())
 
 			// store the certificate in the secret
-			err = identityMan.StoreCertificate(remoteClusterID, identityResponse)
+			err = identityMan.StoreCertificate(remoteCluster, identityResponse)
 			Expect(err).To(BeNil())
 
 			idMan, ok := identityMan.(*identityManager)
@@ -289,7 +300,7 @@ var _ = Describe("IdentityManager", func() {
 			}
 			idMan.iamTokenManager = &tokenManager
 
-			secret, err := idMan.getSecret(remoteClusterID)
+			secret, err := idMan.getSecret(remoteCluster)
 			Expect(err).To(Succeed())
 
 			Expect(secret.Data[awsAccessKeyIDSecretKey]).To(Equal([]byte(*signingIAMResponse.AwsIdentityResponse.AccessKey.AccessKeyId)))
@@ -299,7 +310,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(secret.Data[awsIAMUserArnSecretKey]).To(Equal([]byte(identityResponse.AWSIdentityInfo.IAMUserArn)))
 
 			// retrieve rest config
-			cnf, err := identityMan.GetConfig(remoteClusterID, "")
+			cnf, err := identityMan.GetConfig(remoteCluster, "")
 			Expect(err).To(Succeed())
 			Expect(cnf).NotTo(BeNil())
 			Expect(cnf.BearerTokenFile).ToNot(BeEmpty())
@@ -314,13 +325,13 @@ var _ = Describe("IdentityManager", func() {
 			iamTokenManager, ok := idMan.iamTokenManager.(*iamTokenManager)
 			Expect(ok).To(BeTrue())
 
-			namespacedName, ok := iamTokenManager.availableClusterIDSecrets[remoteClusterID]
+			namespacedName, ok := iamTokenManager.availableClusterIDSecrets[remoteCluster.ClusterID]
 			Expect(ok).To(BeTrue())
 
 			// we have to wait for at least a second to have a different token
 			time.Sleep(1 * time.Second)
 
-			err = iamTokenManager.refreshToken(ctx, remoteClusterID, namespacedName)
+			err = iamTokenManager.refreshToken(ctx, remoteCluster, namespacedName)
 			Expect(err).To(Succeed())
 
 			newToken, err := os.ReadFile(cnf.BearerTokenFile)
@@ -334,7 +345,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Identity Provider", func() {
 
 		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), localClusterID, namespaceManager)
+			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
 
 			certIDManager, ok := idProvider.(*identityManager)
 			Expect(ok).To(BeTrue())
@@ -344,7 +355,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient(), localClusterID, &AwsConfig{
+			idProvider := NewIAMIdentityManager(cluster.GetClient(), localCluster, &AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",
@@ -363,7 +374,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Identity Provider", func() {
 
 		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), localClusterID, namespaceManager)
+			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
 
 			certIDManager, ok := idProvider.(*identityManager)
 			Expect(ok).To(BeTrue())
@@ -373,7 +384,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient(), localClusterID, &AwsConfig{
+			idProvider := NewIAMIdentityManager(cluster.GetClient(), localCluster, &AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",

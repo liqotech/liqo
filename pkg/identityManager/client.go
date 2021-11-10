@@ -20,18 +20,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // GetConfig gets a rest config from the secret, given the remote clusterID and (optionally) the namespace.
 // This rest config con be used to create a client to the remote cluster.
-func (certManager *identityManager) GetConfig(remoteClusterID, namespace string) (*rest.Config, error) {
+func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.ClusterIdentity,
+	namespace string) (*rest.Config, error) {
 	var secret *v1.Secret
 	var err error
 
 	if namespace == "" {
-		secret, err = certManager.getSecret(remoteClusterID)
+		secret, err = certManager.getSecret(remoteCluster)
 	} else {
-		secret, err = certManager.getSecretInNamespace(remoteClusterID, namespace)
+		secret, err = certManager.getSecretInNamespace(remoteCluster, namespace)
 	}
 	if err != nil {
 		klog.Error(err)
@@ -39,7 +42,7 @@ func (certManager *identityManager) GetConfig(remoteClusterID, namespace string)
 	}
 
 	if certManager.isAwsIdentity(secret) {
-		return certManager.getIAMConfig(secret, remoteClusterID)
+		return certManager.getIAMConfig(secret, remoteCluster)
 	}
 
 	// retrieve the data required to build the rest config
@@ -50,7 +53,7 @@ func (certManager *identityManager) GetConfig(remoteClusterID, namespace string)
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, remoteClusterID)
+		}, remoteCluster.ClusterID)
 		return nil, err
 	}
 
@@ -60,7 +63,7 @@ func (certManager *identityManager) GetConfig(remoteClusterID, namespace string)
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, remoteClusterID)
+		}, remoteCluster.ClusterID)
 		return nil, err
 	}
 
@@ -76,7 +79,7 @@ func (certManager *identityManager) GetConfig(remoteClusterID, namespace string)
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, remoteClusterID)
+		}, remoteCluster.ClusterID)
 		return nil, err
 	}
 
@@ -94,15 +97,15 @@ func (certManager *identityManager) GetConfig(remoteClusterID, namespace string)
 
 // GetRemoteTenantNamespace returns the tenant namespace that
 // the remote cluster assigned to this peering.
-func (certManager *identityManager) GetRemoteTenantNamespace(
-	remoteClusterID, localTenantNamespaceName string) (string, error) {
+func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity,
+	localTenantNamespaceName string) (string, error) {
 	var secret *v1.Secret
 	var err error
 
 	if localTenantNamespaceName == "" {
-		secret, err = certManager.getSecret(remoteClusterID)
+		secret, err = certManager.getSecret(remoteCluster)
 	} else {
-		secret, err = certManager.getSecretInNamespace(remoteClusterID, localTenantNamespaceName)
+		secret, err = certManager.getSecretInNamespace(remoteCluster, localTenantNamespaceName)
 	}
 	if err != nil {
 		klog.Error(err)
@@ -115,12 +118,13 @@ func (certManager *identityManager) GetRemoteTenantNamespace(
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, remoteClusterID)
+		}, remoteCluster.ClusterID)
 		return "", err
 	}
 	return string(remoteNamespace), nil
 }
 
-func (certManager *identityManager) getIAMConfig(secret *v1.Secret, remoteClusterID string) (*rest.Config, error) {
-	return certManager.iamTokenManager.getConfig(secret, remoteClusterID)
+func (certManager *identityManager) getIAMConfig(
+	secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*rest.Config, error) {
+	return certManager.iamTokenManager.getConfig(secret, remoteCluster)
 }
