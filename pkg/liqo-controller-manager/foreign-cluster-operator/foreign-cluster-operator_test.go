@@ -82,10 +82,13 @@ var _ = Describe("ForeignClusterOperator", func() {
 			os.Exit(1)
 		}
 
-		cID := "local-cluster"
+		homeCluster := discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   "local-cluster-id",
+			ClusterName: "local-cluster-name",
+		}
 
 		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
-		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient(), cID, namespaceManager)
+		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient(), homeCluster.ClusterID, namespaceManager)
 
 		clusterID := "foreign-cluster"
 		tenantNamespace, err = namespaceManager.CreateNamespace(clusterID)
@@ -99,7 +102,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		controller = ForeignClusterReconciler{
 			Client:           mgr.GetClient(),
 			Scheme:           mgr.GetScheme(),
-			ClusterID:        cID,
+			HomeCluster:      homeCluster,
 			ResyncPeriod:     300,
 			NamespaceManager: namespaceManager,
 			IdentityManager:  identityManagerCtrl,
@@ -216,7 +219,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
 				// populate the resourcerequest CR
-				c.rr.Name = controller.ClusterID
+				c.rr.Name = controller.HomeCluster.ClusterID
 				c.rr.Namespace = tenantNamespace.Name
 				c.rr.Spec.ClusterIdentity.ClusterID = c.fc.Spec.ClusterIdentity.ClusterID
 				c.rr.Labels = resourceRequestLabels(c.fc.Spec.ClusterIdentity.ClusterID)
@@ -1042,7 +1045,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					Name: "cluster-1",
 					Labels: map[string]string{
 						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-						discovery.ClusterIDLabel:     controller.ClusterID,
+						discovery.ClusterIDLabel:     controller.HomeCluster.ClusterID,
 					},
 				},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -1050,9 +1053,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 					InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					ForeignAuthURL:         "https://example.com",
-					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-						ClusterID: controller.ClusterID,
-					},
+					ClusterIdentity:        controller.HomeCluster,
 				},
 			}
 

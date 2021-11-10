@@ -222,8 +222,7 @@ func main() {
 		LiqoNamespace: *liqoNamespace,
 
 		ResyncPeriod:                         *resyncPeriod,
-		ClusterID:                            *clusterID,
-		ClusterName:                          *clusterName,
+		HomeCluster: 						  clusterIdentity,
 		AuthServiceAddressOverride:           *authServiceAddressOverride,
 		AuthServicePortOverride:              *authServicePortOverride,
 		AutoJoin:                             *autoJoin,
