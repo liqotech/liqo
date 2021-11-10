@@ -18,28 +18,29 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
 // checkRemoteClientPresence creates a new controller-runtime Client for a remote cluster, if it isn't already present
 // in RemoteClients Struct of NamespaceMap Controller.
-func (r *NamespaceMapReconciler) checkRemoteClientPresence(remoteClusterID string) error {
+func (r *NamespaceMapReconciler) checkRemoteClientPresence(remoteCluster v1alpha1.ClusterIdentity) error {
 	if r.RemoteClients == nil {
 		r.RemoteClients = map[string]kubernetes.Interface{}
 	}
 
-	if _, ok := r.RemoteClients[remoteClusterID]; !ok {
+	if _, ok := r.RemoteClients[remoteCluster.ClusterID]; !ok {
 		tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(r.IdentityManagerClient)
-		identityManager := identitymanager.NewCertificateIdentityReader(r.IdentityManagerClient, r.LocalClusterID, tenantNamespaceManager)
-		restConfig, err := identityManager.GetConfig(remoteClusterID, "")
+		identityManager := identitymanager.NewCertificateIdentityReader(r.IdentityManagerClient, r.LocalCluster.ClusterID, tenantNamespaceManager)
+		restConfig, err := identityManager.GetConfig(remoteCluster.ClusterID, "")
 		if err != nil {
 			klog.Error(err)
 			return err
 		}
 
-		if r.RemoteClients[remoteClusterID], err = kubernetes.NewForConfig(restConfig); err != nil {
-			klog.Errorf("%s -> unable to create client for cluster '%s'", err, remoteClusterID)
+		if r.RemoteClients[remoteCluster.ClusterID], err = kubernetes.NewForConfig(restConfig); err != nil {
+			klog.Errorf("%s -> unable to create client for cluster '%s'", err, remoteCluster.ClusterName)
 			return err
 		}
 	}

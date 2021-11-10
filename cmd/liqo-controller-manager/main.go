@@ -300,7 +300,7 @@ func main() {
 	namespaceMapReconciler := &mapsctrl.NamespaceMapReconciler{
 		Client:                mgr.GetClient(),
 		RemoteClients:         make(map[string]kubernetes.Interface),
-		LocalClusterID:        *clusterID,
+		LocalCluster:          clusterIdentity,
 		IdentityManagerClient: clientset,
 		RequeueTime:           *namespaceMapControllerRequeueTime,
 	}

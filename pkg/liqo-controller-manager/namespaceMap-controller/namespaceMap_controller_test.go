@@ -42,7 +42,7 @@ var _ = Describe("NamespaceMap controller", func() {
 	BeforeEach(func() {
 		By(" 0 - BEFORE_EACH -> Clean NamespaceMap CurrentMappings")
 		Eventually(func() bool {
-			if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+			if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 				return false
 			}
 			Expect(len(nms.Items) == 1).To(BeTrue())
@@ -56,11 +56,11 @@ var _ = Describe("NamespaceMap controller", func() {
 	Context("Check creation and deletion of remote Namespace", func() {
 
 		It(fmt.Sprintf("Check correct creation of the remote namespace %s on remote cluster '%s'",
-			namespace1Name, remoteClusterID1), func() {
+			namespace1Name, remoteCluster1.ClusterID), func() {
 
 			By(" 1 - Adding desired mapping entry to the NamespaceMap")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				nms.Items[0].Spec.DesiredMapping = map[string]string{}
 				nms.Items[0].Spec.DesiredMapping[namespace1Name] = namespace1Name
@@ -75,12 +75,12 @@ var _ = Describe("NamespaceMap controller", func() {
 				if remoteNamespace, err = remoteClient1.CoreV1().Namespaces().Get(context.TODO(), namespace1Name, metav1.GetOptions{}); err != nil {
 					return false
 				}
-				return remoteNamespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey] == localClusterID
+				return remoteNamespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey] == localCluster.ClusterID
 			}, timeout, interval).Should(BeTrue())
 
 			By(" 3 - Checking status of CurrentMapping entry: must be 'CreationLoopBackOff'")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				if len(nms.Items) == 0 {
@@ -91,9 +91,9 @@ var _ = Describe("NamespaceMap controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By(" 4 - Insert fake RoleBindings inside the remote namespace")
-			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localClusterID, 1)
-			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localClusterID, 2)
-			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localClusterID, 3)
+			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localCluster.ClusterID, 1)
+			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localCluster.ClusterID, 2)
+			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localCluster.ClusterID, 3)
 			_, err1 := remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
 			_, err2 := remoteClient1.RbacV1().RoleBindings(roleBinding2.Namespace).Create(context.TODO(), &roleBinding2, metav1.CreateOptions{})
 			_, err3 := remoteClient1.RbacV1().RoleBindings(roleBinding3.Namespace).Create(context.TODO(), &roleBinding3, metav1.CreateOptions{})
@@ -101,7 +101,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 5 - Checking status of CurrentMapping entry: must be 'Accepted'")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				if len(nms.Items) == 0 {
@@ -113,7 +113,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 4 - Finalizer of namespaceMap controller should be here")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -124,7 +124,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(fmt.Sprintf(" 5 - Delete desired mapping entry for namespace '%s'", namespace1Name))
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				delete(nms.Items[0].Spec.DesiredMapping, namespace1Name)
 				err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
@@ -141,7 +141,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 7 - Checking status of CurrentMapping entry: must be 'Terminating'")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -151,7 +151,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 8 - Finalizer of namespaceMap controller should be here")
 			Consistently(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -160,7 +160,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 9 - Remove CurrentMapping entry")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -172,7 +172,7 @@ var _ = Describe("NamespaceMap controller", func() {
 		})
 
 		It(fmt.Sprintf("Check NamespaceMap status when a remote namespace with the same name '%s' "+
-			"already exists on remote cluster '%s'", namespace1Name, remoteClusterID1), func() {
+			"already exists on remote cluster '%s'", namespace1Name, remoteCluster1.ClusterID), func() {
 			remoteName := "pippo"
 			By(fmt.Sprintf(" 1 - Create remote namespace '%s'", remoteName))
 			Eventually(func() bool {
@@ -187,7 +187,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 2 - Adding desired mapping entry to the NamespaceMap")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				nms.Items[0].Spec.DesiredMapping = map[string]string{}
 				nms.Items[0].Spec.DesiredMapping[remoteName] = remoteName
@@ -197,7 +197,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 3 - Checking status of CurrentMapping entry: must be 'CreationLoopBackOff'")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				if len(nms.Items) == 0 {
@@ -209,7 +209,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 4 - Finalizer of namespaceMap controller should be here")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -220,7 +220,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(fmt.Sprintf(" 5 - Delete desired mapping entry for the namespace '%s'", namespace1Name))
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				delete(nms.Items[0].Spec.DesiredMapping, remoteName)
 				err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
@@ -229,7 +229,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(fmt.Sprintf(" 6 - Check if current mapping entry for the namespace '%s' is not present", namespace1Name))
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				_, ok := nms.Items[0].Status.CurrentMapping[namespace1Name]
 				return !ok
@@ -250,7 +250,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 1 - Get NamespaceMap and set 2 desiredMappings")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				if nms.Items[0].Spec.DesiredMapping == nil {
 					nms.Items[0].Spec.DesiredMapping = map[string]string{}
@@ -263,7 +263,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 2 - Get NamespaceMap and set another 1 desiredMappings")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				if nms.Items[0].Spec.DesiredMapping == nil {
 					nms.Items[0].Spec.DesiredMapping = map[string]string{}
@@ -275,7 +275,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 3 - Get NamespaceMap and set another 1 desiredMappings")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				if nms.Items[0].Spec.DesiredMapping == nil {
 					nms.Items[0].Spec.DesiredMapping = map[string]string{}
@@ -286,9 +286,9 @@ var _ = Describe("NamespaceMap controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf(" 4 - Create 3 rolebindings for the namespace %s", namespace2Name))
-			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localClusterID, 1)
-			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localClusterID, 2)
-			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localClusterID, 3)
+			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localCluster.ClusterID, 1)
+			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localCluster.ClusterID, 2)
+			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localCluster.ClusterID, 3)
 			Eventually(func() bool {
 				_, err := remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
 				return err == nil
@@ -303,7 +303,7 @@ var _ = Describe("NamespaceMap controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf(" 5 - Create just 1 rolebindings for the namespace %s", namespace3Name))
-			roleBinding1 = testutils.GetRoleBindingForASpecificNamespace(namespace3Name, localClusterID, 1)
+			roleBinding1 = testutils.GetRoleBindingForASpecificNamespace(namespace3Name, localCluster.ClusterID, 1)
 			Eventually(func() bool {
 				_, err := remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
 				return err == nil
@@ -314,7 +314,7 @@ var _ = Describe("NamespaceMap controller", func() {
 			By(" 6 - Check len of DesiredMapping (len==4) and MappingPhase must be 'Accepted' or 'CreationLoopBackOff' " +
 				"according to the number of roleBindings in the remote namespace")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				if len(nms.Items[0].Spec.DesiredMapping) != 4 {
 					return false
@@ -327,7 +327,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 7 - Delete NamespaceMap, so the deletion timestamp is set")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				err := homeClient.Delete(context.TODO(), nms.Items[0].DeepCopy())
 				return err == nil
@@ -335,7 +335,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 8 - Check if all remote Namespaces are in terminating phase ")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				return nms.Items[0].Status.CurrentMapping[namespace2Name].Phase == mapsv1alpha1.MappingTerminating &&
 					nms.Items[0].Status.CurrentMapping[namespace3Name].Phase == mapsv1alpha1.MappingTerminating &&
@@ -345,7 +345,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 9 - Check if NamespaceMap Controller finalizer is still there")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -354,7 +354,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 10 - Clean NamespaceMap status")
 			Eventually(func() bool {
-				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
 				nms.Items[0].Status.CurrentMapping = nil
 				err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
@@ -363,7 +363,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By(" 10 - Check if the NamespaceMap is removed")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteCluster1.ClusterID}); err != nil {
 					return false
 				}
 				return len(nms.Items) == 0

@@ -16,7 +16,6 @@ package namespacemapctrl
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -27,24 +26,34 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 const (
 	// Namespace where the NamespaceMaps are created.
 	mapNamespaceName = "default"
-	remoteClusterID1 = "899890-dsd-323s"
-	localClusterID   = "478374-dsa-432dd"
 )
 
 var (
+	remoteCluster1 = v1alpha1.ClusterIdentity{
+		ClusterID:   "899890-dsd-323s",
+		ClusterName: "remote-cluster-1",
+	}
+	localCluster = v1alpha1.ClusterIdentity{
+		ClusterID:   "478374-dsa-432dd",
+		ClusterName: "home-cluster",
+	}
+
 	homeCfg    *rest.Config
 	remote1Cfg *rest.Config
 	remote2Cfg *rest.Config
@@ -100,14 +109,10 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 	Expect(remote2Cfg).ToNot(BeNil())
 
-	err = corev1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = mapsv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = offv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	Expect(corev1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(v1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(mapsv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(offv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	// +kubebuilder:scaffold:scheme
 
@@ -128,27 +133,47 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(homeClient).ToNot(BeNil())
 
 	controllerClients := map[string]kubernetes.Interface{
-		remoteClusterID1: remoteClient1,
+		remoteCluster1.ClusterID: remoteClient1,
 	}
 
 	// Necessary resources in HomeCluster
+	fc1 := v1alpha1.ForeignCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: remoteCluster1.ClusterName,
+			Labels: map[string]string{
+				discovery.ClusterIDLabel: remoteCluster1.ClusterID,
+			},
+		},
+		Spec: v1alpha1.ForeignClusterSpec{
+			ClusterIdentity: v1alpha1.ClusterIdentity{
+				ClusterID:   remoteCluster1.ClusterID,
+				ClusterName: remoteCluster1.ClusterName,
+			},
+			OutgoingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
+			IncomingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
+			ForeignAuthURL:         "https://example.com",
+			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+		},
+	}
+	Expect(homeClient.Create(context.Background(), &fc1)).To(Succeed())
+
 	nms = &mapsv1alpha1.NamespaceMapList{}
 
 	nm1 = &mapsv1alpha1.NamespaceMap{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteClusterID1),
+			GenerateName: remoteCluster1.ClusterID + "-",
 			Namespace:    mapNamespaceName,
 			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterID1,
+				liqoconst.RemoteClusterID: remoteCluster1.ClusterID,
 			},
 		},
 	}
 	Expect(homeClient.Create(context.TODO(), nm1)).Should(Succeed())
 
 	err = (&NamespaceMapReconciler{
-		Client:         homeClient,
-		RemoteClients:  controllerClients,
-		LocalClusterID: localClusterID,
+		Client:        homeClient,
+		RemoteClients: controllerClients,
+		LocalCluster:  localCluster,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
