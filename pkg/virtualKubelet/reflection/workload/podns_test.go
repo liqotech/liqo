@@ -283,10 +283,10 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				})
 			})
 
-			When("the local object does exist and has been rejected", func() {
+			When("the local object does exist and has been rejected (OffloadingAborted)", func() {
 				BeforeEach(func() {
 					local.Status.Phase = corev1.PodFailed
-					local.Status.Reason = forge.PodRejectedReason
+					local.Status.Reason = forge.PodOffloadingAbortedReason
 					CreatePod(client, &local)
 
 					shadow.SetLabels(forge.ReflectionLabels())

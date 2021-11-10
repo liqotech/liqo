@@ -25,7 +25,6 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
 	"k8s.io/utils/trace"
 
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -80,28 +79,31 @@ var _ = Describe("Pod Reflection Tests", func() {
 			When("the local object does exist", func() {
 				BeforeEach(func() { local = corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: LocalNamespace}} })
 
-				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-				It("should correctly mark the pod as rejected (failed)", func() {
-					localAfter := GetPod(client, LocalNamespace, PodName)
-					Expect(localAfter.Status.Phase).To(Equal(corev1.PodFailed))
-					Expect(localAfter.Status.Reason).To(Equal(forge.PodRejectedReason))
+				When("it is not terminating", func() {
+					WhenBody := func(status corev1.PodStatus, phase corev1.PodPhase, reason string) func() {
+						return func() {
+							BeforeEach(func() { local.Status = status })
+
+							It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+							It("should correctly set the pod phase and reason", func() {
+								localAfter := GetPod(client, LocalNamespace, PodName)
+								Expect(localAfter.Status.Phase).To(BeIdenticalTo(phase))
+								Expect(localAfter.Status.Reason).To(BeIdenticalTo(reason))
+							})
+						}
+					}
+
+					When("phase is succeeded", WhenBody(corev1.PodStatus{Phase: corev1.PodSucceeded}, corev1.PodSucceeded, ""))
+					When("phase is pending", WhenBody(corev1.PodStatus{Phase: corev1.PodPending}, corev1.PodPending, forge.PodOffloadingBackoffReason))
+					When("phase is pending (and containers are present)", WhenBody(
+						corev1.PodStatus{Phase: corev1.PodPending, ContainerStatuses: []corev1.ContainerStatus{{Name: "foo"}}},
+						corev1.PodFailed, forge.PodOffloadingAbortedReason),
+					)
+					When("phase is running", WhenBody(corev1.PodStatus{Phase: corev1.PodRunning}, corev1.PodFailed, forge.PodOffloadingAbortedReason))
+					When("phase is failed", WhenBody(corev1.PodStatus{Phase: corev1.PodFailed}, corev1.PodFailed, forge.PodOffloadingAbortedReason))
 				})
 
-				When("the local object does exist and it is owned by a daemonset", func() {
-					BeforeEach(func() {
-						local.OwnerReferences = []metav1.OwnerReference{{
-							Kind: "DaemonSet", APIVersion: "apps/v1", Name: "foo", UID: "bar", Controller: pointer.Bool(true)}}
-					})
-
-					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-					It("should correctly mark the pod as rejected (pending)", func() {
-						localAfter := GetPod(client, LocalNamespace, PodName)
-						Expect(localAfter.Status.Phase).To(Equal(corev1.PodPending))
-						Expect(localAfter.Status.Reason).To(Equal(forge.PodRejectedReason))
-					})
-				})
-
-				When("the local object is terminating", func() {
+				When("it is terminating", func() {
 					BeforeEach(func() { local.DeletionTimestamp = &metav1.Time{Time: time.Now()} })
 
 					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })

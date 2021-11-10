@@ -21,7 +21,6 @@ import (
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -231,22 +230,29 @@ func (fpr *FallbackPodReflector) Handle(ctx context.Context, key types.Namespace
 		return nil
 	}
 
-	// Otherwise, mark the pod as rejected.
-	phase := corev1.PodFailed
-	ctrl := metav1.GetControllerOfNoCopy(local)
-	if ctrl != nil && ctrl.APIVersion == appsv1.SchemeGroupVersion.String() && ctrl.Kind == "DaemonSet" {
-		// Mark orphaned pods originated by daemonsets as pending, to prevent them from being rescheduled forever.
-		phase = corev1.PodPending
+	// The local pod already completed correctly, hence no change shall be performed.
+	if local.Status.Phase == corev1.PodSucceeded {
+		return nil
 	}
 
-	pod := forge.LocalRejectedPod(local, phase)
+	// Otherwise, mark the pod as rejected (either Pending or Failed based on its previous status).
+	phase := corev1.PodPending
+	reason := forge.PodOffloadingBackoffReason
+
+	// If the local pod was already running, mark it as Failed to cause its controller to recreate it.
+	if local.Status.Phase != corev1.PodPending || len(local.Status.ContainerStatuses) > 0 {
+		phase = corev1.PodFailed
+		reason = forge.PodOffloadingAbortedReason
+	}
+
+	pod := forge.LocalRejectedPod(local, phase, reason)
 	_, err = fpr.localPodsClient(key.Namespace).UpdateStatus(ctx, pod, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager})
 	if err != nil {
-		klog.Errorf("Failed to mark local pod %q as rejected: %v", klog.KObj(local), err)
+		klog.Errorf("Failed to mark local pod %q as %v (%v): %v", klog.KObj(local), phase, reason, err)
 		return err
 	}
 
-	klog.Infof("Pod %q successfully marked as rejected", klog.KObj(local))
+	klog.Infof("Pod %q successfully marked as %v (%v)", klog.KObj(local), phase, reason)
 	tracer.Step("Updated the local pod status")
 	return nil
 }
