@@ -181,7 +181,7 @@ func (b *Broadcaster) onPodAdd(obj interface{}) {
 	podAdded := obj.(*corev1.Pod)
 	klog.V(4).Infof("OnPodAdd: Add for pod %s:%s", podAdded.Namespace, podAdded.Name)
 	// ignore all shadow pods because of ignoring all virtual Nodes
-	if pod.IsPodReady(podAdded) {
+	if ready, _ := pod.IsPodReady(podAdded); ready {
 		podResources := extractPodResources(podAdded)
 		currentResources := b.readClusterResources()
 		// subtract the pod resource from cluster resources. This action is done for all pods to extract actual available resources.
@@ -242,7 +242,7 @@ func (b *Broadcaster) onPodDelete(obj interface{}) {
 	podDeleted := obj.(*corev1.Pod)
 	klog.V(4).Infof("OnPodDelete: Delete for pod %s:%s", podDeleted.Namespace, podDeleted.Name)
 	// ignore all shadow pods because of ignoring all virtual Nodes
-	if pod.IsPodReady(podDeleted) {
+	if ready, _ := pod.IsPodReady(podDeleted); ready {
 		podResources := extractPodResources(podDeleted)
 		currentResources := b.readClusterResources()
 		// Resources used by the pod will become available again so add them to the total allocatable ones.
@@ -437,15 +437,18 @@ func checkSign(currentResources corev1.ResourceList) error {
 }
 
 func getPodTransitionState(oldPod, newPod *corev1.Pod) PodTransition {
-	if pod.IsPodReady(newPod) && pod.IsPodReady(oldPod) {
+	newOk, _ := pod.IsPodReady(newPod)
+	oldOk, _ := pod.IsPodReady(oldPod)
+
+	if newOk && oldOk {
 		return ReadyToReady
 	}
 
-	if pod.IsPodReady(newPod) && !pod.IsPodReady(oldPod) {
+	if newOk && !oldOk {
 		return PendingToReady
 	}
 
-	if !pod.IsPodReady(newPod) && pod.IsPodReady(oldPod) {
+	if !newOk && oldOk {
 		return ReadyToPending
 	}
 

@@ -51,6 +51,7 @@ func CheckVirtualNodes(ctx context.Context, homeClusterClient kubernetes.Interfa
 	}
 
 	if len(virtualNodes.Items) != clusterNumber-1 {
+		klog.Infof("Virtual nodes aren't yet ready: %d nodes exist, %d expected", len(virtualNodes.Items), clusterNumber-1)
 		return false
 	}
 
@@ -58,10 +59,14 @@ func CheckVirtualNodes(ctx context.Context, homeClusterClient kubernetes.Interfa
 		for _, condition := range virtualNodes.Items[index].Status.Conditions {
 			if condition.Type == v1.NodeReady {
 				if condition.Status == v1.ConditionFalse {
+					klog.Infof("Virtual nodes aren't yet ready: node %d has %s=%s",
+						index, condition.Type, condition.Status)
 					return false
 				}
 			} else {
 				if condition.Status == v1.ConditionTrue {
+					klog.Infof("Virtual nodes aren't yet ready: node %d has %s=%s",
+						index, condition.Type, condition.Status)
 					return false
 				}
 			}

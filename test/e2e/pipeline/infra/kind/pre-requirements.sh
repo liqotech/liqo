@@ -19,6 +19,13 @@ set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
 set -o pipefail  # Fail if one of the piped commands fails
 
+error() {
+   local sourcefile=$1
+   local lineno=$2
+   echo "An error occurred at $sourcefile:$lineno."
+}
+trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
+
 KIND_VERSION="v0.11.1"
 
 function setup_arch_and_os(){

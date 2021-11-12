@@ -43,13 +43,13 @@ func IsPodUp(ctx context.Context, client kubernetes.Interface, namespace, podNam
 		return false
 	}
 
-	ready := pod.IsPodReady(podToCheck)
+	ready, reason := pod.IsPodReady(podToCheck)
 	message := "ready"
 	if !ready {
 		message = "NOT ready"
 	}
 
-	klog.Infof("%s pod %s/%s is %s", podType, podToCheck.Namespace, podToCheck.Name, message)
+	klog.Infof("%s pod %s/%s is %s (reason: %s)", podType, podToCheck.Namespace, podToCheck.Name, message, reason)
 	return ready
 }
 
@@ -62,7 +62,7 @@ func ArePodsUp(ctx context.Context, clientset kubernetes.Interface, namespace st
 		return nil, nil, retErr
 	}
 	for index := range pods.Items {
-		if !pod.IsPodReady(&pods.Items[index]) {
+		if ready, _ := pod.IsPodReady(&pods.Items[index]); !ready {
 			notReady = append(notReady, pods.Items[index].Name)
 		}
 		ready = append(ready, pods.Items[index].Name)

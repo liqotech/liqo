@@ -19,15 +19,16 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-// IsPodReady returns true if a pod is ready; false otherwise.
-func IsPodReady(pod *corev1.Pod) bool {
+// IsPodReady returns true if a pod is ready; false otherwise. It also returns a reason (as provided by Kubernetes).
+func IsPodReady(pod *corev1.Pod) (ready bool, reason string) {
 	conditions := pod.Status.Conditions
 	for i := range conditions {
-		if conditions[i].Type == corev1.PodReady {
-			return conditions[i].Status == corev1.ConditionTrue
+		condition := conditions[i]
+		if condition.Type == corev1.PodReady {
+			return condition.Status == corev1.ConditionTrue, condition.Reason
 		}
 	}
-	return false
+	return false, "no conditions in pod status"
 }
 
 // IsPodSpecEqual returns whether two pod specs are equal according to the fields that

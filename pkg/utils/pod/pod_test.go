@@ -49,7 +49,8 @@ var _ = Describe("Pod utility functions", func() {
 
 		DescribeTable("Should return the correct output",
 			func(c IsPodReadyCase) {
-				Expect(pod.IsPodReady(c.Pod)).To(BeIdenticalTo(c.Expected))
+				ready, _ := pod.IsPodReady(c.Pod)
+				Expect(ready).To(BeIdenticalTo(c.Expected))
 			},
 			Entry("When the pod is ready", IsPodReadyCase{Pod: PodGenerator(corev1.ConditionTrue), Expected: true}),
 			Entry("When the pod is not ready", IsPodReadyCase{Pod: PodGenerator(corev1.ConditionFalse), Expected: false}),
