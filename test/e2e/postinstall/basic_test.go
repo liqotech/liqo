@@ -23,8 +23,12 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -59,6 +63,22 @@ var _ = Describe("Liqo E2E", func() {
 						readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.NativeClient, testContext.Namespace)
 						klog.Infof("Liqo pods status: %d ready, %d not ready", len(readyPods), len(notReadyPods))
 						return err == nil && len(notReadyPods) == 0 && len(readyPods) > 0
+					}, timeout, interval).Should(BeTrue())
+					var tenantNsList *corev1.NamespaceList
+					Eventually(func() []corev1.Namespace {
+						nodeLabel := map[string]string{}
+						nodeLabel[discovery.TenantNamespaceLabel] = "true"
+						var err error
+						tenantNsList, err = cluster.NativeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
+							LabelSelector: labels.SelectorFromSet(nodeLabel).String(),
+						})
+						Expect(err).ToNot(HaveOccurred())
+						return tenantNsList.Items
+					}, timeout, interval).Should(HaveLen(1))
+					Eventually(func() bool {
+						readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.NativeClient, tenantNsList.Items[0].Name)
+						klog.Infof("Tenant pods status: %d ready, %d not ready", len(readyPods), len(notReadyPods))
+						return err == nil && len(notReadyPods) == 0 && len(readyPods) == 1
 					}, timeout, interval).Should(BeTrue())
 				},
 				PodsUpAndRunningTableEntries...,

@@ -19,10 +19,18 @@ set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
 set -o pipefail  # Fail if one of the piped commands fails
 
+error() {
+   local sourcefile=$1
+   local lineno=$2
+   echo "An error occurred at $sourcefile:$lineno."
+}
+trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
+
 for i in $(seq 2 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  ADD_COMMAND=$(${LIQOCTL} generate-add-command --only-command)
+  # Add the cluster with a different name than the one it declares, so we can test that we use cluster names correctly
+  ADD_COMMAND=$(${LIQOCTL} generate-add-command --only-command | sed "s/add cluster liqo-${i}/add cluster foreign-${i}/g")
 
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
   eval "${ADD_COMMAND}"
