@@ -45,11 +45,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
-type mockApiServerConfigProvider struct {
-	address   string
-	trustedCA bool
-}
-
 func TestIdentityManager(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "IdentityManager Suite")
@@ -286,6 +281,7 @@ var _ = Describe("IdentityManager", func() {
 			tokenManager := iamTokenManager{
 				client:                    idMan.client,
 				availableClusterIDSecrets: map[string]types.NamespacedName{},
+				tokenFiles:                map[string]string{},
 			}
 			idMan.iamTokenManager = &tokenManager
 

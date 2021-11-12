@@ -110,6 +110,7 @@ func newIdentityManager(client kubernetes.Interface,
 	iamTokenManager := &iamTokenManager{
 		client:                    client,
 		availableClusterIDSecrets: map[string]types.NamespacedName{},
+		tokenFiles:                map[string]string{},
 	}
 	iamTokenManager.start(context.TODO())
 
