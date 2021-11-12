@@ -61,7 +61,7 @@ func initLiqoRepo(helmClient helm.Client) error {
 		return err
 	}
 
-	// This repository are required to install the liqo clastix dependency
+	// This repository is required to install the liqo clastix dependency
 	// The same values are available in Chart.yaml file.
 	capsuleRepo := repo.Entry{
 		URL:  "https://clastix.github.io/charts",
