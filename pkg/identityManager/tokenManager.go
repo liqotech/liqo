@@ -17,7 +17,6 @@ package identitymanager
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -40,12 +39,12 @@ type tokenManager interface {
 	getConfig(secret *v1.Secret, remoteClusterID string) (*rest.Config, error)
 }
 
-const tokenDir = "token"
-
 type iamTokenManager struct {
 	client                    kubernetes.Interface
 	availableClusterIDSecrets map[string]types.NamespacedName
 	availableTokenMutex       sync.Mutex
+
+	tokenFiles map[string]string
 }
 
 func (tokMan *iamTokenManager) start(ctx context.Context) {
@@ -135,18 +134,31 @@ func (tokMan *iamTokenManager) addClusterID(remoteClusterID string, secret types
 }
 
 func (tokMan *iamTokenManager) storeToken(remoteClusterID string, tok *token.Token) (string, error) {
-	_, err := os.Stat(tokenDir)
-	if os.IsNotExist(err) {
-		if err = os.Mkdir(tokenDir, 0750); err != nil {
-			klog.Error(err)
-			return "", err
-		}
+	var err error
+	filename, found := tokMan.tokenFiles[remoteClusterID]
+	if found {
+		_, err = os.Stat(filename)
 	}
 
-	filename := filepath.Join(tokenDir, remoteClusterID)
+	if !found || os.IsNotExist(err) {
+		file, err := os.CreateTemp("", "token")
+		if err != nil {
+			klog.Errorf("Error creating the authentication token tmp file: %v", err)
+			return "", err
+		}
+
+		if err = file.Close(); err != nil {
+			klog.Errorf("Error closing the authentication token tmp file: %v", err)
+			return "", err
+		}
+
+		filename = file.Name()
+		tokMan.tokenFiles[remoteClusterID] = filename
+	}
+
 	err = os.WriteFile(filename, []byte(tok.Token), 0600)
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("Error writing the authentication token tmp file: %v", err)
 		return "", err
 	}
 
