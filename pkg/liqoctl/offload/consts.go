@@ -33,8 +33,8 @@ $ liqoctl offload namespace liqo-demo --namespace-mapping-strategy=EnforceSameNa
 	ClusterResourceName = "namespace"
 	// SuccessfulMessage is printed when a Offload cluster command has scucceded.
 	SuccessfulMessage = `
-	Success 👌! The offloading rules for the namespace %s has been created on the cluster! 🚀
-	Check them out by typing: 
+	Success 👌! The offloading rules for namespace %s have been created in your cluster! 🚀
+	Check them out typing: 
 	
 	kubectl get namespaceoffloading -n %s %s
 `
