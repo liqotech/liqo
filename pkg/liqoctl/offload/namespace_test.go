@@ -76,46 +76,51 @@ var _ = Describe("Test the generate command works as expected", func() {
 				},
 			},
 		}),
-		Entry("Offload namespace with accepted, custom pod-offloading and namespace mapping strategy", testCase{
-			[]string{"test"},
-			[]string{
-				"--pod-offloading-strategy=Local",
-			},
-			args.StringMap{StringMap: map[string]string{
-				"accepted": "true",
-			}},
-			args.StringMap{StringMap: map[string]string{
-				"denied": "true",
-			}},
-			&v1alpha1.NamespaceOffloading{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      liqoconst.DefaultNamespaceOffloadingName,
-					Namespace: "test",
+		Entry("Offload namespace with accepted/denied labels, custom pod-offloading and namespace mapping strategy",
+			testCase{
+				[]string{"test"},
+				[]string{
+					"--pod-offloading-strategy=Local",
 				},
-				Spec: v1alpha1.NamespaceOffloadingSpec{
-					NamespaceMappingStrategy: v1alpha1.DefaultNameMappingStrategyType,
-					PodOffloadingStrategy:    v1alpha1.LocalPodOffloadingStrategyType,
-					ClusterSelector: corev1.NodeSelector{
-						NodeSelectorTerms: []corev1.NodeSelectorTerm{
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{{
-									Key:      "accepted",
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{"true"},
+				args.StringMap{StringMap: map[string]string{
+					"accepted": "true",
+				}},
+				args.StringMap{StringMap: map[string]string{
+					"denied": "true",
+				}},
+				&v1alpha1.NamespaceOffloading{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      liqoconst.DefaultNamespaceOffloadingName,
+						Namespace: "test",
+					},
+					Spec: v1alpha1.NamespaceOffloadingSpec{
+						NamespaceMappingStrategy: v1alpha1.DefaultNameMappingStrategyType,
+						PodOffloadingStrategy:    v1alpha1.LocalPodOffloadingStrategyType,
+						ClusterSelector: corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      liqoconst.TypeLabel,
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{liqoconst.TypeNode},
+										},
+										{
+											Key:      "accepted",
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{"true"},
+										},
+										{
+											Key:      "denied",
+											Operator: corev1.NodeSelectorOpNotIn,
+											Values:   []string{"true"},
+										},
+									},
 								},
-								},
-							},
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{{
-									Key:      "denied",
-									Operator: corev1.NodeSelectorOpNotIn,
-									Values:   []string{"true"},
-								}},
-							},
-						}},
+							}},
+					},
 				},
-			},
-		}),
+			}),
 		Entry("Offload namespace with default parameters", testCase{
 			[]string{"test"},
 			[]string{
@@ -138,19 +143,23 @@ var _ = Describe("Test the generate command works as expected", func() {
 					ClusterSelector: corev1.NodeSelector{
 						NodeSelectorTerms: []corev1.NodeSelectorTerm{
 							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{{
-									Key:      "accepted",
-									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{"true"},
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      liqoconst.TypeLabel,
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   []string{liqoconst.TypeNode},
+									},
+									{
+										Key:      "accepted",
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   []string{"true"},
+									},
+									{
+										Key:      "denied",
+										Operator: corev1.NodeSelectorOpNotIn,
+										Values:   []string{"true"},
+									},
 								},
-								},
-							},
-							{
-								MatchExpressions: []corev1.NodeSelectorRequirement{{
-									Key:      "denied",
-									Operator: corev1.NodeSelectorOpNotIn,
-									Values:   []string{"true"},
-								}},
 							},
 						}},
 				},
@@ -178,11 +187,17 @@ var _ = Describe("Test the generate command works as expected", func() {
 						ClusterSelector: corev1.NodeSelector{
 							NodeSelectorTerms: []corev1.NodeSelectorTerm{
 								{
-									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "test",
-										Operator: corev1.NodeSelectorOpIn,
-										Values:   []string{"true"},
-									},
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      "test",
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{"true"},
+										},
+										{
+											Key:      liqoconst.TypeLabel,
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{liqoconst.TypeNode},
+										},
 									},
 								},
 							}},
@@ -211,11 +226,18 @@ var _ = Describe("Test the generate command works as expected", func() {
 						ClusterSelector: corev1.NodeSelector{
 							NodeSelectorTerms: []corev1.NodeSelectorTerm{
 								{
-									MatchExpressions: []corev1.NodeSelectorRequirement{{
-										Key:      "test",
-										Operator: corev1.NodeSelectorOpNotIn,
-										Values:   []string{"true"},
-									},
+
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      liqoconst.TypeLabel,
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{liqoconst.TypeNode},
+										},
+										{
+											Key:      "test",
+											Operator: corev1.NodeSelectorOpNotIn,
+											Values:   []string{"true"},
+										},
 									},
 								},
 							}},

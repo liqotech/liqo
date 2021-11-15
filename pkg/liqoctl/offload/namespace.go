@@ -28,6 +28,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
+	"github.com/liqotech/liqo/pkg/utils"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
@@ -90,44 +91,33 @@ func forgeNamespaceOffloading(command *cobra.Command, args []string,
 }
 
 func forgeClusterSelector(acceptedLabels, deniedLabels argsutils.StringMap) corev1.NodeSelector {
-	var l []corev1.NodeSelectorTerm
-
-	// No acceptedLabels are defined, backing to the default behavior
-	if len(acceptedLabels.StringMap) == 0 && len(deniedLabels.StringMap) == 0 {
-		return corev1.NodeSelector{
-			NodeSelectorTerms: []corev1.NodeSelectorTerm{{
-				MatchExpressions: []corev1.NodeSelectorRequirement{{
-					Key:      consts.TypeLabel,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{consts.TypeNode},
-				}}},
-			},
-		}
-	}
+	var l []corev1.NodeSelectorRequirement
 
 	for k, v := range acceptedLabels.StringMap {
-		l = append(l, corev1.NodeSelectorTerm{
-			MatchExpressions: []corev1.NodeSelectorRequirement{{
-				Key:      k,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{v},
-			},
-			},
+		l = append(l, corev1.NodeSelectorRequirement{
+			Key:      k,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{v},
 		})
 	}
 
 	for k, v := range deniedLabels.StringMap {
-		l = append(l, corev1.NodeSelectorTerm{
-			MatchExpressions: []corev1.NodeSelectorRequirement{{
-				Key:      k,
-				Operator: corev1.NodeSelectorOpNotIn,
-				Values:   []string{v},
-			},
-			},
+		l = append(l, corev1.NodeSelectorRequirement{
+			Key:      k,
+			Operator: corev1.NodeSelectorOpNotIn,
+			Values:   []string{v},
 		})
 	}
 
-	return corev1.NodeSelector{NodeSelectorTerms: l}
+	nodeSelector := utils.MergeNodeSelector(&corev1.NodeSelector{
+		NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+			MatchExpressions: []corev1.NodeSelectorRequirement{{
+				Key:      consts.TypeLabel,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{consts.TypeNode},
+			}}}}}, &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+		MatchExpressions: l}}})
+	return nodeSelector
 }
 
 func forgePodOffloadingStrategy(command *cobra.Command) offloadingv1alpha1.PodOffloadingStrategyType {
