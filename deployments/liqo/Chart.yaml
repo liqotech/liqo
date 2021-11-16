@@ -23,6 +23,6 @@ version: "0.1"
 
 dependencies:
 - name: capsule
-  version: v0.1.0
+  version: v0.1.3
   repository: https://clastix.github.io/charts
   condition: capsule.install
