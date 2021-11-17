@@ -26,9 +26,16 @@ import (
 type Manager interface {
 	// With registers the given reflector to the manager.
 	With(reflector Reflector) Manager
+	// WithNamespaceHandler add the given NamespaceHandler to the manager.
+	WithNamespaceHandler(handler NamespaceHandler) Manager
 	// Start starts the reflection manager. It panics if executed twice.
 	Start(ctx context.Context)
 
+	NamespaceStartStopper
+}
+
+// NamespaceStartStopper manages the reflection at the namespace level.
+type NamespaceStartStopper interface {
 	// StartNamespace starts the reflection for a given namespace.
 	StartNamespace(local, remote string)
 	// StopNamespace stops the reflection for a given namespace.
@@ -61,4 +68,11 @@ type FallbackReflector interface {
 	Keys(local, remote string) []types.NamespacedName
 	// Ready returns whether the FallbackReflector is completely initialized.
 	Ready() bool
+}
+
+// NamespaceHandler  is responsible to call StartNamespace and StopNamespace
+// for a Namespace that has been marked for resources reflection.
+type NamespaceHandler interface {
+	// Start starts the NamespaceHandler.
+	Start(context.Context, NamespaceStartStopper)
 }

@@ -75,8 +75,6 @@ type PodReflector struct {
 	remoteRESTConfig     *rest.Config
 	remoteMetricsFactory MetricsFactory
 
-	ready bool
-
 	ipamclient ipam.IpamClient
 	handlers   sync.Map /* implicit signature: map[string]NamespacedPodHandler */
 }
@@ -140,7 +138,7 @@ func (pr *PodReflector) NewFallback(opts *options.ReflectorOpts) manager.Fallbac
 	return &FallbackPodReflector{
 		localPods:       opts.LocalPodInformer.Lister(),
 		localPodsClient: opts.LocalClient.CoreV1().Pods,
-		ready:           func() bool { return pr.ready },
+		ready:           opts.Ready,
 	}
 }
 
@@ -154,11 +152,6 @@ func (pr *PodReflector) Start(ctx context.Context, opts *options.ReflectorOpts) 
 func (pr *PodReflector) StopNamespace(local, remote string) {
 	pr.handlers.Delete(local)
 	pr.Reflector.StopNamespace(local, remote)
-}
-
-// StartAllNamespaces starts reflector to manage "orphan" pods in all namespaces.
-func (pr *PodReflector) StartAllNamespaces() {
-	pr.ready = true
 }
 
 // List returns the list of reflected pods.

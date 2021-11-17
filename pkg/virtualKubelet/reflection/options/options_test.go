@@ -63,6 +63,25 @@ var _ = Describe("Options", func() {
 				Expect(opts.HandlerFactory(nil)).To(Equal(opts.HandlerFactory(nil)))
 			})
 		})
+
+		Describe("The WithReadinessFunc function", func() {
+			JustBeforeEach(func() { returned = opts.WithReadinessFunc(func() bool { return true }) })
+
+			It("should return a non-nil pointer", func() { Expect(returned).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(returned).To(BeIdenticalTo(opts)) })
+
+			Context("when the readiness function returns true", func() {
+				JustBeforeEach(func() { returned = opts.WithReadinessFunc(func() bool { return true }) })
+
+				It("the opts readiness function should return true", func() { Expect(returned.Ready()).To(BeTrue()) })
+			})
+
+			Context("when the readiness function returns false", func() {
+				JustBeforeEach(func() { returned = opts.WithReadinessFunc(func() bool { return false }) })
+
+				It("the opts readiness function should return false", func() { Expect(returned.Ready()).To(BeFalse()) })
+			})
+		})
 	})
 
 	Describe("The NewNamespaced function", func() {
