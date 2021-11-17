@@ -12,16 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package namespacesmapping
-
-import (
-	"strings"
-)
-
-type namespaceNotAvailable struct {
-	namespaceName string
-}
-
-func (nnf *namespaceNotAvailable) Error() string {
-	return strings.Join([]string{"namespace ", nnf.namespaceName, " cannot be retrieved in namespaceMap"}, "")
-}
+// Package fake implements a fake namespace start and stopper used for testing purpouses.
+package fake

@@ -12,5 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package test implements a mock namespace reflection and namespace translation mechanism
-package test
+package namespacemap
+
+import (
+	"flag"
+	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"k8s.io/klog/v2"
+)
+
+func TestNamespace(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "NamespaceMap Suite")
+}
+
+var _ = BeforeSuite(func() {
+	klog.SetOutput(GinkgoWriter)
+	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
+	klog.InitFlags(flagset)
+	Expect(flagset.Set("v", "4")).To(Succeed())
+	klog.LogToStderr(false)
+})

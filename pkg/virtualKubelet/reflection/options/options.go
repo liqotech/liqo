@@ -36,6 +36,8 @@ type ReflectorOpts struct {
 	LocalPodInformer corev1informers.PodInformer
 
 	HandlerFactory func(Keyer) cache.ResourceEventHandler
+
+	Ready func() bool
 }
 
 // New returns a new ReflectorOpts object.
@@ -46,6 +48,12 @@ func New(client kubernetes.Interface, podInformer corev1informers.PodInformer) *
 // WithHandlerFactory configures the handler factory of the ReflectorOpts.
 func (ro *ReflectorOpts) WithHandlerFactory(handler func(Keyer) cache.ResourceEventHandler) *ReflectorOpts {
 	ro.HandlerFactory = handler
+	return ro
+}
+
+// WithReadinessFunc configures the readiness function of the ReflectorOpts.
+func (ro *ReflectorOpts) WithReadinessFunc(ready func() bool) *ReflectorOpts {
+	ro.Ready = ready
 	return ro
 }
 

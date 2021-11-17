@@ -36,10 +36,10 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/namespacemap"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/storage"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
@@ -74,7 +74,6 @@ type InitConfig struct {
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type LiqoProvider struct {
-	namespaceMapper   namespacesmapping.MapperController
 	reflectionManager manager.Manager
 	podHandler        workload.PodHandler
 }
@@ -119,6 +118,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 
 	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, cfg.InformerResyncPeriod, eb)
 	podreflector := workload.NewPodReflector(remoteRestConfig, foreignMetricsClient.MetricsV1beta1().PodMetricses, ipamClient, cfg.PodWorkers)
+	namespaceMapHandler := namespacemap.NewHandler(homeLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod)
 	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers)).
@@ -126,21 +126,12 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		With(configuration.NewSecretReflector(cfg.SecretWorkers)).
 		With(podreflector).
 		With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
-			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage))
+			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage)).
+		WithNamespaceHandler(namespaceMapHandler)
+
 	reflectionManager.Start(ctx)
 
-	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeCluster.ClusterID,
-		cfg.RemoteCluster.ClusterID, cfg.Namespace, reflectionManager)
-	if err != nil {
-		return nil, err
-	}
-	mapper.WaitForSync()
-
-	// All namespaces with active reflection have been detected, and we can start the podreflector default management for all namespaces.
-	podreflector.StartAllNamespaces()
-
 	return &LiqoProvider{
-		namespaceMapper:   mapper,
 		reflectionManager: reflectionManager,
 		podHandler:        podreflector,
 	}, nil

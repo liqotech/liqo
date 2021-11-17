@@ -71,11 +71,36 @@ var _ = Describe("Manager tests", func() {
 			Expect(mgr.(*manager).resync).To(Equal(1 * time.Hour))
 			Expect(mgr.(*manager).eventBroadcaster).To(Equal(broadcaster))
 
+			Expect(mgr.(*manager).namespaceHandler).To(BeNil())
+
 			Expect(mgr.(*manager).reflectors).ToNot(BeNil())
 			Expect(mgr.(*manager).localPodInformerFactory).ToNot(BeNil())
 
 			Expect(mgr.(*manager).started).To(BeFalse())
 			Expect(mgr.(*manager).stop).ToNot(BeNil())
+		})
+
+		Context("a NamespaceMapEventHandler is registered", func() {
+			var (
+				returned Manager
+				handler  *fakeNamespaceHandler
+			)
+
+			BeforeEach(func() { handler = &fakeNamespaceHandler{} })
+			JustBeforeEach(func() { returned = mgr.WithNamespaceHandler(handler) })
+
+			It("should return the receiver manager", func() { Expect(mgr).To(BeIdenticalTo(returned)) })
+			It("should correctly add the NamespaceMapEventHandler", func() {
+				Expect(mgr.(*manager).namespaceHandler).To(BeIdenticalTo(handler))
+			})
+
+			Context("the manager is started", func() {
+				JustBeforeEach(func() {
+					mgr.Start(ctx)
+				})
+
+				It("should start the registered NamespaceMapEventHandler", func() { Expect(handler.StartCalled).To(BeEquivalentTo(1)) })
+			})
 		})
 
 		Context("a reflector is registered", func() {
@@ -93,7 +118,10 @@ var _ = Describe("Manager tests", func() {
 			})
 
 			Context("the manager is started", func() {
-				JustBeforeEach(func() { mgr.Start(ctx) })
+				JustBeforeEach(func() {
+					mgr.WithNamespaceHandler(&fakeNamespaceHandler{})
+					mgr.Start(ctx)
+				})
 
 				It("should set the manager as started", func() { Expect(mgr.(*manager).started).To(BeTrue()) })
 				It("should start the registered reflector", func() { Expect(reflector.Started).To(BeTrue()) })
@@ -101,6 +129,7 @@ var _ = Describe("Manager tests", func() {
 					Expect(reflector.Opts.LocalClient).To(Equal(localClient))
 					Expect(reflector.Opts.LocalPodInformer).ToNot(BeNil())
 					Expect(reflector.Opts.HandlerFactory).To(BeNil())
+					Expect(reflector.Opts.Ready).ToNot(BeNil())
 				})
 				It("should panic if started twice", func() { Expect(func() { mgr.Start(ctx) }).To(Panic()) })
 
@@ -142,3 +171,13 @@ var _ = Describe("Manager tests", func() {
 		})
 	})
 })
+
+// fakeNamespaceHandler implements a fake NamespaceHandler for testing purpouses.
+type fakeNamespaceHandler struct {
+	StartCalled int
+}
+
+// Start is the fake Start method.
+func (nh *fakeNamespaceHandler) Start(ctx context.Context, mgr NamespaceStartStopper) {
+	nh.StartCalled++
+}

@@ -51,6 +51,8 @@ type manager struct {
 	reflectors              []Reflector
 	localPodInformerFactory informers.SharedInformerFactory
 
+	namespaceHandler NamespaceHandler
+
 	started bool
 	stop    map[string]context.CancelFunc
 }
@@ -90,6 +92,15 @@ func (m *manager) With(reflector Reflector) Manager {
 	return m
 }
 
+func (m *manager) WithNamespaceHandler(handler NamespaceHandler) Manager {
+	if m.started {
+		panic("Attempted to register a namespace event handler while already running")
+	}
+
+	m.namespaceHandler = handler
+	return m
+}
+
 // Start starts the reflection manager. It panics if executed twice.
 func (m *manager) Start(ctx context.Context) {
 	if m.started {
@@ -97,8 +108,11 @@ func (m *manager) Start(ctx context.Context) {
 	}
 
 	klog.Info("Starting the reflection manager...")
+	ready := false
 	for _, reflector := range m.reflectors {
-		reflector.Start(ctx, options.New(m.local, m.localPodInformerFactory.Core().V1().Pods()))
+		opts := options.New(m.local, m.localPodInformerFactory.Core().V1().Pods()).
+			WithReadinessFunc(func() bool { return ready })
+		reflector.Start(ctx, opts)
 	}
 
 	// This is a no-op in case no informers/listers have been retrieved.
@@ -106,6 +120,17 @@ func (m *manager) Start(ctx context.Context) {
 	m.localPodInformerFactory.WaitForCacheSync(ctx.Done())
 
 	m.started = true
+
+	if m.namespaceHandler != nil {
+		m.namespaceHandler.Start(ctx, m)
+	} else {
+		klog.Warningf("Starting reflection manager without namespace handler")
+	}
+
+	// Set the reflector readiness flag after all namespaced reflectors are started so that the fallback reflectors
+	// do not process resources that are intended to be handled by namespaced reflectors.
+	ready = true
+
 	go func() {
 		<-ctx.Done()
 		for _, stop := range m.stop {

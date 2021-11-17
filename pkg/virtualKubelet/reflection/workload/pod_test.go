@@ -53,6 +53,8 @@ var _ = Describe("Pod Reflection Tests", func() {
 
 			local corev1.Pod
 			err   error
+
+			fallbackReflectorReady bool
 		)
 
 		BeforeEach(func() { local = corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: "not-existing"}} })
@@ -62,7 +64,11 @@ var _ = Describe("Pod Reflection Tests", func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 
 			reflector = workload.NewPodReflector(nil, nil, nil, 0)
-			fallback = reflector.NewFallback(options.New(client, factory.Core().V1().Pods()).WithHandlerFactory(FakeEventHandler))
+
+			opts := options.New(client, factory.Core().V1().Pods()).
+				WithHandlerFactory(FakeEventHandler).
+				WithReadinessFunc(func() bool { return fallbackReflectorReady })
+			fallback = reflector.NewFallback(opts)
 
 			factory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())
@@ -135,7 +141,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 			})
 
 			When("the reflector is ready", func() {
-				JustBeforeEach(func() { reflector.StartAllNamespaces() })
+				JustBeforeEach(func() { fallbackReflectorReady = true })
 				It("should return true", func() { Expect(fallback.Ready()).To(BeTrue()) })
 			})
 		})
