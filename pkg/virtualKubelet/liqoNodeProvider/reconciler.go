@@ -234,10 +234,6 @@ func (p *LiqoNodeProvider) handleResourceOfferDelete(resourceOffer *sharingv1alp
 		return err
 	}
 
-	if isChanOpen(p.podProviderStopper) {
-		close(p.podProviderStopper)
-	}
-
 	// delete the node
 	if err := client.IgnoreNotFound(p.client.CoreV1().Nodes().Delete(ctx, p.node.GetName(), metav1.DeleteOptions{})); err != nil {
 		klog.Errorf("error deleting node: %v", err)
@@ -276,15 +272,6 @@ func (p *LiqoNodeProvider) patchLabels(labels map[string]string) error {
 
 	p.lastAppliedLabels = labels
 	return nil
-}
-
-func isChanOpen(ch chan struct{}) bool {
-	open := true
-	select {
-	case _, open = <-ch:
-	default:
-	}
-	return open
 }
 
 // areResourcesReady returns true if both cpu and memory are more than zero.

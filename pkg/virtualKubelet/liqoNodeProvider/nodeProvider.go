@@ -38,8 +38,7 @@ type LiqoNodeProvider struct {
 	kubeletNamespace string
 	resyncPeriod     time.Duration
 
-	networkReady       bool
-	podProviderStopper chan struct{}
+	networkReady bool
 
 	onNodeChangeCallback func(*corev1.Node)
 	updateMutex          sync.Mutex

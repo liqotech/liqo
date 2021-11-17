@@ -69,9 +69,8 @@ func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 		terminating:       false,
 		lastAppliedLabels: map[string]string{},
 
-		networkReady:       false,
-		podProviderStopper: cfg.PodProviderStopper,
-		resyncPeriod:       cfg.InformerResyncPeriod,
+		networkReady: false,
+		resyncPeriod: cfg.InformerResyncPeriod,
 
 		nodeName:         cfg.NodeName,
 		foreignClusterID: cfg.RemoteClusterID,

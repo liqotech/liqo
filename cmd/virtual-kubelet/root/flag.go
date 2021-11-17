@@ -37,8 +37,6 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 
 	flags.DurationVar(&c.InformerResyncPeriod, "full-resync-period", c.InformerResyncPeriod,
 		"how often to perform a full resync of pods between kubernetes and the provider")
-	flags.DurationVar(&c.LiqoInformerResyncPeriod, "liqo-resync-period", c.LiqoInformerResyncPeriod,
-		"how often to perform a full resync of Liqo resources informers")
 	flags.DurationVar(&c.StartupTimeout, "startup-timeout", c.StartupTimeout, "How long to wait for the virtual-kubelet to start")
 
 	flags.StringVar(&c.ForeignClusterID, "foreign-cluster-id", c.ForeignClusterID, "The Id of the foreign cluster")
