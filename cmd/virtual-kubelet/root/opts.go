@@ -28,11 +28,10 @@ import (
 
 // Defaults for root command options.
 const (
-	DefaultNodeName                               = "virtual-kubelet"
-	DefaultInformerResyncPeriod                   = 1 * time.Minute
-	DefaultLiqoInformerResyncPeriod time.Duration = 0
-	DefaultMetricsAddr                            = ":10255"
-	DefaultListenPort                             = 10250
+	DefaultNodeName             = "virtual-kubelet"
+	DefaultInformerResyncPeriod = 10 * time.Hour
+	DefaultMetricsAddr          = ":10255"
+	DefaultListenPort           = 10250
 
 	DefaultPodWorkers                  = 10
 	DefaultServiceWorkers              = 3
@@ -69,8 +68,7 @@ type Opts struct {
 	SecretWorkers               uint
 	PersistenVolumeClaimWorkers uint
 
-	InformerResyncPeriod     time.Duration
-	LiqoInformerResyncPeriod time.Duration
+	InformerResyncPeriod time.Duration
 
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
@@ -96,10 +94,6 @@ type Opts struct {
 func SetDefaultOpts(c *Opts) error {
 	if c.InformerResyncPeriod == 0 {
 		c.InformerResyncPeriod = DefaultInformerResyncPeriod
-	}
-
-	if c.LiqoInformerResyncPeriod == 0 {
-		c.InformerResyncPeriod = DefaultLiqoInformerResyncPeriod
 	}
 
 	if c.MetricsAddr == "" {

@@ -25,7 +25,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
@@ -35,7 +34,6 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
@@ -78,7 +76,6 @@ type LiqoProvider struct {
 	namespaceMapper   namespacesmapping.MapperController
 	reflectionManager manager.Manager
 	podHandler        workload.PodHandler
-	apiController     controller.APIController
 }
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
@@ -119,9 +116,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	}
 	ipamClient := ipam.NewIpamClient(connection)
 
-	// TODO: make the resync period configurable. This is currently hardcoded since the one specified as part of
-	// the configuration needs to be very low to avoid issues with the legacy reflection.
-	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, 10*time.Hour, eb)
+	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, cfg.InformerResyncPeriod, eb)
 	podreflector := workload.NewPodReflector(remoteRestConfig, foreignMetricsClient.MetricsV1beta1().PodMetricses, ipamClient, cfg.PodWorkers)
 	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
@@ -149,21 +144,10 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		namespaceMapper:   mapper,
 		reflectionManager: reflectionManager,
 		podHandler:        podreflector,
-		apiController:     controller.NewAPIController(homeClient, foreignClient, cfg.InformerResyncPeriod, mapper, nil),
 	}, nil
 }
 
 // PodHandler returns an handler to interact with the pods offloaded to the remote cluster.
 func (p *LiqoProvider) PodHandler() workload.PodHandler {
 	return p.podHandler
-}
-
-// SetProviderStopper sets the provided chan as the stopper for the API reflector.
-func (p *LiqoProvider) SetProviderStopper(stopper chan struct{}) {
-	go func() {
-		<-stopper
-		if err := p.apiController.StopController(); err != nil {
-			klog.Error(err)
-		}
-	}()
 }

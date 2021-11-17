@@ -109,9 +109,6 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
-	podProviderStopper := make(chan struct{})
-	podProvider.SetProviderStopper(podProviderStopper)
-
 	// Initialize the node provider
 	nodecfg := nodeprovider.InitConfig{
 		HomeConfig:      config,
@@ -126,8 +123,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		ExtraLabels:      c.NodeExtraLabels.StringMap,
 		ExtraAnnotations: c.NodeExtraAnnotations.StringMap,
 
-		PodProviderStopper:   podProviderStopper,
-		InformerResyncPeriod: c.LiqoInformerResyncPeriod,
+		InformerResyncPeriod: c.InformerResyncPeriod,
 	}
 
 	nodeProvider := nodeprovider.NewLiqoNodeProvider(&nodecfg)
