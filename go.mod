@@ -26,7 +26,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/virtual-kubelet/virtual-kubelet v1.5.1
+	github.com/virtual-kubelet/virtual-kubelet v1.6.0
 	github.com/vishvananda/netlink v1.1.1-0.20201029203352-d40f9887b852
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae
 	golang.org/x/sys v0.0.0-20210817190340-bfb29a6856f2
@@ -212,8 +212,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
-
-replace github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.5.1-0.20211028083903-28902eb9305f
 
 replace github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
 
