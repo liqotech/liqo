@@ -24,11 +24,15 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/microservices"
 	"github.com/liqotech/liqo/test/e2e/testutils/net"
+	"github.com/liqotech/liqo/test/e2e/testutils/storage"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -228,6 +232,77 @@ var _ = Describe("Liqo E2E", func() {
 				// cleanup the namespace
 				Expect(testContext.Clusters[0].NativeClient.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})).To(Succeed())
 			}, generateTableEntries()...)
+		})
+
+		Context("E2E Storage Testing", func() {
+
+			const (
+				namespace = "storage-test"
+			)
+
+			var (
+				replica1Name = fmt.Sprintf("%v-1", storage.StatefulSetName)
+
+				changeSchedule = func(schedulable bool, nodeName string) {
+					virtualNodes := &corev1.NodeList{}
+					labels := client.MatchingLabels{liqoconst.TypeLabel: liqoconst.TypeNode}
+					if nodeName != "" {
+						labels[corev1.LabelHostname] = nodeName
+					}
+
+					Expect(testContext.Clusters[0].ControllerClient.List(ctx, virtualNodes, labels)).To(Succeed())
+					var err error
+					for i := range virtualNodes.Items {
+						virtualNodes.Items[i].Spec.Unschedulable = !schedulable
+						_, err = testContext.Clusters[0].NativeClient.CoreV1().Nodes().Update(ctx, &virtualNodes.Items[i], metav1.UpdateOptions{})
+						Expect(err).ToNot(HaveOccurred())
+					}
+				}
+
+				podIsPending = func(podName string) bool {
+					pod, err := testContext.Clusters[0].NativeClient.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return pod.Status.Phase == corev1.PodPending
+				}
+			)
+
+			AfterEach(func() {
+				Expect(testContext.Clusters[0].NativeClient.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})).To(Succeed())
+			})
+
+			It("run stateful app", func() {
+				By("Deploying the StatefulSet app")
+				err := storage.DeployApp(ctx, testContext.Clusters[0].Config, namespace)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Waiting until each pod of the application is ready")
+				options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespace)
+				storage.WaitDemoApp(GinkgoT(), options)
+
+				By("Checking that the pod is bound to a specific cluster")
+				pod, err := testContext.Clusters[0].NativeClient.CoreV1().Pods(namespace).Get(ctx, replica1Name, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Cordoning the virtual node")
+				changeSchedule(false, pod.Spec.NodeName)
+
+				By("Deleting the pod on the virtual node")
+				Expect(testContext.Clusters[0].NativeClient.CoreV1().Pods(namespace).Delete(ctx, replica1Name, metav1.DeleteOptions{})).To(Succeed())
+				Eventually(func() bool {
+					return podIsPending(replica1Name)
+				}, timeout, interval).Should(BeTrue())
+				Consistently(func() bool {
+					return podIsPending(replica1Name)
+				}, 10*time.Second, interval).Should(BeTrue())
+
+				By("Uncordoning the virtual nodes")
+				changeSchedule(true, "")
+
+				By("Checking that the pod is running again")
+				storage.WaitDemoApp(GinkgoT(), options)
+			})
 		})
 
 		AfterSuite(func() {
