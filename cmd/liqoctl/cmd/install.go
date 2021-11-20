@@ -25,7 +25,7 @@ import (
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
 
-// installCmd represents the generateInstall command.
+// newInstallCommand generates a new Command representing `liqoctl install`.
 func newInstallCommand(ctx context.Context) *cobra.Command {
 	var installCmd = &cobra.Command{
 		Use:   installutils.LiqoctlInstallCommand,
@@ -47,7 +47,8 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 		"Disable the check that the current kubeconfig context contains the same endpoint retrieved from the cloud provider (AKS, EKS, GKE)")
 	installCmd.PersistentFlags().String("chart-path", installutils.LiqoChartFullName,
 		"Specify a path to get the Liqo chart, instead of installing the chart from the official repository")
-	installCmd.PersistentFlags().String("cluster-name", "", "Name to assign to the Liqo Cluster")
+	installCmd.PersistentFlags().StringP("cluster-name", "n", "", "Name to assign to the Liqo cluster")
+	installCmd.PersistentFlags().Bool("generate-name", false, "Generate a random Docker-like name for the cluster")
 	installCmd.PersistentFlags().String("reserved-subnets", "", "In order to prevent IP conflicting between locally used private subnets in your "+
 		"infrastructure and private subnets belonging to remote clusters "+
 		"you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then "+
