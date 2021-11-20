@@ -18,4 +18,4 @@ RUN apt-get update && apt-get install iptables iproute2 -y
 # Install goimports
 RUN GO111MODULE="on" go get -u github.com/ory/go-acc
 
-ENTRYPOINT go-acc ./... --ignore liqo/test/e2e
+ENTRYPOINT go-acc ./... --ignore liqo/test/e2e -- -vet=off
