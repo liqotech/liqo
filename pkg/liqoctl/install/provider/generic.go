@@ -15,7 +15,13 @@
 package provider
 
 import (
+	"fmt"
+	"math/rand"
+	"strings"
+
+	"github.com/goombaio/namegenerator"
 	flag "github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
@@ -32,10 +38,20 @@ type GenericProvider struct {
 
 // ValidateGenericCommandArguments validates the flags required by every install provider.
 func (p *GenericProvider) ValidateGenericCommandArguments(flags *flag.FlagSet) (err error) {
-	p.ClusterName, err = flags.GetString("cluster-name")
+	clusterName, err := flags.GetString("cluster-name")
 	if err != nil {
 		return err
 	}
+	if clusterName == "" {
+		randomName := namegenerator.NewNameGenerator(rand.Int63()).Generate() // nolint:gosec // don't need crypto/rand
+		clusterName = strings.Replace(randomName, "_", "-", 1)
+		fmt.Printf("A random cluster name was generated for you: %s\n", clusterName)
+	}
+	errs := validation.IsDNS1123Label(clusterName)
+	if len(errs) != 0 {
+		return fmt.Errorf("the cluster name may only contain lowercase letters, numbers and hyphens, and must not be no longer than 63 characters")
+	}
+	p.ClusterName = clusterName
 
 	subnetString, err := flags.GetString("reserved-subnets")
 	if err != nil {

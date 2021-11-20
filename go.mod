@@ -10,6 +10,7 @@ require (
 	github.com/clastix/capsule v0.1.0
 	github.com/containernetworking/plugins v0.9.1
 	github.com/coreos/go-iptables v0.5.0
+	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/gruntwork-io/terratest v0.35.6
