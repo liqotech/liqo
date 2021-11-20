@@ -65,8 +65,8 @@ const (
 )
 
 // NewLocalMonitor creates a new LocalResourceMonitor.
-func NewLocalMonitor(clientset kubernetes.Interface, resyncPeriod time.Duration, updater *OfferUpdater,
-	resourceSharingPercentage uint64) *LocalResourceMonitor {
+func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface, resyncPeriod time.Duration,
+	updater *OfferUpdater, resourceSharingPercentage uint64) *LocalResourceMonitor {
 	nodeInformer := informers.NewSharedInformerFactoryWithOptions(
 		clientset, resyncPeriod, informers.WithTweakListOptions(noVirtualNodesFilter),
 	).Core().V1().Nodes().Informer()
@@ -96,24 +96,10 @@ func NewLocalMonitor(clientset kubernetes.Interface, resyncPeriod time.Duration,
 		DeleteFunc: accountant.onPodDelete,
 	})
 
+	go accountant.nodeInformer.Run(ctx.Done())
+	go accountant.podInformer.Run(ctx.Done())
+
 	return &accountant
-}
-
-// Start starts the update loop.
-func (b *LocalResourceMonitor) Start(ctx context.Context, group *sync.WaitGroup) {
-	group.Add(2)
-	go b.startNodeInformer(ctx, group)
-	go b.startPodInformer(ctx, group)
-}
-
-func (b *LocalResourceMonitor) startNodeInformer(ctx context.Context, group *sync.WaitGroup) {
-	defer group.Done()
-	b.nodeInformer.Run(ctx.Done())
-}
-
-func (b *LocalResourceMonitor) startPodInformer(ctx context.Context, group *sync.WaitGroup) {
-	defer group.Done()
-	b.podInformer.Run(ctx.Done())
 }
 
 // react to a Node Creation/First informer run.

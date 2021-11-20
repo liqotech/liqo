@@ -44,7 +44,7 @@ var (
 	clientset   kubernetes.Interface
 	testEnv     *envtest.Environment
 	monitor       *LocalResourceMonitor
-	updater		  *OfferUpdater
+	updater       *OfferUpdater
 	ctx         context.Context
 	cancel      context.CancelFunc
 	group       sync.WaitGroup
@@ -101,7 +101,7 @@ func createCluster() {
 	localStorageClassName := ""
 	enableStorage := true
 	updater = NewOfferUpdater(k8sClient, homeCluster, nil, k8sManager.GetScheme(), 5, localStorageClassName, enableStorage)
-	monitor = NewLocalMonitor(clientset, 5*time.Second, updater, testutils.DefaultScalePercentage)
+	monitor = NewLocalMonitor(ctx, clientset, 5*time.Second, updater, testutils.DefaultScalePercentage)
 	updater.ResourceReader = monitor
 
 	updater.Start(ctx, &group)

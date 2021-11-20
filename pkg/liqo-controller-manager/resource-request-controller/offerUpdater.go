@@ -37,7 +37,6 @@ import (
 
 // ResourceReaderInterface represents an interface to read the available resources in this cluster.
 type ResourceReaderInterface interface {
-	Start(ctx context.Context, group *sync.WaitGroup)
 	// ReadResources returns the resources available for usage by the given cluster.
 	ReadResources(clusterID string) corev1.ResourceList
 	// RemoveClusterID removes the given clusterID from all internal structures.
@@ -80,9 +79,8 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 }
 
 // Start starts the OfferUpdater.
-func (u *OfferUpdater) Start(ctx context.Context, wg *sync.WaitGroup) {
-	u.ResourceReader.Start(ctx, wg)
-	u.OfferQueue.Start(ctx, wg)
+func (a *OfferUpdater) Start(ctx context.Context, wg *sync.WaitGroup) {
+	a.OfferQueue.Start(ctx, wg)
 }
 
 // CreateOrUpdateOffer creates an offer into the given cluster, reading resources from the ResourceReader.

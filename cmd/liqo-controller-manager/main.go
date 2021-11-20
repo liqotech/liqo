@@ -257,7 +257,7 @@ func main() {
 		mgr.GetScheme(), uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
 	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
 	klog.Info("Starting accountant...")
-	offerUpdater.ResourceReader = resourceRequestOperator.NewLocalMonitor(clientset, *resyncPeriod, offerUpdater,
+	offerUpdater.ResourceReader = resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod, offerUpdater,
 		resourceSharingPercentage.Val)
 	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
