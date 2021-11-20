@@ -33,6 +33,7 @@ func TestProvider(t *testing.T) {
 func newFlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("cluster-name", "", "")
+	flags.Bool("generate-name", false, "")
 	flags.String("reserved-subnets", "", "")
 	return flags
 }
@@ -63,8 +64,8 @@ var _ = DescribeTable("ValidateGenericCommandArguments",
 		expectedValidationOutcome: Not(Succeed()),
 		expectedClusterName:       BeEmpty(),
 	}),
-	Entry("should generate a valid name if none is given", commandTestcase{
-		flags:                     map[string]string{},
+	Entry("should generate a valid name if --generate-name is set", commandTestcase{
+		flags:                     map[string]string{"generate-name": "true"},
 		expectedValidationOutcome: Succeed(),
 		expectedClusterName:       Not(BeEmpty()),
 	}),

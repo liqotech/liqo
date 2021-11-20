@@ -38,13 +38,25 @@ type GenericProvider struct {
 
 // ValidateGenericCommandArguments validates the flags required by every install provider.
 func (p *GenericProvider) ValidateGenericCommandArguments(flags *flag.FlagSet) (err error) {
+	generate, err := flags.GetBool("generate-name")
+	if err != nil {
+		return err
+	}
 	clusterName, err := flags.GetString("cluster-name")
 	if err != nil {
 		return err
 	}
-	if clusterName == "" {
+
+	if clusterName == "" && !generate {
+		return fmt.Errorf("you must provide a cluster name or use --generate-name")
+	}
+	if clusterName != "" && generate {
+		return fmt.Errorf("cannot set a cluster name and use --generate-name at the same time")
+	}
+	if generate {
 		randomName := namegenerator.NewNameGenerator(rand.Int63()).Generate() // nolint:gosec // don't need crypto/rand
-		clusterName = strings.Replace(randomName, "_", "-", 1)
+		randomName = strings.Replace(randomName, "_", "-", 1)
+		clusterName = randomName
 		fmt.Printf("A random cluster name was generated for you: %s\n", clusterName)
 	}
 	errs := validation.IsDNS1123Label(clusterName)
