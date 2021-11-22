@@ -48,7 +48,7 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 			return err
 		}
 		if r.OwnerReferencesPermissionEnforcement {
-			if err = r.NamespaceManager.UnbindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
+			if err = r.NamespaceManager.UnbindIncomingClusterWideRole(ctx, remoteClusterID); err != nil {
 				klog.Error(err)
 				return err
 			}
@@ -65,7 +65,7 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 			return err
 		}
 		if r.OwnerReferencesPermissionEnforcement {
-			if _, err = r.NamespaceManager.BindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
+			if err = r.NamespaceManager.UnbindIncomingClusterWideRole(ctx, remoteClusterID); err != nil {
 				klog.Error(err)
 				return err
 			}
@@ -82,7 +82,7 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 			return err
 		}
 		if r.OwnerReferencesPermissionEnforcement {
-			if err = r.NamespaceManager.UnbindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
+			if _, err = r.NamespaceManager.BindIncomingClusterWideRole(ctx, remoteClusterID); err != nil {
 				klog.Error(err)
 				return err
 			}
@@ -99,7 +99,7 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 			return err
 		}
 		if r.OwnerReferencesPermissionEnforcement {
-			if _, err = r.NamespaceManager.BindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
+			if _, err = r.NamespaceManager.BindIncomingClusterWideRole(ctx, remoteClusterID); err != nil {
 				klog.Error(err)
 				return err
 			}

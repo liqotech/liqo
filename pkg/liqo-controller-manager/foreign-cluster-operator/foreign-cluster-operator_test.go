@@ -887,7 +887,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				},
 				expectedOutgoing:            Not(ContainElement(outgoingBinding)),
 				expectedIncoming:            ContainElement(incomingBinding),
-				expectedOutgoingClusterWide: HaveOccurred(),
+				expectedOutgoingClusterWide: Not(HaveOccurred()),
 			}),
 
 			Entry("outgoing peering", permissionTestcase{
@@ -927,7 +927,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				},
 				expectedOutgoing:            ContainElement(outgoingBinding),
 				expectedIncoming:            Not(ContainElement(incomingBinding)),
-				expectedOutgoingClusterWide: Not(HaveOccurred()),
+				expectedOutgoingClusterWide: HaveOccurred(),
 			}),
 
 			Entry("bidirectional peering", permissionTestcase{
