@@ -32,9 +32,9 @@ const (
 	tenantPrefix      = "tenant"
 )
 
-// BindOutgoingClusterWideRole creates and binds a ClusterRole for the cluster-wide permission required
+// BindIncomingClusterWideRole creates and binds a ClusterRole for the cluster-wide permission required
 // to establish the peering by the remote cluster.
-func (nm *tenantNamespaceManager) BindOutgoingClusterWideRole(ctx context.Context,
+func (nm *tenantNamespaceManager) BindIncomingClusterWideRole(ctx context.Context,
 	clusterID string) (*rbacv1.ClusterRoleBinding, error) {
 	clusterRoleName := getClusterRoleName(clusterID)
 	clusterRole := &rbacv1.ClusterRole{
@@ -90,9 +90,9 @@ func (nm *tenantNamespaceManager) BindOutgoingClusterWideRole(ctx context.Contex
 	return clusterRoleBinding, nil
 }
 
-// UnbindOutgoingClusterWideRole unbinds and deletes a ClusterRole for the cluster-wide permission required
+// UnbindIncomingClusterWideRole unbinds and deletes a ClusterRole for the cluster-wide permission required
 // to establish the peering by the remote cluster.
-func (nm *tenantNamespaceManager) UnbindOutgoingClusterWideRole(ctx context.Context, clusterID string) error {
+func (nm *tenantNamespaceManager) UnbindIncomingClusterWideRole(ctx context.Context, clusterID string) error {
 	clusterRoleName := getClusterRoleName(clusterID)
 
 	err := nm.client.RbacV1().ClusterRoleBindings().Delete(ctx, clusterRoleName, metav1.DeleteOptions{})

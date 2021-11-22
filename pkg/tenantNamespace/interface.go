@@ -28,6 +28,6 @@ type Manager interface {
 	GetNamespace(clusterID string) (*v1.Namespace, error)
 	BindClusterRoles(clusterID string, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
 	UnbindClusterRoles(clusterID string, clusterRoles ...string) error
-	BindOutgoingClusterWideRole(ctx context.Context, clusterID string) (*rbacv1.ClusterRoleBinding, error)
-	UnbindOutgoingClusterWideRole(ctx context.Context, clusterID string) error
+	BindIncomingClusterWideRole(ctx context.Context, clusterID string) (*rbacv1.ClusterRoleBinding, error)
+	UnbindIncomingClusterWideRole(ctx context.Context, clusterID string) error
 }

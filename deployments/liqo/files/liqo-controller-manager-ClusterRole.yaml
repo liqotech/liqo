@@ -522,4 +522,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - shadowpods/finalizers
+  verbs:
+  - get
+  - patch
+  - update
 

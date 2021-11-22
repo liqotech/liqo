@@ -243,7 +243,7 @@ var _ = Describe("TenantNamespace", func() {
 
 				By("Creating the binding")
 
-				crb, err = namespaceManager.BindOutgoingClusterWideRole(ctx, clusterID)
+				crb, err = namespaceManager.BindIncomingClusterWideRole(ctx, clusterID)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(crb).NotTo(BeNil())
 
@@ -269,12 +269,12 @@ var _ = Describe("TenantNamespace", func() {
 
 				By("Creating the binding twice")
 
-				crb, err = namespaceManager.BindOutgoingClusterWideRole(ctx, clusterID)
+				crb, err = namespaceManager.BindIncomingClusterWideRole(ctx, clusterID)
 				Expect(err).NotTo(HaveOccurred())
 
 				By("Deleting the binding")
 
-				Expect(namespaceManager.UnbindOutgoingClusterWideRole(ctx, clusterID)).To(Succeed())
+				Expect(namespaceManager.UnbindIncomingClusterWideRole(ctx, clusterID)).To(Succeed())
 
 				_, err = client.RbacV1().ClusterRoles().Get(ctx, clusterRoleName, metav1.GetOptions{})
 				Expect(err).To(HaveOccurred())
@@ -286,7 +286,7 @@ var _ = Describe("TenantNamespace", func() {
 
 				By("Deleting the binding twice")
 
-				Expect(namespaceManager.UnbindOutgoingClusterWideRole(ctx, clusterID)).To(Succeed())
+				Expect(namespaceManager.UnbindIncomingClusterWideRole(ctx, clusterID)).To(Succeed())
 			})
 
 		})
