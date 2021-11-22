@@ -254,11 +254,13 @@ func main() {
 	}
 
 	offerUpdater := resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
-		mgr.GetScheme(), uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
+		mgr.GetScheme(), uint(offerUpdateThreshold.Val),
+		*realStorageClassName, *enableStorage)
 	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
-	klog.Info("Starting accountant...")
-	offerUpdater.ResourceReader = resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod, offerUpdater,
-		resourceSharingPercentage.Val)
+	klog.Info("Starting resource monitor...")
+	monitor := resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod, offerUpdater)
+	scaledMonitor := &resourceRequestOperator.ResourceScaler{Provider: monitor, Factor: float32(resourceSharingPercentage.Val) / 100.}
+	offerUpdater.ResourceReader = scaledMonitor
 	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),

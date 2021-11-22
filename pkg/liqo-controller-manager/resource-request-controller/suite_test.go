@@ -33,7 +33,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/testutils"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 )
 
@@ -44,6 +43,7 @@ var (
 	clientset   kubernetes.Interface
 	testEnv     *envtest.Environment
 	monitor       *LocalResourceMonitor
+	scaledMonitor *ResourceScaler
 	updater       *OfferUpdater
 	ctx         context.Context
 	cancel      context.CancelFunc
@@ -101,8 +101,9 @@ func createCluster() {
 	localStorageClassName := ""
 	enableStorage := true
 	updater = NewOfferUpdater(k8sClient, homeCluster, nil, k8sManager.GetScheme(), 5, localStorageClassName, enableStorage)
-	monitor = NewLocalMonitor(ctx, clientset, 5*time.Second, updater, testutils.DefaultScalePercentage)
-	updater.ResourceReader = monitor
+	monitor = NewLocalMonitor(ctx, clientset, 5*time.Second, updater)
+	scaledMonitor = &ResourceScaler{Provider: monitor, Factor: DefaultScaleFactor}
+	updater.ResourceReader = scaledMonitor
 
 	updater.Start(ctx, &group)
 

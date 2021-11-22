@@ -40,14 +40,13 @@ import (
 
 // LocalResourceMonitor is an object that keeps track of the cluster's resources.
 type LocalResourceMonitor struct {
-	allocatable               corev1.ResourceList
-	resourcePodMap            map[string]corev1.ResourceList
-	nodeMutex                 sync.RWMutex
-	podMutex                  sync.RWMutex
-	nodeInformer              cache.SharedIndexInformer
-	podInformer               cache.SharedIndexInformer
-	resourceSharingPercentage uint64
-	updater                   *OfferUpdater
+	allocatable    corev1.ResourceList
+	resourcePodMap map[string]corev1.ResourceList
+	nodeMutex      sync.RWMutex
+	podMutex       sync.RWMutex
+	nodeInformer   cache.SharedIndexInformer
+	podInformer    cache.SharedIndexInformer
+	updater        *OfferUpdater
 }
 
 // PodTransition represents a podReady condition possible transitions.
@@ -66,7 +65,7 @@ const (
 
 // NewLocalMonitor creates a new LocalResourceMonitor.
 func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface, resyncPeriod time.Duration,
-	updater *OfferUpdater, resourceSharingPercentage uint64) *LocalResourceMonitor {
+	updater *OfferUpdater) *LocalResourceMonitor {
 	nodeInformer := informers.NewSharedInformerFactoryWithOptions(
 		clientset, resyncPeriod, informers.WithTweakListOptions(noVirtualNodesFilter),
 	).Core().V1().Nodes().Informer()
@@ -75,14 +74,13 @@ func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface, resync
 	).Core().V1().Pods().Informer()
 
 	accountant := LocalResourceMonitor{
-		allocatable:               corev1.ResourceList{},
-		resourcePodMap:            map[string]corev1.ResourceList{},
-		nodeMutex:                 sync.RWMutex{},
-		podMutex:                  sync.RWMutex{},
-		nodeInformer:              nodeInformer,
-		podInformer:               podInformer,
-		resourceSharingPercentage: resourceSharingPercentage,
-		updater:                   updater,
+		allocatable:    corev1.ResourceList{},
+		resourcePodMap: map[string]corev1.ResourceList{},
+		nodeMutex:      sync.RWMutex{},
+		podMutex:       sync.RWMutex{},
+		nodeInformer:   nodeInformer,
+		podInformer:    podInformer,
+		updater:        updater,
 	}
 
 	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -259,11 +257,6 @@ func (b *LocalResourceMonitor) ReadResources(clusterID string) corev1.ResourceLi
 	toRead := b.readClusterResources()
 	podsResources := b.readPodResources(clusterID)
 	addResources(toRead, podsResources)
-	for resourceName, quantity := range toRead {
-		scaled := quantity
-		b.scaleResources(resourceName, &scaled)
-		toRead[resourceName] = scaled
-	}
 	return toRead
 }
 
@@ -292,19 +285,6 @@ func (b *LocalResourceMonitor) readPodResources(clusterID string) corev1.Resourc
 		return toRead.DeepCopy()
 	}
 	return corev1.ResourceList{}
-}
-
-func (b *LocalResourceMonitor) scaleResources(resourceName corev1.ResourceName, quantity *resource.Quantity) {
-	switch resourceName {
-	case corev1.ResourceCPU:
-		// use millis
-		quantity.SetScaled(quantity.MilliValue()*int64(b.resourceSharingPercentage)/100, resource.Milli)
-	case corev1.ResourceMemory:
-		// use mega
-		quantity.SetScaled(quantity.ScaledValue(resource.Mega)*int64(b.resourceSharingPercentage)/100, resource.Mega)
-	default:
-		quantity.Set(quantity.Value() * int64(b.resourceSharingPercentage) / 100)
-	}
 }
 
 func setZero(resources *corev1.ResourceList) {

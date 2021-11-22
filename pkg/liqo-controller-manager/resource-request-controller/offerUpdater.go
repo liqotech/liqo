@@ -48,10 +48,10 @@ type OfferUpdater struct {
 	ResourceReader ResourceReaderInterface
 	OfferQueue
 
-	client        client.Client
+	client                    client.Client
 	homeCluster               discoveryv1alpha1.ClusterIdentity
-	clusterLabels map[string]string
-	scheme        *runtime.Scheme
+	clusterLabels             map[string]string
+	scheme                    *runtime.Scheme
 	localRealStorageClassName string
 	enableStorage             bool
 	// currentResources maps the clusters that we intend to offer resources to, to the resource list that we last used
@@ -70,7 +70,7 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 		clusterLabels:             clusterLabels,
 		scheme:                    scheme,
 		localRealStorageClassName: localRealStorageClassName,
-		enableStorage: 			   enableStorage,
+		enableStorage:             enableStorage,
 		currentResources:          map[string]corev1.ResourceList{},
 		updateThresholdPercentage: updateThresholdPercentage,
 	}
@@ -79,8 +79,8 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 }
 
 // Start starts the OfferUpdater.
-func (a *OfferUpdater) Start(ctx context.Context, wg *sync.WaitGroup) {
-	a.OfferQueue.Start(ctx, wg)
+func (u *OfferUpdater) Start(ctx context.Context, wg *sync.WaitGroup) {
+	u.OfferQueue.Start(ctx, wg)
 }
 
 // CreateOrUpdateOffer creates an offer into the given cluster, reading resources from the ResourceReader.
