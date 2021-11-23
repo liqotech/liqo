@@ -25,12 +25,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 )
 
 // EnforceNamespace creates and returns a namespace. If it already exists, it just returns the namespace.
-func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, clusterID, name string,
+func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster discoveryv1alpha1.ClusterIdentity, name string,
 	namespaceLabels map[string]string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -44,11 +45,11 @@ func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, clusterID, n
 	if kerrors.IsAlreadyExists(err) {
 		ns, err = cl.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			klog.Errorf("%s -> an error occurred while creating namespace %s : %s", clusterID, name, err)
+			klog.Errorf("%s -> an error occurred while creating namespace %s : %s", cluster, name, err)
 			return nil, err
 		}
 	} else if err != nil {
-		klog.Errorf("%s -> an error occurred while creating namespace %s : %s", clusterID, name, err)
+		klog.Errorf("%s -> an error occurred while creating namespace %s : %s", cluster, name, err)
 		return nil, err
 	}
 	return ns, nil

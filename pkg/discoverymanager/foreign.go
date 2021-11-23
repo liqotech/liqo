@@ -113,7 +113,7 @@ func createOrUpdate(ctx context.Context, data *discoveryData, cl client.Client,
 			klog.Error(err)
 			return err
 		}
-		klog.Infof("ForeignCluster %s created", data.ClusterInfo.ClusterID)
+		klog.Infof("ForeignCluster %s created", fc.Spec.ClusterIdentity)
 		if createdUpdatedForeign != nil {
 			*createdUpdatedForeign = append(*createdUpdatedForeign, fc)
 		}
@@ -128,7 +128,7 @@ func createOrUpdate(ctx context.Context, data *discoveryData, cl client.Client,
 			return err
 		}
 		if updated {
-			klog.Infof("ForeignCluster %s updated", data.ClusterInfo.ClusterID)
+			klog.Infof("ForeignCluster %s updated", fc.Spec.ClusterIdentity)
 			if createdUpdatedForeign != nil {
 				*createdUpdatedForeign = append(*createdUpdatedForeign, fc)
 			}
@@ -144,19 +144,20 @@ func createOrUpdate(ctx context.Context, data *discoveryData, cl client.Client,
 func createForeign(
 	ctx context.Context, cl client.Client, data *discoveryData,
 	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type) (*v1alpha1.ForeignCluster, error) {
+	identity := v1alpha1.ClusterIdentity{
+		ClusterID:   data.ClusterInfo.ClusterID,
+		ClusterName: data.ClusterInfo.ClusterName,
+	}
 	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: data.ClusterInfo.ClusterID,
+			Name: foreignclusterutils.UniqueName(&identity),
 			Labels: map[string]string{
 				discoveryPkg.DiscoveryTypeLabel: string(discoveryType),
-				discoveryPkg.ClusterIDLabel:     data.ClusterInfo.ClusterID,
+				discoveryPkg.ClusterIDLabel:     identity.ClusterID,
 			},
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
-			ClusterIdentity: v1alpha1.ClusterIdentity{
-				ClusterID:   data.ClusterInfo.ClusterID,
-				ClusterName: data.ClusterInfo.ClusterName,
-			},
+			ClusterIdentity:        identity,
 			OutgoingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
 			IncomingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
 			ForeignAuthURL:         data.AuthData.getURL(),

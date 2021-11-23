@@ -348,7 +348,7 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 	var resourceRequest discoveryv1alpha1.ResourceRequest
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: foreignCluster.Status.TenantNamespace.Local,
-		Name:      r.HomeCluster.ClusterID,
+		Name:      getResourceRequestNameFor(r.HomeCluster),
 	}, &resourceRequest)
 	if errors.IsNotFound(err) {
 		peeringconditionsutils.EnsureStatus(foreignCluster,

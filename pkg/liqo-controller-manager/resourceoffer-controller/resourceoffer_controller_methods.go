@@ -94,7 +94,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	remoteClusterIdentity := remoteCluster.Spec.ClusterIdentity
 
 	name := virtualKubelet.VirtualKubeletPrefix + remoteClusterIdentity.ClusterID
-	nodeName := virtualKubelet.VirtualNodeName(remoteClusterIdentity.ClusterID)
+	nodeName := virtualKubelet.VirtualNodeName(remoteClusterIdentity)
 
 	// create the base resources
 	vkServiceAccount := forge.VirtualKubeletServiceAccount(name, namespace)

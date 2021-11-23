@@ -185,7 +185,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID:   "foreign-cluster-id",
-							ClusterName: "ClusterTest2",
+							ClusterName: "testcluster2",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -222,7 +222,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
 				// populate the resourcerequest CR
-				c.rr.Name = controller.HomeCluster.ClusterID
+				c.rr.Name = getResourceRequestNameFor(controller.HomeCluster)
 				c.rr.Namespace = tenantNamespace.Name
 				c.rr.Spec.ClusterIdentity.ClusterID = c.fc.Spec.ClusterIdentity.ClusterID
 				c.rr.Labels = resourceRequestLabels(c.fc.Spec.ClusterIdentity.ClusterID)
@@ -312,7 +312,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Entry("unpeer", unpeerTestcase{
 				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster-name",
+						Name: "foreign-cluster",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
 							discovery.ClusterIDLabel:     "foreign-cluster-id",
@@ -321,7 +321,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID:   "foreign-cluster-id",
-							ClusterName: "ClusterTest2",
+							ClusterName: "foreign-cluster",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -344,11 +344,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 						Name: "",
 					},
 					Spec: discoveryv1alpha1.ResourceRequestSpec{
-						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "",
-							ClusterName: "Name",
-						},
-						AuthURL: "",
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{},
+						AuthURL:         "",
 					},
 					Status: discoveryv1alpha1.ResourceRequestStatus{
 						OfferState: discoveryv1alpha1.OfferStateCreated,
@@ -371,7 +368,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID:   "foreign-cluster-id",
-							ClusterName: "ClusterTest2",
+							ClusterName: "foreign-cluster-name",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -395,8 +392,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 					},
 					Spec: discoveryv1alpha1.ResourceRequestSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "",
-							ClusterName: "Name",
+							ClusterID:   "cluster-id",
+							ClusterName: "cluster-name",
 						},
 						AuthURL: "",
 					},
@@ -415,7 +412,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		It("Create Tenant Namespace", func() {
 			foreignCluster := &discoveryv1alpha1.ForeignCluster{
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "ForeignCluster",
+					Kind:       "testcluster",
 					APIVersion: discoveryv1alpha1.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -427,7 +424,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 				},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
 					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-						ClusterID: "foreign-cluster-abcd",
+						ClusterID:   "foreign-cluster-abcd",
+						ClusterName: "testcluster",
 					},
 					OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 					IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -477,7 +475,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 					},
 					Spec: discoveryv1alpha1.ResourceRequestSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID: "foreign-cluster-abcd",
+							ClusterID:   "foreign-cluster-abcd",
+							ClusterName: "testcluster",
 						},
 						AuthURL: "",
 					},
@@ -496,7 +495,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 					},
 					Spec: discoveryv1alpha1.ResourceRequestSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID: "local-id",
+							ClusterID:   "local-id",
+							ClusterName: "testcluster",
 						},
 						AuthURL: "",
 					},
@@ -587,7 +587,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID: "foreign-cluster-abcd",
+							ClusterID:   "foreign-cluster-abcd",
+							ClusterName: "foreign-cluster-name",
 						},
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
@@ -1121,7 +1122,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 					InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					ForeignAuthURL:         "https://example.com",
 					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-						ClusterID: "cluster-1",
+						ClusterID:   "cluster-1",
+						ClusterName: "testcluster",
 					},
 				},
 			}

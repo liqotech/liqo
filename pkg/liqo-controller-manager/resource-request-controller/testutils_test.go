@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -175,11 +176,11 @@ func setNodeReadyStatus(ctx context.Context, node *corev1.Node, status bool, cli
 
 // checkResourceOfferUpdate returns false if the (1) resource offer does not exist or the get returns an error (2) if the scaled quantity
 // available in the resourceOffer is not equal to the one present in the cluster. It returns true otherwise.
-func checkResourceOfferUpdate(ctx context.Context, homeClusterID string,
+func checkResourceOfferUpdate(ctx context.Context, homeCluster discoveryv1alpha1.ClusterIdentity,
 	nodeResources, podResources []corev1.ResourceList, k8sClient client.Client) bool {
 	offer := &sharingv1alpha1.ResourceOffer{}
 	err := k8sClient.Get(ctx, types.NamespacedName{
-		Name:      offerPrefix + homeClusterID,
+		Name:      homeCluster.ClusterName,
 		Namespace: ResourcesNamespace,
 	}, offer)
 	if err != nil {

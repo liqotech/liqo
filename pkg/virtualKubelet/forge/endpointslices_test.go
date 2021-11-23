@@ -24,7 +24,6 @@ import (
 	discoveryv1beta1apply "k8s.io/client-go/applyconfigurations/discovery/v1beta1"
 	"k8s.io/utils/pointer"
 
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -125,7 +124,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Expect(output[0].Conditions.Terminating).To(BeNil())
 			})
 			It("should correctly translate and replicate the topology information", func() {
-				Expect(output[0].Topology).To(HaveKeyWithValue(corev1.LabelHostname, virtualKubelet.VirtualNodeName(LocalClusterID)))
+				Expect(output[0].Topology).To(HaveKeyWithValue(corev1.LabelHostname, LocalClusterID))
 				Expect(output[0].Topology).To(HaveKeyWithValue(corev1.LabelTopologyRegion, "region"))
 			})
 			It("should correctly replicate the secondary fields", func() {

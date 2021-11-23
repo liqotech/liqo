@@ -14,6 +14,8 @@
 
 package virtualKubelet
 
+import discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+
 const (
 	// VirtualNodePrefix -> the prefix used to generate the virtual node name.
 	VirtualNodePrefix = "liqo-"
@@ -32,6 +34,6 @@ const (
 )
 
 // VirtualNodeName generates the virtual node name based on the cluster ID.
-func VirtualNodeName(clusterID string) string {
-	return VirtualNodePrefix + clusterID
+func VirtualNodeName(cluster discoveryv1alpha1.ClusterIdentity) string {
+	return VirtualNodePrefix + cluster.ClusterName
 }

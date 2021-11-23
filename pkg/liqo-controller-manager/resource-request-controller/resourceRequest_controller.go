@@ -39,10 +39,6 @@ type ResourceRequestReconciler struct {
 	EnableIncomingPeering bool
 }
 
-const (
-	offerPrefix = "resourceoffer-"
-)
-
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;list;watch;create;update;patch;
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests,verbs=get;list;watch;create;update;patch;delete

@@ -26,6 +26,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
+	resourcerequestoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 )
 
 const (
@@ -50,7 +51,7 @@ func (nm *tenantNamespaceManager) BindIncomingClusterWideRole(ctx context.Contex
 				APIGroups:     []string{capsulev1beta1.GroupVersion.Group},
 				Resources:     []string{"tenants/finalizers"},
 				Verbs:         []string{"get", "patch", "update"},
-				ResourceNames: []string{getTenantName(cluster)},
+				ResourceNames: []string{resourcerequestoperator.GetTenantName(cluster)},
 			},
 		},
 	}
@@ -114,8 +115,4 @@ func (nm *tenantNamespaceManager) UnbindIncomingClusterWideRole(ctx context.Cont
 
 func getClusterRoleName(cluster discoveryv1alpha1.ClusterIdentity) string {
 	return fmt.Sprintf("%v-%v", clusterRolePrefix, cluster.ClusterID)
-}
-
-func getTenantName(cluster discoveryv1alpha1.ClusterIdentity) string {
-	return fmt.Sprintf("%v-%v", tenantPrefix, cluster.ClusterID)
 }

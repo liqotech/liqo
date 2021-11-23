@@ -24,6 +24,8 @@ import (
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -120,6 +122,8 @@ func createCluster() {
 		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
+
+	Expect(k8sClient.Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ResourcesNamespace2}})).To(Succeed())
 }
 
 func destroyCluster() {

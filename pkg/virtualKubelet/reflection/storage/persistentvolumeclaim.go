@@ -191,7 +191,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 			return pv, state, err
 		})
 	if err != nil {
-		klog.Error("Error provisioning the remote PersistentVolumeClaim %q: %v", npvcr.RemoteRef(name), err.Error())
+		klog.Errorf("Error provisioning the remote PersistentVolumeClaim %q: %v", npvcr.RemoteRef(name), err.Error())
 		return err
 	}
 	tracer.Step("Remote mutation created")

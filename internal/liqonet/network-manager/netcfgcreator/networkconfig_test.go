@@ -30,12 +30,14 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 var _ = Describe("Network config functions", func() {
 	const (
-		clusterID = "fake"
-		namespace = "liqo"
+		clusterID   = "fake"
+		clusterName = "fake"
+		namespace   = "liqo"
 	)
 
 	var (
@@ -204,7 +206,7 @@ var _ = Describe("Network config functions", func() {
 				},
 				ObjectMeta: metav1.ObjectMeta{Name: "whatever", UID: "8a402261-9cf4-402e-89e8-4d743fb315fb"},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
-					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID},
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID, ClusterName: clusterName},
 				},
 				Status: discoveryv1alpha1.ForeignClusterStatus{
 					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{Local: namespace},
@@ -228,7 +230,7 @@ var _ = Describe("Network config functions", func() {
 			}
 
 			AssertNetworkConfigSpec := func(netcfg *netv1alpha1.NetworkConfig) {
-				Expect(netcfg.Spec.ClusterID).To(BeIdenticalTo(clusterID))
+				Expect(netcfg.Spec.RemoteCluster.ClusterID).To(BeIdenticalTo(clusterID))
 				Expect(netcfg.Spec.PodCIDR).To(BeIdenticalTo("192.168.0.0/24"))
 				Expect(netcfg.Spec.ExternalCIDR).To(BeIdenticalTo("192.168.1.0/24"))
 				Expect(netcfg.Spec.EndpointIP).To(BeIdenticalTo("1.1.1.1"))
@@ -242,7 +244,8 @@ var _ = Describe("Network config functions", func() {
 				It("the network config should be present and have the correct object meta", func() {
 					netcfg, err := GetLocalNetworkConfig(ctx, fcw.Client, clusterID, namespace)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(netcfg.Name).To(HavePrefix("net-config-"))
+					identity := discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID, ClusterName: clusterName}
+					Expect(netcfg.Name).To(Equal(foreignclusterutils.UniqueName(&identity)))
 					AssertNetworkConfigMeta(netcfg)
 				})
 				It("the network config should be present and have the correct specifications", func() {
@@ -262,7 +265,14 @@ var _ = Describe("Network config functions", func() {
 									"other-key":                        "other-value",
 								},
 							},
-							Spec: netv1alpha1.NetworkConfigSpec{ClusterID: "foo", EndpointIP: "bar", BackendType: "baz"},
+							Spec: netv1alpha1.NetworkConfigSpec{
+								RemoteCluster: discoveryv1alpha1.ClusterIdentity{
+									ClusterID:   "foo-id",
+									ClusterName: "foo-name",
+								},
+								EndpointIP:  "bar",
+								BackendType: "baz",
+							},
 						},
 					)
 				})

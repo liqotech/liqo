@@ -118,7 +118,7 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 	offer := &sharingv1alpha1.ResourceOffer{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: request.GetNamespace(),
-			Name:      offerPrefix + u.homeCluster.ClusterID,
+			Name:      getOfferName(u.homeCluster),
 		},
 	}
 

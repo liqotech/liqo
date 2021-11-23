@@ -24,19 +24,18 @@ import (
 )
 
 const (
-	roleBindingName = "role-binding"
-	roleType        = "Role"
-	roleName        = "fake"
+	roleType = "Role"
+	roleName = "fake"
 )
 
 // The remote namespace must have at least 2 roleBinding with the clastix label.
 
 // GetRoleBindingForASpecificNamespace provides a roleBinding in the namespace passed as parameter.
 // The name of the RoleBinding is associated to the index passed as second parameter.
-func GetRoleBindingForASpecificNamespace(namespaceName, localClusterID string, index int) rbacv1.RoleBinding {
+func GetRoleBindingForASpecificNamespace(namespaceName, localClusterID, roleBindingName string) rbacv1.RoleBinding {
 	return rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%d", roleBindingName, index),
+			Name:      roleBindingName,
 			Namespace: namespaceName,
 			Labels: map[string]string{
 				liqoconst.RoleBindingLabelKey: fmt.Sprintf("%s-%s", liqoconst.RoleBindingLabelValuePrefix, localClusterID),

@@ -31,6 +31,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 type tenantNamespaceManager struct {
@@ -79,7 +80,7 @@ func (nm *tenantNamespaceManager) CreateNamespace(cluster discoveryv1alpha1.Clus
 	// exit with an error, and retry during the next iteration.
 	ns = &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: tenantNamespaceRoot + "-" + cluster.ClusterID,
+			Name: getNameForNamespace(cluster),
 			Labels: map[string]string{
 				discovery.ClusterIDLabel:       cluster.ClusterID,
 				discovery.TenantNamespaceLabel: "true",
@@ -109,7 +110,7 @@ func (nm *tenantNamespaceManager) GetNamespace(cluster discoveryv1alpha1.Cluster
 	}
 
 	if nItems := len(namespaces); nItems == 0 {
-		err = kerrors.NewNotFound(v1.Resource("Namespace"), tenantNamespaceRoot+"-"+cluster.ClusterID)
+		err = kerrors.NewNotFound(v1.Resource("Namespace"), getNameForNamespace(cluster))
 		// do not log it always, since it is also used in the preliminary stage of the create method
 		klog.V(4).Info(err)
 		return nil, err
@@ -119,4 +120,8 @@ func (nm *tenantNamespaceManager) GetNamespace(cluster discoveryv1alpha1.Cluster
 		return nil, err
 	}
 	return namespaces[0].DeepCopy(), nil
+}
+
+func getNameForNamespace(cluster discoveryv1alpha1.ClusterIdentity) string {
+	return fmt.Sprintf("liqo-tenant-%s", foreignclusterutils.UniqueName(&cluster))
 }

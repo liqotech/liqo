@@ -102,14 +102,14 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 		labels := func() map[string]string {
 			return map[string]string{
 				consts.ReplicationRequestedLabel:   strconv.FormatBool(true),
-				consts.ReplicationDestinationLabel: remoteClusterID,
+				consts.ReplicationDestinationLabel: remoteCluster.ClusterID,
 			}
 		}
 
 		foreignCluster = discoveryv1alpha1.ForeignCluster{
 			ObjectMeta: metav1.ObjectMeta{Name: foreignClusterName},
 			Spec: discoveryv1alpha1.ForeignClusterSpec{
-				ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID},
+				ClusterIdentity: remoteCluster,
 				ForeignAuthURL:  authURL, OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 				IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto, InsecureSkipTLSVerify: pointer.Bool(true),
 			},
@@ -120,20 +120,20 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 		resourceRequest = discoveryv1alpha1.ResourceRequest{
 			ObjectMeta: metav1.ObjectMeta{Name: resourceRequestName, Namespace: localNamespace, Labels: labels()},
 			Spec: discoveryv1alpha1.ResourceRequestSpec{
-				ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID},
+				ClusterIdentity: remoteCluster,
 				AuthURL:         authURL,
 			},
 		}
 
 		resourceOffer = sharingv1alpha1.ResourceOffer{
 			ObjectMeta: metav1.ObjectMeta{Name: resourceOfferName, Namespace: localNamespace, Labels: labels()},
-			Spec:       sharingv1alpha1.ResourceOfferSpec{ClusterId: remoteClusterID},
+			Spec:       sharingv1alpha1.ResourceOfferSpec{ClusterId: remoteCluster.ClusterID},
 		}
 
 		networkConfig = netv1alpha1.NetworkConfig{
 			ObjectMeta: metav1.ObjectMeta{Name: networkConfigName, Namespace: localNamespace, Labels: labels()},
 			Spec: netv1alpha1.NetworkConfigSpec{
-				ClusterID: remoteClusterID, PodCIDR: "1.1.1.0/24", ExternalCIDR: "1.1.2.0/24",
+				RemoteCluster: remoteCluster, PodCIDR: "1.1.1.0/24", ExternalCIDR: "1.1.2.0/24",
 				EndpointIP: "1.1.1.1", BackendType: wireguard.DriverName, BackendConfig: map[string]string{},
 			},
 		}

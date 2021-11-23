@@ -38,7 +38,8 @@ import (
 
 var _ = Describe("NetworkConfigCreator Controller", func() {
 	const (
-		clusterID      = "fake"
+		clusterID      = "fake-id"
+		clusterName    = "fake-name"
 		namespace      = "liqo"
 		foreigncluster = "foreign-cluster"
 	)
@@ -84,7 +85,7 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 		fc = &discoveryv1alpha1.ForeignCluster{
 			ObjectMeta: metav1.ObjectMeta{Name: foreigncluster},
 			Spec: discoveryv1alpha1.ForeignClusterSpec{
-				ClusterIdentity:        discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID},
+				ClusterIdentity:        discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID, ClusterName: clusterName},
 				IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 				OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 				InsecureSkipTLSVerify:  pointer.Bool(true),
@@ -120,7 +121,10 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 					},
 				},
 				Spec: netv1alpha1.NetworkConfigSpec{
-					ClusterID: "foo", EndpointIP: "bar", BackendType: "baz", BackendConfig: map[string]string{},
+					RemoteCluster: discoveryv1alpha1.ClusterIdentity{ClusterID: "foo-id", ClusterName: "foo-name"},
+					EndpointIP:    "bar",
+					BackendType:   "baz",
+					BackendConfig: map[string]string{},
 				},
 			}
 			Expect(ncc.Create(ctx, &netcfg)).To(Succeed())
@@ -143,7 +147,8 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 				}
 
 				AssertNetworkConfigSpec := func(netcfg *netv1alpha1.NetworkConfig) {
-					Expect(netcfg.Spec.ClusterID).To(BeIdenticalTo(clusterID))
+					Expect(netcfg.Spec.RemoteCluster.ClusterID).To(BeIdenticalTo(clusterID))
+					Expect(netcfg.Spec.RemoteCluster.ClusterName).To(BeIdenticalTo(clusterName))
 					Expect(netcfg.Spec.PodCIDR).To(BeIdenticalTo("192.168.0.0/24"))
 					Expect(netcfg.Spec.ExternalCIDR).To(BeIdenticalTo("192.168.1.0/24"))
 					Expect(netcfg.Spec.EndpointIP).To(BeIdenticalTo("1.1.1.1"))

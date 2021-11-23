@@ -60,8 +60,8 @@ var _ = Describe("Liqo E2E", func() {
 		localIndex  = 0
 		// index of the cluster on which a remote namespace with the same name already exists.
 		remoteIndex             = 2
-		localClusterID          = testContext.Clusters[localIndex].ClusterID
-		remoteTestNamespaceName = fmt.Sprintf("%s-%s", testNamespaceName, localClusterID)
+		localCluster            = testContext.Clusters[localIndex].Cluster
+		remoteTestNamespaceName = fmt.Sprintf("%s-%s", testNamespaceName, localCluster.ClusterID)
 	)
 
 	Context(fmt.Sprintf("Create a namespace inside the cluster '%d' and check what happen if a remote namespaace in the cluster "+
@@ -75,7 +75,7 @@ var _ = Describe("Liqo E2E", func() {
 			By(fmt.Sprintf(" 1 - Creating the remote namespace inside the cluster '%d'", remoteIndex))
 			Eventually(func() error {
 				_, err := util.EnforceNamespace(ctx, testContext.Clusters[remoteIndex].NativeClient,
-					testContext.Clusters[remoteIndex].ClusterID, remoteTestNamespaceName,
+					testContext.Clusters[remoteIndex].Cluster, remoteTestNamespaceName,
 					util.GetNamespaceLabel(false))
 				return err
 			}, timeout, interval).Should(BeNil())
@@ -83,7 +83,7 @@ var _ = Describe("Liqo E2E", func() {
 			By(fmt.Sprintf(" 2 - Creating the local namespace inside the cluster '%d'", localIndex))
 			Eventually(func() error {
 				_, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
-					testContext.Clusters[localIndex].ClusterID, testNamespaceName,
+					testContext.Clusters[localIndex].Cluster, testNamespaceName,
 					util.GetNamespaceLabel(true))
 				return err
 			}, timeout, interval).Should(BeNil())
@@ -119,7 +119,7 @@ var _ = Describe("Liqo E2E", func() {
 					types.NamespacedName{Name: remoteTestNamespaceName}, namespace); err != nil {
 					return err
 				}
-				if value, ok := namespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey]; !ok || value != localClusterID {
+				if value, ok := namespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey]; !ok || value != localCluster.ClusterID {
 					return fmt.Errorf("the remote namespace has not the right Liqo annotation")
 				}
 				return nil

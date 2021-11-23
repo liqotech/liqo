@@ -17,12 +17,12 @@ package namespacemapctrl
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -79,7 +79,7 @@ func (r *NamespaceMapReconciler) createRemoteNamespace(ctx context.Context,
 		return err
 	}
 	// 3 - Check if the virtual kubelet will have the right privileges on the remote namespace.
-	if err = checkRemoteNamespaceRoleBindings(ctx, r.RemoteClients[remoteCluster.ClusterID], remoteNamespaceName, r.LocalCluster); err != nil {
+	if err = checkRemoteNamespaceRoleBindings(ctx, r.RemoteClients[remoteCluster.ClusterID], remoteNamespaceName); err != nil {
 		return err
 	}
 
@@ -228,28 +228,40 @@ func (r *NamespaceMapReconciler) namespaceMapDeletionProcess(ctx context.Context
 
 // checkRemoteNamespaceRoleBindings checks that the right roleBindings are inside the remote namespace to understand if the
 // virtual kubelet will have the right privileges on that namespace.
-func checkRemoteNamespaceRoleBindings(ctx context.Context, cl kubernetes.Interface,
-	remoteNamespaceName string, localCluster discoveryv1alpha1.ClusterIdentity) error {
-	roleBindingLabelValue := fmt.Sprintf("%s-%s", liqoconst.RoleBindingLabelValuePrefix, localCluster.ClusterID)
-	roleBindingList := &rbacv1.RoleBindingList{}
-	labelSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			liqoconst.RoleBindingLabelKey: roleBindingLabelValue,
-		},
-	}
-
+func checkRemoteNamespaceRoleBindings(ctx context.Context, cl kubernetes.Interface, remoteNamespaceName string) error {
+	var roleBindingList *rbacv1.RoleBindingList
 	var err error
-	if roleBindingList, err = cl.RbacV1().RoleBindings(remoteNamespaceName).List(ctx, metav1.ListOptions{
-		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
-	}); err != nil {
+
+	if roleBindingList, err = cl.RbacV1().RoleBindings(remoteNamespaceName).List(ctx, metav1.ListOptions{}); err != nil {
 		klog.Errorf("%s -> unable to list roleBindings in the remote namespace '%s'", err, remoteNamespaceName)
 		return err
 	}
-	if len(roleBindingList.Items) < 3 {
-		err = fmt.Errorf("not enough roleBinding in the remote namespace '%s'. Virtual kubelet will not have "+
-			"the necessary privileges", remoteNamespaceName)
-		klog.Error(err)
-		return err
+
+	/* We expect the following RoleBindings:
+	 *   - capsule-<tenant name>-0-liqo-virtual-kubelet-remote
+	 *   - namespace-deleter
+	 *   - namespace:admin
+	 */
+	requiredRoleBindings := []string{
+		"virtual-kubelet-remote",
+		"namespace-deleter",
+		"namespace:admin",
+	}
+	for _, requiredName := range requiredRoleBindings {
+		found := false
+		// We range by index to avoid copying, per gocritic
+		for idx := range roleBindingList.Items {
+			if strings.HasSuffix(roleBindingList.Items[idx].Name, requiredName) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			err = fmt.Errorf("required RoleBinding %s not found in the remote namespace %s. The virtual kubelet "+
+				"will not have the necessary privileges", requiredName, remoteNamespaceName)
+			klog.Error(err)
+			return err
+		}
 	}
 	return nil
 }

@@ -16,7 +16,6 @@ package resourcerequestoperator
 
 import (
 	"context"
-	"fmt"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -29,16 +28,26 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 const tenantFinalizer = "liqo.io/tenant"
 
 func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
-	remoteClusterID := resourceRequest.Spec.ClusterIdentity.ClusterID
+	// We don't use resourceRequest.Spec.ClusterIdentity directly because we might use a different ClusterName locally
+	remoteCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceRequest.Spec.ClusterIdentity.ClusterID)
+	if err != nil {
+		klog.Error(err)
+		return false, err
+	}
+	remoteClusterIdentity := remoteCluster.Spec.ClusterIdentity
+	klog.Infof("%s -> creating Tenant %s",
+		remoteClusterIdentity.ClusterName, GetTenantName(remoteClusterIdentity))
+
 	tenant := &capsulev1beta1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("tenant-%v", remoteClusterID),
+			Name: GetTenantName(remoteClusterIdentity),
 		},
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, tenant, func() error {
@@ -46,13 +55,13 @@ func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
 			NamespaceOptions: &capsulev1beta1.NamespaceOptions{
 				AdditionalMetadata: &capsulev1beta1.AdditionalMetadataSpec{
 					Annotations: map[string]string{
-						liqoconst.RemoteNamespaceAnnotationKey: resourceRequest.Spec.ClusterIdentity.ClusterID,
+						liqoconst.RemoteNamespaceAnnotationKey: remoteClusterIdentity.ClusterID,
 					},
 				},
 			},
 			Owners: []capsulev1beta1.OwnerSpec{
 				{
-					Name: remoteClusterID,
+					Name: remoteClusterIdentity.ClusterID,
 					Kind: rbacv1.UserKind,
 				},
 			},
@@ -62,7 +71,7 @@ func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
 					Subjects: []rbacv1.Subject{
 						{
 							Kind: rbacv1.UserKind,
-							Name: remoteClusterID,
+							Name: remoteClusterIdentity.ClusterID,
 						},
 					},
 				},
@@ -71,12 +80,11 @@ func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
 		return nil
 	})
 	if err != nil {
-		klog.Error(err)
 		return false, err
 	}
 
 	if !controllerutil.ContainsFinalizer(resourceRequest, tenantFinalizer) {
-		klog.Infof("%s -> adding %s finalizer", remoteClusterID, tenantFinalizer)
+		klog.Infof("%s -> adding %s finalizer", remoteClusterIdentity.ClusterName, tenantFinalizer)
 		controllerutil.AddFinalizer(resourceRequest, tenantFinalizer)
 		return true, nil
 	}
@@ -86,11 +94,17 @@ func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
 
 func (r *ResourceRequestReconciler) ensureTenantDeletion(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
-	remoteClusterID := resourceRequest.Spec.ClusterIdentity.ClusterID
+	// We don't use resourceRequest.Spec.ClusterIdentity directly because we might use a different ClusterName locally
+	remoteCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceRequest.Spec.ClusterIdentity.ClusterID)
+	if err != nil {
+		klog.Error(err)
+		return false, err
+	}
+	remoteClusterIdentity := remoteCluster.Spec.ClusterIdentity
 
 	tenant := &capsulev1beta1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("tenant-%v", remoteClusterID),
+			Name: GetTenantName(remoteClusterIdentity),
 		},
 	}
 	err = r.Client.Delete(ctx, tenant)
@@ -109,11 +123,10 @@ func (r *ResourceRequestReconciler) ensureTenantDeletion(ctx context.Context,
 
 func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) error {
-	name := offerPrefix + r.HomeCluster.ClusterID
 
 	var resourceOffer sharingv1alpha1.ResourceOffer
 	err := r.Client.Get(ctx, types.NamespacedName{
-		Name:      name,
+		Name:      getOfferName(r.HomeCluster),
 		Namespace: resourceRequest.GetNamespace(),
 	}, &resourceOffer)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -128,4 +141,14 @@ func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,
 	}
 
 	return nil
+}
+
+// getOfferName returns the name of the ResourceOffer coming from the given cluster.
+func getOfferName(cluster discoveryv1alpha1.ClusterIdentity) string {
+	return cluster.ClusterName
+}
+
+// GetTenantName returns the name of the Tenant for the given cluster.
+func GetTenantName(cluster discoveryv1alpha1.ClusterIdentity) string {
+	return cluster.ClusterName
 }

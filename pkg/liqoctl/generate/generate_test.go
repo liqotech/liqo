@@ -53,7 +53,8 @@ func TestAddCommand(t *testing.T) {
 
 var _ = Describe("Test the generate command works as expected", func() {
 
-	setUpEnvironment := func(liqonamespace, localClusterID, token string, deployArgs []string) client.Client {
+	setUpEnvironment := func(liqonamespace, localClusterID, localClusterName, token string,
+		deployArgs []string) client.Client {
 		// Create Namespace
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -71,7 +72,8 @@ var _ = Describe("Test the generate command works as expected", func() {
 				},
 			},
 			Data: map[string]string{
-				consts.ClusterIDConfigMapKey: localClusterID,
+				consts.ClusterIDConfigMapKey:   localClusterID,
+				consts.ClusterNameConfigMapKey: localClusterName,
 			},
 		}
 		secret := &corev1.Secret{
@@ -136,12 +138,9 @@ var _ = Describe("Test the generate command works as expected", func() {
 
 	DescribeTable("A generate command is performed",
 		func(deployArgs []string, expected string) {
-			k8sClient = setUpEnvironment(liqoNamespace, localClusterID, token, deployArgs)
+			k8sClient = setUpEnvironment(liqoNamespace, localClusterID, clusterName, token, deployArgs)
 			Expect(processGenerateCommand(ctx, k8sClient, liqoNamespace, "liqoctl")).To(BeIdenticalTo(expected))
 		},
-		Entry("Cluster name unset", []string{},
-			commandName+" add cluster "+localClusterID+" --auth-url https://"+authEndpoint+" --id "+localClusterID+" --token "+token,
-		),
 		Entry("Default authentication service endpoint",
 			[]string{fmt.Sprintf("--%v=%v", consts.ClusterNameParameter, clusterName)},
 			commandName+" add cluster "+clusterName+" --auth-url https://"+authEndpoint+" --id "+localClusterID+" --token "+token,

@@ -121,13 +121,13 @@ var _ = Describe("Liqo E2E", func() {
 						"ResourceOffer sent by the cluster under examination")
 					Eventually(func() error {
 						tenantNamespaceName, err := liqoutils.GetLocalTenantNamespaceName(ctx,
-							cluster.ControllerClient, testContext.Clusters[i].ClusterID)
+							cluster.ControllerClient, testContext.Clusters[i].Cluster)
 						if err != nil {
 							return err
 						}
 						return cluster.ControllerClient.Get(ctx, types.NamespacedName{
 							Namespace: tenantNamespaceName,
-							Name:      fmt.Sprintf("%s-%s", resourceOfferNamePrefix, cluster.ClusterID),
+							Name:      fmt.Sprintf("%s-%s", resourceOfferNamePrefix, cluster.Cluster.ClusterName),
 						}, resourceOffer)
 					}, timeout, interval).Should(BeNil())
 					for key, value := range clusterLabels {
@@ -144,7 +144,7 @@ var _ = Describe("Liqo E2E", func() {
 			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
 				virtualNode := &corev1.Node{}
 				liqoPrefix := "liqo"
-				virtualNodeName := fmt.Sprintf("%s-%s", liqoPrefix, cluster.ClusterID)
+				virtualNodeName := fmt.Sprintf("%s-%s", liqoPrefix, cluster.Cluster.ClusterName)
 				for i := range testContext.Clusters {
 					if i == index {
 						continue
@@ -172,7 +172,7 @@ var _ = Describe("Liqo E2E", func() {
 			By(" 1 - Creating the local namespace without the NamespaceOffloading resource")
 			Eventually(func() error {
 				_, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
-					testContext.Clusters[localIndex].ClusterID,
+					testContext.Clusters[localIndex].Cluster,
 					testNamespaceName, util.GetNamespaceLabel(false))
 				return err
 			}, timeout, interval).Should(BeNil())
@@ -202,7 +202,7 @@ var _ = Describe("Liqo E2E", func() {
 				var cl kubernetes.Interface
 				for j := range testContext.Clusters {
 					cluster := &testContext.Clusters[j]
-					if cluster.ClusterID == remoteClusterID {
+					if cluster.Cluster.ClusterID == remoteClusterID {
 						cl = cluster.NativeClient
 						break
 					}
@@ -221,7 +221,7 @@ var _ = Describe("Liqo E2E", func() {
 
 					value, ok := namespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey]
 					Expect(ok).To(BeTrue())
-					Expect(value).To(Equal(testContext.Clusters[localIndex].ClusterID))
+					Expect(value).To(Equal(testContext.Clusters[localIndex].Cluster.ClusterID))
 				} else {
 					// Check if the remote namespace does not exists.
 					By(fmt.Sprintf(" 5 - Checking that no remote namespace is created inside cluster '%s'", remoteClusterID))

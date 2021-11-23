@@ -31,9 +31,8 @@ import (
 // ensureResourceRequest ensures the presence of a resource request to be sent to the specified ForeignCluster.
 func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ResourceRequest, error) {
-	klog.Infof("[%v] ensuring ResourceRequest existence", foreignCluster.Spec.ClusterIdentity.ClusterID)
+	klog.Infof("[%s] ensuring ResourceRequest existence", foreignCluster.Spec.ClusterIdentity)
 
-	localClusterID := r.HomeCluster.ClusterID
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
@@ -45,7 +44,7 @@ func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 
 	resourceRequest := &discoveryv1alpha1.ResourceRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      localClusterID,
+			Name:      getResourceRequestNameFor(r.HomeCluster),
 			Namespace: localNamespace,
 		},
 	}
@@ -73,22 +72,22 @@ func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 		klog.Error(err)
 		return nil, err
 	}
-	klog.V(utils.FromResult(result)).Infof("[%v] ensured the existence of ResourceRequest (with %v operation)",
-		remoteClusterID, result)
+	klog.V(utils.FromResult(result)).Infof("[%s] ensured the existence of ResourceRequest (with %v operation)",
+		foreignCluster.Spec.ClusterIdentity, result)
 
 	return resourceRequest, nil
 }
 
 // deleteResourceRequest deletes a resource request related to the specified ForeignCluster.
 func (r *ForeignClusterReconciler) deleteResourceRequest(ctx context.Context, foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	klog.Infof("[%v] ensuring that the ResourceRequest does not exist", foreignCluster.Spec.ClusterIdentity.ClusterID)
+	klog.Infof("[%s] ensuring that the ResourceRequest does not exist", foreignCluster.Spec.ClusterIdentity)
 	if err := r.Client.DeleteAllOf(ctx,
 		&discoveryv1alpha1.ResourceRequest{}, client.MatchingLabels(resourceRequestLabels(foreignCluster.Spec.ClusterIdentity.ClusterID)),
 		client.InNamespace(foreignCluster.Status.TenantNamespace.Local)); err != nil {
 		klog.Error(err)
 		return err
 	}
-	klog.Infof("[%v] ensured that the ResourceRequest does not exist", foreignCluster.Spec.ClusterIdentity.ClusterID)
+	klog.Infof("[%s] ensured that the ResourceRequest does not exist", foreignCluster.Spec.ClusterIdentity)
 	return nil
 }
 
@@ -97,4 +96,8 @@ func resourceRequestLabels(remoteClusterID string) map[string]string {
 		consts.ReplicationRequestedLabel:   "true",
 		consts.ReplicationDestinationLabel: remoteClusterID,
 	}
+}
+
+func getResourceRequestNameFor(cluster discoveryv1alpha1.ClusterIdentity) string {
+	return cluster.ClusterName
 }
