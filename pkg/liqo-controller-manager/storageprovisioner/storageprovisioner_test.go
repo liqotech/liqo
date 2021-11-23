@@ -41,6 +41,10 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
+const (
+	remoteClusterID = "foreign-cluster-id"
+)
+
 var _ = Describe("Test Storage Provisioner", func() {
 
 	var (
@@ -63,7 +67,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 				node := &corev1.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
-						Labels: map[string]string{},
+						Labels: map[string]string{liqoconst.RemoteClusterID: remoteClusterID},
 					},
 				}
 
@@ -299,7 +303,8 @@ var _ = Describe("Test Storage Provisioner", func() {
 					pv, state, err := ProvisionRemotePVC(ctx, controller.ProvisionOptions{
 						SelectedNode: &corev1.Node{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: virtualNodeName,
+								Name:   virtualNodeName,
+								Labels: map[string]string{liqoconst.RemoteClusterID: remoteClusterID},
 							},
 						},
 						PVC: &corev1.PersistentVolumeClaim{

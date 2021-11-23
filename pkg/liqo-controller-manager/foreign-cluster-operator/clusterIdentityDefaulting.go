@@ -32,9 +32,9 @@ func (r *ForeignClusterReconciler) needsClusterIdentityDefaulting(fc *v1alpha1.F
 
 // clusterIdentityDefaulting loads the default values for that ForeignCluster basing on the AuthUrl value, an HTTP request
 // is sent and the retrieved values are applied for the following fields (if they are empty):
-// ClusterIdentity.ClusterID, ClusterIdentity.ClusterName.
+// Cluster.ClusterID, Cluster.ClusterName.
 func (r *ForeignClusterReconciler) clusterIdentityDefaulting(ctx context.Context, fc *v1alpha1.ForeignCluster) error {
-	klog.V(4).Infof("Defaulting ClusterIdentity values for ForeignCluster %v", fc.Name)
+	klog.V(4).Infof("Defaulting Cluster values for ForeignCluster %v", fc.Name)
 	ids, err := utils.GetClusterInfo(ctx, r.transport(foreignclusterutils.InsecureSkipTLSVerify(fc)), fc.Spec.ForeignAuthURL)
 	if err != nil {
 		klog.Error(err)

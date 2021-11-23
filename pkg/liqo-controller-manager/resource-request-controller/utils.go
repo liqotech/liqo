@@ -54,7 +54,18 @@ func (r *ResourceRequestReconciler) ensureForeignCluster(ctx context.Context,
 	}
 
 	// Otherwise, create a new ForeignCluster
-	return r.createForeignCluster(ctx, resourceRequest)
+	rrIdentity := resourceRequest.Spec.ClusterIdentity
+	cluster, err := r.createForeignCluster(ctx, rrIdentity, resourceRequest.Spec.AuthURL)
+	if apierrors.IsAlreadyExists(err) {
+		newIdentity := discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   rrIdentity.ClusterID,
+			ClusterName: foreignclusterutils.UniqueName(&rrIdentity),
+		}
+		klog.Warningf("Cluster name %s is already taken: retrying with %s",
+			rrIdentity.ClusterName, newIdentity.ClusterName)
+		cluster, err = r.createForeignCluster(ctx, newIdentity, resourceRequest.Spec.AuthURL)
+	}
+	return cluster, err
 }
 
 // ensureControllerReference ensures that the ForeignCluster is the owner of the ResourceRequest, to make it able
@@ -68,32 +79,33 @@ func (r *ResourceRequestReconciler) ensureControllerReference(foreignCluster *di
 	return true, controllerutil.SetControllerReference(foreignCluster, resourceRequest, r.Scheme)
 }
 
+// createForeignCluster creates a foreign cluster.
 func (r *ResourceRequestReconciler) createForeignCluster(ctx context.Context,
-	resourceRequest *discoveryv1alpha1.ResourceRequest) (*discoveryv1alpha1.ForeignCluster, error) {
+	identity discoveryv1alpha1.ClusterIdentity, authURL string) (*discoveryv1alpha1.ForeignCluster, error) {
 	foreignCluster := &discoveryv1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: resourceRequest.Spec.ClusterIdentity.ClusterID,
+			Name: identity.ClusterName,
 			Labels: map[string]string{
 				discovery.DiscoveryTypeLabel: string(discovery.IncomingPeeringDiscovery),
-				discovery.ClusterIDLabel:     resourceRequest.Spec.ClusterIdentity.ClusterID,
+				discovery.ClusterIDLabel:     identity.ClusterID,
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ClusterIdentity:        resourceRequest.Spec.ClusterIdentity,
+			ClusterIdentity:        identity,
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			ForeignAuthURL:         resourceRequest.Spec.AuthURL,
+			ForeignAuthURL:         authURL,
 			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},
 	}
 
 	if err := r.Client.Create(ctx, foreignCluster); err != nil {
-		klog.Errorf("%s -> unable to Create foreignCluster: %w", resourceRequest.Spec.ClusterIdentity.ClusterID, err)
+		klog.Errorf("%s -> unable to Create foreignCluster: %s", identity.ClusterName, err)
 		return nil, err
 	}
 
 	klog.Infof("%s -> Created ForeignCluster %s with IncomingPeering discovery type",
-		resourceRequest.Spec.ClusterIdentity.ClusterID, foreignCluster.Name)
+		identity.ClusterName, foreignCluster.Name)
 	return foreignCluster, nil
 }
 
@@ -101,14 +113,13 @@ func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context,
 	var offer sharingv1alpha1.ResourceOffer
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: request.GetNamespace(),
-		Name:      offerPrefix + r.HomeCluster.ClusterID,
+		Name:      getOfferName(r.HomeCluster),
 	}, &offer)
 	if apierrors.IsNotFound(err) {
 		// ignore not found errors
 		return nil
 	}
 	if err != nil {
-		klog.Error(err)
 		return err
 	}
 
@@ -120,7 +131,6 @@ func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context,
 		}
 		err = client.IgnoreNotFound(r.Client.Update(ctx, &offer))
 		if err != nil {
-			klog.Error(err)
 			return err
 		}
 		klog.Infof("%s -> Offer: %s/%s", r.HomeCluster.ClusterName, offer.Namespace, offer.Name)
@@ -128,7 +138,6 @@ func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context,
 	case sharingv1alpha1.VirtualKubeletStatusNone:
 		err = client.IgnoreNotFound(r.Client.Delete(ctx, &offer))
 		if err != nil {
-			klog.Error(err)
 			return err
 		}
 		if request.Status.OfferWithdrawalTimestamp.IsZero() {
@@ -138,8 +147,6 @@ func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context,
 		klog.Infof("%s -> Deleted Offer: %s/%s", r.HomeCluster.ClusterName, offer.Namespace, offer.Name)
 		return nil
 	default:
-		err := fmt.Errorf("unknown VirtualKubeletStatus %v", offer.Status.VirtualKubeletStatus)
-		klog.Error(err)
-		return err
+		return fmt.Errorf("unknown VirtualKubeletStatus %v", offer.Status.VirtualKubeletStatus)
 	}
 }

@@ -16,6 +16,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -26,8 +28,8 @@ type NetworkConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// The ID of the remote cluster that will receive this CRD.
-	ClusterID string `json:"clusterID"`
+	// The remote cluster that will receive this CRD.
+	RemoteCluster discoveryv1alpha1.ClusterIdentity `json:"cluster"`
 	// Network used in the local cluster for the pod IPs.
 	PodCIDR string `json:"podCIDR"`
 	// Network used for local service endpoints.

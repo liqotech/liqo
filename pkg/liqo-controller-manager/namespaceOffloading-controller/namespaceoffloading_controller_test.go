@@ -30,6 +30,7 @@ import (
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 var _ = Describe("Namespace controller", func() {
@@ -328,7 +329,7 @@ var _ = Describe("Namespace controller", func() {
 		It(" TEST 3: Create a NamespaceOffloading resource with an empty clusterSelector", func() {
 
 			namespace3Name := "namespace3"
-			remoteNamespace3Name := fmt.Sprintf("%s-%s", namespace3Name, localCluster.ClusterID)
+			remoteNamespace3Name := fmt.Sprintf("%s-%s", namespace3Name, foreignclusterutils.UniqueName(&localCluster))
 			namespace3 := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: namespace3Name,

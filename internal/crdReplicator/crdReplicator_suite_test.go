@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
@@ -41,9 +42,6 @@ func TestCrdReplicator(t *testing.T) {
 }
 
 const (
-	localClusterID  = "local-cluster-id"
-	remoteClusterID = "remote-cluster-id"
-
 	localNamespace  = "local-namespace"
 	remoteNamespace = "remote-namespace"
 )
@@ -52,10 +50,23 @@ var (
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cluster    testutil.Cluster
-	controller crdreplicator.Controller
-	cl         client.Client
+	localCluster  discoveryv1alpha1.ClusterIdentity
+	remoteCluster discoveryv1alpha1.ClusterIdentity
+	cluster       testutil.Cluster
+	controller    crdreplicator.Controller
+	cl            client.Client
 )
+
+var _ = BeforeEach(func() {
+	localCluster = discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   "local-cluster-id",
+		ClusterName: "local-cluster",
+	}
+	remoteCluster = discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   "remote-cluster-id",
+		ClusterName: "remote-cluster",
+	}
+})
 
 var _ = BeforeSuite(func() {
 	SetDefaultEventuallyTimeout(2 * time.Second)
@@ -72,19 +83,28 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 	dynClient := dynamic.NewForConfigOrDie(cluster.GetCfg())
 
-	reflectionManager := reflection.NewManager(dynClient, localClusterID, 1, 0)
+	localCluster = discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   "local-cluster-id",
+		ClusterName: "local-cluster",
+	}
+	remoteCluster = discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   "remote-cluster-id",
+		ClusterName: "remote-cluster",
+	}
+
+	reflectionManager := reflection.NewManager(dynClient, localCluster.ClusterID, 1, 0)
 	reflectionManager.Start(ctx, resources.GetResourcesToReplicate())
 
 	controller = crdreplicator.Controller{
 		Scheme:    mgr.GetScheme(),
 		Client:    cl,
-		ClusterID: localClusterID,
+		ClusterID: localCluster.ClusterID,
 
 		RegisteredResources: resources.GetResourcesToReplicate(),
 		ReflectionManager:   reflectionManager,
 		Reflectors:          make(map[string]*reflection.Reflector),
 
-		IdentityReader: fake.NewIdentityReader().Add(remoteClusterID, remoteNamespace, cluster.GetCfg()),
+		IdentityReader: fake.NewIdentityReader().Add(remoteCluster.ClusterID, remoteNamespace, cluster.GetCfg()),
 	}
 	Expect(err).ToNot(HaveOccurred())
 	Expect(controller.SetupWithManager(mgr)).To(Succeed())

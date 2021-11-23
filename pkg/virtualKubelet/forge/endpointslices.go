@@ -20,8 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	discoveryv1beta1apply "k8s.io/client-go/applyconfigurations/discovery/v1beta1"
-
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
 // EndpointSliceManagedBy -> The manager associated with the reflected EndpointSlices.
@@ -66,7 +64,7 @@ func RemoteEndpointSlice(local *discoveryv1beta1.EndpointSlice, targetNamespace 
 func RemoteEndpointSliceEndpoints(locals []discoveryv1beta1.Endpoint,
 	translator EndpointTranslator) []*discoveryv1beta1apply.EndpointApplyConfiguration {
 	var remotes []*discoveryv1beta1apply.EndpointApplyConfiguration
-	nodename := virtualKubelet.VirtualNodeName(LocalClusterID)
+	hostname := LocalClusterID
 
 	for i := range locals {
 		if !EndpointToBeReflected(&locals[i]) {
@@ -79,7 +77,7 @@ func RemoteEndpointSliceEndpoints(locals []discoveryv1beta1.Endpoint,
 
 		remote := discoveryv1beta1apply.Endpoint().
 			WithAddresses(translator(local.Addresses)...).WithConditions(conditions).
-			WithTopology(local.Topology).WithTopology(map[string]string{corev1.LabelHostname: nodename}).
+			WithTopology(local.Topology).WithTopology(map[string]string{corev1.LabelHostname: hostname}).
 			WithTargetRef(RemoteObjectReference(local.TargetRef))
 		remote.Hostname = local.Hostname
 

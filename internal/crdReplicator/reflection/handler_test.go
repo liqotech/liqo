@@ -32,6 +32,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -41,13 +42,14 @@ var _ = Describe("Handler tests", func() {
 	const (
 		localNamespace  = "foo"
 		remoteNamespace = "bar"
-		localClusterID  = "local-id"
-		remoteClusterID = "remote-id"
 	)
 
 	var (
 		ctx    context.Context
 		cancel context.CancelFunc
+
+		localCluster  discoveryv1alpha1.ClusterIdentity
+		remoteCluster discoveryv1alpha1.ClusterIdentity
 
 		gvr       schema.GroupVersionResource
 		ownership consts.OwnershipType
@@ -81,6 +83,15 @@ var _ = Describe("Handler tests", func() {
 		remoteBefore = netv1alpha1.NetworkConfig{
 			TypeMeta:   metav1.TypeMeta{APIVersion: netv1alpha1.GroupVersion.String(), Kind: "NetworkConfig"},
 			ObjectMeta: metav1.ObjectMeta{Name: "not-existing", Namespace: "not-existing"}}
+
+		localCluster = discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   "local-cluster-id",
+			ClusterName: "local-cluster",
+		}
+		remoteCluster = discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   "remote-cluster-id",
+			ClusterName: "remote-cluster",
+		}
 	})
 
 	AfterEach(func() { cancel() })
@@ -101,8 +112,8 @@ var _ = Describe("Handler tests", func() {
 			remoteClient:    remote,
 			localNamespace:  localNamespace,
 			remoteNamespace: remoteNamespace,
-			localClusterID:  localClusterID,
-			remoteClusterID: remoteClusterID,
+			localClusterID:  localCluster.ClusterID,
+			remoteClusterID: remoteCluster.ClusterID,
 
 			resources: map[schema.GroupVersionResource]*reflectedResource{
 				gvr: {
@@ -201,7 +212,7 @@ var _ = Describe("Handler tests", func() {
 					consts.ReplicationDestinationLabel: reflector.remoteClusterID,
 					"foo":                              "bar"},
 			}
-			localBefore.Spec = netv1alpha1.NetworkConfigSpec{ClusterID: remoteClusterID}
+			localBefore.Spec = netv1alpha1.NetworkConfigSpec{RemoteCluster: remoteCluster}
 			localBefore.Status = netv1alpha1.NetworkConfigStatus{PodCIDRNAT: "10.10.0.0/16"}
 			key = Item(name)
 		})
@@ -246,7 +257,7 @@ var _ = Describe("Handler tests", func() {
 				Expect(localAfter.Labels).To(Equal(localBefore.Labels))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationRequestedLabel, strconv.FormatBool(false)))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationDestinationLabel, reflector.remoteClusterID))
-				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationOriginLabel, localClusterID))
+				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationOriginLabel, localCluster.ClusterID))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationStatusLabel, strconv.FormatBool(true)))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
 			})
@@ -265,7 +276,9 @@ var _ = Describe("Handler tests", func() {
 		When("the remote object already exists", func() {
 			BeforeEach(func() {
 				remoteBefore.ObjectMeta = metav1.ObjectMeta{Name: name, Namespace: remoteNamespace}
-				localBefore.Spec = netv1alpha1.NetworkConfigSpec{ClusterID: "something-wrong"}
+				localBefore.Spec = netv1alpha1.NetworkConfigSpec{
+					RemoteCluster: discoveryv1alpha1.ClusterIdentity{ClusterID: "something-wrong", ClusterName: "something-wrong"},
+				}
 				localBefore.Status = netv1alpha1.NetworkConfigStatus{PodCIDRNAT: "20.20.0.0/16"}
 			})
 

@@ -107,6 +107,11 @@ type ClusterIdentity struct {
 	ClusterName string `json:"clusterName"`
 }
 
+// String returns the ClusterName. It makes it possible to format ClusterIdentities with %s.
+func (i *ClusterIdentity) String() string {
+	return i.ClusterName
+}
+
 // ForeignClusterStatus defines the observed state of ForeignCluster.
 type ForeignClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster

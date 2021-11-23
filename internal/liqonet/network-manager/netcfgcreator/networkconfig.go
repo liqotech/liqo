@@ -32,9 +32,8 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
-
-const networkConfigNamePrefix = "net-config-"
 
 // GetLocalNetworkConfig returns the local NetworkConfig associated with a given cluster ID.
 // In case more than one NetworkConfig is found, all but the oldest are deleted.
@@ -127,8 +126,8 @@ func (ncc *NetworkConfigCreator) EnforceNetworkConfigPresence(ctx context.Contex
 func (ncc *NetworkConfigCreator) createNetworkConfig(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	netcfg := netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: networkConfigNamePrefix,
-			Namespace:    fc.Status.TenantNamespace.Local,
+			Name:      foreignclusterutils.UniqueName(&fc.Spec.ClusterIdentity),
+			Namespace: fc.Status.TenantNamespace.Local,
 		},
 	}
 	utilruntime.Must(ncc.populateNetworkConfig(&netcfg, fc))
@@ -166,17 +165,17 @@ func (ncc *NetworkConfigCreator) updateNetworkConfig(ctx context.Context, netcfg
 
 // populateNetworkConfig sets the correct parameters of the NetworkConfig.
 func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.NetworkConfig, fc *discoveryv1alpha1.ForeignCluster) error {
-	clusterID := fc.Spec.ClusterIdentity.ClusterID
+	clusterIdentity := fc.Spec.ClusterIdentity
 
 	if netcfg.Labels == nil {
 		netcfg.Labels = map[string]string{}
 	}
 	netcfg.Labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(true)
-	netcfg.Labels[consts.ReplicationDestinationLabel] = clusterID
+	netcfg.Labels[consts.ReplicationDestinationLabel] = clusterIdentity.ClusterID
 
 	wgEndpointIP, wgEndpointPort := ncc.serviceWatcher.WiregardEndpoint()
 
-	netcfg.Spec.ClusterID = clusterID
+	netcfg.Spec.RemoteCluster = fc.Spec.ClusterIdentity
 	netcfg.Spec.PodCIDR = ncc.PodCIDR
 	netcfg.Spec.ExternalCIDR = ncc.ExternalCIDR
 	netcfg.Spec.EndpointIP = wgEndpointIP
@@ -193,8 +192,8 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 
 // EnforceNetworkConfigAbsence ensures the absence of local NetworkConfigs associated with the given ForeignCluster.
 func (ncc *NetworkConfigCreator) EnforceNetworkConfigAbsence(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
-	clusterID := fc.Spec.ClusterIdentity.ClusterID
-	labels := client.MatchingLabels{consts.ReplicationDestinationLabel: clusterID}
+	clusterIdentity := fc.Spec.ClusterIdentity
+	labels := client.MatchingLabels{consts.ReplicationDestinationLabel: clusterIdentity.ClusterID}
 
 	// Let perform a cached list first, to prevent unnecessary interactions with the API server.
 	var networkConfigList netv1alpha1.NetworkConfigList
@@ -204,16 +203,16 @@ func (ncc *NetworkConfigCreator) EnforceNetworkConfigAbsence(ctx context.Context
 	}
 
 	if len(networkConfigList.Items) == 0 {
-		klog.V(4).Infof("No NetworkConfigs associated with cluster ID %q to be removed", clusterID)
+		klog.V(4).Infof("No NetworkConfigs associated with cluster %s to be removed", clusterIdentity)
 		return nil
 	}
 
 	var netcfg netv1alpha1.NetworkConfig
 	if err := ncc.DeleteAllOf(ctx, &netcfg, labels, client.InNamespace(fc.Status.TenantNamespace.Local)); err != nil {
-		klog.Errorf("Failed to remove NetworkConfigs associated with cluster ID %q: %v", clusterID, err)
+		klog.Errorf("Failed to remove NetworkConfigs associated with cluster %s: %v", clusterIdentity, err)
 		return err
 	}
 
-	klog.Errorf("Correctly ensured no NetworkConfigs associated with cluster ID %q are present", clusterID)
+	klog.Errorf("Correctly ensured no NetworkConfigs associated with cluster %s are present", clusterIdentity)
 	return nil
 }

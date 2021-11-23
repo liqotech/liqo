@@ -61,8 +61,8 @@ var _ = Describe("Liqo E2E", func() {
 		localIndex  = 0
 		// index of the cluster on which the remote namespace is deleted to test the recreation process.
 		remoteIndex             = 2
-		localClusterID          = testContext.Clusters[localIndex].ClusterID
-		remoteTestNamespaceName = fmt.Sprintf("%s-%s", testNamespaceName, localClusterID)
+		localCluster            = testContext.Clusters[localIndex].Cluster
+		remoteTestNamespaceName = fmt.Sprintf("%s-%s", testNamespaceName, localCluster.ClusterName)
 	)
 
 	Context(fmt.Sprintf("Create a namespace inside the cluster '%d' with the liqo enabling label and check if the remote namespaces"+
@@ -76,7 +76,7 @@ var _ = Describe("Liqo E2E", func() {
 			By(fmt.Sprintf(" 1 - Creating the local namespace inside the cluster '%d'", localIndex))
 			Eventually(func() error {
 				_, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
-					testContext.Clusters[localIndex].ClusterID, testNamespaceName,
+					testContext.Clusters[localIndex].Cluster, testNamespaceName,
 					util.GetNamespaceLabel(true))
 				return err
 			}, timeout, interval).Should(BeNil())
@@ -133,7 +133,7 @@ var _ = Describe("Liqo E2E", func() {
 				}, longTimeout, interval).Should(BeNil())
 				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey]
 				Expect(ok).To(BeTrue())
-				Expect(value).To(Equal(localClusterID))
+				Expect(value).To(Equal(localCluster.ClusterID))
 			}
 
 			var oldUIDRemoteNamespace types.UID

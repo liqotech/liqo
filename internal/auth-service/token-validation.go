@@ -37,7 +37,8 @@ func (tokenValidator *tokenValidator) checkCredentials(
 	// and the authentication is disabled
 
 	if !authenticationEnabled {
-		klog.V(3).Infof("[%s] accepting credentials since authentication is disabled", roleRequest.GetClusterID())
+		klog.V(3).Infof("[%s] accepting credentials since authentication is disabled",
+			roleRequest.GetClusterIdentity())
 		return nil
 	}
 

@@ -54,7 +54,7 @@ type ClusterContext struct {
 	Config           *rest.Config
 	NativeClient     *kubernetes.Clientset
 	ControllerClient client.Client
-	ClusterID        string
+	Cluster          discoveryv1alpha1.ClusterIdentity
 	KubeconfigPath   string
 	HomeCluster      bool
 }
@@ -130,7 +130,7 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 			HomeCluster:    i == 1,
 		}
 		c.NativeClient = kubernetes.NewForConfigOrDie(c.Config)
-		c.ClusterID, err = utils.GetClusterID(ctx, c.NativeClient, namespace)
+		c.Cluster, err = utils.GetClusterIdentityWithNativeClient(ctx, c.NativeClient, namespace)
 		if err != nil && !ignoreClusterIDError {
 			return nil, err
 		}

@@ -91,13 +91,14 @@ var _ = Describe("NamespaceMap controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By(" 4 - Insert fake RoleBindings inside the remote namespace")
-			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localCluster.ClusterID, 1)
-			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localCluster.ClusterID, 2)
-			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localCluster.ClusterID, 3)
+			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localCluster.ClusterID, "namespace-deleter")
+			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localCluster.ClusterID, "namespace:admin")
+			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localCluster.ClusterID, "virtual-kubelet-remote")
 			_, err1 := remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
 			_, err2 := remoteClient1.RbacV1().RoleBindings(roleBinding2.Namespace).Create(context.TODO(), &roleBinding2, metav1.CreateOptions{})
 			_, err3 := remoteClient1.RbacV1().RoleBindings(roleBinding3.Namespace).Create(context.TODO(), &roleBinding3, metav1.CreateOptions{})
 			Expect(err1 == nil && err2 == nil && err3 == nil).To(BeTrue())
+			Expect(checkRemoteNamespaceRoleBindings(context.Background(), remoteClient1, namespace1Name)).To(Succeed())
 
 			By(" 5 - Checking status of CurrentMapping entry: must be 'Accepted'")
 			Eventually(func() bool {
@@ -286,28 +287,21 @@ var _ = Describe("NamespaceMap controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf(" 4 - Create 3 rolebindings for the namespace %s", namespace2Name))
-			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localCluster.ClusterID, 1)
-			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localCluster.ClusterID, 2)
-			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localCluster.ClusterID, 3)
-			Eventually(func() bool {
-				_, err := remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Eventually(func() bool {
-				_, err := remoteClient1.RbacV1().RoleBindings(roleBinding2.Namespace).Create(context.TODO(), &roleBinding2, metav1.CreateOptions{})
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Eventually(func() bool {
-				_, err := remoteClient1.RbacV1().RoleBindings(roleBinding3.Namespace).Create(context.TODO(), &roleBinding3, metav1.CreateOptions{})
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localCluster.ClusterID, "namespace-deleter")
+			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localCluster.ClusterID, "namespace:admin")
+			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localCluster.ClusterID, "virtual-kubelet-remote")
+			var err error
+			_, err = remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			_, err = remoteClient1.RbacV1().RoleBindings(roleBinding2.Namespace).Create(context.TODO(), &roleBinding2, metav1.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			_, err = remoteClient1.RbacV1().RoleBindings(roleBinding3.Namespace).Create(context.TODO(), &roleBinding3, metav1.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred())
 
 			By(fmt.Sprintf(" 5 - Create just 1 rolebindings for the namespace %s", namespace3Name))
-			roleBinding1 = testutils.GetRoleBindingForASpecificNamespace(namespace3Name, localCluster.ClusterID, 1)
-			Eventually(func() bool {
-				_, err := remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+			roleBinding1 = testutils.GetRoleBindingForASpecificNamespace(namespace3Name, localCluster.ClusterID, "namespace-deleter")
+			_, err = remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred())
 
 			// No roleBindings are created for the remote namespaces 'namespace4Name' and 'namespace5Name'.
 

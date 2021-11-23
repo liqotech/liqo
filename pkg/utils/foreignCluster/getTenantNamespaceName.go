@@ -20,19 +20,21 @@ import (
 
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // GetLocalTenantNamespaceName gets the name of the local tenant namespace associated with a specific peering (remoteClusterID).
-func GetLocalTenantNamespaceName(ctx context.Context, cl client.Client, remoteClusterID string) (string, error) {
-	fc, err := GetForeignClusterByID(ctx, cl, remoteClusterID)
+func GetLocalTenantNamespaceName(ctx context.Context, cl client.Client, remoteCluster discoveryv1alpha1.ClusterIdentity) (string, error) {
+	fc, err := GetForeignClusterByID(ctx, cl, remoteCluster.ClusterID)
 	if err != nil {
-		klog.Errorf("%s -> unable to get foreignCluster associated with the clusterID '%s'", err, remoteClusterID)
+		klog.Errorf("%s -> unable to get foreignCluster associated with the cluster '%s'", err, remoteCluster)
 		return "", err
 	}
 
 	if fc.Status.TenantNamespace.Local == "" {
 		err = fmt.Errorf("there is no tenant namespace associated with the peering with the remote cluster '%s'",
-			remoteClusterID)
+			remoteCluster)
 		klog.Error(err)
 		return "", err
 	}

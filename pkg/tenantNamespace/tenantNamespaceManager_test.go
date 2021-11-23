@@ -274,7 +274,7 @@ var _ = Describe("TenantNamespace", func() {
 
 				Expect(len(cr.Rules)).To(BeNumerically("==", 1))
 				Expect(cr.Rules[0].APIGroups).To(ContainElement(capsulev1beta1.GroupVersion.Group))
-				Expect(cr.Rules[0].ResourceNames).To(ContainElement(fmt.Sprintf("%v-%v", tenantPrefix, homeCluster.ClusterID)))
+				Expect(cr.Rules[0].ResourceNames).To(ContainElement(homeCluster.ClusterName))
 				Expect(cr.Rules[0].Resources).To(ContainElement("tenants/finalizers"))
 				Expect(cr.Rules[0].Verbs).To(ContainElements("get", "patch", "update"))
 

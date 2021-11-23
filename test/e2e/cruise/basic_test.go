@@ -26,9 +26,8 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/klog/v2"
 
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/microservices"
 	"github.com/liqotech/liqo/test/e2e/testutils/net"
@@ -91,15 +90,16 @@ var _ = Describe("Liqo E2E", func() {
 							return
 						}
 
-						cluster1PodName, cluster2PodName := net.GetTesterName(c.cluster1Context.ClusterID, c.cluster2Context.ClusterID)
+						cluster1PodName, cluster2PodName := net.GetTesterName(
+							c.cluster1Context.Cluster.ClusterID, c.cluster2Context.Cluster.ClusterID)
 
 						cluster1Opt := &net.TesterOpts{
-							ClusterID: c.cluster1Context.ClusterID,
+							Cluster:   c.cluster1Context.Cluster,
 							PodName:   cluster1PodName,
 							Offloaded: !c.cluster1Context.HomeCluster,
 						}
 						cluster2Opt := &net.TesterOpts{
-							ClusterID: c.cluster2Context.ClusterID,
+							Cluster:   c.cluster2Context.Cluster,
 							PodName:   cluster2PodName,
 							Offloaded: !c.cluster2Context.HomeCluster,
 						}
@@ -109,7 +109,7 @@ var _ = Describe("Liqo E2E", func() {
 
 						Eventually(func() bool {
 							check := net.CheckTesterPods(ctx, testContext.Clusters[0].NativeClient, c.cluster1Context.NativeClient,
-								c.cluster2Context.NativeClient, testContext.Clusters[0].ClusterID, cluster1Opt, cluster2Opt)
+								c.cluster2Context.NativeClient, testContext.Clusters[0].Cluster, cluster1Opt, cluster2Opt)
 							return check
 						}, timeout, interval).Should(BeTrue())
 
@@ -120,7 +120,7 @@ var _ = Describe("Liqo E2E", func() {
 
 						Eventually(func() error {
 							return net.ConnectivityCheckNodeToPod(ctx,
-								testContext.Clusters[0].NativeClient, testContext.Clusters[0].ClusterID, cluster2PodName)
+								testContext.Clusters[0].NativeClient, testContext.Clusters[0].Cluster.ClusterID, cluster2PodName)
 						}, timeout, interval).Should(Succeed())
 					})
 				},
@@ -130,15 +130,16 @@ var _ = Describe("Liqo E2E", func() {
 			DescribeTable("Liqo Pod to Service Connectivity Check",
 				func(c connectivityTestcase) {
 					By("Deploy Tester Services", func() {
-						cluster1PodName, cluster2PodName := net.GetTesterName(c.cluster1Context.ClusterID, c.cluster2Context.ClusterID)
+						cluster1PodName, cluster2PodName := net.GetTesterName(
+							c.cluster1Context.Cluster.ClusterID, c.cluster2Context.Cluster.ClusterID)
 
 						cluster1Opt := &net.TesterOpts{
-							ClusterID: c.cluster1Context.ClusterID,
+							Cluster:   c.cluster1Context.Cluster,
 							PodName:   cluster1PodName,
 							Offloaded: !c.cluster1Context.HomeCluster,
 						}
 						cluster2Opt := &net.TesterOpts{
-							ClusterID: c.cluster2Context.ClusterID,
+							Cluster:   c.cluster2Context.Cluster,
 							PodName:   cluster2PodName,
 							Offloaded: !c.cluster2Context.HomeCluster,
 						}
@@ -152,7 +153,7 @@ var _ = Describe("Liqo E2E", func() {
 
 						Eventually(func() bool {
 							check := net.CheckTesterPods(ctx, testContext.Clusters[0].NativeClient, c.cluster1Context.NativeClient,
-								c.cluster2Context.NativeClient, testContext.Clusters[0].ClusterID, cluster1Opt, cluster2Opt)
+								c.cluster2Context.NativeClient, testContext.Clusters[0].Cluster, cluster1Opt, cluster2Opt)
 							return check
 						}, timeout, interval).Should(BeTrue())
 
@@ -243,28 +244,13 @@ var _ = Describe("Liqo E2E", func() {
 			var (
 				replica1Name = fmt.Sprintf("%v-1", storage.StatefulSetName)
 
-				changeSchedule = func(schedulable bool, nodeName string) {
-					virtualNodes := &corev1.NodeList{}
-					labels := client.MatchingLabels{liqoconst.TypeLabel: liqoconst.TypeNode}
-					if nodeName != "" {
-						labels[corev1.LabelHostname] = nodeName
-					}
-
-					Expect(testContext.Clusters[0].ControllerClient.List(ctx, virtualNodes, labels)).To(Succeed())
-					var err error
-					for i := range virtualNodes.Items {
-						virtualNodes.Items[i].Spec.Unschedulable = !schedulable
-						_, err = testContext.Clusters[0].NativeClient.CoreV1().Nodes().Update(ctx, &virtualNodes.Items[i], metav1.UpdateOptions{})
-						Expect(err).ToNot(HaveOccurred())
-					}
-				}
-
-				podIsPending = func(podName string) bool {
+				podPhase = func(podName string) corev1.PodPhase {
 					pod, err := testContext.Clusters[0].NativeClient.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 					if err != nil {
-						return false
+						return ""
 					}
-					return pod.Status.Phase == corev1.PodPending
+					klog.Infof("Phase of pod %s is %s", podName, pod.Status.Phase)
+					return pod.Status.Phase
 				}
 			)
 
@@ -286,19 +272,27 @@ var _ = Describe("Liqo E2E", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				By("Cordoning the virtual node")
-				changeSchedule(false, pod.Spec.NodeName)
+				node, err := testContext.Clusters[0].NativeClient.CoreV1().Nodes().Get(ctx, pod.Spec.NodeName, metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				node.Spec.Unschedulable = true
+				_, err = testContext.Clusters[0].NativeClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Deleting the pod on the virtual node")
 				Expect(testContext.Clusters[0].NativeClient.CoreV1().Pods(namespace).Delete(ctx, replica1Name, metav1.DeleteOptions{})).To(Succeed())
-				Eventually(func() bool {
-					return podIsPending(replica1Name)
-				}, timeout, interval).Should(BeTrue())
-				Consistently(func() bool {
-					return podIsPending(replica1Name)
-				}, 10*time.Second, interval).Should(BeTrue())
+				Eventually(func() corev1.PodPhase {
+					return podPhase(replica1Name)
+				}, timeout, interval).Should(Equal(corev1.PodPending))
+				Consistently(func() corev1.PodPhase {
+					return podPhase(replica1Name)
+				}, 10*time.Second, interval).Should(Equal(corev1.PodPending))
 
 				By("Uncordoning the virtual nodes")
-				changeSchedule(true, "")
+				node, err = testContext.Clusters[0].NativeClient.CoreV1().Nodes().Get(ctx, pod.Spec.NodeName, metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				node.Spec.Unschedulable = false
+				_, err = testContext.Clusters[0].NativeClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Checking that the pod is running again")
 				storage.WaitDemoApp(GinkgoT(), options)

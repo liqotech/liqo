@@ -178,8 +178,8 @@ var _ = Describe("Auth", func() {
 
 			Entry("empty token accepted", credentialValidatorTestcase{
 				credentials: auth.ServiceAccountIdentityRequest{
-					Token:     "",
-					ClusterID: "test1",
+					Token:           "",
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: "test", ClusterName: "test"},
 				},
 				authEnabled:    false,
 				expectedOutput: BeNil(),
@@ -187,8 +187,8 @@ var _ = Describe("Auth", func() {
 
 			Entry("empty token denied", credentialValidatorTestcase{
 				credentials: auth.ServiceAccountIdentityRequest{
-					Token:     "",
-					ClusterID: "test1",
+					Token:           "",
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: "test", ClusterName: "test"},
 				},
 				authEnabled:    true,
 				expectedOutput: HaveOccurred(),
@@ -196,8 +196,8 @@ var _ = Describe("Auth", func() {
 
 			Entry("token accepted", credentialValidatorTestcase{
 				credentials: auth.ServiceAccountIdentityRequest{
-					Token:     "token",
-					ClusterID: "test1",
+					Token:           "token",
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: "test", ClusterName: "test"},
 				},
 				authEnabled:    true,
 				expectedOutput: BeNil(),
@@ -205,8 +205,8 @@ var _ = Describe("Auth", func() {
 
 			Entry("token denied", credentialValidatorTestcase{
 				credentials: auth.ServiceAccountIdentityRequest{
-					Token:     "token-wrong",
-					ClusterID: "test1",
+					Token:           "token-wrong",
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: "test", ClusterName: "test"},
 				},
 				authEnabled:    true,
 				expectedOutput: HaveOccurred(),
@@ -249,7 +249,7 @@ var _ = Describe("Auth", func() {
 
 			Entry("first creation", certificateTestcase{
 				request: auth.CertificateIdentityRequest{
-					ClusterID:                 "cluster1",
+					ClusterIdentity:           discoveryv1alpha1.ClusterIdentity{ClusterID: "cluster1", ClusterName: "cluster1"},
 					CertificateSigningRequest: string(csr),
 				},
 				expectedOutput: BeNil(),
@@ -260,7 +260,7 @@ var _ = Describe("Auth", func() {
 
 			Entry("second creation", certificateTestcase{
 				request: auth.CertificateIdentityRequest{
-					ClusterID:                 "cluster1",
+					ClusterIdentity:           discoveryv1alpha1.ClusterIdentity{ClusterID: "cluster1", ClusterName: "cluster1"},
 					CertificateSigningRequest: string(csr),
 				},
 				expectedOutput: HaveOccurred(),
@@ -271,7 +271,7 @@ var _ = Describe("Auth", func() {
 
 			Entry("create different one", certificateTestcase{
 				request: auth.CertificateIdentityRequest{
-					ClusterID:                 "cluster2",
+					ClusterIdentity:           discoveryv1alpha1.ClusterIdentity{ClusterID: "cluster2", ClusterName: "cluster2"},
 					CertificateSigningRequest: string(csr),
 				},
 				expectedOutput: BeNil(),

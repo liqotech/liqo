@@ -14,24 +14,28 @@
 
 package auth
 
-import "encoding/base64"
+import (
+	"encoding/base64"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+)
 
 // IdentityRequest is the common interface for Certificate and ServiceAccount identity request.
 type IdentityRequest interface {
-	GetClusterID() string
+	GetClusterIdentity() discoveryv1alpha1.ClusterIdentity
 	GetToken() string
 	GetPath() string
 }
 
 // ServiceAccountIdentityRequest is the request for a new ServiceAccount validation.
 type ServiceAccountIdentityRequest struct {
-	ClusterID string `json:"clusterID"`
-	Token     string `json:"token"`
+	ClusterIdentity discoveryv1alpha1.ClusterIdentity `json:"cluster"`
+	Token           string                            `json:"token"`
 }
 
 // CertificateIdentityRequest is the request for a new certificate validation.
 type CertificateIdentityRequest struct {
-	ClusterID string `json:"clusterID"`
+	ClusterIdentity discoveryv1alpha1.ClusterIdentity `json:"cluster"`
 	// OriginClusterToken will be used by the remote cluster to obtain an identity to send us its ResourceOffers
 	// and NetworkConfigs.
 	OriginClusterToken        string `json:"originClusterToken,omitempty"`
@@ -40,19 +44,19 @@ type CertificateIdentityRequest struct {
 }
 
 // NewCertificateIdentityRequest creates and returns a new CertificateIdentityRequest.
-func NewCertificateIdentityRequest(clusterID, originClusterToken, token string,
+func NewCertificateIdentityRequest(cluster discoveryv1alpha1.ClusterIdentity, originClusterToken, token string,
 	certificateSigningRequest []byte) *CertificateIdentityRequest {
 	return &CertificateIdentityRequest{
-		ClusterID:                 clusterID,
+		ClusterIdentity:           cluster,
 		OriginClusterToken:        originClusterToken,
 		DestinationClusterToken:   token,
 		CertificateSigningRequest: base64.StdEncoding.EncodeToString(certificateSigningRequest),
 	}
 }
 
-// GetClusterID returns the clusterid.
-func (saIdentityRequest *ServiceAccountIdentityRequest) GetClusterID() string {
-	return saIdentityRequest.ClusterID
+// GetClusterIdentity returns the ClusterIdentity.
+func (saIdentityRequest *ServiceAccountIdentityRequest) GetClusterIdentity() discoveryv1alpha1.ClusterIdentity {
+	return saIdentityRequest.ClusterIdentity
 }
 
 // GetToken returns the token.
@@ -65,9 +69,9 @@ func (saIdentityRequest *ServiceAccountIdentityRequest) GetPath() string {
 	return IdentityURI
 }
 
-// GetClusterID returns the clusterid.
-func (certIdentityRequest *CertificateIdentityRequest) GetClusterID() string {
-	return certIdentityRequest.ClusterID
+// GetClusterIdentity returns the ClusterIdentity.
+func (certIdentityRequest *CertificateIdentityRequest) GetClusterIdentity() discoveryv1alpha1.ClusterIdentity {
+	return certIdentityRequest.ClusterIdentity
 }
 
 // GetToken returns the token.

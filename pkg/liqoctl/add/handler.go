@@ -93,9 +93,8 @@ func processAddCluster(ctx context.Context, t *ClusterArgs, clientSet kubernetes
 	if err != nil {
 		return err
 	}
-	clusterID := clusterIdentity.ClusterID
 	// Check clusterIDs are not equal. If they are, abort.
-	if clusterID == t.ClusterID {
+	if clusterIdentity.ClusterID == t.ClusterID {
 		return fmt.Errorf(sameClusterError)
 	}
 
