@@ -27,7 +27,7 @@ import (
 func (p *liqoLocalStorageProvisioner) Delete(ctx context.Context, volume *v1.PersistentVolume) error {
 	realPvc := v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      volume.Spec.ClaimRef.Name,
+			Name:      string(volume.Spec.ClaimRef.UID),
 			Namespace: p.storageNamespace,
 		},
 	}

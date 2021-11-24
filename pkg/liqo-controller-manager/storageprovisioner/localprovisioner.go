@@ -31,9 +31,10 @@ import (
 func (p *liqoLocalStorageProvisioner) provisionLocalPVC(ctx context.Context,
 	options controller.ProvisionOptions) (*v1.PersistentVolume, controller.ProvisioningState, error) {
 	virtualPvc := options.PVC
+	realPvcName := virtualPvc.GetUID()
 	realPvc := v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      virtualPvc.Name,
+			Name:      string(realPvcName),
 			Namespace: p.storageNamespace,
 		},
 	}
@@ -107,6 +108,12 @@ func (p *liqoLocalStorageProvisioner) mutateLocalRealPVC(virtualPvc, realPvc *v1
 	// required if the real storage class is wait for first consumer
 	realPvc.ObjectMeta.Annotations["volume.kubernetes.io/selected-node"] = selectedNode.Name
 	realPvc.ObjectMeta.Annotations["volume.alpha.kubernetes.io/selected-node"] = selectedNode.Name
+
+	if realPvc.ObjectMeta.Labels == nil {
+		realPvc.ObjectMeta.Labels = map[string]string{}
+	}
+	realPvc.ObjectMeta.Labels[consts.VirtualPvcNamespaceLabel] = virtualPvc.GetNamespace()
+	realPvc.ObjectMeta.Labels[consts.VirtualPvcNameLabel] = virtualPvc.GetName()
 
 	storageClassName := realPvc.Spec.StorageClassName
 	if p.localRealStorageClass != "" {

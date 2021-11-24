@@ -79,6 +79,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
+						UID:       "uuid",
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{
 						Resources: corev1.ResourceRequirements{
@@ -182,7 +183,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 
 				var realPvc corev1.PersistentVolumeClaim
 				Expect(k8sClient.Get(ctx, apitypes.NamespacedName{
-					Name:      c.pvc.GetName(),
+					Name:      string(c.pvc.GetUID()),
 					Namespace: storageNamespace,
 				}, &realPvc)).To(Succeed())
 
@@ -191,6 +192,10 @@ var _ = Describe("Test Storage Provisioner", func() {
 				} else {
 					Expect(realPvc.Spec.StorageClassName).To(BeNil())
 				}
+				Expect(realPvc.Labels).To(HaveKey(liqoconst.VirtualPvcNamespaceLabel))
+				Expect(realPvc.Labels).To(HaveKey(liqoconst.VirtualPvcNameLabel))
+				Expect(realPvc.Labels[liqoconst.VirtualPvcNamespaceLabel]).To(Equal(c.pvc.GetNamespace()))
+				Expect(realPvc.Labels[liqoconst.VirtualPvcNameLabel]).To(Equal(c.pvc.GetName()))
 
 				By("second attempt with no real pvc provisioned")
 				pv, state, err = provisioner.provisionLocalPVC(ctx, forgeOpts())
@@ -301,6 +306,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      pvcName,
 								Namespace: LocalNamespace,
+								UID:       "uuid",
 							},
 							Spec: corev1.PersistentVolumeClaimSpec{
 								StorageClassName: pointer.String(virtualStorageClassName),
