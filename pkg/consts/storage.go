@@ -20,4 +20,9 @@ const (
 
 	// StorageAvailableLabel is the label used to mark if the liqo storage is available on a virtual node.
 	StorageAvailableLabel = "storage.liqo.io/available"
+
+	// VirtualPvcNamespaceLabel is the label used to mark the namespace of a virtual PVC.
+	VirtualPvcNamespaceLabel = "storage.liqo.io/virtual-pvc-namespace"
+	// VirtualPvcNameLabel is the label used to mark the name of a virtual PVC.
+	VirtualPvcNameLabel = "storage.liqo.io/virtual-pvc-name"
 )
