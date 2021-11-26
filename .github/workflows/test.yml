@@ -126,6 +126,7 @@ jobs:
       with:
         options: |
           --mount type=bind,src=${{ github.workspace }},dst=/go/src/liqotech/liqo
+          --mount type=bind,src=/home/runner/.cache,dst=/root/.cache
           --workdir /go/src/liqotech/liqo
           --privileged=true
         image: liqo/liqo-test:${{ needs.configure.outputs.commit-ref }}
