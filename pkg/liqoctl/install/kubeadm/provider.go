@@ -79,6 +79,7 @@ func (k *Kubeadm) UpdateChartValues(values map[string]interface{}) {
 	values["discovery"] = map[string]interface{}{
 		"config": map[string]interface{}{
 			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
+			"clusterName":   k.ClusterName,
 		},
 	}
 }
