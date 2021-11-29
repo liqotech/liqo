@@ -31,7 +31,7 @@ import (
 
 const (
 	linuxos      = "Linux"
-	architecture = "arm64"
+	architecture = "amd64"
 
 	labelNodeExcludeBalancersAlpha = "alpha.service-controller.kubernetes.io/exclude-balancer"
 	roleLabelKey                   = "kubernetes.io/role"
