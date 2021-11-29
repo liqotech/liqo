@@ -37,17 +37,17 @@ import (
 )
 
 var (
-	cfg         *rest.Config
-	k8sClient   client.Client
-	homeCluster discoveryv1alpha1.ClusterIdentity
-	clientset   kubernetes.Interface
-	testEnv     *envtest.Environment
+	cfg           *rest.Config
+	k8sClient     client.Client
+	homeCluster   discoveryv1alpha1.ClusterIdentity
+	clientset     kubernetes.Interface
+	testEnv       *envtest.Environment
 	monitor       *LocalResourceMonitor
 	scaledMonitor *ResourceScaler
 	updater       *OfferUpdater
-	ctx         context.Context
-	cancel      context.CancelFunc
-	group       sync.WaitGroup
+	ctx           context.Context
+	cancel        context.CancelFunc
+	group         sync.WaitGroup
 )
 
 func TestAPIs(t *testing.T) {

@@ -34,8 +34,8 @@ import (
 // ResourceRequestReconciler reconciles a ResourceRequest object.
 type ResourceRequestReconciler struct {
 	client.Client
-	Scheme 				  *runtime.Scheme
-	HomeCluster           discoveryv1alpha1.ClusterIdentity
+	Scheme      *runtime.Scheme
+	HomeCluster discoveryv1alpha1.ClusterIdentity
 	*OfferUpdater
 	EnableIncomingPeering bool
 }

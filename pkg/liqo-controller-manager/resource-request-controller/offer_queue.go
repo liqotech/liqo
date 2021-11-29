@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
@@ -39,7 +40,7 @@ const (
 // It also provides rate-limited retries for transient errors in the offering process.
 type OfferQueue struct {
 	// queue is the underlying generic queue
-	queue        workqueue.RateLimitingInterface
+	queue workqueue.RateLimitingInterface
 	// offerUpdater is the OfferUpdater that will create offers
 	offerUpdater *OfferUpdater
 	// identities maps cluster IDs (used by the queue) to ClusterIdentities
@@ -49,9 +50,9 @@ type OfferQueue struct {
 // NewOfferQueue constructs an OfferQueue.
 func NewOfferQueue(offerUpdater *OfferUpdater) OfferQueue {
 	return OfferQueue{
-		queue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Offer update queue"),
+		queue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Offer update queue"),
 		offerUpdater: offerUpdater,
-		identities: map[string]discoveryv1alpha1.ClusterIdentity{},
+		identities:   map[string]discoveryv1alpha1.ClusterIdentity{},
 	}
 }
 
@@ -97,7 +98,7 @@ func (u *OfferQueue) consumeQueue() {
 		if !ok {
 			klog.Warningf("No ClusterIdentity found for ID %s", clusterID)
 			cluster = discoveryv1alpha1.ClusterIdentity{
-				ClusterID: clusterID,
+				ClusterID:   clusterID,
 				ClusterName: clusterID,
 			}
 		}

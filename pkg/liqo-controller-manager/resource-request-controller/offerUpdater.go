@@ -17,7 +17,6 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
-	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"math"
 	"sync"
 
@@ -33,6 +32,7 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // ResourceReaderInterface represents an interface to read the available resources in this cluster.
@@ -66,7 +66,7 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 	scheme *runtime.Scheme, updateThresholdPercentage uint, localRealStorageClassName string, enableStorage bool) *OfferUpdater {
 	updater := &OfferUpdater{
 		client:                    k8sClient,
-		homeCluster: homeCluster,
+		homeCluster:               homeCluster,
 		clusterLabels:             clusterLabels,
 		scheme:                    scheme,
 		localRealStorageClassName: localRealStorageClassName,
@@ -150,7 +150,7 @@ func (u *OfferUpdater) NotifyChange() {
 			if err != nil {
 				klog.Warningf("Could not find ClusterIdentity for cluster %s", clusterID)
 				clusterIdentity = discoveryv1alpha1.ClusterIdentity{
-					ClusterID: clusterID,
+					ClusterID:   clusterID,
 					ClusterName: clusterID,
 				}
 			} else {
