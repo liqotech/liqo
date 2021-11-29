@@ -86,14 +86,7 @@ func (u *OfferQueue) consumeQueue() {
 		if shutdown {
 			return
 		}
-		clusterID, ok := obj.(string)
-		if !ok {
-			klog.Errorf("Unexpected object in OfferQueue: %v", obj)
-			// Drop the item from the queue so that we don't keep trying to process it
-			u.queue.Forget(obj)
-			u.queue.Done(obj)
-			continue
-		}
+		clusterID := obj.(string)
 		cluster, ok := u.identities[clusterID]
 		if !ok {
 			klog.Warningf("No ClusterIdentity found for ID %s", clusterID)
