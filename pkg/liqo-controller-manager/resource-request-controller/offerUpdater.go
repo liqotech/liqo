@@ -86,7 +86,7 @@ func (u *OfferUpdater) Start(ctx context.Context, wg *sync.WaitGroup) {
 // CreateOrUpdateOffer creates an offer into the given cluster, reading resources from the ResourceReader.
 func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIdentity) (requeue bool, err error) {
 	ctx := context.Background()
-	list, err := u.getResourceRequest(ctx, cluster.ClusterID)
+	list, err := GetResourceRequests(ctx, u.client, cluster.ClusterID)
 	if err != nil {
 		return true, err
 	} else if len(list.Items) != 1 {
@@ -168,19 +168,6 @@ func (u *OfferUpdater) RemoveClusterID(clusterID string) {
 	u.OfferQueue.RemoveClusterID(clusterID)
 }
 
-// getResourceRequest returns the list of ResourceRequests for the given cluster.
-func (u *OfferUpdater) getResourceRequest(ctx context.Context, clusterID string) (*discoveryv1alpha1.ResourceRequestList, error) {
-	resourceRequestList := &discoveryv1alpha1.ResourceRequestList{}
-	err := u.client.List(ctx, resourceRequestList, client.MatchingLabels{
-		consts.ReplicationOriginLabel: clusterID,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return resourceRequestList, nil
-}
-
 func (u *OfferUpdater) getStorageClasses(ctx context.Context) ([]sharingv1alpha1.StorageType, error) {
 	if !u.enableStorage {
 		return []sharingv1alpha1.StorageType{}, nil
@@ -253,4 +240,19 @@ func resourceIsEmpty(list corev1.ResourceList) bool {
 		}
 	}
 	return true
+}
+
+// GetResourceRequests returns the list of ResourceRequests for the given cluster.
+func GetResourceRequests(ctx context.Context, k8sClient client.Client, clusterID string) (
+	*discoveryv1alpha1.ResourceRequestList, error) {
+	resourceRequestList := &discoveryv1alpha1.ResourceRequestList{}
+	err := k8sClient.List(ctx, resourceRequestList,
+		client.HasLabels{consts.ReplicationStatusLabel},
+		client.MatchingLabels{consts.ReplicationOriginLabel: clusterID},
+		)
+	if err != nil {
+		return nil, err
+	}
+
+	return resourceRequestList, nil
 }
