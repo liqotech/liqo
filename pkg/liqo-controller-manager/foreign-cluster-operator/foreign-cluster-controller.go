@@ -39,6 +39,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	resourcerequestoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"

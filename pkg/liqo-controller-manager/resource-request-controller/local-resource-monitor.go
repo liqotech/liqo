@@ -66,18 +66,18 @@ const (
 // NewLocalMonitor creates a new LocalResourceMonitor.
 func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface, resyncPeriod time.Duration,
 	updater *OfferUpdater) *LocalResourceMonitor {
-	nodeInformer := informers.NewSharedInformerFactoryWithOptions(
+	nodeFactory := informers.NewSharedInformerFactoryWithOptions(
 		clientset, resyncPeriod, informers.WithTweakListOptions(noVirtualNodesFilter),
-	).Core().V1().Nodes().Informer()
-	podInformer := informers.NewSharedInformerFactoryWithOptions(
+	)
+	nodeInformer := nodeFactory.Core().V1().Nodes().Informer()
+	podFactory := informers.NewSharedInformerFactoryWithOptions(
 		clientset, resyncPeriod, informers.WithTweakListOptions(noShadowPodsFilter),
-	).Core().V1().Pods().Informer()
+	)
+	podInformer := podFactory.Core().V1().Pods().Informer()
 
 	accountant := LocalResourceMonitor{
 		allocatable:    corev1.ResourceList{},
 		resourcePodMap: map[string]corev1.ResourceList{},
-		nodeMutex:      sync.RWMutex{},
-		podMutex:       sync.RWMutex{},
 		nodeInformer:   nodeInformer,
 		podInformer:    podInformer,
 		updater:        updater,
@@ -94,8 +94,10 @@ func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface, resync
 		DeleteFunc: accountant.onPodDelete,
 	})
 
-	go accountant.nodeInformer.Run(ctx.Done())
-	go accountant.podInformer.Run(ctx.Done())
+	nodeFactory.Start(ctx.Done())
+	nodeFactory.WaitForCacheSync(ctx.Done())
+	podFactory.Start(ctx.Done())
+	podFactory.WaitForCacheSync(ctx.Done())
 
 	return &accountant
 }

@@ -92,7 +92,6 @@ func createCluster() {
 		ClusterID:   "home-cluster-id",
 		ClusterName: "home-cluster-name",
 	}
-	ctx = context.TODO()
 
 	k8sClient = k8sManager.GetClient()
 	Expect(k8sClient).ToNot(BeNil())

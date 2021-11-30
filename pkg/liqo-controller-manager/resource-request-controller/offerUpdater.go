@@ -100,6 +100,7 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 	if resourceIsEmpty(resources) {
 		klog.Warningf("No resources for cluster %s", cluster.ClusterName)
 	}
+	u.currentResources[cluster.ClusterID] = resources.DeepCopy()
 	offer := &sharingv1alpha1.ResourceOffer{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: request.GetNamespace(),
@@ -249,7 +250,7 @@ func GetResourceRequests(ctx context.Context, k8sClient client.Client, clusterID
 	err := k8sClient.List(ctx, resourceRequestList,
 		client.HasLabels{consts.ReplicationStatusLabel},
 		client.MatchingLabels{consts.ReplicationOriginLabel: clusterID},
-		)
+	)
 	if err != nil {
 		return nil, err
 	}
