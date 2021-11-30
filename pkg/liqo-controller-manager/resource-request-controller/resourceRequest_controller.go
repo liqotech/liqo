@@ -16,8 +16,6 @@ package resourcerequestoperator
 
 import (
 	"context"
-	"time"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -123,20 +121,13 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 	}()
 
-	var requeue bool
 	// ensure creation, update and deletion of the related ResourceOffer
 	switch resourceReqPhase {
 	case allowResourceRequestPhase:
 		// ensure that we are offering resources to this remote cluster
-		requeue, err = r.OfferUpdater.CreateOrUpdateOffer(remoteCluster)
+		_, err = r.OfferUpdater.CreateOrUpdateOffer(remoteCluster) // don't care about requeue: the controller will requeue anyway
 		if err != nil {
 			klog.Errorf("Error creating a ResourceOffer: %s", err)
-			if requeue {
-				return ctrl.Result{
-					Requeue:      true,
-					RequeueAfter: 1 * time.Second,
-				}, err
-			}
 			return ctrl.Result{}, err
 		}
 		resourceRequest.Status.OfferWithdrawalTimestamp = nil
@@ -155,12 +146,6 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	if requeue {
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: 1 * time.Second,
-		}, nil
-	}
 	return ctrl.Result{}, nil
 }
 
