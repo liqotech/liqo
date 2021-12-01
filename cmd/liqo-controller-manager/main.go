@@ -44,6 +44,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
+	liqodeploymentctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/liqo-deployment-controller"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceMap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceOffloading-controller"
@@ -115,6 +116,7 @@ func main() {
 		"Name of the namespace where the liqo components are running")
 	foreignClusterWorkers := flag.Uint("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
 	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
+	liqoDeploymentWorkers := flag.Int("liqo-deployment-ctrl-workers", 10, "The number of workers used to reconcile LiqoDeployment resources.")
 
 	// Discovery parameters
 	authServiceAddressOverride := flag.String(consts.AuthServiceAddressOverrideParameter, "",
@@ -346,6 +348,15 @@ func main() {
 	}
 
 	if err = shadowPodReconciler.SetupWithManager(mgr, *shadowPodWorkers); err != nil {
+		klog.Fatal(err)
+	}
+
+	liqoDeploymentReconciler := &liqodeploymentctrl.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+
+	if err = liqoDeploymentReconciler.SetupWithManager(mgr, *liqoDeploymentWorkers); err != nil {
 		klog.Fatal(err)
 	}
 

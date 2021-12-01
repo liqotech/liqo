@@ -155,6 +155,17 @@ rules:
   - list
   - watch
 - apiGroups:
+  - apps.liqo.io
+  resources:
+  - liqodeployments
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - capsule.clastix.io
   resources:
   - tenants
