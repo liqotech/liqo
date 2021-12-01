@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
@@ -367,8 +366,9 @@ func main() {
 	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo"))
 	csrWatcher.Start(ctx)
 
-	var wg = &sync.WaitGroup{}
-	offerUpdater.Start(ctx, wg)
+	if err = mgr.Add(offerUpdater); err != nil {
+		klog.Fatal(err)
+	}
 
 	if enableStorage != nil && *enableStorage {
 		var liqoProvisioner controller.Provisioner
@@ -406,6 +406,4 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
-
-	wg.Wait()
 }

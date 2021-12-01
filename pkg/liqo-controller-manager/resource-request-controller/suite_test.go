@@ -104,7 +104,7 @@ func createCluster() {
 	scaledMonitor = &ResourceScaler{Provider: monitor, Factor: DefaultScaleFactor}
 	updater.ResourceReader = scaledMonitor
 
-	updater.Start(ctx, &group)
+	Expect(k8sManager.Add(updater)).To(Succeed())
 
 	// Adding ResourceRequest reconciler to the manager
 	err = (&ResourceRequestReconciler{

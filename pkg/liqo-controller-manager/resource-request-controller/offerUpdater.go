@@ -17,14 +17,12 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
-	"math"
-	"sync"
-
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+	"math"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -78,9 +76,9 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 	return updater
 }
 
-// Start starts the OfferUpdater.
-func (u *OfferUpdater) Start(ctx context.Context, wg *sync.WaitGroup) {
-	u.OfferQueue.Start(ctx, wg)
+// Start starts the OfferUpdater and blocks.
+func (u *OfferUpdater) Start(ctx context.Context) error {
+	return u.OfferQueue.Start(ctx)
 }
 
 // CreateOrUpdateOffer creates an offer into the given cluster, reading resources from the ResourceReader.

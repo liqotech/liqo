@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/rand"
 	"math/big"
-	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -56,19 +55,13 @@ func NewOfferQueue(offerUpdater *OfferUpdater) OfferQueue {
 	}
 }
 
-// Start starts the update loop.
-func (u *OfferQueue) Start(ctx context.Context, group *sync.WaitGroup) {
-	group.Add(1)
-	go func() {
-		// Every two seconds, check if there are new items in the queue and process them
-		wait.Until(u.consumeQueue, 2*time.Second, ctx.Done())
-	}()
-	go func() {
-		// We wait on ctx.Done() in a new goroutine because wait.Until blocks on u.consumeQueue.
-		<-ctx.Done()
-		u.queue.ShutDown()
-		group.Done()
-	}()
+// Start starts the update loop and blocks.
+func (u *OfferQueue) Start(ctx context.Context) error {
+	// Every two seconds, check if there are new items in the queue and process them.
+	go wait.Until(u.consumeQueue, 2*time.Second, ctx.Done())
+	<-ctx.Done()
+	u.queue.ShutDown()
+	return nil // For compatibility with manager.Runnable
 }
 
 // Push pushes a cluster ID into the queue.
