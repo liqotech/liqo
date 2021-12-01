@@ -30,7 +30,6 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
-	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // ResourceReaderInterface represents an interface to read the available resources in this cluster.
@@ -57,6 +56,8 @@ type OfferUpdater struct {
 	currentResources map[string]corev1.ResourceList
 	// updateThresholdPercentage is the change in resources that triggers an update of ResourceOffers.
 	updateThresholdPercentage uint
+
+	clusterIdentityCache map[string]discoveryv1alpha1.ClusterIdentity
 }
 
 // NewOfferUpdater constructs a new OfferUpdater.
@@ -71,6 +72,7 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 		enableStorage:             enableStorage,
 		currentResources:          map[string]corev1.ResourceList{},
 		updateThresholdPercentage: updateThresholdPercentage,
+		clusterIdentityCache: map[string]discoveryv1alpha1.ClusterIdentity{},
 	}
 	updater.OfferQueue = NewOfferQueue(updater)
 	return updater
@@ -99,6 +101,7 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 		klog.Warningf("No resources for cluster %s", cluster.ClusterName)
 	}
 	u.currentResources[cluster.ClusterID] = resources.DeepCopy()
+	u.clusterIdentityCache[cluster.ClusterID] = cluster
 	offer := &sharingv1alpha1.ResourceOffer{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: request.GetNamespace(),
@@ -144,18 +147,7 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 func (u *OfferUpdater) NotifyChange() {
 	for clusterID := range u.currentResources {
 		if u.isAboveThreshold(clusterID) {
-			var clusterIdentity discoveryv1alpha1.ClusterIdentity
-			cluster, err := foreigncluster.GetForeignClusterByID(context.Background(), u.client, clusterID)
-			if err != nil {
-				klog.Warningf("Could not find ClusterIdentity for cluster %s", clusterID)
-				clusterIdentity = discoveryv1alpha1.ClusterIdentity{
-					ClusterID:   clusterID,
-					ClusterName: clusterID,
-				}
-			} else {
-				clusterIdentity = cluster.Spec.ClusterIdentity
-			}
-			u.OfferQueue.Push(clusterIdentity)
+			u.OfferQueue.Push(u.clusterIdentityCache[clusterID])
 		}
 	}
 }
