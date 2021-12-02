@@ -70,6 +70,7 @@ func (u *OfferQueue) Push(cluster discoveryv1alpha1.ClusterIdentity) {
 	// Note that we can't query Kubernetes for the identity on the fly when we consume the ID because we would need
 	// a k8s client just for that
 	u.queue.Add(cluster.ClusterID)
+	u.identities[cluster.ClusterID] = cluster
 }
 
 // consumeQueue processes items in the queue until it is empty, then it returns.
@@ -79,15 +80,7 @@ func (u *OfferQueue) consumeQueue() {
 		if shutdown {
 			return
 		}
-		clusterID := obj.(string)
-		cluster, ok := u.identities[clusterID]
-		if !ok {
-			klog.Warningf("No ClusterIdentity found for ID %s", clusterID)
-			cluster = discoveryv1alpha1.ClusterIdentity{
-				ClusterID:   clusterID,
-				ClusterName: clusterID,
-			}
-		}
+		cluster := u.identities[obj.(string)]
 
 		klog.V(2).Infof("Processing cluster %s", cluster.ClusterName)
 		requeue, err := u.offerUpdater.CreateOrUpdateOffer(cluster)
@@ -95,11 +88,11 @@ func (u *OfferQueue) consumeQueue() {
 			klog.Errorf("Error processing cluster %s: %s", cluster.ClusterName, err)
 			if requeue {
 				// transient error: put the item back on the workqueue
-				u.queue.AddRateLimited(clusterID)
+				u.queue.AddRateLimited(cluster.ClusterID)
 			} else {
 				// permanent error (eg. the clusterID is no longer valid), do not requeue
-				u.queue.Forget(clusterID)
-				u.offerUpdater.RemoveClusterID(clusterID)
+				u.queue.Forget(cluster.ClusterID)
+				u.offerUpdater.RemoveClusterID(cluster.ClusterID)
 			}
 		} else {
 			// requeue after a random timeout
