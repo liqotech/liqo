@@ -57,8 +57,7 @@ func NewOfferQueue(offerUpdater *OfferUpdater) OfferQueue {
 
 // Start starts the update loop and blocks.
 func (u *OfferQueue) Start(ctx context.Context) error {
-	// Every two seconds, check if there are new items in the queue and process them.
-	go wait.Until(u.consumeQueue, 2*time.Second, ctx.Done())
+	go wait.Until(u.run, 2*time.Second, ctx.Done())
 	<-ctx.Done()
 	u.queue.ShutDown()
 	return nil // For compatibility with manager.Runnable
@@ -73,33 +72,38 @@ func (u *OfferQueue) Push(cluster discoveryv1alpha1.ClusterIdentity) {
 	u.identities[cluster.ClusterID] = cluster
 }
 
-// consumeQueue processes items in the queue until it is empty, then it returns.
-func (u *OfferQueue) consumeQueue() {
-	for {
-		obj, shutdown := u.queue.Get()
-		if shutdown {
-			return
-		}
-		cluster := u.identities[obj.(string)]
-
-		klog.V(2).Infof("Processing cluster %s", cluster.ClusterName)
-		requeue, err := u.offerUpdater.CreateOrUpdateOffer(cluster)
-		if err != nil {
-			klog.Errorf("Error processing cluster %s: %s", cluster.ClusterName, err)
-			if requeue {
-				// transient error: put the item back on the workqueue
-				u.queue.AddRateLimited(cluster.ClusterID)
-			} else {
-				// permanent error (eg. the clusterID is no longer valid), do not requeue
-				u.queue.Forget(cluster.ClusterID)
-				u.offerUpdater.RemoveClusterID(cluster.ClusterID)
-			}
-		} else {
-			// requeue after a random timeout
-			u.queue.AddAfter(obj, getRandomTimeout())
-		}
-		u.queue.Done(obj)
+// run processes items in the queue forever.
+func (u *OfferQueue) run() {
+	for u.processNextItem() {
 	}
+}
+
+// processNextItem blocks on getting an item from the queue and processes it.
+func (u *OfferQueue) processNextItem() bool {
+	obj, shutdown := u.queue.Get()
+	if shutdown {
+		return false
+	}
+	cluster := u.identities[obj.(string)]
+
+	klog.V(2).Infof("Processing cluster %s", cluster.ClusterName)
+	requeue, err := u.offerUpdater.CreateOrUpdateOffer(cluster)
+	if err != nil {
+		klog.Errorf("Error processing cluster %s: %s", cluster.ClusterName, err)
+		if requeue {
+			// transient error: put the item back on the workqueue
+			u.queue.AddRateLimited(cluster.ClusterID)
+		} else {
+			// permanent error (eg. the clusterID is no longer valid), do not requeue
+			u.queue.Forget(cluster.ClusterID)
+			u.offerUpdater.RemoveClusterID(cluster.ClusterID)
+		}
+	} else {
+		// requeue after a random timeout
+		u.queue.AddAfter(obj, getRandomTimeout())
+	}
+	u.queue.Done(obj)
+	return true
 }
 
 // RemoveClusterID clears updates for the given cluster.

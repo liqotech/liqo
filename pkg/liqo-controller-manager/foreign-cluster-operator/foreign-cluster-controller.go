@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	resourcerequestoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -402,12 +401,13 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
 	incomingResourceRequestList, err := resourcerequestoperator.GetResourceRequests(ctx, r.Client, remoteClusterID)
+	if err != nil {
+		return fmt.Errorf("reading resource requests for %v: %w", remoteClusterID, err)
+	}
 
 	status, reason, message, err := getPeeringPhaseList(foreignCluster, incomingResourceRequestList)
 	if err != nil {
-		err = fmt.Errorf("[%v] %w in namespace %v", remoteClusterID, err, localNamespace)
-		klog.Error(err)
-		return err
+		return fmt.Errorf("[%v] %w in namespace %v", remoteClusterID, err, localNamespace)
 	}
 	peeringconditionsutils.EnsureStatus(foreignCluster,
 		discoveryv1alpha1.IncomingPeeringCondition, status, reason, message)

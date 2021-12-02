@@ -17,12 +17,13 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
+	"math"
+
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	"math"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -73,7 +74,7 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 	clusterLabels map[string]string, scheme *runtime.Scheme, reader ResourceReader,
 	updateThresholdPercentage uint, localRealStorageClassName string, enableStorage bool) *OfferUpdater {
 	updater := &OfferUpdater{
-		ResourceReader:			   reader,
+		ResourceReader:            reader,
 		client:                    k8sClient,
 		homeCluster:               homeCluster,
 		clusterLabels:             clusterLabels,
@@ -82,7 +83,7 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 		enableStorage:             enableStorage,
 		currentResources:          map[string]corev1.ResourceList{},
 		updateThresholdPercentage: updateThresholdPercentage,
-		clusterIdentityCache: map[string]discoveryv1alpha1.ClusterIdentity{},
+		clusterIdentityCache:      map[string]discoveryv1alpha1.ClusterIdentity{},
 	}
 	updater.OfferQueue = NewOfferQueue(updater)
 	reader.Register(updater)

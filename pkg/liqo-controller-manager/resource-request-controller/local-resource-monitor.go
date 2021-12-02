@@ -101,6 +101,7 @@ func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface,
 	return &accountant
 }
 
+// Register sets an update notifier.
 func (m *LocalResourceMonitor) Register(notifier ResourceUpdateNotifier) {
 	m.notifier = notifier
 }

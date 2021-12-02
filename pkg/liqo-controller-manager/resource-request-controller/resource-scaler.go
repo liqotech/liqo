@@ -27,6 +27,7 @@ type ResourceScaler struct {
 	Notifier ResourceUpdateNotifier
 }
 
+// Register sets an update notifier.
 func (s *ResourceScaler) Register(notifier ResourceUpdateNotifier) {
 	s.Notifier = notifier
 	s.Provider.Register(notifier)
