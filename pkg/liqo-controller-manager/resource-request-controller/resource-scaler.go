@@ -22,8 +22,14 @@ import (
 // ResourceScaler scales the resources of a ResourceReader by a given amount.
 // It is used to let one reserve resources for local usage and not share them (Factor < 1).
 type ResourceScaler struct {
-	Provider ResourceReaderInterface
+	Provider ResourceReader
 	Factor   float32
+	Notifier ResourceUpdateNotifier
+}
+
+func (s *ResourceScaler) Register(notifier ResourceUpdateNotifier) {
+	s.Notifier = notifier
+	s.Provider.Register(notifier)
 }
 
 // ReadResources returns the provider's resources scaled by the given amount.

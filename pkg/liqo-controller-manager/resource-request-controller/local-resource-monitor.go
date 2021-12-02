@@ -46,7 +46,7 @@ type LocalResourceMonitor struct {
 	podMutex       sync.RWMutex
 	nodeInformer   cache.SharedIndexInformer
 	podInformer    cache.SharedIndexInformer
-	updater        *OfferUpdater
+	notifier       ResourceUpdateNotifier
 }
 
 // PodTransition represents a podReady condition possible transitions.
@@ -64,8 +64,8 @@ const (
 )
 
 // NewLocalMonitor creates a new LocalResourceMonitor.
-func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface, resyncPeriod time.Duration,
-	updater *OfferUpdater) *LocalResourceMonitor {
+func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface,
+	resyncPeriod time.Duration) *LocalResourceMonitor {
 	nodeFactory := informers.NewSharedInformerFactoryWithOptions(
 		clientset, resyncPeriod, informers.WithTweakListOptions(noVirtualNodesFilter),
 	)
@@ -80,7 +80,6 @@ func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface, resync
 		resourcePodMap: map[string]corev1.ResourceList{},
 		nodeInformer:   nodeInformer,
 		podInformer:    podInformer,
-		updater:        updater,
 	}
 
 	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -102,25 +101,29 @@ func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface, resync
 	return &accountant
 }
 
+func (m *LocalResourceMonitor) Register(notifier ResourceUpdateNotifier) {
+	m.notifier = notifier
+}
+
 // react to a Node Creation/First informer run.
-func (b *LocalResourceMonitor) onNodeAdd(obj interface{}) {
+func (m *LocalResourceMonitor) onNodeAdd(obj interface{}) {
 	node := obj.(*corev1.Node)
 	if utils.IsNodeReady(node) {
 		klog.V(4).Infof("Adding Node %s", node.Name)
 		toAdd := &node.Status.Allocatable
-		currentResources := b.readClusterResources()
+		currentResources := m.readClusterResources()
 		addResources(currentResources, *toAdd)
-		b.writeClusterResources(currentResources)
+		m.writeClusterResources(currentResources)
 	}
 }
 
 // react to a Node Update.
-func (b *LocalResourceMonitor) onNodeUpdate(oldObj, newObj interface{}) {
+func (m *LocalResourceMonitor) onNodeUpdate(oldObj, newObj interface{}) {
 	oldNode := oldObj.(*corev1.Node)
 	newNode := newObj.(*corev1.Node)
 	oldNodeResources := oldNode.Status.Allocatable
 	newNodeResources := newNode.Status.Allocatable
-	currentResources := b.readClusterResources()
+	currentResources := m.readClusterResources()
 	klog.V(4).Infof("Updating Node %s", oldNode.Name)
 	if utils.IsNodeReady(newNode) {
 		// node was already Ready, update with possible new resources.
@@ -134,52 +137,52 @@ func (b *LocalResourceMonitor) onNodeUpdate(oldObj, newObj interface{}) {
 	} else if utils.IsNodeReady(oldNode) && !utils.IsNodeReady(newNode) {
 		subResources(currentResources, oldNodeResources)
 	}
-	b.writeClusterResources(currentResources)
+	m.writeClusterResources(currentResources)
 }
 
 // react to a Node Delete.
-func (b *LocalResourceMonitor) onNodeDelete(obj interface{}) {
+func (m *LocalResourceMonitor) onNodeDelete(obj interface{}) {
 	node := obj.(*corev1.Node)
 	toDelete := &node.Status.Allocatable
-	currentResources := b.readClusterResources()
+	currentResources := m.readClusterResources()
 	if utils.IsNodeReady(node) {
 		klog.V(4).Infof("Deleting Node %s", node.Name)
 		subResources(currentResources, *toDelete)
-		b.writeClusterResources(currentResources)
+		m.writeClusterResources(currentResources)
 	}
 }
 
-func (b *LocalResourceMonitor) onPodAdd(obj interface{}) {
+func (m *LocalResourceMonitor) onPodAdd(obj interface{}) {
 	podAdded := obj.(*corev1.Pod)
 	klog.V(4).Infof("OnPodAdd: Add for pod %s:%s", podAdded.Namespace, podAdded.Name)
 	// ignore all shadow pods because of ignoring all virtual Nodes
 	if ready, _ := pod.IsPodReady(podAdded); ready {
 		podResources := extractPodResources(podAdded)
-		currentResources := b.readClusterResources()
+		currentResources := m.readClusterResources()
 		// subtract the pod resource from cluster resources. This action is done for all pods to extract actual available resources.
 		subResources(currentResources, podResources)
-		b.writeClusterResources(currentResources)
+		m.writeClusterResources(currentResources)
 		if clusterID := podAdded.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
 			klog.V(4).Infof("OnPodAdd: Pod %s:%s passed ClusterID check. ClusterID = %s", podAdded.Namespace, podAdded.Name, clusterID)
-			currentPodsResources := b.readPodResources(clusterID)
+			currentPodsResources := m.readPodResources(clusterID)
 			// add the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
 			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
 			addResources(currentPodsResources, podResources)
-			b.writePodResources(clusterID, currentPodsResources)
+			m.writePodResources(clusterID, currentPodsResources)
 		}
 	}
 }
 
-func (b *LocalResourceMonitor) onPodUpdate(oldObj, newObj interface{}) {
+func (m *LocalResourceMonitor) onPodUpdate(oldObj, newObj interface{}) {
 	oldPod := oldObj.(*corev1.Pod)
 	newPod := newObj.(*corev1.Pod)
 	klog.V(4).Infof("OnPodUpdate: Update for pod %s:%s", newPod.Namespace, newPod.Name)
 	newResources := extractPodResources(newPod)
 	oldResources := extractPodResources(oldPod)
-	currentResources := b.readClusterResources()
+	currentResources := m.readClusterResources()
 	clusterID := newPod.Labels[forge.LiqoOriginClusterIDKey]
 	// empty if clusterID has not a valid value.
-	currentPodsResources := b.readPodResources(clusterID)
+	currentPodsResources := m.readPodResources(clusterID)
 
 	switch getPodTransitionState(oldPod, newPod) {
 	// pod is becoming Ready, same of onPodAdd case.
@@ -206,84 +209,92 @@ func (b *LocalResourceMonitor) onPodUpdate(oldObj, newObj interface{}) {
 	case PendingToPending:
 		return
 	}
-	b.writeClusterResources(currentResources)
-	b.writePodResources(clusterID, currentPodsResources)
+	m.writeClusterResources(currentResources)
+	m.writePodResources(clusterID, currentPodsResources)
 }
 
-func (b *LocalResourceMonitor) onPodDelete(obj interface{}) {
+func (m *LocalResourceMonitor) onPodDelete(obj interface{}) {
 	podDeleted := obj.(*corev1.Pod)
 	klog.V(4).Infof("OnPodDelete: Delete for pod %s:%s", podDeleted.Namespace, podDeleted.Name)
 	// ignore all shadow pods because of ignoring all virtual Nodes
 	if ready, _ := pod.IsPodReady(podDeleted); ready {
 		podResources := extractPodResources(podDeleted)
-		currentResources := b.readClusterResources()
+		currentResources := m.readClusterResources()
 		// Resources used by the pod will become available again so add them to the total allocatable ones.
 		addResources(currentResources, podResources)
-		b.writeClusterResources(currentResources)
+		m.writeClusterResources(currentResources)
 		if clusterID := podDeleted.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
 			klog.V(4).Infof("OnPodDelete: Pod %s:%s passed ClusterID check. ClusterID = %s", podDeleted.Namespace, podDeleted.Name, clusterID)
-			currentPodsResources := b.readPodResources(clusterID)
+			currentPodsResources := m.readPodResources(clusterID)
 			subResources(currentPodsResources, podResources)
-			b.writePodResources(clusterID, currentPodsResources)
+			m.writePodResources(clusterID, currentPodsResources)
 		}
 	}
 }
 
 // write nodes resources in thread safe mode.
-func (b *LocalResourceMonitor) writeClusterResources(newResources corev1.ResourceList) {
+func (m *LocalResourceMonitor) writeClusterResources(newResources corev1.ResourceList) {
 	if !liqoerrors.Must(checkSign(newResources)) {
 		setZero(&newResources)
 	}
-	b.nodeMutex.Lock()
-	b.allocatable = newResources.DeepCopy()
-	b.nodeMutex.Unlock()
-	b.updater.NotifyChange()
+	m.nodeMutex.Lock()
+	m.allocatable = newResources.DeepCopy()
+	m.nodeMutex.Unlock()
+	if m.notifier == nil {
+		klog.Warning("No notifier is configured, an update will be lost")
+	} else {
+		m.notifier.NotifyChange()
+	}
 }
 
 // write pods resources in thread safe mode.
-func (b *LocalResourceMonitor) writePodResources(clusterID string, newResources corev1.ResourceList) {
+func (m *LocalResourceMonitor) writePodResources(clusterID string, newResources corev1.ResourceList) {
 	if clusterID == "" {
 		return
 	}
 	if !liqoerrors.Must(checkSign(newResources)) {
 		setZero(&newResources)
 	}
-	b.podMutex.Lock()
-	b.resourcePodMap[clusterID] = newResources.DeepCopy()
-	b.podMutex.Unlock()
-	b.updater.NotifyChange()
+	m.podMutex.Lock()
+	m.resourcePodMap[clusterID] = newResources.DeepCopy()
+	m.podMutex.Unlock()
+	if m.notifier == nil {
+		klog.Warning("No notifier is configured, an update will be lost")
+	} else {
+		m.notifier.NotifyChange()
+	}
 }
 
 // ReadResources returns the resources available in the cluster (total minus used), multiplied by resourceSharingPercentage.
-func (b *LocalResourceMonitor) ReadResources(clusterID string) corev1.ResourceList {
-	toRead := b.readClusterResources()
-	podsResources := b.readPodResources(clusterID)
+func (m *LocalResourceMonitor) ReadResources(clusterID string) corev1.ResourceList {
+	toRead := m.readClusterResources()
+	podsResources := m.readPodResources(clusterID)
 	addResources(toRead, podsResources)
 	return toRead
 }
 
 // RemoveClusterID removes a clusterID from all broadcaster internal structures
 // it is useful when a particular foreign cluster has no more peering and its ResourceRequest has been deleted.
-func (b *LocalResourceMonitor) RemoveClusterID(clusterID string) {
-	b.podMutex.Lock()
-	defer b.podMutex.Unlock()
-	delete(b.resourcePodMap, clusterID)
+func (m *LocalResourceMonitor) RemoveClusterID(clusterID string) {
+	m.podMutex.Lock()
+	defer m.podMutex.Unlock()
+	delete(m.resourcePodMap, clusterID)
 }
 
 // readClusterResources returns the total resources in the cluster.
 // It performs thread-safe access to allocatable.
-func (b *LocalResourceMonitor) readClusterResources() corev1.ResourceList {
-	b.nodeMutex.RLock()
-	defer b.nodeMutex.RUnlock()
-	return b.allocatable.DeepCopy()
+func (m *LocalResourceMonitor) readClusterResources() corev1.ResourceList {
+	m.nodeMutex.RLock()
+	defer m.nodeMutex.RUnlock()
+	return m.allocatable.DeepCopy()
 }
 
 // readClusterResources returns the resources used by pods in the cluster.
 // It performs thread-safe access to resourcePodMap.
-func (b *LocalResourceMonitor) readPodResources(clusterID string) corev1.ResourceList {
-	b.podMutex.RLock()
-	defer b.podMutex.RUnlock()
-	if toRead, exists := b.resourcePodMap[clusterID]; exists {
+func (m *LocalResourceMonitor) readPodResources(clusterID string) corev1.ResourceList {
+	m.podMutex.RLock()
+	defer m.podMutex.RUnlock()
+	if toRead, exists := m.resourcePodMap[clusterID]; exists {
 		return toRead.DeepCopy()
 	}
 	return corev1.ResourceList{}

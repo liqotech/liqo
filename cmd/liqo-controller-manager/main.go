@@ -252,14 +252,11 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	offerUpdater := resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
-		mgr.GetScheme(), uint(offerUpdateThreshold.Val),
-		*realStorageClassName, *enableStorage)
 	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
-	klog.Info("Starting resource monitor...")
-	monitor := resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod, offerUpdater)
+	monitor := resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod)
 	scaledMonitor := &resourceRequestOperator.ResourceScaler{Provider: monitor, Factor: float32(resourceSharingPercentage.Val) / 100.}
-	offerUpdater.ResourceReader = scaledMonitor
+	offerUpdater := resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
+		mgr.GetScheme(), scaledMonitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
 	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),
@@ -268,6 +265,7 @@ func main() {
 		EnableIncomingPeering: *enableIncomingPeering,
 	}
 
+	klog.Info("Starting resource monitor...")
 	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}

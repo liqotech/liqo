@@ -32,17 +32,25 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-// ResourceReaderInterface represents an interface to read the available resources in this cluster.
-type ResourceReaderInterface interface {
+// ResourceUpdateNotifier represents an interface for OfferUpdater to receive resource updates.
+type ResourceUpdateNotifier interface {
+	// NotifyChange signals that a change in resources may have occurred.
+	NotifyChange()
+}
+
+// ResourceReader represents an interface to read the available resources in this cluster.
+type ResourceReader interface {
 	// ReadResources returns the resources available for usage by the given cluster.
 	ReadResources(clusterID string) corev1.ResourceList
+	// Register sets the component that will be notified of changes.
+	Register(ResourceUpdateNotifier)
 	// RemoveClusterID removes the given clusterID from all internal structures.
 	RemoveClusterID(clusterID string)
 }
 
 // OfferUpdater is a component that responds to ResourceRequests with the cluster's resources read from ResourceReader.
 type OfferUpdater struct {
-	ResourceReader ResourceReaderInterface
+	ResourceReader ResourceReader
 	OfferQueue
 
 	client                    client.Client
@@ -61,9 +69,11 @@ type OfferUpdater struct {
 }
 
 // NewOfferUpdater constructs a new OfferUpdater.
-func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.ClusterIdentity, clusterLabels map[string]string,
-	scheme *runtime.Scheme, updateThresholdPercentage uint, localRealStorageClassName string, enableStorage bool) *OfferUpdater {
+func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.ClusterIdentity,
+	clusterLabels map[string]string, scheme *runtime.Scheme, reader ResourceReader,
+	updateThresholdPercentage uint, localRealStorageClassName string, enableStorage bool) *OfferUpdater {
 	updater := &OfferUpdater{
+		ResourceReader:			   reader,
 		client:                    k8sClient,
 		homeCluster:               homeCluster,
 		clusterLabels:             clusterLabels,
@@ -75,6 +85,7 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 		clusterIdentityCache: map[string]discoveryv1alpha1.ClusterIdentity{},
 	}
 	updater.OfferQueue = NewOfferQueue(updater)
+	reader.Register(updater)
 	return updater
 }
 

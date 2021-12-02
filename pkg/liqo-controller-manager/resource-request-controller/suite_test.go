@@ -96,13 +96,13 @@ func createCluster() {
 	k8sClient = k8sManager.GetClient()
 	Expect(k8sClient).ToNot(BeNil())
 
-	// Initializing a new updater and adding it to the manager.
+	// Initializing a new notifier and adding it to the manager.
 	localStorageClassName := ""
 	enableStorage := true
-	updater = NewOfferUpdater(k8sClient, homeCluster, nil, k8sManager.GetScheme(), 5, localStorageClassName, enableStorage)
-	monitor = NewLocalMonitor(ctx, clientset, 5*time.Second, updater)
+	monitor = NewLocalMonitor(ctx, clientset, 5*time.Second)
 	scaledMonitor = &ResourceScaler{Provider: monitor, Factor: DefaultScaleFactor}
-	updater.ResourceReader = scaledMonitor
+	updater = NewOfferUpdater(k8sClient, homeCluster, nil, k8sManager.GetScheme(), scaledMonitor,
+		5, localStorageClassName, enableStorage)
 
 	Expect(k8sManager.Add(updater)).To(Succeed())
 

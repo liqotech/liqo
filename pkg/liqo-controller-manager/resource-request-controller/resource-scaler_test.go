@@ -25,11 +25,14 @@ type FakeResourceReader struct {
 	corev1.ResourceList
 }
 
-func (r FakeResourceReader) ReadResources(cluster string) corev1.ResourceList {
+func (r FakeResourceReader) Register(ResourceUpdateNotifier) {
+}
+
+func (r FakeResourceReader) ReadResources(string) corev1.ResourceList {
 	return r.ResourceList.DeepCopy()
 }
 
-func (r FakeResourceReader) RemoveClusterID(cluster string) {
+func (r FakeResourceReader) RemoveClusterID(string) {
 
 }
 
