@@ -16,6 +16,8 @@ package identitymanager
 
 import (
 	"context"
+	"net/http"
+	"net/url"
 	"os"
 	"sync"
 	"time"
@@ -123,6 +125,20 @@ func (tokMan *iamTokenManager) getConfig(secret *v1.Secret, remoteCluster discov
 		Name:      secret.Name,
 	})
 
+	var proxyURL *url.URL
+	var proxyFunc func(*http.Request) (*url.URL, error)
+	proxyConfig, ok := secret.Data[apiProxyURLSecretKey]
+	if ok {
+		proxyURL, err = url.Parse(string(proxyConfig))
+		if err != nil {
+			klog.Errorf("an error occurred while parsing proxy url %s from secret %v/%v: %s", proxyConfig, secret.Namespace, secret.Name, err)
+			return nil, err
+		}
+		proxyFunc = func(request *http.Request) (*url.URL, error) {
+			return proxyURL, nil
+		}
+	}
+
 	// create the rest config
 	return &rest.Config{
 		Host:            string(clusterEndpoint),
@@ -130,6 +146,7 @@ func (tokMan *iamTokenManager) getConfig(secret *v1.Secret, remoteCluster discov
 		TLSClientConfig: rest.TLSClientConfig{
 			CAData: ca,
 		},
+		Proxy: proxyFunc,
 	}, nil
 }
 

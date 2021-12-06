@@ -125,7 +125,7 @@ func (r *ForeignClusterReconciler) validateIdentity(ctx context.Context, fc *dis
 		return err
 	}
 
-	if err = r.IdentityManager.StoreCertificate(remoteCluster, &response); err != nil {
+	if err = r.IdentityManager.StoreCertificate(remoteCluster, fc.Spec.ForeignProxyURL, &response); err != nil {
 		klog.Error(err)
 		return err
 	}

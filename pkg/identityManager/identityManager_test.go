@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -64,22 +65,41 @@ var _ = Describe("IdentityManager", func() {
 
 		namespace *v1.Namespace
 
-		identityMan      IdentityManager
-		identityProvider IdentityProvider
-		namespaceManager tenantnamespace.Manager
+		identityMan             IdentityManager
+		identityProvider        IdentityProvider
+		namespaceManager        tenantnamespace.Manager
+		apiProxyURL             string
+		apiServerConfig         apiserver.Config
+		signingIdentityResponse responsetypes.SigningRequestResponse
+		secretIdentityResponse  *auth.CertificateIdentityResponse
+		certificateSecretData   map[string]string
+		iamIdentityResponse     *auth.CertificateIdentityResponse
+		signingIAMResponse      responsetypes.SigningRequestResponse
+		iamSecretData           map[string]string
+		notFoundError           error
 	)
 
 	BeforeSuite(func() {
 		ctx = context.Background()
 
+		apiProxyURL = "http://192.168.0.0:8118"
+
+		certificateSecretData = make(map[string]string)
+		iamSecretData = make(map[string]string)
+
 		localCluster = discoveryv1alpha1.ClusterIdentity{
 			ClusterID:   "local-cluster-id",
 			ClusterName: "local-cluster-name",
 		}
+
 		remoteCluster = discoveryv1alpha1.ClusterIdentity{
 			ClusterID:   "remote-cluster-id",
 			ClusterName: "remote-cluster-name",
 		}
+		notFoundError = kerrors.NewNotFound(schema.GroupResource{
+			Group:    "v1",
+			Resource: "secrets",
+		}, remoteCluster.ClusterID)
 
 		var err error
 		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
@@ -102,6 +122,64 @@ var _ = Describe("IdentityManager", func() {
 		}
 		// Make sure the namespace has been cached for subsequent retrieval.
 		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(remoteCluster) }).Should(Equal(namespace))
+
+		// Certificate Secret Section
+		apiServerConfig = apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
+		Expect(apiServerConfig.Complete(restConfig, client)).To(Succeed())
+
+		signingIdentityResponse = responsetypes.SigningRequestResponse{
+			ResponseType: responsetypes.SigningRequestResponseCertificate,
+			Certificate:  []byte("cert"),
+		}
+
+		secretIdentityResponse, err = auth.NewCertificateIdentityResponse(
+			"remoteNamespace", &signingIdentityResponse, apiServerConfig)
+		Expect(err).ToNot(HaveOccurred())
+		certificate, err := base64.StdEncoding.DecodeString(secretIdentityResponse.Certificate)
+		Expect(err).To(BeNil())
+		certificateSecretData[privateKeySecretKey] = "private-key-test"
+		certificateSecretData[certificateSecretKey] = string(certificate)
+		apiServerCa, err := base64.StdEncoding.DecodeString(secretIdentityResponse.APIServerCA)
+		Expect(err).To(BeNil())
+		certificateSecretData[apiServerCaSecretKey] = string(apiServerCa)
+		certificateSecretData[apiServerURLSecretKey] = secretIdentityResponse.APIServerURL
+		certificateSecretData[apiProxyURLSecretKey] = apiProxyURL
+		certificateSecretData[namespaceSecretKey] = secretIdentityResponse.Namespace
+
+		// IAM Secret Section
+		signingIAMResponse = responsetypes.SigningRequestResponse{
+			ResponseType: responsetypes.SigningRequestResponseIAM,
+			AwsIdentityResponse: responsetypes.AwsIdentityResponse{
+				IamUserArn: "arn:example",
+				AccessKey: &iam.AccessKey{
+					AccessKeyId:     aws.String("key"),
+					SecretAccessKey: aws.String("secret"),
+				},
+				EksCluster: &eks.Cluster{
+					Name:     aws.String("clustername"),
+					Endpoint: aws.String("https://example.com"),
+					CertificateAuthority: &eks.Certificate{
+						Data: aws.String("cert"),
+					},
+				},
+				Region: "region",
+			},
+		}
+
+		iamIdentityResponse, err = auth.NewCertificateIdentityResponse(
+			"remoteNamespace", &signingIAMResponse, apiServerConfig)
+		Expect(err).To(BeNil())
+		iamSecretData[awsAccessKeyIDSecretKey] = iamIdentityResponse.AWSIdentityInfo.AccessKeyID
+		iamSecretData[awsSecretAccessKeySecretKey] = iamIdentityResponse.AWSIdentityInfo.SecretAccessKey
+		iamSecretData[awsRegionSecretKey] = iamIdentityResponse.AWSIdentityInfo.Region
+		iamSecretData[awsEKSClusterIDSecretKey] = iamIdentityResponse.AWSIdentityInfo.EKSClusterID
+		iamSecretData[awsIAMUserArnSecretKey] = iamIdentityResponse.AWSIdentityInfo.IAMUserArn
+		iamSecretData[apiServerURLSecretKey] = iamIdentityResponse.APIServerURL
+		apiServerCa, err = base64.StdEncoding.DecodeString(iamIdentityResponse.APIServerCA)
+		Expect(err).To(BeNil())
+		iamSecretData[apiServerCaSecretKey] = string(apiServerCa)
+		iamSecretData[apiProxyURLSecretKey] = apiProxyURL
+
 	})
 
 	AfterSuite(func() {
@@ -227,20 +305,8 @@ var _ = Describe("IdentityManager", func() {
 	Context("Storage", func() {
 
 		It("StoreCertificate", func() {
-			apiServerConfig := apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
-			Expect(apiServerConfig.Complete(restConfig, client)).To(Succeed())
-
-			signingIdentityResponse := responsetypes.SigningRequestResponse{
-				ResponseType: responsetypes.SigningRequestResponseCertificate,
-				Certificate:  []byte("cert"),
-			}
-
-			identityResponse, err := auth.NewCertificateIdentityResponse(
-				"remoteNamespace", &signingIdentityResponse, apiServerConfig)
-			Expect(err).To(BeNil())
-
 			// store the certificate in the secret
-			err = identityMan.StoreCertificate(remoteCluster, identityResponse)
+			err := identityMan.StoreCertificate(remoteCluster, "", secretIdentityResponse)
 			Expect(err).To(BeNil())
 
 			// retrieve rest config
@@ -249,6 +315,15 @@ var _ = Describe("IdentityManager", func() {
 			Expect(cnf).NotTo(BeNil())
 			Expect(cnf.Host).To(Equal("https://127.0.0.1"))
 
+			idMan, ok := identityMan.(*identityManager)
+			Expect(ok).To(BeTrue())
+
+			secret, err := idMan.getSecret(remoteCluster)
+			Expect(err).To(Succeed())
+
+			_, found := secret.Data[apiProxyURLSecretKey]
+			Expect(found).To(BeFalse())
+
 			// retrieve the remote tenant namespace
 			remoteNamespace, err := identityMan.GetRemoteTenantNamespace(remoteCluster, "")
 			Expect(err).To(BeNil())
@@ -256,34 +331,8 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("StoreCertificate IAM", func() {
-			apiServerConfig := apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
-			Expect(apiServerConfig.Complete(restConfig, client)).To(Succeed())
-
-			signingIAMResponse := responsetypes.SigningRequestResponse{
-				ResponseType: responsetypes.SigningRequestResponseIAM,
-				AwsIdentityResponse: responsetypes.AwsIdentityResponse{
-					IamUserArn: "arn:example",
-					AccessKey: &iam.AccessKey{
-						AccessKeyId:     aws.String("key"),
-						SecretAccessKey: aws.String("secret"),
-					},
-					EksCluster: &eks.Cluster{
-						Name:     aws.String("clustername"),
-						Endpoint: aws.String("https://example.com"),
-						CertificateAuthority: &eks.Certificate{
-							Data: aws.String("cert"),
-						},
-					},
-					Region: "region",
-				},
-			}
-
-			identityResponse, err := auth.NewCertificateIdentityResponse(
-				"remoteNamespace", &signingIAMResponse, apiServerConfig)
-			Expect(err).To(BeNil())
-
 			// store the certificate in the secret
-			err = identityMan.StoreCertificate(remoteCluster, identityResponse)
+			err := identityMan.StoreCertificate(remoteCluster, apiProxyURL, iamIdentityResponse)
 			Expect(err).To(BeNil())
 
 			idMan, ok := identityMan.(*identityManager)
@@ -303,7 +352,8 @@ var _ = Describe("IdentityManager", func() {
 			Expect(secret.Data[awsSecretAccessKeySecretKey]).To(Equal([]byte(*signingIAMResponse.AwsIdentityResponse.AccessKey.SecretAccessKey)))
 			Expect(secret.Data[awsRegionSecretKey]).To(Equal([]byte(signingIAMResponse.AwsIdentityResponse.Region)))
 			Expect(secret.Data[awsEKSClusterIDSecretKey]).To(Equal([]byte(*signingIAMResponse.AwsIdentityResponse.EksCluster.Name)))
-			Expect(secret.Data[awsIAMUserArnSecretKey]).To(Equal([]byte(identityResponse.AWSIdentityInfo.IAMUserArn)))
+			Expect(secret.Data[awsIAMUserArnSecretKey]).To(Equal([]byte(iamIdentityResponse.AWSIdentityInfo.IAMUserArn)))
+			Expect(secret.Data[apiProxyURLSecretKey]).To(Equal([]byte(apiProxyURL)))
 
 			// retrieve rest config
 			cnf, err := identityMan.GetConfig(remoteCluster, "")
@@ -367,31 +417,158 @@ var _ = Describe("IdentityManager", func() {
 
 	})
 
-	Context("Identity Provider", func() {
+	Context("buildConfigFromSecret", func() {
 
-		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
+		var (
+			secret *v1.Secret
+		)
 
-			certIDManager, ok := idProvider.(*identityManager)
-			Expect(ok).To(BeTrue())
-
-			_, ok = certIDManager.IdentityProvider.(*certificateIdentityProvider)
-			Expect(ok).To(BeTrue())
+		JustBeforeEach(func() {
+			secret = testutil.FakeSecret("test", "", certificateSecretData)
 		})
 
-		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient(), localCluster, &AwsConfig{
-				AwsAccessKeyID:     "KeyID",
-				AwsSecretAccessKey: "Secret",
-				AwsRegion:          "region",
-				AwsClusterName:     "cluster-name",
-			}, namespaceManager)
+		It("private key has not been set", func() {
+			delete(secret.Data, privateKeySecretKey)
+			config, err := buildConfigFromSecret(secret, remoteCluster)
+			Expect(config).To(BeNil())
+			Expect(err).To(MatchError(notFoundError))
+		})
 
-			certIDManager, ok := idProvider.(*identityManager)
+		It("cert data has not been set", func() {
+			delete(secret.Data, certificateSecretKey)
+			config, err := buildConfigFromSecret(secret, remoteCluster)
+			Expect(config).To(BeNil())
+			Expect(err).To(MatchError(notFoundError))
+		})
+
+		It("api server url has not been set", func() {
+			delete(secret.Data, apiServerURLSecretKey)
+			config, err := buildConfigFromSecret(secret, remoteCluster)
+			Expect(config).To(BeNil())
+			Expect(err).To(MatchError(notFoundError))
+		})
+
+		It("api server CA data has not been set", func() {
+			delete(secret.Data, apiServerCaSecretKey)
+			config, err := buildConfigFromSecret(secret, remoteCluster)
+			Expect(err).To(BeNil())
+			Expect(config).NotTo(BeNil())
+			Expect(config.CAData).To(BeNil())
+		})
+
+		It("proxy URL has not been set", func() {
+			delete(secret.Data, apiProxyURLSecretKey)
+			config, err := buildConfigFromSecret(secret, remoteCluster)
+			Expect(err).To(BeNil())
+			Expect(config).NotTo(BeNil())
+			Expect(config.Proxy).To(BeNil())
+		})
+
+		It("proxy URL invalid value", func() {
+			secret.Data[apiProxyURLSecretKey] = []byte("notAn;URL\n")
+			config, err := buildConfigFromSecret(secret, remoteCluster)
+			Expect(err).NotTo(BeNil())
+			Expect(config).To(BeNil())
+		})
+
+		It("secret contains all the needed data", func() {
+			config, err := buildConfigFromSecret(secret, remoteCluster)
+			Expect(err).To(BeNil())
+			Expect(config).NotTo(BeNil())
+			Expect(config.Proxy).NotTo(BeNil())
+			Expect(config.Host).To(Equal(certificateSecretData[apiServerURLSecretKey]))
+			Expect(config.TLSClientConfig.CertData).To(Equal([]byte(certificateSecretData[certificateSecretKey])))
+			Expect(config.TLSClientConfig.CAData).To(Equal([]byte(certificateSecretData[apiServerCaSecretKey])))
+			Expect(config.TLSClientConfig.KeyData).To(Equal([]byte(certificateSecretData[privateKeySecretKey])))
+		})
+
+	})
+
+	Context("iamTokenManager.getConfig", func() {
+
+		var (
+			secret       *v1.Secret
+			tokenManager iamTokenManager
+		)
+		BeforeEach(func() {
+			idMan, ok := identityMan.(*identityManager)
 			Expect(ok).To(BeTrue())
 
-			_, ok = certIDManager.IdentityProvider.(*iamIdentityProvider)
-			Expect(ok).To(BeTrue())
+			tokenManager = iamTokenManager{
+				client:                    idMan.client,
+				availableClusterIDSecrets: map[string]types.NamespacedName{},
+				tokenFiles:                map[string]string{},
+			}
+
+		})
+		JustBeforeEach(func() {
+			secret = testutil.FakeSecret("test", "", iamSecretData)
+		})
+
+		It("api server url has not been set", func() {
+			delete(secret.Data, apiServerURLSecretKey)
+			config, err := tokenManager.getConfig(secret, remoteCluster)
+			Expect(config).To(BeNil())
+			Expect(err).To(MatchError(notFoundError))
+		})
+
+		It("api server CA data has not been set", func() {
+			delete(secret.Data, apiServerCaSecretKey)
+			config, err := tokenManager.getConfig(secret, remoteCluster)
+			Expect(config).To(BeNil())
+			Expect(err).To(MatchError(notFoundError))
+		})
+
+		It("proxy URL has not been set", func() {
+			delete(secret.Data, apiProxyURLSecretKey)
+			config, err := tokenManager.getConfig(secret, remoteCluster)
+			Expect(err).To(BeNil())
+			Expect(config).NotTo(BeNil())
+			Expect(config.Proxy).To(BeNil())
+		})
+
+		It("proxy URL invalid value", func() {
+			secret.Data[apiProxyURLSecretKey] = []byte("notAn;URL\n")
+			config, err := tokenManager.getConfig(secret, remoteCluster)
+			Expect(err).NotTo(BeNil())
+			Expect(config).To(BeNil())
+		})
+
+		It("aws region data has not been set", func() {
+			delete(secret.Data, awsRegionSecretKey)
+			config, err := tokenManager.getConfig(secret, remoteCluster)
+			Expect(config).To(BeNil())
+			Expect(err).To(MatchError(notFoundError))
+		})
+
+		It("aws access ID data has not been set", func() {
+			delete(secret.Data, awsAccessKeyIDSecretKey)
+			config, err := tokenManager.getConfig(secret, remoteCluster)
+			Expect(config).To(BeNil())
+			Expect(err).To(MatchError(notFoundError))
+		})
+
+		It("aws secret access ID data has not been set", func() {
+			delete(secret.Data, awsSecretAccessKeySecretKey)
+			config, err := tokenManager.getConfig(secret, remoteCluster)
+			Expect(config).To(BeNil())
+			Expect(err).To(MatchError(notFoundError))
+		})
+
+		It("aws eks cluster ID data has not been set", func() {
+			delete(secret.Data, awsEKSClusterIDSecretKey)
+			config, err := tokenManager.getConfig(secret, remoteCluster)
+			Expect(config).To(BeNil())
+			Expect(err).To(MatchError(notFoundError))
+		})
+
+		It("secret contains all the needed data", func() {
+			config, err := tokenManager.getConfig(secret, remoteCluster)
+			Expect(err).To(BeNil())
+			Expect(config).NotTo(BeNil())
+			Expect(config.Proxy).NotTo(BeNil())
+			Expect(config.Host).To(Equal(iamSecretData[apiServerURLSecretKey]))
+			Expect(config.TLSClientConfig.CAData).To(Equal([]byte(iamSecretData[apiServerCaSecretKey])))
 		})
 
 	})

@@ -34,6 +34,7 @@ const (
 	csrSecretKey          = "csr"
 	certificateSecretKey  = "certificate"
 	apiServerURLSecretKey = "apiServerUrl"
+	apiProxyURLSecretKey  = "proxyURL"
 	apiServerCaSecretKey  = "apiServerCa"
 	namespaceSecretKey    = "namespace"
 
