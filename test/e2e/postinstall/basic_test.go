@@ -17,6 +17,7 @@ package postinstall
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,17 +65,32 @@ var _ = Describe("Liqo E2E", func() {
 						klog.Infof("Liqo pods status: %d ready, %d not ready", len(readyPods), len(notReadyPods))
 						return err == nil && len(notReadyPods) == 0 && len(readyPods) > 0
 					}, timeout, interval).Should(BeTrue())
+
+					// Check that the pods were not restarted
+					pods, err := cluster.NativeClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+					Expect(err).ToNot(HaveOccurred())
+					for _, pod := range pods.Items {
+						Expect(pod.Status.ContainerStatuses).ToNot(BeEmpty())
+						if strings.Contains(pod.GetName(), "capsule") {
+							// the capsule controller manager is restarted every time liqo is installed
+							Expect(pod.Status.ContainerStatuses[0].RestartCount).To(BeNumerically("==", 1))
+							continue
+						}
+						Expect(pod.Status.ContainerStatuses[0].RestartCount).To(BeNumerically("==", 0))
+					}
+
 					var tenantNsList *corev1.NamespaceList
 					Eventually(func() []corev1.Namespace {
-						nodeLabel := map[string]string{}
-						nodeLabel[discovery.TenantNamespaceLabel] = "true"
+						namespaceLabel := map[string]string{}
+						namespaceLabel[discovery.TenantNamespaceLabel] = "true"
 						var err error
 						tenantNsList, err = cluster.NativeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
-							LabelSelector: labels.SelectorFromSet(nodeLabel).String(),
+							LabelSelector: labels.SelectorFromSet(namespaceLabel).String(),
 						})
 						Expect(err).ToNot(HaveOccurred())
 						return tenantNsList.Items
 					}, timeout, interval).Should(HaveLen(1))
+
 					Eventually(func() bool {
 						readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.NativeClient, tenantNsList.Items[0].Name)
 						klog.Infof("Tenant pods status: %d ready, %d not ready", len(readyPods), len(notReadyPods))
