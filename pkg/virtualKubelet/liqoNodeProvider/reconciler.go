@@ -245,7 +245,7 @@ func (p *LiqoNodeProvider) handleResourceOfferDelete(resourceOffer *sharingv1alp
 	}
 
 	// delete the node
-	if err := client.IgnoreNotFound(p.client.CoreV1().Nodes().Delete(ctx, p.node.GetName(), metav1.DeleteOptions{})); err != nil {
+	if err := client.IgnoreNotFound(p.localClient.CoreV1().Nodes().Delete(ctx, p.node.GetName(), metav1.DeleteOptions{})); err != nil {
 		klog.Errorf("error deleting node: %v", err)
 		return err
 	}

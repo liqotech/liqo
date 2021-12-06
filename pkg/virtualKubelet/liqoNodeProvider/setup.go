@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -59,12 +60,10 @@ type InitConfig struct {
 
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
 func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
-	client := kubernetes.NewForConfigOrDie(cfg.HomeConfig)
-	dynClient := dynamic.NewForConfigOrDie(cfg.HomeConfig)
-
 	return &LiqoNodeProvider{
-		client:    client,
-		dynClient: dynClient,
+		localClient:           kubernetes.NewForConfigOrDie(cfg.HomeConfig),
+		remoteDiscoveryClient: discovery.NewDiscoveryClientForConfigOrDie(cfg.RemoteConfig),
+		dynClient:             dynamic.NewForConfigOrDie(cfg.HomeConfig),
 
 		node:              node(cfg),
 		terminating:       false,

@@ -20,14 +20,17 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 // LiqoNodeProvider is a node provider that manages the Liqo resources.
 type LiqoNodeProvider struct {
-	client    kubernetes.Interface
-	dynClient dynamic.Interface
+	localClient           kubernetes.Interface
+	remoteDiscoveryClient discovery.DiscoveryInterface
+	dynClient             dynamic.Interface
 
 	node              *corev1.Node
 	terminating       bool
@@ -44,10 +47,19 @@ type LiqoNodeProvider struct {
 	updateMutex          sync.Mutex
 }
 
-// Ping just implements the NodeProvider interface.
-// It returns the error from the passed in context only.
+// Ping checks if the the node is still active.
 func (p *LiqoNodeProvider) Ping(ctx context.Context) error {
-	return ctx.Err()
+	start := time.Now()
+	klog.V(4).Infof("Checking whether the remote API server is ready")
+
+	_, err := p.remoteDiscoveryClient.RESTClient().Get().AbsPath("/livez").DoRaw(ctx)
+	if err != nil {
+		klog.Errorf("API server readiness check failed: %v", err)
+		return err
+	}
+
+	klog.V(4).Infof("Readiness check completed successfully in %v", time.Since(start))
+	return nil
 }
 
 // NotifyNodeStatus implements the NodeProvider interface.
