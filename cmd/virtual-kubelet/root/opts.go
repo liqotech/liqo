@@ -17,10 +17,9 @@ package root
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -31,8 +30,8 @@ import (
 const (
 	DefaultNodeName             = "virtual-kubelet"
 	DefaultInformerResyncPeriod = 10 * time.Hour
-	DefaultMetricsAddr          = ":10255"
 	DefaultListenPort           = 10250
+	DefaultMetricsAddress       = ":10255"
 
 	DefaultPodWorkers                  = 10
 	DefaultServiceWorkers              = 3
@@ -40,26 +39,26 @@ const (
 	DefaultConfigMapWorkers            = 3
 	DefaultSecretWorkers               = 3
 	DefaultPersistenVolumeClaimWorkers = 3
-
-	DefaultKubeletNamespace = "default"
-	DefaultLiqoIpamServer   = consts.NetworkManagerServiceName
 )
 
 // Opts stores all the options for configuring the root virtual-kubelet command.
 // It is used for setting flag values.
-//
-// You can set the default options by creating a new `Opts` struct and passing
-// it into `SetDefaultOpts`.
 type Opts struct {
-	// Sets the port to listen for requests from the Kubernetes API server
-	ListenPort int32
-
-	// Node name to use when creating a node in Kubernetes
-	NodeName string
-
 	HomeKubeconfig string
 
-	MetricsAddr string
+	// Node name to use when creating a node in Kubernetes
+	NodeName             string
+	TenantNamespace      string
+	InformerResyncPeriod time.Duration
+
+	HomeCluster    discoveryv1alpha1.ClusterIdentity
+	ForeignCluster discoveryv1alpha1.ClusterIdentity
+	LiqoIpamServer string
+
+	// Sets the port to listen for requests from the Kubernetes API server
+	ListenPort      uint16
+	MetricsAddress  string
+	EnableProfiling bool
 
 	// Number of workers to use to handle pod notifications and resource reflection
 	PodWorkers                  uint
@@ -69,19 +68,6 @@ type Opts struct {
 	SecretWorkers               uint
 	PersistenVolumeClaimWorkers uint
 
-	InformerResyncPeriod time.Duration
-
-	// Startup Timeout is how long to wait for the kubelet to start
-	StartupTimeout time.Duration
-
-	ForeignCluster   discoveryv1alpha1.ClusterIdentity
-	HomeCluster      discoveryv1alpha1.ClusterIdentity
-	KubeletNamespace string
-
-	LiqoIpamServer string
-
-	Profiling bool
-
 	NodeExtraAnnotations argsutils.StringMap
 	NodeExtraLabels      argsutils.StringMap
 
@@ -90,62 +76,25 @@ type Opts struct {
 	RemoteRealStorageClassName string
 }
 
-// SetDefaultOpts sets default options for unset values on the passed in option struct.
-// Fields tht are already set will not be modified.
-func SetDefaultOpts(c *Opts) error {
-	if c.InformerResyncPeriod == 0 {
-		c.InformerResyncPeriod = DefaultInformerResyncPeriod
-	}
+// NewOpts returns an Opts struct with the default values set.
+func NewOpts() *Opts {
+	return &Opts{
+		HomeKubeconfig:       os.Getenv("KUBECONFIG"),
+		NodeName:             DefaultNodeName,
+		TenantNamespace:      corev1.NamespaceDefault,
+		InformerResyncPeriod: DefaultInformerResyncPeriod,
 
-	if c.MetricsAddr == "" {
-		c.MetricsAddr = DefaultMetricsAddr
-	}
+		LiqoIpamServer: fmt.Sprintf("%v:%v", consts.NetworkManagerServiceName, consts.NetworkManagerIpamPort),
 
-	if c.PodWorkers == 0 {
-		c.PodWorkers = DefaultPodWorkers
-	}
+		ListenPort:      DefaultListenPort,
+		MetricsAddress:  DefaultMetricsAddress,
+		EnableProfiling: false,
 
-	if c.ServiceWorkers == 0 {
-		c.ServiceWorkers = DefaultServiceWorkers
+		PodWorkers:                  DefaultPodWorkers,
+		ServiceWorkers:              DefaultServiceWorkers,
+		EndpointSliceWorkers:        DefaultEndpointSliceWorkers,
+		ConfigMapWorkers:            DefaultConfigMapWorkers,
+		SecretWorkers:               DefaultSecretWorkers,
+		PersistenVolumeClaimWorkers: DefaultPersistenVolumeClaimWorkers,
 	}
-
-	if c.EndpointSliceWorkers == 0 {
-		c.EndpointSliceWorkers = DefaultEndpointSliceWorkers
-	}
-
-	if c.ConfigMapWorkers == 0 {
-		c.ConfigMapWorkers = DefaultConfigMapWorkers
-	}
-
-	if c.SecretWorkers == 0 {
-		c.SecretWorkers = DefaultSecretWorkers
-	}
-
-	if c.PersistenVolumeClaimWorkers == 0 {
-		c.PersistenVolumeClaimWorkers = DefaultPersistenVolumeClaimWorkers
-	}
-
-	if c.ListenPort == 0 {
-		if kp := os.Getenv("KUBELET_PORT"); kp != "" {
-			p, err := strconv.ParseInt(kp, 10, 32)
-			if err != nil {
-				return errors.Wrap(err, "error parsing KUBELET_PORT environment variable")
-			}
-			c.ListenPort = int32(p)
-		} else {
-			c.ListenPort = DefaultListenPort
-		}
-	}
-
-	if c.KubeletNamespace == "" {
-		c.KubeletNamespace = DefaultKubeletNamespace
-	}
-	if c.HomeKubeconfig == "" {
-		c.HomeKubeconfig = os.Getenv("KUBECONFIG")
-	}
-	if c.LiqoIpamServer == "" {
-		c.LiqoIpamServer = fmt.Sprintf("%v:%v", consts.NetworkManagerServiceName, consts.NetworkManagerIpamPort)
-	}
-
-	return nil
 }

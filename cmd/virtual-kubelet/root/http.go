@@ -168,7 +168,7 @@ func getAPIConfig(c *Opts) *apiServerConfig {
 	}
 
 	config.Addr = fmt.Sprintf(":%d", c.ListenPort)
-	config.MetricsAddr = c.MetricsAddr
+	config.MetricsAddr = c.MetricsAddress
 
 	return &config
 }

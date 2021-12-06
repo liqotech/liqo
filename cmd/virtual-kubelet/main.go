@@ -40,16 +40,12 @@ func main() {
 
 	log.L = klogv2.New(nil)
 
-	opts := &root.Opts{}
-	if err := root.SetDefaultOpts(opts); err != nil {
-		klog.Fatal(err)
-	}
-
+	opts := root.NewOpts()
 	rootCmd := root.NewCommand(ctx, filepath.Base(os.Args[0]), opts)
 
 	root.InstallFlags(rootCmd.Flags(), opts)
 	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		if opts.Profiling {
+		if opts.EnableProfiling {
 			enableProfiling()
 		}
 		return nil

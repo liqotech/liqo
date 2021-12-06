@@ -32,9 +32,10 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/internal/utils/errdefs"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 )
@@ -56,9 +57,6 @@ func NewCommand(ctx context.Context, name string, c *Opts) *cobra.Command {
 }
 
 func runRootCommand(ctx context.Context, c *Opts) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	if c.ForeignCluster.ClusterID == "" {
 		return errors.New("cluster id is mandatory")
 	}
@@ -70,24 +68,33 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return errdefs.InvalidInput("reflection workers must be greater than 0")
 	}
 
-	config, err := utils.GetRestConfig(c.HomeKubeconfig)
+	localConfig, err := utils.GetRestConfig(c.HomeKubeconfig)
 	if err != nil {
 		return err
 	}
 
-	restcfg.SetRateLimiterWithCustomParamenters(config, virtualKubelet.HOME_CLIENT_QPS, virtualKubelet.HOME_CLIENTS_BURST)
-	client, err := kubernetes.NewForConfig(config)
+	restcfg.SetRateLimiter(localConfig)
+	localClient := kubernetes.NewForConfigOrDie(localConfig)
+
+	// Retrieve the remote restcfg
+	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(localClient)
+	identityManager := identitymanager.NewCertificateIdentityReader(localClient, c.HomeCluster, tenantNamespaceManager)
+
+	remoteConfig, err := identityManager.GetConfig(c.ForeignCluster, c.TenantNamespace)
 	if err != nil {
 		return err
 	}
+
+	restcfg.SetRateLimiter(remoteConfig)
 
 	// Initialize the pod provider
 	podcfg := podprovider.InitConfig{
-		HomeConfig:    config,
+		HomeConfig:    localConfig,
+		RemoteConfig:  remoteConfig,
 		HomeCluster:   c.HomeCluster,
 		RemoteCluster: c.ForeignCluster,
 
-		Namespace: c.KubeletNamespace,
+		Namespace: c.TenantNamespace,
 		NodeName:  c.NodeName,
 		NodeIP:    os.Getenv("VKUBELET_POD_IP"),
 
@@ -114,15 +121,16 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	// Initialize the node provider
 	nodecfg := nodeprovider.InitConfig{
-		HomeConfig:      config,
+		HomeConfig:      localConfig,
+		RemoteConfig:    remoteConfig,
 		HomeClusterID:   c.HomeCluster.ClusterID,
 		RemoteClusterID: c.ForeignCluster.ClusterID,
-		Namespace:       c.KubeletNamespace,
+		Namespace:       c.TenantNamespace,
 
 		NodeName:         c.NodeName,
 		InternalIP:       os.Getenv("VKUBELET_POD_IP"),
 		DaemonPort:       c.ListenPort,
-		Version:          getVersion(config),
+		Version:          getVersion(localConfig),
 		ExtraLabels:      c.NodeExtraLabels.StringMap,
 		ExtraAnnotations: c.NodeExtraAnnotations.StringMap,
 
@@ -134,8 +142,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	nodeRunner, err := node.NewNodeController(
 		nodeProvider, nodeProvider.GetNode(),
-		client.CoreV1().Nodes(),
-		node.WithNodeEnableLeaseV1(client.CoordinationV1().Leases(corev1.NamespaceNodeLease), node.DefaultLeaseDuration),
+		localClient.CoreV1().Nodes(),
+		node.WithNodeEnableLeaseV1(localClient.CoordinationV1().Leases(corev1.NamespaceNodeLease), node.DefaultLeaseDuration),
 		node.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
 				klog.Info("node setting up")
@@ -148,17 +156,17 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 					return nil
 				}
 
-				oldNode, newErr := client.CoreV1().Nodes().Get(ctx, newNode.Name, metav1.GetOptions{})
+				oldNode, newErr := localClient.CoreV1().Nodes().Get(ctx, newNode.Name, metav1.GetOptions{})
 				if newErr != nil {
 					if !k8serrors.IsNotFound(newErr) {
 						klog.Error(newErr, "node error")
 						return newErr
 					}
-					_, newErr = client.CoreV1().Nodes().Create(ctx, newNode, metav1.CreateOptions{})
+					_, newErr = localClient.CoreV1().Nodes().Create(ctx, newNode, metav1.CreateOptions{})
 					klog.Info("new node created")
 				} else {
 					oldNode.Status = newNode.Status
-					_, newErr = client.CoreV1().Nodes().UpdateStatus(ctx, oldNode, metav1.UpdateOptions{})
+					_, newErr = localClient.CoreV1().Nodes().UpdateStatus(ctx, oldNode, metav1.UpdateOptions{})
 					if newErr != nil {
 						klog.Info("node updated")
 					}

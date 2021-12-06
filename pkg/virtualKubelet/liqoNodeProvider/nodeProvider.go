@@ -35,7 +35,7 @@ type LiqoNodeProvider struct {
 
 	nodeName         string
 	foreignClusterID string
-	kubeletNamespace string
+	tenantNamespace  string
 	resyncPeriod     time.Duration
 
 	networkReady bool

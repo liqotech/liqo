@@ -41,13 +41,14 @@ const (
 // InitConfig is the config passed to initialize the LiqoNodeProvider.
 type InitConfig struct {
 	HomeConfig      *rest.Config
+	RemoteConfig    *rest.Config
 	HomeClusterID   string
 	RemoteClusterID string
 	Namespace       string
 
 	NodeName         string
 	InternalIP       string
-	DaemonPort       int32
+	DaemonPort       uint16
 	Version          string
 	ExtraLabels      map[string]string
 	ExtraAnnotations map[string]string
@@ -74,7 +75,7 @@ func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 
 		nodeName:         cfg.NodeName,
 		foreignClusterID: cfg.RemoteClusterID,
-		kubeletNamespace: cfg.Namespace,
+		tenantNamespace:  cfg.Namespace,
 	}
 }
 
@@ -113,7 +114,7 @@ func node(cfg *InitConfig) *corev1.Node {
 				OperatingSystem: linuxos,
 			},
 			Addresses:       []corev1.NodeAddress{{Type: corev1.NodeInternalIP, Address: cfg.InternalIP}},
-			DaemonEndpoints: corev1.NodeDaemonEndpoints{KubeletEndpoint: corev1.DaemonEndpoint{Port: cfg.DaemonPort}},
+			DaemonEndpoints: corev1.NodeDaemonEndpoints{KubeletEndpoint: corev1.DaemonEndpoint{Port: int32(cfg.DaemonPort)}},
 			Capacity:        corev1.ResourceList{},
 			Allocatable:     corev1.ResourceList{},
 			Conditions:      UnknownNodeConditions(),
