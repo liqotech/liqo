@@ -98,3 +98,13 @@ spec:
           requests:
             cpu: 100m
             memory: 150M
+        startupProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          failureThreshold: 60 # 3 minutes
+          periodSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081

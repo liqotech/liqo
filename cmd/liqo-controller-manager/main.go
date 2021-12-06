@@ -16,16 +16,21 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
 	"sync"
 	"time"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -68,6 +73,8 @@ const (
 
 var (
 	scheme = runtime.NewScheme()
+
+	healthFlag = false
 )
 
 func init() {
@@ -81,6 +88,13 @@ func init() {
 
 	_ = capsulev1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
+}
+
+func probe(req *http.Request) error {
+	if healthFlag {
+		return nil
+	}
+	return fmt.Errorf("controller manager not yet configured")
 }
 
 func main() {
@@ -174,6 +188,11 @@ func main() {
 		Port:                   9443,
 	})
 	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
+	if err = mgr.AddReadyzCheck("/readyz", probe); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
@@ -343,9 +362,19 @@ func main() {
 	broadcaster.StartBroadcaster(ctx, wg)
 
 	if enableStorage != nil && *enableStorage {
-		liqoProvisioner, err := liqostorageprovisioner.NewLiqoLocalStorageProvisioner(ctx, mgr.GetClient(),
-			*virtualStorageClassName, *storageNamespace, *realStorageClassName)
-		if err != nil {
+		var liqoProvisioner controller.Provisioner
+		if err = retry.OnError(
+			wait.Backoff{
+				Duration: 1 * time.Second,
+				Factor:   1,
+				Steps:    180, // 3 minutes
+			},
+			apierrors.IsInternalError,
+			func() error {
+				liqoProvisioner, err = liqostorageprovisioner.NewLiqoLocalStorageProvisioner(ctx, mgr.GetClient(),
+					*virtualStorageClassName, *storageNamespace, *realStorageClassName)
+				return err
+			}); err != nil {
 			klog.Errorf("unable to start the liqo storage provisioner: %v", err)
 			os.Exit(1)
 		}
@@ -360,6 +389,8 @@ func main() {
 			klog.Fatal(err)
 		}
 	}
+
+	healthFlag = true
 
 	klog.Info("starting manager as controller manager")
 	if err := mgr.Start(ctx); err != nil {
