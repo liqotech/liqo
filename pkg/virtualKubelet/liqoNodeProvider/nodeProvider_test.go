@@ -85,6 +85,7 @@ var _ = Describe("NodeProvider", func() {
 			Namespace: kubeletNamespace,
 
 			HomeConfig:      cluster.GetCfg(),
+			RemoteConfig:    cluster.GetCfg(), /* not actually used in tests */
 			RemoteClusterID: foreignClusterID,
 
 			PodProviderStopper: podStopper,

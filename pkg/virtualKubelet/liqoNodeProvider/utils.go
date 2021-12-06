@@ -64,7 +64,7 @@ func (p *LiqoNodeProvider) patchNode(changeFunc func(node *v1.Node) error) error
 		return err
 	}
 
-	p.node, err = p.client.CoreV1().Nodes().Patch(context.TODO(),
+	p.node, err = p.localClient.CoreV1().Nodes().Patch(context.TODO(),
 		p.node.Name, types.JSONPatchType, bytes, metav1.PatchOptions{})
 	if err != nil {
 		klog.Error(err)

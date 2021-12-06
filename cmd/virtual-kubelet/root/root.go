@@ -143,7 +143,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	nodeRunner, err := node.NewNodeController(
 		nodeProvider, nodeProvider.GetNode(),
 		localClient.CoreV1().Nodes(),
-		node.WithNodeEnableLeaseV1(localClient.CoordinationV1().Leases(corev1.NamespaceNodeLease), node.DefaultLeaseDuration),
+		node.WithNodeEnableLeaseV1(localClient.CoordinationV1().Leases(corev1.NamespaceNodeLease), int32(c.NodeLeaseDuration.Seconds())),
+		node.WithNodePingInterval(c.NodePingInterval), node.WithNodePingTimeout(c.NodePingTimeout),
 		node.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
 				klog.Info("node setting up")

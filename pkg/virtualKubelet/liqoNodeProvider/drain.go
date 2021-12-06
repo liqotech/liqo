@@ -52,7 +52,7 @@ func (p *LiqoNodeProvider) drainNode(ctx context.Context) error {
 
 // getPodsForDeletion lists the pods that are running on our virtual node.
 func (p *LiqoNodeProvider) getPodsForDeletion(ctx context.Context) (*v1.PodList, error) {
-	podList, err := p.client.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
+	podList, err := p.localClient.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{
 			"spec.nodeName": p.node.GetName(),
 		}).String()})
@@ -97,7 +97,7 @@ func (p *LiqoNodeProvider) evictPod(ctx context.Context, pod *v1.Pod, wg *sync.W
 		DeleteOptions: &metav1.DeleteOptions{},
 	}
 
-	if err := p.client.PolicyV1beta1().Evictions(pod.Namespace).Evict(ctx, eviction); err != nil {
+	if err := p.localClient.PolicyV1beta1().Evictions(pod.Namespace).Evict(ctx, eviction); err != nil {
 		klog.Error(err)
 		errors <- err
 		return
@@ -113,7 +113,7 @@ func (p *LiqoNodeProvider) evictPod(ctx context.Context, pod *v1.Pod, wg *sync.W
 // waitForDelete waits for the pod deletion.
 func (p *LiqoNodeProvider) waitForDelete(ctx context.Context, pod *v1.Pod) error {
 	return wait.PollImmediateInfinite(waitForPodTerminationCheckPeriod, func() (bool, error) {
-		retPod, err := p.client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+		retPod, err := p.localClient.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
 		if kerrors.IsNotFound(err) || (retPod != nil && retPod.ObjectMeta.UID != pod.ObjectMeta.UID) {
 			return true, nil
 		}

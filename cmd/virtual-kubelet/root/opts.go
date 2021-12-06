@@ -19,6 +19,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/virtual-kubelet/virtual-kubelet/node"
 	corev1 "k8s.io/api/core/v1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -39,6 +40,8 @@ const (
 	DefaultConfigMapWorkers            = 3
 	DefaultSecretWorkers               = 3
 	DefaultPersistenVolumeClaimWorkers = 3
+
+	DefaultNodePingTimeout = 1 * time.Second
 )
 
 // Opts stores all the options for configuring the root virtual-kubelet command.
@@ -68,6 +71,10 @@ type Opts struct {
 	SecretWorkers               uint
 	PersistenVolumeClaimWorkers uint
 
+	NodeLeaseDuration time.Duration
+	NodePingInterval  time.Duration
+	NodePingTimeout   time.Duration
+
 	NodeExtraAnnotations argsutils.StringMap
 	NodeExtraLabels      argsutils.StringMap
 
@@ -96,5 +103,9 @@ func NewOpts() *Opts {
 		ConfigMapWorkers:            DefaultConfigMapWorkers,
 		SecretWorkers:               DefaultSecretWorkers,
 		PersistenVolumeClaimWorkers: DefaultPersistenVolumeClaimWorkers,
+
+		NodeLeaseDuration: node.DefaultLeaseDuration * time.Second,
+		NodePingInterval:  node.DefaultPingInterval,
+		NodePingTimeout:   DefaultNodePingTimeout,
 	}
 }
