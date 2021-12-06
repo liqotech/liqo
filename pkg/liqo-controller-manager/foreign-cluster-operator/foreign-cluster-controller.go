@@ -185,7 +185,8 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// defer the status update function
 	defer updateStatus()
 
-	// ensure that there are not multiple clusters with the same clusterID
+	// ensure that there are not multiple clusters with the same clusterID.
+	// ensure that the foreign cluster proxy URL is a valid one is set.
 	if processable, err := r.isClusterProcessable(ctx, &foreignCluster); err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, err

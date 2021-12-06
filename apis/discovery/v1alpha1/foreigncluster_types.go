@@ -86,6 +86,9 @@ type ForeignClusterSpec struct {
 	// URL where to contact foreign Auth service.
 	// +kubebuilder:validation:Pattern=`https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 	ForeignAuthURL string `json:"foreignAuthUrl"`
+	// URL where to contact foreign proxy for the api server. This URL is used when
+	// creating the k8s clients toward the remote cluster.
+	ForeignProxyURL string `json:"foreignProxyUrl,omitempty"`
 	// Indicates if the local cluster has to skip the tls verification over the remote Authentication Service or not.
 	// +kubebuilder:default=true
 	// +kubebuilder:validation:Optional

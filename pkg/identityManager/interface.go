@@ -35,7 +35,7 @@ type IdentityManager interface {
 
 	CreateIdentity(remoteCluster discoveryv1alpha1.ClusterIdentity) (*v1.Secret, error)
 	GetSigningRequest(remoteCluster discoveryv1alpha1.ClusterIdentity) ([]byte, error)
-	StoreCertificate(remoteCluster discoveryv1alpha1.ClusterIdentity, identityResponse *auth.CertificateIdentityResponse) error
+	StoreCertificate(remoteCluster discoveryv1alpha1.ClusterIdentity, remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error
 }
 
 // IdentityProvider provides the interface to retrieve and approve remote cluster identities.

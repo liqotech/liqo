@@ -1194,6 +1194,25 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 		})
 
+		It("add a cluster with invalid proxy URL", func() {
+
+			fc := &discoveryv1alpha1.ForeignCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "cluster-1",
+				},
+				Spec: discoveryv1alpha1.ForeignClusterSpec{
+					ForeignProxyURL: "https://example\n.Invalid",
+					ClusterIdentity: controller.HomeCluster,
+				},
+			}
+
+			processable, err := controller.isClusterProcessable(ctx, fc)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(processable).To(BeFalse())
+			Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+				To(Equal(discoveryv1alpha1.PeeringConditionStatusError))
+		})
+
 	})
 
 })

@@ -73,12 +73,15 @@ func (certManager *identityManager) GetSigningRequest(remoteCluster discoveryv1a
 
 // StoreCertificate stores the certificate issued by a remote authority for the specified remoteClusterID.
 func (certManager *identityManager) StoreCertificate(remoteCluster discoveryv1alpha1.ClusterIdentity,
-	identityResponse *auth.CertificateIdentityResponse) error {
+	remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error {
 	secret, err := certManager.getSecret(remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
+
+	// It is always nil. So we have to create the map.
+	secret.StringData = make(map[string]string)
 
 	if secret.Labels == nil {
 		secret.Labels = map[string]string{}
@@ -113,6 +116,9 @@ func (certManager *identityManager) StoreCertificate(remoteCluster discoveryv1al
 	}
 
 	secret.Data[apiServerURLSecretKey] = []byte(identityResponse.APIServerURL)
+	if remoteProxyURL != "" {
+		secret.StringData[apiProxyURLSecretKey] = remoteProxyURL
+	}
 	secret.Data[namespaceSecretKey] = []byte(identityResponse.Namespace)
 
 	if _, err = certManager.client.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
