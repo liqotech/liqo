@@ -30,11 +30,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
-	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
-	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/restcfg"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
@@ -51,6 +47,7 @@ func init() {
 // InitConfig is the config passed to initialize the LiqoPodProvider.
 type InitConfig struct {
 	HomeConfig    *rest.Config
+	RemoteConfig  *rest.Config
 	HomeCluster   discoveryv1alpha1.ClusterIdentity
 	RemoteCluster discoveryv1alpha1.ClusterIdentity
 	Namespace     string
@@ -84,29 +81,9 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	homeClient := kubernetes.NewForConfigOrDie(cfg.HomeConfig)
 	homeLiqoClient := liqoclient.NewForConfigOrDie(cfg.HomeConfig)
 
-	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(homeClient)
-	identityManager := identitymanager.NewCertificateIdentityReader(homeClient, cfg.HomeCluster, tenantNamespaceManager)
-
-	remoteRestConfig, err := identityManager.GetConfig(cfg.RemoteCluster, "")
-	if err != nil {
-		return nil, err
-	}
-
-	restcfg.SetRateLimiterWithCustomParamenters(remoteRestConfig, virtualKubelet.FOREIGN_CLIENT_QPS, virtualKubelet.FOREIGN_CLIENT_BURST)
-	foreignClient, err := kubernetes.NewForConfig(remoteRestConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	foreignLiqoClient, err := liqoclient.NewForConfig(remoteRestConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	foreignMetricsClient, err := metrics.NewForConfig(remoteRestConfig)
-	if err != nil {
-		return nil, err
-	}
+	foreignClient := kubernetes.NewForConfigOrDie(cfg.RemoteConfig)
+	foreignLiqoClient := liqoclient.NewForConfigOrDie(cfg.RemoteConfig)
+	foreignMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig)
 
 	dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer, grpc.WithInsecure(), grpc.WithBlock())
@@ -117,7 +94,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	ipamClient := ipam.NewIpamClient(connection)
 
 	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, cfg.InformerResyncPeriod, eb)
-	podreflector := workload.NewPodReflector(remoteRestConfig, foreignMetricsClient.MetricsV1beta1().PodMetricses, ipamClient, cfg.PodWorkers)
+	podreflector := workload.NewPodReflector(cfg.RemoteConfig, foreignMetricsClient.MetricsV1beta1().PodMetricses, ipamClient, cfg.PodWorkers)
 	namespaceMapHandler := namespacemap.NewHandler(homeLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod)
 	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).

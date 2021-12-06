@@ -119,12 +119,11 @@ func forgeVKContainers(
 		stringifyArgument("--foreign-cluster-id", remoteCluster.ClusterID),
 		stringifyArgument("--foreign-cluster-name", remoteCluster.ClusterName),
 		stringifyArgument("--nodename", nodeName),
-		stringifyArgument("--kubelet-namespace", vkNamespace),
+		stringifyArgument("--tenant-namespace", vkNamespace),
 		stringifyArgument("--home-cluster-id", homeCluster.ClusterID),
 		stringifyArgument("--home-cluster-name", homeCluster.ClusterName),
 		stringifyArgument("--ipam-server",
 			fmt.Sprintf("%v.%v:%v", liqoconst.NetworkManagerServiceName, liqoNamespace, liqoconst.NetworkManagerIpamPort)),
-		"--klog.v=4",
 	}
 
 	if len(resourceOffer.Spec.StorageClasses) > 0 {

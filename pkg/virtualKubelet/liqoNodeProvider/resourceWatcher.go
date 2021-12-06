@@ -36,7 +36,7 @@ import (
 // update the virtual node.
 func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct{}) {
 	resource := "resourceoffers"
-	namespace := p.kubeletNamespace
+	namespace := p.tenantNamespace
 
 	sharingInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
