@@ -265,7 +265,6 @@ func main() {
 		EnableIncomingPeering: *enableIncomingPeering,
 	}
 
-	klog.Info("Starting resource monitor...")
 	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
