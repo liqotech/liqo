@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -62,6 +63,16 @@ func main() {
 		klog.Fatal("Unable to create CSR: POD_NAME undefined")
 	}
 
+	podIPRaw, ok := os.LookupEnv("POD_IP")
+	if !ok {
+		klog.Fatal("Unable to create CSR: POD_IP undefined")
+	}
+
+	podIP := net.ParseIP(podIPRaw)
+	if podIP == nil {
+		klog.Fatal("Unable to parse the pod IP")
+	}
+
 	namespace, ok := os.LookupEnv("POD_NAMESPACE")
 	if !ok {
 		klog.Fatal("Unable to create CSR: POD_NAMESPACE undefined")
@@ -91,7 +102,7 @@ func main() {
 	}
 
 	// Generate Key and CSR files in PEM format
-	if err := csr.CreateCSRResource(ctx, name, client, nodeName, namespace, distribution); err != nil {
+	if err := csr.CreateCSRResource(ctx, name, client, nodeName, namespace, distribution, podIP); err != nil {
 		klog.Fatalf("Unable to create CSR: %s", err)
 	}
 
