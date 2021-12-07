@@ -260,8 +260,8 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	tracer.Step("Checked the TunnelEndpoint status")
 
 	// check if peering request really exists on foreign cluster
-	if err := r.checkIncomingPeeringStatus(ctx, &foreignCluster); err != nil {
-		klog.Error(err)
+	if err = r.checkIncomingPeeringStatus(ctx, &foreignCluster); err != nil {
+		klog.Error("[%s] %s", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
 		return ctrl.Result{}, err
 	}
 	tracer.Step("Checked the incoming peering status")
@@ -402,12 +402,12 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 
 	incomingResourceRequestList, err := resourcerequestoperator.GetResourceRequests(ctx, r.Client, remoteClusterID)
 	if err != nil {
-		return fmt.Errorf("reading resource requests for %v: %w", remoteClusterID, err)
+		return fmt.Errorf("reading resource requests: %w", err)
 	}
 
 	status, reason, message, err := getPeeringPhaseList(foreignCluster, incomingResourceRequestList)
 	if err != nil {
-		return fmt.Errorf("[%v] %w in namespace %v", remoteClusterID, err, localNamespace)
+		return fmt.Errorf("reading peering phase from namespace %s: %w", localNamespace, err)
 	}
 	peeringconditionsutils.EnsureStatus(foreignCluster,
 		discoveryv1alpha1.IncomingPeeringCondition, status, reason, message)

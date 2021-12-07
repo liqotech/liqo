@@ -53,13 +53,13 @@ func getForeignClusterEventHandler(c client.Client) handler.EventHandler {
 			if oldForeignCluster.Spec.IncomingPeeringEnabled != newForeignCluster.Spec.IncomingPeeringEnabled {
 				resourceRequestList, err := GetResourceRequests(ctx, c, remoteClusterID)
 				if err != nil {
-					klog.Errorf("Failed to list resource requests: %s\n", err)
+					klog.Errorf("[%s] failed to list resource requests: %s\n", remoteClusterID, err)
 					return
 				}
 
 				switch len(resourceRequestList.Items) {
 				case 0:
-					klog.V(3).Infof("no ResourceRequest found for ID %v", remoteClusterID)
+					klog.V(3).Infof("[%s] no ResourceRequest found", remoteClusterID)
 					return
 				case 1:
 					resourceRequest := &resourceRequestList.Items[0]
@@ -71,7 +71,7 @@ func getForeignClusterEventHandler(c client.Client) handler.EventHandler {
 					})
 					return
 				default:
-					klog.Warningf("multiple ResourceRequest found for ID %v", remoteClusterID)
+					klog.Warningf("[%s] multiple ResourceRequests found", remoteClusterID)
 					return
 				}
 			}
