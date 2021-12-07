@@ -70,7 +70,7 @@ func (discovery *Controller) resolve(ctx context.Context, service, domain string
 						klog.Error(err)
 						continue
 					}
-					dData.ClusterInfo, err = discovery.getClusterInfo(defaultInsecureSkipTLSVerify, dData.AuthData)
+					dData.ClusterInfo, err = discovery.getClusterInfo(ctx, dData.AuthData)
 					if err != nil {
 						klog.Error(err)
 						continue
@@ -94,8 +94,8 @@ func (discovery *Controller) resolve(ctx context.Context, service, domain string
 	<-ctx.Done()
 }
 
-func (discovery *Controller) getClusterInfo(insecureSkipTLSVerify bool, authData *AuthData) (*auth.ClusterInfo, error) {
-	ids, err := utils.GetClusterInfo(insecureSkipTLSVerify, authData.getURL())
+func (discovery *Controller) getClusterInfo(ctx context.Context, authData *AuthData) (*auth.ClusterInfo, error) {
+	ids, err := utils.GetClusterInfo(ctx, discovery.insecureTransport, authData.getURL())
 	if err != nil {
 		klog.Error(err)
 		return nil, err

@@ -16,6 +16,7 @@ package searchdomainoperator
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,6 +38,8 @@ type SearchDomainReconciler struct {
 
 	LocalCluster discoveryv1alpha1.ClusterIdentity
 	DNSAddress   string
+
+	InsecureTransport *http.Transport
 }
 
 // Reconcile reconciles SearchDomain resources.
@@ -64,7 +67,7 @@ func (r *SearchDomainReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			RequeueAfter: r.ResyncPeriod,
 		}, err
 	}
-	discovery.UpdateForeignWAN(ctx, r.Client, r.LocalCluster, authData, &sd)
+	discovery.UpdateForeignWAN(ctx, r.InsecureTransport, r.Client, r.LocalCluster, authData, &sd)
 
 	klog.Info("SearchDomain " + req.Name + " successfully reconciled")
 	return ctrl.Result{

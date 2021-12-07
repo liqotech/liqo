@@ -15,6 +15,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
@@ -211,13 +212,19 @@ func main() {
 		klog.Fatalf("Unable to populate peering permission: %w", err)
 	}
 
-	// Setup operators
+	// Configure the tranports used for the intaction with the remote authentication service.
+	// Using the same transport allows to reuse the underlying TCP/TLS connections when contacting the same destinations,
+	// and reduce the overall handshake overhead, especially with high-latency links.
+	secureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute}
+	insecureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute, TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 
+	// Setup operators
 	searchDomainReconciler := &searchdomainoperator.SearchDomainReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		ResyncPeriod: *resyncPeriod,
-		LocalCluster: clusterIdentity,
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		ResyncPeriod:      *resyncPeriod,
+		LocalCluster:      clusterIdentity,
+		InsecureTransport: insecureTransport,
 	}
 	if err = searchDomainReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
@@ -238,6 +245,9 @@ func main() {
 		NamespaceManager:  namespaceManager,
 		IdentityManager:   idManager,
 		PeeringPermission: *permissions,
+
+		SecureTransport:   secureTransport,
+		InsecureTransport: insecureTransport,
 	}
 	if err = foreignClusterReconciler.SetupWithManager(mgr, *foreignClusterWorkers); err != nil {
 		klog.Fatal(err)

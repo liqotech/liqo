@@ -18,7 +18,6 @@ package utils
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -37,15 +36,12 @@ const (
 
 // GetClusterInfo contacts the remote cluster to get its info,
 // it returns also if the remote cluster exposes a trusted certificate.
-func GetClusterInfo(skipTLSVerify bool, url string) (*auth.ClusterInfo, error) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipTLSVerify},
-	}
+func GetClusterInfo(ctx context.Context, transport *http.Transport, url string) (*auth.ClusterInfo, error) {
 	client := &http.Client{
-		Transport: tr,
+		Transport: transport,
 		Timeout:   HTTPRequestTimeout,
 	}
-	resp, err := httpGet(context.TODO(), client, fmt.Sprintf("%s%s", url, auth.IdsURI))
+	resp, err := httpGet(ctx, client, fmt.Sprintf("%s%s", url, auth.IdsURI))
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +63,7 @@ func GetClusterInfo(skipTLSVerify bool, url string) (*auth.ClusterInfo, error) {
 }
 
 func httpGet(ctx context.Context, client *http.Client, url string) (resp *http.Response, err error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
