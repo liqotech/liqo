@@ -16,6 +16,7 @@ package csr
 
 import (
 	"context"
+	"net"
 
 	certificatesv1 "k8s.io/api/certificates/v1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,8 +27,8 @@ import (
 
 // CreateCSRResource creates a CSR Resource for a new Virtual Kubelet instance.
 func CreateCSRResource(ctx context.Context,
-	name string, client kubernetes.Interface, nodeName, namespace, distribution string) error {
-	csrPem, keyPem, err := generateVKCertificateBundle(name)
+	name string, client kubernetes.Interface, nodeName, namespace, distribution string, podIP net.IP) error {
+	csrPem, keyPem, err := generateVKCertificateBundle(name, podIP)
 	var csrResource *certificatesv1.CertificateSigningRequest
 	if err != nil {
 		return err

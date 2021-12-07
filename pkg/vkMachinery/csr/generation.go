@@ -21,6 +21,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"net"
 
 	certificatesv1 "k8s.io/api/certificates/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +33,7 @@ import (
 
 // generateVKCertificateBundle generates respectively a key and a CSR in PEM format compliant
 // with the K8s kubelet-serving signer taking a name as input.
-func generateVKCertificateBundle(name string) (csrPEM, keyPEM []byte, err error) {
+func generateVKCertificateBundle(name string, podIP net.IP) (csrPEM, keyPEM []byte, err error) {
 	// Generate a new private key.
 	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -48,11 +49,12 @@ func generateVKCertificateBundle(name string) (csrPEM, keyPEM []byte, err error)
 	template := &x509.CertificateRequest{
 		Subject: pkix.Name{
 			Organization: []string{
-				"system:nodes",
+				csrNodeGroup,
 			},
-			CommonName: "system:node:" + name,
+			CommonName: csrNodeGroupMember + name,
 		},
-		DNSNames: []string{"DNS:" + name},
+		DNSNames:    []string{name},
+		IPAddresses: []net.IP{podIP},
 	}
 	csrPEM, err = cert.MakeCSRFromTemplate(privateKey, template)
 	if err != nil {

@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -62,6 +63,11 @@ func main() {
 		klog.Fatal("Unable to create CSR: POD_NAME undefined")
 	}
 
+	podIP, err := liqonetutils.GetPodIP()
+	if err != nil {
+		klog.Fatal(err)
+	}
+
 	namespace, ok := os.LookupEnv("POD_NAMESPACE")
 	if !ok {
 		klog.Fatal("Unable to create CSR: POD_NAMESPACE undefined")
@@ -91,7 +97,7 @@ func main() {
 	}
 
 	// Generate Key and CSR files in PEM format
-	if err := csr.CreateCSRResource(ctx, name, client, nodeName, namespace, distribution); err != nil {
+	if err := csr.CreateCSRResource(ctx, name, client, nodeName, namespace, distribution, podIP); err != nil {
 		klog.Fatalf("Unable to create CSR: %s", err)
 	}
 
