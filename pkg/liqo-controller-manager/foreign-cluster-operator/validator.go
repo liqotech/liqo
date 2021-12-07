@@ -35,7 +35,7 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 	if r.needsClusterIdentityDefaulting(foreignCluster) {
 		// this ForeignCluster has not all the cluster identity fields (clusterID and clusterName),
 		// get them from the foreignAuthUrl.
-		if err := r.clusterIdentityDefaulting(foreignCluster); err != nil {
+		if err := r.clusterIdentityDefaulting(ctx, foreignCluster); err != nil {
 			klog.Error(err)
 			return false, ctrl.Result{
 				Requeue:      true,

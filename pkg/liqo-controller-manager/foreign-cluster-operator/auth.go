@@ -17,7 +17,6 @@ package foreignclusteroperator
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -114,7 +113,7 @@ func (r *ForeignClusterReconciler) validateIdentity(ctx context.Context, fc *dis
 	}
 
 	request := auth.NewCertificateIdentityRequest(r.HomeCluster.ClusterID, localToken, token, csr)
-	responseBytes, err := sendIdentityRequest(request, fc)
+	responseBytes, err := r.sendIdentityRequest(ctx, request, fc)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -135,7 +134,7 @@ func (r *ForeignClusterReconciler) validateIdentity(ctx context.Context, fc *dis
 }
 
 // sendIdentityRequest sends an HTTP request to the remote cluster.
-func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.ForeignCluster) (
+func (r *ForeignClusterReconciler) sendIdentityRequest(ctx context.Context, request auth.IdentityRequest, fc *discoveryv1alpha1.ForeignCluster) (
 	[]byte, error) {
 	jsonRequest, err := json.Marshal(request)
 	if err != nil {
@@ -144,10 +143,10 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 	}
 	klog.V(8).Infof("[%v] Sending json request: %v", fc.Spec.ClusterIdentity.ClusterID, string(jsonRequest))
 
-	resp, err := sendRequest(
+	resp, err := sendRequest(ctx,
+		r.transport(foreignclusterutils.InsecureSkipTLSVerify(fc)),
 		fmt.Sprintf("%s%s", fc.Spec.ForeignAuthURL, request.GetPath()),
-		bytes.NewBuffer(jsonRequest),
-		foreignclusterutils.InsecureSkipTLSVerify(fc))
+		bytes.NewBuffer(jsonRequest))
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -195,19 +194,25 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 	}
 }
 
-func sendRequest(url string, payload *bytes.Buffer, insecureSkipTLSVerify bool) (*http.Response, error) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipTLSVerify},
-	}
+func sendRequest(ctx context.Context, transport *http.Transport, url string, payload *bytes.Buffer) (*http.Response, error) {
 	client := &http.Client{
-		Transport: tr,
+		Transport: transport,
 		Timeout:   utils.HTTPRequestTimeout,
 	}
-	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, url, payload)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, payload)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	return client.Do(req)
+}
+
+// transport returns the correct transport to be used for a given request.
+func (r *ForeignClusterReconciler) transport(insecureSkipTLSVerify bool) *http.Transport {
+	if insecureSkipTLSVerify {
+		return r.InsecureTransport
+	}
+
+	return r.SecureTransport
 }

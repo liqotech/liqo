@@ -16,6 +16,8 @@ package discovery
 
 import (
 	"context"
+	"crypto/tls"
+	"net/http"
 	"sync"
 	"time"
 
@@ -58,6 +60,8 @@ type Controller struct {
 
 	mdnsServerAuth *zeroconf.Server
 	mdnsConfig     MDNSConfig
+
+	insecureTransport *http.Transport
 }
 
 // NewDiscoveryCtrl returns a new discovery controller.
@@ -72,6 +76,8 @@ func NewDiscoveryCtrl(cl, namespacedClient client.Client, namespace string,
 
 		mdnsConfig:     config,
 		dialTCPTimeout: dialTCPTimeout,
+
+		insecureTransport: &http.Transport{IdleConnTimeout: 10 * time.Minute, TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
 	}
 }
 

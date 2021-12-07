@@ -16,6 +16,7 @@ package discovery
 
 import (
 	"context"
+	"net/http"
 
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,13 +66,13 @@ func (discovery *Controller) updateForeignLAN(data *discoveryData) {
 // for each cluster retrieved with DNS discovery, if it is not the local cluster, check if it is already known, if not
 // create it. In both cases update the ForeignCluster TTL
 // This function also sets an owner reference and a label to the ForeignCluster pointing to the SearchDomain CR.
-func UpdateForeignWAN(ctx context.Context,
+func UpdateForeignWAN(ctx context.Context, transport *http.Transport,
 	cl client.Client, localCluster v1alpha1.ClusterIdentity,
 	data []*AuthData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
 	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
 	discoveryType := discoveryPkg.WanDiscovery
 	for _, authData := range data {
-		clusterInfo, err := utils.GetClusterInfo(defaultInsecureSkipTLSVerify, authData.getURL())
+		clusterInfo, err := utils.GetClusterInfo(ctx, transport, authData.getURL())
 		if err != nil {
 			klog.Error(err)
 			continue

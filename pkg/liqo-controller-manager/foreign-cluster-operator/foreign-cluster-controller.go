@@ -17,6 +17,7 @@ package foreignclusteroperator
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -100,6 +101,9 @@ type ForeignClusterReconciler struct {
 	IdentityManager  identitymanager.IdentityManager
 
 	PeeringPermission peeringRoles.PeeringPermission
+
+	InsecureTransport *http.Transport
+	SecureTransport   *http.Transport
 }
 
 // clusterRole
