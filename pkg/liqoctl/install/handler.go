@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
@@ -56,8 +57,23 @@ func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, 
 		return err
 	}
 
+	oldClusterName, err := installutils.GetOldClusterName(ctx, kubernetes.NewForConfigOrDie(config))
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("* Retrieving cluster configuration from cluster provider... 📜  \n")
+	err = providerInstance.PreValidateGenericCommandArguments(cmd.Flags())
+	if err != nil {
+		return err
+	}
+
 	err = providerInstance.ValidateCommandArguments(cmd.Flags())
+	if err != nil {
+		return err
+	}
+
+	err = providerInstance.PostValidateGenericCommandArguments(oldClusterName)
 	if err != nil {
 		return err
 	}

@@ -75,11 +75,6 @@ func NewProvider() provider.InstallProviderInterface {
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *eksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	err = k.ValidateGenericCommandArguments(flags)
-	if err != nil {
-		return err
-	}
-
 	k.region, err = flags.GetString(regionFlag)
 	if err != nil {
 		return err
@@ -92,7 +87,10 @@ func (k *eksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 	}
 	klog.V(3).Infof("EKS ClusterName: %v", k.eksClusterName)
 
-	if k.ClusterName == "" {
+	// if the cluster name has not been provided (and set in the pre-checks)
+	// and we have not to generate it,
+	// we default it to the cloud provider resource name.
+	if k.ClusterName == "" && !k.GenerateClusterName {
 		k.ClusterName = k.eksClusterName
 	}
 

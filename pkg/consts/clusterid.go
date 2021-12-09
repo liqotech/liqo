@@ -21,6 +21,8 @@ const (
 	ClusterIDLabelName = "clusterID"
 	// ClusterIDConfigMapKey is the key of the configmap where the cluster-id is stored.
 	ClusterIDConfigMapKey = "CLUSTER_ID"
+	// ClusterNameConfigMapKey is the key of the configmap where the cluster-name is stored.
+	ClusterNameConfigMapKey = "CLUSTER_NAME"
 )
 
 // ClusterIDConfigMapSelector returns the selector for the configmap where the cluster-id is stored.

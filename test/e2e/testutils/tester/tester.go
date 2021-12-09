@@ -35,6 +35,7 @@ import (
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -129,7 +130,7 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 			HomeCluster:    i == 1,
 		}
 		c.NativeClient = kubernetes.NewForConfigOrDie(c.Config)
-		c.ClusterID, err = testutils.GetClusterID(ctx, c.NativeClient, namespace)
+		c.ClusterID, err = utils.GetClusterID(ctx, c.NativeClient, namespace)
 		if err != nil && !ignoreClusterIDError {
 			return nil, err
 		}

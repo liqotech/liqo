@@ -67,10 +67,11 @@ func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNa
 		return "", err
 	}
 
-	clusterID, err := utils.GetClusterIDWithControllerClient(ctx, clientSet, liqoNamespace)
+	clusterIdentity, err := utils.GetClusterIdentityWithControllerClient(ctx, clientSet, liqoNamespace)
 	if err != nil {
 		return "", err
 	}
+	clusterID := clusterIdentity.ClusterID
 
 	// Retrieve the liqo controller manager deployment args
 	args, err := RetrieveLiqoControllerManagerDeploymentArgs(ctx, clientSet, liqoNamespace)

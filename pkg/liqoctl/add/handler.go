@@ -89,10 +89,11 @@ func processAddCluster(ctx context.Context, t *ClusterArgs, clientSet kubernetes
 		return err
 	}
 
-	clusterID, err := utils.GetClusterIDWithControllerClient(ctx, k8sClient, t.Namespace)
+	clusterIdentity, err := utils.GetClusterIdentityWithControllerClient(ctx, k8sClient, t.Namespace)
 	if err != nil {
 		return err
 	}
+	clusterID := clusterIdentity.ClusterID
 	// Check clusterIDs are not equal. If they are, abort.
 	if clusterID == t.ClusterID {
 		return fmt.Errorf(sameClusterError)

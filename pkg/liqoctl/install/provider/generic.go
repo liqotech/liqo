@@ -31,40 +31,23 @@ var Providers = []string{"kubeadm", "kind", "k3s", "eks", "gke", "aks", "openshi
 
 // GenericProvider includes the fields and the logic required by every install provider.
 type GenericProvider struct {
-	ReservedSubnets []string
-	ClusterLabels   map[string]string
-	ClusterName     string
+	ReservedSubnets     []string
+	ClusterLabels       map[string]string
+	GenerateClusterName bool
+	ClusterName         string
 }
 
-// ValidateGenericCommandArguments validates the flags required by every install provider.
-func (p *GenericProvider) ValidateGenericCommandArguments(flags *flag.FlagSet) (err error) {
-	generate, err := flags.GetBool("generate-name")
+// PreValidateGenericCommandArguments validates the flags required by every install provider
+// before the specific provider validation.
+func (p *GenericProvider) PreValidateGenericCommandArguments(flags *flag.FlagSet) (err error) {
+	p.GenerateClusterName, err = flags.GetBool("generate-name")
 	if err != nil {
 		return err
 	}
-	clusterName, err := flags.GetString("cluster-name")
+	p.ClusterName, err = flags.GetString("cluster-name")
 	if err != nil {
 		return err
 	}
-
-	if clusterName == "" && !generate {
-		return fmt.Errorf("you must provide a cluster name or use --generate-name")
-	}
-	if clusterName != "" && generate {
-		fmt.Printf("%#v %#v\n", clusterName, generate)
-		return fmt.Errorf("cannot set a cluster name and use --generate-name at the same time")
-	}
-	if generate {
-		randomName := namegenerator.NewNameGenerator(rand.Int63()).Generate() // nolint:gosec // don't need crypto/rand
-		randomName = strings.Replace(randomName, "_", "-", 1)
-		clusterName = randomName
-		fmt.Printf("A random cluster name was generated for you: %s\n", clusterName)
-	}
-	errs := validation.IsDNS1123Label(clusterName)
-	if len(errs) != 0 {
-		return fmt.Errorf("the cluster name may only contain lowercase letters, numbers and hyphens, and must not be no longer than 63 characters")
-	}
-	p.ClusterName = clusterName
 
 	subnetString, err := flags.GetString("reserved-subnets")
 	if err != nil {
@@ -77,6 +60,42 @@ func (p *GenericProvider) ValidateGenericCommandArguments(flags *flag.FlagSet) (
 	}
 
 	p.ReservedSubnets = reservedSubnets.StringList.StringList
+
+	return nil
+}
+
+// PostValidateGenericCommandArguments validates the flags required by every install provider
+// after the specific provider validation.
+func (p *GenericProvider) PostValidateGenericCommandArguments(oldClusterName string) (err error) {
+	switch {
+	// no cluster name is provided, no cluster name is generated and there is no old cluster name
+	// -> throw an error
+	case p.ClusterName == "" && !p.GenerateClusterName && oldClusterName == "":
+		p.ClusterName = ""
+		return fmt.Errorf("you must provide a cluster name or use --generate-name")
+		// both cluster name and generate name are provided
+		// -> throw an error
+	case p.ClusterName != "" && p.GenerateClusterName:
+		p.ClusterName = ""
+		return fmt.Errorf("cannot set a cluster name and use --generate-name at the same time")
+	// we have to generate a cluster name, and there is no old cluster name
+	case p.GenerateClusterName && oldClusterName == "":
+		randomName := namegenerator.NewNameGenerator(rand.Int63()).Generate() // nolint:gosec // don't need crypto/rand
+		randomName = strings.Replace(randomName, "_", "-", 1)
+		p.ClusterName = randomName
+		fmt.Printf("* A random cluster name was generated for you: %s\n", p.ClusterName)
+	// no cluster name provided, but we can use the old one (we don't care about generation)
+	case p.ClusterName == "" && oldClusterName != "":
+		p.ClusterName = oldClusterName
+	// else, do not change the cluster name, use the user provided one
+	default:
+	}
+
+	errs := validation.IsDNS1123Label(p.ClusterName)
+	if len(errs) != 0 {
+		p.ClusterName = ""
+		return fmt.Errorf("the cluster name may only contain lowercase letters, numbers and hyphens, and must not be no longer than 63 characters")
+	}
 
 	return nil
 }
