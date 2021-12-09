@@ -75,11 +75,6 @@ func NewProvider() provider.InstallProviderInterface {
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *k3sProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	err = k.ValidateGenericCommandArguments(flags)
-	if err != nil {
-		return err
-	}
-
 	k.podCIDR, err = flags.GetString(podCidrFlag)
 	if err != nil {
 		return err

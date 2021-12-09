@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,54 +29,75 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
-// GetClusterIDWithNativeClient returns clusterID using a kubernetes.Interface client.
-func GetClusterIDWithNativeClient(ctx context.Context, nativeClient kubernetes.Interface, namespace string) (string, error) {
+// GetClusterIdentityWithNativeClient returns cluster identity using a kubernetes.Interface client.
+func GetClusterIdentityWithNativeClient(ctx context.Context,
+	nativeClient kubernetes.Interface, namespace string) (discoveryv1alpha1.ClusterIdentity, error) {
 	cmClient := nativeClient.CoreV1().ConfigMaps(namespace)
 	configMapList, err := cmClient.List(ctx, metav1.ListOptions{
 		LabelSelector: consts.ClusterIDConfigMapSelector().String(),
 	})
 	if err != nil {
-		return "", err
+		return discoveryv1alpha1.ClusterIdentity{}, err
 	}
 
-	return getClusterIDFromConfigMapList(configMapList)
+	return getClusterIdentityFromConfigMapList(configMapList)
 }
 
-// GetClusterIDWithControllerClient returns clusterID using a client.Client client.
-func GetClusterIDWithControllerClient(ctx context.Context, controllerClient client.Client, namespace string) (string, error) {
+// GetClusterIdentityWithControllerClient returns cluster identity using a client.Client client.
+func GetClusterIdentityWithControllerClient(ctx context.Context,
+	controllerClient client.Client, namespace string) (discoveryv1alpha1.ClusterIdentity, error) {
 	var configMapList corev1.ConfigMapList
 	if err := controllerClient.List(ctx, &configMapList,
 		client.MatchingLabelsSelector{Selector: consts.ClusterIDConfigMapSelector()},
 		client.InNamespace(namespace)); err != nil {
-		return "", fmt.Errorf("%w, unable to get the ClusterID ConfigMap in namespace '%s'", err, namespace)
+		return discoveryv1alpha1.ClusterIdentity{}, fmt.Errorf("%w, unable to get the ClusterID ConfigMap in namespace '%s'", err, namespace)
 	}
 
-	return getClusterIDFromConfigMapList(&configMapList)
+	return getClusterIdentityFromConfigMapList(&configMapList)
 }
 
-func getClusterIDFromConfigMapList(configMapList *corev1.ConfigMapList) (string, error) {
+// GetClusterName returns the local cluster name.
+func GetClusterName(ctx context.Context, k8sClient kubernetes.Interface, namespace string) (string, error) {
+	clusterIdentity, err := GetClusterIdentityWithNativeClient(ctx, k8sClient, namespace)
+	if err != nil {
+		return "", err
+	}
+	return clusterIdentity.ClusterName, nil
+}
+
+// GetClusterID returns the local clusterID.
+func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string) (string, error) {
+	clusterIdentity, err := GetClusterIdentityWithNativeClient(ctx, cl, namespace)
+	if err != nil {
+		return "", err
+	}
+	return clusterIdentity.ClusterID, nil
+}
+
+func getClusterIdentityFromConfigMapList(configMapList *corev1.ConfigMapList) (discoveryv1alpha1.ClusterIdentity, error) {
 	switch len(configMapList.Items) {
 	case 0:
-		return "", apierrors.NewNotFound(schema.GroupResource{
+		return discoveryv1alpha1.ClusterIdentity{}, apierrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "configmaps",
 		}, "clusterid-configmap")
 	case 1:
-		clusterID := configMapList.Items[0].Data[consts.ClusterIDConfigMapKey]
-		klog.V(2).Infof("ClusterID is '%s'", clusterID)
-		return clusterID, nil
+		cm := &configMapList.Items[0]
+		clusterID := cm.Data[consts.ClusterIDConfigMapKey]
+		klog.V(4).Infof("retrieved ClusterID '%s' from the ConfigMap %q", clusterID, klog.KObj(cm))
+		clusterName := cm.Data[consts.ClusterNameConfigMapKey]
+		klog.V(4).Infof("retrieved ClusterName '%s' from the ConfigMap %q", clusterName, klog.KObj(cm))
+		return discoveryv1alpha1.ClusterIdentity{
+			ClusterID:   clusterID,
+			ClusterName: clusterName,
+		}, nil
 	default:
-		return "", fmt.Errorf("multiple clusterID configmaps found")
+		return discoveryv1alpha1.ClusterIdentity{}, fmt.Errorf("multiple clusterID configmaps found")
 	}
-}
-
-// GetClusterIDFromNodeName returns the clusterID from a node name.
-func GetClusterIDFromNodeName(nodeName string) string {
-	return strings.TrimPrefix(nodeName, virtualKubelet.VirtualNodePrefix)
 }
 
 // GetRestConfig returns a rest.Config object to initialize a client to the target cluster.

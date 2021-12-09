@@ -40,6 +40,7 @@ func newFlagSet() *pflag.FlagSet {
 
 type commandTestcase struct {
 	flags                     map[string]string
+	oldClusterName            string
 	expectedValidationOutcome OmegaMatcher
 	expectedClusterName       OmegaMatcher
 }
@@ -51,22 +52,56 @@ var _ = DescribeTable("ValidateGenericCommandArguments",
 			Expect(flags.Set(flag, value)).To(Succeed())
 		}
 		provider := provider.GenericProvider{}
-		Expect(provider.ValidateGenericCommandArguments(flags)).To(t.expectedValidationOutcome)
+		Expect(provider.PreValidateGenericCommandArguments(flags)).To(Succeed())
+		Expect(provider.PostValidateGenericCommandArguments(t.oldClusterName)).To(t.expectedValidationOutcome)
 		Expect(provider.ClusterName).To(t.expectedClusterName)
 	},
 	Entry("should accept a valid name", commandTestcase{
 		flags:                     map[string]string{"cluster-name": "test-cluster123"},
+		oldClusterName:            "",
 		expectedValidationOutcome: Succeed(),
 		expectedClusterName:       Equal("test-cluster123"),
 	}),
 	Entry("should not accept an invalid name", commandTestcase{
 		flags:                     map[string]string{"cluster-name": "Invalid cluster!"},
+		oldClusterName:            "",
 		expectedValidationOutcome: Not(Succeed()),
 		expectedClusterName:       BeEmpty(),
 	}),
 	Entry("should generate a valid name if --generate-name is set", commandTestcase{
 		flags:                     map[string]string{"generate-name": "true"},
+		oldClusterName:            "",
 		expectedValidationOutcome: Succeed(),
 		expectedClusterName:       Not(BeEmpty()),
+	}),
+	Entry("should reuse the old cluster name", commandTestcase{
+		flags:                     map[string]string{},
+		oldClusterName:            "old-cluster-name",
+		expectedValidationOutcome: Succeed(),
+		expectedClusterName:       Equal("old-cluster-name"),
+	}),
+	Entry("should reuse the old cluster name if --generate-name is set", commandTestcase{
+		flags:                     map[string]string{"generate-name": "true"},
+		oldClusterName:            "old-cluster-name",
+		expectedValidationOutcome: Succeed(),
+		expectedClusterName:       Equal("old-cluster-name"),
+	}),
+	Entry("should set the new name if provided", commandTestcase{
+		flags:                     map[string]string{"cluster-name": "test-cluster123"},
+		oldClusterName:            "old-cluster-name",
+		expectedValidationOutcome: Succeed(),
+		expectedClusterName:       Equal("test-cluster123"),
+	}),
+	Entry("should not accept both cluster name and generate flags", commandTestcase{
+		flags:                     map[string]string{"cluster-name": "test-cluster123", "generate-name": "true"},
+		oldClusterName:            "",
+		expectedValidationOutcome: Not(Succeed()),
+		expectedClusterName:       BeEmpty(),
+	}),
+	Entry("the cluster name should be provided in some way", commandTestcase{
+		flags:                     map[string]string{},
+		oldClusterName:            "",
+		expectedValidationOutcome: Not(Succeed()),
+		expectedClusterName:       BeEmpty(),
 	}),
 )

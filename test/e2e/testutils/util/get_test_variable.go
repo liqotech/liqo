@@ -15,20 +15,16 @@
 package util
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"strconv"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	utils "github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 )
 
@@ -62,15 +58,6 @@ func GetControllerClient(scheme *runtime.Scheme, config *rest.Config) client.Cli
 		klog.Fatal(err)
 	}
 	return controllerClient
-}
-
-// GetClusterID provides the clusterID for the cluster associated with the client.
-func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string) (string, error) {
-	clusterID, err := utils.GetClusterIDWithNativeClient(ctx, cl, namespace)
-	if err != nil {
-		return "", fmt.Errorf("an error occurred while getting cluster-id configmap %w", err)
-	}
-	return clusterID, nil
 }
 
 // CheckIfTestIsSkipped checks if the number of clusters required by the test is less than

@@ -23,8 +23,14 @@ import (
 
 // InstallProviderInterface defines the methods required to support the Liqo install for a given provider.
 type InstallProviderInterface interface {
+	// PreValidateGenericCommandArguments validates the flags passed to a generic provider,
+	// before the specific provider validation.
+	PreValidateGenericCommandArguments(*flag.FlagSet) error
 	// ValidateCommandArguments validates the flags passed as arguments to the install command
 	ValidateCommandArguments(*flag.FlagSet) error
+	// PostValidateGenericCommandArguments validates the flags passed to a generic provider,
+	// after the specific provider validation.
+	PostValidateGenericCommandArguments(oldClusterName string) error
 	// ExtractChartParameters retrieves the install parameters required for a correct installation. This may require
 	// instantiating extra clients to interact with cloud provider or the target cluster.
 	ExtractChartParameters(context.Context, *rest.Config, *CommonArguments) error

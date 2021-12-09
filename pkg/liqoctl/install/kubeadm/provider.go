@@ -41,7 +41,7 @@ func NewProvider() provider.InstallProviderInterface {
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *Kubeadm) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	return k.ValidateGenericCommandArguments(flags)
+	return nil
 }
 
 // ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
