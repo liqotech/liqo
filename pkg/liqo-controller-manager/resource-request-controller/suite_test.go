@@ -101,8 +101,7 @@ func createCluster() {
 	enableStorage := true
 	monitor = NewLocalMonitor(ctx, clientset, 5*time.Second)
 	scaledMonitor = &ResourceScaler{Provider: monitor, Factor: DefaultScaleFactor}
-	updater = NewOfferUpdater(k8sClient, homeCluster, nil, k8sManager.GetScheme(), scaledMonitor,
-		5, localStorageClassName, enableStorage)
+	updater = NewOfferUpdater(k8sClient, homeCluster, nil, scaledMonitor, 5, localStorageClassName, enableStorage)
 
 	Expect(k8sManager.Add(updater)).To(Succeed())
 

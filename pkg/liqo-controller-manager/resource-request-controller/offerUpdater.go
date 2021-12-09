@@ -71,14 +71,14 @@ type OfferUpdater struct {
 
 // NewOfferUpdater constructs a new OfferUpdater.
 func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.ClusterIdentity,
-	clusterLabels map[string]string, scheme *runtime.Scheme, reader ResourceReader,
-	updateThresholdPercentage uint, localRealStorageClassName string, enableStorage bool) *OfferUpdater {
+	clusterLabels map[string]string, reader ResourceReader, updateThresholdPercentage uint,
+	localRealStorageClassName string, enableStorage bool) *OfferUpdater {
 	updater := &OfferUpdater{
 		ResourceReader:            reader,
 		client:                    k8sClient,
 		homeCluster:               homeCluster,
 		clusterLabels:             clusterLabels,
-		scheme:                    scheme,
+		scheme:                    k8sClient.Scheme(),
 		localRealStorageClassName: localRealStorageClassName,
 		enableStorage:             enableStorage,
 		currentResources:          map[string]corev1.ResourceList{},
@@ -98,16 +98,17 @@ func (u *OfferUpdater) Start(ctx context.Context) error {
 // CreateOrUpdateOffer creates an offer into the given cluster, reading resources from the ResourceReader.
 func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIdentity) (requeue bool, err error) {
 	ctx := context.Background()
-	list, err := GetResourceRequests(ctx, u.client, cluster.ClusterID)
+	request, err := GetResourceRequest(ctx, u.client, cluster.ClusterID)
 	if err != nil {
 		return true, err
-	} else if len(list.Items) != 1 {
-		// invalid clusterID so return requeue = false. The clusterID will be removed from the workqueue and broadcaster maps.
+	}
+	if request == nil {
+		// invalid clusterID so return requeue = false. The clusterID will be removed from the workqueue and
+		// the resourcereader (in a daisy chain if there are multiple).
 		u.ResourceReader.RemoveClusterID(cluster.ClusterID)
 		u.OfferQueue.RemoveClusterID(cluster.ClusterID)
-		return false, fmt.Errorf("ClusterID %s is no longer valid. Deleting", cluster.ClusterName)
+		return false, fmt.Errorf("cluster %s is no longer valid and was deleted", cluster.ClusterName)
 	}
-	request := list.Items[0]
 	resources := u.ResourceReader.ReadResources(cluster.ClusterID)
 	if resourceIsEmpty(resources) {
 		klog.Warningf("No resources for cluster %s", cluster.ClusterName)
@@ -142,7 +143,7 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 			return err
 		}
 
-		return controllerutil.SetControllerReference(&request, offer, u.scheme)
+		return controllerutil.SetControllerReference(request, offer, u.scheme)
 	})
 
 	if err != nil {
@@ -245,9 +246,9 @@ func resourceIsEmpty(list corev1.ResourceList) bool {
 	return true
 }
 
-// GetResourceRequests returns the list of ResourceRequests for the given cluster.
-func GetResourceRequests(ctx context.Context, k8sClient client.Client, clusterID string) (
-	*discoveryv1alpha1.ResourceRequestList, error) {
+// GetResourceRequest returns ResourceRequest for the given cluster.
+func GetResourceRequest(ctx context.Context, k8sClient client.Client, clusterID string) (
+	*discoveryv1alpha1.ResourceRequest, error) {
 	resourceRequestList := &discoveryv1alpha1.ResourceRequestList{}
 	err := k8sClient.List(ctx, resourceRequestList,
 		client.HasLabels{consts.ReplicationStatusLabel},
@@ -257,5 +258,11 @@ func GetResourceRequests(ctx context.Context, k8sClient client.Client, clusterID
 		return nil, err
 	}
 
-	return resourceRequestList, nil
+	if len(resourceRequestList.Items) > 1 {
+		return nil, fmt.Errorf("more than one resource request found for clusterID %s", clusterID)
+	}
+	if len(resourceRequestList.Items) == 0 {
+		return nil, nil
+	}
+	return &resourceRequestList.Items[0], nil
 }

@@ -400,12 +400,12 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
-	incomingResourceRequestList, err := resourcerequestoperator.GetResourceRequests(ctx, r.Client, remoteClusterID)
+	incomingResourceRequest, err := resourcerequestoperator.GetResourceRequest(ctx, r.Client, remoteClusterID)
 	if err != nil {
 		return fmt.Errorf("reading resource requests: %w", err)
 	}
 
-	status, reason, message, err := getPeeringPhaseList(foreignCluster, incomingResourceRequestList)
+	status, reason, message, err := getPeeringPhase(foreignCluster, incomingResourceRequest)
 	if err != nil {
 		return fmt.Errorf("reading peering phase from namespace %s: %w", localNamespace, err)
 	}
@@ -414,25 +414,14 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 	return nil
 }
 
-func getPeeringPhaseList(foreignCluster *discoveryv1alpha1.ForeignCluster,
-	resourceRequestList *discoveryv1alpha1.ResourceRequestList) (status discoveryv1alpha1.PeeringConditionStatusType,
-	reason, message string, err error) {
-	switch len(resourceRequestList.Items) {
-	case 0:
-		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
-			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
-	case 1:
-		return getPeeringPhase(foreignCluster, &resourceRequestList.Items[0])
-	default:
-		err = fmt.Errorf("more than one resource request found")
-		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
-			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), err
-	}
-}
-
 func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) (status discoveryv1alpha1.PeeringConditionStatusType,
 	reason, message string, err error) {
+	if resourceRequest == nil {
+		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
+			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
+	}
+
 	desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
 	deleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
 	offerState := resourceRequest.Status.OfferState

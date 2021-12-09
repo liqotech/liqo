@@ -255,8 +255,7 @@ func main() {
 	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
 	monitor := resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod)
 	scaledMonitor := &resourceRequestOperator.ResourceScaler{Provider: monitor, Factor: float32(resourceSharingPercentage.Val) / 100.}
-	offerUpdater := resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
-		mgr.GetScheme(), scaledMonitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
+	offerUpdater := resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap, scaledMonitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
 	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),

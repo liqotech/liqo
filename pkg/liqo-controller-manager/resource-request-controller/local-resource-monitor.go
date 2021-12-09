@@ -44,8 +44,6 @@ type LocalResourceMonitor struct {
 	resourcePodMap map[string]corev1.ResourceList
 	nodeMutex      sync.RWMutex
 	podMutex       sync.RWMutex
-	nodeInformer   cache.SharedIndexInformer
-	podInformer    cache.SharedIndexInformer
 	notifier       ResourceUpdateNotifier
 }
 
@@ -75,22 +73,20 @@ func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface,
 	)
 	podInformer := podFactory.Core().V1().Pods().Informer()
 
-	accountant := LocalResourceMonitor{
+	lrm := LocalResourceMonitor{
 		allocatable:    corev1.ResourceList{},
 		resourcePodMap: map[string]corev1.ResourceList{},
-		nodeInformer:   nodeInformer,
-		podInformer:    podInformer,
 	}
 
 	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    accountant.onNodeAdd,
-		UpdateFunc: accountant.onNodeUpdate,
-		DeleteFunc: accountant.onNodeDelete,
+		AddFunc:    lrm.onNodeAdd,
+		UpdateFunc: lrm.onNodeUpdate,
+		DeleteFunc: lrm.onNodeDelete,
 	})
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    accountant.onPodAdd,
-		UpdateFunc: accountant.onPodUpdate,
-		DeleteFunc: accountant.onPodDelete,
+		AddFunc:    lrm.onPodAdd,
+		UpdateFunc: lrm.onPodUpdate,
+		DeleteFunc: lrm.onPodDelete,
 	})
 
 	nodeFactory.Start(ctx.Done())
@@ -98,7 +94,7 @@ func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface,
 	podFactory.Start(ctx.Done())
 	podFactory.WaitForCacheSync(ctx.Done())
 
-	return &accountant
+	return &lrm
 }
 
 // Register sets an update notifier.
@@ -241,11 +237,7 @@ func (m *LocalResourceMonitor) writeClusterResources(newResources corev1.Resourc
 	m.nodeMutex.Lock()
 	m.allocatable = newResources.DeepCopy()
 	m.nodeMutex.Unlock()
-	if m.notifier == nil {
-		klog.Warning("No notifier is configured, an update will be lost")
-	} else {
-		m.notifier.NotifyChange()
-	}
+	m.notifyOrWarn()
 }
 
 // write pods resources in thread safe mode.
@@ -259,6 +251,10 @@ func (m *LocalResourceMonitor) writePodResources(clusterID string, newResources 
 	m.podMutex.Lock()
 	m.resourcePodMap[clusterID] = newResources.DeepCopy()
 	m.podMutex.Unlock()
+	m.notifyOrWarn()
+}
+
+func (m *LocalResourceMonitor) notifyOrWarn() {
 	if m.notifier == nil {
 		klog.Warning("No notifier is configured, an update will be lost")
 	} else {

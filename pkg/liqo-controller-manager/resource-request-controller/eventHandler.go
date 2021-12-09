@@ -49,31 +49,24 @@ func getForeignClusterEventHandler(c client.Client) handler.EventHandler {
 				return
 			}
 
-			remoteClusterID := newForeignCluster.Spec.ClusterIdentity.ClusterID
+			remoteCluster := newForeignCluster.Spec.ClusterIdentity
 			if oldForeignCluster.Spec.IncomingPeeringEnabled != newForeignCluster.Spec.IncomingPeeringEnabled {
-				resourceRequestList, err := GetResourceRequests(ctx, c, remoteClusterID)
+				resourceRequest, err := GetResourceRequest(ctx, c, remoteCluster.ClusterID)
 				if err != nil {
-					klog.Errorf("[%s] failed to list resource requests: %s\n", remoteClusterID, err)
+					klog.Errorf("[%s] failed to list resource requests: %s\n", remoteCluster.ClusterName, err)
 					return
 				}
-
-				switch len(resourceRequestList.Items) {
-				case 0:
-					klog.V(3).Infof("[%s] no ResourceRequest found", remoteClusterID)
-					return
-				case 1:
-					resourceRequest := &resourceRequestList.Items[0]
-					rli.Add(reconcile.Request{
-						NamespacedName: types.NamespacedName{
-							Name:      resourceRequest.GetName(),
-							Namespace: resourceRequest.GetNamespace(),
-						},
-					})
-					return
-				default:
-					klog.Warningf("[%s] multiple ResourceRequests found", remoteClusterID)
+				if resourceRequest == nil {
+					klog.V(3).Infof("[%s] no ResourceRequest found", remoteCluster.ClusterName)
 					return
 				}
+				rli.Add(reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      resourceRequest.GetName(),
+						Namespace: resourceRequest.GetNamespace(),
+					},
+				})
+				return
 			}
 		},
 		DeleteFunc:  func(de event.DeleteEvent, rli workqueue.RateLimitingInterface) {},
