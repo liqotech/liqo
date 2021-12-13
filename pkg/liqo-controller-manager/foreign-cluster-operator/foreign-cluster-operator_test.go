@@ -519,6 +519,10 @@ var _ = Describe("ForeignClusterOperator", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "resource-offer-incoming",
 						Namespace: "default",
+						Labels: map[string]string{
+							consts.ReplicationRequestedLabel:   "true",
+							consts.ReplicationDestinationLabel: "foreign-cluster-abcd",
+						},
 					},
 					Spec: sharingv1alpha1.ResourceOfferSpec{},
 				}
@@ -756,7 +760,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					getIncomingResourceRequest(),
 				},
 				resourceOffers: []sharingv1alpha1.ResourceOffer{
-					getOutgoingResourceOffer(false),
+					getIncomingResourceOffer(false),
 				},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusPending,
 			}),
@@ -782,7 +786,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					getIncomingResourceRequest(),
 				},
 				resourceOffers: []sharingv1alpha1.ResourceOffer{
-					getOutgoingResourceOffer(true),
+					getIncomingResourceOffer(true),
 				},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
 			}),

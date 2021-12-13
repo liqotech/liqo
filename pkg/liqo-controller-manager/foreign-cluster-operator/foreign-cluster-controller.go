@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -59,7 +60,10 @@ const (
 	resourceRequestAcceptedMessage = "The ResourceRequest has been accepted by the remote cluster in the Tenant Namespace %v"
 
 	resourceRequestPendingReason  = "ResourceRequestPending"
-	resourceRequestPendingMessage = "The remote cluster has not completed the peering process"
+	resourceRequestPendingMessage = "The remote cluster has not created a ResourceOffer in the Tenant Namespace %v yet"
+
+	virtualKubeletPendingReason  = "KubeletPending"
+	virtualKubeletPendingMessage = "The remote cluster has not started the VirtualKubelet for the peering yet"
 
 	resourceRequestCreatedReason  = "ResourceRequestCreated"
 	resourceRequestCreatedMessage = "The ResourceRequest has been created in the Tenant Namespace %v"
@@ -318,8 +322,13 @@ func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 		return err
 	}
 
+	resourceOffer, err := r.getOutgoingResourceOffer(ctx, foreignCluster)
+	if err != nil {
+		return fmt.Errorf("reading resource offers: %w", err)
+	}
+
 	// Update the peering status based on the ResourceRequest status
-	status, reason, message, err := getPeeringPhase(foreignCluster, resourceRequest, nil)
+	status, reason, message, err := getPeeringPhase(foreignCluster, resourceRequest, resourceOffer)
 	if err != nil {
 		err = fmt.Errorf("[%v] %w", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
 		klog.Error(err)
@@ -392,8 +401,26 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers ui
 		Owns(&netv1alpha1.TunnelEndpoint{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}}, authenticationtoken.GetAuthTokenSecretEventHandler(r.Client),
 			builder.WithPredicates(authenticationtoken.GetAuthTokenSecretPredicate())).
+		Watches(&source.Kind{Type: &sharingv1alpha1.ResourceOffer{}},
+			handler.EnqueueRequestsFromMapFunc(r.resourceOfferHandler)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: int(workers)}).
 		Complete(r)
+}
+
+func (r *ForeignClusterReconciler) resourceOfferHandler(obj client.Object) []ctrl.Request {
+	ro := obj.(*sharingv1alpha1.ResourceOffer)
+	var clusterID string
+	if _, ok := ro.Labels[liqoconst.ReplicationStatusLabel]; ok { // incoming resource offer
+		clusterID = ro.Labels[liqoconst.ReplicationOriginLabel]
+	} else {
+		clusterID = ro.Labels[liqoconst.ReplicationDestinationLabel]
+	}
+	remoteCluster, err := foreignclusterutils.GetForeignClusterByID(context.Background(), r.Client, clusterID)
+	if err != nil {
+		klog.Warningf("Could not handle resource offer %q update: %s", klog.KObj(ro), err)
+		return []ctrl.Request{}
+	}
+	return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: remoteCluster.Name}}}
 }
 
 func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Context,
@@ -406,7 +433,7 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 		return fmt.Errorf("reading resource requests: %w", err)
 	}
 
-	resourceOffer, err := r.getResourceOffer(ctx, foreignCluster)
+	resourceOffer, err := r.getIncomingResourceOffer(ctx, foreignCluster)
 	if err != nil {
 		return fmt.Errorf("reading resource offers: %w", err)
 	}
@@ -420,14 +447,31 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 	return nil
 }
 
-// getResourceOffer returns the ResourceOffer for the given remote cluster, or a nil pointer if there is none.
-func (r *ForeignClusterReconciler) getResourceOffer(ctx context.Context,
+// getIncomingResourceOffer returns the ResourceOffer created for the given remote cluster in an incoming peering, or a
+// nil pointer if there is none.
+func (r *ForeignClusterReconciler) getIncomingResourceOffer(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (*sharingv1alpha1.ResourceOffer, error) {
-	var resourceOfferList sharingv1alpha1.ResourceOfferList
-	if err := r.Client.List(ctx, &resourceOfferList, client.HasLabels{
+	return r.getResourceOfferWithLabels(ctx, []client.ListOption{client.MatchingLabels{
+		liqoconst.ReplicationRequestedLabel:   "true",
+		liqoconst.ReplicationDestinationLabel: foreignCluster.Spec.ClusterIdentity.ClusterID,
+	}})
+}
+
+// getOutgoingResourceOffer returns the ResourceOffer created by the given remote cluster in an outgoing peering, or a
+// nil pointer if there is none.
+func (r *ForeignClusterReconciler) getOutgoingResourceOffer(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) (*sharingv1alpha1.ResourceOffer, error) {
+	return r.getResourceOfferWithLabels(ctx, []client.ListOption{client.HasLabels{
 		liqoconst.ReplicationStatusLabel}, client.MatchingLabels{
 		liqoconst.ReplicationOriginLabel: foreignCluster.Spec.ClusterIdentity.ClusterID,
-	}); err != nil {
+	}})
+}
+
+// getResourceOfferWithLabels returns the ResourceOffer with the given labels.
+func (r *ForeignClusterReconciler) getResourceOfferWithLabels(ctx context.Context,
+	labels []client.ListOption) (*sharingv1alpha1.ResourceOffer, error) {
+	var resourceOfferList sharingv1alpha1.ResourceOfferList
+	if err := r.Client.List(ctx, &resourceOfferList, labels...); err != nil {
 		return nil, err
 	}
 
@@ -469,17 +513,17 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 		// Return "pending" if we sent the ResourceRequest but the foreign cluster did not yet create the ResourceOffer
 		if resourceOffer == nil {
 			return discoveryv1alpha1.PeeringConditionStatusPending, resourceRequestPendingReason,
-				resourceRequestPendingMessage, nil
+				fmt.Sprintf(resourceRequestPendingMessage, foreignCluster.Status.TenantNamespace.Local), nil
 		}
 		if resourceOffer.Status.VirtualKubeletStatus != sharingv1alpha1.VirtualKubeletStatusCreated {
-			return discoveryv1alpha1.PeeringConditionStatusPending, resourceRequestPendingReason,
-				resourceRequestPendingMessage, nil
+			return discoveryv1alpha1.PeeringConditionStatusPending, virtualKubeletPendingReason,
+				virtualKubeletPendingMessage, nil
 		}
 		return discoveryv1alpha1.PeeringConditionStatusEstablished, resourceRequestAcceptedReason,
 			fmt.Sprintf(resourceRequestAcceptedMessage, foreignCluster.Status.TenantNamespace.Local), nil
 	case discoveryv1alpha1.OfferStateNone, "":
 		return discoveryv1alpha1.PeeringConditionStatusPending, resourceRequestPendingReason,
-			resourceRequestPendingMessage, nil
+			fmt.Sprintf(resourceRequestPendingMessage, foreignCluster.Status.TenantNamespace.Local), nil
 	default:
 		err = fmt.Errorf("unknown offer state %v", offerState)
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
