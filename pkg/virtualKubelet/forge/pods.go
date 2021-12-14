@@ -104,6 +104,7 @@ func RemotePodSpec(local, remote *corev1.PodSpec) corev1.PodSpec {
 	remote.Hostname = local.Hostname
 	remote.Subdomain = local.Subdomain
 	remote.TopologySpreadConstraints = local.TopologySpreadConstraints
+	remote.RestartPolicy = local.RestartPolicy
 
 	return *remote
 }
