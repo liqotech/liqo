@@ -125,7 +125,7 @@ func (b *Broker) onNodeAddOrUpdate(obj interface{}) {
 	if !utils.IsNodeReady(node) {
 		return
 	}
-	clusterID := node.GetAnnotations()[consts.RemoteClusterID]
+	clusterID := node.Labels[consts.RemoteClusterID]
 	if clusterID == "" {
 		return
 	}
@@ -143,7 +143,7 @@ func (b *Broker) onNodeAddOrUpdate(obj interface{}) {
 
 func (b *Broker) onNodeDelete(obj interface{}) {
 	node := obj.(*corev1.Node)
-	clusterID := node.GetAnnotations()[consts.RemoteClusterID]
+	clusterID := node.Labels[consts.RemoteClusterID]
 	if clusterID == "" {
 		return
 	}

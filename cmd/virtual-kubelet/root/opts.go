@@ -56,7 +56,10 @@ type Opts struct {
 
 	HomeCluster    discoveryv1alpha1.ClusterIdentity
 	ForeignCluster discoveryv1alpha1.ClusterIdentity
-	LiqoIpamServer string
+
+	EnableRemoteIpam     bool
+	LiqoIpamServer       string
+	RemoteLiqoIpamServer string
 
 	// Sets the port to listen for requests from the Kubernetes API server
 	ListenPort      uint16

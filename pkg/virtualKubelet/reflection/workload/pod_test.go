@@ -37,7 +37,7 @@ import (
 var _ = Describe("Pod Reflection Tests", func() {
 	Describe("the NewPodReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflector := workload.NewPodReflector(nil, nil, nil, 0)
+			reflector := workload.NewPodReflector(nil, nil, nil, nil, 0)
 			Expect(reflector).ToNot(BeNil())
 			Expect(reflector.Reflector).ToNot(BeNil())
 		})
@@ -63,7 +63,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 			client = fake.NewSimpleClientset(&local)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 
-			reflector = workload.NewPodReflector(nil, nil, nil, 0)
+			reflector = workload.NewPodReflector(nil, nil, nil, nil, 0)
 
 			opts := options.New(client, factory.Core().V1().Pods()).
 				WithHandlerFactory(FakeEventHandler).

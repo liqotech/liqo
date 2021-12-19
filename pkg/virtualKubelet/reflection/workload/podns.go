@@ -80,8 +80,9 @@ type NamespacedPodReflector struct {
 	remoteRESTConfig *rest.Config
 	remoteMetrics    metricsv1beta1.PodMetricsInterface
 
-	ipamclient ipam.IpamClient
-	pods       sync.Map /* implicit signature: map[string]*PodInfo */
+	ipamclient       ipam.IpamClient
+	remoteIpamClient ipam.IpamClient
+	pods             sync.Map /* implicit signature: map[string]*PodInfo */
 }
 
 // PodInfo contains information about known pods.
@@ -429,16 +430,45 @@ func (npr *NamespacedPodReflector) MapPodIP(ctx context.Context, info *PodInfo, 
 	}
 
 	// Cache miss -> we need to interact with the IPAM to request the translation.
-	response, err := npr.ipamclient.GetHomePodIP(ctx, &ipam.GetHomePodIPRequest{ClusterID: forge.RemoteClusterID, Ip: original})
+	// If the IP is for an endpoint on the remote cluster, then use the remote IPAM client to map it.
+	// Otherwise (if it points to a real pod on the remote cluster), use GetHomePodIP.
+	isOnRemoteIpam, err := npr.isOnRemoteIpam(ctx, original)
 	if err != nil {
-		return "", fmt.Errorf("failed to translate pod IP %v: %w", original, err)
+		return "", err
+	}
+	if isOnRemoteIpam {
+		klog.V(6).Infof("Translating pod IP %v with remote IPAM", original)
+		response, err := npr.remoteIpamClient.MapEndpointIP(ctx, &ipam.MapRequest{ClusterID: forge.LocalClusterID, Ip: original})
+		if err != nil {
+			return "", fmt.Errorf("failed to translate pod IP %v with remote IPAM: %w", original, err)
+		}
+		info.TranslatedIP = response.GetIp()
+	} else {
+		klog.V(6).Infof("Translating pod IP %v with local IPAM", original)
+		response, err := npr.ipamclient.GetHomePodIP(ctx, &ipam.GetHomePodIPRequest{ClusterID: forge.RemoteClusterID, Ip: original})
+		if err != nil {
+			return "", fmt.Errorf("failed to translate pod IP %v with local IPAM: %w", original, err)
+		}
+		info.TranslatedIP = response.GetHomeIP()
 	}
 
 	info.OriginalIP = original
-	info.TranslatedIP = response.GetHomeIP()
+
 	klog.V(6).Infof("Translated remote pod IP %v to local %v", original, info.TranslatedIP)
 
 	return info.TranslatedIP, nil
+}
+
+// isOnRemoteIpam checks if the given IP must be translated using the remote IPAM service.
+func (npr *NamespacedPodReflector) isOnRemoteIpam(ctx context.Context, ip string) (bool, error) {
+	if npr.remoteIpamClient == nil {
+		return false, nil
+	}
+	belongs, err := npr.remoteIpamClient.BelongsToPodCIDR(ctx, &ipam.BelongsRequest{Ip: ip})
+	if err != nil {
+		return false, fmt.Errorf("BelongsPodCIDR failed: %w", err)
+	}
+	return !belongs.GetBelongs(), nil
 }
 
 // InferAdditionalRestarts estimates the number of remote pod restarts comparing the previously configured statues.

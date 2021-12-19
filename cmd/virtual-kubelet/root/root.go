@@ -99,6 +99,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		NodeIP:    os.Getenv("VKUBELET_POD_IP"),
 
 		LiqoIpamServer:       c.LiqoIpamServer,
+		EnableRemoteIpam:     c.EnableRemoteIpam,
+		RemoteLiqoIpamServer: c.RemoteLiqoIpamServer,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 
 		PodWorkers:                  c.PodWorkers,
@@ -133,6 +135,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		Version:          getVersion(localConfig),
 		ExtraLabels:      c.NodeExtraLabels.StringMap,
 		ExtraAnnotations: c.NodeExtraAnnotations.StringMap,
+		EnableRemoteIpam: c.EnableRemoteIpam,
 
 		InformerResyncPeriod: c.InformerResyncPeriod,
 	}

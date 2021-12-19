@@ -71,7 +71,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
 
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			rfl := workload.NewPodReflector(nil, metricsFactory, ipam, 0)
+			rfl := workload.NewPodReflector(nil, metricsFactory, ipam, nil, 0)
 			rfl.Start(ctx, options.New(client, factory.Core().V1().Pods()))
 			reflector = rfl.NewNamespaced(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).WithLiqoLocal(liqoClient, liqoFactory).

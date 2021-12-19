@@ -75,8 +75,9 @@ type PodReflector struct {
 	remoteRESTConfig     *rest.Config
 	remoteMetricsFactory MetricsFactory
 
-	ipamclient ipam.IpamClient
-	handlers   sync.Map /* implicit signature: map[string]NamespacedPodHandler */
+	ipamclient       ipam.IpamClient
+	remoteIpamClient ipam.IpamClient
+	handlers         sync.Map /* implicit signature: map[string]NamespacedPodHandler */
 }
 
 // FallbackPodReflector handles the "orphan" pods outside the managed namespaces.
@@ -91,11 +92,13 @@ func NewPodReflector(
 	remoteRESTConfig *rest.Config, /* required to establish the connection to implement `kubectl exec` */
 	remoteMetricsFactory MetricsFactory, /* required to retrieve the pod metrics from the remote cluster */
 	ipamclient ipam.IpamClient, /* required to translate the remote IP addresses to the corresponding local ones */
+	remoteIpamClient ipam.IpamClient,
 	workers uint) *PodReflector {
 	reflector := &PodReflector{
 		remoteRESTConfig:     remoteRESTConfig,
 		remoteMetricsFactory: remoteMetricsFactory,
 		ipamclient:           ipamclient,
+		remoteIpamClient:     remoteIpamClient,
 	}
 
 	genericReflector := generic.NewReflector(PodReflectorName, reflector.NewNamespaced, reflector.NewFallback, workers)
@@ -125,7 +128,8 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 		remoteRESTConfig: pr.remoteRESTConfig,
 		remoteMetrics:    pr.remoteMetricsFactory(opts.RemoteNamespace),
 
-		ipamclient: pr.ipamclient,
+		ipamclient:       pr.ipamclient,
+		remoteIpamClient: pr.remoteIpamClient,
 	}
 
 	pr.handlers.Store(opts.LocalNamespace, NamespacedPodHandler(reflector))

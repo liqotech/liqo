@@ -53,6 +53,7 @@ type InitConfig struct {
 	Version          string
 	ExtraLabels      map[string]string
 	ExtraAnnotations map[string]string
+	EnableRemoteIpam bool
 
 	PodProviderStopper   chan struct{}
 	InformerResyncPeriod time.Duration
