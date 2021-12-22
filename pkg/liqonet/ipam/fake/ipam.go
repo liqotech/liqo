@@ -97,3 +97,9 @@ func (mock *IPAMClient) GetHomePodIP(_ context.Context, req *ipam.GetHomePodIPRe
 	mock.pods[req.GetIp()] = homeIP
 	return &ipam.GetHomePodIPResponse{HomeIP: homeIP}, nil
 }
+
+// BelongsToPodCIDR mocks the corresponding IPAMClient function.
+func (mock *IPAMClient) BelongsToPodCIDR(context.Context, *ipam.BelongsRequest,
+	...grpc.CallOption) (*ipam.BelongsResponse, error) {
+	return &ipam.BelongsResponse{Belongs: true}, nil
+}
