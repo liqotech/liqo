@@ -1696,6 +1696,32 @@ var _ = Describe("Ipam", func() {
 			})
 		})
 	})
+
+	Describe("BelongsToPodCIDR", func() {
+		BeforeEach(func() {
+			Expect(ipam.ipamStorage.updatePodCIDR("10.244.0.0/16")).To(Succeed())
+		})
+		Context("Calling it on an IP in the pod CIDR", func() {
+			It("should return true", func() {
+				response, err := ipam.BelongsToPodCIDR(context.Background(), &BelongsRequest{Ip: "10.244.0.1"})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.GetBelongs()).To(BeTrue())
+			})
+		})
+		Context("Calling it on an IP not in the pod CIDR", func() {
+			It("should return false", func() {
+				response, err := ipam.BelongsToPodCIDR(context.Background(), &BelongsRequest{Ip: "1.2.3.4"})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.GetBelongs()).To(BeFalse())
+			})
+		})
+		Context("Calling it on an invalid IP", func() {
+			It("should return an error", func() {
+				_, err := ipam.BelongsToPodCIDR(context.Background(), &BelongsRequest{Ip: "10.9.9"})
+				Expect(err).To(HaveOccurred())
+			})
+		})
+	})
 })
 
 func checkForPrefixes(subnets []string) {

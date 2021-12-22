@@ -947,6 +947,32 @@ func ipBelongsToNetwork(ip, network string) (bool, error) {
 	return p.Contains(netaddr.MustParseIP(ip)), nil
 }
 
+func (liqoIPAM *IPAM) belongsToPodCIDRInternal(ip string) (bool, error) {
+	if netIP := net.ParseIP(ip); netIP == nil {
+		return false, &liqoneterrors.WrongParameter{
+			Reason:    liqoneterrors.ValidIP,
+			Parameter: "Endpoint IP",
+		}
+	}
+
+	// Get cluster subnets
+	podCIDR := liqoIPAM.ipamStorage.getPodCIDR()
+	if podCIDR == "" {
+		return false, fmt.Errorf("the pod CIDR is not set")
+	}
+
+	return ipBelongsToNetwork(ip, podCIDR)
+}
+
+// BelongsToPodCIDR tells if the given IP belongs to the remote pod CIDR for the given cluster.
+func (liqoIPAM *IPAM) BelongsToPodCIDR(ctx context.Context, belongsRequest *BelongsRequest) (*BelongsResponse, error) {
+	belongs, err := liqoIPAM.belongsToPodCIDRInternal(belongsRequest.GetIp())
+	if err != nil {
+		return &BelongsResponse{}, fmt.Errorf("cannot tell if IP %s is in pod CIDR: %w", belongsRequest.GetIp(), err)
+	}
+	return &BelongsResponse{Belongs: belongs}, nil
+}
+
 /* mapIPToExternalCIDR acquires an IP belonging to the local ExternalCIDR for the specific IP and
 if necessary maps it using the remoteExternalCIDR (this means remote cluster has remapped local ExternalCIDR)
 Further invocations passing the same IP won't acquire a new IP, but will use the one already acquired. */
