@@ -87,7 +87,7 @@ func (src *SymmetricRoutingController) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 	if added {
-		klog.Errorf("successfully added route for pod {%s} with IP address {%s} to the vxlan device {%s}",
+		klog.Infof("successfully added route for pod {%s} with IP address {%s} to the vxlan device {%s}",
 			req.String(), p.Status.PodIP, src.vxlanDev.Link.Name)
 	}
 	return ctrl.Result{}, nil
