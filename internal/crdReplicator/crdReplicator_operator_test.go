@@ -71,6 +71,10 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 		})).To(Succeed())
 	}
 
+	DisableNetworking := func() {
+		foreignCluster.Spec.NetworkingEnabled = discoveryv1alpha1.NetworkingEnabledNo
+	}
+
 	RemoteRef := func(name string) types.NamespacedName {
 		return types.NamespacedName{Name: name, Namespace: remoteNamespace}
 	}
@@ -112,6 +116,7 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 				ClusterIdentity: remoteCluster,
 				ForeignAuthURL:  authURL, OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 				IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto, InsecureSkipTLSVerify: pointer.Bool(true),
+				NetworkingEnabled: discoveryv1alpha1.NetworkingEnabledYes,
 			},
 			Status: discoveryv1alpha1.ForeignClusterStatus{
 				TenantNamespace: discoveryv1alpha1.TenantNamespaceType{Local: localNamespace, Remote: remoteNamespace}},
@@ -144,7 +149,6 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 		Expect(cl.Create(ctx, &foreignCluster)).To(Succeed())
 		foreignCluster.Status = *statusCopy
 		Expect(cl.Status().Update(ctx, &foreignCluster)).To(Succeed())
-
 		Expect(cl.Create(ctx, &resourceRequest)).To(Succeed())
 		Expect(cl.Create(ctx, &resourceOffer)).To(Succeed())
 		Expect(cl.Create(ctx, &networkConfig)).To(Succeed())
@@ -166,7 +170,7 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 		Expect(GetRemoteNetworkConfig()()).To(MatchError(networkConfigNotFound))
 	})
 
-	Context("replication tests by phase", func() {
+	Context("replication tests by phase with networking", func() {
 		When("the peering phase is none", func() {
 			It("Should replicate no resources", func() {
 				Consistently(GetForeignClusterFinalizer()).ShouldNot(ContainElement("crdReplicator.liqo.io"))
@@ -207,6 +211,56 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 				Eventually(GetRemoteResourceRequest()).Should(Succeed())
 				Eventually(GetRemoteResourceOffer()).Should(Succeed())
 				Eventually(GetRemoteNetworkConfig()).Should(Succeed())
+			})
+		})
+	})
+
+	Context("replication tests by phase without networking", func() {
+		BeforeEach(func() { DisableNetworking() })
+
+		When("the peering phase is none", func() {
+
+			It("Should replicate no resources", func() {
+				Consistently(GetForeignClusterFinalizer()).ShouldNot(ContainElement("crdReplicator.liqo.io"))
+				Consistently(GetRemoteResourceRequest()).Should(MatchError(resourceRequestNotFound))
+				Consistently(GetRemoteResourceOffer()).Should(MatchError(resourceOfferNotFound))
+				Consistently(GetRemoteNetworkConfig()).Should(MatchError(networkConfigNotFound))
+			})
+		})
+
+		When("the peering phase is authenticated", func() {
+			JustBeforeEach(func() {
+				SetPeeringPhases(discoveryv1alpha1.AuthenticationStatusCondition)
+			})
+			It("Should replicate only the resource request", func() {
+				Eventually(GetForeignClusterFinalizer()).Should(ContainElement("crdReplicator.liqo.io"))
+				Eventually(GetRemoteResourceRequest()).Should(Succeed())
+				Consistently(GetRemoteResourceOffer()).Should(MatchError(resourceOfferNotFound))
+				Consistently(GetRemoteNetworkConfig()).Should(MatchError(networkConfigNotFound))
+			})
+		})
+
+		When("the peering phase is outgoing", func() {
+			JustBeforeEach(func() {
+				SetPeeringPhases(discoveryv1alpha1.AuthenticationStatusCondition, discoveryv1alpha1.OutgoingPeeringCondition)
+			})
+			It("Should replicate the resource request", func() {
+				Eventually(GetForeignClusterFinalizer()).Should(ContainElement("crdReplicator.liqo.io"))
+				Eventually(GetRemoteResourceRequest()).Should(Succeed())
+				Consistently(GetRemoteNetworkConfig()).Should(MatchError(networkConfigNotFound))
+				Consistently(GetRemoteResourceOffer()).Should(MatchError(resourceOfferNotFound))
+			})
+		})
+
+		When("the peering phase is incoming", func() {
+			JustBeforeEach(func() {
+				SetPeeringPhases(discoveryv1alpha1.AuthenticationStatusCondition, discoveryv1alpha1.IncomingPeeringCondition)
+			})
+			It("Should replicate all resources but not the network config", func() {
+				Eventually(GetForeignClusterFinalizer()).Should(ContainElement("crdReplicator.liqo.io"))
+				Eventually(GetRemoteResourceRequest()).Should(Succeed())
+				Eventually(GetRemoteResourceOffer()).Should(Succeed())
+				Consistently(GetRemoteNetworkConfig()).Should(MatchError(networkConfigNotFound))
 			})
 		})
 	})
