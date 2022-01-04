@@ -63,6 +63,9 @@ type Controller struct {
 
 	peeringPhases      map[string]consts.PeeringPhase
 	peeringPhasesMutex sync.RWMutex
+
+	networkingStates     map[string]discoveryv1alpha1.NetworkingEnabledType
+	networkingStateMutex sync.RWMutex
 }
 
 // cluster-role
@@ -92,6 +95,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 
 	remoteCluster := fc.Spec.ClusterIdentity
 	klog.Infof("[%v] Processing ForeignCluster %q", remoteCluster.ClusterName, fc.Name)
+	klog.Infof("networking is set to %s", fc.Spec.NetworkingEnabled)
 	// Prevent issues in case the remote cluster ID has not yet been set
 	if remoteCluster.ClusterID == "" {
 		klog.Infof("Remote Cluster ID is not yet set in resource %q", fc.Name)
@@ -144,6 +148,12 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	if oldPhase := c.getPeeringPhase(remoteCluster.ClusterID); oldPhase != currentPhase {
 		klog.V(4).Infof("[%v] Peering phase changed: old: %v, new: %v", remoteCluster.ClusterName, oldPhase, currentPhase)
 		c.setPeeringPhase(remoteCluster.ClusterID, currentPhase)
+	}
+
+	currentNetState := foreigncluster.GetNetworkingState(&fc)
+	if oldNetState := c.getNetworkingState(remoteCluster.ClusterID); oldNetState != currentNetState {
+		klog.V(4).Infof("[%v] Networking state changed: old: %v, new %v", remoteCluster.ClusterName, oldNetState, currentNetState)
+		c.setNetworkingState(remoteCluster.ClusterID, currentNetState)
 	}
 
 	// Check if reflection towards the remote cluster has already been started.
@@ -212,12 +222,13 @@ func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterI
 		return nil
 	}
 
+	netState := c.getNetworkingState(remoteClusterID)
 	phase := c.getPeeringPhase(remoteClusterID)
 	for i := range c.RegisteredResources {
 		res := &c.RegisteredResources[i]
-		if !deleting && isReplicationEnabled(phase, res) && !reflector.ResourceStarted(res) {
+		if !deleting && isReplicationEnabled(phase, res) && isNetworkingEnabled(netState, res) && !reflector.ResourceStarted(res) {
 			reflector.StartForResource(ctx, res)
-		} else if !isReplicationEnabled(phase, res) && reflector.ResourceStarted(res) {
+		} else if (!isReplicationEnabled(phase, res) || !isNetworkingEnabled(netState, res)) && reflector.ResourceStarted(res) {
 			if err := reflector.StopForResource(res); err != nil {
 				return err
 			}
