@@ -32,6 +32,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/netcfgcreator"
@@ -168,6 +170,8 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 func (tec *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&netv1alpha1.NetworkConfig{}).
+		Watches(&source.Kind{Type: &netv1alpha1.TunnelEndpoint{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &netv1alpha1.NetworkConfig{}, IsController: false}).
 		Complete(tec)
 }
 
@@ -338,7 +342,7 @@ func (tec *TunnelEndpointCreator) enforceTunnelEndpoint(ctx context.Context, loc
 	if !found {
 		controllerRef := metav1.GetControllerOf(local)
 		defer tracer.Step("TunnelEndpoint creation")
-		return tec.createTunnelEndpoint(ctx, param, controllerRef, local.GetNamespace())
+		return tec.createTunnelEndpoint(ctx, param, controllerRef, local.GetNamespace(), local)
 	}
 
 	defer tracer.Step("TunnelEndpoint update")
@@ -378,7 +382,7 @@ func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(ctx context.Context, 
 }
 
 func (tec *TunnelEndpointCreator) createTunnelEndpoint(ctx context.Context, param *networkParam,
-	ownerRef *metav1.OwnerReference, namespace string) error {
+	ownerRef *metav1.OwnerReference, namespace string, localNet *netv1alpha1.NetworkConfig) error {
 	// here we create it
 	tep := &netv1alpha1.TunnelEndpoint{
 		ObjectMeta: metav1.ObjectMeta{
@@ -389,17 +393,24 @@ func (tec *TunnelEndpointCreator) createTunnelEndpoint(ctx context.Context, para
 			},
 		},
 	}
+
+	if err := controllerutil.SetOwnerReference(localNet, tep, tec.Scheme); err != nil {
+		klog.Errorf("an error occurred while setting owner reference to resource %s: %v", tep.Name, err)
+		return err
+	}
+
 	if ownerRef != nil {
 		tep.OwnerReferences = append(tep.OwnerReferences, *ownerRef)
 	}
 
 	tec.fillTunnelEndpointSpec(tep, param)
-	err := tec.Create(ctx, tep)
-	if err != nil {
+
+	if err := tec.Create(ctx, tep); err != nil {
 		klog.Errorf("an error occurred while creating resource %s of type %s: %s",
 			tep.Name, netv1alpha1.TunnelEndpointGroupResource, err)
 		return err
 	}
+
 	klog.Infof("resource %s of type %s created", tep.Name, netv1alpha1.TunnelEndpointGroupResource)
 
 	return nil
