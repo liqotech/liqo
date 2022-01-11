@@ -6,7 +6,7 @@ weight: 1
 ## Overview
 
 In Liqo, peering establishes an administrative connection between two clusters and enables the resource sharing across them.
-It is worth noticing that peering is unidirectional. 
+It is worth noticing that peering is unidirectional.
 This implies that resources can be shared only from a cluster to another and not the vice-versa.
 Obviously, it can be optionally be enabled bi-directionally, enabling a two-way resource sharing.
 
@@ -15,7 +15,7 @@ Obviously, it can be optionally be enabled bi-directionally, enabling a two-way 
 To peer with a cluster, you should provide some information to Liqo in order to reach that cluster.
 *liqoctl* can help you by generating the command to peer with a specific cluster.
 
-The installation of *liqoctl* is very simple; complete instructions are available in a [dedicated section](/installation#liqoctl).
+The installation of *liqoctl* is very simple; complete instructions are available in a [dedicated section](/installation/install#liqoctl).
 
 Let's suppose that you are the Cluster A and you would like to peer with Cluster B.
 This means that you would like to offload Cluster A's pods in Cluster B.
@@ -32,7 +32,7 @@ liqoctl generate-add-command
 You will obtain an output like the following:
 
 ```bash
-liqoctl add cluster clusterB --auth-url https://172.18.0.5:32714 \ 
+liqoctl add cluster clusterB --auth-url https://172.18.0.5:32714 \
     --id 3623b0bd-3c32-4dec-994b-fc80d9d0d91d \
     --token b13b6932ee6fd890a1abe212dc21253aa6d74565fead54
 ```
@@ -43,7 +43,7 @@ Now, to peer Cluster A with B, you can just (1) export the KUBECONFIG of Cluster
 
 ```bash
 export KUBECONFIG=kubeconfig-cluster-a
-liqoctl add cluster clusterB --auth-url https://172.18.0.5:32714 \ 
+liqoctl add cluster clusterB --auth-url https://172.18.0.5:32714 \
     --id 3623623b0bd-3c32-4dec-994b-fc80d9d0d91d \
     --token b13b6932ee6fd890a1abe212dc21253aa6d74565fead54
 ```

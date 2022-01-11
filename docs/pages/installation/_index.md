@@ -16,5 +16,5 @@ If you are using Calico on your cluster, __YOU MUST READ__ the [Calico configura
 
 After you have successfully installed Liqo, you may:
 
-* [Configure](/configuration): configure the Liqo security, the automatic discovery of new clusters and other system parameters.
-* [Use](/usage) Liqo: orchestrate your applications across multiple clusters.
+* [Configure Liqo](/configuration): tune security properties, the automatic discovery of new clusters and other system parameters.
+* [Use Liqo](/usage): orchestrate your applications across multiple clusters.
