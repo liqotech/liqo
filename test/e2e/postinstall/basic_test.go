@@ -89,13 +89,15 @@ var _ = Describe("Liqo E2E", func() {
 						})
 						Expect(err).ToNot(HaveOccurred())
 						return tenantNsList.Items
-					}, timeout, interval).Should(HaveLen(1))
+					}, timeout, interval).Should(HaveLen(testContext.ClustersNumber - 1))
 
-					Eventually(func() bool {
-						readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.NativeClient, tenantNsList.Items[0].Name)
-						klog.Infof("Tenant pods status: %d ready, %d not ready", len(readyPods), len(notReadyPods))
-						return err == nil && len(notReadyPods) == 0 && len(readyPods) == 1
-					}, timeout, interval).Should(BeTrue())
+					for _, tenantNs := range tenantNsList.Items {
+						Eventually(func() bool {
+							readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.NativeClient, tenantNs.Name)
+							klog.Infof("Tenant pods status: %d ready, %d not ready", len(readyPods), len(notReadyPods))
+							return err == nil && len(notReadyPods) == 0 && len(readyPods) == 1
+						}, timeout, interval).Should(BeTrue())
+					}
 				},
 				PodsUpAndRunningTableEntries...,
 			)
