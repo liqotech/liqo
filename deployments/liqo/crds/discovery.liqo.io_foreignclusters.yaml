@@ -97,6 +97,14 @@ spec:
                 description: Indicates if the local cluster has to skip the tls verification
                   over the remote Authentication Service or not.
                 type: boolean
+              networkingEnabled:
+                default: "Yes"
+                description: Indicates if Liqo has to handle the network interconnection
+                  with the remote cluster.
+                enum:
+                - "No"
+                - "Yes"
+                type: string
               outgoingPeeringEnabled:
                 default: Auto
                 description: Enable the peering process to the remote cluster.
