@@ -100,7 +100,7 @@ func CreateVethPair(originVethName, dstVethName string, originNetns, dstNetns ns
 		return err
 	}
 	var createVethPair = func(hostNS ns.NetNS) error {
-		_, _, err := ip.SetupVethWithName(originVethName, dstVethName, linkMTU, dstNetns)
+		_, _, err := ip.SetupVethWithName(originVethName, dstVethName, linkMTU, "", dstNetns)
 		if err != nil {
 			klog.Errorf("an error occurred while creating veth pair between host and gateway namespace: %v", err)
 			return err
