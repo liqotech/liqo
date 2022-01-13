@@ -367,7 +367,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			By("Checking update node resources")
+			By("Decreasing node resources")
 			toUpdate := node1.Status.Allocatable.DeepCopy()
 			for _, quantity := range toUpdate {
 				quantity.Sub(*resource.NewQuantity(1, quantity.Format))
@@ -388,6 +388,48 @@ var _ = Describe("ResourceRequest Operator", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
+
+			By("Creating new resources on node1")
+			toUpdate = node1.Status.Allocatable.DeepCopy()
+			toUpdate["liqo.io/fake-resource"] = *resource.NewQuantity(10, resource.DecimalSI)
+			node1.Status.Allocatable = toUpdate.DeepCopy()
+			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() bool {
+				resourcesRead := scaledMonitor.ReadResources(ClusterID1)
+				for resourceName, quantity := range resourcesRead {
+					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
+					toCheck.Add(node1.Status.Allocatable[resourceName])
+					toCheck.Sub(podReq[resourceName])
+					ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
+					if quantity.Cmp(toCheck) != 0 {
+						return false
+					}
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			// Reproduces issue #1052.
+			By("Creating new resources on node2")
+			toUpdate = node2.Status.Allocatable.DeepCopy()
+			toUpdate["liqo.io/fake-resource"] = *resource.NewQuantity(10, resource.DecimalSI)
+			node2.Status.Allocatable = toUpdate.DeepCopy()
+			node2, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node2, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() bool {
+				resourcesRead := scaledMonitor.ReadResources(ClusterID1)
+				for resourceName, quantity := range resourcesRead {
+					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
+					toCheck.Add(node1.Status.Allocatable[resourceName])
+					toCheck.Sub(podReq[resourceName])
+					ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
+					if quantity.Cmp(toCheck) != 0 {
+						return false
+					}
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
 			By("Checking if ResourceOffer has been updated correctly")
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{
