@@ -110,6 +110,21 @@ fmt: gci addlicense
 	find . -type f -name '*.go' -a ! -name '*zz_generated*' -exec $(GCI) -local github.com/liqotech/liqo -w {} \;
 	find . -type f -name '*.go' -exec $(ADDLICENSE) -l apache -c "The Liqo Authors" -y "2019-$(shell date +%Y)" {} \;
 
+# Install golangci-lint if not available
+golangci-lint:
+ifeq (, $(shell which golangci-lint))
+	@{ \
+	set -e ;\
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.43.0;\
+	}
+GOLANGCILINT=$(GOBIN)/golangci-lint
+else
+GOLANGCILINT=$(shell which golangci-lint)
+endif
+
+lint: golangci-lint
+	 $(GOLANGCILINT) run --new
+
 generate-controller: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."
 
