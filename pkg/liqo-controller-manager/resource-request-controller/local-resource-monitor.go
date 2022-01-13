@@ -329,15 +329,15 @@ func subResources(currentResources, toSub corev1.ResourceList) {
 // updateResources is a utility function to update resources.
 func updateResources(currentResources, oldResources, newResources corev1.ResourceList) {
 	for resourceName, quantity := range newResources {
+		value := currentResources[resourceName]
 		if oldQuantity, exists := oldResources[resourceName]; exists {
-			value := currentResources[resourceName]
-			quantityToUpdate := resource.NewQuantity(quantity.Value()-oldQuantity.Value(),
+			difference := resource.NewQuantity(quantity.Value()-oldQuantity.Value(),
 				quantity.Format)
-			value.Add(*quantityToUpdate)
-			currentResources[resourceName] = value
+			value.Add(*difference)
 		} else {
-			currentResources[resourceName] = quantity
+			value.Add(quantity)
 		}
+		currentResources[resourceName] = value
 	}
 }
 
