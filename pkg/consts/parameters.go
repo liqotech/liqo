@@ -17,6 +17,14 @@ package consts
 const (
 	// ClusterNameParameter is the name of the parameter specifying the cluster name.
 	ClusterNameParameter = "cluster-name"
+	// ClusterLabelsParameter is the name of the parameter specifying the cluster labels.
+	ClusterLabelsParameter = "cluster-labels"
+	// ReservedSubnetsParameter is the name of the parameter specifying the cluster's reserved subnets.
+	ReservedSubnetsParameter = "reserved-subnets"
+	// EnableLanDiscoveryParameter is the name of the parameter specifying whether the lan discovery is enabled.
+	EnableLanDiscoveryParameter = "enable-lan-discovery"
+	// GenerateNameParameter is the name of the parameter specifying whether to generate a random name for the cluster.
+	GenerateNameParameter = "generate-name"
 
 	// AuthServiceAddressOverrideParameter is the name of the parameter overriding
 	// the automatically detected authentication service address.

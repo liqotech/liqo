@@ -20,6 +20,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
@@ -83,11 +84,7 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonA
 	if err != nil {
 		return nil, err
 	}
-	clusterLabels, err := flags.GetString("cluster-labels")
-	if err != nil {
-		return nil, err
-	}
-	lanDiscovery, err := flags.GetBool("enable-lan-discovery")
+	lanDiscovery, err := flags.GetBool(consts.EnableLanDiscoveryParameter)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +108,7 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonA
 	if err != nil {
 		return nil, err
 	}
-	commonValues, err := parseCommonValues(providerName, clusterLabels, chartPath, version, resourceSharingPercentage,
+	commonValues, err := parseCommonValues(providerName, chartPath, version, resourceSharingPercentage,
 		lanDiscovery, enableHa, float64(ifaceMTU), float64(listeningPort))
 	if err != nil {
 		return nil, err
@@ -130,12 +127,8 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonA
 	}, nil
 }
 
-func parseCommonValues(providerName, clusterLabels, chartPath, version, resourceSharingPercentage string,
+func parseCommonValues(providerName, chartPath, version, resourceSharingPercentage string,
 	lanDiscovery, enableHa bool, mtu, port float64) (map[string]interface{}, error) {
-	clusterLabelsVar := argsutils.StringMap{}
-	if err := clusterLabelsVar.Set(clusterLabels); err != nil {
-		return map[string]interface{}{}, err
-	}
 
 	// If the chartPath is different from the official repo, we force the tag parameter in order to set the correct
 	// prefix for the images.
@@ -164,7 +157,6 @@ func parseCommonValues(providerName, clusterLabels, chartPath, version, resource
 		"tag": tag,
 		"discovery": map[string]interface{}{
 			"config": map[string]interface{}{
-				"clusterLabels":       installutils.GetInterfaceMap(clusterLabelsVar.StringMap),
 				"enableDiscovery":     lanDiscovery,
 				"enableAdvertisement": lanDiscovery,
 			},

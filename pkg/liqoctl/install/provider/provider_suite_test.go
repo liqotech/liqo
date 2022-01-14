@@ -35,6 +35,7 @@ func newFlagSet() *pflag.FlagSet {
 	flags.String("cluster-name", "", "")
 	flags.Bool("generate-name", false, "")
 	flags.String("reserved-subnets", "", "")
+	flags.String("cluster-labels", "", "")
 	return flags
 }
 
