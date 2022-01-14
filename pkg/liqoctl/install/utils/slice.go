@@ -14,6 +14,8 @@
 
 package installutils
 
+import "fmt"
+
 // GetInterfaceSlice casts a slice of string to a slice in interface{}.
 func GetInterfaceSlice(in []string) []interface{} {
 	out := make([]interface{}, len(in))
@@ -28,6 +30,16 @@ func GetInterfaceMap(in map[string]string) map[string]interface{} {
 	out := make(map[string]interface{}, len(in))
 	for k, v := range in {
 		out[k] = v
+	}
+	return out
+}
+
+// GetStringMap converts a map of [string]interface{} to a map of [string]string.
+func GetStringMap(in map[string]interface{}) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		strValue := fmt.Sprintf("%v", v)
+		out[k] = strValue
 	}
 	return out
 }

@@ -40,17 +40,17 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	installCmd.PersistentFlags().BoolP("only-output-values", "", false, "Generate a values file for further customization")
 	installCmd.PersistentFlags().StringP("dump-values-path", "", "./values.yaml", "Path for the output value file")
 	installCmd.PersistentFlags().BoolP("dry-run", "", false, "Simulate an install")
-	installCmd.PersistentFlags().BoolP("enable-lan-discovery", "", false, "Enable LAN discovery")
-	installCmd.PersistentFlags().StringP("cluster-labels", "", "",
+	installCmd.PersistentFlags().BoolP(liqoconst.EnableLanDiscoveryParameter, "", false, "Enable LAN discovery")
+	installCmd.PersistentFlags().StringP(liqoconst.ClusterLabelsParameter, "", "",
 		"Cluster Labels to append to Liqo Cluster, supports '='.(e.g. --cluster-labels key1=value1,key2=value2)")
 	installCmd.PersistentFlags().BoolP("disable-endpoint-check", "", false,
 		"Disable the check that the current kubeconfig context contains the same endpoint retrieved from the cloud provider (AKS, EKS, GKE)")
 	installCmd.PersistentFlags().String("chart-path", installutils.LiqoChartFullName,
 		"Specify a path to get the Liqo chart, instead of installing the chart from the official repository")
-	installCmd.PersistentFlags().StringP("cluster-name", "n", "", "Name to assign to the Liqo cluster")
-	installCmd.PersistentFlags().Bool("generate-name", false, "Generate a random Docker-like name for the cluster")
-	installCmd.PersistentFlags().String("reserved-subnets", "", "In order to prevent IP conflicting between locally used private subnets in your "+
-		"infrastructure and private subnets belonging to remote clusters "+
+	installCmd.PersistentFlags().StringP(liqoconst.ClusterNameParameter, "n", "", "Name to assign to the Liqo cluster")
+	installCmd.PersistentFlags().Bool(liqoconst.GenerateNameParameter, false, "Generate a random Docker-like name for the cluster")
+	installCmd.PersistentFlags().String(liqoconst.ReservedSubnetsParameter, "", "In order to prevent IP conflicting between "+
+		"locally used private subnets in your infrastructure and private subnets belonging to remote clusters "+
 		"you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then "+
 		"you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically "+
 		"added to the reserved list. (e.g. --reserved-subnets 192.168.2.0/24,192.168.4.0/24)")

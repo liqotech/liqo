@@ -19,11 +19,10 @@ import (
 	"reflect"
 )
 
-// FusionMap fusions two maps recursively writing the result in expectedResultMap result passed as argument. In case of duplicated keys,
-// the values extracted from patchMap are considered valid.
-func FusionMap(baseMap, patchMap map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	resultMap := make(map[string]interface{})
+// MergeMaps merges two maps recursively writing the result to resultMap.
+// In case keys are found in both maps, patchMap's values will be chosen over baseMap's.
+func MergeMaps(baseMap, patchMap map[string]interface{}) (resultMap map[string]interface{}, err error) {
+	resultMap = make(map[string]interface{})
 	for _, key := range extractKeys(baseMap, patchMap) {
 		v, ok := baseMap[key]
 		v2, ok2 := patchMap[key]
@@ -38,14 +37,14 @@ func FusionMap(baseMap, patchMap map[string]interface{}) (map[string]interface{}
 
 		switch {
 		case reflect.TypeOf(v) != reflect.TypeOf(v2):
-			return nil, fmt.Errorf("the two maps have different types for the same key %v %v", reflect.TypeOf(v), reflect.TypeOf(v2))
+			return nil, fmt.Errorf("the two maps have different types for the same key %v: %v, %v", key, reflect.TypeOf(v), reflect.TypeOf(v2))
 		case reflect.TypeOf(v).String() == "string", reflect.TypeOf(v).String() == "bool",
 			reflect.TypeOf(v).String() == "int", reflect.TypeOf(v).String() == "float64":
 			resultMap[key] = v2
 		case reflect.TypeOf(v).Kind() == reflect.Slice:
 			resultMap[key] = append(v.([]interface{}), v2.([]interface{})...)
 		default:
-			resultMap[key], err = FusionMap(baseMap[key].(map[string]interface{}), patchMap[key].(map[string]interface{}))
+			resultMap[key], err = MergeMaps(baseMap[key].(map[string]interface{}), patchMap[key].(map[string]interface{}))
 			if err != nil {
 				return nil, err
 			}

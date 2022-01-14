@@ -128,11 +128,11 @@ func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provide
 }
 
 func generateValues(chartValues, commonValues, providerValues map[string]interface{}) (map[string]interface{}, error) {
-	intermediateValues, err := installutils.FusionMap(chartValues, commonValues)
+	intermediateValues, err := installutils.MergeMaps(chartValues, commonValues)
 	if err != nil {
 		return nil, err
 	}
-	finalValues, err := installutils.FusionMap(intermediateValues, providerValues)
+	finalValues, err := installutils.MergeMaps(intermediateValues, providerValues)
 	if err != nil {
 		return nil, err
 	}

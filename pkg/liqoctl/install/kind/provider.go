@@ -57,12 +57,16 @@ func (k *Kind) UpdateChartValues(values map[string]interface{}) {
 			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
+	if k.LanDiscovery == nil {
+		lanDiscovery := true
+		k.LanDiscovery = &lanDiscovery
+	}
 	values["discovery"] = map[string]interface{}{
 		"config": map[string]interface{}{
 			"clusterLabels":       installutils.GetInterfaceMap(k.ClusterLabels),
 			"clusterName":         k.ClusterName,
-			"enableAdvertisement": true,
-			"enableDiscovery":     true,
+			"enableAdvertisement": *k.LanDiscovery,
+			"enableDiscovery":     *k.LanDiscovery,
 		},
 	}
 }

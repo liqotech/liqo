@@ -127,7 +127,7 @@ func main() {
 			"https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement")
 
 	// Resource sharing parameters
-	flag.Var(&clusterLabels, "cluster-labels",
+	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
 	resourceSharingPercentage := argsutils.Percentage{Val: 50}
 	flag.Var(&resourceSharingPercentage, "resource-sharing-percentage",
