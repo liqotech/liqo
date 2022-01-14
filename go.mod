@@ -38,15 +38,15 @@ require (
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	gotest.tools v2.2.0+incompatible
-	helm.sh/helm/v3 v3.7.0
+	helm.sh/helm/v3 v3.7.2
 	inet.af/netaddr v0.0.0-20210313195008-843b4240e319
-	k8s.io/api v0.22.1
-	k8s.io/apimachinery v0.22.1
-	k8s.io/client-go v0.22.1
-	k8s.io/component-helpers v0.22.1
+	k8s.io/api v0.22.4
+	k8s.io/apimachinery v0.22.4
+	k8s.io/client-go v0.22.4
+	k8s.io/component-helpers v0.22.4
 	k8s.io/klog/v2 v2.10.0
-	k8s.io/kubectl v0.22.1
-	k8s.io/metrics v0.22.1
+	k8s.io/kubectl v0.22.4
+	k8s.io/metrics v0.22.4
 	k8s.io/utils v0.0.0-20210820185131-d34e5cb4466e
 	sigs.k8s.io/aws-iam-authenticator v0.5.3
 	sigs.k8s.io/controller-runtime v0.10.0
@@ -69,7 +69,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.2 // indirect
-	github.com/Masterminds/squirrel v1.5.0 // indirect
+	github.com/Masterminds/squirrel v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.4.17 // indirect
 	github.com/Microsoft/hcsshim v0.8.21 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
@@ -109,7 +109,7 @@ require (
 	github.com/go-openapi/swag v0.19.14 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/gofrs/flock v0.8.0 // indirect
+	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -200,11 +200,11 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/apiextensions-apiserver v0.22.1 // indirect
-	k8s.io/apiserver v0.22.1 // indirect
-	k8s.io/cli-runtime v0.22.1 // indirect
-	k8s.io/component-base v0.22.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e // indirect
+	k8s.io/apiextensions-apiserver v0.22.4 // indirect
+	k8s.io/apiserver v0.22.4 // indirect
+	k8s.io/cli-runtime v0.22.4 // indirect
+	k8s.io/component-base v0.22.4 // indirect
+	k8s.io/kube-openapi v0.0.0-20211109043538-20434351676c // indirect
 	oras.land/oras-go v0.4.0 // indirect
 	sigs.k8s.io/kustomize/api v0.8.11 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.11.0 // indirect
