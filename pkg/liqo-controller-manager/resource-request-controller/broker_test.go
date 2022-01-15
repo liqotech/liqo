@@ -91,16 +91,14 @@ var _ = Describe("ResourceRequest Operator", func() {
 			})
 			It("does not change the resources", func() {
 				podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
-				Eventually(func() bool {
-					nodeList := []corev1.ResourceList{
-						node2.Status.Allocatable,
-						node1.Status.Allocatable,
-					}
-					podList := []corev1.ResourceList{
-						podReq,
-					}
-					return checkResourceOfferUpdate(ctx, BrokerNamespace, nodeList, podList, k8sClient)
-				}, timeout, interval).Should(BeTrue())
+				nodeList := []corev1.ResourceList{
+					node2.Status.Allocatable,
+					node1.Status.Allocatable,
+				}
+				podList := []corev1.ResourceList{
+					podReq,
+				}
+				Expect(checkResourceOfferUpdate(ctx, BrokerNamespace, nodeList, podList, k8sClient)).To(BeTrue())
 			})
 		})
 		When("a new virtual pod is created", func() {

@@ -186,31 +186,36 @@ func checkResourceOfferUpdate(ctx context.Context, homeCluster discoveryv1alpha1
 		return false
 	}
 	offerResources := offer.Spec.ResourceQuota.Hard
-	testList := corev1.ResourceList{}
-	for _, nodeResource := range nodeResources {
-		for resourceName, quantity := range nodeResource {
-			toAdd := testList[resourceName].DeepCopy()
-			toAdd.Add(quantity)
-			testList[resourceName] = toAdd.DeepCopy()
-		}
-	}
-
-	for _, podResource := range podResources {
-		for resourceName, quantity := range podResource {
-			toSub := testList[resourceName].DeepCopy()
-			toSub.Sub(quantity)
-			testList[resourceName] = toSub.DeepCopy()
-		}
-	}
+	expectedResources := computeTotalResources(nodeResources, podResources)
 
 	for resourceName, quantity := range offerResources {
-		toCheck := testList[resourceName].DeepCopy()
+		toCheck := expectedResources[resourceName].DeepCopy()
 		ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
 		if quantity.Cmp(toCheck) != 0 {
 			return false
 		}
 	}
 	return true
+}
+
+// computeTotalResources adds the resources of nodes and subtracts the resources of pods.
+func computeTotalResources(nodeResources, podResources []corev1.ResourceList) corev1.ResourceList {
+	totalResources := corev1.ResourceList{}
+	for _, nodeResource := range nodeResources {
+		for resourceName, quantity := range nodeResource {
+			toAdd := totalResources[resourceName].DeepCopy()
+			toAdd.Add(quantity)
+			totalResources[resourceName] = toAdd.DeepCopy()
+		}
+	}
+	for _, podResource := range podResources {
+		for resourceName, quantity := range podResource {
+			toSub := totalResources[resourceName].DeepCopy()
+			toSub.Sub(quantity)
+			totalResources[resourceName] = toSub.DeepCopy()
+		}
+	}
+	return totalResources
 }
 
 // isAllZero returns true if all the values in the ResourceList are zeroes. It returns false otherwise.
