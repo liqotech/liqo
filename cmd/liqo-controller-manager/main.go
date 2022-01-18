@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
+	appsv1alpha1 "github.com/liqotech/liqo/apis/apps/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -81,6 +82,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
+	_ = appsv1alpha1.AddToScheme(scheme)
 	_ = sharingv1alpha1.AddToScheme(scheme)
 	_ = netv1alpha1.AddToScheme(scheme)
 	_ = discoveryv1alpha1.AddToScheme(scheme)
