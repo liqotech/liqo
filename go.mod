@@ -41,13 +41,13 @@ require (
 	helm.sh/helm/v3 v3.7.2
 	inet.af/netaddr v0.0.0-20210313195008-843b4240e319
 	k8s.io/api v0.22.4
-	k8s.io/apimachinery v0.22.4
+	k8s.io/apimachinery v0.23.2
 	k8s.io/client-go v0.22.4
 	k8s.io/component-helpers v0.22.4
-	k8s.io/klog/v2 v2.10.0
+	k8s.io/klog/v2 v2.30.0
 	k8s.io/kubectl v0.22.4
 	k8s.io/metrics v0.22.4
-	k8s.io/utils v0.0.0-20210820185131-d34e5cb4466e
+	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 	sigs.k8s.io/aws-iam-authenticator v0.5.3
 	sigs.k8s.io/controller-runtime v0.10.0
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
@@ -97,13 +97,13 @@ require (
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/emicklei/go-restful v2.9.5+incompatible // indirect
-	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
+	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-errors/errors v1.0.2-0.20180813162953-d98b870cc4e0 // indirect
-	github.com/go-logr/logr v0.4.0 // indirect
+	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
@@ -187,7 +187,7 @@ require (
 	go4.org/intern v0.0.0-20210108033219-3eb7198706b2 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20201222180813-1025295fd063 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d // indirect
+	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
@@ -204,11 +204,12 @@ require (
 	k8s.io/apiserver v0.22.4 // indirect
 	k8s.io/cli-runtime v0.22.4 // indirect
 	k8s.io/component-base v0.22.4 // indirect
-	k8s.io/kube-openapi v0.0.0-20211109043538-20434351676c // indirect
+	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
 	oras.land/oras-go v0.4.0 // indirect
+	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
 	sigs.k8s.io/kustomize/api v0.8.11 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.11.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
