@@ -17,7 +17,6 @@ package postinstall
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -71,11 +70,6 @@ var _ = Describe("Liqo E2E", func() {
 					Expect(err).ToNot(HaveOccurred())
 					for _, pod := range pods.Items {
 						Expect(pod.Status.ContainerStatuses).ToNot(BeEmpty())
-						if strings.Contains(pod.GetName(), "capsule") {
-							// the capsule controller manager is restarted every time liqo is installed
-							Expect(pod.Status.ContainerStatuses[0].RestartCount).To(BeNumerically("==", 1))
-							continue
-						}
 						Expect(pod.Status.ContainerStatuses[0].RestartCount).To(BeNumerically("==", 0))
 					}
 

@@ -6,7 +6,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Set the capsule version to use
-CAPSULE_VERSION = v0.1.0
+CAPSULE_VERSION = v0.1.1
 
 generate: generate-controller generate-groups rbacs manifests fmt
 
