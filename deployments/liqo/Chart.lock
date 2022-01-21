@@ -1,6 +1,6 @@
 dependencies:
 - name: capsule
   repository: https://clastix.github.io/charts
-  version: 0.1.3
-digest: sha256:20170bb3b20404a0ac8cbfe501b23983dcb74df74c5b0257d97fadba03761277
-generated: "2021-11-16T15:38:50.73105379Z"
+  version: 0.1.6
+digest: sha256:1348d1329146be27b55a37f324210d2687cd57ea6a8897338d3fd791e10d21a7
+generated: "2022-01-21T09:20:13.099385122Z"

@@ -7,7 +7,7 @@ require (
 	github.com/Azure/go-autorest/autorest v0.11.19
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.8
 	github.com/aws/aws-sdk-go v1.39.4
-	github.com/clastix/capsule v0.1.0
+	github.com/clastix/capsule v0.1.1
 	github.com/containernetworking/plugins v1.0.1
 	github.com/coreos/go-iptables v0.6.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
