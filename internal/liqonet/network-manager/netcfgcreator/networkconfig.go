@@ -35,11 +35,19 @@ import (
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
-// GetLocalNetworkConfig returns the local NetworkConfig associated with a given cluster ID.
+// GetLocalNetworkConfig returns the local NetworkConfig associated with a given label selector and a clusterID.
 // In case more than one NetworkConfig is found, all but the oldest are deleted.
-func GetLocalNetworkConfig(ctx context.Context, c client.Client, clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
+func GetLocalNetworkConfig(ctx context.Context, c client.Client, labels client.MatchingLabels,
+	clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{consts.ReplicationDestinationLabel: clusterID}
+
+	if labels == nil {
+		labels = client.MatchingLabels{
+			consts.ReplicationDestinationLabel: clusterID,
+		}
+	} else {
+		labels[consts.ReplicationDestinationLabel] = clusterID
+	}
 
 	if err := c.List(ctx, networkConfigList, labels, client.InNamespace(namespace)); err != nil {
 		klog.Errorf("An error occurred while listing NetworkConfigs: %v", err)
@@ -107,8 +115,13 @@ func filterDuplicateNetworkConfig(items []netv1alpha1.NetworkConfig) (netcfg *ne
 func (ncc *NetworkConfigCreator) EnforceNetworkConfigPresence(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
 
+	// We make sure that the netcfgcreator only handles networkconfigs created by him.
+	labels := client.MatchingLabels{
+		consts.LocalResourceOwnership: componentName,
+	}
+
 	// Check if the resource for the remote cluster already exists
-	netcfg, err := GetLocalNetworkConfig(ctx, ncc.Client, clusterID, fc.Status.TenantNamespace.Local)
+	netcfg, err := GetLocalNetworkConfig(ctx, ncc.Client, labels, clusterID, fc.Status.TenantNamespace.Local)
 	if client.IgnoreNotFound(err) != nil {
 		return err
 	}
@@ -171,6 +184,7 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 		netcfg.Labels = map[string]string{}
 	}
 	netcfg.Labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(true)
+	netcfg.Labels[consts.LocalResourceOwnership] = componentName
 	netcfg.Labels[consts.ReplicationDestinationLabel] = clusterIdentity.ClusterID
 
 	wgEndpointIP, wgEndpointPort := ncc.serviceWatcher.WiregardEndpoint()
@@ -193,7 +207,10 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 // EnforceNetworkConfigAbsence ensures the absence of local NetworkConfigs associated with the given ForeignCluster.
 func (ncc *NetworkConfigCreator) EnforceNetworkConfigAbsence(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	clusterIdentity := fc.Spec.ClusterIdentity
-	labels := client.MatchingLabels{consts.ReplicationDestinationLabel: clusterIdentity.ClusterID}
+	labels := client.MatchingLabels{
+		consts.ReplicationDestinationLabel: clusterIdentity.ClusterID,
+		consts.LocalResourceOwnership:      componentName,
+	}
 
 	// Let perform a cached list first, to prevent unnecessary interactions with the API server.
 	var networkConfigList netv1alpha1.NetworkConfigList

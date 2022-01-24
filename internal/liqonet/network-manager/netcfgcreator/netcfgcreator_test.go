@@ -53,6 +53,14 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 		fc  *discoveryv1alpha1.ForeignCluster
 	)
 
+	AssertNetworkConfigAbsence := func() func() {
+		return func() {
+			var networkConfigList netv1alpha1.NetworkConfigList
+			Expect(ncc.List(ctx, &networkConfigList, client.InNamespace(namespace))).To(Succeed())
+			Expect(networkConfigList.Items).To(HaveLen(0))
+		}
+	}
+
 	BeforeEach(func() {
 		ctx = context.Background()
 		cl, err := client.New(testcluster.GetCfg(), client.Options{Scheme: scheme.Scheme})
@@ -118,6 +126,7 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo", Namespace: namespace, Labels: map[string]string{
 						consts.ReplicationDestinationLabel: clusterID,
+						consts.LocalResourceOwnership:      componentName,
 					},
 				},
 				Spec: netv1alpha1.NetworkConfigSpec{
@@ -139,6 +148,7 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 				AssertNetworkConfigMeta := func(netcfg *netv1alpha1.NetworkConfig) {
 					Expect(netcfg.Labels).To(HaveKeyWithValue(consts.ReplicationRequestedLabel, "true"))
 					Expect(netcfg.Labels).To(HaveKeyWithValue(consts.ReplicationDestinationLabel, clusterID))
+					Expect(netcfg.Labels).To(HaveKeyWithValue(consts.LocalResourceOwnership, componentName))
 
 					Expect(metav1.GetControllerOf(netcfg).Kind).To(Equal("ForeignCluster"))
 					Expect(metav1.GetControllerOf(netcfg).APIVersion).To(Equal("discovery.liqo.io/v1alpha1"))
@@ -210,14 +220,6 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 				discoveryv1alpha1.PeeringConditionStatusNone, "", "")
 		})
 
-		AssertNetworkConfigAbsence := func() func() {
-			return func() {
-				var networkConfigList netv1alpha1.NetworkConfigList
-				Expect(ncc.List(ctx, &networkConfigList, client.InNamespace(namespace))).To(Succeed())
-				Expect(networkConfigList.Items).To(HaveLen(0))
-			}
-		}
-
 		When("the NetworkConfig does exist", func() {
 			BeforeEach(CreateNetworkConfig())
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
@@ -228,5 +230,60 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 			It("should ensure the absence of the NetworkConfig", AssertNetworkConfigAbsence())
 		})
+	})
+
+	When("the ForeignCluster has not networking enabled", func() {
+		DisableNetworking := func() {
+			fc.Spec.NetworkingEnabled = discoveryv1alpha1.NetworkingEnabledNo
+		}
+
+		BeforeEach(DisableNetworking)
+
+		ContextBody := func(initializer func()) func() {
+			return func() {
+				BeforeEach(initializer)
+
+				When("the NetworkConfig does exist", func() {
+					BeforeEach(CreateNetworkConfig())
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+					It("should ensure the absence of the NetworkConfig", AssertNetworkConfigAbsence())
+				})
+
+				When("the NetworkConfig does not exist", func() {
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+					It("should ensure the absence of the NetworkConfig", AssertNetworkConfigAbsence())
+				})
+			}
+		}
+
+		Context("peering is enabled", func() {
+			Context("incoming peering", ContextBody(func() {
+				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
+				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+					discoveryv1alpha1.PeeringConditionStatusNone, "", "")
+			}))
+
+			Context("outgoing peering", ContextBody(func() {
+				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+					discoveryv1alpha1.PeeringConditionStatusNone, "", "")
+				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
+			}))
+
+			Context("bidirectional peering", ContextBody(func() {
+				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
+				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
+			}))
+		})
+
+		Context("peering is not enabled", ContextBody(func() {
+			peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+				discoveryv1alpha1.PeeringConditionStatusNone, "", "")
+			peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+				discoveryv1alpha1.PeeringConditionStatusNone, "", "")
+		}))
 	})
 })
