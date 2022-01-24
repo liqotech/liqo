@@ -210,6 +210,7 @@ var _ = Describe("Handler tests", func() {
 				Labels: map[string]string{
 					consts.ReplicationRequestedLabel:   strconv.FormatBool(true),
 					consts.ReplicationDestinationLabel: reflector.remoteClusterID,
+					consts.LocalResourceOwnership:      "tester",
 					"foo":                              "bar"},
 			}
 			localBefore.Spec = netv1alpha1.NetworkConfigSpec{RemoteCluster: remoteCluster}
@@ -259,6 +260,7 @@ var _ = Describe("Handler tests", func() {
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationDestinationLabel, reflector.remoteClusterID))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationOriginLabel, localCluster.ClusterID))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationStatusLabel, strconv.FormatBool(true)))
+				Expect(remoteAfter.Labels).NotTo(HaveKey(consts.LocalResourceOwnership))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
 			})
 			It("the annotations should have been correctly replicated to the remote object", func() {

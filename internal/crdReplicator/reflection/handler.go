@@ -302,6 +302,7 @@ func (r *Reflector) ensureLocalFinalizer(ctx context.Context, gvr schema.GroupVe
 }
 
 // mutateLabelsForRemote mutates the labels map adding the ones for the remote cluster.
+// the ownership of the resource is removed as it would not make sense in a remote cluster.
 func (r *Reflector) mutateLabelsForRemote(labels map[string]string) map[string]string {
 	// We don't check if the map is nil, since it has to be initialized because we use the labels to filter the resources
 	// which need to be replicated.
@@ -312,6 +313,10 @@ func (r *Reflector) mutateLabelsForRemote(labels map[string]string) map[string]s
 	labels[consts.ReplicationStatusLabel] = strconv.FormatBool(true)
 	// setting originID i.e clusterID of home cluster
 	labels[consts.ReplicationOriginLabel] = r.localClusterID
+
+	// delete the ownership label if any.
+	delete(labels, consts.LocalResourceOwnership)
+
 	return labels
 }
 

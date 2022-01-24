@@ -39,4 +39,9 @@ const (
 	LocalPodLabelKey = "liqo.io/shadowPod"
 	// LocalPodLabelValue value of the label added to the local pods that have been offloaded/replicated to a remote cluster.
 	LocalPodLabelValue = "true"
+
+	// LocalResourceOwnership label key added to a resource when it is owned by a local component.
+	// Ex. Local networkconfigs are owned by the component that creates them. If the resource is replicated in
+	// a remote cluster this label is removed by the CRDReplicator.
+	LocalResourceOwnership = "liqo.io/ownership"
 )

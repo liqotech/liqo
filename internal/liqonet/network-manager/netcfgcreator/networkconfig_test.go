@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -44,6 +45,9 @@ var _ = Describe("Network config functions", func() {
 		ctx           context.Context
 		clientBuilder fake.ClientBuilder
 		fcw           *NetworkConfigCreator
+		labels        = client.MatchingLabels{
+			consts.LocalResourceOwnership: componentName,
+		}
 	)
 
 	BeforeEach(func() {
@@ -71,7 +75,7 @@ var _ = Describe("Network config functions", func() {
 		)
 
 		JustBeforeEach(func() {
-			netcfg, err = GetLocalNetworkConfig(ctx, fcw.Client, clusterID, namespace)
+			netcfg, err = GetLocalNetworkConfig(ctx, fcw.Client, labels, clusterID, namespace)
 		})
 
 		When("the network config with the given cluster ID does not exist", func() {
@@ -87,7 +91,10 @@ var _ = Describe("Network config functions", func() {
 
 			BeforeEach(func() {
 				existing = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-					Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
+					Name: "foo", Namespace: namespace, Labels: map[string]string{
+						consts.ReplicationDestinationLabel: clusterID,
+						consts.LocalResourceOwnership:      componentName,
+					},
 				}}
 				clientBuilder.WithObjects(existing)
 			})
@@ -102,11 +109,17 @@ var _ = Describe("Network config functions", func() {
 			Context("the two network configs have different creation timestamp", func() {
 				BeforeEach(func() {
 					correct = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-						Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
+						Name: "foo", Namespace: namespace, Labels: map[string]string{
+							consts.ReplicationDestinationLabel: clusterID,
+							consts.LocalResourceOwnership:      componentName,
+						},
 						UID: "aeda6412-e08c-4dcd-ab7d-ac12b286010b", CreationTimestamp: metav1.NewTime(time.Now().Truncate(time.Second)),
 					}}
 					duplicate = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-						Name: "bar", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
+						Name: "bar", Namespace: namespace, Labels: map[string]string{
+							consts.ReplicationDestinationLabel: clusterID,
+							consts.LocalResourceOwnership:      componentName,
+						},
 						UID:               "8a402261-9cf4-402e-89e8-4d743fb315fb",
 						CreationTimestamp: metav1.NewTime(time.Now().Truncate(time.Second).Add(10 * time.Second)),
 					}}
@@ -125,11 +138,17 @@ var _ = Describe("Network config functions", func() {
 			Context("the two network configs have the same creation timestamp", func() {
 				BeforeEach(func() {
 					correct = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-						Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
+						Name: "foo", Namespace: namespace, Labels: map[string]string{
+							consts.ReplicationDestinationLabel: clusterID,
+							consts.LocalResourceOwnership:      componentName,
+						},
 						UID: "8a402261-9cf4-402e-89e8-4d743fb315fb", CreationTimestamp: metav1.NewTime(time.Now().Truncate(time.Second)),
 					}}
 					duplicate = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-						Name: "bar", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
+						Name: "bar", Namespace: namespace, Labels: map[string]string{
+							consts.ReplicationDestinationLabel: clusterID,
+							consts.LocalResourceOwnership:      componentName,
+						},
 						UID: "aeda6412-e08c-4dcd-ab7d-ac12b286010b", CreationTimestamp: metav1.NewTime(time.Now().Truncate(time.Second)),
 					}}
 
@@ -169,7 +188,10 @@ var _ = Describe("Network config functions", func() {
 
 			BeforeEach(func() {
 				existing = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-					Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationOriginLabel: clusterID},
+					Name: "foo", Namespace: namespace, Labels: map[string]string{
+						consts.ReplicationOriginLabel: clusterID,
+						consts.LocalResourceOwnership: componentName,
+					},
 				}}
 				clientBuilder.WithObjects(existing)
 			})
@@ -206,7 +228,8 @@ var _ = Describe("Network config functions", func() {
 				},
 				ObjectMeta: metav1.ObjectMeta{Name: "whatever", UID: "8a402261-9cf4-402e-89e8-4d743fb315fb"},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
-					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID, ClusterName: clusterName},
+					ClusterIdentity:   discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID, ClusterName: clusterName},
+					NetworkingEnabled: discoveryv1alpha1.NetworkingEnabledYes,
 				},
 				Status: discoveryv1alpha1.ForeignClusterStatus{
 					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{Local: namespace},
@@ -222,6 +245,7 @@ var _ = Describe("Network config functions", func() {
 			AssertNetworkConfigMeta := func(netcfg *netv1alpha1.NetworkConfig) {
 				Expect(netcfg.Labels).To(HaveKeyWithValue(consts.ReplicationRequestedLabel, "true"))
 				Expect(netcfg.Labels).To(HaveKeyWithValue(consts.ReplicationDestinationLabel, clusterID))
+				Expect(netcfg.Labels).To(HaveKeyWithValue(consts.LocalResourceOwnership, componentName))
 
 				Expect(metav1.GetControllerOf(netcfg).Kind).To(Equal(fc.Kind))
 				Expect(metav1.GetControllerOf(netcfg).APIVersion).To(Equal(fc.APIVersion))
@@ -242,14 +266,14 @@ var _ = Describe("Network config functions", func() {
 			When("the network config associated with the given foreign cluster does not exist", func() {
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("the network config should be present and have the correct object meta", func() {
-					netcfg, err := GetLocalNetworkConfig(ctx, fcw.Client, clusterID, namespace)
+					netcfg, err := GetLocalNetworkConfig(ctx, fcw.Client, labels, clusterID, namespace)
 					Expect(err).ToNot(HaveOccurred())
 					identity := discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID, ClusterName: clusterName}
 					Expect(netcfg.Name).To(Equal(foreignclusterutils.UniqueName(&identity)))
 					AssertNetworkConfigMeta(netcfg)
 				})
 				It("the network config should be present and have the correct specifications", func() {
-					netcfg, err := GetLocalNetworkConfig(ctx, fcw.Client, clusterID, namespace)
+					netcfg, err := GetLocalNetworkConfig(ctx, fcw.Client, labels, clusterID, namespace)
 					Expect(err).ToNot(HaveOccurred())
 					AssertNetworkConfigSpec(netcfg)
 				})
@@ -262,6 +286,7 @@ var _ = Describe("Network config functions", func() {
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "foo", Namespace: namespace, Labels: map[string]string{
 									consts.ReplicationDestinationLabel: clusterID,
+									consts.LocalResourceOwnership:      componentName,
 									"other-key":                        "other-value",
 								},
 							},
@@ -279,14 +304,14 @@ var _ = Describe("Network config functions", func() {
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("the network config should be present and have the correct object meta", func() {
-					netcfg, err := GetLocalNetworkConfig(ctx, fcw.Client, clusterID, namespace)
+					netcfg, err := GetLocalNetworkConfig(ctx, fcw.Client, labels, clusterID, namespace)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(netcfg.Name).To(BeIdenticalTo("foo"))
 					Expect(netcfg.Labels).To(HaveKeyWithValue("other-key", "other-value"))
 					AssertNetworkConfigMeta(netcfg)
 				})
 				It("the network config should be present and have the correct specifications", func() {
-					netcfg, err := GetLocalNetworkConfig(ctx, fcw.Client, clusterID, namespace)
+					netcfg, err := GetLocalNetworkConfig(ctx, fcw.Client, labels, clusterID, namespace)
 					Expect(err).ToNot(HaveOccurred())
 					AssertNetworkConfigSpec(netcfg)
 				})
@@ -319,14 +344,17 @@ var _ = Describe("Network config functions", func() {
 				BeforeEach(func() {
 					clientBuilder.WithObjects(
 						&netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-							Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
+							Name: "foo", Namespace: namespace, Labels: map[string]string{
+								consts.ReplicationDestinationLabel: clusterID,
+								consts.LocalResourceOwnership:      componentName,
+							},
 						}},
 					)
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("the network config should not be present", func() {
-					_, err = GetLocalNetworkConfig(ctx, fcw.Client, clusterID, namespace)
+					_, err = GetLocalNetworkConfig(ctx, fcw.Client, labels, clusterID, namespace)
 					Expect(err).To(HaveOccurred())
 					Expect(kerrors.IsNotFound(err)).To(BeTrue())
 				})
@@ -335,7 +363,7 @@ var _ = Describe("Network config functions", func() {
 			When("the network config associated with the given foreign cluster does not exist", func() {
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("the network config should not be present", func() {
-					_, err = GetLocalNetworkConfig(ctx, fcw.Client, clusterID, namespace)
+					_, err = GetLocalNetworkConfig(ctx, fcw.Client, labels, clusterID, namespace)
 					Expect(err).To(HaveOccurred())
 					Expect(kerrors.IsNotFound(err)).To(BeTrue())
 				})

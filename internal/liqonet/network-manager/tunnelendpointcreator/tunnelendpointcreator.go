@@ -220,7 +220,7 @@ func (tec *TunnelEndpointCreator) processNetworkConfig(ctx context.Context, clus
 	tracer.Step("Remote NetworkConfig status enforcement")
 
 	// Get the NetworkConfig created by the local cluster.
-	local, err := netcfgcreator.GetLocalNetworkConfig(ctx, tec.Client, clusterID, namespace)
+	local, err := netcfgcreator.GetLocalNetworkConfig(ctx, tec.Client, nil, clusterID, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("No local NetworkConfig for cluster %v found yet", clusterID)
@@ -256,9 +256,15 @@ func (tec *TunnelEndpointCreator) enforceRemoteNetConfigMeta(ctx context.Context
 	// to be triggered and reconcile its status when this NetworkConfig changes.
 	if utils.GetOwnerByKind(&netcfg.OwnerReferences, "ForeignCluster") == nil {
 		fc, err := foreignclusterutils.GetForeignClusterByID(ctx, tec.Client, clusterID)
-		if err != nil {
+		if client.IgnoreNotFound(err) != nil {
 			klog.Errorf("Failed to retrieve ForeignCluster associated with NetworkConfig %q: %v", klog.KObj(netcfg), err)
 			return err
+		}
+
+		// It could happen that the networkconfig is created before the foreigncluster.
+		if err != nil {
+			klog.V(4).Infof("Failed to retrieve ForeignCluster associated with NetworkConfig %q: %v", klog.KObj(netcfg), err)
+			return nil
 		}
 
 		utilruntime.Must(controllerutil.SetOwnerReference(fc, netcfg, tec.Scheme))
