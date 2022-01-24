@@ -63,9 +63,9 @@ Liqo is a platform to enable dynamic and decentralized resource sharing across K
   * DNS: automatic discovery through DNS records
   * LAN: automatic discovery of neighboring clusters available in the same LAN.
 * **Transparent offloading**: pods scheduled on the virtual node are offloaded to the remote cluster; they can be controlled by merely accessing the pod objects in the local one; the resources needed by the pods (services, endpoints, configmaps, etc.) are translated and replicated remotely. It allows inter-cluster pod-to-pod and pod-to-service communication.
-* **Pod resilience**: the offloaded pods' lifecycle is controlled by a remote replicaset.
-* **Inter-cluster networking**: the clusters inter-connection is implemented by a Wireguard tunnel, which ensure encryption and reliability.
-* **CNI independence**: compliance with many CNIs (Calico, Cilium, Flannel, etc.) even in heterogeneous scenarios (the two clusters can have different CNIs).
+* **Pod resilience**: the offloaded pods' lifecycle is controlled by a remote Custom Resource (the ShadowPod).
+* **Inter-cluster networking**: the clusters inter-connection is implemented by a Wireguard tunnel, which ensures encryption and reliability.
+* **CNI independence**: compliance with many CNIs (Calico, Flannel, Weavenet, GKE, EKS, Azure CNI, etc.) even in heterogeneous scenarios (the two clusters can have different CNIs).
 
 ## Quickstart
 
@@ -156,14 +156,15 @@ If you want to explore the Liqo internals, including how to inspect and interact
 
 ## Roadmap
 
-Planned features for the next release (v0.4, expected early-January, 2022) are the following:
+Planned features for the next release (v0.4, expected mid-March, 2022) are the following:
 
-* Introduce a first support to Persistent Storage (PVC) on Liqo.
-* Enhance Liqo connectivty in topologies with more than two clusters.
+* Introduce first support to Persistent Storage (PVC) on Liqo.
+* Improve the resource naming to let users easily understand resources relationships.
+* Introduce the support to allow the peering of a cluster not directly accessible (i.e. behind NAT).
 
 ## Contributing
 
-All contributors are warmly welcome. If you want to become a new contributor, we are so happy!. Just, before doing it, read the repo's guidelines presented on our [documentation website](https://doc.liqo.io/contributing/).
+All contributors are warmly welcome. If you want to become a new contributor, we are so happy! Just, before doing it, read the repo's guidelines presented on our [documentation website](https://doc.liqo.io/contributing/).
 
 ## Community
 
@@ -171,7 +172,7 @@ To get involved with the Liqo community, join the slack [channel](https://join.s
 
 |![notification](docs/images/readme/bell-outline-badged.svg) Community Meeting|
 |------------------|
-|Liqo holds weekly community meeting on Monday, 5.30pm UTC (6.30 CET, 9.30am PST). To join the community meeting, follow this [link](https://meet.google.com/dyr-ieso-smu). Convert to your timezone [here](https://www.thetimezoneconverter.com/?t=17:30&tz=UTC%20%28Universal%20Time%20Coordinated%29).|
+|Liqo holds weekly community meetings on Monday, 5.30pm UTC (6.30pm CET, 9.30am PST). To join the community meeting, follow this [link](https://polito-it.zoom.us/j/81559017793?pwd=R0NXZUJwZXVrQUwxbWtWQ3psbEVidz09). Convert to your timezone [here](https://www.thetimezoneconverter.com/?t=17:30&tz=UTC%20%28Universal%20Time%20Coordinated%29). You can see and add the Liqo Calendar following this [link](https://calendar.google.com/calendar/embed?src=32odk41tfu77tedc48a0fcm0v4%40group.calendar.google.com&ctz=Europe%2FRome).|
 
 ## License
 
