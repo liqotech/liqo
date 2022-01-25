@@ -67,9 +67,9 @@ var _ = Describe("The rate limiting utility functions", func() {
 		})
 	})
 
-	Describe("the SetRateLimiterWithCustomParamenters function", func() {
+	Describe("the SetRateLimiterWithCustomParameters function", func() {
 		Context("configuring the rate limiting parameters", func() {
-			JustBeforeEach(func() { output = restcfg.SetRateLimiterWithCustomParamenters(&cfg, qps, burst) })
+			JustBeforeEach(func() { output = restcfg.SetRateLimiterWithCustomParameters(&cfg, qps, burst) })
 
 			It("should return a pointer to the original object", func() { Expect(output).To(BeIdenticalTo(&cfg)) })
 			It("should set the desired QPS value", func() { Expect(cfg.QPS).To(BeNumerically("==", qps)) })
