@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/gruntwork-io/terratest/modules/k8s"
@@ -24,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,7 +43,7 @@ const (
 )
 
 // DeployApp creates the namespace and deploys the applications. It returns an error in case of failures.
-func DeployApp(ctx context.Context, config *rest.Config, namespace string) error {
+func DeployApp(ctx context.Context, config *rest.Config, namespace string, replicas int32) error {
 	cl, err := client.New(config, client.Options{})
 	if err != nil {
 		return err
@@ -53,7 +55,6 @@ func DeployApp(ctx context.Context, config *rest.Config, namespace string) error
 			Labels: testutils.GetNamespaceLabel(true),
 		},
 	}
-
 	if err = cl.Create(ctx, ns); err != nil {
 		return err
 	}
@@ -67,7 +68,7 @@ func DeployApp(ctx context.Context, config *rest.Config, namespace string) error
 			},
 		},
 		Spec: appsv1.StatefulSetSpec{
-			Replicas: pointer.Int32(2),
+			Replicas: pointer.Int32(replicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app": StatefulSetName,
@@ -146,12 +147,49 @@ func DeployApp(ctx context.Context, config *rest.Config, namespace string) error
 	return cl.Create(ctx, statefulSet)
 }
 
-// WaitDemoApp waits until each pod in the StatefulSet is ready.
-func WaitDemoApp(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions) {
-	k8s.WaitUntilNumPodsCreated(t, options, metav1.ListOptions{}, 2, retries, sleepBetweenRetries)
+// ScaleStatefulSet scales the StatefulSet to the desired number of replicas.
+func ScaleStatefulSet(ctx context.Context, t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions,
+	cl kubernetes.Interface, namespace string, replicas int32) error {
+	statefulSet, err := cl.AppsV1().StatefulSets(namespace).Get(ctx, StatefulSetName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
 
-	pods := k8s.ListPods(t, options, metav1.ListOptions{})
+	statefulSet.Spec.Replicas = &replicas
+	_, err = cl.AppsV1().StatefulSets(namespace).Update(ctx, statefulSet, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+
+	WaitDemoApp(t, options, int(replicas))
+	return nil
+}
+
+// WaitDemoApp waits until each pod in the StatefulSet is ready.
+func WaitDemoApp(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions, replicas int) {
+	k8s.WaitUntilNumPodsCreated(t, options, metav1.ListOptions{
+		LabelSelector: "app=" + StatefulSetName,
+	}, replicas, retries, sleepBetweenRetries)
+
+	pods := k8s.ListPods(t, options, metav1.ListOptions{
+		LabelSelector: "app=" + StatefulSetName,
+	})
 	for index := range pods {
 		k8s.WaitUntilPodAvailable(t, options, pods[index].Name, retries, sleepBetweenRetries)
 	}
+}
+
+// WriteToVolume writes a file to the volume of the StatefulSet.
+func WriteToVolume(ctx context.Context, cl kubernetes.Interface, config *rest.Config, namespace string) error {
+	_, _, err := testutils.ExecCmd(config, cl, fmt.Sprintf("%s-0", StatefulSetName), namespace,
+		"echo -n test > /usr/share/nginx/html/index.html")
+	return err
+}
+
+// ReadFromVolume reads a file from the volume of the StatefulSet.
+func ReadFromVolume(ctx context.Context,
+	cl kubernetes.Interface, config *rest.Config, namespace string) (string, error) {
+	out, _, err := testutils.ExecCmd(config, cl, fmt.Sprintf("%s-0", StatefulSetName), namespace,
+		"cat /usr/share/nginx/html/index.html")
+	return out, err
 }
