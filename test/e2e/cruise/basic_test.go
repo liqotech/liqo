@@ -17,6 +17,8 @@ package cruise
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -27,7 +29,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/microservices"
 	"github.com/liqotech/liqo/test/e2e/testutils/net"
@@ -243,6 +248,7 @@ var _ = Describe("Liqo E2E", func() {
 
 			var (
 				replica1Name = fmt.Sprintf("%v-1", storage.StatefulSetName)
+				options      *k8s.KubectlOptions
 
 				podPhase = func(podName string) corev1.PodPhase {
 					pod, err := testContext.Clusters[0].NativeClient.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
@@ -254,18 +260,27 @@ var _ = Describe("Liqo E2E", func() {
 				}
 			)
 
+			BeforeEach(func() {
+				options = k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespace)
+			})
+
 			AfterEach(func() {
-				Expect(testContext.Clusters[0].NativeClient.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})).To(Succeed())
+				Expect(client.IgnoreNotFound(testContext.Clusters[0].NativeClient.CoreV1().Namespaces().
+					Delete(ctx, namespace, metav1.DeleteOptions{}))).To(Succeed())
+
+				Eventually(func() error {
+					return testContext.Clusters[0].ControllerClient.Get(ctx,
+						client.ObjectKey{Name: namespace}, &corev1.Namespace{})
+				}, timeout, interval).Should(BeNotFound())
 			})
 
 			It("run stateful app", func() {
 				By("Deploying the StatefulSet app")
-				err := storage.DeployApp(ctx, testContext.Clusters[0].Config, namespace)
+				err := storage.DeployApp(ctx, testContext.Clusters[0].Config, namespace, 2)
 				Expect(err).ToNot(HaveOccurred())
 
 				By("Waiting until each pod of the application is ready")
-				options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespace)
-				storage.WaitDemoApp(GinkgoT(), options)
+				storage.WaitDemoApp(GinkgoT(), options, 2)
 
 				By("Checking that the pod is bound to a specific cluster")
 				pod, err := testContext.Clusters[0].NativeClient.CoreV1().Pods(namespace).Get(ctx, replica1Name, metav1.GetOptions{})
@@ -295,7 +310,57 @@ var _ = Describe("Liqo E2E", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				By("Checking that the pod is running again")
-				storage.WaitDemoApp(GinkgoT(), options)
+				storage.WaitDemoApp(GinkgoT(), options, 2)
+			})
+
+			It("move stateful app", func() {
+				By("Deploying the StatefulSet app")
+				err := storage.DeployApp(ctx, testContext.Clusters[0].Config, namespace, 1)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Waiting until each pod of the application is ready")
+				storage.WaitDemoApp(GinkgoT(), options, 1)
+
+				By("Write something in the volume")
+				Expect(storage.WriteToVolume(ctx, testContext.Clusters[0].NativeClient, testContext.Clusters[0].Config, namespace)).To(Succeed())
+
+				By("Scaling the statefulset to zero replicas")
+				Expect(storage.ScaleStatefulSet(ctx, GinkgoT(), options, testContext.Clusters[0].NativeClient, namespace, 0)).To(Succeed())
+
+				originPvcList, err := testContext.Clusters[0].NativeClient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(originPvcList.Items).To(HaveLen(1))
+
+				originPvc := originPvcList.Items[0]
+
+				virtualNodesList := &corev1.NodeList{}
+				Expect(testContext.Clusters[0].ControllerClient.
+					List(ctx, virtualNodesList, client.MatchingLabels{liqoconst.TypeLabel: liqoconst.TypeNode})).To(Succeed())
+				Expect(len(virtualNodesList.Items)).To(BeNumerically(">=", 1))
+
+				By("Moving the statefulset to the virtual node")
+				liqoctl := os.Getenv("LIQOCTL")
+				Expect(liqoctl).ToNot(BeEmpty())
+				cmd := exec.Command(liqoctl, // nolint:gosec // running in a trusted environment
+					"move", "volume", originPvc.Name, "-n", namespace, "--node", virtualNodesList.Items[0].Name)
+				cmd.Stdout = GinkgoWriter
+				cmd.Stderr = GinkgoWriter
+				cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", testContext.Clusters[0].KubeconfigPath))
+				Expect(cmd.Run()).To(Succeed())
+
+				By("Scaling the statefulset to one replica")
+				Expect(storage.ScaleStatefulSet(ctx, GinkgoT(), options, testContext.Clusters[0].NativeClient, namespace, 1)).To(Succeed())
+
+				By("Checking that the pod is running again, on the virtual node")
+				statefulSetPod, err := testContext.Clusters[0].NativeClient.CoreV1().Pods(namespace).Get(ctx,
+					fmt.Sprintf("%s-0", storage.StatefulSetName), metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(statefulSetPod.Spec.NodeName).To(Equal(virtualNodesList.Items[0].Name))
+
+				By("Checking the content of the volume")
+				content, err := storage.ReadFromVolume(ctx, testContext.Clusters[0].NativeClient, testContext.Clusters[0].Config, namespace)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(content).To(Equal("test"))
 			})
 		})
 
