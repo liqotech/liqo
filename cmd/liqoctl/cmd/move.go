@@ -44,11 +44,12 @@ func newMoveCommand(ctx context.Context) *cobra.Command {
 func newMoveVolumeCommand(ctx context.Context) *cobra.Command {
 	clusterArgs := &move.Args{}
 	var moveVolumeCmd = &cobra.Command{
-		Use:          "volume",
-		Short:        liqoctlMoveShortHelp,
-		Long:         liqoctlMoveLongHelp,
-		Args:         cobra.MinimumNArgs(1),
-		SilenceUsage: true,
+		Use:           "volume",
+		Short:         liqoctlMoveShortHelp,
+		Long:          liqoctlMoveLongHelp,
+		Args:          cobra.MinimumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clusterArgs.VolumeName = args[0]
 			return move.HandleMoveVolumeCommand(ctx, clusterArgs)

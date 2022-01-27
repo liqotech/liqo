@@ -98,9 +98,8 @@ type Cluster struct {
 	authToken          string
 }
 
-// NewCluster returns a new cluster object. The cluster has to be initialized before being consumed.
-func NewCluster(localK8sClient k8s.Interface, localCtrlRunClient, remoteCtrlRunClient client.Client,
-	restConfig *rest.Config, namespace, name string, printerColor pterm.Color) *Cluster {
+// NewPrinter creates a new printer.
+func NewPrinter(name string, printerColor pterm.Color) *Printer {
 	genericPrinter := pterm.PrefixPrinter{
 		Prefix: pterm.Prefix{},
 		Scope: pterm.Scope{
@@ -128,7 +127,7 @@ func NewCluster(localK8sClient k8s.Interface, localCtrlRunClient, remoteCtrlRunC
 			Style: pterm.NewStyle(printerColor),
 		})
 
-	printer := Printer{
+	return &Printer{
 		Info: genericPrinter.WithPrefix(pterm.Prefix{
 			Text:  "[INFO]",
 			Style: pterm.NewStyle(pterm.FgCyan),
@@ -150,6 +149,12 @@ func NewCluster(localK8sClient k8s.Interface, localCtrlRunClient, remoteCtrlRunC
 			TimerStyle:          &pterm.ThemeDefault.TimerStyle,
 		},
 	}
+}
+
+// NewCluster returns a new cluster object. The cluster has to be initialized before being consumed.
+func NewCluster(localK8sClient k8s.Interface, localCtrlRunClient, remoteCtrlRunClient client.Client,
+	restConfig *rest.Config, namespace, name string, printerColor pterm.Color) *Cluster {
+	printer := NewPrinter(name, printerColor)
 
 	pfo := &PortForwardOptions{
 		Namespace: namespace,
@@ -169,7 +174,7 @@ func NewCluster(localK8sClient k8s.Interface, localCtrlRunClient, remoteCtrlRunC
 	return &Cluster{
 		name:             name,
 		namespace:        namespace,
-		printer:          printer,
+		printer:          *printer,
 		locK8sClient:     localK8sClient,
 		locCtrlRunClient: localCtrlRunClient,
 		remCtrlRunClient: remoteCtrlRunClient,
