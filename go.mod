@@ -20,7 +20,7 @@ require (
 	github.com/miekg/dns v1.1.41
 	github.com/mittwald/go-helm-client v0.8.3-0.20211026133933-a26889186afc
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.17.0
+	github.com/onsi/gomega v1.18.0
 	github.com/openshift/api v0.0.0-20210521075222-e273a339932a
 	github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142
 	github.com/pkg/errors v0.9.1
