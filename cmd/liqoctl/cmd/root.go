@@ -49,6 +49,7 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	rootCmd.PersistentFlags().AddGoFlagSet(rateFlagset)
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable/Disable debug mode (default: false)")
 	rootCmd.AddCommand(newInstallCommand(ctx))
+	rootCmd.AddCommand(newUninstallCommand(ctx))
 	rootCmd.AddCommand(newAddCommand(ctx))
 	rootCmd.AddCommand(newRemoveCommand(ctx))
 	rootCmd.AddCommand(newGenerateAddCommand(ctx))

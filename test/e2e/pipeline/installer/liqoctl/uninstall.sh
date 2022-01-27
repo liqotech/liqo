@@ -26,6 +26,20 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
+# check that the liqo crds are removed
+wait_for_crds() {
+  cnt=0
+  while [[ $cnt -lt 300 ]]; do
+    if [[ $(kubectl get crds | grep -c liqo) -eq 0 ]]; then
+      return
+    fi
+    sleep 1
+    cnt=$((cnt+1))
+  done
+  echo "Liqo CRDs found after 300 seconds"
+  exit 1
+}
+
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # shellcheck disable=SC1091
 # shellcheck source=./helm-utils.sh
@@ -36,6 +50,6 @@ download_helm
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  timeout 300 bash -c "${HELM} uninstall -n liqo liqo"
-  timeout 300 kubectl delete -f ./deployments/liqo/crds
+  "${LIQOCTL}" uninstall --purge --purge-dependencies
+  wait_for_crds
 done;

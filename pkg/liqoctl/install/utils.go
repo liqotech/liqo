@@ -57,7 +57,7 @@ func getProviderInstance(providerType string) provider.InstallProviderInterface 
 	}
 }
 
-func initHelmClient(config *rest.Config, arguments *provider.CommonArguments) (*helm.HelmClient, error) {
+func initHelmClient(config *rest.Config, arguments *provider.CommonArguments) (helm.Client, error) {
 	helmClient, err := InitializeHelmClientWithRepo(config, arguments)
 	if err != nil {
 		fmt.Printf("Unable to create helmClient: %s", err)
@@ -66,7 +66,7 @@ func initHelmClient(config *rest.Config, arguments *provider.CommonArguments) (*
 	return helmClient, nil
 }
 
-func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provider.InstallProviderInterface, cArgs *provider.CommonArguments) error {
+func installOrUpdate(ctx context.Context, helmClient helm.Client, k provider.InstallProviderInterface, cArgs *provider.CommonArguments) error {
 	output, _, err := helmClient.GetChart(cArgs.ChartPath, &action.ChartPathOptions{Version: cArgs.Version})
 
 	if err != nil {
