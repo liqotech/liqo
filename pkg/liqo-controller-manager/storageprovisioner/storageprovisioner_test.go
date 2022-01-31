@@ -373,4 +373,84 @@ var _ = Describe("Test Storage Provisioner", func() {
 
 	})
 
+	Context("utility functions", func() {
+
+		Context("mergeAffinities", func() {
+
+			var getAffinity = func(key, val string) *corev1.VolumeNodeAffinity {
+				return &corev1.VolumeNodeAffinity{
+					Required: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      key,
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   []string{val},
+									},
+								},
+							},
+						},
+					},
+				}
+			}
+
+			type mergeAffinitiesTestcase struct {
+				pv1      *corev1.PersistentVolumeSpec
+				pv2      *corev1.PersistentVolumeSpec
+				expected corev1.VolumeNodeAffinity
+			}
+
+			DescribeTable("merge affinities table", func(c mergeAffinitiesTestcase) {
+				affinity := mergeAffinities(c.pv1, c.pv2)
+				Expect(affinity).To(PointTo(Equal(c.expected)))
+			}, Entry("no affinity on pv2", mergeAffinitiesTestcase{
+				pv1: &corev1.PersistentVolumeSpec{
+					NodeAffinity: getAffinity("foo", "bar"),
+				},
+				pv2: &corev1.PersistentVolumeSpec{
+					NodeAffinity: nil,
+				},
+				expected: *getAffinity("foo", "bar"),
+			}), Entry("no affinity on pv1", mergeAffinitiesTestcase{
+				pv1: &corev1.PersistentVolumeSpec{
+					NodeAffinity: nil,
+				},
+				pv2: &corev1.PersistentVolumeSpec{
+					NodeAffinity: getAffinity("foo", "bar"),
+				},
+				expected: *getAffinity("foo", "bar"),
+			}), Entry("affinity on pv1 and pv2", mergeAffinitiesTestcase{
+				pv1: &corev1.PersistentVolumeSpec{
+					NodeAffinity: getAffinity("foo", "bar"),
+				},
+				pv2: &corev1.PersistentVolumeSpec{
+					NodeAffinity: getAffinity("foo2", "bar2"),
+				},
+				expected: corev1.VolumeNodeAffinity{
+					Required: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "foo",
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   []string{"bar"},
+									},
+									{
+										Key:      "foo2",
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   []string{"bar2"},
+									},
+								},
+							},
+						},
+					},
+				},
+			}))
+
+		})
+
+	})
+
 })
