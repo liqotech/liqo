@@ -19,6 +19,8 @@ import (
 	"time"
 
 	flag "github.com/spf13/pflag"
+	"golang.org/x/mod/semver"
+	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
@@ -47,6 +49,8 @@ type CommonArguments struct {
 	Devel                bool
 	DisableEndpointCheck bool
 	ChartPath            string
+	DownloadChart        bool
+	ChartTmpDir          string
 }
 
 // ValidateCommonArguments validates install common arguments. If the inputs are valid, it returns a *CommonArgument
@@ -56,10 +60,15 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonA
 	if err != nil {
 		return nil, err
 	}
+	repoURL, err := flags.GetString("repo-url")
+	if err != nil {
+		return nil, err
+	}
 	version, err := flags.GetString("version")
 	if err != nil {
 		return nil, err
 	}
+	downloadChart := !flags.Changed("chart-path") && !isRelease(version)
 	devel, err := flags.GetBool("devel")
 	if err != nil {
 		return nil, err
@@ -108,8 +117,9 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonA
 	if err != nil {
 		return nil, err
 	}
-	commonValues, err := parseCommonValues(providerName, chartPath, version, resourceSharingPercentage,
-		lanDiscovery, enableHa, float64(ifaceMTU), float64(listeningPort))
+	commonValues, tmpDir, err := parseCommonValues(providerName, &chartPath, repoURL, version,
+		resourceSharingPercentage, downloadChart, lanDiscovery, enableHa,
+		float64(ifaceMTU), float64(listeningPort))
 	if err != nil {
 		return nil, err
 	}
@@ -124,23 +134,38 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonA
 		Devel:                devel,
 		DisableEndpointCheck: disableEndpointCheck,
 		ChartPath:            chartPath,
+		DownloadChart:        downloadChart,
+		ChartTmpDir:          tmpDir,
 	}, nil
 }
 
-func parseCommonValues(providerName, chartPath, version, resourceSharingPercentage string,
-	lanDiscovery, enableHa bool, mtu, port float64) (map[string]interface{}, error) {
+func parseCommonValues(providerName string, chartPath *string, repoURL, version, resourceSharingPercentage string,
+	downloadChart, lanDiscovery, enableHa bool,
+	mtu, port float64) (values map[string]interface{}, tmpDir string, err error) {
+	if chartPath == nil {
+		chartPath = pointer.String(installutils.LiqoChartFullName)
+	}
+
+	if downloadChart {
+		tmpDir, err = cloneRepo(repoURL, version)
+		if err != nil {
+			return nil, "", err
+		}
+		fmt.Printf("* Using chart from %s\n", tmpDir)
+		*chartPath = fmt.Sprintf("%s/deployments/liqo", tmpDir)
+	}
 
 	// If the chartPath is different from the official repo, we force the tag parameter in order to set the correct
 	// prefix for the images.
 	// (todo): make the prefix configurable and set the tag when is strictly necessary
 	tag := ""
-	if chartPath != installutils.LiqoChartFullName {
+	if *chartPath != installutils.LiqoChartFullName {
 		tag = version
 	}
 
 	resourceSharingPercentageVal := argsutils.Percentage{}
 	if err := resourceSharingPercentageVal.Set(resourceSharingPercentage); err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, "", err
 	}
 
 	gatewayReplicas := 1
@@ -150,7 +175,7 @@ func parseCommonValues(providerName, chartPath, version, resourceSharingPercenta
 	if mtu == 0 {
 		var err error
 		if mtu, err = getDefaultMTU(providerName); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 	return map[string]interface{}{
@@ -175,7 +200,7 @@ func parseCommonValues(providerName, chartPath, version, resourceSharingPercenta
 		"networkConfig": map[string]interface{}{
 			"mtu": mtu,
 		},
-	}, nil
+	}, tmpDir, nil
 }
 
 func getDefaultMTU(provider string) (float64, error) {
@@ -183,4 +208,8 @@ func getDefaultMTU(provider string) (float64, error) {
 		return mtu, nil
 	}
 	return 0, fmt.Errorf("mtu for provider %s not found", provider)
+}
+
+func isRelease(version string) bool {
+	return version == "" || semver.IsValid(version)
 }

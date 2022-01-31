@@ -34,6 +34,8 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	}
 
 	installCmd.PersistentFlags().IntP("timeout", "t", 600, "Configure the timeout for the installation process in seconds")
+	installCmd.PersistentFlags().String("repo-url", "https://github.com/liqotech/liqo.git",
+		"Configure the URL of the repository to use for the installation process")
 	installCmd.PersistentFlags().StringP("version", "", "", "Select the Liqo version (default: latest stable release)")
 	installCmd.PersistentFlags().BoolP("devel", "", false,
 		"Enable use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored")

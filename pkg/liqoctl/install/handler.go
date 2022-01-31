@@ -17,6 +17,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -50,6 +51,10 @@ func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, 
 	commonArgs, err := installprovider.ValidateCommonArguments(providerName, cmd.Flags())
 	if err != nil {
 		return err
+	}
+
+	if commonArgs.DownloadChart {
+		defer os.RemoveAll(commonArgs.ChartTmpDir)
 	}
 
 	helmClient, err := initHelmClient(config, commonArgs)

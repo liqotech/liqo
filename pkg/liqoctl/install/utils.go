@@ -17,10 +17,12 @@ package install
 import (
 	"context"
 	"fmt"
+	"os"
 
 	helm "github.com/mittwald/go-helm-client"
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/downloader"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
@@ -111,6 +113,11 @@ func installOrUpdate(ctx context.Context, helmClient helm.Client, k provider.Ins
 		errCh := make(chan error)
 		defer close(errCh)
 		go func() {
+			if err = dependencyUpdate(helmClient, &chartSpec); err != nil {
+				errCh <- err
+				return
+			}
+
 			_, err = helmClient.InstallOrUpgradeChart(ctx, &chartSpec)
 			errCh <- err
 		}()
@@ -137,4 +144,45 @@ func generateValues(chartValues, commonValues, providerValues map[string]interfa
 		return nil, err
 	}
 	return finalValues, nil
+}
+
+func dependencyUpdate(helmClient helm.Client, chartSpec *helm.ChartSpec) error {
+	cl, ok := helmClient.(*helm.HelmClient)
+	if !ok {
+		return fmt.Errorf("unable to cast helmClient to HelmClient")
+	}
+
+	client := action.NewInstall(cl.ActionConfig)
+
+	helmChart, chartPath, err := helmClient.GetChart(chartSpec.ChartName, &client.ChartPathOptions)
+	if err != nil {
+		return err
+	}
+
+	if helmChart.Metadata.Type != "" && helmChart.Metadata.Type != "application" {
+		return fmt.Errorf(
+			"chart %q has an unsupported type and is not installable: %q",
+			helmChart.Metadata.Name,
+			helmChart.Metadata.Type,
+		)
+	}
+
+	if req := helmChart.Metadata.Dependencies; req != nil {
+		if err := action.CheckDependencies(helmChart, req); err != nil {
+			man := &downloader.Manager{
+				Out:              os.Stdout,
+				ChartPath:        chartPath,
+				Keyring:          client.ChartPathOptions.Keyring,
+				SkipUpdate:       false,
+				Getters:          cl.Providers,
+				RepositoryConfig: cl.Settings.RepositoryConfig,
+				RepositoryCache:  cl.Settings.RepositoryCache,
+			}
+			if err := man.Update(); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
