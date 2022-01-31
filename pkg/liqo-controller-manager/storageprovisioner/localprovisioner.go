@@ -129,15 +129,21 @@ func (p *liqoLocalStorageProvisioner) mutateLocalRealPVC(virtualPvc, realPvc *v1
 }
 
 func mergeAffinities(vol1, vol2 *v1.PersistentVolumeSpec) *v1.VolumeNodeAffinity {
-	if vol1.NodeAffinity == nil || vol1.NodeAffinity.Required.NodeSelectorTerms == nil {
-		return vol1.NodeAffinity.DeepCopy()
-	}
-	if vol2.NodeAffinity == nil || vol2.NodeAffinity.Required.NodeSelectorTerms == nil {
+	if emptyVolumeNodeAffinity(vol1) {
 		return vol2.NodeAffinity.DeepCopy()
+	}
+	if emptyVolumeNodeAffinity(vol2) {
+		return vol1.NodeAffinity.DeepCopy()
 	}
 
 	selector := utils.MergeNodeSelector(vol1.NodeAffinity.Required, vol2.NodeAffinity.Required)
 	return &v1.VolumeNodeAffinity{
 		Required: &selector,
 	}
+}
+
+func emptyVolumeNodeAffinity(vol *v1.PersistentVolumeSpec) bool {
+	return vol.NodeAffinity == nil ||
+		vol.NodeAffinity.Required.NodeSelectorTerms == nil ||
+		len(vol.NodeAffinity.Required.NodeSelectorTerms) == 0
 }
