@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"k8s.io/utils/pointer"
 )
 
 var _ = Describe("Args", func() {
@@ -45,7 +46,7 @@ var _ = Describe("Args", func() {
 			When("mtu is set to zero, falling back to default value for each provider", func() {
 				It("should return the right mtu in the configuration map", func() {
 					for _, provider := range Providers {
-						config, err := parseCommonValues(provider, "", "", "", false, false, 0, 0)
+						config, _, err := parseCommonValues(provider, pointer.String(""), "", "", "", false, false, false, 0, 0)
 						Expect(err).NotTo(HaveOccurred())
 						netConfig := config["networkConfig"].(map[string]interface{})
 						Expect(netConfig["mtu"]).To(BeNumerically("==", providersDefaultMTU[provider]))
@@ -55,7 +56,7 @@ var _ = Describe("Args", func() {
 
 			When("the provider does not exist", func() {
 				It("should return an error", func() {
-					_, err := parseCommonValues("notExisting", "", "", "", false, false, 0, 0)
+					_, _, err := parseCommonValues("notExisting", pointer.String(""), "", "", "", false, false, false, 0, 0)
 					Expect(err).To(HaveOccurred())
 					Expect(err).To(MatchError(fmt.Errorf("mtu for provider notExisting not found")))
 				})
@@ -64,7 +65,7 @@ var _ = Describe("Args", func() {
 			When("the mtu is set by the user", func() {
 				It("should set the mtu", func() {
 					var mtu float64 = 1340
-					config, err := parseCommonValues("eks", "", "", "", false, false, mtu, 0)
+					config, _, err := parseCommonValues("eks", pointer.String(""), "", "", "", false, false, false, mtu, 0)
 					Expect(err).NotTo(HaveOccurred())
 					netConfig := config["networkConfig"].(map[string]interface{})
 					Expect(netConfig["mtu"]).To(BeNumerically("==", mtu))
