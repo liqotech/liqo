@@ -1,9 +1,0 @@
-[submodule "test/installer/libs/bats-support"]
-	path = test/installer/libs/bats-support
-	url = https://github.com/ztombol/bats-support
-[submodule "test/installer/libs/bats-assert"]
-	path = test/installer/libs/bats-assert
-	url = https://github.com/ztombol/bats-assert
-[submodule "test/installer/libs/bats"]
-	path = test/installer/libs/bats
-	url = https://github.com/bats-core/bats-core
