@@ -6,6 +6,7 @@ function setup_arch_and_os(){
     armv5*) ARCH="armv5";;
     armv6*) ARCH="armv6";;
     armv7*) ARCH="arm";;
+    arm64*) ARCH="arm64";;
     aarch64) ARCH="arm64";;
     x86) ARCH="386";;
     x86_64) ARCH="amd64";;
@@ -22,7 +23,7 @@ function setup_arch_and_os(){
 
   # list is available for kind at https://github.com/kubernetes-sigs/kind/releases
   # kubectl supported architecture list is a superset of the Kind one. No need to further compatibility check.
-  local supported="darwin-amd64\n\nlinux-amd64\nlinux-arm64\nlinux-ppc64le\nwindows-amd64"
+  local supported="darwin-amd64\ndarwin-arm64\nlinux-amd64\nlinux-arm64\nlinux-ppc64le\nwindows-amd64"
   if ! echo "${supported}" | grep -q "${OS}-${ARCH}"; then
     echo "Error: No version of kind for '${OS}-${ARCH}'"
     return 1
