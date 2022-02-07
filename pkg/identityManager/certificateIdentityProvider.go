@@ -32,6 +32,7 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/discovery"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	certificateSigningRequest "github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -171,6 +172,9 @@ func (identityProvider *certificateIdentityProvider) storeRemoteCertificate(clus
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      remoteCertificateSecret,
 			Namespace: namespace.Name,
+			Labels: map[string]string{
+				discovery.ClusterIDLabel: cluster.ClusterID,
+			},
 		},
 		Data: map[string][]byte{
 			csrSecretKey:         signingRequest,
