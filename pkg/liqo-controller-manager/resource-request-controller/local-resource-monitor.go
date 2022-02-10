@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -376,23 +377,15 @@ func getPodTransitionState(oldPod, newPod *corev1.Pod) PodTransition {
 
 // this function is used to filter and ignore virtual nodes at informer level.
 func noVirtualNodesFilter(options *metav1.ListOptions) {
-	var values []string
-	values = append(values, consts.TypeNode)
-	req, err := labels.NewRequirement(consts.TypeLabel, selection.NotEquals, values)
-	if err != nil {
-		return
-	}
+	req, err := labels.NewRequirement(consts.TypeLabel, selection.NotEquals, []string{consts.TypeNode})
+	utilruntime.Must(err)
 	options.LabelSelector = labels.NewSelector().Add(*req).String()
 }
 
 // this function is used to filter and ignore shadow pods at informer level.
 func noShadowPodsFilter(options *metav1.ListOptions) {
-	var values []string
-	values = append(values, consts.LocalPodLabelValue)
-	req, err := labels.NewRequirement(consts.LocalPodLabelKey, selection.NotEquals, values)
-	if err != nil {
-		return
-	}
+	req, err := labels.NewRequirement(consts.LocalPodLabelKey, selection.NotEquals, []string{consts.LocalPodLabelValue})
+	utilruntime.Must(err)
 	options.LabelSelector = labels.NewSelector().Add(*req).String()
 }
 

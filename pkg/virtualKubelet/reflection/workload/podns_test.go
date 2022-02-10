@@ -16,6 +16,7 @@ package workload_test
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -25,8 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/testing"
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
@@ -36,6 +37,7 @@ import (
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
+	"github.com/liqotech/liqo/pkg/consts"
 	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -51,7 +53,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 		var (
 			reflector  manager.NamespacedReflector
-			client     kubernetes.Interface
+			client     *fake.Clientset
 			liqoClient liqoclient.Interface
 
 			ipam *fakeipam.IPAMClient
@@ -124,11 +126,36 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			})
 
 			When("the local object does exist and is not terminating", func() {
+				var shouldDenyPodPatches bool
+
 				BeforeEach(func() {
+					shouldDenyPodPatches = false
 					local.SetLabels(map[string]string{"foo": "bar"})
 					local.SetAnnotations(map[string]string{"bar": "baz"})
 					local.Spec.Containers = []corev1.Container{{Name: "bar", Image: "foo"}}
 					CreatePod(client, &local)
+
+					// Currently, the fake client does not handle SSA, and we need to add a custom reactor for that.
+					client.PrependReactor("patch", "pods", func(action testing.Action) (handled bool, ret runtime.Object, err error) {
+						patch, ok := action.(testing.PatchAction)
+						if !ok {
+							return true, nil, fmt.Errorf("failed to retrieve patch action details")
+						}
+
+						if patch.GetName() != PodName || patch.GetNamespace() != LocalNamespace {
+							return true, nil, fmt.Errorf("received patch for unexpected pod %s/%s", patch.GetNamespace(), patch.GetName())
+						}
+
+						if patch.GetPatchType() != types.ApplyPatchType {
+							return true, nil, fmt.Errorf("unsupported patch type %s", patch.GetPatchType())
+						}
+
+						if shouldDenyPodPatches {
+							return true, nil, fmt.Errorf("pod patches disabled")
+						}
+
+						return true, nil, nil
+					})
 				})
 
 				When("the remote object does not exist", func() {
@@ -218,6 +245,17 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 						shadowAfter := GetShadowPod(liqoClient, RemoteNamespace, PodName)
 						Expect(shadowAfter).To(Equal(shadowBefore))
 					})
+				})
+
+				When("the local object has already the appropriate offloading label", func() {
+					BeforeEach(func() {
+						shouldDenyPodPatches = true
+						local.Labels[consts.LocalPodLabelKey] = consts.LocalPodLabelValue
+						UpdatePod(client, &local)
+					})
+
+					// The fake client is configured to return an error in case a patch operation on pods is attempted.
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				})
 			})
 

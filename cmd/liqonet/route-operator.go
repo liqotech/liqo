@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -87,11 +88,9 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 	// Asking the api-server to only inform the operator for the pods running in a node different from
 	// the virtual nodes. We want to process only the pods running on the local cluster and not the ones
 	// offloaded to a remote cluster.
-	smcLabelRequirement, err := labels.NewRequirement(liqoconst.LocalPodLabelKey, selection.DoesNotExist, []string{})
-	if err != nil {
-		klog.Errorf("unable to create label requirement: %v", err)
-		os.Exit(1)
-	}
+	smcLabelRequirement, err := labels.NewRequirement(liqoconst.LocalPodLabelKey, selection.NotEquals, []string{liqoconst.LocalPodLabelValue})
+	utilruntime.Must(err)
+
 	smcLabelSelector := labels.NewSelector().Add(*smcLabelRequirement)
 	mainMgr, err := ctrl.NewManager(restcfg.SetRateLimiter(ctrl.GetConfigOrDie()), ctrl.Options{
 		MapperProvider:     mapper.LiqoMapperProvider(scheme),

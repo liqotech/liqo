@@ -22,8 +22,6 @@ import (
 )
 
 const (
-	// LiqoOutgoingKey is a label to set on all offloaded resources (deprecated).
-	LiqoOutgoingKey = "virtualkubelet.liqo.io/outgoing"
 	// LiqoOriginClusterIDKey is the key of a label identifying the origin cluster of a reflected resource.
 	LiqoOriginClusterIDKey = "virtualkubelet.liqo.io/origin"
 	// LiqoDestinationClusterIDKey is the key of a label identifying the destination cluster of a reflected resource.

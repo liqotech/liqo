@@ -110,7 +110,6 @@ func createNewPod(ctx context.Context, podName, clusterID string, shadow bool, c
 		},
 	}
 	if clusterID != "" {
-		pod.Labels[forge.LiqoOutgoingKey] = "test"
 		pod.Labels[forge.LiqoOriginClusterIDKey] = clusterID
 	}
 	if shadow {
