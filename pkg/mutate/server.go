@@ -41,14 +41,12 @@ type MutationServer struct {
 
 	webhookClient client.Client
 	config        *MutationConfig
-	ctx           context.Context
 }
 
 // NewMutationServer creates a new mutation server.
 func NewMutationServer(ctx context.Context, c *MutationConfig) (*MutationServer, error) {
 	s := &MutationServer{}
 	s.config = c
-	s.ctx = ctx
 
 	// This scheme is necessary for the WebhookClient.
 	scheme := runtime.NewScheme()
@@ -84,7 +82,7 @@ func (s *MutationServer) handleMutate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// mutate the request
-	mutated, err := s.Mutate(body)
+	mutated, err := s.Mutate(r.Context(), body)
 	if err != nil {
 		klog.Error(err)
 		standardErrMessage := fmt.Errorf("unable to correctly mutate the request")

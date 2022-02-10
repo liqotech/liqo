@@ -16,7 +16,6 @@ package mutate
 
 import (
 	"fmt"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -29,11 +28,6 @@ import (
 	testutils "github.com/liqotech/liqo/pkg/mutate/testUtils"
 	"github.com/liqotech/liqo/pkg/utils"
 )
-
-func TestWebhookManager(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Webhook Suite")
-}
 
 var _ = Describe("Webhook", func() {
 

@@ -15,6 +15,7 @@
 package mutate
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -32,18 +33,18 @@ import (
 // cluster-role
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=get;list;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch
-//role
+// role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;get;list;watch
 
 // Mutate mutates the object received via admReview and creates a response
 // that embeds a patch to the received pod.
-func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
+func (s *MutationServer) Mutate(ctx context.Context, body []byte) ([]byte, error) {
 	var err error
 
 	// Unmarshal request into AdmissionReview struct.
 	admReview := admissionv1beta1.AdmissionReview{}
 	if err = json.Unmarshal(body, &admReview); err != nil {
-		return nil, fmt.Errorf("unmarshaling request failed with %s", err)
+		return nil, fmt.Errorf("unmarshaling request failed with %w", err)
 	}
 
 	var pod *corev1.Pod
@@ -58,7 +59,7 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 
 	// Get the Pod object and unmarshal it into its struct, if we cannot, we might as well stop here
 	if err = json.Unmarshal(admissionReviewRequest.Object.Raw, &pod); err != nil {
-		return nil, fmt.Errorf("unable unmarshal pod json object %v", err)
+		return nil, fmt.Errorf("unable unmarshal pod json object %w", err)
 	}
 
 	// set response options
@@ -77,18 +78,26 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Get the NamespaceOffloading associated with the pod Namespace. If there is no NamespaceOffloading for that
-	// Namespace, it is an error the liqo.io/scheduling label shouldn't be on this namespace.
-	namespaceOffloading := &offv1alpha1.NamespaceOffloading{}
-	if err = s.webhookClient.Get(s.ctx, types.NamespacedName{
-		Namespace: admissionReviewRequest.Namespace,
-		Name:      liqoconst.DefaultNamespaceOffloadingName,
-	}, namespaceOffloading); err != nil {
-		return nil, fmt.Errorf("%w -> unable to get the NamespaceOffloading for the Namespace: %s", err, pod.Namespace)
+	// Attempt to mutate tolerations and affinities at creation time only.
+	if admissionReviewRequest.Operation == admissionv1beta1.Create {
+		// Get the NamespaceOffloading associated with the pod Namespace. If there is no NamespaceOffloading for that
+		// Namespace, it is an error the liqo.io/scheduling label shouldn't be on this namespace.
+		namespaceOffloading := &offv1alpha1.NamespaceOffloading{}
+		if err = s.webhookClient.Get(ctx, types.NamespacedName{
+			Namespace: admissionReviewRequest.Namespace,
+			Name:      liqoconst.DefaultNamespaceOffloadingName,
+		}, namespaceOffloading); err != nil {
+			return nil, fmt.Errorf("%w -> unable to get the NamespaceOffloading for the Namespace: %s", err, pod.Namespace)
+		}
+
+		klog.V(5).Infof("The namespace '%s' has a NamespaceOffloading resource", pod.Namespace)
+		if err = mutatePod(namespaceOffloading, pod); err != nil {
+			return nil, err
+		}
 	}
 
-	klog.V(5).Infof("The namespace '%s' has a NamespaceOffloading resource", pod.Namespace)
-	if err = mutatePod(namespaceOffloading, pod); err != nil {
+	if err = mutateShadowPodLabel(ctx, s.webhookClient, pod); err != nil {
+		klog.Errorf("Failed to mutate shadow pod label: %v", err)
 		return nil, err
 	}
 
