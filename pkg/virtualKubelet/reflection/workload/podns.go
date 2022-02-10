@@ -176,6 +176,11 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 		return nil
 	}
 
+	// Ensure the local pod has the appropriate labels to mark it as offloaded.
+	if err := npr.HandleLabels(ctx, local); err != nil {
+		return err
+	}
+
 	// The local target is currently running, and it is necessary to enforce its presence in the remote cluster.
 	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace())
 	tracer.Step("Forged the remote pod")
@@ -220,6 +225,25 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 
 	// Reflect the status from the remote pod to the local one.
 	return npr.HandleStatus(ctx, local, remote)
+}
+
+// HandleLabels mutates the local object labels, to mark the pod as offloaded and allow filtering at the informer level.
+func (npr *NamespacedPodReflector) HandleLabels(ctx context.Context, local *corev1.Pod) error {
+	// Forge the mutation to be applied to the local pod.
+	mutation, needsUpdate := forge.LocalPodOffloadedLabel(local)
+	if !needsUpdate {
+		klog.V(4).Infof("Skipping local pod %q labels update, as already synced", npr.RemoteRef(local.GetName()))
+		return nil
+	}
+
+	defer trace.FromContext(ctx).Step("Updated the local pod labels")
+	if _, err := npr.localPodsClient.Apply(ctx, mutation, forge.ApplyOptions()); err != nil {
+		klog.Errorf("Failed to enforce local pod %q labels: %v", npr.LocalRef(local.GetName()), err)
+		return err
+	}
+
+	klog.Infof("Local pod %q labels successfully enforced", npr.LocalRef(local.GetName()))
+	return nil
 }
 
 // HandleStatus reflects the status from the remote Pod to the local one.

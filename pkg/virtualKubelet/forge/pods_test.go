@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	"k8s.io/utils/pointer"
 
@@ -67,6 +68,35 @@ var _ = Describe("Pod forging", func() {
 		})
 	})
 
+	Describe("the LocalPodOffloadedLabel function", func() {
+		var (
+			local       *corev1.Pod
+			mutation    *corev1apply.PodApplyConfiguration
+			needsUpdate bool
+		)
+
+		BeforeEach(func() {
+			local = &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "local-name", Namespace: "local-namespace"}}
+		})
+
+		JustBeforeEach(func() { mutation, needsUpdate = forge.LocalPodOffloadedLabel(local) })
+
+		When("the expected labels is not present", func() {
+			It("should mark update as needed", func() { Expect(needsUpdate).To(BeTrue()) })
+			It("should correctly forge the apply patch", func() {
+				Expect(mutation.Name).To(PointTo(Equal(local.GetName())))
+				Expect(mutation.Namespace).To(PointTo(Equal(local.GetNamespace())))
+				Expect(mutation.Labels).To(HaveKeyWithValue(consts.LocalPodLabelKey, consts.LocalPodLabelValue))
+			})
+		})
+
+		When("the expected labels is already present", func() {
+			BeforeEach(func() { local.Labels = map[string]string{consts.LocalPodLabelKey: consts.LocalPodLabelValue} })
+			It("should mark update as not needed", func() { Expect(needsUpdate).To(BeFalse()) })
+			It("should return a nil apply patch", func() { Expect(mutation).To(BeNil()) })
+		})
+	})
+
 	Describe("the LocalRejectedPod function", func() {
 		var local, original, output *corev1.Pod
 
@@ -99,8 +129,9 @@ var _ = Describe("Pod forging", func() {
 
 		BeforeEach(func() {
 			local = &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "local-name", Namespace: "local-namespace", Labels: map[string]string{"foo": "bar"}},
-				Spec:       corev1.PodSpec{TerminationGracePeriodSeconds: pointer.Int64(15)},
+				ObjectMeta: metav1.ObjectMeta{Name: "local-name", Namespace: "local-namespace",
+					Labels: map[string]string{"foo": "bar", consts.LocalPodLabelKey: consts.LocalPodLabelValue}},
+				Spec: corev1.PodSpec{TerminationGracePeriodSeconds: pointer.Int64(15)},
 			}
 		})
 
@@ -111,6 +142,7 @@ var _ = Describe("Pod forging", func() {
 				Expect(output.GetName()).To(Equal("local-name"))
 				Expect(output.GetNamespace()).To(Equal("remote-namespace"))
 				Expect(output.GetLabels()).To(HaveKeyWithValue("foo", "bar"))
+				Expect(output.GetLabels()).ToNot(HaveKeyWithValue(consts.LocalPodLabelKey, consts.LocalPodLabelValue))
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 			})
@@ -130,6 +162,7 @@ var _ = Describe("Pod forging", func() {
 					Expect(output.GetNamespace()).To(Equal("remote-namespace"))
 					Expect(output.UID).To(BeEquivalentTo("remote-uid"))
 					Expect(output.GetLabels()).To(HaveKeyWithValue("foo", "bar"))
+					Expect(output.GetLabels()).ToNot(HaveKeyWithValue(consts.LocalPodLabelKey, consts.LocalPodLabelValue))
 				})
 
 				It("should correctly update the pod spec", func() {

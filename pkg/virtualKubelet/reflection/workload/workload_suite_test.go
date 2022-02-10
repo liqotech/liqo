@@ -113,3 +113,9 @@ func CreateShadowPod(client liqoclient.Interface, pod *vkv1alpha1.ShadowPod) *vk
 	ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
 	return pod
 }
+
+func UpdatePod(client kubernetes.Interface, pod *corev1.Pod) *corev1.Pod {
+	pod, errpod := client.CoreV1().Pods(pod.GetNamespace()).Update(ctx, pod, metav1.UpdateOptions{})
+	ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
+	return pod
+}

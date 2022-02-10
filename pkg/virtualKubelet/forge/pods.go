@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
@@ -43,6 +44,16 @@ func LocalPod(local, remote *corev1.Pod, translator PodIPTranslator, restarts in
 		ObjectMeta: *local.ObjectMeta.DeepCopy(),
 		Status:     LocalPodStatus(remote.Status.DeepCopy(), translator, restarts),
 	}
+}
+
+// LocalPodOffloadedLabel forges the apply patch to add the appropriate label to the offloaded pod.
+func LocalPodOffloadedLabel(local *corev1.Pod) (*corev1apply.PodApplyConfiguration, bool) {
+	if value, found := local.Labels[liqoconst.LocalPodLabelKey]; found && value == liqoconst.LocalPodLabelValue {
+		return nil, false
+	}
+
+	return corev1apply.Pod(local.GetName(), local.GetNamespace()).
+		WithLabels(map[string]string{liqoconst.LocalPodLabelKey: liqoconst.LocalPodLabelValue}), true
 }
 
 // LocalPodStatus forges the status of the local pod, given the remote one.
@@ -84,8 +95,15 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetName
 		remote = &vkv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
 	}
 
+	// Remove the label which identifies offloaded pods, as meaningful only locally.
+	FilterLocalPodOffloadedLabel := func(meta *metav1.ObjectMeta) *metav1.ObjectMeta {
+		output := meta.DeepCopy()
+		delete(output.GetLabels(), liqoconst.LocalPodLabelKey)
+		return output
+	}
+
 	return &vkv1alpha1.ShadowPod{
-		ObjectMeta: RemoteObjectMeta(&local.ObjectMeta, &remote.ObjectMeta),
+		ObjectMeta: RemoteObjectMeta(FilterLocalPodOffloadedLabel(&local.ObjectMeta), &remote.ObjectMeta),
 		Spec: vkv1alpha1.ShadowPodSpec{
 			Pod: RemotePodSpec(local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy()),
 		},
