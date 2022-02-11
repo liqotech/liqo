@@ -64,11 +64,11 @@ func (grm *GatewayRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.Tunnel
 	_, dstPodCIDRNet := utils.GetPodCIDRS(tep)
 	_, dstExternalCIDRNet := utils.GetExternalCIDRS(tep)
 	// Add routes for the given cluster.
-	routePodCIDRAdd, err = AddRoute(dstPodCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
+	routePodCIDRAdd, err = AddRoute(dstPodCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID, DefaultFlags, DefaultScope)
 	if err != nil {
 		return routePodCIDRAdd, err
 	}
-	routeExternalCIDRAdd, err = AddRoute(dstExternalCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
+	routeExternalCIDRAdd, err = AddRoute(dstExternalCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID, DefaultFlags, DefaultScope)
 	if err != nil {
 		return routeExternalCIDRAdd, err
 	}

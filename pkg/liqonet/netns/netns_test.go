@@ -103,7 +103,7 @@ var _ = Describe("Netns", func() {
 			})
 
 			It("should add veth pair and return nil", func() {
-				err := CreateVethPair(hostVeth, gatewayVeth, originNetns, newNetns, 1500)
+				_, _, err := CreateVethPair(hostVeth, gatewayVeth, originNetns, newNetns, 1500)
 				Expect(err).ShouldNot(HaveOccurred())
 				// Get originVeth
 				or, err := netlink.LinkByName(hostVeth)
@@ -128,22 +128,22 @@ var _ = Describe("Netns", func() {
 			})
 
 			It("link exists in gateway netns, should return error", func() {
-				err := CreateVethPair(hostVeth, existingGatewayVeth, originNetns, newNetns, 1500)
+				_, _, err := CreateVethPair(hostVeth, existingGatewayVeth, originNetns, newNetns, 1500)
 				Expect(err).Should(HaveOccurred())
 			})
 
 			It("link exists in host netns, should remove it and create again", func() {
-				err := CreateVethPair(existingHostVeth, gatewayVeth, originNetns, newNetns, 1500)
+				_, _, err := CreateVethPair(existingHostVeth, gatewayVeth, originNetns, newNetns, 1500)
 				Expect(err).Should(BeNil())
 			})
 		})
 
 		Context("when dst network namespace does not exist", func() {
 			It("should return error", func() {
-				err := CreateVethPair(hostVeth, gatewayVeth, nil, nil, 1500)
+				_, _, err := CreateVethPair(hostVeth, gatewayVeth, nil, nil, 1500)
 				Expect(err).Should(Equal(&errors.WrongParameter{
 					Reason:    errors.NotNil,
-					Parameter: "originNetns and dstNetns",
+					Parameter: "hostNetns and gatewayNetns",
 				}))
 			})
 		})

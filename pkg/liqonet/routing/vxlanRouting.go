@@ -15,6 +15,7 @@
 package routing
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 
@@ -82,41 +83,66 @@ func NewVxlanRoutingManager(routingTableID int, podIP, vxlanNetPrefix string, vx
 func (vrm *VxlanRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) (bool, error) {
 	var routePodCIDRAdd, routeExternalCIDRAdd, policyRulePodCIDRAdd, policyRuleExternalCIDRAdd, configured bool
 	var iFaceIndex int
+	var iFaceName string
 	var gatewayIP string
 	var err error
+
 	clusterID := tep.Spec.ClusterID
 	// Extract and save route information from the given tep.
 	_, dstPodCIDR := utils.GetPodCIDRS(tep)
 	_, dstExternalCIDR := utils.GetExternalCIDRS(tep)
+
 	if tep.Status.GatewayIP != vrm.podIP {
 		gatewayIP = utils.GetOverlayIP(tep.Status.GatewayIP)
 		iFaceIndex = vrm.vxlanDevice.Link.Index
+		iFaceName = vrm.vxlanDevice.Link.Name
+
+		// If we are not on the same pod as the gateway then make sure that we do not have
+		// policy routing rules for the incoming traffic from the remote cluster.
+		if config, err := vrm.removePRRForIncomingTraffic(dstPodCIDR, dstExternalCIDR, clusterID); err != nil {
+			return config, err
+		}
 	} else {
+		gatewayIP = tep.Status.VethIP
 		iFaceIndex = tep.Status.VethIFaceIndex
+		iFaceName = tep.Status.VethIFaceName
+
+		if config, err := vrm.ensurePRRForIncomingTraffic(dstPodCIDR, dstExternalCIDR, clusterID); err != nil {
+			return config, err
+		}
 	}
-	// Add policy routing rule for the given cluster.
-	klog.V(4).Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}",
+
+	// Add policy routing rules for the given cluster.
+	klog.V(5).Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}",
 		clusterID, dstPodCIDR, vrm.routingTableID)
 	if policyRulePodCIDRAdd, err = AddPolicyRoutingRule("", dstPodCIDR, vrm.routingTableID); err != nil {
-		return policyRulePodCIDRAdd, err
+		return policyRulePodCIDRAdd, fmt.Errorf("%s -> unable to add policy routing rule for destination {%s} to lookup routing table with ID {%d}: %w",
+			clusterID, dstPodCIDR, vrm.routingTableID, err)
 	}
-	klog.V(4).Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}",
+	klog.V(5).Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}",
 		clusterID, dstExternalCIDR, vrm.routingTableID)
 	if policyRuleExternalCIDRAdd, err = AddPolicyRoutingRule("", dstExternalCIDR, vrm.routingTableID); err != nil {
-		return policyRuleExternalCIDRAdd, err
+		return policyRuleExternalCIDRAdd, fmt.Errorf("%s -> unable to add policy routing rule for destination {%s}"+
+			" to lookup routing table with ID {%d}: %w",
+			clusterID, dstExternalCIDR, vrm.routingTableID, err)
 	}
-	// Add route for the given cluster.
-	klog.V(4).Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d} on device {%s}",
-		clusterID, dstPodCIDR, gatewayIP, vrm.routingTableID, vrm.vxlanDevice.Link.Name)
-	routePodCIDRAdd, err = AddRoute(dstPodCIDR, gatewayIP, iFaceIndex, vrm.routingTableID)
+
+	// Add routes for the given cluster.
+	klog.V(5).Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d} on device {%s}",
+		clusterID, dstPodCIDR, gatewayIP, vrm.routingTableID, iFaceName)
+	routePodCIDRAdd, err = AddRoute(dstPodCIDR, gatewayIP, iFaceIndex, vrm.routingTableID, DefaultFlags, DefaultScope)
 	if err != nil {
-		return routePodCIDRAdd, err
+		return routePodCIDRAdd, fmt.Errorf("%s -> unable to add route for destination {%s} with gateway {%s} "+
+			"in routing table with ID {%d} on device {%s}: %w",
+			clusterID, dstPodCIDR, gatewayIP, vrm.routingTableID, iFaceName, err)
 	}
-	klog.V(4).Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d} on device {%s}",
-		clusterID, dstExternalCIDR, gatewayIP, vrm.routingTableID, vrm.vxlanDevice.Link.Name)
-	routeExternalCIDRAdd, err = AddRoute(dstExternalCIDR, gatewayIP, iFaceIndex, vrm.routingTableID)
+	klog.V(5).Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d} on device {%s}",
+		clusterID, dstExternalCIDR, gatewayIP, vrm.routingTableID, iFaceName)
+	routeExternalCIDRAdd, err = AddRoute(dstExternalCIDR, gatewayIP, iFaceIndex, vrm.routingTableID, DefaultFlags, DefaultScope)
 	if err != nil {
-		return routeExternalCIDRAdd, err
+		return routeExternalCIDRAdd, fmt.Errorf("%s -> unable to add route for destination {%s} with gateway "+
+			"{%s} in routing table with ID {%d} on device {%s}: %w",
+			clusterID, dstExternalCIDR, gatewayIP, vrm.routingTableID, iFaceName, err)
 	}
 	if routePodCIDRAdd || routeExternalCIDRAdd || policyRulePodCIDRAdd || policyRuleExternalCIDRAdd {
 		configured = true
@@ -131,42 +157,65 @@ func (vrm *VxlanRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEn
 func (vrm *VxlanRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) (bool, error) {
 	var routePodCIDRDel, routeExternalCIDRDel, policyRulePodCIDRDel, policyRuleExternalCIDRDel, configured bool
 	var iFaceIndex int
+	var iFaceName string
 	var gatewayIP string
 	var err error
+
 	clusterID := tep.Spec.ClusterID
 	// Extract and save route information from the given tep.
-	_, dstPodCIDRNet := utils.GetPodCIDRS(tep)
-	_, dstExternalCIDRNet := utils.GetExternalCIDRS(tep)
+	_, dstPodCIDR := utils.GetPodCIDRS(tep)
+	_, dstExternalCIDR := utils.GetExternalCIDRS(tep)
+
 	if tep.Status.GatewayIP != vrm.podIP {
 		gatewayIP = utils.GetOverlayIP(tep.Status.GatewayIP)
 		iFaceIndex = vrm.vxlanDevice.Link.Index
+		iFaceName = vrm.vxlanDevice.Link.Name
 	} else {
+		gatewayIP = tep.Status.VethIP
 		iFaceIndex = tep.Status.VethIFaceIndex
+		iFaceName = tep.Status.VethIFaceName
+
+		// If we are on the same node as the gateway than remove also the policy routing rules
+		// for the incoming traffic from the remote cluster.
+		if config, err := vrm.removePRRForIncomingTraffic(dstPodCIDR, dstExternalCIDR, clusterID); err != nil {
+			return config, err
+		}
 	}
-	// Delete policy routing rule for the given cluster.
-	klog.V(4).Infof("%s -> deleting policy routing rule for destination {%s} to lookup routing table with ID {%d}",
-		clusterID, dstPodCIDRNet, vrm.routingTableID)
-	if policyRulePodCIDRDel, err = DelPolicyRoutingRule("", dstPodCIDRNet, vrm.routingTableID); err != nil {
-		return policyRulePodCIDRDel, err
+
+	// Delete policy routing rules for the given cluster.
+	klog.V(5).Infof("%s -> deleting policy routing rule for destination {%s} with table ID {%d}",
+		clusterID, dstPodCIDR, vrm.routingTableID)
+	if policyRulePodCIDRDel, err = DelPolicyRoutingRule("", dstPodCIDR, vrm.routingTableID); err != nil {
+		return policyRulePodCIDRDel, fmt.Errorf("%s -> unable to delete policy routing rule for destination {%s} with table ID {%d}: %w",
+			clusterID, dstPodCIDR, vrm.routingTableID, err)
 	}
-	klog.V(4).Infof("%s -> deleting policy routing rule for destination {%s} to lookup routing table with ID {%d}",
-		clusterID, dstExternalCIDRNet, vrm.routingTableID)
-	if policyRuleExternalCIDRDel, err = DelPolicyRoutingRule("", dstExternalCIDRNet, vrm.routingTableID); err != nil {
-		return policyRuleExternalCIDRDel, err
+	klog.V(5).Infof("%s -> deleting policy routing rule for destination {%s} with table with ID {%d}",
+		clusterID, dstExternalCIDR, vrm.routingTableID)
+	if policyRuleExternalCIDRDel, err = DelPolicyRoutingRule("", dstExternalCIDR, vrm.routingTableID); err != nil {
+		return policyRuleExternalCIDRDel, fmt.Errorf("%s -> unable to delete policy routing rule for destination {%s} with table ID {%d}: %w",
+			clusterID, dstExternalCIDR, vrm.routingTableID, err)
 	}
-	// Delete route for the given cluster.
-	klog.V(4).Infof("%s -> deleting route for destination {%s} with gateway {%s} in routing table with ID {%d} on device {%s}",
-		clusterID, dstPodCIDRNet, gatewayIP, vrm.routingTableID, vrm.vxlanDevice.Link.Name)
-	routePodCIDRDel, err = DelRoute(dstPodCIDRNet, gatewayIP, iFaceIndex, vrm.routingTableID)
+
+	// Delete routes for the given cluster.
+	klog.V(5).Infof("%s -> deleting route for destination {%s} with gateway {%s} in "+
+		"routing table with ID {%d} on device {%s}",
+		clusterID, dstPodCIDR, gatewayIP, vrm.routingTableID, iFaceName)
+	routePodCIDRDel, err = DelRoute(dstPodCIDR, gatewayIP, iFaceIndex, vrm.routingTableID)
 	if err != nil {
-		return routePodCIDRDel, err
+		return routePodCIDRDel, fmt.Errorf("%s -> unable to delete route for destination {%s} with gateway {%s} "+
+			"in routing table with ID {%d} on device {%s}: %w",
+			clusterID, dstPodCIDR, gatewayIP, vrm.routingTableID, iFaceName, err)
 	}
-	klog.V(4).Infof("%s -> deleting route for destination {%s} with gateway {%s} in routing table with ID {%d} on device {%s}",
-		clusterID, dstExternalCIDRNet, gatewayIP, vrm.routingTableID, vrm.vxlanDevice.Link.Name)
-	routeExternalCIDRDel, err = DelRoute(dstExternalCIDRNet, gatewayIP, iFaceIndex, vrm.routingTableID)
+	klog.V(5).Infof("%s -> deleting route for destination {%s} with gateway {%s} "+
+		"in routing table with ID {%d} on device {%s}",
+		clusterID, dstExternalCIDR, gatewayIP, vrm.routingTableID, iFaceName)
+	routeExternalCIDRDel, err = DelRoute(dstExternalCIDR, gatewayIP, iFaceIndex, vrm.routingTableID)
 	if err != nil {
-		return routeExternalCIDRDel, err
+		return routeExternalCIDRDel, fmt.Errorf("%s -> unable to delete route for destination {%s} with gateway {%s} "+
+			"in routing table with ID {%d} on device {%s}: %w",
+			clusterID, dstExternalCIDR, gatewayIP, vrm.routingTableID, iFaceName, err)
 	}
+
 	if policyRulePodCIDRDel || policyRuleExternalCIDRDel || routePodCIDRDel || routeExternalCIDRDel {
 		configured = true
 	}
@@ -183,4 +232,56 @@ func (vrm *VxlanRoutingManager) CleanRoutingTable() error {
 func (vrm *VxlanRoutingManager) CleanPolicyRules() error {
 	klog.Infof("removing all policy routing rules that reference routing table with ID {%d}", vrm.routingTableID)
 	return flushRulesForRoutingTable(vrm.routingTableID)
+}
+
+func (vrm *VxlanRoutingManager) ensurePRRForIncomingTraffic(srcPodCIDR, srcExternalCIDR, clusterID string) (bool, error) {
+	var configured bool
+
+	klog.V(5).Infof("%s -> adding policy routing rule for source podCIDR {%s} to lookup routing table with ID {%d}",
+		clusterID, srcPodCIDR, vrm.routingTableID)
+	policyRulePodCIDRAdd, err := AddPolicyRoutingRule(srcPodCIDR, "", liqoconst.RoutingTableID)
+	if err != nil {
+		return false, fmt.Errorf("%s -> unable to add policy routing rule for source podCIDR {%s} to lookup routing table with ID {%d}: %w",
+			clusterID, srcPodCIDR, vrm.routingTableID, err)
+	}
+
+	klog.V(5).Infof("%s -> adding policy routing rule for source externalCIDR {%s} to lookup routing table with ID {%d}",
+		clusterID, srcPodCIDR, vrm.routingTableID)
+	policyRuleExternalCIDRAdd, err := AddPolicyRoutingRule(srcExternalCIDR, "", liqoconst.RoutingTableID)
+	if err != nil {
+		return false, fmt.Errorf("%s -> unable to add policy routing rule for source externalCIDR {%s} to lookup routing table with ID {%d}: %w",
+			clusterID, srcPodCIDR, vrm.routingTableID, err)
+	}
+
+	if policyRulePodCIDRAdd || policyRuleExternalCIDRAdd {
+		configured = true
+	}
+
+	return configured, nil
+}
+
+func (vrm *VxlanRoutingManager) removePRRForIncomingTraffic(srcPodCIDR, srcExternalCIDR, clusterID string) (bool, error) {
+	var configured bool
+
+	klog.V(5).Infof("%s -> deleting policy routing rule for source podCIDR {%s} to lookup routing table with ID {%d}",
+		clusterID, srcPodCIDR, vrm.routingTableID)
+	policyRulePodCIDRDel, err := DelPolicyRoutingRule(srcPodCIDR, "", liqoconst.RoutingTableID)
+	if err != nil {
+		return false, fmt.Errorf("%s -> unable to delete policy routing rule for source podCIDR {%s} to lookup routing table with ID {%d}: %w",
+			clusterID, srcPodCIDR, vrm.routingTableID, err)
+	}
+
+	klog.V(5).Infof("%s -> deleting policy routing rule for source externalCIDR {%s} to lookup routing table with ID {%d}",
+		clusterID, srcPodCIDR, vrm.routingTableID)
+	policyRuleExternalCIDRDel, err := DelPolicyRoutingRule(srcExternalCIDR, "", liqoconst.RoutingTableID)
+	if err != nil {
+		return false, fmt.Errorf("%s -> unable to delete policy routing rule for source externalCIDR {%s} to lookup routing table with ID {%d}: %w",
+			clusterID, srcPodCIDR, vrm.routingTableID, err)
+	}
+
+	if policyRulePodCIDRDel || policyRuleExternalCIDRDel {
+		configured = true
+	}
+
+	return configured, nil
 }

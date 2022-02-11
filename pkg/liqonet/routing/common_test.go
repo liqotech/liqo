@@ -73,13 +73,13 @@ var _ = Describe("Common", func() {
 	Describe("adding new route", func() {
 		Context("when input parameters are not in the correct format", func() {
 			It("should return error on wrong destination net", func() {
-				added, err := AddRoute(dstNetWrong, gwIPCorrect, dummylink1.Attrs().Index, routingTableID)
+				added, err := AddRoute(dstNetWrong, gwIPCorrect, dummylink1.Attrs().Index, routingTableID, DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(false))
 				Expect(err).Should(Equal(&net.ParseError{Type: "CIDR address", Text: dstNetWrong}))
 			})
 
 			It("should return error on wrong gateway IP address", func() {
-				added, err := AddRoute(dstNetCorrect, gwIPWrong, dummylink1.Attrs().Index, routingTableID)
+				added, err := AddRoute(dstNetCorrect, gwIPWrong, dummylink1.Attrs().Index, routingTableID, DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(false))
 				Expect(err).Should(Equal(&errors.ParseIPError{IPToBeParsed: gwIPWrong}))
 			})
@@ -87,7 +87,7 @@ var _ = Describe("Common", func() {
 
 		Context("when an error occurred while adding a route", func() {
 			It("should return an error on non existing link", func() {
-				added, err := AddRoute(dstNetCorrect, gwIPWrong, 0, routingTableID)
+				added, err := AddRoute(dstNetCorrect, gwIPWrong, 0, routingTableID, DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(false))
 				Expect(err).To(HaveOccurred())
 			})
@@ -95,7 +95,7 @@ var _ = Describe("Common", func() {
 
 		Context("when route does not exist and we want to add it", func() {
 			It("no gatewayIP, should return true and nil", func() {
-				added, err := AddRoute(dstNetCorrect, "", dummylink1.Attrs().Index, routingTableID)
+				added, err := AddRoute(dstNetCorrect, "", dummylink1.Attrs().Index, routingTableID, DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
@@ -105,7 +105,7 @@ var _ = Describe("Common", func() {
 			})
 
 			It("with gatewayIP, should return true and nil", func() {
-				added, err := AddRoute(dstNetCorrect, gwIPCorrect, dummylink1.Attrs().Index, routingTableID)
+				added, err := AddRoute(dstNetCorrect, gwIPCorrect, dummylink1.Attrs().Index, routingTableID, DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
@@ -126,19 +126,22 @@ var _ = Describe("Common", func() {
 
 			It("should return false and nil", func() {
 				// Add existing route with GW.
-				added, err := AddRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table)
+				added, err := AddRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), existingRoutesCM[0].LinkIndex,
+					existingRoutesCM[0].Table, DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(false))
 				Expect(err).NotTo(HaveOccurred())
 
 				// Add existing route without GW.
-				added, err = AddRoute(existingRoutesCM[1].Dst.String(), "", existingRoutesCM[1].LinkIndex, existingRoutesCM[1].Table)
+				added, err = AddRoute(existingRoutesCM[1].Dst.String(), "", existingRoutesCM[1].LinkIndex, existingRoutesCM[1].Table,
+					DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(false))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("update gateway of existing route: should return true and nil", func() {
 				// Update route with GW
-				added, err := AddRoute(existingRoutesCM[0].Dst.String(), "", existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table)
+				added, err := AddRoute(existingRoutesCM[0].Dst.String(), "", existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table,
+					DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
@@ -147,7 +150,8 @@ var _ = Describe("Common", func() {
 				Expect(routes[0].Gw).Should(BeNil())
 
 				// Update route without GW
-				added, err = AddRoute(existingRoutesCM[1].Dst.String(), gwIPCorrect, existingRoutesCM[1].LinkIndex, existingRoutesCM[1].Table)
+				added, err = AddRoute(existingRoutesCM[1].Dst.String(), gwIPCorrect, existingRoutesCM[1].LinkIndex, existingRoutesCM[1].Table,
+					DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
@@ -158,7 +162,8 @@ var _ = Describe("Common", func() {
 
 			It("update link index of existing route: should return true and nil", func() {
 				// Update route with GW
-				added, err := AddRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), dummyLink2.Attrs().Index, existingRoutesCM[0].Table)
+				added, err := AddRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), dummyLink2.Attrs().Index,
+					existingRoutesCM[0].Table, DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
@@ -167,7 +172,8 @@ var _ = Describe("Common", func() {
 				Expect(routes[0].LinkIndex).Should(BeNumerically("==", dummyLink2.Attrs().Index))
 
 				// Update route without GW
-				added, err = AddRoute(existingRoutesCM[1].Dst.String(), gwIPCorrect, dummyLink2.Attrs().Index, existingRoutesCM[1].Table)
+				added, err = AddRoute(existingRoutesCM[1].Dst.String(), gwIPCorrect, dummyLink2.Attrs().Index,
+					existingRoutesCM[1].Table, DefaultFlags, DefaultScope)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
@@ -524,26 +530,6 @@ var _ = Describe("Common", func() {
 				txt, err := os.ReadFile("/proc/sys/net/ipv4/ip_forward")
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(txt[0]).Should(Equal(enabled))
-			})
-		})
-	})
-
-	Describe("enabling proxy arp", func() {
-		Context("enable proxy arp for an existing interface", func() {
-			It("should return nil", func() {
-				var enabled byte = '1'
-				err := EnableProxyArp(dummylink1.Attrs().Name)
-				Expect(err).ShouldNot(HaveOccurred())
-				txt, err := os.ReadFile("/proc/sys/net/ipv4/conf/" + dummylink1.Attrs().Name + "/proxy_arp")
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(txt[0]).Should(Equal(enabled))
-			})
-		})
-
-		Context("enable proxy arp for non existing interface", func() {
-			It("should return error", func() {
-				err := EnableProxyArp("doesNotExist")
-				Expect(err).Should(HaveOccurred())
 			})
 		})
 	})

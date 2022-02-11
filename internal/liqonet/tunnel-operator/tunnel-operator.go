@@ -16,7 +16,6 @@ package tunneloperator
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -29,7 +28,6 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -53,10 +51,6 @@ var (
 	result = ctrl.Result{}
 )
 
-// Constant used for add/deletion of policy routing rules
-// to specify any network.
-const anyNetwork = ""
-
 // TunnelController type of the tunnel controller.
 type TunnelController struct {
 	client.Client
@@ -71,8 +65,8 @@ type TunnelController struct {
 	finalizer          string
 	hostNetns          ns.NetNS
 	gatewayNetns       ns.NetNS
-	hostVeth           netlink.Link
-	gatewayVeth        netlink.Link
+	hostVeth           net.Interface
+	gatewayVeth        net.Interface
 	readyClustersMutex *sync.Mutex
 	readyClusters      map[string]struct{}
 }
@@ -113,9 +107,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 	if err != nil {
 		return nil, err
 	}
-	err = tc.setUpGWNetns(liqoconst.GatewayNetnsName, liqoconst.HostVethName,
-		liqoconst.GatewayVethName, liqoconst.GatewayVethIPAddr, mtu)
-	if err != nil {
+	if err = tc.setUpGWNetns(liqoconst.HostVethName, liqoconst.GatewayVethName, mtu); err != nil {
 		return nil, err
 	}
 	// Move wireguard interface in the gateway network namespace.
@@ -151,9 +143,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 	if err := tc.SetUpRouteManager(); err != nil {
 		return nil, err
 	}
-	if err := tc.gatewayNetns.Set(); err != nil {
-		return nil, err
-	}
+
 	return tc, nil
 }
 
@@ -161,7 +151,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var tep = new(netv1alpha1.TunnelEndpoint)
 	var err error
-	var clusterID, remotePodCIDR, remoteExternalCIDR string
+	var clusterID, remotePodCIDR string
 	var con *netv1alpha1.Connection
 
 	var configGWNetns = func(netNamespace ns.NetNS) error {
@@ -209,45 +199,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		return nil
 	}
-	var configHNetns = func(netNamespace ns.NetNS) error {
-		added, err := liqorouting.AddPolicyRoutingRule(remotePodCIDR, anyNetwork, liqoconst.RoutingTableID)
-		if err != nil {
-			klog.Errorf("%s -> unable to configure policy routing rule for subnet {%s}: %s", clusterID, remotePodCIDR, err)
-			return err
-		}
-		if added {
-			klog.Infof("%s -> policy routing rule for subnet {%s} correctly configured", clusterID, remotePodCIDR)
-		}
-		added, err = liqorouting.AddPolicyRoutingRule(remoteExternalCIDR, anyNetwork, liqoconst.RoutingTableID)
-		if err != nil {
-			klog.Errorf("%s -> unable to configure policy routing rule for subnet {%s}: %s", clusterID, remoteExternalCIDR, err)
-			return err
-		}
-		if added {
-			klog.Infof("%s -> policy routing rule for subnet {%s} correctly configured", clusterID, remoteExternalCIDR)
-		}
-		return nil
-	}
-	var unconfigHNetns = func(netNamespace ns.NetNS) error {
-		deleted, err := liqorouting.DelPolicyRoutingRule(remotePodCIDR, anyNetwork, liqoconst.RoutingTableID)
-		if err != nil {
-			klog.Errorf("%s -> unable to remove policy routing rule for subnet {%s}: %s", clusterID, remotePodCIDR, err)
-			return err
-		}
-		if deleted {
-			klog.Infof("%s -> policy routing rule for subnet {%s} correctly removed", clusterID, remotePodCIDR)
-		}
-		deleted, err = liqorouting.DelPolicyRoutingRule(remoteExternalCIDR, anyNetwork, liqoconst.RoutingTableID)
-		if err != nil {
-			klog.Errorf("%s -> unable to remove policy routing rule for subnet {%s}: %s", clusterID, remoteExternalCIDR, err)
-			return err
-		}
-		if deleted {
-			klog.Infof("%s -> policy routing rule for subnet {%s} correctly removed", clusterID, remoteExternalCIDR)
-		}
-		return nil
-	}
-	// Name of our finalizer.
+
 	if err = tc.Get(ctx, req.NamespacedName, tep); err != nil && !k8sApiErrors.IsNotFound(err) {
 		klog.Errorf("unable to fetch resource %s: %s", req.String(), err)
 		return ctrl.Result{}, err
@@ -259,7 +211,6 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	clusterID = tep.Spec.ClusterID
 
 	_, remotePodCIDR = utils.GetPodCIDRS(tep)
-	_, remoteExternalCIDR = utils.GetExternalCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
 	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(tep, tc.finalizer) {
@@ -282,9 +233,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err = tc.gatewayNetns.Do(unconfigGWNetns); err != nil {
 				return result, err
 			}
-			if err = tc.hostNetns.Do(unconfigHNetns); err != nil {
-				return result, err
-			}
+
 			// Remove the finalizer from the list and update it.
 			controllerutil.RemoveFinalizer(tep, tc.finalizer)
 			if err := tc.Update(ctx, tep); err != nil {
@@ -302,25 +251,8 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := tc.gatewayNetns.Do(configGWNetns); err != nil {
 		return result, err
 	}
-	if reflect.DeepEqual(*con, tep.Status.Connection) && tep.Status.GatewayIP == tc.podIP &&
-		tep.Status.VethIFaceIndex == tc.hostVeth.Attrs().Index {
-		return result, nil
-	}
-	tep.Status.Connection = *con
-	tep.Status.GatewayIP = tc.podIP
-	tep.Status.VethIFaceIndex = tc.hostVeth.Attrs().Index
-	if err = tc.Status().Update(context.Background(), tep); err != nil {
-		if k8sApiErrors.IsConflict(err) {
-			klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
-			return result, err
-		}
-		klog.Errorf("%s -> an error occurred while updating status of resource %s: %s", tep.Spec.ClusterID, tep.Name, err)
-		return result, err
-	}
-	if err := tc.hostNetns.Do(configHNetns); err != nil {
-		return result, err
-	}
-	return result, nil
+
+	return result, tc.updateStatus(con, tep)
 }
 
 func (tc *TunnelController) connectToPeer(ep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
@@ -416,7 +348,7 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Contex
 		sig := <-c
 		klog.Infof("the operator received signal {%s}: cleaning up", sig.String())
 		// Here, the error is not checked, as at exit time is not possible to recover. Errors are just logged.
-		tc.CleanUpConfiguration(liqoconst.GatewayNetnsName, liqoconst.HostVethName)
+		tc.CleanUpConfiguration(liqoconst.GatewayNetnsName)
 		done()
 	}(tc)
 	return ctx
@@ -488,144 +420,77 @@ func (tc *TunnelController) SetUpRouteManager() error {
 	return nil
 }
 
-func (tc *TunnelController) setUpGWNetns(netnsName, hostVethName, gatewayVethName, gatewayVethIPAddr string, vethMtu int) error {
+func (tc *TunnelController) setUpGWNetns(hostVethName, gatewayVethName string, vethMtu int) error {
 	var err error
+
 	// Create veth pair to connect the two namespaces.
-	err = liqonetns.CreateVethPair(hostVethName, gatewayVethName, tc.hostNetns, tc.gatewayNetns, vethMtu)
+	hostVeth, gatewayVeth, err := liqonetns.CreateVethPair(hostVethName, gatewayVethName, tc.hostNetns, tc.gatewayNetns, vethMtu)
 	if err != nil {
-		klog.Errorf("an error occurred while creating the veth pair: %s", err)
 		return err
 	}
-	klog.Infof("created veth device {%s} in host network", hostVethName)
-	klog.Infof("created veth device {%s} in gateway custorm network namespace {%s}", gatewayVethName, netnsName)
-	if err = tc.configureGatewayNetns(gatewayVethName, gatewayVethIPAddr, tc.gatewayNetns); err != nil {
+	klog.Infof("created veth device {%s} with index {%d} in host netns with path {%s}",
+		hostVeth.Name, hostVeth.Index, tc.hostNetns.Path())
+	klog.Infof("created veth device {%s} with index {%d} in gateway netns with path {%s}",
+		gatewayVeth.Name, gatewayVeth.Index, tc.gatewayNetns.Path())
+
+	tc.hostVeth = hostVeth
+	tc.gatewayVeth = gatewayVeth
+
+	// Configure hostveth.
+	if err = liqonetns.ConfigureVeth(&hostVeth, liqoconst.GatewayVethIPAddr, gatewayVeth.HardwareAddr, tc.hostNetns); err != nil {
 		return err
 	}
-	// Enable arp proxy for liqo.host veth interface.
-	var configureHostNetns = func(netNamespace ns.NetNS) error {
-		if err := liqorouting.EnableProxyArp(hostVethName); err != nil {
-			return err
-		}
-		klog.Infof("enabled proxy arp for veth device {%s}", hostVethName)
-		// Get veth interface.
-		veth, err := netlink.LinkByName(hostVethName)
-		if err != nil {
-			return err
-		}
-		tc.hostVeth = veth
-		if _, err := liqorouting.AddRoute(gatewayVethIPAddr, "", veth.Attrs().Index, 0); err != nil {
-			return err
-		}
-		klog.Infof("added route for destination {%s} on device {%s}", gatewayVethIPAddr, hostVethName)
+
+	// Configure gatewayveth.
+	return liqonetns.ConfigureVeth(&gatewayVeth, liqoconst.HostVethIPAddr, hostVeth.HardwareAddr, tc.gatewayNetns)
+}
+
+func (tc *TunnelController) updateStatus(con *netv1alpha1.Connection, tep *netv1alpha1.TunnelEndpoint) error {
+	if reflect.DeepEqual(*con, tep.Status.Connection) && tep.Status.GatewayIP == tc.podIP &&
+		tep.Status.VethIFaceIndex == tc.hostVeth.Index && tep.Status.VethIP == liqoconst.GatewayVethIPAddr {
 		return nil
 	}
-	if err = tc.hostNetns.Do(configureHostNetns); err != nil {
+
+	tep.Status.Connection = *con
+	tep.Status.GatewayIP = tc.podIP
+	tep.Status.VethIFaceIndex = tc.hostVeth.Index
+	tep.Status.VethIFaceName = tc.hostVeth.Name
+	tep.Status.VethIP = liqoconst.GatewayVethIPAddr
+
+	if err := tc.Status().Update(context.Background(), tep); err != nil {
+		if k8sApiErrors.IsConflict(err) {
+			klog.V(4).Infof("%s -> unable to update status for resource %s: %v", tep.Spec.ClusterID, tep.Name, err)
+			return nil
+		}
+		klog.Errorf("%s -> an error occurred while updating status for resource %s: %v", tep.Spec.ClusterID, tep.Name, err)
 		return err
 	}
+
 	return nil
 }
 
 // CleanUpConfiguration removes the veth pair existing in the host network and then removes the
 // custom network namespace.
-func (tc *TunnelController) CleanUpConfiguration(netnsName, hostVethName string) {
-	// List all the tunnel endpoints resources.
-	var deleteDeviceByName = func(netNamespace ns.NetNS) error {
-		klog.V(4).Infof("deleting device {%s}", hostVethName)
-		link, err := netlink.LinkByName(hostVethName)
-		if err != nil && err.Error() != ("Link not found") {
-			return err
-		}
-		if err == nil {
-			return netlink.LinkDel(link)
-		}
-		return nil
-	}
-	if err := tc.hostNetns.Do(deleteDeviceByName); err != nil {
-		klog.Errorf("an error occurred while deleting network interface {%s} in host network namespace: %v", hostVethName, err)
-	}
-	var deletePRRFromHostNS = func(netNamespace ns.NetNS) error {
-		// First we list all the policy routing rules.
-		rules, err := netlink.RuleList(netlink.FAMILY_V4)
-		if err != nil {
-			return err
-		}
-		// Delete all the listed rules that refer to the given routing table.
-		for i := range rules {
-			// Skip the rules not referring to the given routing table.
-			if rules[i].Table == liqoconst.RoutingTableID && rules[i].Src != nil {
-				klog.V(4).Infof("deleting rules {%s}", rules[i].String())
-				if err := netlink.RuleDel(&rules[i]); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	}
-	if err := tc.hostNetns.Do(deletePRRFromHostNS); err != nil {
-		klog.Errorf("an error occurred while deleting policy routing rules: %v", err)
+func (tc *TunnelController) CleanUpConfiguration(netnsName string) {
+	klog.Infof("cleaning up...")
+
+	klog.V(4).Infof("deleting neigh entry with mac {%s} and dst {%s} on device {%s}",
+		tc.gatewayVeth.HardwareAddr.String(), liqoconst.GatewayVethIPAddr, tc.hostVeth.Name)
+	if _, err := liqonetns.DelNeigh(net.ParseIP(liqoconst.GatewayVethIPAddr), tc.gatewayVeth.HardwareAddr, &tc.hostVeth); err != nil {
+		klog.Errorf("an error occurred while deleting neigh entry with mac {%s} and dst {%s} on device {%s}: %v",
+			tc.gatewayVeth.HardwareAddr.String(), liqoconst.GatewayVethIPAddr, tc.hostVeth.Name, err)
 	}
 
-	klog.V(4).Infof("deleting namespace {%s}", netnsName)
+	klog.V(4).Infof("deleting interface {%s} with index {%d} in namespace {%s}",
+		tc.gatewayVeth.Name, tc.gatewayVeth.Index, tc.hostNetns.Path())
+	if err := netlink.LinkDel(&netlink.Veth{LinkAttrs: netlink.LinkAttrs{Index: tc.hostVeth.Index}}); err != nil {
+		klog.Errorf("an error occurred while deleting interface {%s} with index {%d} in namespace {%s}: %v",
+			tc.gatewayVeth.Name, tc.gatewayVeth.Index, tc.hostNetns.Path(), err)
+	}
+
+	klog.V(4).Infof("deleting network namespace {%s} with path {%s}", netnsName, tc.gatewayNetns.Path())
 	if err := liqonetns.DeleteNetns(netnsName); err != nil {
-		klog.Errorf("an error occurred while deleting gateway network namespace: %v", err)
+		klog.Errorf("an error occurred while deleting network namespace {%s} with path {%s}: %v",
+			netnsName, tc.gatewayNetns.Path(), err)
 	}
-	teps := new(netv1alpha1.TunnelEndpointList)
-	if err := tc.List(context.TODO(), teps); err != nil {
-		klog.Errorf("an error occurred while listing tunnelendpoints objects: %v", err)
-	} else {
-		for i := range teps.Items {
-			tep := teps.Items[i]
-			controllerutil.RemoveFinalizer(&tep, tc.finalizer)
-			patch, err := json.Marshal(map[string]map[string][]string{"metadata": {"finalizers": tep.GetFinalizers()}})
-			if err != nil {
-				klog.Errorf("unable to marshal finalizers of object {%s/%s}: %v", tep.Namespace, tep.Name, err)
-				break
-			}
-			if err := tc.Patch(context.TODO(), &teps.Items[i], client.RawPatch(types.MergePatchType, patch)); err != nil {
-				klog.Errorf("an error occurred while removing finalizer from object {%s/%s}: %v", tep.Namespace, tep.Name, err)
-			}
-		}
-	}
-}
-
-func (tc *TunnelController) configureGatewayNetns(ifaceName, ipAddress string, gatewayNs ns.NetNS) error {
-	var defaultCIDR = "0.0.0.0/0"
-	configuration := func(netNamespace ns.NetNS) error {
-		// Get veth interface.
-		veth, err := netlink.LinkByName(ifaceName)
-		if err != nil {
-			return err
-		}
-		tc.gatewayVeth = veth
-		// Parse the ip address.
-		_, ipNet, err := net.ParseCIDR(ipAddress)
-		if err != nil {
-			return err
-		}
-		// Add address to interface
-		if err := netlink.AddrAdd(veth, &netlink.Addr{IPNet: ipNet}); err != nil {
-			return err
-		}
-		klog.Infof("configured IP address {%s} on device {%s} in network namespace {%s}",
-			ipAddress, ifaceName, liqoconst.GatewayNetnsName)
-		// Add default route to use the veth interface.
-		if _, err := liqorouting.AddRoute(defaultCIDR, "", veth.Attrs().Index, 0); err != nil {
-			return err
-		}
-		klog.Infof("added route for destination {%s} on device {%s} in network namespace {%s}",
-			defaultCIDR, ifaceName, liqoconst.GatewayNetnsName)
-		// Enable arp proxy for liqo.gateway veth interface in liqo-gateway network.
-		if err := liqorouting.EnableProxyArp(liqoconst.GatewayVethName); err != nil {
-			return err
-		}
-		klog.Infof("enabled proxy arp for veth device {%s} in network namespace {%s}",
-			ifaceName, liqoconst.GatewayNetnsName)
-		// Enable ip forwarding in the gateway namespace.
-		if err := liqorouting.EnableIPForwarding(); err != nil {
-			return err
-		}
-		klog.Infof("enabled ipv4 forwarding in namespace {%s}", liqoconst.GatewayNetnsName)
-		return nil
-	}
-	return gatewayNs.Do(configuration)
 }
