@@ -176,31 +176,22 @@ var _ = Describe("VxlanRouting", func() {
 			It("route configuration fails while adding policy routing rule for PodCIDR", func() {
 				tepVRM.Spec.RemoteNATPodCIDR = ""
 				added, err := vrm.EnsureRoutesPerCluster(&tepVRM)
-				Expect(err).Should(Equal(&liqoerrors.WrongParameter{
-					Parameter: "fromSubnet and toSubnet",
-					Reason:    liqoerrors.AtLeastOneValid,
-				}))
 				Expect(added).Should(BeFalse())
-				Expect(err).NotTo(BeNil())
+				Expect(err).Should(HaveOccurred())
 			})
 
 			It("route configuration fails while adding policy routing rule for ExternalCIDR", func() {
 				tepVRM.Spec.RemoteNATExternalCIDR = ""
 				added, err := vrm.EnsureRoutesPerCluster(&tepVRM)
-				Expect(err).Should(Equal(&liqoerrors.WrongParameter{
-					Parameter: "fromSubnet and toSubnet",
-					Reason:    liqoerrors.AtLeastOneValid,
-				}))
 				Expect(added).Should(BeFalse())
-				Expect(err).NotTo(BeNil())
+				Expect(err).Should(HaveOccurred())
 			})
 
 			It("route configuration fails while adding route", func() {
 				tepVRM.Status.GatewayIP = ipAddress1NoSubnet
 				added, err := vrm.EnsureRoutesPerCluster(&tepVRM)
-				Expect(err).Should(Equal(unix.ENODEV))
 				Expect(added).Should(BeFalse())
-				Expect(err).NotTo(BeNil())
+				Expect(err).Should(HaveOccurred())
 			})
 		})
 	})
@@ -263,22 +254,14 @@ var _ = Describe("VxlanRouting", func() {
 			It("fails to remove route configuration while removing policy routing rule for PodCIDR", func() {
 				tepVRM.Spec.RemoteNATPodCIDR = ""
 				added, err := vrm.RemoveRoutesPerCluster(&tepVRM)
-				Expect(err).Should(Equal(&liqoerrors.WrongParameter{
-					Parameter: "fromSubnet and toSubnet",
-					Reason:    liqoerrors.AtLeastOneValid,
-				}))
 				Expect(added).Should(BeFalse())
-				Expect(err).NotTo(BeNil())
+				Expect(err).Should(HaveOccurred())
 			})
 			It("fails to remove route configuration while removing policy routing rule for ExternalCIDR", func() {
 				tepVRM.Spec.RemoteNATExternalCIDR = ""
 				added, err := vrm.RemoveRoutesPerCluster(&tepVRM)
-				Expect(err).Should(Equal(&liqoerrors.WrongParameter{
-					Parameter: "fromSubnet and toSubnet",
-					Reason:    liqoerrors.AtLeastOneValid,
-				}))
 				Expect(added).Should(BeFalse())
-				Expect(err).NotTo(BeNil())
+				Expect(err).Should(HaveOccurred())
 			})
 		})
 
@@ -309,8 +292,9 @@ var _ = Describe("VxlanRouting", func() {
 
 			It("route configuration should be correctly removed from veth pair", func() {
 				tepVRM.Spec.RemoteNATPodCIDR = existingRoutesVRM[1].Dst.String()
-				tepVRM.Spec.RemoteNATPodCIDR = existingRoutesVRM[0].Dst.String()
+				tepVRM.Spec.RemoteNATExternalCIDR = existingRoutesVRM[0].Dst.String()
 				tepVRM.Status.GatewayIP = ipAddress1NoSubnet
+				tepVRM.Status.VethIP = existingRoutesVRM[1].Gw.String()
 				tepVRM.Status.VethIFaceIndex = overlayDevice.Link.Index
 				added, err := vrm.RemoveRoutesPerCluster(&tepVRM)
 				Expect(err).ShouldNot(HaveOccurred())

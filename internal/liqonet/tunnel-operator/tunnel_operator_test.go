@@ -15,8 +15,6 @@
 package tunneloperator
 
 import (
-	"net"
-
 	"github.com/containernetworking/plugins/pkg/ns"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -41,8 +39,7 @@ var _ = Describe("TunnelOperator", func() {
 				}
 			})
 			It("should return nil", func() {
-				err := tc.setUpGWNetns(liqoconst.GatewayNetnsName, liqoconst.HostVethName, liqoconst.GatewayVethName,
-					"169.254.1.134/32", 1420)
+				err := tc.setUpGWNetns(liqoconst.HostVethName, liqoconst.GatewayVethName, 1420)
 				Expect(err).ShouldNot(HaveOccurred())
 				// Check that we have the veth interface in host namespace
 				err = tc.hostNetns.Do(func(ns ns.NetNS) error {
@@ -58,24 +55,15 @@ var _ = Describe("TunnelOperator", func() {
 					link, err := netlink.LinkByName(liqoconst.GatewayVethName)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(link.Attrs().MTU).Should(BeNumerically("==", 1420))
-					addresses, err := netlink.AddrList(link, netlink.FAMILY_V4)
-					Expect(addresses[0].IPNet.String()).Should(Equal("169.254.1.134/32"))
-					Expect(err).ShouldNot(HaveOccurred())
-
 					return nil
 				})
 			})
 
 			It("incorrect name for veth interface, should return error", func() {
-				err := tc.setUpGWNetns(liqoconst.GatewayNetnsName, "", liqoconst.GatewayVethName, "169.254.1.134/24", 1420)
+				err := tc.setUpGWNetns("", liqoconst.GatewayVethName, 1420)
 				Expect(err).Should(HaveOccurred())
-				Expect(err).Should(MatchError("failed to make veth pair: LinkAttrs.Name cannot be empty"))
-			})
-
-			It("incorrect ip address for veth interface, should return error", func() {
-				err := tc.setUpGWNetns(liqoconst.GatewayNetnsName, liqoconst.HostVethName, liqoconst.GatewayVethName, "169.254.1.1.34/24", 1420)
-				Expect(err).Should(HaveOccurred())
-				Expect(err).Should(MatchError(&net.ParseError{Text: "169.254.1.1.34/24", Type: "CIDR address"}))
+				Expect(err).Should(MatchError("an error occurred while creating veth pair between host and gateway namespace: " +
+					"failed to make veth pair: LinkAttrs.Name cannot be empty"))
 			})
 		})
 	})

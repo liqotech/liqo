@@ -81,13 +81,13 @@ func (drm *DirectRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelE
 	// Add routes for the given cluster.
 	klog.Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d}",
 		clusterID, dstPodCIDR, gatewayIP, drm.routingTableID)
-	routePodCIDRAdd, err = AddRoute(dstPodCIDR, gatewayIP, iFaceIndex, drm.routingTableID)
+	routePodCIDRAdd, err = AddRoute(dstPodCIDR, gatewayIP, iFaceIndex, drm.routingTableID, DefaultFlags, DefaultScope)
 	if err != nil {
 		return routePodCIDRAdd, err
 	}
 	klog.Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d}",
 		clusterID, dstExternalCIDR, gatewayIP, drm.routingTableID)
-	routeExternalCIDRAdd, err = AddRoute(dstExternalCIDR, gatewayIP, iFaceIndex, drm.routingTableID)
+	routeExternalCIDRAdd, err = AddRoute(dstExternalCIDR, gatewayIP, iFaceIndex, drm.routingTableID, DefaultFlags, DefaultScope)
 	if err != nil {
 		return routeExternalCIDRAdd, err
 	}

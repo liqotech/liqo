@@ -66,6 +66,7 @@ type TunnelEndpointStatus struct {
 	TunnelIFaceName  string     `json:"tunnelIFaceName,omitempty"`
 	VethIFaceIndex   int        `json:"vethIFaceIndex,omitempty"`
 	VethIFaceName    string     `json:"vethIFaceName,omitempty"`
+	VethIP           string     `json:"vethIP,omitempty"`
 	GatewayIP        string     `json:"gatewayIP,omitempty"`
 	Connection       Connection `json:"connection,omitempty"`
 }

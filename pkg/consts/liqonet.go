@@ -58,13 +58,17 @@ const (
 	// HostVethName name of the veth device living in the host network namespace,
 	// on the node where liqo-gateway is running.
 	HostVethName = "liqo.host"
+	// HostVethIPAddr is used as next hop when configuring routes for traffic coming
+	// from the gateway namespace. A trick to prevent arp requests for the traffic going
+	// through the veth pair.
+	HostVethIPAddr = "169.254.100.2"
 	// GatewayVethName nome of the veth device living in the custom network namespace
 	// created by liqo-gateway.
 	GatewayVethName = "liqo.gateway"
-	// GatewayVethIPAddr ip address configured on gateway veth device. It is link local
-	// IP address. No traffic leaving the custom network namespace has as source IP this
-	// address.
-	GatewayVethIPAddr = "169.254.100.1/32"
+	// GatewayVethIPAddr is used as next hop when configuring routes for traffic coming
+	// from the host namespace. A trick to prevent arp requests for the traffic going
+	// through the veth pair.
+	GatewayVethIPAddr = "169.254.100.1"
 	// VxlanDeviceName name used for the vxlan devices created on each node by the instances
 	// of liqo-route.
 	VxlanDeviceName = "liqo.vxlan"

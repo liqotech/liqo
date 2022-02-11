@@ -487,6 +487,7 @@ func (w *Wireguard) setKeys(c k8s.Interface, namespace string) error {
 
 // SetNewClient set a new client used to interact with the wireguard device.
 func (w *Wireguard) SetNewClient() error {
+
 	c, err := wgctrl.New()
 	if err != nil {
 		if os.IsNotExist(err) {
