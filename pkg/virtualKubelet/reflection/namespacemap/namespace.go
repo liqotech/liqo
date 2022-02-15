@@ -38,6 +38,9 @@ type Handler struct {
 	lister          vkv1alpha1listers.NamespaceMapNamespaceLister
 	informerFactory liqoinformers.SharedInformerFactory
 
+	// This map contains the list of namespaces that transitioned from the Accepted to the CreationLoopBackoffStatus.
+	temporaryErrors map[string]struct{}
+
 	namespaceStartStopper manager.NamespaceStartStopper
 }
 
@@ -53,6 +56,7 @@ func NewHandler(homeLiqoClient liqoclient.Interface, namespace string, resyncPer
 	return &Handler{
 		informerFactory: localLiqoInformerFactory,
 		lister:          localLiqoInformerFactory.Virtualkubelet().V1alpha1().NamespaceMaps().Lister().NamespaceMaps(namespace),
+		temporaryErrors: map[string]struct{}{},
 	}
 }
 
@@ -104,7 +108,11 @@ func (nh *Handler) onUpdateNamespaceMap(oldObj, newObj interface{}) {
 	for localNs, oldRemoteNamespaceStatus := range oldNamespaceMap.Status.CurrentMapping {
 		newRemoteNamespaceStatus, newRemoteNamespaceStatusFound := newNamespaceMap.Status.CurrentMapping[localNs]
 		if !newRemoteNamespaceStatusFound || newRemoteNamespaceStatus.Phase != vkv1alpha1.MappingAccepted {
-			nh.stopNamespace(localNs, oldRemoteNamespaceStatus)
+			if newRemoteNamespaceStatusFound && newRemoteNamespaceStatus.Phase == vkv1alpha1.MappingCreationLoopBackOff {
+				nh.failingNamespace(localNs, oldRemoteNamespaceStatus)
+			} else {
+				nh.stopNamespace(localNs, oldRemoteNamespaceStatus)
+			}
 		}
 	}
 
@@ -137,16 +145,39 @@ func (nh *Handler) startNamespace(localNs string, remoteNamespaceStatus vkv1alph
 	}
 
 	remoteNs := remoteNamespaceStatus.RemoteNamespace
+	if _, found := nh.temporaryErrors[localNs]; found {
+		// The reflection for this namespace was already running, but it was marked as failing due to a temporary error.
+		klog.Infof("Previously failing remote namespace %s (local: %s) has been marked ready again", remoteNs, localNs)
+		delete(nh.temporaryErrors, localNs)
+		return
+	}
+
 	klog.V(3).Infof("Enabling reflection for remote namespace %s for local namespace %s", remoteNs, localNs)
 	nh.namespaceStartStopper.StartNamespace(localNs, remoteNs)
 }
 
 func (nh *Handler) stopNamespace(localNs string, remoteNamespaceStatus vkv1alpha1.RemoteNamespaceStatus) {
+	if remoteNamespaceStatus.Phase == vkv1alpha1.MappingTerminating {
+		return
+	}
+
+	remoteNs := remoteNamespaceStatus.RemoteNamespace
+	if _, found := nh.temporaryErrors[localNs]; !found && remoteNamespaceStatus.Phase == vkv1alpha1.MappingCreationLoopBackOff {
+		// The namespace was in CreationLoopBackOff phase, but that was not marked as a temporary error.
+		return
+	}
+
+	klog.V(3).Infof("Stopping reflection for remote namespace %s for local namespace %s", remoteNs, localNs)
+	delete(nh.temporaryErrors, localNs)
+	nh.namespaceStartStopper.StopNamespace(localNs, remoteNs)
+}
+
+func (nh *Handler) failingNamespace(localNs string, remoteNamespaceStatus vkv1alpha1.RemoteNamespaceStatus) {
 	if remoteNamespaceStatus.Phase != vkv1alpha1.MappingAccepted {
 		return
 	}
 
 	remoteNs := remoteNamespaceStatus.RemoteNamespace
-	klog.V(3).Infof("Stopping reflection for remote namespace %s for local namespace %s", remoteNs, localNs)
-	nh.namespaceStartStopper.StopNamespace(localNs, remoteNs)
+	klog.Infof("Previously ready remote namespace %s (local: %s) has been temporarily marked as failing", remoteNs, localNs)
+	nh.temporaryErrors[localNs] = struct{}{}
 }

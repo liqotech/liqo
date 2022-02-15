@@ -104,8 +104,10 @@ var _ = Describe("NamespaceMapEventHandler tests", func() {
 	})
 
 	Describe("updateNamespaceMap", func() {
+		var oldNamespaceMap, newNamespaceMap *vkv1alpha1.NamespaceMap
+
 		BeforeEach(func() {
-			oldNamespaceMap := &vkv1alpha1.NamespaceMap{
+			oldNamespaceMap = &vkv1alpha1.NamespaceMap{
 				Status: vkv1alpha1.NamespaceMapStatus{
 					CurrentMapping: map[string]vkv1alpha1.RemoteNamespaceStatus{
 						"mappingAcceptedlocalNs1": {
@@ -132,10 +134,15 @@ var _ = Describe("NamespaceMapEventHandler tests", func() {
 							RemoteNamespace: "remoteNs6",
 							Phase:           vkv1alpha1.MappingAccepted,
 						},
+						"mappingAcceptedlocalNsThatWillTerminate": {
+							RemoteNamespace: "remoteNs7",
+							Phase:           vkv1alpha1.MappingAccepted,
+						},
 					},
 				},
 			}
-			newNamespaceMap := &vkv1alpha1.NamespaceMap{
+
+			newNamespaceMap = &vkv1alpha1.NamespaceMap{
 				Status: vkv1alpha1.NamespaceMapStatus{
 					CurrentMapping: map[string]vkv1alpha1.RemoteNamespaceStatus{
 						"mappingAcceptedlocalNs1": {
@@ -158,18 +165,25 @@ var _ = Describe("NamespaceMapEventHandler tests", func() {
 							RemoteNamespace: "remoteNs6",
 							Phase:           vkv1alpha1.MappingCreationLoopBackOff,
 						},
-						"newMappingAcceptedlocalNs2": {
+						"mappingAcceptedlocalNsThatWillTerminate": {
 							RemoteNamespace: "remoteNs7",
+							Phase:           vkv1alpha1.MappingTerminating,
+						},
+						"newMappingAcceptedlocalNs2": {
+							RemoteNamespace: "remoteNs8",
 							Phase:           vkv1alpha1.MappingAccepted,
 						},
 					},
 				},
 			}
+		})
+
+		JustBeforeEach(func() {
 			nmh.onUpdateNamespaceMap(oldNamespaceMap, newNamespaceMap)
 		})
 
 		It("should call manager.StartNamespace for every namespace that is not in the old NamespaceMap", func() {
-			Expect(fakeManager.StartNamespaceArgumentsCall).To(HaveKeyWithValue("newMappingAcceptedlocalNs2", "remoteNs7"))
+			Expect(fakeManager.StartNamespaceArgumentsCall).To(HaveKeyWithValue("newMappingAcceptedlocalNs2", "remoteNs8"))
 		})
 
 		It("should call manager.StartNamespace for every namespace that has just transitioned to MappingAccepted phase", func() {
@@ -184,12 +198,46 @@ var _ = Describe("NamespaceMapEventHandler tests", func() {
 			Expect(fakeManager.StopNamespaceArgumentsCall).To(HaveKeyWithValue("oldMappingAcceptedlocalNs2", "remoteNs4"))
 		})
 
-		It("should call manager.StopNamespace for every namespace that has just transitioned away from MappingAccepted phase", func() {
-			Expect(fakeManager.StopNamespaceArgumentsCall).To(HaveKeyWithValue("mappingAcceptedlocalNsThatWillCrash", "remoteNs6"))
+		It("should call manager.StopNamespace for every namespace that transitioned from the MappingAccepted to the MappingTerminating phase", func() {
+			Expect(fakeManager.StopNamespaceArgumentsCall).To(HaveKeyWithValue("mappingAcceptedlocalNsThatWillTerminate", "remoteNs7"))
 		})
 
 		It("should call manager.StopNamespace for every namespace to stop only", func() {
 			Expect(fakeManager.StopNamespaceCalled).To(BeIdenticalTo(2))
+		})
+
+		Describe("namespaces transitioning from the MappingAccepted to the MappingCreationLoopBackOff phase", func() {
+			It("should not call manager.StopNamespace", func() {
+				Expect(fakeManager.StopNamespaceArgumentsCall).ToNot(HaveKeyWithValue("mappingAcceptedlocalNsThatWillCrash", "remoteNs6"))
+			})
+
+			Describe("the failing namespace transitions to a different phase", func() {
+				var transitionPhase vkv1alpha1.MappingPhase
+
+				JustBeforeEach(func() {
+					oldNamespaceMap = newNamespaceMap.DeepCopy()
+					newNamespaceMap.Status.CurrentMapping["mappingAcceptedlocalNsThatWillCrash"] = vkv1alpha1.RemoteNamespaceStatus{
+						RemoteNamespace: "remoteNs6", Phase: transitionPhase,
+					}
+					nmh.onUpdateNamespaceMap(oldNamespaceMap, newNamespaceMap)
+				})
+
+				When("the phase is MappingAccepted", func() {
+					BeforeEach(func() { transitionPhase = vkv1alpha1.MappingAccepted })
+
+					It("should not call manager.StartNamespace", func() {
+						Expect(fakeManager.StartNamespaceArgumentsCall).ToNot(HaveKeyWithValue("mappingAcceptedlocalNsThatWillCrash", "remoteNs6"))
+					})
+				})
+
+				When("the phase is MappingTerminating", func() {
+					BeforeEach(func() { transitionPhase = vkv1alpha1.MappingTerminating })
+
+					It("should call manager.StopNamespace", func() {
+						Expect(fakeManager.StopNamespaceArgumentsCall).To(HaveKeyWithValue("mappingAcceptedlocalNsThatWillCrash", "remoteNs6"))
+					})
+				})
+			})
 		})
 	})
 })
