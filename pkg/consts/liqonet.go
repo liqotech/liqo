@@ -24,18 +24,6 @@ const (
 	// NatMappingKind is the constant representing
 	// the value of the Kind field of all NatMapping resources.
 	NatMappingKind = "NatMapping"
-	// NatMappingResourceLabelKey is the constant representing
-	// the key of the label assigned to all NatMapping resources.
-	NatMappingResourceLabelKey = "net.liqo.io/natmapping"
-	// NatMappingResourceLabelValue is the constant representing
-	// the value of the label assigned to all NatMapping resources.
-	NatMappingResourceLabelValue = "true"
-	// IpamStorageResourceLabelKey is the constant representing
-	// the key of the label assigned to all IpamStorage resources.
-	IpamStorageResourceLabelKey = "net.liqo.io/ipamstorage"
-	// IpamStorageResourceLabelValue is the constant representing
-	// the value of the label assigned to all IpamStorage resources.
-	IpamStorageResourceLabelValue = "true"
 	// RoutingTableID used to identify the custom routing table used
 	// to configure the routes on the k8s nodes by route operator.
 	RoutingTableID = 18952
@@ -105,4 +93,12 @@ const (
 	DefaultMTU = 1440
 	// GatewayListeningPort port used by the vpn tunnel.
 	GatewayListeningPort = 5871
+
+	// **** Liqo Gateway Service ****.
+
+	// GatewayServiceAnnotationKey used to annotate the Gateway service with the IP of the node where the
+	// active gateway is running.
+	GatewayServiceAnnotationKey = "net.liqo.io/gatewayNodeIP"
+	// NetworkConfigNamePrefix prefix used to generate the names of the networkconfigs.
+	NetworkConfigNamePrefix = "net-config-"
 )

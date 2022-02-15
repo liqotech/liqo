@@ -30,10 +30,11 @@ const (
 	identitySecretRoot      = "liqo-identity"
 	remoteCertificateSecret = "liqo-remote-certificate"
 
-	privateKeySecretKey   = "private-key"
-	csrSecretKey          = "csr"
-	certificateSecretKey  = "certificate"
-	apiServerURLSecretKey = "apiServerUrl"
+	privateKeySecretKey  = "private-key"
+	csrSecretKey         = "csr"
+	certificateSecretKey = "certificate"
+	// APIServerURLSecretKey key used for the api server url inside the secret.
+	APIServerURLSecretKey = "apiServerUrl"
 	apiProxyURLSecretKey  = "proxyURL"
 	apiServerCaSecretKey  = "apiServerCa"
 	namespaceSecretKey    = "namespace"

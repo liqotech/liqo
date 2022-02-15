@@ -23,12 +23,15 @@ const (
 	ClusterIDConfigMapKey = "CLUSTER_ID"
 	// ClusterNameConfigMapKey is the key of the configmap where the cluster-name is stored.
 	ClusterNameConfigMapKey = "CLUSTER_NAME"
+	// ClusterIDConfigMapNameLabelKey key of the configmap used to get it by label.
+	ClusterIDConfigMapNameLabelKey = "app.kubernetes.io/name"
+	// ClusterIDConfigMapNameLabelValue value of the name key of the configmap used to get it by label.
+	ClusterIDConfigMapNameLabelValue = "clusterid-configmap"
 )
 
 // ClusterIDConfigMapSelector returns the selector for the configmap where the cluster-id is stored.
 func ClusterIDConfigMapSelector() labels.Selector {
 	return labels.SelectorFromSet(labels.Set{
-		"app.kubernetes.io/component": "clusterid-configmap",
-		"app.kubernetes.io/name":      "clusterid-configmap",
+		ClusterIDConfigMapNameLabelKey: ClusterIDConfigMapNameLabelValue,
 	})
 }

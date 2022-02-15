@@ -115,7 +115,7 @@ func (certManager *identityManager) StoreCertificate(remoteCluster discoveryv1al
 		secret.Data[apiServerCaSecretKey] = apiServerCa
 	}
 
-	secret.Data[apiServerURLSecretKey] = []byte(identityResponse.APIServerURL)
+	secret.Data[APIServerURLSecretKey] = []byte(identityResponse.APIServerURL)
 	if remoteProxyURL != "" {
 		secret.StringData[apiProxyURLSecretKey] = remoteProxyURL
 	}

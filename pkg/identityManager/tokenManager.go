@@ -102,7 +102,7 @@ func (tokMan *iamTokenManager) getConfig(secret *v1.Secret, remoteCluster discov
 		return nil, err
 	}
 
-	clusterEndpoint, err := getValue(secret, apiServerURLSecretKey, remoteCluster)
+	clusterEndpoint, err := getValue(secret, APIServerURLSecretKey, remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

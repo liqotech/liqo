@@ -33,7 +33,7 @@ func AddDriver(name string, driverCreate DriverCreateFunc) {
 	if Drivers[name] != nil {
 		klog.Fatalf("Multiple tunnel drivers attempting to register with name %q", name)
 	}
-	klog.Infof("driver for %s VPN successfully registered", name)
+	klog.V(5).Infof("driver for %s VPN successfully registered", name)
 	Drivers[name] = driverCreate
 }
 

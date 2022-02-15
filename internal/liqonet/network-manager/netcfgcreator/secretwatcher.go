@@ -18,9 +18,7 @@ import (
 	"context"
 	"sync"
 
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -29,6 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	"github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // SecretWatcher reconciles Secret objects to retrieve the Wireguard public key.
@@ -98,13 +98,7 @@ func (sw *SecretWatcher) Handlers() handler.EventHandler {
 
 // Predicates returns the set of predicates used for the Watch configuration.
 func (sw *SecretWatcher) Predicates() predicate.Predicate {
-	secretsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{{
-			Key:      wireguard.KeysLabel,
-			Operator: metav1.LabelSelectorOpIn,
-			Values:   []string{wireguard.DriverName},
-		}},
-	})
+	secretsPredicate, err := predicate.LabelSelectorPredicate(liqolabels.WireGuardSecretLabelSelector)
 	utilruntime.Must(err)
 
 	return secretsPredicate
@@ -117,15 +111,9 @@ func (sw *SecretWatcher) handle(secret *corev1.Secret, rli workqueue.RateLimitin
 	sw.Lock()
 	defer sw.Unlock()
 
-	// Extract the public key from the secret
-	pubKeyByte, found := secret.Data[wireguard.PublicKey]
-	if !found {
-		klog.Errorf("No data with key %s found in secret %q", wireguard.PublicKey, klog.KObj(secret))
-		return
-	}
-	pubKey, err := wgtypes.ParseKey(string(pubKeyByte))
+	pubKey, err := getters.RetrieveWGPubKeyFromSecret(secret, wireguard.PublicKey)
 	if err != nil {
-		klog.Errorf("Secret %q: invalid public key: %v", klog.KObj(secret), err)
+		klog.Error(err)
 		return
 	}
 
