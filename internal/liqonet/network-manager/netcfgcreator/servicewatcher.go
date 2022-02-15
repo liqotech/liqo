@@ -16,11 +16,9 @@ package netcfgcreator
 
 import (
 	"context"
-	"strconv"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -28,15 +26,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
-)
-
-// These labels are the ones set during the deployment of liqo using the helm chart.
-// Any change to those labels on the helm chart has also to be reflected here.
-var (
-	serviceLabelKey      = "net.liqo.io/gateway"
-	serviceLabelValue    = "true"
-	serviceAnnotationKey = "net.liqo.io/gatewayNodeIP"
+	"github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // ServiceWatcher reconciles Service objects to retrieve the Wireguard endpoint.
@@ -107,13 +100,7 @@ func (sw *ServiceWatcher) Handlers() handler.EventHandler {
 
 // Predicates returns the set of predicates used for the Watch configuration.
 func (sw *ServiceWatcher) Predicates() predicate.Predicate {
-	secretsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{{
-			Key:      serviceLabelKey,
-			Operator: metav1.LabelSelectorOpIn,
-			Values:   []string{serviceLabelValue},
-		}},
-	})
+	secretsPredicate, err := predicate.LabelSelectorPredicate(liqolabels.GatewayServiceLabelSelector)
 	utilruntime.Must(err)
 
 	return secretsPredicate
@@ -127,21 +114,16 @@ func (sw *ServiceWatcher) handle(service *corev1.Service, rli workqueue.RateLimi
 	defer sw.Unlock()
 
 	var ip, port string
-	var retrieved bool
+	var err error
 
-	switch service.Spec.Type {
-	case corev1.ServiceTypeNodePort:
-		ip, port, retrieved = sw.retrieveFromNodePort(service)
-	case corev1.ServiceTypeLoadBalancer:
-		ip, port, retrieved = sw.retrieveFromLoadBalancer(service)
-	default:
-		klog.Errorf("Service %q is of type %s, only types of %s and %s are accepted",
-			klog.KObj(service), service.Spec.Type, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort)
+	if ip, port, err = getters.RetrieveWGEPFromService(service, liqoconst.GatewayServiceAnnotationKey,
+		wireguard.DriverName); err != nil {
+		klog.Error(err)
 		return
 	}
 
 	// The endpoint did not change, nothing to do
-	if !retrieved || (ip == sw.endpointIP && port == sw.endpointPort) {
+	if ip == sw.endpointIP && port == sw.endpointPort {
 		return
 	}
 
@@ -156,56 +138,4 @@ func (sw *ServiceWatcher) handle(service *corev1.Service, rli workqueue.RateLimi
 
 	// Enqueue all foreign clusters for update (which in turn update the respective network configs)
 	sw.enqueuefn(rli)
-}
-
-// retrieveFromNodePort retrieves the Wireguard endpoint from a NodePort service.
-func (sw *ServiceWatcher) retrieveFromNodePort(service *corev1.Service) (endpointIP, endpointPort string, retrieved bool) {
-	// Check if the node's IP where the gatewayPod is running has been set
-	endpointIP, retrieved = service.GetAnnotations()[serviceAnnotationKey]
-	if !retrieved {
-		klog.Warningf("The node IP where the gateway pod is running has not yet been set as an annotation for service %q", klog.KObj(service))
-		return endpointIP, endpointPort, false
-	}
-
-	// Check if the nodePort for wireguard has been set
-	for _, port := range service.Spec.Ports {
-		if port.Name == wireguard.DriverName {
-			if port.NodePort == 0 {
-				klog.Warningf("The NodePort for service %s has not yet been set", klog.KObj(service))
-				return endpointIP, endpointPort, false
-			}
-			endpointPort = strconv.FormatInt(int64(port.NodePort), 10)
-			return endpointIP, endpointPort, true
-		}
-	}
-
-	klog.Warningf("Port %s not found in service %q", wireguard.DriverName, klog.KObj(service))
-	return endpointIP, endpointPort, false
-}
-
-// retrieveFromLoadBalancer retrieves the Wireguard endpoint from a LoadBalancer service.
-func (sw *ServiceWatcher) retrieveFromLoadBalancer(service *corev1.Service) (endpointIP, endpointPort string, retrieved bool) {
-	// Check if the ingress IP has been set
-	if len(service.Status.LoadBalancer.Ingress) == 0 {
-		klog.Warningf("The ingress IP has not been set for service %q of type %s", klog.KObj(service), service.Spec.Type)
-		return endpointIP, endpointPort, false
-	}
-
-	// Retrieve the endpoint address
-	if service.Status.LoadBalancer.Ingress[0].IP != "" {
-		endpointIP = service.Status.LoadBalancer.Ingress[0].IP
-	} else if service.Status.LoadBalancer.Ingress[0].Hostname != "" {
-		endpointIP = service.Status.LoadBalancer.Ingress[0].Hostname
-	}
-
-	// Retrieve the endpoint port
-	for _, port := range service.Spec.Ports {
-		if port.Name == wireguard.DriverName {
-			endpointPort = strconv.FormatInt(int64(port.Port), 10)
-			return endpointIP, endpointPort, true
-		}
-	}
-
-	klog.Warningf("Port %s not found in service %q", wireguard.DriverName, klog.KObj(service))
-	return endpointIP, endpointPort, false
 }

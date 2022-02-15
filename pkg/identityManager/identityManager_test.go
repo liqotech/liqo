@@ -142,7 +142,7 @@ var _ = Describe("IdentityManager", func() {
 		apiServerCa, err := base64.StdEncoding.DecodeString(secretIdentityResponse.APIServerCA)
 		Expect(err).To(BeNil())
 		certificateSecretData[apiServerCaSecretKey] = string(apiServerCa)
-		certificateSecretData[apiServerURLSecretKey] = secretIdentityResponse.APIServerURL
+		certificateSecretData[APIServerURLSecretKey] = secretIdentityResponse.APIServerURL
 		certificateSecretData[apiProxyURLSecretKey] = apiProxyURL
 		certificateSecretData[namespaceSecretKey] = secretIdentityResponse.Namespace
 
@@ -174,7 +174,7 @@ var _ = Describe("IdentityManager", func() {
 		iamSecretData[awsRegionSecretKey] = iamIdentityResponse.AWSIdentityInfo.Region
 		iamSecretData[awsEKSClusterIDSecretKey] = iamIdentityResponse.AWSIdentityInfo.EKSClusterID
 		iamSecretData[awsIAMUserArnSecretKey] = iamIdentityResponse.AWSIdentityInfo.IAMUserArn
-		iamSecretData[apiServerURLSecretKey] = iamIdentityResponse.APIServerURL
+		iamSecretData[APIServerURLSecretKey] = iamIdentityResponse.APIServerURL
 		apiServerCa, err = base64.StdEncoding.DecodeString(iamIdentityResponse.APIServerCA)
 		Expect(err).To(BeNil())
 		iamSecretData[apiServerCaSecretKey] = string(apiServerCa)
@@ -442,7 +442,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("api server url has not been set", func() {
-			delete(secret.Data, apiServerURLSecretKey)
+			delete(secret.Data, APIServerURLSecretKey)
 			config, err := buildConfigFromSecret(secret, remoteCluster)
 			Expect(config).To(BeNil())
 			Expect(err).To(MatchError(notFoundError))
@@ -476,7 +476,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(err).To(BeNil())
 			Expect(config).NotTo(BeNil())
 			Expect(config.Proxy).NotTo(BeNil())
-			Expect(config.Host).To(Equal(certificateSecretData[apiServerURLSecretKey]))
+			Expect(config.Host).To(Equal(certificateSecretData[APIServerURLSecretKey]))
 			Expect(config.TLSClientConfig.CertData).To(Equal([]byte(certificateSecretData[certificateSecretKey])))
 			Expect(config.TLSClientConfig.CAData).To(Equal([]byte(certificateSecretData[apiServerCaSecretKey])))
 			Expect(config.TLSClientConfig.KeyData).To(Equal([]byte(certificateSecretData[privateKeySecretKey])))
@@ -506,7 +506,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("api server url has not been set", func() {
-			delete(secret.Data, apiServerURLSecretKey)
+			delete(secret.Data, APIServerURLSecretKey)
 			config, err := tokenManager.getConfig(secret, remoteCluster)
 			Expect(config).To(BeNil())
 			Expect(err).To(MatchError(notFoundError))
@@ -567,7 +567,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(err).To(BeNil())
 			Expect(config).NotTo(BeNil())
 			Expect(config.Proxy).NotTo(BeNil())
-			Expect(config.Host).To(Equal(iamSecretData[apiServerURLSecretKey]))
+			Expect(config.Host).To(Equal(iamSecretData[APIServerURLSecretKey]))
 			Expect(config.TLSClientConfig.CAData).To(Equal([]byte(iamSecretData[apiServerCaSecretKey])))
 		})
 

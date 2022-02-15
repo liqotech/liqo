@@ -114,9 +114,9 @@ func buildConfigFromSecret(secret *v1.Secret, remoteCluster discoveryv1alpha1.Cl
 		caData = nil
 	}
 
-	host, ok := secret.Data[apiServerURLSecretKey]
+	host, ok := secret.Data[APIServerURLSecretKey]
 	if !ok {
-		klog.Errorf("key %v not found in secret %v/%v", apiServerURLSecretKey, secret.Namespace, secret.Name)
+		klog.Errorf("key %v not found in secret %v/%v", APIServerURLSecretKey, secret.Namespace, secret.Name)
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
