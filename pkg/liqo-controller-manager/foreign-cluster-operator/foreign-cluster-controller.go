@@ -536,15 +536,18 @@ func (r *ForeignClusterReconciler) checkNetwork(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	// local NetworkConfig
 	labelSelector := map[string]string{liqoconst.ReplicationDestinationLabel: foreignCluster.Spec.ClusterIdentity.ClusterID}
-	if err := r.updateNetwork(ctx,
+	if established, err := r.updateNetwork(ctx,
 		labelSelector, foreignCluster, discoveryv1alpha1.NetworkStatusCondition); err != nil {
 		klog.Error(err)
 		return err
+	} else if !established {
+		// Given the first network config is not ready, it is not necessary to check the second
+		return nil
 	}
 
 	// remote NetworkConfig
 	labelSelector = map[string]string{liqoconst.ReplicationOriginLabel: foreignCluster.Spec.ClusterIdentity.ClusterID}
-	if err := r.updateNetwork(ctx, labelSelector, foreignCluster, discoveryv1alpha1.NetworkStatusCondition); err != nil {
+	if _, err := r.updateNetwork(ctx, labelSelector, foreignCluster, discoveryv1alpha1.NetworkStatusCondition); err != nil {
 		klog.Error(err)
 		return err
 	}
@@ -554,11 +557,11 @@ func (r *ForeignClusterReconciler) checkNetwork(ctx context.Context,
 
 func (r *ForeignClusterReconciler) updateNetwork(ctx context.Context,
 	labelSelector map[string]string, foreignCluster *discoveryv1alpha1.ForeignCluster,
-	conditionType discoveryv1alpha1.PeeringConditionType) error {
+	conditionType discoveryv1alpha1.PeeringConditionType) (established bool, err error) {
 	var netList netv1alpha1.NetworkConfigList
-	if err := r.Client.List(ctx, &netList, client.MatchingLabels(labelSelector)); err != nil {
+	if err = r.Client.List(ctx, &netList, client.MatchingLabels(labelSelector)); err != nil {
 		klog.Error(err)
-		return err
+		return false, err
 	}
 	if len(netList.Items) == 0 {
 		// no NetworkConfigs found
@@ -569,6 +572,7 @@ func (r *ForeignClusterReconciler) updateNetwork(ctx context.Context,
 		// there are NetworkConfigs
 		ncf := &netList.Items[0]
 		if ncf.Status.Processed {
+			established = true
 			peeringconditionsutils.EnsureStatus(foreignCluster,
 				conditionType, discoveryv1alpha1.PeeringConditionStatusEstablished,
 				networkConfigAvailableReason, fmt.Sprintf(networkConfigAvailableMessage, foreignCluster.Status.TenantNamespace.Local))
@@ -578,7 +582,7 @@ func (r *ForeignClusterReconciler) updateNetwork(ctx context.Context,
 				networkConfigPendingReason, fmt.Sprintf(networkConfigPendingMessage, foreignCluster.Status.TenantNamespace.Local))
 		}
 	}
-	return nil
+	return established, nil
 }
 
 func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
