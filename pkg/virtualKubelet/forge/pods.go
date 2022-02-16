@@ -85,6 +85,19 @@ func LocalRejectedPod(local *corev1.Pod, phase corev1.PodPhase, reason string) *
 func LocalRejectedPodStatus(local *corev1.PodStatus, phase corev1.PodPhase, reason string) corev1.PodStatus {
 	local.Phase = phase
 	local.Reason = reason
+
+	for i := range local.Conditions {
+		if local.Conditions[i].Status == corev1.ConditionTrue {
+			local.Conditions[i].Status = corev1.ConditionFalse
+			local.Conditions[i].Reason = reason
+			local.Conditions[i].LastTransitionTime = metav1.Now()
+		}
+	}
+
+	for i := range local.ContainerStatuses {
+		local.ContainerStatuses[i].Ready = false
+	}
+
 	return *local
 }
 
