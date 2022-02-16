@@ -107,12 +107,11 @@ func (nh *Handler) onUpdateNamespaceMap(oldObj, newObj interface{}) {
 	// - Are not in the new NamespaceMap but they have just transitioned from MappingAccepted phase to another phase.
 	for localNs, oldRemoteNamespaceStatus := range oldNamespaceMap.Status.CurrentMapping {
 		newRemoteNamespaceStatus, newRemoteNamespaceStatusFound := newNamespaceMap.Status.CurrentMapping[localNs]
-		if !newRemoteNamespaceStatusFound || newRemoteNamespaceStatus.Phase != vkv1alpha1.MappingAccepted {
-			if newRemoteNamespaceStatusFound && newRemoteNamespaceStatus.Phase == vkv1alpha1.MappingCreationLoopBackOff {
-				nh.failingNamespace(localNs, oldRemoteNamespaceStatus)
-			} else {
-				nh.stopNamespace(localNs, oldRemoteNamespaceStatus)
-			}
+		switch {
+		case !newRemoteNamespaceStatusFound, newRemoteNamespaceStatus.Phase == vkv1alpha1.MappingTerminating:
+			nh.stopNamespace(localNs, oldRemoteNamespaceStatus)
+		case newRemoteNamespaceStatus.Phase == vkv1alpha1.MappingCreationLoopBackOff:
+			nh.failingNamespace(localNs, oldRemoteNamespaceStatus)
 		}
 	}
 
