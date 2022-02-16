@@ -103,7 +103,11 @@ var _ = Describe("Pod forging", func() {
 		BeforeEach(func() {
 			local = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "local-name", Namespace: "local-namespace"},
-				Status:     corev1.PodStatus{PodIP: "1.1.1.1"},
+				Status: corev1.PodStatus{
+					PodIP:             "1.1.1.1",
+					Conditions:        []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+					ContainerStatuses: []corev1.ContainerStatus{{Name: "foo", Ready: true}},
+				},
 			}
 		})
 
@@ -117,6 +121,17 @@ var _ = Describe("Pod forging", func() {
 		It("should correctly set the rejected phase and reason", func() {
 			Expect(output.Status.Phase).To(Equal(corev1.PodFailed))
 			Expect(output.Status.Reason).To(Equal(forge.PodOffloadingAbortedReason))
+		})
+		It("should correctly mutate the pod conditions", func() {
+			Expect(output.Status.Conditions).To(HaveLen(1))
+			Expect(output.Status.Conditions[0].Type).To(Equal(corev1.PodReady))
+			Expect(output.Status.Conditions[0].Status).To(Equal(corev1.ConditionFalse))
+			Expect(output.Status.Conditions[0].Reason).To(Equal(forge.PodOffloadingAbortedReason))
+			Expect(output.Status.Conditions[0].LastTransitionTime.Time).To(BeTemporally("~", time.Now()))
+		})
+		It("should correctly mutate the container statuses", func() {
+			Expect(output.Status.ContainerStatuses).To(HaveLen(1))
+			Expect(output.Status.ContainerStatuses[0].Ready).To(Equal(false))
 		})
 		It("should preserve the other status fields", func() { Expect(output.Status.PodIP).To(Equal(local.Status.PodIP)) })
 	})
