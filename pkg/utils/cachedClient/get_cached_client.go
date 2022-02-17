@@ -18,6 +18,7 @@ package cachedclient
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -40,12 +41,13 @@ func GetCachedClient(ctx context.Context, scheme *runtime.Scheme) (client.Client
 		return nil, err
 	}
 
-	return GetCachedClientWithConfig(ctx, scheme, conf)
+	return GetCachedClientWithConfig(ctx, scheme, conf, nil)
 }
 
 // GetCachedClientWithConfig returns a controller runtime client with the cache initialized only for the resources added to
 // the scheme. The necessary rest.Config is passed as third parameter, it must not be nil.
-func GetCachedClientWithConfig(ctx context.Context, scheme *runtime.Scheme, conf *rest.Config) (client.Client, error) {
+func GetCachedClientWithConfig(ctx context.Context,
+	scheme *runtime.Scheme, conf *rest.Config, clientCache cache.Cache) (client.Client, error) {
 	if conf == nil {
 		err := fmt.Errorf("the rest.Config parameter is nil")
 		klog.Error(err)
@@ -58,10 +60,12 @@ func GetCachedClientWithConfig(ctx context.Context, scheme *runtime.Scheme, conf
 		return nil, err
 	}
 
-	clientCache, err := cache.New(conf, cache.Options{Scheme: scheme, Mapper: liqoMapper})
-	if err != nil {
-		klog.Errorf("cache: %s", err)
-		return nil, err
+	if clientCache == nil || reflect.ValueOf(clientCache).IsNil() {
+		clientCache, err = cache.New(conf, cache.Options{Scheme: scheme, Mapper: liqoMapper})
+		if err != nil {
+			klog.Errorf("cache: %s", err)
+			return nil, err
+		}
 	}
 
 	go func() {

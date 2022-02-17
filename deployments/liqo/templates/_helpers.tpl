@@ -119,6 +119,13 @@ run: auth-service
 {{- end }}
 
 {{/*
+Metrics pod labels
+*/}}
+{{- define "liqo.metricAgentServiceLabels" -}}
+run: metric-agent
+{{- end }}
+
+{{/*
 Webhook pod labels
 */}}
 {{- define "liqo.webhookServiceLabels" -}}

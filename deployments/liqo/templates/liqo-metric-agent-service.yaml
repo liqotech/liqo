@@ -1,0 +1,23 @@
+---
+{{- $metricConfig := (merge (dict "name" "metric-agent" "module" "metrics" "containerName" "metric-agent") .) -}}
+
+{{- if .Values.metricAgent.enable }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $metricConfig }}
+  labels:
+    {{- include "liqo.labels" $metricConfig | nindent 4 }}
+    {{- include "liqo.metricAgentServiceLabels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "liqo.selectorLabels" $metricConfig | nindent 4 }}
+    {{- include "liqo.metricAgentServiceLabels" . | nindent 4 }}
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 8443
+
+{{- end }}

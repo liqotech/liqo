@@ -45,6 +45,7 @@ type ResourceRequestReconciler struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests/status;resourcerequests/finalizers,verbs=get;update;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status;foreignclusters/finalizers,verbs=get;update;patch
+// +kubebuilder:rbac:groups=metrics.liqo.io,resources=scrape;scrape/metrics,verbs=get
 
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 
@@ -80,6 +81,32 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		klog.Errorf("%s -> Error getting the ResourceRequest Phase: %s", remoteCluster.ClusterName, err)
 		return ctrl.Result{}, err
 	}
+
+	newRequireSpecUpdate := false
+	// ensure creation and deletion of the ClusterRole and the ClusterRoleBinding for the remote cluster
+	switch resourceReqPhase {
+	case deletingResourceRequestPhase, denyResourceRequestPhase:
+		// the local cluster does not allow the peering, ensure the permission deletion
+		if err = r.deleteClusterRoleBinding(ctx, remoteCluster); err != nil {
+			klog.Errorf("%s -> Error deleting ClusterRoleBinding: %s", remoteCluster.ClusterName, err)
+			return ctrl.Result{}, err
+		}
+		if err = r.deleteClusterRole(ctx, remoteCluster); err != nil {
+			klog.Errorf("%s -> Error deleting ClusterRole: %s", remoteCluster.ClusterName, err)
+			return ctrl.Result{}, err
+		}
+	case allowResourceRequestPhase:
+		// the local cluster allows the peering, ensure the permission
+		if err = r.ensureClusterRole(ctx, remoteCluster); err != nil {
+			klog.Errorf("%s -> Error creating ClusterRole: %s", remoteCluster.ClusterName, err)
+			return ctrl.Result{}, err
+		}
+		if err = r.ensureClusterRoleBinding(ctx, remoteCluster); err != nil {
+			klog.Errorf("%s -> Error creating ClusterRoleBinding: %s", remoteCluster.ClusterName, err)
+			return ctrl.Result{}, err
+		}
+	}
+	requireSpecUpdate = requireSpecUpdate || newRequireSpecUpdate
 
 	if requireSpecUpdate {
 		if err = r.Client.Update(ctx, &resourceRequest); err != nil {

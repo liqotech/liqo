@@ -1,0 +1,22 @@
+---
+{{- $metricConfig := (merge (dict "name" "metric-agent" "module" "metrics" "containerName" "metric-agent") .) -}}
+
+{{- if .Values.metricAgent.enable }}
+
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.metrics.liqo.io
+  labels:
+    {{- include "liqo.labels" $metricConfig | nindent 4 }}
+spec:
+  insecureSkipTLSVerify: true
+  group: metrics.liqo.io
+  groupPriorityMinimum: 1000
+  versionPriority: 15
+  service:
+    name: {{ include "liqo.prefixedName" $metricConfig }}
+    namespace: {{ .Release.Namespace }}
+  version: v1alpha1
+
+{{- end }}

@@ -166,6 +166,22 @@ auth:
     # -- Set to false to disable the authentication of discovered clusters. NB: use it only for testing installations
     enableAuthentication: true
 
+metricAgent:
+  # -- Enable the metric agent
+  enable: true
+  pod:
+    # -- metricAgent pod annotations
+    annotations: {}
+    # -- metricAgent pod labels
+    labels: {}
+    # -- metricAgent pod extra arguments
+    extraArgs: []
+  # -- metricAgent image repository
+  imageName: "liqo/metric-agent"
+  initContainer:
+    # -- auth init container image repository
+    imageName: "liqo/cert-creator"
+
 webhook:
   pod:
     # -- webhook pod annotations

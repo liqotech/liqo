@@ -81,6 +81,7 @@ var _ = Describe("Enforcement logic", func() {
 					Expect(reconciler.Get(ctx, types.NamespacedName{Name: "namespace-remote"}, &namespace)).To(Succeed())
 					Expect(namespace.GetAnnotations()).To(HaveKeyWithValue(liqoconst.RemoteNamespaceManagedByAnnotationKey, "tenant-namespace/name"))
 					Expect(namespace.GetAnnotations()).To(HaveKeyWithValue(liqoconst.RemoteNamespaceOriginalNameAnnotationKey, "namespace"))
+					Expect(namespace.GetLabels()).To(HaveKeyWithValue(liqoconst.RemoteClusterID, "origin"))
 				})
 				It("should correctly ensure the rolebinding is present", func() {
 					var binding rbacv1.RoleBinding
@@ -109,6 +110,7 @@ var _ = Describe("Enforcement logic", func() {
 							liqoconst.RemoteNamespaceManagedByAnnotationKey:    "tenant-namespace/name",
 							liqoconst.RemoteNamespaceOriginalNameAnnotationKey: "namespace",
 						},
+						Labels: map[string]string{liqoconst.RemoteClusterID: "origin"},
 					}}
 					clientBuilder.WithObjects(&namespace)
 				})
@@ -202,6 +204,7 @@ var _ = Describe("Enforcement logic", func() {
 							liqoconst.RemoteNamespaceManagedByAnnotationKey:    "tenant-namespace/name",
 							liqoconst.RemoteNamespaceOriginalNameAnnotationKey: "namespace",
 						},
+						Labels: map[string]string{liqoconst.RemoteClusterID: "origin"},
 					}}
 					clientBuilder.WithObjects(&namespace)
 				})
@@ -284,6 +287,7 @@ var _ = Describe("Enforcement logic", func() {
 						liqoconst.RemoteNamespaceManagedByAnnotationKey:    "tenant-namespace/name",
 						liqoconst.RemoteNamespaceOriginalNameAnnotationKey: "namespace",
 					},
+					Labels: map[string]string{liqoconst.RemoteClusterID: "origin"},
 				}}
 				clientBuilder.WithObjects(&namespace)
 			})
