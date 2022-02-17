@@ -16,12 +16,14 @@ package resourcerequestoperator
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -187,6 +189,42 @@ var _ = Describe("ResourceRequest Operator", func() {
 				var fc discoveryv1alpha1.ForeignCluster
 				return k8sClient.Get(ctx, types.NamespacedName{Name: foreignclusterutils.UniqueName(&cluster1Copy)}, &fc)
 			}, timeout, interval).Should(Succeed())
+		})
+
+		It("Should create ClusterRole and ClusterRoleBinding", func() {
+			var clusterRole rbacv1.ClusterRole
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name: fmt.Sprintf("liqo-tenant-remote-%s", GetTenantName(cluster1)),
+				}, &clusterRole)
+			}, timeout, interval).ShouldNot(HaveOccurred())
+
+			Expect(clusterRole.Rules).To(HaveLen(1))
+			Expect(clusterRole.Rules[0]).To(Equal(rbacv1.PolicyRule{
+				APIGroups:     []string{"metrics.liqo.io"},
+				Resources:     []string{"scrape", "scrape/metrics"},
+				Verbs:         []string{"get"},
+				ResourceNames: []string{cluster1.ClusterID},
+			}))
+
+			var clusterRoleBinding rbacv1.ClusterRoleBinding
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name: fmt.Sprintf("liqo-tenant-remote-%s", GetTenantName(cluster1)),
+				}, &clusterRoleBinding)
+			}, timeout, interval).ShouldNot(HaveOccurred())
+
+			Expect(clusterRoleBinding.Subjects).To(HaveLen(1))
+			Expect(clusterRoleBinding.Subjects[0]).To(Equal(rbacv1.Subject{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     rbacv1.UserKind,
+				Name:     cluster1.ClusterID,
+			}))
+			Expect(clusterRoleBinding.RoleRef).To(Equal(rbacv1.RoleRef{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "ClusterRole",
+				Name:     fmt.Sprintf("liqo-tenant-remote-%s", GetTenantName(cluster1)),
+			}))
 		})
 
 		It("Should create a new ResourceOffer", func() {

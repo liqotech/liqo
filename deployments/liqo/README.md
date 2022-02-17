@@ -51,6 +51,12 @@
 | gateway.replicas | int | `1` | The number of gateway instances to run. The gateway component supports active/passive high availability. Make sure that there are enough nodes to accommodate the replicas, because being the instances in host network no more than one replica can be scheduled on a given node. |
 | gateway.service.annotations | object | `{}` |  |
 | gateway.service.type | string | `"LoadBalancer"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are directly reachable by the cluster to whom you are peering, you may change it to "NodePort". |
+| metricAgent.enable | bool | `true` | Enable the metric agent |
+| metricAgent.imageName | string | `"liqo/metric-agent"` | metricAgent image repository |
+| metricAgent.initContainer.imageName | string | `"liqo/cert-creator"` | auth init container image repository |
+| metricAgent.pod.annotations | object | `{}` | metricAgent pod annotations |
+| metricAgent.pod.extraArgs | list | `[]` | metricAgent pod extra arguments |
+| metricAgent.pod.labels | object | `{}` | metricAgent pod labels |
 | nameOverride | string | `""` | liqo name override |
 | networkConfig.mtu | int | `1440` | set the mtu for the interfaces managed by liqo: vxlan, tunnel and veth interfaces The value is used by the gateway and route operators. |
 | networkManager.config.additionalPools | list | `[]` | Set of additional network pools. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |

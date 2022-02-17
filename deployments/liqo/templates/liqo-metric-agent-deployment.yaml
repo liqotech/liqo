@@ -1,0 +1,82 @@
+---
+{{- $metricConfig := (merge (dict "name" "metric-agent" "module" "metrics" "containerName" "metric-agent") .) -}}
+
+{{- if .Values.metricAgent.enable }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "liqo.prefixedName" $metricConfig }}
+  labels:
+    {{- include "liqo.labels" $metricConfig | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "liqo.selectorLabels" $metricConfig | nindent 6 }}
+      {{- include "liqo.metricAgentServiceLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "liqo.selectorLabels" $metricConfig | nindent 8 }}
+        {{- include "liqo.metricAgentServiceLabels" . | nindent 8 }}
+      {{- if .Values.metricAgent.pod.labels }}
+        {{- toYaml .Values.metricAgent.pod.labels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.metricAgent.pod.annotations }}
+      annotations:
+        {{- toYaml .Values.metricAgent.pod.annotations | nindent 8 }}
+      {{- end }}
+    spec:
+      securityContext:
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
+      serviceAccountName: {{ include "liqo.prefixedName" $metricConfig }}
+      initContainers:
+        - name: cert-creator
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
+          image: {{ .Values.metricAgent.initContainer.imageName }}{{ include "liqo.suffix" $metricConfig }}:{{ include "liqo.version" $metricConfig }}
+          volumeMounts:
+            - mountPath: '/certs'
+              name: certs
+          command: [ "/usr/bin/openssl" ]
+          args:
+            - req
+            - -x509
+            - -subj
+            - /C=IT/ST=Turin/O=Liqo
+            - -nodes
+            - -days
+            - "365"
+            - -newkey
+            - rsa:4096
+            - -keyout
+            - /certs/key.pem
+            - -out
+            - /certs/cert.pem
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "100M"
+      containers:
+        - image: {{ .Values.metricAgent.imageName }}{{ include "liqo.suffix" $metricConfig }}:{{ include "liqo.version" $metricConfig }}
+          securityContext:
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
+          name: {{ $metricConfig.name }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          command: ["/usr/bin/metric-agent"]
+          args:
+          - --key-path=/certs/key.pem
+          - --cert-path=/certs/cert.pem
+          resources:
+            requests:
+              cpu: 100m
+              memory: 50M
+          volumeMounts:
+            - mountPath: '/certs'
+              name: certs
+      volumes:
+        - name: certs
+          emptyDir: {}
+
+{{- end }}

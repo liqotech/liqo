@@ -184,7 +184,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
-	cancelHTTP, err := setupHTTPServer(ctx, podProvider.PodHandler(), getAPIConfig(c))
+	cancelHTTP, err := setupHTTPServer(ctx,
+		podProvider.PodHandler(), getAPIConfig(c), c.HomeCluster.ClusterID, remoteConfig)
 	if err != nil {
 		return errors.Wrap(err, "error while setting up HTTP server")
 	}

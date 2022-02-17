@@ -54,10 +54,16 @@ func (r *NamespaceMapReconciler) createNamespace(ctx context.Context, name, orig
 	// The namespace does not yet exist, and needs to be created
 	if err != nil {
 		namespace = corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Annotations: map[string]string{
-				liqoconst.RemoteNamespaceManagedByAnnotationKey:    nmID,
-				liqoconst.RemoteNamespaceOriginalNameAnnotationKey: originName,
-			}},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Annotations: map[string]string{
+					liqoconst.RemoteNamespaceManagedByAnnotationKey:    nmID,
+					liqoconst.RemoteNamespaceOriginalNameAnnotationKey: originName,
+				},
+				Labels: map[string]string{
+					liqoconst.RemoteClusterID: origin,
+				},
+			},
 		}
 
 		if err = r.Create(ctx, &namespace); liqoerrors.IgnoreAlreadyExists(err) != nil {

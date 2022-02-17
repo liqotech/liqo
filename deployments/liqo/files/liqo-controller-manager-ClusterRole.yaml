@@ -351,6 +351,13 @@ rules:
   - patch
   - update
 - apiGroups:
+  - metrics.liqo.io
+  resources:
+  - scrape
+  - scrape/metrics
+  verbs:
+  - get
+- apiGroups:
   - net.liqo.io
   resources:
   - networkconfigs
