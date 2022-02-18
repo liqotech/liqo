@@ -23,25 +23,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 const tenantFinalizer = "liqo.io/tenant"
 
-func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
+func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
-	// We don't use resourceRequest.Spec.ClusterIdentity directly because we might use a different ClusterName locally
-	remoteCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceRequest.Spec.ClusterIdentity.ClusterID)
-	if err != nil {
-		klog.Error(err)
-		return false, err
-	}
-	remoteClusterIdentity := remoteCluster.Spec.ClusterIdentity
 	klog.Infof("%s -> creating Tenant %s",
 		remoteClusterIdentity.ClusterName, GetTenantName(remoteClusterIdentity))
 
@@ -92,33 +85,26 @@ func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
 	return false, nil
 }
 
-func (r *ResourceRequestReconciler) ensureTenantDeletion(ctx context.Context,
+func (r *ResourceRequestReconciler) ensureTenantDeletion(ctx context.Context, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
-	// We don't use resourceRequest.Spec.ClusterIdentity directly because we might use a different ClusterName locally
-	remoteCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceRequest.Spec.ClusterIdentity.ClusterID)
-	if err != nil {
-		klog.Error(err)
-		return false, err
-	}
-	remoteClusterIdentity := remoteCluster.Spec.ClusterIdentity
-
 	tenant := &capsulev1beta1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: GetTenantName(remoteClusterIdentity),
 		},
 	}
 	err = r.Client.Delete(ctx, tenant)
-	if apierrors.IsNotFound(err) {
-		// ignore not found
-		return false, nil
-	}
-	if err != nil {
+	if client.IgnoreNotFound(err) != nil {
 		klog.Error(err)
 		return false, err
 	}
 
-	controllerutil.RemoveFinalizer(resourceRequest, tenantFinalizer)
-	return true, nil
+	if controllerutil.ContainsFinalizer(resourceRequest, tenantFinalizer) {
+		controllerutil.RemoveFinalizer(resourceRequest, tenantFinalizer)
+		klog.Infof("%s -> removing %s finalizer", remoteClusterIdentity.ClusterName, tenantFinalizer)
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,

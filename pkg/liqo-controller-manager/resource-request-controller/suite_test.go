@@ -95,8 +95,8 @@ func createCluster() {
 		ClusterName: "home-cluster-name",
 	}
 
-	k8sClient = k8sManager.GetClient()
-	Expect(k8sClient).ToNot(BeNil())
+	k8sClient, err = client.New(cfg, client.Options{Scheme: k8sManager.GetScheme()})
+	Expect(err).ToNot(HaveOccurred())
 
 	// Initializing a new notifier and adding it to the manager.
 	localStorageClassName := ""
@@ -109,7 +109,7 @@ func createCluster() {
 
 	// Adding ResourceRequest reconciler to the manager
 	err = (&ResourceRequestReconciler{
-		Client:                k8sManager.GetClient(),
+		Client:                k8sClient,
 		Scheme:                k8sManager.GetScheme(),
 		HomeCluster:           homeCluster,
 		OfferUpdater:          updater,
