@@ -44,8 +44,8 @@ const (
 	ResourceRequestName = "test-resource"
 	ResourcesNamespace  = "default"
 	ResourcesNamespace2 = "new-namespace"
-	timeout             = time.Second * 10
-	interval            = time.Millisecond * 250
+	timeout             = time.Second * 5
+	interval            = time.Millisecond * 100
 )
 
 var (
@@ -143,16 +143,27 @@ var _ = Describe("ResourceRequest Operator", func() {
 		}
 	})
 	AfterEach(func() {
-		err := k8sClient.DeleteAllOf(ctx, &discoveryv1alpha1.ResourceRequest{}, client.InNamespace(ResourcesNamespace))
-		Expect(err).ToNot(HaveOccurred())
-		err = k8sClient.DeleteAllOf(ctx, &sharingv1alpha1.ResourceOffer{}, client.InNamespace(ResourcesNamespace))
-		Expect(err).ToNot(HaveOccurred())
-		err = clientset.CoreV1().Pods("default").DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
-		Expect(err).ToNot(HaveOccurred())
-		err = clientset.CoreV1().Nodes().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
-		Expect(err).ToNot(HaveOccurred())
-		err = clientset.StorageV1().StorageClasses().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
-		Expect(err).ToNot(HaveOccurred())
+		Expect(k8sClient.DeleteAllOf(ctx, &discoveryv1alpha1.ResourceRequest{}, client.InNamespace(ResourcesNamespace))).To(Succeed())
+		Expect(k8sClient.DeleteAllOf(ctx, &discoveryv1alpha1.ResourceRequest{}, client.InNamespace(ResourcesNamespace2))).To(Succeed())
+		Eventually(func() []discoveryv1alpha1.ResourceRequest {
+			var rrl discoveryv1alpha1.ResourceRequestList
+			Expect(k8sClient.List(ctx, &rrl)).To(Succeed())
+			return rrl.Items
+		}, timeout, interval).Should(HaveLen(0))
+
+		Expect(k8sClient.DeleteAllOf(ctx, &sharingv1alpha1.ResourceOffer{}, client.InNamespace(ResourcesNamespace))).To(Succeed())
+		Expect(k8sClient.DeleteAllOf(ctx, &sharingv1alpha1.ResourceOffer{}, client.InNamespace(ResourcesNamespace2))).To(Succeed())
+		Eventually(func() []sharingv1alpha1.ResourceOffer {
+			var rro sharingv1alpha1.ResourceOfferList
+			Expect(k8sClient.List(ctx, &rro)).To(Succeed())
+			return rro.Items
+		}, timeout, interval).Should(HaveLen(0))
+
+		Expect(clientset.CoreV1().Pods("default").DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Succeed())
+		Expect(clientset.CoreV1().Nodes().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Succeed())
+		Expect(clientset.StorageV1().StorageClasses().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Succeed())
+
+		Expect(k8sClient.DeleteAllOf(ctx, &discoveryv1alpha1.ForeignCluster{})).To(Succeed())
 	})
 
 	When("Creating a new ResourceRequest", func() {
@@ -167,13 +178,16 @@ var _ = Describe("ResourceRequest Operator", func() {
 		})
 
 		It("Should create a new ForeignCluster in presence of cluster name conflicts", func() {
+			// Make sure the first ForeignCluster has already been created before creating the new resource request, to ensure ordering.
+			Eventually(func() error {
+				var fc discoveryv1alpha1.ForeignCluster
+				return k8sClient.Get(ctx, types.NamespacedName{Name: cluster1.ClusterName}, &fc)
+			}, timeout, interval).Should(Succeed())
+
 			CreateResourceRequest(ctx, ResourceRequestName, ResourcesNamespace2, cluster1Copy, k8sClient)
 			Eventually(func() error {
 				var fc discoveryv1alpha1.ForeignCluster
-				return k8sClient.Get(ctx, types.NamespacedName{
-					Name:      foreignclusterutils.UniqueName(&cluster1Copy),
-					Namespace: ResourcesNamespace2,
-				}, &fc)
+				return k8sClient.Get(ctx, types.NamespacedName{Name: foreignclusterutils.UniqueName(&cluster1Copy)}, &fc)
 			}, timeout, interval).Should(Succeed())
 		})
 

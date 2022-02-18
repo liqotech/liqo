@@ -88,13 +88,13 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	switch resourceReqPhase {
 	case deletingResourceRequestPhase, denyResourceRequestPhase:
 		// the local cluster does not allow the peering, ensure the Tenant deletion
-		if newRequireSpecUpdate, err = r.ensureTenantDeletion(ctx, &resourceRequest); err != nil {
+		if newRequireSpecUpdate, err = r.ensureTenantDeletion(ctx, remoteCluster, &resourceRequest); err != nil {
 			klog.Errorf("%s -> Error deleting Tenant: %s", remoteCluster.ClusterName, err)
 			return ctrl.Result{}, err
 		}
 	case allowResourceRequestPhase:
 		// the local cluster allows the peering, ensure the Tenant creation
-		if newRequireSpecUpdate, err = r.ensureTenant(ctx, &resourceRequest); err != nil {
+		if newRequireSpecUpdate, err = r.ensureTenant(ctx, remoteCluster, &resourceRequest); err != nil {
 			klog.Errorf("%s -> Error creating Tenant: %s", remoteCluster.ClusterName, err)
 			return ctrl.Result{}, err
 		}
@@ -111,10 +111,13 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	defer func() {
-		newErr := r.Client.Status().Update(ctx, &resourceRequest)
-		if newErr != nil {
-			klog.Error(newErr)
-			err = newErr
+		if err != nil {
+			return
+		}
+
+		err = r.Client.Status().Update(ctx, &resourceRequest)
+		if err != nil {
+			klog.Error(err)
 		}
 	}()
 
