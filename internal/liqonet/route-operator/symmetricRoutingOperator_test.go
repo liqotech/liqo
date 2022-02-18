@@ -297,28 +297,4 @@ var _ = Describe("SymmetricRoutingOperator", func() {
 			})
 		})
 	})
-
-	Describe("testing podFilter function", func() {
-		Context("when object is not a pod", func() {
-			It("should return false", func() {
-				// Create a service object
-				s := corev1.Service{}
-				ok := src.podFilter(&s)
-				Expect(ok).Should(BeFalse())
-			})
-		})
-
-		Context("when pod is running on different node than operator", func() {
-			It("podIP is not set, should return false", func() {
-				ok := src.podFilter(srcTestPod)
-				Expect(ok).Should(BeFalse())
-			})
-
-			It("podIP is set, should return true", func() {
-				srcTestPod.Status.PodIP = srcPodIP
-				ok := src.podFilter(srcTestPod)
-				Expect(ok).Should(BeTrue())
-			})
-		})
-	})
 })

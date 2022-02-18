@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 )
 
@@ -156,8 +157,12 @@ var _ = Describe("Reconcile", func() {
 			pod := corev1.Pod{}
 			Expect(k8sClient.Get(ctx, req.NamespacedName, &pod)).To(Succeed())
 			Expect(pod.GetName()).To(Equal(testShadowPod.GetName()))
-			Expect(pod.GetLabels()).To(Equal(testShadowPod.GetLabels()))
 			Expect(pod.GetAnnotations()).To(Equal(testShadowPod.GetAnnotations()))
+
+			for key, value := range testShadowPod.GetLabels() {
+				Expect(pod.GetLabels()).To(HaveKeyWithValue(key, value))
+			}
+			Expect(pod.GetLabels()).To(HaveKeyWithValue(consts.ManagedByLabelKey, consts.ManagedByShadowPodValue))
 		})
 
 		It("should set pod spec to shadowpod pod spec", func() {

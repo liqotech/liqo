@@ -520,7 +520,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return checkResourceOfferUpdate(ctx, homeCluster, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Checking correct update of resource after pod changing Status")
-			podWithoutLabel, err = setPodReadyStatus(ctx, podWithoutLabel, false, clientset)
+			podWithoutLabel, err = setPodPhase(ctx, podWithoutLabel, corev1.PodFailed, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{
@@ -530,7 +530,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return checkResourceOfferUpdate(ctx, homeCluster, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			// set the pod ready again
-			podWithoutLabel, err = setPodReadyStatus(ctx, podWithoutLabel, true, clientset)
+			podWithoutLabel, err = setPodPhase(ctx, podWithoutLabel, corev1.PodRunning, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{
@@ -572,7 +572,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return checkResourceOfferUpdate(ctx, homeCluster, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Checking change ready status for offloaded pod. Expected no change in offer.")
-			_, err = setPodReadyStatus(ctx, podOffloaded, false, clientset)
+			_, err = setPodPhase(ctx, podOffloaded, corev1.PodFailed, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{

@@ -121,12 +121,7 @@ func createNewPod(ctx context.Context, podName, clusterID string, shadow bool, c
 	}
 	// set Status Ready
 	pod.Status = corev1.PodStatus{
-		Conditions: []corev1.PodCondition{
-			0: {
-				Type:   corev1.PodReady,
-				Status: corev1.ConditionTrue,
-			},
-		},
+		Phase: corev1.PodRunning,
 	}
 	pod, err = clientset.CoreV1().Pods("default").UpdateStatus(ctx, pod, metav1.UpdateOptions{})
 	if err != nil {
@@ -135,23 +130,11 @@ func createNewPod(ctx context.Context, podName, clusterID string, shadow bool, c
 	return pod, nil
 }
 
-// setPodReadyStatus enforces a status ready/not ready to a pod passed as the *pod* parameter. The readiness/not readiness is
+// setPodPhase enforces a status ready/not ready to a pod passed as the *pod* parameter. The readiness/not readiness is
 // enforced by the *status* bool (true is ready, false is not ready).
-func setPodReadyStatus(ctx context.Context, pod *corev1.Pod, status bool, clientset kubernetes.Interface) (*corev1.Pod, error) {
-	for key, value := range pod.Status.Conditions {
-		if value.Type == corev1.PodReady {
-			if status {
-				pod.Status.Conditions[key].Status = corev1.ConditionTrue
-			} else {
-				pod.Status.Conditions[key].Status = corev1.ConditionFalse
-			}
-		}
-	}
-	pod, err := clientset.CoreV1().Pods("default").UpdateStatus(ctx, pod, metav1.UpdateOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return pod, err
+func setPodPhase(ctx context.Context, pod *corev1.Pod, phase corev1.PodPhase, clientset kubernetes.Interface) (*corev1.Pod, error) {
+	pod.Status.Phase = phase
+	return clientset.CoreV1().Pods("default").UpdateStatus(ctx, pod, metav1.UpdateOptions{})
 }
 
 // setNodeReadyStatus enforces a status ready/not ready to a node passed as the *node* parameter. The readiness/not readiness is
