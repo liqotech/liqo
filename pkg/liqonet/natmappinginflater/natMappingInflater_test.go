@@ -552,7 +552,7 @@ func createIpamStorageResource(ipam *netv1alpha1.IpamStorage) error {
 		return err
 	}
 	_, err = inflater.dynClient.
-		Resource(netv1alpha1.IpamGroupResource).
+		Resource(netv1alpha1.IpamGroupVersionResource).
 		Create(context.Background(), &unstructured.Unstructured{Object: unstructuredIpam}, metav1.CreateOptions{})
 	if err != nil {
 		klog.Errorf("cannot create ipam resource: %s", err.Error())

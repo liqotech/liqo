@@ -21,6 +21,9 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// ResourceIpamStorages the name of the ipamstorages resources.
+var ResourceIpamStorages = "ipamstorages"
+
 // Subnets type contains relevant networks related to a remote cluster.
 type Subnets struct {
 	// Network used in the remote cluster for local Pods. Default is "None": this means remote cluster uses local cluster PodCIDR.
