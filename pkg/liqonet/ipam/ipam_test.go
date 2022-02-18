@@ -1759,7 +1759,7 @@ func getNatMappingResourcePerCluster(clusterID string) (*liqonetapi.NatMapping, 
 
 func getIpamStorageResource() (*liqonetapi.IpamStorage, error) {
 	ipamConfig := &liqonetapi.IpamStorage{}
-	list, err := dynClient.Resource(liqonetapi.IpamGroupResource).List(
+	list, err := dynClient.Resource(liqonetapi.IpamGroupVersionResource).List(
 		context.Background(),
 		v1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s",
@@ -1771,7 +1771,7 @@ func getIpamStorageResource() (*liqonetapi.IpamStorage, error) {
 		return nil, err
 	}
 	if len(list.Items) == 0 {
-		return nil, k8serrors.NewNotFound(liqonetapi.IpamGroupResource.GroupResource(), "")
+		return nil, k8serrors.NewNotFound(liqonetapi.IpamGroupVersionResource.GroupResource(), "")
 	}
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(list.Items[0].Object, ipamConfig)
 	if err != nil {
@@ -1801,7 +1801,7 @@ func updateIpamStorageResource(ipamStorage *liqonetapi.IpamStorage) error {
 	if err != nil {
 		return err
 	}
-	_, err = dynClient.Resource(liqonetapi.IpamGroupResource).Update(
+	_, err = dynClient.Resource(liqonetapi.IpamGroupVersionResource).Update(
 		context.Background(),
 		&unstructured.Unstructured{Object: unstructuredResource},
 		v1.UpdateOptions{},

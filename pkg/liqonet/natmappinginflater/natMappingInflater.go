@@ -481,7 +481,7 @@ func (inflater *NatMappingInflater) ipamConsistencyCheck() error {
 func (inflater *NatMappingInflater) getIPAMConfig() (*netv1alpha1.IpamStorage, error) {
 	res := &netv1alpha1.IpamStorage{}
 	list, err := inflater.dynClient.
-		Resource(netv1alpha1.IpamGroupResource).
+		Resource(netv1alpha1.IpamGroupVersionResource).
 		List(context.Background(), metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s", consts.IpamStorageResourceLabelKey, consts.IpamStorageResourceLabelValue),
 		})
@@ -491,9 +491,9 @@ func (inflater *NatMappingInflater) getIPAMConfig() (*netv1alpha1.IpamStorage, e
 	}
 	if len(list.Items) != 1 {
 		if len(list.Items) != 0 {
-			return nil, fmt.Errorf("multiple resources of type %s found", netv1alpha1.IpamGroupResource)
+			return nil, fmt.Errorf("multiple resources of type %s found", netv1alpha1.IpamGroupVersionResource)
 		}
-		return nil, k8sErr.NewNotFound(netv1alpha1.IpamGroupResource.GroupResource(), "")
+		return nil, k8sErr.NewNotFound(netv1alpha1.IpamGroupVersionResource.GroupResource(), "")
 	}
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(list.Items[0].Object, res)
 	if err != nil {
