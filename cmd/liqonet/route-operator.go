@@ -17,7 +17,6 @@ package main
 import (
 	"flag"
 	"os"
-	"strings"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -79,12 +78,14 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 		os.Exit(1)
 	}
 	// Asking the api-server to only inform the operator for the pods running in a node different from the one
-	// where the operator is running.
-	smcFieldSelector, err := fields.ParseSelector(strings.Join([]string{"spec.nodeName", "!=", nodeName}, ""))
-	if err != nil {
-		klog.Errorf("unable to create label requirement: %v", err)
-		os.Exit(1)
-	}
+	// where the operator is running, and that have a valid podIP set. The latter check also prevents newly created
+	// pods scheduled on a virtual node to be temporarily considered while waiting for the appropriate label to be
+	// added by the virtual kubelet. Indeed, when pods are created the label is not present, but we are sure that
+	// it will be added before the IP address for the same pod is set.
+	smcFieldSelector := fields.AndSelectors(
+		fields.OneTermNotEqualSelector("spec.nodeName", nodeName),
+		fields.OneTermNotEqualSelector("status.podIP", ""),
+	)
 	// Asking the api-server to only inform the operator for the pods running in a node different from
 	// the virtual nodes. We want to process only the pods running on the local cluster and not the ones
 	// offloaded to a remote cluster.

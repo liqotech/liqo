@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -35,7 +36,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
-	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -85,8 +85,8 @@ func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface,
 		DeleteFunc: lrm.onNodeDelete,
 	})
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    lrm.onPodAdd,
-		UpdateFunc: lrm.onPodUpdate,
+		AddFunc: lrm.onPodAdd,
+		// We do not care about update events, since resources are immutable.
 		DeleteFunc: lrm.onPodDelete,
 	})
 
@@ -151,82 +151,41 @@ func (m *LocalResourceMonitor) onNodeDelete(obj interface{}) {
 }
 
 func (m *LocalResourceMonitor) onPodAdd(obj interface{}) {
+	// Thanks to the filters at the informer level, add events are received only when pods running on physical nodes turn running.
 	podAdded := obj.(*corev1.Pod)
-	klog.V(4).Infof("OnPodAdd: Add for pod %s:%s", podAdded.Namespace, podAdded.Name)
-	// ignore all shadow pods because of ignoring all virtual Nodes
-	if ready, _ := pod.IsPodReady(podAdded); ready {
-		podResources := extractPodResources(podAdded)
-		currentResources := m.readClusterResources()
-		// subtract the pod resource from cluster resources. This action is done for all pods to extract actual available resources.
-		subResources(currentResources, podResources)
-		m.writeClusterResources(currentResources)
-		if clusterID := podAdded.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
-			klog.V(4).Infof("OnPodAdd: Pod %s:%s passed ClusterID check. ClusterID = %s", podAdded.Namespace, podAdded.Name, clusterID)
-			currentPodsResources := m.readPodResources(clusterID)
-			// add the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
-			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
-			addResources(currentPodsResources, podResources)
-			m.writePodResources(clusterID, currentPodsResources)
-		}
-	}
-}
+	klog.V(5).Infof("OnPodAdd: Add for pod %s:%s", podAdded.Namespace, podAdded.Name)
 
-func (m *LocalResourceMonitor) onPodUpdate(oldObj, newObj interface{}) {
-	oldPod := oldObj.(*corev1.Pod)
-	newPod := newObj.(*corev1.Pod)
-	klog.V(4).Infof("OnPodUpdate: Update for pod %s:%s", newPod.Namespace, newPod.Name)
-	newResources := extractPodResources(newPod)
-	oldResources := extractPodResources(oldPod)
+	podResources := extractPodResources(podAdded)
 	currentResources := m.readClusterResources()
-	clusterID := newPod.Labels[forge.LiqoOriginClusterIDKey]
-	// empty if clusterID has not a valid value.
-	currentPodsResources := m.readPodResources(clusterID)
-
-	switch getPodTransitionState(oldPod, newPod) {
-	// pod is becoming Ready, same of onPodAdd case.
-	case PendingToReady:
-		subResources(currentResources, newResources)
-		if clusterID != "" {
-			klog.V(4).Infof("OnPodUpdate: Pod %s:%s passed ClusterID check. ClusterID = %s", newPod.Namespace, newPod.Name, clusterID)
-			// add the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
-			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
-			addResources(currentPodsResources, newResources)
-		}
-	// pod is no more Ready, same of onDeletePod case.
-	case ReadyToPending:
-		addResources(currentResources, newResources)
-		if clusterID != "" {
-			klog.V(4).Infof("OnPodUpdate: Pod %s:%s passed ClusterID check. ClusterID = %s", newPod.Namespace, newPod.Name, clusterID)
-			// sub the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
-			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
-			subResources(currentPodsResources, oldResources)
-		}
-	// pod resources request are immutable. See the doc https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-	case ReadyToReady:
-		return
-	case PendingToPending:
-		return
-	}
+	// subtract the pod resource from cluster resources. This action is done for all pods to extract actual available resources.
+	subResources(currentResources, podResources)
 	m.writeClusterResources(currentResources)
-	m.writePodResources(clusterID, currentPodsResources)
+	if clusterID := podAdded.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
+		klog.V(5).Infof("OnPodAdd: Pod %s:%s passed ClusterID check. ClusterID = %s", podAdded.Namespace, podAdded.Name, clusterID)
+		currentPodsResources := m.readPodResources(clusterID)
+		// add the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
+		// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
+		addResources(currentPodsResources, podResources)
+		m.writePodResources(clusterID, currentPodsResources)
+	}
 }
 
 func (m *LocalResourceMonitor) onPodDelete(obj interface{}) {
+	// Thanks to the filters at the informer level, delete events are received only when
+	// pods previously running on a physical node are no longer running.
 	podDeleted := obj.(*corev1.Pod)
-	klog.V(4).Infof("OnPodDelete: Delete for pod %s:%s", podDeleted.Namespace, podDeleted.Name)
-	// ignore all shadow pods because of ignoring all virtual Nodes
-	if ready, _ := pod.IsPodReady(podDeleted); ready {
-		podResources := extractPodResources(podDeleted)
-		currentResources := m.readClusterResources()
-		// Resources used by the pod will become available again so add them to the total allocatable ones.
-		addResources(currentResources, podResources)
-		m.writeClusterResources(currentResources)
-		if clusterID := podDeleted.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
-			klog.V(4).Infof("OnPodDelete: Pod %s:%s passed ClusterID check. ClusterID = %s", podDeleted.Namespace, podDeleted.Name, clusterID)
-			currentPodsResources := m.readPodResources(clusterID)
-			subResources(currentPodsResources, podResources)
-			m.writePodResources(clusterID, currentPodsResources)
-		}
+	klog.V(5).Infof("OnPodDelete: Delete for pod %s:%s", podDeleted.Namespace, podDeleted.Name)
+
+	podResources := extractPodResources(podDeleted)
+	currentResources := m.readClusterResources()
+	// Resources used by the pod will become available again so add them to the total allocatable ones.
+	addResources(currentResources, podResources)
+	m.writeClusterResources(currentResources)
+	if clusterID := podDeleted.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
+		klog.V(5).Infof("OnPodDelete: Pod %s:%s passed ClusterID check. ClusterID = %s", podDeleted.Namespace, podDeleted.Name, clusterID)
+		currentPodsResources := m.readPodResources(clusterID)
+		subResources(currentPodsResources, podResources)
+		m.writePodResources(clusterID, currentPodsResources)
 	}
 }
 
@@ -356,25 +315,6 @@ func checkSign(currentResources corev1.ResourceList) error {
 	return nil
 }
 
-func getPodTransitionState(oldPod, newPod *corev1.Pod) PodTransition {
-	newOk, _ := pod.IsPodReady(newPod)
-	oldOk, _ := pod.IsPodReady(oldPod)
-
-	if newOk && oldOk {
-		return ReadyToReady
-	}
-
-	if newOk && !oldOk {
-		return PendingToReady
-	}
-
-	if !newOk && oldOk {
-		return ReadyToPending
-	}
-
-	return PendingToPending
-}
-
 // this function is used to filter and ignore virtual nodes at informer level.
 func noVirtualNodesFilter(options *metav1.ListOptions) {
 	req, err := labels.NewRequirement(consts.TypeLabel, selection.NotEquals, []string{consts.TypeNode})
@@ -387,6 +327,7 @@ func noShadowPodsFilter(options *metav1.ListOptions) {
 	req, err := labels.NewRequirement(consts.LocalPodLabelKey, selection.NotEquals, []string{consts.LocalPodLabelValue})
 	utilruntime.Must(err)
 	options.LabelSelector = labels.NewSelector().Add(*req).String()
+	options.FieldSelector = fields.OneTermEqualSelector("status.phase", string(corev1.PodRunning)).String()
 }
 
 func isShadowPod(podToCheck *corev1.Pod) bool {

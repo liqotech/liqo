@@ -23,9 +23,12 @@ import (
 	"time"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -33,6 +36,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
@@ -178,6 +182,11 @@ func main() {
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
+	// Create a label selector to filter out the events for pods not managed by a ShadowPod,
+	// as those are the only ones we are interested in to implement the resiliency mechanism.
+	podsLabelRequirement, err := labels.NewRequirement(consts.ManagedByLabelKey, selection.Equals, []string{consts.ManagedByShadowPodValue})
+	utilruntime.Must(err)
+
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		MapperProvider:         mapper.LiqoMapperProvider(scheme),
 		Scheme:                 scheme,
@@ -186,6 +195,13 @@ func main() {
 		LeaderElection:         false,
 		LeaderElectionID:       "66cf253f.liqo.io",
 		Port:                   9443,
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			SelectorsByObject: cache.SelectorsByObject{
+				&corev1.Pod{}: {
+					Label: labels.NewSelector().Add(*podsLabelRequirement),
+				},
+			},
+		}),
 	})
 	if err != nil {
 		klog.Error(err)

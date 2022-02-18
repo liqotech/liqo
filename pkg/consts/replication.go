@@ -40,6 +40,11 @@ const (
 	// LocalPodLabelValue value of the label added to the local pods that have been offloaded/replicated to a remote cluster.
 	LocalPodLabelValue = "true"
 
+	// ManagedByLabelKey is the label key used to indicate that a given resource is managed by another one.
+	ManagedByLabelKey = "liqo.io/managed-by"
+	// ManagedByShadowPodValue it the label value used to indicate that a given resource is managed by a ShadowPod.
+	ManagedByShadowPodValue = "shadowpod"
+
 	// LocalResourceOwnership label key added to a resource when it is owned by a local component.
 	// Ex. Local networkconfigs are owned by the component that creates them. If the resource is replicated in
 	// a remote cluster this label is removed by the CRDReplicator.
