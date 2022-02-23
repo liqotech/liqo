@@ -15,8 +15,6 @@
 package tenantnamespace
 
 import (
-	"context"
-
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
@@ -30,6 +28,4 @@ type Manager interface {
 	GetNamespace(cluster discoveryv1alpha1.ClusterIdentity) (*v1.Namespace, error)
 	BindClusterRoles(cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
 	UnbindClusterRoles(cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...string) error
-	BindIncomingClusterWideRole(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity) (*rbacv1.ClusterRoleBinding, error)
-	UnbindIncomingClusterWideRole(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity) error
 }

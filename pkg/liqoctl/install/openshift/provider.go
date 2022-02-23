@@ -94,13 +94,6 @@ func (k *openshiftProvider) UpdateChartValues(values map[string]interface{}) {
 	values["apiServer"] = map[string]interface{}{
 		"address": k.apiServer,
 	}
-	values["controllerManager"] = map[string]interface{}{
-		"pod": map[string]interface{}{
-			"extraArgs": []interface{}{
-				"--owner-references-permission-enforcement",
-			},
-		},
-	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
 			"serviceCIDR":     k.serviceCIDR,

@@ -248,18 +248,3 @@ networkConfig:
   # -- set the mtu for the interfaces managed by liqo: vxlan, tunnel and veth interfaces
   # The value is used by the gateway and route operators.
   mtu: 1440
-
-# capsule subchart configuration
-capsule:
-  # -- liqo needs capsule to work properly, but you can use your already deployed capsule installation
-  install: true
-  # -- override the fullname to fix naming problems
-  fullnameOverride: capsule
-  manager:
-    options:
-      # list of supported organizations in the headers of the certificates.
-      # By default capsule uses the capsule.clastix.io organization, while
-      # the Liqo generated certificates will have the liqo.io organization name.
-      capsuleUserGroups:
-      - capsule.clastix.io
-      - liqo.io

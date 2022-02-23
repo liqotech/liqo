@@ -33,7 +33,6 @@ const (
 
 var (
 	liqoDeployments = []string{
-		"capsule-controller-manager",
 		"liqo-controller-manager",
 		"liqo-network-manager",
 		"liqo-crd-replicator",

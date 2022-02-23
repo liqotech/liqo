@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -64,7 +63,6 @@ func createCluster() {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "..", "deployments", "liqo", "crds"),
-			filepath.Join("..", "..", "..", "externalcrds"),
 		},
 	}
 
@@ -77,9 +75,6 @@ func createCluster() {
 	Expect(err).NotTo(HaveOccurred())
 	err = sharingv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = capsulev1beta1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-	// +kubebuilder:scaffold:scheme
 
 	By("Starting a new manager")
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{

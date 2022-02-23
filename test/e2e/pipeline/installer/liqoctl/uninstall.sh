@@ -50,6 +50,6 @@ download_helm
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  "${LIQOCTL}" uninstall --purge --purge-dependencies
+  "${LIQOCTL}" uninstall --purge
   wait_for_crds
 done;

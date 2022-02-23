@@ -5,9 +5,6 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-# Set the capsule version to use
-CAPSULE_VERSION = v0.1.1
-
 generate: generate-controller generate-groups rbacs manifests fmt
 
 #generate helm documentation
@@ -26,14 +23,8 @@ ifeq (, $(shell docker image ls | grep liqo-test))
 	}
 endif
 
-# Fetch external CRDs
-fetch-external-crds:
-	mkdir -p externalcrds
-	curl -s -o externalcrds/tenant-crd.yaml https://raw.githubusercontent.com/clastix/capsule/$(CAPSULE_VERSION)/charts/capsule/crds/tenant-crd.yaml
-	curl -s -o externalcrds/capsuleconfiguration-crd.yaml https://raw.githubusercontent.com/clastix/capsule/$(CAPSULE_VERSION)/charts/capsule/crds/capsuleconfiguration-crd.yaml
-
 # Run unit tests
-unit: test-container fetch-external-crds
+unit: test-container
 	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
 
 # Install LIQO into a cluster
