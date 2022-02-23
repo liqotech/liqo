@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package resourcerequestoperator
+package resourcemonitors
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +27,7 @@ type FakeResourceReader struct {
 	corev1.ResourceList
 }
 
-func (r FakeResourceReader) Register(ResourceUpdateNotifier) {
+func (r FakeResourceReader) Register(context.Context, ResourceUpdateNotifier) {
 }
 
 func (r FakeResourceReader) ReadResources(string) corev1.ResourceList {
@@ -36,7 +38,7 @@ func (r FakeResourceReader) RemoveClusterID(string) {
 
 }
 
-var _ = Describe("Controller Suite", func() {
+var _ = Describe("ResourceMonitors Suite", func() {
 	Context("ResourceScaler", func() {
 		It("Scales resources correctly", func() {
 			provider := FakeResourceReader{corev1.ResourceList{

@@ -49,6 +49,7 @@ import (
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	offloadingctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadingStatus-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
+	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	searchdomainoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/search-domain-operator"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
@@ -123,11 +124,13 @@ func main() {
 	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
 
 	// Resource sharing parameters
+	externalResourceMonitorAddress := flag.String(consts.ExternalResourceMonitorParameter, "",
+		"The address of a resource monitor service (default: monitor local resources)")
 	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
 	resourceSharingPercentage := argsutils.Percentage{Val: 50}
 	flag.Var(&resourceSharingPercentage, "resource-sharing-percentage",
-		"The amount (in percentage) of cluster resources possibly shared with foreign clusters")
+		"The amount (in percentage) of cluster resources possibly shared with foreign clusters (ignored when using an external resource monitor)")
 	enableIncomingPeering := flag.Bool("enable-incoming-peering", true,
 		"Enable remote clusters to establish an incoming peering with the local cluster (can be overwritten on a per foreign cluster basis)")
 	offerDisableAutoAccept := flag.Bool("offer-disable-auto-accept", false, "Disable the automatic acceptance of resource offers")
@@ -258,10 +261,22 @@ func main() {
 	}
 
 	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
-	monitor := resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod)
-	scaledMonitor := &resourceRequestOperator.ResourceScaler{Provider: monitor, Factor: float32(resourceSharingPercentage.Val) / 100.}
-	offerUpdater := resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
-		scaledMonitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
+	var monitor resourcemonitors.ResourceReader
+	if *externalResourceMonitorAddress != "" {
+		externalMonitor, err := resourcemonitors.NewExternalMonitor(*externalResourceMonitorAddress)
+		if err != nil {
+			klog.Fatal(err)
+		}
+		monitor = externalMonitor
+	} else {
+		localMonitor := resourcemonitors.NewLocalMonitor(ctx, clientset, *resyncPeriod)
+		monitor = &resourcemonitors.ResourceScaler{
+			Provider: localMonitor,
+			Factor:   float32(resourceSharingPercentage.Val) / 100.,
+		}
+	}
+	offerUpdater := resourceRequestOperator.NewOfferUpdater(ctx, mgr.GetClient(), clusterIdentity,
+		clusterLabels.StringMap, monitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
 	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),

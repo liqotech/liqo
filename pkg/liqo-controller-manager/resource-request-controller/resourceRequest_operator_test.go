@@ -36,6 +36,7 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
@@ -98,6 +99,15 @@ func CreateResourceRequest(ctx context.Context, resourceRequestName, resourcesNa
 		return err == nil
 	}, timeout, interval).Should(BeTrue())
 	return createdResourceRequest
+}
+
+func isShadowPod(podToCheck *corev1.Pod) bool {
+	if shadowLabel, exists := podToCheck.Labels[consts.LocalPodLabelKey]; exists {
+		if shadowLabel == consts.LocalPodLabelValue {
+			return true
+		}
+	}
+	return false
 }
 
 var _ = Describe("ResourceRequest Operator", func() {
@@ -353,7 +363,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
-					ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
+					resourcemonitors.ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}
@@ -391,7 +401,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
-					ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
+					resourcemonitors.ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}
@@ -413,7 +423,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
-					ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
+					resourcemonitors.ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}
@@ -433,7 +443,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
-					ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
+					resourcemonitors.ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}
@@ -454,7 +464,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
-					ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
+					resourcemonitors.ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}
@@ -481,7 +491,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
-					ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
+					resourcemonitors.ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}

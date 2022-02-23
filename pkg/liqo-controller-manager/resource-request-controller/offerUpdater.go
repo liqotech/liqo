@@ -31,27 +31,12 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 )
-
-// ResourceUpdateNotifier represents an interface for OfferUpdater to receive resource updates.
-type ResourceUpdateNotifier interface {
-	// NotifyChange signals that a change in resources may have occurred.
-	NotifyChange()
-}
-
-// ResourceReader represents an interface to read the available resources in this cluster.
-type ResourceReader interface {
-	// ReadResources returns the resources available for usage by the given cluster.
-	ReadResources(clusterID string) corev1.ResourceList
-	// Register sets the component that will be notified of changes.
-	Register(ResourceUpdateNotifier)
-	// RemoveClusterID removes the given clusterID from all internal structures.
-	RemoveClusterID(clusterID string)
-}
 
 // OfferUpdater is a component that responds to ResourceRequests with the cluster's resources read from ResourceReader.
 type OfferUpdater struct {
-	ResourceReader ResourceReader
+	resourcemonitors.ResourceReader
 	OfferQueue
 
 	client                    client.Client
@@ -70,8 +55,8 @@ type OfferUpdater struct {
 }
 
 // NewOfferUpdater constructs a new OfferUpdater.
-func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.ClusterIdentity,
-	clusterLabels map[string]string, reader ResourceReader, updateThresholdPercentage uint,
+func NewOfferUpdater(ctx context.Context, k8sClient client.Client, homeCluster discoveryv1alpha1.ClusterIdentity,
+	clusterLabels map[string]string, reader resourcemonitors.ResourceReader, updateThresholdPercentage uint,
 	localRealStorageClassName string, enableStorage bool) *OfferUpdater {
 	updater := &OfferUpdater{
 		ResourceReader:            reader,
@@ -86,7 +71,7 @@ func NewOfferUpdater(k8sClient client.Client, homeCluster discoveryv1alpha1.Clus
 		clusterIdentityCache:      map[string]discoveryv1alpha1.ClusterIdentity{},
 	}
 	updater.OfferQueue = NewOfferQueue(updater)
-	reader.Register(updater)
+	reader.Register(ctx, updater)
 	return updater
 }
 
