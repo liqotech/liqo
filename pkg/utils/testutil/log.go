@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package namespacemap
+package testutil
 
 import (
-	"testing"
+	"flag"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
-	"github.com/liqotech/liqo/pkg/utils/testutil"
+	"github.com/onsi/ginkgo"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/klog/v2"
 )
 
-func TestNamespace(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "NamespaceMap Suite")
+// LogsToGinkgoWriter configures klog to output the logs to GinkgoWriter, instead of stdout.
+// This allows to output the logs only in case of failing tests, simplifying troubleshooting.
+func LogsToGinkgoWriter() {
+	klog.SetOutput(ginkgo.GinkgoWriter)
+	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
+	klog.InitFlags(flagset)
+	utilruntime.Must(flagset.Set("v", "5"))
+	utilruntime.Must(flagset.Set("stderrthreshold", "FATAL"))
+	klog.LogToStderr(false)
 }
-
-var _ = BeforeSuite(func() {
-	testutil.LogsToGinkgoWriter()
-})

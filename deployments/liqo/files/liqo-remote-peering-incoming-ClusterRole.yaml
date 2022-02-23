@@ -25,3 +25,29 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - namespacemaps
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - namespacemaps/status
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch

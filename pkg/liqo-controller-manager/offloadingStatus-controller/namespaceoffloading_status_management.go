@@ -20,7 +20,6 @@ import (
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -91,14 +90,14 @@ func assignClusterRemoteCondition(noff *offv1alpha1.NamespaceOffloading, phase m
 func setRemoteConditionsForEveryCluster(noff *offv1alpha1.NamespaceOffloading, nml *mapsv1alpha1.NamespaceMapList) {
 	for i := range nml.Items {
 		if remoteNamespaceStatus, ok := nml.Items[i].Status.CurrentMapping[noff.Namespace]; ok {
-			assignClusterRemoteCondition(noff, remoteNamespaceStatus.Phase, nml.Items[i].Labels[liqoconst.RemoteClusterID])
+			assignClusterRemoteCondition(noff, remoteNamespaceStatus.Phase, nml.Items[i].GetName())
 			continue
 		}
 		// Two cases in which there are no entry in NamespaceMap Status:
 		// - when the local namespace is not offloaded inside this cluster.
 		// - when the remote namespace previously created has been correctly removed from this cluster.
 		// In these cases the remote condition will be "OffloadingRequired=false"
-		assignClusterRemoteCondition(noff, "", nml.Items[i].Labels[liqoconst.RemoteClusterID])
+		assignClusterRemoteCondition(noff, "", nml.Items[i].GetName())
 	}
 }
 
@@ -148,17 +147,17 @@ func setNamespaceOffloadingStatus(noff *offv1alpha1.NamespaceOffloading) {
 // corresponding NamespaceMap is still there. If the peering is deleted also the corresponding remote condition
 // must be deleted.
 func ensureRemoteConditionsConsistence(noff *offv1alpha1.NamespaceOffloading, nml *mapsv1alpha1.NamespaceMapList) {
-	for remoteClusterID := range noff.Status.RemoteNamespacesConditions {
+	for nmname := range noff.Status.RemoteNamespacesConditions {
 		presence := false
 		for i := range nml.Items {
-			if nodeClusterID, ok := nml.Items[i].Labels[liqoconst.RemoteClusterID]; ok && remoteClusterID == nodeClusterID {
+			if nml.Items[i].GetName() == nmname {
 				presence = true
 				break
 			}
 		}
 		if !presence {
-			delete(noff.Status.RemoteNamespacesConditions, remoteClusterID)
-			klog.Infof("The remoteNamespaceCondition for the remote cluster '%s' is no more necessary", remoteClusterID)
+			delete(noff.Status.RemoteNamespacesConditions, nmname)
+			klog.Infof("The remoteNamespaceCondition for the remote cluster '%s' is no more necessary", nmname)
 		}
 	}
 }

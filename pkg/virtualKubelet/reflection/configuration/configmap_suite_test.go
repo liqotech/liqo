@@ -16,7 +16,6 @@ package configuration_test
 
 import (
 	"context"
-	"flag"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -25,9 +24,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -57,11 +56,7 @@ func TestService(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	klog.SetOutput(GinkgoWriter)
-	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
-	klog.InitFlags(flagset)
-	Expect(flagset.Set("v", "4")).To(Succeed())
-	klog.LogToStderr(false)
+	testutil.LogsToGinkgoWriter()
 
 	ctx := context.Background()
 

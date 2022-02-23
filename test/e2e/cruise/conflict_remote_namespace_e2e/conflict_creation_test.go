@@ -18,6 +18,7 @@ package conflictremotenamespace
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -119,7 +121,8 @@ var _ = Describe("Liqo E2E", func() {
 					types.NamespacedName{Name: remoteTestNamespaceName}, namespace); err != nil {
 					return err
 				}
-				if value, ok := namespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey]; !ok || value != localCluster.ClusterID {
+				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
+				if !ok || strings.HasSuffix(value, foreignclusterutils.UniqueName(&testContext.Clusters[remoteIndex].Cluster)) {
 					return fmt.Errorf("the remote namespace has not the right Liqo annotation")
 				}
 				return nil

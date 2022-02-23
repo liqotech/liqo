@@ -52,7 +52,7 @@ var _ = Describe("Namespace controller", func() {
 			Expect(len(nms.Items) == mapNumber).To(BeTrue())
 			for i := range nms.Items {
 				nms.Items[i].Status.CurrentMapping = map[string]mapsv1alpha1.RemoteNamespaceStatus{}
-				if err := homeClient.Update(context.TODO(), nms.Items[i].DeepCopy()); err != nil {
+				if err := homeClient.Status().Update(context.TODO(), nms.Items[i].DeepCopy()); err != nil {
 					return false
 				}
 			}
@@ -90,19 +90,19 @@ var _ = Describe("Namespace controller", func() {
 				if namespaceOffloading1.Status.OffloadingPhase != offv1alpha1.NoClusterSelectedOffloadingPhaseType {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1][0].Status != corev1.ConditionFalse {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2][0].Status != corev1.ConditionFalse {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3][0].Status != corev1.ConditionFalse {
 					return false
 				}
 				return true
@@ -113,7 +113,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 1 - Get NamespaceMap associated to remote cluster 1 and change Status")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -122,7 +122,7 @@ var _ = Describe("Namespace controller", func() {
 					RemoteNamespace: namespace1Name,
 					Phase:           mapsv1alpha1.MappingAccepted,
 				}
-				err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
+				err := homeClient.Status().Update(context.TODO(), nms.Items[0].DeepCopy())
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
@@ -136,19 +136,19 @@ var _ = Describe("Namespace controller", func() {
 				if namespaceOffloading1.Status.OffloadingPhase != offv1alpha1.ReadyOffloadingPhaseType {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1][0].Type != offv1alpha1.NamespaceReady ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1][0].Status != corev1.ConditionTrue {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1][0].Type != offv1alpha1.NamespaceReady ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1][0].Status != corev1.ConditionTrue {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2][0].Status != corev1.ConditionFalse {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3][0].Status != corev1.ConditionFalse {
 					return false
 				}
 				return true
@@ -159,7 +159,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 1 - Get NamespaceMap associated to remote cluster 2 and change Status")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -168,7 +168,7 @@ var _ = Describe("Namespace controller", func() {
 					RemoteNamespace: namespace1Name,
 					Phase:           mapsv1alpha1.MappingCreationLoopBackOff,
 				}
-				err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
+				err := homeClient.Status().Update(context.TODO(), nms.Items[0].DeepCopy())
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
@@ -182,19 +182,19 @@ var _ = Describe("Namespace controller", func() {
 				if namespaceOffloading1.Status.OffloadingPhase != offv1alpha1.AllFailedOffloadingPhaseType {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1][0].Status != corev1.ConditionFalse {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2][0].Type != offv1alpha1.NamespaceReady ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2][0].Type != offv1alpha1.NamespaceReady ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2][0].Status != corev1.ConditionFalse {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3][0].Status != corev1.ConditionFalse {
 					return false
 				}
 				return true
@@ -205,7 +205,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 1 - Get NamespaceMap associated to remote cluster 2 and change Status to MappingCreationBackoff")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -214,7 +214,7 @@ var _ = Describe("Namespace controller", func() {
 					RemoteNamespace: namespace1Name,
 					Phase:           mapsv1alpha1.MappingCreationLoopBackOff,
 				}
-				err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
+				err := homeClient.Status().Update(context.TODO(), nms.Items[0].DeepCopy())
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
@@ -222,7 +222,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 2 - Get NamespaceMap associated to remote cluster 1 and change Status to MappingAccepted")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -231,7 +231,7 @@ var _ = Describe("Namespace controller", func() {
 					RemoteNamespace: namespace1Name,
 					Phase:           mapsv1alpha1.MappingAccepted,
 				}
-				err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
+				err := homeClient.Status().Update(context.TODO(), nms.Items[0].DeepCopy())
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
@@ -246,19 +246,19 @@ var _ = Describe("Namespace controller", func() {
 				if namespaceOffloading1.Status.OffloadingPhase != offv1alpha1.SomeFailedOffloadingPhaseType {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1][0].Type != offv1alpha1.NamespaceReady ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId1][0].Status != corev1.ConditionTrue {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1][0].Type != offv1alpha1.NamespaceReady ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID1][0].Status != corev1.ConditionTrue {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2][0].Type != offv1alpha1.NamespaceReady ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId2][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2][0].Type != offv1alpha1.NamespaceReady ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID2][0].Status != corev1.ConditionFalse {
 					return false
 				}
-				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3]) != 1 ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
-					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterId3][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3]) != 1 ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
+					namespaceOffloading1.Status.RemoteNamespacesConditions[remoteClusterID3][0].Status != corev1.ConditionFalse {
 					return false
 				}
 				return true
@@ -300,7 +300,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 3 - Get NamespaceMap associated to remote cluster 2 and change Status to MappingCreationBackoff")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -309,13 +309,13 @@ var _ = Describe("Namespace controller", func() {
 					RemoteNamespace: namespace5Name,
 					Phase:           mapsv1alpha1.MappingCreationLoopBackOff,
 				}
-				err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
+				err := homeClient.Status().Update(context.TODO(), nms.Items[0].DeepCopy())
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
 			By(" 4 - Get NamespaceMap associated to remote cluster 1 and change Status to MappingAccepted")
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -324,7 +324,7 @@ var _ = Describe("Namespace controller", func() {
 					RemoteNamespace: namespace5Name,
 					Phase:           mapsv1alpha1.MappingAccepted,
 				}
-				err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
+				err := homeClient.Status().Update(context.TODO(), nms.Items[0].DeepCopy())
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
@@ -351,19 +351,19 @@ var _ = Describe("Namespace controller", func() {
 				if namespaceOffloading5.Status.OffloadingPhase != offv1alpha1.TerminatingOffloadingPhaseType {
 					return false
 				}
-				if len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId1]) != 1 ||
-					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId1][0].Type != offv1alpha1.NamespaceReady ||
-					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId1][0].Status != corev1.ConditionTrue {
+				if len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID1]) != 1 ||
+					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID1][0].Type != offv1alpha1.NamespaceReady ||
+					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID1][0].Status != corev1.ConditionTrue {
 					return false
 				}
-				if len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId2]) != 1 ||
-					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId2][0].Type != offv1alpha1.NamespaceReady ||
-					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId2][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID2]) != 1 ||
+					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID2][0].Type != offv1alpha1.NamespaceReady ||
+					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID2][0].Status != corev1.ConditionFalse {
 					return false
 				}
-				if len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId3]) != 1 ||
-					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
-					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId3][0].Status != corev1.ConditionFalse {
+				if len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID3]) != 1 ||
+					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID3][0].Type != offv1alpha1.NamespaceOffloadingRequired ||
+					namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID3][0].Status != corev1.ConditionFalse {
 					return false
 				}
 				return true
@@ -377,7 +377,7 @@ var _ = Describe("Namespace controller", func() {
 				Expect(len(nms.Items) == mapNumber).To(BeTrue())
 				for i := range nms.Items {
 					nms.Items[i].Status.CurrentMapping = map[string]mapsv1alpha1.RemoteNamespaceStatus{}
-					if err := homeClient.Update(context.TODO(), nms.Items[i].DeepCopy()); err != nil {
+					if err := homeClient.Status().Update(context.TODO(), nms.Items[i].DeepCopy()); err != nil {
 						return false
 					}
 				}
@@ -394,9 +394,9 @@ var _ = Describe("Namespace controller", func() {
 				if namespaceOffloading5.Status.OffloadingPhase != offv1alpha1.TerminatingOffloadingPhaseType {
 					return false
 				}
-				return len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId1]) == 0 &&
-					len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId2]) == 0 &&
-					len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterId3]) == 0
+				return len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID1]) == 0 &&
+					len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID2]) == 0 &&
+					len(namespaceOffloading5.Status.RemoteNamespacesConditions[remoteClusterID3]) == 0
 			}, timeout, interval).Should(BeTrue())
 
 		})
@@ -429,7 +429,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(" 3 - Get NamespaceMap associated to remote cluster 2 and delete it")
 			Eventually(func() error {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return err
 				}
 				if len(nms.Items) == 0 {
@@ -451,10 +451,10 @@ var _ = Describe("Namespace controller", func() {
 					return fmt.Errorf("there are still '%d' remoteNamespaceCondition",
 						len(namespaceOffloading6.Status.RemoteNamespacesConditions))
 				}
-				if len(namespaceOffloading6.Status.RemoteNamespacesConditions[remoteClusterId1]) != 1 {
+				if len(namespaceOffloading6.Status.RemoteNamespacesConditions[remoteClusterID1]) != 1 {
 					return fmt.Errorf("the remote condition associated with the namespaceMap 1 is not present")
 				}
-				if len(namespaceOffloading6.Status.RemoteNamespacesConditions[remoteClusterId3]) != 1 {
+				if len(namespaceOffloading6.Status.RemoteNamespacesConditions[remoteClusterID3]) != 1 {
 					return fmt.Errorf("the remote condition associated with the namespaceMap 3 is not present")
 				}
 				return nil

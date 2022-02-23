@@ -179,16 +179,18 @@ func (r *Reflector) stopForResource(gvr schema.GroupVersionResource) error {
 
 	klog.Infof("[%v] Stopping reflection of %v", r.remoteClusterID, gvr)
 
-	// Check if any reflected object is still present in the remote cluster
-	objects, err := rs.remote.List(labels.Everything())
-	if err != nil {
-		klog.Errorf("[%v] Failed to stop reflection of %v: %v", r.remoteClusterID, gvr, err)
-		return err
-	}
+	// Check if any object is still present in the local or in the remote cluster
+	for key, lister := range map[string]cache.GenericNamespaceLister{"local": rs.local, "remote": rs.remote} {
+		objects, err := lister.List(labels.Everything())
+		if err != nil {
+			klog.Errorf("[%v] Failed to stop reflection of %v: %v", r.remoteClusterID, gvr, err)
+			return err
+		}
 
-	if len(objects) > 0 {
-		klog.Errorf("[%v] Cannot stop reflection of %v, since remote objects are still present", r.remoteClusterID, gvr)
-		return fmt.Errorf("remote %v still present for cluster %v", gvr, r.remoteClusterID)
+		if len(objects) > 0 {
+			klog.Errorf("[%v] Cannot stop reflection of %v, since %v objects are still present", r.remoteClusterID, gvr, key)
+			return fmt.Errorf("%v %v still present for cluster %v", key, gvr, r.remoteClusterID)
+		}
 	}
 
 	// Stop receiving updates from the informers

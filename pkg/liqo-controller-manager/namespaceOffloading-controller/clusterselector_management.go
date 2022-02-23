@@ -19,12 +19,15 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	k8shelper "k8s.io/component-helpers/scheduling/corev1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -83,8 +86,13 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 }
 
 func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (map[string]*mapsv1alpha1.NamespaceMap, error) {
+	// Build the selector to consider only local NamespaceMaps.
+	metals := reflection.LocalResourcesLabelSelector()
+	selector, err := metav1.LabelSelectorAsSelector(&metals)
+	utilruntime.Must(err)
+
 	nms := &mapsv1alpha1.NamespaceMapList{}
-	if err := r.List(ctx, nms); err != nil {
+	if err := r.List(ctx, nms, client.MatchingLabelsSelector{Selector: selector}); err != nil {
 		klog.Error(err, " --> Unable to List NamespaceMaps")
 		return nil, err
 	}

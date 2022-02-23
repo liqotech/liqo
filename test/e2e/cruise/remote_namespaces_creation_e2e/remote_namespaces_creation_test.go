@@ -31,6 +31,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -131,9 +132,9 @@ var _ = Describe("Liqo E2E", func() {
 					return testContext.Clusters[i].ControllerClient.Get(ctx,
 						types.NamespacedName{Name: remoteTestNamespaceName}, namespace)
 				}, longTimeout, interval).Should(BeNil())
-				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey]
+				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
 				Expect(ok).To(BeTrue())
-				Expect(value).To(Equal(localCluster.ClusterID))
+				Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(&testContext.Clusters[i].Cluster)))
 			}
 
 			var oldUIDRemoteNamespace types.UID

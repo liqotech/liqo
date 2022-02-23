@@ -19,14 +19,17 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -63,9 +66,13 @@ func (r *OffloadingStatusReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	// Get all NamespaceMaps in the cluster
+	// Get all local NamespaceMaps in the cluster
+	metals := reflection.LocalResourcesLabelSelector()
+	selector, err := metav1.LabelSelectorAsSelector(&metals)
+	utilruntime.Must(err)
+
 	namespaceMapList := &mapsv1alpha1.NamespaceMapList{}
-	if err := r.List(ctx, namespaceMapList); err != nil {
+	if err := r.List(ctx, namespaceMapList, client.MatchingLabelsSelector{Selector: selector}); err != nil {
 		klog.Errorf("%s -> unable to get NamespaceMaps", err)
 		return ctrl.Result{}, err
 	}

@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/cache"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
@@ -158,7 +159,7 @@ var _ = Describe("Reflector tests", func() {
 
 			JustBeforeEach(func() { err = reflector.stopForResource(gvr) })
 
-			When("no remote object is present", func() {
+			When("no object is present", func() {
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("should no longer be active", func() { Expect(reflector.ResourceStarted(&res)).To(BeFalse()) })
 				When("a local object is created", func() {
@@ -176,18 +177,23 @@ var _ = Describe("Reflector tests", func() {
 				})
 			})
 
-			When("a remote objects is present", func() {
-				BeforeEach(func() {
-					CreateRemoteObject()
+			WhenBody := func(creator func(), retriever func(*reflectedResource) cache.GenericNamespaceLister) func() {
+				return func() {
+					BeforeEach(func() {
+						creator()
 
-					// Make sure the object gets cached by the lister
-					Eventually(func() error {
-						_, e := reflector.resources[gvr].remote.Get(name)
-						return e
-					}).Should(Succeed())
-				})
-				It("should return an error", func() { Expect(err).To(HaveOccurred()) })
-			})
+						// Make sure the object gets cached by the lister
+						Eventually(func() error {
+							_, e := retriever(reflector.resources[gvr]).Get(name)
+							return e
+						}).Should(Succeed())
+					})
+					It("should return an error", func() { Expect(err).To(HaveOccurred()) })
+				}
+			}
+
+			When("a local object is present", WhenBody(CreateLocalObject, func(rr *reflectedResource) cache.GenericNamespaceLister { return rr.local }))
+			When("a remote object is present", WhenBody(CreateRemoteObject, func(rr *reflectedResource) cache.GenericNamespaceLister { return rr.remote }))
 		})
 	})
 })
