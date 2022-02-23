@@ -47,12 +47,6 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 			klog.Error(err)
 			return err
 		}
-		if r.OwnerReferencesPermissionEnforcement {
-			if err = r.NamespaceManager.UnbindIncomingClusterWideRole(ctx, remoteCluster); err != nil {
-				klog.Error(err)
-				return err
-			}
-		}
 	case consts.PeeringPhaseOutgoing:
 		if _, err = r.NamespaceManager.BindClusterRoles(remoteCluster,
 			r.PeeringPermission.Outgoing...); err != nil {
@@ -63,12 +57,6 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 			clusterRolesToNames(r.PeeringPermission.Incoming)...); err != nil {
 			klog.Error(err)
 			return err
-		}
-		if r.OwnerReferencesPermissionEnforcement {
-			if err = r.NamespaceManager.UnbindIncomingClusterWideRole(ctx, remoteCluster); err != nil {
-				klog.Error(err)
-				return err
-			}
 		}
 	case consts.PeeringPhaseIncoming:
 		if err = r.NamespaceManager.UnbindClusterRoles(remoteCluster,
@@ -81,12 +69,6 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 			klog.Error(err)
 			return err
 		}
-		if r.OwnerReferencesPermissionEnforcement {
-			if _, err = r.NamespaceManager.BindIncomingClusterWideRole(ctx, remoteCluster); err != nil {
-				klog.Error(err)
-				return err
-			}
-		}
 	case consts.PeeringPhaseBidirectional:
 		if _, err = r.NamespaceManager.BindClusterRoles(remoteCluster,
 			r.PeeringPermission.Outgoing...); err != nil {
@@ -97,12 +79,6 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 			r.PeeringPermission.Incoming...); err != nil {
 			klog.Error(err)
 			return err
-		}
-		if r.OwnerReferencesPermissionEnforcement {
-			if _, err = r.NamespaceManager.BindIncomingClusterWideRole(ctx, remoteCluster); err != nil {
-				klog.Error(err)
-				return err
-			}
 		}
 	default:
 		err = fmt.Errorf("invalid PeeringPhase %v", peeringPhase)

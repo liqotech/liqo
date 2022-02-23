@@ -22,10 +22,6 @@
 | awsConfig.clusterName | string | `""` | name of the EKS cluster |
 | awsConfig.region | string | `""` | AWS region where the clsuter is runnnig |
 | awsConfig.secretAccessKey | string | `""` | secretAccessKey for the Liqo user |
-| capsule.fullnameOverride | string | `"capsule"` | override the fullname to fix naming problems |
-| capsule.install | bool | `true` | liqo needs capsule to work properly, but you can use your already deployed capsule installation |
-| capsule.manager.options.capsuleUserGroups[0] | string | `"capsule.clastix.io"` |  |
-| capsule.manager.options.capsuleUserGroups[1] | string | `"liqo.io"` |  |
 | controllerManager.config.resourceSharingPercentage | int | `30` | It defines the percentage of available cluster resources that you are willing to share with foreign clusters. |
 | controllerManager.imageName | string | `"liqo/liqo-controller-manager"` | controller-manager image repository |
 | controllerManager.pod.annotations | object | `{}` | controller-manager pod annotations |

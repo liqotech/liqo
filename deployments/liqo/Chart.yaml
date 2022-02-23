@@ -20,9 +20,3 @@ version: "0.1"
 # incremented each time you make changes to the application.
 # AppVersion is commented by default. Uncomment it or add it as extra-args to helm package if you want to release a new Liqo version
 # appVersion:
-
-dependencies:
-- name: capsule
-  version: v0.1.6
-  repository: https://clastix.github.io/charts
-  condition: capsule.install

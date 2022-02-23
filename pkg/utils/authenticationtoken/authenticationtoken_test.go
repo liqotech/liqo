@@ -51,7 +51,6 @@ func createCluster() {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "..", "deployments", "liqo", "crds"),
-			filepath.Join("..", "..", "..", "externalcrds"),
 		},
 	}
 

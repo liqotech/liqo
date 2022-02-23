@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -163,6 +162,5 @@ func getScheme() *runtime.Scheme {
 	_ = netv1alpha1.AddToScheme(scheme)
 	_ = sharingv1alpha1.AddToScheme(scheme)
 	_ = virtualKubeletv1alpha1.AddToScheme(scheme)
-	_ = capsulev1alpha1.AddToScheme(scheme)
 	return scheme
 }

@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,12 +42,7 @@ var liqoGroupVersions = []schema.GroupVersion{
 	virtualKubeletv1alpha1.SchemeGroupVersion,
 }
 
-var liqoDependenciesGroupVersions = []schema.GroupVersion{
-	capsulev1beta1.GroupVersion,  // tenants are here
-	capsulev1alpha1.GroupVersion, // configurations are here
-}
-
-func purge(ctx context.Context, config *rest.Config, purgeDependencies bool) error {
+func purge(ctx context.Context, config *rest.Config) error {
 	dClient, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return err
@@ -62,12 +55,6 @@ func purge(ctx context.Context, config *rest.Config, purgeDependencies bool) err
 
 	if err = removeGroupVersions(ctx, dClient, clientSet, liqoGroupVersions); err != nil {
 		return err
-	}
-
-	if purgeDependencies {
-		if err = removeGroupVersions(ctx, dClient, clientSet, liqoDependenciesGroupVersions); err != nil {
-			return err
-		}
 	}
 
 	return nil

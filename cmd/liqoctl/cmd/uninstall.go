@@ -31,8 +31,6 @@ const (
 
 	// liqoctlUninstallPurgeHelp contains the help message for the purge flag.
 	liqoctlUninstallPurgeHelp = "Purge all Liqo CRDs from the cluster"
-	// liqoctlUninstallPurgeDependenciesHelp contains the help message for the purge-dependencies flag.
-	liqoctlUninstallPurgeDependenciesHelp = "Purge all CRDs of Liqo dependencies from the cluster"
 	// liqoctlUninstallNamespaceHelp contains the help message for the namespace flag.
 	liqoctlUninstallNamespaceHelp = "Namespace where Liqo is installed"
 )
@@ -53,7 +51,6 @@ func newUninstallCommand(ctx context.Context) *cobra.Command {
 
 	uninstallCmd.Flags().StringVarP(&uninstallArgs.Namespace, "namespace", "n", installutils.LiqoNamespace, liqoctlUninstallNamespaceHelp)
 	uninstallCmd.Flags().BoolVar(&uninstallArgs.Purge, "purge", false, liqoctlUninstallPurgeHelp)
-	uninstallCmd.Flags().BoolVar(&uninstallArgs.PurgeDependencies, "purge-dependencies", false, liqoctlUninstallPurgeDependenciesHelp)
 
 	return uninstallCmd
 }

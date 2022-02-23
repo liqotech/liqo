@@ -16,7 +16,6 @@ package uninstall
 
 // Args contains the arguments for the uninstall command.
 type Args struct {
-	Namespace         string
-	Purge             bool
-	PurgeDependencies bool
+	Namespace string
+	Purge     bool
 }

@@ -49,7 +49,7 @@ func HandleUninstallCommand(ctx context.Context, cmd *cobra.Command, args *Args)
 	}
 
 	if args.Purge {
-		if err = purge(ctx, config, args.PurgeDependencies); err != nil {
+		if err = purge(ctx, config); err != nil {
 			return err
 		}
 	}

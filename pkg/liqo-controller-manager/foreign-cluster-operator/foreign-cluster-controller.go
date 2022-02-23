@@ -96,12 +96,11 @@ type ForeignClusterReconciler struct {
 
 	LiqoNamespace string
 
-	ResyncPeriod                         time.Duration
-	HomeCluster                          discoveryv1alpha1.ClusterIdentity
-	AuthServiceAddressOverride           string
-	AuthServicePortOverride              string
-	AutoJoin                             bool
-	OwnerReferencesPermissionEnforcement bool
+	ResyncPeriod               time.Duration
+	HomeCluster                discoveryv1alpha1.ClusterIdentity
+	AuthServiceAddressOverride string
+	AuthServicePortOverride    string
+	AutoJoin                   bool
 
 	NamespaceManager tenantnamespace.Manager
 	IdentityManager  identitymanager.IdentityManager
@@ -135,7 +134,6 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create;deletecollection;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;create;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;create;delete
-// +kubebuilder:rbac:groups=capsule.clastix.io,resources=tenants/finalizers,verbs=get;patch;update
 // role
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update;delete

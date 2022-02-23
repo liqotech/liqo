@@ -17,95 +17,13 @@ package resourcerequestoperator
 import (
 	"context"
 
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
-
-const tenantFinalizer = "liqo.io/tenant"
-
-func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity,
-	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
-	klog.Infof("%s -> creating Tenant %s",
-		remoteClusterIdentity.ClusterName, GetTenantName(remoteClusterIdentity))
-
-	tenant := &capsulev1beta1.Tenant{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: GetTenantName(remoteClusterIdentity),
-		},
-	}
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, tenant, func() error {
-		tenant.Spec = capsulev1beta1.TenantSpec{
-			NamespaceOptions: &capsulev1beta1.NamespaceOptions{
-				AdditionalMetadata: &capsulev1beta1.AdditionalMetadataSpec{
-					Annotations: map[string]string{
-						liqoconst.RemoteNamespaceAnnotationKey: remoteClusterIdentity.ClusterID,
-					},
-				},
-			},
-			Owners: []capsulev1beta1.OwnerSpec{
-				{
-					Name: remoteClusterIdentity.ClusterID,
-					Kind: rbacv1.UserKind,
-				},
-			},
-			AdditionalRoleBindings: []capsulev1beta1.AdditionalRoleBindingsSpec{
-				{
-					ClusterRoleName: "liqo-virtual-kubelet-remote",
-					Subjects: []rbacv1.Subject{
-						{
-							Kind: rbacv1.UserKind,
-							Name: remoteClusterIdentity.ClusterID,
-						},
-					},
-				},
-			},
-		}
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	if !controllerutil.ContainsFinalizer(resourceRequest, tenantFinalizer) {
-		klog.Infof("%s -> adding %s finalizer", remoteClusterIdentity.ClusterName, tenantFinalizer)
-		controllerutil.AddFinalizer(resourceRequest, tenantFinalizer)
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (r *ResourceRequestReconciler) ensureTenantDeletion(ctx context.Context, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity,
-	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
-	tenant := &capsulev1beta1.Tenant{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: GetTenantName(remoteClusterIdentity),
-		},
-	}
-	err = r.Client.Delete(ctx, tenant)
-	if client.IgnoreNotFound(err) != nil {
-		klog.Error(err)
-		return false, err
-	}
-
-	if controllerutil.ContainsFinalizer(resourceRequest, tenantFinalizer) {
-		controllerutil.RemoveFinalizer(resourceRequest, tenantFinalizer)
-		klog.Infof("%s -> removing %s finalizer", remoteClusterIdentity.ClusterName, tenantFinalizer)
-		return true, nil
-	}
-
-	return false, nil
-}
 
 func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) error {

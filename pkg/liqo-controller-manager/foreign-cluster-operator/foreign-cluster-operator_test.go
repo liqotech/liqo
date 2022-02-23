@@ -881,76 +881,44 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 		DescribeTable("permission table",
 			func(c permissionTestcase) {
-				var checkClusterWidePermission = func(expected types.GomegaMatcher) {
-					clusterRoleName := fmt.Sprintf("liqo-remote-cluster-role-%v", c.fc.Spec.ClusterIdentity.ClusterID)
-					var clusterRoleBinding rbacv1.ClusterRoleBinding
-					Eventually(
-						func() error {
-							return controller.Client.Get(ctx, machtypes.NamespacedName{Name: clusterRoleName}, &clusterRoleBinding)
-						},
-						timeout, interval,
-					).Should(expected)
-					var clusterRole rbacv1.ClusterRole
-					Eventually(
-						func() error {
-							return controller.Client.Get(ctx, machtypes.NamespacedName{Name: clusterRoleName}, &clusterRole)
-						},
-						timeout, interval,
-					).Should(expected)
-				}
+				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
-				var checkBindings = func(ownerReferencesPermissionEnforcement bool) {
-					controller.OwnerReferencesPermissionEnforcement = ownerReferencesPermissionEnforcement
-					c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
+				By("Create RoleBindings")
 
-					By("Create RoleBindings")
+				Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
 
-					Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
+				var roleBindingList rbacv1.RoleBindingList
+				Eventually(func() []string {
+					Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
 
-					var roleBindingList rbacv1.RoleBindingList
-					Eventually(func() []string {
-						Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
-
-						names := make([]string, len(roleBindingList.Items))
-						for i := range roleBindingList.Items {
-							if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
-								names[i] = roleBindingList.Items[i].Name
-							}
+					names := make([]string, len(roleBindingList.Items))
+					for i := range roleBindingList.Items {
+						if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
+							names[i] = roleBindingList.Items[i].Name
 						}
-						return names
-					}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
-
-					if ownerReferencesPermissionEnforcement {
-						checkClusterWidePermission(c.expectedOutgoingClusterWide)
 					}
+					return names
+				}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
 
-					By("Delete RoleBindings")
+				By("Delete RoleBindings")
 
-					// create all
-					_, err := controller.NamespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity, &clusterRole1, &clusterRole2)
-					Expect(err).To(Succeed())
+				// create all
+				_, err := controller.NamespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity, &clusterRole1, &clusterRole2)
+				Expect(err).To(Succeed())
 
-					Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
+				Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
 
-					Eventually(func() []string {
-						Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
+				Eventually(func() []string {
+					Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
 
-						names := make([]string, len(roleBindingList.Items))
-						for i := range roleBindingList.Items {
-							if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
-								names[i] = roleBindingList.Items[i].Name
-							}
+					names := make([]string, len(roleBindingList.Items))
+					for i := range roleBindingList.Items {
+						if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
+							names[i] = roleBindingList.Items[i].Name
 						}
-						return names
-					}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
-
-					if ownerReferencesPermissionEnforcement {
-						checkClusterWidePermission(c.expectedOutgoingClusterWide)
 					}
-				}
-
-				checkBindings(false)
-				checkBindings(true)
+					return names
+				}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
 			},
 
 			Entry("none peering", permissionTestcase{

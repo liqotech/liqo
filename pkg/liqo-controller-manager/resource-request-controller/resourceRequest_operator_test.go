@@ -18,12 +18,10 @@ import (
 	"context"
 	"time"
 
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -191,46 +189,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}, timeout, interval).Should(Succeed())
 		})
 
-		It("Should create a Tenant", func() {
-			var tenant capsulev1beta1.Tenant
-			Eventually(func() error {
-				return k8sClient.Get(ctx, types.NamespacedName{
-					Name: GetTenantName(cluster1),
-				}, &tenant)
-			}, timeout, interval).ShouldNot(HaveOccurred())
-
-			Expect(string(tenant.Spec.Owners[0].Kind)).To(Equal(rbacv1.UserKind))
-			Expect(tenant.Spec.Owners[0].Name).To(Equal(cluster1.ClusterID))
-			Expect(tenant.Spec.AdditionalRoleBindings).To(ContainElement(
-				capsulev1beta1.AdditionalRoleBindingsSpec{
-					ClusterRoleName: "liqo-virtual-kubelet-remote",
-					Subjects: []rbacv1.Subject{
-						{
-							Kind: rbacv1.UserKind,
-							Name: cluster1.ClusterID,
-						},
-					},
-				},
-			))
-		})
-
 		It("Should create a new ResourceOffer", func() {
-			By("Checking Request status")
-			var resourceRequest discoveryv1alpha1.ResourceRequest
-			Eventually(func() []string {
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      ResourceRequestName + cluster1.ClusterID,
-					Namespace: ResourcesNamespace,
-				}, &resourceRequest)
-				if err != nil {
-					return []string{}
-				}
-				return resourceRequest.Finalizers
-			}, timeout, interval).Should(ContainElement(tenantFinalizer))
-
-			Expect(resourceRequest.Labels[consts.ReplicationOriginLabel]).To(Equal(cluster1.ClusterID))
-			Expect(resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()).To(BeTrue())
-
 			By("Checking Offer creation")
 			var offers sharingv1alpha1.ResourceOfferList
 			Eventually(func() []sharingv1alpha1.ResourceOffer {
@@ -280,11 +239,12 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By("Checking ResourceOffer invalidation on request set deleting phase")
+			var resourceRequest discoveryv1alpha1.ResourceRequest
 			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 				// make sure to be working on the last ForeignCluster version
 				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      resourceRequest.Name,
-					Namespace: resourceRequest.Namespace,
+					Name:      ResourceRequestName + cluster1.ClusterID,
+					Namespace: ResourcesNamespace,
 				}, &resourceRequest)
 				if err != nil {
 					return err
@@ -328,19 +288,11 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return apierrors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 
-			By("Checking Tenant Deletion")
+			By("Checking ResourceRequest Deletion")
 			err = k8sClient.Delete(ctx, &resourceRequest)
 			Expect(err).ToNot(HaveOccurred())
 
-			// check the tenant deletion
-			Eventually(func() bool {
-				var tenant capsulev1beta1.Tenant
-				return apierrors.IsNotFound(k8sClient.Get(ctx,
-					types.NamespacedName{Name: GetTenantName(cluster1)},
-					&tenant))
-			}, timeout, interval).Should(BeTrue())
-
-			// check the resource request deletion and that the finalizer has been removed
+			// check the resource request deletion
 			Eventually(func() bool {
 				var rr discoveryv1alpha1.ResourceRequest
 				return apierrors.IsNotFound(k8sClient.Get(ctx,
@@ -352,17 +304,6 @@ var _ = Describe("ResourceRequest Operator", func() {
 
 	When("Creating a new ResourceRequest", func() {
 		It("LocalResourceMonitor should update resources in correct way", func() {
-			var resourceRequest discoveryv1alpha1.ResourceRequest
-			Eventually(func() []string {
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      ResourceRequestName + cluster1.ClusterID,
-					Namespace: ResourcesNamespace,
-				}, &resourceRequest)
-				if err != nil {
-					return []string{}
-				}
-				return resourceRequest.Finalizers
-			}, timeout, interval).Should(ContainElement(tenantFinalizer))
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
 
 			By("Checking update node ready condition")
@@ -599,17 +540,6 @@ var _ = Describe("ResourceRequest Operator", func() {
 	})
 	Context("Testing virtual nodes and shadow pods", func() {
 		It("Test virtual node creation", func() {
-			resourceRequest := discoveryv1alpha1.ResourceRequest{}
-			Eventually(func() []string {
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      ResourceRequestName + cluster1.ClusterID,
-					Namespace: ResourcesNamespace,
-				}, &resourceRequest)
-				if err != nil {
-					return []string{}
-				}
-				return resourceRequest.Finalizers
-			}, timeout, interval).Should(ContainElement(tenantFinalizer))
 			By("Testing check function returning false")
 			Expect(utils.IsVirtualNode(node2)).ShouldNot(BeTrue())
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
@@ -629,17 +559,6 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 		It("Testing shadow pod creation", func() {
-			resourceRequest := discoveryv1alpha1.ResourceRequest{}
-			Eventually(func() []string {
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      ResourceRequestName + cluster1.ClusterID,
-					Namespace: ResourcesNamespace,
-				}, &resourceRequest)
-				if err != nil {
-					return []string{}
-				}
-				return resourceRequest.Finalizers
-			}, timeout, interval).Should(ContainElement(tenantFinalizer))
 			pod, err := createNewPod(ctx, "shadow-test", "", true, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isShadowPod(pod)).Should(BeTrue())

@@ -22,18 +22,14 @@ import (
 	"os"
 	"time"
 
-	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -90,7 +86,6 @@ func init() {
 	_ = offloadingv1alpha1.AddToScheme(scheme)
 	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
 
-	_ = capsulev1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -126,9 +121,6 @@ func main() {
 	authServicePortOverride := flag.String(consts.AuthServicePortOverrideParameter, "",
 		"The port the authentication service is reachable from foreign clusters (automatically retrieved if not set")
 	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
-	ownerReferencesPermissionEnforcement := flag.Bool("owner-references-permission-enforcement", false,
-		"Enable support for the OwnerReferencesPermissionEnforcement admission controller "+
-			"https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement")
 
 	// Resource sharing parameters
 	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
@@ -248,12 +240,11 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		LiqoNamespace: *liqoNamespace,
 
-		ResyncPeriod:                         *resyncPeriod,
-		HomeCluster:                          clusterIdentity,
-		AuthServiceAddressOverride:           *authServiceAddressOverride,
-		AuthServicePortOverride:              *authServicePortOverride,
-		AutoJoin:                             *autoJoin,
-		OwnerReferencesPermissionEnforcement: *ownerReferencesPermissionEnforcement,
+		ResyncPeriod:               *resyncPeriod,
+		HomeCluster:                clusterIdentity,
+		AuthServiceAddressOverride: *authServiceAddressOverride,
+		AuthServicePortOverride:    *authServicePortOverride,
+		AutoJoin:                   *autoJoin,
 
 		NamespaceManager:  namespaceManager,
 		IdentityManager:   idManager,
@@ -378,19 +369,9 @@ func main() {
 	}
 
 	if enableStorage != nil && *enableStorage {
-		var liqoProvisioner controller.Provisioner
-		if err = retry.OnError(
-			wait.Backoff{
-				Duration: 1 * time.Second,
-				Factor:   1,
-				Steps:    180, // 3 minutes
-			},
-			apierrors.IsInternalError,
-			func() error {
-				liqoProvisioner, err = liqostorageprovisioner.NewLiqoLocalStorageProvisioner(ctx, mgr.GetClient(),
-					*virtualStorageClassName, *storageNamespace, *realStorageClassName)
-				return err
-			}); err != nil {
+		liqoProvisioner, err := liqostorageprovisioner.NewLiqoLocalStorageProvisioner(ctx, mgr.GetClient(),
+			*virtualStorageClassName, *storageNamespace, *realStorageClassName)
+		if err != nil {
 			klog.Errorf("unable to start the liqo storage provisioner: %v", err)
 			os.Exit(1)
 		}

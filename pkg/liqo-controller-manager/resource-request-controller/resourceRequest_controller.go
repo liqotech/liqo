@@ -46,8 +46,6 @@ type ResourceRequestReconciler struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status;foreignclusters/finalizers,verbs=get;update;patch
 
-// +kubebuilder:rbac:groups=capsule.clastix.io,resources=tenants,verbs=get;list;watch;create;update;patch;delete;
-
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 
 // Reconcile is the main function of the controller which reconciles ResourceRequest resources.
@@ -82,24 +80,6 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		klog.Errorf("%s -> Error getting the ResourceRequest Phase: %s", remoteCluster.ClusterName, err)
 		return ctrl.Result{}, err
 	}
-
-	newRequireSpecUpdate := false
-	// ensure creation and deletion of the Capsule Tenant for the remote cluster
-	switch resourceReqPhase {
-	case deletingResourceRequestPhase, denyResourceRequestPhase:
-		// the local cluster does not allow the peering, ensure the Tenant deletion
-		if newRequireSpecUpdate, err = r.ensureTenantDeletion(ctx, remoteCluster, &resourceRequest); err != nil {
-			klog.Errorf("%s -> Error deleting Tenant: %s", remoteCluster.ClusterName, err)
-			return ctrl.Result{}, err
-		}
-	case allowResourceRequestPhase:
-		// the local cluster allows the peering, ensure the Tenant creation
-		if newRequireSpecUpdate, err = r.ensureTenant(ctx, remoteCluster, &resourceRequest); err != nil {
-			klog.Errorf("%s -> Error creating Tenant: %s", remoteCluster.ClusterName, err)
-			return ctrl.Result{}, err
-		}
-	}
-	requireSpecUpdate = requireSpecUpdate || newRequireSpecUpdate
 
 	if requireSpecUpdate {
 		if err = r.Client.Update(ctx, &resourceRequest); err != nil {
