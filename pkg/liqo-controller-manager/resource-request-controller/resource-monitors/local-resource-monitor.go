@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package resourcerequestoperator
+package resourcemonitors
 
 import (
 	"context"
@@ -99,7 +99,7 @@ func NewLocalMonitor(ctx context.Context, clientset kubernetes.Interface,
 }
 
 // Register sets an update notifier.
-func (m *LocalResourceMonitor) Register(notifier ResourceUpdateNotifier) {
+func (m *LocalResourceMonitor) Register(_ context.Context, notifier ResourceUpdateNotifier) {
 	m.notifier = notifier
 }
 
@@ -328,13 +328,4 @@ func noShadowPodsFilter(options *metav1.ListOptions) {
 	utilruntime.Must(err)
 	options.LabelSelector = labels.NewSelector().Add(*req).String()
 	options.FieldSelector = fields.OneTermEqualSelector("status.phase", string(corev1.PodRunning)).String()
-}
-
-func isShadowPod(podToCheck *corev1.Pod) bool {
-	if shadowLabel, exists := podToCheck.Labels[consts.LocalPodLabelKey]; exists {
-		if shadowLabel == consts.LocalPodLabelValue {
-			return true
-		}
-	}
-	return false
 }

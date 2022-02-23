@@ -28,6 +28,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -188,7 +189,7 @@ func checkResourceOfferUpdate(ctx context.Context, homeCluster discoveryv1alpha1
 
 	for resourceName, quantity := range offerResources {
 		toCheck := testList[resourceName].DeepCopy()
-		ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
+		resourcemonitors.ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
 		if quantity.Cmp(toCheck) != 0 {
 			return false
 		}

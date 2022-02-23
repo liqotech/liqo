@@ -119,6 +119,7 @@ generate-groups:
 # Generate gRPC files
 grpc: protoc
 	$(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/liqonet/ipam/ipam.proto
+	$(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/liqo-controller-manager/resource-request-controller/resource-monitors/resource-reader.proto
 
 protoc:
 ifeq (, $(shell which protoc))

@@ -1,0 +1,35 @@
+syntax="proto3";
+option go_package = "./resourcemonitors";
+
+// This interface is a gRPC translation of the ResourceReader Go interface.
+service resource_reader {
+  rpc ReadResources (ReadRequest) returns (ReadResponse);
+  rpc RemoveCluster (RemoveRequest) returns (RemoveResponse);
+  rpc Subscribe (SubscribeRequest) returns (stream UpdateNotification);
+}
+
+// A request to read resources to be offered to a cluster. The cluster ID is passed so that we don't offer a cluster's
+// resources to itself.
+message ReadRequest {
+  string originator = 1;
+}
+
+// A response representing a Kubernetes ResourceList. Quantities are represented as string values (eg. "ram": "1Gi").
+message ReadResponse {
+  map<string, string> resources = 1;
+}
+
+// A request to remove a cluster from a reader's data structures.
+message RemoveRequest {
+  string cluster = 1;
+}
+
+message RemoveResponse {
+}
+
+// A request to subscribe to a stream of notifications representing possible changes in resources.
+message SubscribeRequest {
+}
+
+message UpdateNotification {
+}

@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package resourcerequestoperator
+package resourcemonitors
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -28,9 +30,9 @@ type ResourceScaler struct {
 }
 
 // Register sets an update notifier.
-func (s *ResourceScaler) Register(notifier ResourceUpdateNotifier) {
+func (s *ResourceScaler) Register(ctx context.Context, notifier ResourceUpdateNotifier) {
 	s.Notifier = notifier
-	s.Provider.Register(notifier)
+	s.Provider.Register(ctx, notifier)
 }
 
 // ReadResources returns the provider's resources scaled by the given amount.

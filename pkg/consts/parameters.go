@@ -32,4 +32,7 @@ const (
 	// AuthServicePortOverrideParameter is the name of the parameter overriding
 	// the automatically detected authentication service address.
 	AuthServicePortOverrideParameter = "auth-service-port-override"
+
+	// ExternalResourceMonitorParameter is the name of the parameter specifying the address of an ExternalResourceMonitor.
+	ExternalResourceMonitorParameter = "external-monitor"
 )
