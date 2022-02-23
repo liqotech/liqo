@@ -12,5 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package namespacemapctrltestutils provides utility function for namespaceMap controller testing.
-package namespacemapctrltestutils
+package namespacemapctrl_test
+
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"k8s.io/client-go/kubernetes/scheme"
+
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
+)
+
+func TestNamespacemapController(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "NamespaceMapController Suite")
+}
+
+var _ = BeforeSuite(func() {
+	Expect(vkv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
+
+	testutil.LogsToGinkgoWriter()
+})

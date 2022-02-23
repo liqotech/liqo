@@ -29,6 +29,7 @@ import (
 
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 const (
@@ -39,8 +40,6 @@ const (
 type VirtualNodeReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	// key = clusterID, value = tenantNamesapceName
-	LocalTenantNamespacesNames map[string]string
 }
 
 // cluster-role
@@ -62,15 +61,30 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// The virtual-node must have the cluster-id annotation.
-	if _, ok := virtualNode.Labels[liqoconst.RemoteClusterID]; !ok {
+	remoteClusterID, ok := virtualNode.Labels[liqoconst.RemoteClusterID]
+	if !ok {
 		err := fmt.Errorf("the label '%s' is not found on node '%s'", liqoconst.RemoteClusterID, virtualNode.GetName())
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
 
+	// Retrieve the foreign cluster associated with the given cluster ID
+	fc, err := foreignclusterutils.GetForeignClusterByID(ctx, r.Client, remoteClusterID)
+	if err != nil {
+		klog.Errorf("Failed to retrieve foreign cluster associated with cluster ID %q: %v", remoteClusterID, err)
+		return ctrl.Result{}, err
+	}
+
+	if fc.Status.TenantNamespace.Local == "" {
+		err = fmt.Errorf("local tenant namespace not set")
+		klog.Errorf("Failed processing foreign cluster %q: %v", klog.KObj(fc), err)
+		return ctrl.Result{}, err
+	}
+
 	// If the deletion timestamp is set all the NamespaceMaps associated with the virtual-node must be deleted.
 	if !virtualNode.GetDeletionTimestamp().IsZero() {
-		return ctrl.Result{}, r.removeAssociatedNamespaceMaps(ctx, virtualNode)
+		klog.Infof("The virtual node '%s' is requested to be deleted", virtualNode.GetName())
+		return ctrl.Result{}, r.ensureNamespaceMapAbsence(ctx, fc, virtualNode)
 	}
 
 	// It is necessary to have a finalizer on the virtual-node.
@@ -79,7 +93,7 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// If there is no NamespaceMap associated with this virtual-node, it creates a new one.
-	if err := r.ensureNamespaceMapPresence(ctx, virtualNode); err != nil {
+	if err := r.ensureNamespaceMapPresence(ctx, fc, virtualNode); err != nil {
 		return ctrl.Result{}, err
 	}
 

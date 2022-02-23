@@ -37,13 +37,11 @@ const (
 	SchedulingLiqoLabel = "liqo.io/scheduling-enabled"
 	// SchedulingLiqoLabelValue unique value allowed for SchedulingLiqoLabel.
 	SchedulingLiqoLabelValue = "true"
-	// RoleBindingLabelKey label that some RoleBindings in the remote namespace must have. In every remote namespace
-	// there are some RoleBindings that provide the local virtualKubelet with some privileges. These RoleBindings just
-	// described must have that RoleBindingLabel.
-	RoleBindingLabelKey = "capsule.clastix.io/tenant"
-	// RoleBindingLabelValuePrefix prefix of the value that the RoleBindingLabel must have.
-	RoleBindingLabelValuePrefix = "tenant"
-	// RemoteNamespaceAnnotationKey is the annotation that all remote namespaces created by the NamespaceMap controller
-	// must have.
-	RemoteNamespaceAnnotationKey = "liqo.io/remote-namespace"
+
+	// RemoteNamespaceManagedByAnnotationKey is the annotation that identifies the NamespaceMap managing a given remote namespace.
+	RemoteNamespaceManagedByAnnotationKey = "liqo.io/managed-by-namespace-map"
+	// RemoteNamespaceOriginalNameAnnotationKey is the annotation that identifies the original name of a remote namespace.
+	RemoteNamespaceOriginalNameAnnotationKey = "liqo.io/original-name"
+	// RemoteNamespaceClusterRoleName is the name of the cluster role used to grant permissions to the virtual kubelet in remote namespaces.
+	RemoteNamespaceClusterRoleName = "liqo-virtual-kubelet-remote"
 )

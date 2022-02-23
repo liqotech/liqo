@@ -21,6 +21,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -50,6 +51,11 @@ func GetResourcesToReplicate() []Resource {
 		{
 			GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
 			PeeringPhase:         consts.PeeringPhaseEstablished,
+			Ownership:            consts.OwnershipShared,
+		},
+		{
+			GroupVersionResource: vkv1alpha1.NamespaceMapGroupVersionResource,
+			PeeringPhase:         consts.PeeringPhaseOutgoing,
 			Ownership:            consts.OwnershipShared,
 		},
 	}

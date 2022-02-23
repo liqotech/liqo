@@ -15,7 +15,6 @@
 package virtualnodectrl
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"path/filepath"
@@ -29,17 +28,16 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -55,7 +53,7 @@ const (
 	nameSimpleNode            = "simple-node"
 	remoteClusterID1          = "6a0e9f-b52-4ed0"
 	remoteClusterID2          = "899890-dsd-323"
-	remoteClusterIdSimpleNode = "909030-sd-3231"
+	remoteClusterIDSimpleNode = "909030-sd-3231"
 	tenantNamespaceNameID1    = "liqo-tenant-namespace-1"
 	tenantNamespaceNameID2    = "liqo-tenant-namespace-2"
 	offloadingCluster1Label1  = "offloading.liqo.io/cluster-1"
@@ -74,31 +72,20 @@ var (
 	foreignCluster1  *discoveryv1alpha1.ForeignCluster
 	foreignCluster2  *discoveryv1alpha1.ForeignCluster
 	flags            *flag.FlagSet
-	buffer           *bytes.Buffer
 )
 
-func TestAPIs(t *testing.T) {
+func TestVirtualNode(t *testing.T) {
 	RegisterFailHandler(Fail)
-
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "VirtualNode Controller")
 }
 
-var _ = BeforeSuite(func(done Done) {
-
+var _ = BeforeSuite(func() {
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 	}
 
-	buffer = &bytes.Buffer{}
-	flags = &flag.FlagSet{}
-	klog.InitFlags(flags)
-	_ = flags.Set("v", "2")
-	_ = flags.Set("logtostderr", "false")
-	klog.SetOutput(buffer)
-	buffer.Reset()
+	testutil.LogsToGinkgoWriter()
 
 	var err error
 	cfg, err = testEnv.Start()
@@ -158,6 +145,7 @@ var _ = BeforeSuite(func(done Done) {
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
 			ForeignAuthURL:         "https://example.com",
+			ClusterIdentity:        discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID1, ClusterName: "remote-1"},
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
@@ -173,6 +161,7 @@ var _ = BeforeSuite(func(done Done) {
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
 			ForeignAuthURL:         "https://example.com",
+			ClusterIdentity:        discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID2, ClusterName: "remote-2"},
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
@@ -209,15 +198,13 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameSimpleNode,
 			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterIdSimpleNode,
+				liqoconst.RemoteClusterID: remoteClusterIDSimpleNode,
 				offloadingCluster1Label1:  "",
 				offloadingCluster1Label2:  "",
 			},
 		},
 	}
-
-	close(done)
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")

@@ -26,8 +26,12 @@ rules:
   resources:
   - namespaces
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ""
@@ -438,6 +442,10 @@ rules:
   - delete
   - deletecollection
   - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - sharing.liqo.io
   resources:

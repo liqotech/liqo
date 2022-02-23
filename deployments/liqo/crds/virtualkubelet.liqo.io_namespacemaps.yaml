@@ -16,7 +16,14 @@ spec:
     singular: namespacemap
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.labels.liqo\.io/replication
+      name: Local
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: NamespaceMap is the Schema for the namespacemaps API.
@@ -75,6 +82,8 @@ spec:
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

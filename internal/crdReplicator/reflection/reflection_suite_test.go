@@ -19,9 +19,15 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 func TestReflection(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Reflection Suite")
 }
+
+var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
+})

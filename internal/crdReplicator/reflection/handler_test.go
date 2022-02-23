@@ -185,8 +185,13 @@ var _ = Describe("Handler tests", func() {
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-				It("should remove the finalizer from the local object", func() {
-					Expect(localAfter.Finalizers).ToNot(ContainElement(finalizer))
+				It("should ensure the local object finalizer correctness", func() {
+					if createRemote {
+						// The finalizer is removed only when the remote object disappears.
+						Expect(localAfter.Finalizers).To(ContainElement(finalizer))
+					} else {
+						Expect(localAfter.Finalizers).ToNot(ContainElement(finalizer))
+					}
 				})
 				It("the remote object should not be created", func() {
 					_, err = remote.Resource(gvr).Namespace(remoteNamespace).Get(ctx, name, metav1.GetOptions{})

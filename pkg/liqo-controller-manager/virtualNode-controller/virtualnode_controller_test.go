@@ -188,7 +188,7 @@ var _ = Describe("VirtualNode controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nameSimpleNode,
 					Labels: map[string]string{
-						liqoconst.RemoteClusterID: remoteClusterIdSimpleNode,
+						liqoconst.RemoteClusterID: remoteClusterIDSimpleNode,
 						offloadingCluster1Label1:  "",
 						offloadingCluster1Label2:  "",
 					},
@@ -235,7 +235,7 @@ var _ = Describe("VirtualNode controller", func() {
 			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode1))
 			Expect(k8sClient.Create(context.TODO(), virtualNode1)).Should(Succeed())
 
-			var oldName string
+			var oldUUID types.UID
 			By(fmt.Sprintf("Try to delete NamespaceMap associated to: %s", remoteClusterID1))
 			Eventually(func() bool {
 				if err := k8sClient.List(context.TODO(), nms,
@@ -245,7 +245,7 @@ var _ = Describe("VirtualNode controller", func() {
 				if len(nms.Items) != 1 {
 					return false
 				}
-				oldName = nms.Items[0].Name
+				oldUUID = nms.Items[0].UID
 				err := k8sClient.Delete(context.TODO(), &nms.Items[0])
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
@@ -256,7 +256,7 @@ var _ = Describe("VirtualNode controller", func() {
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
-				return len(nms.Items) == 1 && oldName != nms.Items[0].Name
+				return len(nms.Items) == 1 && oldUUID != nms.Items[0].UID
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Delete the virtual-node '%s'", nameVirtualNode1))

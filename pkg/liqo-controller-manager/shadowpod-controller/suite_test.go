@@ -15,19 +15,18 @@
 package shadowpodctrl_test
 
 import (
-	"flag"
 	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 var testEnv *envtest.Environment
@@ -39,6 +38,8 @@ func TestShadowPodController(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
+
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
@@ -52,13 +53,6 @@ var _ = BeforeSuite(func() {
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
-
-	// setup logger
-	klog.SetOutput(GinkgoWriter)
-	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
-	klog.InitFlags(flagset)
-	Expect(flagset.Set("v", "4")).To(Succeed())
-	klog.LogToStderr(false)
 })
 
 var _ = AfterSuite(func() {

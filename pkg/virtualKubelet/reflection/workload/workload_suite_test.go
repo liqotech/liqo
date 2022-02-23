@@ -16,7 +16,6 @@ package workload_test
 
 import (
 	"context"
-	"flag"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -27,11 +26,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	vkalpha1scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -60,11 +59,7 @@ func TestService(t *testing.T) {
 var _ = BeforeSuite(func() {
 	utilruntime.Must(vkalpha1scheme.AddToScheme(scheme.Scheme))
 
-	klog.SetOutput(GinkgoWriter)
-	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
-	klog.InitFlags(flagset)
-	Expect(flagset.Set("v", "4")).To(Succeed())
-	klog.LogToStderr(false)
+	testutil.LogsToGinkgoWriter()
 
 	forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP)
 })

@@ -19,7 +19,8 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 func TestManager(t *testing.T) {
@@ -28,6 +29,5 @@ func TestManager(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	klog.SetOutput(GinkgoWriter)
-	klog.LogToStderr(false)
+	testutil.LogsToGinkgoWriter()
 })

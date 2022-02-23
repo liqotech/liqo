@@ -49,8 +49,8 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
-	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceMap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceOffloading-controller"
+	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	offloadingctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadingStatus-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
@@ -146,8 +146,6 @@ func main() {
 	// Namespace management parameters
 	offloadingStatusControllerRequeueTime := flag.Duration("offloading-status-requeue-period", 10*time.Second,
 		"Period after that the offloading status controller is awaken on every NamespaceOffloading to set its status")
-	namespaceMapControllerRequeueTime := flag.Duration("namespace-map-requeue-period", 30*time.Second,
-		"Period after that the namespace map controller is awaken on every NamespaceMap to enforce DesiredMappings")
 
 	// Virtual-kubelet parameters
 	kubeletImage := flag.String("kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
@@ -325,11 +323,7 @@ func main() {
 	}
 
 	namespaceMapReconciler := &mapsctrl.NamespaceMapReconciler{
-		Client:                mgr.GetClient(),
-		RemoteClients:         make(map[string]kubernetes.Interface),
-		LocalCluster:          clusterIdentity,
-		IdentityManagerClient: clientset,
-		RequeueTime:           *namespaceMapControllerRequeueTime,
+		Client: mgr.GetClient(),
 	}
 
 	if err = namespaceMapReconciler.SetupWithManager(mgr); err != nil {

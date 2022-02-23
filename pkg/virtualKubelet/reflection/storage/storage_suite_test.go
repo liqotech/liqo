@@ -16,7 +16,6 @@ package storage
 
 import (
 	"context"
-	"flag"
 	"testing"
 	"time"
 
@@ -32,12 +31,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -88,11 +87,7 @@ func TestStorage(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	klog.SetOutput(GinkgoWriter)
-	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
-	klog.InitFlags(flagset)
-	Expect(flagset.Set("v", "4")).To(Succeed())
-	klog.LogToStderr(false)
+	testutil.LogsToGinkgoWriter()
 
 	testEnv = envtest.Environment{}
 	cfg, err := testEnv.Start()

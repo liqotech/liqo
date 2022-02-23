@@ -69,6 +69,8 @@ var _ = BeforeEach(func() {
 })
 
 var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
+
 	SetDefaultEventuallyTimeout(2 * time.Second)
 	SetDefaultConsistentlyDuration(time.Second)
 

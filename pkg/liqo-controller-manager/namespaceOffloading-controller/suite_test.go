@@ -16,8 +16,6 @@ package namespaceoffloadingctrl
 
 import (
 	"context"
-	"flag"
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -27,16 +25,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 const (
@@ -80,37 +77,42 @@ var (
 	homeClusterEnv *envtest.Environment
 
 	// Resources.
-	nms          *mapsv1alpha1.NamespaceMapList
+	nms          *vkv1alpha1.NamespaceMapList
 	virtualNode1 *corev1.Node
 	virtualNode2 *corev1.Node
 	virtualNode3 *corev1.Node
 
-	nm1 *mapsv1alpha1.NamespaceMap
-	nm2 *mapsv1alpha1.NamespaceMap
-	nm3 *mapsv1alpha1.NamespaceMap
-
-	flags *flag.FlagSet
+	nm1 *vkv1alpha1.NamespaceMap
+	nm2 *vkv1alpha1.NamespaceMap
+	nm3 *vkv1alpha1.NamespaceMap
 )
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "NamespaceOffloadingController Suite")
 }
 
-var _ = BeforeSuite(func(done Done) {
+var _ = BeforeSuite(func() {
+	ForgeNamespaceMap := func(cluster discoveryv1alpha1.ClusterIdentity) *vkv1alpha1.NamespaceMap {
+		return &vkv1alpha1.NamespaceMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cluster.ClusterName,
+				Namespace: mapNamespaceName,
+				Labels: map[string]string{
+					liqoconst.ReplicationRequestedLabel:   "true",
+					liqoconst.RemoteClusterID:             cluster.ClusterID,
+					liqoconst.ReplicationDestinationLabel: cluster.ClusterID,
+				},
+			},
+		}
+	}
 
 	By("bootstrapping test environments")
+	testutil.LogsToGinkgoWriter()
 
 	homeClusterEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 	}
-
-	flags = &flag.FlagSet{}
-	klog.InitFlags(flags)
-	_ = flags.Set("v", "2")
 
 	var err error
 
@@ -122,7 +124,7 @@ var _ = BeforeSuite(func(done Done) {
 	err = corev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = mapsv1alpha1.AddToScheme(scheme.Scheme)
+	err = vkv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = offv1alpha1.AddToScheme(scheme.Scheme)
@@ -187,37 +189,11 @@ var _ = BeforeSuite(func(done Done) {
 		},
 	}
 
-	nms = &mapsv1alpha1.NamespaceMapList{}
+	nms = &vkv1alpha1.NamespaceMapList{}
 
-	nm1 = &mapsv1alpha1.NamespaceMap{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteCluster1.ClusterID),
-			Namespace:    mapNamespaceName,
-			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteCluster1.ClusterID,
-			},
-		},
-	}
-
-	nm2 = &mapsv1alpha1.NamespaceMap{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteCluster2.ClusterID),
-			Namespace:    mapNamespaceName,
-			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteCluster2.ClusterID,
-			},
-		},
-	}
-
-	nm3 = &mapsv1alpha1.NamespaceMap{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteCluster3.ClusterID),
-			Namespace:    mapNamespaceName,
-			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteCluster3.ClusterID,
-			},
-		},
-	}
+	nm1 = ForgeNamespaceMap(remoteCluster1)
+	nm2 = ForgeNamespaceMap(remoteCluster2)
+	nm3 = ForgeNamespaceMap(remoteCluster3)
 
 	Expect(homeClient.Create(context.TODO(), virtualNode1)).Should(Succeed())
 	Expect(homeClient.Create(context.TODO(), virtualNode2)).Should(Succeed())
@@ -226,9 +202,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(homeClient.Create(context.TODO(), nm1)).Should(Succeed())
 	Expect(homeClient.Create(context.TODO(), nm2)).Should(Succeed())
 	Expect(homeClient.Create(context.TODO(), nm3)).Should(Succeed())
-
-	close(done)
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")

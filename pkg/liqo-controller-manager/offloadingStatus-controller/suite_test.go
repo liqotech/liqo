@@ -16,8 +16,6 @@ package offloadingstatuscontroller
 
 import (
 	"context"
-	"flag"
-	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -28,15 +26,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 const (
@@ -46,9 +43,9 @@ const (
 	mapNumber        = 3
 	namespace1Name   = "namespace1"
 
-	remoteClusterId1 = "1-6a0e9f-b52-4ed0"
-	remoteClusterId2 = "2-899890-dsd-323s"
-	remoteClusterId3 = "3-refc453-ds43d-43rs"
+	remoteClusterID1 = "remote-cluster-1"
+	remoteClusterID2 = "remote-cluster-2"
+	remoteClusterID3 = "remote-cluster-3"
 )
 
 var (
@@ -57,36 +54,41 @@ var (
 	homeClusterEnv *envtest.Environment
 
 	// Resources.
-	nms                  *mapsv1alpha1.NamespaceMapList
+	nms                  *vkv1alpha1.NamespaceMapList
 	namespace1           *corev1.Namespace
 	namespaceOffloading1 *offv1alpha1.NamespaceOffloading
 
-	nm1 *mapsv1alpha1.NamespaceMap
-	nm2 *mapsv1alpha1.NamespaceMap
-	nm3 *mapsv1alpha1.NamespaceMap
-
-	flags *flag.FlagSet
+	nm1 *vkv1alpha1.NamespaceMap
+	nm2 *vkv1alpha1.NamespaceMap
+	nm3 *vkv1alpha1.NamespaceMap
 )
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "OffloadingStatusController Suite")
 }
 
-var _ = BeforeSuite(func(done Done) {
+var _ = BeforeSuite(func() {
+	ForgeNamespaceMap := func(clusterID string) *vkv1alpha1.NamespaceMap {
+		return &vkv1alpha1.NamespaceMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clusterID,
+				Namespace: mapNamespaceName,
+				Labels: map[string]string{
+					liqoconst.ReplicationRequestedLabel:   "true",
+					liqoconst.RemoteClusterID:             clusterID,
+					liqoconst.ReplicationDestinationLabel: clusterID,
+				},
+			},
+		}
+	}
 
 	By("bootstrapping test environments")
+	testutil.LogsToGinkgoWriter()
 
 	homeClusterEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 	}
-
-	flags = &flag.FlagSet{}
-	klog.InitFlags(flags)
-	_ = flags.Set("v", "2")
 
 	var err error
 
@@ -98,7 +100,7 @@ var _ = BeforeSuite(func(done Done) {
 	err = corev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = mapsv1alpha1.AddToScheme(scheme.Scheme)
+	err = vkv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = offv1alpha1.AddToScheme(scheme.Scheme)
@@ -127,37 +129,11 @@ var _ = BeforeSuite(func(done Done) {
 	}()
 
 	// Necessary resources in HomeCluster
-	nms = &mapsv1alpha1.NamespaceMapList{}
+	nms = &vkv1alpha1.NamespaceMapList{}
 
-	nm1 = &mapsv1alpha1.NamespaceMap{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteClusterId1),
-			Namespace:    mapNamespaceName,
-			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId1,
-			},
-		},
-	}
-
-	nm2 = &mapsv1alpha1.NamespaceMap{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteClusterId2),
-			Namespace:    mapNamespaceName,
-			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId2,
-			},
-		},
-	}
-
-	nm3 = &mapsv1alpha1.NamespaceMap{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteClusterId3),
-			Namespace:    mapNamespaceName,
-			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId3,
-			},
-		},
-	}
+	nm1 = ForgeNamespaceMap(remoteClusterID1)
+	nm2 = ForgeNamespaceMap(remoteClusterID2)
+	nm3 = ForgeNamespaceMap(remoteClusterID3)
 
 	namespace1 = &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -182,9 +158,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(homeClient.Create(context.TODO(), nm2)).Should(Succeed())
 	Expect(homeClient.Create(context.TODO(), nm3)).Should(Succeed())
 	Expect(homeClient.Create(context.TODO(), namespaceOffloading1)).Should(Succeed())
-
-	close(done)
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")

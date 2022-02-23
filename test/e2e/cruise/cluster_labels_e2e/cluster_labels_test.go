@@ -32,13 +32,14 @@ import (
 	k8shelper "k8s.io/component-helpers/scheduling/corev1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
 	"github.com/liqotech/liqo/pkg/liqoctl/generate"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
-	liqoutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -120,7 +121,7 @@ var _ = Describe("Liqo E2E", func() {
 					By("Getting the local tenant namespace corresponding to the right cluster and getting the " +
 						"ResourceOffer sent by the cluster under examination")
 					Eventually(func() error {
-						tenantNamespaceName, err := liqoutils.GetLocalTenantNamespaceName(ctx,
+						tenantNamespaceName, err := foreignclusterutils.GetLocalTenantNamespaceName(ctx,
 							cluster.ControllerClient, testContext.Clusters[i].Cluster)
 						if err != nil {
 							return err
@@ -200,10 +201,12 @@ var _ = Describe("Liqo E2E", func() {
 				remoteClusterID := virtualNodesList.Items[i].Labels[liqoconst.RemoteClusterID]
 
 				var cl kubernetes.Interface
+				var identity discoveryv1alpha1.ClusterIdentity
 				for j := range testContext.Clusters {
 					cluster := &testContext.Clusters[j]
 					if cluster.Cluster.ClusterID == remoteClusterID {
 						cl = cluster.NativeClient
+						identity = cluster.Cluster
 						break
 					}
 				}
@@ -219,9 +222,9 @@ var _ = Describe("Liqo E2E", func() {
 						return err
 					}, timeout, interval).Should(BeNil())
 
-					value, ok := namespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey]
+					value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
 					Expect(ok).To(BeTrue())
-					Expect(value).To(Equal(testContext.Clusters[localIndex].Cluster.ClusterID))
+					Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(&identity)))
 				} else {
 					// Check if the remote namespace does not exists.
 					By(fmt.Sprintf(" 5 - Checking that no remote namespace is created inside cluster '%s'", remoteClusterID))

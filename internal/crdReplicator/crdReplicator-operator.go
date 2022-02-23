@@ -95,7 +95,6 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 
 	remoteCluster := fc.Spec.ClusterIdentity
 	klog.Infof("[%v] Processing ForeignCluster %q", remoteCluster.ClusterName, fc.Name)
-	klog.Infof("networking is set to %s", fc.Spec.NetworkingEnabled)
 	// Prevent issues in case the remote cluster ID has not yet been set
 	if remoteCluster.ClusterID == "" {
 		klog.Infof("Remote Cluster ID is not yet set in resource %q", fc.Name)

@@ -69,7 +69,8 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 			klog.Infof("[%v] Deleting remote %v with name %v, since the local one does no longer exist",
 				r.remoteClusterID, key.gvr, key.name)
 			defer tracer.Step("Ensured the absence of the remote object")
-			return r.deleteRemoteObject(ctx, resource, key)
+			_, err = r.deleteRemoteObject(ctx, resource, key)
+			return err
 		}
 		klog.Errorf("[%v] Failed to retrieve local %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
 		return err
@@ -95,15 +96,18 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 	// Check if the local resource has been marked for deletion
 	if !localUnstr.GetDeletionTimestamp().IsZero() {
 		klog.Infof("[%v] Deleting remote %v with name %v, since the local one is being deleted", r.remoteClusterID, key.gvr, key.name)
-		if err = r.deleteRemoteObject(ctx, resource, key); err != nil {
+		vanished, err := r.deleteRemoteObject(ctx, resource, key)
+		if err != nil {
 			return err
 		}
 		tracer.Step("Ensured the absence of the remote object")
 
-		// Remove the finalizer from the local resource
-		_, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, false, controllerutil.RemoveFinalizer)
-		tracer.Step("Ensured the local finalizer absence")
-		return err
+		// Remove the finalizer from the local resource, if the remote one does no longer exist.
+		if vanished {
+			_, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, false, controllerutil.RemoveFinalizer)
+			tracer.Step("Ensured the local finalizer absence")
+			return err
+		}
 	}
 
 	// Ensure the local resource has the finalizer
@@ -243,24 +247,24 @@ func (r *Reflector) updateObjectStatusInner(ctx context.Context, cl dynamic.Inte
 }
 
 // deleteRemoteObject deletes a given object from the remote cluster.
-func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedResource, key item) error {
+func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedResource, key item) (vanished bool, err error) {
 	if _, err := resource.remote.Get(key.name); err != nil {
 		if kerrors.IsNotFound(err) {
 			klog.Infof("[%v] Remote %v with name %v already vanished", r.remoteClusterID, key.gvr, key.name)
-			return nil
+			return true, nil
 		}
 		klog.Errorf("[%v] Failed to retrieve remote object %v: %v", r.remoteClusterID, key.gvr, key.name, err)
-		return err
+		return false, err
 	}
 
-	err := r.remoteClient.Resource(key.gvr).Namespace(r.remoteNamespace).Delete(ctx, key.name, metav1.DeleteOptions{})
+	err = r.remoteClient.Resource(key.gvr).Namespace(r.remoteNamespace).Delete(ctx, key.name, metav1.DeleteOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
 		klog.Errorf("[%v] Failed to delete remote %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
-		return err
+		return false, err
 	}
 
 	klog.Infof("[%v] Remote %v with name %v successfully deleted", r.remoteClusterID, key.gvr, key.name)
-	return nil
+	return kerrors.IsNotFound(err), nil
 }
 
 // getNestedMap is a wrapper to retrieve a nested map from an unstructured object.
