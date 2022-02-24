@@ -56,6 +56,7 @@ type InitConfig struct {
 
 	PodProviderStopper   chan struct{}
 	InformerResyncPeriod time.Duration
+	PingDisabled         bool
 }
 
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
@@ -71,6 +72,7 @@ func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 
 		networkReady: false,
 		resyncPeriod: cfg.InformerResyncPeriod,
+		pingDisabled: cfg.PingDisabled,
 
 		nodeName:         cfg.NodeName,
 		foreignClusterID: cfg.RemoteClusterID,

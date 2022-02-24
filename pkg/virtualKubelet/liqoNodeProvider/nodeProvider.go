@@ -40,6 +40,7 @@ type LiqoNodeProvider struct {
 	foreignClusterID string
 	tenantNamespace  string
 	resyncPeriod     time.Duration
+	pingDisabled     bool
 
 	networkReady bool
 
@@ -49,6 +50,10 @@ type LiqoNodeProvider struct {
 
 // Ping checks if the the node is still active.
 func (p *LiqoNodeProvider) Ping(ctx context.Context) error {
+	if p.pingDisabled {
+		return nil
+	}
+
 	start := time.Now()
 	klog.V(4).Infof("Checking whether the remote API server is ready")
 

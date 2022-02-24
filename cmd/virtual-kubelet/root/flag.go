@@ -51,7 +51,7 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 
 	flags.DurationVar(&o.NodeLeaseDuration, "node-lease-duration", o.NodeLeaseDuration, "The duration of the node leases")
 	flags.DurationVar(&o.NodePingInterval, "node-ping-interval", o.NodePingInterval,
-		"The interval the reachability of the remote API server is verified to assess node readiness")
+		"The interval the reachability of the remote API server is verified to assess node readiness, 0 to disable")
 	flags.DurationVar(&o.NodePingTimeout, "node-ping-timeout", o.NodePingTimeout,
 		"The timeout of the remote API server reachability check")
 

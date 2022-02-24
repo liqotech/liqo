@@ -135,6 +135,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		ExtraAnnotations: c.NodeExtraAnnotations.StringMap,
 
 		InformerResyncPeriod: c.InformerResyncPeriod,
+		PingDisabled:         c.NodePingInterval == 0,
 	}
 
 	nodeProvider := nodeprovider.NewLiqoNodeProvider(&nodecfg)
