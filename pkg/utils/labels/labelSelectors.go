@@ -60,7 +60,7 @@ var (
 	ClusterIDConfigMapLabelSelector = metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			{
-				Key:      liqoconst.ClusterIDConfigMapNameLabelKey,
+				Key:      liqoconst.K8sAppNameKey,
 				Operator: metav1.LabelSelectorOpIn,
 				Values:   []string{liqoconst.ClusterIDConfigMapNameLabelValue},
 			},

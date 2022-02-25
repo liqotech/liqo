@@ -80,7 +80,7 @@ func (nm *tenantNamespaceManager) CreateNamespace(cluster discoveryv1alpha1.Clus
 	// exit with an error, and retry during the next iteration.
 	ns = &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: getNameForNamespace(cluster),
+			Name: GetNameForNamespace(cluster),
 			Labels: map[string]string{
 				discovery.ClusterIDLabel:       cluster.ClusterID,
 				discovery.TenantNamespaceLabel: "true",
@@ -110,7 +110,7 @@ func (nm *tenantNamespaceManager) GetNamespace(cluster discoveryv1alpha1.Cluster
 	}
 
 	if nItems := len(namespaces); nItems == 0 {
-		err = kerrors.NewNotFound(v1.Resource("Namespace"), getNameForNamespace(cluster))
+		err = kerrors.NewNotFound(v1.Resource("Namespace"), GetNameForNamespace(cluster))
 		// do not log it always, since it is also used in the preliminary stage of the create method
 		klog.V(4).Info(err)
 		return nil, err
@@ -122,6 +122,7 @@ func (nm *tenantNamespaceManager) GetNamespace(cluster discoveryv1alpha1.Cluster
 	return namespaces[0].DeepCopy(), nil
 }
 
-func getNameForNamespace(cluster discoveryv1alpha1.ClusterIdentity) string {
+// GetNameForNamespace given a cluster identity it returns the name of the tenant namespace for the cluster.
+func GetNameForNamespace(cluster discoveryv1alpha1.ClusterIdentity) string {
 	return fmt.Sprintf("liqo-tenant-%s", foreignclusterutils.UniqueName(&cluster))
 }
