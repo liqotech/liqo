@@ -16,6 +16,7 @@ package common
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"k8s.io/client-go/rest"
@@ -24,6 +25,14 @@ import (
 
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
+
+// WireGuardConfig holds the WireGuard configuration.
+type WireGuardConfig struct {
+	PubKey       string
+	EndpointIP   string
+	EndpointPort string
+	BackEndType  string
+}
 
 // GetLiqoctlRestConf gets a valid REST config and set a default value for the RateLimiters.
 func GetLiqoctlRestConf() (*rest.Config, error) {
@@ -47,4 +56,20 @@ func ExtractValueFromArgumentList(key string, argumentList []string) (string, er
 		}
 	}
 	return "", fmt.Errorf("argument not found")
+}
+
+// getFreePort get a free port on the system by listening in a socket,
+// checking the bound port number and then closing the socket.
+func getFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
