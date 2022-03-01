@@ -103,7 +103,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 	if err != nil {
 		return nil, err
 	}
-	link, err := netlink.LinkByName(tunnelwg.DeviceName)
+	link, err := netlink.LinkByName(liqoconst.DeviceName)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 	// 1) set it up;
 	// 2) replace the wgctl.Client with a new client spawned in the new netns.
 	var configureWg = func(netnsNamespace ns.NetNS) error {
-		link, err = netlink.LinkByName(tunnelwg.DeviceName)
+		link, err = netlink.LinkByName(liqoconst.DeviceName)
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 		if err != nil {
 			return fmt.Errorf("failed to set wireguard iface up in gateway netns: %w", err)
 		}
-		w := tc.drivers[tunnelwg.DriverName]
+		w := tc.drivers[liqoconst.DriverName]
 		wg := w.(*tunnelwg.Wireguard)
 		if err := wg.SetNewClient(); err != nil {
 			return fmt.Errorf("an error occurred while setting new client in tunnel driver")
@@ -412,7 +412,7 @@ func (tc *TunnelController) SetUpIPTablesHandler() error {
 func (tc *TunnelController) SetUpRouteManager() error {
 	// Todo make the gateway routing manager to support more than one vpn technology at the same time.
 	// Todo it should use the right tunnel based on the backend type set inside the tep.
-	grm, err := liqorouting.NewGatewayRoutingManager(unix.RT_TABLE_MAIN, tc.drivers[tunnelwg.DriverName].GetLink())
+	grm, err := liqorouting.NewGatewayRoutingManager(unix.RT_TABLE_MAIN, tc.drivers[liqoconst.DriverName].GetLink())
 	if err != nil {
 		return err
 	}

@@ -30,7 +30,6 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
@@ -139,7 +138,7 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: networkConfigName, Namespace: localNamespace, Labels: labels()},
 			Spec: netv1alpha1.NetworkConfigSpec{
 				RemoteCluster: remoteCluster, PodCIDR: "1.1.1.0/24", ExternalCIDR: "1.1.2.0/24",
-				EndpointIP: "1.1.1.1", BackendType: wireguard.DriverName, BackendConfig: map[string]string{},
+				EndpointIP: "1.1.1.1", BackendType: consts.DriverName, BackendConfig: map[string]string{},
 			},
 		}
 	})

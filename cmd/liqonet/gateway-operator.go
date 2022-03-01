@@ -30,7 +30,6 @@ import (
 	tunneloperator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
-	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -145,8 +144,8 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 			klog.Errorf("an error occurred while deleting netns {%s}: %v", liqoconst.GatewayNetnsName, err)
 		}
 		klog.Info("cleaning up wireguard tunnel interface")
-		if err := utils.DeleteIFaceByName(tunnelwg.DeviceName); err != nil {
-			klog.Errorf("an error occurred while deleting iface {%s}: %v", tunnelwg.DriverName, err)
+		if err := utils.DeleteIFaceByName(liqoconst.DeviceName); err != nil {
+			klog.Errorf("an error occurred while deleting iface {%s}: %v", liqoconst.DriverName, err)
 		}
 		os.Exit(1)
 	}

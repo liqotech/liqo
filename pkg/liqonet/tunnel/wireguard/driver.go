@@ -43,32 +43,21 @@ import (
 )
 
 const (
-	// PublicKey is the key of publicKey entry in back-end map and also for the secret containing the wireguard keys.
-	PublicKey = "publicKey"
 	// PrivateKey is the key of private for the secret containing the wireguard keys.
 	PrivateKey = "privateKey"
 	// EndpointIP is the key of the endpointIP entry in back-end map.
 	EndpointIP = "endpointIP"
-	// ListeningPort is the key of the listeningPort entry in the back-end map.
-	ListeningPort = "port"
 	// AllowedIPs is the key of the allowedIPs entry in the back-end map.
 	AllowedIPs = "allowedIPs"
-	// DeviceName name of wireguard tunnel created on the custom network namespace.
-	// This tunnel is used to interconnect the local cluster with the remote ones.
-	DeviceName = "liqo.tunnel"
-	// DriverName  name of the driver which is also used as the type of the backend in tunnelendpoint CRD.
-	DriverName = "wireguard"
 	// name of the secret that contains the public key used by wireguard.
 	keysName = "wireguard-pubkey"
-	// KeysLabel label for the secret that contains the public key.
-	KeysLabel = "net.liqo.io/key"
 	// KeepAliveInterval interval used to send keepalive checks for the wireguard tunnels.
 	KeepAliveInterval = 10 * time.Second
 )
 
 // Registering the driver as available.
 func init() {
-	tunnel.AddDriver(DriverName, NewDriver)
+	tunnel.AddDriver(liqoconst.DriverName, NewDriver)
 }
 
 type wgConfig struct {
@@ -109,7 +98,7 @@ func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) 
 		return nil, err
 	}
 	if err = w.setWGLink(); err != nil {
-		return nil, fmt.Errorf("failed to setup %s link: %w", DriverName, err)
+		return nil, fmt.Errorf("failed to setup %s link: %w", liqoconst.DriverName, err)
 	}
 	// create controller.
 	if w.client, err = wgctrl.New(); err != nil {
@@ -137,10 +126,10 @@ func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) 
 		ReplacePeers: true,
 		Peers:        peerConfigs,
 	}
-	if err = w.client.ConfigureDevice(DeviceName, cfg); err != nil {
+	if err = w.client.ConfigureDevice(liqoconst.DeviceName, cfg); err != nil {
 		return nil, fmt.Errorf("failed to configure WireGuard device: %w", err)
 	}
-	klog.Infof("created %s interface named %s with publicKey %s", DriverName, DeviceName, w.conf.pubKey.String())
+	klog.Infof("created %s interface named %s with publicKey %s", liqoconst.DriverName, liqoconst.DeviceName, w.conf.pubKey.String())
 	return &w, nil
 }
 
@@ -152,10 +141,10 @@ func (w *Wireguard) Init() error {
 	}
 
 	if err := netlink.LinkSetMTU(w.link, w.conf.iFaceMTU); err != nil {
-		return fmt.Errorf("failed to set MTU for interface %s: %w", DeviceName, err)
+		return fmt.Errorf("failed to set MTU for interface %s: %w", liqoconst.DeviceName, err)
 	}
 
-	klog.Infof("%s interface named %s, is up on i/f number %d, listening on port :%d, with key %s", DriverName,
+	klog.Infof("%s interface named %s, is up on i/f number %d, listening on port :%d, with key %s", liqoconst.DriverName,
 		w.link.Attrs().Name, w.link.Attrs().Index, w.conf.port, w.conf.pubKey)
 	return nil
 }
@@ -184,12 +173,12 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	oldCon, found := w.connections[tep.Spec.ClusterID]
 	if found {
 		// check if the peer configuration is updated.
-		if stringAllowedIPs == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[PublicKey] &&
-			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[ListeningPort] {
+		if stringAllowedIPs == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[liqoconst.PublicKey] &&
+			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[liqoconst.ListeningPort] {
 			return oldCon, nil
 		}
 		klog.V(4).Infof("updating peer configuration for cluster %s", tep.Spec.ClusterID)
-		err = w.client.ConfigureDevice(DeviceName, wgtypes.Config{
+		err = w.client.ConfigureDevice(liqoconst.DeviceName, wgtypes.Config{
 			ReplacePeers: false,
 			Peers: []wgtypes.PeerConfig{{PublicKey: *remoteKey,
 				Remove: true,
@@ -215,7 +204,7 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 		AllowedIPs:                  allowedIPs,
 	}}
 
-	err = w.client.ConfigureDevice(DeviceName, wgtypes.Config{
+	err = w.client.ConfigureDevice(liqoconst.DeviceName, wgtypes.Config{
 		ReplacePeers: false,
 		Peers:        peerCfg,
 	})
@@ -226,8 +215,8 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	c := &netv1alpha1.Connection{
 		Status:        netv1alpha1.Connected,
 		StatusMessage: "Cluster peer connected",
-		PeerConfiguration: map[string]string{ListeningPort: strconv.Itoa(endpoint.Port), EndpointIP: endpoint.IP.String(),
-			AllowedIPs: stringAllowedIPs, PublicKey: remoteKey.String()},
+		PeerConfiguration: map[string]string{liqoconst.ListeningPort: strconv.Itoa(endpoint.Port), EndpointIP: endpoint.IP.String(),
+			AllowedIPs: stringAllowedIPs, liqoconst.PublicKey: remoteKey.String()},
 	}
 	w.connections[tep.Spec.ClusterID] = c
 	klog.V(4).Infof("Done connecting cluster peer %s@%s", tep.Spec.ClusterID, endpoint.String())
@@ -238,7 +227,7 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 func (w *Wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) error {
 	klog.V(4).Infof("Removing connection with cluster %s", tep.Spec.ClusterID)
 
-	s, found := tep.Status.Connection.PeerConfiguration[PublicKey]
+	s, found := tep.Status.Connection.PeerConfiguration[liqoconst.PublicKey]
 	if !found {
 		klog.V(4).Infof("no tunnel configured for cluster %s, nothing to be removed", tep.Spec.ClusterID)
 		return nil
@@ -255,7 +244,7 @@ func (w *Wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 			Remove:    true,
 		},
 	}
-	err = w.client.ConfigureDevice(DeviceName, wgtypes.Config{
+	err = w.client.ConfigureDevice(liqoconst.DeviceName, wgtypes.Config{
 		ReplacePeers: false,
 		Peers:        peerCfg,
 	})
@@ -278,7 +267,7 @@ func (w *Wireguard) GetLink() netlink.Link {
 func (w *Wireguard) Close() error {
 	// it removes the wireguard interface.
 	var err error
-	if link, err := netlink.LinkByName(DeviceName); err == nil {
+	if link, err := netlink.LinkByName(liqoconst.DeviceName); err == nil {
 		// delete existing device
 		if err := netlink.LinkDel(link); err != nil {
 			return fmt.Errorf("failed to delete existing WireGuard device: %w", err)
@@ -295,7 +284,7 @@ func (w *Wireguard) Close() error {
 func (w *Wireguard) setWGLink() error {
 	var err error
 	// delete existing wg device if needed.
-	if link, err := netlink.LinkByName(DeviceName); err == nil {
+	if link, err := netlink.LinkByName(liqoconst.DeviceName); err == nil {
 		// delete existing device.
 		if err := netlink.LinkDel(link); err != nil {
 			return fmt.Errorf("failed to delete existing WireGuard device: %w", err)
@@ -303,7 +292,7 @@ func (w *Wireguard) setWGLink() error {
 	}
 	// create the wg device (ip link add dev $DefaultDeviceName type wireguard).
 	la := netlink.NewLinkAttrs()
-	la.Name = DeviceName
+	la.Name = liqoconst.DeviceName
 	la.MTU = w.conf.iFaceMTU
 	link := &netlink.GenericLink{
 		LinkAttrs: la,
@@ -311,11 +300,12 @@ func (w *Wireguard) setWGLink() error {
 	}
 
 	if err = netlink.LinkAdd(link); err != nil && !errors.Is(err, unix.EOPNOTSUPP) {
-		return fmt.Errorf("failed to add wireguard device '%s': %w", DeviceName, err)
+		return fmt.Errorf("failed to add wireguard device '%s': %w", liqoconst.DeviceName, err)
 	}
 	if errors.Is(err, unix.EOPNOTSUPP) {
 		klog.Warningf("wireguard kernel module not present, falling back to the userspace implementation")
-		cmd := exec.Command("/usr/bin/boringtun", DeviceName, "--disable-drop-privileges", "true")
+
+		cmd := exec.Command("/usr/bin/boringtun", liqoconst.DeviceName, "--disable-drop-privileges", "true") //nolint:gosec //we leave it as it is
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
@@ -323,10 +313,10 @@ func (w *Wireguard) setWGLink() error {
 		if err != nil {
 			outStr, errStr := stdout.String(), stderr.String()
 			fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
-			return fmt.Errorf("failed to add wireguard devices '%s': %w", DeviceName, err)
+			return fmt.Errorf("failed to add wireguard devices '%s': %w", liqoconst.DeviceName, err)
 		}
-		if w.link, err = netlink.LinkByName(DeviceName); err != nil {
-			return fmt.Errorf("failed to get wireguard device '%s': %w", DeviceName, err)
+		if w.link, err = netlink.LinkByName(liqoconst.DeviceName); err != nil {
+			return fmt.Errorf("failed to get wireguard device '%s': %w", liqoconst.DeviceName, err)
 		}
 	}
 	w.link = link
@@ -352,7 +342,7 @@ func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) ([]net.IPNet, string, error)
 }
 
 func getKey(tep *netv1alpha1.TunnelEndpoint) (*wgtypes.Key, error) {
-	s, found := tep.Spec.BackendConfig[PublicKey]
+	s, found := tep.Spec.BackendConfig[liqoconst.PublicKey]
 	if !found {
 		return nil, fmt.Errorf("endpoint is missing public key")
 	}
@@ -384,9 +374,9 @@ func getEndpoint(tep *netv1alpha1.TunnelEndpoint, addrResolver ResolverFunc) (*n
 
 func getTunnelPortFromTep(tep *netv1alpha1.TunnelEndpoint) (int, error) {
 	// Get port.
-	port, found := tep.Spec.BackendConfig[ListeningPort]
+	port, found := tep.Spec.BackendConfig[liqoconst.ListeningPort]
 	if !found {
-		return 0, fmt.Errorf("port not found in BackendConfig map using key {%s}", ListeningPort)
+		return 0, fmt.Errorf("port not found in BackendConfig map using key {%s}", liqoconst.ListeningPort)
 	}
 	// Convert port from string to int.
 	tunnelPort, err := strconv.ParseInt(port, 10, 32)
@@ -453,9 +443,9 @@ func (w *Wireguard) setKeys(c k8s.Interface, namespace string) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      keysName,
 				Namespace: namespace,
-				Labels:    map[string]string{KeysLabel: DriverName},
+				Labels:    map[string]string{liqoconst.KeysLabel: liqoconst.DriverName},
 			},
-			StringData: map[string]string{PublicKey: pub.String(), PrivateKey: priv.String()},
+			StringData: map[string]string{liqoconst.PublicKey: pub.String(), PrivateKey: priv.String()},
 		}
 		_, err = c.CoreV1().Secrets(namespace).Create(context.Background(), &pKey, metav1.CreateOptions{})
 		if err != nil {
@@ -472,9 +462,9 @@ func (w *Wireguard) setKeys(c k8s.Interface, namespace string) error {
 	if err != nil {
 		return fmt.Errorf("an error occurred while parsing the private key for the wireguard driver :%w", err)
 	}
-	pubKey, found := s.Data[PublicKey]
+	pubKey, found := s.Data[liqoconst.PublicKey]
 	if !found {
-		return fmt.Errorf("no data with key '%s' found in secret %s", PublicKey, keysName)
+		return fmt.Errorf("no data with key '%s' found in secret %s", liqoconst.PublicKey, keysName)
 	}
 	pub, err = wgtypes.ParseKey(string(pubKey))
 	if err != nil {

@@ -25,7 +25,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -201,29 +200,29 @@ var _ = Describe("DataGetters", func() {
 
 		BeforeEach(func() {
 			secret = &corev1.Secret{
-				Data: map[string][]byte{wireguard.PublicKey: []byte(correctKey)},
+				Data: map[string][]byte{liqoconst.PublicKey: []byte(correctKey)},
 			}
 		})
 
 		Context("when key with given name does not exist", func() {
 			It("should return nil", func() {
-				delete(secret.Data, wireguard.PublicKey)
-				_, err := getters.RetrieveWGPubKeyFromSecret(secret, wireguard.PublicKey)
+				delete(secret.Data, liqoconst.PublicKey)
+				_, err := getters.RetrieveWGPubKeyFromSecret(secret, liqoconst.PublicKey)
 				Expect(err).NotTo(Succeed())
 			})
 		})
 
 		Context("when key is wrong format", func() {
 			It("should return err", func() {
-				secret.Data[wireguard.PublicKey] = []byte(wrongKey)
-				_, err := getters.RetrieveWGPubKeyFromSecret(secret, wireguard.PublicKey)
+				secret.Data[liqoconst.PublicKey] = []byte(wrongKey)
+				_, err := getters.RetrieveWGPubKeyFromSecret(secret, liqoconst.PublicKey)
 				Expect(err).NotTo(Succeed())
 			})
 		})
 
 		Context("when key exists", func() {
 			It("should return nil", func() {
-				key, err := getters.RetrieveWGPubKeyFromSecret(secret, wireguard.PublicKey)
+				key, err := getters.RetrieveWGPubKeyFromSecret(secret, liqoconst.PublicKey)
 				Expect(err).To(Succeed())
 				Expect(key.String()).To(Equal(correctKey))
 			})

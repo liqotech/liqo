@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
@@ -111,7 +111,7 @@ func (sw *SecretWatcher) handle(secret *corev1.Secret, rli workqueue.RateLimitin
 	sw.Lock()
 	defer sw.Unlock()
 
-	pubKey, err := getters.RetrieveWGPubKeyFromSecret(secret, wireguard.PublicKey)
+	pubKey, err := getters.RetrieveWGPubKeyFromSecret(secret, consts.PublicKey)
 	if err != nil {
 		klog.Error(err)
 		return
