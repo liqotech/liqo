@@ -22,10 +22,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/vishvananda/netlink"
 	"inet.af/netaddr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -301,27 +299,6 @@ func GetLabelValueFromObj(obj client.Object, labelKey string) string {
 		return ""
 	}
 	return obj.GetLabels()[labelKey]
-}
-
-// DeleteIFaceByName deletes the interface that has the given name.
-func DeleteIFaceByName(ifaceName string) error {
-	existingIface, err := netlink.LinkByName(ifaceName)
-	if err != nil {
-		if errors.As(err, &netlink.LinkNotFoundError{}) {
-			return nil
-		}
-		klog.Errorf("an error occurred while getting network interface {%s}: %v", ifaceName, err)
-		return err
-	}
-	// Remove the existing network interface.
-	if err = netlink.LinkDel(existingIface); err != nil && errors.As(err, &netlink.LinkNotFoundError{}) {
-		if errors.As(err, &netlink.LinkNotFoundError{}) {
-			return nil
-		}
-		klog.Errorf("an error occurred while deleting network interface {%s}: %v", existingIface.Attrs().Name, err)
-		return err
-	}
-	return nil
 }
 
 // SplitNetwork returns the two halves that make up a given network.
