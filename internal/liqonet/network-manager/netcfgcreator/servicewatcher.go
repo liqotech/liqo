@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
@@ -117,7 +116,7 @@ func (sw *ServiceWatcher) handle(service *corev1.Service, rli workqueue.RateLimi
 	var err error
 
 	if ip, port, err = getters.RetrieveWGEPFromService(service, liqoconst.GatewayServiceAnnotationKey,
-		wireguard.DriverName); err != nil {
+		liqoconst.DriverName); err != nil {
 		klog.Error(err)
 		return
 	}

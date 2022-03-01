@@ -30,7 +30,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	"github.com/liqotech/liqo/pkg/utils/syncset"
@@ -162,9 +161,9 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 					Expect(netcfg.Spec.PodCIDR).To(BeIdenticalTo("192.168.0.0/24"))
 					Expect(netcfg.Spec.ExternalCIDR).To(BeIdenticalTo("192.168.1.0/24"))
 					Expect(netcfg.Spec.EndpointIP).To(BeIdenticalTo("1.1.1.1"))
-					Expect(netcfg.Spec.BackendType).To(BeIdenticalTo(wireguard.DriverName))
-					Expect(netcfg.Spec.BackendConfig).To(HaveKeyWithValue(wireguard.PublicKey, "public-key"))
-					Expect(netcfg.Spec.BackendConfig).To(HaveKeyWithValue(wireguard.ListeningPort, "9999"))
+					Expect(netcfg.Spec.BackendType).To(BeIdenticalTo(consts.DriverName))
+					Expect(netcfg.Spec.BackendConfig).To(HaveKeyWithValue(consts.PublicKey, "public-key"))
+					Expect(netcfg.Spec.BackendConfig).To(HaveKeyWithValue(consts.ListeningPort, "9999"))
 				}
 
 				AssertNetworkConfigCorrectness := func() func() {

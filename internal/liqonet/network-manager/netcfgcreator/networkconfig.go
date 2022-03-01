@@ -31,7 +31,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
@@ -193,13 +192,13 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 	netcfg.Spec.PodCIDR = ncc.PodCIDR
 	netcfg.Spec.ExternalCIDR = ncc.ExternalCIDR
 	netcfg.Spec.EndpointIP = wgEndpointIP
-	netcfg.Spec.BackendType = wireguard.DriverName
+	netcfg.Spec.BackendType = consts.DriverName
 
 	if netcfg.Spec.BackendConfig == nil {
 		netcfg.Spec.BackendConfig = map[string]string{}
 	}
-	netcfg.Spec.BackendConfig[wireguard.PublicKey] = ncc.secretWatcher.WiregardPublicKey()
-	netcfg.Spec.BackendConfig[wireguard.ListeningPort] = wgEndpointPort
+	netcfg.Spec.BackendConfig[consts.PublicKey] = ncc.secretWatcher.WiregardPublicKey()
+	netcfg.Spec.BackendConfig[consts.ListeningPort] = wgEndpointPort
 
 	return controllerutil.SetControllerReference(fc, netcfg, ncc.Scheme)
 }

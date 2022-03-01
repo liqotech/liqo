@@ -43,13 +43,13 @@ var _ = Describe("Driver", func() {
 		JustBeforeEach(func() {
 			tep = &netv1alpha1.TunnelEndpoint{
 				Spec: netv1alpha1.TunnelEndpointSpec{
-					BackendConfig: map[string]string{ListeningPort: ""},
+					BackendConfig: map[string]string{liqoconst.ListeningPort: ""},
 				},
 			}
 		})
 		Context("out of range port", func() {
 			It("port < than min acceptable value", func() {
-				tep.Spec.BackendConfig[ListeningPort] = outOfRangeMin
+				tep.Spec.BackendConfig[liqoconst.ListeningPort] = outOfRangeMin
 				port, err := getTunnelPortFromTep(tep)
 				Expect(port).To(BeNumerically("==", 0))
 				Expect(err).To(MatchError(fmt.Sprintf("port {%s} should be greater than {%d} and minor than {%d}",
@@ -57,7 +57,7 @@ var _ = Describe("Driver", func() {
 			})
 
 			It("port > than max acceptable value", func() {
-				tep.Spec.BackendConfig[ListeningPort] = outOfRangeMax
+				tep.Spec.BackendConfig[liqoconst.ListeningPort] = outOfRangeMax
 				port, err := getTunnelPortFromTep(tep)
 				Expect(port).To(BeNumerically("==", 0))
 				Expect(err).To(MatchError(fmt.Sprintf("port {%s} should be greater than {%d} and minor than {%d}",
@@ -65,7 +65,7 @@ var _ = Describe("Driver", func() {
 			})
 
 			It("port is not a valid number", func() {
-				tep.Spec.BackendConfig[ListeningPort] = notANumber
+				tep.Spec.BackendConfig[liqoconst.ListeningPort] = notANumber
 				port, err := getTunnelPortFromTep(tep)
 				Expect(port).To(BeNumerically("==", 0))
 				Expect(errors.Unwrap(err)).To(MatchError(&strconv.NumError{
@@ -76,16 +76,16 @@ var _ = Describe("Driver", func() {
 			})
 
 			It("port not set at all", func() {
-				delete(tep.Spec.BackendConfig, ListeningPort)
+				delete(tep.Spec.BackendConfig, liqoconst.ListeningPort)
 				port, err := getTunnelPortFromTep(tep)
 				Expect(port).To(BeNumerically("==", 0))
-				Expect(err).To(MatchError(fmt.Sprintf("port not found in BackendConfig map using key {%s}", ListeningPort)))
+				Expect(err).To(MatchError(fmt.Sprintf("port not found in BackendConfig map using key {%s}", liqoconst.ListeningPort)))
 			})
 		})
 
 		Context("in range port", func() {
 			It("port within range", func() {
-				tep.Spec.BackendConfig[ListeningPort] = intoTheRange
+				tep.Spec.BackendConfig[liqoconst.ListeningPort] = intoTheRange
 				expectedPort, err := strconv.ParseInt(intoTheRange, 10, 32)
 				Expect(err).To(BeNil())
 				port, err := getTunnelPortFromTep(tep)
@@ -155,7 +155,7 @@ var _ = Describe("Driver", func() {
 				tep = &netv1alpha1.TunnelEndpoint{
 					Spec: netv1alpha1.TunnelEndpointSpec{
 						EndpointIP:    "",
-						BackendConfig: map[string]string{ListeningPort: ""},
+						BackendConfig: map[string]string{liqoconst.ListeningPort: ""},
 					},
 				}
 			})
@@ -163,7 +163,7 @@ var _ = Describe("Driver", func() {
 			Context("valid parameters", func() {
 				It("valid port and address", func() {
 					tep.Spec.EndpointIP = ipv4Dns
-					tep.Spec.BackendConfig[ListeningPort] = intoTheRange
+					tep.Spec.BackendConfig[liqoconst.ListeningPort] = intoTheRange
 					udpAddr, err := getEndpoint(tep, addressResolverMock)
 					Expect(udpAddr).NotTo(BeNil())
 					Expect(udpAddr.IP.String()).Should(ContainSubstring(ipv4Literal))
@@ -174,7 +174,7 @@ var _ = Describe("Driver", func() {
 			Context("invalid parameters", func() {
 				It("invalid port and valid address", func() {
 					tep.Spec.EndpointIP = ipv4Dns
-					tep.Spec.BackendConfig[ListeningPort] = outOfRangeMax
+					tep.Spec.BackendConfig[liqoconst.ListeningPort] = outOfRangeMax
 					udpAddr, err := getEndpoint(tep, addressResolverMock)
 					Expect(udpAddr).To(BeNil())
 					Expect(err).To(HaveOccurred())
@@ -182,7 +182,7 @@ var _ = Describe("Driver", func() {
 
 				It("invalid address and valid port", func() {
 					tep.Spec.EndpointIP = "notExisting"
-					tep.Spec.BackendConfig[ListeningPort] = intoTheRange
+					tep.Spec.BackendConfig[liqoconst.ListeningPort] = intoTheRange
 					udpAddr, err := getEndpoint(tep, addressResolverMock)
 					Expect(udpAddr).To(BeNil())
 					Expect(err).To(HaveOccurred())
@@ -190,7 +190,7 @@ var _ = Describe("Driver", func() {
 
 				It("invalid port and invalid address", func() {
 					tep.Spec.EndpointIP = invalidAddress
-					tep.Spec.BackendConfig[ListeningPort] = outOfRangeMin
+					tep.Spec.BackendConfig[liqoconst.ListeningPort] = outOfRangeMin
 					udpAddr, err := getEndpoint(tep, addressResolverMock)
 					Expect(udpAddr).To(BeNil())
 					Expect(err).To(HaveOccurred())
