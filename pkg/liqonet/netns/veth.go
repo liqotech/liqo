@@ -30,7 +30,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
-	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	"github.com/liqotech/liqo/pkg/liqonet/utils/links"
 )
 
 // CreateVethPair it will create veth pair in hostNetns and move one of them in gatewayNetns.
@@ -45,7 +45,7 @@ func CreateVethPair(hostVethName, gatewayVethName string, hostNetns, gatewayNetn
 	}
 	// Check if in hostNetns, aka host netns, exists an interface named as hostVethName.
 	// If it exists than we remove it.
-	if err := liqoutils.DeleteIFaceByName(hostVethName); err != nil {
+	if err := links.DeleteIFaceByName(hostVethName); err != nil {
 		return hostVeth, gatewayVeth, fmt.Errorf("an error occurred while deleting interface {%s} in host network: %w",
 			hostVethName, err)
 	}
