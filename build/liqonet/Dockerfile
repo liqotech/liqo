@@ -3,7 +3,7 @@ WORKDIR /home/rust/src
 RUN git clone https://github.com/cloudflare/boringtun.git
 WORKDIR /home/rust/src/boringtun
 RUN rustup target add x86_64-unknown-linux-musl
-RUN cargo build --bin boringtun --release
+RUN cargo build --bin boringtun-cli --release
 
 
 FROM golang:1.17 as goBuilder
@@ -24,6 +24,6 @@ RUN apk update && \
     rm -rf /var/cache/apk/*
 
 COPY --from=goBuilder /tmp/builder/liqonet /usr/bin/liqonet
-COPY --from=rustBuilder /home/rust/src/boringtun/target/x86_64-unknown-linux-musl/release/boringtun /usr/bin/boringtun
+COPY --from=rustBuilder /home/rust/src/boringtun/target/x86_64-unknown-linux-musl/release/boringtun-cli /usr/bin/boringtun
 
 ENTRYPOINT [ "/usr/bin/liqonet" ]
