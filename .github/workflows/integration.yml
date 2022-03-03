@@ -252,38 +252,6 @@ jobs:
           repository: ${{ github.repository }}
           excludes: prerelease, draft
 
-      - name: Generate the CHANGELOG
-        uses: heinrichreimer/github-changelog-generator-action@v2.2
-        id: changelog
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # Changelog will start from this tag.
-          sinceTag: ${{ steps.last-release.outputs.release }}
-          # Include pull-requests in changelog.
-          pullRequests: true
-          # Include pull requests without labels in changelog.
-          prWoLabels: true
-          # Add author of pull request at the end.
-          author: true
-          # Use GitHub tags instead of Markdown links for the author of an issue or pull-request.
-          usernamesAsGithubLogins: true
-          # Do not include compare link (Full Changelog) between older version and newer version.
-          compareLink: false
-          # Issues with the specified labels will be excluded from changelog.
-          excludeLabels: kind/no-changelog
-          # Define your own set of sections which overrides all default sections.
-          configureSections: '{
-              "breaking": {"labels": ["kind/breaking"], "prefix": "### :boom: Breaking Change"},
-              "feature": {"labels": ["kind/feature","kind/epic"], "prefix": "### :rocket: New Features"},
-              "bug": {"labels": ["kind/bug"], "prefix": "### :bug: Bug Fixes"},
-              "cleanup": {"labels": ["kind/cleanup"], "prefix": "### :broom: Code Refactoring"},
-              "docs": {"labels": ["kind/docs"], "prefix": "### :memo: Documentation"}
-            }'
-          # Do not include issues in the changelog
-          issues: false
-          # Run verbosely
-          verbose: true
-
       - name: Trigger Chart Upload
         uses: peter-evans/repository-dispatch@v1
         with:
@@ -309,7 +277,7 @@ jobs:
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "./liqoctl/**/*"
-          bodyFile: ./CHANGELOG.md
+          generateReleaseNotes: true
           token: ${{ secrets.CI_TOKEN }}
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}

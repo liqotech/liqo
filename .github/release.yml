@@ -1,0 +1,26 @@
+changelog:
+  exclude:
+    labels:
+    - kind/no-changelog
+    authors:
+    - dependabot[bot]
+  categories:
+    - title: "### :boom: Breaking Change"
+      labels:
+      - kind/breaking
+    - title: "### :rocket: New Features"
+      labels:
+      - kind/feature
+      - kind/epic
+    - title: "### :bug: Bug Fixes"
+      labels:
+      - kind/bug
+    - title: "### :broom: Code Refactoring"
+      labels:
+      - kind/cleanup
+    - title: "### :memo: Documentation"
+      labels:
+      - kind/docs
+    - title: Other Changes
+      labels:
+      - "*"
