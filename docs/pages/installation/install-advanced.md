@@ -1,16 +1,14 @@
 ---
-title: Liqoctl
-weight: 2
+title: Advanced installation options
+weight: 3
 ---
 
-Liqoctl is the swiss-knife CLI tool to install/manager and manage Liqo clusters.
+Liqoctl is the swiss-knife CLI tool to install and manage Liqo clusters.
 
-## Installation
-
-You can find how to install liqo in the [Installation section](/installation/).
+You can find how to install Liqo in the [Installation section](/installation/install).
 In this section, you can find how to use some `liqoctl install` advanced features.
 
-### Unstable releases
+## Unstable releases
 
 By default, `liqoctl install` installs the last stable version of Liqo.
 
@@ -22,7 +20,7 @@ liqoctl install kind --version v0.3.1-alpha.1
 
 It is suggested to use liqoctl of the same version you are installing. You can download liqoctl through the [release page](https://github.com/liqotech/liqo/releases).
 
-### Generate chart values
+## Generate chart values
 
 Under the hood, liqoctl uses [Helm 3](https://helm.sh/) to configure and install the Liqo chart available on the official repository.
 
@@ -41,7 +39,7 @@ helm repo add liqo https://helm.liqo.io/ # if the repository was not already pre
 helm install liqo/liqo -n liqo -f values.yaml
 ```
 
-### Install from a local chart
+## Install from a local chart
 
 If you need to install a custom version from a local version, you can use the `--chart-path` and `--version` option like the following example:
 
