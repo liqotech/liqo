@@ -16,7 +16,7 @@
 | auth.pod.labels | object | `{}` | auth pod labels |
 | auth.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443. |
 | auth.service.annotations | object | `{}` | auth service annotations |
-| auth.service.type | string | `"LoadBalancer"` | The type of service used to expose the Authentication Service If you are exposing this service with an Ingress consider to change it to ClusterIP, otherwise if your cluster does not support LoadBalancer services consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
+| auth.service.type | string | `"LoadBalancer"` | The type of service used to expose the Authentication Service. If you are exposing this service with an Ingress, you can change it to ClusterIP; if your cluster does not support LoadBalancer services, consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource. |
 | awsConfig.accessKeyId | string | `""` | accessKeyID for the Liqo user |
 | awsConfig.clusterName | string | `""` | name of the EKS cluster |
@@ -50,7 +50,7 @@
 | gateway.pod.labels | object | `{}` | gateway pod labels |
 | gateway.replicas | int | `1` | The number of gateway instances to run. The gateway component supports active/passive high availability. Make sure that there are enough nodes to accommodate the replicas, because being the instances in host network no more than one replica can be scheduled on a given node. |
 | gateway.service.annotations | object | `{}` |  |
-| gateway.service.type | string | `"LoadBalancer"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are directly reachable by the cluster to whom you are peering, you may change it to "NodePort". |
+| gateway.service.type | string | `"LoadBalancer"` | If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer". Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort". |
 | metricAgent.enable | bool | `true` | Enable the metric agent |
 | metricAgent.imageName | string | `"liqo/metric-agent"` | metricAgent image repository |
 | metricAgent.initContainer.imageName | string | `"liqo/cert-creator"` | auth init container image repository |
@@ -61,7 +61,7 @@
 | networkConfig.mtu | int | `1440` | set the mtu for the interfaces managed by liqo: vxlan, tunnel and veth interfaces The value is used by the gateway and route operators. |
 | networkManager.config.additionalPools | list | `[]` | Set of additional network pools. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
 | networkManager.config.podCIDR | string | `""` | The subnet used by the cluster for the pods, in CIDR notation |
-| networkManager.config.reservedSubnets | list | `[]` | Usually the IPs used for the pods in k8s clusters belong to private subnets In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
+| networkManager.config.reservedSubnets | list | `[]` | Usually the IPs used for the pods in k8s clusters belong to private subnets. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
 | networkManager.config.serviceCIDR | string | `""` | The subnet used by the cluster for the services, in CIDR notation |
 | networkManager.imageName | string | `"liqo/liqonet"` | networkManager image repository |
 | networkManager.pod.annotations | object | `{}` | networkManager pod annotations |

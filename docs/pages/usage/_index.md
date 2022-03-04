@@ -11,4 +11,3 @@ The basic operations you can perform with Liqo are the following:
 
 * [Establish a peering](./peering)
 * [Configure namespace offloading on remote clusters](./namespace_offloading/)
-* [liqoctl, the Liqo CLI](./liqoctl)
