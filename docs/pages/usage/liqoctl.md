@@ -3,6 +3,9 @@ title: Liqoctl
 weight: 2
 ---
 
+<!-- FULVIO Non mi e' chiaro il valore di questa pagina: liqoctl e' descritto in un'altra sezione (la Liqoctl commands), peraltro dove c'e' esplicitamente il comando 'liqoctl install', anche se riporta molte meno cose rispetto a qui.-->
+<!-- FULVIO L'alternativa e' chiamare questa pagina 'Advanced installation options' e integrarla quindi nella sezione 'Installation' https://doc.liqo.io/installation/  -->
+
 Liqoctl is the swiss-knife CLI tool to install/manager and manage Liqo clusters.
 
 ## Installation
