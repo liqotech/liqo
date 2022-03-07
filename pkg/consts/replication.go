@@ -49,4 +49,8 @@ const (
 	// Ex. Local networkconfigs are owned by the component that creates them. If the resource is replicated in
 	// a remote cluster this label is removed by the CRDReplicator.
 	LocalResourceOwnership = "liqo.io/ownership"
+
+	// ForceRemoteNodePortAnnotationKey is the annotation key used to indicate that a service should be forced to
+	// use the same node port on both clusters.
+	ForceRemoteNodePortAnnotationKey = "liqo.io/force-remote-node-port"
 )

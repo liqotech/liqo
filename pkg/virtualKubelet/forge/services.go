@@ -18,6 +18,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/utils/pointer"
+
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 // nodePortUnset -> the value representing an unset NodePort.
@@ -28,15 +30,15 @@ func RemoteService(local *corev1.Service, targetNamespace string) *corev1apply.S
 	return corev1apply.Service(local.GetName(), targetNamespace).
 		WithLabels(local.GetLabels()).WithLabels(ReflectionLabels()).
 		WithAnnotations(local.GetAnnotations()).
-		WithSpec(RemoteServiceSpec(local.Spec.DeepCopy()))
+		WithSpec(RemoteServiceSpec(local.Spec.DeepCopy(), getForceRemoteNodePort(local)))
 }
 
 // RemoteServiceSpec forges the apply patch for the specs of the reflected service, given the local ones.
 // It expects the local object to be a deepcopy, as it is mutated.
-func RemoteServiceSpec(local *corev1.ServiceSpec) *corev1apply.ServiceSpecApplyConfiguration {
+func RemoteServiceSpec(local *corev1.ServiceSpec, forceRemoteNodePort bool) *corev1apply.ServiceSpecApplyConfiguration {
 	remote := corev1apply.ServiceSpec().
 		WithType(local.Type).WithSelector(local.Selector).
-		WithPorts(RemoteServicePorts(local.Ports)...)
+		WithPorts(RemoteServicePorts(local.Ports, forceRemoteNodePort)...)
 
 	// The additional fields are set manually instead of using the "With" functions,
 	// to avoid issues if not set in the local object and thus nil. This requires the
@@ -58,7 +60,7 @@ func RemoteServiceSpec(local *corev1.ServiceSpec) *corev1apply.ServiceSpecApplyC
 }
 
 // RemoteServicePorts forges the apply patch for the ports of the reflected service, given the local ones.
-func RemoteServicePorts(locals []corev1.ServicePort) []*corev1apply.ServicePortApplyConfiguration {
+func RemoteServicePorts(locals []corev1.ServicePort, forceRemoteNodePort bool) []*corev1apply.ServicePortApplyConfiguration {
 	var remotes []*corev1apply.ServicePortApplyConfiguration
 
 	for _, local := range locals {
@@ -71,6 +73,10 @@ func RemoteServicePorts(locals []corev1.ServicePort) []*corev1apply.ServicePortA
 			remote.WithNodePort(nodePortUnset)
 		}
 
+		if forceRemoteNodePort {
+			remote.WithNodePort(local.NodePort)
+		}
+
 		if local.AppProtocol != nil {
 			// Need to check to avoid dereferencing a nil pointer.
 			remote.WithAppProtocol(*local.AppProtocol)
@@ -79,4 +85,9 @@ func RemoteServicePorts(locals []corev1.ServicePort) []*corev1apply.ServicePortA
 	}
 
 	return remotes
+}
+
+func getForceRemoteNodePort(local *corev1.Service) bool {
+	val, ok := local.Annotations[liqoconst.ForceRemoteNodePortAnnotationKey]
+	return ok && val == "true"
 }
