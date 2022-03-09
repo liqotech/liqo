@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -278,7 +279,7 @@ func (c *Cluster) Init(ctx context.Context) error {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving authentication endpoint: %v", err))
 		return err
 	}
-	ipAuth, portAuth, err := liqogetters.RetrieveAuthEndpointFromClusterIPService(svc, authPort)
+	ipAuth, portAuth, err := liqogetters.RetrieveEndpointFromService(svc, corev1.ServiceTypeClusterIP, authPort)
 	if err != nil {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving authentication endpoint: %v", err))
 		return err
@@ -347,6 +348,47 @@ func (c *Cluster) SetUpTenantNamespace(ctx context.Context, remoteClusterID *dis
 	s.Success(fmt.Sprintf("tenant namespace {%s} created for remote cluster {%s}", ns.Name, remoteClusterID.ClusterName))
 	c.locTenantNamespace = ns.Name
 	return nil
+}
+
+// TearDownTenantNamespace deletes the tenant namespace in the local cluster for the given remote cluster.
+func (c *Cluster) TearDownTenantNamespace(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity, timeout time.Duration) error {
+	remName := remoteClusterID.ClusterName
+	c.locTenantNamespace = tenantnamespace.GetNameForNamespace(*remoteClusterID)
+	s, _ := c.printer.Spinner.Start(fmt.Sprintf("removing tenant namespace {%s} for remote cluster {%s}", c.locTenantNamespace, remName))
+	_, err := c.locK8sClient.CoreV1().Namespaces().Get(ctx, c.locTenantNamespace, metav1.GetOptions{})
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("an error occurred while getting tenant namespace for remote cluster {%s}: %v", remName, err))
+		return err
+	}
+
+	if err != nil {
+		s.Warning(fmt.Sprintf("tenant namespace {%s} for remote cluster {%s} not found", c.locTenantNamespace, remName))
+		return nil
+	}
+
+	deadLine := time.After(timeout)
+	for {
+		select {
+		case <-deadLine:
+			msg := fmt.Sprintf("timout (%.0fs) expired while waiting tenant namespace {%s} to be deleted",
+				timeout.Seconds(), c.locTenantNamespace)
+			s.Fail(msg)
+			return fmt.Errorf(msg)
+		default:
+			err := c.locK8sClient.CoreV1().Namespaces().Delete(ctx, c.locTenantNamespace, metav1.DeleteOptions{})
+			if client.IgnoreNotFound(err) != nil {
+				s.Fail(fmt.Sprintf("an error occurred while deleting tenant namespace {%s} for remote cluster {%s}: %v", c.locTenantNamespace, remName, err))
+				return err
+			}
+
+			if err != nil {
+				s.Success(fmt.Sprintf("tenant namespace {%s} correctly removed for remote cluster {%s}", c.locTenantNamespace, remName))
+				return nil
+			}
+
+			time.Sleep(2 * time.Second)
+		}
+	}
 }
 
 // ExchangeNetworkCfg creates the local networkconfigs resource for the remote cluster, replicates it
@@ -625,22 +667,82 @@ func (c *Cluster) MapProxyIPForCluster(ctx context.Context, ipamClient ipam.Ipam
 	return nil
 }
 
+// UnmapProxyIPForCluster unmaps the ClusterIP address of the local proxy on the local external CIDR as seen by the remote cluster.
+func (c *Cluster) UnmapProxyIPForCluster(ctx context.Context, ipamClient ipam.IpamClient, remoteCluster *discoveryv1alpha1.ClusterIdentity) error {
+	clusterName := remoteCluster.ClusterName
+
+	// TODO: this logic will be moved on the Init function once
+	// the creation of the proxy deployment and service will be
+	// done at install time of liqo through the helm chart.
+
+	s, _ := c.printer.Spinner.Start(fmt.Sprintf("unmapping proxy ip for cluster {%s}", clusterName))
+
+	selector, err := metav1.LabelSelectorAsSelector(&liqolabels.ProxyServiceLabelSelector)
+	if err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
+		return err
+	}
+	svc, err := liqogetters.GetServiceByLabel(ctx, c.locCtrlRunClient, c.namespace, selector)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
+		return err
+	}
+	if k8serrors.IsNotFound(err) {
+		s.Warning(fmt.Sprintf("service for proxy not found, unable to unmap proxy ip for cluster {%s}", clusterName))
+		return nil
+	}
+
+	ipAuth, _, err := liqogetters.RetrieveEndpointFromService(svc, corev1.ServiceTypeClusterIP, "http")
+	if err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
+		return err
+	}
+
+	ipToBeUnmapped := ipAuth
+
+	if err := unmapServiceForCluster(ctx, ipamClient, ipToBeUnmapped, remoteCluster); err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while unmapping proxy address {%s} for cluster {%s}: %v", ipToBeUnmapped, clusterName, err))
+		return err
+	}
+
+	s.Success(fmt.Sprintf("proxy address {%s} unmapped for remote cluster {%s}", ipToBeUnmapped, clusterName))
+
+	return nil
+}
+
 // MapAuthIPForCluster maps the ClusterIP address of the local auth service on the local external CIDR as seen by the remote cluster.
 func (c *Cluster) MapAuthIPForCluster(ctx context.Context, ipamClient ipam.IpamClient, remoteCluster *discoveryv1alpha1.ClusterIdentity) error {
 	clusterName := remoteCluster.ClusterName
-	ipToBeRemapped := c.authEP.GetIP()
+	ipToBeUnmapped := c.authEP.GetIP()
 
-	s, _ := c.printer.Spinner.Start(fmt.Sprintf("mapping auth ip {%s} for cluster {%s}", ipToBeRemapped, clusterName))
+	s, _ := c.printer.Spinner.Start(fmt.Sprintf("mapping auth ip {%s} for cluster {%s}", ipToBeUnmapped, clusterName))
 
-	ip, err := mapServiceForCluster(ctx, ipamClient, ipToBeRemapped, remoteCluster)
+	ip, err := mapServiceForCluster(ctx, ipamClient, ipToBeUnmapped, remoteCluster)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while mapping auth address {%s} for cluster {%s}: %v", ipToBeRemapped, clusterName, err))
+		s.Fail(fmt.Sprintf("an error occurred while mapping auth address {%s} for cluster {%s}: %v", ipToBeUnmapped, clusterName, err))
 		return err
 	}
 
 	c.authEP.SetRemappedIP(ip)
 
-	s.Success(fmt.Sprintf("auth address {%s} remapped to {%s} for remote cluster {%s}", ipToBeRemapped, ip, clusterName))
+	s.Success(fmt.Sprintf("auth address {%s} remapped to {%s} for remote cluster {%s}", ipToBeUnmapped, ip, clusterName))
+
+	return nil
+}
+
+// UnmapAuthIPForCluster unmaps the ClusterIP address of the local auth service on the local external CIDR as seen by the remote cluster.
+func (c *Cluster) UnmapAuthIPForCluster(ctx context.Context, ipamClient ipam.IpamClient, remoteCluster *discoveryv1alpha1.ClusterIdentity) error {
+	clusterName := remoteCluster.ClusterName
+	ipToBeUnmapped := c.authEP.GetIP()
+
+	s, _ := c.printer.Spinner.Start(fmt.Sprintf("unmapping auth ip {%s} for cluster {%s}", ipToBeUnmapped, clusterName))
+
+	if err := unmapServiceForCluster(ctx, ipamClient, ipToBeUnmapped, remoteCluster); err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while unmapping auth address {%s} for cluster {%s}: %v", ipToBeUnmapped, clusterName, err))
+		return err
+	}
+
+	s.Success(fmt.Sprintf("auth address {%s} unmapped for remote cluster {%s}", ipToBeUnmapped, clusterName))
 
 	return nil
 }
@@ -676,6 +778,19 @@ func mapServiceForCluster(ctx context.Context, ipamClient ipam.IpamClient, ipToB
 	}
 
 	return resp.Ip, nil
+}
+
+// unmapServiceForCluster releases a mapped local ip address previously mapped for given remote cluster.
+func unmapServiceForCluster(ctx context.Context, ipamClient ipam.IpamClient, ipToBeUnmapped string,
+	remoteCluster *discoveryv1alpha1.ClusterIdentity) error {
+	unMapRequest := &ipam.UnmapRequest{
+		ClusterID: remoteCluster.ClusterID,
+		Ip:        ipToBeUnmapped,
+	}
+
+	_, err := ipamClient.UnmapEndpointIP(ctx, unMapRequest)
+
+	return err
 }
 
 // EnforceForeignCluster enforces the presence of the foreignclusters instance for a given remote cluster.
@@ -732,6 +847,90 @@ func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *di
 		return err
 	}
 	s.Success(fmt.Sprintf("foreign cluster for remote cluster {%s} correctly configured", remName))
+	return nil
+}
+
+// DeleteForeignCluster deletes the foreignclusters instance for the given remote cluster.
+func (c *Cluster) DeleteForeignCluster(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	remID := remoteClusterID.ClusterID
+	remName := remoteClusterID.ClusterName
+
+	s, _ := c.printer.Spinner.Start(fmt.Sprintf("deleting foreigncluster for the remote cluster {%s}", remName))
+	if c.clusterID.ClusterID == remoteClusterID.ClusterID {
+		msg := fmt.Sprintf("the clusterID {%s} of remote cluster {%s} is equal to the ID of the local cluster", remID, remName)
+		s.Fail(msg)
+		return fmt.Errorf(msg)
+	}
+
+	// Get existing foreign cluster if it does exist
+	fc, err := foreigncluster.GetForeignClusterByID(ctx, c.locCtrlRunClient, remID)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("an error occurred while getting foreign cluster for remote cluster {%s}: %v", remName, err))
+		return err
+	}
+
+	if k8serrors.IsNotFound(err) {
+		s.Warning(fmt.Sprintf("it seems that the foreign cluster for remote cluster {%s} has been already removed", remName))
+		return nil
+	}
+
+	if err := c.locCtrlRunClient.Delete(ctx, fc); err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while deleting foreigncluster for remote cluster {%s}: %v", remName, err))
+		return err
+	}
+
+	s.Success(fmt.Sprintf("foreigncluster deleted for remote cluster {%s}", remName))
+	return nil
+}
+
+// DisablePeering disables the peering for the remote cluster by patching the foreigncusters resource.
+func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	remID := remoteClusterID.ClusterID
+	remName := remoteClusterID.ClusterName
+	s, _ := c.printer.Spinner.Start(fmt.Sprintf("disabling peering for the remote cluster {%s}", remName))
+	if c.clusterID.ClusterID == remoteClusterID.ClusterID {
+		msg := fmt.Sprintf("the clusterID {%s} of remote cluster {%s} is equal to the ID of the local cluster", remID, remName)
+		s.Fail(msg)
+		return fmt.Errorf(msg)
+	}
+
+	// Get existing foreign cluster if it does exist
+	fc, err := foreigncluster.GetForeignClusterByID(ctx, c.locCtrlRunClient, remID)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("an error occurred while getting foreign cluster for remote cluster {%s}: %v", remName, err))
+		return err
+	}
+
+	// Not nil only if the foreign cluster does not exist.
+	if err != nil {
+		s.Warning(fmt.Sprintf("it seems that the foreign cluster for remote cluster {%s} has been already removed", remName))
+		return nil
+	}
+
+	// Set outgoing peering to no.
+	if _, err := controllerutil.CreateOrPatch(ctx, c.locCtrlRunClient, fc, func() error {
+		fc.Spec.OutgoingPeeringEnabled = "No"
+		return nil
+	}); err != nil {
+		s.Fail(fmt.Sprintf("an error occurred withe disabling peering for remote cluster {%s}: %v", remName, err))
+		return err
+	}
+	s.Success(fmt.Sprintf("peering correctly disabled for remote cluster {%s}", remName))
+
+	return nil
+}
+
+// WaitForUnpeering waits until the status on the foreiglcusters resource states that the in/outgoing peering has been successfully
+// set to None or the timeout expires.
+func (c *Cluster) WaitForUnpeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity, timeout time.Duration) error {
+	remName := remoteClusterID.ClusterName
+	s, _ := c.printer.Spinner.Start(fmt.Sprintf("waiting for event {%s} from the remote cluster {%s}", UnpeeringEvent, remName))
+	err := WaitForEventOnForeignCluster(ctx, remoteClusterID, UnpeeringEvent, UnpeerChecker, timeout, c.locCtrlRunClient)
+	if err != nil {
+		s.Fail(err.Error())
+		return err
+	}
+	s.Success(fmt.Sprintf("event {%s} successfully occurred for remote cluster {%s}", UnpeeringEvent, remName))
 	return nil
 }
 

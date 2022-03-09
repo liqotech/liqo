@@ -73,6 +73,7 @@ var _ = Describe("DataGetters", func() {
 			epIP, epPort string
 			err          error
 			service      *corev1.Service
+			serviceType  corev1.ServiceType
 		)
 
 		BeforeEach(func() {
@@ -155,12 +156,15 @@ var _ = Describe("DataGetters", func() {
 			})
 		})
 
-		Context("retrieval of Authentication endpoint from service object", func() {
+		Context("retrieval of endpoint from service object", func() {
 			JustBeforeEach(func() {
-				epIP, epPort, err = getters.RetrieveAuthEndpointFromClusterIPService(service, port.Name)
+				epIP, epPort, err = getters.RetrieveEndpointFromService(service, serviceType, port.Name)
 			})
 
 			Context("service is of type ClusterIP", func() {
+				BeforeEach(func() {
+					serviceType = corev1.ServiceTypeClusterIP
+				})
 				Context("when port with given name does not exist", func() {
 					BeforeEach(func() { service.Spec.Ports = nil })
 					checksOnFailure()
@@ -183,8 +187,48 @@ var _ = Describe("DataGetters", func() {
 				})
 			})
 
+			Context("service is of type LoadBalancer", func() {
+				BeforeEach(func() { serviceType = corev1.ServiceTypeLoadBalancer })
+				Context("when the LoadBalancer IP has not been set", func() {
+					BeforeEach(func() { service.Status.LoadBalancer.Ingress = nil })
+					checksOnFailure()
+				})
+
+				Context("when port with given name does not exist", func() {
+					BeforeEach(func() { service.Spec.Ports = nil })
+					checksOnFailure()
+				})
+
+				Context("when neither ip address nor host has been set", func() {
+					BeforeEach(func() {
+						service.Status.LoadBalancer.Ingress[0].Hostname = ""
+						service.Status.LoadBalancer.Ingress[0].IP = ""
+					})
+					checksOnFailure()
+				})
+
+				Context("when only the ip address has been set", func() {
+					BeforeEach(func() { service.Status.LoadBalancer.Ingress[0].Hostname = "" })
+					It("should return nil", func() { Expect(err).ShouldNot(HaveOccurred()) })
+					It("should return correct ip address", func() { Expect(epIP).Should(Equal(loadBalancerIP)) })
+					It("should return correct port number", func() { Expect(epPort).To(Equal(strconv.FormatInt(int64(port.Port), 10))) })
+				})
+
+				Context("when only the hostname has been set", func() {
+					BeforeEach(func() { service.Status.LoadBalancer.Ingress[0].IP = "" })
+					It("should return nil", func() { Expect(err).ShouldNot(HaveOccurred()) })
+					It("should return correct ip address", func() { Expect(epIP).Should(Equal(loadBalancerHost)) })
+					It("should return correct port number", func() { Expect(epPort).To(Equal(strconv.FormatInt(int64(port.Port), 10))) })
+				})
+			})
+
+			Context("service is of type NodePort", func() {
+				BeforeEach(func() { serviceType = corev1.ServiceTypeNodePort })
+				checksOnFailure()
+			})
+
 			Context("service is not of correct type", func() {
-				BeforeEach(func() { service.Spec.Type = "" })
+				BeforeEach(func() { serviceType = "" })
 				checksOnFailure()
 			})
 		})
