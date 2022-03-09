@@ -55,19 +55,16 @@ func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (*discoveryv1alpha1.Cl
 	}, nil
 }
 
-// RetrieveAuthEndpointFromClusterIPService the auth endpoint from a ClusterIP service;
-// If the service is of type different from ClusterIP it will be treated as it.
-func RetrieveAuthEndpointFromClusterIPService(svc *corev1.Service, portName string) (endpointIP, endpointPort string, err error) {
-	if svc.Spec.Type == corev1.ServiceTypeNodePort || svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
-		svc.Spec.Type = corev1.ServiceTypeClusterIP
-	}
+// RetrieveEndpointFromService retrieves an ip address and port from a given service object
+// based on the service and port name.
+func RetrieveEndpointFromService(svc *corev1.Service, svcType corev1.ServiceType, portName string) (endpointIP, endpointPort string, err error) {
 	// Retrieve the endpoint ip
-	if endpointIP, err = retrieveIPFromService(svc); err != nil {
+	if endpointIP, err = retrieveIPFromService(svc, svcType); err != nil {
 		return endpointIP, endpointPort, err
 	}
 
 	// Retrieve the endpoint port
-	if endpointPort, err = retrievePortFromService(svc, portName, svc.Spec.Type); err != nil {
+	if endpointPort, err = retrievePortFromService(svc, portName, svcType); err != nil {
 		endpointIP, endpointPort = "", ""
 	}
 
@@ -94,7 +91,7 @@ func RetrieveWGEPFromNodePort(svc *corev1.Service, annotationKey, portName strin
 // RetrieveWGEPFromLoadBalancer retrieves the WireGuard endpoint from a LoadBalancer service.
 func RetrieveWGEPFromLoadBalancer(svc *corev1.Service, portName string) (endpointIP, endpointPort string, err error) {
 	// Retrieve the endpoint ip.
-	if endpointIP, err = retrieveIPFromService(svc); err != nil {
+	if endpointIP, err = retrieveIPFromService(svc, corev1.ServiceTypeLoadBalancer); err != nil {
 		return endpointIP, endpointPort, err
 	}
 
@@ -138,8 +135,11 @@ func RetrieveWGPubKeyFromSecret(secret *corev1.Secret, keyName string) (pubKey w
 	return pubKey, nil
 }
 
-func retrieveIPFromService(svc *corev1.Service) (string, error) {
-	switch svc.Spec.Type {
+// retrieveIPFromService given a service and the type of the service, the function
+// returns the ip address for the service based on the type. The nodePort service type
+// does not have a specific ip address, so we return an error.
+func retrieveIPFromService(svc *corev1.Service, serviceType corev1.ServiceType) (string, error) {
+	switch serviceType {
 	case corev1.ServiceTypeClusterIP:
 		if svc.Spec.ClusterIP != "" {
 			return svc.Spec.ClusterIP, nil
