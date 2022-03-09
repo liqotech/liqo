@@ -102,6 +102,7 @@ func remotePersistentVolumeClaim(virtualPvc *corev1.PersistentVolumeClaim,
 	return v1apply.PersistentVolumeClaim(virtualPvc.Name, namespace).
 		WithLabels(virtualPvc.GetLabels()).
 		WithLabels(forge.ReflectionLabels()).
+		WithAnnotations(filterAnnotations(virtualPvc.GetAnnotations())).
 		WithSpec(remotePersistentVolumeClaimSpec(virtualPvc, storageClass))
 }
 
@@ -128,4 +129,30 @@ func persistenVolumeClaimResources(resources corev1.ResourceRequirements) *v1app
 	return v1apply.ResourceRequirements().
 		WithLimits(resources.Limits).
 		WithRequests(resources.Requests)
+}
+
+var controllerAnnotations = []string{
+	"pv.kubernetes.io/bind-completed",
+	"pv.kubernetes.io/bound-by-controller",
+	"volume.beta.kubernetes.io/storage-provisioner",
+	"volume.kubernetes.io/selected-node",
+}
+
+func filterAnnotations(annotations map[string]string) map[string]string {
+	filtered := make(map[string]string)
+	for k, v := range annotations {
+		if !isBacklisted(k) {
+			filtered[k] = v
+		}
+	}
+	return filtered
+}
+
+func isBacklisted(key string) bool {
+	for _, k := range controllerAnnotations {
+		if k == key {
+			return true
+		}
+	}
+	return false
 }
