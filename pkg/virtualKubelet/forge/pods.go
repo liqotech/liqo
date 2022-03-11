@@ -33,6 +33,10 @@ const (
 	PodOffloadingBackoffReason = "OffloadingBackoff"
 	// PodOffloadingAbortedReason -> the reason assigned to pods rejected by the virtual kubelet after offloading has started.
 	PodOffloadingAbortedReason = "OffloadingAborted"
+
+	// ServiceAccountVolumeName is the prefix name that will be added to volumes that mount ServiceAccount secrets.
+	// This constant is taken from kubernetes/kubernetes (plugin/pkg/admission/serviceaccount/admission.go).
+	ServiceAccountVolumeName = "kube-api-access-"
 )
 
 // PodIPTranslator defines the function to translate between remote and local IP addresses.
@@ -126,18 +130,33 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetName
 // RemotePodSpec forges the specs of the reflected pod specs, given the local ones.
 // It expects the local and remote objects to be deepcopies, as they are mutated.
 func RemotePodSpec(local, remote *corev1.PodSpec) corev1.PodSpec {
-	remote.TerminationGracePeriodSeconds = local.TerminationGracePeriodSeconds
-	remote.Volumes = forgeVolumes(local.Volumes)
-	remote.InitContainers = forgeContainers(local.InitContainers, remote.Volumes)
-	remote.Containers = forgeContainers(local.Containers, remote.Volumes)
 	remote.Tolerations = RemoteTolerations(local.Tolerations)
-	remote.EnableServiceLinks = local.EnableServiceLinks
-	remote.Hostname = local.Hostname
-	remote.Subdomain = local.Subdomain
-	remote.TopologySpreadConstraints = local.TopologySpreadConstraints
-	remote.RestartPolicy = local.RestartPolicy
+	remote.Volumes = RemoteVolumes(local.Volumes)
+
+	remote.Containers = RemoteContainers(local.Containers, remote.Volumes)
+	remote.InitContainers = RemoteContainers(local.InitContainers, remote.Volumes)
+
+	remote.ActiveDeadlineSeconds = local.ActiveDeadlineSeconds
 	remote.AutomountServiceAccountToken = local.AutomountServiceAccountToken
+	remote.DNSConfig = local.DNSConfig
+	remote.DNSPolicy = local.DNSPolicy
+	remote.EnableServiceLinks = local.EnableServiceLinks
+	remote.HostAliases = local.HostAliases
+	remote.Hostname = local.Hostname
+	remote.ImagePullSecrets = local.ImagePullSecrets
+	remote.ReadinessGates = local.ReadinessGates
+	remote.RestartPolicy = local.RestartPolicy
 	remote.SecurityContext = local.SecurityContext
+	remote.SetHostnameAsFQDN = local.SetHostnameAsFQDN
+	remote.ShareProcessNamespace = local.ShareProcessNamespace
+	remote.Subdomain = local.Subdomain
+	remote.TerminationGracePeriodSeconds = local.TerminationGracePeriodSeconds
+	remote.TopologySpreadConstraints = local.TopologySpreadConstraints
+
+	// This fields are currently forced to false, to prevent invasive settings on the remote cluster (which might not work).
+	remote.HostIPC = false
+	remote.HostNetwork = false
+	remote.HostPID = false
 
 	return *remote
 }
@@ -147,7 +166,7 @@ func RemoteTolerations(inputTolerations []corev1.Toleration) []corev1.Toleration
 	tolerations := make([]corev1.Toleration, 0)
 
 	for _, toleration := range inputTolerations {
-		// copy all tolerations except the one for the virtual node.
+		// Copy all tolerations except the one for the virtual node.
 		// This prevents by default the possibility of "recursive" scheduling on virtual nodes on the target cluster.
 		if toleration.Key != liqoconst.VirtualNodeTolerationKey {
 			tolerations = append(tolerations, toleration)
@@ -157,59 +176,47 @@ func RemoteTolerations(inputTolerations []corev1.Toleration) []corev1.Toleration
 	return tolerations
 }
 
-func forgeContainers(inputContainers []corev1.Container, inputVolumes []corev1.Volume) []corev1.Container {
-	containers := make([]corev1.Container, 0)
-
-	for _, container := range inputContainers {
-		volumeMounts := filterVolumeMounts(inputVolumes, container.VolumeMounts)
-		containers = append(containers, translateContainer(container, volumeMounts))
+// RemoteContainers forges the containers for a reflected pod.
+func RemoteContainers(containers []corev1.Container, volumes []corev1.Volume) []corev1.Container {
+	for i := range containers {
+		// Containers are reflected verbatim, except for the removal of the volume mounts
+		// referring to volumes that have been previously filtered.
+		containers[i].VolumeMounts = RemoteVolumeMounts(volumes, containers[i].VolumeMounts)
 	}
 
 	return containers
 }
 
-func translateContainer(container corev1.Container, volumes []corev1.VolumeMount) corev1.Container {
-	return corev1.Container{
-		Name:            container.Name,
-		Image:           container.Image,
-		Command:         container.Command,
-		Args:            container.Args,
-		WorkingDir:      container.WorkingDir,
-		Ports:           container.Ports,
-		Env:             container.Env,
-		Resources:       container.Resources,
-		LivenessProbe:   container.LivenessProbe,
-		ReadinessProbe:  container.ReadinessProbe,
-		StartupProbe:    container.StartupProbe,
-		SecurityContext: container.SecurityContext,
-		VolumeMounts:    volumes,
+// RemoteVolumes forges the volumes for a reflected pod.
+func RemoteVolumes(inputVolumes []corev1.Volume) []corev1.Volume {
+	volumes := make([]corev1.Volume, 0)
+
+	for i := range inputVolumes {
+		// Skip the projected volume which refers to the service account (if any).
+		// This is a temporary fix, until service account reflection is fully supported.
+		if inputVolumes[i].Projected != nil && strings.HasPrefix(inputVolumes[i].Name, ServiceAccountVolumeName) {
+			continue
+		}
+
+		volumes = append(volumes, inputVolumes[i])
 	}
+
+	return volumes
 }
 
-func forgeVolumes(volumesIn []corev1.Volume) []corev1.Volume {
-	volumesOut := make([]corev1.Volume, 0)
-	for _, v := range volumesIn {
-		if v.ConfigMap != nil || v.EmptyDir != nil || v.DownwardAPI != nil || v.Projected != nil || v.PersistentVolumeClaim != nil {
-			volumesOut = append(volumesOut, v)
-		}
-		// copy all volumes of type Secret except for the default token
-		if v.Secret != nil && !strings.Contains(v.Secret.SecretName, "default-token") {
-			volumesOut = append(volumesOut, v)
-		}
-	}
-	return volumesOut
-}
-
-// remove from volumeMountsIn all the volumeMounts with name not contained in volumes.
-func filterVolumeMounts(volumes []corev1.Volume, volumeMountsIn []corev1.VolumeMount) []corev1.VolumeMount {
+// RemoteVolumeMounts forges the volume mounts for a reflected pod, given the selected volumes.
+func RemoteVolumeMounts(volumes []corev1.Volume, inputVolumeMounts []corev1.VolumeMount) []corev1.VolumeMount {
 	volumeMounts := make([]corev1.VolumeMount, 0)
-	for _, vm := range volumeMountsIn {
-		for _, v := range volumes {
-			if vm.Name == v.Name {
-				volumeMounts = append(volumeMounts, vm)
+
+	for _, volumeMount := range inputVolumeMounts {
+		for i := range volumes {
+			if volumeMount.Name == volumes[i].Name {
+				volumeMounts = append(volumeMounts, volumeMount)
+				break
 			}
 		}
 	}
+
 	return volumeMounts
 }
 
