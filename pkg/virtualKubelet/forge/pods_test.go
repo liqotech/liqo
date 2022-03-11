@@ -211,6 +211,41 @@ var _ = Describe("Pod forging", func() {
 		It("should filter out liqo-related tolerations", func() { Expect(output).To(ConsistOf(included)) })
 	})
 
+	Describe("the RemoteVolumes function", func() {
+		var included, excluded, output []corev1.Volume
+
+		BeforeEach(func() {
+			included = []corev1.Volume{
+				{Name: "first", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{}}},
+				{Name: "second", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{}}},
+				{Name: "third", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{}}},
+			}
+			excluded = []corev1.Volume{
+				{Name: "kube-api-access-projected", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{}}},
+			}
+		})
+
+		JustBeforeEach(func() { output = forge.RemoteVolumes(append(included, excluded...)) })
+		It("should propagate all volume types, except the one referring to the service account", func() { Expect(output).To(ConsistOf(included)) })
+	})
+
+	Describe("the RemoteVolumeMounts function", func() {
+		var (
+			input, output []corev1.VolumeMount
+			volumes       []corev1.Volume
+		)
+
+		BeforeEach(func() {
+			volumes = []corev1.Volume{{Name: "first"}, {Name: "third"}, {Name: "forth"}}
+			input = []corev1.VolumeMount{{Name: "first"}, {Name: "second"}, {Name: "third"}, {Name: "forth"}, {Name: "fifth"}}
+		})
+
+		JustBeforeEach(func() { output = forge.RemoteVolumeMounts(volumes, input) })
+		It("should filter out the volume mounts without an associated volume", func() {
+			Expect(output).To(ConsistOf([]corev1.VolumeMount{{Name: "first"}, {Name: "third"}, {Name: "forth"}}))
+		})
+	})
+
 	Describe("the *Stats functions", func() {
 		PodStats := func(cpu, ram float64) statsv1alpha1.PodStats {
 			Uint64Ptr := func(value uint64) *uint64 { return &value }
