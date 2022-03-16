@@ -22,6 +22,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
@@ -174,15 +175,16 @@ func forgeVKContainers(
 }
 
 func forgeVKPodSpec(
-	vkName, vkNamespace, liqoNamespace string,
-	homeCluster, remoteCluster discoveryv1alpha1.ClusterIdentity, nodeName string, opts *VirtualKubeletOpts,
+	vkNamespace, liqoNamespace string,
+	homeCluster, remoteCluster discoveryv1alpha1.ClusterIdentity, opts *VirtualKubeletOpts,
 	resourceOffer *sharingv1alpha1.ResourceOffer) v1.PodSpec {
+	nodeName := virtualKubelet.VirtualNodeName(remoteCluster)
 	return v1.PodSpec{
 		Volumes:        forgeVKVolumes(),
 		InitContainers: forgeVKInitContainers(nodeName, opts),
 		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, remoteCluster,
 			nodeName, vkNamespace, liqoNamespace, opts, resourceOffer),
-		ServiceAccountName: vkName,
+		ServiceAccountName: vk.ServiceAccountName,
 		Affinity:           forgeVKAffinity(),
 	}
 }

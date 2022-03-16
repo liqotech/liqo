@@ -27,7 +27,6 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
@@ -93,11 +92,8 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	}
 	remoteClusterIdentity := remoteCluster.Spec.ClusterIdentity
 
-	name := virtualKubelet.VirtualKubeletPrefix + remoteClusterIdentity.ClusterID
-	nodeName := virtualKubelet.VirtualNodeName(remoteClusterIdentity)
-
 	// create the base resources
-	vkServiceAccount := forge.VirtualKubeletServiceAccount(name, namespace)
+	vkServiceAccount := forge.VirtualKubeletServiceAccount(namespace)
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, vkServiceAccount, func() error {
 		return nil
 	})
@@ -108,7 +104,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	klog.V(5).Infof("[%v] ServiceAccount %s/%s reconciled: %s",
 		remoteClusterIdentity.ClusterName, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
 
-	vkClusterRoleBinding := forge.VirtualKubeletClusterRoleBinding(name, namespace, remoteClusterIdentity.ClusterID)
+	vkClusterRoleBinding := forge.VirtualKubeletClusterRoleBinding(namespace, &remoteClusterIdentity)
 	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding, func() error {
 		return nil
 	})
@@ -122,8 +118,8 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 
 	// forge the virtual Kubelet
 	vkDeployment, err := forge.VirtualKubeletDeployment(
-		r.cluster, remoteClusterIdentity, name, namespace, r.liqoNamespace,
-		nodeName, r.virtualKubeletOpts, resourceOffer)
+		r.cluster, remoteClusterIdentity, namespace, r.liqoNamespace,
+		r.virtualKubeletOpts, resourceOffer)
 	if err != nil {
 		klog.Error(err)
 		return err
