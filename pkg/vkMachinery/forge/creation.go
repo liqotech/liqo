@@ -19,21 +19,23 @@ import (
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(homeCluster, remoteCluster discoveryv1alpha1.ClusterIdentity, vkName, vkNamespace, liqoNamespace,
-	nodeName string, opts *VirtualKubeletOpts, resourceOffer *sharingv1alpha1.ResourceOffer) (*appsv1.Deployment, error) {
+func VirtualKubeletDeployment(homeCluster, remoteCluster discoveryv1alpha1.ClusterIdentity, vkNamespace, liqoNamespace string,
+	opts *VirtualKubeletOpts, resourceOffer *sharingv1alpha1.ResourceOffer) (*appsv1.Deployment, error) {
 	vkLabels := VirtualKubeletLabels(remoteCluster.ClusterID, opts)
 	annotations := opts.ExtraAnnotations
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        vkName,
+			Name:        vkMachinery.DeploymentName,
 			Namespace:   vkNamespace,
 			Labels:      vkLabels,
 			Annotations: annotations,
@@ -47,7 +49,7 @@ func VirtualKubeletDeployment(homeCluster, remoteCluster discoveryv1alpha1.Clust
 					Labels:      vkLabels,
 					Annotations: annotations,
 				},
-				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeCluster, remoteCluster, nodeName, opts, resourceOffer),
+				Spec: forgeVKPodSpec(vkNamespace, liqoNamespace, homeCluster, remoteCluster, opts, resourceOffer),
 			},
 		},
 	}, nil
@@ -55,42 +57,30 @@ func VirtualKubeletDeployment(homeCluster, remoteCluster discoveryv1alpha1.Clust
 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
 func VirtualKubeletLabels(remoteClusterID string, opts *VirtualKubeletOpts) map[string]string {
-	kubeletDynamicLabels := map[string]string{
+	return labels.Merge(labels.Merge(opts.ExtraLabels, vkMachinery.KubeletBaseLabels), map[string]string{
 		discovery.ClusterIDLabel: remoteClusterID,
-	}
-	return merge(vkMachinery.KubeletBaseLabels, kubeletDynamicLabels, opts.ExtraLabels)
-}
-
-func merge(m map[string]string, ms ...map[string]string) map[string]string {
-	for _, s := range ms {
-		for k, v := range s {
-			m[k] = v
-		}
-	}
-	return m
+	})
 }
 
 // ClusterRoleLabels returns the labels to be set on a ClusterRoleBinding related to a VirtualKubelet.
 func ClusterRoleLabels(remoteClusterID string) map[string]string {
-	dynamicLabels := map[string]string{
+	return labels.Merge(vkMachinery.ClusterRoleBindingLabels, map[string]string{
 		discovery.ClusterIDLabel: remoteClusterID,
-	}
-	return merge(vkMachinery.ClusterRoleBindingLabels, dynamicLabels)
+	})
 }
 
 // VirtualKubeletClusterRoleBinding forges a ClusterRoleBinding for a VirtualKubelet.
-func VirtualKubeletClusterRoleBinding(name, kubeletNamespace, remoteClusterID string) *rbacv1.ClusterRoleBinding {
-	labels := ClusterRoleLabels(remoteClusterID)
+func VirtualKubeletClusterRoleBinding(kubeletNamespace string, remoteCluster *discoveryv1alpha1.ClusterIdentity) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: labels,
+			Name:   vkMachinery.CRBPrefix + foreignclusterutils.UniqueName(remoteCluster),
+			Labels: ClusterRoleLabels(remoteCluster.ClusterID),
 		},
 		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", APIGroup: "", Name: name, Namespace: kubeletNamespace},
+			{Kind: "ServiceAccount", APIGroup: "", Name: vkMachinery.ServiceAccountName, Namespace: kubeletNamespace},
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
+			APIGroup: rbacv1.GroupName,
 			Kind:     "ClusterRole",
 			Name:     vkMachinery.VKClusterRoleName,
 		},
@@ -98,12 +88,11 @@ func VirtualKubeletClusterRoleBinding(name, kubeletNamespace, remoteClusterID st
 }
 
 // VirtualKubeletServiceAccount forges a ServiceAccount for a VirtualKubelet.
-func VirtualKubeletServiceAccount(name, kubeletNamespace string) *v1.ServiceAccount {
+func VirtualKubeletServiceAccount(namespace string) *v1.ServiceAccount {
 	return &v1.ServiceAccount{
-		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: kubeletNamespace,
+			Name:      vkMachinery.ServiceAccountName,
+			Namespace: namespace,
 		},
 	}
 }
