@@ -26,11 +26,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 const (
@@ -79,20 +79,20 @@ func (k *k3sProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("K3S PodCIDR: %v", k.podCIDR)
+	logsutils.Infof("K3S PodCIDR: %v", k.podCIDR)
 
 	k.serviceCIDR, err = flags.GetString(serviceCidrFlag)
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("K3S ServiceCIDR: %v", k.serviceCIDR)
+	logsutils.Infof("K3S ServiceCIDR: %v", k.serviceCIDR)
 
 	k.apiServer, err = flags.GetString(apiServerFlag)
 	if err != nil {
 		return err
 	}
 	if k.apiServer != "" {
-		klog.V(3).Infof("K3S API Server: %v", k.apiServer)
+		logsutils.Infof("K3S API Server: %v", k.apiServer)
 	}
 
 	return nil
@@ -186,8 +186,6 @@ func (k *k3sProvider) validateServiceCIDR(ctx context.Context) error {
 		svc := &svcList.Items[i]
 		clusterIP := svc.Spec.ClusterIP
 		if clusterIP != "None" && clusterIP != "" && !svcNet.Contains(net.ParseIP(clusterIP)) {
-			klog.V(4).Infof("the service CIDR %v does not contain IP %v of service %v/%v",
-				k.serviceCIDR, clusterIP, svc.GetNamespace(), svc.GetName())
 			return fmt.Errorf(
 				"it seems that the specified service CIDR (%v) is not correct as it does not match the services in your cluster", k.serviceCIDR)
 		}
@@ -216,8 +214,6 @@ func (k *k3sProvider) validatePodCIDR(ctx context.Context) error {
 		pod := &podList.Items[i]
 		podIP := pod.Status.PodIP
 		if podIP != "" && !pod.Spec.HostNetwork && !podNet.Contains(net.ParseIP(podIP)) {
-			klog.V(4).Infof("the pod CIDR %v does not contain IP %v of pod %v/%v",
-				k.serviceCIDR, podIP, pod.GetNamespace(), pod.GetName())
 			return fmt.Errorf(
 				"it seems that the specified pod CIDR (%v) is not correct as it does not match the pods in your cluster", k.podCIDR)
 		}

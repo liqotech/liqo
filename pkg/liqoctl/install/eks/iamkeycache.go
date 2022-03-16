@@ -15,11 +15,11 @@
 package eks
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
-	"k8s.io/klog/v2"
 )
 
 type iamUserCredential struct {
@@ -41,7 +41,7 @@ var (
 func init() {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		klog.Error(err)
+		fmt.Printf("%v\n", err)
 		os.Exit(1)
 	}
 	liqoDirPath = filepath.Join(homeDir, liqoDirName)

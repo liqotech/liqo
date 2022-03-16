@@ -20,36 +20,43 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
 	"github.com/liqotech/liqo/pkg/liqoctl/generate"
 	installprovider "github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
-	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 // HandleInstallCommand implements the "install" command. It detects which provider has to be used, generates the chart
 // with provider-specific values. Finally, it performs the installation on the target cluster.
 func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, providerName string) error {
-	if !klog.V(4).Enabled() {
-		klog.SetLogFilter(logsutils.LogFilter{})
-	}
+	printer := common.NewPrinter("", common.Cluster1Color)
+
+	s, err := printer.Spinner.Start("Loading configuration")
+	utilruntime.Must(err)
 
 	config, err := common.GetLiqoctlRestConf()
 	if err != nil {
+		s.Fail("Error loading configuration: ", err)
 		return err
 	}
+
 	providerInstance := getProviderInstance(providerName)
-
 	if providerInstance == nil {
-		return fmt.Errorf("provider %s not found", providerName)
+		err = fmt.Errorf("provider %s not supported", providerName)
+		s.Fail("Error loading configuration: ", err)
+		return err
 	}
+	s.Success("Configuration loaded")
 
-	fmt.Printf("* Initializing installer... 🔌 \n")
-	commonArgs, err := installprovider.ValidateCommonArguments(providerName, cmd.Flags())
+	s, err = printer.Spinner.Start("Initializing installer")
+	utilruntime.Must(err)
+
+	commonArgs, err := installprovider.ValidateCommonArguments(providerName, cmd.Flags(), s)
 	if err != nil {
+		s.Fail("Error initializing installer: ", err)
 		return err
 	}
 
@@ -59,53 +66,66 @@ func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, 
 
 	helmClient, err := initHelmClient(config, commonArgs)
 	if err != nil {
+		s.Fail("Error initializing installer: ", err)
 		return err
 	}
 
 	oldClusterName, err := installutils.GetOldClusterName(ctx, kubernetes.NewForConfigOrDie(config))
 	if err != nil {
+		s.Fail("Error initializing installer: ", err)
 		return err
 	}
+	s.Success("Installer initialized")
 
-	fmt.Printf("* Retrieving cluster configuration from cluster provider... 📜  \n")
+	s, err = printer.Spinner.Start("Retrieving cluster configuration from cluster provider")
+	utilruntime.Must(err)
+
 	err = providerInstance.PreValidateGenericCommandArguments(cmd.Flags())
 	if err != nil {
+		s.Fail("Error validating generic arguments: ", err)
 		return err
 	}
 
 	err = providerInstance.ValidateCommandArguments(cmd.Flags())
 	if err != nil {
+		s.Fail("Error validating command arguments: ", err)
 		return err
 	}
 
 	err = providerInstance.PostValidateGenericCommandArguments(oldClusterName)
 	if err != nil {
+		s.Fail("Error validating generic arguments: ", err)
 		return err
 	}
 
 	err = providerInstance.ExtractChartParameters(ctx, config, commonArgs)
 	if err != nil {
+		s.Fail("Error extracting chart parameters: ", err)
 		return err
 	}
+	s.Success("Chart parameters extracted")
 
 	if commonArgs.DumpValues {
-		fmt.Printf("* Generating values.yaml file with the Liqo chart parameters for your cluster... 💾 \n")
+		s, err = printer.Spinner.Start("Generating values.yaml file with the Liqo chart parameters for your cluster")
 	} else {
-		fmt.Printf("* Installing or Upgrading Liqo... (this may take few minutes) ⏳ \n")
+		s, err = printer.Spinner.Start("Installing or Upgrading Liqo... (this may take few minutes)")
 	}
+	utilruntime.Must(err)
+
 	err = installOrUpdate(ctx, helmClient, providerInstance, commonArgs)
 	if err != nil {
+		s.Fail("Error installing or upgrading Liqo: ", err)
 		return err
 	}
 
 	switch {
 	case !commonArgs.DumpValues && !commonArgs.DryRun:
-		fmt.Printf("* All Set! You can use Liqo now! 🚀\n")
+		s.Success("All Set! You can use Liqo now!")
 		return generate.HandleGenerateAddCommand(ctx, installutils.LiqoNamespace, false, baseCommand)
 	case commonArgs.DumpValues:
-		fmt.Printf("* All Set! Chart values written in file %s 🚀\n", commonArgs.DumpValuesPath)
+		s.Success(fmt.Sprintf("All Set! Chart values written in file %s", commonArgs.DumpValuesPath))
 	case commonArgs.DryRun:
-		fmt.Printf("* All Set! You can use Liqo now! (Dry-run) 🚀\n")
+		s.Success("All Set! You can use Liqo now! (Dry-run)")
 	}
 	return nil
 }

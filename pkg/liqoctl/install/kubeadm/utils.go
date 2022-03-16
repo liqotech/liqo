@@ -21,9 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
+	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 func retrieveClusterParameters(ctx context.Context, client kubernetes.Interface) (podCIDR, serviceCIDR string, err error) {
@@ -39,16 +39,18 @@ func retrieveClusterParameters(ctx context.Context, client kubernetes.Interface)
 	if len(kubeControllerSpec.Items[0].Spec.Containers) != 1 {
 		return "", "", fmt.Errorf("unexpected amount of containers in kube-controller-manager")
 	}
+
 	command := kubeControllerSpec.Items[0].Spec.Containers[0].Command
 	podCIDR, err = common.ExtractValueFromArgumentList(podCIDRParameterFilter, command)
-	klog.V(4).Infof("Extracted podCIDR: %s\n", podCIDR)
+	logsutils.Infof("Extracted podCIDR: %s\n", podCIDR)
 	if err != nil {
 		return "", "", err
 	}
 	serviceCIDR, err = common.ExtractValueFromArgumentList(serviceCIDRParameterFilter, command)
-	klog.V(4).Infof("Extracted serviceCIDR: %s\n", serviceCIDR)
+	logsutils.Infof("Extracted serviceCIDR: %s\n", serviceCIDR)
 	if err != nil {
 		return "", "", err
 	}
+
 	return podCIDR, serviceCIDR, nil
 }

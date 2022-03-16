@@ -12,29 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package uninstall
+package logs
 
 import (
-	helm "github.com/mittwald/go-helm-client"
-	"k8s.io/client-go/rest"
-
-	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
+	"github.com/liqotech/liqo/pkg/liqoctl/common"
 )
 
-func initHelmClient(config *rest.Config, namespace string) (helm.Client, error) {
-	opt := &helm.RestConfClientOptions{
-		Options: &helm.Options{
-			Namespace: namespace,
-			Linting:   false,
-			DebugLog:  logsutils.Infof,
-		},
-		RestConfig: config,
+var printer *common.Printer
+var verbose = false
+
+// SetupLogger sets up the logger global variables.
+func SetupLogger(p *common.Printer, v bool) {
+	printer = p
+	verbose = v
+}
+
+// Infof logs an info message.
+func Infof(format string, args ...interface{}) {
+	if printer == nil || !verbose {
+		return
 	}
 
-	client, err := helm.NewClientFromRestConf(opt)
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
+	printer.Info.Printf(format, args...)
 }

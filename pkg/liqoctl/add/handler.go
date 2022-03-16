@@ -20,8 +20,8 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -45,29 +45,42 @@ type ClusterArgs struct {
 
 // HandleAddCommand handles the add command, configuring all the resources required to configure an outgoing peering.
 func HandleAddCommand(ctx context.Context, t *ClusterArgs) error {
+	printer := common.NewPrinter("", common.Cluster1Color)
+
+	s, err := printer.Spinner.Start("Initializing client")
+	utilruntime.Must(err)
+
 	restConfig, err := common.GetLiqoctlRestConf()
 	if err != nil {
+		s.Fail(err.Error())
 		return err
 	}
 
-	klog.Info("* Initializing 🔌... ")
 	clientSet, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
+		s.Fail(err.Error())
 		return err
 	}
 
 	k8sClient, err := client.New(restConfig, client.Options{})
 	if err != nil {
+		s.Fail(err.Error())
 		return err
 	}
+	s.Success("Client initialized")
 
-	klog.Info("* Processing Cluster Addition 🔧... ")
+	s, err = printer.Spinner.Start("Processing cluster addition")
+	utilruntime.Must(err)
+
 	if err := processAddCluster(ctx, t, clientSet, k8sClient); err != nil {
+		s.Fail(err.Error())
 		return err
 	}
+	s.Success("Cluster successfully added")
 
 	err = printSuccessfulOutputMessage(ctx, t, k8sClient)
 	if err != nil {
+		printer.Error.Println(err.Error())
 		return err
 	}
 	return nil

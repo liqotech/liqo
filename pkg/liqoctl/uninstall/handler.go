@@ -20,38 +20,51 @@ import (
 
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	"k8s.io/klog/v2"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
-	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 // HandleUninstallCommand implements the "uninstall" command.
 func HandleUninstallCommand(ctx context.Context, cmd *cobra.Command, args *Args) error {
-	if !klog.V(4).Enabled() {
-		klog.SetLogFilter(logsutils.LogFilter{})
-	}
+	printer := common.NewPrinter("", common.Cluster1Color)
+
+	s, err := printer.Spinner.Start("Loading configuration")
+	utilruntime.Must(err)
 
 	config, err := common.GetLiqoctlRestConf()
 	if err != nil {
+		s.Fail("Error loading configuration: ", err)
 		return err
 	}
 
 	helmClient, err := initHelmClient(config, args.Namespace)
 	if err != nil {
+		s.Fail("Error initializing helm client: ", err)
 		return err
 	}
+	s.Success("Configuration loaded")
+
+	s, err = printer.Spinner.Start("Uninstalling Liqo")
+	utilruntime.Must(err)
 
 	err = helmClient.UninstallReleaseByName(installutils.LiqoReleaseName)
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
+		s.Fail("Error uninstalling Liqo: ", err)
 		return err
 	}
+	s.Success("Liqo uninstalled")
 
 	if args.Purge {
+		s, err = printer.Spinner.Start("Purging Liqo CRDs")
+		utilruntime.Must(err)
+
 		if err = purge(ctx, config); err != nil {
+			s.Fail("Error purging CRDs: ", err)
 			return err
 		}
+		s.Success("Liqo CRDs purged")
 	}
 
 	return nil

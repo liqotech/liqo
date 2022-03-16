@@ -16,9 +16,10 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
@@ -65,7 +66,8 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	for _, providerName := range provider.Providers {
 		cmd, err := getCommand(ctx, providerName)
 		if err != nil {
-			klog.Fatal(err)
+			fmt.Printf("Error while getting provider command: %v\n", err)
+			os.Exit(1)
 		}
 
 		installCmd.AddCommand(cmd)

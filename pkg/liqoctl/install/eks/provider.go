@@ -23,11 +23,11 @@ import (
 	flag "github.com/spf13/pflag"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 const (
@@ -79,13 +79,13 @@ func (k *eksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("EKS Region: %v", k.region)
+	logsutils.Infof("EKS Region: %v", k.region)
 
 	k.eksClusterName, err = flags.GetString(clusterNameFlag)
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("EKS ClusterName: %v", k.eksClusterName)
+	logsutils.Infof("EKS ClusterName: %v", k.eksClusterName)
 
 	// if the cluster name has not been provided (and set in the pre-checks)
 	// and we have not to generate it,
@@ -98,13 +98,13 @@ func (k *eksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("Liqo IAM username: %v", k.iamLiqoUser.userName)
+	logsutils.Infof("Liqo IAM username: %v", k.iamLiqoUser.userName)
 
 	k.iamLiqoUser.policyName, err = flags.GetString(policyNameFlag)
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("Liqo IAM policy name: %v", k.iamLiqoUser.policyName)
+	logsutils.Infof("Liqo IAM policy name: %v", k.iamLiqoUser.policyName)
 
 	// optional values
 

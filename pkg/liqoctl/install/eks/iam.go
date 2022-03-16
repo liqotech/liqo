@@ -23,7 +23,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"k8s.io/klog/v2"
+
+	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 // createIamIdentity crates the Liqo IAM user identity.
@@ -66,7 +67,7 @@ func (k *eksProvider) ensureUser(iamSvc *iam.IAM) error {
 			return fmt.Errorf("no accessKeyID %v found in the IAM user %v", k.iamLiqoUser.accessKeyID, k.iamLiqoUser.userName)
 		}
 
-		klog.V(3).Info("Using provided IAM credentials")
+		logsutils.Infof("Using provided IAM credentials")
 		return nil
 	}
 

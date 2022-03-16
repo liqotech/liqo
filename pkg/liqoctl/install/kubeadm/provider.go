@@ -49,8 +49,7 @@ func (k *Kubeadm) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
 func (k *Kubeadm) ExtractChartParameters(ctx context.Context, config *rest.Config, _ *provider.CommonArguments) error {
 	k8sClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("Unable to create client: %s", err)
-		return err
+		return fmt.Errorf("unable to create client: %w", err)
 	}
 
 	k.K8sClient = k8sClient

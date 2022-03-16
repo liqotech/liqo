@@ -15,13 +15,16 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"flag"
 
 	"github.com/spf13/cobra"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
+	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -32,22 +35,37 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 		Use:   "liqoctl",
 		Short: common.LiqoctlShortHelp,
 		Long:  common.LiqoctlLongHelp,
+
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			verbose, err := cmd.Flags().GetBool("verbose")
+			utilruntime.Must(err)
+
+			printer := common.NewPrinter("", common.Cluster1Color)
+			logsutils.SetupLogger(printer, verbose)
+		},
 	}
 
 	// since we cannot access internal klog configuration, we create a new flagset, let klog to install
-	// its flags, and we only keep the ones we are intrested in.
+	// its flags, and we only set the ones we are intrested in.
 	klogFlagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(klogFlagset)
 	klogFlagset.VisitAll(func(f *flag.Flag) {
-		if f.Name == "v" {
-			rootCmd.PersistentFlags().AddGoFlag(f)
+		// this is required to silence the helm library messages.
+		if f.Name == "stderrthreshold" {
+			utilruntime.Must(f.Value.Set("FATAL"))
 		}
 	})
+
+	// this is required to silence the helm library messages.
+	klog.LogToStderr(false)
+	buffer := &bytes.Buffer{}
+	klog.SetOutput(buffer)
 
 	rateFlagset := flag.NewFlagSet("rate-limiting", flag.PanicOnError)
 	restcfg.InitFlags(rateFlagset)
 	rootCmd.PersistentFlags().AddGoFlagSet(rateFlagset)
-	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable/Disable debug mode (default: false)")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable/Disable verbose mode (default: false)")
+
 	rootCmd.AddCommand(newInstallCommand(ctx))
 	rootCmd.AddCommand(newUninstallCommand(ctx))
 	rootCmd.AddCommand(newAddCommand(ctx))

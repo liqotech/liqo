@@ -40,10 +40,11 @@ func newUninstallCommand(ctx context.Context) *cobra.Command {
 	var uninstallArgs uninstall.Args
 
 	var uninstallCmd = &cobra.Command{
-		Use:          "uninstall",
-		Short:        liqoctlUninstallShortHelp,
-		Long:         liqoctlUninstallLongHelp,
-		SilenceUsage: true,
+		Use:           "uninstall",
+		Short:         liqoctlUninstallShortHelp,
+		Long:          liqoctlUninstallLongHelp,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return uninstall.HandleUninstallCommand(ctx, cmd, &uninstallArgs)
 		},
