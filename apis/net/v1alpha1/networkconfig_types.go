@@ -65,7 +65,7 @@ type NetworkConfigStatus struct {
 // +kubebuilder:subresource:status
 
 // NetworkConfig is the Schema for the networkconfigs API.
-// +kubebuilder:printcolumn:name="Peering Cluster ID",type=string,JSONPath=`.spec.clusterID`
+// +kubebuilder:printcolumn:name="Peering Cluster",type=string,JSONPath=`.spec.cluster.clusterName`
 // +kubebuilder:printcolumn:name="Endpoint IP",type=string,JSONPath=`.spec.endpointIP`,priority=1
 // +kubebuilder:printcolumn:name="VPN Backend",type=string,JSONPath=`.spec.backendType`,priority=1
 // +kubebuilder:printcolumn:name="Processed",type=string,JSONPath=`.status.processed`
