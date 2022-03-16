@@ -17,8 +17,8 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.clusterID
-      name: Peering Cluster ID
+    - jsonPath: .spec.cluster.clusterName
+      name: Peering Cluster
       type: string
     - jsonPath: .spec.endpointIP
       name: Endpoint IP
