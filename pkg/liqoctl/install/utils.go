@@ -24,7 +24,6 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/downloader"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/install/aks"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/eks"
@@ -62,8 +61,7 @@ func getProviderInstance(providerType string) provider.InstallProviderInterface 
 func initHelmClient(config *rest.Config, arguments *provider.CommonArguments) (helm.Client, error) {
 	helmClient, err := InitializeHelmClientWithRepo(config, arguments)
 	if err != nil {
-		fmt.Printf("Unable to create helmClient: %s", err)
-		return nil, err
+		return nil, fmt.Errorf("unable to create helm client: %w", err)
 	}
 	return helmClient, nil
 }
@@ -89,8 +87,7 @@ func installOrUpdate(ctx context.Context, helmClient helm.Client, k provider.Ins
 
 	if cArgs.DumpValues {
 		if err := utils.WriteFile(cArgs.DumpValuesPath, raw); err != nil {
-			klog.Errorf("Unable to write the Values file in location: %s", cArgs.DumpValuesPath)
-			return err
+			return fmt.Errorf("unable to write the Values file in location: %s", cArgs.DumpValuesPath)
 		}
 	} else {
 		chartSpec := helm.ChartSpec{

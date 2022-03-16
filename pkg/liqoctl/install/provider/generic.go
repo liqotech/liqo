@@ -110,7 +110,6 @@ func (p *GenericProvider) PostValidateGenericCommandArguments(oldClusterName str
 		randomName := namegenerator.NewNameGenerator(rand.Int63()).Generate() // nolint:gosec // don't need crypto/rand
 		randomName = strings.Replace(randomName, "_", "-", 1)
 		p.ClusterName = randomName
-		fmt.Printf("* A random cluster name was generated for you: %s\n", p.ClusterName)
 	// no cluster name provided, but we can use the old one (we don't care about generation)
 	case p.ClusterName == "" && oldClusterName != "":
 		p.ClusterName = oldClusterName

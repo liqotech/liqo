@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -30,16 +29,11 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
 	"github.com/liqotech/liqo/pkg/utils"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
-	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 // HandleOffloadCommand implements the "offload namespace" command.
 // It forges and createOrUpdate a namespaceOffloading resource for a given namespace according to the flag values.
 func HandleOffloadCommand(ctx context.Context, command *cobra.Command, args []string) error {
-	if !klog.V(4).Enabled() {
-		klog.SetLogFilter(logsutils.LogFilter{})
-	}
-
 	config, err := common.GetLiqoctlRestConf()
 	if err != nil {
 		return err

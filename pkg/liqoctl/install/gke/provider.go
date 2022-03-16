@@ -26,11 +26,11 @@ import (
 	"google.golang.org/api/option"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 const (
@@ -73,25 +73,25 @@ func (k *gkeProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("GKE Credentials Path: %v", k.credentialsPath)
+	logsutils.Infof("GKE Credentials Path: %v", k.credentialsPath)
 
 	k.projectID, err = flags.GetString(projectIDFlag)
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("GKE ProjectID: %v", k.projectID)
+	logsutils.Infof("GKE ProjectID: %v", k.projectID)
 
 	k.zone, err = flags.GetString(zoneFlag)
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("GKE Zone: %v", k.zone)
+	logsutils.Infof("GKE Zone: %v", k.zone)
 
 	k.clusterID, err = flags.GetString(clusterIDFlag)
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("GKE ClusterID: %v", k.clusterID)
+	logsutils.Infof("GKE ClusterID: %v", k.clusterID)
 
 	return nil
 }

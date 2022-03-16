@@ -67,8 +67,7 @@ func (k *openshiftProvider) ValidateCommandArguments(flags *flag.FlagSet) (err e
 func (k *openshiftProvider) ExtractChartParameters(ctx context.Context, config *rest.Config, _ *provider.CommonArguments) error {
 	k8sClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("Unable to create client: %s", err)
-		return err
+		return fmt.Errorf("unable to create client: %w", err)
 	}
 
 	k.k8sClient = k8sClient
@@ -77,8 +76,7 @@ func (k *openshiftProvider) ExtractChartParameters(ctx context.Context, config *
 
 	configv1client, err := configv1.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("Unable to create OpenShift client: %s", err)
-		return err
+		return fmt.Errorf("unable to create OpenShift client: %w", err)
 	}
 
 	networkConfig, err := configv1client.ConfigV1().Networks().Get(ctx, "cluster", metav1.GetOptions{})

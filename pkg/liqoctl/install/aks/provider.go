@@ -28,11 +28,11 @@ import (
 	flag "github.com/spf13/pflag"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 const (
@@ -78,27 +78,27 @@ func (k *aksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("AKS SubscriptionID: %v", k.subscriptionID)
+	logsutils.Infof("AKS SubscriptionID: %v", k.subscriptionID)
 
 	if k.subscriptionID == "" {
 		k.subscriptionName, err = installutils.CheckStringFlagIsSet(flags, subscriptionNameFlag)
 		if err != nil {
 			return err
 		}
-		klog.V(3).Infof("AKS SubscriptionName: %v", k.subscriptionName)
+		logsutils.Infof("AKS SubscriptionName: %v", k.subscriptionName)
 	}
 
 	k.resourceGroupName, err = flags.GetString(resourceGroupNameFlag)
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("AKS ResourceGroupName: %v", k.resourceGroupName)
+	logsutils.Infof("AKS ResourceGroupName: %v", k.resourceGroupName)
 
 	k.resourceName, err = flags.GetString(resourceNameFlag)
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("AKS ResourceName: %v", k.resourceName)
+	logsutils.Infof("AKS ResourceName: %v", k.resourceName)
 
 	// if the cluster name has not been provided (and set in the pre-checks)
 	// and we have not to generate it,
@@ -298,7 +298,6 @@ func (k *aksProvider) retrieveSubscriptionID(ctx context.Context) error {
 
 	for subList.NotDone() {
 		for _, v := range subList.Values() {
-			klog.Infof("%v %v", *v.SubscriptionID, *v.DisplayName)
 			if *v.DisplayName == k.subscriptionName {
 				k.subscriptionID = *v.SubscriptionID
 				return nil

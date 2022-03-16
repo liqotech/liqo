@@ -47,10 +47,11 @@ var providerInitFunc = map[string]func(*cobra.Command){
 
 func getCommand(ctx context.Context, provider string) (*cobra.Command, error) {
 	cmd := &cobra.Command{
-		Use:          provider,
-		Short:        fmt.Sprintf(installShortHelp, provider),
-		Long:         fmt.Sprintf(installLongHelp, provider),
-		SilenceUsage: true,
+		Use:           provider,
+		Short:         fmt.Sprintf(installShortHelp, provider),
+		Long:          fmt.Sprintf(installLongHelp, provider),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return install.HandleInstallCommand(ctx, cmd, os.Args[0], provider)
 		},

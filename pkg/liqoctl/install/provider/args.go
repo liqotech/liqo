@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pterm/pterm"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/mod/semver"
 	"k8s.io/utils/pointer"
@@ -40,7 +41,7 @@ var providersDefaultMTU = map[string]float64{
 // CommonArguments encapsulates all the arguments common across install providers.
 type CommonArguments struct {
 	Version              string
-	Debug                bool
+	Verbose              bool
 	Timeout              time.Duration
 	DumpValues           bool
 	DumpValuesPath       string
@@ -55,7 +56,7 @@ type CommonArguments struct {
 
 // ValidateCommonArguments validates install common arguments. If the inputs are valid, it returns a *CommonArgument
 // with all the parameters contents.
-func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonArguments, error) {
+func ValidateCommonArguments(providerName string, flags *flag.FlagSet, s *pterm.SpinnerPrinter) (*CommonArguments, error) {
 	chartPath, err := flags.GetString("chart-path")
 	if err != nil {
 		return nil, err
@@ -73,7 +74,7 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonA
 	if err != nil {
 		return nil, err
 	}
-	debug, err := flags.GetBool("debug")
+	verbose, err := flags.GetBool("verbose")
 	if err != nil {
 		return nil, err
 	}
@@ -119,13 +120,13 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonA
 	}
 	commonValues, tmpDir, err := parseCommonValues(providerName, &chartPath, repoURL, version,
 		resourceSharingPercentage, downloadChart, lanDiscovery, enableHa,
-		float64(ifaceMTU), float64(listeningPort))
+		float64(ifaceMTU), float64(listeningPort), s)
 	if err != nil {
 		return nil, err
 	}
 	return &CommonArguments{
 		Version:              version,
-		Debug:                debug,
+		Verbose:              verbose,
 		Timeout:              time.Duration(timeout) * time.Second,
 		DryRun:               dryRun,
 		DumpValues:           dumpValues,
@@ -141,7 +142,7 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonA
 
 func parseCommonValues(providerName string, chartPath *string, repoURL, version, resourceSharingPercentage string,
 	downloadChart, lanDiscovery, enableHa bool,
-	mtu, port float64) (values map[string]interface{}, tmpDir string, err error) {
+	mtu, port float64, s *pterm.SpinnerPrinter) (values map[string]interface{}, tmpDir string, err error) {
 	if chartPath == nil {
 		chartPath = pointer.String(installutils.LiqoChartFullName)
 	}
@@ -151,7 +152,7 @@ func parseCommonValues(providerName string, chartPath *string, repoURL, version,
 		if err != nil {
 			return nil, "", err
 		}
-		fmt.Printf("* Using chart from %s\n", tmpDir)
+		s.UpdateText(fmt.Sprintf("Using chart from %s", tmpDir))
 		*chartPath = fmt.Sprintf("%s/deployments/liqo", tmpDir)
 	}
 

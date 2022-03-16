@@ -37,11 +37,12 @@ func newAddCommand(ctx context.Context) *cobra.Command {
 func newAddClusterCommand(ctx context.Context) *cobra.Command {
 	installArgs := &add.ClusterArgs{}
 	var addClusterCmd = &cobra.Command{
-		Use:          add.ClusterResourceName,
-		Short:        add.LiqoctlAddShortHelp,
-		Long:         add.LiqoctlAddLongHelp,
-		Args:         cobra.MinimumNArgs(1),
-		SilenceUsage: true,
+		Use:           add.ClusterResourceName,
+		Short:         add.LiqoctlAddShortHelp,
+		Long:          add.LiqoctlAddLongHelp,
+		Args:          cobra.MinimumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			installArgs.ClusterName = args[0]
 			return add.HandleAddCommand(ctx, installArgs)
