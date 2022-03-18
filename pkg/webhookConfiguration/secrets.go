@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -32,15 +33,30 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// SecretsType is a struct that contains the secrets for a certificate.
 type SecretsType struct {
 	caPEM         *bytes.Buffer
 	serverCertPEM *bytes.Buffer
 	serverKeyPEM  *bytes.Buffer
 }
 
-func NewSecrets(name string) (*SecretsType, error) {
-	nameComponents := strings.Split(name, ".")
+// ServiceNames is a struct that contains the names where the service is accessible.
+type ServiceNames struct {
+	CommonName string
+	DNSNames   []string
+	Addresses  []net.IP
+}
 
+// GetDNSNames returns the DNS names of the service by splitting the provided name to all its chunks.
+func GetDNSNames(name string) []string {
+	nameComponents := strings.Split(name, ".")
+	return []string{nameComponents[0],
+		fmt.Sprintf("%s.%s", nameComponents[0], nameComponents[1]),
+		fmt.Sprintf("%s.%s.svc", nameComponents[0], nameComponents[1])}
+}
+
+// NewSecrets creates a new secrets by self-signing a certificate.
+func NewSecrets(name ServiceNames) (*SecretsType, error) {
 	secrets := &SecretsType{
 		caPEM:         new(bytes.Buffer),
 		serverCertPEM: new(bytes.Buffer),
@@ -75,18 +91,14 @@ func NewSecrets(name string) (*SecretsType, error) {
 		return nil, err
 	}
 
-	dnsNames := []string{nameComponents[0],
-		fmt.Sprintf("%s.%s", nameComponents[0], nameComponents[1]),
-		fmt.Sprintf("%s.%s.svc", nameComponents[0], nameComponents[1])}
-	commonName := name
-
 	klog.Info("creating server certificate")
 	// server cert config
 	cert := &x509.Certificate{
-		DNSNames:     dnsNames,
+		DNSNames:     name.DNSNames,
+		IPAddresses:  name.Addresses,
 		SerialNumber: big.NewInt(1658),
 		Subject: pkix.Name{
-			CommonName:   commonName,
+			CommonName:   name.CommonName,
 			Organization: []string{"liqo.io"},
 		},
 		NotBefore:    time.Now(),
@@ -142,6 +154,7 @@ func NewSecrets(name string) (*SecretsType, error) {
 	return secrets, nil
 }
 
+// WriteFiles writes the secrets to the specified files.
 func (s *SecretsType) WriteFiles(certFile, keyFile string) error {
 	err := WriteFile(certFile, s.serverCertPEM)
 	if err != nil {

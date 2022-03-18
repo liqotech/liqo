@@ -59,44 +59,44 @@ func forgeVKVolumes() []v1.Volume {
 }
 
 func forgeVKInitContainers(nodeName string, opts *VirtualKubeletOpts) []v1.Container {
-	if opts.DisableCertGeneration {
-		return []v1.Container{}
-	}
-
-	return []v1.Container{
-		{
-			Resources: forgeVKResources(opts),
-			Name:      "crt-generator",
-			Image:     opts.InitContainerImage,
-			Command: []string{
-				"/usr/bin/init-virtual-kubelet",
+	initContainer := v1.Container{
+		Resources: forgeVKResources(opts),
+		Name:      "crt-generator",
+		Image:     opts.InitContainerImage,
+		Command: []string{
+			"/usr/bin/init-virtual-kubelet",
+		},
+		Env: []v1.EnvVar{
+			{
+				Name:      "POD_IP",
+				ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
 			},
-			Env: []v1.EnvVar{
-				{
-					Name:      "POD_IP",
-					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
-				},
-				{
-					Name:      "POD_NAME",
-					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name", APIVersion: "v1"}},
-				},
-				{
-					Name:      "POD_NAMESPACE",
-					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace", APIVersion: "v1"}},
-				},
-				{
-					Name:  "NODE_NAME",
-					Value: nodeName,
-				},
+			{
+				Name:      "POD_NAME",
+				ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name", APIVersion: "v1"}},
 			},
-			VolumeMounts: []v1.VolumeMount{
-				{
-					Name:      vk.VKCertsVolumeName,
-					MountPath: vk.VKCertsRootPath,
-				},
+			{
+				Name:      "POD_NAMESPACE",
+				ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace", APIVersion: "v1"}},
+			},
+			{
+				Name:  "NODE_NAME",
+				Value: nodeName,
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{
+			{
+				Name:      vk.VKCertsVolumeName,
+				MountPath: vk.VKCertsRootPath,
 			},
 		},
 	}
+
+	if opts.DisableCertGeneration {
+		initContainer.Args = append(initContainer.Args, "--self-signed-certificate")
+	}
+
+	return []v1.Container{initContainer}
 }
 
 func getDeafultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharingv1alpha1.StorageType {

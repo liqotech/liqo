@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -31,41 +32,36 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
+	"github.com/liqotech/liqo/pkg/webhookConfiguration"
 )
 
-const timeout = 30 * time.Second
+const (
+	timeout = 30 * time.Second
+
+	csrNodeGroupMember = "system:node:"
+)
 
 func main() {
 	var config *rest.Config
 	var distribution string
+	var selfSignedCertificate bool
 	klog.Info("Loading client config")
+
 	flag.StringVar(&distribution, "k8s-distribution", "kubernetes", "determine the provider to adapt csr generation")
+	flag.BoolVar(&selfSignedCertificate, "self-signed-certificate", false, "if true, the certificate will be self-signed")
+
+	flag.Parse()
+
 	ctx := context.Background()
 
-	kubeconfigPath, ok := os.LookupEnv("KUBECONFIG")
-	if !ok {
-		kubeconfigPath = filepath.Join(os.Getenv("HOME"), ".kube", "config")
-	}
-
-	klog.Infof("Loading client: %s", kubeconfigPath)
-	config, err := utils.UserConfig(kubeconfigPath)
+	podIP, err := liqonetutils.GetPodIP()
 	if err != nil {
-		klog.Fatalf("Unable to create client config: %s", err)
-	}
-
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Fatalf("Unable to create client: %s", err)
+		klog.Fatal(err)
 	}
 
 	name, ok := os.LookupEnv("POD_NAME")
 	if !ok {
 		klog.Fatal("Unable to create CSR: POD_NAME undefined")
-	}
-
-	podIP, err := liqonetutils.GetPodIP()
-	if err != nil {
-		klog.Fatal(err)
 	}
 
 	namespace, ok := os.LookupEnv("POD_NAMESPACE")
@@ -76,6 +72,44 @@ func main() {
 	nodeName, ok := os.LookupEnv("NODE_NAME")
 	if !ok {
 		klog.Fatal("Unable to create CSR: NODE_NAME undefined")
+	}
+
+	if selfSignedCertificate {
+		klog.Info("Using self-signed certificate")
+
+		secrets, err := webhookConfiguration.NewSecrets(webhookConfiguration.ServiceNames{
+			CommonName: csrNodeGroupMember + name,
+			Addresses:  []net.IP{podIP},
+			DNSNames: []string{
+				name,
+			},
+		})
+		if err != nil {
+			klog.Fatal(err)
+		}
+
+		if err = secrets.WriteFiles(vk.CertLocation, vk.KeyLocation); err != nil {
+			klog.Fatal(err)
+		}
+
+		klog.Info("Self-signed certificate generated")
+		return
+	}
+
+	kubeconfigPath, ok := os.LookupEnv("KUBECONFIG")
+	if !ok {
+		kubeconfigPath = filepath.Join(os.Getenv("HOME"), ".kube", "config")
+	}
+
+	klog.Infof("Loading client: %s", kubeconfigPath)
+	config, err = utils.UserConfig(kubeconfigPath)
+	if err != nil {
+		klog.Fatalf("Unable to create client config: %s", err)
+	}
+
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		klog.Fatalf("Unable to create client: %s", err)
 	}
 
 	defer func() {

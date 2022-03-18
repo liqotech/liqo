@@ -81,7 +81,10 @@ func main() {
 	// iterate over all the webhooks in the mutatingWebhookConfiguration
 	for i, wh := range mutatingWebhook.Webhooks {
 		// generate tls secrets and CA
-		secrets, err := webhookConfiguration.NewSecrets(wh.Name)
+		secrets, err := webhookConfiguration.NewSecrets(webhookConfiguration.ServiceNames{
+			CommonName: wh.Name,
+			DNSNames:   webhookConfiguration.GetDNSNames(wh.Name),
+		})
 		if err != nil {
 			klog.Fatal(err)
 		}
