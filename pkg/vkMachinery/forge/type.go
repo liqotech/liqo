@@ -26,8 +26,8 @@ type VirtualKubeletOpts struct {
 	ContainerImage string
 	// InitContainerImage contains the virtual kubelet init-container image name and tag.
 	InitContainerImage string
-	// DisableCertGeneration allows to disable the virtual kubelet certificate generation by means
-	// of the init container (used for logs/exec capabilities).
+	// DisableCertGeneration allows to disable the virtual kubelet certificate generation (with the Kubernetes CSR)
+	// by means of the init container (used for logs/exec capabilities).
 	DisableCertGeneration bool
 	ExtraAnnotations      map[string]string
 	ExtraLabels           map[string]string
