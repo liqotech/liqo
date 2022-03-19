@@ -15,6 +15,7 @@
 package forge
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
@@ -131,7 +132,7 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetName
 // It expects the local and remote objects to be deepcopies, as they are mutated.
 func RemotePodSpec(local, remote *corev1.PodSpec) corev1.PodSpec {
 	remote.Tolerations = RemoteTolerations(local.Tolerations)
-	remote.Volumes = RemoteVolumes(local.Volumes)
+	remote.Volumes = RemoteVolumes(local.Volumes, local.ServiceAccountName)
 
 	remote.Containers = RemoteContainers(local.Containers, remote.Volumes)
 	remote.InitContainers = RemoteContainers(local.InitContainers, remote.Volumes)
@@ -188,13 +189,20 @@ func RemoteContainers(containers []corev1.Container, volumes []corev1.Volume) []
 }
 
 // RemoteVolumes forges the volumes for a reflected pod.
-func RemoteVolumes(inputVolumes []corev1.Volume) []corev1.Volume {
+func RemoteVolumes(inputVolumes []corev1.Volume, serviceAccountName string) []corev1.Volume {
 	volumes := make([]corev1.Volume, 0)
 
 	for i := range inputVolumes {
-		// Skip the projected volume which refers to the service account (if any).
+		// Skip the projected/service volume which refers to the service account (if any).
+		// Depending on Kubernetes version, a service account might be mounted through either approach.
 		// This is a temporary fix, until service account reflection is fully supported.
+
 		if inputVolumes[i].Projected != nil && strings.HasPrefix(inputVolumes[i].Name, ServiceAccountVolumeName) {
+			continue
+		}
+
+		if inputVolumes[i].Secret != nil && serviceAccountName != "" &&
+			strings.HasPrefix(inputVolumes[i].Secret.SecretName, fmt.Sprintf("%s-token-", serviceAccountName)) {
 			continue
 		}
 
