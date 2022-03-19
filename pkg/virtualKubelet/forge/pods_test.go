@@ -219,13 +219,15 @@ var _ = Describe("Pod forging", func() {
 				{Name: "first", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{}}},
 				{Name: "second", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{}}},
 				{Name: "third", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{}}},
+				{Name: "forth", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "secret"}}},
 			}
 			excluded = []corev1.Volume{
 				{Name: "kube-api-access-projected", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{}}},
+				{Name: "service-account", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "sa-token-1234"}}},
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteVolumes(append(included, excluded...)) })
+		JustBeforeEach(func() { output = forge.RemoteVolumes(append(included, excluded...), "sa") })
 		It("should propagate all volume types, except the one referring to the service account", func() { Expect(output).To(ConsistOf(included)) })
 	})
 
