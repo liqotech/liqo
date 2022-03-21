@@ -19,7 +19,9 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"time"
 
+	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/record"
@@ -46,8 +48,9 @@ type RouteController struct {
 	client.Client
 	record.EventRecorder
 	liqorouting.Routing
-	vxlanDev *overlay.VxlanDevice
-	podIP    string
+	vxlanDev     *overlay.VxlanDevice
+	podIP        string
+	firewallChan chan bool
 }
 
 // NewRouteController returns a configured route controller ready to be started.
@@ -156,9 +159,57 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	return result, nil
 }
 
+// ConfigureFirewall launches a long-running go routine that ensures the firewall configuration.
+func (rc *RouteController) ConfigureFirewall() error {
+	iptHandler, err := iptables.New()
+	if err != nil {
+		return err
+	}
+
+	rc.firewallChan = make(chan bool)
+	fwRules := generateRules(rc.vxlanDev.Link.Name)
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C: // every five seconds we enforce the firewall rules.
+				for i := range fwRules {
+					if err := addRule(iptHandler, &fwRules[i]); err != nil {
+						klog.Errorf("unable to insert firewall rule {%s}: %v", fwRules[i].String(), err)
+					} else {
+						klog.V(5).Infof("firewall rule {%s} configured", fwRules[i].String())
+					}
+				}
+			case <-rc.firewallChan:
+				for i := range fwRules {
+					if err := deleteRule(iptHandler, &fwRules[i]); err != nil {
+						klog.Errorf("unable to remove firewall rule {%s}: %v", fwRules[i].String(), err)
+					} else {
+						klog.V(5).Infof("firewall rule {%s} removed", fwRules[i].String())
+					}
+				}
+				close(rc.firewallChan)
+				return
+			}
+		}
+	}()
+
+	return nil
+}
+
 // cleanUp removes all the routes, rules and devices (if any) from the
 // node inserted by the operator. It is called at exit time.
 func (rc *RouteController) cleanUp() {
+	if rc.firewallChan != nil {
+		// send signal to clean firewall rules and close the go routine.
+		rc.firewallChan <- true
+		// wait for the go routine to clean up.
+		<-rc.firewallChan
+	}
+
 	if rc.Routing != nil {
 		if err := rc.Routing.CleanRoutingTable(); err != nil {
 			klog.Errorf("un error occurred while cleaning up routes: %v", err)
