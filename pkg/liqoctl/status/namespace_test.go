@@ -99,7 +99,9 @@ var _ = Describe("Namespace", func() {
 					nsChecker.succeeded = true
 					msg, err := nsChecker.Format()
 					Expect(err).NotTo(HaveOccurred())
-					Expect(msg).To(ContainSubstring(fmt.Sprintf("%s liqo control plane namespace %s[%s]%s exists\n", checkMark, green, nsChecker.namespace, reset)))
+					Expect(msg).To(ContainSubstring(
+						fmt.Sprintf("%s%s%s liqo control plane namespace %s[%s]%s exists\n", green, checkMark, reset, green, nsChecker.namespace, reset),
+					))
 				})
 			})
 		})

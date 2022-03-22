@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
@@ -46,7 +47,7 @@ func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, ns string, lSe
 	}
 }
 
-// GetNetworkConfigByLabel it returns a networkconfigs instance that matches the given label selector.
+// GetNetworkConfigByLabel it returns a NetworkConfig instance that matches the given label selector.
 func GetNetworkConfigByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.NetworkConfig, error) {
 	list := new(netv1alpha1.NetworkConfigList)
 	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
@@ -62,6 +63,60 @@ func GetNetworkConfigByLabel(ctx context.Context, cl client.Client, ns string, l
 		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s} in namespace {%s},"+
 			" when only one was expected", netv1alpha1.NetworkConfigGroupResource.String(), lSelector.String(), ns)
 	}
+}
+
+// GetNetworkConfigsByLabel it returns a NetworkConfig list that matches the given label selector.
+func GetNetworkConfigsByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.NetworkConfigList, error) {
+	list := new(netv1alpha1.NetworkConfigList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+	if len(list.Items) == 0 {
+		return nil, kerrors.NewNotFound(netv1alpha1.NetworkConfigGroupResource, netv1alpha1.ResourceNetworkConfigs)
+	}
+	return list, nil
+}
+
+// GetTunnelEndpointByLabel it returns a TunnelEndpoint instance that matches the given label selector.
+func GetTunnelEndpointByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.TunnelEndpoint, error) {
+	list := new(netv1alpha1.TunnelEndpointList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+
+	switch len(list.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource, netv1alpha1.ResourceTunnelEndpoints)
+	case 1:
+		return &list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s} in namespace {%s},"+
+			" when only one was expected", netv1alpha1.TunnelEndpointGroupResource.String(), lSelector.String(), ns)
+	}
+}
+
+// GetTunnelEndpointsByLabel it returns a TunnelEndpoint list that matches the given label selector.
+func GetTunnelEndpointsByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.TunnelEndpointList, error) {
+	list := new(netv1alpha1.TunnelEndpointList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+	if len(list.Items) == 0 {
+		return nil, kerrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource, netv1alpha1.ResourceTunnelEndpoints)
+	}
+	return list, nil
+}
+
+// GetForeignClustersByLabel it returns a ForeignClusters list that matches the given label selector.
+func GetForeignClustersByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*v1alpha1.ForeignClusterList, error) {
+	list := new(v1alpha1.ForeignClusterList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+	if len(list.Items) == 0 {
+		return nil, kerrors.NewNotFound(v1alpha1.ForeignClusterGroupResource, v1alpha1.ForeignClusterResource)
+	}
+	return list, nil
 }
 
 // GetServiceByLabel it returns a service instance that matches the given label selector.

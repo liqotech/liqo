@@ -36,8 +36,12 @@ $ liqoctl status --namespace ns-where-Liqo-is-running
 	redCross  = "\u274c"
 	checkMark = "\u2714"
 
-	red    = "\033[31m"
-	yellow = "\033[33m"
-	green  = "\033[32m"
-	reset  = "\033[0m"
+	reset = "\033[0m"
+
+	red     = "\033[0;31m"
+	green   = "\033[0;32m"
+	yellow  = "\033[0;33m"
+	byellow = "\033[1;33m"
+	bpurple = "\033[1;35m"
+	bcyan   = "\033[1;36m"
 )

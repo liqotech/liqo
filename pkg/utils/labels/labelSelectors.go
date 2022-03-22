@@ -78,6 +78,17 @@ var (
 		},
 	}
 
+	// ControllerManagerPodLabelSelector selector used to get the Controller Manager Pod.
+	ControllerManagerPodLabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      liqoconst.K8sAppNameKey,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{liqoconst.ControllerManagerAppName},
+			},
+		},
+	}
+
 	// AuthServiceLabelSelector selector used to get the auth service.
 	AuthServiceLabelSelector = metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{

@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	checkerName = "liqo-control-plane"
+	podCheckerName = "liqo-control-plane"
 )
 
 var (
@@ -200,7 +200,7 @@ func newPodChecker(namespace string, deployments, daemonSets []string, client k8
 		daemonSets:  daemonSets,
 		client:      client,
 		namespace:   namespace,
-		name:        checkerName,
+		name:        podCheckerName,
 		podsState:   make(podStateMap, 6),
 		errors:      false,
 	}
@@ -239,32 +239,28 @@ func (pc *podChecker) HasSucceeded() bool {
 func (pc *podChecker) Format() (string, error) {
 	w, buf := newTabWriter(pc.name)
 	if pc.errors {
-		// Add pod state to the buffer for each deployment type.
-		if pc.errors {
-			fmt.Fprintf(w, "%s liqo control plane is not OK\n", redCross)
-			for deployment, podState := range pc.podsState {
-				if podState.errorFlag {
-					fmt.Fprintf(w, "%s\t%s\t%s\n", podState.controllerType, deployment, podState.format())
-					for pod, errorCol := range podState.errors {
-						for _, err := range errorCol.errors {
-							fmt.Fprintf(w, "%s\t%s\tPod\t%s\t%s\n", podState.controllerType, deployment, pod, err)
-						}
+		fmt.Fprintf(w, "%s liqo control plane is not OK\n", redCross)
+		for deployment, podState := range pc.podsState {
+			if podState.errorFlag {
+				fmt.Fprintf(w, "%s\t%s\t%s\n", podState.controllerType, deployment, podState.format())
+				for pod, errorCol := range podState.errors {
+					for _, err := range errorCol.errors {
+						fmt.Fprintf(w, "%s\t%s\tPod\t%s\t%s\n", podState.controllerType, deployment, pod, err)
 					}
 				}
 			}
-			for _, err := range pc.collectionErrors {
-				fmt.Fprintf(w, "%s\t%s\t%s\n", err.appType, err.appName, err.err)
-			}
+		}
+		for _, err := range pc.collectionErrors {
+			fmt.Fprintf(w, "%s\t%s\t%s\n", err.appType, err.appName, err.err)
 		}
 	} else {
-		fmt.Fprintf(w, "%s control plane pods are up and running\n", checkMark)
+		fmt.Fprintf(w, "%s%s%s control plane pods are up and running\n", green, checkMark, reset)
 	}
 
-	// Add a new line ad the end of the message.
-	fmt.Fprintf(w, "\n")
 	if err := w.Flush(); err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }
 

@@ -60,14 +60,12 @@ func (nc *namespaceChecker) Format() (string, error) {
 	w, buf := newTabWriter(nc.name)
 
 	if nc.succeeded {
-		fmt.Fprintf(w, "%s liqo control plane namespace %s[%s]%s exists\n", checkMark, green, nc.namespace, reset)
+		fmt.Fprintf(w, "%s%s%s liqo control plane namespace %s[%s]%s exists\n", green, checkMark, reset, green, nc.namespace, reset)
 	} else {
 		fmt.Fprintf(w, "%s liqo control plane namespace %s[%s]%s is not OK\n", redCross, red, nc.namespace, reset)
 		fmt.Fprintf(w, "Reason: %s\n", nc.failureReason)
 	}
 
-	// Add a new line ad the end of the message.
-	fmt.Fprintf(w, "\n")
 	if err := w.Flush(); err != nil {
 		return "", err
 	}

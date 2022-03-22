@@ -18,25 +18,35 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/labels"
 	k8s "k8s.io/client-go/kubernetes"
+	clientControllerRuntime "sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // k8sStatusCollector knows how to interact with k8s cluster.
 type k8sStatusCollector struct {
-	client   k8s.Interface
-	params   Args
-	checkers []Checker
+	clientCRT clientControllerRuntime.Client
+	params    Args
+	checkers  []Checker
 }
 
 // newK8sStatusCollector returns a new k8sStatusCollector.
-func newK8sStatusCollector(client k8s.Interface, params Args) *k8sStatusCollector {
+func newK8sStatusCollector(ctx context.Context, client k8s.Interface, clientCRT clientControllerRuntime.Client, params Args) *k8sStatusCollector {
+	checkers := []Checker{
+		newNamespaceChecker(params.Namespace, client),
+		newPodChecker(params.Namespace, liqoDeployments, liqoDaemonSets, client),
+		newLocalInfoChecker(params.Namespace, clientCRT),
+	}
+	_, err := getters.GetForeignClustersByLabel(ctx, clientCRT, params.Namespace, labels.NewSelector())
+	if err == nil {
+		checkers = append(checkers, newRemoteInfoChecker(params.Namespace, params.ClusterNameFilter, params.ClusterIDFilter, clientCRT))
+	}
 	return &k8sStatusCollector{
-		client: client,
-		params: params,
-		checkers: []Checker{
-			newNamespaceChecker(params.Namespace, client),
-			newPodChecker(params.Namespace, liqoDeployments, liqoDaemonSets, client),
-		},
+		clientCRT: clientCRT,
+		params:    params,
+		checkers:  checkers,
 	}
 }
 
@@ -54,6 +64,8 @@ func (k *k8sStatusCollector) collectStatus(ctx context.Context) error {
 		if !checker.HasSucceeded() {
 			break
 		}
+		// Add a new line ad the end of the message.
+		fmt.Println("")
 	}
 	return nil
 }

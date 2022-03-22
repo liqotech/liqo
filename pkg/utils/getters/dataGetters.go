@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // NetworkConfig holds the liqo network configuration.
@@ -223,4 +225,18 @@ func RetrieveNetworkConfiguration(ipamS *netv1alpha1.IpamStorage) (*NetworkConfi
 		ExternalCIDR:    ipamS.Spec.ExternalCIDR,
 		ReservedSubnets: ipamS.Spec.ReservedSubnets,
 	}, nil
+}
+
+// RetrieveClusterLabelsFromControllerManager return a controller-manager cluster-labels as StringMap.
+func RetrieveClusterLabelsFromControllerManager(controllermanagerPod *corev1.Pod) (*args.StringMap, error) {
+	var clusterLabels args.StringMap
+	for _, v := range controllermanagerPod.Spec.Containers[0].Args {
+		if strings.Contains(v, "cluster-labels") {
+			err := clusterLabels.Set(strings.ReplaceAll(v, "--cluster-labels=", ""))
+			if err != nil {
+				return nil, fmt.Errorf("unable to get cluster-labels from controller-manager pod")
+			}
+		}
+	}
+	return &clusterLabels, nil
 }

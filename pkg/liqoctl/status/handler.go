@@ -18,13 +18,17 @@ import (
 	"context"
 
 	k8s "k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
 )
 
 // Args flags of the status command.
 type Args struct {
-	Namespace string
+	Namespace         string
+	ClusterNameFilter *[]string
+	ClusterIDFilter   *[]string
+	CheckerSelector   *[]string
 }
 
 // Handler implements the logic of the status command.
@@ -39,7 +43,12 @@ func (a *Args) Handler(ctx context.Context) error {
 		return err
 	}
 
-	collector := newK8sStatusCollector(clientSet, *a)
+	clientCRT, err := client.New(restConfig, client.Options{})
+	if err != nil {
+		return err
+	}
+
+	collector := newK8sStatusCollector(ctx, clientSet, clientCRT, *a)
 
 	return collector.collectStatus(ctx)
 }

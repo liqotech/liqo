@@ -73,3 +73,36 @@ func getFreePort() (int, error) {
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
+
+// ExtractValuesFromNestedMaps takes a map and a list of keys and visits a tree of nested maps
+// using the keys in the order provided. At each iteration, if the number of non-visited keys
+// is 1, the function returns the value associated to the last key, else if it is greater
+// than 1, the function expects the value to be a map and a new recursive iteration happens.
+// In case the key is not found, an empty string is returned.
+// In case no keys are provided, an error is returned.
+// Example:
+// 		m := map[string]interface{}{
+//			"first": map[string]interface{}{
+// 				"second": map[string]interface{}{
+// 					"third": "value",
+// 				},
+// 			},
+// 		}
+// 		ValueFor(m, "first", "second", "third") // returns "value", nil
+// 		ValueFor(m, "first", "second") // returns map[string]interface{}{ "third": "value" }, nil
+// 		ValueFor(m, "first", "third") // returns "", nil
+// 		ValueFor(m) // returns nil, "At least one key is required"
+func ExtractValuesFromNestedMaps(m map[string]interface{}, keys ...string) (val interface{}, err error) {
+	var ok bool
+	if len(keys) == 0 {
+		return nil, fmt.Errorf("at least one key is required")
+	} else if val, ok = m[keys[0]]; !ok {
+		return "", nil
+	} else if len(keys) == 1 {
+		return val, nil
+	} else if m, ok = val.(map[string]interface{}); !ok {
+		return nil, fmt.Errorf("the value for key %s is not map (expected to be a map)", keys[0])
+	} else {
+		return ExtractValuesFromNestedMaps(m, keys[1:]...)
+	}
+}

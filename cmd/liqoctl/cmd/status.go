@@ -35,5 +35,9 @@ func newStatusCommand(ctx context.Context) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&params.Namespace, status.Namespace, "n", "liqo", "Namespace Liqo is running in")
+	params.ClusterNameFilter = cmd.Flags().StringSliceP("cluster-name", "N", []string{},
+		"show info about clusters specified by name, you can specify more than one cluster separating names with ',' character")
+	params.ClusterIDFilter = cmd.Flags().StringSliceP("cluster-id", "I", []string{},
+		"show info about clusters specified by ID, you can specify more than one cluster separating IDs with ',' character")
 	return cmd
 }

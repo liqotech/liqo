@@ -25,6 +25,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqocmd "github.com/liqotech/liqo/cmd/liqoctl/cmd"
 )
@@ -36,6 +37,7 @@ const (
 func init() {
 	_ = discoveryv1alpha1.AddToScheme(scheme.Scheme)
 	_ = offloadingv1alpha1.AddToScheme(scheme.Scheme)
+	_ = netv1alpha1.AddToScheme(scheme.Scheme)
 }
 
 func main() {

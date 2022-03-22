@@ -15,7 +15,6 @@
 package install
 
 import (
-	"fmt"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -23,42 +22,10 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cobra"
 
+	"github.com/liqotech/liqo/pkg/liqoctl/common"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
-
-// This recursive function takes a map and a list of keys and visits a tree of nested maps
-// using the keys in the order provided. At each iteration, if the number of non-visited keys
-// is 1, the function returns the value associated to the last key, else if it is greater
-// than 1, the function expects the value to be a map and a new recursive iteration happens.
-// In case the key is not found, an empty string is returned.
-// In case no keys are provided, an error is returned.
-// Example:
-// 		m := map[string]interface{}{
-//			"first": map[string]interface{}{
-// 				"second": map[string]interface{}{
-// 					"third": "value",
-// 				},
-// 			},
-// 		}
-// 		ValueFor(m, "first", "second", "third") // returns "value", nil
-// 		ValueFor(m, "first", "second") // returns map[string]interface{}{ "third": "value" }, nil
-// 		ValueFor(m, "first", "third") // returns "", nil
-// 		ValueFor(m) // returns nil, "At least one key is required"
-func ValueFor(m map[string]interface{}, keys ...string) (val interface{}, err error) {
-	var ok bool
-	if len(keys) == 0 {
-		return nil, fmt.Errorf("At least one key is required")
-	} else if val, ok = m[keys[0]]; !ok {
-		return "", nil
-	} else if len(keys) == 1 {
-		return val, nil
-	} else if m, ok = val.(map[string]interface{}); !ok {
-		return nil, fmt.Errorf("The value for key %s is not map (expected to be a map)", keys[0])
-	} else {
-		return ValueFor(m, keys[1:]...)
-	}
-}
 
 func TestInstallCommand(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -143,13 +110,13 @@ var _ = Describe("Test the install command works as expected", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			// Test values over expected ones
-			Expect(ValueFor(values, "discovery", "config", "clusterLabels", "liqo.io/provider")).To(Equal(tc.providerValue))
-			Expect(ValueFor(values, "discovery", "config", "clusterName")).To(Equal(tc.clusterNameValue))
-			Expect(ValueFor(values, "discovery", "config", "clusterLabels", "topology.liqo.io/region")).To(Equal(tc.regionValue))
-			Expect(ValueFor(values, "discovery", "config", "clusterLabels", "liqo.io/my-label")).To(Equal(tc.customLabelValue))
-			Expect(ValueFor(values, "discovery", "config", "enableAdvertisement")).To(Equal(tc.enableAdvertisementValue))
-			Expect(ValueFor(values, "discovery", "config", "enableDiscovery")).To(Equal(tc.enableDiscoveryValue))
-			Expect(ValueFor(values, "networkManager", "config", "reservedSubnets")).To(Equal(tc.reservedSubnetsValue))
+			Expect(common.ExtractValuesFromNestedMaps(values, "discovery", "config", "clusterLabels", "liqo.io/provider")).To(Equal(tc.providerValue))
+			Expect(common.ExtractValuesFromNestedMaps(values, "discovery", "config", "clusterName")).To(Equal(tc.clusterNameValue))
+			Expect(common.ExtractValuesFromNestedMaps(values, "discovery", "config", "clusterLabels", "topology.liqo.io/region")).To(Equal(tc.regionValue))
+			Expect(common.ExtractValuesFromNestedMaps(values, "discovery", "config", "clusterLabels", "liqo.io/my-label")).To(Equal(tc.customLabelValue))
+			Expect(common.ExtractValuesFromNestedMaps(values, "discovery", "config", "enableAdvertisement")).To(Equal(tc.enableAdvertisementValue))
+			Expect(common.ExtractValuesFromNestedMaps(values, "discovery", "config", "enableDiscovery")).To(Equal(tc.enableDiscoveryValue))
+			Expect(common.ExtractValuesFromNestedMaps(values, "networkManager", "config", "reservedSubnets")).To(Equal(tc.reservedSubnetsValue))
 		},
 		Entry("Install Kind cluster with default parameters", testCase{
 			"kind",

@@ -228,7 +228,7 @@ var _ = Describe("Pods", func() {
 				deployments:      deployments,
 				daemonSets:       daemonSets,
 				namespace:        namespace,
-				name:             checkerName,
+				name:             podCheckerName,
 				podsState:        make(podStateMap, 2),
 				errors:           false,
 				collectionErrors: nil,
@@ -370,7 +370,7 @@ var _ = Describe("Pods", func() {
 				It("should state that the status is OK", func() {
 					msg, err := podC.Format()
 					Expect(err).NotTo(HaveOccurred())
-					Expect(msg).To(ContainSubstring(fmt.Sprintf("%s control plane pods are up and running\n", checkMark)))
+					Expect(msg).To(ContainSubstring(fmt.Sprintf("%s%s%s control plane pods are up and running\n", green, checkMark, reset)))
 				})
 			})
 		})

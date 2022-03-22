@@ -25,8 +25,14 @@ func newTabWriter(checkerName string) (*tabwriter.Writer, *bytes.Buffer) {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 4, ' ', 0)
 
-	separator := strings.Repeat("-", len(checkerName))
-	fmt.Fprintf(w, "%s\n", checkerName)
-	fmt.Fprintf(w, "%s\n", separator)
+	if len(checkerName) > 0 {
+		separator := newSeparator(checkerName)
+		fmt.Fprintf(w, "%s%s%s\n", bpurple, checkerName, reset)
+		fmt.Fprintf(w, "%s\n", separator)
+	}
 	return w, &buf
+}
+
+func newSeparator(checkerName string) string {
+	return strings.Repeat("-", len(checkerName))
 }
