@@ -35,9 +35,9 @@ import (
 )
 
 // GetIPAMStorageByLabel it returns a IPAMStorage instance that matches the given label selector.
-func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.IpamStorage, error) {
+func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*netv1alpha1.IpamStorage, error) {
 	list := new(netv1alpha1.IpamStorageList)
-	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
 		return nil, err
 	}
 
@@ -47,8 +47,8 @@ func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, ns string, lSe
 	case 1:
 		return &list.Items[0], nil
 	default:
-		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s} in namespace {%s},"+
-			" when only one was expected", netv1alpha1.IpamGroupResource.String(), lSelector.String(), ns)
+		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s}"+
+			" when only one was expected", netv1alpha1.IpamGroupResource.String(), lSelector.String())
 	}
 }
 

@@ -16,37 +16,43 @@ package status
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/pterm/pterm"
 )
 
 // k8sStatusCollector knows how to interact with k8s cluster.
 type k8sStatusCollector struct {
 	checkers []Checker
+	options  *Options
 }
 
 // newK8sStatusCollector returns a new k8sStatusCollector.
 func newK8sStatusCollector(options *Options) *k8sStatusCollector {
 	return &k8sStatusCollector{
+		options: options,
 		checkers: []Checker{
-			newNamespaceChecker(options.LiqoNamespace, options.KubeClient),
-			newPodChecker(options.LiqoNamespace, liqoDeployments, liqoDaemonSets, options.KubeClient),
+			newNamespaceChecker(options),
+			newPodChecker(options, liqoDeployments, liqoDaemonSets),
+			newLocalInfoChecker(options),
 		},
 	}
 }
 
 // collectStatus collects the status of each Checker that belongs to the collector.
 func (k *k8sStatusCollector) collectStatus(ctx context.Context) error {
-	for _, checker := range k.checkers {
+	for i, checker := range k.checkers {
 		if err := checker.Collect(ctx); err != nil {
 			return err
 		}
-		msg, err := checker.Format()
+		text, err := checker.Format()
+		k.options.Printer.BoxSetTitle(checker.GetTitle())
+		k.options.Printer.BoxPrintln(text)
+		// Errors are printed before returning the error.
 		if err != nil {
 			return err
 		}
-		fmt.Print(msg)
-		if !checker.HasSucceeded() {
-			break
+		if i != len(k.checkers)-1 {
+			pterm.Println()
 		}
 	}
 	return nil

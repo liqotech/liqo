@@ -21,6 +21,9 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// ResourceTunnelEndpoints the name of the tunnelendpoint resources.
+var ResourceTunnelEndpoints = "tunnelendpoints"
+
 // TunnelEndpointSpec defines the desired state of TunnelEndpoint.
 type TunnelEndpointSpec struct {
 	// The ID of the remote cluster.

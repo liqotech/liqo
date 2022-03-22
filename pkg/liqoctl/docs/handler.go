@@ -46,7 +46,8 @@ func (o *Options) Run(ctx context.Context) error {
 			hdrFunc := func(filename string) string {
 				base := filepath.Base(filename)
 				name := strings.TrimSuffix(base, path.Ext(base))
-				title := cases.Title(language.English).String(strings.ReplaceAll(name, "_", " "))
+				caser := cases.Title(language.AmericanEnglish)
+				title := caser.String(strings.ReplaceAll(name, "_", " "))
 				return fmt.Sprintf("---\ntitle: %q\n---\n\n", title)
 			}
 

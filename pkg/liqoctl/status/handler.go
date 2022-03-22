@@ -25,7 +25,7 @@ type Options struct {
 	*factory.Factory
 }
 
-// Run implements the status command.
+// Run implements the logic of the status command.
 func (o *Options) Run(ctx context.Context) error {
 	collector := newK8sStatusCollector(o)
 	return collector.collectStatus(ctx)

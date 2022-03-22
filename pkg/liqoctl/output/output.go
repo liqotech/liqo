@@ -42,6 +42,26 @@ const (
 
 	localClusterColor  = pterm.FgLightBlue
 	remoteClusterColor = pterm.FgLightMagenta
+
+	levelMultiplier = 4
+
+	// CheckMark is the unicode checkmark.
+	CheckMark = "✔"
+	// Cross is the unicode cross.
+	Cross = "✖"
+
+	boxWidth = 80
+)
+
+var (
+	// StatusSectionStyle is the style of the status section.
+	StatusSectionStyle = pterm.NewStyle(pterm.FgMagenta, pterm.Bold)
+	// StatusDataStyle is the style of the status data.
+	StatusDataStyle = pterm.NewStyle(pterm.FgLightYellow, pterm.Bold)
+	// StatusInfoStyle is the style of the status info.
+	StatusInfoStyle = pterm.NewStyle(pterm.FgCyan, pterm.Bold)
+	// BoxTitleStyle is the style of the box.
+	BoxTitleStyle = pterm.NewStyle(pterm.FgMagenta, pterm.Bold)
 )
 
 var spinnerCharset = []string{"⠈⠁", "⠈⠑", "⠈⠱", "⠈⡱", "⢀⡱", "⢄⡱", "⢄⡱", "⢆⡱", "⢎⡱", "⢎⡰", "⢎⡠", "⢎⡀", "⢎⠁", "⠎⠁", "⠊⠁"}
@@ -53,8 +73,60 @@ type Printer struct {
 	Warning *pterm.PrefixPrinter
 	Error   *pterm.PrefixPrinter
 
-	spinner *pterm.SpinnerPrinter
-	verbose bool
+	box        *pterm.BoxPrinter
+	spinner    *pterm.SpinnerPrinter
+	BulletList *pterm.BulletListPrinter
+	Section    *pterm.SectionPrinter
+	Paragraph  *pterm.ParagraphPrinter
+	verbose    bool
+}
+
+// BoxPrintln prints a message through the box printer.
+func (p *Printer) BoxPrintln(text string) {
+	// create a string long as the box width
+	widthLine := strings.Repeat("-", boxWidth)
+	// insert widthLine inside the text
+	text = pterm.Sprintf("%s\n%s", widthLine, text)
+	// print the box with widthLine inside to force the box width
+	boxText := p.box.Sprintln(text)
+	// remove the widthLine (first line) from boxText
+	widthLine = strings.Split(boxText, "\n")[1]
+	boxText = strings.ReplaceAll(boxText, widthLine+"\n", "")
+	pterm.Print(boxText)
+}
+
+// BoxSetTitle sets the title of the box.
+func (p *Printer) BoxSetTitle(title string) {
+	p.box.Title = BoxTitleStyle.Sprint(title)
+}
+
+// BulletListSprintForBox prints the bullet list for the box.
+func (p *Printer) BulletListSprintForBox() (string, error) {
+	text, err := p.BulletList.Srender()
+	text = strings.TrimRight(text, "\n")
+	return text, err
+}
+
+// BulletListAddItem adds a new message to the BulletListPrinter.
+func (p *Printer) bulletListAddItem(msg string, level int, bullet bool) {
+	bulletListItem := pterm.BulletListItem{
+		Text:  msg,
+		Level: level * levelMultiplier,
+	}
+	if bullet {
+		bulletListItem.Bullet = " " + pterm.DefaultBulletList.Bullet
+	}
+	p.BulletList.Items = append(p.BulletList.Items, bulletListItem)
+}
+
+// BulletListAddItemWithoutBullet adds a new message to the BulletListPrinter.
+func (p *Printer) BulletListAddItemWithoutBullet(msg string, level int) {
+	p.bulletListAddItem(msg, level, false)
+}
+
+// BulletListAddItemWithBullet adds a new message to the BulletListPrinter.
+func (p *Printer) BulletListAddItemWithBullet(msg string, level int) {
+	p.bulletListAddItem(msg, level, true)
 }
 
 // StartSpinner starts a new spinner.
@@ -143,7 +215,6 @@ func newPrinter(scope string, color pterm.Color, scoped, verbose bool) *Printer 
 
 	printer := &Printer{
 		verbose: verbose,
-
 		Info: generic.WithPrefix(pterm.Prefix{
 			Text:  "INFO",
 			Style: pterm.NewStyle(pterm.FgDarkGray),
@@ -179,6 +250,18 @@ func newPrinter(scope string, color pterm.Color, scoped, verbose bool) *Printer 
 		TimerStyle:          &pterm.ThemeDefault.TimerStyle,
 	}
 
+	printer.BulletList = &pterm.BulletListPrinter{}
+
+	printer.Section = &pterm.SectionPrinter{
+		Style: StatusSectionStyle,
+		Level: 1,
+	}
+
+	printer.box = &pterm.DefaultBox
+	printer.Paragraph = &pterm.ParagraphPrinter{
+		MaxWidth: boxWidth - len(pterm.RemoveColorFromString(printer.Error.Prefix.Text)) - 3,
+	}
+
 	return printer
 }
 
@@ -189,5 +272,8 @@ func NewFakePrinter(writer io.Writer) *Printer {
 	printer.Success.Writer = writer
 	printer.Warning.Writer = writer
 	printer.Error.Writer = writer
+	printer.BulletList.Writer = writer
+	printer.Section.Writer = writer
+	printer.box.Writer = writer
 	return printer
 }

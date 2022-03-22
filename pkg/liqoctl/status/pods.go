@@ -19,16 +19,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pterm/pterm"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	k8s "k8s.io/client-go/kubernetes"
 
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 const (
-	checkerName = "liqo-control-plane"
+	ctrlPlaneCheckerName = "Liqo control plane check"
 )
 
 var (
@@ -156,50 +157,49 @@ func (ps *componentState) format() string {
 	var outputTokens []string
 
 	if ps.desired > 0 {
-		outputTokens = append(outputTokens, fmt.Sprintf("Desired: %d", ps.desired))
+		outputTokens = append(outputTokens, pterm.Sprintf("Desired: %d", ps.desired))
 	}
 	if ps.ready > 0 {
-		outputColor := green
+		outputColor := pterm.FgGreen
 		if ps.ready < ps.desired {
-			outputColor = yellow
+			outputColor = pterm.FgYellow
 		}
-		outputTokens = append(outputTokens, fmt.Sprintf("Ready: "+outputColor+"%d/%d"+reset, ps.ready, ps.desired))
+		outputTokens = append(outputTokens, pterm.Sprintf("Ready: %s",
+			outputColor.Sprintf("%d/%d", ps.ready, ps.desired)))
 	}
 	if ps.available > 0 {
-		outputColor := green
+		outputColor := pterm.FgGreen
 		if ps.available < ps.desired {
-			outputColor = yellow
+			outputColor = pterm.FgYellow
 		}
-		outputTokens = append(outputTokens, fmt.Sprintf("available: "+outputColor+"%d/%d"+reset, ps.available, ps.desired))
+		outputTokens = append(outputTokens, pterm.Sprintf("available: %s",
+			outputColor.Sprintf("%d/%d", ps.available, ps.desired)))
 	}
 	if ps.unavailable > 0 {
-		outputTokens = append(outputTokens, fmt.Sprintf(" Unavailable: "+red+"%d/%d"+reset, ps.unavailable, ps.desired))
+		outputTokens = append(outputTokens, pterm.Sprintf(" Unavailable: %s",
+			pterm.FgRed.Sprintf("%d/%d", ps.unavailable, ps.desired)))
 	}
-	outputTokens = append(outputTokens, fmt.Sprintf("Image version: %s", strings.Join(ps.getImages(), ", ")))
+	outputTokens = append(outputTokens, pterm.Sprintf("Image version: %s", strings.Join(ps.getImages(), ", ")))
 	return strings.Join(outputTokens, ", ")
 }
 
 // podChecker implements the Check interface.
 // holds the information about the control plane pods of Liqo.
 type podChecker struct {
+	options          *Options
 	deployments      []string
 	daemonSets       []string
-	client           k8s.Interface
-	namespace        string
-	name             string
 	podsState        podStateMap
 	errors           bool
 	collectionErrors []collectionError
 }
 
 // newPodChecker return a new pod checker.
-func newPodChecker(namespace string, deployments, daemonSets []string, client k8s.Interface) *podChecker {
+func newPodChecker(options *Options, deployments, daemonSets []string) *podChecker {
 	return &podChecker{
+		options:     options,
 		deployments: deployments,
 		daemonSets:  daemonSets,
-		client:      client,
-		namespace:   namespace,
-		name:        checkerName,
 		podsState:   make(podStateMap, 6),
 		errors:      false,
 	}
@@ -212,7 +212,8 @@ func (pc *podChecker) Collect(ctx context.Context) error {
 	for _, dName := range pc.deployments {
 		err := pc.deploymentStatus(ctx, dName)
 		if err != nil {
-			pc.addCollectionError("Deployment", dName, fmt.Errorf("unable to collect status for deployment %s in namespace %s: %w", dName, pc.namespace, err))
+			pc.addCollectionError("Deployment", dName,
+				fmt.Errorf("unable to collect status for deployment %s in namespace %s: %w", dName, pc.options.LiqoNamespace, err))
 			pc.errors = true
 		}
 	}
@@ -220,7 +221,8 @@ func (pc *podChecker) Collect(ctx context.Context) error {
 	for _, dName := range pc.daemonSets {
 		err := pc.daemonSetStatus(ctx, dName)
 		if err != nil {
-			pc.addCollectionError("DaemonSet", dName, fmt.Errorf("unable to collect status for daemonSet %s in namespace %s: %w", dName, pc.namespace, err))
+			pc.addCollectionError("DaemonSet", dName,
+				fmt.Errorf("unable to collect status for daemonSet %s in namespace %s: %w", dName, pc.options.LiqoNamespace, err))
 			pc.errors = true
 		}
 	}
@@ -232,45 +234,45 @@ func (pc *podChecker) HasSucceeded() bool {
 	return !pc.errors
 }
 
+// GetTitle implements the getTitle method of the Checker interface.
+func (pc *podChecker) GetTitle() string {
+	return ctrlPlaneCheckerName
+}
+
 // Format implements the format method of the Checker interface.
 // it outputs the status of the Liqo components in a string ready to be
 // printed out.
 func (pc *podChecker) Format() (string, error) {
-	w, buf := newTabWriter(pc.name)
+	var text string
 	if pc.errors {
-		// Add pod state to the buffer for each deployment type.
-		if pc.errors {
-			fmt.Fprintf(w, "%s liqo control plane is not OK\n", redCross)
-			for deployment, podState := range pc.podsState {
-				if podState.errorFlag {
-					fmt.Fprintf(w, "%s\t%s\t%s\n", podState.controllerType, deployment, podState.format())
-					for pod, errorCol := range podState.errors {
-						for _, err := range errorCol.errors {
-							fmt.Fprintf(w, "%s\t%s\tPod\t%s\t%s\n", podState.controllerType, deployment, pod, err)
-						}
+		text += pc.options.Printer.Error.Sprintfln("%s liqo control plane is not OK", pterm.Red(output.Cross))
+		for deployment, podState := range pc.podsState {
+			if podState.errorFlag {
+				text = pc.options.Printer.Error.Sprintln(
+					pc.options.Printer.Paragraph.Sprintf("%s\t%s\t%s", podState.controllerType, deployment, podState.format()))
+				for pod, errorCol := range podState.errors {
+					for _, err := range errorCol.errors {
+						text += pc.options.Printer.Error.Sprintln(
+							pc.options.Printer.Paragraph.Sprintf("%s\t%s\tPod\t%s\t%s", podState.controllerType, deployment, pod, err))
 					}
 				}
 			}
-			for _, err := range pc.collectionErrors {
-				fmt.Fprintf(w, "%s\t%s\t%s\n", err.appType, err.appName, err.err)
-			}
 		}
-	} else {
-		fmt.Fprintf(w, "%s control plane pods are up and running\n", checkMark)
+		for _, err := range pc.collectionErrors {
+			text += pc.options.Printer.Error.Sprintln(pc.options.Printer.Paragraph.Sprintf("%s\t%s\t%s", err.appType, err.appName, err.err))
+		}
+		text = strings.TrimRight(text, "\n")
+		return text, fmt.Errorf("%s", text)
 	}
-
-	// Add a new line ad the end of the message.
-	fmt.Fprintf(w, "\n")
-	if err := w.Flush(); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	text += pc.options.Printer.Success.Sprint(pterm.Sprintf("%s control plane pods are up and running",
+		pterm.FgGreen.Sprint(output.CheckMark)))
+	return text, nil
 }
 
 // deploymentStatus collects the status of a given kubernetes Deployment.
 func (pc *podChecker) deploymentStatus(ctx context.Context, deploymentName string) error {
 	var errors bool
-	d, err := pc.client.AppsV1().Deployments(pc.namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	d, err := pc.options.KubeClient.AppsV1().Deployments(pc.options.LiqoNamespace).Get(ctx, deploymentName, metav1.GetOptions{})
 
 	if err != nil {
 		return err
@@ -287,7 +289,7 @@ func (pc *podChecker) deploymentStatus(ctx context.Context, deploymentName strin
 	dState.available = int(d.Status.AvailableReplicas)
 
 	// Get all the pods related with the current deployment.
-	pods, err := pc.client.CoreV1().Pods(pc.namespace).List(ctx, metav1.ListOptions{
+	pods, err := pc.options.KubeClient.CoreV1().Pods(pc.options.LiqoNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labels.FormatLabels(d.Spec.Selector.MatchLabels),
 	})
 	if err != nil {
@@ -307,7 +309,7 @@ func (pc *podChecker) deploymentStatus(ctx context.Context, deploymentName strin
 
 // daemontSetStatus collects the status of a given kubernetes DaemonSet.
 func (pc *podChecker) daemonSetStatus(ctx context.Context, daemonSetName string) error {
-	d, err := pc.client.AppsV1().DaemonSets(pc.namespace).Get(ctx, daemonSetName, metav1.GetOptions{})
+	d, err := pc.options.KubeClient.AppsV1().DaemonSets(pc.options.LiqoNamespace).Get(ctx, daemonSetName, metav1.GetOptions{})
 
 	if err != nil {
 		return err
@@ -324,7 +326,7 @@ func (pc *podChecker) daemonSetStatus(ctx context.Context, daemonSetName string)
 	dState.available = int(d.Status.NumberAvailable)
 
 	// Get all the pods related with the current daemonset.
-	pods, err := pc.client.CoreV1().Pods(pc.namespace).List(ctx, metav1.ListOptions{
+	pods, err := pc.options.KubeClient.CoreV1().Pods(pc.options.LiqoNamespace).List(ctx, metav1.ListOptions{
 		TypeMeta:      metav1.TypeMeta{},
 		LabelSelector: labels.FormatLabels(d.Spec.Selector.MatchLabels),
 	})
