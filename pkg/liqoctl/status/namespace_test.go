@@ -20,10 +20,14 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/pterm/pterm"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 )
 
 var (
@@ -31,6 +35,7 @@ var (
 	ctx           context.Context
 	namespaceName string
 	namespace     *corev1.Namespace
+	options       = &Options{Factory: factory.NewForLocal()}
 )
 
 var _ = Describe("Namespace", func() {
@@ -43,29 +48,30 @@ var _ = Describe("Namespace", func() {
 					Name: namespaceName,
 				},
 			}
+			options.LiqoNamespace = namespaceName
+			options.Printer = output.NewFakePrinter(GinkgoWriter)
+			pterm.DisableStyling()
 		})
 
 		JustBeforeEach(func() {
 			nsChecker = namespaceChecker{
-				namespace: namespaceName,
-				name:      nsCheckerName,
+				options: options,
 			}
 		})
 
 		Describe("creating a new namespaceChecker", func() {
 			It("should hold the parameters passed during the creation", func() {
-				nc := newNamespaceChecker(namespaceName, fake.NewSimpleClientset())
-				Expect(nc.namespace).To(Equal(namespaceName))
+				nc := newNamespaceChecker(options)
+				Expect(nc.options.LiqoNamespace).To(Equal(namespaceName))
 				Expect(nc.failureReason).To(BeNil())
 				Expect(nc.succeeded).To(BeFalse())
-				Expect(nc.client).NotTo(BeNil())
 			})
 		})
 
 		Describe("Collect() function", func() {
 			When("fails to get the namespace", func() {
 				It("should set succeeded field to false, and the reason of failure", func() {
-					nsChecker.client = fake.NewSimpleClientset()
+					nsChecker.options.KubeClient = fake.NewSimpleClientset()
 					Expect(nsChecker.Collect(ctx)).To(BeNil())
 					Expect(nsChecker.succeeded).To(BeFalse())
 					Expect(k8serror.IsNotFound(nsChecker.failureReason)).To(BeTrue())
@@ -74,7 +80,7 @@ var _ = Describe("Namespace", func() {
 
 			When("succeeds to get the namespace", func() {
 				It("should set the succeeded field to true", func() {
-					nsChecker.client = fake.NewSimpleClientset(namespace)
+					nsChecker.options.KubeClient = fake.NewSimpleClientset(namespace)
 					Expect(nsChecker.Collect(ctx)).To(BeNil())
 					Expect(nsChecker.succeeded).To(BeTrue())
 					Expect(nsChecker.failureReason).To(BeNil())
@@ -88,9 +94,9 @@ var _ = Describe("Namespace", func() {
 					nsChecker.succeeded = false
 					nsChecker.failureReason = fmt.Errorf("unable to find namespace foo")
 					msg, err := nsChecker.Format()
-					Expect(err).NotTo(HaveOccurred())
-					Expect(msg).To(ContainSubstring(fmt.Sprintf("%s liqo control plane namespace %s[%s]%s is not OK\n", redCross, red, nsChecker.namespace, reset)))
-					Expect(msg).To(ContainSubstring(fmt.Sprintf("Reason: %s\n", nsChecker.failureReason)))
+					Expect(err).To(HaveOccurred())
+					Expect(msg).To(ContainSubstring(pterm.Sprintf("%s liqo control plane namespace %s is not OK", output.Cross, nsChecker.options.LiqoNamespace)))
+					Expect(msg).To(ContainSubstring(pterm.Sprintf("Reason: %s", nsChecker.failureReason)))
 				})
 			})
 
@@ -99,7 +105,9 @@ var _ = Describe("Namespace", func() {
 					nsChecker.succeeded = true
 					msg, err := nsChecker.Format()
 					Expect(err).NotTo(HaveOccurred())
-					Expect(msg).To(ContainSubstring(fmt.Sprintf("%s liqo control plane namespace %s[%s]%s exists\n", checkMark, green, nsChecker.namespace, reset)))
+					Expect(msg).To(ContainSubstring(
+						pterm.Sprintf("%s liqo control plane namespace %s exists", output.CheckMark, nsChecker.options.LiqoNamespace),
+					))
 				})
 			})
 		})

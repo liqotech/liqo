@@ -12,21 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package status
+package output
 
 import (
-	"bytes"
-	"fmt"
-	"strings"
-	"text/tabwriter"
+	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func newTabWriter(checkerName string) (*tabwriter.Writer, *bytes.Buffer) {
-	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 0, 4, ' ', 0)
-
-	separator := strings.Repeat("-", len(checkerName))
-	fmt.Fprintf(w, "%s\n", checkerName)
-	fmt.Fprintf(w, "%s\n", separator)
-	return w, &buf
+func TestOutput(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Output Suite")
 }

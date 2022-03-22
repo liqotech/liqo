@@ -35,6 +35,9 @@ const (
 	// NetworkManagerAppName label value that denotes the name of the liqo-network-manager deployment.
 	NetworkManagerAppName = "network-manager"
 
+	// ControllerManagerAppName label value that denotes the name of the liqo-controller-manager deployment.
+	ControllerManagerAppName = "controller-manager"
+
 	// APIServerProxyAppName label value that denotes the name of the liqo-api-server-proxy deployment.
 	APIServerProxyAppName = "proxy"
 	// NatMappingResourceLabelKey is the constant representing

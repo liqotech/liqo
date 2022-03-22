@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	helm "github.com/mittwald/go-helm-client"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -80,7 +79,6 @@ type Factory struct {
 // NewForLocal returns a new initialized Factory, to interact with a remote cluster.
 func NewForLocal() *Factory {
 	flags := genericclioptions.NewConfigFlags(true)
-
 	return &Factory{
 		configFlags: flags,
 		factory:     cmdutil.NewFactory(flags),
@@ -98,7 +96,7 @@ func NewForRemote() *Factory {
 
 // HelmClient returns an Helm client, initializing it if necessary. In case of error, it outputs
 // the error (through the spinner if provided, or leveraging the printer) and exits.
-func (f *Factory) HelmClient(s ...*pterm.SpinnerPrinter) helm.Client {
+func (f *Factory) HelmClient() helm.Client {
 	cl, err := f.HelmClientOrError()
 	f.Printer.CheckErr(err)
 	return cl

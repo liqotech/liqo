@@ -139,7 +139,7 @@ func (c *Cluster) Init(ctx context.Context) error {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
 		return err
 	}
-	ipamStore, err := liqogetters.GetIPAMStorageByLabel(ctx, c.local.CRClient, "default", selector)
+	ipamStore, err := liqogetters.GetIPAMStorageByLabel(ctx, c.local.CRClient, selector)
 	if err != nil {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
 		return err

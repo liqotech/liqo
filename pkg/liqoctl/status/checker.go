@@ -21,5 +21,6 @@ import "context"
 type Checker interface {
 	Collect(ctx context.Context) error
 	Format() (string, error)
+	GetTitle() string
 	HasSucceeded() bool
 }

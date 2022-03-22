@@ -18,34 +18,32 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pterm/pterm"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8s "k8s.io/client-go/kubernetes"
+
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 )
 
-const nsCheckerName = "namespace-existence"
+const nsCheckerName = "Namespace existence check"
 
 // namespaceChecker implements the Check interface.
 // checks if the namespace passed as an argument to liqoctl status command
 // exists. If it does not exist the liqoctl status returns.
 type namespaceChecker struct {
-	client        k8s.Interface
-	namespace     string
-	name          string
+	options       *Options
 	succeeded     bool
 	failureReason error
 }
 
-func newNamespaceChecker(namespace string, client k8s.Interface) *namespaceChecker {
+func newNamespaceChecker(options *Options) *namespaceChecker {
 	return &namespaceChecker{
-		client:    client,
-		namespace: namespace,
-		name:      nsCheckerName,
+		options: options,
 	}
 }
 
 func (nc *namespaceChecker) Collect(ctx context.Context) error {
 	// Check if the namespace exists.
-	if _, err := nc.client.CoreV1().Namespaces().Get(ctx, nc.namespace, v1.GetOptions{}); err != nil {
+	if _, err := nc.options.KubeClient.CoreV1().Namespaces().Get(ctx, nc.options.LiqoNamespace, v1.GetOptions{}); err != nil {
 		nc.succeeded = false
 		nc.failureReason = err
 		return nil
@@ -56,23 +54,25 @@ func (nc *namespaceChecker) Collect(ctx context.Context) error {
 	return nil
 }
 
+// GetTitle returns the title of the checker.
+func (nc *namespaceChecker) GetTitle() string {
+	return nsCheckerName
+}
+
 func (nc *namespaceChecker) Format() (string, error) {
-	w, buf := newTabWriter(nc.name)
-
+	var text string
 	if nc.succeeded {
-		fmt.Fprintf(w, "%s liqo control plane namespace %s[%s]%s exists\n", checkMark, green, nc.namespace, reset)
-	} else {
-		fmt.Fprintf(w, "%s liqo control plane namespace %s[%s]%s is not OK\n", redCross, red, nc.namespace, reset)
-		fmt.Fprintf(w, "Reason: %s\n", nc.failureReason)
+		text += nc.options.Printer.Success.Sprint(pterm.Sprintf("%s liqo control plane namespace %s exists",
+			nc.options.Printer.Success.Prefix.Style.Sprint(output.CheckMark),
+			nc.options.Printer.Success.Prefix.Style.Sprint(nc.options.LiqoNamespace)))
+		return text, nil
 	}
-
-	// Add a new line ad the end of the message.
-	fmt.Fprintf(w, "\n")
-	if err := w.Flush(); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
+	text += pterm.Sprintfln("%s liqo control plane namespace %s is not OK",
+		nc.options.Printer.Error.Prefix.Style.Sprintf(output.Cross),
+		nc.options.Printer.Error.Prefix.Style.Sprintf(nc.options.LiqoNamespace))
+	text += nc.options.Printer.Paragraph.Sprintf("Reason: %s", nc.failureReason)
+	text = nc.options.Printer.Error.Sprint(text)
+	return text, fmt.Errorf("%s", text)
 }
 
 func (nc *namespaceChecker) HasSucceeded() bool {
