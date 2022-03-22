@@ -19,6 +19,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/liqotech/liqo/pkg/liqoctl/autocompletion"
 	"github.com/liqotech/liqo/pkg/liqoctl/remove"
 )
 
@@ -43,6 +44,17 @@ func newRemoveClusterCommand(ctx context.Context) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			removeArgs.ClusterName = args[0]
 			return remove.HandleRemoveCommand(ctx, removeArgs)
+		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) >= 1 {
+				return nil, cobra.ShellCompDirectiveDefault
+			}
+
+			names, err := autocompletion.GetClusterNames(cmd.Context(), toComplete)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveError
+			}
+			return names, cobra.ShellCompDirectiveNoFileComp
 		},
 	}
 

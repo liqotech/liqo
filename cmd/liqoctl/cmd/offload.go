@@ -18,8 +18,10 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqoctl/autocompletion"
 	"github.com/liqotech/liqo/pkg/liqoctl/offload"
 	"github.com/liqotech/liqo/pkg/utils/args"
 )
@@ -38,6 +40,7 @@ func newOffloadCommand(ctx context.Context) *cobra.Command {
 func newNamespaceCommand(ctx context.Context) *cobra.Command {
 	var offloadClusterCmd = &cobra.Command{
 		Use:          offload.ClusterResourceName,
+		Aliases:      []string{"ns"},
 		SilenceUsage: true,
 		Short:        offload.LiqoctlOffloadShortHelp,
 		Long:         offload.LiqoctlOffloadLongHelp,
@@ -45,21 +48,45 @@ func newNamespaceCommand(ctx context.Context) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return offload.HandleOffloadCommand(ctx, cmd, args)
 		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) >= 1 {
+				return nil, cobra.ShellCompDirectiveDefault
+			}
+
+			names, err := autocompletion.GetNamespaceNames(cmd.Context(), toComplete)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveError
+			}
+			return names, cobra.ShellCompDirectiveNoFileComp
+		},
 	}
-	podOffloadingStrategy := args.NewEnum([]string{string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType),
+
+	podStrategies := []string{string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType),
 		string(offloadingv1alpha1.RemotePodOffloadingStrategyType),
-		string(offloadingv1alpha1.LocalPodOffloadingStrategyType)}, string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType))
+		string(offloadingv1alpha1.LocalPodOffloadingStrategyType)}
+	nsStrategies := []string{string(offloadingv1alpha1.EnforceSameNameMappingStrategyType),
+		string(offloadingv1alpha1.DefaultNameMappingStrategyType)}
 
+	podOffloadingStrategy := args.NewEnum(podStrategies, string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType))
 	offloadClusterCmd.PersistentFlags().Var(podOffloadingStrategy, offload.PodOffloadingStrategyFlag, offload.PodOffloadingStrategyHelp)
-	namespaceMappingStrategy := args.NewEnum([]string{string(offloadingv1alpha1.EnforceSameNameMappingStrategyType),
-		string(offloadingv1alpha1.DefaultNameMappingStrategyType)},
-		string(offloadingv1alpha1.DefaultNameMappingStrategyType))
 
+	namespaceMappingStrategy := args.NewEnum(nsStrategies, string(offloadingv1alpha1.DefaultNameMappingStrategyType))
 	offloadClusterCmd.PersistentFlags().Var(namespaceMappingStrategy,
 		offload.NamespaceMappingStrategyFlag, offload.NamespaceMappingStrategyHelp)
+
 	offloadClusterCmd.PersistentFlags().String(offload.AcceptedLabelsFlag,
 		offload.AcceptedLabelsDefault, offload.AcceptedLabelsHelp)
 	offloadClusterCmd.PersistentFlags().String(offload.DeniedLabelsFlag,
 		offload.DeniedLabelDefault, offload.DeniedLabelsHelp)
+
+	utilruntime.Must(offloadClusterCmd.RegisterFlagCompletionFunc(offload.PodOffloadingStrategyFlag,
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return podStrategies, cobra.ShellCompDirectiveNoFileComp
+		}))
+	utilruntime.Must(offloadClusterCmd.RegisterFlagCompletionFunc(offload.NamespaceMappingStrategyFlag,
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return nsStrategies, cobra.ShellCompDirectiveNoFileComp
+		}))
+
 	return offloadClusterCmd
 }

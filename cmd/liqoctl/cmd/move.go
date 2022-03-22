@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
+	"github.com/liqotech/liqo/pkg/liqoctl/autocompletion"
 	"github.com/liqotech/liqo/pkg/liqoctl/move"
 )
 
@@ -54,6 +55,22 @@ func newMoveVolumeCommand(ctx context.Context) *cobra.Command {
 			clusterArgs.VolumeName = args[0]
 			return move.HandleMoveVolumeCommand(ctx, clusterArgs)
 		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) >= 1 {
+				return nil, cobra.ShellCompDirectiveDefault
+			}
+
+			ns, err := cmd.Flags().GetString("namespace")
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveError
+			}
+
+			names, err := autocompletion.GetPVCNames(cmd.Context(), ns, toComplete)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveError
+			}
+			return names, cobra.ShellCompDirectiveNoFileComp
+		},
 	}
 
 	moveVolumeCmd.Flags().StringVarP(&clusterArgs.Namespace, "namespace", "n", "",
@@ -65,5 +82,23 @@ func newMoveVolumeCommand(ctx context.Context) *cobra.Command {
 
 	utilruntime.Must(moveVolumeCmd.MarkFlagRequired("namespace"))
 	utilruntime.Must(moveVolumeCmd.MarkFlagRequired("node"))
+
+	utilruntime.Must(moveVolumeCmd.RegisterFlagCompletionFunc("namespace",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			names, err := autocompletion.GetNamespaceNames(cmd.Context(), toComplete)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveError
+			}
+			return names, cobra.ShellCompDirectiveNoFileComp
+		}))
+	utilruntime.Must(moveVolumeCmd.RegisterFlagCompletionFunc("node",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			names, err := autocompletion.GetNodeNames(cmd.Context(), toComplete)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveError
+			}
+			return names, cobra.ShellCompDirectiveNoFileComp
+		}))
+
 	return moveVolumeCmd
 }
