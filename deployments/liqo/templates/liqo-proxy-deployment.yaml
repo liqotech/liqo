@@ -1,0 +1,48 @@
+---
+{{- $proxyConfig := (merge (dict "name" "proxy" "module" "networking") .) -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    {{- include "liqo.labels" $proxyConfig | nindent 4 }}
+  name: {{ include "liqo.prefixedName" $proxyConfig }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "liqo.selectorLabels" $proxyConfig | nindent 6 }}
+  template:
+    metadata:
+    {{- if .Values.proxy.pod.annotations }}
+      annotations:
+      {{- toYaml .Values.proxy.pod.annotations | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- include "liqo.labels" $proxyConfig | nindent 8 }}
+        {{- if .Values.proxy.pod.labels }}
+          {{- toYaml .Values.proxy.pod.labels | nindent 8 }}
+        {{- end }}
+    spec:
+      securityContext:
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
+      containers:
+        - image: {{ .Values.proxy.imageName }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          name: {{ $proxyConfig.name }}
+          securityContext:
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
+          ports:
+          - containerPort: {{ .Values.proxy.config.listeningPort }}
+          resources:
+            requests:
+              cpu: 250m
+              memory: 100M
+          volumeMounts:
+          - mountPath: /etc/envoy/envoy.yaml
+            name: config-volume
+            subPath: config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: {{ include "liqo.prefixedName" $proxyConfig }}

@@ -127,16 +127,6 @@ func (a *Args) Handler(ctx context.Context) error {
 	}
 	defer cluster2.StopPortForwardIPAM()
 
-	// Setting up proxy pod for cluster 1.
-	if err := cluster1.SetUpProxy(ctx); err != nil {
-		return err
-	}
-
-	// Setting up proxy pod for cluster 2.
-	if err := cluster2.SetUpProxy(ctx); err != nil {
-		return err
-	}
-
 	// Creating IPAM client for cluster 1.
 	ipamClient1, err := cluster1.NewIPAMClient(ctx)
 	if err != nil {

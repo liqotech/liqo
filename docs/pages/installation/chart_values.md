@@ -73,6 +73,13 @@ weight: 5
 | networkManager.pod.extraArgs | list | `[]` | networkManager pod extra arguments |
 | networkManager.pod.labels | object | `{}` | networkManager pod labels |
 | openshiftConfig.enable | bool | `false` | enable the OpenShift support |
+| proxy.config.listeningPort | int | `8118` | port used by envoy proxy |
+| proxy.imageName | string | `"envoyproxy/envoy:v1.21.0"` | proxy image repository |
+| proxy.pod.annotations | object | `{}` | proxy pod annotations |
+| proxy.pod.extraArgs | list | `[]` | proxy pod extra arguments |
+| proxy.pod.labels | object | `{}` | proxy pod labels |
+| proxy.service.annotations | object | `{}` |  |
+| proxy.service.type | string | `"ClusterIP"` |  |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods |
 | route.imageName | string | `"liqo/liqonet"` | route image repository |
 | route.pod.annotations | object | `{}` | route pod annotations |

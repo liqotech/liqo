@@ -223,6 +223,23 @@ virtualKubelet:
       # -- virtual node extra labels
       labels: {}
 
+proxy:
+  pod:
+    # -- proxy pod annotations
+    annotations: {}
+    # -- proxy pod labels
+    labels: {}
+    # -- proxy pod extra arguments
+    extraArgs: []
+  # -- proxy image repository
+  imageName: "envoyproxy/envoy:v1.21.0"
+  service:
+    type: "ClusterIP"
+    annotations: {}
+  config:
+    # -- port used by envoy proxy
+    listeningPort: 8118
+
 storage:
   # -- enable the liqo virtual storage class on the local cluster. You will be able to
   # offload your persistent volumes and other clusters will be able to schedule their

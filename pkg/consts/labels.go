@@ -36,7 +36,7 @@ const (
 	NetworkManagerAppName = "network-manager"
 
 	// APIServerProxyAppName label value that denotes the name of the liqo-api-server-proxy deployment.
-	APIServerProxyAppName = "api-server-proxy"
+	APIServerProxyAppName = "proxy"
 	// NatMappingResourceLabelKey is the constant representing
 	// the key of the label assigned to all NatMapping resources.
 	NatMappingResourceLabelKey = "net.liqo.io/natmapping"

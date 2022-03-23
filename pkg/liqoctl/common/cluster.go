@@ -63,7 +63,8 @@ const (
 
 	proxyName = "liqo-proxy"
 
-	authPort = "https"
+	authPort  = "https"
+	proxyPort = "http"
 )
 
 var (
@@ -286,6 +287,25 @@ func (c *Cluster) Init(ctx context.Context) error {
 	}
 	s.Success("authentication endpoint correctly retrieved")
 
+	// Get proxy endpoint.
+	s, _ = c.printer.Spinner.Start("retrieving proxy endpoint")
+	selector, err = metav1.LabelSelectorAsSelector(&liqolabels.ProxyServiceLabelSelector)
+	if err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
+		return err
+	}
+	svc, err = liqogetters.GetServiceByLabel(ctx, c.locCtrlRunClient, c.namespace, selector)
+	if err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
+		return err
+	}
+	ipProxy, portProxy, err := liqogetters.RetrieveEndpointFromService(svc, corev1.ServiceTypeClusterIP, proxyPort)
+	if err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
+		return err
+	}
+	s.Success("proxy endpoint correctly retrieved")
+
 	// Set configuration
 	c.clusterID = clusterID
 	c.netConfig = netcfg
@@ -302,6 +322,11 @@ func (c *Cluster) Init(ctx context.Context) error {
 	c.authEP = &Endpoint{
 		ip:   ipAuth,
 		port: portAuth,
+	}
+
+	c.proxyEP = &Endpoint{
+		ip:   ipProxy,
+		port: portProxy,
 	}
 
 	return nil
@@ -631,22 +656,6 @@ func (c *Cluster) StopPortForwardIPAM() {
 	s.Success(fmt.Sprintf("IPAM service port-forward correctly stopped {%s}", c.PortForwardOpts.Ports[0]))
 }
 
-// SetUpProxy configures the proxy deployment.
-func (c *Cluster) SetUpProxy(ctx context.Context) error {
-	s, _ := c.printer.Spinner.Start(fmt.Sprintf("configuring proxy pod {%s} and service in namespace {%s}", proxyName, c.namespace))
-
-	ep, err := createProxyDeployment(ctx, c.locK8sClient, proxyName, c.namespace)
-	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while setting up proxy {%s} in namespace {%s}: %v", proxyName, c.namespace, err))
-		return err
-	}
-	s.Success(fmt.Sprintf("proxy {%s} correctly configured in namespace {%s}", proxyName, c.namespace))
-
-	c.proxyEP = ep
-
-	return nil
-}
-
 // MapProxyIPForCluster maps the ClusterIP address of the local proxy on the local external CIDR as seen by the remote cluster.
 func (c *Cluster) MapProxyIPForCluster(ctx context.Context, ipamClient ipam.IpamClient, remoteCluster *discoveryv1alpha1.ClusterIdentity) error {
 	clusterName := remoteCluster.ClusterName
@@ -670,35 +679,9 @@ func (c *Cluster) MapProxyIPForCluster(ctx context.Context, ipamClient ipam.Ipam
 // UnmapProxyIPForCluster unmaps the ClusterIP address of the local proxy on the local external CIDR as seen by the remote cluster.
 func (c *Cluster) UnmapProxyIPForCluster(ctx context.Context, ipamClient ipam.IpamClient, remoteCluster *discoveryv1alpha1.ClusterIdentity) error {
 	clusterName := remoteCluster.ClusterName
-
-	// TODO: this logic will be moved on the Init function once
-	// the creation of the proxy deployment and service will be
-	// done at install time of liqo through the helm chart.
+	ipToBeUnmapped := c.proxyEP.GetIP()
 
 	s, _ := c.printer.Spinner.Start(fmt.Sprintf("unmapping proxy ip for cluster {%s}", clusterName))
-
-	selector, err := metav1.LabelSelectorAsSelector(&liqolabels.ProxyServiceLabelSelector)
-	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
-		return err
-	}
-	svc, err := liqogetters.GetServiceByLabel(ctx, c.locCtrlRunClient, c.namespace, selector)
-	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
-		return err
-	}
-	if k8serrors.IsNotFound(err) {
-		s.Warning(fmt.Sprintf("service for proxy not found, unable to unmap proxy ip for cluster {%s}", clusterName))
-		return nil
-	}
-
-	ipAuth, _, err := liqogetters.RetrieveEndpointFromService(svc, corev1.ServiceTypeClusterIP, "http")
-	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
-		return err
-	}
-
-	ipToBeUnmapped := ipAuth
 
 	if err := unmapServiceForCluster(ctx, ipamClient, ipToBeUnmapped, remoteCluster); err != nil {
 		s.Fail(fmt.Sprintf("an error occurred while unmapping proxy address {%s} for cluster {%s}: %v", ipToBeUnmapped, clusterName, err))
@@ -713,19 +696,19 @@ func (c *Cluster) UnmapProxyIPForCluster(ctx context.Context, ipamClient ipam.Ip
 // MapAuthIPForCluster maps the ClusterIP address of the local auth service on the local external CIDR as seen by the remote cluster.
 func (c *Cluster) MapAuthIPForCluster(ctx context.Context, ipamClient ipam.IpamClient, remoteCluster *discoveryv1alpha1.ClusterIdentity) error {
 	clusterName := remoteCluster.ClusterName
-	ipToBeUnmapped := c.authEP.GetIP()
+	ipToBeRemapped := c.authEP.GetIP()
 
-	s, _ := c.printer.Spinner.Start(fmt.Sprintf("mapping auth ip {%s} for cluster {%s}", ipToBeUnmapped, clusterName))
+	s, _ := c.printer.Spinner.Start(fmt.Sprintf("mapping auth ip {%s} for cluster {%s}", ipToBeRemapped, clusterName))
 
-	ip, err := mapServiceForCluster(ctx, ipamClient, ipToBeUnmapped, remoteCluster)
+	ip, err := mapServiceForCluster(ctx, ipamClient, ipToBeRemapped, remoteCluster)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while mapping auth address {%s} for cluster {%s}: %v", ipToBeUnmapped, clusterName, err))
+		s.Fail(fmt.Sprintf("an error occurred while mapping auth address {%s} for cluster {%s}: %v", ipToBeRemapped, clusterName, err))
 		return err
 	}
 
 	c.authEP.SetRemappedIP(ip)
 
-	s.Success(fmt.Sprintf("auth address {%s} remapped to {%s} for remote cluster {%s}", ipToBeUnmapped, ip, clusterName))
+	s.Success(fmt.Sprintf("auth address {%s} remapped to {%s} for remote cluster {%s}", ipToBeRemapped, ip, clusterName))
 
 	return nil
 }
