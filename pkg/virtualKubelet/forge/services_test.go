@@ -73,7 +73,7 @@ var _ = Describe("Services Forging", func() {
 			getService = func(serviceType corev1.ServiceType, clusterIP string) *corev1.ServiceSpec {
 				trafpol := corev1.ServiceInternalTrafficPolicyCluster
 				ipfampol := corev1.IPFamilyPolicyPreferDualStack
-				return &corev1.ServiceSpec{
+				svc := &corev1.ServiceSpec{
 					Type:     serviceType,
 					Selector: map[string]string{"key": "value"},
 					Ports:    []corev1.ServicePort{{Name: "port"}},
@@ -88,6 +88,12 @@ var _ = Describe("Services Forging", func() {
 					SessionAffinity:               corev1.ServiceAffinityNone,
 					ClusterIP:                     clusterIP,
 				}
+
+				if serviceType == corev1.ServiceTypeExternalName {
+					svc.ExternalName = "external-name"
+				}
+
+				return svc
 			}
 		)
 
@@ -95,6 +101,7 @@ var _ = Describe("Services Forging", func() {
 			input               *corev1.ServiceSpec
 			expectedClusterIP   OmegaMatcher
 			expectedServiceType OmegaMatcher
+			externalName        OmegaMatcher
 		}
 
 		DescribeTable("RemoteServiceSpec table", func(c remoteServiceTestcase) {
@@ -116,19 +123,28 @@ var _ = Describe("Services Forging", func() {
 				Expect(output.PublishNotReadyAddresses).To(PointTo(BeTrue()))
 				Expect(output.SessionAffinity).To(PointTo(Equal(corev1.ServiceAffinityNone)))
 				Expect(output.ClusterIP).To(c.expectedClusterIP)
+				Expect(output.ExternalName).To(c.externalName)
 			})
 		}, Entry("NodePort Service", remoteServiceTestcase{
 			input:               getService(corev1.ServiceTypeNodePort, ""),
 			expectedClusterIP:   BeNil(),
 			expectedServiceType: Equal(corev1.ServiceTypeNodePort),
+			externalName:        PointTo(BeEmpty()),
 		}), Entry("ClusterIP Service", remoteServiceTestcase{
 			input:               getService(corev1.ServiceTypeClusterIP, ""),
 			expectedClusterIP:   BeNil(),
 			expectedServiceType: Equal(corev1.ServiceTypeClusterIP),
+			externalName:        PointTo(BeEmpty()),
 		}), Entry("Headless Service", remoteServiceTestcase{
 			input:               getService(corev1.ServiceTypeClusterIP, corev1.ClusterIPNone),
 			expectedClusterIP:   PointTo(Equal(corev1.ClusterIPNone)),
 			expectedServiceType: Equal(corev1.ServiceTypeClusterIP),
+			externalName:        PointTo(BeEmpty()),
+		}), Entry("ExternalName Service", remoteServiceTestcase{
+			input:               getService(corev1.ServiceTypeExternalName, ""),
+			expectedClusterIP:   BeNil(),
+			expectedServiceType: Equal(corev1.ServiceTypeExternalName),
+			externalName:        PointTo(Equal("external-name")),
 		}))
 	})
 

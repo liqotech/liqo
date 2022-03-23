@@ -38,7 +38,8 @@ func RemoteService(local *corev1.Service, targetNamespace string) *corev1apply.S
 func RemoteServiceSpec(local *corev1.ServiceSpec, forceRemoteNodePort bool) *corev1apply.ServiceSpecApplyConfiguration {
 	remote := corev1apply.ServiceSpec().
 		WithType(local.Type).WithSelector(local.Selector).
-		WithPorts(RemoteServicePorts(local.Ports, forceRemoteNodePort)...)
+		WithPorts(RemoteServicePorts(local.Ports, forceRemoteNodePort)...).
+		WithExternalName(local.ExternalName)
 
 	// The additional fields are set manually instead of using the "With" functions,
 	// to avoid issues if not set in the local object and thus nil. This requires the
