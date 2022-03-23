@@ -71,4 +71,12 @@ spec:
               valueFrom:
                fieldRef:
                  fieldPath: spec.nodeName
+          volumeMounts:
+            - mountPath: /run/xtables.lock
+              name: xtables-lock
       hostNetwork: true
+      volumes:
+        - hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate
+          name: xtables-lock
