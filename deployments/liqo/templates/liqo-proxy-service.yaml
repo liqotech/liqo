@@ -1,0 +1,22 @@
+---
+{{- $proxyConfig := (merge (dict "name" "proxy" "module" "networking") .) -}}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $proxyConfig }}
+{{- if .Values.proxy.service.annotations }}
+  annotations:
+    {{- toYaml .Values.proxy.service.annotations | nindent 4 }}
+{{- end}}
+  labels:
+    {{- include "liqo.labels" $proxyConfig | nindent 4 }}
+spec:
+  type: {{ .Values.proxy.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.proxy.config.listeningPort }}
+      targetPort: {{ .Values.proxy.config.listeningPort }}
+      protocol: TCP
+  selector:
+    {{- include "liqo.selectorLabels" $proxyConfig | nindent 4 }}
