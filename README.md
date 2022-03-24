@@ -156,11 +156,11 @@ If you want to explore the Liqo internals, including how to inspect and interact
 
 ## Roadmap
 
-Planned features for the next release (v0.4, expected mid-March, 2022) are the following:
+Planned features for the next release (v0.5, expected Oct 2022) are the following:
 
-* Introduce first support to Persistent Storage (PVC) on Liqo.
-* Improve the resource naming to let users easily understand resources relationships.
-* Introduce the support to allow the peering of a cluster not directly accessible (i.e. behind NAT).
+* Introduce the support to offload applications that need to contact the home API Server (e.g. operators and some db applications).
+* Improve the observability and the robustness of the network.
+* Provide the possibility to better schedule and orchestrate workloads using policies.
 
 ## Contributing
 
