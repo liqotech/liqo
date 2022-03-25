@@ -36,7 +36,7 @@ You can then install Liqo by typing:
 
 ```bash
 helm repo add liqo https://helm.liqo.io/ # if the repository was not already present
-helm install liqo/liqo -n liqo -f values.yaml
+helm install liqo liqo/liqo -n liqo --values values.yaml --create-namespace
 ```
 
 ## Install from a local chart

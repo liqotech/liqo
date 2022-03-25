@@ -3,12 +3,12 @@ title: Enable peering
 weight: 3
 ---
 
-Once Liqo is installed on your clusters, you can start establishing new *peerings*. 
+Once Liqo is installed on your clusters, you can start establishing new *peerings*.
 
 
 ## Create the desired multi-cluster architecture
 
-From now on, the *cluster-1* is the *home-cluster*. 
+From now on, the *cluster-1* is the *home-cluster*.
 You can enable the *home-cluster* to peer with the other 2 clusters.
 
 ### Enable peering
@@ -21,7 +21,7 @@ liqoctl generate-add-command
 You will obtain an output like the following:
 
 ```bash
-liqoctl add cluster cluster-2 --auth-url https://172.18.0.5:32714 \ 
+liqoctl add cluster cluster-2 --auth-url https://172.18.0.5:32714 \
     --id 3623b0bd-3c32-4dec-994b-fc80d9d0d91d \
     --token b13b6932ee6fd890a1abe212dc21253aa6d74565fead54
 ```
@@ -58,8 +58,8 @@ There should be two *ForeignCluster* resources in that state:
 
 ```bash
 NAME                                   OUTGOING PEERING PHASE   INCOMING PEERING PHASE   NETWORKING STATUS   AUTHENTICATION STATUS
-cluster-2                                Established                   None                 Established           Established             
-cluster-3                                Established                   None                 Established           Established             
+cluster-2                                Established                   None                 Established           Established
+cluster-3                                Established                   None                 Established           Established
 ```
 
 The *home-cluster* has these two virtual nodes, relying on the two unidirectional peerings with *cluster-2* and *cluster-3*.
@@ -87,12 +87,10 @@ You can export these *cluster-id* as environment variables:
 
 ```bash
 REMOTE_CLUSTER_ID_2=$(kubectl get nodes --selector=liqo.io/provider=provider-2 -o name | cut -d "-" -f2-)
-echo $REMOTE_CLUSTER_ID_2 
+echo $REMOTE_CLUSTER_ID_2
 REMOTE_CLUSTER_ID_3=$(kubectl get nodes --selector=liqo.io/provider=provider-3 -o name | cut -d "-" -f2-)
-echo $REMOTE_CLUSTER_ID_3 
+echo $REMOTE_CLUSTER_ID_3
 ```
 
 The following sections will guide you to discover and use the most notable Liqo features.
 You can move forward to the first one: [Selective Offloading mechanism](../select_clusters).
-
-
