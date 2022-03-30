@@ -66,14 +66,7 @@ rbacs: controller-gen
 # Install gci if not available
 gci:
 ifeq (, $(shell which gci))
-	@{ \
-	set -e ;\
-	TMP_DIR=$$(mktemp -d) ;\
-	cd $$TMP_DIR ;\
-	go mod init tmp ;\
-	go get github.com/daixiang0/gci@v0.2.9 ;\
-	rm -rf $$TMP_DIR ;\
-	}
+	@go install github.com/daixiang0/gci@v0.2.9
 GCI=$(GOBIN)/gci
 else
 GCI=$(shell which gci)
@@ -82,14 +75,7 @@ endif
 # Install addlicense if not available
 addlicense:
 ifeq (, $(shell which addlicense))
-	@{ \
-	set -e ;\
-	TMP_DIR=$$(mktemp -d) ;\
-	cd $$TMP_DIR ;\
-	go mod init tmp ;\
-	go get github.com/google/addlicense ;\
-	rm -rf $$TMP_DIR ;\
-	}
+	@go install github.com/google/addlicense@v1.0.0
 ADDLICENSE=$(GOBIN)/addlicense
 else
 ADDLICENSE=$(shell which addlicense)
@@ -105,10 +91,7 @@ fmt: gci addlicense
 # Install golangci-lint if not available
 golangci-lint:
 ifeq (, $(shell which golangci-lint))
-	@{ \
-	set -e ;\
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.43.0;\
-	}
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.43.0
 GOLANGCILINT=$(GOBIN)/golangci-lint
 else
 GOLANGCILINT=$(shell which golangci-lint)
@@ -160,14 +143,7 @@ PROTOC=$(shell which protoc)
 # download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.2 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
+	@go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.8.0
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)

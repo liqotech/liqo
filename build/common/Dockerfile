@@ -1,4 +1,4 @@
-FROM golang:1.17 as builder
+FROM golang:1.18 as builder
 WORKDIR /tmp/builder
 
 COPY go.mod ./go.mod
@@ -12,7 +12,7 @@ COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" ./cmd/$COMPONENT
 
 
-FROM alpine:3.14
+FROM alpine:3.15
 
 RUN apk update && \
     apk add --no-cache ca-certificates && \
