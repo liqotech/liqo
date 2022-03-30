@@ -344,7 +344,12 @@ func (liqoIPAM *IPAM) getPoolFromNetwork(network string) (networkPool string, su
 		}
 		poolIPset.AddPrefix(c)
 		// Check if the pool contains network
-		if poolIPset.IPSet().ContainsPrefix(ipprefix) {
+		var ipSet *netaddr.IPSet
+		ipSet, err = poolIPset.IPSet()
+		if err != nil {
+			return
+		}
+		if ipSet.ContainsPrefix(ipprefix) {
 			networkPool = pool
 			success = true
 			return

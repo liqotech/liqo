@@ -1,10 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.6.2
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: namespaceoffloadings.offloading.liqo.io
 spec:
@@ -142,11 +141,10 @@ spec:
                 type: object
               namespaceMappingStrategy:
                 default: DefaultName
-                description: ' NamespaceMappingStrategy allows users to map local
-                  and remote namespace names according to two  different strategies:
-                  "DefaultName", which ensures uniqueness and prevents conflicts,
-                  and "EnforceSameName",  which enforces the same name at the cost
-                  of possible conflicts.'
+                description: 'NamespaceMappingStrategy allows users to map local and
+                  remote namespace names according to two different strategies: "DefaultName",
+                  which ensures uniqueness and prevents conflicts, and "EnforceSameName",
+                  which enforces the same name at the cost of possible conflicts.'
                 enum:
                 - EnforceSameName
                 - DefaultName

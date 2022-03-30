@@ -6,7 +6,7 @@ RUN rustup target add x86_64-unknown-linux-musl
 RUN cargo build --bin boringtun-cli --release
 
 
-FROM golang:1.17 as goBuilder
+FROM golang:1.18 as goBuilder
 WORKDIR /tmp/builder
 
 COPY go.mod ./go.mod
@@ -17,7 +17,7 @@ COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" ./cmd/liqonet
 
 
-FROM alpine:3.14
+FROM alpine:3.15
 
 RUN apk update && \
     apk add iptables bash wireguard-tools tcpdump && \

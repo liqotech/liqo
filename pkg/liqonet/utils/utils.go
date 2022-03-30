@@ -121,8 +121,8 @@ func Next(network string) string {
 	utilruntime.Must(err)
 	// Step 1: Get last IP address of network
 	// Step 2: Get next IP address
-	firstIP := prefix.Range().To.Next()
-	prefix.IP = firstIP
+	firstIP := prefix.Range().To().Next()
+	prefix = netaddr.IPPrefixFrom(firstIP, prefix.Bits())
 	return prefix.String()
 }
 

@@ -29,4 +29,3 @@ rules:
   - foreignclusters/status
   verbs:
   - get
-

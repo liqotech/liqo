@@ -71,4 +71,3 @@ rules:
   - delete
   - deletecollection
   - get
-
