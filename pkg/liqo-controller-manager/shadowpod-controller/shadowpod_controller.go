@@ -16,9 +16,9 @@ package shadowpodctrl
 
 import (
 	"context"
-	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +33,6 @@ import (
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 )
 
 // Reconciler reconciles a ShadowPod object.
@@ -78,8 +77,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if err := r.Create(ctx, &pod); err != nil {
-		err = fmt.Errorf("unable to create pod for shadowpod %q: %w", klog.KObj(&shadowPod), err)
-		return ctrl.Result{}, liqoerrors.IgnoreAlreadyExists(err)
+		if errors.IsAlreadyExists(err) {
+			klog.V(4).Infof("pod %q already exists", klog.KObj(&pod))
+			return ctrl.Result{}, nil
+		}
+
+		klog.Errorf("unable to create pod for shadowpod %q: %v", klog.KObj(&shadowPod), err)
+		return ctrl.Result{}, err
 	}
 
 	klog.Infof("created pod %q for shadowpod %q", klog.KObj(&pod), klog.KObj(&shadowPod))

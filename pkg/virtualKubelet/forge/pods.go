@@ -15,7 +15,6 @@
 package forge
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
@@ -24,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
+	"k8s.io/utils/pointer"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
@@ -42,6 +42,9 @@ const (
 
 // PodIPTranslator defines the function to translate between remote and local IP addresses.
 type PodIPTranslator func(string) string
+
+// SASecretRetriever defines the function to retrieve the secret associated with a given service account.
+type SASecretRetriever func(string) string
 
 // LocalPod forges the object meta and status of the local pod, given the remote one.
 func LocalPod(local, remote *corev1.Pod, translator PodIPTranslator, restarts int32) *corev1.Pod {
@@ -107,7 +110,7 @@ func LocalRejectedPodStatus(local *corev1.PodStatus, phase corev1.PodPhase, reas
 }
 
 // RemoteShadowPod forges the reflected shadowpod, given the local one.
-func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetNamespace string) *vkv1alpha1.ShadowPod {
+func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetNamespace string, retriever SASecretRetriever) *vkv1alpha1.ShadowPod {
 	if remote == nil {
 		// The remote is nil if not already created.
 		remote = &vkv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
@@ -123,22 +126,21 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetName
 	return &vkv1alpha1.ShadowPod{
 		ObjectMeta: RemoteObjectMeta(FilterLocalPodOffloadedLabel(&local.ObjectMeta), &remote.ObjectMeta),
 		Spec: vkv1alpha1.ShadowPodSpec{
-			Pod: RemotePodSpec(local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy()),
+			Pod: RemotePodSpec(local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy(), retriever),
 		},
 	}
 }
 
 // RemotePodSpec forges the specs of the reflected pod specs, given the local ones.
 // It expects the local and remote objects to be deepcopies, as they are mutated.
-func RemotePodSpec(local, remote *corev1.PodSpec) corev1.PodSpec {
-	remote.Tolerations = RemoteTolerations(local.Tolerations)
-	remote.Volumes = RemoteVolumes(local.Volumes, local.ServiceAccountName)
+func RemotePodSpec(local, remote *corev1.PodSpec, retriever SASecretRetriever) corev1.PodSpec {
+	remote.Containers = local.Containers
+	remote.InitContainers = local.InitContainers
 
-	remote.Containers = RemoteContainers(local.Containers, remote.Volumes)
-	remote.InitContainers = RemoteContainers(local.InitContainers, remote.Volumes)
+	remote.Tolerations = RemoteTolerations(local.Tolerations)
+	remote.Volumes = RemoteVolumes(local.Volumes, func() string { return retriever(local.ServiceAccountName) })
 
 	remote.ActiveDeadlineSeconds = local.ActiveDeadlineSeconds
-	remote.AutomountServiceAccountToken = local.AutomountServiceAccountToken
 	remote.DNSConfig = local.DNSConfig
 	remote.DNSPolicy = local.DNSPolicy
 	remote.EnableServiceLinks = local.EnableServiceLinks
@@ -153,6 +155,10 @@ func RemotePodSpec(local, remote *corev1.PodSpec) corev1.PodSpec {
 	remote.Subdomain = local.Subdomain
 	remote.TerminationGracePeriodSeconds = local.TerminationGracePeriodSeconds
 	remote.TopologySpreadConstraints = local.TopologySpreadConstraints
+
+	// The information about the service account name is not reflected, since the volume is already
+	// present, and the remote creation would fail as the corresponding service account is not present.
+	remote.AutomountServiceAccountToken = pointer.Bool(false)
 
 	// This fields are currently forced to false, to prevent invasive settings on the remote cluster (which might not work).
 	remote.HostIPC = false
@@ -177,55 +183,30 @@ func RemoteTolerations(inputTolerations []corev1.Toleration) []corev1.Toleration
 	return tolerations
 }
 
-// RemoteContainers forges the containers for a reflected pod.
-func RemoteContainers(containers []corev1.Container, volumes []corev1.Volume) []corev1.Container {
-	for i := range containers {
-		// Containers are reflected verbatim, except for the removal of the volume mounts
-		// referring to volumes that have been previously filtered.
-		containers[i].VolumeMounts = RemoteVolumeMounts(volumes, containers[i].VolumeMounts)
-	}
-
-	return containers
-}
-
-// RemoteVolumes forges the volumes for a reflected pod.
-func RemoteVolumes(inputVolumes []corev1.Volume, serviceAccountName string) []corev1.Volume {
-	volumes := make([]corev1.Volume, 0)
-
-	for i := range inputVolumes {
-		// Skip the projected/service volume which refers to the service account (if any).
-		// Depending on Kubernetes version, a service account might be mounted through either approach.
-		// This is a temporary fix, until service account reflection is fully supported.
-
-		if inputVolumes[i].Projected != nil && strings.HasPrefix(inputVolumes[i].Name, ServiceAccountVolumeName) {
-			continue
-		}
-
-		if inputVolumes[i].Secret != nil && serviceAccountName != "" &&
-			strings.HasPrefix(inputVolumes[i].Secret.SecretName, fmt.Sprintf("%s-token-", serviceAccountName)) {
-			continue
-		}
-
-		volumes = append(volumes, inputVolumes[i])
-	}
-
-	return volumes
-}
-
-// RemoteVolumeMounts forges the volume mounts for a reflected pod, given the selected volumes.
-func RemoteVolumeMounts(volumes []corev1.Volume, inputVolumeMounts []corev1.VolumeMount) []corev1.VolumeMount {
-	volumeMounts := make([]corev1.VolumeMount, 0)
-
-	for _, volumeMount := range inputVolumeMounts {
-		for i := range volumes {
-			if volumeMount.Name == volumes[i].Name {
-				volumeMounts = append(volumeMounts, volumeMount)
-				break
+// RemoteVolumes forges the volumes for a reflected pod, appropriately modifying the one related to the service account.
+func RemoteVolumes(volumes []corev1.Volume, saSecretRetriever func() string) []corev1.Volume {
+	for i := range volumes {
+		// Modify the projected volume which refers to the service account (if any),
+		// to make it target the underlying secret/configmap reflected to the remote cluster.
+		if volumes[i].Projected != nil && strings.HasPrefix(volumes[i].Name, ServiceAccountVolumeName) {
+			for j := range volumes[i].Projected.Sources {
+				source := &volumes[i].Projected.Sources[j]
+				if source.ConfigMap != nil {
+					// Replace the certification authority configmap with the remapped name.
+					source.ConfigMap.Name = RemoteConfigMapName(source.ConfigMap.Name)
+				} else if source.ServiceAccountToken != nil {
+					// Replace the ServiceAccountToken entry with the corresponding secret one.
+					source.ServiceAccountToken = nil
+					source.Secret = &corev1.SecretProjection{
+						LocalObjectReference: corev1.LocalObjectReference{Name: saSecretRetriever()},
+						Items:                []corev1.KeyToPath{{Key: corev1.ServiceAccountTokenKey, Path: corev1.ServiceAccountTokenKey}},
+					}
+				}
 			}
 		}
 	}
 
-	return volumeMounts
+	return volumes
 }
 
 // LocalNodeStats forges the summary stats for the node managed by the virtual kubelet.

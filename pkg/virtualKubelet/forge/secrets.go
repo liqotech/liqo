@@ -19,6 +19,9 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 )
 
+// DefaultServiceAccountName is the name of the default service account.
+const DefaultServiceAccountName = "default"
+
 // RemoteSecret forges the apply patch for the reflected secret, given the local one.
 func RemoteSecret(local *corev1.Secret, targetNamespace string) *corev1apply.SecretApplyConfiguration {
 	applyConfig := corev1apply.Secret(local.GetName(), targetNamespace).
@@ -29,6 +32,14 @@ func RemoteSecret(local *corev1.Secret, targetNamespace string) *corev1apply.Sec
 
 	if local.Immutable != nil {
 		applyConfig = applyConfig.WithImmutable(*local.Immutable)
+	}
+
+	// It is not possible to create a ServiceAccountToken secret if the corresponding
+	// service account does not exist, hence it is mutated to an opaque secret.
+	// In addition, we also add a label with the service account name, for easier retrieval.
+	if local.Type == corev1.SecretTypeServiceAccountToken {
+		applyConfig = applyConfig.WithType(corev1.SecretTypeOpaque).
+			WithLabels(map[string]string{corev1.ServiceAccountNameKey: local.Annotations[corev1.ServiceAccountNameKey]})
 	}
 
 	return applyConfig

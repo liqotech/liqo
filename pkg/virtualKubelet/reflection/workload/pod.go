@@ -109,6 +109,7 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 	remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 	remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowPods()
 	remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	remoteSecrets := opts.RemoteFactory.Core().V1().Secrets()
 
 	reflector := &NamespacedPodReflector{
 		NamespacedReflector: generic.NewNamespacedReflector(opts),
@@ -116,6 +117,7 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 		localPods:        pr.localPods.Pods(opts.LocalNamespace),
 		remotePods:       remote.Lister().Pods(opts.RemoteNamespace),
 		remoteShadowPods: remoteShadow.Lister().ShadowPods(opts.RemoteNamespace),
+		remoteSecrets:    remoteSecrets.Lister().Secrets(opts.RemoteNamespace),
 
 		localPodsClient:        opts.LocalClient.CoreV1().Pods(opts.LocalNamespace),
 		remotePodsClient:       opts.RemoteClient.CoreV1().Pods(opts.RemoteNamespace),

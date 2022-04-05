@@ -79,5 +79,13 @@ var _ = Describe("ConfigMaps Forging", func() {
 			Expect(output.Immutable).NotTo(BeNil())
 			Expect(output.Immutable).To(PointTo(BeTrue()))
 		})
+
+		When("it is the root CA configmap", func() {
+			BeforeEach(func() { input.SetName(forge.RootCAConfigMapName) })
+
+			It("should append a suffix to the name", func() {
+				Expect(output.Name).To(PointTo(HaveSuffix(".local")))
+			})
+		})
 	})
 })

@@ -185,9 +185,9 @@ var _ = Describe("Secret Reflection", func() {
 			})
 
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-			It("the remote object should not be created", func() {
-				_, err = client.CoreV1().Secrets(RemoteNamespace).Get(ctx, name, metav1.GetOptions{})
-				Expect(err).To(BeNotFound())
+			It("the remote object should be created, and be of type opaque", func() {
+				remote := GetSecret(RemoteNamespace)
+				Expect(remote.Type).To(Equal(corev1.SecretTypeOpaque))
 			})
 		})
 	})

@@ -34,9 +34,8 @@ import (
 )
 
 var _ = Describe("Pod forging", func() {
-	Translator := func(input string) string {
-		return input + "-reflected"
-	}
+	Translator := func(input string) string { return input + "-reflected" }
+	SASecretRetriever := func(input string) string { return input + "-secret" }
 
 	BeforeEach(func() { forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP) })
 
@@ -150,7 +149,9 @@ var _ = Describe("Pod forging", func() {
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteShadowPod(local, remote, "remote-namespace") })
+		JustBeforeEach(func() {
+			output = forge.RemoteShadowPod(local, remote, "remote-namespace", SASecretRetriever)
+		})
 
 		Context("the remote pod does not exist", func() {
 			It("should correctly forge the object meta", func() {
@@ -212,39 +213,55 @@ var _ = Describe("Pod forging", func() {
 	})
 
 	Describe("the RemoteVolumes function", func() {
-		var included, excluded, output []corev1.Volume
+		var volumes, output []corev1.Volume
 
 		BeforeEach(func() {
-			included = []corev1.Volume{
+			volumes = []corev1.Volume{
 				{Name: "first", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{}}},
 				{Name: "second", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{}}},
 				{Name: "third", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{}}},
-				{Name: "forth", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "secret"}}},
-			}
-			excluded = []corev1.Volume{
-				{Name: "kube-api-access-projected", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{}}},
-				{Name: "service-account", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "sa-token-1234"}}},
+				{Name: "forth", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{}}},
+				{Name: "kube-api-access-foo", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{Sources: []corev1.VolumeProjection{
+					{ConfigMap: &corev1.ConfigMapProjection{
+						LocalObjectReference: corev1.LocalObjectReference{Name: forge.RootCAConfigMapName},
+						Items:                []corev1.KeyToPath{{Key: "ca.crt", Path: "ca.crt"}}}},
+					{DownwardAPI: &corev1.DownwardAPIProjection{Items: []corev1.DownwardAPIVolumeFile{{Path: "namespace"}}}},
+					{ServiceAccountToken: &corev1.ServiceAccountTokenProjection{Path: "token"}},
+				}}}},
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteVolumes(append(included, excluded...), "sa") })
-		It("should propagate all volume types, except the one referring to the service account", func() { Expect(output).To(ConsistOf(included)) })
-	})
+		JustBeforeEach(func() { output = forge.RemoteVolumes(volumes, func() string { return "service-account-secret" }) })
 
-	Describe("the RemoteVolumeMounts function", func() {
-		var (
-			input, output []corev1.VolumeMount
-			volumes       []corev1.Volume
-		)
-
-		BeforeEach(func() {
-			volumes = []corev1.Volume{{Name: "first"}, {Name: "third"}, {Name: "forth"}}
-			input = []corev1.VolumeMount{{Name: "first"}, {Name: "second"}, {Name: "third"}, {Name: "forth"}, {Name: "fifth"}}
+		It("should propagate all volume types, except the one referring to the service account (which is mutated)", func() {
+			Expect(output).To(HaveLen(5))
+			Expect(output[0:3]).To(ConsistOf(volumes[0:3]))
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteVolumeMounts(volumes, input) })
-		It("should filter out the volume mounts without an associated volume", func() {
-			Expect(output).To(ConsistOf([]corev1.VolumeMount{{Name: "first"}, {Name: "third"}, {Name: "forth"}}))
+		It("should mutate the service account projected volume", func() {
+			Expect(output).To(HaveLen(5))
+			Expect(output[4].Name).To(Equal("kube-api-access-foo"))
+			Expect(output[4].Projected.Sources).To(HaveLen(3))
+
+			Expect(output[4].Projected.Sources[0]).To(Equal(corev1.VolumeProjection{
+				ConfigMap: &corev1.ConfigMapProjection{
+					// The configmap name is mutated to account for the remapping.
+					LocalObjectReference: corev1.LocalObjectReference{Name: forge.RootCAConfigMapName + ".local"},
+					Items:                []corev1.KeyToPath{{Key: "ca.crt", Path: "ca.crt"}},
+				}},
+			))
+
+			Expect(output[4].Projected.Sources[1]).To(Equal(corev1.VolumeProjection{
+				DownwardAPI: &corev1.DownwardAPIProjection{Items: []corev1.DownwardAPIVolumeFile{{Path: "namespace"}}}},
+			))
+
+			Expect(output[4].Projected.Sources[2]).To(Equal(corev1.VolumeProjection{
+				// The service account entry is replaced with the one of the corresponding secret.
+				Secret: &corev1.SecretProjection{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "service-account-secret"},
+					Items:                []corev1.KeyToPath{{Key: corev1.ServiceAccountTokenKey, Path: corev1.ServiceAccountTokenKey}},
+				}},
+			))
 		})
 	})
 

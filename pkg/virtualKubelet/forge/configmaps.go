@@ -19,9 +19,12 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 )
 
+// RootCAConfigMapName is the name of the configmap containing the root CA.
+const RootCAConfigMapName = "kube-root-ca.crt"
+
 // RemoteConfigMap forges the apply patch for the reflected configmap, given the local one.
 func RemoteConfigMap(local *corev1.ConfigMap, targetNamespace string) *corev1apply.ConfigMapApplyConfiguration {
-	applyConfig := corev1apply.ConfigMap(local.GetName(), targetNamespace).
+	applyConfig := corev1apply.ConfigMap(RemoteConfigMapName(local.GetName()), targetNamespace).
 		WithLabels(local.GetLabels()).WithLabels(ReflectionLabels()).
 		WithAnnotations(local.GetAnnotations()).
 		WithBinaryData(local.BinaryData).
@@ -32,4 +35,22 @@ func RemoteConfigMap(local *corev1.ConfigMap, targetNamespace string) *corev1app
 	}
 
 	return applyConfig
+}
+
+// LocalConfigMapName returns the local configmap name corresponding to a remote one, accounting for the root CA.
+func LocalConfigMapName(remote string) string {
+	if remote == RemoteConfigMapName(RootCAConfigMapName) {
+		return RootCAConfigMapName
+	}
+
+	return remote
+}
+
+// RemoteConfigMapName forges the name for the reflected configmap, remapping the one of the root CA to prevent collisions.
+func RemoteConfigMapName(local string) string {
+	if local == RootCAConfigMapName {
+		return RootCAConfigMapName + "." + LocalClusterID[0:5]
+	}
+
+	return local
 }

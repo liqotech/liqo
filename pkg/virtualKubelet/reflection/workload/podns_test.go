@@ -344,6 +344,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 			var (
 				local, remote *corev1.Pod
+				podInfo       workload.PodInfo
 				err           error
 			)
 
@@ -356,11 +357,13 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 						ContainerStatuses: []corev1.ContainerStatus{{RestartCount: 1}},
 					},
 				}
+				podInfo = workload.PodInfo{}
 			})
 
 			JustBeforeEach(func() {
 				CreatePod(client, local)
-				err = reflector.(*workload.NamespacedPodReflector).HandleStatus(trace.ContextWithTrace(ctx, trace.New("Pod")), local, remote)
+				err = reflector.(*workload.NamespacedPodReflector).HandleStatus(
+					trace.ContextWithTrace(ctx, trace.New("Pod")), local, remote, &podInfo)
 			})
 
 			When("the local status is not up to date", func() {
@@ -384,11 +387,9 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 					local.Status.ContainerStatuses = []corev1.ContainerStatus{{RestartCount: 1}}
 
 					// Here, we create a modified fake client which returns an error when trying to perform an update operation.
-					tmp := fake.NewSimpleClientset()
-					tmp.PrependReactor("update", "*", func(action testing.Action) (handled bool, _ runtime.Object, err error) {
+					client.PrependReactor("update", "*", func(action testing.Action) (handled bool, _ runtime.Object, err error) {
 						return true, nil, errors.New("should not call update")
 					})
-					client = tmp
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
@@ -397,7 +398,8 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			When("the remote pod UID changes", func() {
 				JustBeforeEach(func() {
 					remote.SetUID("something-different")
-					err = reflector.(*workload.NamespacedPodReflector).HandleStatus(trace.ContextWithTrace(ctx, trace.New("Pod")), local, remote)
+					err = reflector.(*workload.NamespacedPodReflector).HandleStatus(
+						trace.ContextWithTrace(ctx, trace.New("Pod")), local, remote, &podInfo)
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
@@ -414,14 +416,68 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 					remote = nil
 
 					// Here, we create a modified fake client which returns an error when trying to perform an update operation.
-					tmp := fake.NewSimpleClientset()
-					tmp.PrependReactor("update", "*", func(action testing.Action) (handled bool, _ runtime.Object, err error) {
+					client.PrependReactor("update", "*", func(action testing.Action) (handled bool, _ runtime.Object, err error) {
 						return true, nil, errors.New("should not call update")
 					})
-					client = tmp
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+			})
+		})
+
+		Context("retrieval of the secret name associated with a given service account", func() {
+			var (
+				input, output string
+				podinfo       workload.PodInfo
+				err           error
+			)
+
+			BeforeEach(func() { input = "service-account"; podinfo = workload.PodInfo{} })
+
+			JustBeforeEach(func() {
+				output, err = reflector.(*workload.NamespacedPodReflector).RetrieveServiceAccountSecretName(&podinfo, input)
+			})
+
+			When("no secret is associated with the given service account", func() {
+				BeforeEach(func() { CreateServiceAccountSecret(client, RemoteNamespace, "foo", "bar") })
+				Context("the cached information is empty", func() {
+					It("should return an error", func() { Expect(err).To(HaveOccurred()) })
+				})
+
+				Context("the cached information is present", func() {
+					BeforeEach(func() { podinfo.ServiceAccountSecret = "secret-name" })
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+					It("should return the correct secret name", func() { Expect(output).To(BeIdenticalTo("secret-name")) })
+					It("should not mutate the pod cache", func() { Expect(podinfo.ServiceAccountSecret).To(BeIdenticalTo("secret-name")) })
+				})
+			})
+
+			When("multiple secrets are associated with the given service account", func() {
+				BeforeEach(func() {
+					CreateServiceAccountSecret(client, RemoteNamespace, "foo", "service-account")
+					CreateServiceAccountSecret(client, RemoteNamespace, "bar", "service-account")
+				})
+				It("should return an error", func() { Expect(err).To(HaveOccurred()) })
+			})
+
+			When("a secret is associated with the given service account", func() {
+				ContextBody := func(serviceAccountName string) func() {
+					return func() {
+						BeforeEach(func() {
+							CreateServiceAccountSecret(client, RemoteNamespace, "secret-name", serviceAccountName)
+							if serviceAccountName == "default" {
+								input = ""
+							}
+						})
+
+						It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+						It("should return the correct secret name", func() { Expect(output).To(BeIdenticalTo("secret-name")) })
+						It("should correctly update the pod cache", func() { Expect(podinfo.ServiceAccountSecret).To(BeIdenticalTo("secret-name")) })
+					}
+				}
+
+				Context("an explicit service account", ContextBody("service-account"))
+				Context("the default service account", ContextBody("default"))
 			})
 		})
 
@@ -432,7 +488,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				err           error
 			)
 
-			BeforeEach(func() { input = "192.168.0.25" })
+			BeforeEach(func() { input = "192.168.0.25"; podinfo = workload.PodInfo{} })
 
 			When("translating a remote to a local address", func() {
 				JustBeforeEach(func() {
