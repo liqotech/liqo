@@ -17,7 +17,6 @@ package configuration
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -81,12 +80,6 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 	remote, rerr := nsr.remoteSecrets.Get(name)
 	utilruntime.Must(client.IgnoreNotFound(rerr))
 	tracer.Step("Retrieved the local and remote objects")
-
-	// Abort the reflection if the local object is a secret of type "kubernetes.io/service-account-token".
-	if lerr == nil && local.Type == corev1.SecretTypeServiceAccountToken {
-		klog.Infof("Skipping reflection of local Secret %q because of type %s", nsr.LocalRef(name), corev1.SecretTypeServiceAccountToken)
-		return nil
-	}
 
 	// Abort the reflection if the remote object is not managed by us, as we do not want to mutate others' objects.
 	if rerr == nil && !forge.IsReflected(remote) {

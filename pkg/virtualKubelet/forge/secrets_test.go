@@ -71,12 +71,28 @@ var _ = Describe("Secrets Forging", func() {
 		})
 
 		It("should correctly set the type", func() {
-			Expect(*output.Type).To(Equal(corev1.SecretTypeBasicAuth))
+			Expect(output.Type).To(PointTo(Equal(corev1.SecretTypeBasicAuth)))
 		})
 
 		It("should correctly set the immutable field", func() {
 			Expect(output.Immutable).NotTo(BeNil())
 			Expect(output.Immutable).To(PointTo(BeTrue()))
+		})
+
+		When("it is of type ServiceAccountToken", func() {
+			BeforeEach(func() {
+				input.Type = corev1.SecretTypeServiceAccountToken
+				input.Annotations[corev1.ServiceAccountNameKey] = "service-account"
+			})
+
+			It("should change the type to Opaque", func() {
+				Expect(output.Type).To(PointTo(Equal(corev1.SecretTypeOpaque)))
+			})
+
+			It("should add a label with the ServiceAccount name", func() {
+				Expect(output.Labels).To(HaveLen(4)) // Ensure existing labels are not removed
+				Expect(output.Labels).To(HaveKeyWithValue(corev1.ServiceAccountNameKey, "service-account"))
+			})
 		})
 	})
 })

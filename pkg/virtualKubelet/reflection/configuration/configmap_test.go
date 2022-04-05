@@ -185,9 +185,9 @@ var _ = Describe("ConfigMap Reflection", func() {
 			})
 
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-			It("the remote object should not be created", func() {
-				_, err = client.CoreV1().ConfigMaps(RemoteNamespace).Get(ctx, name, metav1.GetOptions{})
-				Expect(err).To(BeNotFound())
+			It("the remapped remote object should be created", func() {
+				_, err = client.CoreV1().ConfigMaps(RemoteNamespace).Get(ctx, forge.RemoteConfigMapName(name), metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 	})

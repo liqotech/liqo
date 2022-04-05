@@ -30,6 +30,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -71,6 +72,7 @@ type NamespacedPodReflector struct {
 	localPods        corev1listers.PodNamespaceLister
 	remotePods       corev1listers.PodNamespaceLister
 	remoteShadowPods vkv1alpha1listers.ShadowPodNamespaceLister
+	remoteSecrets    corev1listers.SecretNamespaceLister
 
 	localPodsClient        corev1clients.PodInterface
 	remotePodsClient       corev1clients.PodInterface
@@ -89,8 +91,9 @@ type PodInfo struct {
 	Restarts  int32
 	RemoteUID types.UID
 
-	OriginalIP   string
-	TranslatedIP string
+	ServiceAccountSecret string
+	OriginalIP           string
+	TranslatedIP         string
 }
 
 // Handle reconciles pod objects.
@@ -160,7 +163,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 		}
 
 		// If the remote is already terminating, we need to reflect the status to the local one.
-		return npr.HandleStatus(ctx, local, remote)
+		return npr.HandleStatus(ctx, local, remote, npr.RetrievePodInfo(local.GetName()))
 	}
 
 	// Do not offload the pod if it was previously rejected, as new copies should have already been re-created.
@@ -181,9 +184,25 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 		return err
 	}
 
+	// Retrieve the cached information about the current pod.
+	info := npr.RetrievePodInfo(local.GetName())
+
+	// Wrap the secret name retrieval from the service account, so that we do not have to handle errors in the forge logic.
+	var terr error
+	retriever := func(saName string) (secretName string) {
+		secretName, terr = npr.RetrieveServiceAccountSecretName(info, saName)
+		return secretName
+	}
+
 	// The local target is currently running, and it is necessary to enforce its presence in the remote cluster.
-	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace())
+	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(), retriever)
 	tracer.Step("Forged the remote pod")
+
+	// Check whether an error occurred during secret name retrieval.
+	if terr != nil {
+		klog.Errorf("Reflection of local pod %q to %q failed: %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), terr)
+		return terr
+	}
 
 	// If the remote pod does not exist, then create it.
 	if !shadowExists {
@@ -224,7 +243,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	}
 
 	// Reflect the status from the remote pod to the local one.
-	return npr.HandleStatus(ctx, local, remote)
+	return npr.HandleStatus(ctx, local, remote, info)
 }
 
 // HandleLabels mutates the local object labels, to mark the pod as offloaded and allow filtering at the informer level.
@@ -247,14 +266,13 @@ func (npr *NamespacedPodReflector) HandleLabels(ctx context.Context, local *core
 }
 
 // HandleStatus reflects the status from the remote Pod to the local one.
-func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remote *corev1.Pod) error {
+func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remote *corev1.Pod, info *PodInfo) error {
 	// Do not handle the status in case the remote pod has not yet been created, or already terminated.
 	if remote == nil {
 		return nil
 	}
 
 	tracer := trace.FromContext(ctx)
-	info := npr.RetrievePodInfo(local.GetName())
 
 	// Wrap the address translation logic, so that we do not have to handle errors in the forge logic.
 	var terr error
@@ -418,6 +436,38 @@ func (npr *NamespacedPodReflector) RetrievePodInfo(po string) *PodInfo {
 // ForgetPodInfo forgets about a pod and deletes the cached information.
 func (npr *NamespacedPodReflector) ForgetPodInfo(po string) {
 	npr.pods.Delete(po)
+}
+
+// RetrieveServiceAccountSecretName retrieves the name of the secret associated with a given service account.
+func (npr *NamespacedPodReflector) RetrieveServiceAccountSecretName(info *PodInfo, saName string) (string, error) {
+	// Check the pod information whether the corresponding service account secret name is already present.
+	// This allows to avoid more expensive list operations (although cached), and prevents issues in case the
+	// secret had been deleted and recreated with a different name, as that would lead to the modification of
+	// an immutable field.
+	if info.ServiceAccountSecret != "" {
+		return info.ServiceAccountSecret, nil
+	}
+
+	// The ServiceAccountName field in the pod specifications is optional, and empty means default.
+	if saName == "" {
+		saName = forge.DefaultServiceAccountName
+	}
+
+	saSecretRequirement, err := labels.NewRequirement(string(corev1.ServiceAccountNameKey), selection.Equals, []string{saName})
+	utilruntime.Must(err)
+
+	secrets, err := npr.remoteSecrets.List(labels.NewSelector().Add(*saSecretRequirement))
+	utilruntime.Must(err)
+
+	switch len(secrets) {
+	case 0:
+		return "", fmt.Errorf("no secrets found associated with service account %q", saName)
+	case 1:
+		info.ServiceAccountSecret = secrets[0].GetName()
+		return info.ServiceAccountSecret, nil
+	default:
+		return "", fmt.Errorf("found multiple secrets associated with service account %q", saName)
+	}
 }
 
 // MapPodIP maps the remote Pod address to the corresponding local one.

@@ -114,3 +114,11 @@ func UpdatePod(client kubernetes.Interface, pod *corev1.Pod) *corev1.Pod {
 	ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
 	return pod
 }
+
+func CreateServiceAccountSecret(client kubernetes.Interface, namespace, name, saName string) *corev1.Secret {
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+		Name: name, Namespace: namespace, Labels: map[string]string{corev1.ServiceAccountNameKey: saName}}}
+	secret, errsecret := client.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+	ExpectWithOffset(1, errsecret).ToNot(HaveOccurred())
+	return secret
+}
