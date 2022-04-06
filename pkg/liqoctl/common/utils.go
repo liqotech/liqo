@@ -58,6 +58,15 @@ func ExtractValueFromArgumentList(key string, argumentList []string) (string, er
 	return "", fmt.Errorf("argument not found")
 }
 
+// ExtractValuesFromArgumentListOrDefault extracts the argument value from an argument list or returns a default value.
+func ExtractValuesFromArgumentListOrDefault(key string, argumentList []string, defaultValue string) string {
+	value, err := ExtractValueFromArgumentList(key, argumentList)
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}
+
 // getFreePort get a free port on the system by listening in a socket,
 // checking the bound port number and then closing the socket.
 func getFreePort() (int, error) {

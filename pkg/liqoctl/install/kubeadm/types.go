@@ -26,6 +26,9 @@ const (
 	serviceCIDRParameterFilter = `--service-cluster-ip-range`
 	podCIDRParameterFilter     = `--cluster-cidr`
 	kubeSystemNamespaceName    = "kube-system"
+
+	defaultPodCIDR     = "172.16.0.0/16"
+	defaultServiceCIDR = "10.96.0.0/12"
 )
 
 var kubeControllerManagerLabels = map[string]string{"component": "kube-controller-manager", "tier": "control-plane"}
