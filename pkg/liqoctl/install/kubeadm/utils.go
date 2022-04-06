@@ -41,16 +41,11 @@ func retrieveClusterParameters(ctx context.Context, client kubernetes.Interface)
 	}
 
 	command := kubeControllerSpec.Items[0].Spec.Containers[0].Command
-	podCIDR, err = common.ExtractValueFromArgumentList(podCIDRParameterFilter, command)
+	podCIDR = common.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, command, defaultPodCIDR)
 	logsutils.Infof("Extracted podCIDR: %s\n", podCIDR)
-	if err != nil {
-		return "", "", err
-	}
-	serviceCIDR, err = common.ExtractValueFromArgumentList(serviceCIDRParameterFilter, command)
+
+	serviceCIDR = common.ExtractValuesFromArgumentListOrDefault(serviceCIDRParameterFilter, command, defaultServiceCIDR)
 	logsutils.Infof("Extracted serviceCIDR: %s\n", serviceCIDR)
-	if err != nil {
-		return "", "", err
-	}
 
 	return podCIDR, serviceCIDR, nil
 }
