@@ -38,7 +38,12 @@ linters-settings:
             recommendations:
               - k8s.io/klog/v2
   gci:
-    local-prefixes: github.com/liqotech/liqo
+    sections:
+    - standard                          # Captures all standard packages if they do not match another section.
+    - newLine                           # Prints an empty line.
+    - default                           # Contains all imports that could not be matched to another section type.
+    - newLine                           # Prints an empty line.
+    - prefix(github.com/liqotech/liqo)  # Groups all imports with the specified Prefix.
   goconst:
     min-len: 2
     min-occurrences: 2
