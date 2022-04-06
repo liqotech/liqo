@@ -72,8 +72,8 @@ var _ = Describe("Extract elements from OpenShift", func() {
 
 		Expect(p.parseNetworkConfig(networkConfig)).To(Succeed())
 
-		Expect(p.podCIDR).To(Equal(podCidr))
-		Expect(p.serviceCIDR).To(Equal(serviceCidr))
+		Expect(p.PodCIDR).To(Equal(podCidr))
+		Expect(p.ServiceCIDR).To(Equal(serviceCidr))
 	})
 
 })

@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
@@ -29,9 +30,13 @@ import (
 // newInstallCommand generates a new Command representing `liqoctl install`.
 func newInstallCommand(ctx context.Context) *cobra.Command {
 	var installCmd = &cobra.Command{
-		Use:   installutils.LiqoctlInstallCommand,
-		Short: installutils.LiqoctlInstallShortHelp,
-		Long:  installutils.LiqoctlInstallLongHelp,
+		Use:          installutils.LiqoctlInstallCommand,
+		Short:        installutils.LiqoctlInstallShortHelp,
+		Long:         installutils.LiqoctlInstallLongHelp,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return install.HandleInstallCommand(ctx, cmd, os.Args[0], provider.GenericProviderName)
+		},
 	}
 
 	installCmd.PersistentFlags().IntP("timeout", "t", 600, "Configure the timeout for the installation process in seconds")
@@ -62,6 +67,8 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	installCmd.PersistentFlags().Bool("enable-ha", false, "Enable the gateway component support active/passive high availability.")
 	installCmd.PersistentFlags().Int("mtu", 0, "mtu is the maximum transmission unit for interfaces managed by Liqo")
 	installCmd.PersistentFlags().Int("vpn-listening-port", liqoconst.GatewayListeningPort, "vpn-listening-port is the port used by the vpn tunnel")
+
+	provider.GenerateFlags(installCmd)
 
 	for _, providerName := range provider.Providers {
 		cmd, err := getCommand(ctx, providerName)

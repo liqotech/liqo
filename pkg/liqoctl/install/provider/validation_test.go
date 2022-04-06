@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k3s
+package provider
 
 import (
 	"context"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -31,11 +30,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
-func TestFetchingParameters(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Test K3S provider")
-}
-
 const (
 	apiServer   = "https://example.com"
 	podCIDR     = "10.0.0.0/16"
@@ -46,7 +40,7 @@ var _ = Describe("Extract elements from K3S", func() {
 
 	It("test flags", func() {
 
-		p := NewProvider().(*k3sProvider)
+		p := &GenericProvider{}
 
 		cmd := &cobra.Command{}
 
@@ -62,13 +56,11 @@ var _ = Describe("Extract elements from K3S", func() {
 
 		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
 
-		Expect(p.podCIDR).To(Equal(podCIDR))
-		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
-		Expect(p.apiServer).To(Equal(apiServer))
+		Expect(p.PodCIDR).To(Equal(podCIDR))
+		Expect(p.ServiceCIDR).To(Equal(serviceCIDR))
+		Expect(p.APIServer).To(Equal(apiServer))
 
-		Expect(p.ClusterLabels).ToNot(BeEmpty())
-		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
-
+		Expect(p.ClusterLabels).To(BeEmpty())
 	})
 
 	Context("test api server validation", func() {
@@ -80,10 +72,10 @@ var _ = Describe("Extract elements from K3S", func() {
 
 		DescribeTable("api server validation table",
 			func(c apiServerValidatorTestcase) {
-				p := NewProvider().(*k3sProvider)
-				p.apiServer = c.apiServerAddress
+				p := &GenericProvider{}
+				p.APIServer = c.apiServerAddress
 
-				err := p.validateAPIServer()
+				err := ValidateAPIServer(p.APIServer)
 				Expect(err).To(c.expectedOutput)
 			},
 
@@ -123,11 +115,11 @@ var _ = Describe("Extract elements from K3S", func() {
 
 				client := fake.NewSimpleClientset(c.serviceList...)
 
-				p := NewProvider().(*k3sProvider)
-				p.serviceCIDR = serviceCIDR
-				p.k8sClient = client
+				p := &GenericProvider{}
+				p.ServiceCIDR = serviceCIDR
+				p.K8sClient = client
 
-				err := p.validateServiceCIDR(ctx)
+				err := ValidateServiceCIDR(ctx, p.K8sClient, p.ServiceCIDR)
 				Expect(err).To(c.expectedOutput)
 			},
 
@@ -178,11 +170,11 @@ var _ = Describe("Extract elements from K3S", func() {
 
 				client := fake.NewSimpleClientset(c.podList...)
 
-				p := NewProvider().(*k3sProvider)
-				p.podCIDR = podCIDR
-				p.k8sClient = client
+				p := &GenericProvider{}
+				p.PodCIDR = podCIDR
+				p.K8sClient = client
 
-				err := p.validatePodCIDR(ctx)
+				err := ValidatePodCIDR(ctx, p.K8sClient, p.PodCIDR)
 				Expect(err).To(c.expectedOutput)
 			},
 

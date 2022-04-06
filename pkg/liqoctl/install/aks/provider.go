@@ -55,10 +55,6 @@ type aksProvider struct {
 	resourceName      string
 
 	authorizer *autorest.Authorizer
-
-	endpoint    string
-	serviceCIDR string
-	podCIDR     string
 }
 
 // NewProvider initializes a new AKS provider struct.
@@ -139,7 +135,7 @@ func (k *aksProvider) ExtractChartParameters(ctx context.Context, config *rest.C
 	}
 
 	if !commonArgs.DisableEndpointCheck {
-		if valid, err := installutils.CheckEndpoint(k.endpoint, config); err != nil {
+		if valid, err := installutils.CheckEndpoint(k.APIServer, config); err != nil {
 			return err
 		} else if !valid {
 			return fmt.Errorf("the retrieved cluster information and the cluster selected in the kubeconfig do not match")
@@ -152,12 +148,12 @@ func (k *aksProvider) ExtractChartParameters(ctx context.Context, config *rest.C
 // UpdateChartValues patches the values map with the values required for the selected cluster.
 func (k *aksProvider) UpdateChartValues(values map[string]interface{}) {
 	values["apiServer"] = map[string]interface{}{
-		"address": k.endpoint,
+		"address": k.APIServer,
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR":     k.serviceCIDR,
-			"podCIDR":         k.podCIDR,
+			"serviceCIDR":     k.ServiceCIDR,
+			"podCIDR":         k.PodCIDR,
 			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
@@ -207,7 +203,7 @@ func (k *aksProvider) parseClusterOutput(ctx context.Context, cluster *container
 		return fmt.Errorf("unknown AKS network plugin %v", cluster.NetworkProfile.NetworkPlugin)
 	}
 
-	k.endpoint = *cluster.Fqdn
+	k.APIServer = *cluster.Fqdn
 
 	if cluster.Location != nil {
 		k.ClusterLabels[consts.TopologyRegionClusterLabel] = *cluster.Location
@@ -218,8 +214,8 @@ func (k *aksProvider) parseClusterOutput(ctx context.Context, cluster *container
 
 // setupKubenet setups the data for a Kubenet cluster.
 func (k *aksProvider) setupKubenet(ctx context.Context, cluster *containerservice.ManagedCluster) error {
-	k.podCIDR = *cluster.ManagedClusterProperties.NetworkProfile.PodCidr
-	k.serviceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
+	k.PodCIDR = *cluster.ManagedClusterProperties.NetworkProfile.PodCidr
+	k.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
 
 	// AKS Kubenet cluster does not have a subnet (and a subnetID) by default, in this case the node CIDR
 	// is the default one.
@@ -265,8 +261,8 @@ func (k *aksProvider) setupAzureCNI(ctx context.Context, cluster *containerservi
 		return err
 	}
 
-	k.podCIDR = *vnet.AddressPrefix
-	k.serviceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
+	k.PodCIDR = *vnet.AddressPrefix
+	k.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
 
 	return nil
 }

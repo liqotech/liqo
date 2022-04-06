@@ -47,10 +47,6 @@ type eksProvider struct {
 	region         string
 	eksClusterName string
 
-	endpoint    string
-	serviceCIDR string
-	podCIDR     string
-
 	iamLiqoUser iamLiqoUser
 }
 
@@ -146,7 +142,7 @@ func (k *eksProvider) ExtractChartParameters(ctx context.Context, config *rest.C
 	}
 
 	if !commonArgs.DisableEndpointCheck {
-		if valid, err := installutils.CheckEndpoint(k.endpoint, config); err != nil {
+		if valid, err := installutils.CheckEndpoint(k.APIServer, config); err != nil {
 			return err
 		} else if !valid {
 			return fmt.Errorf("the retrieved cluster information and the cluster selected in the kubeconfig do not match")
@@ -170,12 +166,12 @@ func (k *eksProvider) UpdateChartValues(values map[string]interface{}) {
 		},
 	}
 	values["apiServer"] = map[string]interface{}{
-		"address": k.endpoint,
+		"address": k.APIServer,
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR":     k.serviceCIDR,
-			"podCIDR":         k.podCIDR,
+			"serviceCIDR":     k.ServiceCIDR,
+			"podCIDR":         k.PodCIDR,
 			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}

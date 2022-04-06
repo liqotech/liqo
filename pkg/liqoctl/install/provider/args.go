@@ -29,13 +29,14 @@ import (
 )
 
 var providersDefaultMTU = map[string]float64{
-	"kubeadm":   1440,
-	"kind":      1440,
-	"k3s":       1440,
-	"eks":       1440,
-	"gke":       1400,
-	"aks":       1360,
-	"openshift": 1440,
+	GenericProviderName: 1360, // generic provider default MTU
+	"kubeadm":           1440,
+	"kind":              1440,
+	"k3s":               1440,
+	"eks":               1440,
+	"gke":               1400,
+	"aks":               1360,
+	"openshift":         1440,
 }
 
 // CommonArguments encapsulates all the arguments common across install providers.

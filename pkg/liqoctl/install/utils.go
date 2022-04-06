@@ -39,6 +39,8 @@ import (
 
 func getProviderInstance(providerType string) provider.InstallProviderInterface {
 	switch providerType {
+	case provider.GenericProviderName:
+		return provider.NewProvider()
 	case "kubeadm":
 		return kubeadm.NewProvider()
 	case "kind":

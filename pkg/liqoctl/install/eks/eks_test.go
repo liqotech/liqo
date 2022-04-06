@@ -94,8 +94,8 @@ var _ = Describe("Extract elements from EKS", func() {
 		Expect(err).To(Succeed())
 		Expect(resVpcID).To(Equal(vpcID))
 
-		Expect(p.endpoint).To(Equal(endpoint))
-		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
+		Expect(p.APIServer).To(Equal(endpoint))
+		Expect(p.ServiceCIDR).To(Equal(serviceCIDR))
 		Expect(p.ClusterLabels).ToNot(BeEmpty())
 		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
 		Expect(p.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
@@ -110,7 +110,7 @@ var _ = Describe("Extract elements from EKS", func() {
 
 		Expect(p.parseVpcOutput("id", vpcOutput)).To(Succeed())
 
-		Expect(p.podCIDR).To(Equal(podCIDR))
+		Expect(p.PodCIDR).To(Equal(podCIDR))
 
 	})
 

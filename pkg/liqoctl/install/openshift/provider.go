@@ -40,10 +40,6 @@ type openshiftProvider struct {
 
 	k8sClient kubernetes.Interface
 	config    *rest.Config
-
-	apiServer   string
-	serviceCIDR string
-	podCIDR     string
 }
 
 // NewProvider initializes a new OpenShift provider struct.
@@ -72,7 +68,7 @@ func (k *openshiftProvider) ExtractChartParameters(ctx context.Context, config *
 
 	k.k8sClient = k8sClient
 	k.config = config
-	k.apiServer = config.Host
+	k.APIServer = config.Host
 
 	configv1client, err := configv1.NewForConfig(config)
 	if err != nil {
@@ -90,12 +86,12 @@ func (k *openshiftProvider) ExtractChartParameters(ctx context.Context, config *
 // UpdateChartValues patches the values map with the values required for the selected cluster.
 func (k *openshiftProvider) UpdateChartValues(values map[string]interface{}) {
 	values["apiServer"] = map[string]interface{}{
-		"address": k.apiServer,
+		"address": k.APIServer,
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR":     k.serviceCIDR,
-			"podCIDR":         k.podCIDR,
+			"serviceCIDR":     k.ServiceCIDR,
+			"podCIDR":         k.PodCIDR,
 			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
@@ -123,7 +119,7 @@ func (k *openshiftProvider) parseNetworkConfig(networkConfig *configv1api.Networ
 		return fmt.Errorf("no cluster network found")
 	case 1:
 		clusterNetwork := &networkConfig.Status.ClusterNetwork[0]
-		k.podCIDR = clusterNetwork.CIDR
+		k.PodCIDR = clusterNetwork.CIDR
 	default:
 		return fmt.Errorf("multiple cluster networks found")
 	}
@@ -132,7 +128,7 @@ func (k *openshiftProvider) parseNetworkConfig(networkConfig *configv1api.Networ
 	case 0:
 		return fmt.Errorf("no service network found")
 	case 1:
-		k.serviceCIDR = networkConfig.Status.ServiceNetwork[0]
+		k.ServiceCIDR = networkConfig.Status.ServiceNetwork[0]
 	default:
 		return fmt.Errorf("multiple service networks found")
 	}

@@ -50,10 +50,6 @@ type gkeProvider struct {
 	projectID string
 	zone      string
 	clusterID string
-
-	endpoint    string
-	serviceCIDR string
-	podCIDR     string
 }
 
 // NewProvider initializes a new GKE provider struct.
@@ -112,7 +108,7 @@ func (k *gkeProvider) ExtractChartParameters(ctx context.Context, config *rest.C
 	k.parseClusterOutput(cluster)
 
 	if !commonArgs.DisableEndpointCheck {
-		if valid, err := installutils.CheckEndpoint(k.endpoint, config); err != nil {
+		if valid, err := installutils.CheckEndpoint(k.APIServer, config); err != nil {
 			return err
 		} else if !valid {
 			return fmt.Errorf("the retrieved cluster information and the cluster selected in the kubeconfig do not match")
@@ -151,12 +147,12 @@ func (k *gkeProvider) getRegion() string {
 // UpdateChartValues patches the values map with the values required for the selected cluster.
 func (k *gkeProvider) UpdateChartValues(values map[string]interface{}) {
 	values["apiServer"] = map[string]interface{}{
-		"address": k.endpoint,
+		"address": k.APIServer,
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR":     k.serviceCIDR,
-			"podCIDR":         k.podCIDR,
+			"serviceCIDR":     k.ServiceCIDR,
+			"podCIDR":         k.PodCIDR,
 			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
@@ -185,9 +181,9 @@ func GenerateFlags(command *cobra.Command) {
 }
 
 func (k *gkeProvider) parseClusterOutput(cluster *container.Cluster) {
-	k.endpoint = cluster.Endpoint
-	k.serviceCIDR = cluster.ServicesIpv4Cidr
-	k.podCIDR = cluster.ClusterIpv4Cidr
+	k.APIServer = cluster.Endpoint
+	k.ServiceCIDR = cluster.ServicesIpv4Cidr
+	k.PodCIDR = cluster.ClusterIpv4Cidr
 
 	// if the cluster name has not been provided (and set in the pre-checks)
 	// and we have not to generate it,

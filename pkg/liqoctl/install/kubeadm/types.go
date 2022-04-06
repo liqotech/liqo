@@ -34,9 +34,6 @@ var kubeControllerManagerLabels = map[string]string{"component": "kube-controlle
 // those values.
 type Kubeadm struct {
 	provider.GenericProvider
-	APIServer   string
-	Config      *rest.Config
-	PodCIDR     string
-	ServiceCIDR string
-	K8sClient   kubernetes.Interface
+	Config    *rest.Config
+	K8sClient kubernetes.Interface
 }

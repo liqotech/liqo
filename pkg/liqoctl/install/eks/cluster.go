@@ -66,13 +66,13 @@ func (k *eksProvider) parseClusterOutput(describeClusterResult *eks.DescribeClus
 		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid endpoint", k.eksClusterName, k.region)
 		return "", err
 	}
-	k.endpoint = *describeClusterResult.Cluster.Endpoint
+	k.APIServer = *describeClusterResult.Cluster.Endpoint
 
 	if describeClusterResult.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr == nil {
 		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid service CIDR", k.eksClusterName, k.region)
 		return "", err
 	}
-	k.serviceCIDR = *describeClusterResult.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr
+	k.ServiceCIDR = *describeClusterResult.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr
 
 	if describeClusterResult.Cluster.ResourcesVpcConfig.VpcId == nil {
 		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid VPC ID", k.eksClusterName, k.region)
@@ -96,7 +96,7 @@ func (k *eksProvider) parseVpcOutput(vpcID string, describeVpcResult *ec2.Descri
 		err := fmt.Errorf("multiple VPC found with id %v", vpcID)
 		return err
 	}
-	k.podCIDR = *vpcs[0].CidrBlock
+	k.PodCIDR = *vpcs[0].CidrBlock
 
 	return nil
 }

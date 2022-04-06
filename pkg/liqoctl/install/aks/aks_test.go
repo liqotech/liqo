@@ -94,9 +94,9 @@ var _ = Describe("Extract elements from AKS", func() {
 
 		Expect(p.parseClusterOutput(ctx, clusterOutput)).To(Succeed())
 
-		Expect(p.endpoint).To(Equal(endpoint))
-		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
-		Expect(p.podCIDR).To(Equal(podCIDR))
+		Expect(p.APIServer).To(Equal(endpoint))
+		Expect(p.ServiceCIDR).To(Equal(serviceCIDR))
+		Expect(p.PodCIDR).To(Equal(podCIDR))
 		Expect(len(p.ReservedSubnets)).To(BeNumerically("==", 1))
 		Expect(p.ReservedSubnets).To(ContainElement(defaultAksNodeCIDR))
 		Expect(p.ClusterLabels).ToNot(BeEmpty())

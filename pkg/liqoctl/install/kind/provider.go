@@ -52,8 +52,8 @@ func (k *Kind) UpdateChartValues(values map[string]interface{}) {
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR":     k.ServiceCIDR,
-			"podCIDR":         k.PodCIDR,
+			"serviceCIDR":     k.Kubeadm.ServiceCIDR,
+			"podCIDR":         k.Kubeadm.PodCIDR,
 			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
