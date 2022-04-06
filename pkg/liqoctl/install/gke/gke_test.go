@@ -82,9 +82,9 @@ var _ = Describe("Extract elements from GKE", func() {
 
 		p.parseClusterOutput(clusterOutput)
 
-		Expect(p.endpoint).To(Equal(endpoint))
-		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
-		Expect(p.podCIDR).To(Equal(podCIDR))
+		Expect(p.APIServer).To(Equal(endpoint))
+		Expect(p.ServiceCIDR).To(Equal(serviceCIDR))
+		Expect(p.PodCIDR).To(Equal(podCIDR))
 
 		Expect(p.ClusterLabels).ToNot(BeEmpty())
 		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
