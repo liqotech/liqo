@@ -183,7 +183,7 @@ var _ = Describe("NodeProvider", func() {
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId: "remote-id",
+					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
@@ -245,7 +245,7 @@ var _ = Describe("NodeProvider", func() {
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId: "remote-id",
+					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),

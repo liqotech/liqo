@@ -64,7 +64,7 @@ type NoRouteFound struct {
 }
 
 func (nrf *NoRouteFound) Error() string {
-	return strings.Join([]string{"no route found for IP address: ", nrf.IPAddress}, "")
+	return "no route found for IP address: " + nrf.IPAddress
 }
 
 // MissingInit is returned when a data structure is tried to be used before correct

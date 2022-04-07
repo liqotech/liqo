@@ -31,7 +31,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/internal/utils/errdefs"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -65,7 +64,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	}
 
 	if c.PodWorkers == 0 || c.ServiceWorkers == 0 || c.EndpointSliceWorkers == 0 || c.ConfigMapWorkers == 0 || c.SecretWorkers == 0 {
-		return errdefs.InvalidInput("reflection workers must be greater than 0")
+		return errors.New("reflection workers must be greater than 0")
 	}
 
 	localConfig, err := utils.GetRestConfig(c.HomeKubeconfig)

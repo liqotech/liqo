@@ -49,7 +49,6 @@ const (
 	localNATPodCIDR      = "10.0.1.0/24"
 	localNATExternalCIDR = "192.168.30.0/24"
 	externalEndpointIP   = "10.0.50.6"
-	internalEndpointIP   = "10.0.0.6"
 	invalidValue         = "invalid value"
 )
 
@@ -62,7 +61,7 @@ func fillNetworkPool(pool string, ipam *IPAM) error {
 
 	// Get halves mask length
 	mask := utils.GetMask(pool)
-	mask += 1
+	mask++
 
 	// Get first half CIDR
 	halfCidr := utils.SetMask(pool, mask)
@@ -1093,7 +1092,7 @@ var _ = Describe("Ipam", func() {
 					slicedPrefix := strings.SplitN(externalCIDR, ".", 4)
 					slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
 					Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
-					expectedIp := response.GetIp()
+					expectedIP := response.GetIp()
 
 					// Reflection cluster2
 					response, err = ipam.MapEndpointIP(context.Background(), &MapRequest{
@@ -1101,7 +1100,7 @@ var _ = Describe("Ipam", func() {
 						Ip:        "20.0.0.1",
 					})
 					Expect(err).To(BeNil())
-					Expect(response.GetIp()).To(Equal(expectedIp))
+					Expect(response.GetIp()).To(Equal(expectedIP))
 				})
 			})
 			Context("and the remote cluster has remapped the local ExternalCIDR", func() {

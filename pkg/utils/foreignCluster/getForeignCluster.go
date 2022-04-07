@@ -16,7 +16,7 @@ package foreigncluster
 
 import (
 	"context"
-	goerrors "errors"
+	"errors"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -59,7 +59,7 @@ func GetForeignClusterByID(ctx context.Context, cl client.Client, clusterID stri
 // GetOlderForeignCluster returns the ForeignCluster from the list with the older creationTimestamp.
 func GetOlderForeignCluster(
 	foreignClusterList *discoveryv1alpha1.ForeignClusterList) (foreignCluster *discoveryv1alpha1.ForeignCluster) {
-	var olderTime *metav1.Time = nil
+	var olderTime *metav1.Time
 	for i := range foreignClusterList.Items {
 		fc := &foreignClusterList.Items[i]
 		if olderTime.IsZero() || fc.CreationTimestamp.Before(olderTime) {
@@ -89,7 +89,7 @@ func getAuthAddress(ctx context.Context, cl client.Client, authServiceAddress, n
 		// get the IP from the LoadBalancer service
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			// the service has no external IPs
-			err := goerrors.New("no valid external IP for LoadBalancer Service")
+			err := errors.New("no valid external IP for LoadBalancer Service")
 			klog.Error(err)
 			return "", err
 		}
@@ -101,7 +101,7 @@ func getAuthAddress(ctx context.Context, cl client.Client, authServiceAddress, n
 			return ip, nil
 		} else {
 			// the service has no external IPs
-			err := goerrors.New("no valid external IP for LoadBalancer Service")
+			err := errors.New("no valid external IP for LoadBalancer Service")
 			klog.Error(err)
 			return "", err
 		}

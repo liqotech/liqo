@@ -16,6 +16,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -60,8 +61,6 @@ const (
 	Cluster2Name = "cluster2"
 	// Cluster2Color color used in output messages for cluster passed as second argument.
 	Cluster2Color = pterm.FgLightMagenta
-
-	proxyName = "liqo-proxy"
 
 	authPort  = "https"
 	proxyPort = "http"
@@ -398,7 +397,7 @@ func (c *Cluster) TearDownTenantNamespace(ctx context.Context, remoteClusterID *
 			msg := fmt.Sprintf("timout (%.0fs) expired while waiting tenant namespace {%s} to be deleted",
 				timeout.Seconds(), c.locTenantNamespace)
 			s.Fail(msg)
-			return fmt.Errorf(msg)
+			return errors.New(msg)
 		default:
 			err := c.locK8sClient.CoreV1().Namespaces().Delete(ctx, c.locTenantNamespace, metav1.DeleteOptions{})
 			if client.IgnoreNotFound(err) != nil {
@@ -791,13 +790,13 @@ func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *di
 	if c.clusterID.ClusterID == remoteClusterID.ClusterID {
 		msg := fmt.Sprintf("the clusterID {%s} of remote cluster {%s} is equal to the ID of the local cluster", remID, remName)
 		s.Fail(msg)
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	if err := authenticationtoken.StoreInSecret(ctx, c.locK8sClient, remID, token, c.namespace); err != nil {
 		msg := fmt.Sprintf("an error occurred while storing auth token for remote cluster {%s}: %v", remName, err)
 		s.Fail(msg)
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	// Get existing foreign cluster if it does exist
@@ -842,7 +841,7 @@ func (c *Cluster) DeleteForeignCluster(ctx context.Context, remoteClusterID *dis
 	if c.clusterID.ClusterID == remoteClusterID.ClusterID {
 		msg := fmt.Sprintf("the clusterID {%s} of remote cluster {%s} is equal to the ID of the local cluster", remID, remName)
 		s.Fail(msg)
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	// Get existing foreign cluster if it does exist
@@ -874,7 +873,7 @@ func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discovery
 	if c.clusterID.ClusterID == remoteClusterID.ClusterID {
 		msg := fmt.Sprintf("the clusterID {%s} of remote cluster {%s} is equal to the ID of the local cluster", remID, remName)
 		s.Fail(msg)
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	// Get existing foreign cluster if it does exist

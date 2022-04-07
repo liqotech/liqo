@@ -157,11 +157,11 @@ var _ = Describe("iptables", func() {
 			It(`should add chain rules in POSTROUTING, INPUT, FORWARD but not in PREROUTING`, func() {
 				tep.Spec.LocalNATPodCIDR = consts.DefaultCIDRValue
 
-				err := h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(BeNil())
+				Expect(h.EnsureChainRulesPerCluster(tep)).To(Succeed())
 
 				// Check existence of rule in LIQO-POSTROUTING chain
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
+				Expect(err).ToNot(HaveOccurred())
 				expectedRules := []string{
 					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID)),
 					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))}
@@ -170,6 +170,7 @@ var _ = Describe("iptables", func() {
 				// Check existence of rules in LIQO-PREROUTING chain
 				// Rule for NAT-ting the PodCIDR should not be present
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
+				Expect(err).ToNot(HaveOccurred())
 				expectedRule := fmt.Sprintf("-s %s -d %s -j %s", tep.Spec.RemoteNATPodCIDR, tep.Spec.LocalNATExternalCIDR,
 					getClusterPreRoutingMappingChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(preRoutingRules[0]))
@@ -195,6 +196,7 @@ var _ = Describe("iptables", func() {
 
 				// Check existence of rule in LIQO-PREROUTING chain
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
+				Expect(err).ToNot(HaveOccurred())
 				expectedRules := []string{
 					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID)),
 					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))}
@@ -202,16 +204,19 @@ var _ = Describe("iptables", func() {
 
 				// Check existence of rule in LIQO-FORWARD chain
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
+				Expect(err).ToNot(HaveOccurred())
 				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(forwardRules[0]))
 
 				// Check existence of rule in LIQO-INPUT chain
 				inputRules, err := h.ListRulesInChain(liqonetInputChain)
+				Expect(err).ToNot(HaveOccurred())
 				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterInputChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(inputRules[0]))
 
 				// Check existence of rule in LIQO-PREROUTING chain
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
+				Expect(err).ToNot(HaveOccurred())
 				expectedRules = []string{
 					fmt.Sprintf("-s %s -d %s -j %s", tep.Spec.RemoteNATPodCIDR,
 						tep.Spec.LocalNATPodCIDR, getClusterPreRoutingChain(tep.Spec.ClusterID)),
@@ -270,10 +275,11 @@ var _ = Describe("iptables", func() {
 				err := h.EnsureChainRulesPerCluster(tep)
 				Expect(err).To(BeNil())
 
-				clusterPostRoutingChain := strings.Join([]string{liqonetPostroutingClusterChainPrefix, strings.Split(tep.Spec.ClusterID, "-")[0]}, "")
+				clusterPostRoutingChain := liqonetPostroutingClusterChainPrefix + strings.Split(tep.Spec.ClusterID, "-")[0]
 
 				// Get rule that will be removed
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
+				Expect(err).ToNot(HaveOccurred())
 				outdatedRule := postRoutingRules[0]
 
 				// Modify resource
@@ -327,15 +333,15 @@ var _ = Describe("iptables", func() {
 
 				// Check if filter chains have been created by function.
 				Expect(filterChains).To(ContainElements(
-					strings.Join([]string{liqonetForwardingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
-					strings.Join([]string{liqonetInputClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
+					liqonetForwardingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
+					liqonetInputClusterChainPrefix+strings.Split(clusterID1, "-")[0],
 				))
 
 				// Check if nat chains have been created by function.
 				Expect(natChains).To(ContainElements(
-					strings.Join([]string{liqonetPostroutingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
-					strings.Join([]string{liqonetPreroutingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
-					strings.Join([]string{liqonetPreRoutingMappingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
+					liqonetPostroutingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
+					liqonetPreroutingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
+					liqonetPreRoutingMappingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
 				))
 			})
 		})
@@ -351,15 +357,15 @@ var _ = Describe("iptables", func() {
 
 				// Check if filter chains have been created by function.
 				Expect(filterChains).To(ContainElements(
-					strings.Join([]string{liqonetForwardingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
-					strings.Join([]string{liqonetInputClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
+					liqonetForwardingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
+					liqonetInputClusterChainPrefix+strings.Split(clusterID1, "-")[0],
 				))
 
 				// Check if nat chains have been created by function.
 				Expect(natChains).To(ContainElements(
-					strings.Join([]string{liqonetPostroutingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
-					strings.Join([]string{liqonetPreroutingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
-					strings.Join([]string{liqonetPreRoutingMappingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
+					liqonetPostroutingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
+					liqonetPreroutingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
+					liqonetPreRoutingMappingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
 				))
 
 				err = h.EnsureChainsPerCluster(clusterID1)

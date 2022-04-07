@@ -52,7 +52,7 @@ var (
 	overlayNeigh            overlay.Neighbor
 	overlayExistingNeigh    overlay.Neighbor
 	overlayExistingNeighDef overlay.Neighbor
-	/*** EnvTest Section ***/
+
 	overlayScheme  = runtime.NewScheme()
 	overlayEnvTest *envtest.Environment
 )
@@ -174,11 +174,11 @@ var _ = Describe("OverlayOperator", func() {
 				Eventually(func() error { _, err := ovc.Reconcile(context.TODO(), overlayReq); return err }).Should(BeNil())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
-				//Check that we save the tuple: (nodeName, nodeIP)
+				// Check that we save the tuple: (nodeName, nodeIP)
 				nodeIP, ok := ovc.vxlanNodes[overlayTestPod.Spec.NodeName]
 				Expect(ok).Should(BeTrue())
 				Expect(nodeIP).Should(Equal(newPod.Status.PodIP))
-				//Check that we save the tuple: (req.string, nodeName)
+				// Check that we save the tuple: (req.string, nodeName)
 				nodeName, ok := ovc.podToNode[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
 				Expect(nodeName).Should(Equal(overlayTestPod.Spec.NodeName))
@@ -201,10 +201,10 @@ var _ = Describe("OverlayOperator", func() {
 				Eventually(func() error { _, err := ovc.Reconcile(context.TODO(), overlayReq); return err }).Should(BeNil())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeFalse())
-				//Check that we remove the tuple: (nodeName, nodeIP)
+				// Check that we remove the tuple: (nodeName, nodeIP)
 				_, ok = ovc.vxlanNodes[overlayTestPod.Spec.NodeName]
 				Expect(ok).Should(BeFalse())
-				//Check that we remove the tuple: (req.string, nodeName)
+				// Check that we remove the tuple: (req.string, nodeName)
 				_, ok = ovc.podToNode[overlayReq.String()]
 				Expect(ok).Should(BeFalse())
 			})
@@ -241,11 +241,11 @@ var _ = Describe("OverlayOperator", func() {
 				Expect(added).Should(BeTrue())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
-				//Check that we save the tuple: (nodeName, nodeIP)
+				// Check that we save the tuple: (nodeName, nodeIP)
 				nodeIP, ok := ovc.vxlanNodes[overlayTestPod.Spec.NodeName]
 				Expect(ok).Should(BeTrue())
 				Expect(nodeIP).Should(Equal(overlayTestPod.Status.PodIP))
-				//Check that we save the tuple: (req.string, nodeName)
+				// Check that we save the tuple: (req.string, nodeName)
 				nodeName, ok := ovc.podToNode[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
 				Expect(nodeName).Should(Equal(overlayTestPod.Spec.NodeName))
@@ -283,7 +283,7 @@ var _ = Describe("OverlayOperator", func() {
 				Expect(added).Should(BeFalse())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
-				//Check that the entries are only two.
+				// Check that the entries are only two.
 				fdbs, err := netlink.NeighList(ovc.vxlanDev.Link.Index, syscall.AF_BRIDGE)
 				Expect(err).To(BeNil())
 				Expect(len(fdbs)).Should(BeNumerically("==", 2))
@@ -315,13 +315,13 @@ var _ = Describe("OverlayOperator", func() {
 				Expect(deleted).Should(BeTrue())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeFalse())
-				//Check that we remove the tuple: (nodeName, nodeIP)
+				// Check that we remove the tuple: (nodeName, nodeIP)
 				_, ok = ovc.vxlanNodes[overlayTestPod.Spec.NodeName]
 				Expect(ok).Should(BeFalse())
-				//Check that we remove the tuple: (req.string, nodeName)
+				// Check that we remove the tuple: (req.string, nodeName)
 				_, ok = ovc.podToNode[overlayReq.String()]
 				Expect(ok).Should(BeFalse())
-				//Check that the entries have been removed.
+				// Check that the entries have been removed.
 				fdbs, err := netlink.NeighList(ovc.vxlanDev.Link.Index, syscall.AF_BRIDGE)
 				Expect(err).To(BeNil())
 				Expect(len(fdbs)).Should(BeNumerically("==", 0))

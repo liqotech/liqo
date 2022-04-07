@@ -179,7 +179,7 @@ func (tokMan *iamTokenManager) storeToken(remoteCluster discoveryv1alpha1.Cluste
 		tokMan.tokenFiles[remoteCluster.ClusterID] = filename
 	}
 
-	err = os.WriteFile(filename, []byte(tok.Token), 0600)
+	err = os.WriteFile(filename, []byte(tok.Token), 0o600)
 	if err != nil {
 		klog.Errorf("Error writing the authentication token tmp file: %v", err)
 		return "", err

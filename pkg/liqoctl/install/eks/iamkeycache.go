@@ -65,7 +65,7 @@ func storeIamAccessKey(iamUserName, accessKeyID, secretAccessKey string) error {
 
 	fileName := filepath.Join(liqoDirPath, liqoIamCredentialsFile)
 
-	return os.WriteFile(fileName, data, 0600)
+	return os.WriteFile(fileName, data, 0o600)
 }
 
 func retrieveIamAccessKey(iamUserName string) (accessKeyID, secretAccessKey string, err error) {
@@ -84,7 +84,7 @@ func retrieveIamAccessKey(iamUserName string) (accessKeyID, secretAccessKey stri
 
 func readCache() (iamUserCredentialCache, error) {
 	// ensure the directory existence
-	err := os.MkdirAll(liqoDirPath, 0700)
+	err := os.MkdirAll(liqoDirPath, 0o700)
 	if err != nil {
 		return nil, err
 	}

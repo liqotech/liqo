@@ -29,9 +29,9 @@ type StorageType struct {
 
 // ResourceOfferSpec defines the desired state of ResourceOffer.
 type ResourceOfferSpec struct {
-	// ClusterId is the identifier of the cluster that is sending this ResourceOffer.
+	// ClusterID is the identifier of the cluster that is sending this ResourceOffer.
 	// It is the uid of the first master node in you cluster.
-	ClusterId string `json:"clusterId"`
+	ClusterID string `json:"clusterId"`
 	// Images is the list of the images already stored in the cluster.
 	Images []corev1.ContainerImage `json:"images,omitempty"`
 	// ResourceQuota contains the quantity of resources made available by the cluster.

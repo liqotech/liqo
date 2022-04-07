@@ -54,7 +54,7 @@ func WaitForResources(client dynamic.Interface, phase phase) error {
 			return fmt.Errorf("error while waiting for %s to be deleted", elem.Resource.gvr.GroupResource())
 		}
 		printLabels, _ := generateLabelString(elem.Resource.labelSelector)
-		klog.Infof("%s instances with \"%s\" labels correctly deleted", elem.Resource.gvr.GroupResource(), printLabels)
+		klog.Infof("%s instances with %q labels correctly deleted", elem.Resource.gvr.GroupResource(), printLabels)
 	}
 	for elem := range conditionResult {
 		if !elem.Success {

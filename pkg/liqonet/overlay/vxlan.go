@@ -20,7 +20,6 @@ import (
 	"net"
 	"os"
 	"reflect"
-	"strings"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
@@ -212,9 +211,9 @@ func (vxlan *VxlanDevice) DelFDB(n Neighbor) (bool, error) {
 func (vxlan *VxlanDevice) enableRPFilter() error {
 	ifaceName := vxlan.Link.Name
 	klog.V(4).Infof("setting reverse path filtering for interface {%s} to loose mode", ifaceName)
-	rpFilterFilePath := strings.Join([]string{"/proc/sys/net/ipv4/conf/", ifaceName, "/rp_filter"}, "")
+	rpFilterFilePath := "/proc/sys/net/ipv4/conf/" + ifaceName + "/rp_filter"
 	// Enable loose mode reverse path filtering on the overlay interface.
-	err := os.WriteFile(rpFilterFilePath, []byte("2"), 0600)
+	err := os.WriteFile(rpFilterFilePath, []byte("2"), 0o600)
 	if err != nil {
 		klog.Errorf("an error occurred while writing to file %s: %v", rpFilterFilePath, err)
 		return err

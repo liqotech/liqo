@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
-	"strings"
 	"time"
 
 	certv1 "k8s.io/api/certificates/v1"
@@ -109,7 +108,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 
 	cert := &certv1.CertificateSigningRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: strings.Join([]string{identitySecretRoot, ""}, "-"),
+			GenerateName: identitySecretRoot + "-",
 			Labels:       map[string]string{remoteTenantCSRLabel: strconv.FormatBool(true)},
 		},
 		Spec: certv1.CertificateSigningRequestSpec{

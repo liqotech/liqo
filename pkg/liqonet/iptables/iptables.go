@@ -543,7 +543,7 @@ func (h IPTHandler) ListRulesInChain(chain string) ([]string, error) {
 		return nil, err
 	}
 	rules := make([]string, 0)
-	ruleToRemove := strings.Join([]string{"-N", chain}, " ")
+	ruleToRemove := "-N " + chain
 	for _, rule := range existingRules {
 		if rule != ruleToRemove {
 			rule = strings.ReplaceAll(rule, "/32", "")
@@ -593,11 +593,11 @@ func (h IPTHandler) insertLiqoRuleIfNotExists(chain string, rule IPTableRule) er
 	if numOccurrences > 1 {
 		for i := 0; i < numOccurrences; i++ {
 			if err = h.ipt.Delete(table, chain, rule...); err != nil {
-				return fmt.Errorf("unable to delete iptable rule \"%s\": %w", rule, err)
+				return fmt.Errorf("unable to delete iptable rule %q: %w", rule, err)
 			}
 		}
 		if err = h.ipt.Insert(table, chain, 1, rule...); err != nil {
-			return fmt.Errorf("unable to insert iptable rule \"%s\": %w", rule, err)
+			return fmt.Errorf("unable to insert iptable rule %q: %w", rule, err)
 		}
 	}
 	if numOccurrences == 1 {
@@ -606,17 +606,17 @@ func (h IPTHandler) insertLiqoRuleIfNotExists(chain string, rule IPTableRule) er
 			return nil
 		}
 		if err = h.ipt.Delete(table, chain, rule...); err != nil {
-			return fmt.Errorf("unable to delete iptable rule \"%s\": %w", rule, err)
+			return fmt.Errorf("unable to delete iptable rule %q: %w", rule, err)
 		}
 		if err = h.ipt.Insert(table, chain, 1, rule...); err != nil {
-			return fmt.Errorf("unable to inserte iptable rule \"%s\": %w", rule, err)
+			return fmt.Errorf("unable to inserte iptable rule %q: %w", rule, err)
 		}
 		return nil
 	}
 	if numOccurrences == 0 {
 		// If the occurrence is zero then insert the rule in first position
 		if err = h.ipt.Insert(table, chain, 1, rule...); err != nil {
-			return fmt.Errorf("unable to insert iptable rule \"%s\": %w", rule, err)
+			return fmt.Errorf("unable to insert iptable rule %q: %w", rule, err)
 		}
 		klog.Infof("Inserted rule '%s' in chain %s of table %s", rule, chain, table)
 	}

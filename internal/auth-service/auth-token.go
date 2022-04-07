@@ -16,7 +16,6 @@ package authservice
 
 import (
 	"context"
-	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,9 +33,7 @@ type tokenManager interface {
 
 func (authService *Controller) getToken() (string, error) {
 	obj, exists, err := authService.secretInformer.GetStore().GetByKey(
-		strings.Join([]string{
-			authService.namespace,
-			auth.TokenSecretName}, "/"))
+		authService.namespace + "/" + auth.TokenSecretName)
 	if err != nil {
 		klog.Error(err)
 		return "", err
@@ -64,9 +61,7 @@ func (authService *Controller) getToken() (string, error) {
 
 func (authService *Controller) createToken() error {
 	_, exists, _ := authService.secretInformer.GetStore().GetByKey(
-		strings.Join([]string{
-			authService.namespace,
-			auth.TokenSecretName}, "/"))
+		authService.namespace + "/" + auth.TokenSecretName)
 	if !exists {
 		token, err := auth.GenerateToken()
 		if err != nil {

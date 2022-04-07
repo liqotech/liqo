@@ -134,7 +134,7 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 				consts.ReplicationDestinationLabel: request.Spec.ClusterIdentity.ClusterID,
 			}
 		}
-		offer.Spec.ClusterId = u.homeCluster.ClusterID
+		offer.Spec.ClusterID = u.homeCluster.ClusterID
 		offer.Spec.ResourceQuota.Hard = resources.DeepCopy()
 		offer.Spec.Labels = u.clusterLabels
 

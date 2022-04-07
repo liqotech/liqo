@@ -20,7 +20,6 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,7 +81,7 @@ type TunnelEndpointCreator struct {
 
 // Reconcile reconciles the state of NetworkConfig resources.
 func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	tunnelEndpointCreatorFinalizer := strings.Join([]string{"tunnelendpointcreator", liqoconst.FinalizersSuffix}, ".")
+	tunnelEndpointCreatorFinalizer := "tunnelendpointcreator." + liqoconst.FinalizersSuffix
 
 	klog.V(4).Infof("Reconciling NetworkConfig %q", req)
 	tracer := trace.New("Reconcile", trace.Field{Key: "NetworkConfig", Value: req.Name})
@@ -365,7 +364,7 @@ func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(ctx context.Context, 
 		}
 		if !found {
 			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
-				strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteCluster.ClusterID}, " "))
+				"tunnelEndpoint for cluster: "+param.remoteCluster.ClusterID)
 		}
 
 		original := tep.Spec.DeepCopy()

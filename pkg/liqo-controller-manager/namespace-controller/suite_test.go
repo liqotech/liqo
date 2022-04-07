@@ -15,9 +15,7 @@
 package namespacectrl
 
 import (
-	"bytes"
 	"context"
-	"flag"
 	"path/filepath"
 	"testing"
 	"time"
@@ -47,8 +45,6 @@ const (
 )
 
 var (
-	flags               *flag.FlagSet
-	buffer              *bytes.Buffer
 	namespace           *corev1.Namespace
 	namespaceOffloading *offv1alpha1.NamespaceOffloading
 )
