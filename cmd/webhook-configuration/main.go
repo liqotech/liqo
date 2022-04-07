@@ -128,7 +128,7 @@ func main() {
 
 		// patch the mutatingWebhook with the newly generated CaBundle
 		caBundlePatch := []byte(fmt.Sprintf(
-			`[{"op":"replace","path":"/webhooks/%d/clientConfig/caBundle","value":"%s"}]`,
+			`[{"op":"replace","path":"/webhooks/%d/clientConfig/caBundle","value":%q}]`,
 			i, secrets.CAPEM()))
 
 		klog.Info()

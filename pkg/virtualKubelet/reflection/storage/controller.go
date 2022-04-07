@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -103,7 +102,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) provisionClaimOperation(c
 	//  A previous doProvisionClaim may just have finished while we were waiting for
 	//  the locks. Check that PV (with deterministic name) hasn't been provisioned
 	//  yet.
-	pvName := strings.Join([]string{"pvc", string(claim.UID)}, "-")
+	pvName := "pvc-" + string(claim.UID)
 	_, err := npvcr.volumes.Get(pvName)
 	if err == nil {
 		// Volume has been already provisioned, nothing to do.

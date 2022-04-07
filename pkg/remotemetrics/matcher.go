@@ -93,7 +93,7 @@ type matchNamespace struct {
 
 // Match returns true if the line matches the matcher.
 func (m *matchNamespace) Match(line string) bool {
-	return strings.Contains(line, fmt.Sprintf("namespace=\"%s\"", m.namespace.Namespace))
+	return strings.Contains(line, fmt.Sprintf("namespace=%q", m.namespace.Namespace))
 }
 
 type matchPod struct {
@@ -102,7 +102,7 @@ type matchPod struct {
 
 // Match returns true if the line matches the matcher.
 func (m *matchPod) Match(line string) bool {
-	return strings.Contains(line, fmt.Sprintf("pod=\"%s\"", m.pod))
+	return strings.Contains(line, fmt.Sprintf("pod=%q", m.pod))
 }
 
 // MatchNodeMetrics returns a matcher that matches the node metrics.

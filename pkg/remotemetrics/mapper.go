@@ -40,9 +40,9 @@ func NewNamespaceMapper(namespaces ...MappedNamespace) Mapper {
 // Map returns the mapped metric line translating the namespace name with the original one.
 func (nm *namespaceMapper) Map(line string) string {
 	for _, n := range nm.namespaces {
-		if strings.Contains(line, fmt.Sprintf("namespace=\"%s\"", n.Namespace)) {
+		if strings.Contains(line, fmt.Sprintf("namespace=%q", n.Namespace)) {
 			return strings.Replace(line,
-				fmt.Sprintf("namespace=\"%s\"", n.Namespace), fmt.Sprintf("namespace=\"%s\"", n.OriginalName), 1)
+				fmt.Sprintf("namespace=%q", n.Namespace), fmt.Sprintf("namespace=%q", n.OriginalName), 1)
 		}
 	}
 	return line

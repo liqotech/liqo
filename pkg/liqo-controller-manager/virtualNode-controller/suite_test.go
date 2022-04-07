@@ -16,7 +16,6 @@ package virtualnodectrl
 
 import (
 	"context"
-	"flag"
 	"path/filepath"
 	"testing"
 	"time"
@@ -71,7 +70,6 @@ var (
 	tenantNamespace2 *corev1.Namespace
 	foreignCluster1  *discoveryv1alpha1.ForeignCluster
 	foreignCluster2  *discoveryv1alpha1.ForeignCluster
-	flags            *flag.FlagSet
 )
 
 func TestVirtualNode(t *testing.T) {

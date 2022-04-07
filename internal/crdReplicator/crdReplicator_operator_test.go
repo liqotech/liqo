@@ -131,7 +131,7 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 
 		resourceOffer = sharingv1alpha1.ResourceOffer{
 			ObjectMeta: metav1.ObjectMeta{Name: resourceOfferName, Namespace: localNamespace, Labels: labels()},
-			Spec:       sharingv1alpha1.ResourceOfferSpec{ClusterId: remoteCluster.ClusterID},
+			Spec:       sharingv1alpha1.ResourceOfferSpec{ClusterID: remoteCluster.ClusterID},
 		}
 
 		networkConfig = netv1alpha1.NetworkConfig{

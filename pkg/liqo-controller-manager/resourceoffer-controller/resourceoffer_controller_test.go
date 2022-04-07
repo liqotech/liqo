@@ -167,7 +167,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId: remoteClusterIdentity.ClusterID,
+					ClusterID: remoteClusterIdentity.ClusterID,
 				},
 			},
 			expectedPhase: sharingv1alpha1.ResourceOfferManualActionRequired, // auto-accept is off
@@ -181,7 +181,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					Namespace: testNamespace,
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId: remoteClusterIdentity.ClusterID,
+					ClusterID: remoteClusterIdentity.ClusterID,
 				},
 			},
 			expectedPhase: "",
@@ -201,7 +201,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId: remoteClusterIdentity.ClusterID,
+					ClusterID: remoteClusterIdentity.ClusterID,
 				},
 			}
 			key := client.ObjectKeyFromObject(resourceOffer)

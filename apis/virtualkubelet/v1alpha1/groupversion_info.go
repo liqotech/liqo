@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	// GroupVersion is group version used to register these objects.
+	// SchemeGroupVersion is group version used to register these objects.
 	SchemeGroupVersion = schema.GroupVersion{Group: "virtualkubelet.liqo.io", Version: "v1alpha1"}
 
 	// NamespaceMapResource is the resource name used to register the NamespaceMap CRD.

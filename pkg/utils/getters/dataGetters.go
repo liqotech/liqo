@@ -15,6 +15,7 @@
 package getters
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -152,7 +153,7 @@ func retrieveIPFromService(svc *corev1.Service, serviceType corev1.ServiceType) 
 			svc.Namespace, svc.Name, svc.Spec.Type)
 		// Check if the ingress IP has been set.
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
-			return "", fmt.Errorf(errorMsg)
+			return "", errors.New(errorMsg)
 		}
 		// Retrieve the endpoint address
 		if svc.Status.LoadBalancer.Ingress[0].IP != "" {
@@ -163,7 +164,7 @@ func retrieveIPFromService(svc *corev1.Service, serviceType corev1.ServiceType) 
 		if endpointIP != "" {
 			return endpointIP, nil
 		}
-		return "", fmt.Errorf(errorMsg)
+		return "", errors.New(errorMsg)
 	default:
 		return "", fmt.Errorf("service {%s/%s} is of type {%s}, only types of {%s} and {%s} are accepted",
 			svc.Namespace, svc.Name, svc.Spec.Type, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeClusterIP)

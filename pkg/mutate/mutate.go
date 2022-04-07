@@ -32,7 +32,7 @@ import (
 // cluster-role
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=get;list;update;patch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch
-//role
+// role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;get;list;watch
 
 // Mutate mutates the object received via admReview and creates a response
@@ -43,7 +43,7 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 	// Unmarshal request into AdmissionReview struct.
 	admReview := admissionv1beta1.AdmissionReview{}
 	if err = json.Unmarshal(body, &admReview); err != nil {
-		return nil, fmt.Errorf("unmarshaling request failed with %s", err)
+		return nil, fmt.Errorf("unmarshaling request failed with %w", err)
 	}
 
 	var pod *corev1.Pod
@@ -58,7 +58,7 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 
 	// Get the Pod object and unmarshal it into its struct, if we cannot, we might as well stop here
 	if err = json.Unmarshal(admissionReviewRequest.Object.Raw, &pod); err != nil {
-		return nil, fmt.Errorf("unable unmarshal pod json object %v", err)
+		return nil, fmt.Errorf("unable unmarshal pod json object %w", err)
 	}
 
 	// set response options

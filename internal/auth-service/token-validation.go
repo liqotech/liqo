@@ -49,7 +49,7 @@ func (tokenValidator *tokenValidator) checkCredentials(
 	}
 	if !valid {
 		err = &autherrors.AuthenticationFailedError{
-			Reason: fmt.Sprintf("invalid token \"%s\"", roleRequest.GetToken()),
+			Reason: fmt.Sprintf("invalid token %q", roleRequest.GetToken()),
 		}
 		klog.Error(err)
 		return err

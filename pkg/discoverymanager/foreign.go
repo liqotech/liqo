@@ -32,8 +32,6 @@ import (
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
-const defaultInsecureSkipTLSVerify = true
-
 // updateForeignLAN updates a ForeignCluster discovered in the local network
 // 1. checks if cluster ID is already known
 // 2. if not exists, create it

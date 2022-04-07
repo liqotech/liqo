@@ -65,9 +65,6 @@ const (
 	virtualKubeletPendingReason  = "KubeletPending"
 	virtualKubeletPendingMessage = "The remote cluster has not started the VirtualKubelet for the peering yet"
 
-	resourceRequestCreatedReason  = "ResourceRequestCreated"
-	resourceRequestCreatedMessage = "The ResourceRequest has been created in the Tenant Namespace %v"
-
 	networkConfigNotFoundReason  = "NetworkConfigNotFound"
 	networkConfigNotFoundMessage = "The NetworkConfig has not been found in the Tenant Namespace %v"
 

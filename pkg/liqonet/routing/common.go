@@ -303,14 +303,12 @@ func validatePolicyRoutingRulesParameters(fromSubnet, toSubnet string) (sourceNe
 func parseIP(ip string) (net.IP, error) {
 	address := net.ParseIP(ip)
 	if address == nil {
-		return address, &liqoneterrors.ParseIPError{
-			IPToBeParsed: ip,
-		}
+		return nil, &liqoneterrors.ParseIPError{IPToBeParsed: ip}
 	}
 	return address, nil
 }
 
 // EnableIPForwarding enables ipv4 forwarding in the current network namespace.
 func EnableIPForwarding() error {
-	return os.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0600)
+	return os.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0o600)
 }

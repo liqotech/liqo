@@ -16,7 +16,6 @@ package liqonodeprovider
 
 import (
 	"context"
-	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -40,13 +39,13 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 
 	sharingInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
-			opt.LabelSelector = strings.Join([]string{consts.ReplicationOriginLabel, p.foreignClusterID}, "=")
+			opt.LabelSelector = consts.ReplicationOriginLabel + "=" + p.foreignClusterID
 		})
 	sharingInformer := sharingInformerFactory.ForResource(sharingv1alpha1.GroupVersion.WithResource(resource)).Informer()
 	sharingInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromResourceOffer))
 
 	tepInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
-		opt.LabelSelector = strings.Join([]string{consts.ClusterIDLabelName, p.foreignClusterID}, "=")
+		opt.LabelSelector = consts.ClusterIDLabelName + "=" + p.foreignClusterID
 	})
 	tepInformer := tepInformerFactory.ForResource(netv1alpha1.TunnelEndpointGroupVersionResource).Informer()
 	tepInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromTep))

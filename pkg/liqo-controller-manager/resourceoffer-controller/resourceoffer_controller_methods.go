@@ -34,7 +34,7 @@ import (
 func (r *ResourceOfferReconciler) setControllerReference(
 	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	// get the foreign cluster by clusterID label
-	foreignCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceOffer.Spec.ClusterId)
+	foreignCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceOffer.Spec.ClusterID)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -86,7 +86,7 @@ func (r *ResourceOfferReconciler) checkVirtualKubeletDeployment(
 func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	namespace := resourceOffer.Namespace
-	remoteCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceOffer.Spec.ClusterId)
+	remoteCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceOffer.Spec.ClusterID)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (r *ResourceOfferReconciler) deleteVirtualKubeletDeployment(
 	}
 
 	controllerutil.RemoveFinalizer(resourceOffer, consts.VirtualKubeletFinalizer)
-	msg := fmt.Sprintf("[%v] Deleting virtual-kubelet in namespace %v", resourceOffer.Spec.ClusterId, resourceOffer.Namespace)
+	msg := fmt.Sprintf("[%v] Deleting virtual-kubelet in namespace %v", resourceOffer.Spec.ClusterID, resourceOffer.Namespace)
 	klog.Info(msg)
 	r.eventsRecorder.Event(resourceOffer, "Normal", "VkDeleted", msg)
 	return nil
@@ -179,7 +179,7 @@ func (r *ResourceOfferReconciler) deleteVirtualKubeletDeployment(
 // deleteClusterRoleBinding deletes the ClusterRoleBinding related to a VirtualKubelet if the deployment does not exist.
 func (r *ResourceOfferReconciler) deleteClusterRoleBinding(
 	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
-	labels := forge.ClusterRoleLabels(resourceOffer.Spec.ClusterId)
+	labels := forge.ClusterRoleLabels(resourceOffer.Spec.ClusterID)
 
 	if err := r.Client.DeleteAllOf(ctx, &rbacv1.ClusterRoleBinding{}, client.MatchingLabels(labels)); err != nil {
 		klog.Error(err)
@@ -192,17 +192,17 @@ func (r *ResourceOfferReconciler) deleteClusterRoleBinding(
 func (r *ResourceOfferReconciler) getVirtualKubeletDeployment(
 	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*appsv1.Deployment, error) {
 	var deployList appsv1.DeploymentList
-	labels := forge.VirtualKubeletLabels(resourceOffer.Spec.ClusterId, r.virtualKubeletOpts)
+	labels := forge.VirtualKubeletLabels(resourceOffer.Spec.ClusterID, r.virtualKubeletOpts)
 	if err := r.Client.List(ctx, &deployList, client.MatchingLabels(labels)); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
 	if len(deployList.Items) == 0 {
-		klog.V(4).Infof("[%v] no VirtualKubelet deployment found", resourceOffer.Spec.ClusterId)
+		klog.V(4).Infof("[%v] no VirtualKubelet deployment found", resourceOffer.Spec.ClusterID)
 		return nil, nil
 	} else if len(deployList.Items) > 1 {
-		err := fmt.Errorf("[%v] more than one VirtualKubelet deployment found", resourceOffer.Spec.ClusterId)
+		err := fmt.Errorf("[%v] more than one VirtualKubelet deployment found", resourceOffer.Spec.ClusterID)
 		klog.Error(err)
 		return nil, err
 	}

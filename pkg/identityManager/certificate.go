@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -234,7 +233,7 @@ func (certManager *identityManager) createIdentityInNamespace(remoteClusterID, n
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: strings.Join([]string{identitySecretRoot, ""}, "-"),
+			GenerateName: identitySecretRoot + "-",
 			Namespace:    namespace,
 			Labels: map[string]string{
 				localIdentitySecretLabel: "true",

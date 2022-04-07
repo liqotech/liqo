@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 
 	"golang.org/x/sys/unix"
@@ -127,7 +126,7 @@ func (src *SymmetricRoutingController) addRoute(req ctrl.Request, p *corev1.Pod)
 		return false, fmt.Errorf("ip not set")
 	}
 	gwIP := utils.GetOverlayIP(nodeIP)
-	dstNet := strings.Join([]string{p.Status.PodIP, "32"}, "/")
+	dstNet := p.Status.PodIP + "/32"
 	added, err := routing.AddRoute(dstNet, gwIP, src.vxlanDev.Link.Attrs().Index, src.routingTableID, routing.DefaultFlags, routing.DefaultScope)
 	if err != nil {
 		return added, err

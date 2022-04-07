@@ -51,7 +51,7 @@ spec:
             description: ResourceOfferSpec defines the desired state of ResourceOffer.
             properties:
               clusterId:
-                description: ClusterId is the identifier of the cluster that is sending
+                description: ClusterID is the identifier of the cluster that is sending
                   this ResourceOffer. It is the uid of the first master node in you
                   cluster.
                 type: string

@@ -45,7 +45,7 @@ func (o *Args) Handler(ctx context.Context) error {
 				base := filepath.Base(filename)
 				name := strings.TrimSuffix(base, path.Ext(base))
 				title := strings.Title(strings.ReplaceAll(name, "_", " "))
-				return fmt.Sprintf("---\ntitle: \"%s\"\n---\n\n", title)
+				return fmt.Sprintf("---\ntitle: %q\n---\n\n", title)
 			}
 
 			return doc.GenMarkdownTreeCustom(o.TopCmd, o.Dest, hdrFunc, standardLinks)

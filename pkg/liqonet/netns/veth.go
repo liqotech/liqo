@@ -57,11 +57,11 @@ func CreateVethPair(hostVethName, gatewayVethName string, hostNetns, gatewayNetn
 		}
 		hostIface, err := netlink.LinkByName(hostVethName)
 		if err != nil {
-			return fmt.Errorf("an error occurred while getting interface {%s} in host netns with path {%s}: %v", hostVethName, hostNetns.Path(), err)
+			return fmt.Errorf("an error occurred while getting interface {%s} in host netns with path {%s}: %w", hostVethName, hostNetns.Path(), err)
 		}
 
 		if err = netlink.LinkSetUp(hostIface); err != nil {
-			return fmt.Errorf("an error occurred while setting UP interface {%s} in host netns with path {%s}: %v", hostVethName, hostNetns.Path(), err)
+			return fmt.Errorf("an error occurred while setting UP interface {%s} in host netns with path {%s}: %w", hostVethName, hostNetns.Path(), err)
 		}
 		return nil
 	}

@@ -84,7 +84,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).Should(BeNil())
 	Expect(vrm).NotTo(BeNil())
 
-	//*** Gateway Route Manager Configuration ***/
+	// *** Gateway Route Manager Configuration ***/
 	// Create a dummy interface used as tunnel device.
 	link = &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "dummy-tunnel"}}
 	Expect(netlink.LinkAdd(link)).To(BeNil())

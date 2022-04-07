@@ -16,7 +16,6 @@ package tenantnamespace
 
 import (
 	"context"
-	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -115,5 +114,5 @@ func (nm *tenantNamespaceManager) unbindClusterRole(namespace *v1.Namespace, clu
 }
 
 func getRoleBindingName(clusterRoleName string) string {
-	return strings.Join([]string{roleBindingRoot, clusterRoleName}, "-")
+	return roleBindingRoot + "-" + clusterRoleName
 }

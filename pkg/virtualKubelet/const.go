@@ -25,12 +25,6 @@ const (
 	ReflectedpodKey = "virtualkubelet.liqo.io/source-pod"
 	// HomePodFinalizer -> the finalizer added to local pods when reflected.
 	HomePodFinalizer = "virtual-kubelet.liqo.io/provider"
-
-	// Clients configuration.
-	HOME_CLIENT_QPS      = 1000
-	HOME_CLIENTS_BURST   = 5000
-	FOREIGN_CLIENT_QPS   = 1000
-	FOREIGN_CLIENT_BURST = 5000
 )
 
 // VirtualNodeName generates the virtual node name based on the cluster ID.

@@ -43,7 +43,7 @@ var _ = Describe("Get REST config", func() {
 			Expect(os.Getenv("KUBECONFIG")).To(BeEmpty())
 			Expect(os.Setenv("KUBECONFIG", tmpFile.Name())).To(Succeed())
 			// Dummy config from a Kind cluster
-			_, err = tmpFile.Write([]byte(`apiVersion: v1
+			_, err = tmpFile.WriteString(`apiVersion: v1
 clusters:
 - cluster:
     certificate-authority-data: YQo=
@@ -63,7 +63,7 @@ users:
   user:
     client-certificate-data: YQo=
     client-key-data: YQo=
-`))
+`)
 			Expect(err).To(BeNil())
 		})
 		It("Should not fail", func() {

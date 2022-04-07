@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"strings"
 	"sync"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -82,7 +81,7 @@ type TunnelController struct {
 // NewTunnelController instantiates and initializes the tunnel controller.
 func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sClient k8s.Interface, cl client.Client,
 	readyClustersMutex *sync.Mutex, readyClusters map[string]struct{}, gatewayNetns, hostNetns ns.NetNS, mtu, port int) (*TunnelController, error) {
-	tunnelEndpointFinalizer := strings.Join([]string{liqoconst.LiqoGatewayOperatorName, liqoconst.FinalizersSuffix}, ".")
+	tunnelEndpointFinalizer := liqoconst.LiqoGatewayOperatorName + "." + liqoconst.FinalizersSuffix
 	tc := &TunnelController{
 		Client:             cl,
 		EventRecorder:      er,

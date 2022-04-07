@@ -109,7 +109,6 @@ func (r *ResourceRequestReconciler) deleteClusterRoleBinding(ctx context.Context
 
 func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) error {
-
 	var resourceOffer sharingv1alpha1.ResourceOffer
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Name:      getOfferName(r.HomeCluster),

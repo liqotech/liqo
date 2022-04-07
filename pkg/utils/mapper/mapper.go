@@ -35,7 +35,7 @@ import (
 
 type LiqoMapper func(c *rest.Config) (meta.RESTMapper, error)
 
-// get the default liqo mapper.
+// LiqoMapperProvider returns the default liqo mapper.
 func LiqoMapperProvider(scheme *runtime.Scheme, additionalGroupVersions ...schema.GroupVersion) LiqoMapper {
 	mapper := meta.NewDefaultRESTMapper(scheme.PrioritizedVersionsAllGroups())
 
