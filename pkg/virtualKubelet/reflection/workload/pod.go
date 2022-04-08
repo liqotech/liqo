@@ -16,7 +16,9 @@ package workload
 
 import (
 	"context"
+	"errors"
 	"io"
+	"os"
 	"sync"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
@@ -127,7 +129,8 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 		remoteRESTConfig: pr.remoteRESTConfig,
 		remoteMetrics:    pr.remoteMetricsFactory(opts.RemoteNamespace),
 
-		ipamclient: pr.ipamclient,
+		ipamclient:                pr.ipamclient,
+		kubernetesServiceIPGetter: pr.KubernetesServiceIPGetter(),
 	}
 
 	pr.handlers.Store(opts.LocalNamespace, NamespacedPodHandler(reflector))
@@ -193,6 +196,37 @@ func (pr *PodReflector) Stats(ctx context.Context) (*statsv1alpha1.Summary, erro
 	}
 
 	return forge.LocalNodeStats(pods), nil
+}
+
+// KubernetesServiceIPGetter returns a function to retrieve the IP associated with the kubernetes.default service.
+func (pr *PodReflector) KubernetesServiceIPGetter() func(ctx context.Context) (string, error) {
+	var address string
+	var lock sync.Mutex
+
+	return func(ctx context.Context) (string, error) {
+		lock.Lock()
+		defer lock.Unlock()
+
+		// If the address has already been saved in cache, then return it directly.
+		if address != "" {
+			return address, nil
+		}
+
+		kubernetesService := os.Getenv("KUBERNETES_SERVICE_HOST")
+		if kubernetesService == "" {
+			return "", errors.New("failed to retrieve the kubernetes.default IP from KUBERNETES_SERVICE_HOST")
+		}
+
+		// Otherwise we need to interact with the IPAM to retrieve the correct mapping.
+		response, err := pr.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{
+			ClusterID: forge.RemoteClusterID, Ip: kubernetesService})
+		if err != nil {
+			return "", err
+		}
+
+		address = response.Ip
+		return address, nil
+	}
 }
 
 // Handle operates as fallback to reconcile pod objects not managed by namespaced handlers.

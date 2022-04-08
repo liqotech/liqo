@@ -43,6 +43,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
 	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
@@ -82,8 +83,9 @@ type NamespacedPodReflector struct {
 	remoteRESTConfig *rest.Config
 	remoteMetrics    metricsv1beta1.PodMetricsInterface
 
-	ipamclient ipam.IpamClient
-	pods       sync.Map /* implicit signature: map[string]*PodInfo */
+	ipamclient                ipam.IpamClient
+	kubernetesServiceIPGetter func(context.Context) (string, error)
+	pods                      sync.Map /* implicit signature: map[string]*PodInfo */
 }
 
 // PodInfo contains information about known pods.
@@ -187,22 +189,13 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	// Retrieve the cached information about the current pod.
 	info := npr.RetrievePodInfo(local.GetName())
 
-	// Wrap the secret name retrieval from the service account, so that we do not have to handle errors in the forge logic.
-	var terr error
-	retriever := func(saName string) (secretName string) {
-		secretName, terr = npr.RetrieveServiceAccountSecretName(info, saName)
-		return secretName
-	}
-
 	// The local target is currently running, and it is necessary to enforce its presence in the remote cluster.
-	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(), retriever)
-	tracer.Step("Forged the remote pod")
-
-	// Check whether an error occurred during secret name retrieval.
+	target, terr := npr.ForgeShadowPod(ctx, local, shadow, info)
 	if terr != nil {
 		klog.Errorf("Reflection of local pod %q to %q failed: %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), terr)
 		return terr
 	}
+	tracer.Step("Forged the remote pod")
 
 	// If the remote pod does not exist, then create it.
 	if !shadowExists {
@@ -263,6 +256,39 @@ func (npr *NamespacedPodReflector) HandleLabels(ctx context.Context, local *core
 
 	klog.Infof("Local pod %q labels successfully enforced", npr.LocalRef(local.GetName()))
 	return nil
+}
+
+// ForgeShadowPod forges the ShadowPod object to be enforced by the reflection process.
+func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *corev1.Pod,
+	shadow *vkv1alpha1.ShadowPod, info *PodInfo) (*vkv1alpha1.ShadowPod, error) {
+	var saerr, kserr error
+
+	// Wrap the secret name retrieval from the service account, so that we do not have to handle errors in the forge logic.
+	saSecretRetriever := func(saName string) (secretName string) {
+		secretName, saerr = npr.RetrieveServiceAccountSecretName(info, saName)
+		return secretName
+	}
+
+	// Wrap the kubernetes service remapped IP retrieval, so that we do not have to handle errors in the forge logic.
+	ipGetter := func() (ip string) {
+		ip, kserr = npr.kubernetesServiceIPGetter(ctx)
+		return ip
+	}
+
+	// Forge the target shadowpod object.
+	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(), saSecretRetriever, ipGetter)
+
+	// Check whether an error occurred during secret name retrieval.
+	if saerr != nil {
+		return nil, saerr
+	}
+
+	// Check whether an error occurred during kubernetes.default IP remapping retrieval.
+	if kserr != nil {
+		return nil, kserr
+	}
+
+	return target, nil
 }
 
 // HandleStatus reflects the status from the remote Pod to the local one.

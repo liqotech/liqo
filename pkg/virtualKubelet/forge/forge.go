@@ -15,6 +15,7 @@
 package forge
 
 import (
+	"os"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,21 +29,33 @@ var (
 	LocalClusterID string
 	// RemoteClusterID -> the cluster ID associated with the remote cluster.
 	RemoteClusterID string
+
 	// LiqoNodeName -> the name of the node associated with the current virtual-kubelet.
 	LiqoNodeName string
 	// LiqoNodeIP -> the local IP of the node associated with the current virtual-kubelet.
 	LiqoNodeIP string
 	// StartTime -> the instant in time the forging logic has been started.
 	StartTime time.Time
+
+	// KubernetesServicePort -> the port of the kubernetes.default service.
+	KubernetesServicePort string
 )
 
 // Init initializes the forging logic.
 func Init(localClusterID, remoteClusterID, nodeName, nodeIP string) {
 	LocalClusterID = localClusterID
 	RemoteClusterID = remoteClusterID
+
 	LiqoNodeName = nodeName
 	LiqoNodeIP = nodeIP
 	StartTime = time.Now().Truncate(time.Second)
+
+	// The kubernetes service port is directly retrieved from the corresponding environment variable,
+	// since it is the one used locally. In case it is not found, it is defaulted to 443.
+	KubernetesServicePort = os.Getenv("KUBERNETES_SERVICE_PORT")
+	if KubernetesServicePort == "" {
+		KubernetesServicePort = "443"
+	}
 }
 
 // ApplyOptions returns the apply options configured for object reflection.
