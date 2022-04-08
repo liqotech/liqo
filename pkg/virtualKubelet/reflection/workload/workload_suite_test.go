@@ -16,6 +16,7 @@ package workload_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -61,10 +62,14 @@ var _ = BeforeSuite(func() {
 
 	testutil.LogsToGinkgoWriter()
 
+	Expect(os.Setenv("KUBERNETES_SERVICE_PORT", "8443")).To(Succeed())
 	forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP)
 })
 
-var _ = BeforeEach(func() { ctx, cancel = context.WithCancel(context.Background()) })
+var _ = BeforeEach(func() {
+	Expect(os.Setenv("KUBERNETES_SERVICE_HOST", "10.96.0.1")).To(Succeed())
+	ctx, cancel = context.WithCancel(context.Background())
+})
 var _ = AfterEach(func() { cancel() })
 
 var FakeEventHandler = func(options.Keyer) cache.ResourceEventHandler {

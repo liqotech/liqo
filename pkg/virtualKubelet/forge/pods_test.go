@@ -15,6 +15,7 @@
 package forge_test
 
 import (
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -36,8 +37,13 @@ import (
 var _ = Describe("Pod forging", func() {
 	Translator := func(input string) string { return input + "-reflected" }
 	SASecretRetriever := func(input string) string { return input + "-secret" }
+	KubernetesServiceIPGetter := func() string { return "k8ssvcaddr" }
 
-	BeforeEach(func() { forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP) })
+	BeforeEach(func() {
+		// Configure the environment variable that is retrieved by the forge.Init function.
+		Expect(os.Setenv("KUBERNETES_SERVICE_PORT", "8443")).To(Succeed())
+		forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP)
+	})
 
 	Describe("the LocalPod function", func() {
 		const restarts = 3
@@ -150,7 +156,7 @@ var _ = Describe("Pod forging", func() {
 		})
 
 		JustBeforeEach(func() {
-			output = forge.RemoteShadowPod(local, remote, "remote-namespace", SASecretRetriever)
+			output = forge.RemoteShadowPod(local, remote, "remote-namespace", SASecretRetriever, KubernetesServiceIPGetter)
 		})
 
 		Context("the remote pod does not exist", func() {
@@ -186,6 +192,52 @@ var _ = Describe("Pod forging", func() {
 					Expect(output.Spec.Pod.TerminationGracePeriodSeconds).To(PointTo(BeNumerically("==", 15)))
 				})
 			})
+		})
+	})
+
+	Describe("the RemoteContainerEnvVariables function", func() {
+		var container corev1.Container
+		var output []corev1.Container
+
+		BeforeEach(func() {
+			container = corev1.Container{
+				Name:  "foo",
+				Image: "foo/bar:v0.1-alpha3",
+				Args:  []string{"--first", "--second"},
+				Ports: []corev1.ContainerPort{{Name: "foo-port", ContainerPort: 8080}},
+				Env: []corev1.EnvVar{
+					{Name: "ENV_1", Value: "VALUE_1"},
+					{Name: "ENV_2", Value: "VALUE_2"},
+				},
+			}
+		})
+
+		JustBeforeEach(func() { output = forge.RemoteContainers([]corev1.Container{container}) })
+
+		It("should propagate all container values", func() {
+			// Remove the environment variables from the
+			envcleaner := func(c corev1.Container) corev1.Container {
+				c.Env = nil
+				return c
+			}
+
+			Expect(output).To(HaveLen(1))
+			Expect(envcleaner(output[0])).To(Equal(envcleaner(container)))
+		})
+
+		It("should configure the appropriate environment variables", func() {
+			Expect(output).To(HaveLen(1))
+			Expect(output[0].Env).To(ConsistOf(
+				corev1.EnvVar{Name: "ENV_1", Value: "VALUE_1"},
+				corev1.EnvVar{Name: "ENV_2", Value: "VALUE_2"},
+				corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: "8443"},
+				corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: "kubernetes.default"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT", Value: "tcp://kubernetes.default:8443"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP", Value: "tcp://kubernetes.default:8443"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PROTO", Value: "tcp"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PORT", Value: "8443"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_ADDR", Value: "kubernetes.default"},
+			))
 		})
 	})
 
@@ -262,6 +314,26 @@ var _ = Describe("Pod forging", func() {
 					Items:                []corev1.KeyToPath{{Key: corev1.ServiceAccountTokenKey, Path: corev1.ServiceAccountTokenKey}},
 				}},
 			))
+		})
+	})
+
+	Describe("the RemoteHostAliases function", func() {
+		var aliases, output []corev1.HostAlias
+
+		BeforeEach(func() {
+			aliases = []corev1.HostAlias{
+				{IP: "8.8.4.4", Hostnames: []string{"dns.google."}},
+				{IP: "8.8.8.8", Hostnames: []string{"dns.google."}},
+			}
+		})
+
+		JustBeforeEach(func() { output = forge.RemoteHostAliases(aliases, KubernetesServiceIPGetter) })
+
+		It("should preserve the existing aliases", func() { Expect(output).To(ContainElements(aliases)) })
+		It("should append the alias corresponding to the kubernetes.default service", func() {
+			Expect(output).To(ContainElement(corev1.HostAlias{
+				Hostnames: []string{"kubernetes.default", "kubernetes.default.svc"}, IP: KubernetesServiceIPGetter(),
+			}))
 		})
 	})
 

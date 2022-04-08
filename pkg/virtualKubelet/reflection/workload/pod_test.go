@@ -15,6 +15,8 @@
 package workload_test
 
 import (
+	"context"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -25,8 +27,10 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
+	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -40,6 +44,44 @@ var _ = Describe("Pod Reflection Tests", func() {
 			reflector := workload.NewPodReflector(nil, nil, nil, 0)
 			Expect(reflector).ToNot(BeNil())
 			Expect(reflector.Reflector).ToNot(BeNil())
+		})
+	})
+
+	Describe("kubernetes.default service IP remapping", func() {
+		var (
+			kubernetesServiceIPGetter func(ctx context.Context) (string, error)
+
+			output string
+			err    error
+		)
+
+		BeforeEach(func() {
+			ipam := fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
+			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
+			reflector := workload.NewPodReflector(nil, metricsFactory, ipam, 0)
+			kubernetesServiceIPGetter = reflector.KubernetesServiceIPGetter()
+		})
+
+		JustBeforeEach(func() { output, err = kubernetesServiceIPGetter(ctx) })
+
+		Context("the KUBERNETES_SERVICE_HOST variable is correctly set", func() {
+			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+			It("should return the correct IP address", func() { Expect(output).To(BeIdenticalTo("192.168.200.1")) })
+
+			When("retrieving again the remapped IP address", func() {
+				JustBeforeEach(func() {
+					output, err = kubernetesServiceIPGetter(ctx)
+				})
+
+				// The IPAMClient is configured to return an error if the same translation is requested twice.
+				It("should succeed (i.e., use the cached values)", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("should return the same translations", func() { Expect(output).To(BeIdenticalTo("192.168.200.1")) })
+			})
+		})
+
+		Context("the KUBERNETES_SERVICE_HOST variable not set", func() {
+			BeforeEach(func() { os.Unsetenv("KUBERNETES_SERVICE_HOST") })
+			It("should return an error", func() { Expect(err).To(HaveOccurred()) })
 		})
 	})
 

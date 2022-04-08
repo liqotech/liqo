@@ -15,6 +15,8 @@
 package forge
 
 import (
+	"fmt"
+	"net"
 	"strings"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
@@ -38,6 +40,9 @@ const (
 	// ServiceAccountVolumeName is the prefix name that will be added to volumes that mount ServiceAccount secrets.
 	// This constant is taken from kubernetes/kubernetes (plugin/pkg/admission/serviceaccount/admission.go).
 	ServiceAccountVolumeName = "kube-api-access-"
+
+	// kubernetesAPIService is the DNS name associated with the service targeting the Kubernetes API.
+	kubernetesAPIService = "kubernetes.default"
 )
 
 // PodIPTranslator defines the function to translate between remote and local IP addresses.
@@ -45,6 +50,9 @@ type PodIPTranslator func(string) string
 
 // SASecretRetriever defines the function to retrieve the secret associated with a given service account.
 type SASecretRetriever func(string) string
+
+// KubernetesServiceIPGetter defines the function to get the remapped IP associated with the local kubernetes.default service.
+type KubernetesServiceIPGetter func() string
 
 // LocalPod forges the object meta and status of the local pod, given the remote one.
 func LocalPod(local, remote *corev1.Pod, translator PodIPTranslator, restarts int32) *corev1.Pod {
@@ -110,7 +118,8 @@ func LocalRejectedPodStatus(local *corev1.PodStatus, phase corev1.PodPhase, reas
 }
 
 // RemoteShadowPod forges the reflected shadowpod, given the local one.
-func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetNamespace string, retriever SASecretRetriever) *vkv1alpha1.ShadowPod {
+func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetNamespace string,
+	saSecretRetriever SASecretRetriever, kubernetesServiceIPRetriever KubernetesServiceIPGetter) *vkv1alpha1.ShadowPod {
 	if remote == nil {
 		// The remote is nil if not already created.
 		remote = &vkv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
@@ -126,25 +135,26 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetName
 	return &vkv1alpha1.ShadowPod{
 		ObjectMeta: RemoteObjectMeta(FilterLocalPodOffloadedLabel(&local.ObjectMeta), &remote.ObjectMeta),
 		Spec: vkv1alpha1.ShadowPodSpec{
-			Pod: RemotePodSpec(local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy(), retriever),
+			Pod: RemotePodSpec(local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy(), saSecretRetriever, kubernetesServiceIPRetriever),
 		},
 	}
 }
 
 // RemotePodSpec forges the specs of the reflected pod specs, given the local ones.
 // It expects the local and remote objects to be deepcopies, as they are mutated.
-func RemotePodSpec(local, remote *corev1.PodSpec, retriever SASecretRetriever) corev1.PodSpec {
-	remote.Containers = local.Containers
-	remote.InitContainers = local.InitContainers
+func RemotePodSpec(local, remote *corev1.PodSpec, saSecretRetriever SASecretRetriever,
+	kubernetesServiceIPRetriever KubernetesServiceIPGetter) corev1.PodSpec {
+	remote.Containers = RemoteContainers(local.Containers)
+	remote.InitContainers = RemoteContainers(local.InitContainers)
 
+	remote.HostAliases = RemoteHostAliases(local.HostAliases, kubernetesServiceIPRetriever)
 	remote.Tolerations = RemoteTolerations(local.Tolerations)
-	remote.Volumes = RemoteVolumes(local.Volumes, func() string { return retriever(local.ServiceAccountName) })
+	remote.Volumes = RemoteVolumes(local.Volumes, func() string { return saSecretRetriever(local.ServiceAccountName) })
 
 	remote.ActiveDeadlineSeconds = local.ActiveDeadlineSeconds
 	remote.DNSConfig = local.DNSConfig
 	remote.DNSPolicy = local.DNSPolicy
 	remote.EnableServiceLinks = local.EnableServiceLinks
-	remote.HostAliases = local.HostAliases
 	remote.Hostname = local.Hostname
 	remote.ImagePullSecrets = local.ImagePullSecrets
 	remote.ReadinessGates = local.ReadinessGates
@@ -166,6 +176,41 @@ func RemotePodSpec(local, remote *corev1.PodSpec, retriever SASecretRetriever) c
 	remote.HostPID = false
 
 	return *remote
+}
+
+// RemoteContainers forges the containers for a reflected pod, appropriately adding the environment variables
+// to enable the offloaded containers to contact back the local API server, instead of the remote one.
+func RemoteContainers(containers []corev1.Container) []corev1.Container {
+	for i := range containers {
+		containers[i].Env = RemoteContainerEnvVariables(containers[i].Env)
+	}
+
+	return containers
+}
+
+// RemoteContainerEnvVariables forges the environment variables to enable offloaded containers to
+// contact back the local API server, instead of the remote one.
+func RemoteContainerEnvVariables(envs []corev1.EnvVar) []corev1.EnvVar {
+	hostport := "tcp://" + net.JoinHostPort(kubernetesAPIService, KubernetesServicePort)
+	return append(envs,
+		// We replace the correct IP address with the kubernetes.default hostname (which is associated with the remapped
+		// IP through an appropriate host alias), since directly using the remapped IP address would lead to TLS errors
+		// as it is not included in the certificate.
+		corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: kubernetesAPIService},
+		corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: KubernetesServicePort},
+		corev1.EnvVar{Name: "KUBERNETES_PORT", Value: hostport},
+		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP", KubernetesServicePort), Value: hostport},
+		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_PROTO", KubernetesServicePort), Value: "tcp"},
+		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_ADDR", KubernetesServicePort), Value: kubernetesAPIService},
+		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_PORT", KubernetesServicePort), Value: KubernetesServicePort},
+	)
+}
+
+// RemoteHostAliases forges the host aliases to override the IP address associated with the kubernetes.default service
+// to enable offloaded containers to contact back the local API server, instead of the remote one.
+func RemoteHostAliases(aliases []corev1.HostAlias, kubernetesServiceIPRetriever KubernetesServiceIPGetter) []corev1.HostAlias {
+	return append(aliases, corev1.HostAlias{
+		IP: kubernetesServiceIPRetriever(), Hostnames: []string{kubernetesAPIService, kubernetesAPIService + ".svc"}})
 }
 
 // RemoteTolerations forges the tolerations for a reflected pod.
