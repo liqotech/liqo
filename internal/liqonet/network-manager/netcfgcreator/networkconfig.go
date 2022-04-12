@@ -164,7 +164,7 @@ func (ncc *NetworkConfigCreator) getTenantNamespace(fc *discoveryv1alpha1.Foreig
 func (ncc *NetworkConfigCreator) createNetworkConfig(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	netcfg := netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      foreignclusterutils.UniqueName(&fc.Spec.ClusterIdentity),
+			Name:      foreignclusterutils.UniqueNameForReflection(&fc.Spec.ClusterIdentity, ncc.ClusterID),
 			Namespace: ncc.getTenantNamespace(fc),
 		},
 	}

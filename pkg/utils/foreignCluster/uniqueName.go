@@ -25,10 +25,18 @@ import (
 // It depends on ClusterName, so the same cluster may have different UniqueNames in different clusters.
 //
 // Use it when reflecting resources on a remote cluster (see issue #966).
-func UniqueName(cluster *discoveryv1alpha1.ClusterIdentity) string {
+func UniqueName(identity *discoveryv1alpha1.ClusterIdentity) string {
 	// We add a unique suffix to the cluster name, built by taking part of the hash of the cluster ID.
-	idHash := sha256.Sum256([]byte(cluster.ClusterID))
+	idHash := sha256.Sum256([]byte(identity.ClusterID))
 	// We want 6 chars, so we encode 3 bytes
 	idHashHex := hex.EncodeToString(idHash[:3])
-	return cluster.ClusterName + "-" + idHashHex
+	return identity.ClusterName + "-" + idHashHex
+}
+
+func UniqueNameForReflection(identity *discoveryv1alpha1.ClusterIdentity, localClusterID string) string {
+	// We add a unique suffix to the cluster name, built by taking part of the hash of the cluster ID.
+	idHash := sha256.Sum256([]byte(identity.ClusterID + localClusterID))
+	// We want 6 chars, so we encode 3 bytes
+	idHashHex := hex.EncodeToString(idHash[:3])
+	return identity.ClusterName + "-" + idHashHex
 }

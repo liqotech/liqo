@@ -104,6 +104,8 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 
 		PodCIDR:      managerFlags.podCIDR.String(),
 		ExternalCIDR: externalCIDR,
+
+		ClusterID: managerFlags.clusterID,
 	}
 
 	if err = tec.SetupWithManager(mgr); err != nil {

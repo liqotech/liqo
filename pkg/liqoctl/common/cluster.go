@@ -496,7 +496,7 @@ func (c *Cluster) getNetworkCfg(ctx context.Context,
 func (c *Cluster) createNetworkCfg(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity, local bool) error {
 	netcfg := &netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      foreigncluster.UniqueName(remoteClusterID),
+			Name:      foreigncluster.UniqueNameForReflection(remoteClusterID, c.clusterID.ClusterID),
 			Namespace: c.locTenantNamespace,
 			Labels: map[string]string{
 				liqoconsts.ReplicationRequestedLabel:   strconv.FormatBool(true),

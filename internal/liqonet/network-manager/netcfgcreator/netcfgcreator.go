@@ -52,6 +52,8 @@ type NetworkConfigCreator struct {
 
 	PodCIDR      string
 	ExternalCIDR string
+
+	ClusterID string
 }
 
 // cluster-roles
