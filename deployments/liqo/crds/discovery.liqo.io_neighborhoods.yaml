@@ -44,6 +44,11 @@ spec:
                 type: string
               neighborsList:
                 additionalProperties:
+                  properties:
+                    clusterName:
+                      type: string
+                  required:
+                  - clusterName
                   type: object
                 description: NeighborsList contains the clusters that have peered
                   with the local cluster.

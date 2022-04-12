@@ -109,10 +109,10 @@ func (discovery *Controller) UpdateInducedForeignClusters(ctx context.Context, c
 	originClusterID string, neighborList map[string]v1alpha1.Neighbor) error {
 	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
 	klog.Infof("Neighbor list is %v", neighborList)
-	for neighbor := range neighborList {
-		klog.Infof("Neighbor is %s", neighbor)
+	for key, value := range neighborList {
+		klog.Infof("Neighbor is {clusterID: %s, clusterName: %s}", key, value.ClusterName)
 		// Get ForeignCluster resource relative to this neighbor.
-		_, err := foreignclusterutils.GetForeignClusterByID(ctx, discovery.Client, neighbor)
+		_, err := foreignclusterutils.GetForeignClusterByID(ctx, discovery.Client, key)
 		if err != nil && !k8serror.IsNotFound(err) {
 			return err
 		}
@@ -128,9 +128,8 @@ func (discovery *Controller) UpdateInducedForeignClusters(ctx context.Context, c
 				return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
 			},
 			func() error {
-				return createOrUpdate(ctx, &discoveryData{
-					ClusterInfo: &auth.ClusterInfo{ClusterID: neighbor},
-				}, cl, nil, discoveryPkg.InducedPeeringDiscovery, &createdUpdatedForeign, originClusterID)
+				return createOrUpdate(ctx, &discoveryData{ClusterInfo: &auth.ClusterInfo{ClusterID: key, ClusterName: value.ClusterName}},
+					cl, nil, discoveryPkg.InducedPeeringDiscovery, &createdUpdatedForeign, originClusterID)
 			})
 		if err != nil {
 			klog.Error(err)
@@ -138,9 +137,9 @@ func (discovery *Controller) UpdateInducedForeignClusters(ctx context.Context, c
 		}
 
 		if err != nil {
-			return fmt.Errorf("unable to create induced ForeignCluster %s: %w", neighbor, err)
+			return fmt.Errorf("unable to create induced ForeignCluster %s: %w", key, err)
 		}
-		klog.Infof("Created induced ForeignCluster %s (neighbor of %s).", neighbor, originClusterID)
+		klog.Infof("Created induced ForeignCluster %s (neighbor of %s).", key, originClusterID)
 	}
 	return nil
 }

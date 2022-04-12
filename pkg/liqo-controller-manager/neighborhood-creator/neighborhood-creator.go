@@ -149,6 +149,7 @@ func (r *NeighborhoodCreator) deleteMultipleNeighborhood(ctx context.Context, cl
 	klog.Infof("Deleted all neighborhood resources for cluster %s", clusterID)
 	return nil
 }
+
 func (r *NeighborhoodCreator) createNeighborhood(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster, existingNeighbors map[string]discoveryv1alpha1.Neighbor) error {
 	neighborhood := forgeNeighborhoodResource(r.ClusterID, fc, existingNeighbors)
 	if err := r.Create(ctx, neighborhood); err != nil {
@@ -196,7 +197,9 @@ func (r *NeighborhoodCreator) getExistingNeighbors(ctx context.Context) (map[str
 	neighborsList := make(map[string]discoveryv1alpha1.Neighbor, len(foreignClusterList.Items))
 	for _, fc := range foreignClusterList.Items {
 		neighborID := fc.Spec.ClusterIdentity.ClusterID
-		neighborsList[neighborID] = discoveryv1alpha1.Neighbor{}
+		neighborsList[neighborID] = discoveryv1alpha1.Neighbor{
+			ClusterName: fc.Spec.ClusterIdentity.ClusterName,
+		}
 	}
 	return neighborsList, nil
 }
