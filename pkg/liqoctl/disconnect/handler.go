@@ -113,26 +113,6 @@ func (a *Args) Handler(ctx context.Context) error {
 		return err
 	}
 
-	// Delete foreigncluster of cluster2 in cluster1.
-	if err := cluster1.DeleteForeignCluster(ctx, cluster2.GetClusterID()); err != nil {
-		return err
-	}
-
-	// Delete foreigncluster of cluster1 in cluster2.
-	if err := cluster2.DeleteForeignCluster(ctx, cluster1.GetClusterID()); err != nil {
-		return err
-	}
-
-	// Clean up tenant namespace in cluster 1.
-	if err := cluster1.TearDownTenantNamespace(ctx, cluster2.GetClusterID(), 60*time.Second); err != nil {
-		return err
-	}
-
-	// Clean up tenant namespace in cluster 2.
-	if err := cluster2.TearDownTenantNamespace(ctx, cluster1.GetClusterID(), 60*time.Second); err != nil {
-		return err
-	}
-
 	// Port-forwarding ipam service for cluster 1.
 	if err := cluster1.PortForwardIPAM(ctx); err != nil {
 		return err
@@ -173,5 +153,24 @@ func (a *Args) Handler(ctx context.Context) error {
 	}
 
 	// Unapping auth's ip in cluster2 for cluster1
-	return cluster2.UnmapAuthIPForCluster(ctx, ipamClient2, cluster1.GetClusterID())
+	if err := cluster2.UnmapAuthIPForCluster(ctx, ipamClient2, cluster1.GetClusterID()); err != nil {
+		return err
+	}
+	// Delete foreigncluster of cluster2 in cluster1.
+	if err := cluster1.DeleteForeignCluster(ctx, cluster2.GetClusterID()); err != nil {
+		return err
+	}
+
+	// Delete foreigncluster of cluster1 in cluster2.
+	if err := cluster2.DeleteForeignCluster(ctx, cluster1.GetClusterID()); err != nil {
+		return err
+	}
+
+	// Clean up tenant namespace in cluster 1.
+	if err := cluster1.TearDownTenantNamespace(ctx, cluster2.GetClusterID(), 60*time.Second); err != nil {
+		return err
+	}
+
+	// Clean up tenant namespace in cluster 2.
+	return cluster2.TearDownTenantNamespace(ctx, cluster1.GetClusterID(), 60*time.Second)
 }
