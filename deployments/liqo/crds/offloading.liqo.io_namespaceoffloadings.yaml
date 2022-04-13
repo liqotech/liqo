@@ -9,6 +9,8 @@ metadata:
 spec:
   group: offloading.liqo.io
   names:
+    categories:
+    - liqo
     kind: NamespaceOffloading
     listKind: NamespaceOffloadingList
     plural: namespaceoffloadings

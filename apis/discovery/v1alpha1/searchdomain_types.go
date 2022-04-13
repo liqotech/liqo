@@ -40,7 +40,7 @@ type SearchDomainStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Cluster,categories=liqo
 
 // SearchDomain is the Schema for the SearchDomains API.
 type SearchDomain struct {

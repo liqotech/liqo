@@ -62,6 +62,7 @@ type NetworkConfigStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
 
 // NetworkConfig is the Schema for the networkconfigs API.

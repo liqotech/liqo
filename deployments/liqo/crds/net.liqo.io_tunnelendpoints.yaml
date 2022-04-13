@@ -9,6 +9,8 @@ metadata:
 spec:
   group: net.liqo.io
   names:
+    categories:
+    - liqo
     kind: TunnelEndpoint
     listKind: TunnelEndpointList
     plural: tunnelendpoints

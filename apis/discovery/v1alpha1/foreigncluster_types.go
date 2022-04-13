@@ -187,7 +187,7 @@ type TenantNamespaceType struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Cluster,categories=liqo
 // +kubebuilder:subresource:status
 
 // ForeignCluster is the Schema for the foreignclusters API.

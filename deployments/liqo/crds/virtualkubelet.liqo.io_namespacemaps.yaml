@@ -9,6 +9,8 @@ metadata:
 spec:
   group: virtualkubelet.liqo.io
   names:
+    categories:
+    - liqo
     kind: NamespaceMap
     listKind: NamespaceMapList
     plural: namespacemaps
