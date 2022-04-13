@@ -9,6 +9,8 @@ metadata:
 spec:
   group: discovery.liqo.io
   names:
+    categories:
+    - liqo
     kind: ForeignCluster
     listKind: ForeignClusterList
     plural: foreignclusters

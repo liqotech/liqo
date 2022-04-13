@@ -9,6 +9,8 @@ metadata:
 spec:
   group: sharing.liqo.io
   names:
+    categories:
+    - liqo
     kind: ResourceOffer
     listKind: ResourceOfferList
     plural: resourceoffers

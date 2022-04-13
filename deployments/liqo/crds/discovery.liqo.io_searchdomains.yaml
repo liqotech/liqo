@@ -9,6 +9,8 @@ metadata:
 spec:
   group: discovery.liqo.io
   names:
+    categories:
+    - liqo
     kind: SearchDomain
     listKind: SearchDomainList
     plural: searchdomains

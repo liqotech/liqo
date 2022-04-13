@@ -57,6 +57,7 @@ type NamespaceMapStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
 // +genclient
 

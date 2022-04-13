@@ -91,6 +91,7 @@ const (
 )
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
 
 // TunnelEndpoint is the Schema for the endpoints API.

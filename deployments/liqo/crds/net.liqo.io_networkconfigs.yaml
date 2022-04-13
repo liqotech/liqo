@@ -9,6 +9,8 @@ metadata:
 spec:
   group: net.liqo.io
   names:
+    categories:
+    - liqo
     kind: NetworkConfig
     listKind: NetworkConfigList
     plural: networkconfigs

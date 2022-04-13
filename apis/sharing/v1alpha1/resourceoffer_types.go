@@ -88,7 +88,7 @@ type ResourceOfferStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName="offer"
+// +kubebuilder:resource:shortName="offer",categories=liqo
 
 // ResourceOffer is the Schema for the resourceOffers API.
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
