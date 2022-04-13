@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pterm/pterm"
@@ -765,12 +766,18 @@ func mapServiceForCluster(ctx context.Context, ipamClient ipam.IpamClient, ipToB
 // unmapServiceForCluster releases a mapped local ip address previously mapped for given remote cluster.
 func unmapServiceForCluster(ctx context.Context, ipamClient ipam.IpamClient, ipToBeUnmapped string,
 	remoteCluster *discoveryv1alpha1.ClusterIdentity) error {
+	var err error
+
 	unMapRequest := &ipam.UnmapRequest{
 		ClusterID: remoteCluster.ClusterID,
 		Ip:        ipToBeUnmapped,
 	}
-
-	_, err := ipamClient.UnmapEndpointIP(ctx, unMapRequest)
+	// When the natmapping CR resource does not exist an error is returned if we try to unmap an IP address.
+	// In that case we just ignore the error and continue. That could happen whe we call liqoctl disconnect
+	// multiple times.
+	if _, err = ipamClient.UnmapEndpointIP(ctx, unMapRequest); err != nil && strings.Contains(err.Error(), "must be initialized first") {
+		return nil
+	}
 
 	return err
 }
