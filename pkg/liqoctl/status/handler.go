@@ -25,6 +25,7 @@ import (
 
 // Args flags of the status command.
 type Args struct {
+	ShowOnlyLocal     bool
 	Namespace         string
 	ClusterNameFilter *[]string
 	ClusterIDFilter   *[]string

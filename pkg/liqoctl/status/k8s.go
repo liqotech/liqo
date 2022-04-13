@@ -40,7 +40,7 @@ func newK8sStatusCollector(ctx context.Context, client k8s.Interface, clientCRT 
 		newLocalInfoChecker(params.Namespace, clientCRT),
 	}
 	_, err := getters.GetForeignClustersByLabel(ctx, clientCRT, params.Namespace, labels.NewSelector())
-	if err == nil {
+	if err == nil && !params.ShowOnlyLocal {
 		checkers = append(checkers, newRemoteInfoChecker(params.Namespace, params.ClusterNameFilter, params.ClusterIDFilter, clientCRT))
 	}
 	return &k8sStatusCollector{

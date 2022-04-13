@@ -33,6 +33,15 @@ $ liqoctl status --namespace ns-where-Liqo-is-running
 	// Namespace contains the name of namespace flag.
 	Namespace = "namespace"
 
+	// ClusterNameFilter contains the name of the cluster name filter flag.
+	ClusterNameFilter = "cluster-name"
+
+	// ClusterIDFilter contains the name of the cluster ID filter flag.
+	ClusterIDFilter = "cluster-id"
+
+	// ShowOnlyLocal contains the name of the show only local flag.
+	ShowOnlyLocal = "show-only-local"
+
 	redCross  = "\u274c"
 	checkMark = "\u2714"
 

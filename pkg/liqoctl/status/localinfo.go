@@ -87,8 +87,9 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) error {
 		lic.addCollectionError("ClusterIdentity", "", err)
 		lic.errors = true
 	}
-	lic.rootLocalInfoNode.addDataToNode("Cluster ID", clusterIdentity.ClusterID)
-	lic.rootLocalInfoNode.addDataToNode("Cluster Name", clusterIdentity.ClusterName)
+	clusterIdentityNode := lic.rootLocalInfoNode.addSectionToNode("Cluster Identity", "")
+	clusterIdentityNode.addDataToNode("Cluster ID", clusterIdentity.ClusterID)
+	clusterIdentityNode.addDataToNode("Cluster Name", clusterIdentity.ClusterName)
 
 	clusterLabelsNode := lic.rootLocalInfoNode.addSectionToNode("Cluster Labels", "")
 	hc, err := common.NewLiqoHelmClient()
