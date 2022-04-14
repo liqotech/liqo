@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,9 +32,11 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
+	"github.com/liqotech/liqo/test/e2e/testutils/apiserver"
 	"github.com/liqotech/liqo/test/e2e/testutils/microservices"
 	"github.com/liqotech/liqo/test/e2e/testutils/net"
 	"github.com/liqotech/liqo/test/e2e/testutils/storage"
@@ -361,6 +364,57 @@ var _ = Describe("Liqo E2E", func() {
 				content, err := storage.ReadFromVolume(ctx, testContext.Clusters[0].NativeClient, testContext.Clusters[0].Config, namespace)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(content).To(Equal("test"))
+			})
+		})
+
+		Context("E2E API server interaction Testing", func() {
+			const (
+				namespace           = "apiserver-test"
+				retries             = 60
+				sleepBetweenRetries = 1 * time.Second
+			)
+
+			var options *k8s.KubectlOptions
+
+			BeforeEach(func() {
+				options = k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespace)
+			})
+
+			AfterEach(func() {
+				Expect(client.IgnoreNotFound(testContext.Clusters[0].NativeClient.CoreV1().Namespaces().
+					Delete(ctx, namespace, metav1.DeleteOptions{}))).To(Succeed())
+
+				Eventually(func() error {
+					return testContext.Clusters[0].ControllerClient.Get(ctx,
+						client.ObjectKey{Name: namespace}, &corev1.Namespace{})
+				}, timeout, interval).Should(BeNotFound())
+			})
+
+			It("run offloaded kubectl pod", func() {
+				// This test offloads a kubectl pod to a remote cluster, binds it to a service account with permissions to get the pods in the
+				// current namespace (in the local cluster), and checks whether it can successfully retrieve the list of running pods (itself).
+
+				By("Creating the different resources")
+				_, err := util.EnforceNamespace(ctx, testContext.Clusters[0].NativeClient, testContext.Clusters[0].Cluster, namespace, nil)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(util.CreateNamespaceOffloading(ctx, testContext.Clusters[0].ControllerClient, namespace,
+					v1alpha1.DefaultNameMappingStrategyType, v1alpha1.RemotePodOffloadingStrategyType,
+					&corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}})).To(Succeed())
+
+				Expect(apiserver.CreateServiceAccount(ctx, testContext.Clusters[0].ControllerClient, namespace)).To(Succeed())
+				Expect(apiserver.CreateRoleBinding(ctx, testContext.Clusters[0].ControllerClient, namespace)).To(Succeed())
+
+				By("Deploying the kubectl job")
+				Expect(apiserver.CreateKubectlJob(ctx, testContext.Clusters[0].ControllerClient, namespace)).To(Succeed())
+
+				By("Waiting for the job to complete")
+				Expect(k8s.WaitUntilJobSucceedE(GinkgoT(), options, apiserver.JobName, retries, sleepBetweenRetries)).To(Succeed())
+
+				By("Retrieving the pod logs, and asserting their correctness")
+				podName, retrieved, err := apiserver.RetrieveJobLogs(ctx, testContext.Clusters[0].NativeClient, namespace)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(strings.TrimSuffix(retrieved, "\n")).To(Equal(podName))
 			})
 		})
 
