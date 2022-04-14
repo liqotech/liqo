@@ -474,11 +474,6 @@ func (npr *NamespacedPodReflector) RetrieveServiceAccountSecretName(info *PodInf
 		return info.ServiceAccountSecret, nil
 	}
 
-	// The ServiceAccountName field in the pod specifications is optional, and empty means default.
-	if saName == "" {
-		saName = forge.DefaultServiceAccountName
-	}
-
 	saSecretRequirement, err := labels.NewRequirement(string(corev1.ServiceAccountNameKey), selection.Equals, []string{saName})
 	utilruntime.Must(err)
 

@@ -195,7 +195,7 @@ var _ = Describe("Pod forging", func() {
 		})
 	})
 
-	Describe("the RemoteContainerEnvVariables function", func() {
+	Describe("the RemoteContainers function", func() {
 		var container corev1.Container
 		var output []corev1.Container
 
@@ -208,14 +208,17 @@ var _ = Describe("Pod forging", func() {
 				Env: []corev1.EnvVar{
 					{Name: "ENV_1", Value: "VALUE_1"},
 					{Name: "ENV_2", Value: "VALUE_2"},
+					{Name: "ENV_3", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{Key: "foo"}}},
+					{Name: "ENV_4", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+					{Name: "ENV_5", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.serviceAccountName"}}},
 				},
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteContainers([]corev1.Container{container}) })
+		JustBeforeEach(func() { output = forge.RemoteContainers([]corev1.Container{container}, "service-account-name") })
 
 		It("should propagate all container values", func() {
-			// Remove the environment variables from the
+			// Remove the environment variables from the containers, as checked in the test below.
 			envcleaner := func(c corev1.Container) corev1.Container {
 				c.Env = nil
 				return c
@@ -230,6 +233,9 @@ var _ = Describe("Pod forging", func() {
 			Expect(output[0].Env).To(ConsistOf(
 				corev1.EnvVar{Name: "ENV_1", Value: "VALUE_1"},
 				corev1.EnvVar{Name: "ENV_2", Value: "VALUE_2"},
+				corev1.EnvVar{Name: "ENV_3", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{Key: "foo"}}},
+				corev1.EnvVar{Name: "ENV_4", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+				corev1.EnvVar{Name: "ENV_5", Value: "service-account-name"},
 				corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: "8443"},
 				corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: "kubernetes.default"},
 				corev1.EnvVar{Name: "KUBERNETES_PORT", Value: "tcp://kubernetes.default:8443"},

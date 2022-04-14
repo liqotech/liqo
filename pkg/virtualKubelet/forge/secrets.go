@@ -19,9 +19,6 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 )
 
-// DefaultServiceAccountName is the name of the default service account.
-const DefaultServiceAccountName = "default"
-
 // RemoteSecret forges the apply patch for the reflected secret, given the local one.
 func RemoteSecret(local *corev1.Secret, targetNamespace string) *corev1apply.SecretApplyConfiguration {
 	applyConfig := corev1apply.Secret(local.GetName(), targetNamespace).
