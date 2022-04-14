@@ -263,7 +263,7 @@ func main() {
 	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
 	var monitor resourcemonitors.ResourceReader
 	if *externalResourceMonitorAddress != "" {
-		externalMonitor, err := resourcemonitors.NewExternalMonitor(*externalResourceMonitorAddress)
+		externalMonitor, err := resourcemonitors.NewExternalMonitor(ctx, *externalResourceMonitorAddress)
 		if err != nil {
 			klog.Fatal(err)
 		}

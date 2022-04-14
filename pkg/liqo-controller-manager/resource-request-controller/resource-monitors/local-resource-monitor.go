@@ -223,7 +223,7 @@ func (m *LocalResourceMonitor) notifyOrWarn() {
 }
 
 // ReadResources returns the resources available in the cluster (total minus used), multiplied by resourceSharingPercentage.
-func (m *LocalResourceMonitor) ReadResources(clusterID string) corev1.ResourceList {
+func (m *LocalResourceMonitor) ReadResources(_ context.Context, clusterID string) corev1.ResourceList {
 	toRead := m.readClusterResources()
 	podsResources := m.readPodResources(clusterID)
 	addResources(toRead, podsResources)
@@ -232,7 +232,7 @@ func (m *LocalResourceMonitor) ReadResources(clusterID string) corev1.ResourceLi
 
 // RemoveClusterID removes a clusterID from all broadcaster internal structures
 // it is useful when a particular foreign cluster has no more peering and its ResourceRequest has been deleted.
-func (m *LocalResourceMonitor) RemoveClusterID(clusterID string) {
+func (m *LocalResourceMonitor) RemoveClusterID(_ context.Context, clusterID string) {
 	m.podMutex.Lock()
 	defer m.podMutex.Unlock()
 	delete(m.resourcePodMap, clusterID)

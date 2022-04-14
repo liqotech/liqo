@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -82,7 +83,8 @@ func (u *OfferUpdater) Start(ctx context.Context) error {
 
 // CreateOrUpdateOffer creates an offer into the given cluster, reading resources from the ResourceReader.
 func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIdentity) (requeue bool, err error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	request, err := GetResourceRequest(ctx, u.client, cluster.ClusterID)
 	if err != nil {
 		return true, err
@@ -90,11 +92,11 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 	if request == nil {
 		// invalid clusterID so return requeue = false. The clusterID will be removed from the workqueue and
 		// the resourcereader (in a daisy chain if there are multiple).
-		u.ResourceReader.RemoveClusterID(cluster.ClusterID)
+		u.ResourceReader.RemoveClusterID(ctx, cluster.ClusterID)
 		u.OfferQueue.RemoveClusterID(cluster.ClusterID)
 		return false, fmt.Errorf("cluster %s is no longer valid and was deleted", cluster.ClusterName)
 	}
-	resources := u.ResourceReader.ReadResources(cluster.ClusterID)
+	resources := u.ResourceReader.ReadResources(ctx, cluster.ClusterID)
 	if resourceIsEmpty(resources) {
 		klog.Warningf("No resources for cluster %s", cluster.ClusterName)
 	}
@@ -153,7 +155,7 @@ func (u *OfferUpdater) NotifyChange() {
 // RemoveClusterID stops tracking the resources to be offered to a given cluster.
 func (u *OfferUpdater) RemoveClusterID(clusterID string) {
 	delete(u.currentResources, clusterID)
-	u.ResourceReader.RemoveClusterID(clusterID)
+	u.ResourceReader.RemoveClusterID(context.Background(), clusterID)
 	u.OfferQueue.RemoveClusterID(clusterID)
 }
 
@@ -196,8 +198,10 @@ func (u *OfferUpdater) SetThreshold(updateThresholdPercentage uint) {
 
 // isAboveThreshold checks if the resources have changed by at least updateThresholdPercentage since the last update.
 func (u *OfferUpdater) isAboveThreshold(clusterID string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	oldResources := u.currentResources[clusterID]
-	newResources := u.ResourceReader.ReadResources(clusterID)
+	newResources := u.ResourceReader.ReadResources(ctx, clusterID)
+	cancel()
 	// Check for any resources removed
 	for oldResourceName := range oldResources {
 		if _, exists := newResources[oldResourceName]; !exists {
