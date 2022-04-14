@@ -116,7 +116,7 @@ func remotePersistentVolumeClaimSpec(virtualPvc *corev1.PersistentVolumeClaim,
 			}
 			return corev1.PersistentVolumeFilesystem
 		}()).
-		WithResources(persistenVolumeClaimResources(virtualPvc.Spec.Resources))
+		WithResources(persistentVolumeClaimResources(virtualPvc.Spec.Resources))
 
 	if storageClass != "" {
 		res.WithStorageClassName(storageClass)
@@ -125,7 +125,7 @@ func remotePersistentVolumeClaimSpec(virtualPvc *corev1.PersistentVolumeClaim,
 	return res
 }
 
-func persistenVolumeClaimResources(resources corev1.ResourceRequirements) *v1apply.ResourceRequirementsApplyConfiguration {
+func persistentVolumeClaimResources(resources corev1.ResourceRequirements) *v1apply.ResourceRequirementsApplyConfiguration {
 	return v1apply.ResourceRequirements().
 		WithLimits(resources.Limits).
 		WithRequests(resources.Requests)
@@ -136,6 +136,7 @@ var controllerAnnotations = []string{
 	"pv.kubernetes.io/bound-by-controller",
 	"volume.beta.kubernetes.io/storage-provisioner",
 	"volume.kubernetes.io/selected-node",
+	corev1.BetaStorageClassAnnotation,
 }
 
 func filterAnnotations(annotations map[string]string) map[string]string {
