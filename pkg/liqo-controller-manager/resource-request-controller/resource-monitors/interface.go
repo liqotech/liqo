@@ -29,9 +29,9 @@ type ResourceUpdateNotifier interface {
 // ResourceReader represents an interface to read the available resources in this cluster.
 type ResourceReader interface {
 	// ReadResources returns the resources available for usage by the given cluster.
-	ReadResources(clusterID string) corev1.ResourceList
+	ReadResources(ctx context.Context, clusterID string) corev1.ResourceList
 	// Register sets the component that will be notified of changes.
 	Register(context.Context, ResourceUpdateNotifier)
 	// RemoveClusterID removes the given clusterID from all internal structures.
-	RemoveClusterID(clusterID string)
+	RemoveClusterID(ctx context.Context, clusterID string)
 }

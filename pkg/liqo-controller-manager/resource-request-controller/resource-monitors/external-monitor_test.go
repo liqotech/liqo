@@ -96,13 +96,13 @@ var _ = Describe("ResourceMonitors Suite", func() {
 
 		It("Connects", func() {
 			fakeServer.Ready.Wait()
-			extMonitor, err := NewExternalMonitor("127.0.0.1:7000")
+			extMonitor, err := NewExternalMonitor(grpcCtx, "127.0.0.1:7000")
 			Expect(err).ToNot(HaveOccurred())
 			monitor = extMonitor
 		}, timeout)
 		It("Reads resources", func() {
 			fakeServer.Ready.Wait()
-			resources := monitor.ReadResources("")
+			resources := monitor.ReadResources(context.Background(), "")
 			Expect(resources.Cpu().Equal(resource.MustParse("1000"))).To(BeTrue())
 			Expect(resources.Memory().Equal(resource.MustParse("200e6"))).To(BeTrue())
 		}, timeout)

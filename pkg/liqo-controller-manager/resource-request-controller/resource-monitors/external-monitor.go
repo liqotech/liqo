@@ -33,9 +33,9 @@ type ExternalResourceMonitor struct {
 }
 
 // NewExternalMonitor creates a new ExternalResourceMonitor.
-func NewExternalMonitor(address string) (*ExternalResourceMonitor, error) {
+func NewExternalMonitor(ctx context.Context, address string) (*ExternalResourceMonitor, error) {
 	klog.Infof("Connecting to %s", address)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	conn, err := grpc.DialContext(ctx, address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	cancel()
 	if err != nil {
@@ -71,8 +71,8 @@ func (m *ExternalResourceMonitor) Register(ctx context.Context, notifier Resourc
 }
 
 // ReadResources reads the resources from the upstream API.
-func (m *ExternalResourceMonitor) ReadResources(clusterID string) corev1.ResourceList {
-	response, err := m.ResourceReaderClient.ReadResources(context.Background(), &ReadRequest{Originator: clusterID})
+func (m *ExternalResourceMonitor) ReadResources(ctx context.Context, clusterID string) corev1.ResourceList {
+	response, err := m.ResourceReaderClient.ReadResources(ctx, &ReadRequest{Originator: clusterID})
 	if err != nil {
 		klog.Errorf("grpc error: %s", err)
 		return corev1.ResourceList{}
@@ -90,8 +90,8 @@ func (m *ExternalResourceMonitor) ReadResources(clusterID string) corev1.Resourc
 }
 
 // RemoveClusterID calls the method on the upstream API.
-func (m *ExternalResourceMonitor) RemoveClusterID(clusterID string) {
-	_, err := m.ResourceReaderClient.RemoveCluster(context.Background(), &RemoveRequest{Cluster: clusterID})
+func (m *ExternalResourceMonitor) RemoveClusterID(ctx context.Context, clusterID string) {
+	_, err := m.ResourceReaderClient.RemoveCluster(ctx, &RemoveRequest{Cluster: clusterID})
 	if err != nil {
 		klog.Errorf("grpc error: %s", err)
 	}
