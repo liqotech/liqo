@@ -461,23 +461,13 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			})
 
 			When("a secret is associated with the given service account", func() {
-				ContextBody := func(serviceAccountName string) func() {
-					return func() {
-						BeforeEach(func() {
-							CreateServiceAccountSecret(client, RemoteNamespace, "secret-name", serviceAccountName)
-							if serviceAccountName == "default" {
-								input = ""
-							}
-						})
+				BeforeEach(func() {
+					CreateServiceAccountSecret(client, RemoteNamespace, "secret-name", "service-account")
+				})
 
-						It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-						It("should return the correct secret name", func() { Expect(output).To(BeIdenticalTo("secret-name")) })
-						It("should correctly update the pod cache", func() { Expect(podinfo.ServiceAccountSecret).To(BeIdenticalTo("secret-name")) })
-					}
-				}
-
-				Context("an explicit service account", ContextBody("service-account"))
-				Context("the default service account", ContextBody("default"))
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("should return the correct secret name", func() { Expect(output).To(BeIdenticalTo("secret-name")) })
+				It("should correctly update the pod cache", func() { Expect(podinfo.ServiceAccountSecret).To(BeIdenticalTo("secret-name")) })
 			})
 		})
 

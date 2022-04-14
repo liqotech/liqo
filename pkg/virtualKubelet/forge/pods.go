@@ -144,8 +144,13 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetName
 // It expects the local and remote objects to be deepcopies, as they are mutated.
 func RemotePodSpec(local, remote *corev1.PodSpec, saSecretRetriever SASecretRetriever,
 	kubernetesServiceIPRetriever KubernetesServiceIPGetter) corev1.PodSpec {
-	remote.Containers = RemoteContainers(local.Containers)
-	remote.InitContainers = RemoteContainers(local.InitContainers)
+	// The ServiceAccountName field in the pod specifications is optional, and empty means default.
+	if local.ServiceAccountName == "" {
+		local.ServiceAccountName = "default"
+	}
+
+	remote.Containers = RemoteContainers(local.Containers, local.ServiceAccountName)
+	remote.InitContainers = RemoteContainers(local.InitContainers, local.ServiceAccountName)
 
 	remote.HostAliases = RemoteHostAliases(local.HostAliases, kubernetesServiceIPRetriever)
 	remote.Tolerations = RemoteTolerations(local.Tolerations)
@@ -180,17 +185,27 @@ func RemotePodSpec(local, remote *corev1.PodSpec, saSecretRetriever SASecretRetr
 
 // RemoteContainers forges the containers for a reflected pod, appropriately adding the environment variables
 // to enable the offloaded containers to contact back the local API server, instead of the remote one.
-func RemoteContainers(containers []corev1.Container) []corev1.Container {
+func RemoteContainers(containers []corev1.Container, saName string) []corev1.Container {
 	for i := range containers {
-		containers[i].Env = RemoteContainerEnvVariables(containers[i].Env)
+		containers[i].Env = RemoteContainerEnvVariables(containers[i].Env, saName)
 	}
 
 	return containers
 }
 
 // RemoteContainerEnvVariables forges the environment variables to enable offloaded containers to
-// contact back the local API server, instead of the remote one.
-func RemoteContainerEnvVariables(envs []corev1.EnvVar) []corev1.EnvVar {
+// contact back the local API server, instead of the remote one. In addition, it also hardcodes the
+// service account name in case it was retrieved from the pod spec, as it is not reflected remotely.
+func RemoteContainerEnvVariables(envs []corev1.EnvVar, saName string) []corev1.EnvVar {
+	for i := range envs {
+		if envs[i].ValueFrom != nil && envs[i].ValueFrom.FieldRef != nil &&
+			envs[i].ValueFrom.FieldRef.FieldPath == "spec.serviceAccountName" {
+			// Hardcode the correct service account name value, as not propagated remotely.
+			envs[i].Value = saName
+			envs[i].ValueFrom = nil
+		}
+	}
+
 	hostport := "tcp://" + net.JoinHostPort(kubernetesAPIService, KubernetesServicePort)
 	return append(envs,
 		// We replace the correct IP address with the kubernetes.default hostname (which is associated with the remapped
