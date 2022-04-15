@@ -18,7 +18,7 @@ import "sync"
 
 // SyncSet contains a set of elements and provides utility methods safe for concurrent access.
 type SyncSet struct {
-	sync.RWMutex
+	mu  sync.RWMutex
 	set map[string]struct{}
 }
 
@@ -31,24 +31,24 @@ func New() *SyncSet {
 
 // Add adds the given element to the set (nop is already present).
 func (sc *SyncSet) Add(fc string) {
-	sc.Lock()
-	defer sc.Unlock()
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
 
 	sc.set[fc] = struct{}{}
 }
 
 // Remove removes the given element to the set (nop is already absent).
 func (sc *SyncSet) Remove(fc string) {
-	sc.Lock()
-	defer sc.Unlock()
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
 
 	delete(sc.set, fc)
 }
 
 // ForEach executes the given function for all elements in the set.
 func (sc *SyncSet) ForEach(fn func(string)) {
-	sc.RLock()
-	defer sc.RUnlock()
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
 
 	for key := range sc.set {
 		fn(key)

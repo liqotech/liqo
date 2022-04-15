@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package namespaceoffloadingctrl
+package nsoffctrl
 
 import (
 	"context"
@@ -30,10 +30,10 @@ func removeDesiredMapping(ctx context.Context, c client.Client, localName string
 		original := nm.DeepCopy()
 		delete(nm.Spec.DesiredMapping, localName)
 		if err := c.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
-			klog.Errorf("%s --> Unable to patch NamespaceMap '%s'", err, nm.GetName())
+			klog.Errorf("Unable to remove entry for namespace %q from NamespaceMap %q: %v", localName, nm.GetName(), err)
 			return err
 		}
-		klog.Infof(" Entry for the namespace '%s' is correctly deleted from the desiredMapping of NamespaceMap '%s'", localName, nm.GetName())
+		klog.Infof("Entry for namespace %q correctly deleted from the NamespaceMap %q", localName, nm.GetName())
 	}
 	return nil
 }
@@ -46,17 +46,15 @@ func removeDesiredMappings(ctx context.Context, c client.Client, localName strin
 			errorCondition = true
 		}
 	}
+
 	if errorCondition {
-		err := fmt.Errorf("some desiredMappings have not been deleted")
-		klog.Error(err)
-		return err
+		return fmt.Errorf("some desiredMappings have not been deleted")
 	}
 	return nil
 }
 
 // Adds right entry on one NamespaceMap, if it isn't already there.
-func addDesiredMapping(ctx context.Context, c client.Client, localName, remoteName string,
-	nm *mapsv1alpha1.NamespaceMap) error {
+func addDesiredMapping(ctx context.Context, c client.Client, localName, remoteName string, nm *mapsv1alpha1.NamespaceMap) error {
 	if nm.Spec.DesiredMapping == nil {
 		nm.Spec.DesiredMapping = map[string]string{}
 	}
@@ -65,11 +63,11 @@ func addDesiredMapping(ctx context.Context, c client.Client, localName, remoteNa
 		original := nm.DeepCopy()
 		nm.Spec.DesiredMapping[localName] = remoteName
 		if err := c.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
-			klog.Errorf("%s --> Unable to add entry for namespace '%s' on NamespaceMap '%s'",
-				err, localName, nm.GetName())
+			klog.Errorf("Unable to add entry for namespace %q to NamespaceMap %q: %v", localName, nm.GetName(), err)
 			return err
 		}
-		klog.Infof("Entry for the namespace '%s' is successfully added on the NamespaceMap '%s' ", localName, nm.GetName())
+
+		klog.Infof("Entry for namespace %q successfully added to NamespaceMap %q", localName, nm.GetName())
 	}
 	return nil
 }

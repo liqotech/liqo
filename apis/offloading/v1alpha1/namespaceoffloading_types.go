@@ -114,6 +114,7 @@ type NamespaceOffloadingSpec struct {
 	// ClusterSelector allows users to select a specific subset of remote clusters to perform
 	// pod offloading by means of the standard Kubernetes NodeSelector approach
 	// (https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity).
+	// A cluster selector with no NodeSelectorTerms matches all clusters.
 	ClusterSelector corev1.NodeSelector `json:"clusterSelector,omitempty"`
 }
 
@@ -136,6 +137,7 @@ type NamespaceOffloadingStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName="nsof",categories=liqo
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="NamespaceMappingStrategy",type=string,JSONPath=`.spec.namespaceMappingStrategy`
 // +kubebuilder:printcolumn:name="PodOffloadingStrategy",type=string,JSONPath=`.spec.podOffloadingStrategy`
 // +kubebuilder:printcolumn:name="OffloadingPhase",type=string,JSONPath=`.status.offloadingPhase`

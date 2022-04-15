@@ -12,6 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package namespaceoffloadingctrl contains NamespaceOffloading Controller logic and some functions for adding
-// DesiredMappings to NamespaceMaps Spec
-package namespaceoffloadingctrl
+// Package nsoffctrl contains the logic to reconcile NamespaceOffloading resources and appropriately populate NamespaceMaps.
+package nsoffctrl

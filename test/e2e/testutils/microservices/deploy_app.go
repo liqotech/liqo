@@ -37,6 +37,9 @@ const (
 	sleepBetweenRetries = 3 * time.Second
 	// TestNamespaceName is the namespace name where the test is performed.
 	TestNamespaceName = "test-app"
+
+	// The key of a label assigned to all clusters, and used to verify correct functioning of the mutation webhook.
+	targetClusterLabelKey = "region"
 )
 
 // DeployApp creates the namespace and deploy the applications. It returns an error in case of failures.
@@ -46,7 +49,7 @@ func DeployApp(t ginkgo.GinkgoTInterface, configPath, kubeResourcePath, namespac
 		return err
 	}
 
-	if err := util.OffloadNamespace(configPath, namespace); err != nil {
+	if err := util.OffloadNamespace(configPath, namespace, "--selector", targetClusterLabelKey); err != nil {
 		return err
 	}
 
@@ -163,9 +166,8 @@ func getDefaultPodNodeAffinity() corev1.NodeSelector {
 		{
 			MatchExpressions: []corev1.NodeSelectorRequirement{
 				{
-					Key:      liqoconst.TypeLabel,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{liqoconst.TypeNode},
+					Key:      targetClusterLabelKey,
+					Operator: corev1.NodeSelectorOpExists,
 				},
 			},
 		},
@@ -187,9 +189,8 @@ func getFrontendPodNodeAffinity() corev1.NodeSelector {
 		{
 			MatchExpressions: []corev1.NodeSelectorRequirement{
 				{
-					Key:      liqoconst.TypeLabel,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{liqoconst.TypeNode},
+					Key:      targetClusterLabelKey,
+					Operator: corev1.NodeSelectorOpExists,
 				},
 				{
 					Key:      liqoconst.TypeLabel,

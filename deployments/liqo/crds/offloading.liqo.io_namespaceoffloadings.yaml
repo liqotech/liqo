@@ -61,6 +61,7 @@ spec:
                 description: ClusterSelector allows users to select a specific subset
                   of remote clusters to perform pod offloading by means of the standard
                   Kubernetes NodeSelector approach (https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity).
+                  A cluster selector with no NodeSelectorTerms matches all clusters.
                 properties:
                   nodeSelectorTerms:
                     description: Required. A list of node selector terms. The terms
@@ -223,7 +224,8 @@ spec:
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

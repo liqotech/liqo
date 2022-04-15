@@ -45,9 +45,8 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
-	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceOffloading-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
-	offloadingctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadingStatus-controller"
+	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
@@ -136,10 +135,6 @@ func main() {
 	offerUpdateThreshold := argsutils.Percentage{Val: 5}
 	flag.Var(&offerUpdateThreshold, "offer-update-threshold-percentage",
 		"The threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update")
-
-	// Namespace management parameters
-	offloadingStatusControllerRequeueTime := flag.Duration("offloading-status-requeue-period", 10*time.Second,
-		"Period after that the offloading status controller is awaken on every NamespaceOffloading to set its status")
 
 	// Virtual-kubelet parameters
 	kubeletImage := flag.String("kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
@@ -328,19 +323,9 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	offloadingStatusReconciler := &offloadingctrl.OffloadingStatusReconciler{
-		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
-		RequeueTime: *offloadingStatusControllerRequeueTime,
-	}
-
-	if err = offloadingStatusReconciler.SetupWithManager(mgr); err != nil {
-		klog.Fatal(err)
-	}
-
 	namespaceOffloadingReconciler := &nsoffctrl.NamespaceOffloadingReconciler{
 		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor("namespaceoffloading-controller"),
 		LocalCluster: clusterIdentity,
 	}
 

@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package namespaceoffloadingctrl
+package nsoffctrl
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
-func addLiqoSchedulingLabel(ctx context.Context, c client.Client, namespaceName string) error {
+func (r *NamespaceOffloadingReconciler) enforceSchedulingLabelPresence(ctx context.Context, namespaceName string) error {
 	namespace := &corev1.Namespace{}
-	if err := c.Get(ctx, types.NamespacedName{Name: namespaceName}, namespace); err != nil {
-		klog.Errorf("%s --> Unable to get the namespace '%s'", err, namespaceName)
-		return err
+	if err := r.Get(ctx, types.NamespacedName{Name: namespaceName}, namespace); err != nil {
+		return fmt.Errorf("failed to retrieve namespace %q: %w", namespaceName, err)
 	}
 
 	if namespace.Labels == nil {
@@ -38,29 +37,30 @@ func addLiqoSchedulingLabel(ctx context.Context, c client.Client, namespaceName 
 
 	if value, ok := namespace.Labels[liqoconst.SchedulingLiqoLabel]; !ok || value != liqoconst.SchedulingLiqoLabelValue {
 		namespace.Labels[liqoconst.SchedulingLiqoLabel] = liqoconst.SchedulingLiqoLabelValue
-		if err := c.Update(ctx, namespace); err != nil {
-			klog.Errorf(" %s --> Unable to add liqo scheduling label to the namespace '%s'", err, namespace.GetName())
-			return err
+		if err := r.Update(ctx, namespace); err != nil {
+			return fmt.Errorf("failed to add liqo scheduling label to namespace %q: %w", namespace.GetName(), err)
 		}
-		klog.Infof(" Liqo scheduling label successfully added to the namespace '%s'", namespace.GetName())
+
+		klog.Infof("Liqo scheduling label successfully added to namespace %q", namespace.GetName())
 	}
+
 	return nil
 }
 
-func removeLiqoSchedulingLabel(ctx context.Context, c client.Client, namespaceName string) error {
+func (r *NamespaceOffloadingReconciler) enforceSchedulingLabelAbsence(ctx context.Context, namespaceName string) error {
 	namespace := &corev1.Namespace{}
-	if err := c.Get(ctx, types.NamespacedName{Name: namespaceName}, namespace); err != nil {
-		klog.Errorf("%s --> Unable to get the namespace '%s'", err, namespaceName)
-		return err
+	if err := r.Get(ctx, types.NamespacedName{Name: namespaceName}, namespace); err != nil {
+		return fmt.Errorf("failed to retrieve namespace %q: %w", namespaceName, err)
 	}
 
 	if value, ok := namespace.Labels[liqoconst.SchedulingLiqoLabel]; ok && value == liqoconst.SchedulingLiqoLabelValue {
 		delete(namespace.Labels, liqoconst.SchedulingLiqoLabel)
-		if err := c.Update(ctx, namespace); err != nil {
-			klog.Errorf(" %s --> Unable to remove Liqo scheduling label from the namespace '%s'", err, namespace.GetName())
-			return err
+		if err := r.Update(ctx, namespace); err != nil {
+			return fmt.Errorf("failed to remove liqo scheduling label from namespace %q: %w", namespace.GetName(), err)
 		}
-		klog.Infof(" Liqo scheduling label successfully removed from the namespace '%s'", namespace.GetName())
+
+		klog.Infof("Liqo scheduling label successfully removed from namespace %q", namespace.GetName())
 	}
+
 	return nil
 }
