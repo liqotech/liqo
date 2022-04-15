@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package namespaceoffloadingctrl
+package nsoffctrl
 
 import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -37,47 +38,47 @@ import (
 )
 
 const (
-
 	// namespace where the NamespaceMaps are created.
 	mapNamespaceName = "default"
 	mapNumber        = 3
 
-	virtualNode1Name = "liqo-6a0e9f-b52-4ed0"
-	virtualNode2Name = "liqo-899890-dsd-323s"
-	virtualNode3Name = "liqo-refc453-ds43d-43rs"
+	namespaceName = "namespace"
 
-	providerLabel = "provider/liqo.io"
-	regionLabel   = "region/liqo.io"
-	regionA       = "A"
-	regionB       = "B"
-	providerAWS   = "AWS"
-	providerGKE   = "GKE"
+	virtualNode1Name = "liqo-remote-1"
+	virtualNode2Name = "liqo-remote-2"
+	virtualNode3Name = "liqo-remote-3"
+
+	regionA     = "A"
+	regionB     = "B"
+	providerAWS = "AWS"
+	providerGKE = "GKE"
 )
 
 var (
+	ctx context.Context
+
 	localCluster = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "0-789o-uhibi-oioi",
+		ClusterID:   "local-cluster-id",
 		ClusterName: "local-cluster-name",
 	}
 	remoteCluster1 = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "1-6a0e9f-b52-4ed0",
+		ClusterID:   "remote-cluster-1-id",
 		ClusterName: "remote-cluster-1",
 	}
 	remoteCluster2 = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "2-899890-dsd-323s",
+		ClusterID:   "remote-cluster-2-id",
 		ClusterName: "remote-cluster-2",
 	}
 	remoteCluster3 = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "3-refc453-ds43d-43rs",
+		ClusterID:   "remote-cluster-3-id",
 		ClusterName: "remote-cluster-3",
 	}
 
 	homeCfg        *rest.Config
-	homeClient     client.Client
+	cl             client.Client
 	homeClusterEnv *envtest.Environment
 
 	// Resources.
-	nms          *vkv1alpha1.NamespaceMapList
 	virtualNode1 *corev1.Node
 	virtualNode2 *corev1.Node
 	virtualNode3 *corev1.Node
@@ -85,6 +86,9 @@ var (
 	nm1 *vkv1alpha1.NamespaceMap
 	nm2 *vkv1alpha1.NamespaceMap
 	nm3 *vkv1alpha1.NamespaceMap
+
+	namespace *corev1.Namespace
+	nsoff     *offv1alpha1.NamespaceOffloading
 )
 
 func TestAPIs(t *testing.T) {
@@ -93,6 +97,11 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	SetDefaultEventuallyTimeout(3 * time.Second)
+	SetDefaultEventuallyPollingInterval(100 * time.Millisecond)
+	SetDefaultConsistentlyDuration(500 * time.Millisecond)
+	SetDefaultEventuallyPollingInterval(50 * time.Millisecond)
+
 	ForgeNamespaceMap := func(cluster discoveryv1alpha1.ClusterIdentity) *vkv1alpha1.NamespaceMap {
 		return &vkv1alpha1.NamespaceMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -108,6 +117,7 @@ var _ = BeforeSuite(func() {
 	}
 
 	By("bootstrapping test environments")
+	ctx = context.Background()
 	testutil.LogsToGinkgoWriter()
 
 	homeClusterEnv = &envtest.Environment{
@@ -130,19 +140,18 @@ var _ = BeforeSuite(func() {
 	err = offv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	// +kubebuilder:scaffold:scheme
-
 	k8sManager, err := ctrl.NewManager(homeCfg, ctrl.Options{
 		Scheme: scheme.Scheme,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	homeClient = k8sManager.GetClient()
-	Expect(homeClient).ToNot(BeNil())
+	// Initialize a non-cached client to reduce race conditions during tests.
+	cl, err = client.New(homeCfg, client.Options{Scheme: scheme.Scheme})
+	Expect(err).ToNot(HaveOccurred())
 
 	err = (&NamespaceOffloadingReconciler{
-		Client:       homeClient,
-		Scheme:       k8sManager.GetScheme(),
+		Client:       k8sManager.GetClient(),
+		Recorder:     k8sManager.GetEventRecorderFor("namespaceoffloading-controller"),
 		LocalCluster: localCluster,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
@@ -157,10 +166,10 @@ var _ = BeforeSuite(func() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: virtualNode1Name,
 			Labels: map[string]string{
-				liqoconst.TypeLabel:       liqoconst.TypeNode,
-				liqoconst.RemoteClusterID: remoteCluster1.ClusterID,
-				regionLabel:               regionA,
-				providerLabel:             providerAWS,
+				liqoconst.TypeLabel:                  liqoconst.TypeNode,
+				liqoconst.RemoteClusterID:            remoteCluster1.ClusterID,
+				liqoconst.TopologyRegionClusterLabel: regionA,
+				liqoconst.ProviderClusterLabel:       providerAWS,
 			},
 		},
 	}
@@ -169,10 +178,10 @@ var _ = BeforeSuite(func() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: virtualNode2Name,
 			Labels: map[string]string{
-				liqoconst.TypeLabel:       liqoconst.TypeNode,
-				liqoconst.RemoteClusterID: remoteCluster2.ClusterID,
-				regionLabel:               regionB,
-				providerLabel:             providerGKE,
+				liqoconst.TypeLabel:                  liqoconst.TypeNode,
+				liqoconst.RemoteClusterID:            remoteCluster2.ClusterID,
+				liqoconst.TopologyRegionClusterLabel: regionB,
+				liqoconst.ProviderClusterLabel:       providerGKE,
 			},
 		},
 	}
@@ -181,27 +190,28 @@ var _ = BeforeSuite(func() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: virtualNode3Name,
 			Labels: map[string]string{
-				liqoconst.TypeLabel:       liqoconst.TypeNode,
-				liqoconst.RemoteClusterID: remoteCluster3.ClusterID,
-				regionLabel:               regionA,
-				providerLabel:             providerGKE,
+				liqoconst.TypeLabel:                  liqoconst.TypeNode,
+				liqoconst.RemoteClusterID:            remoteCluster3.ClusterID,
+				liqoconst.TopologyRegionClusterLabel: regionA,
+				liqoconst.ProviderClusterLabel:       providerGKE,
 			},
 		},
 	}
-
-	nms = &vkv1alpha1.NamespaceMapList{}
 
 	nm1 = ForgeNamespaceMap(remoteCluster1)
 	nm2 = ForgeNamespaceMap(remoteCluster2)
 	nm3 = ForgeNamespaceMap(remoteCluster3)
 
-	Expect(homeClient.Create(context.TODO(), virtualNode1)).Should(Succeed())
-	Expect(homeClient.Create(context.TODO(), virtualNode2)).Should(Succeed())
-	Expect(homeClient.Create(context.TODO(), virtualNode3)).Should(Succeed())
+	Expect(cl.Create(ctx, virtualNode1)).Should(Succeed())
+	Expect(cl.Create(ctx, virtualNode2)).Should(Succeed())
+	Expect(cl.Create(ctx, virtualNode3)).Should(Succeed())
 
-	Expect(homeClient.Create(context.TODO(), nm1)).Should(Succeed())
-	Expect(homeClient.Create(context.TODO(), nm2)).Should(Succeed())
-	Expect(homeClient.Create(context.TODO(), nm3)).Should(Succeed())
+	Expect(cl.Create(ctx, nm1)).Should(Succeed())
+	Expect(cl.Create(ctx, nm2)).Should(Succeed())
+	Expect(cl.Create(ctx, nm3)).Should(Succeed())
+
+	namespace = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
+	Expect(cl.Create(ctx, namespace)).To(Succeed())
 })
 
 var _ = AfterSuite(func() {

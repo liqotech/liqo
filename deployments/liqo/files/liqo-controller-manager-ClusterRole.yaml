@@ -84,6 +84,18 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - namespaces
   verbs:
   - create
@@ -276,6 +288,26 @@ rules:
   resources:
   - namespaceoffloadings
   verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - namespaceoffloadings/finalizers
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - namespaceoffloadings/status
+  verbs:
+  - create
+  - delete
   - get
   - list
   - patch
