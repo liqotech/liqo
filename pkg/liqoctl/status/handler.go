@@ -17,7 +17,6 @@ package status
 import (
 	"context"
 
-	k8s "k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
@@ -39,17 +38,12 @@ func (a *Args) Handler(ctx context.Context) error {
 		return err
 	}
 
-	clientSet, err := k8s.NewForConfig(restConfig)
+	client, err := client.New(restConfig, client.Options{})
 	if err != nil {
 		return err
 	}
 
-	clientCRT, err := client.New(restConfig, client.Options{})
-	if err != nil {
-		return err
-	}
-
-	collector := newK8sStatusCollector(ctx, clientSet, clientCRT, *a)
+	collector := newK8sStatusCollector(ctx, client, *a)
 
 	return collector.collectStatus(ctx)
 }

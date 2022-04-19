@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"strings"
 
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	k8s "k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/types"
+	clientControllerRuntime "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
@@ -185,7 +186,7 @@ func (ps *componentState) format() string {
 type podChecker struct {
 	deployments      []string
 	daemonSets       []string
-	client           k8s.Interface
+	client           clientControllerRuntime.Client
 	namespace        string
 	name             string
 	podsState        podStateMap
@@ -194,7 +195,7 @@ type podChecker struct {
 }
 
 // newPodChecker return a new pod checker.
-func newPodChecker(namespace string, deployments, daemonSets []string, client k8s.Interface) *podChecker {
+func newPodChecker(namespace string, deployments, daemonSets []string, client clientControllerRuntime.Client) *podChecker {
 	return &podChecker{
 		deployments: deployments,
 		daemonSets:  daemonSets,
@@ -267,7 +268,8 @@ func (pc *podChecker) Format() (string, error) {
 // deploymentStatus collects the status of a given kubernetes Deployment.
 func (pc *podChecker) deploymentStatus(ctx context.Context, deploymentName string) error {
 	var errors bool
-	d, err := pc.client.AppsV1().Deployments(pc.namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	d := &v1.Deployment{}
+	err := pc.client.Get(ctx, types.NamespacedName{Name: deploymentName, Namespace: pc.namespace}, d)
 
 	if err != nil {
 		return err
@@ -284,9 +286,8 @@ func (pc *podChecker) deploymentStatus(ctx context.Context, deploymentName strin
 	dState.available = int(d.Status.AvailableReplicas)
 
 	// Get all the pods related with the current deployment.
-	pods, err := pc.client.CoreV1().Pods(pc.namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: labels.FormatLabels(d.Spec.Selector.MatchLabels),
-	})
+	pods := &corev1.PodList{}
+	err = pc.client.List(ctx, pods, &clientControllerRuntime.ListOptions{Namespace: pc.namespace, LabelSelector: labels.SelectorFromSet(d.Spec.Selector.MatchLabels)})
 	if err != nil {
 		return err
 	}
@@ -304,7 +305,8 @@ func (pc *podChecker) deploymentStatus(ctx context.Context, deploymentName strin
 
 // daemontSetStatus collects the status of a given kubernetes DaemonSet.
 func (pc *podChecker) daemonSetStatus(ctx context.Context, daemonSetName string) error {
-	d, err := pc.client.AppsV1().DaemonSets(pc.namespace).Get(ctx, daemonSetName, metav1.GetOptions{})
+	d := &v1.DaemonSet{}
+	err := pc.client.Get(ctx, types.NamespacedName{Namespace: pc.namespace, Name: daemonSetName}, d)
 
 	if err != nil {
 		return err
@@ -321,10 +323,9 @@ func (pc *podChecker) daemonSetStatus(ctx context.Context, daemonSetName string)
 	dState.available = int(d.Status.NumberAvailable)
 
 	// Get all the pods related with the current daemonset.
-	pods, err := pc.client.CoreV1().Pods(pc.namespace).List(ctx, metav1.ListOptions{
-		TypeMeta:      metav1.TypeMeta{},
-		LabelSelector: labels.FormatLabels(d.Spec.Selector.MatchLabels),
-	})
+	pods := &corev1.PodList{}
+	err = pc.client.List(ctx, pods, &clientControllerRuntime.ListOptions{Namespace: pc.namespace, LabelSelector: labels.SelectorFromSet(d.Spec.Selector.MatchLabels)})
+
 	if err != nil {
 		return err
 	}

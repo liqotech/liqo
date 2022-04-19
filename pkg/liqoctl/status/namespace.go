@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8s "k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/api/core/v1"
+	clientControllerRuntime "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const nsCheckerName = "namespace-existence"
@@ -28,14 +28,14 @@ const nsCheckerName = "namespace-existence"
 // checks if the namespace passed as an argument to liqoctl status command
 // exists. If it does not exist the liqoctl status returns.
 type namespaceChecker struct {
-	client        k8s.Interface
+	client        clientControllerRuntime.Client
 	namespace     string
 	name          string
 	succeeded     bool
 	failureReason error
 }
 
-func newNamespaceChecker(namespace string, client k8s.Interface) *namespaceChecker {
+func newNamespaceChecker(namespace string, client clientControllerRuntime.Client) *namespaceChecker {
 	return &namespaceChecker{
 		client:    client,
 		namespace: namespace,
@@ -45,7 +45,8 @@ func newNamespaceChecker(namespace string, client k8s.Interface) *namespaceCheck
 
 func (nc *namespaceChecker) Collect(ctx context.Context) error {
 	// Check if the namespace exists.
-	if _, err := nc.client.CoreV1().Namespaces().Get(ctx, nc.namespace, v1.GetOptions{}); err != nil {
+	namespace := corev1.Namespace{}
+	if err := nc.client.Get(ctx, clientControllerRuntime.ObjectKey{Name: nc.namespace}, &namespace); err != nil {
 		nc.succeeded = false
 		nc.failureReason = err
 		return nil
