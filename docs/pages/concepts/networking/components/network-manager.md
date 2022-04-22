@@ -54,7 +54,7 @@ As we have seen, each cluster creates a NetworkConfig custom resource referring 
 Embedded within the Liqo Network Manager, the IPAM (IP Address Management) is the Liqo module in charge of:
 1. Managing networks currently in use in the home cluster.
 2. Translating an offloaded Pod's IP address, assigned by the remote cluster, to the corresponding IP address that is visible from the home cluster.
-3. Translating endpoint IP addresses during the [EndpointSlice Reflection](../../../offloading/api-reflection#Overview) process.
+3. Translating endpoint IP addresses during the [EndpointSlice Reflection](../../../offloading/resource-reflection) process.
 
 
 #### Networks management
@@ -108,7 +108,7 @@ For this reason, the IPAM provides an API consumed by the VK when the latter has
 
 
 #### Reflection
-The [Reflection](../../../offloading/api-reflection#Overview) process is one of the most relevant Liqo features.
+The [Reflection](../../../offloading/resource-reflection) process is one of the most relevant Liqo features.
 It is carried out by the Virtual Kubelet and deals with the replication of local Kubernetes resources into foreign clusters.
 In this context, the most relevant resources include _Services_ and _EndpointSlices_, to enable Pods running on remote clusters to contact other Pods hosted by the local cluster (or, in more complex scenarios, by other external clusters).
 
