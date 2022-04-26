@@ -31,8 +31,8 @@ type Neighbor struct {
 type NeighborhoodSpec struct {
 	// ClusterID is the ID of the sender of this resource.
 	ClusterID string `json:"clusterID"`
-	// NeighborsList contains the clusters that have peered with the local cluster.
-	NeighborsList map[string]Neighbor `json:"neighborsList"`
+	// Neighbors contains the clusters that have peered with the local cluster.
+	Neighbors map[string]Neighbor `json:"neighbors"`
 }
 
 // NeighborhoodStatus defines the observed state of Neighborhood

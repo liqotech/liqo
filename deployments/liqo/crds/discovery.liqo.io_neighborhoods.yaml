@@ -42,7 +42,7 @@ spec:
               clusterID:
                 description: ClusterID is the ID of the sender of this resource.
                 type: string
-              neighborsList:
+              neighbors:
                 additionalProperties:
                   properties:
                     clusterName:
@@ -50,12 +50,12 @@ spec:
                   required:
                   - clusterName
                   type: object
-                description: NeighborsList contains the clusters that have peered
-                  with the local cluster.
+                description: Neighbors contains the clusters that have peered with
+                  the local cluster.
                 type: object
             required:
             - clusterID
-            - neighborsList
+            - neighbors
             type: object
           status:
             description: NeighborhoodStatus defines the observed state of Neighborhood

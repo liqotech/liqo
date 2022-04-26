@@ -79,13 +79,14 @@ func (r *NeighborhoodCreator) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 func (r *NeighborhoodCreator) ensureNeighborhoodForCluster(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
-	neighbors, err := r.getExistingNeighbors(ctx)
+	neighbors, err := r.getNeighbors(ctx)
 	if err != nil {
-		klog.Errorf("unable to get existing neighbors: %w", err)
+		klog.Errorf("unable to get neighbors: %w", err)
 		return err
 	}
+
 	// Get neighborhood resource for cluster.
-	neighborhoodRes, err := r.getNeighborhoodPerCluster(ctx, fc.Spec.ClusterIdentity.ClusterID)
+	neighborhood, err := r.getNeighborhoodForCluster(ctx, fc.Spec.ClusterIdentity.ClusterID)
 	if client.IgnoreNotFound(err) != nil {
 		klog.Error(err)
 		return err
@@ -100,48 +101,65 @@ func (r *NeighborhoodCreator) ensureNeighborhoodForCluster(ctx context.Context, 
 	}
 
 	// Otherwise, ensure it is up-to-date
-	return r.updateNeighborhood(ctx, neighborhoodRes, neighbors)
+	return r.updateNeighborhood(ctx, neighborhood, neighbors)
 }
 
-func (r *NeighborhoodCreator) getNeighborhoodPerCluster(ctx context.Context, clusterID string) (*discoveryv1alpha1.Neighborhood, error) {
-	var neighborhoodsList discoveryv1alpha1.NeighborhoodList
-	// Get all the resource with remoteID label set to clusterID
-	requirement, err := labels.NewRequirement(consts.ReplicationDestinationLabel, selection.Equals, []string{clusterID})
+func (r *NeighborhoodCreator) getNeighbors(ctx context.Context) (map[string]discoveryv1alpha1.Neighbor, error) {
+	var foreignClusterList discoveryv1alpha1.ForeignClusterList
+	if err := r.List(ctx, &foreignClusterList, &client.ListOptions{}); err != nil {
+		return nil, err
+	}
+	neighbors := make(map[string]discoveryv1alpha1.Neighbor, len(foreignClusterList.Items))
+	for _, fc := range foreignClusterList.Items {
+		neighborID := fc.Spec.ClusterIdentity.ClusterID
+		neighbors[neighborID] = discoveryv1alpha1.Neighbor{
+			ClusterName: fc.Spec.ClusterIdentity.ClusterName,
+		}
+	}
+	return neighbors, nil
+}
+
+func (r *NeighborhoodCreator) getNeighborhoodForCluster(ctx context.Context, clusterID string) (*discoveryv1alpha1.Neighborhood, error) {
+	var neighborhoodList discoveryv1alpha1.NeighborhoodList
+	// Get all the resources with remoteID label set to clusterID
+	req, err := labels.NewRequirement(consts.ReplicationDestinationLabel, selection.Equals, []string{clusterID})
 	if err != nil {
 		return nil, err
 	}
-	remoteIDSelector := labels.NewSelector().Add(*requirement)
-	if err := r.List(ctx, &neighborhoodsList, &client.ListOptions{
-		LabelSelector: remoteIDSelector,
+	if err := r.List(ctx, &neighborhoodList, &client.ListOptions{
+		LabelSelector: labels.NewSelector().Add(*req),
 	}); err != nil {
 		return nil, err
 	}
-	if len(neighborhoodsList.Items) != 1 {
-		if len(neighborhoodsList.Items) == 0 {
-			return nil, kerrors.NewNotFound(discoveryv1alpha1.NeighborhoodGroupResource, "")
-		}
+
+	if len(neighborhoodList.Items) == 0 {
+		return nil, kerrors.NewNotFound(discoveryv1alpha1.NeighborhoodGroupResource, "")
+	}
+
+	if len(neighborhoodList.Items) > 1 {
 		klog.Warning("multiple neighborhood resources found for cluster %s", clusterID)
-		if err := r.deleteMultipleNeighborhood(ctx, clusterID); err != nil {
+		if err := r.deleteNeighborhoodsForCluster(ctx, clusterID); err != nil {
 			klog.Error(err)
 			return nil, err
 		}
 		return nil, kerrors.NewNotFound(discoveryv1alpha1.NeighborhoodGroupResource, "")
 	}
-	return &neighborhoodsList.Items[0], nil
+
+	return &neighborhoodList.Items[0], nil
 }
 
-func (r *NeighborhoodCreator) deleteMultipleNeighborhood(ctx context.Context, clusterID string) error {
-	neighborhoodRequirement, err := labels.NewRequirement(neighborhoodLabelKey, selection.Equals, []string{neighborhoodLabelValue})
+func (r *NeighborhoodCreator) deleteNeighborhoodsForCluster(ctx context.Context, clusterID string) error {
+	req1, err := labels.NewRequirement(neighborhoodLabelKey, selection.Equals, []string{neighborhoodLabelValue})
 	if err != nil {
 		return err
 	}
-	clusterIDRequirement, err := labels.NewRequirement(consts.ReplicationDestinationLabel, selection.Equals, []string{clusterID})
+	req2, err := labels.NewRequirement(consts.ReplicationDestinationLabel, selection.Equals, []string{clusterID})
 	if err != nil {
 		return err
 	}
 	if err := r.DeleteAllOf(ctx, nil, &client.DeleteAllOfOptions{
 		ListOptions: client.ListOptions{
-			LabelSelector: labels.NewSelector().Add(*neighborhoodRequirement, *clusterIDRequirement),
+			LabelSelector: labels.NewSelector().Add(*req1, *req2),
 		},
 	}); err != nil {
 		return err
@@ -150,8 +168,8 @@ func (r *NeighborhoodCreator) deleteMultipleNeighborhood(ctx context.Context, cl
 	return nil
 }
 
-func (r *NeighborhoodCreator) createNeighborhood(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster, existingNeighbors map[string]discoveryv1alpha1.Neighbor) error {
-	neighborhood := forgeNeighborhoodResource(r.ClusterID, fc, existingNeighbors)
+func (r *NeighborhoodCreator) createNeighborhood(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster, neighbors map[string]discoveryv1alpha1.Neighbor) error {
+	neighborhood := forgeNeighborhood(r.ClusterID, fc, neighbors)
 	if err := r.Create(ctx, neighborhood); err != nil {
 		return err
 	}
@@ -159,19 +177,7 @@ func (r *NeighborhoodCreator) createNeighborhood(ctx context.Context, fc *discov
 	return nil
 }
 
-func (r *NeighborhoodCreator) updateNeighborhood(ctx context.Context, neighborhoodRes *discoveryv1alpha1.Neighborhood, neighbors map[string]discoveryv1alpha1.Neighbor) error {
-	if reflect.DeepEqual(neighborhoodRes.Spec.NeighborsList, neighbors) {
-		return nil
-	}
-	neighborhoodRes.Spec.NeighborsList = neighbors
-	if err := r.Update(ctx, neighborhoodRes); err != nil {
-		return err
-	}
-	klog.Infof("Resource %s correctly updated", neighborhoodRes.GetName())
-	return nil
-}
-
-func forgeNeighborhoodResource(localClusterID string, fc *discoveryv1alpha1.ForeignCluster, neighbors map[string]discoveryv1alpha1.Neighbor) *discoveryv1alpha1.Neighborhood {
+func forgeNeighborhood(clusterID string, fc *discoveryv1alpha1.ForeignCluster, neighbors map[string]discoveryv1alpha1.Neighbor) *discoveryv1alpha1.Neighborhood {
 	return &discoveryv1alpha1.Neighborhood{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: neighborhoodPrefix,
@@ -182,26 +188,23 @@ func forgeNeighborhoodResource(localClusterID string, fc *discoveryv1alpha1.Fore
 			},
 		},
 		Spec: discoveryv1alpha1.NeighborhoodSpec{
-			ClusterID:     localClusterID,
-			NeighborsList: neighbors,
+			ClusterID: clusterID,
+			Neighbors: neighbors,
 		},
 		Status: discoveryv1alpha1.NeighborhoodStatus{},
 	}
 }
 
-func (r *NeighborhoodCreator) getExistingNeighbors(ctx context.Context) (map[string]discoveryv1alpha1.Neighbor, error) {
-	var foreignClusterList discoveryv1alpha1.ForeignClusterList
-	if err := r.List(ctx, &foreignClusterList, &client.ListOptions{}); err != nil {
-		return nil, err
+func (r *NeighborhoodCreator) updateNeighborhood(ctx context.Context, neighborhood *discoveryv1alpha1.Neighborhood, neighbors map[string]discoveryv1alpha1.Neighbor) error {
+	if reflect.DeepEqual(neighborhood.Spec.Neighbors, neighbors) {
+		return nil
 	}
-	neighborsList := make(map[string]discoveryv1alpha1.Neighbor, len(foreignClusterList.Items))
-	for _, fc := range foreignClusterList.Items {
-		neighborID := fc.Spec.ClusterIdentity.ClusterID
-		neighborsList[neighborID] = discoveryv1alpha1.Neighbor{
-			ClusterName: fc.Spec.ClusterIdentity.ClusterName,
-		}
+	neighborhood.Spec.Neighbors = neighbors
+	if err := r.Update(ctx, neighborhood); err != nil {
+		return err
 	}
-	return neighborsList, nil
+	klog.Infof("Resource %s correctly updated", neighborhood.GetName())
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

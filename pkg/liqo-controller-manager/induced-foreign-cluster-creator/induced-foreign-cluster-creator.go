@@ -70,7 +70,7 @@ func (r *InducedForeignClusterCreator) Reconcile(ctx context.Context, req ctrl.R
 		return result, err
 	}
 	// Ensure it exists an Induced ForeignCluster for each neighbor in the resource.
-	if err := r.DiscoveryCtrl.UpdateInducedForeignClusters(ctx, r.Client, clusterID, neighborhood.Spec.NeighborsList); err != nil {
+	if err := r.DiscoveryCtrl.UpdateInducedForeignClusters(ctx, r.Client, clusterID, neighborhood.Spec.Neighbors); err != nil {
 		klog.Errorf("unable to update Induced ForeignClusters from neighbors of %s: %w", clusterID, err)
 		return result, err
 	}
