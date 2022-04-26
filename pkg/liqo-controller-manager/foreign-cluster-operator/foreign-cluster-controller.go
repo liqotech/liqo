@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,7 +45,6 @@ import (
 	resourcerequestoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -64,15 +65,6 @@ const (
 
 	virtualKubeletPendingReason  = "KubeletPending"
 	virtualKubeletPendingMessage = "The remote cluster has not started the VirtualKubelet for the peering yet"
-
-	networkConfigNotFoundReason  = "NetworkConfigNotFound"
-	networkConfigNotFoundMessage = "The NetworkConfig has not been found in the Tenant Namespace %v"
-
-	networkConfigAvailableReason  = "NetworkConfigAvailable"
-	networkConfigAvailableMessage = "The NetworkConfig has been successfully found and processed in the Tenant Namespace %v"
-
-	networkConfigPendingReason  = "NetworkConfigPending"
-	networkConfigPendingMessage = "The NetworkConfig has been found in the Tenant Namespace %v, but the processing has not completed yet"
 
 	tunnelEndpointNotFoundReason  = "TunnelEndpointNotFound"
 	tunnelEndpointNotFoundMessage = "The TunnelEndpointNotFound has not been found in the Tenant Namespace %v"
@@ -106,6 +98,8 @@ type ForeignClusterReconciler struct {
 
 	InsecureTransport *http.Transport
 	SecureTransport   *http.Transport
+	// The map associates the local tenant namespaces (keys) to the related foreignclusters (values).
+	ForeignClusters sync.Map
 }
 
 // clusterRole
@@ -148,9 +142,13 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	defer tracer.LogIfLong(traceutils.LongThreshold())
 
 	var foreignCluster discoveryv1alpha1.ForeignCluster
-	if err := r.Client.Get(ctx, req.NamespacedName, &foreignCluster); err != nil {
+	if err := r.Client.Get(ctx, req.NamespacedName, &foreignCluster); err != nil && !errors.IsNotFound(err) {
 		klog.Error(err)
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, err
+	} else if errors.IsNotFound(err) {
+		// If the foreigncluster has been removed than remove the mapping between the local tenant namespace and
+		// the foreign cluster.
+		r.ForeignClusters.Delete(foreignCluster.Status.TenantNamespace.Local)
 	}
 	tracer.Step("Retrieved the foreign cluster")
 
@@ -197,6 +195,13 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Ensured the ForeignCluster is processable")
 
+	// check for TunnelEndpoints
+	if err = r.checkTEP(ctx, &foreignCluster); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
+	}
+	tracer.Step("Checked the TunnelEndpoint status")
+
 	// ------ (2) ensuring prerequirements ------
 
 	// ensure the existence of the local TenantNamespace
@@ -204,7 +209,11 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
+	r.ForeignClusters.Store(foreignCluster.Status.TenantNamespace.Local, foreignCluster.GetName())
 	tracer.Step("Ensured the existence of the local tenant namespace")
+
+	// Add the foreigncluster to the map once the local tenant namespace has been created.
+	r.ForeignClusters.Store(foreignCluster.Status.TenantNamespace.Local, foreignCluster.GetName())
 
 	// ensure the existence of an identity to operate in the remote cluster remote cluster
 	if err = r.ensureRemoteIdentity(ctx, &foreignCluster); err != nil {
@@ -245,21 +254,6 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// ------ (4) update peering conditions ------
-
-	// check for NetworkConfigs
-	if err = r.checkNetwork(ctx, &foreignCluster); err != nil {
-		klog.Error(err)
-		return ctrl.Result{}, err
-	}
-	tracer.Step("Checked the NetworkConfig status")
-
-	// check for TunnelEndpoints
-	if err = r.checkTEP(ctx, &foreignCluster); err != nil {
-		klog.Error(err)
-		return ctrl.Result{}, err
-	}
-	tracer.Step("Checked the TunnelEndpoint status")
-
 	// check if peering request really exists on foreign cluster
 	if err = r.checkIncomingPeeringStatus(ctx, &foreignCluster); err != nil {
 		klog.Error("[%s] %s", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
@@ -393,30 +387,12 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers ui
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ForeignCluster{}, builder.WithPredicates(foreignClusterPredicate)).
 		Owns(&discoveryv1alpha1.ResourceRequest{}).
-		Owns(&netv1alpha1.NetworkConfig{}).
-		Owns(&netv1alpha1.TunnelEndpoint{}).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, authenticationtoken.GetAuthTokenSecretEventHandler(r.Client),
-			builder.WithPredicates(authenticationtoken.GetAuthTokenSecretPredicate())).
-		Watches(&source.Kind{Type: &sharingv1alpha1.ResourceOffer{}},
-			handler.EnqueueRequestsFromMapFunc(r.resourceOfferHandler)).
+		Watches(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer),
+			builder.WithPredicates(getAuthTokenSecretPredicate())).
+		Watches(&source.Kind{Type: &netv1alpha1.TunnelEndpoint{}}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
+		Watches(&source.Kind{Type: &sharingv1alpha1.ResourceOffer{}}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: int(workers)}).
 		Complete(r)
-}
-
-func (r *ForeignClusterReconciler) resourceOfferHandler(obj client.Object) []ctrl.Request {
-	ro := obj.(*sharingv1alpha1.ResourceOffer)
-	var clusterID string
-	if _, ok := ro.Labels[liqoconst.ReplicationStatusLabel]; ok { // incoming resource offer
-		clusterID = ro.Labels[liqoconst.ReplicationOriginLabel]
-	} else {
-		clusterID = ro.Labels[liqoconst.ReplicationDestinationLabel]
-	}
-	remoteCluster, err := foreignclusterutils.GetForeignClusterByID(context.Background(), r.Client, clusterID)
-	if err != nil {
-		klog.Warningf("Could not handle resource offer %q update: %s", klog.KObj(ro), err)
-		return []ctrl.Request{}
-	}
-	return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: remoteCluster.Name}}}
 }
 
 func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Context,
@@ -527,59 +503,6 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	}
 }
 
-func (r *ForeignClusterReconciler) checkNetwork(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	// local NetworkConfig
-	labelSelector := map[string]string{liqoconst.ReplicationDestinationLabel: foreignCluster.Spec.ClusterIdentity.ClusterID}
-	if established, err := r.updateNetwork(ctx,
-		labelSelector, foreignCluster, discoveryv1alpha1.NetworkStatusCondition); err != nil {
-		klog.Error(err)
-		return err
-	} else if !established {
-		// Given the first network config is not ready, it is not necessary to check the second
-		return nil
-	}
-
-	// remote NetworkConfig
-	labelSelector = map[string]string{liqoconst.ReplicationOriginLabel: foreignCluster.Spec.ClusterIdentity.ClusterID}
-	if _, err := r.updateNetwork(ctx, labelSelector, foreignCluster, discoveryv1alpha1.NetworkStatusCondition); err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	return nil
-}
-
-func (r *ForeignClusterReconciler) updateNetwork(ctx context.Context,
-	labelSelector map[string]string, foreignCluster *discoveryv1alpha1.ForeignCluster,
-	conditionType discoveryv1alpha1.PeeringConditionType) (established bool, err error) {
-	var netList netv1alpha1.NetworkConfigList
-	if err = r.Client.List(ctx, &netList, client.MatchingLabels(labelSelector)); err != nil {
-		klog.Error(err)
-		return false, err
-	}
-	if len(netList.Items) == 0 {
-		// no NetworkConfigs found
-		peeringconditionsutils.EnsureStatus(foreignCluster,
-			conditionType, discoveryv1alpha1.PeeringConditionStatusNone,
-			networkConfigNotFoundReason, fmt.Sprintf(networkConfigNotFoundMessage, foreignCluster.Status.TenantNamespace.Local))
-	} else if len(netList.Items) > 0 && !isTunnelEndpointReason(peeringconditionsutils.GetReason(foreignCluster, conditionType)) {
-		// there are NetworkConfigs
-		ncf := &netList.Items[0]
-		if ncf.Status.Processed {
-			established = true
-			peeringconditionsutils.EnsureStatus(foreignCluster,
-				conditionType, discoveryv1alpha1.PeeringConditionStatusEstablished,
-				networkConfigAvailableReason, fmt.Sprintf(networkConfigAvailableMessage, foreignCluster.Status.TenantNamespace.Local))
-		} else {
-			peeringconditionsutils.EnsureStatus(foreignCluster,
-				conditionType, discoveryv1alpha1.PeeringConditionStatusPending,
-				networkConfigPendingReason, fmt.Sprintf(networkConfigPendingMessage, foreignCluster.Status.TenantNamespace.Local))
-		}
-	}
-	return established, nil
-}
-
 func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	var tepList netv1alpha1.TunnelEndpointList
@@ -590,8 +513,7 @@ func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
 		return err
 	}
 
-	if len(tepList.Items) == 0 && peeringconditionsutils.GetReason(foreignCluster,
-		discoveryv1alpha1.NetworkStatusCondition) == networkConfigAvailableReason {
+	if len(tepList.Items) == 0 {
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusNone,
 			tunnelEndpointNotFoundReason, fmt.Sprintf(tunnelEndpointNotFoundMessage, foreignCluster.Status.TenantNamespace.Local))
@@ -615,11 +537,24 @@ func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
 	return nil
 }
 
-func isTunnelEndpointReason(reason string) bool {
-	switch reason {
-	case tunnelEndpointNotFoundReason, tunnelEndpointAvailableReason, tunnelEndpointConnectingReason, tunnelEndpointErrorReason:
-		return true
-	default:
-		return false
+func (r *ForeignClusterReconciler) foreignclusterEnqueuer(obj client.Object) []ctrl.Request {
+	gvks, _, err := r.Scheme.ObjectKinds(obj)
+	// Should never happen, but if it happens we panic.
+	utilruntime.Must(err)
+
+	// If gvk is found we log.
+	if len(gvks) != 0 {
+		klog.V(4).Infof("handling resource %q of type %q", klog.KObj(obj), gvks[0].String())
 	}
+
+	fcName, ok := r.ForeignClusters.Load(obj.GetNamespace())
+
+	if !ok {
+		klog.V(4).Infof("no foreigncluster found for resource %q", klog.KObj(obj))
+		return []ctrl.Request{}
+	}
+
+	klog.V(4).Infof("enqueuing foreigncluster %q", fcName.(string))
+
+	return []ctrl.Request{{NamespacedName: types.NamespacedName{Name: fcName.(string)}}}
 }

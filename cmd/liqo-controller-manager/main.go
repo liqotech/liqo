@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -255,6 +256,8 @@ func main() {
 
 		SecureTransport:   secureTransport,
 		InsecureTransport: insecureTransport,
+
+		ForeignClusters: sync.Map{},
 	}
 	if err = foreignClusterReconciler.SetupWithManager(mgr, *foreignClusterWorkers); err != nil {
 		klog.Fatal(err)

@@ -21,13 +21,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"net/http"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
+	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/discoverymanager/utils"
 	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -215,4 +219,25 @@ func (r *ForeignClusterReconciler) transport(insecureSkipTLSVerify bool) *http.T
 	}
 
 	return r.SecureTransport
+}
+
+// getAuthTokenSecretPredicate returns the predicate to select the secrets containing authentication tokens
+// for the remote clusters.
+func getAuthTokenSecretPredicate() predicate.Predicate {
+	secretsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      discovery.ClusterIDLabel,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+			{
+				Key:      discovery.AuthTokenLabel,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+		},
+	})
+
+	utilruntime.Must(err)
+
+	return secretsPredicate
 }
