@@ -162,6 +162,7 @@ func (r *NeighborhoodCreator) deleteNeighborhoodsForCluster(ctx context.Context,
 			LabelSelector: labels.NewSelector().Add(*req1, *req2),
 		},
 	}); err != nil {
+		klog.Warning("Error while deleting all neighborhood resources for cluster %s: %v", clusterID, err)
 		return err
 	}
 	klog.Infof("Deleted all neighborhood resources for cluster %s", clusterID)
