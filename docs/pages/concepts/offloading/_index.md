@@ -5,7 +5,7 @@ weight: 4
 
 ## Overview
 
-The peering process terminates with the creation of a new *virtual node* in the local cluster, which represents (and aggregates) the subset of resources made available by the remote one.
+The peering process terminates with the creation of a new *virtual node* in the local cluster, which represents (and aggregates) the subset of resources made available by the remote cluster.
 This solution enables the transparent extension of the local cluster, with the new Node (and its capabilities) seamlessly taken into account by the vanilla Kubernetes scheduler when selecting the best place for the workloads execution.
 At the same time, this approach is fully compliant with standard Kubernetes APIs, hence allowing to interact with and inspect offloaded Pods just as if they were executed locally.
 
@@ -33,4 +33,4 @@ Further details can be found in the dedicated [section](/concepts/offloading/nam
 The virtual node is created with a specific *taint*, preventing arbitrary Pods from being offloaded to remote clusters.
 Only the Pods including the appropriate *toleration* are allowed to be scheduled on a virtual node.
 The toleration is automatically added by the [Liqo Mutating Webhook](/concepts/offloading/mutating-webhook), based on whether offloading is enabled for the hosting namespace (see the [namespace offloading](/usage/namespace_offloading#introduction) section for additional information).
-At this point, the Kubernetes scheduler selects the eligible node with the highest score (scores are computed on several parameters, among which the available resources), optionally filtered depending on additional constraints (e.g., *affinity* configurations).
+At this point, the Kubernetes scheduler selects the eligible node with the highest score (scores are computed on several parameters, including the amount of available resources), optionally filtered depending on additional constraints (e.g., *affinity* configurations).

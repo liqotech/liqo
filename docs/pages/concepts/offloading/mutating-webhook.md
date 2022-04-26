@@ -56,7 +56,7 @@ In case a given Pod already contains a set of `NodeAffinity` constraints, they a
 
 #### Local PodOffloadingStrategy
 
-The `Local` strategy does not allow Pods to be scheduled on virtual nodes, hence behaving from this point of view as if Liqo were not present (although other resources, such as services, might be reflected to enable remote consumption).
+The `Local` strategy does not allow Pods to be scheduled on virtual nodes, hence behaving from this point of view as if Liqo was not present (although other resources, such as services, might be reflected to enable remote consumption).
 Consequently, in this case the webhook is not activated, and Pods are neither appended the *toleration* nor any additional *NodeAffinity* constraints.
 
 #### Remote PodOffloadingStrategy
@@ -88,4 +88,4 @@ nodeAffinity:
 
 The `NamespaceOffloading` resource specifies a set of constraints that applies to all pods of that namespace.
 Additionally, users can define additional and more specific requirements at the Pod level (i.e., through the `NodeAffinity` configuration), automatically merged by the Liqo webhook with the ones originating from the `NamespaceOffloading` resource.
-Still, care must be pay to prevent conflicting requirements, which would cause the Pod to remain in `Pending` status as unschedulable, as seen in the violation constraints example of the [Liqo Extended tutorial](/gettingstarted/extended/hard_constraints/).
+However, be careful in preventing conflicting requirements, which would cause the Pod to remain in `Pending` status as unschedulable, as seen in the violation constraints example of the [Liqo Extended tutorial](/gettingstarted/extended/hard_constraints/).

@@ -13,13 +13,13 @@ It is responsible for the propagation and synchronization of selected control pl
 
 Once a given namespace is enabled for [Liqo extension]((/usage/namespace_offloading)) (i.e., through the creation of a `NamespaceOffloading` resource, either manually or through the appropriate `liqoctl` command), the virtual kubelet starts reflecting all resources belonging to the above categories into the subset of selected clusters (i.e., by means of the `ClusterSelector` field).
 The local copy of each resource is the source of trust leveraged to realign the content of the *shadow* copy reflected in each remote cluster.
-Yet, appropriate remapping of certain information (e.g., [endpoints IP](http://localhost:1313/concepts/networking/components/network-manager/#reflection)) is transparently performed by the virtual kubelet, accounting for conflicts and different configurations in different clusters.
+However, appropriate remapping of certain information (e.g., [endpoints IP](/concepts/networking/components/network-manager/#reflection)) is transparently performed by the virtual kubelet, accounting for conflicts and different configurations in different clusters.
 
 ### Service and EndpointSlice reflection
 
 The reflection of Service and EndpointSlice resources is a key element to allow the seamless intercommunication between microservices spread across multiple clusters.
 
-As a matter of example, let consider the scenario shown in figure below, depicting an application composed of three Pods (partially hosted by a local cluster and partially offloaded to a remote one through a virtual node) and exposed through their respective Service (then, Kubernetes automatically creates the corresponding EndpointSlice).
+As a matter of example, let consider the scenario shown in the figure below, depicting an application composed of three Pods (partially hosted by a local cluster and partially offloaded to a remote one through a virtual node) and exposed through their respective Service (then, Kubernetes automatically creates the corresponding EndpointSlice).
 
 Considering first a local Pod (P<sub>1</sub>), it can directly contact an offloaded Pod (P<sub>3</sub>) through the corresponding Service.
 As a matter of fact, the local Kubernetes control plane perceives P<sub>3</sub> as executed locally and, since its possibly remapped IP address is present as part of its status, it creates the corresponding EndpointSlice entry (i.e., E<sub>3</sub>) as usual.
