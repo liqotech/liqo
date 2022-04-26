@@ -175,8 +175,12 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 		// check if the peer configuration is updated.
 		if stringAllowedIPs == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[liqoconst.PublicKey] &&
 			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[liqoconst.ListeningPort] {
-			return oldCon, nil
+
+			// Update connection status.
+			return w.updateConnectionStatus(oldCon)
 		}
+
+		// If the configuration has changed then remove the peer.
 		klog.V(4).Infof("updating peer configuration for cluster %s", tep.Spec.ClusterID)
 		err = w.client.ConfigureDevice(liqoconst.DeviceName, wgtypes.Config{
 			ReplacePeers: false,
@@ -213,8 +217,8 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	}
 	//
 	c := &netv1alpha1.Connection{
-		Status:        netv1alpha1.Connected,
-		StatusMessage: "Cluster peer connected",
+		Status:        netv1alpha1.Connecting,
+		StatusMessage: netv1alpha1.ConnectingMessage,
 		PeerConfiguration: map[string]string{liqoconst.ListeningPort: strconv.Itoa(endpoint.Port), EndpointIP: endpoint.IP.String(),
 			AllowedIPs: stringAllowedIPs, liqoconst.PublicKey: remoteKey.String()},
 	}
@@ -338,7 +342,7 @@ func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) ([]net.IPNet, string, error)
 	if err != nil {
 		return nil, "", fmt.Errorf("unable to parse externalCIDR %s for cluster %s: %w", remoteExternalCIDR, tep.Spec.ClusterID, err)
 	}
-	return []net.IPNet{*podCIDR, *externalCIDR}, fmt.Sprintf("%s,%s", remotePodCIDR, remoteExternalCIDR), nil
+	return []net.IPNet{*podCIDR, *externalCIDR}, fmt.Sprintf("%s, %s", remotePodCIDR, remoteExternalCIDR), nil
 }
 
 func getKey(tep *netv1alpha1.TunnelEndpoint) (*wgtypes.Key, error) {
@@ -486,4 +490,32 @@ func (w *Wireguard) SetNewClient() error {
 	}
 	w.client = c
 	return nil
+}
+
+func (w *Wireguard) updateConnectionStatus(oldConn *netv1alpha1.Connection) (*netv1alpha1.Connection, error) {
+	var err error
+	var wgDev *wgtypes.Device
+
+	// Get WireGuard device.
+	if wgDev, err = w.client.Device(liqoconst.DeviceName); err != nil {
+		return newConnectionOnError(err.Error()), err
+	}
+
+	for i := range wgDev.Peers {
+		if wgDev.Peers[i].PublicKey.String() == oldConn.PeerConfiguration[liqoconst.PublicKey] {
+			// Peer has been found.
+			peer := wgDev.Peers[i]
+			// Check if the handshake with the remote peer completed.
+			if !peer.LastHandshakeTime.IsZero() {
+				oldConn.Status = netv1alpha1.Connected
+				oldConn.StatusMessage = netv1alpha1.ConnectedMessage
+				return oldConn, nil
+			}
+			// Return oldConn if handshake did not complete.
+			return oldConn, nil
+		}
+	}
+	err = fmt.Errorf("no peer with pubKey {%s} found on device {%s}",
+		oldConn.PeerConfiguration[liqoconst.PublicKey], liqoconst.DeviceName)
+	return newConnectionOnError(err.Error()), err
 }
