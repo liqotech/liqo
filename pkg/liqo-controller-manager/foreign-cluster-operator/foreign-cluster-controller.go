@@ -209,7 +209,6 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
-	r.ForeignClusters.Store(foreignCluster.Status.TenantNamespace.Local, foreignCluster.GetName())
 	tracer.Step("Ensured the existence of the local tenant namespace")
 
 	// Add the foreigncluster to the map once the local tenant namespace has been created.

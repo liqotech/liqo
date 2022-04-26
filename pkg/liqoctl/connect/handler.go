@@ -171,6 +171,16 @@ func (a *Args) Handler(ctx context.Context) error {
 		return err
 	}
 
+	// Waiting for VPN connection to be established in cluster 1.
+	if err := cluster1.WaitForNetwork(ctx, cluster2.GetClusterID(), 120*time.Second); err != nil {
+		return err
+	}
+
+	// Waiting for VPN connection to be established in cluster 2.
+	if err := cluster2.WaitForNetwork(ctx, cluster1.GetClusterID(), 120*time.Second); err != nil {
+		return err
+	}
+
 	// Waiting for authentication to complete in cluster 1.
 	if err := cluster1.WaitForAuth(ctx, cluster2.GetClusterID(), 120*time.Second); err != nil {
 		return err

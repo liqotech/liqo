@@ -34,6 +34,8 @@ const (
 	UnpeeringEvent fcEventType = "unpeer"
 	// AuthEvent name of the authentication event.
 	AuthEvent fcEventType = "authentication"
+	// NetworkEvent name of the network event when it is established.
+	NetworkEvent fcEventType = "network established"
 )
 
 var (
@@ -44,6 +46,9 @@ var (
 
 	// AuthChecker checks if the authentication has been completed.
 	AuthChecker fcEventChecker = foreigncluster.IsAuthenticated
+
+	// NetworkChecker checks if the VPN connection has been established.
+	NetworkChecker fcEventChecker = foreigncluster.IsNetworkingEstablished
 )
 
 // WaitForEventOnForeignCluster given the remote cluster identity if waits for the given event

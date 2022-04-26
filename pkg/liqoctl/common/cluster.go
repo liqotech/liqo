@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -242,6 +243,11 @@ func (c *Cluster) Init(ctx context.Context) error {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", err))
 		return err
 	}
+	wgIP := net.ParseIP(ip)
+	if wgIP == nil {
+		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: unable to parse ip address %s", ip))
+		return err
+	}
 	selector, err = metav1.LabelSelectorAsSelector(&liqolabels.WireGuardSecretLabelSelector)
 	if err != nil {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", err))
@@ -256,6 +262,9 @@ func (c *Cluster) Init(ctx context.Context) error {
 	if err != nil {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", err))
 		return err
+	}
+	if wgIP.IsPrivate() {
+		s.Warning(fmt.Sprintf("wireGuard configuration correctly retrieved: endpoint IP {%s} seems to be private.", ip))
 	}
 	s.Success("wireGuard configuration correctly retrieved")
 
@@ -820,6 +829,7 @@ func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *di
 	}
 
 	if _, err = controllerutil.CreateOrPatch(ctx, c.locCtrlRunClient, fc, func() error {
+		fc.Spec.ClusterIdentity = *remoteClusterID
 		fc.Spec.ForeignAuthURL = authURL
 		fc.Spec.ForeignProxyURL = proxyURL
 		fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
@@ -933,5 +943,18 @@ func (c *Cluster) WaitForAuth(ctx context.Context, remoteClusterID *discoveryv1a
 		return err
 	}
 	s.Success(fmt.Sprintf("event {%s} successfully occurred for remote cluster {%s}", AuthEvent, remName))
+	return nil
+}
+
+// WaitForNetwork waits until the networking has been established with the remote cluster or the timeout expires.
+func (c *Cluster) WaitForNetwork(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity, timeout time.Duration) error {
+	remName := remoteClusterID.ClusterName
+	s, _ := c.printer.Spinner.Start(fmt.Sprintf("waiting for event {%s} from the remote cluster {%s}", NetworkEvent, remName))
+	err := WaitForEventOnForeignCluster(ctx, remoteClusterID, NetworkEvent, NetworkChecker, timeout, c.locCtrlRunClient)
+	if err != nil {
+		s.Fail(err.Error())
+		return err
+	}
+	s.Success(fmt.Sprintf("event {%s} successfully occurred for remote cluster {%s}", NetworkEvent, remName))
 	return nil
 }
