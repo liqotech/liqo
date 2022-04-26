@@ -21,11 +21,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"net/http"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 

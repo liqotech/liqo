@@ -60,3 +60,9 @@ func IsOutgoingPeeringNone(foreignCluster *discoveryv1alpha1.ForeignCluster) boo
 	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.OutgoingPeeringCondition)
 	return curPhase == discoveryv1alpha1.PeeringConditionStatusNone
 }
+
+// IsNetworkingEstablished checks if the networking has be established.
+func IsNetworkingEstablished(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.NetworkStatusCondition)
+	return curPhase == discoveryv1alpha1.PeeringConditionStatusEstablished
+}
