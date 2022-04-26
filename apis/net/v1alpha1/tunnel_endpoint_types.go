@@ -83,11 +83,15 @@ type ConnectionStatus string
 
 const (
 	// Connected used when the connection is up and running.
-	Connected ConnectionStatus = "connected"
+	Connected ConnectionStatus = "Connected"
+	// ConnectedMessage human-readable info when the vpn connection is in "connected" state.
+	ConnectedMessage string = "VPN connection established"
 	// Connecting used as temporary status while waiting for the vpn tunnel to come up.
-	Connecting ConnectionStatus = "connecting"
+	Connecting ConnectionStatus = "Connecting"
+	// ConnectingMessage human-readable info when the vpn is in "connecting" state.
+	ConnectingMessage string = "Waiting VPN connection to be established"
 	// ConnectionError used to se the status in case of errors.
-	ConnectionError ConnectionStatus = "error"
+	ConnectionError ConnectionStatus = "Error"
 )
 
 // +kubebuilder:object:root=true

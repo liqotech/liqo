@@ -22,6 +22,7 @@ import (
 	"os/signal"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
@@ -250,6 +251,13 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err := tc.gatewayNetns.Do(configGWNetns); err != nil {
 		return result, err
 	}
+	// When the status of VPN tunnel is "Connecting" than we requeue the tunnelendpoint resource in order to
+	// reprocess it and check the VPN tunnel state.
+	if con.Status == netv1alpha1.Connecting {
+		result = ctrl.Result{
+			RequeueAfter: 2 * time.Second,
+		}
+	}
 
 	return result, tc.updateStatus(con, tep)
 }
@@ -459,7 +467,7 @@ func (tc *TunnelController) updateStatus(con *netv1alpha1.Connection, tep *netv1
 	if err := tc.Status().Update(context.Background(), tep); err != nil {
 		if k8sApiErrors.IsConflict(err) {
 			klog.V(4).Infof("%s -> unable to update status for resource %s: %v", tep.Spec.ClusterID, tep.Name, err)
-			return nil
+			return err
 		}
 		klog.Errorf("%s -> an error occurred while updating status for resource %s: %v", tep.Spec.ClusterID, tep.Name, err)
 		return err
