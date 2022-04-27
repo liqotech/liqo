@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package exposition implements the reflection logic for services and endpointslices.
+// Package exposition implements the reflection logic for services, endpointslices and ingresses.
 package exposition

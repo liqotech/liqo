@@ -44,6 +44,7 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.UintVar(&o.ServiceWorkers, "service-reflection-workers", o.ServiceWorkers, "The number of service reflection workers")
 	flags.UintVar(&o.EndpointSliceWorkers, "endpointslice-reflection-workers", o.EndpointSliceWorkers,
 		"The number of endpointslice reflection workers")
+	flags.UintVar(&o.IngressWorkers, "ingress-reflection-workers", o.IngressWorkers, "The number of ingress reflection workers")
 	flags.UintVar(&o.ConfigMapWorkers, "configmap-reflection-workers", o.ConfigMapWorkers, "The number of configmap reflection workers")
 	flags.UintVar(&o.SecretWorkers, "secret-reflection-workers", o.SecretWorkers, "The number of secret reflection workers")
 	flags.UintVar(&o.PersistenVolumeClaimWorkers, "persistentvolumeclaim-reflection-workers", o.PersistenVolumeClaimWorkers,

@@ -63,7 +63,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return errors.New("cluster name is mandatory")
 	}
 
-	if c.PodWorkers == 0 || c.ServiceWorkers == 0 || c.EndpointSliceWorkers == 0 || c.ConfigMapWorkers == 0 || c.SecretWorkers == 0 {
+	if c.PodWorkers == 0 || c.ServiceWorkers == 0 || c.IngressWorkers == 0 ||
+		c.EndpointSliceWorkers == 0 || c.ConfigMapWorkers == 0 || c.SecretWorkers == 0 {
 		return errors.New("reflection workers must be greater than 0")
 	}
 
@@ -103,6 +104,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		PodWorkers:                  c.PodWorkers,
 		ServiceWorkers:              c.ServiceWorkers,
 		EndpointSliceWorkers:        c.EndpointSliceWorkers,
+		IngressWorkers:              c.IngressWorkers,
 		ConfigMapWorkers:            c.ConfigMapWorkers,
 		SecretWorkers:               c.SecretWorkers,
 		PersistenVolumeClaimWorkers: c.PersistenVolumeClaimWorkers,
