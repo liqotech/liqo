@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -150,6 +151,29 @@ var _ = Describe("Meta forging", func() {
 		When("the ObjectReference is nil", func() {
 			BeforeEach(func() { input = nil })
 			It("should return a nil output", func() { Expect(output).To(BeNil()) })
+		})
+	})
+
+	Describe("the RemoteIngressResource function", func() {
+		var (
+			input  corev1.TypedLocalObjectReference
+			output *corev1apply.TypedLocalObjectReferenceApplyConfiguration
+		)
+
+		BeforeEach(func() {
+			input = corev1.TypedLocalObjectReference{
+				APIGroup: pointer.String("example-group"),
+				Kind:     "example-kind",
+				Name:     "example-name",
+			}
+		})
+
+		JustBeforeEach(func() { output = forge.RemoteTypedLocalObjectReference(&input) })
+
+		It("should correctly replicate the resource fields", func() {
+			Expect(output.APIGroup).To(PointTo(Equal("example-group")))
+			Expect(output.Kind).To(PointTo(Equal("example-kind")))
+			Expect(output.Name).To(PointTo(Equal("example-name")))
 		})
 	})
 })

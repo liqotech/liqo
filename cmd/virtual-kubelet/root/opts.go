@@ -37,6 +37,7 @@ const (
 	DefaultPodWorkers                  = 10
 	DefaultServiceWorkers              = 3
 	DefaultEndpointSliceWorkers        = 10
+	DefaultIngressWorkers              = 3
 	DefaultConfigMapWorkers            = 3
 	DefaultSecretWorkers               = 3
 	DefaultPersistenVolumeClaimWorkers = 3
@@ -67,6 +68,7 @@ type Opts struct {
 	PodWorkers                  uint
 	ServiceWorkers              uint
 	EndpointSliceWorkers        uint
+	IngressWorkers              uint
 	ConfigMapWorkers            uint
 	SecretWorkers               uint
 	PersistenVolumeClaimWorkers uint
@@ -100,6 +102,7 @@ func NewOpts() *Opts {
 		PodWorkers:                  DefaultPodWorkers,
 		ServiceWorkers:              DefaultServiceWorkers,
 		EndpointSliceWorkers:        DefaultEndpointSliceWorkers,
+		IngressWorkers:              DefaultIngressWorkers,
 		ConfigMapWorkers:            DefaultConfigMapWorkers,
 		SecretWorkers:               DefaultSecretWorkers,
 		PersistenVolumeClaimWorkers: DefaultPersistenVolumeClaimWorkers,

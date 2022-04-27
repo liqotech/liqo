@@ -60,6 +60,7 @@ type InitConfig struct {
 	PodWorkers                  uint
 	ServiceWorkers              uint
 	EndpointSliceWorkers        uint
+	IngressWorkers              uint
 	PersistenVolumeClaimWorkers uint
 	ConfigMapWorkers            uint
 	SecretWorkers               uint
@@ -99,6 +100,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers)).
+		With(exposition.NewIngressReflector(cfg.IngressWorkers)).
 		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
 		With(configuration.NewSecretReflector(cfg.SecretWorkers)).
 		With(podreflector).

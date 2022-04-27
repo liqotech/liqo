@@ -66,6 +66,18 @@ func RemoteObjectReference(ref *corev1.ObjectReference) *corev1apply.ObjectRefer
 		WithResourceVersion(ref.ResourceVersion).WithUID(ref.UID)
 }
 
+// RemoteTypedLocalObjectReference forges the apply patch for a reflected TypedLocalObjectReference.
+func RemoteTypedLocalObjectReference(local *corev1.TypedLocalObjectReference) *corev1apply.TypedLocalObjectReferenceApplyConfiguration {
+	if local == nil {
+		return nil
+	}
+	res := corev1apply.TypedLocalObjectReference().
+		WithKind(local.Kind).
+		WithName(local.Name)
+	res.APIGroup = local.APIGroup
+	return res
+}
+
 // RemoteKind prepends "Remote" to a kind name, to identify remote objects.
 func RemoteKind(kind string) string {
 	return "Remote" + kind
