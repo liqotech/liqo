@@ -34,6 +34,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 const neighborhoodPrefix = "neighborhood-"
@@ -181,7 +182,7 @@ func (r *NeighborhoodCreator) createNeighborhood(ctx context.Context, fc *discov
 func forgeNeighborhood(clusterID string, fc *discoveryv1alpha1.ForeignCluster, neighbors map[string]discoveryv1alpha1.Neighbor) *discoveryv1alpha1.Neighborhood {
 	return &discoveryv1alpha1.Neighborhood{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: neighborhoodPrefix,
+			Name: foreignclusterutils.UniqueName(&fc.Spec.ClusterIdentity),
 			Namespace:    fc.Status.TenantNamespace.Local,
 			Labels: map[string]string{
 				consts.ReplicationDestinationLabel: fc.Spec.ClusterIdentity.ClusterID,
