@@ -28,17 +28,6 @@ import (
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
-var providersDefaultMTU = map[string]float64{
-	GenericProviderName: 1360, // generic provider default MTU
-	"kubeadm":           1440,
-	"kind":              1440,
-	"k3s":               1440,
-	"eks":               1440,
-	"gke":               1400,
-	"aks":               1360,
-	"openshift":         1440,
-}
-
 // CommonArguments encapsulates all the arguments common across install providers.
 type CommonArguments struct {
 	Version              string
@@ -121,7 +110,7 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet, s *pterm.
 	}
 	commonValues, tmpDir, err := parseCommonValues(providerName, &chartPath, repoURL, version,
 		resourceSharingPercentage, downloadChart, lanDiscovery, enableHa,
-		float64(ifaceMTU), float64(listeningPort), s)
+		ifaceMTU, listeningPort, s)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +132,7 @@ func ValidateCommonArguments(providerName string, flags *flag.FlagSet, s *pterm.
 
 func parseCommonValues(providerName string, chartPath *string, repoURL, version, resourceSharingPercentage string,
 	downloadChart, lanDiscovery, enableHa bool,
-	mtu, port float64, s *pterm.SpinnerPrinter) (values map[string]interface{}, tmpDir string, err error) {
+	mtu, port int, s *pterm.SpinnerPrinter) (values map[string]interface{}, tmpDir string, err error) {
 	if chartPath == nil {
 		chartPath = pointer.String(installutils.LiqoChartFullName)
 	}
@@ -174,12 +163,7 @@ func parseCommonValues(providerName string, chartPath *string, repoURL, version,
 	if enableHa {
 		gatewayReplicas = 2
 	}
-	if mtu == 0 {
-		var err error
-		if mtu, err = getDefaultMTU(providerName); err != nil {
-			return nil, "", err
-		}
-	}
+
 	return map[string]interface{}{
 		"tag": tag,
 		"discovery": map[string]interface{}{
@@ -196,20 +180,15 @@ func parseCommonValues(providerName string, chartPath *string, repoURL, version,
 		"gateway": map[string]interface{}{
 			"replicas": float64(gatewayReplicas),
 			"config": map[string]interface{}{
-				"listeningPort": port,
+				// The value is converted to float64 to match the type returned by the helm client.
+				"listeningPort": float64(port),
 			},
 		},
 		"networkConfig": map[string]interface{}{
-			"mtu": mtu,
+			// The value is converted to float64 to match the type returned by the helm client.
+			"mtu": float64(mtu),
 		},
 	}, tmpDir, nil
-}
-
-func getDefaultMTU(provider string) (float64, error) {
-	if mtu, ok := providersDefaultMTU[provider]; ok {
-		return mtu, nil
-	}
-	return 0, fmt.Errorf("mtu for provider %s not found", provider)
 }
 
 func isRelease(version string) bool {

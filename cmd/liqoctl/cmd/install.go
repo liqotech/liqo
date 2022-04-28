@@ -65,7 +65,9 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	installCmd.PersistentFlags().String("resource-sharing-percentage", "90", "It defines the percentage of available cluster resources that "+
 		"you are willing to share with foreign clusters. It accepts [0 - 100] values.")
 	installCmd.PersistentFlags().Bool("enable-ha", false, "Enable the gateway component support active/passive high availability.")
-	installCmd.PersistentFlags().Int("mtu", 0, "mtu is the maximum transmission unit for interfaces managed by Liqo")
+	// By default, we configure a sufficiently low MTU value to ensure correct functioning regardless of the combination of the underlying
+	// environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops.
+	installCmd.PersistentFlags().Int("mtu", 1340, "mtu is the maximum transmission unit for interfaces managed by Liqo")
 	installCmd.PersistentFlags().Int("vpn-listening-port", liqoconst.GatewayListeningPort, "vpn-listening-port is the port used by the vpn tunnel")
 
 	provider.GenerateFlags(installCmd)
