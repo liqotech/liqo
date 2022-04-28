@@ -37,8 +37,6 @@ import (
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
-const neighborhoodPrefix = "neighborhood-"
-
 type NeighborhoodCreator struct {
 	client.Client
 	Scheme          *runtime.Scheme
@@ -139,7 +137,7 @@ func (r *NeighborhoodCreator) getNeighborhoodForCluster(ctx context.Context, clu
 
 	if len(neighborhoodList.Items) > 1 {
 		klog.Warning("multiple neighborhood resources found for cluster %s", clusterID)
-		if err := r.deleteNeighborhoodsForCluster(ctx, clusterID); err != nil {
+		if err := DeleteNeighborhoodsForCluster(ctx, clusterID, r); err != nil {
 			klog.Error(err)
 			return nil, err
 		}
@@ -149,7 +147,7 @@ func (r *NeighborhoodCreator) getNeighborhoodForCluster(ctx context.Context, clu
 	return &neighborhoodList.Items[0], nil
 }
 
-func (r *NeighborhoodCreator) deleteNeighborhoodsForCluster(ctx context.Context, clusterID string) error {
+func DeleteNeighborhoodsForCluster(ctx context.Context, clusterID string, cl client.Writer) error {
 	req1, err := labels.NewRequirement(neighborhoodLabelKey, selection.Equals, []string{neighborhoodLabelValue})
 	if err != nil {
 		return err
@@ -158,7 +156,7 @@ func (r *NeighborhoodCreator) deleteNeighborhoodsForCluster(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	if err := r.DeleteAllOf(ctx, nil, &client.DeleteAllOfOptions{
+	if err := cl.DeleteAllOf(ctx, nil, &client.DeleteAllOfOptions{
 		ListOptions: client.ListOptions{
 			LabelSelector: labels.NewSelector().Add(*req1, *req2),
 		},

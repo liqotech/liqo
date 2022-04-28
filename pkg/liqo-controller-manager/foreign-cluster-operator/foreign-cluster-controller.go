@@ -41,6 +41,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	neighborhoodcreator "github.com/liqotech/liqo/pkg/liqo-controller-manager/neighborhood-creator"
 	resourcerequestoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -293,6 +294,13 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 		klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
+		
+		if err := neighborhoodcreator.DeleteNeighborhoodsForCluster(ctx, foreignCluster.Spec.ClusterIdentity.ClusterID, r.Client); err != nil {
+			klog.Error(err)
+			return ctrl.Result{}, err
+		}
+		klog.V(4).Infof("Neighborhood for cluster %s successfully deleted", foreignCluster.Name)
+
 		return ctrl.Result{}, nil
 	}
 	tracer.Step("Performed ForeignCluster garbage collection")
