@@ -137,7 +137,7 @@ func (r *NeighborhoodCreator) getNeighborhoodForCluster(ctx context.Context, clu
 
 	if len(neighborhoodList.Items) > 1 {
 		klog.Warning("multiple neighborhood resources found for cluster %s", clusterID)
-		if err := DeleteNeighborhoodsForCluster(ctx, clusterID, r); err != nil {
+		if err := DeleteNeighborhoodsForCluster(ctx, clusterID, r.Client); err != nil {
 			klog.Error(err)
 			return nil, err
 		}
@@ -147,7 +147,7 @@ func (r *NeighborhoodCreator) getNeighborhoodForCluster(ctx context.Context, clu
 	return &neighborhoodList.Items[0], nil
 }
 
-func DeleteNeighborhoodsForCluster(ctx context.Context, clusterID string, cl client.Writer) error {
+func DeleteNeighborhoodsForCluster(ctx context.Context, clusterID string, cl client.Client) error {
 	req1, err := labels.NewRequirement(neighborhoodLabelKey, selection.Equals, []string{neighborhoodLabelValue})
 	if err != nil {
 		return err
@@ -156,12 +156,12 @@ func DeleteNeighborhoodsForCluster(ctx context.Context, clusterID string, cl cli
 	if err != nil {
 		return err
 	}
-	if err := cl.DeleteAllOf(ctx, nil, &client.DeleteAllOfOptions{
+	if err := cl.DeleteAllOf(ctx, &discoveryv1alpha1.Neighborhood{}, &client.DeleteAllOfOptions{
 		ListOptions: client.ListOptions{
 			LabelSelector: labels.NewSelector().Add(*req1, *req2),
 		},
 	}); err != nil {
-		klog.Warning("Error while deleting all neighborhood resources for cluster %s: %v", clusterID, err)
+		klog.Warningf("Error while deleting all neighborhood resources for cluster %s: %v", clusterID, err)
 		return err
 	}
 	klog.Infof("Deleted all neighborhood resources for cluster %s", clusterID)

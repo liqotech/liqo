@@ -293,13 +293,13 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
-		klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
+		klog.Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 		
 		if err := neighborhoodcreator.DeleteNeighborhoodsForCluster(ctx, foreignCluster.Spec.ClusterIdentity.ClusterID, r.Client); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
-		klog.V(4).Infof("Neighborhood for cluster %s successfully deleted", foreignCluster.Name)
+		klog.Infof("Neighborhood for cluster %s successfully deleted", foreignCluster.Name)
 
 		return ctrl.Result{}, nil
 	}
