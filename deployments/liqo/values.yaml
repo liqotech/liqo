@@ -280,4 +280,6 @@ openshiftConfig:
 networkConfig:
   # -- set the mtu for the interfaces managed by liqo: vxlan, tunnel and veth interfaces
   # The value is used by the gateway and route operators.
-  mtu: 1440
+  # The default value is configured to ensure correct functioning regardless of the combination of the underlying environments
+  # (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops.
+  mtu: 1340

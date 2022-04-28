@@ -58,7 +58,7 @@
 | metricAgent.pod.extraArgs | list | `[]` | metricAgent pod extra arguments |
 | metricAgent.pod.labels | object | `{}` | metricAgent pod labels |
 | nameOverride | string | `""` | liqo name override |
-| networkConfig.mtu | int | `1440` | set the mtu for the interfaces managed by liqo: vxlan, tunnel and veth interfaces The value is used by the gateway and route operators. |
+| networkConfig.mtu | int | `1340` | set the mtu for the interfaces managed by liqo: vxlan, tunnel and veth interfaces The value is used by the gateway and route operators. The default value is configured to ensure correct functioning regardless of the combination of the underlying environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops. |
 | networkManager.config.additionalPools | list | `[]` | Set of additional network pools. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
 | networkManager.config.podCIDR | string | `""` | The subnet used by the cluster for the pods, in CIDR notation |
 | networkManager.config.reservedSubnets | list | `[]` | Usually the IPs used for the pods in k8s clusters belong to private subnets. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
