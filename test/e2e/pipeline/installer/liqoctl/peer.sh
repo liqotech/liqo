@@ -29,8 +29,7 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 for i in $(seq 2 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  # Add the cluster with a different name than the one it declares, so we can test that we use cluster names correctly
-  ADD_COMMAND=$(${LIQOCTL} generate-add-command --only-command | sed "s/add cluster liqo-${i}/add cluster foreign-${i}/g")
+  ADD_COMMAND=$(${LIQOCTL} generate-add-command --only-command)
 
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
   eval "${ADD_COMMAND}"

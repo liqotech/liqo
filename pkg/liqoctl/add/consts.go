@@ -52,7 +52,7 @@ kubectl get foreignclusters %s
 
 * Check if the virtual node is correctly created (this should take less than ~30s) 📦:
 
-kubectl get nodes liqo-%s
+kubectl get nodes %s
 
 * Ready to go! Let's deploy a simple cross-cluster application using Liqo 🚜:
 

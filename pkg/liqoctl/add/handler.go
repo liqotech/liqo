@@ -32,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 	authenticationtokenutils "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
 // ClusterArgs encapsulates arguments required to enable an outgoing peering to a remote cluster.
@@ -91,7 +92,7 @@ func printSuccessfulOutputMessage(ctx context.Context, t *ClusterArgs, k8sClient
 	if err != nil {
 		return err
 	}
-	fmt.Printf(SuccessfulMessage, t.ClusterName, fc.Name, t.ClusterID)
+	fmt.Printf(SuccessfulMessage, t.ClusterName, fc.Name, virtualKubelet.VirtualNodeName(fc.Spec.ClusterIdentity))
 	return nil
 }
 
@@ -129,6 +130,11 @@ func enforceForeignCluster(ctx context.Context, cl client.Client, t *ClusterArgs
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, cl, fc, func() error {
+		fc.Spec.ClusterIdentity.ClusterID = t.ClusterID
+		if fc.Spec.ClusterIdentity.ClusterName == "" {
+			fc.Spec.ClusterIdentity.ClusterName = t.ClusterName
+		}
+
 		fc.Spec.ForeignAuthURL = t.ClusterAuthURL
 		fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
 		if fc.Spec.IncomingPeeringEnabled == "" {
