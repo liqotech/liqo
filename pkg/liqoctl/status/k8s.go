@@ -17,25 +17,19 @@ package status
 import (
 	"context"
 	"fmt"
-
-	k8s "k8s.io/client-go/kubernetes"
 )
 
 // k8sStatusCollector knows how to interact with k8s cluster.
 type k8sStatusCollector struct {
-	client   k8s.Interface
-	params   Args
 	checkers []Checker
 }
 
 // newK8sStatusCollector returns a new k8sStatusCollector.
-func newK8sStatusCollector(client k8s.Interface, params Args) *k8sStatusCollector {
+func newK8sStatusCollector(options *Options) *k8sStatusCollector {
 	return &k8sStatusCollector{
-		client: client,
-		params: params,
 		checkers: []Checker{
-			newNamespaceChecker(params.Namespace, client),
-			newPodChecker(params.Namespace, liqoDeployments, liqoDaemonSets, client),
+			newNamespaceChecker(options.LiqoNamespace, options.KubeClient),
+			newPodChecker(options.LiqoNamespace, liqoDeployments, liqoDaemonSets, options.KubeClient),
 		},
 	}
 }

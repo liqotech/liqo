@@ -21,105 +21,76 @@ import (
 	configv1api "github.com/openshift/api/config/v1"
 	configv1 "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/spf13/cobra"
-	flag "github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 
-	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
-	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
-const (
-	providerPrefix = "openshift"
-)
+var _ install.Provider = (*Options)(nil)
 
-type openshiftProvider struct {
-	provider.GenericProvider
-
-	k8sClient kubernetes.Interface
-	config    *rest.Config
+// Options encapsulates the arguments of the install k3s command.
+type Options struct {
+	*install.Options
 }
 
-// NewProvider initializes a new OpenShift provider struct.
-func NewProvider() provider.InstallProviderInterface {
-	return &openshiftProvider{
-		GenericProvider: provider.GenericProvider{
-			ClusterLabels: map[string]string{
-				consts.ProviderClusterLabel: providerPrefix,
-			},
-		},
-	}
+// New initializes a new Provider object.
+func New(o *install.Options) install.Provider {
+	return &Options{Options: o}
 }
 
-// ValidateCommandArguments validates specific arguments passed to the install command.
-func (k *openshiftProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	return nil
+// Name returns the name of the provider.
+func (o *Options) Name() string { return "openshift" }
+
+// Examples returns the examples string for the given provider.
+func (o *Options) Examples() string {
+	return `Examples:
+  $ {{ .Executable }} install openshift --cluster-labels region=europe,environment=staging \
+      --reserved-subnets 172.16.0.0/16,192.16.254.0/24
+`
 }
 
-// ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
-// given provider.
-func (k *openshiftProvider) ExtractChartParameters(ctx context.Context, config *rest.Config, _ *provider.CommonArguments) error {
-	k8sClient, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("unable to create client: %w", err)
-	}
+// RegisterFlags registers the flags for the given provider.
+func (o *Options) RegisterFlags(cmd *cobra.Command) {}
 
-	k.k8sClient = k8sClient
-	k.config = config
-	k.APIServer = config.Host
-
-	configv1client, err := configv1.NewForConfig(config)
+// Initialize performs the initialization tasks to retrieve the provider-specific parameters.
+func (o *Options) Initialize(ctx context.Context) error {
+	configv1client, err := configv1.NewForConfig(o.RESTConfig)
 	if err != nil {
 		return fmt.Errorf("unable to create OpenShift client: %w", err)
 	}
 
 	networkConfig, err := configv1client.ConfigV1().Networks().Get(ctx, "cluster", metav1.GetOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to retrieve OpenShift network configuration: %w", err)
 	}
 
-	return k.parseNetworkConfig(networkConfig)
+	return o.parseNetworkConfig(networkConfig)
 }
 
-// UpdateChartValues patches the values map with the values required for the selected cluster.
-func (k *openshiftProvider) UpdateChartValues(values map[string]interface{}) {
-	values["apiServer"] = map[string]interface{}{
-		"address": k.APIServer,
-	}
-	values["networkManager"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"serviceCIDR":     k.ServiceCIDR,
-			"podCIDR":         k.PodCIDR,
-			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
-		},
-	}
-	values["discovery"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
-			"clusterName":   k.ClusterName,
-		},
-	}
-	values["route"] = map[string]interface{}{
-		"pod": map[string]interface{}{
-			"extraArgs": []interface{}{
-				"--route.vxlan-vtep-port=5050",
+// Values returns the customized provider-specifc values file parameters.
+func (o *Options) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"route": map[string]interface{}{
+			"pod": map[string]interface{}{
+				"extraArgs": []interface{}{
+					"--route.vxlan-vtep-port=5050",
+				},
 			},
 		},
-	}
-	values["openshiftConfig"] = map[string]interface{}{
-		"enable": true,
+
+		"openshiftConfig": map[string]interface{}{
+			"enable": true,
+		},
 	}
 }
 
-func (k *openshiftProvider) parseNetworkConfig(networkConfig *configv1api.Network) error {
+func (o *Options) parseNetworkConfig(networkConfig *configv1api.Network) error {
 	switch len(networkConfig.Status.ClusterNetwork) {
 	case 0:
 		return fmt.Errorf("no cluster network found")
 	case 1:
 		clusterNetwork := &networkConfig.Status.ClusterNetwork[0]
-		k.PodCIDR = clusterNetwork.CIDR
+		o.PodCIDR = clusterNetwork.CIDR
 	default:
 		return fmt.Errorf("multiple cluster networks found")
 	}
@@ -128,14 +99,10 @@ func (k *openshiftProvider) parseNetworkConfig(networkConfig *configv1api.Networ
 	case 0:
 		return fmt.Errorf("no service network found")
 	case 1:
-		k.ServiceCIDR = networkConfig.Status.ServiceNetwork[0]
+		o.ServiceCIDR = networkConfig.Status.ServiceNetwork[0]
 	default:
 		return fmt.Errorf("multiple service networks found")
 	}
 
 	return nil
-}
-
-// GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(command *cobra.Command) {
 }

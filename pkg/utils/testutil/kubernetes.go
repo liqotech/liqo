@@ -18,16 +18,21 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// FakeConfigMap returns a configmap with the specified namespace, name and data.
-func FakeConfigMap(namespace, name string, data map[string]string) *corev1.ConfigMap {
+// FakeClusterIDConfigMap returns a fake ClusterID ConfigMap.
+func FakeClusterIDConfigMap(namespace, clusterID, clusterName string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
+			Namespace: namespace, Name: "whatever",
+			Labels: map[string]string{consts.K8sAppNameKey: consts.ClusterIDConfigMapNameLabelValue},
 		},
-		Data: data,
+		Data: map[string]string{
+			consts.ClusterIDConfigMapKey:   clusterID,
+			consts.ClusterNameConfigMapKey: clusterName,
+		},
 	}
 }
 

@@ -18,86 +18,66 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"k8s.io/client-go/rest"
 
-	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
-	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
-const (
-	providerPrefix = "k3s"
+var _ install.Provider = (*Options)(nil)
 
-	defaultPodCIDR     = "10.42.0.0/16"
-	defaultServiceCIDR = "10.43.0.0/16"
-
-	podCidrFlag     = "pod-cidr"
-	serviceCidrFlag = "service-cidr"
-	apiServerFlag   = "api-server"
-)
-
-type k3sProvider struct {
-	provider.GenericProvider
+// Options encapsulates the arguments of the install command.
+type Options struct {
+	*install.Options
 }
 
-// NewProvider initializes a new K3S provider struct.
-func NewProvider() provider.InstallProviderInterface {
-	return &k3sProvider{
-		GenericProvider: provider.GenericProvider{
-			ClusterLabels: map[string]string{
-				consts.ProviderClusterLabel: providerPrefix,
+// New initializes a new Provider object.
+func New(o *install.Options) install.Provider {
+	return &Options{Options: o}
+}
+
+// Name returns the name of the provider.
+func (o *Options) Name() string { return "k3s" }
+
+// Examples returns the examples string for the given provider.
+func (o *Options) Examples() string {
+	return `Examples:
+  $ {{ .Executable }} install k3s --api-server-url https://liqo.example.local:6443 \
+      --cluster-labels "region=europe,environment=staging \
+      --reserved-subnets 172.16.0.0/16,192.16.254.0/24
+or
+  $ {{ .Executable }} install k3s --api-server-url https://liqo.example.local:6443 \
+      --cluster-labels "region=europe,environment=staging \
+      --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
+      --reserved-subnets 172.16.0.0/16,192.16.254.0/24
+`
+}
+
+// RegisterFlags registers the flags for the given provider.
+func (o *Options) RegisterFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&o.APIServer, "api-server-url", "", "The Kubernetes API Server URL (defaults to the one specified in the kubeconfig)")
+	cmd.Flags().StringVar(&o.PodCIDR, "pod-cidr", "10.42.0.0/16", "The Pod CIDR of the cluster")
+	cmd.Flags().StringVar(&o.ServiceCIDR, "service-cidr", "10.43.0.0/16", "The Service CIDR of the cluster")
+}
+
+// Initialize performs the initialization tasks to retrieve the provider-specific parameters.
+func (o *Options) Initialize(ctx context.Context) error {
+	// Typically, the URL refers to a localhost address.
+	o.DisableAPIServerSanityChecks = true
+	return nil
+}
+
+// Values returns the customized provider-specifc values file parameters.
+func (o *Options) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"auth": map[string]interface{}{
+			"service": map[string]interface{}{
+				"type": "NodePort",
+			},
+		},
+
+		"gateway": map[string]interface{}{
+			"service": map[string]interface{}{
+				"type": "NodePort",
 			},
 		},
 	}
-}
-
-// ValidateCommandArguments validates specific arguments passed to the install command.
-func (k *k3sProvider) ValidateCommandArguments(flags *pflag.FlagSet) (err error) {
-	return k.ValidateCommandArguments(flags)
-}
-
-// ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
-// given provider.
-func (k *k3sProvider) ExtractChartParameters(ctx context.Context, config *rest.Config, args *provider.CommonArguments) error {
-	return k.ExtractChartParameters(ctx, config, args)
-}
-
-// UpdateChartValues patches the values map with the values required for the selected cluster.
-func (k *k3sProvider) UpdateChartValues(values map[string]interface{}) {
-	values["apiServer"] = map[string]interface{}{
-		"address": k.APIServer,
-	}
-	values["auth"] = map[string]interface{}{
-		"service": map[string]interface{}{
-			"type": "NodePort",
-		},
-	}
-	values["networkManager"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"serviceCIDR":     k.ServiceCIDR,
-			"podCIDR":         k.PodCIDR,
-			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
-		},
-	}
-	values["gateway"] = map[string]interface{}{
-		"service": map[string]interface{}{
-			"type": "NodePort",
-		},
-	}
-	values["discovery"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
-			"clusterName":   k.ClusterName,
-		},
-	}
-}
-
-// GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(command *cobra.Command) {
-	flags := command.Flags()
-
-	flags.String(podCidrFlag, defaultPodCIDR, "The Pod CIDR for your cluster (optional)")
-	flags.String(serviceCidrFlag, defaultServiceCIDR, "The Service CIDR for your cluster (optional)")
-	flags.String(apiServerFlag, "", "Your cluster API Server URL (optional)")
 }

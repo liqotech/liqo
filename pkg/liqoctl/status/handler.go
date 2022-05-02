@@ -17,29 +17,16 @@ package status
 import (
 	"context"
 
-	k8s "k8s.io/client-go/kubernetes"
-
-	"github.com/liqotech/liqo/pkg/liqoctl/common"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 )
 
-// Args flags of the status command.
-type Args struct {
-	Namespace string
+// Options encapsulates the arguments of the status command.
+type Options struct {
+	*factory.Factory
 }
 
-// Handler implements the logic of the status command.
-func (a *Args) Handler(ctx context.Context) error {
-	restConfig, err := common.GetLiqoctlRestConf()
-	if err != nil {
-		return err
-	}
-
-	clientSet, err := k8s.NewForConfig(restConfig)
-	if err != nil {
-		return err
-	}
-
-	collector := newK8sStatusCollector(clientSet, *a)
-
+// Run implements the status command.
+func (o *Options) Run(ctx context.Context) error {
+	collector := newK8sStatusCollector(o)
 	return collector.collectStatus(ctx)
 }

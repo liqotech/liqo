@@ -16,116 +16,88 @@ package generate
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
-	appsv1 "k8s.io/api/apps/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/consts"
-	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
-	"github.com/liqotech/liqo/pkg/liqoctl/add"
-	"github.com/liqotech/liqo/pkg/liqoctl/common"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/peeroob"
+	"github.com/liqotech/liqo/pkg/liqoctl/util"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
-// HandleGenerateAddCommand outputs the liqoctl add command to use to add the target cluster.
-func HandleGenerateAddCommand(ctx context.Context, liqoNamespace string, printOnlyCommand bool, commandName string) error {
-	restConfig, err := common.GetLiqoctlRestConf()
-	if err != nil {
-		print(liqoctlGenerateRemindInstall)
-		return err
+// Options encapsulates the arguments of the generate peer-command command.
+type Options struct {
+	*factory.Factory
+
+	CommandName string
+	OnlyCommand bool
+}
+
+// Run implements the generate peer-command command.
+func (o *Options) Run(ctx context.Context) error {
+	if o.OnlyCommand {
+		command, err := o.generate(ctx)
+		if err != nil {
+			o.Printer.Error.Printf("Failed to retrieve peering information: %v\n", err)
+			return err
+		}
+
+		fmt.Println(command)
+		return nil
 	}
 
-	clientSet, err := client.New(restConfig, client.Options{})
+	s := o.Printer.StartSpinner("Retrieving peering information")
+	command, err := o.generate(ctx)
 	if err != nil {
-		print(liqoctlGenerateRemindInstall)
+		s.Fail("Failed to retrieve peering information: ", err)
 		return err
 	}
+	s.Success("Peering information correctly retrieved")
 
-	commandString, err := processGenerateCommand(ctx, clientSet, liqoNamespace, commandName)
-	if err != nil {
-		print(liqoctlGenerateRemindInstall)
-		return err
-	}
-
-	if printOnlyCommand {
-		fmt.Println(commandString)
-	} else {
-		fmt.Printf("\nUse this command on a DIFFERENT cluster to enable an outgoing peering WITH THE CURRENT cluster 🛠:\n\n")
-		fmt.Printf("%s\n\n", commandString)
-	}
+	fmt.Printf("\nExecute this command on a *different* cluster to enable an outgoing peering with the current cluster:\n\n")
+	fmt.Printf("%s\n", command)
 	return nil
 }
 
-func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNamespace, commandName string) (string, error) {
-	localToken, err := auth.GetToken(ctx, clientSet, liqoNamespace)
+func (o *Options) generate(ctx context.Context) (string, error) {
+	localToken, err := auth.GetToken(ctx, o.CRClient, o.LiqoNamespace)
 	if err != nil {
 		return "", err
 	}
 
-	clusterIdentity, err := utils.GetClusterIdentityWithControllerClient(ctx, clientSet, liqoNamespace)
+	clusterIdentity, err := utils.GetClusterIdentityWithControllerClient(ctx, o.CRClient, o.LiqoNamespace)
 	if err != nil {
 		return "", err
 	}
-	clusterID := clusterIdentity.ClusterID
 
 	// Retrieve the liqo controller manager deployment args
-	args, err := RetrieveLiqoControllerManagerDeploymentArgs(ctx, clientSet, liqoNamespace)
+	args, err := util.RetrieveLiqoControllerManagerDeploymentArgs(ctx, o.CRClient, o.LiqoNamespace)
 	if err != nil {
 		return "", err
 	}
 
 	// The error is discarded, since an empty string is returned in case the key is not found, which is fine.
-	clusterName, _ := common.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.ClusterNameParameter), args)
-	authServiceAddressOverride, _ := common.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServiceAddressOverrideParameter), args)
-	authServicePortOverride, _ := common.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServicePortOverrideParameter), args)
+	authServiceAddressOverride, _ := util.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServiceAddressOverrideParameter), args)
+	authServicePortOverride, _ := util.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServicePortOverrideParameter), args)
 
-	authEP, err := foreigncluster.GetHomeAuthURL(ctx, clientSet,
-		authServiceAddressOverride, authServicePortOverride, liqoNamespace)
+	authEP, err := foreigncluster.GetHomeAuthURL(ctx, o.CRClient, authServiceAddressOverride, authServicePortOverride, o.LiqoNamespace)
 	if err != nil {
 		return "", err
 	}
-	return generateCommandString(commandName, authEP, clusterID, localToken, clusterName), nil
-}
 
-func generateCommandString(commandName, authEP, clusterID, localToken, clusterName string) string {
-	// If the local cluster has not clusterName, we print the local clusterID to not leave this field empty.
-	// This can be changed bt the user when pasting this value in a remote cluster.
-	if clusterName == "" {
-		clusterName = clusterID
+	// If the local cluster has not a cluster name, we print the use the local clusterID to not leave this field empty.
+	// This can be changed by the user when pasting this value in a remote cluster.
+	if clusterIdentity.ClusterName == "" {
+		clusterIdentity.ClusterName = clusterIdentity.ClusterID
 	}
 
-	command := []string{commandName,
-		add.UseCommand,
-		add.ClusterResourceName,
-		clusterName,
-		"--" + add.AuthURLFlagName,
-		authEP,
-		"--" + add.ClusterIDFlagName,
-		clusterID,
-		"--" + add.ClusterTokenFlagName,
-		localToken}
-	return strings.Join(command, " ")
-}
-
-// RetrieveLiqoControllerManagerDeploymentArgs retrieves the list of arguments associated with the liqo controller manager deployment.
-func RetrieveLiqoControllerManagerDeploymentArgs(ctx context.Context, clientSet client.Client, liqoNamespace string) ([]string, error) {
-	// Retrieve the deployment of the liqo controller manager component
-	var deployments appsv1.DeploymentList
-	if err := clientSet.List(ctx, &deployments, client.InNamespace(liqoNamespace), client.MatchingLabelsSelector{
-		Selector: liqocontrollermanager.DeploymentLabelSelector(),
-	}); err != nil || len(deployments.Items) != 1 {
-		return nil, errors.New("failed to retrieve the liqo controller manager deployment")
-	}
-
-	containers := deployments.Items[0].Spec.Template.Spec.Containers
-	if len(containers) != 1 {
-		return nil, errors.New("retrieved an invalid liqo controller manager deployment")
-	}
-
-	return containers[0].Args, nil
+	return strings.Join([]string{
+		o.CommandName, "peer out-of-band", clusterIdentity.ClusterName,
+		"--" + peeroob.AuthURLFlagName, authEP,
+		"--" + peeroob.ClusterIDFlagName, clusterIdentity.ClusterID,
+		"--" + peeroob.ClusterTokenFlagName, localToken,
+	}, " "), nil
 }

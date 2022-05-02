@@ -26,16 +26,16 @@ import (
 	"github.com/spf13/cobra/doc"
 )
 
-// Args holds the necessary flags for the docs command.
-type Args struct {
-	Dest            string
+// Options encapsulates the arguments of the docs command.
+type Options struct {
+	Root            *cobra.Command
+	Destination     string
 	DocTypeString   string
-	TopCmd          *cobra.Command
 	GenerateHeaders bool
 }
 
-// Handler implement the logic of the docs command.
-func (o *Args) Handler(ctx context.Context) error {
+// Run implements the docs command.
+func (o *Options) Run(ctx context.Context) error {
 	switch o.DocTypeString {
 	case "markdown":
 		if o.GenerateHeaders {
@@ -48,12 +48,12 @@ func (o *Args) Handler(ctx context.Context) error {
 				return fmt.Sprintf("---\ntitle: %q\n---\n\n", title)
 			}
 
-			return doc.GenMarkdownTreeCustom(o.TopCmd, o.Dest, hdrFunc, standardLinks)
+			return doc.GenMarkdownTreeCustom(o.Root, o.Destination, hdrFunc, standardLinks)
 		}
-		return doc.GenMarkdownTree(o.TopCmd, o.Dest)
+		return doc.GenMarkdownTree(o.Root, o.Destination)
 	case "man":
 		manHdr := &doc.GenManHeader{Title: "LIQOCTL", Section: "1"}
-		return doc.GenManTree(o.TopCmd, manHdr, o.Dest)
+		return doc.GenManTree(o.Root, manHdr, o.Destination)
 	default:
 		return errors.Errorf("unknown doc type %q. Try 'markdown' or 'man'", o.DocTypeString)
 	}

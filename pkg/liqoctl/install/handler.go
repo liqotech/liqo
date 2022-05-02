@@ -18,114 +18,286 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
+	helm "github.com/mittwald/go-helm-client"
 	"github.com/spf13/cobra"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
+	"golang.org/x/mod/semver"
+	"gopkg.in/yaml.v3"
+	"helm.sh/helm/pkg/strvals"
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/repo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/common"
-	"github.com/liqotech/liqo/pkg/liqoctl/generate"
-	installprovider "github.com/liqotech/liqo/pkg/liqoctl/install/provider"
-	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/util"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
-// HandleInstallCommand implements the "install" command. It detects which provider has to be used, generates the chart
-// with provider-specific values. Finally, it performs the installation on the target cluster.
-func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, providerName string) error {
-	printer := common.NewPrinter("", common.Cluster1Color)
+// Provider defines the interface for an install provider.
+type Provider interface {
+	// Name returns the name of the given provider.
+	Name() string
+	// Examples returns the examples string for the given provider.
+	Examples() string
 
-	s, err := printer.Spinner.Start("Loading configuration")
-	utilruntime.Must(err)
+	// RegisterFlags registers the flags for the given provider.
+	RegisterFlags(cmd *cobra.Command)
 
-	config, err := common.GetLiqoctlRestConf()
-	if err != nil {
-		s.Fail("Error loading configuration: ", err)
-		return err
-	}
+	// Initialize performs the initialization tasks to retrieve the provider-specific parameters.
+	Initialize(ctx context.Context) error
+	// Values returns the customized provider-specifc values file parameters.
+	Values() map[string]interface{}
+}
 
-	providerInstance := getProviderInstance(providerName)
-	if providerInstance == nil {
-		err = fmt.Errorf("provider %s not supported", providerName)
-		s.Fail("Error loading configuration: ", err)
-		return err
-	}
-	s.Success("Configuration loaded")
+// Options encapsulates the arguments of the install command.
+type Options struct {
+	*factory.Factory
+	CommandName string
 
-	s, err = printer.Spinner.Start("Initializing installer")
-	utilruntime.Must(err)
+	Version   string
+	RepoURL   string
+	ChartPath string
 
-	commonArgs, err := installprovider.ValidateCommonArguments(providerName, cmd.Flags(), s)
-	if err != nil {
-		s.Fail("Error initializing installer: ", err)
-		return err
-	}
+	OverrideValues []string
+	chartValues    map[string]interface{}
+	tmpDir         string
 
-	if commonArgs.DownloadChart {
-		defer os.RemoveAll(commonArgs.ChartTmpDir)
-	}
+	DryRun           bool
+	OnlyOutputValues bool
+	ValuesPath       string
 
-	helmClient, err := initHelmClient(config, commonArgs)
-	if err != nil {
-		s.Fail("Error initializing installer: ", err)
-		return err
-	}
+	Timeout time.Duration
 
-	oldClusterName, err := installutils.GetOldClusterName(ctx, kubernetes.NewForConfigOrDie(config))
-	if err != nil {
+	ClusterName   string
+	ClusterLabels map[string]string
+
+	APIServer         string
+	SharingPercentage uint64
+	EnableHA          bool
+
+	PodCIDR         string
+	ServiceCIDR     string
+	ReservedSubnets []string
+
+	DisableAPIServerSanityChecks bool
+	DisableAPIServerDefaulting   bool
+}
+
+// Run implements the install command.
+func (o *Options) Run(ctx context.Context, provider Provider) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
+	s := o.Printer.StartSpinner("Initializing installer")
+	if err := o.initialize(ctx, provider); err != nil {
 		s.Fail("Error initializing installer: ", err)
 		return err
 	}
 	s.Success("Installer initialized")
 
-	s, err = printer.Spinner.Start("Retrieving cluster configuration from cluster provider")
-	utilruntime.Must(err)
+	s = o.Printer.StartSpinner("Retrieving cluster configuration")
 
-	err = providerInstance.PreValidateGenericCommandArguments(cmd.Flags())
+	err := provider.Initialize(ctx)
 	if err != nil {
-		s.Fail("Error validating generic arguments: ", err)
+		s.Fail("Error retrieving provider specific configuration: ", err)
 		return err
 	}
 
-	err = providerInstance.ValidateCommandArguments(cmd.Flags())
+	err = o.validate(ctx)
 	if err != nil {
-		s.Fail("Error validating command arguments: ", err)
+		s.Fail("Error retrieving configuration: ", err)
 		return err
 	}
 
-	err = providerInstance.PostValidateGenericCommandArguments(oldClusterName)
+	s.Success("Cluster configuration correctly retrieved")
+
+	s = o.Printer.StartSpinner("Generating installation parameters")
+
+	values, err := util.MergeMaps(o.chartValues, o.values())
 	if err != nil {
-		s.Fail("Error validating generic arguments: ", err)
+		s.Fail("Error generating installation parameters: ", err)
 		return err
 	}
 
-	err = providerInstance.ExtractChartParameters(ctx, config, commonArgs)
+	values, err = util.MergeMaps(values, provider.Values())
 	if err != nil {
-		s.Fail("Error extracting chart parameters: ", err)
+		s.Fail("Error generating installation parameters: ", err)
 		return err
 	}
-	s.Success("Chart parameters extracted")
 
-	if commonArgs.DumpValues {
-		s, err = printer.Spinner.Start("Generating values.yaml file with the Liqo chart parameters for your cluster")
-	} else {
-		s, err = printer.Spinner.Start("Installing or Upgrading Liqo... (this may take few minutes)")
+	for _, value := range o.OverrideValues {
+		if err := strvals.ParseInto(value, values); err != nil {
+			err := fmt.Errorf("failed parsing --set data: %w", err)
+			s.Fail("Error generating installation parameters: ", err)
+			return err
+		}
 	}
-	utilruntime.Must(err)
 
-	err = installOrUpdate(ctx, helmClient, providerInstance, commonArgs)
+	rawValues, err := yaml.Marshal(values)
+	if err != nil {
+		s.Fail("Error generating values file: ", err)
+		return err
+	}
+
+	s.Success("Installation parameters correctly generated")
+
+	if o.OnlyOutputValues {
+		s = o.Printer.StartSpinner("Generating values.yaml file with the Liqo chart parameters for your cluster")
+		if err = utils.WriteFile(o.ValuesPath, rawValues); err != nil {
+			s.Fail(fmt.Sprintf("Unable to write the values file to %q: %v", o.ValuesPath, err))
+			return err
+		}
+		s.Success(fmt.Sprintf("All Set! Chart values written to %q", o.ValuesPath))
+		return nil
+	}
+
+	s = o.Printer.StartSpinner("Installing or upgrading Liqo... (this may take few minutes)")
+	err = o.installOrUpdate(ctx, string(rawValues))
 	if err != nil {
 		s.Fail("Error installing or upgrading Liqo: ", err)
 		return err
 	}
 
-	switch {
-	case !commonArgs.DumpValues && !commonArgs.DryRun:
-		s.Success("All Set! You can use Liqo now!")
-		return generate.HandleGenerateAddCommand(ctx, installutils.LiqoNamespace, false, baseCommand)
-	case commonArgs.DumpValues:
-		s.Success(fmt.Sprintf("All Set! Chart values written in file %s", commonArgs.DumpValuesPath))
-	case commonArgs.DryRun:
-		s.Success("All Set! You can use Liqo now! (Dry-run)")
+	if o.DryRun {
+		s.Success("Installation completed (dry-run)")
+		return nil
+	}
+
+	s.Success(fmt.Sprintf("All Set! You can now proceed establishing a peering (%v peer --help for more information)", o.CommandName))
+	return nil
+}
+
+// PostRun performs the cleanup after the installation.
+func (o *Options) PostRun() error {
+	if o.tmpDir != "" {
+		return os.RemoveAll(o.tmpDir)
 	}
 	return nil
+}
+
+func (o *Options) initialize(ctx context.Context, provider Provider) error {
+	var err error
+	helmClient := o.HelmClient()
+
+	switch {
+	// In case a local chart path is specified, use that.
+	case o.ChartPath != "":
+		break
+
+	// In case the specified version is valid, add the chart through the client.
+	case o.isRelease():
+		o.ChartPath = liqoChartFullName
+		chartRepo := repo.Entry{URL: liqoRepo, Name: liqoChartName}
+		if err = helmClient.AddOrUpdateChartRepo(chartRepo); err != nil {
+			return err
+		}
+
+	// Otherwise, clone the repository and configure it as a local chart path.
+	default:
+		o.Printer.Warning.Printfln("Non-released version selected. Downloading repository...")
+		if err = o.cloneRepository(ctx); err != nil {
+			return err
+		}
+	}
+
+	// Retrieve the default chart values.
+	o.Printer.Verbosef("Using chart from %q", o.ChartPath)
+	chart, _, err := helmClient.GetChart(o.ChartPath, &action.ChartPathOptions{Version: o.Version})
+	if err != nil {
+		return err
+	}
+	o.chartValues = chart.Values
+
+	// Retrieve the cluster name used for previous installations, in case it was not specified.
+	if o.ClusterName == "" {
+		o.ClusterName, err = utils.GetClusterName(ctx, o.KubeClient, o.LiqoNamespace)
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+
+	// Add a label stating the provider name.
+	if provider.Name() != "" {
+		o.ClusterLabels[consts.ProviderClusterLabel] = provider.Name()
+	}
+
+	return nil
+}
+
+func (o *Options) installOrUpdate(ctx context.Context, rawValues string) error {
+	chartSpec := helm.ChartSpec{
+		ReleaseName: LiqoReleaseName,
+		ChartName:   o.ChartPath,
+		Version:     o.Version,
+
+		Namespace:       o.LiqoNamespace,
+		CreateNamespace: true,
+		ValuesYaml:      rawValues,
+
+		Timeout: o.Timeout,
+		DryRun:  o.DryRun,
+		Wait:    true,
+	}
+
+	// provide the possibility to exit installation on context cancellation
+	errCh := make(chan error)
+	defer close(errCh)
+	go func() {
+		_, err := o.HelmClient().InstallOrUpgradeChart(ctx, &chartSpec)
+		errCh <- err
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (o *Options) isRelease() bool {
+	return o.Version == "" || semver.IsValid(o.Version)
+}
+
+func (o *Options) values() map[string]interface{} {
+	gatewayReplicas := 1
+	if o.EnableHA {
+		gatewayReplicas = 2
+	}
+
+	return map[string]interface{}{
+		"tag": o.Version,
+
+		"apiServer": map[string]interface{}{
+			"address": o.APIServer,
+		},
+
+		"discovery": map[string]interface{}{
+			"config": map[string]interface{}{
+				"clusterName":   o.ClusterName,
+				"clusterLabels": util.GetInterfaceMap(o.ClusterLabels),
+			},
+		},
+
+		"controllerManager": map[string]interface{}{
+			"config": map[string]interface{}{
+				// The value is converted to float64 to match the type returned by the helm client.
+				"resourceSharingPercentage": float64(o.SharingPercentage),
+			},
+		},
+
+		"networkManager": map[string]interface{}{
+			"config": map[string]interface{}{
+				"podCIDR":         o.PodCIDR,
+				"serviceCIDR":     o.ServiceCIDR,
+				"reservedSubnets": util.GetInterfaceSlice(o.ReservedSubnets),
+			},
+		},
+
+		"gateway": map[string]interface{}{
+			"replicas": float64(gatewayReplicas),
+		},
+	}
 }

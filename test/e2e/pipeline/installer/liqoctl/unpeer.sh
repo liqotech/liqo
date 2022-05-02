@@ -32,6 +32,6 @@ do
 
   for foreignCluster in $(kubectl get foreignclusters.discovery.liqo.io --no-headers -o custom-columns=":metadata.name");
   do
-    "${LIQOCTL}" remove cluster "${foreignCluster}"
+    "${LIQOCTL}" unpeer out-of-band "${foreignCluster}"
   done;
 done;

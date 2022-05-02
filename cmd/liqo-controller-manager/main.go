@@ -68,7 +68,6 @@ import (
 )
 
 const (
-	defaultNamespace   = "liqo"
 	defaultVKImage     = "liqo/virtual-kubelet"
 	defaultInitVKImage = "liqo/init-virtual-kubelet"
 )
@@ -112,7 +111,7 @@ func main() {
 	// Global parameters
 	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
 	clusterIdentityFlags := argsutils.NewClusterIdentityFlags(true, nil)
-	liqoNamespace := flag.String("liqo-namespace", defaultNamespace,
+	liqoNamespace := flag.String("liqo-namespace", consts.DefaultLiqoNamespace,
 		"Name of the namespace where the liqo components are running")
 	foreignClusterWorkers := flag.Uint("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
 	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")

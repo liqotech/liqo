@@ -23,6 +23,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
 var (
@@ -71,13 +74,18 @@ func TestFetchingParameters(t *testing.T) {
 }
 
 var _ = Describe("Extract elements from apiServer", func() {
+	var options Options
+
+	BeforeEach(func() {
+		options = Options{Options: &install.Options{Factory: &factory.Factory{
+			KubeClient: fake.NewSimpleClientset(p),
+			Printer:    factory.NewFakePrinter(GinkgoWriter),
+		}}}
+	})
 
 	It("Retrieve parameters from kube-controller-manager pod", func() {
-
-		c := fake.NewSimpleClientset(p)
-		podCIDR, serviceCIDR, err := retrieveClusterParameters(ctx, c)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(podCIDR).To(Equal("10.244.0.0/16"))
-		Expect(serviceCIDR).To(Equal("10.96.0.0/12"))
+		Expect(options.Initialize(ctx)).ToNot(HaveOccurred())
+		Expect(options.PodCIDR).To(Equal("10.244.0.0/16"))
+		Expect(options.ServiceCIDR).To(Equal("10.96.0.0/12"))
 	})
 })

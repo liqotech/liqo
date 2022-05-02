@@ -26,11 +26,21 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-for i in $(seq 2 "${CLUSTER_NUMBER}");
+for i in $(seq 1 "${CLUSTER_NUMBER}")
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  ADD_COMMAND=$(${LIQOCTL} generate-add-command --only-command)
+  ADD_COMMAND=$(${LIQOCTL} generate peer-command --only-command)
 
-  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
-  eval "${ADD_COMMAND}"
-done;
+  for j in $(seq 1 "${CLUSTER_NUMBER}");
+  do
+    if [[ $i -ne $j ]]
+    then
+      export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${j}"
+      eval "${ADD_COMMAND}"
+    fi
+  done
+
+  # Sleep a bit, to avoid generating a race condition with the
+  # authentication process triggered by the incoming peering.
+  sleep 1
+done

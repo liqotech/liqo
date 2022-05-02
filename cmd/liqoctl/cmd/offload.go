@@ -18,75 +18,111 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	"github.com/liqotech/liqo/pkg/liqoctl/autocompletion"
+	"github.com/liqotech/liqo/pkg/liqoctl/completion"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/offload"
 	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
-func newOffloadCommand(ctx context.Context) *cobra.Command {
-	var offloadCommand = &cobra.Command{
-		Use:          offload.UseCommand,
-		SilenceUsage: true,
-		Short:        offload.LiqoctlOffloadShortHelp,
-		Long:         offload.LiqoctlOffloadLongHelp,
+const liqoctlOffloadNamespaceLongHelp = `Offload a namespace to remote clusters.
+
+Once a given namespace is selected for offloading, Liqo extends it across the
+cluster boundaries, through the the automatic creation of twin namespaces in the
+subset of selected remote clusters. Remote namespaces host the actual pods
+offloaded in the corresponding cluster, as well as the additional resources
+(i.e., Services, EndpointSlices, Ingresses, ConfigMaps, Secrets, PVCs and PVs)
+propagated by the resource reflection process.
+
+Namespace offloading can be tuned in terms of:
+* Clusters: select the target clusters through virtual node labels.
+* Pod offloading: whether pods should be scheduled on physical nodes only,
+  virtual nodes only, or both. Forcing all pods to be scheduled locally enables
+  the consumption of services from remote clusters.
+* Naming: whether remote namespaces have the same name or a suffix is added to
+  prevent conflicts.
+
+Examples:
+  $ {{ .Executable }} offload namespace foo
+or
+  $ {{ .Executable }} offload namespace foo --pod-offloading-strategy Remote --namespace-mapping-strategy EnforceSameName
+or (cluster labels in logical AND)
+  $ {{ .Executable }} offload namespace foo --namespace-mapping-strategy EnforceSameName \
+      --selector 'region in (europe,us-west), !staging'
+or (cluster labels in logical OR)
+  $ {{ .Executable }} offload namespace foo --namespace-mapping-strategy EnforceSameName \
+      --selector 'region in (europe,us-west)' --selector '!staging'
+`
+
+func newOffloadCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "offload",
+		Short: "Offload a resource to remote clusters",
+		Long:  "Offload a resource to remote clusters.",
+		Args:  cobra.NoArgs,
+
+		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
 	}
-	offloadCommand.AddCommand(newNamespaceCommand(ctx))
-	return offloadCommand
+
+	cmd.AddCommand(newOffloadNamespaceCommand(ctx, f))
+	return cmd
 }
 
-func newNamespaceCommand(ctx context.Context) *cobra.Command {
-	var offloadClusterCmd = &cobra.Command{
-		Use:          offload.ClusterResourceName,
-		Aliases:      []string{"ns"},
-		SilenceUsage: true,
-		Short:        offload.LiqoctlOffloadShortHelp,
-		Long:         offload.LiqoctlOffloadLongHelp,
-		Args:         cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return offload.HandleOffloadCommand(ctx, cmd, args)
-		},
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			if len(args) >= 1 {
-				return nil, cobra.ShellCompDirectiveDefault
-			}
+func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	var selectors []string
 
-			names, err := autocompletion.GetNamespaceNames(cmd.Context(), toComplete)
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveError
+	podOffloadingStrategy := args.NewEnum([]string{
+		string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType),
+		string(offloadingv1alpha1.RemotePodOffloadingStrategyType),
+		string(offloadingv1alpha1.LocalPodOffloadingStrategyType)},
+		string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType))
+
+	namespaceMappingStrategy := args.NewEnum([]string{
+		string(offloadingv1alpha1.EnforceSameNameMappingStrategyType),
+		string(offloadingv1alpha1.DefaultNameMappingStrategyType)},
+		string(offloadingv1alpha1.DefaultNameMappingStrategyType))
+
+	options := offload.Options{Factory: f}
+	cmd := &cobra.Command{
+		Use:     "namespace name",
+		Aliases: []string{"ns"},
+		Short:   "Offload a namespace to remote clusters",
+		Long:    WithTemplate(liqoctlOffloadNamespaceLongHelp),
+
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completion.Namespaces(ctx, f, 1),
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			options.PodOffloadingStrategy = offloadingv1alpha1.PodOffloadingStrategyType(podOffloadingStrategy.Value)
+			options.NamespaceMappingStrategy = offloadingv1alpha1.NamespaceMappingStrategyType(namespaceMappingStrategy.Value)
+
+			// Parse the cluster selectors
+			for _, selector := range selectors {
+				s, err := metav1.ParseToLabelSelector(selector)
+				options.Printer.CheckErr(err)
+				options.ClusterSelector = append(options.ClusterSelector, s.MatchExpressions)
 			}
-			return names, cobra.ShellCompDirectiveNoFileComp
+		},
+
+		Run: func(cmd *cobra.Command, args []string) {
+			options.Namespace = args[0]
+			options.Printer.CheckErr(options.Run(ctx))
 		},
 	}
 
-	podStrategies := []string{string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType),
-		string(offloadingv1alpha1.RemotePodOffloadingStrategyType),
-		string(offloadingv1alpha1.LocalPodOffloadingStrategyType)}
-	nsStrategies := []string{string(offloadingv1alpha1.EnforceSameNameMappingStrategyType),
-		string(offloadingv1alpha1.DefaultNameMappingStrategyType)}
+	cmd.Flags().Var(podOffloadingStrategy, "pod-offloading-strategy",
+		"The constraints regarding pods scheduling in this namespace, among Local, Remote and LocalAndRemote")
+	cmd.Flags().Var(namespaceMappingStrategy, "namespace-mapping-strategy",
+		"The naming strategy adopted for the creation of remote namespaces, among DefaultName and EnforceSameName")
 
-	podOffloadingStrategy := args.NewEnum(podStrategies, string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType))
-	offloadClusterCmd.PersistentFlags().Var(podOffloadingStrategy, offload.PodOffloadingStrategyFlag, offload.PodOffloadingStrategyHelp)
+	cmd.Flags().StringArrayVarP(&selectors, "selector", "l", []string{},
+		"The selector to filter the target clusters. Can be specified multiple times, defining alternative requirements (i.e., in logical OR)")
 
-	namespaceMappingStrategy := args.NewEnum(nsStrategies, string(offloadingv1alpha1.DefaultNameMappingStrategyType))
-	offloadClusterCmd.PersistentFlags().Var(namespaceMappingStrategy,
-		offload.NamespaceMappingStrategyFlag, offload.NamespaceMappingStrategyHelp)
+	utilruntime.Must(cmd.RegisterFlagCompletionFunc("pod-offloading-strategy", completion.Enumeration(podOffloadingStrategy.Allowed)))
+	utilruntime.Must(cmd.RegisterFlagCompletionFunc("namespace-mapping-strategy", completion.Enumeration(namespaceMappingStrategy.Allowed)))
 
-	offloadClusterCmd.PersistentFlags().String(offload.AcceptedLabelsFlag,
-		offload.AcceptedLabelsDefault, offload.AcceptedLabelsHelp)
-	offloadClusterCmd.PersistentFlags().String(offload.DeniedLabelsFlag,
-		offload.DeniedLabelDefault, offload.DeniedLabelsHelp)
-
-	utilruntime.Must(offloadClusterCmd.RegisterFlagCompletionFunc(offload.PodOffloadingStrategyFlag,
-		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return podStrategies, cobra.ShellCompDirectiveNoFileComp
-		}))
-	utilruntime.Must(offloadClusterCmd.RegisterFlagCompletionFunc(offload.NamespaceMappingStrategyFlag,
-		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return nsStrategies, cobra.ShellCompDirectiveNoFileComp
-		}))
-
-	return offloadClusterCmd
+	return cmd
 }

@@ -18,27 +18,39 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
-	"helm.sh/helm/v3/cmd/helm/require"
+	"github.com/spf13/pflag"
+	"k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/docs"
 )
 
 func newDocsCommand(ctx context.Context) *cobra.Command {
-	docsArgs := docs.Args{}
+	options := docs.Options{}
 	cmd := &cobra.Command{
-		Use:   docs.UseCommand,
-		Short: docs.ShortHelp,
-		Long:  docs.LongHelp,
-		Args:  require.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			docsArgs.TopCmd = cmd.Root()
-			return docsArgs.Handler(ctx)
+		Use:   "docs",
+		Short: WithTemplate("Generate {{ .Executable }} documentation"),
+		Long:  WithTemplate("Generate {{ .Executable }} documentation"),
+		Args:  cobra.NoArgs,
+
+		PreRun: func(cmd *cobra.Command, args []string) { cmd.SilenceErrors = true },
+
+		Run: func(cmd *cobra.Command, args []string) {
+			options.Root = cmd.Root()
+			util.CheckErr(options.Run(ctx))
 		},
+
 		Hidden: true,
 	}
-	flags := cmd.Flags()
-	flags.StringVar(&docsArgs.Dest, docs.OutputDir, "./", "directory to which documentation is written")
-	flags.StringVar(&docsArgs.DocTypeString, docs.DocType, "markdown", "the type of documentation to generate (markdown, man)")
-	flags.BoolVar(&docsArgs.GenerateHeaders, docs.GenerateHeaders, false, "generate standard headers for markdown files")
+
+	cmd.Flags().StringVar(&options.Destination, "dir", ".", "The output directory for the generated documentation")
+	cmd.Flags().StringVar(&options.DocTypeString, "type", "markdown", "The output documentation format, among markdown and man")
+	cmd.Flags().BoolVar(&options.GenerateHeaders, "generate-headers", false, "Enable standard headers generation for markdown files")
+
+	// Hide all flags inherited from the root command.
+	cmd.SetHelpFunc(func(c *cobra.Command, s []string) {
+		c.InheritedFlags().VisitAll(func(flag *pflag.Flag) { flag.Hidden = true })
+		c.Parent().HelpFunc()(c, s)
+	})
+
 	return cmd
 }

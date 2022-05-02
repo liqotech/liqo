@@ -19,70 +19,74 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	flag "github.com/spf13/pflag"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
-	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
+	"github.com/liqotech/liqo/pkg/liqoctl/util"
 )
 
-// NewProvider initializes a new Kubeadm struct.
-func NewProvider() provider.InstallProviderInterface {
-	return &Kubeadm{
-		GenericProvider: provider.GenericProvider{
-			ClusterLabels: map[string]string{
-				consts.ProviderClusterLabel: providerPrefix,
-			},
-		},
-	}
+var _ install.Provider = (*Options)(nil)
+
+var kubeControllerManagerLabels = map[string]string{"component": "kube-controller-manager", "tier": "control-plane"}
+
+// Options encapsulates the arguments of the install k3s command.
+type Options struct {
+	*install.Options
 }
 
-// ValidateCommandArguments validates specific arguments passed to the install command.
-func (k *Kubeadm) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	return nil
+// New initializes a new Provider object.
+func New(o *install.Options) install.Provider {
+	return &Options{Options: o}
 }
 
-// ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
-// given provider.
-func (k *Kubeadm) ExtractChartParameters(ctx context.Context, config *rest.Config, _ *provider.CommonArguments) error {
-	k8sClient, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return fmt.Errorf("unable to create client: %w", err)
-	}
+// Name returns the name of the provider.
+func (o *Options) Name() string { return "kubeadm" }
 
-	k.K8sClient = k8sClient
-	k.Config = config
-	k.APIServer = config.Host
+// Examples returns the examples string for the given provider.
+func (o *Options) Examples() string {
+	return `Examples:
+  $ {{ .Executable }} install kubeadm --cluster-labels region=europe,environment=staging \
+      --reserved-subnets 172.16.0.0/16,192.16.254.0/24
+`
+}
 
-	k.PodCIDR, k.ServiceCIDR, err = retrieveClusterParameters(ctx, k.K8sClient)
+// RegisterFlags registers the flags for the given provider.
+func (o *Options) RegisterFlags(cmd *cobra.Command) {}
+
+// Initialize performs the initialization tasks to retrieve the provider-specific parameters.
+func (o *Options) Initialize(ctx context.Context) error {
+	const (
+		serviceCIDRParameterFilter = `--service-cluster-ip-range`
+		podCIDRParameterFilter     = `--cluster-cidr`
+		kubeSystemNamespaceName    = "kube-system"
+
+		defaultPodCIDR     = "172.16.0.0/16"
+		defaultServiceCIDR = "10.96.0.0/12"
+	)
+
+	// Retrieve the Pod CIDR and Service CIDR based on the controller-manager configuration
+	cm, err := o.KubeClient.CoreV1().Pods(kubeSystemNamespaceName).List(ctx, metav1.ListOptions{
+		LabelSelector: labels.Set(kubeControllerManagerLabels).AsSelector().String(),
+	})
 	if err != nil {
 		return err
 	}
+	if len(cm.Items) != 1 {
+		return fmt.Errorf("kube-controller-manager not found")
+	}
+	if len(cm.Items[0].Spec.Containers) != 1 {
+		return fmt.Errorf("unexpected amount of containers in kube-controller-manager")
+	}
+
+	command := cm.Items[0].Spec.Containers[0].Command
+	o.PodCIDR = util.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, command, defaultPodCIDR)
+	o.ServiceCIDR = util.ExtractValuesFromArgumentListOrDefault(serviceCIDRParameterFilter, command, defaultServiceCIDR)
+
 	return nil
 }
 
-// UpdateChartValues patches the values map with the values required for the selected cluster.
-func (k *Kubeadm) UpdateChartValues(values map[string]interface{}) {
-	values["apiServer"] = map[string]interface{}{
-		"address": k.APIServer,
-	}
-	values["networkManager"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"serviceCIDR":     k.ServiceCIDR,
-			"podCIDR":         k.PodCIDR,
-			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
-		},
-	}
-	values["discovery"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
-			"clusterName":   k.ClusterName,
-		},
-	}
-}
-
-// GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(command *cobra.Command) {
+// Values returns the customized provider-specifc values file parameters.
+func (o *Options) Values() map[string]interface{} {
+	return map[string]interface{}{}
 }

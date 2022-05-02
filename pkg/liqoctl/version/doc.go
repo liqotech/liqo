@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package version contains the logic that handle the version command in liqoctl
+// Package version includes the logic for the `liqoctl version` command
 package version

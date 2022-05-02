@@ -22,9 +22,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/spf13/cobra"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
 func TestFetchingParameters(t *testing.T) {
@@ -32,48 +32,22 @@ func TestFetchingParameters(t *testing.T) {
 	RunSpecs(t, "Test EKS provider")
 }
 
-const (
-	endpoint    = "https://example.com"
-	podCIDR     = "10.0.0.0/16"
-	serviceCIDR = "10.80.0.0/16"
-
-	vpcID = "vpc-id"
-
-	region      = "region"
-	clusterName = "clusterName"
-	userName    = "liqouser"
-	policyName  = "liqopolicy"
-)
-
 var _ = Describe("Extract elements from EKS", func() {
+	var options Options
 
-	It("test flags", func() {
-
-		p := NewProvider().(*eksProvider)
-
-		cmd := &cobra.Command{}
-
-		GenerateFlags(cmd)
-		cmd.Flags().String("cluster-name", "", "")
-		cmd.Flags().Bool("generate-name", true, "")
-		cmd.Flags().String("reserved-subnets", "", "")
-
-		flags := cmd.Flags()
-		Expect(flags.Set("region", region)).To(Succeed())
-		Expect(flags.Set("eks-cluster-name", clusterName)).To(Succeed())
-		Expect(flags.Set("user-name", userName)).To(Succeed())
-		Expect(flags.Set("policy-name", policyName)).To(Succeed())
-
-		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
-
-		Expect(p.region).To(Equal(region))
-		Expect(p.eksClusterName).To(Equal(clusterName))
-		Expect(p.iamLiqoUser.userName).To(Equal(userName))
-		Expect(p.iamLiqoUser.policyName).To(Equal(policyName))
-
+	BeforeEach(func() {
+		options = Options{Options: &install.Options{ClusterLabels: map[string]string{}}}
 	})
 
 	It("test parse values", func() {
+		const (
+			endpoint    = "https://example.com"
+			podCIDR     = "10.0.0.0/16"
+			serviceCIDR = "10.80.0.0/16"
+
+			vpcID  = "vpc-id"
+			region = "region"
+		)
 
 		clusterOutput := &eks.DescribeClusterOutput{
 			Cluster: &eks.Cluster{
@@ -87,18 +61,15 @@ var _ = Describe("Extract elements from EKS", func() {
 			},
 		}
 
-		p := NewProvider().(*eksProvider)
-		p.region = region
+		options.region = region
 
-		resVpcID, err := p.parseClusterOutput(clusterOutput)
+		resVpcID, err := options.parseClusterOutput(clusterOutput)
 		Expect(err).To(Succeed())
 		Expect(resVpcID).To(Equal(vpcID))
 
-		Expect(p.APIServer).To(Equal(endpoint))
-		Expect(p.ServiceCIDR).To(Equal(serviceCIDR))
-		Expect(p.ClusterLabels).ToNot(BeEmpty())
-		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
-		Expect(p.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
+		Expect(options.APIServer).To(Equal(endpoint))
+		Expect(options.ServiceCIDR).To(Equal(serviceCIDR))
+		Expect(options.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
 
 		vpcOutput := &ec2.DescribeVpcsOutput{
 			Vpcs: []*ec2.Vpc{
@@ -108,10 +79,7 @@ var _ = Describe("Extract elements from EKS", func() {
 			},
 		}
 
-		Expect(p.parseVpcOutput("id", vpcOutput)).To(Succeed())
-
-		Expect(p.PodCIDR).To(Equal(podCIDR))
-
+		Expect(options.parseVpcOutput("id", vpcOutput)).To(Succeed())
+		Expect(options.PodCIDR).To(Equal(podCIDR))
 	})
-
 })

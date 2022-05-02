@@ -20,85 +20,73 @@ import (
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/autocompletion"
+	"github.com/liqotech/liqo/pkg/liqoctl/completion"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/move"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
-const (
-	// liqoctlMoveShortHelp contains the short help string for liqoctl move command.
-	liqoctlMoveShortHelp = "Move liqo volumes to other clusters"
-	// liqoctlMoveLongHelp contains the Long help string for liqoctl move command.
-	liqoctlMoveLongHelp = `Move liqo volumes to other clusters`
-)
+const liqoctlMoveVolumeLongHelp = `Move a Liqo-managed PVC to a different node (i.e., cluster).
+
+Liqo supports the offloading of *stateful workloads* through a storage fabric
+leveraging a custom storage class. PVCs associated with the Liqo storage class
+eventually trigger the creation of the corresponding PV in the cluster (either
+local or remote) where its first consumer (i.e., pod) is scheduled on. Locality
+constraints are automatically embedded in the resulting PV, to enforce each pod
+to be scheduled on the cluster where the associated storage pools are available.
+
+This command allows to *move* a volume created in a given cluster to a different
+cluster, ensuring mounting pods will then be attracted in that location. This
+process leverages Restic to backup the source data and restore it into a volume
+in the target cluster. Warning: only PVCs not currently mounted by any pod can
+be moved to a different cluster.
+
+Examples:
+  $ {{ .Executable }} move volume database01 --namespace foo --target-node worker-023"
+or
+  $ {{ .Executable }} move volume database01 --namespace foo --target-node liqo-neutral-colt"
+`
 
 // moveCmd represents the move command.
-func newMoveCommand(ctx context.Context) *cobra.Command {
-	var moveCmd = &cobra.Command{
+func newMoveCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	var cmd = &cobra.Command{
 		Use:   "move",
-		Short: liqoctlMoveShortHelp,
-		Long:  liqoctlMoveLongHelp,
+		Short: "Move an object to a different cluster",
+		Long:  "Move an object to a different cluster.",
+		Args:  cobra.NoArgs,
+
+		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
 	}
-	moveCmd.AddCommand(newMoveVolumeCommand(ctx))
-	return moveCmd
+
+	cmd.AddCommand(newMoveVolumeCommand(ctx, f))
+	return cmd
 }
 
-func newMoveVolumeCommand(ctx context.Context) *cobra.Command {
-	clusterArgs := &move.Args{}
-	var moveVolumeCmd = &cobra.Command{
-		Use:           "volume",
-		Short:         liqoctlMoveShortHelp,
-		Long:          liqoctlMoveLongHelp,
-		Args:          cobra.MinimumNArgs(1),
-		SilenceUsage:  true,
-		SilenceErrors: true,
+func newMoveVolumeCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := &move.Options{Factory: f, ResticPassword: utils.RandomString(16)}
+	var cmd = &cobra.Command{
+		Use:     "volume",
+		Aliases: []string{"pvc"},
+		Short:   "Move a Liqo-managed PVC to a different node (i.e., cluster)",
+		Long:    WithTemplate(liqoctlMoveVolumeLongHelp),
+
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completion.PVCs(ctx, f, 1),
+
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clusterArgs.VolumeName = args[0]
-			return move.HandleMoveVolumeCommand(ctx, clusterArgs)
-		},
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			if len(args) >= 1 {
-				return nil, cobra.ShellCompDirectiveDefault
-			}
-
-			ns, err := cmd.Flags().GetString("namespace")
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveError
-			}
-
-			names, err := autocompletion.GetPVCNames(cmd.Context(), ns, toComplete)
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveError
-			}
-			return names, cobra.ShellCompDirectiveNoFileComp
+			options.VolumeName = args[0]
+			return options.Run(ctx)
 		},
 	}
 
-	moveVolumeCmd.Flags().StringVarP(&clusterArgs.Namespace, "namespace", "n", "",
-		"the namespace where the target PVC is stored")
-	moveVolumeCmd.Flags().StringVar(&clusterArgs.TargetNode, "node", "",
-		"the target node where the PVC will be moved")
-	moveVolumeCmd.Flags().StringVar(&clusterArgs.ResticPassword, "restic-password", "",
-		"the restic password to be used to for the restic repository")
+	f.AddNamespaceFlag(cmd.Flags())
+	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
 
-	utilruntime.Must(moveVolumeCmd.MarkFlagRequired("namespace"))
-	utilruntime.Must(moveVolumeCmd.MarkFlagRequired("node"))
+	cmd.Flags().StringVar(&options.TargetNode, "target-node", "",
+		"The target node (either physical or virtual) the PVC will be moved to")
 
-	utilruntime.Must(moveVolumeCmd.RegisterFlagCompletionFunc("namespace",
-		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			names, err := autocompletion.GetNamespaceNames(cmd.Context(), toComplete)
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveError
-			}
-			return names, cobra.ShellCompDirectiveNoFileComp
-		}))
-	utilruntime.Must(moveVolumeCmd.RegisterFlagCompletionFunc("node",
-		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			names, err := autocompletion.GetNodeNames(cmd.Context(), toComplete)
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveError
-			}
-			return names, cobra.ShellCompDirectiveNoFileComp
-		}))
+	utilruntime.Must(cmd.MarkFlagRequired("target-node"))
+	utilruntime.Must(cmd.RegisterFlagCompletionFunc("target-node", completion.Nodes(ctx, f, completion.NoLimit)))
 
-	return moveVolumeCmd
+	return cmd
 }

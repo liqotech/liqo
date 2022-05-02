@@ -56,17 +56,15 @@ for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
   CLUSTER_LABELS="$(get_cluster_labels "${i}")"
-  COMMON_ARGS=(--cluster-name "liqo-${i}" --chart-path ./deployments/liqo --version "${LIQO_VERSION}")
+  COMMON_ARGS=(--cluster-name "liqo-${i}" --local-chart-path ./deployments/liqo --version "${LIQO_VERSION}")
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi
 
   if [ "${i}" == "1" ]; then
+    # Install Liqo with Helm, to check that values generation works correctly.
     "${LIQOCTL}" install kind "${COMMON_ARGS[@]}" --only-output-values --dump-values-path "${TMPDIR}/values.yaml"
-
-    # update the discovery settings, this cluster will not discover the other clusters, but the other clusters will discover it
-    sed -i 's/enableDiscovery: true/enableDiscovery: false/' "${TMPDIR}/values.yaml"
-    "${HELM}" install -n "${NAMESPACE}" --create-namespace liqo ./deployments/liqo -f "${TMPDIR}/values.yaml" --dependency-update
+    "${HELM}" install -n "${NAMESPACE}" --create-namespace liqo ./deployments/liqo -f "${TMPDIR}/values.yaml"
   else
     "${LIQOCTL}" install kind "${COMMON_ARGS[@]}"
   fi

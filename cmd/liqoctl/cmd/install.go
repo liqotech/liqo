@@ -17,69 +17,167 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
-	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
-	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/aks"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/eks"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/generic"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/gke"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/k3s"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/kind"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/openshift"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
-// newInstallCommand generates a new Command representing `liqoctl install`.
-func newInstallCommand(ctx context.Context) *cobra.Command {
-	var installCmd = &cobra.Command{
-		Use:          installutils.LiqoctlInstallCommand,
-		Short:        installutils.LiqoctlInstallShortHelp,
-		Long:         installutils.LiqoctlInstallLongHelp,
-		SilenceUsage: true,
+const liqoctlInstallLongHelp = `Install/upgrade Liqo in the selected cluster.
+
+This command wraps the Helm command to install/upgrade Liqo in the selected
+cluster, appropriately configuring it based on the provided flags. Additional
+default values can be overridden through the --set flag.
+Alternatively, it can be configured to only output a pre-configured values file,
+which can be further customized and used for a manual installation with Helm.
+
+By default, the command installs the latest released version of Liqo, although
+this behavior can be tuned through the appropriate flags. In case a development
+version is selected, and a local chart path is not specified, the command
+proceeds cloning the Liqo repository (or the specified fork) at that version,
+and leverages the included Helm chart. This is useful to install unreleased
+versions, and during the local testing process.
+
+Instead of directly using this generic command, it is suggested to leverage the
+subcommand corresponding to the type of the target cluster (on-premise
+distribution or cloud provider), which automatically retrieves most parameters
+based on the cluster configuration.
+
+Examples:
+  $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
+      --reserved-subnets 172.16.0.0/16,192.16.254.0/24
+or (configure the cluster name and labels)
+  $ {{ .Executable }} install --cluster-name engaged-weevil --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
+      --reserved-subnets 172.16.0.0/16,192.16.254.0/24 --cluster-labels region=europe,environment=staging
+or (configure the sharing percentage)
+  $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 --sharing-percentage 50
+or (generate and output the values file, instead of performing the installation)
+  $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 --only-output-values
+or (install a specific Liqo version)
+  $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 --version v0.4.0
+or (install a development version, using the default Helm chart)
+  $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
+      --version 2058543d90482baf6f839eb57cbf3a9e81e20abe
+or (install a development version, using a local Helm chart)
+  $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
+      --version 2058543d90482baf6f839eb57cbf3a9e81e20abe --local-chart-path ./liqo/deployments/liqo
+or (install a development version, cloning the Helm chart from a fork)
+  $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
+      --version 2058543d90482baf6f839eb57cbf3a9e81e20abe --repo-url https://github.com/fork/liqo.git
+`
+
+const liqoctlInstallProviderLongHelp = `Install/upgrade Liqo in the selected %s cluster.
+
+This command wraps the Helm command to install/upgrade Liqo in the selected
+%s cluster, automatically retrieving most parameters based on the cluster
+configuration.
+
+Please, refer to the help of the root *{{ .Executable }} install* command for additional
+information and examples concerning its behavior and the common flags.
+
+%s
+`
+
+func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := install.Options{Factory: f, CommandName: liqoctl}
+	base := generic.New(&options)
+	clusterLabels := args.StringMap{StringMap: map[string]string{}}
+	sharingPercentage := args.Percentage{Val: 90}
+	reservedSubnets := args.CIDRList{}
+
+	var cmd = &cobra.Command{
+		Use:     "install",
+		Aliases: []string{"upgrade"},
+		Short:   "Install/upgrade Liqo in the selected cluster",
+		Long:    WithTemplate(liqoctlInstallLongHelp),
+		Args:    cobra.NoArgs,
+
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			singleClusterPersistentPreRun(cmd, f)
+
+			options.ClusterLabels = clusterLabels.StringMap
+			options.SharingPercentage = sharingPercentage.Val
+			options.ReservedSubnets = reservedSubnets.StringList.StringList
+		},
+
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return install.HandleInstallCommand(ctx, cmd, os.Args[0], provider.GenericProviderName)
+			return options.Run(ctx, base)
+		},
+
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			options.Printer.CheckErr(options.PostRun())
 		},
 	}
 
-	installCmd.PersistentFlags().IntP("timeout", "t", 600, "Configure the timeout for the installation process in seconds")
-	installCmd.PersistentFlags().String("repo-url", "https://github.com/liqotech/liqo.git",
-		"Configure the URL of the repository to use for the installation process")
-	installCmd.PersistentFlags().StringP("version", "", "", "Select the Liqo version (default: latest stable release)")
-	installCmd.PersistentFlags().BoolP("devel", "", false,
-		"Enable use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored")
-	installCmd.PersistentFlags().BoolP("only-output-values", "", false, "Generate a values file for further customization")
-	installCmd.PersistentFlags().StringP("dump-values-path", "", "./values.yaml", "Path for the output value file")
-	installCmd.PersistentFlags().BoolP("dry-run", "", false, "Simulate an install")
-	installCmd.PersistentFlags().BoolP(liqoconst.EnableLanDiscoveryParameter, "", false, "Enable LAN discovery")
-	installCmd.PersistentFlags().StringP(liqoconst.ClusterLabelsParameter, "", "",
-		"Cluster Labels to append to Liqo Cluster, supports '='.(e.g. --cluster-labels key1=value1,key2=value2)")
-	installCmd.PersistentFlags().BoolP("disable-endpoint-check", "", false,
-		"Disable the check that the current kubeconfig context contains the same endpoint retrieved from the cloud provider (AKS, EKS, GKE)")
-	installCmd.PersistentFlags().String("chart-path", installutils.LiqoChartFullName,
-		"Specify a path to get the Liqo chart, instead of installing the chart from the official repository")
-	installCmd.PersistentFlags().StringP(liqoconst.ClusterNameParameter, "n", "", "Name to assign to the Liqo cluster")
-	installCmd.PersistentFlags().Bool(liqoconst.GenerateNameParameter, false, "Generate a random Docker-like name for the cluster")
-	installCmd.PersistentFlags().String(liqoconst.ReservedSubnetsParameter, "", "In order to prevent IP conflicting between "+
-		"locally used private subnets in your infrastructure and private subnets belonging to remote clusters "+
-		"you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then "+
-		"you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically "+
-		"added to the reserved list. (e.g. --reserved-subnets 192.168.2.0/24,192.168.4.0/24)")
-	installCmd.PersistentFlags().String("resource-sharing-percentage", "90", "It defines the percentage of available cluster resources that "+
-		"you are willing to share with foreign clusters. It accepts [0 - 100] values.")
-	installCmd.PersistentFlags().Bool("enable-ha", false, "Enable the gateway component support active/passive high availability.")
-	// By default, we configure a sufficiently low MTU value to ensure correct functioning regardless of the combination of the underlying
-	// environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops.
-	installCmd.PersistentFlags().Int("mtu", 1340, "mtu is the maximum transmission unit for interfaces managed by Liqo")
-	installCmd.PersistentFlags().Int("vpn-listening-port", liqoconst.GatewayListeningPort, "vpn-listening-port is the port used by the vpn tunnel")
+	cmd.PersistentFlags().StringVar(&options.Version, "version", "",
+		"The version of Liqo to be installed, among releases and commit SHAs. Defaults to the latest stable release)")
+	cmd.PersistentFlags().StringVar(&options.RepoURL, "repo-url", "https://github.com/liqotech/liqo.git",
+		"The URL of the git repository used to retrieve the Helm chart, if a non released version is specified")
+	cmd.PersistentFlags().StringVar(&options.ChartPath, "local-chart-path", "",
+		"The local path used to retrieve the Helm chart, instead of the upstream one")
 
-	provider.GenerateFlags(installCmd)
+	cmd.PersistentFlags().BoolVar(&options.OnlyOutputValues, "only-output-values", false,
+		"Generate the pre-configured values file for further customization, instead of installing Liqo (default false)")
+	cmd.PersistentFlags().StringVar(&options.ValuesPath, "dump-values-path", "./values.yaml",
+		"The path where the generated values file is saved (only in case --only-output-values is set)")
+	cmd.PersistentFlags().BoolVar(&options.DryRun, "dry-run", false, "Simulate the installation process (default false)")
 
-	for _, providerName := range provider.Providers {
-		cmd, err := getCommand(ctx, providerName)
-		if err != nil {
-			fmt.Printf("Error while getting provider command: %v\n", err)
-			os.Exit(1)
-		}
+	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 10*time.Minute,
+		"The timeout for the completion of the installation process")
 
-		installCmd.AddCommand(cmd)
+	cmd.PersistentFlags().StringVar(&options.ClusterName, "cluster-name", "", "The name identifying the cluster in Liqo")
+	cmd.PersistentFlags().Var(&clusterLabels, "cluster-labels",
+		"The set of labels (i.e., key/value pairs, separated by comma) identifying the current cluster, and propagated to the virtual nodes")
+
+	cmd.PersistentFlags().Var(&sharingPercentage, "sharing-percentage",
+		"The maximum percentage of available cluster resources that could be shared with remote clusters (0-100)")
+	cmd.PersistentFlags().BoolVar(&options.EnableHA, "enable-ha", false,
+		"Enable the support for high-availability of Liqo components, currently supported by the gateway.")
+	cmd.PersistentFlags().Var(&reservedSubnets, "reserved-subnets",
+		"The private CIDRs to be excluded, as already in use (e.g., the subnet of the cluster nodes); PodCIDR and ServiceCIDR shall not be included.")
+
+	cmd.PersistentFlags().StringSliceVar(&options.OverrideValues, "set", []string{}, "Set additional values on the command line (key1=val1,key2=val2)")
+	cmd.PersistentFlags().BoolVar(&options.DisableAPIServerSanityChecks, "disable-api-server-sanity-check", false,
+		"Disable the sanity checks concerning the retrieved Kubernetes API server URL (default false)")
+
+	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
+
+	base.RegisterFlags(cmd)
+	cmd.AddCommand(newInstallProviderCommand(ctx, &options, aks.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, &options, eks.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, &options, gke.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, &options, k3s.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, &options, kind.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, &options, kubeadm.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, &options, openshift.New))
+
+	return cmd
+}
+
+func newInstallProviderCommand(ctx context.Context, options *install.Options, creator func(*install.Options) install.Provider) *cobra.Command {
+	provider := creator(options)
+	cmd := &cobra.Command{
+		Use:   provider.Name(),
+		Short: fmt.Sprintf("Install Liqo in the selected %s cluster", provider.Name()),
+		Long:  WithTemplate(fmt.Sprintf(liqoctlInstallProviderLongHelp, provider.Name(), provider.Name(), provider.Examples())),
+		Args:  cobra.NoArgs,
+
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return options.Run(ctx, provider)
+		},
 	}
-	return installCmd
+
+	provider.RegisterFlags(cmd)
+	return cmd
 }
