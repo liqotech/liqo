@@ -15,58 +15,56 @@
 package kind
 
 import (
-	"github.com/liqotech/liqo/pkg/consts"
+	"context"
+
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
-	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
-	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
 
-// NewProvider initializes a new Kind struct.
-func NewProvider() provider.InstallProviderInterface {
-	return &Kind{
-		Kubeadm: kubeadm.Kubeadm{
-			GenericProvider: provider.GenericProvider{
-				ClusterLabels: map[string]string{
-					consts.ProviderClusterLabel: providerPrefix,
-				},
-			},
-		},
-	}
+var _ install.Provider = (*Options)(nil)
+
+// Options encapsulates the arguments of the install command.
+type Options struct {
+	*kubeadm.Options
 }
 
-// UpdateChartValues patches the values map with the values required for the selected cluster. Differently from the
-// kubeadm provider, this provider overrides just this methods to modify the resulting values.
-func (k *Kind) UpdateChartValues(values map[string]interface{}) {
-	values["auth"] = map[string]interface{}{
-		"service": map[string]interface{}{
-			"type": "NodePort",
+// New initializes a new Provider object.
+func New(o *install.Options) install.Provider {
+	return &Options{Options: &kubeadm.Options{Options: o}}
+}
+
+// Name returns the name of the provider.
+func (o *Options) Name() string { return "kind" }
+
+// Examples returns the examples string for the given provider.
+func (o *Options) Examples() string {
+	return `Examples:
+  $ {{ .Executable }} install kind --cluster-labels region=europe,environment=staging
+`
+}
+
+// Initialize performs the initialization tasks to retrieve the provider-specific parameters.
+func (o *Options) Initialize(ctx context.Context) error {
+	// Disable the defaulting to the kubeconfig value and the sanity check, as using a localhost address.
+	o.DisableAPIServerSanityChecks = true
+	o.DisableAPIServerDefaulting = true
+
+	return o.Options.Initialize(ctx)
+}
+
+// Values returns the customized provider-specifc values file parameters.
+func (o *Options) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"auth": map[string]interface{}{
+			"service": map[string]interface{}{
+				"type": "NodePort",
+			},
 		},
-		"config": map[string]interface{}{
-			"enableAuthentication": false,
-		},
-	}
-	values["gateway"] = map[string]interface{}{
-		"service": map[string]interface{}{
-			"type": "NodePort",
-		},
-	}
-	values["networkManager"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"serviceCIDR":     k.Kubeadm.ServiceCIDR,
-			"podCIDR":         k.Kubeadm.PodCIDR,
-			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
-		},
-	}
-	if k.LanDiscovery == nil {
-		lanDiscovery := true
-		k.LanDiscovery = &lanDiscovery
-	}
-	values["discovery"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"clusterLabels":       installutils.GetInterfaceMap(k.ClusterLabels),
-			"clusterName":         k.ClusterName,
-			"enableAdvertisement": *k.LanDiscovery,
-			"enableDiscovery":     *k.LanDiscovery,
+
+		"gateway": map[string]interface{}{
+			"service": map[string]interface{}{
+				"type": "NodePort",
+			},
 		},
 	}
 }

@@ -18,40 +18,47 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
-	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	"github.com/liqotech/liqo/pkg/liqoctl/completion"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/uninstall"
 )
 
-const (
-	// liqoctlUninstallShortHelp contains the short help message for uninstall Liqoctl command.
-	liqoctlUninstallShortHelp = "Uninstall Liqo on a selected cluster"
-	// liqoctlUninstallLongHelp contains the long help message for uninstall Liqoctl command.
-	liqoctlUninstallLongHelp = `Uninstall Liqo on a selected cluster`
+const liqoctlUninstallLongHelp = `Uninstall Liqo from the selected cluster.
 
-	// liqoctlUninstallPurgeHelp contains the help message for the purge flag.
-	liqoctlUninstallPurgeHelp = "Purge all Liqo CRDs from the cluster"
-	// liqoctlUninstallNamespaceHelp contains the help message for the namespace flag.
-	liqoctlUninstallNamespaceHelp = "Namespace where Liqo is installed"
-)
+This command wraps the Helm command to uninstall Liqo from the selected cluster,
+optionally removing all the associated CRDs (i.e., with the --purge flag).
+
+Warning: due to current limitations, the uninstallation process might hang in
+case peerings are still established, or namespaces are selected for offloading.
+It is suggested to unpeer all clusters and unoffload all namespaces in advance.
+
+Examples:
+  $ {{ .Executable }} uninstall
+or
+  $ {{ .Executable }} uninstall --purge
+`
 
 // newUninstallCommand generates a new Command representing `liqoctl uninstall`.
-func newUninstallCommand(ctx context.Context) *cobra.Command {
-	var uninstallArgs uninstall.Args
+func newUninstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := uninstall.Options{Factory: f}
+	cmd := &cobra.Command{
+		Use:   "uninstall",
+		Short: "Uninstall Liqo from the selected cluster",
+		Long:  WithTemplate(liqoctlUninstallLongHelp),
 
-	var uninstallCmd = &cobra.Command{
-		Use:           "uninstall",
-		Short:         liqoctlUninstallShortHelp,
-		Long:          liqoctlUninstallLongHelp,
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
+
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return uninstall.HandleUninstallCommand(ctx, cmd, &uninstallArgs)
+			return options.Run(ctx)
 		},
 	}
 
-	uninstallCmd.Flags().StringVarP(&uninstallArgs.Namespace, "namespace", "n", installutils.LiqoNamespace, liqoctlUninstallNamespaceHelp)
-	uninstallCmd.Flags().BoolVar(&uninstallArgs.Purge, "purge", false, liqoctlUninstallPurgeHelp)
+	cmd.Flags().BoolVar(&options.Purge, "purge", false, "Whether to purge all Liqo CRDs from the cluster (default false)")
 
-	return uninstallCmd
+	f.AddLiqoNamespaceFlag(cmd.Flags())
+	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
+
+	return cmd
 }

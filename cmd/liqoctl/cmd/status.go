@@ -18,22 +18,41 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
+	"github.com/liqotech/liqo/pkg/liqoctl/completion"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/status"
 )
 
-func newStatusCommand(ctx context.Context) *cobra.Command {
-	var params = status.Args{}
+const liqoctlStatusLongHelp = `Show the status of Liqo.
 
+The command performs a set of checks to verify the status of the Liqo control
+plane, its configuration, as well as the characteristics of the currently
+active peerings, and reports the outcome in a human-readable format.
+
+Examples:
+  $ {{ .Executable }} status
+or
+  $ {{ .Executable }} status --namespace liqo-system
+`
+
+func newStatusCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := status.Options{Factory: f}
 	cmd := &cobra.Command{
-		Use:           status.UseCommand,
-		Short:         status.ShortHelp,
-		Long:          status.LongHelp,
-		SilenceErrors: true,
+		Use:   "status",
+		Short: "Show the status of Liqo",
+		Long:  WithTemplate(liqoctlStatusLongHelp),
+		Args:  cobra.NoArgs,
+
+		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
+
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return params.Handler(ctx)
+			return options.Run(ctx)
 		},
 	}
-	cmd.Flags().StringVarP(&params.Namespace, status.Namespace, "n", "liqo", "Namespace Liqo is running in")
+
+	f.AddLiqoNamespaceFlag(cmd.Flags())
+	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
 	return cmd
 }

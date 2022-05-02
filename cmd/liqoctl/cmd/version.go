@@ -15,20 +15,45 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
+	"context"
 
+	"github.com/spf13/cobra"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
+	"github.com/liqotech/liqo/pkg/liqoctl/completion"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/version"
 )
 
-// installCmd represents the generateInstall command.
-func newVersionCommand() *cobra.Command {
-	var verCmd = &cobra.Command{
-		Use:   version.LiqoctlVersionCommand,
-		Short: version.LiqoctlVersionShortHelp,
-		Long:  version.LiqoctlVersionLongHelp,
-		Run: func(cmd *cobra.Command, args []string) {
-			version.HandleVersionCommand()
+const liqoctlVersionLongHelp = `Print the liqo CLI version and the deployed Liqo version.
+
+The CLI version is embedded in the binary and directly displayed. The deployed
+Liqo version version is determined based on the installed chart version.
+
+Examples:
+  $ {{ .Executable }} version"
+`
+
+func newVersionCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := version.Options{Factory: f}
+	cmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print the liqo CLI version and the deployed Liqo version",
+		Long:  WithTemplate(liqoctlVersionLongHelp),
+		Args:  cobra.NoArgs,
+
+		// The factory is directly initialized by the command itself.
+		PreRun: func(cmd *cobra.Command, args []string) { cmd.SilenceErrors = true },
+
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return options.Run(ctx)
 		},
 	}
-	return verCmd
+
+	cmd.Flags().BoolVar(&options.ClientOnly, "client", false, "Sho client version only (no server required) (default false)")
+
+	f.AddLiqoNamespaceFlag(cmd.Flags())
+	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
+
+	return cmd
 }

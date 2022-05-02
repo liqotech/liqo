@@ -17,7 +17,6 @@ package generate
 import (
 	"context"
 	"fmt"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -25,62 +24,37 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	fakecontroller "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 const (
-	liqoNamespace  = "liqo"
-	token          = "my-token"
-	commandName    = "liqoctl"
-	authEndpoint   = "1.1.1.1"
-	clusterName    = "test-cluster"
-	localClusterID = "local-cluster-id"
+	commandName      = "liqoctl"
+	token            = "local-token"
+	authEndpoint     = "1.1.1.1"
+	localClusterID   = "local-cluster-id"
+	localClusterName = "local-cluster-name"
 )
 
 var (
-	k8sClient client.Client
-	ctx       context.Context
+	ctx     context.Context
+	options *Options
 )
 
-func TestAddCommand(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Test Parameters Fetching")
-}
-
 var _ = Describe("Test the generate command works as expected", func() {
+	setup := func(deployArgs []string) {
+		options = &Options{CommandName: commandName, Factory: &factory.Factory{LiqoNamespace: "liqo-non-standard"}}
 
-	setUpEnvironment := func(liqonamespace, localClusterID, localClusterName, token string,
-		deployArgs []string) client.Client {
 		// Create Namespace
-		ns := &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: liqonamespace,
-			},
-		}
-		// Create ClusterID ConfigMap
-		clusterIDConfigMap := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "clusterid-configmap",
-				Namespace: liqonamespace,
-				Labels: map[string]string{
-					"app.kubernetes.io/component": "clusterid-configmap",
-					"app.kubernetes.io/name":      "clusterid-configmap",
-				},
-			},
-			Data: map[string]string{
-				consts.ClusterIDConfigMapKey:   localClusterID,
-				consts.ClusterNameConfigMapKey: localClusterName,
-			},
-		}
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: options.LiqoNamespace}}
+		clusterIDConfigMap := testutil.FakeClusterIDConfigMap(options.LiqoNamespace, localClusterID, localClusterName)
+
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      auth.TokenSecretName,
-				Namespace: liqoNamespace,
-			},
+			ObjectMeta: metav1.ObjectMeta{Name: auth.TokenSecretName, Namespace: options.LiqoNamespace},
 			Data: map[string][]byte{
 				"token": []byte(token),
 			},
@@ -88,8 +62,7 @@ var _ = Describe("Test the generate command works as expected", func() {
 
 		discoveryDeploy := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "whatever",
-				Namespace: liqoNamespace,
+				Name: "whatever", Namespace: options.LiqoNamespace,
 				Labels: map[string]string{
 					"app.kubernetes.io/name":      "controller-manager",
 					"app.kubernetes.io/component": "controller-manager",
@@ -108,50 +81,39 @@ var _ = Describe("Test the generate command works as expected", func() {
 
 		authService := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "liqo-auth",
-				Namespace: liqoNamespace,
+				Name: "liqo-auth", Namespace: options.LiqoNamespace,
 			},
 			Spec: corev1.ServiceSpec{
-				Ports: []corev1.ServicePort{
-					{
-						Name:     "https",
-						Port:     443,
-						NodePort: 34000,
-					},
-				},
-				ClusterIP: authEndpoint,
-				Type:      "LoadBalancer",
+				Ports:     []corev1.ServicePort{{Name: "https", Port: 443, NodePort: 34000}},
+				ClusterIP: "10.1.0.1",
+				Type:      corev1.ServiceTypeLoadBalancer,
 			},
 			Status: corev1.ServiceStatus{
 				LoadBalancer: corev1.LoadBalancerStatus{
-					Ingress: []corev1.LoadBalancerIngress{
-						{
-							IP: authEndpoint,
-						},
-					},
+					Ingress: []corev1.LoadBalancerIngress{{IP: authEndpoint}},
 				},
-				Conditions: nil,
 			},
 		}
-		return fakecontroller.NewClientBuilder().WithObjects(ns, secret, clusterIDConfigMap, discoveryDeploy, authService).Build()
+
+		options.Factory.CRClient = fake.NewClientBuilder().WithObjects(ns, secret, clusterIDConfigMap, discoveryDeploy, authService).Build()
 	}
 
 	DescribeTable("A generate command is performed",
 		func(deployArgs []string, expected string) {
-			k8sClient = setUpEnvironment(liqoNamespace, localClusterID, clusterName, token, deployArgs)
-			Expect(processGenerateCommand(ctx, k8sClient, liqoNamespace, "liqoctl")).To(BeIdenticalTo(expected))
+			setup(deployArgs)
+			Expect(options.generate(ctx)).To(BeIdenticalTo(expected))
 		},
 		Entry("Default authentication service endpoint",
-			[]string{fmt.Sprintf("--%v=%v", consts.ClusterNameParameter, clusterName)},
-			commandName+" add cluster "+clusterName+" --auth-url https://"+authEndpoint+" --id "+localClusterID+" --token "+token,
+			[]string{fmt.Sprintf("--%v=%v", consts.ClusterNameParameter, localClusterName)},
+			commandName+" peer out-of-band "+localClusterName+" --auth-url https://"+authEndpoint+" --cluster-id "+localClusterID+" --auth-token "+token,
 		),
 		Entry("Overridden authentication service endpoint",
 			[]string{
-				fmt.Sprintf("--%v=%v", consts.ClusterNameParameter, clusterName),
+				fmt.Sprintf("--%v=%v", consts.ClusterNameParameter, localClusterName),
 				fmt.Sprintf("--%v=%v", consts.AuthServiceAddressOverrideParameter, "foo.bar.com"),
 				fmt.Sprintf("--%v=%v", consts.AuthServicePortOverrideParameter, "8443"),
 			},
-			commandName+" add cluster "+clusterName+" --auth-url https://foo.bar.com:8443 --id "+localClusterID+" --token "+token,
+			commandName+" peer out-of-band "+localClusterName+" --auth-url https://foo.bar.com:8443 --cluster-id "+localClusterID+" --auth-token "+token,
 		),
 	)
 })

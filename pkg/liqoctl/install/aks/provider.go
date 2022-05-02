@@ -25,29 +25,17 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/spf13/cobra"
-	flag "github.com/spf13/pflag"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/rest"
 
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
-	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
-	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
-const (
-	providerPrefix = "aks"
+var _ install.Provider = (*Options)(nil)
 
-	defaultAksNodeCIDR = "10.240.0.0/16"
-
-	subscriptionIDFlag    = "subscription-id"
-	subscriptionNameFlag  = "subscription-name"
-	resourceGroupNameFlag = "resource-group-name"
-	resourceNameFlag      = "resource-name"
-)
-
-type aksProvider struct {
-	provider.GenericProvider
+// Options encapsulates the arguments of the install command.
+type Options struct {
+	*install.Options
 
 	subscriptionName  string
 	subscriptionID    string
@@ -57,212 +45,173 @@ type aksProvider struct {
 	authorizer *autorest.Authorizer
 }
 
-// NewProvider initializes a new AKS provider struct.
-func NewProvider() provider.InstallProviderInterface {
-	return &aksProvider{
-		GenericProvider: provider.GenericProvider{
-			ClusterLabels: map[string]string{
-				consts.ProviderClusterLabel: providerPrefix,
-			},
-		},
-	}
+// New initializes a new Provider object.
+func New(o *install.Options) install.Provider {
+	return &Options{Options: o}
 }
 
-// ValidateCommandArguments validates specific arguments passed to the install command.
-func (k *aksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	k.subscriptionID, err = flags.GetString(subscriptionIDFlag)
-	if err != nil {
-		return err
-	}
-	logsutils.Infof("AKS SubscriptionID: %v", k.subscriptionID)
+// Name returns the name of the provider.
+func (o *Options) Name() string { return "aks" }
 
-	if k.subscriptionID == "" {
-		k.subscriptionName, err = installutils.CheckStringFlagIsSet(flags, subscriptionNameFlag)
-		if err != nil {
-			return err
-		}
-		logsutils.Infof("AKS SubscriptionName: %v", k.subscriptionName)
-	}
-
-	k.resourceGroupName, err = flags.GetString(resourceGroupNameFlag)
-	if err != nil {
-		return err
-	}
-	logsutils.Infof("AKS ResourceGroupName: %v", k.resourceGroupName)
-
-	k.resourceName, err = flags.GetString(resourceNameFlag)
-	if err != nil {
-		return err
-	}
-	logsutils.Infof("AKS ResourceName: %v", k.resourceName)
-
-	// if the cluster name has not been provided (and set in the pre-checks)
-	// and we have not to generate it,
-	// we default it to the cloud provider resource name.
-	if k.ClusterName == "" && !k.GenerateClusterName {
-		k.ClusterName = k.resourceName
-	}
-
-	return nil
+// Examples returns the examples string for the given provider.
+func (o *Options) Examples() string {
+	return `Examples:
+  $ {{ .Executable }} install aks --resource-name foo --resource-group-name bar --subscription-id ***
+or
+  $ {{ .Executable }} install aks --resource-name foo --resource-group-name bar --subscription-name ***
+`
 }
 
-// ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
-// given provider.
-func (k *aksProvider) ExtractChartParameters(ctx context.Context, config *rest.Config, commonArgs *provider.CommonArguments) error {
+// RegisterFlags registers the flags for the given provider.
+func (o *Options) RegisterFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&o.subscriptionID, "subscription-id", "",
+		"The ID of the Azure Subscription of the cluster (alternative to --subscription-name, takes precedence)")
+	cmd.Flags().StringVar(&o.subscriptionName, "subscription-name", "",
+		"The name of the Azure Subscription of the cluster (alternative to --subscription-id)")
+	cmd.Flags().StringVar(&o.resourceGroupName, "resource-group-name", "",
+		"The Azure ResourceGroup name of the cluster")
+	cmd.Flags().StringVar(&o.resourceName, "resource-name", "", "The Azure Name of the cluster")
+
+	utilruntime.Must(cmd.MarkFlagRequired("resource-group-name"))
+	utilruntime.Must(cmd.MarkFlagRequired("resource-name"))
+}
+
+// Initialize performs the initialization tasks to retrieve the provider-specific parameters.
+func (o *Options) Initialize(ctx context.Context) error {
+	if o.subscriptionID == "" && o.subscriptionName == "" {
+		return fmt.Errorf("neither --subscription-id nor --subscription-name specified")
+	}
+
+	o.Printer.Verbosef("AKS SubscriptionID: %q", o.subscriptionID)
+	o.Printer.Verbosef("AKS SubscriptionName: %q", o.subscriptionName)
+	o.Printer.Verbosef("AKS ResourceGroupName: %q", o.resourceGroupName)
+	o.Printer.Verbosef("AKS ResourceName: %q", o.resourceName)
+
+	// if the cluster name has not been provided, we default it to the cloud provider resource name.
+	if o.ClusterName == "" {
+		o.ClusterName = o.resourceName
+	}
+
 	authorizer, err := auth.NewAuthorizerFromCLI()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed connecting to the Azure API: %w", err)
 	}
+	o.authorizer = &authorizer
 
-	k.authorizer = &authorizer
-
-	if k.subscriptionID == "" {
-		if err := k.retrieveSubscriptionID(ctx); err != nil {
-			return err
+	if o.subscriptionID == "" {
+		if err := o.retrieveSubscriptionID(ctx); err != nil {
+			return fmt.Errorf("failed retrieving subscription ID for name %q: %w", o.subscriptionName, err)
 		}
 	}
 
-	aksClient := containerservice.NewManagedClustersClient(k.subscriptionID)
-	aksClient.Authorizer = *k.authorizer
+	aksClient := containerservice.NewManagedClustersClient(o.subscriptionID)
+	aksClient.Authorizer = *o.authorizer
 
-	cluster, err := aksClient.Get(ctx, k.resourceGroupName, k.resourceName)
+	cluster, err := aksClient.Get(ctx, o.resourceGroupName, o.resourceName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed retrieving cluster information: %w", err)
 	}
 
-	if err = k.parseClusterOutput(ctx, &cluster); err != nil {
-		return err
-	}
-
-	if !commonArgs.DisableEndpointCheck {
-		if valid, err := installutils.CheckEndpoint(k.APIServer, config); err != nil {
-			return err
-		} else if !valid {
-			return fmt.Errorf("the retrieved cluster information and the cluster selected in the kubeconfig do not match")
-		}
+	if err = o.parseClusterOutput(ctx, &cluster); err != nil {
+		return fmt.Errorf("failed retrieving cluster information: %w", err)
 	}
 
 	return nil
 }
 
-// UpdateChartValues patches the values map with the values required for the selected cluster.
-func (k *aksProvider) UpdateChartValues(values map[string]interface{}) {
-	values["apiServer"] = map[string]interface{}{
-		"address": k.APIServer,
-	}
-	values["networkManager"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"serviceCIDR":     k.ServiceCIDR,
-			"podCIDR":         k.PodCIDR,
-			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
-		},
-	}
-	values["discovery"] = map[string]interface{}{
-		"config": map[string]interface{}{
-			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
-			"clusterName":   k.ClusterName,
-		},
-	}
-	values["virtualKubelet"] = map[string]interface{}{
-		"virtualNode": map[string]interface{}{
-			"extra": map[string]interface{}{
-				"labels": map[string]interface{}{
-					"kubernetes.azure.com/managed": "false",
+// Values returns the customized provider-specifc values file parameters.
+func (o *Options) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"virtualKubelet": map[string]interface{}{
+			"virtualNode": map[string]interface{}{
+				"extra": map[string]interface{}{
+					"labels": map[string]interface{}{
+						"kubernetes.azure.com/managed": "false",
+					},
 				},
 			},
 		},
 	}
 }
 
-// GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(command *cobra.Command) {
-	flags := command.Flags()
-
-	flags.String(subscriptionIDFlag, "", "The ID of the Azure Subscription of your cluster,"+
-		" if empty it will be retrieved using the value provided in --subscription-name (optional)")
-	flags.String(subscriptionNameFlag, "", "The Name of the Azure Subscription of your cluster,"+
-		" you have to provide it if you don't specify the --subscription-id value (optional)")
-	flags.String(resourceGroupNameFlag, "", "The Azure ResourceGroup name of your cluster")
-	flags.String(resourceNameFlag, "", "The Azure Name of your cluster")
-
-	utilruntime.Must(command.MarkFlagRequired(resourceGroupNameFlag))
-	utilruntime.Must(command.MarkFlagRequired(resourceNameFlag))
-}
-
-func (k *aksProvider) parseClusterOutput(ctx context.Context, cluster *containerservice.ManagedCluster) error {
+func (o *Options) parseClusterOutput(ctx context.Context, cluster *containerservice.ManagedCluster) error {
 	switch cluster.NetworkProfile.NetworkPlugin {
 	case containerservice.NetworkPluginKubenet:
-		if err := k.setupKubenet(ctx, cluster); err != nil {
+		if err := o.setupKubenet(ctx, cluster); err != nil {
 			return err
 		}
 	case containerservice.NetworkPluginAzure:
-		if err := k.setupAzureCNI(ctx, cluster); err != nil {
+		if err := o.setupAzureCNI(ctx, cluster); err != nil {
 			return err
 		}
 	default:
 		return fmt.Errorf("unknown AKS network plugin %v", cluster.NetworkProfile.NetworkPlugin)
 	}
 
-	k.APIServer = *cluster.Fqdn
+	if cluster.Fqdn != nil {
+		o.APIServer = *cluster.Fqdn
+	}
 
 	if cluster.Location != nil {
-		k.ClusterLabels[consts.TopologyRegionClusterLabel] = *cluster.Location
+		o.ClusterLabels[consts.TopologyRegionClusterLabel] = *cluster.Location
 	}
 
 	return nil
 }
 
 // setupKubenet setups the data for a Kubenet cluster.
-func (k *aksProvider) setupKubenet(ctx context.Context, cluster *containerservice.ManagedCluster) error {
-	k.PodCIDR = *cluster.ManagedClusterProperties.NetworkProfile.PodCidr
-	k.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
+func (o *Options) setupKubenet(ctx context.Context, cluster *containerservice.ManagedCluster) error {
+	const defaultAksNodeCIDR = "10.240.0.0/16"
+
+	o.PodCIDR = *cluster.ManagedClusterProperties.NetworkProfile.PodCidr
+	o.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
 
 	// AKS Kubenet cluster does not have a subnet (and a subnetID) by default, in this case the node CIDR
 	// is the default one.
-	// But it's possible to specify an existent subnet during the cluster creation to be used as node CIDR,
+	// But it is possible to specify an existent subnet during the cluster creation to be used as node CIDR,
 	// in that case the vnet subnetID will be provided and we have to retrieve this network information.
 	vnetSubjectID := (*cluster.AgentPoolProfiles)[0].VnetSubnetID
 	if vnetSubjectID == nil {
-		k.ReservedSubnets = append(k.ReservedSubnets, defaultAksNodeCIDR)
+		o.ReservedSubnets = append(o.ReservedSubnets, defaultAksNodeCIDR)
 	} else {
-		networkClient := network.NewSubnetsClient(k.subscriptionID)
-		networkClient.Authorizer = *k.authorizer
+		networkClient := network.NewSubnetsClient(o.subscriptionID)
+		networkClient.Authorizer = *o.authorizer
 
 		vnetName, subnetName, err := parseSubnetID(*vnetSubjectID)
 		if err != nil {
 			return err
 		}
 
-		vnet, err := networkClient.Get(ctx, k.resourceGroupName, vnetName, subnetName, "")
+		vnet, err := networkClient.Get(ctx, o.resourceGroupName, vnetName, subnetName, "")
 		if err != nil {
 			return err
 		}
 
-		k.ReservedSubnets = append(k.ReservedSubnets, *vnet.SubnetPropertiesFormat.AddressPrefix)
+		o.ReservedSubnets = append(o.ReservedSubnets, *vnet.SubnetPropertiesFormat.AddressPrefix)
 	}
 
 	return nil
 }
 
 // setupAzureCNI setups the data for an Azure CNI cluster.
-func (k *aksProvider) setupAzureCNI(ctx context.Context, cluster *containerservice.ManagedCluster) error {
+func (o *Options) setupAzureCNI(ctx context.Context, cluster *containerservice.ManagedCluster) error {
 	vnetSubjectID := (*cluster.AgentPoolProfiles)[0].VnetSubnetID
 
-	networkClient := network.NewSubnetsClient(k.subscriptionID)
-	networkClient.Authorizer = *k.authorizer
+	networkClient := network.NewSubnetsClient(o.subscriptionID)
+	networkClient.Authorizer = *o.authorizer
 
 	vnetName, subnetName, err := parseSubnetID(*vnetSubjectID)
 	if err != nil {
 		return err
 	}
 
-	vnet, err := networkClient.Get(ctx, k.resourceGroupName, vnetName, subnetName, "")
+	vnet, err := networkClient.Get(ctx, o.resourceGroupName, vnetName, subnetName, "")
 	if err != nil {
 		return err
 	}
 
-	k.PodCIDR = *vnet.AddressPrefix
-	k.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
+	o.PodCIDR = *vnet.AddressPrefix
+	o.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
 
 	return nil
 }
@@ -283,9 +232,9 @@ func parseSubnetID(subnetID string) (vnetName, subnetName string, err error) {
 	return strs[l-3], strs[l-1], nil
 }
 
-func (k *aksProvider) retrieveSubscriptionID(ctx context.Context) error {
+func (o *Options) retrieveSubscriptionID(ctx context.Context) error {
 	subClient := subscriptions.NewClient()
-	subClient.Authorizer = *k.authorizer
+	subClient.Authorizer = *o.authorizer
 
 	subList, err := subClient.List(ctx)
 	if err != nil {
@@ -294,8 +243,8 @@ func (k *aksProvider) retrieveSubscriptionID(ctx context.Context) error {
 
 	for subList.NotDone() {
 		for _, v := range subList.Values() {
-			if *v.DisplayName == k.subscriptionName {
-				k.subscriptionID = *v.SubscriptionID
+			if *v.DisplayName == o.subscriptionName {
+				o.subscriptionID = *v.SubscriptionID
 				return nil
 			}
 		}
@@ -305,5 +254,5 @@ func (k *aksProvider) retrieveSubscriptionID(ctx context.Context) error {
 		}
 	}
 
-	return fmt.Errorf("no subscription found with name: %v", k.subscriptionName)
+	return fmt.Errorf("no subscription found matching the name")
 }

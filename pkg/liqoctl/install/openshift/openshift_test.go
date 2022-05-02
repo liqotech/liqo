@@ -20,9 +20,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	configv1api "github.com/openshift/api/config/v1"
-	"github.com/spf13/cobra"
 
-	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
 func TestFetchingParameters(t *testing.T) {
@@ -31,49 +30,27 @@ func TestFetchingParameters(t *testing.T) {
 }
 
 var _ = Describe("Extract elements from OpenShift", func() {
-
-	var (
-		p *openshiftProvider
-	)
+	var options Options
 
 	BeforeEach(func() {
-		p = NewProvider().(*openshiftProvider)
-	})
-
-	It("test flags", func() {
-		cmd := &cobra.Command{}
-
-		GenerateFlags(cmd)
-		cmd.Flags().String("cluster-name", "", "")
-		cmd.Flags().Bool("generate-name", true, "")
-		cmd.Flags().String("reserved-subnets", "", "")
-
-		flags := cmd.Flags()
-		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
-
-		Expect(p.ClusterLabels).ToNot(BeEmpty())
-		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
+		options = Options{Options: &install.Options{}}
 	})
 
 	It("test parse values", func() {
-		podCidr := "10.128.0.0/14"
-		serviceCidr := "172.30.0.0/16"
+		const (
+			podCidr     = "10.128.0.0/14"
+			serviceCidr = "172.30.0.0/16"
+		)
 
 		networkConfig := &configv1api.Network{
 			Status: configv1api.NetworkStatus{
-				ClusterNetwork: []configv1api.ClusterNetworkEntry{
-					{
-						CIDR: podCidr,
-					},
-				},
+				ClusterNetwork: []configv1api.ClusterNetworkEntry{{CIDR: podCidr}},
 				ServiceNetwork: []string{serviceCidr},
 			},
 		}
 
-		Expect(p.parseNetworkConfig(networkConfig)).To(Succeed())
-
-		Expect(p.PodCIDR).To(Equal(podCidr))
-		Expect(p.ServiceCIDR).To(Equal(serviceCidr))
+		Expect(options.parseNetworkConfig(networkConfig)).To(Succeed())
+		Expect(options.PodCIDR).To(Equal(podCidr))
+		Expect(options.ServiceCIDR).To(Equal(serviceCidr))
 	})
-
 })

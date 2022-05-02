@@ -19,10 +19,10 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/spf13/cobra"
 	"google.golang.org/api/container/v1"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
 func TestFetchingParameters(t *testing.T) {
@@ -30,46 +30,20 @@ func TestFetchingParameters(t *testing.T) {
 	RunSpecs(t, "Test GKE provider")
 }
 
-const (
-	endpoint    = "https://example.com"
-	podCIDR     = "10.0.0.0/16"
-	serviceCIDR = "10.80.0.0/16"
-
-	credentialsPath = "path"
-	projectID       = "id"
-	zone            = "zone"
-	clusterID       = "cluster-id"
-)
-
 var _ = Describe("Extract elements from GKE", func() {
+	var options Options
 
-	It("test flags", func() {
-
-		p := NewProvider().(*gkeProvider)
-
-		cmd := &cobra.Command{}
-
-		GenerateFlags(cmd)
-		cmd.Flags().String("cluster-name", "", "")
-		cmd.Flags().Bool("generate-name", true, "")
-		cmd.Flags().String("reserved-subnets", "", "")
-
-		flags := cmd.Flags()
-		Expect(flags.Set("credentials-path", credentialsPath)).To(Succeed())
-		Expect(flags.Set("project-id", projectID)).To(Succeed())
-		Expect(flags.Set("zone", zone)).To(Succeed())
-		Expect(flags.Set("cluster-id", clusterID)).To(Succeed())
-
-		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
-
-		Expect(p.credentialsPath).To(Equal(credentialsPath))
-		Expect(p.projectID).To(Equal(projectID))
-		Expect(p.zone).To(Equal(zone))
-		Expect(p.clusterID).To(Equal(clusterID))
-
+	BeforeEach(func() {
+		options = Options{Options: &install.Options{ClusterLabels: map[string]string{}}}
 	})
 
 	It("test parse values", func() {
+		const (
+			endpoint    = "https://example.com"
+			podCIDR     = "10.0.0.0/16"
+			serviceCIDR = "10.80.0.0/16"
+			zone        = "zone"
+		)
 
 		clusterOutput := &container.Cluster{
 			Endpoint:         endpoint,
@@ -78,18 +52,13 @@ var _ = Describe("Extract elements from GKE", func() {
 			Location:         zone,
 		}
 
-		p := NewProvider().(*gkeProvider)
+		options.parseClusterOutput(clusterOutput)
 
-		p.parseClusterOutput(clusterOutput)
+		Expect(options.APIServer).To(Equal(endpoint))
+		Expect(options.ServiceCIDR).To(Equal(serviceCIDR))
+		Expect(options.PodCIDR).To(Equal(podCIDR))
 
-		Expect(p.APIServer).To(Equal(endpoint))
-		Expect(p.ServiceCIDR).To(Equal(serviceCIDR))
-		Expect(p.PodCIDR).To(Equal(podCIDR))
-
-		Expect(p.ClusterLabels).ToNot(BeEmpty())
-		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
-		Expect(p.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(zone))
-
+		Expect(options.ClusterLabels).ToNot(BeEmpty())
+		Expect(options.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(zone))
 	})
-
 })

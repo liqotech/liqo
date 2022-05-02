@@ -18,65 +18,116 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"fmt"
+	"html/template"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
 
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/common"
-	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
-	"github.com/liqotech/liqo/pkg/utils/restcfg"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 )
+
+var liqoctl string
+
+func init() {
+	liqoctl = os.Args[0]
+
+	// Account for the case it is used as a kubectl plugin.
+	if strings.HasPrefix(filepath.Base(liqoctl), "kubectl-") {
+		liqoctl = strings.ReplaceAll(filepath.Base(liqoctl), "-", " ")
+		liqoctl = strings.ReplaceAll(liqoctl, "_", "-")
+	}
+}
+
+// liqoctlLongHelp contains the long help message for root Liqoctl command.
+const liqoctlLongHelp = `{{ .Executable}} is a CLI tool to install and manage Liqo.
+
+Liqo is a platform to enable dynamic and decentralized resource sharing across
+Kubernetes clusters, either on-prem or managed. Liqo allows to run pods on a
+remote cluster seamlessly and without any modification of Kubernetes and the
+applications. With Liqo it is possible to extend the control and data plane of a
+Kubernetes cluster across the cluster's boundaries, making multi-cluster native
+and transparent: collapse an entire remote cluster to a local virtual node,
+enabling workloads offloading, resource management and cross-cluster communication
+compliant with the standard Kubernetes approach.
+`
 
 // NewRootCommand initializes the tree of commands.
 func NewRootCommand(ctx context.Context) *cobra.Command {
-	// rootCmd represents the base command when called without any subcommands.
-	var rootCmd = &cobra.Command{
-		Use:   "liqoctl",
-		Short: common.LiqoctlShortHelp,
-		Long:  common.LiqoctlLongHelp,
+	f := factory.NewForLocal()
 
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			verbose, err := cmd.Flags().GetBool("verbose")
-			utilruntime.Must(err)
+	// cmd represents the base command when called without any subcommands.
+	cmd := &cobra.Command{
+		Use:          liqoctl,
+		Short:        "A CLI tool to install and manage Liqo",
+		Long:         WithTemplate(liqoctlLongHelp),
+		Args:         cobra.NoArgs,
+		SilenceUsage: true, // Do not show the usage message in case of errors.
 
-			printer := common.NewPrinter("", common.Cluster1Color)
-			logsutils.SetupLogger(printer, verbose)
-		},
+		// The factory is not initialized by a PersistentPreRun here, to avoid issues with the completion
+		// functions (that do not require the clients to be setup) and allow for better customization.
 	}
 
-	// since we cannot access internal klog configuration, we create a new flagset, let klog to install
+	// Since we cannot access internal klog configuration, we create a new flagset, let klog to install
 	// its flags, and we only set the ones we are intrested in.
 	klogFlagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(klogFlagset)
-	klogFlagset.VisitAll(func(f *flag.Flag) {
-		// this is required to silence the helm library messages.
-		if f.Name == "stderrthreshold" {
-			utilruntime.Must(f.Value.Set("FATAL"))
-		}
-	})
-
-	// this is required to silence the helm library messages.
+	// These settings is required to silence the Helm library messages.
+	utilruntime.Must(klogFlagset.Set("stderrthreshold", "FATAL"))
 	klog.LogToStderr(false)
 	buffer := &bytes.Buffer{}
 	klog.SetOutput(buffer)
 
-	rateFlagset := flag.NewFlagSet("rate-limiting", flag.PanicOnError)
-	restcfg.InitFlags(rateFlagset)
-	rootCmd.PersistentFlags().AddGoFlagSet(rateFlagset)
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable/Disable verbose mode (default: false)")
+	// Add the flags regarding Kubernetes access options.
+	f.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 
-	rootCmd.AddCommand(newInstallCommand(ctx))
-	rootCmd.AddCommand(newUninstallCommand(ctx))
-	rootCmd.AddCommand(newAddCommand(ctx))
-	rootCmd.AddCommand(newRemoveCommand(ctx))
-	rootCmd.AddCommand(newGenerateAddCommand(ctx))
-	rootCmd.AddCommand(newDocsCommand(ctx))
-	rootCmd.AddCommand(newVersionCommand())
-	rootCmd.AddCommand(newStatusCommand(ctx))
-	rootCmd.AddCommand(newOffloadCommand(ctx))
-	rootCmd.AddCommand(newConnectCommand(ctx))
-	rootCmd.AddCommand(newDisconnectCommand(ctx))
-	rootCmd.AddCommand(newMoveCommand(ctx))
-	return rootCmd
+	cmd.AddCommand(newInstallCommand(ctx, f))
+	cmd.AddCommand(newUninstallCommand(ctx, f))
+	cmd.AddCommand(newPeerCommand(ctx, f))
+	cmd.AddCommand(newUnpeerCommand(ctx, f))
+	cmd.AddCommand(newGenerateCommand(ctx, f))
+	cmd.AddCommand(newOffloadCommand(ctx, f))
+	cmd.AddCommand(newUnoffloadCommand(ctx, f))
+	cmd.AddCommand(newStatusCommand(ctx, f))
+	cmd.AddCommand(newMoveCommand(ctx, f))
+	cmd.AddCommand(newVersionCommand(ctx, f))
+	cmd.AddCommand(newDocsCommand(ctx))
+	return cmd
+}
+
+// WithTemplate returns a string that has the liqoctl name templated out with the
+// current executable name. WithTemplate templates on the '{{ .Executable }}' variable.
+func WithTemplate(str string) string {
+	tmpl := template.Must(template.New("liqoctl").Parse(str))
+	var buf bytes.Buffer
+	utilruntime.Must(tmpl.Execute(&buf, struct{ Executable string }{liqoctl}))
+	return buf.String()
+}
+
+// singleClusterPersistentPreRun initializes the local factory.
+func singleClusterPersistentPreRun(cmd *cobra.Command, f *factory.Factory, opts ...factory.Options) {
+	// Errors are silenced here, to ensure those referring to incorrect flags are printed out.
+	cmd.SilenceErrors = true
+
+	// Populate the factory fields based on the configured parameters.
+	f.Printer.CheckErr(f.Initialize(opts...))
+}
+
+// twoClustersPersistentPreRun initializes both the local and the remote factory.
+func twoClustersPersistentPreRun(cmd *cobra.Command, local, remote *factory.Factory, opts ...factory.Options) {
+	// Initialize the local factory fields based on the configured parameters.
+	singleClusterPersistentPreRun(cmd, local, opts...)
+
+	// Populate the remote factory fields based on the configured parameters.
+	remote.Printer.CheckErr(remote.Initialize(opts...))
+
+	// Check that local and remote clusters are different.
+	if reflect.DeepEqual(local.RESTConfig, remote.RESTConfig) {
+		local.Printer.CheckErr(fmt.Errorf("local and remote clusters must be different"))
+	}
 }

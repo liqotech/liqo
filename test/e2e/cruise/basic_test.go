@@ -345,7 +345,7 @@ var _ = Describe("Liqo E2E", func() {
 				liqoctl := os.Getenv("LIQOCTL")
 				Expect(liqoctl).ToNot(BeEmpty())
 				cmd := exec.Command(liqoctl, // nolint:gosec // running in a trusted environment
-					"move", "volume", originPvc.Name, "-n", namespace, "--node", virtualNodesList.Items[0].Name)
+					"move", "volume", originPvc.Name, "-n", namespace, "--target-node", virtualNodesList.Items[0].Name)
 				cmd.Stdout = GinkgoWriter
 				cmd.Stderr = GinkgoWriter
 				cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", testContext.Clusters[0].KubeconfigPath))

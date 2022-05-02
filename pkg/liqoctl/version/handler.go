@@ -15,18 +15,53 @@
 package version
 
 import (
+	"context"
 	"fmt"
+
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
-// if you need to rename the following variables, change also the build command for liqoctl.
 var liqoctlVersion = "development"
-var liqoctlSHA = ""
 
-// HandleVersionCommand outputs the liqoctl add command to use to add the target cluster.
-func HandleVersionCommand() {
-	fmt.Println()
-	fmt.Printf("Current Liqoctl client version: %s\n\n", liqoctlVersion)
-	if liqoctlSHA != "" {
-		fmt.Printf("Current Liqoctl client commit SHA: %s\n\n", liqoctlSHA)
+// Options encapsulates the arguments of the offload namespace command.
+type Options struct {
+	*factory.Factory
+
+	ClientOnly bool
+}
+
+// Run implements the offload namespace command.
+func (o *Options) Run(ctx context.Context) error {
+	fmt.Printf("Client version: %s\n", liqoctlVersion)
+
+	if o.ClientOnly {
+		return nil
 	}
+
+	o.Printer.CheckErr(o.Factory.Initialize(factory.Silent))
+	release, err := o.HelmClient().GetRelease(install.LiqoReleaseName)
+	if err != nil {
+		o.Printer.Error.Printf("Failed to retrieve release information from namespace %q: %v\n", o.LiqoNamespace, err)
+		return err
+	}
+
+	if release.Chart == nil || release.Chart.Metadata == nil {
+		o.Printer.Error.Print("Invalid release information\n")
+		return err
+	}
+
+	version := release.Chart.Metadata.AppVersion
+	if version == "" {
+		// Development version, fallback to the value specified as tag
+		tag, ok := release.Config["tag"]
+		if !ok {
+			o.Printer.Error.Print("Invalid release information\n")
+			return err
+		}
+		version = tag.(string)
+	}
+
+	fmt.Printf("Server version: %s\n", version)
+	return nil
 }

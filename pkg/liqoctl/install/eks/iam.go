@@ -23,26 +23,24 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
-
-	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 // createIamIdentity crates the Liqo IAM user identity.
-func (k *eksProvider) createIamIdentity(sess *session.Session) error {
-	iamSvc := iam.New(sess, aws.NewConfig().WithRegion(k.region))
+func (o *Options) createIamIdentity(sess *session.Session) error {
+	iamSvc := iam.New(sess, aws.NewConfig().WithRegion(o.region))
 
-	if err := k.ensureUser(iamSvc); err != nil {
+	if err := o.ensureUser(iamSvc); err != nil {
 		return err
 	}
 
-	policyArn, err := k.ensurePolicy(iamSvc)
+	policyArn, err := o.ensurePolicy(iamSvc)
 	if err != nil {
 		return err
 	}
 
 	attachUserPolicyRequest := &iam.AttachUserPolicyInput{
 		PolicyArn: aws.String(policyArn),
-		UserName:  aws.String(k.iamLiqoUser.userName),
+		UserName:  aws.String(o.iamUser.userName),
 	}
 
 	_, err = iamSvc.AttachUserPolicy(attachUserPolicyRequest)
@@ -53,26 +51,26 @@ func (k *eksProvider) createIamIdentity(sess *session.Session) error {
 	return nil
 }
 
-func (k *eksProvider) requiresUserCreation() bool {
-	return k.iamLiqoUser.accessKeyID == "" || k.iamLiqoUser.secretAccessKey == ""
+func (o *Options) requiresUserCreation() bool {
+	return o.iamUser.accessKeyID == "" || o.iamUser.secretAccessKey == ""
 }
 
-func (k *eksProvider) ensureUser(iamSvc *iam.IAM) error {
-	if !k.requiresUserCreation() {
-		valid, err := k.checkCredentials(iamSvc)
+func (o *Options) ensureUser(iamSvc *iam.IAM) error {
+	if !o.requiresUserCreation() {
+		valid, err := o.checkCredentials(iamSvc)
 		if err != nil {
 			return err
 		}
 		if !valid {
-			return fmt.Errorf("no accessKeyID %v found in the IAM user %v", k.iamLiqoUser.accessKeyID, k.iamLiqoUser.userName)
+			return fmt.Errorf("no accessKeyID %v found in the IAM user %v", o.iamUser.accessKeyID, o.iamUser.userName)
 		}
 
-		logsutils.Infof("Using provided IAM credentials")
+		o.Printer.Verbosef("Using provided IAM credentials")
 		return nil
 	}
 
 	createUserRequest := &iam.CreateUserInput{
-		UserName: aws.String(k.iamLiqoUser.userName),
+		UserName: aws.String(o.iamUser.userName),
 	}
 
 	_, err := iamSvc.CreateUser(createUserRequest)
@@ -81,7 +79,7 @@ func (k *eksProvider) ensureUser(iamSvc *iam.IAM) error {
 	}
 
 	createAccessKeyRequest := &iam.CreateAccessKeyInput{
-		UserName: aws.String(k.iamLiqoUser.userName),
+		UserName: aws.String(o.iamUser.userName),
 	}
 
 	createAccessKeyResult, err := iamSvc.CreateAccessKey(createAccessKeyRequest)
@@ -89,21 +87,21 @@ func (k *eksProvider) ensureUser(iamSvc *iam.IAM) error {
 		return err
 	}
 
-	k.iamLiqoUser.accessKeyID = *createAccessKeyResult.AccessKey.AccessKeyId
-	k.iamLiqoUser.secretAccessKey = *createAccessKeyResult.AccessKey.SecretAccessKey
+	o.iamUser.accessKeyID = *createAccessKeyResult.AccessKey.AccessKeyId
+	o.iamUser.secretAccessKey = *createAccessKeyResult.AccessKey.SecretAccessKey
 
-	if err = storeIamAccessKey(k.iamLiqoUser.userName,
-		k.iamLiqoUser.accessKeyID,
-		k.iamLiqoUser.secretAccessKey); err != nil {
+	if err = storeIamAccessKey(o.iamUser.userName,
+		o.iamUser.accessKeyID,
+		o.iamUser.secretAccessKey); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (k *eksProvider) checkCredentials(iamSvc *iam.IAM) (bool, error) {
+func (o *Options) checkCredentials(iamSvc *iam.IAM) (bool, error) {
 	listAccessKeysRequest := &iam.ListAccessKeysInput{
-		UserName: aws.String(k.iamLiqoUser.userName),
+		UserName: aws.String(o.iamUser.userName),
 	}
 
 	listAccessKeysResult, err := iamSvc.ListAccessKeys(listAccessKeysRequest)
@@ -113,7 +111,7 @@ func (k *eksProvider) checkCredentials(iamSvc *iam.IAM) (bool, error) {
 
 	for i := range listAccessKeysResult.AccessKeyMetadata {
 		accessKey := listAccessKeysResult.AccessKeyMetadata[i]
-		if *accessKey.AccessKeyId == k.iamLiqoUser.accessKeyID {
+		if *accessKey.AccessKeyId == o.iamUser.accessKeyID {
 			return true, nil
 		}
 	}
@@ -121,14 +119,14 @@ func (k *eksProvider) checkCredentials(iamSvc *iam.IAM) (bool, error) {
 	return false, nil
 }
 
-func (k *eksProvider) ensurePolicy(iamSvc *iam.IAM) (string, error) {
+func (o *Options) ensurePolicy(iamSvc *iam.IAM) (string, error) {
 	policyDocument, err := getPolicyDocument()
 	if err != nil {
 		return "", err
 	}
 
 	createPolicyRequest := &iam.CreatePolicyInput{
-		PolicyName:     aws.String(k.iamLiqoUser.policyName),
+		PolicyName:     aws.String(o.iamUser.policyName),
 		PolicyDocument: aws.String(policyDocument),
 	}
 
@@ -137,7 +135,7 @@ func (k *eksProvider) ensurePolicy(iamSvc *iam.IAM) (string, error) {
 		if aerr, ok := err.(awserr.Error); ok { // nolint:errorlint // we need to access methods of the aws error interface
 			switch aerr.Code() {
 			case iam.ErrCodeEntityAlreadyExistsException:
-				return k.checkPolicy(iamSvc)
+				return o.checkPolicy(iamSvc)
 			default:
 				return "", err
 			}
@@ -150,7 +148,7 @@ func (k *eksProvider) ensurePolicy(iamSvc *iam.IAM) (string, error) {
 	return *createPolicyResult.Policy.Arn, nil
 }
 
-func (k *eksProvider) getPolicyArn(iamSvc *iam.IAM) (string, error) {
+func (o *Options) getPolicyArn(iamSvc *iam.IAM) (string, error) {
 	getUserResult, err := iamSvc.GetUser(&iam.GetUserInput{})
 	if err != nil {
 		return "", err
@@ -159,12 +157,12 @@ func (k *eksProvider) getPolicyArn(iamSvc *iam.IAM) (string, error) {
 	splits := strings.Split(*getUserResult.User.Arn, ":")
 	accountID := splits[4]
 
-	return fmt.Sprintf("arn:aws:iam::%v:policy/%v", accountID, k.iamLiqoUser.policyName), nil
+	return fmt.Sprintf("arn:aws:iam::%v:policy/%v", accountID, o.iamUser.policyName), nil
 }
 
 // checkPolicy checks that the retrieved policy has the required permission.
-func (k *eksProvider) checkPolicy(iamSvc *iam.IAM) (string, error) {
-	arn, err := k.getPolicyArn(iamSvc)
+func (o *Options) checkPolicy(iamSvc *iam.IAM) (string, error) {
+	arn, err := o.getPolicyArn(iamSvc)
 	if err != nil {
 		return "", err
 	}
@@ -201,7 +199,7 @@ func (k *eksProvider) checkPolicy(iamSvc *iam.IAM) (string, error) {
 
 	if tmp != policyDocument {
 		return "", fmt.Errorf("the %v IAM policy has not the permission required by Liqo",
-			k.iamLiqoUser.policyName)
+			o.iamUser.policyName)
 	}
 
 	return arn, nil

@@ -36,8 +36,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqoctl/common"
-	"github.com/liqotech/liqo/pkg/liqoctl/generate"
+	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/util"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
@@ -90,10 +89,10 @@ var _ = Describe("Liqo E2E", func() {
 
 		DescribeTable(" 1 - Check labels presence in the ControllerManager arguments for every cluster",
 			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
-				args, err := generate.RetrieveLiqoControllerManagerDeploymentArgs(ctx, cluster.ControllerClient, "liqo")
+				args, err := liqoctlutil.RetrieveLiqoControllerManagerDeploymentArgs(ctx, cluster.ControllerClient, "liqo")
 				Expect(err).ToNot(HaveOccurred())
 
-				val, err := common.ExtractValueFromArgumentList("--cluster-labels", args)
+				val, err := liqoctlutil.ExtractValueFromArgumentList("--cluster-labels", args)
 				Expect(err).ToNot(HaveOccurred())
 
 				labels := argsutils.StringMap{}

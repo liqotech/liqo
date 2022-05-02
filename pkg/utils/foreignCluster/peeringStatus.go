@@ -61,6 +61,11 @@ func IsOutgoingPeeringNone(foreignCluster *discoveryv1alpha1.ForeignCluster) boo
 	return curPhase == discoveryv1alpha1.PeeringConditionStatusNone
 }
 
+// IsUnpeered returns whether the no peering is currently active towards the remote cluster.
+func IsUnpeered(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	return IsIncomingPeeringNone(foreignCluster) && IsOutgoingPeeringNone(foreignCluster)
+}
+
 // IsNetworkingEstablished checks if the networking has be established.
 func IsNetworkingEstablished(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.NetworkStatusCondition)

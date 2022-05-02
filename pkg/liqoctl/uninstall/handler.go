@@ -17,54 +17,88 @@ package uninstall
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
-	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/common"
-	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
-// HandleUninstallCommand implements the "uninstall" command.
-func HandleUninstallCommand(ctx context.Context, cmd *cobra.Command, args *Args) error {
-	printer := common.NewPrinter("", common.Cluster1Color)
+var liqoGroupVersions = []schema.GroupVersion{
+	discoveryv1alpha1.GroupVersion,
+	netv1alpha1.GroupVersion,
+	offv1alpha1.GroupVersion,
+	sharingv1alpha1.GroupVersion,
+	virtualKubeletv1alpha1.SchemeGroupVersion,
+}
 
-	s, err := printer.Spinner.Start("Loading configuration")
-	utilruntime.Must(err)
+// Options encapsulates the arguments of the uninstall command.
+type Options struct {
+	*factory.Factory
 
-	config, err := common.GetLiqoctlRestConf()
-	if err != nil {
-		s.Fail("Error loading configuration: ", err)
-		return err
-	}
+	Purge bool
+}
 
-	helmClient, err := initHelmClient(config, args.Namespace)
-	if err != nil {
-		s.Fail("Error initializing helm client: ", err)
-		return err
-	}
-	s.Success("Configuration loaded")
+// Run implements the uninstall command.
+func (o *Options) Run(ctx context.Context) error {
+	s := o.Printer.StartSpinner("Uninstalling Liqo")
 
-	s, err = printer.Spinner.Start("Uninstalling Liqo")
-	utilruntime.Must(err)
-
-	err = helmClient.UninstallReleaseByName(installutils.LiqoReleaseName)
+	err := o.HelmClient().UninstallReleaseByName(install.LiqoReleaseName)
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		s.Fail("Error uninstalling Liqo: ", err)
 		return err
 	}
 	s.Success("Liqo uninstalled")
 
-	if args.Purge {
-		s, err = printer.Spinner.Start("Purging Liqo CRDs")
-		utilruntime.Must(err)
+	if o.Purge {
+		s = o.Printer.StartSpinner("Purging Liqo CRDs")
 
-		if err = purge(ctx, config); err != nil {
+		if err = o.purge(ctx); err != nil {
 			s.Fail("Error purging CRDs: ", err)
 			return err
 		}
 		s.Success("Liqo CRDs purged")
+	}
+
+	return nil
+}
+
+func (o *Options) purge(ctx context.Context) error {
+	for _, groupVersion := range liqoGroupVersions {
+		res, err := o.KubeClient.Discovery().ServerResourcesForGroupVersion(groupVersion.String())
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			return err
+		}
+
+		for i := range res.APIResources {
+			apiRes := &res.APIResources[i]
+			if strings.Contains(apiRes.Name, "/") {
+				// skip subresources
+				continue
+			}
+
+			name := fmt.Sprintf("%s.%s", apiRes.Name, groupVersion.Group)
+			crd := apiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: name}}
+			err = o.CRClient.Delete(ctx, &crd)
+			if client.IgnoreNotFound(err) != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

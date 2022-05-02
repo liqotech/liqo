@@ -21,11 +21,14 @@ import (
 	"syscall"
 	"time"
 
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqocmd "github.com/liqotech/liqo/cmd/liqoctl/cmd"
 )
 
@@ -34,22 +37,25 @@ const (
 )
 
 func init() {
-	_ = discoveryv1alpha1.AddToScheme(scheme.Scheme)
-	_ = offloadingv1alpha1.AddToScheme(scheme.Scheme)
+	utilruntime.Must(discoveryv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(netv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(sharingv1alpha1.AddToScheme(scheme.Scheme))
 }
 
 func main() {
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		<-ctx.Done()
+
+		stop() // Reset the default behavior if further signals are received.
 		<-time.After(terminationTimeout)
 		os.Exit(1)
 	}()
 
 	cmd := liqocmd.NewRootCommand(ctx)
-	msg := cmd.ExecuteContext(ctx)
-	if msg != nil {
+	if err := cmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
 	}
 }
