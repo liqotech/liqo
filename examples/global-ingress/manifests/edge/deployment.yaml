@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge
+  labels:
+    app: edge
+spec:
+  selector:
+    matchLabels:
+      app: edge
+  template:
+    metadata:
+      labels:
+        app: edge
+    spec:
+      initContainers:
+      - name: copy-zone
+        image: gcr.io/google_containers/busybox
+        command: [ "cp", "/etc/bind/k8s.zone", "/var/lib/bind/zones/k8s.zone" ]
+        volumeMounts:
+          - mountPath: /etc/bind
+            name: config
+          - mountPath: /var/lib/bind/zones
+            name: zone-volume
+      containers:
+      - name: bind
+        image: internetsystemsconsortium/bind9:9.16
+        ports:
+        - containerPort: 1053
+          protocol: TCP
+        volumeMounts:
+          - mountPath: /etc/bind
+            name: config
+          - mountPath: /var/lib/bind/zones
+            name: zone-volume
+      volumes:
+      - name: zone-volume
+        emptyDir: {}
+      - name: config
+        projected:
+          sources:
+          - secret:
+              name: ddns-key
+          - configMap:
+              name: zone

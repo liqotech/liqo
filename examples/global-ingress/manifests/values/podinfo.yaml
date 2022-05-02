@@ -1,0 +1,30 @@
+replicaCount: 2
+backend: http://backend-podinfo:9898/echo
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-role.kubernetes.io/control-plane
+          operator: DoesNotExist
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchExpressions:
+        - key: app.kubernetes.io/name
+          operator: In
+          values:
+          - podinfo
+      topologyKey: "kubernetes.io/hostname"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    k8gb.io/strategy: roundRobin
+  hosts:
+    - host: liqo.cloud.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific

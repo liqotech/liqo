@@ -1,0 +1,32 @@
+## nginx configuration
+## Ref: https://github.com/kubernetes/ingress-nginx/tree/master/charts/ingress-nginx
+##
+controller:
+  admissionWebhooks:
+    enabled: false
+    patch:
+     enabled: false
+  hostNetwork: true
+  publishService:
+    enabled: false
+  ## Use host ports 80 and 443
+  daemonset:
+    useHostPort: false
+
+    hostPorts:
+      http: 80
+      https: 443
+
+  ingressClassResource:
+    default: true
+
+  kind: DaemonSet
+
+  service:
+    enabled: false
+
+# UDP service key:value pairs
+# Ref: https://github.com/kubernetes/contrib/tree/master/ingress/controllers/nginx/examples/udp
+##
+udp:
+  53: "k8gb/k8gb-coredns:53"

@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zone
+data:
+  named.conf: |
+    include "/etc/bind/ddns.key";
+    options {
+      directory "/var/cache/bind";
+      listen-on port 1053 { any; };
+      allow-query { any; };
+    };
+    zone "example.com" {
+      type master;
+      file "/var/lib/bind/zones/k8s.zone";
+      allow-transfer {
+          key "externaldns-key";
+      };
+      update-policy {
+          grant externaldns-key zonesub ANY;
+      };
+    };
+  k8s.zone: |
+    $TTL 30
+    @         IN SOA  example.com. root.example.com. (
+                                    16         ; serial
+                                    30         ; refresh (30 seconds)
+                                    30         ; retry (30 seconds)
+                                    30         ; expire (30 seconds)
+                                    30         ; minimum (30 seconds)
+                                    )
+                            NS      ns.example.com.
+    ns                      A       127.0.0.1
