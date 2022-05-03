@@ -121,7 +121,7 @@ var _ = Describe("Liqo E2E", func() {
 					By("Retrieving the ResourceOffers created by the cluster under examination")
 					Eventually(func() (err error) {
 						resourceOffer, err = liqogetters.GetResourceOfferByLabel(ctx, cluster.ControllerClient, metav1.NamespaceAll,
-							liqolabels.LocalLabelSelector(testContext.Clusters[i].Cluster.ClusterID))
+							liqolabels.LocalLabelSelectorForCluster(testContext.Clusters[i].Cluster.ClusterID))
 						return err
 					}, timeout, interval).Should(Succeed())
 

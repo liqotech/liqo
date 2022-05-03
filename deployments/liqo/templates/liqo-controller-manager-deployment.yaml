@@ -75,6 +75,9 @@ spec:
           - --real-storage-class-name={{ .Values.storage.realStorageClassName }}
           - --storage-namespace={{ .Values.storage.storageNamespace }}
           {{- end }}
+          {{- if .Values.controllerManager.config.enableResourceEnforcement }}
+          - --enable-resource-enforcement
+          {{- end }}
           {{- if .Values.auth.ingress.enable }}
           - --auth-service-address-override={{ .Values.auth.ingress.host }}
           {{- end }}

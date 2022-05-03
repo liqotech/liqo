@@ -42,3 +42,20 @@ webhooks:
         resources: ["namespaceoffloadings"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+  - name: shadowpod.validate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/validate/shadowpods"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["CREATE", "UPDATE", "DELETE"]
+        apiGroups: ["virtualkubelet.liqo.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["shadowpods"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}

@@ -15,6 +15,8 @@
 package pod
 
 import (
+	"reflect"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
 )
@@ -46,6 +48,25 @@ func IsPodSpecEqual(previous, updated *corev1.PodSpec) bool {
 		AreContainersEqual(previous.InitContainers, updated.InitContainers) &&
 		pointer.Int64Equal(previous.ActiveDeadlineSeconds, updated.ActiveDeadlineSeconds) &&
 		len(previous.Tolerations) == len(updated.Tolerations)
+}
+
+// CheckShadowPodUpdate returns whether updated equals previous, except for the fields that are allowed to be updated.
+// The updated object gets mutated, and a deepcopy shall be performed if it needs to be reused.
+func CheckShadowPodUpdate(previous, updated *corev1.PodSpec) bool {
+	// The only fields that can be mutated are:
+	// * spec.containers[*].image
+	// * spec.initContainers[*].image
+	// * spec.activeDeadlineSeconds
+	// * spec.tolerations (only new entries can be added)
+	for i := range updated.Containers {
+		updated.Containers[i].Image = previous.Containers[i].Image
+	}
+	for i := range updated.InitContainers {
+		updated.InitContainers[i].Image = previous.InitContainers[i].Image
+	}
+	updated.ActiveDeadlineSeconds = previous.ActiveDeadlineSeconds
+	updated.Tolerations = previous.Tolerations
+	return reflect.DeepEqual(previous, updated)
 }
 
 // AreContainersEqual returns whether two container lists are equal according to the

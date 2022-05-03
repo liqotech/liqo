@@ -423,7 +423,7 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 func (r *ForeignClusterReconciler) getIncomingResourceOffer(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (*sharingv1alpha1.ResourceOffer, error) {
 	offer, err := liqogetters.GetResourceOfferByLabel(ctx, r.Client, metav1.NamespaceAll,
-		liqolabels.LocalLabelSelector(foreignCluster.Spec.ClusterIdentity.ClusterID))
+		liqolabels.LocalLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID))
 	return offer, client.IgnoreNotFound(err)
 }
 
@@ -432,7 +432,7 @@ func (r *ForeignClusterReconciler) getIncomingResourceOffer(ctx context.Context,
 func (r *ForeignClusterReconciler) getOutgoingResourceOffer(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (*sharingv1alpha1.ResourceOffer, error) {
 	offer, err := liqogetters.GetResourceOfferByLabel(ctx, r.Client, metav1.NamespaceAll,
-		liqolabels.RemoteLabelSelector(foreignCluster.Spec.ClusterIdentity.ClusterID))
+		liqolabels.RemoteLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID))
 	return offer, client.IgnoreNotFound(err)
 }
 
