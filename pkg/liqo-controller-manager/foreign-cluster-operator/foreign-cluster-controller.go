@@ -41,12 +41,12 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	neighborhoodcreator "github.com/liqotech/liqo/pkg/liqo-controller-manager/neighborhood-creator"
 	resourcerequestoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	neighborhoodutils "github.com/liqotech/liqo/pkg/utils/neighborhood"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
@@ -89,6 +89,12 @@ const (
 	tunnelEndpointConnectingMessage = "The TunnelEndpoint has been successfully found in the Tenant Namespace %v, but it is not connected yet"
 
 	tunnelEndpointErrorReason = "TunnelEndpointError"
+
+	noNeighborhoodReason  = "NoNeighborhood"
+	noNeighborhoodMessage = "No Neighborhood found in the Tenant Namespace %v"
+
+	neighborhoodDeletingReason  = "NeighborhoodDeleting"
+	neighborhoodDeletingMessage = "The Neighborhood is in deleting phase in the Tenant Namespace %v"
 )
 
 // ForeignClusterReconciler reconciles a ForeignCluster object.
@@ -294,8 +300,8 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 		klog.Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
-		
-		if err := neighborhoodcreator.DeleteNeighborhoodsForCluster(ctx, foreignCluster.Spec.ClusterIdentity.ClusterID, r.Client); err != nil {
+
+		if err := neighborhoodutils.DeleteNeighborhoodsForCluster(ctx, r.Client, foreignCluster.Spec.ClusterIdentity.ClusterID); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
@@ -335,8 +341,13 @@ func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 		return fmt.Errorf("reading resource offers: %w", err)
 	}
 
+	neighborhood, err := neighborhoodutils.GetNeighborhoodForCluster(ctx, r.Client, foreignCluster.Spec.ClusterIdentity.ClusterID)
+	if err != nil {
+		return fmt.Errorf("error getting neighborhood: %w", err)
+	}
+
 	// Update the peering status based on the ResourceRequest status
-	status, reason, message, err := getPeeringPhase(foreignCluster, resourceRequest, resourceOffer)
+	status, reason, message, err := getPeeringPhase(foreignCluster, resourceRequest, resourceOffer, neighborhood)
 	if err != nil {
 		err = fmt.Errorf("[%v] %w", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
 		klog.Error(err)
@@ -419,6 +430,7 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers ui
 		Owns(&discoveryv1alpha1.ResourceRequest{}).
 		Owns(&netv1alpha1.NetworkConfig{}).
 		Owns(&netv1alpha1.TunnelEndpoint{}).
+		Owns(&discoveryv1alpha1.Neighborhood{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}}, authenticationtoken.GetAuthTokenSecretEventHandler(r.Client),
 			builder.WithPredicates(authenticationtoken.GetAuthTokenSecretPredicate())).
 		Watches(&source.Kind{Type: &sharingv1alpha1.ResourceOffer{}},
@@ -458,7 +470,12 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 		return fmt.Errorf("reading resource offers: %w", err)
 	}
 
-	status, reason, message, err := getPeeringPhase(foreignCluster, incomingResourceRequest, resourceOffer)
+	neighborhood, err := neighborhoodutils.GetNeighborhoodForCluster(ctx, r.Client, foreignCluster.Spec.ClusterIdentity.ClusterID)
+	if err != nil {
+		return fmt.Errorf("error getting neighborhood: %w", err)
+	}
+
+	status, reason, message, err := getPeeringPhase(foreignCluster, incomingResourceRequest, resourceOffer, neighborhood)
 	if err != nil {
 		return fmt.Errorf("reading peering phase from namespace %s: %w", localNamespace, err)
 	}
@@ -506,22 +523,29 @@ func (r *ForeignClusterReconciler) getResourceOfferWithLabels(ctx context.Contex
 }
 
 func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
-	resourceRequest *discoveryv1alpha1.ResourceRequest,
-	resourceOffer *sharingv1alpha1.ResourceOffer) (status discoveryv1alpha1.PeeringConditionStatusType,
+	resourceRequest *discoveryv1alpha1.ResourceRequest, resourceOffer *sharingv1alpha1.ResourceOffer,
+	neighborhood *discoveryv1alpha1.Neighborhood) (status discoveryv1alpha1.PeeringConditionStatusType,
 	reason, message string, err error) {
 	if resourceRequest == nil {
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
 			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
 	}
 
-	if foreignCluster.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
-		return discoveryv1alpha1.PeeringConditionStatusEstablished, inducedPeeringEnabledReason,
-			fmt.Sprintf(inducedPeeringEnabledMessage), nil
+	if neighborhood == nil {
+		return discoveryv1alpha1.PeeringConditionStatusNone, noNeighborhoodReason,
+			fmt.Sprintf(noNeighborhoodMessage, foreignCluster.Status.TenantNamespace.Local), nil
 	}
 
-	desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
-	deleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
+	if foreignCluster.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
+		return discoveryv1alpha1.PeeringConditionStatusEstablished, inducedPeeringEnabledReason,
+			fmt.Sprint(inducedPeeringEnabledMessage), nil
+	}
+
+	resourceRequestDeletionRequested := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
+	resourceRequestDeleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
 	offerState := resourceRequest.Status.OfferState
+
+	neighborhoodDeletionRequested := !neighborhood.Spec.WithdrawalTimestamp.IsZero()
 
 	// the offerState indicates if the ResourceRequest has been accepted and
 	// the ResourceOffer has been created by the remote cluster.
@@ -531,9 +555,13 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	//   it did not accept the incoming peering from the local cluster. -> the peering state is Pending.
 	switch offerState {
 	case discoveryv1alpha1.OfferStateCreated:
-		if desiredDelete || deleted {
+		if resourceRequestDeletionRequested || resourceRequestDeleted {
 			return discoveryv1alpha1.PeeringConditionStatusDisconnecting, resourceRequestDeletingReason,
 				fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local), nil
+		}
+		if neighborhoodDeletionRequested {
+			return discoveryv1alpha1.PeeringConditionStatusDisconnecting, neighborhoodDeletingReason,
+				fmt.Sprintf(neighborhoodDeletingMessage, foreignCluster.Status.TenantNamespace.Local), nil
 		}
 		// Return "pending" if we sent the ResourceRequest but the foreign cluster did not yet create the ResourceOffer
 		if resourceOffer == nil {

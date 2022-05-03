@@ -33,6 +33,8 @@ type NeighborhoodSpec struct {
 	ClusterID string `json:"clusterID"`
 	// Neighbors contains the clusters that have peered with the local cluster.
 	Neighbors map[string]Neighbor `json:"neighbors"`
+	// WithdrawalTimestamp is set when a graceful deletion is requested by the user.
+	WithdrawalTimestamp *metav1.Time `json:"withdrawalTimestamp,omitempty"`
 }
 
 // NeighborhoodStatus defines the observed state of Neighborhood

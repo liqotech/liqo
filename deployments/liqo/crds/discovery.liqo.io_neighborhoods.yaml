@@ -53,6 +53,11 @@ spec:
                 description: Neighbors contains the clusters that have peered with
                   the local cluster.
                 type: object
+              withdrawalTimestamp:
+                description: WithdrawalTimestamp is set when a graceful deletion is
+                  requested by the user.
+                format: date-time
+                type: string
             required:
             - clusterID
             - neighbors

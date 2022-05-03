@@ -26,6 +26,8 @@ func GetPeeringPhase(fc *discoveryv1alpha1.ForeignCluster) consts.PeeringPhase {
 	outgoing := IsOutgoingEnabled(fc)
 	induced := IsInducedEnabled(fc)
 
+	// CHECK Should I check for "disconnecting" for incoming and outgoing?
+
 	switch {
 	case induced:
 		return consts.PeeringPhaseInduced

@@ -54,6 +54,16 @@ func IsOutgoingEnabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	return curPhase != discoveryv1alpha1.PeeringConditionStatusNone && curPhase != ""
 }
 
+func IsIncomingPeeringDisconnecting(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.IncomingPeeringCondition)
+	return curPhase == discoveryv1alpha1.PeeringConditionStatusDisconnecting
+}
+
+func IsOutgoingPeeringDisconnecting(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.OutgoingPeeringCondition)
+	return curPhase == discoveryv1alpha1.PeeringConditionStatusDisconnecting
+}
+
 // IsIncomingPeeringNone checks if the incoming peering is set to none.
 func IsIncomingPeeringNone(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.IncomingPeeringCondition)

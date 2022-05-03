@@ -130,7 +130,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 			}
 			return ctrl.Result{}, nil
 		}
-		// return?
+		// CHECK return?
 	}
 
 	// Defer the function to start/stop the reflection of the different resources based on the peering status.

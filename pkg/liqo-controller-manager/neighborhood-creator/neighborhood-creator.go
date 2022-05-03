@@ -20,21 +20,20 @@ import (
 	"strconv"
 	"time"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	neighborhoodutils "github.com/liqotech/liqo/pkg/utils/neighborhood"
 )
 
 type NeighborhoodCreator struct {
@@ -70,10 +69,24 @@ func (r *NeighborhoodCreator) Reconcile(ctx context.Context, req ctrl.Request) (
 	if foreignCluster.Spec.ClusterIdentity.ClusterID == "" || foreignCluster.Status.TenantNamespace.Local == "" {
 		return result, nil
 	}
-	if err := r.ensureNeighborhoodForCluster(ctx, &foreignCluster); err != nil {
-		klog.Error(err)
-		return result, err
+	
+	incomingDisconnecting := foreignclusterutils.IsIncomingPeeringDisconnecting(&foreignCluster)
+	outgoingDisconnecting := foreignclusterutils.IsOutgoingPeeringDisconnecting(&foreignCluster)
+	incomingNone := foreignclusterutils.IsIncomingPeeringNone(&foreignCluster)
+	outgoingNone := foreignclusterutils.IsOutgoingPeeringNone(&foreignCluster)
+
+	if (incomingDisconnecting && outgoingNone) || (incomingNone && outgoingDisconnecting) || (incomingDisconnecting && outgoingDisconnecting) {
+		if err := neighborhoodutils.DeleteNeighborhoodsForCluster(ctx, r.Client, foreignCluster.Spec.ClusterIdentity.ClusterID); err != nil {
+			klog.Error(err)
+			return result, err
+		}
+	} else {
+		if err := r.ensureNeighborhoodForCluster(ctx, &foreignCluster); err != nil {
+			klog.Error(err)
+			return result, err
+		}
 	}
+	
 	return result, nil
 }
 
@@ -85,7 +98,7 @@ func (r *NeighborhoodCreator) ensureNeighborhoodForCluster(ctx context.Context, 
 	}
 
 	// Get neighborhood resource for cluster.
-	neighborhood, err := r.getNeighborhoodForCluster(ctx, fc.Spec.ClusterIdentity.ClusterID)
+	neighborhood, err := neighborhoodutils.GetNeighborhoodForCluster(ctx, r.Client, fc.Spec.ClusterIdentity.ClusterID)
 	if client.IgnoreNotFound(err) != nil {
 		klog.Error(err)
 		return err
@@ -118,61 +131,16 @@ func (r *NeighborhoodCreator) getNeighbors(ctx context.Context) (map[string]disc
 	return neighbors, nil
 }
 
-func (r *NeighborhoodCreator) getNeighborhoodForCluster(ctx context.Context, clusterID string) (*discoveryv1alpha1.Neighborhood, error) {
-	var neighborhoodList discoveryv1alpha1.NeighborhoodList
-	// Get all the resources with remoteID label set to clusterID
-	req, err := labels.NewRequirement(consts.ReplicationDestinationLabel, selection.Equals, []string{clusterID})
-	if err != nil {
-		return nil, err
-	}
-	if err := r.List(ctx, &neighborhoodList, &client.ListOptions{
-		LabelSelector: labels.NewSelector().Add(*req),
-	}); err != nil {
-		return nil, err
-	}
-
-	if len(neighborhoodList.Items) == 0 {
-		return nil, kerrors.NewNotFound(discoveryv1alpha1.NeighborhoodGroupResource, "")
-	}
-
-	if len(neighborhoodList.Items) > 1 {
-		klog.Warning("multiple neighborhood resources found for cluster %s", clusterID)
-		if err := DeleteNeighborhoodsForCluster(ctx, clusterID, r.Client); err != nil {
-			klog.Error(err)
-			return nil, err
-		}
-		return nil, kerrors.NewNotFound(discoveryv1alpha1.NeighborhoodGroupResource, "")
-	}
-
-	return &neighborhoodList.Items[0], nil
-}
-
-func DeleteNeighborhoodsForCluster(ctx context.Context, clusterID string, cl client.Client) error {
-	req1, err := labels.NewRequirement(neighborhoodLabelKey, selection.Equals, []string{neighborhoodLabelValue})
-	if err != nil {
-		return err
-	}
-	req2, err := labels.NewRequirement(consts.ReplicationDestinationLabel, selection.Equals, []string{clusterID})
-	if err != nil {
-		return err
-	}
-	if err := cl.DeleteAllOf(ctx, &discoveryv1alpha1.Neighborhood{}, &client.DeleteAllOfOptions{
-		ListOptions: client.ListOptions{
-			LabelSelector: labels.NewSelector().Add(*req1, *req2),
-		},
-	}); err != nil {
-		klog.Warningf("Error while deleting all neighborhood resources for cluster %s: %v", clusterID, err)
-		return err
-	}
-	klog.Infof("Deleted all neighborhood resources for cluster %s", clusterID)
-	return nil
-}
-
 func (r *NeighborhoodCreator) createNeighborhood(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster, neighbors map[string]discoveryv1alpha1.Neighbor) error {
 	neighborhood := forgeNeighborhood(r.ClusterID, fc, neighbors)
 	if err := r.Create(ctx, neighborhood); err != nil {
 		return err
 	}
+
+	if err := controllerutil.SetControllerReference(fc, neighborhood, r.Scheme); err != nil {
+		return err
+	}
+
 	klog.Infof("Resource %s for cluster %s correctly created.", neighborhood.GetName(), fc.Spec.ClusterIdentity.ClusterID)
 	return nil
 }
@@ -180,8 +148,8 @@ func (r *NeighborhoodCreator) createNeighborhood(ctx context.Context, fc *discov
 func forgeNeighborhood(clusterID string, fc *discoveryv1alpha1.ForeignCluster, neighbors map[string]discoveryv1alpha1.Neighbor) *discoveryv1alpha1.Neighborhood {
 	return &discoveryv1alpha1.Neighborhood{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: foreignclusterutils.UniqueName(&fc.Spec.ClusterIdentity),
-			Namespace:    fc.Status.TenantNamespace.Local,
+			Name:      foreignclusterutils.UniqueName(&fc.Spec.ClusterIdentity),
+			Namespace: fc.Status.TenantNamespace.Local,
 			Labels: map[string]string{
 				consts.ReplicationDestinationLabel: fc.Spec.ClusterIdentity.ClusterID,
 				consts.ReplicationRequestedLabel:   strconv.FormatBool(true),
