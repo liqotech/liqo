@@ -39,6 +39,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -60,6 +62,7 @@ import (
 	fcwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/foreigncluster"
 	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
 	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
+	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -95,6 +98,12 @@ func main() {
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
 	probeAddr := flag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
+
+	// ShadowPods webhook
+	enableResourceValidation := flag.Bool("enable-resource-enforcement", false,
+		"Enforce offerer-side that offloaded pods do not exceed offered resources (based on container limits)")
+	refreshInterval := flag.Duration("resource-validator-refresh-interval",
+		5*time.Minute, "The interval at which the resource validator cache is refreshed")
 
 	// Leader election
 	leaderElection := flag.Bool("enable-leader-election", false, "Enable leader election for controller manager")
@@ -197,8 +206,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	spv := shadowpodswh.NewValidator(mgr.GetClient(), *enableResourceValidation)
+
 	// Register the webhooks.
 	mgr.GetWebhookServer().Register("/validate/foreign-cluster", fcwh.New())
+	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient()))
 
@@ -340,6 +352,11 @@ func main() {
 
 	if err = mgr.Add(offerUpdater); err != nil {
 		klog.Fatal(err)
+	}
+
+	if err := mgr.Add(manager.RunnableFunc(spv.CacheRefresher(*refreshInterval))); err != nil {
+		klog.Errorf("Unable to set up resource validator cache refresher: %v", err)
+		os.Exit(1)
 	}
 
 	if *enableStorage {

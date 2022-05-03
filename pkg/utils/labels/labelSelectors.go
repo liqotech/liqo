@@ -106,22 +106,34 @@ var (
 	}
 )
 
-// LocalLabelSelector returns a label selector to match local resources with a given destination ClusterID.
-func LocalLabelSelector(destinationClusterID string) labels.Selector {
-	req1, err := labels.NewRequirement(liqoconst.ReplicationRequestedLabel, selection.Equals, []string{strconv.FormatBool(true)})
-	utilruntime.Must(err)
-	req2, err := labels.NewRequirement(liqoconst.ReplicationDestinationLabel, selection.Equals, []string{destinationClusterID})
+// LocalLabelSelector returns a label selector to match local resources.
+func LocalLabelSelector() labels.Selector {
+	req, err := labels.NewRequirement(liqoconst.ReplicationRequestedLabel, selection.Equals, []string{strconv.FormatBool(true)})
 	utilruntime.Must(err)
 
-	return labels.NewSelector().Add(*req1, *req2)
+	return labels.NewSelector().Add(*req)
 }
 
-// RemoteLabelSelector returns a label selector to match remote resources with a given origin ClusterID.
-func RemoteLabelSelector(originClusterID string) labels.Selector {
-	req1, err := labels.NewRequirement(liqoconst.ReplicationStatusLabel, selection.Equals, []string{strconv.FormatBool(true)})
-	utilruntime.Must(err)
-	req2, err := labels.NewRequirement(liqoconst.ReplicationOriginLabel, selection.Equals, []string{originClusterID})
+// RemoteLabelSelector returns a label selector to match local resources.
+func RemoteLabelSelector() labels.Selector {
+	req, err := labels.NewRequirement(liqoconst.ReplicationStatusLabel, selection.Equals, []string{strconv.FormatBool(true)})
 	utilruntime.Must(err)
 
-	return labels.NewSelector().Add(*req1, *req2)
+	return labels.NewSelector().Add(*req)
+}
+
+// LocalLabelSelectorForCluster returns a label selector to match local resources with a given destination ClusterID.
+func LocalLabelSelectorForCluster(destinationClusterID string) labels.Selector {
+	req, err := labels.NewRequirement(liqoconst.ReplicationDestinationLabel, selection.Equals, []string{destinationClusterID})
+	utilruntime.Must(err)
+
+	return LocalLabelSelector().Add(*req)
+}
+
+// RemoteLabelSelectorForCluster returns a label selector to match remote resources with a given origin ClusterID.
+func RemoteLabelSelectorForCluster(originClusterID string) labels.Selector {
+	req, err := labels.NewRequirement(liqoconst.ReplicationOriginLabel, selection.Equals, []string{originClusterID})
+	utilruntime.Must(err)
+
+	return RemoteLabelSelector().Add(*req)
 }
