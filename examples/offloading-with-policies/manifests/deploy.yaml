@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-south
+  labels:
+    app: app-south
+spec:
+  selector:
+    matchLabels:
+      app: app-south
+  template:
+    metadata:
+      labels:
+        app: app-south
+    spec:
+      containers:
+      - name: nginx
+        image: nginxdemos/hello
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 80
+            name: web
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.liqo.io/region
+                    operator: In
+                    values:
+                      - south
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-center
+  labels:
+    app: app-center
+spec:
+  selector:
+    matchLabels:
+      app: app-center
+  template:
+    metadata:
+      labels:
+        app: app-center
+    spec:
+      containers:
+      - name: nginx
+        image: nginxdemos/hello
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 80
+            name: web
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.liqo.io/region
+                    operator: In
+                    values:
+                      - center

@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-local
+  labels:
+    app: liqo-demo
+spec:
+  containers:
+    - name: nginx
+      image: nginxdemos/hello
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 80
+          name: web
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: liqo.io/type
+                operator: NotIn
+                values:
+                  - virtual-node
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-remote
+  labels:
+    app: liqo-demo
+spec:
+  containers:
+    - name: nginx
+      image: nginxdemos/hello
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 80
+          name: web
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: liqo.io/type
+                operator: In
+                values:
+                  - virtual-node
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: liqo-demo
+spec:
+  ports:
+    - name: web
+      port: 80
+      protocol: TCP
+      targetPort: web
+  selector:
+    app: liqo-demo
+  type: ClusterIP

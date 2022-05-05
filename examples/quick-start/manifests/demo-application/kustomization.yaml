@@ -1,0 +1,10 @@
+resources:
+- https://raw.githubusercontent.com/GoogleCloudPlatform/microservices-demo/v0.3.7/release/kubernetes-manifests.yaml
+
+patches:
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: frontend
+  path: frontend-patch.yaml
