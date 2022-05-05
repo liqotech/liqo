@@ -50,13 +50,7 @@ var (
 	}
 )
 
-const (
-	neighborhoodLabelKey   = "liqo/neighborhood"
-	neighborhoodLabelValue = "true"
-)
-
 // clusterRole
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=neighborhoods,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile reconciles ForeignCluster resources.
@@ -69,7 +63,7 @@ func (r *NeighborhoodCreator) Reconcile(ctx context.Context, req ctrl.Request) (
 	if foreignCluster.Spec.ClusterIdentity.ClusterID == "" || foreignCluster.Status.TenantNamespace.Local == "" {
 		return result, nil
 	}
-	
+
 	incomingDisconnecting := foreignclusterutils.IsIncomingPeeringDisconnecting(&foreignCluster)
 	outgoingDisconnecting := foreignclusterutils.IsOutgoingPeeringDisconnecting(&foreignCluster)
 	incomingNone := foreignclusterutils.IsIncomingPeeringNone(&foreignCluster)
@@ -86,7 +80,7 @@ func (r *NeighborhoodCreator) Reconcile(ctx context.Context, req ctrl.Request) (
 			return result, err
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -133,11 +127,12 @@ func (r *NeighborhoodCreator) getNeighbors(ctx context.Context) (map[string]disc
 
 func (r *NeighborhoodCreator) createNeighborhood(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster, neighbors map[string]discoveryv1alpha1.Neighbor) error {
 	neighborhood := forgeNeighborhood(r.ClusterID, fc, neighbors)
-	if err := r.Create(ctx, neighborhood); err != nil {
+	
+	if err := controllerutil.SetControllerReference(fc, neighborhood, r.Scheme); err != nil {
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(fc, neighborhood, r.Scheme); err != nil {
+	if err := r.Create(ctx, neighborhood); err != nil {
 		return err
 	}
 
