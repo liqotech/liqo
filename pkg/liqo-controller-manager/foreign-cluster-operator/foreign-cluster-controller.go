@@ -531,11 +531,6 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
 	}
 
-	if neighborhood == nil {
-		return discoveryv1alpha1.PeeringConditionStatusNone, noNeighborhoodReason,
-			fmt.Sprintf(noNeighborhoodMessage, foreignCluster.Status.TenantNamespace.Local), nil
-	}
-
 	if foreignCluster.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
 		return discoveryv1alpha1.PeeringConditionStatusEstablished, inducedPeeringEnabledReason,
 			fmt.Sprint(inducedPeeringEnabledMessage), nil
@@ -545,7 +540,10 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	resourceRequestDeleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
 	offerState := resourceRequest.Status.OfferState
 
-	neighborhoodDeletionRequested := !neighborhood.Spec.WithdrawalTimestamp.IsZero()
+	neighborhoodDeletionRequested := false
+	if neighborhood != nil {
+		neighborhoodDeletionRequested = !neighborhood.Spec.WithdrawalTimestamp.IsZero()
+	}
 
 	// the offerState indicates if the ResourceRequest has been accepted and
 	// the ResourceOffer has been created by the remote cluster.
