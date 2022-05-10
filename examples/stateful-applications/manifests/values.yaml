@@ -1,0 +1,13 @@
+global:
+  storageClass: liqo
+
+db:
+  user: "user"
+  password: "password"
+
+galera:
+  mariabackup:
+    password: "password"
+
+podAntiAffinityPreset: hard
+replicaCount: 2
