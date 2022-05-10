@@ -342,7 +342,7 @@ func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 	}
 
 	neighborhood, err := neighborhoodutils.GetNeighborhoodForCluster(ctx, r.Client, foreignCluster.Spec.ClusterIdentity.ClusterID)
-	if err != nil {
+	if client.IgnoreNotFound(err) != nil {
 		return fmt.Errorf("error getting neighborhood: %w", err)
 	}
 
@@ -471,7 +471,7 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 	}
 
 	neighborhood, err := neighborhoodutils.GetNeighborhoodForCluster(ctx, r.Client, foreignCluster.Spec.ClusterIdentity.ClusterID)
-	if err != nil {
+	if client.IgnoreNotFound(err) != nil {
 		return fmt.Errorf("error getting neighborhood: %w", err)
 	}
 

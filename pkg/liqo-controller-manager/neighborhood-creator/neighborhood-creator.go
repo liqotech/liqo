@@ -64,18 +64,16 @@ func (r *NeighborhoodCreator) Reconcile(ctx context.Context, req ctrl.Request) (
 		return result, nil
 	}
 
-	incomingDisconnecting := foreignclusterutils.IsIncomingPeeringDisconnecting(&foreignCluster)
-	outgoingDisconnecting := foreignclusterutils.IsOutgoingPeeringDisconnecting(&foreignCluster)
-	incomingNone := foreignclusterutils.IsIncomingPeeringNone(&foreignCluster)
-	outgoingNone := foreignclusterutils.IsOutgoingPeeringNone(&foreignCluster)
+	incomingEstablished := foreignclusterutils.IsIncomingJoined(&foreignCluster)
+	outgoingEstablished := foreignclusterutils.IsOutgoingJoined(&foreignCluster)
 
-	if (incomingDisconnecting && outgoingNone) || (incomingNone && outgoingDisconnecting) || (incomingDisconnecting && outgoingDisconnecting) {
-		if err := neighborhoodutils.DeleteNeighborhoodsForCluster(ctx, r.Client, foreignCluster.Spec.ClusterIdentity.ClusterID); err != nil {
+	if incomingEstablished || outgoingEstablished {
+		if err := r.ensureNeighborhoodForCluster(ctx, &foreignCluster); err != nil {
 			klog.Error(err)
 			return result, err
 		}
 	} else {
-		if err := r.ensureNeighborhoodForCluster(ctx, &foreignCluster); err != nil {
+		if err := neighborhoodutils.DeleteNeighborhoodsForCluster(ctx, r.Client, foreignCluster.Spec.ClusterIdentity.ClusterID); err != nil {
 			klog.Error(err)
 			return result, err
 		}
