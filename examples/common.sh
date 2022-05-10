@@ -109,7 +109,7 @@ function create_cluster() {
 
     info "Creating cluster \"$name\"..."
     fail_on_error "kind create cluster --name $name \
-        --kubeconfig $kubeconfig --config $config --wait 2m" "Failed to create cluster \"$name\""
+        --kubeconfig $kubeconfig --config $config --wait 5m" "Failed to create cluster \"$name\""
     success_clear_line "Cluster \"$name\" has been created."
 }
 
@@ -120,11 +120,11 @@ function install_liqo() {
     info "Installing liqo on cluster \"$cluster_name\"..."
 
     shift 2
-    labels="$@"
+    labels="$*"
 
     fail_on_error "liqoctl install kind --cluster-name $cluster_name \
-        --cluster-labels=$(join_by , ${labels}) \
-        --kubeconfig $kubeconfig" "Faled to install liqo on cluster \"$cluster_name\""
+        --cluster-labels=$(join_by , "${labels[@]}") \
+        --kubeconfig $kubeconfig" "Failed to install liqo on cluster \"$cluster_name\""
 
     success_clear_line "Liqo has been installed on cluster \"$cluster_name\"."
 }
@@ -145,13 +145,13 @@ function install_liqo_k3d() {
     info "Installing liqo on cluster \"$cluster_name\"..."
 
     shift 4
-    labels="$@"
+    labels="$*"
 
     fail_on_error "liqoctl install k3s --cluster-name $cluster_name \
-        --cluster-labels=$(join_by , ${labels}) \
+        --cluster-labels=$(join_by , "${labels[@]}") \
         --pod-cidr $pod_cidr \
         --service-cidr $service_cidr \
-        --api-server-url https://$(kubectl get nodes --kubeconfig $kubeconfig --selector=node-role.kubernetes.io/master -o jsonpath='{$.items[*].status.addresses[?(@.type=="InternalIP")].address}'):6443 \
+        --api-server-url https://$(kubectl get nodes --kubeconfig "$kubeconfig" --selector=node-role.kubernetes.io/master -o jsonpath='{$.items[*].status.addresses[?(@.type=="InternalIP")].address}'):6443 \
         --kubeconfig $kubeconfig" "Failed to install liqo on cluster \"${cluster_name}\""
 
     success_clear_line "Liqo has been installed on cluster \"$cluster_name\"."
@@ -203,7 +203,7 @@ function install_k8gb() {
         --set k8gb.edgeDNSServers[0]=${dns_ip}:30053 \
         --set externaldns.image=absaoss/external-dns:rfc-ns1 \
         --wait --timeout=2m0s" "Failed to install k8gb"
-    
+
     success_clear_line "K8gb has been installed on cluster."
 }
 
@@ -231,6 +231,8 @@ function fail_on_error() {
 
     set +e
     output=$($cmd 2>&1)
+    # shellcheck disable=SC2181
+    # we need to collect the output and then check the exit code
     if [ $? -ne 0 ]; then
         error "$msg: ${output}"
         exit 1
