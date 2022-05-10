@@ -144,7 +144,7 @@ kubectl port-forward -n liqo-demo service/frontend 8080:80
 * Your application is transparently deployed across two different clusters:
 
 ```bash
-kubectl get pods -n liqo-demo -o wide  
+kubectl get pods -n liqo-demo -o wide
 ```
 
 ### Going Further
@@ -170,7 +170,7 @@ All contributors are warmly welcome. If you want to become a new contributor, we
 
 To get involved with the Liqo community, join the slack [channel](https://join.slack.com/t/liqo-io/shared_invite/zt-h20212gg-g24YvN6MKiD9bacFeqZttQ).
 
-|![notification](docs/images/readme/bell-outline-badged.svg) Community Meeting|
+|:bell: Community Meeting|
 |------------------|
 |Liqo holds weekly community meetings on Monday, 5.30pm UTC (6.30pm CET, 9.30am PST). To join the community meeting, follow this [link](https://polito-it.zoom.us/j/81559017793?pwd=R0NXZUJwZXVrQUwxbWtWQ3psbEVidz09). Convert to your timezone [here](https://www.thetimezoneconverter.com/?t=17:30&tz=UTC%20%28Universal%20Time%20Coordinated%29). You can see and add the Liqo Calendar following this [link](https://calendar.google.com/calendar/embed?src=32odk41tfu77tedc48a0fcm0v4%40group.calendar.google.com&ctz=Europe%2FRome).|
 
