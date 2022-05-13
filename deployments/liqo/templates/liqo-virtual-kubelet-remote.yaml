@@ -6,4 +6,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "liqo.prefixedName" $virtualKubeletConfig }}
+  labels:
+    {{- include "liqo.labels" $virtualKubeletConfig | nindent 4 }}
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $virtualKubeletConfig))) }}

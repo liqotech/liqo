@@ -17,7 +17,7 @@ spec:
   ports:
     - name: wireguard
       port: {{ .Values.gateway.config.listeningPort }}
-      targetPort: {{ .Values.gateway.config.listeningPort }}
+      targetPort: wireguard
       protocol: UDP
   selector:
     {{- include "liqo.gatewaySelector" $gatewayConfig | nindent 4 }}
