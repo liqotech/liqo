@@ -60,6 +60,9 @@ func getMasterNodes(ctx context.Context, clientset kubernetes.Interface) (*v1.No
 	labelSelectors := []string{
 		"node-role.kubernetes.io/control-plane",
 		"node-role.kubernetes.io/master",
+		// Apparently used by RKE:
+		// https://github.com/rancher/rke/blob/f3f7320a445d0f075f62781d14e71bef03cf5222/cluster/hosts.go#L23
+		"node-role.kubernetes.io/controlplane",
 	}
 
 	nodes := &v1.NodeList{}

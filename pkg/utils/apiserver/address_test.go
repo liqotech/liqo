@@ -20,7 +20,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -30,20 +30,33 @@ import (
 var _ = Describe("Address", func() {
 
 	type addressTestcase struct {
-		node            *v1.Node
+		node            *corev1.Node
 		expectedAddress string
 	}
 
-	DescribeTable("Address table",
+	ForgeNode := func(label string) *corev1.Node {
+		return &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "master-1",
+				Labels: map[string]string{label: ""},
+			},
+			Status: corev1.NodeStatus{
+				Addresses: []corev1.NodeAddress{
+					{
+						Type:    corev1.NodeExternalIP,
+						Address: "1.2.3.4",
+					},
+				},
+			},
+		}
+	}
 
+	DescribeTable("Address table",
 		func(c addressTestcase) {
 			ctx := context.Background()
 			client := fake.NewSimpleClientset()
 
 			node, err := client.CoreV1().Nodes().Create(ctx, c.node, metav1.CreateOptions{})
-			Expect(err).To(Succeed())
-			node.Status = *c.node.Status.DeepCopy()
-			node, err = client.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 			Expect(err).To(Succeed())
 
 			address, err := apiserver.GetAddressFromMasterNode(ctx, client)
@@ -55,44 +68,17 @@ var _ = Describe("Address", func() {
 		},
 
 		Entry("master node", addressTestcase{
-			node: &v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "master-1",
-					Labels: map[string]string{
-						"node-role.kubernetes.io/master": "",
-					},
-				},
-				Spec: v1.NodeSpec{},
-				Status: v1.NodeStatus{
-					Addresses: []v1.NodeAddress{
-						{
-							Type:    v1.NodeExternalIP,
-							Address: "1.2.3.4",
-						},
-					},
-				},
-			},
+			node:            ForgeNode("node-role.kubernetes.io/master"),
 			expectedAddress: "https://1.2.3.4:6443",
 		}),
 
 		Entry("control plane node", addressTestcase{
-			node: &v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "master-1",
-					Labels: map[string]string{
-						"node-role.kubernetes.io/control-plane": "",
-					},
-				},
-				Spec: v1.NodeSpec{},
-				Status: v1.NodeStatus{
-					Addresses: []v1.NodeAddress{
-						{
-							Type:    v1.NodeExternalIP,
-							Address: "1.2.3.4",
-						},
-					},
-				},
-			},
+			node:            ForgeNode("node-role.kubernetes.io/control-plane"),
+			expectedAddress: "https://1.2.3.4:6443",
+		}),
+
+		Entry("RKE control plane node", addressTestcase{
+			node:            ForgeNode("node-role.kubernetes.io/controlplane"),
 			expectedAddress: "https://1.2.3.4:6443",
 		}),
 	)
