@@ -39,7 +39,7 @@ Create version used to select the liqo version to be installed .
 {{- else if .Chart.AppVersion }}
 {{- .Chart.AppVersion }}
 {{- else }}
-{{- fail "At least one between .Values.version and .Chart.AppVersion should be set" }}
+{{- fail "At least one between .Values.tag and .Chart.AppVersion should be set" }}
 {{- end }}
 {{- end }}
 

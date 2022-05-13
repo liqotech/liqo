@@ -32,7 +32,9 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $gatewayConfig.name }}
           ports:
-          - containerPort: {{ .Values.gateway.config.listeningPort }}
+          - name: wireguard
+            containerPort: {{ .Values.gateway.config.listeningPort }}
+            protocol: UDP
           command: ["/usr/bin/liqonet"]
           args:
           - --run-as=liqo-gateway
