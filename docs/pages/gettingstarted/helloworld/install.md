@@ -19,7 +19,7 @@ You can find more details about configuring `kubectl` in the [official documenta
 Now, you can install Liqo by launching:
 
 ```bash
-liqoctl install kind
+liqoctl install kind --generate-name
 ```
 
 This command will generate the adapt configuration for your Kind cluster.
@@ -30,7 +30,7 @@ Similarly, as done on the first cluster, you can deploy Liqo on the second clust
 
 ```
 export KUBECONFIG=./liqo_kubeconf_2
-liqoctl install kind
+liqoctl install kind --generate-name
 ```
 
 ## Enable cluster peering

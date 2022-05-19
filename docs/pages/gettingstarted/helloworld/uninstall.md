@@ -8,7 +8,7 @@ weight: 6
 This procedure uninstalls Liqo from your cluster.
 
 ```bash
-curl -sL https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash -s -- --uninstall
+liqoctl uninstall
 ```
 
 _NOTE:_ all Liqo resources (i.e. CRDs) will not be automatically purged, so you will not lose your discovered clusters. If you want to delete these resources after uninstallation, invoke the same script with the `--purge` flag set.
@@ -18,7 +18,7 @@ _NOTE:_ all Liqo resources (i.e. CRDs) will not be automatically purged, so you 
 If you want all Liqo resources to be completely purged, add the `--purge` flag to the script invocation:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash -s -- --uninstall --purge
+liqoctl uninstall --purge
 ```
 
 ### What happens to my deployed applications?
