@@ -319,13 +319,13 @@ Now, you can perform the proper Liqo installation on your cluster.
 {{< tabs groupId="provider" >}}
 {{% tab name="Kubernetes IN Docker (KIND)" %}}
 ```bash
-liqoctl install kind
+liqoctl install kind --generate-name
 ```
 {{% /tab %}}
 
 {{% tab name="K8s (Kubeadm)" %}}
 ```bash
-liqoctl install kubeadm
+liqoctl install kubeadm --generate-name
 ```
 {{% /tab %}}
 {{% tab name="EKS" %}}
@@ -339,26 +339,28 @@ liqoctl install eks --region=${EKS_CLUSTER_REGION} --eks-cluster-name=${EKS_CLUS
 ```bash
 liqoctl install aks --resource-group-name "${AKS_RESOURCE_GROUP}" \
          --resource-name "${AKS_RESOURCE_NAME}" \
-         --subscription-id "${AKS_SUBSCRIPTION_ID}"
+         --subscription-id "${AKS_SUBSCRIPTION_ID}" \
+         --generate-name
 ```
 {{% /tab %}}
 {{% tab name="GKE" %}}
 ```bash
 
 liqoctl install gke --project-id ${GKE_PROJECT_ID} \
-    --cluster-id ${GKE_CLUSTER_ID} \
-    --zone ${GKE_CLUSTER_ZONE} \
-    --credentials-path ${GKE_SERVICE_ACCOUNT_PATH}
+        --cluster-id ${GKE_CLUSTER_ID} \
+        --zone ${GKE_CLUSTER_ZONE} \
+        --credentials-path ${GKE_SERVICE_ACCOUNT_PATH} \
+        --generate-name
 ```
 {{% /tab %}}
 {{% tab name="K3s" %}}
 ```bash
-liqoctl install k3s
+liqoctl install k3s --generate-name
 ```
 {{% /tab %}}
 {{% tab name="OpenShift Container Platform (OCP)" %}}
 ```bash
-liqoctl install openshift
+liqoctl install openshift --generate-name
 ```
 {{% /tab %}}
 {{< /tabs >}}
