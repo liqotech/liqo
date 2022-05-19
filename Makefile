@@ -27,17 +27,23 @@ endif
 unit: test-container
 	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
 
+BINDIR?=.
+TARGET?=kind
+
+ctl:
+	go build -o $(BINDIR) ./cmd/liqoctl
+
 # Install LIQO into a cluster
-install: manifests
-	./install.sh
+install: manifests ctl
+	$(BINDIR)/liqoctl install $(TARGET) --generate-name
 
 # Uninstall LIQO from a cluster
-uninstall: manifests
-	./install.sh --uninstall
+uninstall: manifests ctl
+	$(BINDIR)/liqoctl uninstall
 
 # Uninstall LIQO from a cluster with purge flag
-purge: manifests
-	./install.sh --uninstall --purge
+purge: manifests ctl
+	$(BINDIR)/liqoctl uninstall --purge
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
@@ -172,7 +178,7 @@ endif
 
 # Set the steps for the e2e tests
 E2E_TARGETS = e2e-dir \
-	e2e-liqoctl \
+	ctl \
 	e2e-infra \
 	installer/liqoctl/setup \
 	installer/liqoctl/peer \
@@ -203,9 +209,6 @@ e2e: $(E2E_TARGETS)
 
 e2e-dir:
 	mkdir -p "${BINDIR}"
-
-e2e-liqoctl:
-	go build -o "${BINDIR}/liqoctl" ./cmd/liqoctl
 
 e2e-infra:
 	${PWD}/test/e2e/pipeline/infra/${INFRA}/pre-requirements.sh
