@@ -16,52 +16,59 @@ package unpeeroob
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/types"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 )
-
-const successfulMessage = `
-Success 👌! You have correctly unpeered from cluster %q.
-You can now:
-
-* Check the status of the peering to see when it is completely disabled.
-The field OutgoingPeering of the foreigncluster should be set to "None":
-
-kubectl get foreignclusters %s
-`
 
 // Options encapsulates the arguments of the unpeer out-of-band command.
 type Options struct {
 	*factory.Factory
 
 	ClusterName string
+	Timeout     time.Duration
 }
 
 // Run implements the unpeer out-of-band command.
 func (o *Options) Run(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
 	s := o.Printer.StartSpinner("Processing cluster unpeering")
 
-	err := o.unpeer(ctx)
+	fc, err := o.unpeer(ctx)
 	if err != nil {
 		s.Fail(err.Error())
 		return err
 	}
-	s.Success("Cluster successfully unpeered")
+	s.Success("Peering disabled")
 
-	fmt.Printf(successfulMessage, o.ClusterName, o.ClusterName)
-	return nil
-}
-
-func (o *Options) unpeer(ctx context.Context) error {
-	var foreignCluster discoveryv1alpha1.ForeignCluster
-	if err := o.CRClient.Get(ctx, types.NamespacedName{Name: o.ClusterName}, &foreignCluster); err != nil {
+	if err = o.wait(ctx, &fc.Spec.ClusterIdentity); err != nil {
 		return err
 	}
 
+	o.Printer.Success.Println("Peering successfully removed")
+	return nil
+}
+
+func (o *Options) unpeer(ctx context.Context) (*discoveryv1alpha1.ForeignCluster, error) {
+	var foreignCluster discoveryv1alpha1.ForeignCluster
+	if err := o.CRClient.Get(ctx, types.NamespacedName{Name: o.ClusterName}, &foreignCluster); err != nil {
+		return nil, err
+	}
+
 	foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
-	return o.CRClient.Update(ctx, &foreignCluster)
+	if err := o.CRClient.Update(ctx, &foreignCluster); err != nil {
+		return nil, err
+	}
+	return &foreignCluster, nil
+}
+
+func (o *Options) wait(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	waiter := wait.NewWaiterFromFactory(o.Factory)
+	return waiter.ForOutgoingUnpeering(ctx, remoteClusterID)
 }

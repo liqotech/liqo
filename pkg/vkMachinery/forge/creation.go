@@ -29,7 +29,7 @@ import (
 )
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(homeCluster, remoteCluster discoveryv1alpha1.ClusterIdentity, vkNamespace, liqoNamespace string,
+func VirtualKubeletDeployment(homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity, vkNamespace, liqoNamespace string,
 	opts *VirtualKubeletOpts, resourceOffer *sharingv1alpha1.ResourceOffer) (*appsv1.Deployment, error) {
 	vkLabels := VirtualKubeletLabels(remoteCluster.ClusterID, opts)
 	annotations := opts.ExtraAnnotations

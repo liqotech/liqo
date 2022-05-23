@@ -29,10 +29,15 @@ type Options struct {
 
 	LocalLiqoNamespace  string
 	RemoteLiqoNamespace string
+
+	Timeout time.Duration
 }
 
 // Run implements the unpeer in-band command.
 func (o *Options) Run(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
 	// Create and initialize cluster 1.
 	cluster1 := inbound.NewCluster(o.LocalFactory, o.RemoteFactory)
 	if err := cluster1.Init(ctx); err != nil {
@@ -56,12 +61,12 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	// Wait to unpeer in cluster 1.
-	if err := cluster1.WaitForUnpeering(ctx, cluster2.GetClusterID(), 60*time.Second); err != nil {
+	if err := cluster1.WaitForUnpeering(ctx, cluster2.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Disable peering in cluster 2.
-	if err := cluster2.WaitForUnpeering(ctx, cluster1.GetClusterID(), 60*time.Second); err != nil {
+	if err := cluster2.WaitForUnpeering(ctx, cluster1.GetClusterID()); err != nil {
 		return err
 	}
 
@@ -119,10 +124,10 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	// Clean up tenant namespace in cluster 1.
-	if err := cluster1.TearDownTenantNamespace(ctx, cluster2.GetClusterID(), 60*time.Second); err != nil {
+	if err := cluster1.TearDownTenantNamespace(ctx, cluster2.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Clean up tenant namespace in cluster 2.
-	return cluster2.TearDownTenantNamespace(ctx, cluster1.GetClusterID(), 60*time.Second)
+	return cluster2.TearDownTenantNamespace(ctx, cluster1.GetClusterID())
 }

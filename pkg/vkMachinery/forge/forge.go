@@ -109,7 +109,7 @@ func getDeafultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharin
 }
 
 func forgeVKContainers(
-	vkImage string, homeCluster, remoteCluster discoveryv1alpha1.ClusterIdentity,
+	vkImage string, homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity,
 	nodeName, vkNamespace, liqoNamespace string, opts *VirtualKubeletOpts,
 	resourceOffer *sharingv1alpha1.ResourceOffer) []v1.Container {
 	command := []string{
@@ -176,7 +176,7 @@ func forgeVKContainers(
 
 func forgeVKPodSpec(
 	vkNamespace, liqoNamespace string,
-	homeCluster, remoteCluster discoveryv1alpha1.ClusterIdentity, opts *VirtualKubeletOpts,
+	homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity, opts *VirtualKubeletOpts,
 	resourceOffer *sharingv1alpha1.ResourceOffer) v1.PodSpec {
 	nodeName := virtualKubelet.VirtualNodeName(remoteCluster)
 	return v1.PodSpec{

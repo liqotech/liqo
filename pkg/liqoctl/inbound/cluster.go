@@ -41,6 +41,7 @@ import (
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
@@ -66,6 +67,9 @@ type WireGuardConfig struct {
 type Cluster struct {
 	local  *factory.Factory
 	remote *factory.Factory
+
+	localWaiter  *wait.Waiter
+	remoteWaiter *wait.Waiter
 
 	locTenantNamespace string
 	remTenantNamespace string
@@ -99,6 +103,8 @@ func NewCluster(local, remote *factory.Factory) *Cluster {
 	return &Cluster{
 		local:            local,
 		remote:           remote,
+		localWaiter:      wait.NewWaiterFromFactory(local),
+		remoteWaiter:     wait.NewWaiterFromFactory(remote),
 		namespaceManager: tenantnamespace.NewTenantNamespaceManager(local.KubeClient),
 		PortForwardOpts:  pfo,
 	}
@@ -304,7 +310,7 @@ func (c *Cluster) SetUpTenantNamespace(ctx context.Context, remoteClusterID *dis
 }
 
 // TearDownTenantNamespace deletes the tenant namespace in the local cluster for the given remote cluster.
-func (c *Cluster) TearDownTenantNamespace(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity, timeout time.Duration) error {
+func (c *Cluster) TearDownTenantNamespace(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
 	remName := remoteClusterID.ClusterName
 	c.locTenantNamespace = tenantnamespace.GetNameForNamespace(*remoteClusterID)
 	s := c.local.Printer.StartSpinner(fmt.Sprintf("removing tenant namespace %q for remote cluster %q", c.locTenantNamespace, remName))
@@ -319,12 +325,10 @@ func (c *Cluster) TearDownTenantNamespace(ctx context.Context, remoteClusterID *
 		return nil
 	}
 
-	deadLine := time.After(timeout)
 	for {
 		select {
-		case <-deadLine:
-			msg := fmt.Sprintf("timeout (%.0fs) expired while waiting tenant namespace %q to be deleted",
-				timeout.Seconds(), c.locTenantNamespace)
+		case <-ctx.Done():
+			msg := fmt.Sprintf("timeout expired while waiting for the tenant namespace %q to be deleted", c.locTenantNamespace)
 			s.Fail(msg)
 			return errors.New(msg)
 		default:
@@ -846,40 +850,16 @@ func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discovery
 
 // WaitForUnpeering waits until the status on the foreiglcusters resource states that the in/outgoing peering has been successfully
 // set to None or the timeout expires.
-func (c *Cluster) WaitForUnpeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity, timeout time.Duration) error {
-	remName := remoteClusterID.ClusterName
-	s := c.local.Printer.StartSpinner(fmt.Sprintf("waiting for event %q from the remote cluster %q", fcutils.UnpeeringEvent, remName))
-	err := fcutils.PollForEvent(ctx, c.local.CRClient, remoteClusterID, fcutils.UnpeeringEvent, fcutils.IsUnpeered, 1*time.Second, timeout)
-	if err != nil {
-		s.Fail(err.Error())
-		return err
-	}
-	s.Success(fmt.Sprintf("event %q successfully occurred for remote cluster %q", fcutils.UnpeeringEvent, remName))
-	return nil
+func (c *Cluster) WaitForUnpeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	return c.localWaiter.ForUnpeering(ctx, remoteClusterID)
 }
 
 // WaitForAuth waits until the authentication has been established with the remote cluster or the timeout expires.
-func (c *Cluster) WaitForAuth(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity, timeout time.Duration) error {
-	remName := remoteClusterID.ClusterName
-	s := c.local.Printer.StartSpinner(fmt.Sprintf("waiting for event %q from the remote cluster %q", fcutils.AuthEvent, remName))
-	err := fcutils.PollForEvent(ctx, c.local.CRClient, remoteClusterID, fcutils.AuthEvent, fcutils.IsAuthenticated, 1*time.Second, timeout)
-	if err != nil {
-		s.Fail(err.Error())
-		return err
-	}
-	s.Success(fmt.Sprintf("event %q successfully occurred for remote cluster %q", fcutils.AuthEvent, remName))
-	return nil
+func (c *Cluster) WaitForAuth(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	return c.localWaiter.ForAuth(ctx, remoteClusterID)
 }
 
 // WaitForNetwork waits until the networking has been established with the remote cluster or the timeout expires.
-func (c *Cluster) WaitForNetwork(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity, timeout time.Duration) error {
-	remName := remoteClusterID.ClusterName
-	s := c.local.Printer.StartSpinner(fmt.Sprintf("waiting for event %q from the remote cluster %q", fcutils.NetworkEvent, remName))
-	err := fcutils.PollForEvent(ctx, c.local.CRClient, remoteClusterID, fcutils.NetworkEvent, fcutils.IsNetworkingEstablished, 1*time.Second, timeout)
-	if err != nil {
-		s.Fail(err.Error())
-		return err
-	}
-	s.Success(fmt.Sprintf("event %q successfully occurred for remote cluster %q", fcutils.NetworkEvent, remName))
-	return nil
+func (c *Cluster) WaitForNetwork(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	return c.localWaiter.ForAuth(ctx, remoteClusterID)
 }

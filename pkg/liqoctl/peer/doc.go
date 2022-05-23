@@ -12,13 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package peeroob
-
-const (
-	// AuthURLFlagName contains the name of auth-url flag.
-	AuthURLFlagName = "auth-url"
-	// ClusterIDFlagName contains the name of cluster ID flag.
-	ClusterIDFlagName = "cluster-id"
-	// ClusterTokenFlagName contains the name for the token flag.
-	ClusterTokenFlagName = "auth-token"
-)
+// Package peer contains the logic to enable a peering towards a remote cluster.
+package peer

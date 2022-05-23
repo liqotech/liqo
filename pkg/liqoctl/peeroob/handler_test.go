@@ -28,6 +28,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/peer"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
@@ -49,8 +50,10 @@ var _ = Describe("Test Peer Command", func() {
 	BeforeEach(func() {
 		ctx = context.Background()
 		options = &Options{
-			Factory:        &factory.Factory{LiqoNamespace: "liqo-non-standard"},
-			ClusterName:    "remote-cluster-name",
+			Options: &peer.Options{
+				Factory:     &factory.Factory{LiqoNamespace: "liqo-non-standard"},
+				ClusterName: "remote-cluster-name",
+			},
 			ClusterID:      "remote-cluster-id",
 			ClusterToken:   "remote-token",
 			ClusterAuthURL: "https://remote.auth",

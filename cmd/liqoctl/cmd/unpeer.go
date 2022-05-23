@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -31,6 +32,19 @@ const liqoctlUnpeerLongHelp = `Disable a peering towards a remote cluster.
 Depending on the approach adopted to initially establish the peering towards a
 remote cluster, the corresponding unpeer command performs the symmetrical
 operations to tear the peering down (although with slightly different semantic).
+
+This command disables an *outgoing peering* towards a remote cluster, causing
+the local virtual node (abstracting the remote cluster) to be destroyed, and all
+offloaded workloads to be rescheduled. The reverse peering, if any, is preserved,
+and the remote cluster can continue offloading workloads to its virtual node
+representing the local cluster.
+
+The same operation can be executed regardless of whether the peering is
+out-of-band or in-band, although in the latter case the VPN tunnel is not teared
+down (as the *unpeer in-band* instead would do).
+
+Examples:
+  $ {{ .Executable }} unpeer out-of-band eternal-donkey
 `
 
 const liqoctlUnpeerOOBLongHelp = `Disable an out-of-band peering towards a remote cluster.
@@ -75,22 +89,29 @@ or
 `
 
 func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := &unpeeroob.Options{Factory: f}
 	var cmd = &cobra.Command{
-		Use:   "unpeer",
-		Short: "Disable a peering towards a remote cluster",
-		Long:  liqoctlUnpeerLongHelp,
-		Args:  cobra.NoArgs,
+		Use:               "unpeer",
+		Short:             "Disable a peering towards a remote cluster",
+		Long:              WithTemplate(liqoctlUnpeerLongHelp),
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completion.ForeignClusters(ctx, f, 1),
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
+		RunE: func(cmd *cobra.Command, args []string) error {
+			options.ClusterName = args[0]
+			return options.Run(ctx)
+		},
 	}
 
-	cmd.AddCommand(newUnpeerOutOfBandCommand(ctx, f))
-	cmd.AddCommand(newUnpeerInBandCommand(ctx, f))
+	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for unpeering completion")
+
+	cmd.AddCommand(newUnpeerOutOfBandCommand(ctx, options))
+	cmd.AddCommand(newUnpeerInBandCommand(ctx, options))
 	return cmd
 }
 
-func newUnpeerOutOfBandCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
-	options := &unpeeroob.Options{Factory: f}
+func newUnpeerOutOfBandCommand(ctx context.Context, options *unpeeroob.Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "out-of-band cluster-name",
 		Aliases: []string{"oob"},
@@ -98,7 +119,7 @@ func newUnpeerOutOfBandCommand(ctx context.Context, f *factory.Factory) *cobra.C
 		Long:    WithTemplate(liqoctlUnpeerOOBLongHelp),
 
 		Args:              cobra.ExactArgs(1),
-		ValidArgsFunction: completion.ForeignClusters(ctx, f, 1),
+		ValidArgsFunction: completion.ForeignClusters(ctx, options.Factory, 1),
 
 		Run: func(cmd *cobra.Command, args []string) {
 			options.ClusterName = args[0]
@@ -109,7 +130,8 @@ func newUnpeerOutOfBandCommand(ctx context.Context, f *factory.Factory) *cobra.C
 	return cmd
 }
 
-func newUnpeerInBandCommand(ctx context.Context, local *factory.Factory) *cobra.Command {
+func newUnpeerInBandCommand(ctx context.Context, unpeerOptions *unpeeroob.Options) *cobra.Command {
+	local := unpeerOptions.Factory
 	remote := factory.NewForRemote()
 	options := unpeerib.Options{LocalFactory: local, RemoteFactory: remote}
 
@@ -123,7 +145,8 @@ func newUnpeerInBandCommand(ctx context.Context, local *factory.Factory) *cobra.
 			twoClustersPersistentPreRun(cmd, local, remote, factory.WithScopedPrinter)
 		},
 
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			options.Timeout = unpeerOptions.Timeout
 			return options.Run(ctx)
 		},
 	}
