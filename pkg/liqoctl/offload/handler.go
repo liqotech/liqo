@@ -42,6 +42,26 @@ Check the offloading status with:
 $ kubectl get namespaceoffloading -n %s %s
 `
 
+// ParseClusterSelectors parses the cluster selector.
+func (o *Options) ParseClusterSelectors(selectors []string) error {
+	for _, selector := range selectors {
+		s, err := metav1.ParseToLabelSelector(selector)
+		if err != nil {
+			return err
+		}
+
+		// Convert MatchLabels into MatchExpressions
+		for key, value := range s.MatchLabels {
+			req := metav1.LabelSelectorRequirement{Key: key, Operator: metav1.LabelSelectorOpIn, Values: []string{value}}
+			s.MatchExpressions = append(s.MatchExpressions, req)
+		}
+
+		o.ClusterSelector = append(o.ClusterSelector, s.MatchExpressions)
+	}
+
+	return nil
+}
+
 // Run implements the offload namespace command.
 func (o *Options) Run(ctx context.Context) error {
 	s := o.Printer.StartSpinner(fmt.Sprintf("Enabling namespace offloading for %q", o.Namespace))

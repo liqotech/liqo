@@ -121,7 +121,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVar(&options.Version, "version", "",
-		"The version of Liqo to be installed, among releases and commit SHAs. Defaults to the latest stable release)")
+		"The version of Liqo to be installed, among releases and commit SHAs. Defaults to the latest stable release")
 	cmd.PersistentFlags().StringVar(&options.RepoURL, "repo-url", "https://github.com/liqotech/liqo.git",
 		"The URL of the git repository used to retrieve the Helm chart, if a non released version is specified")
 	cmd.PersistentFlags().StringVar(&options.ChartPath, "local-chart-path", "",

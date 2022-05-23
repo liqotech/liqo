@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -98,18 +97,12 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 		PreRun: func(cmd *cobra.Command, args []string) {
 			options.PodOffloadingStrategy = offloadingv1alpha1.PodOffloadingStrategyType(podOffloadingStrategy.Value)
 			options.NamespaceMappingStrategy = offloadingv1alpha1.NamespaceMappingStrategyType(namespaceMappingStrategy.Value)
-
-			// Parse the cluster selectors
-			for _, selector := range selectors {
-				s, err := metav1.ParseToLabelSelector(selector)
-				options.Printer.CheckErr(err)
-				options.ClusterSelector = append(options.ClusterSelector, s.MatchExpressions)
-			}
+			options.Printer.CheckErr(options.ParseClusterSelectors(selectors))
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			options.Namespace = args[0]
-			options.Printer.CheckErr(options.Run(ctx))
+			return options.Run(ctx)
 		},
 	}
 
