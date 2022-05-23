@@ -45,7 +45,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
-	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceOffloading-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	offloadingctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadingStatus-controller"
@@ -309,15 +308,6 @@ func main() {
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
 		mgr, clusterIdentity, *resyncPeriod, *liqoNamespace, virtualKubeletOpts, *offerDisableAutoAccept)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
-		klog.Fatal(err)
-	}
-
-	namespaceReconciler := &namectrl.NamespaceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}
-
-	if err = namespaceReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
 

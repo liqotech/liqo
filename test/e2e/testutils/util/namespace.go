@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/onsi/ginkgo"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,20 +27,17 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 )
 
 // EnforceNamespace creates and returns a namespace. If it already exists, it just returns the namespace.
-func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster discoveryv1alpha1.ClusterIdentity, name string,
-	namespaceLabels map[string]string) (*corev1.Namespace, error) {
+func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster discoveryv1alpha1.ClusterIdentity,
+	name string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: namespaceLabels,
+			Labels: map[string]string{testconsts.LiqoTestingLabelKey: testconsts.LiqoTestingLabelValue},
 		},
-		Spec:   corev1.NamespaceSpec{},
-		Status: corev1.NamespaceStatus{},
 	}
 	ns, err := cl.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	if kerrors.IsAlreadyExists(err) {
@@ -72,15 +70,12 @@ func EnsureNamespaceDeletion(ctx context.Context, cl kubernetes.Interface, label
 	return fmt.Errorf("still deleting namespaces")
 }
 
-// GetNamespaceLabel sets the labels on the namespace just created. If "enablingLiqo" is set to true it adds the
-// enabling liqo label to the namespace, so a default NamespaceOffloading resource is created for that namespace.
-func GetNamespaceLabel(enablingLiqo bool) map[string]string {
-	// set of standard labels always present.
-	namespaceLabels := map[string]string{
-		testconsts.LiqoTestingLabelKey: testconsts.LiqoTestingLabelValue,
-	}
-	if enablingLiqo {
-		namespaceLabels[liqoconst.EnablingLiqoLabel] = liqoconst.EnablingLiqoLabelValue
-	}
-	return namespaceLabels
+// OffloadNamespace offloads a namespace using liqoctl.
+func OffloadNamespace(kubeconfig, namespace string, args ...string) error {
+	return ExecLiqoctl(kubeconfig, append([]string{"offload", "namespace", namespace}, args...), ginkgo.GinkgoWriter)
+}
+
+// UnoffloadNamespace unoffloads a namespace using liqoctl.
+func UnoffloadNamespace(kubeconfig, namespace string) error {
+	return ExecLiqoctl(kubeconfig, []string{"unoffload", "namespace", namespace}, ginkgo.GinkgoWriter)
 }

@@ -68,7 +68,8 @@ type ResourceOfferReconciler struct {
 //+kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests/finalizers,verbs=get;update;patch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete;deletecollection
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;create;update
+//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;update
+//+kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

@@ -1,6 +1,7 @@
 ---
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
-{{- $virtualKubeletConfig := (merge (dict "name" "virtual-kubelet-remote" "module" "virtualkubelet") .) -}}
+{{- $virtualKubeletConfigLocal := (merge (dict "name" "virtual-kubelet-local" "module" "virtualkubelet") .) -}}
+{{- $virtualKubeletConfigRemote := (merge (dict "name" "virtual-kubelet-remote" "module" "virtualkubelet") .) -}}
 
 apiVersion: v1
 kind: ServiceAccount
@@ -24,12 +25,12 @@ roleRef:
   kind: ClusterRole
   name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
 ---
-# The controller-manager needs to be also granted the virtual kubelet permissions,
-# as it needs to create the necessary role binding in reflected namespaces.
+# The controller-manager needs to be also granted the local virtual kubelet permissions,
+# as it needs to create the necessary cluster role binding associated with the virtual kubelet.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}-grant-virtual-kubelet
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}-grant-virtual-kubelet-local
   labels:
     {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
 subjects:
@@ -39,7 +40,24 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "liqo.prefixedName" $virtualKubeletConfig }}
+  name: {{ include "liqo.prefixedName" $virtualKubeletConfigLocal }}
+---
+# The controller-manager needs to be also granted the remote virtual kubelet permissions,
+# as it needs to create the necessary role binding in reflected namespaces.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}-grant-virtual-kubelet-remote
+  labels:
+    {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo.prefixedName" $virtualKubeletConfigRemote }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

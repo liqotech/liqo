@@ -14,8 +14,6 @@
 
 package testconsts
 
-import "github.com/liqotech/liqo/pkg/consts"
-
 // Environment variable.
 const (
 	NamespaceEnvVar        = "NAMESPACE"
@@ -26,8 +24,7 @@ const (
 
 // LiqoTestNamespaceLabels is a set of labels that has to be attached to test namespaces to simplify garbage collection.
 var LiqoTestNamespaceLabels = map[string]string{
-	LiqoTestingLabelKey:      LiqoTestingLabelValue,
-	consts.EnablingLiqoLabel: consts.EnablingLiqoLabelValue,
+	LiqoTestingLabelKey: LiqoTestingLabelValue,
 }
 
 const (

@@ -77,17 +77,18 @@ var _ = Describe("Liqo E2E", func() {
 			By(fmt.Sprintf(" 1 - Creating the remote namespace inside the cluster '%d'", remoteIndex))
 			Eventually(func() error {
 				_, err := util.EnforceNamespace(ctx, testContext.Clusters[remoteIndex].NativeClient,
-					testContext.Clusters[remoteIndex].Cluster, remoteTestNamespaceName,
-					util.GetNamespaceLabel(false))
+					testContext.Clusters[remoteIndex].Cluster, remoteTestNamespaceName)
 				return err
 			}, timeout, interval).Should(BeNil())
 
 			By(fmt.Sprintf(" 2 - Creating the local namespace inside the cluster '%d'", localIndex))
 			Eventually(func() error {
-				_, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
-					testContext.Clusters[localIndex].Cluster, testNamespaceName,
-					util.GetNamespaceLabel(true))
-				return err
+				if _, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
+					testContext.Clusters[localIndex].Cluster, testNamespaceName); err != nil {
+					return err
+				}
+
+				return util.OffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, testNamespaceName)
 			}, timeout, interval).Should(BeNil())
 
 			By(" 3 - Getting the NamespaceOffloading resource")

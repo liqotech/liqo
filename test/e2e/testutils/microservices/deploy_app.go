@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
+	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
 const (
@@ -42,12 +42,14 @@ const (
 // DeployApp creates the namespace and deploy the applications. It returns an error in case of failures.
 func DeployApp(t ginkgo.GinkgoTInterface, configPath, kubeResourcePath, namespace string) error {
 	options := k8s.NewKubectlOptions("", configPath, namespace)
-	if err := k8s.CreateNamespaceWithMetadataE(t, options, metav1.ObjectMeta{
-		Name:   namespace,
-		Labels: testutils.GetNamespaceLabel(true),
-	}); err != nil {
+	if err := k8s.CreateNamespaceE(t, options, namespace); err != nil {
 		return err
 	}
+
+	if err := util.OffloadNamespace(configPath, namespace); err != nil {
+		return err
+	}
+
 	if err := k8s.KubectlApplyE(t, options, kubeResourcePath); err != nil {
 		return err
 	}

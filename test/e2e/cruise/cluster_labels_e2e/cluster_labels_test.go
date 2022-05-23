@@ -27,9 +27,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	k8shelper "k8s.io/component-helpers/scheduling/corev1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -39,6 +39,7 @@ import (
 	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/util"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -168,22 +169,25 @@ var _ = Describe("Liqo E2E", func() {
 	Context(fmt.Sprintf("Create a namespace in the cluster '%d' with its NamespaceOffloading and check if the remote namespaces"+
 		"are created on the right remote cluster according to the ClusterSelector specified in the NamespaceOffloading Spec ", localIndex), func() {
 
+		selector := metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: testconsts.RegionKey, Operator: metav1.LabelSelectorOpIn, Values: []string{testconsts.RegionB}},
+				{Key: testconsts.ProviderKey, Operator: metav1.LabelSelectorOpIn, Values: []string{testconsts.ProviderAWS}},
+			},
+		}
+
 		It("Creating the namespace and checking the presence of the remote namespaces", func() {
 			By(" 1 - Creating the local namespace without the NamespaceOffloading resource")
 			Eventually(func() error {
 				_, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
-					testContext.Clusters[localIndex].Cluster,
-					testNamespaceName, util.GetNamespaceLabel(false))
+					testContext.Clusters[localIndex].Cluster, testNamespaceName)
 				return err
 			}, timeout, interval).Should(BeNil())
 
 			By(" 2 - Create the NamespaceOffloading resource associated with the previously created namespace")
-			Eventually(func() error {
-				return util.CreateNamespaceOffloading(ctx, testContext.Clusters[localIndex].ControllerClient, testNamespaceName,
-					offloadingv1alpha1.EnforceSameNameMappingStrategyType,
-					offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType,
-					util.GetClusterSelector())
-			}, timeout, interval).Should(BeNil())
+			Expect(util.OffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, testNamespaceName,
+				"--namespace-mapping-strategy", "EnforceSameName", "--pod-offloading-strategy", "LocalAndRemote",
+				"--selector", metav1.FormatLabelSelector(&selector))).To(Succeed())
 
 			By(fmt.Sprintf(" 3 - Getting the virtual nodes in the cluster '%d'", localIndex))
 			virtualNodesList := &corev1.NodeList{}
@@ -195,8 +199,10 @@ var _ = Describe("Liqo E2E", func() {
 
 			By(" 4 - Checking the remote clusters on which the remote namespaces are created")
 			for i := range virtualNodesList.Items {
-				match, err := k8shelper.MatchNodeSelectorTerms(&virtualNodesList.Items[i], util.GetClusterSelector())
-				Expect(err).To(BeNil())
+				ls, err := metav1.LabelSelectorAsSelector(&selector)
+				Expect(err).ToNot(HaveOccurred())
+
+				match := ls.Matches(labels.Set(virtualNodesList.Items[i].Labels))
 				remoteClusterID := virtualNodesList.Items[i].Labels[liqoconst.RemoteClusterID]
 
 				var cl kubernetes.Interface

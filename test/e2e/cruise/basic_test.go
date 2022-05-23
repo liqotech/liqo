@@ -17,8 +17,6 @@ package cruise
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -32,7 +30,6 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
@@ -112,7 +109,7 @@ var _ = Describe("Liqo E2E", func() {
 							Offloaded: !c.cluster2Context.HomeCluster,
 						}
 
-						err := net.EnsureNetTesterPods(ctx, testContext.Clusters[0].NativeClient, cluster1Opt, cluster2Opt)
+						err := net.EnsureNetTesterPods(ctx, &testContext.Clusters[0], cluster1Opt, cluster2Opt)
 						Expect(err).ToNot(HaveOccurred())
 
 						Eventually(func() bool {
@@ -152,7 +149,7 @@ var _ = Describe("Liqo E2E", func() {
 							Offloaded: !c.cluster2Context.HomeCluster,
 						}
 
-						err := net.EnsureNetTesterPods(ctx, testContext.Clusters[0].NativeClient, cluster1Opt, cluster2Opt)
+						err := net.EnsureNetTesterPods(ctx, &testContext.Clusters[0], cluster1Opt, cluster2Opt)
 						Expect(err).ToNot(HaveOccurred())
 
 						Expect(net.EnsureClusterIP(ctx,
@@ -279,7 +276,7 @@ var _ = Describe("Liqo E2E", func() {
 
 			It("run stateful app", func() {
 				By("Deploying the StatefulSet app")
-				err := storage.DeployApp(ctx, testContext.Clusters[0].Config, namespace, 2)
+				err := storage.DeployApp(ctx, &testContext.Clusters[0], namespace, 2)
 				Expect(err).ToNot(HaveOccurred())
 
 				By("Waiting until each pod of the application is ready")
@@ -318,7 +315,7 @@ var _ = Describe("Liqo E2E", func() {
 
 			It("move stateful app", func() {
 				By("Deploying the StatefulSet app")
-				err := storage.DeployApp(ctx, testContext.Clusters[0].Config, namespace, 1)
+				err := storage.DeployApp(ctx, &testContext.Clusters[0], namespace, 1)
 				Expect(err).ToNot(HaveOccurred())
 
 				By("Waiting until each pod of the application is ready")
@@ -342,14 +339,8 @@ var _ = Describe("Liqo E2E", func() {
 				Expect(len(virtualNodesList.Items)).To(BeNumerically(">=", 1))
 
 				By("Moving the statefulset to the virtual node")
-				liqoctl := os.Getenv("LIQOCTL")
-				Expect(liqoctl).ToNot(BeEmpty())
-				cmd := exec.Command(liqoctl, // nolint:gosec // running in a trusted environment
-					"move", "volume", originPvc.Name, "-n", namespace, "--target-node", virtualNodesList.Items[0].Name)
-				cmd.Stdout = GinkgoWriter
-				cmd.Stderr = GinkgoWriter
-				cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", testContext.Clusters[0].KubeconfigPath))
-				Expect(cmd.Run()).To(Succeed())
+				Expect(util.ExecLiqoctl(testContext.Clusters[0].KubeconfigPath,
+					[]string{"move", "volume", originPvc.Name, "-n", namespace, "--target-node", virtualNodesList.Items[0].Name}, GinkgoWriter)).To(Succeed())
 
 				By("Scaling the statefulset to one replica")
 				Expect(storage.ScaleStatefulSet(ctx, GinkgoT(), options, testContext.Clusters[0].NativeClient, namespace, 1)).To(Succeed())
@@ -395,12 +386,11 @@ var _ = Describe("Liqo E2E", func() {
 				// current namespace (in the local cluster), and checks whether it can successfully retrieve the list of running pods (itself).
 
 				By("Creating the different resources")
-				_, err := util.EnforceNamespace(ctx, testContext.Clusters[0].NativeClient, testContext.Clusters[0].Cluster, namespace, nil)
+				_, err := util.EnforceNamespace(ctx, testContext.Clusters[0].NativeClient, testContext.Clusters[0].Cluster, namespace)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(util.CreateNamespaceOffloading(ctx, testContext.Clusters[0].ControllerClient, namespace,
-					v1alpha1.DefaultNameMappingStrategyType, v1alpha1.RemotePodOffloadingStrategyType,
-					&corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}})).To(Succeed())
+				Expect(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath, namespace,
+					"--pod-offloading-strategy", "Remote")).To(Succeed())
 
 				Expect(apiserver.CreateServiceAccount(ctx, testContext.Clusters[0].ControllerClient, namespace)).To(Succeed())
 				Expect(apiserver.CreateRoleBinding(ctx, testContext.Clusters[0].ControllerClient, namespace)).To(Succeed())
