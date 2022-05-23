@@ -48,19 +48,12 @@ type NamespaceMapReconciler struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;watch;list;update;patch;create;delete
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps/finalizers,verbs=get;update;patch
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch;delete
 
 // needed to approve the certificates
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;list;watch
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests/status,verbs=update
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests/approval,verbs=update
 // +kubebuilder:rbac:groups=certificates.k8s.io,resourceNames=kubernetes.io/kubelet-serving,resources=signers,verbs=approve
-
-// role
-// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;watch;list;update;patch
 
 // Reconcile adds/removes NamespaceMap finalizer, and checks differences
 // between DesiredMapping and CurrentMapping in order to create/delete the Namespaces if it is necessary.

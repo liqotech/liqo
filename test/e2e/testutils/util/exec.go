@@ -16,7 +16,10 @@ package util
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
 	"strconv"
 
@@ -27,6 +30,21 @@ import (
 	remotecommandclient "k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog/v2"
 )
+
+// ExecLiqoctl runs a liqoctl command targeting the cluster specified by the given kubeconfig.
+func ExecLiqoctl(kubeconfig string, args []string, output io.Writer) error {
+	liqoctl := os.Getenv("LIQOCTL")
+	if liqoctl == "" {
+		return errors.New("failed to retrieve liqoctl executable")
+	}
+
+	// nolint:gosec // running in a trusted environment
+	cmd := exec.Command(liqoctl, args...)
+	cmd.Stdout = output
+	cmd.Stderr = output
+	cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", kubeconfig))
+	return cmd.Run()
+}
 
 // ExecCmd executes a command inside a pod.
 func ExecCmd(config *rest.Config, client kubernetes.Interface, podName, namespace, command string) (stdOut, stdErr string, retErr error) {

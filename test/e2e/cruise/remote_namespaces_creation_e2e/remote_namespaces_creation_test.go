@@ -66,20 +66,22 @@ var _ = Describe("Liqo E2E", func() {
 		remoteTestNamespaceName = fmt.Sprintf("%s-%s", testNamespaceName, localCluster.ClusterName)
 	)
 
-	Context(fmt.Sprintf("Create a namespace inside the cluster '%d' with the liqo enabling label and check if the remote namespaces"+
-		"are created inside all remote clusters. Remove the label and check the deletion of the remote namespaces.", localIndex), func() {
+	Context(fmt.Sprintf("Create a namespace inside the cluster '%d', offload it and check if the remote namespaces"+
+		"are created inside all remote clusters. Unoffload the namespace and check the deletion of the remote namespaces.", localIndex), func() {
 
-		It(fmt.Sprintf("Create a namespace inside the cluster '%d' with the liqo enabling label and check if the remote namespaces"+
+		It(fmt.Sprintf("Create a namespace inside the cluster '%d', offload it and check if the remote namespaces"+
 			"are created inside all remote clusters", localIndex), func() {
 			namespace := &corev1.Namespace{}
 			namespaceMapsList := &virtualkubeletv1alpha1.NamespaceMapList{}
 
 			By(fmt.Sprintf(" 1 - Creating the local namespace inside the cluster '%d'", localIndex))
 			Eventually(func() error {
-				_, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
-					testContext.Clusters[localIndex].Cluster, testNamespaceName,
-					util.GetNamespaceLabel(true))
-				return err
+				if _, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
+					testContext.Clusters[localIndex].Cluster, testNamespaceName); err != nil {
+					return err
+				}
+
+				return util.OffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, testNamespaceName)
 			}, timeout, interval).Should(BeNil())
 
 			By(" 2 - Getting the NamespaceMaps and checking the presence of the entries for that namespace, both in the spec and status")
@@ -161,20 +163,13 @@ var _ = Describe("Liqo E2E", func() {
 			}, longTimeout, interval).Should(BeNil())
 		})
 
-		It("Remove the label and check the deletion of the remote namespaces.", func() {
+		It("Unoffload the namespace and check the deletion of the remote namespaces.", func() {
 			namespace := &corev1.Namespace{}
 			namespaceOffloading := &offloadingv1alpha1.NamespaceOffloading{}
 			namespaceMapsList := &virtualkubeletv1alpha1.NamespaceMapList{}
 
-			By(fmt.Sprintf(" 1 - Getting the local namespace inside the cluster %d, and "+
-				"remove the liqo enabling label", localIndex))
-			Eventually(func() error {
-				if err := testContext.Clusters[localIndex].ControllerClient.Get(ctx, types.NamespacedName{Name: testNamespaceName}, namespace); err != nil {
-					return err
-				}
-				delete(namespace.Labels, liqoconst.EnablingLiqoLabel)
-				return testContext.Clusters[localIndex].ControllerClient.Update(ctx, namespace)
-			}, timeout, interval).Should(BeNil())
+			By(fmt.Sprintf(" 1 - Unoffloading the namespace inside the cluster %d", localIndex))
+			Expect(util.UnoffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, testNamespaceName)).To(Succeed())
 
 			By(" 2 - Checking if the NamespaceOffloading resource associated with the test namespace is correctly removed.")
 			Eventually(func() metav1.StatusReason {

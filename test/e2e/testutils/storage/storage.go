@@ -28,9 +28,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
@@ -43,19 +43,13 @@ const (
 )
 
 // DeployApp creates the namespace and deploys the applications. It returns an error in case of failures.
-func DeployApp(ctx context.Context, config *rest.Config, namespace string, replicas int32) error {
-	cl, err := client.New(config, client.Options{})
-	if err != nil {
+func DeployApp(ctx context.Context, cluster *tester.ClusterContext, namespace string, replicas int32) error {
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	if err := cluster.ControllerClient.Create(ctx, ns); err != nil {
 		return err
 	}
 
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   namespace,
-			Labels: testutils.GetNamespaceLabel(true),
-		},
-	}
-	if err = cl.Create(ctx, ns); err != nil {
+	if err := testutils.OffloadNamespace(cluster.KubeconfigPath, namespace); err != nil {
 		return err
 	}
 
@@ -144,7 +138,7 @@ func DeployApp(ctx context.Context, config *rest.Config, namespace string, repli
 		},
 	}
 
-	return cl.Create(ctx, statefulSet)
+	return cluster.ControllerClient.Create(ctx, statefulSet)
 }
 
 // ScaleStatefulSet scales the StatefulSet to the desired number of replicas.

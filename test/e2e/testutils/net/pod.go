@@ -29,6 +29,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
@@ -40,10 +41,14 @@ type TesterOpts struct {
 }
 
 // EnsureNetTesterPods creates the NetTest pods and waits for them to be ready.
-func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, cluster1, cluster2 *TesterOpts) error {
-	ns, err := util.EnforceNamespace(ctx, homeClient, cluster1.Cluster, TestNamespaceName, util.GetNamespaceLabel(true))
+func EnsureNetTesterPods(ctx context.Context, config *tester.ClusterContext, cluster1, cluster2 *TesterOpts) error {
+	ns, err := util.EnforceNamespace(ctx, config.NativeClient, cluster1.Cluster, TestNamespaceName)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		klog.Error(err)
+		return err
+	}
+
+	if err := util.OffloadNamespace(config.KubeconfigPath, TestNamespaceName); err != nil {
 		return err
 	}
 
@@ -52,13 +57,13 @@ func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, c
 	time.Sleep(2 * time.Second)
 
 	cluster2Pod := forgeTesterPod(image, ns.Name, cluster2)
-	_, err = homeClient.CoreV1().Pods(ns.Name).Create(ctx, cluster2Pod, metav1.CreateOptions{})
+	_, err = config.NativeClient.CoreV1().Pods(ns.Name).Create(ctx, cluster2Pod, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		klog.Error(err)
 		return err
 	}
 	cluster1Pod := forgeTesterPod(image, ns.Name, cluster1)
-	_, err = homeClient.CoreV1().Pods(ns.Name).Create(ctx, cluster1Pod, metav1.CreateOptions{})
+	_, err = config.NativeClient.CoreV1().Pods(ns.Name).Create(ctx, cluster1Pod, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		klog.Error(err)
 		return err
