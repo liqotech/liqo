@@ -28,6 +28,6 @@ const (
 )
 
 // VirtualNodeName generates the virtual node name based on the cluster ID.
-func VirtualNodeName(cluster discoveryv1alpha1.ClusterIdentity) string {
+func VirtualNodeName(cluster *discoveryv1alpha1.ClusterIdentity) string {
 	return VirtualNodePrefix + cluster.ClusterName
 }

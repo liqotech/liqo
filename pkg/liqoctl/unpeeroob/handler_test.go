@@ -67,7 +67,8 @@ var _ = Describe("Test Unpeer Command", func() {
 		DescribeTable("unpeering table",
 			func(c removeTestcase) {
 				options.ClusterName = c.clusterName
-				Expect(options.unpeer(ctx)).To(c.expectedError)
+				_, err := options.unpeer(ctx)
+				Expect(err).To(c.expectedError)
 
 				var fc discoveryv1alpha1.ForeignCluster
 				Expect(options.CRClient.Get(ctx, types.NamespacedName{Name: foreignClusterName}, &fc)).To(Succeed())

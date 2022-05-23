@@ -25,7 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
 // GetIPAMStorageByLabel it returns a IPAMStorage instance that matches the given label selector.
@@ -144,5 +147,30 @@ func GetPodByLabel(ctx context.Context, cl client.Client, ns string, lSelector l
 	default:
 		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s} in namespace {%s},"+
 			" when only one was expected", podGR.String(), lSelector.String(), ns)
+	}
+}
+
+// GetNodeByClusterID returns the node instance that matches the given cluster id.
+func GetNodeByClusterID(ctx context.Context, cl client.Client, clusterID *discoveryv1alpha1.ClusterIdentity) (*corev1.Node, error) {
+	list := new(corev1.NodeList)
+	if err := cl.List(ctx, list, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			consts.RemoteClusterID: clusterID.ClusterID,
+		}),
+	}); err != nil {
+		return nil, err
+	}
+
+	nodeRN := "nodes"
+	nodeGR := corev1.Resource(nodeRN)
+
+	switch len(list.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(nodeGR, virtualKubelet.VirtualNodeName(clusterID))
+	case 1:
+		return &list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type {%s} found for clusterID {%s},"+
+			" when only one was expected", nodeRN, clusterID.ClusterID)
 	}
 }

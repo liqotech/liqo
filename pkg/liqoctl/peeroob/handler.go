@@ -25,18 +25,16 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/peer"
 	"github.com/liqotech/liqo/pkg/utils"
 	authenticationtokenutils "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
 // Options encapsulates the arguments of the peer out-of-band command.
 type Options struct {
-	*factory.Factory
+	*peer.Options
 
-	ClusterName    string
 	ClusterToken   string
 	ClusterAuthURL string
 	ClusterID      string
@@ -44,6 +42,9 @@ type Options struct {
 
 // Run implements the peer out-of-band command.
 func (o *Options) Run(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
 	s := o.Printer.StartSpinner("Processing cluster peering")
 
 	fc, err := o.peer(ctx)
@@ -51,9 +52,14 @@ func (o *Options) Run(ctx context.Context) error {
 		s.Fail(err.Error())
 		return err
 	}
-	s.Success("Cluster successfully peered")
+	s.Success("Peering enabled")
 
-	fmt.Printf(SuccessfulMessage, o.ClusterName, fc.Name, virtualKubelet.VirtualNodeName(fc.Spec.ClusterIdentity))
+	if err := o.Wait(ctx, &fc.Spec.ClusterIdentity); err != nil {
+		s.Fail(err.Error())
+		return err
+	}
+
+	o.Printer.Success.Println("Peering successfully established")
 	return nil
 }
 

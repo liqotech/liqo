@@ -16,12 +16,14 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/peer"
 	"github.com/liqotech/liqo/pkg/liqoctl/peerib"
 	"github.com/liqotech/liqo/pkg/liqoctl/peeroob"
 )
@@ -42,6 +44,15 @@ cross-cluster pod-to-pod communication. With the *in-band* approach, on the othe
 hand, all control plane traffic flows inside the VPN tunnel. The latter approach
 relaxes the connectivity requirements, although it requires access to both
 clusters (i.e., kubeconfigs) to start the peering process and setup the VPN tunnel.
+
+This command enables a peering towards an already known remote cluster, without the
+need of specifying all authentication parameters. It adopts the same approach already
+used while peering for the first time with the given remote cluster.
+
+Examples:
+  $ {{ .Executable }} peer eternal-donkey
+or
+  $ {{ .Executable }} peer nearby-malamute --namespace liqo-system
 `
 
 const liqoctlPeerOOBLongHelp = `Enable an out-of-band peering towards a remote cluster.
@@ -95,22 +106,31 @@ or
 `
 
 func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := &peer.Options{Factory: f}
 	cmd := &cobra.Command{
-		Use:   "peer",
-		Short: "Enable a peering towards a remote cluster",
-		Long:  liqoctlPeerLongHelp,
-		Args:  cobra.NoArgs,
+		Use:               "peer",
+		Short:             "Enable a peering towards a remote cluster",
+		Long:              WithTemplate(liqoctlPeerLongHelp),
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completion.ForeignClusters(ctx, f, 1),
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
+
+		RunE: func(cmd *cobra.Command, args []string) error {
+			options.ClusterName = args[0]
+			return options.Run(ctx)
+		},
 	}
 
-	cmd.AddCommand(newPeerOutOfBandCommand(ctx, f))
-	cmd.AddCommand(newPeerInBandCommand(ctx, f))
+	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for peering completion")
+
+	cmd.AddCommand(newPeerOutOfBandCommand(ctx, options))
+	cmd.AddCommand(newPeerInBandCommand(ctx, options))
 	return cmd
 }
 
-func newPeerOutOfBandCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
-	options := &peeroob.Options{Factory: f}
+func newPeerOutOfBandCommand(ctx context.Context, peerOptions *peer.Options) *cobra.Command {
+	options := &peeroob.Options{Options: peerOptions}
 	cmd := &cobra.Command{
 		Use:     "out-of-band cluster-name",
 		Aliases: []string{"oob"},
@@ -131,6 +151,7 @@ func newPeerOutOfBandCommand(ctx context.Context, f *factory.Factory) *cobra.Com
 	cmd.Flags().StringVar(&options.ClusterID, peeroob.ClusterIDFlagName, "",
 		"The Cluster ID identifying the target remote cluster")
 
+	f := peerOptions.Factory
 	f.AddLiqoNamespaceFlag(cmd.Flags())
 	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
 
@@ -141,7 +162,8 @@ func newPeerOutOfBandCommand(ctx context.Context, f *factory.Factory) *cobra.Com
 	return cmd
 }
 
-func newPeerInBandCommand(ctx context.Context, local *factory.Factory) *cobra.Command {
+func newPeerInBandCommand(ctx context.Context, peerOptions *peer.Options) *cobra.Command {
+	local := peerOptions.Factory
 	remote := factory.NewForRemote()
 	options := peerib.Options{LocalFactory: local, RemoteFactory: remote}
 
@@ -155,7 +177,8 @@ func newPeerInBandCommand(ctx context.Context, local *factory.Factory) *cobra.Co
 			twoClustersPersistentPreRun(cmd, local, remote, factory.WithScopedPrinter)
 		},
 
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			options.Timeout = peerOptions.Timeout
 			return options.Run(ctx)
 		},
 	}

@@ -28,10 +28,14 @@ type Options struct {
 	RemoteFactory *factory.Factory
 
 	Bidirectional bool
+	Timeout       time.Duration
 }
 
 // Run implements the peer in-band command.
 func (o *Options) Run(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
 	// Create and initialize cluster 1.
 	cluster1 := inbound.NewCluster(o.LocalFactory, o.RemoteFactory)
 	if err := cluster1.Init(ctx); err != nil {
@@ -123,30 +127,30 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	// Waiting for VPN connection to be established in cluster 1.
-	if err := cluster1.WaitForNetwork(ctx, cluster2.GetClusterID(), 120*time.Second); err != nil {
+	if err := cluster1.WaitForNetwork(ctx, cluster2.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for VPN connection to be established in cluster 2.
-	if err := cluster2.WaitForNetwork(ctx, cluster1.GetClusterID(), 120*time.Second); err != nil {
+	if err := cluster2.WaitForNetwork(ctx, cluster1.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for VPN connection to be established in cluster 1.
-	if err := cluster1.WaitForNetwork(ctx, cluster2.GetClusterID(), 120*time.Second); err != nil {
+	if err := cluster1.WaitForNetwork(ctx, cluster2.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for VPN connection to be established in cluster 2.
-	if err := cluster2.WaitForNetwork(ctx, cluster1.GetClusterID(), 120*time.Second); err != nil {
+	if err := cluster2.WaitForNetwork(ctx, cluster1.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for authentication to complete in cluster 1.
-	if err := cluster1.WaitForAuth(ctx, cluster2.GetClusterID(), 120*time.Second); err != nil {
+	if err := cluster1.WaitForAuth(ctx, cluster2.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for authentication to complete in cluster 2.
-	return cluster2.WaitForAuth(ctx, cluster1.GetClusterID(), 120*time.Second)
+	return cluster2.WaitForAuth(ctx, cluster1.GetClusterID())
 }

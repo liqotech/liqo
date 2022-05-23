@@ -16,7 +16,6 @@ package foreigncluster
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -25,17 +24,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
-type fcEventType string
 type fcEventChecker func(fc *discoveryv1alpha1.ForeignCluster) bool
-
-const (
-	// UnpeeringEvent name of the unpeering event.
-	UnpeeringEvent fcEventType = "unpeer"
-	// AuthEvent name of the authentication event.
-	AuthEvent fcEventType = "authentication"
-	// NetworkEvent name of the network event when it is established.
-	NetworkEvent fcEventType = "network established"
-)
 
 var (
 	// UnpeerChecker checks if the two clusters are unpeered.
@@ -46,8 +35,8 @@ var (
 
 // PollForEvent polls until the given events occurs on the foreign cluster corresponding to the identity.
 func PollForEvent(ctx context.Context, cl client.Client, identity *discoveryv1alpha1.ClusterIdentity,
-	event fcEventType, checker fcEventChecker, interval, timeout time.Duration) error {
-	err := wait.PollImmediateWithContext(ctx, interval, timeout, func(ctx context.Context) (done bool, err error) {
+	checker fcEventChecker, interval time.Duration) error {
+	err := wait.PollImmediateUntilWithContext(ctx, interval, func(ctx context.Context) (done bool, err error) {
 		fc, err := GetForeignClusterByID(ctx, cl, identity.ClusterID)
 		if err != nil {
 			return false, err
@@ -57,7 +46,7 @@ func PollForEvent(ctx context.Context, cl client.Client, identity *discoveryv1al
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed waiting for event %q from cluster %q: %w", event, identity.ClusterName, err)
+		return err
 	}
 	return nil
 }
