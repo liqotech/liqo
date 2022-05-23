@@ -97,7 +97,7 @@ fmt: gci addlicense
 # Install golangci-lint if not available
 golangci-lint:
 ifeq (, $(shell which golangci-lint))
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.0
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2
 GOLANGCILINT=$(GOBIN)/golangci-lint
 else
 GOLANGCILINT=$(shell which golangci-lint)
