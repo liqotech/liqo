@@ -51,13 +51,17 @@ func createTolerationFromNamespaceOffloading(strategy offv1alpha1.PodOffloadingS
 }
 
 // createNodeSelectorFromNamespaceOffloading creates the right NodeSelector according to the PodOffloadingStrategy chosen.
-func createNodeSelectorFromNamespaceOffloading(nsoff *offv1alpha1.NamespaceOffloading) (corev1.NodeSelector, error) {
+func createNodeSelectorFromNamespaceOffloading(nsoff *offv1alpha1.NamespaceOffloading) (*corev1.NodeSelector, error) {
 	nodeSelector := nsoff.Spec.ClusterSelector
 	switch {
 	case nsoff.Spec.PodOffloadingStrategy == offv1alpha1.RemotePodOffloadingStrategyType:
 		// To ensure that the pod is not scheduled on local nodes is necessary to add to every NodeSelectorTerm a
 		// new NodeSelectorRequirement. This NodeSelectorRequirement requires explicitly the label
 		// "liqo.io/type=virtual-node" to exclude local nodes from the scheduler choice.
+		if len(nodeSelector.NodeSelectorTerms) == 0 {
+			nodeSelector.NodeSelectorTerms = []corev1.NodeSelectorTerm{{}}
+		}
+
 		for i := range nodeSelector.NodeSelectorTerms {
 			nodeSelector.NodeSelectorTerms[i].MatchExpressions = append(nodeSelector.NodeSelectorTerms[i].MatchExpressions,
 				corev1.NodeSelectorRequirement{
@@ -66,8 +70,14 @@ func createNodeSelectorFromNamespaceOffloading(nsoff *offv1alpha1.NamespaceOfflo
 					Values:   []string{liqoconst.TypeNode},
 				})
 		}
+
 	case nsoff.Spec.PodOffloadingStrategy == offv1alpha1.LocalAndRemotePodOffloadingStrategyType:
-		// A new NodeSelectorTerm that allows scheduling the pod also on local nodes is added.
+		// In case the selector is empty, it is not necessary to modify anything, as it already allows pods to be scheduled on all nodes.
+		if len(nodeSelector.NodeSelectorTerms) == 0 {
+			return nil, nil
+		}
+
+		// Otherwise, let add a new NodeSelectorTerm that allows scheduling pods also on local nodes.
 		newNodeSelectorTerm := corev1.NodeSelectorTerm{
 			MatchExpressions: []corev1.NodeSelectorRequirement{{
 				Key:      liqoconst.TypeLabel,
@@ -76,37 +86,42 @@ func createNodeSelectorFromNamespaceOffloading(nsoff *offv1alpha1.NamespaceOfflo
 			}},
 		}
 		nodeSelector.NodeSelectorTerms = append(nodeSelector.NodeSelectorTerms, newNodeSelectorTerm)
+
 	default:
 		err := fmt.Errorf("PodOffloadingStrategyType '%s' not recognized", nsoff.Spec.PodOffloadingStrategy)
 		klog.Error(err)
-		return corev1.NodeSelector{}, err
+		return nil, err
 	}
-	return nodeSelector, nil
+	return &nodeSelector, nil
 }
 
 // fillPodWithTheNewNodeSelector gets the previously computed NodeSelector imposed by the PodOffloadingStrategy and
 // merges it with the Pod NodeSelector if it is already present. It simply adds it to the Pod if previously unset.
 func fillPodWithTheNewNodeSelector(imposedNodeSelector *corev1.NodeSelector, pod *corev1.Pod) {
+	// No need to modify the pod affinities in case of empty selector.
+	if imposedNodeSelector == nil {
+		return
+	}
+
 	// To preserve the Pod Affinity content, it is necessary to add the imposedNodeSelector according to what
 	// is already present in the Pod Affinity.
 	switch {
 	case pod.Spec.Affinity == nil:
 		pod.Spec.Affinity = &corev1.Affinity{
 			NodeAffinity: &corev1.NodeAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: imposedNodeSelector.DeepCopy(),
+				RequiredDuringSchedulingIgnoredDuringExecution: imposedNodeSelector,
 			},
 		}
 	case pod.Spec.Affinity.NodeAffinity == nil:
 		pod.Spec.Affinity.NodeAffinity = &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: imposedNodeSelector.DeepCopy(),
+			RequiredDuringSchedulingIgnoredDuringExecution: imposedNodeSelector,
 		}
 	case pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil ||
 		len(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0:
-		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = imposedNodeSelector.DeepCopy()
+		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = imposedNodeSelector
 	default:
 		*pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution =
-			utils.MergeNodeSelector(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
-				imposedNodeSelector)
+			utils.MergeNodeSelector(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution, imposedNodeSelector)
 	}
 }
 
@@ -147,7 +162,7 @@ func mutatePod(namespaceOffloading *offv1alpha1.NamespaceOffloading, pod *corev1
 	pod.Spec.Tolerations = append(pod.Spec.Tolerations, toleration)
 
 	// Enforce the new NodeSelector policy imposed by the NamespaceOffloading creator.
-	fillPodWithTheNewNodeSelector(&imposedNodeSelector, pod)
+	fillPodWithTheNewNodeSelector(imposedNodeSelector, pod)
 	klog.V(5).Infof("Pod NodeSelector: %s", imposedNodeSelector)
 	return nil
 }

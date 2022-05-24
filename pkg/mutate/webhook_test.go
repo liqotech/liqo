@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -28,12 +29,17 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	testutils "github.com/liqotech/liqo/pkg/mutate/testUtils"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 func TestWebhookManager(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Webhook Suite")
 }
+
+var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
+})
 
 var _ = Describe("Webhook", func() {
 
@@ -80,9 +86,12 @@ var _ = Describe("Webhook", func() {
 				By(fmt.Sprintf("Testing %s", namespaceOffloading.Spec.PodOffloadingStrategy))
 				nodeSelector, err := createNodeSelectorFromNamespaceOffloading(&namespaceOffloading)
 				if namespaceOffloading.Spec.PodOffloadingStrategy == offv1alpha1.LocalPodOffloadingStrategyType {
-					Expect(err != nil).Should(BeTrue())
+					Expect(nodeSelector).To(BeNil())
+					Expect(err).To(HaveOccurred())
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(nodeSelector).To(PointTo(Equal(expectedNodeSelector)))
 				}
-				Expect(nodeSelector).To(Equal(expectedNodeSelector))
 			},
 			Entry("LocalPodOffloadingStrategyType", namespaceOffloadings[0], nodeSelectors[0]),
 			Entry("RemotePodOffloadingStrategyType", namespaceOffloadings[1], nodeSelectors[1]),
