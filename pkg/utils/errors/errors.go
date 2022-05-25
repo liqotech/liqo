@@ -18,6 +18,7 @@ import (
 	"flag"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/klog/v2"
 )
 
@@ -60,5 +61,14 @@ func IgnoreAlreadyExists(err error) error {
 		return nil
 	}
 
+	return err
+}
+
+// IgnoreNoMatchError returns nil on NoMatch errors.
+// All other values that are not NoMatch errors or nil are returned unmodified.
+func IgnoreNoMatchError(err error) error {
+	if meta.IsNoMatchError(err) {
+		return nil
+	}
 	return err
 }

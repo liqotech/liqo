@@ -25,4 +25,7 @@ const (
 	VirtualPvcNamespaceLabel = "storage.liqo.io/virtual-pvc-namespace"
 	// VirtualPvcNameLabel is the label used to mark the name of a virtual PVC.
 	VirtualPvcNameLabel = "storage.liqo.io/virtual-pvc-name"
+
+	// StorageNamespaceLabel is the label used to mark the liqo storage namespace.
+	StorageNamespaceLabel = "liqo.io/storage-provisioner"
 )

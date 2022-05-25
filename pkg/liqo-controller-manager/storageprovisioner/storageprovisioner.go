@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 )
 
@@ -43,6 +44,9 @@ func NewLiqoLocalStorageProvisioner(ctx context.Context, cl client.Client,
 	err := cl.Create(ctx, &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: storageNamespace,
+			Labels: map[string]string{
+				consts.StorageNamespaceLabel: "true",
+			},
 		},
 	})
 	if liqoerrors.IgnoreAlreadyExists(err) != nil {
