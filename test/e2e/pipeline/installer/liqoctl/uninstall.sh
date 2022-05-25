@@ -47,6 +47,11 @@ source "${SCRIPT_DIR}/helm-utils.sh"
 
 download_helm
 
+# the unpeer command waits for the status in the local cluster, for the remote one
+# it may take a bit longer. Sleep for a second to make sure that the uninstall command
+# pre-checks will not fail
+sleep 1
+
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
