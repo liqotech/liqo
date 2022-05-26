@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -110,6 +111,7 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 		"The constraints regarding pods scheduling in this namespace, among Local, Remote and LocalAndRemote")
 	cmd.Flags().Var(namespaceMappingStrategy, "namespace-mapping-strategy",
 		"The naming strategy adopted for the creation of remote namespaces, among DefaultName and EnforceSameName")
+	cmd.Flags().DurationVar(&options.Timeout, "timeout", 20*time.Second, "The timeout for the offloading process")
 
 	cmd.Flags().StringArrayVarP(&selectors, "selector", "l", []string{},
 		"The selector to filter the target clusters. Can be specified multiple times, defining alternative requirements (i.e., in logical OR)")

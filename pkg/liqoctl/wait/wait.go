@@ -19,10 +19,12 @@ import (
 	"fmt"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -131,5 +133,56 @@ func (w *Waiter) ForNode(ctx context.Context, remoteClusterID *discoveryv1alpha1
 		return err
 	}
 	s.Success(fmt.Sprintf("Node created for remote cluster %q", remName))
+	return nil
+}
+
+// ForOffloading waits until the status on the NamespaceOffloading resource states that the offloading has been successfully
+// established or the timeout expires.
+func (w *Waiter) ForOffloading(ctx context.Context, namespace string) error {
+	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for offloading of namespace %q to complete", namespace))
+	noClusterSelected := false
+	var offload *offloadingv1alpha1.NamespaceOffloading
+	err := wait.PollImmediateUntilWithContext(ctx, 1*time.Second, func(ctx context.Context) (done bool, err error) {
+		offload, err = getters.GetOffloadingByNamespace(ctx, w.CRClient, namespace)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+
+		someFailed := offload.Status.OffloadingPhase == offloadingv1alpha1.SomeFailedOffloadingPhaseType
+		allFailed := offload.Status.OffloadingPhase == offloadingv1alpha1.AllFailedOffloadingPhaseType
+		if someFailed || allFailed {
+			return true, fmt.Errorf("the offloading is in %q state", offload.Status.OffloadingPhase)
+		}
+
+		ready := offload.Status.OffloadingPhase == offloadingv1alpha1.ReadyOffloadingPhaseType
+		noClusterSelected = offload.Status.OffloadingPhase == offloadingv1alpha1.NoClusterSelectedOffloadingPhaseType
+
+		return ready || noClusterSelected, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for offloading to complete: %s", err.Error()))
+		return err
+	}
+	if noClusterSelected {
+		s.Warning("Offloading completed, but no cluster was selected")
+		return nil
+	}
+	s.Success("Offloading completed")
+	return nil
+}
+
+// ForUnoffloading waits until the status on the NamespaceOffloading resource states that the offloading has been
+// successfully removed or the timeout expires.
+func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
+	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for unoffloading of namespace %q to complete", namespace))
+	err := wait.PollImmediateUntilWithContext(ctx, 1*time.Second, func(ctx context.Context) (done bool, err error) {
+		_, err = getters.GetOffloadingByNamespace(ctx, w.CRClient, namespace)
+		return apierrors.IsNotFound(err), client.IgnoreNotFound(err)
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for unoffloading to complete: %s", err.Error()))
+		return err
+	}
+	s.Success("Unoffloading completed")
 	return nil
 }

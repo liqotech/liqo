@@ -17,6 +17,7 @@ package offload
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,6 +26,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 )
 
 // Options encapsulates the arguments of the offload namespace command.
@@ -35,6 +37,8 @@ type Options struct {
 	PodOffloadingStrategy    offloadingv1alpha1.PodOffloadingStrategyType
 	NamespaceMappingStrategy offloadingv1alpha1.NamespaceMappingStrategyType
 	ClusterSelector          [][]metav1.LabelSelectorRequirement
+
+	Timeout time.Duration
 }
 
 const successMessage = `
@@ -64,6 +68,9 @@ func (o *Options) ParseClusterSelectors(selectors []string) error {
 
 // Run implements the offload namespace command.
 func (o *Options) Run(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
 	s := o.Printer.StartSpinner(fmt.Sprintf("Enabling namespace offloading for %q", o.Namespace))
 
 	nsoff := &offloadingv1alpha1.NamespaceOffloading{ObjectMeta: metav1.ObjectMeta{
@@ -80,6 +87,11 @@ func (o *Options) Run(ctx context.Context) error {
 		return err
 	}
 	s.Success(fmt.Sprintf("Offloading of namespace %q correctly enabled", o.Namespace))
+
+	waiter := wait.NewWaiterFromFactory(o.Factory)
+	if err := waiter.ForOffloading(ctx, o.Namespace); err != nil {
+		return err
+	}
 
 	fmt.Printf(successMessage, o.Namespace, consts.DefaultNamespaceOffloadingName)
 	return nil
