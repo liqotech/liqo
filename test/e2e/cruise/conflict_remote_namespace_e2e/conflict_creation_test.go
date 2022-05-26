@@ -57,13 +57,10 @@ var _ = Describe("Liqo E2E", func() {
 		testContext = tester.GetTester(ctx)
 		interval    = 1 * time.Second
 		timeout     = 10 * time.Second
-		// longTimeout is used in situations that may take longer to be performed
-		longTimeout = 2 * time.Minute
 		localIndex  = 0
+
 		// index of the cluster on which a remote namespace with the same name already exists.
-		remoteIndex             = 2
-		localCluster            = testContext.Clusters[localIndex].Cluster
-		remoteTestNamespaceName = fmt.Sprintf("%s-%s", testNamespaceName, localCluster.ClusterID)
+		remoteIndex = 2
 	)
 
 	Context(fmt.Sprintf("Create a namespace inside the cluster '%d' and check what happen if a remote namespaace in the cluster "+
@@ -77,7 +74,7 @@ var _ = Describe("Liqo E2E", func() {
 			By(fmt.Sprintf(" 1 - Creating the remote namespace inside the cluster '%d'", remoteIndex))
 			Eventually(func() error {
 				_, err := util.EnforceNamespace(ctx, testContext.Clusters[remoteIndex].NativeClient,
-					testContext.Clusters[remoteIndex].Cluster, remoteTestNamespaceName)
+					testContext.Clusters[remoteIndex].Cluster, testNamespaceName)
 				return err
 			}, timeout, interval).Should(BeNil())
 
@@ -88,7 +85,8 @@ var _ = Describe("Liqo E2E", func() {
 					return err
 				}
 
-				return util.OffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, testNamespaceName)
+				return util.OffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, testNamespaceName,
+					"--namespace-mapping-strategy", "EnforceSameName")
 			}, timeout, interval).Should(BeNil())
 
 			By(" 3 - Getting the NamespaceOffloading resource")
@@ -102,14 +100,14 @@ var _ = Describe("Liqo E2E", func() {
 						namespaceOffloading.Status.OffloadingPhase)
 				}
 				return nil
-			}, longTimeout, interval).Should(BeNil())
+			}, timeout, interval).Should(BeNil())
 
 			// This remote namespace has not the annotation inserted by the NamespaceMap controller,
 			// it has been created in the STEP 1 without that annotation.
 			By(fmt.Sprintf(" 4 - Deleting the remote namespace inside the cluster '%d'", remoteIndex))
 			Eventually(func() error {
 				if err := testContext.Clusters[remoteIndex].ControllerClient.Get(ctx,
-					types.NamespacedName{Name: remoteTestNamespaceName}, namespace); err != nil {
+					types.NamespacedName{Name: testNamespaceName}, namespace); err != nil {
 					return err
 				}
 				return testContext.Clusters[remoteIndex].ControllerClient.Delete(ctx, namespace)
@@ -119,15 +117,16 @@ var _ = Describe("Liqo E2E", func() {
 				"annotation has been created inside the cluster '%d' by the NamespaceMap controller", remoteIndex))
 			Eventually(func() error {
 				if err := testContext.Clusters[remoteIndex].ControllerClient.Get(ctx,
-					types.NamespacedName{Name: remoteTestNamespaceName}, namespace); err != nil {
+					types.NamespacedName{Name: testNamespaceName}, namespace); err != nil {
 					return err
 				}
 				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
-				if !ok || strings.HasSuffix(value, foreignclusterutils.UniqueName(&testContext.Clusters[remoteIndex].Cluster)) {
-					return fmt.Errorf("the remote namespace has not the right Liqo annotation")
+				suffix := foreignclusterutils.UniqueName(&testContext.Clusters[remoteIndex].Cluster)
+				if !ok || !strings.HasSuffix(value, suffix) {
+					return fmt.Errorf("the remote namespace has not the right Liqo annotation, found: %q, expected suffix: %q", value, suffix)
 				}
 				return nil
-			}, longTimeout, interval).Should(BeNil())
+			}, 3*timeout /* namespace deletion is slow */, interval).Should(BeNil())
 		})
 
 		It("Delete the NamespaceOffloading resource in the local namespace "+
@@ -140,7 +139,7 @@ var _ = Describe("Liqo E2E", func() {
 					namespaceOffloading)
 				_ = testContext.Clusters[localIndex].ControllerClient.Delete(ctx, namespaceOffloading)
 				return apierrors.ReasonForError(err)
-			}, longTimeout, interval).Should(Equal(metav1.StatusReasonNotFound))
+			}, 3*timeout /* namespace deletion is slow */, interval).Should(Equal(metav1.StatusReasonNotFound))
 
 			// When the NamespaceOffloading resource is really deleted the remote namespace must be already deleted.
 			By(" 2 - Checking that all remote namespaces are deleted")
@@ -151,7 +150,7 @@ var _ = Describe("Liqo E2E", func() {
 				}
 				Eventually(func() metav1.StatusReason {
 					return apierrors.ReasonForError(testContext.Clusters[i].ControllerClient.Get(ctx,
-						types.NamespacedName{Name: remoteTestNamespaceName}, namespace))
+						types.NamespacedName{Name: testNamespaceName}, namespace))
 				}, timeout, interval).Should(Equal(metav1.StatusReasonNotFound))
 			}
 		})

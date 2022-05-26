@@ -19,6 +19,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ResourceResourceOffer the name of the resourceoffers resources.
+var ResourceResourceOffer = "resourceoffers"
+
 // StorageType defines the type of storage offered by a resource offer.
 type StorageType struct {
 	// StorageClassName indicates the name of the storage class.

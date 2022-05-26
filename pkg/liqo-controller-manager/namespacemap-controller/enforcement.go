@@ -110,7 +110,7 @@ func (r *NamespaceMapReconciler) ensureNamespacesExistence(ctx context.Context, 
 	for originName, destinationName := range nm.Spec.DesiredMapping {
 		phase := vkv1alpha1.MappingAccepted
 		if ignorable, creationError := r.createNamespace(ctx, destinationName, originName, nm); creationError != nil {
-			// Do not overwrite the phase in case the mapping was already present, ant this is marked as a temporary error.
+			// Do not overwrite the phase in case the mapping was already present, and this is marked as a temporary error.
 			previous, found := nm.Status.CurrentMapping[originName]
 			if !ignorable || !found || previous.Phase != vkv1alpha1.MappingAccepted {
 				phase = vkv1alpha1.MappingCreationLoopBackOff
