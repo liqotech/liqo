@@ -46,6 +46,8 @@ import (
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
@@ -255,7 +257,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// ------ (4) update peering conditions ------
 	// check if peering request really exists on foreign cluster
 	if err = r.checkIncomingPeeringStatus(ctx, &foreignCluster); err != nil {
-		klog.Error("[%s] %s", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
+		klog.Errorf("[%s] %s", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
 		return ctrl.Result{}, err
 	}
 	tracer.Step("Checked the incoming peering status")
@@ -422,20 +424,18 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 // nil pointer if there is none.
 func (r *ForeignClusterReconciler) getIncomingResourceOffer(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (*sharingv1alpha1.ResourceOffer, error) {
-	return r.getResourceOfferWithLabels(ctx, []client.ListOption{client.MatchingLabels{
-		liqoconst.ReplicationRequestedLabel:   "true",
-		liqoconst.ReplicationDestinationLabel: foreignCluster.Spec.ClusterIdentity.ClusterID,
-	}})
+	offer, err := liqogetters.GetResourceOfferByLabel(ctx, r.Client, metav1.NamespaceAll,
+		liqolabels.LocalLabelSelector(foreignCluster.Spec.ClusterIdentity.ClusterID))
+	return offer, client.IgnoreNotFound(err)
 }
 
 // getOutgoingResourceOffer returns the ResourceOffer created by the given remote cluster in an outgoing peering, or a
 // nil pointer if there is none.
 func (r *ForeignClusterReconciler) getOutgoingResourceOffer(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (*sharingv1alpha1.ResourceOffer, error) {
-	return r.getResourceOfferWithLabels(ctx, []client.ListOption{client.HasLabels{
-		liqoconst.ReplicationStatusLabel}, client.MatchingLabels{
-		liqoconst.ReplicationOriginLabel: foreignCluster.Spec.ClusterIdentity.ClusterID,
-	}})
+	offer, err := liqogetters.GetResourceOfferByLabel(ctx, r.Client, metav1.NamespaceAll,
+		liqolabels.RemoteLabelSelector(foreignCluster.Spec.ClusterIdentity.ClusterID))
+	return offer, client.IgnoreNotFound(err)
 }
 
 // getResourceOfferWithLabels returns the ResourceOffer with the given labels.

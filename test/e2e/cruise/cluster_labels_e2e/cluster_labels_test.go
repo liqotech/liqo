@@ -39,6 +39,8 @@ import (
 	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/util"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
@@ -75,7 +77,7 @@ var _ = Describe("Liqo E2E", func() {
 			res := []TableEntry{}
 			for i := 0; i < 4; i++ {
 				res = append(res, Entry(
-					fmt.Sprintf("Check the ClusterConfig resource of the cluster %v", i+1),
+					fmt.Sprintf("Check the labels of the cluster %v", i+1),
 					testContext.Clusters[i],
 					i,
 					util.GetClusterLabels(i),
@@ -111,26 +113,19 @@ var _ = Describe("Liqo E2E", func() {
 			// with the expected labels in the field ResourceOffer.Spec.Labels.
 			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
 				resourceOffer := &sharingv1alpha1.ResourceOffer{}
-				// The name prefix is useful in order to get every ResourceOffer by name.
-				resourceOfferNamePrefix := "resourceoffer"
 				// For every peering get the resourceOffer sent by the cluster under examination.
 				for i := range testContext.Clusters {
 					if i == index {
 						continue
 					}
-					By("Getting the local tenant namespace corresponding to the right cluster and getting the " +
-						"ResourceOffer sent by the cluster under examination")
-					Eventually(func() error {
-						tenantNamespaceName, err := foreignclusterutils.GetLocalTenantNamespaceName(ctx,
-							cluster.ControllerClient, testContext.Clusters[i].Cluster)
-						if err != nil {
-							return err
-						}
-						return cluster.ControllerClient.Get(ctx, types.NamespacedName{
-							Namespace: tenantNamespaceName,
-							Name:      fmt.Sprintf("%s-%s", resourceOfferNamePrefix, cluster.Cluster.ClusterName),
-						}, resourceOffer)
-					}, timeout, interval).Should(BeNil())
+
+					By("Retrieving the ResourceOffers created by the cluster under examination")
+					Eventually(func() (err error) {
+						resourceOffer, err = liqogetters.GetResourceOfferByLabel(ctx, cluster.ControllerClient, metav1.NamespaceAll,
+							liqolabels.LocalLabelSelector(testContext.Clusters[i].Cluster.ClusterID))
+						return err
+					}, timeout, interval).Should(Succeed())
+
 					for key, value := range clusterLabels {
 						Expect(resourceOffer.Spec.Labels).To(HaveKeyWithValue(key, value))
 					}
@@ -166,7 +161,7 @@ var _ = Describe("Liqo E2E", func() {
 	})
 
 	// In these test cases it is created a namespace only inside one cluster
-	Context(fmt.Sprintf("Create a namespace in the cluster '%d' with its NamespaceOffloading and check if the remote namespaces"+
+	Context(fmt.Sprintf("Create a namespace in the cluster '%d' with its NamespaceOffloading and check if the remote namespaces "+
 		"are created on the right remote cluster according to the ClusterSelector specified in the NamespaceOffloading Spec ", localIndex), func() {
 
 		selector := metav1.LabelSelector{

@@ -17,7 +17,12 @@
 package labels
 
 import (
+	"strconv"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
@@ -100,3 +105,23 @@ var (
 		},
 	}
 )
+
+// LocalLabelSelector returns a label selector to match local resources with a given destination ClusterID.
+func LocalLabelSelector(destinationClusterID string) labels.Selector {
+	req1, err := labels.NewRequirement(liqoconst.ReplicationRequestedLabel, selection.Equals, []string{strconv.FormatBool(true)})
+	utilruntime.Must(err)
+	req2, err := labels.NewRequirement(liqoconst.ReplicationDestinationLabel, selection.Equals, []string{destinationClusterID})
+	utilruntime.Must(err)
+
+	return labels.NewSelector().Add(*req1, *req2)
+}
+
+// RemoteLabelSelector returns a label selector to match remote resources with a given origin ClusterID.
+func RemoteLabelSelector(originClusterID string) labels.Selector {
+	req1, err := labels.NewRequirement(liqoconst.ReplicationStatusLabel, selection.Equals, []string{strconv.FormatBool(true)})
+	utilruntime.Must(err)
+	req2, err := labels.NewRequirement(liqoconst.ReplicationOriginLabel, selection.Equals, []string{originClusterID})
+	utilruntime.Must(err)
+
+	return labels.NewSelector().Add(*req1, *req2)
+}

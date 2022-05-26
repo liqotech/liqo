@@ -29,6 +29,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
@@ -66,6 +67,24 @@ func GetNetworkConfigByLabel(ctx context.Context, cl client.Client, ns string, l
 	default:
 		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s} in namespace {%s},"+
 			" when only one was expected", netv1alpha1.NetworkConfigGroupResource.String(), lSelector.String(), ns)
+	}
+}
+
+// GetResourceOfferByLabel returns the ResourceOffer with the given labels.
+func GetResourceOfferByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*sharingv1alpha1.ResourceOffer, error) {
+	var resourceOfferList sharingv1alpha1.ResourceOfferList
+	if err := cl.List(ctx, &resourceOfferList, client.MatchingLabelsSelector{Selector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+
+	switch len(resourceOfferList.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(sharingv1alpha1.ResourceOfferGroupResource, sharingv1alpha1.ResourceResourceOffer)
+	case 1:
+		return &resourceOfferList.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type %q found for label selector %q,"+
+			" when only one was expected", sharingv1alpha1.ResourceOfferGroupResource.String(), lSelector.String())
 	}
 }
 
