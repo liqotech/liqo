@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -64,6 +65,8 @@ func newUnoffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobr
 			return options.Run(ctx)
 		},
 	}
+
+	cmd.Flags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for the unoffload operation")
 
 	return cmd
 }

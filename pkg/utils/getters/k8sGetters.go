@@ -23,10 +23,12 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
@@ -173,4 +175,16 @@ func GetNodeByClusterID(ctx context.Context, cl client.Client, clusterID *discov
 		return nil, fmt.Errorf("multiple resources of type {%s} found for clusterID {%s},"+
 			" when only one was expected", nodeRN, clusterID.ClusterID)
 	}
+}
+
+// GetOffloadingByNamespace returns the NamespaceOffloading resource for the given namespace.
+func GetOffloadingByNamespace(ctx context.Context, cl client.Client, namespace string) (*offloadingv1alpha1.NamespaceOffloading, error) {
+	var nsOffloading offloadingv1alpha1.NamespaceOffloading
+	if err := cl.Get(ctx, types.NamespacedName{
+		Namespace: namespace,
+		Name:      consts.DefaultNamespaceOffloadingName,
+	}, &nsOffloading); err != nil {
+		return nil, err
+	}
+	return &nsOffloading, nil
 }
