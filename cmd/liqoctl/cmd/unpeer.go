@@ -44,7 +44,7 @@ out-of-band or in-band, although in the latter case the VPN tunnel is not teared
 down (as the *unpeer in-band* instead would do).
 
 Examples:
-  $ {{ .Executable }} unpeer out-of-band eternal-donkey
+  $ {{ .Executable }} unpeer eternal-donkey
 `
 
 const liqoctlUnpeerOOBLongHelp = `Disable an out-of-band peering towards a remote cluster.
