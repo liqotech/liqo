@@ -27,7 +27,10 @@ import (
 	"helm.sh/helm/pkg/strvals"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/repo"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
@@ -239,6 +242,33 @@ func (o *Options) installOrUpdate(ctx context.Context, rawValues string) error {
 		Timeout: o.Timeout,
 		DryRun:  o.DryRun,
 		Wait:    true,
+	}
+
+	// install or update CRDs
+	chart, _, err := o.HelmClient().GetChart(o.ChartPath, &action.ChartPathOptions{Version: o.Version})
+	if err != nil {
+		return fmt.Errorf("unable to get the helm chart: %w", err)
+	}
+	crds := chart.CRDObjects()
+	for i := range crds {
+		crdObj := apiextensionsv1.CustomResourceDefinition{}
+		if err = k8syaml.Unmarshal(crds[i].File.Data, &crdObj); err != nil {
+			return fmt.Errorf("unable to unmarshal CRD yaml file %q: %w", crds[i].File.Name, err)
+		}
+		err = o.CRClient.Create(ctx, &crdObj)
+		switch {
+		case apierrors.IsAlreadyExists(err):
+			var existingCrd apiextensionsv1.CustomResourceDefinition
+			if err = o.CRClient.Get(ctx, client.ObjectKeyFromObject(&crdObj), &existingCrd); err != nil {
+				return fmt.Errorf("unable to get CRD %q: %w", crdObj.Name, err)
+			}
+			existingCrd.Spec = *crdObj.Spec.DeepCopy()
+			if err = o.CRClient.Update(ctx, &existingCrd); err != nil {
+				return fmt.Errorf("unable to update CRD %q: %w", crdObj.Name, err)
+			}
+		case err != nil:
+			return fmt.Errorf("unable to create CRD %q: %w", crdObj.Name, err)
+		}
 	}
 
 	// provide the possibility to exit installation on context cancellation
