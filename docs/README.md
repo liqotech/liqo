@@ -1,38 +1,38 @@
 # Liqo Documentation
 
-The Liqo documentation is available on [doc.liqo.io](https://doc.liqo.io).  The Liqo documentation is 
-built on [Hugo](https://gohugo.io/) and the [Learn theme](https://themes.gohugo.io/hugo-theme-learn/). 
+The Liqo documentation is available on [doc.liqo.io](https://doc.liqo.io).
+The Liqo documentation is built with [Read the Docs](https://readthedocs.org/) and the [Sphinx Theme](https://sphinx-rtd-theme.readthedocs.io/en/stable/).
 
 ## How to add/update documentation
 
-The documentation content are hosted in Liqo repository and a dedicated pipeline is in charge of building the documentation
-for you. When your PR is merged in master, the documentation will be available on [doc.liqo.io](https://doc.liqo.io).
-A similar pipeline exists which updates an internal pre-production site each time a new change for the documentation is committed in another branch (not master).
+The documentation content is hosted in Liqo repository and a dedicated pipeline is in charge of building the documentation for you.
+When your PR is merged in master, the documentation will be available on [doc.liqo.io](https://doc.liqo.io).
+A similar pipeline updates an internal pre-production site each time a new update for the documentation is committed in another branch (not master).
 
 ### Pages
 
-Documentation pages should be put in [docs/pages](docs/pages). This directory reflects the whole structure of the documentation
-website. In fact, adding a subdirectory corresponds to a new sub-chapter. For example: 
+Documentation pages should be put in [docs/](docs/).
+This directory reflects the whole structure of the documentation website.
+Adding a subdirectory corresponds to a new sub-chapter.
+For example:
 
+```text
+user
+├── install 
+│   ├── index.md       <-- /user/install/
+architecture
+developers
+index.rst              <-- /
 ```
-pages
-├── User
-│   ├── Install 
-│   │   ├── _index.md       <-- /user/install/
-├── Architecture
-├── Developers
-├── _index.md                       <-- /
-```
-
-Each _index.md represent the index page of each subchapter. 
 
 ### Images
 
-Images should be put in [docs/images](docs/images). When referencing an image from a documentation page (i.e. an MD file)
-you should use an absolute link taking docs as root. For example, if you add an image to *docs/images/install/test.png*,
-the link will be ```![](/images/install/test.png)```. Obviously, you should pay attention to put the first slash "/".
-
+Images should be put in [docs/_static/images](docs/_static/images).
 
 ## Local testing
 
-In case you want to browse the documentation website on your local computer, you can follow the instructions available in the `doc-website` private repository.
+In case you want to browse the documentation website on your local computer, the Makefile provides a simple way to do so and make it available at [http://localhost:8080](http://localhost:8080).
+
+```bash
+make serve
+```
