@@ -26,7 +26,6 @@ jobs:
             * `/merge`:             Merge this PR into the master branch
             * `/build`              Build Liqo components 
             * `/test`               Launch the E2E and Unit tests
-            * `/doc-build`          Trigger the build of the Liqo documentation
 
             Make sure this PR appears in the **${{ github.event.repository.name }} changelog**, adding one of the following **labels**:
             * `kind/breaking`:      :boom: Breaking Change

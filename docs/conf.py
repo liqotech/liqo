@@ -18,11 +18,8 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Liqo'
-copyright = '2022, The Liqo Authors'
+copyright = '2019-2022, The Liqo Authors'
 author = 'The Liqo Authors'
-
-# The full version, including alpha/beta/rc tags
-release = 'v0.4.0'
 
 
 # -- General configuration ---------------------------------------------------

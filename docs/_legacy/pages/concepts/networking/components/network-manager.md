@@ -1,7 +1,4 @@
----
-title:  Network Manager and IPAM
-weight: 1
----
+# Network Manager and IPAM
 
 ### Network Manager
 

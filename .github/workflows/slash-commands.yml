@@ -33,9 +33,5 @@ jobs:
               {
                 "command": "build",
                 "permission": "triage"
-              },              
-              {
-                "command": "doc-build",
-                "permission": "triage"
-              }       
+              }
             ]

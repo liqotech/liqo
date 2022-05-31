@@ -1,7 +1,4 @@
----
-title: Networking
-weight: 2
----
+# Networking
 
 ### MTU Configuration
 

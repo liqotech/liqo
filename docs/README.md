@@ -5,13 +5,12 @@ The Liqo documentation is built with [Read the Docs](https://readthedocs.org/) a
 
 ## How to add/update documentation
 
-The documentation content is hosted in Liqo repository and a dedicated pipeline is in charge of building the documentation for you.
+The documentation content is hosted in the Liqo repository and Read the Docs is in charge of building the documentation for you.
 When your PR is merged in master, the documentation will be available on [doc.liqo.io](https://doc.liqo.io).
-A similar pipeline updates an internal pre-production site each time a new update for the documentation is committed in another branch (not master).
 
 ### Pages
 
-Documentation pages should be put in [docs/](docs/).
+Documentation pages should be put in the [docs/ folder](docs/).
 This directory reflects the whole structure of the documentation website.
 Adding a subdirectory corresponds to a new sub-chapter.
 For example:
@@ -27,7 +26,7 @@ index.rst              <-- /
 
 ### Images
 
-Images should be put in [docs/_static/images](docs/_static/images).
+Images should be put in the [docs/_static/images folder](docs/_static/images).
 
 ## Local testing
 
