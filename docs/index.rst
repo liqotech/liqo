@@ -21,15 +21,20 @@ Welcome to Liqo's documentation!
 
 .. toctree::
    :maxdepth: 2
+   :caption: Examples
+
+   examples/requirements.md
+   examples/quick-start.md
+   examples/offloading-with-policies.md
+   examples/service-offloading.md
+   examples/stateful-applications.md
+   examples/global-ingress.md
+
+.. toctree::
+   :maxdepth: 2
    :caption: Usage
 
    usage/peer.md
    usage/namespace-offloading.md
    usage/reflection.md
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   usage/stateful-applications.md
