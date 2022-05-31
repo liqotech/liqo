@@ -93,7 +93,7 @@ The release is configured to:
 
 * have two replicas;
 * spread the replicas across the cluster (i.e., a hard pod anti-affinity is set);
-* use the `liqo` [virtual storage class](VirtualStorageClass).
+* use the [`liqo` virtual storage class](UsageStatefulApplicationsVirtualStorageClass).
 
 Check that these constraints are met by typing:
 

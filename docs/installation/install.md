@@ -356,7 +356,9 @@ To install Liqo directly with Helm, it is possible to proceed as follows:
           --values <path-to-values-file> --create-namespace
    ```
 
-## Install development releases
+(InstallationDevelopmentVersions)=
+
+## Install development versions
 
 In addition to released versions (including alpha and beta candidates), *liqoctl* provides the possibility to install **development versions** of Liqo.
 Development versions include:

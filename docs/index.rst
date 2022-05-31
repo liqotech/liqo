@@ -38,3 +38,9 @@ Welcome to Liqo's documentation!
    usage/namespace-offloading.md
    usage/reflection.md
    usage/stateful-applications.md
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contributing
+
+   contributing/contributing.md
