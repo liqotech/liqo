@@ -27,16 +27,16 @@ spec:
       priority: 1
       type: string
     - jsonPath: .status.peeringConditions[?(@.type == 'OutgoingPeering')].status
-      name: Outgoing peering phase
+      name: Outgoing peering
       type: string
     - jsonPath: .status.peeringConditions[?(@.type == 'IncomingPeering')].status
-      name: Incoming peering phase
+      name: Incoming peering
       type: string
     - jsonPath: .status.peeringConditions[?(@.type == 'NetworkStatus')].status
-      name: Networking status
+      name: Networking
       type: string
     - jsonPath: .status.peeringConditions[?(@.type == 'AuthenticationStatus')].status
-      name: Authentication status
+      name: Authentication
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
