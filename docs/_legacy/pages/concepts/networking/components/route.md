@@ -1,7 +1,4 @@
----
-title: Liqo-Route
-weight: 3
----
+# Liqo-Route
 
 The Liqo-Route component is made up by several operators and runs on each node of the cluster. It is responsible for:
 

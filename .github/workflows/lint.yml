@@ -71,3 +71,15 @@ jobs:
         uses: actions/checkout@v2
       - name: Run Shellcheck
         uses: azohra/shell-linter@v0.5.0
+
+  markdownlint:
+    name: Lint markdown files
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+    - name: Lint markdown files
+      uses: avto-dev/markdown-lint@v1
+      with:
+        config: '.markdownlint.yml'
+        args: '**/*.md'

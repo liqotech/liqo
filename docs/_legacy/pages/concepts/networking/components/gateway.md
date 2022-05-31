@@ -1,7 +1,4 @@
----
-title: Liqo-Gateway
-weight: 2
----
+# Liqo-Gateway
 
 The Liqo-Gateway component is made up by several operators and is responsible for establishing secure tunnels to other peering clusters and inserting NAT rules for the remote pod and external CIDRs.
 

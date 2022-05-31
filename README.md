@@ -1,7 +1,9 @@
+<!-- markdownlint-disable first-line-h1 -->
 <p align="center">
   <a href="https://github.com/liqotech/liqo/actions"><img src="https://github.com/liqotech/liqo/workflows/Go/badge.svg" alt="Integration Pipeline Status"></a>
   <a href="https://goreportcard.com/report/github.com/liqotech/liqo"><img src=https://goreportcard.com/badge/github.com/liqotech/liqo></a>
   <a href="https://coveralls.io/github/liqotech/liqo" alt="Liqo Test Coverage"><img src=https://coveralls.io/repos/github/liqotech/liqo/badge.svg?branch=master></a>
+  <a href="https://doc.liqo.io" alt="Liqo's Documentation"><img src="https://readthedocs.org/projects/pip/badge/"></a>
   <a href="https://app.fossa.com/projects/git%2Bgithub.com%2FLiqoTech%2Fliqo?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2FLiqoTech%2Fliqo.svg?type=shield"/></a>
   <a href="https://join.slack.com/t/liqo-io/shared_invite/zt-h20212gg-g24YvN6MKiD9bacFeqZttQ"><img src=https://img.shields.io/badge/slack-liqo.io-yellow></a>
   <a href="https://twitter.com/liqo_io"><img src=https://img.shields.io/twitter/url/https/twitter.com/liqo_io.svg?style=social&label=Follow%20%40liqo_io></a>
@@ -10,7 +12,7 @@
   <br />
 
   <a href="https://github.com/liqotech/liqo">
-    <img alt="Liqo Logo" src="https://doc.liqo.io/images/logo-liqo-blue.svg" height="80">
+    <img alt="Liqo Logo" src="docs/_static/images/common/liqo-logo-blue.svg" height="80">
   </a>
 
   <h3 align="center">Enable dynamic and seamless Kubernetes multi-cluster topologies</h3>
@@ -75,14 +77,14 @@ This quickstart lets you try Liqo in a playground environment built by two clust
 
 First, set the variables corresponding to your set-up:
 
-```
+```bash
 OS=linux # possible values: linux,windows,darwin
 ARCH=amd64 # possible values: amd64,arm64
 ```
 
 Then, you should execute the following commands to install the latest version of liqoctl:
 
-```
+```bash
 curl --fail -LSO "https://get.liqo.io/liqoctl-${OS}-${ARCH}" && \
 chmod +x "liqoctl-${OS}-${ARCH}" && \
 sudo mv "liqoctl-${OS}-${ARCH}" /usr/local/bin/liqoctl
@@ -92,18 +94,17 @@ Alternatively, you can directly download liqoctl from the [Liqo releases](https:
 
 #### Install on macOS
 
-```
+```bash
 brew install liqoctl
 ```
 
-
-### __Provision__ two KinD clusters.
+### **Provision** two KinD clusters
 
 ```bash
 source <(curl -L https://get.liqo.io/clusters.sh)
 ```
 
-#### __Install__ Liqo on both clusters:
+#### **Install** Liqo on both clusters
 
 ```bash
 export KUBECONFIG=$KUBECONFIG_1
@@ -118,7 +119,7 @@ Wait that all containers are up and running. When a new virtual-kubelet pops out
 kubectl get nodes
 ```
 
-#### __Use__ the resources
+#### **Use** the resources
 
 Create a new namespace and label it to tell Liqo that the pods created in that namespace are suitable for offloading in the remote cluster.
 
@@ -176,7 +177,7 @@ To get involved with the Liqo community, join the slack [channel](https://join.s
 
 ## License
 
-This project includes code from the  Virtual Kubelet project https://github.com/virtual-kubelet/virtual-kubelet, licensed under the Apache 2.0 license.
+This project includes code from the [Virtual Kubelet project](https://github.com/virtual-kubelet/virtual-kubelet), licensed under the Apache 2.0 license.
 
 Liqo is distributed under the Apache-2.0 License. See [License](LICENSE) for more information.
 
