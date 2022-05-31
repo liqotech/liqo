@@ -19,6 +19,14 @@ Welcome to Liqo's documentation!
    installation/install.md
    installation/uninstall.md
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Usage
+
+   usage/peer.md
+   usage/namespace-offloading.md
+   usage/reflection.md
+
 Indices and tables
 ==================
 
