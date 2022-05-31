@@ -2,6 +2,8 @@
 
 As introduced in the [storage fabric features section](/features/storage-fabric.md), Liqo supports **multi-cluster stateful applications** by extending the classical approaches adopted in standard Kubernetes cluster.
 
+(UsageStatefulApplicationsVirtualStorageClass)=
+
 ## Liqo virtual storage class
 
 The Liqo virtual storage class is a [*Storage Class*](https://kubernetes.io/docs/concepts/storage/storage-classes/) that embeds the logic to create the appropriate *Persistent Volumes*, depending on the target cluster the mounting pod is scheduled onto.
