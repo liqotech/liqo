@@ -9,7 +9,7 @@ on:
     types:
       - test-command
       - build-command
-      
+
 jobs:
   configure:
     name: Preliminary configuration
@@ -83,7 +83,6 @@ jobs:
         - liqonet
         - uninstaller
         - virtual-kubelet
-        - webhook-configuration
         - metric-agent
     steps:
 
@@ -215,8 +214,8 @@ jobs:
 
       - name: Build Liqoctl
         run: >
-          go build -o liqoctl-${{ matrix.goos }}-${{ matrix.goarch }} 
-          -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=${{ needs.configure.outputs.commit-ref }}'" 
+          go build -o liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
+          -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=${{ needs.configure.outputs.commit-ref }}'"
           ./cmd/liqoctl
         env:
           CGO_ENABLED: 0

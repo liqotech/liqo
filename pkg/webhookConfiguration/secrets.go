@@ -20,14 +20,11 @@ import (
 	cryptorand "crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/base64"
 	"encoding/pem"
-	"fmt"
 	"math/big"
 	"math/rand"
 	"net"
 	"os"
-	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -45,14 +42,6 @@ type ServiceNames struct {
 	CommonName string
 	DNSNames   []string
 	Addresses  []net.IP
-}
-
-// GetDNSNames returns the DNS names of the service by splitting the provided name to all its chunks.
-func GetDNSNames(name string) []string {
-	nameComponents := strings.Split(name, ".")
-	return []string{nameComponents[0],
-		fmt.Sprintf("%s.%s", nameComponents[0], nameComponents[1]),
-		fmt.Sprintf("%s.%s.svc", nameComponents[0], nameComponents[1])}
 }
 
 // NewSecrets creates a new secrets by self-signing a certificate.
@@ -182,18 +171,4 @@ func WriteFile(filepath string, sCert *bytes.Buffer) error {
 		return err
 	}
 	return nil
-}
-
-// ServerCertPEM returns the server certificate in PEM format.
-func (s *SecretsType) ServerCertPEM() []byte {
-	return s.serverCertPEM.Bytes()
-}
-
-// ServerKeyPEM returns the server key in PEM format.
-func (s *SecretsType) ServerKeyPEM() []byte {
-	return s.serverKeyPEM.Bytes()
-}
-
-func (s *SecretsType) CAPEM() string {
-	return base64.StdEncoding.EncodeToString(s.caPEM.Bytes())
 }

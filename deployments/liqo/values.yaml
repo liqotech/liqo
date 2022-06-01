@@ -183,24 +183,13 @@ metricAgent:
     imageName: "liqo/cert-creator"
 
 webhook:
-  pod:
-    # -- webhook pod annotations
-    annotations: {}
-    # -- webhook pod labels
-    labels: {}
-    # -- webhook pod extra arguments
-    extraArgs: []
-  # -- webhook image repository
-  imageName: "liqo/liqo-webhook"
-  initContainer:
-    # -- webhook init container image repository
-    imageName: "liqo/webhook-configuration"
-  service:
-    # -- webhook service annotations
-    annotations: {}
-  mutatingWebhookConfiguration:
-    # -- mutatingWebhookConfiguration annotations
-    annotations: {}
+  # -- the port the webhook server binds to
+  port: 9443
+  # -- the webhook failure policy, among Ignore and Fail
+  failurePolicy: Fail
+  patch:
+    # -- the image used for the patch jobs to manage certificates
+    image: k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1
 
 virtualKubelet:
   # -- virtual kubelet image repository

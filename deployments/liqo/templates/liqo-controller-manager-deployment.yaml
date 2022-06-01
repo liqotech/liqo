@@ -1,5 +1,6 @@
 ---
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
+{{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -44,6 +45,7 @@ spec:
           - --init-kubelet-image={{ .Values.virtualKubelet.initContainer.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
           - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
           - --enable-storage={{ .Values.storage.enable }}
+          - --webhook-port={{ .Values.webhook.port }}
           {{- if .Values.storage.enable }}
           - --virtual-storage-class-name={{ .Values.storage.virtualStorageClassName }}
           - --real-storage-class-name={{ .Values.storage.realStorageClassName }}
@@ -98,7 +100,23 @@ spec:
           requests:
             cpu: 100m
             memory: 150M
+        volumeMounts:
+          - name: webhook-certs
+            mountPath: /tmp/k8s-webhook-server/serving-certs/
+            readOnly: true
+        ports:
+        - name: webhook
+          containerPort: {{ .Values.webhook.port }}
+          protocol: TCP
+        - name: healthz
+          containerPort: 8081
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
+            port: healthz
+      volumes:
+      - name: webhook-certs
+        secret:
+          secretName: {{ include "liqo.prefixedName" $webhookConfig }}-certs
+          defaultMode: 420

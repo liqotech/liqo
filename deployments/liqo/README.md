@@ -92,10 +92,6 @@
 | virtualKubelet.initContainer.imageName | string | `"liqo/init-virtual-kubelet"` | virtual kubelet init container image repository |
 | virtualKubelet.virtualNode.extra.annotations | object | `{}` | virtual node extra annotations |
 | virtualKubelet.virtualNode.extra.labels | object | `{}` | virtual node extra labels |
-| webhook.imageName | string | `"liqo/liqo-webhook"` | webhook image repository |
-| webhook.initContainer.imageName | string | `"liqo/webhook-configuration"` | webhook init container image repository |
-| webhook.mutatingWebhookConfiguration.annotations | object | `{}` | mutatingWebhookConfiguration annotations |
-| webhook.pod.annotations | object | `{}` | webhook pod annotations |
-| webhook.pod.extraArgs | list | `[]` | webhook pod extra arguments |
-| webhook.pod.labels | object | `{}` | webhook pod labels |
-| webhook.service.annotations | object | `{}` | webhook service annotations |
+| webhook.failurePolicy | string | `"Fail"` | the webhook failure policy, among Ignore and Fail |
+| webhook.patch.image | string | `"k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1"` | the image used for the patch jobs to manage certificates |
+| webhook.port | int | `9443` | the port the webhook server binds to |
