@@ -30,6 +30,11 @@ The accepted values are:
 This approach ensures **naming transparency**, which is required by certain applications, as well as guarantees that **cross-namespace DNS queries** referring to reflected services work out of the box (i.e., without adapting the target namespace name).
 Yet, it can lead to **conflicts** in case a namespace with the same name already exists inside the selected remote clusters, ultimately causing the remote namespace creation request to be rejected.
 
+```{admonition} Note
+Once configured for a given namespace, the *namespace mapping strategy* is **immutable**, and any modification is prevented by a dedicated Liqo webhook.
+In case a different strategy is desired, it is necessary to first *unoffload* the namespace, and then re-offload it with the new parameters.
+```
+
 ### Pod offloading strategy
 
 The *pod offloading strategy* defines high-level constraints about pod scheduling, and can be configured through the `--pod-offloading-strategy` flag.
@@ -42,6 +47,10 @@ The extension of a namespace, forcing at the same time all pods to be scheduled 
 
 ```{admonition} Note
 The *pod offloading strategy* applies to pods only, while the other objects that live in namespaces selected for offloading, and managed by the resource refletion process, are always replicated to (possibly a subset of) the remote clusters, as specified through the *cluster selector* (more details below).
+```
+
+```{warning}
+Due to current limitations of Liqo, the pods violating the *pod offloading strategy* are not automatically evicted following an update of this policy to a more restrictive value (e.g., *LocalAndRemote* to *Remote*) after the initial creation.
 ```
 
 (UsageOffloadingClusterSelector)=
