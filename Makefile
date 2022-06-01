@@ -102,8 +102,22 @@ else
 GOLANGCILINT=$(shell which golangci-lint)
 endif
 
+markdownlint:
+ifeq (, $(shell which markdownlint))
+	@echo "markdownlint is not installed. Please install it: https://github.com/igorshubovych/markdownlint-cli#installation"
+	@exit 1
+else
+MARKDOWNLINT=$(shell which markdownlint)
+endif
+
+md-lint: markdownlint
+	@find . -type f -name '*.md' -a -not -path "./.github/*" \
+		-not -path "./docs/_legacy/*" \
+		-not -path "./deployments/*" \
+		-exec $(MARKDOWNLINT) {} +
+
 lint: golangci-lint
-	 $(GOLANGCILINT) run --new
+	$(GOLANGCILINT) run --new
 
 generate-controller: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."

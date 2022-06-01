@@ -67,10 +67,14 @@ jobs:
     name: Lint bash files
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Run Shellcheck
-        uses: azohra/shell-linter@v0.5.0
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        ref: "${{ github.event.pull_request.head.sha }}"
+        repository: ${{github.event.pull_request.head.repo.full_name}}
+        persist-credentials: false
+    - name: Run Shellcheck
+      uses: azohra/shell-linter@v0.5.0
 
   markdownlint:
     name: Lint markdown files
@@ -78,8 +82,39 @@ jobs:
     steps:
     - name: Check out code
       uses: actions/checkout@v2
+      with:
+        ref: "${{ github.event.pull_request.head.sha }}"
+        repository: ${{github.event.pull_request.head.repo.full_name}}
+        persist-credentials: false
     - name: Lint markdown files
       uses: avto-dev/markdown-lint@v1
       with:
         config: '.markdownlint.yml'
         args: '**/*.md'
+
+  doclint:
+    name: Lint documentation files
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+      with:
+        ref: "${{ github.event.pull_request.head.sha }}"
+        repository: ${{github.event.pull_request.head.repo.full_name}}
+        persist-credentials: false
+    - name: Setup python3
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.x'
+    - name: Install python3 dependencies
+      working-directory: ./docs
+      run: |
+        pip3 install -r requirements.txt
+    - name: Build documentation
+      working-directory: ./docs
+      run: |
+        make dummy
+    - name: Check external links
+      working-directory: ./docs
+      run: |
+        make linkcheck

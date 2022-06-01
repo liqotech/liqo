@@ -41,6 +41,11 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', '_legacy', 'Thumbs.db', '.DS_Store', 'README.md', 'requirements.txt']
 
+linkcheck_ignore = [
+    r'http://localhost:\d+/?', # Localhost links
+    'https://github.com/virtual-kubelet/virtual-kubelet#liqo-provider' # This anchor is not found by the linter, but it works
+]
+
 
 # -- Options for HTML output -------------------------------------------------
 
