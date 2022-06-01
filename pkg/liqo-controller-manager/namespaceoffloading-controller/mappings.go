@@ -59,7 +59,7 @@ func addDesiredMapping(ctx context.Context, c client.Client, localName, remoteNa
 		nm.Spec.DesiredMapping = map[string]string{}
 	}
 
-	if _, ok := nm.Spec.DesiredMapping[localName]; !ok {
+	if current, ok := nm.Spec.DesiredMapping[localName]; !ok || current != remoteName {
 		original := nm.DeepCopy()
 		nm.Spec.DesiredMapping[localName] = remoteName
 		if err := c.Patch(ctx, nm, client.MergeFrom(original)); err != nil {

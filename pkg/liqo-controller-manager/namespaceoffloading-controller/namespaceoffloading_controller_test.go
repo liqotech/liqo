@@ -36,6 +36,11 @@ var _ = Describe("Namespace controller", func() {
 		Eventually(func() error {
 			Expect(cl.Get(ctx, client.ObjectKeyFromObject(nsoff), nsoff)).To(Succeed())
 
+			if nsoff.Status.ObservedGeneration != nsoff.Generation {
+				return fmt.Errorf("ObservedGeneration and generation do not match, actual: %v, observed: %q",
+					nsoff.Generation, nsoff.Status.ObservedGeneration)
+			}
+
 			if nsoff.Status.RemoteNamespaceName != remoteNamespaceName {
 				return fmt.Errorf("NamespaceOffloading remote namespace name is not correct, actual: %q, expected: %q",
 					nsoff.Status.RemoteNamespaceName, remoteNamespaceName)
