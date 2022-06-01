@@ -1,6 +1,6 @@
 # Uninstall
 
-Liqo can be uninstalled leveraging the dedicated *liqoctl* command:
+Liqo can be uninstalled by leveraging the dedicated *liqoctl* command:
 
 ```bash
 liqoctl uninstall
@@ -20,7 +20,7 @@ To this end, *liqoctl* performs a set of pre-checks and aborts the process in ca
 ## Purge CRDs
 
 By default, the uninstallation process does not remove the Liqo CRDs and the system namespaces.
-These operations can be performed adding the `--purge` flag:
+These operations can be performed by adding the `--purge` flag:
 
 ```bash
 liqoctl uninstall --purge

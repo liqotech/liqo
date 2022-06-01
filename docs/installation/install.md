@@ -39,7 +39,7 @@ Liqo can be installed on a Kubeadm cluster through:
 liqoctl install kubeadm
 ```
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading process.
+By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ````
 
@@ -57,7 +57,7 @@ Liqo can be installed on an OpenShift Container Platform (OCP) cluster through:
 liqoctl install openshift
 ```
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading process.
+By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ````
 
@@ -246,7 +246,7 @@ Liqo can be installed on a K3s cluster through:
 liqoctl install k3s
 ```
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading process.
+By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ````
 
@@ -260,7 +260,7 @@ Liqo can be installed on a KinD cluster through:
 liqoctl install kind
 ```
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading process.
+By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ````
 
@@ -283,7 +283,7 @@ liqoctl install --api-server-url=<API-SERVER-URL> \
       --pod-cidr=<POD-CIDR> --service-cidr=<SERVICE-CIDR>
 ```
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading process.
+By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ````
 `````
@@ -302,8 +302,8 @@ The main control plane flags include:
 * `--cluster-name`: configures a **name identifying the cluster** in Liqo.
 This name is propagated to remote clusters during the peering process, and used to identify the corresponding virtual nodes and the technical resources leveraged for the negotiation process. Additionally, it is leveraged as part of the suffix to ensure namespace names uniqueness during the offloading process. In case a cluster name is not specified, it is defaulted to that of the cluster in the cloud provider, if any, or it is automatically generated.
 * `--cluster-labels`: a set of **labels** (i.e., key/value pairs) **identifying the cluster in Liqo** (e.g., geographical region, Kubernetes distribution, cloud provider, ...) and automatically propagated during the peering process to the corresponding virtual nodes.
-These label can then be later used to **restrict workload offloading to a subset of clusters**, as detailed in the [namespace offloading usage section](/usage/namespace-offloading).
-* `--sharing-percentage`: the maximum percentage of available **cluster resources** that could be shared with remote cluster.
+These labels can be used later to **restrict workload offloading to a subset of clusters**, as detailed in the [namespace offloading usage section](/usage/namespace-offloading).
+* `--sharing-percentage`: the maximum percentage of available **cluster resources** that could be shared with remote clusters.
 
 ### Networking
 
@@ -365,7 +365,7 @@ Development versions include:
 * The commits of *pull requests* to the Liqo repository, whose images have been built through the appropriate bot command.
 
 The installation of a development version of Liqo can be triggered specifying a **commit *SHA*** through the `--version` flag.
-In this case, *liqoctl* proceeds **cloning the repository** (either from the official repository, or from a fork configured through the `--repo-url` flag) at the given revision, and leveraging the Helm chart therein contained.
+In this case, *liqoctl* proceeds to **clone the repository** (either from the official repository, or from a fork configured through the `--repo-url` flag) at the given revision, and to leverage the Helm chart therein contained.
 Alternatively, the Helm chart can be retrieved from a **local path**, as configured through the `--local-chart-path` flag.
 
 (InstallationCalicoConfiguration)=
@@ -379,7 +379,7 @@ However, by default, Calico scans all existing interfaces on a node to detect ne
 To prevent misconfigurations, Calico shall then be configured to skip Liqo-managed interfaces during this process.
 This is required if Calico is configured in *BGP* mode, while not in case the *VPC native setup* is leveraged.
 
-In Calico v3.17 and above, this can be performed patching the *Installation CR*, adding the following:
+In Calico v3.17 and above, this can be performed by patching the *Installation CR*, adding the following:
 
 ```yaml
 apiVersion: operator.tigera.io/v1

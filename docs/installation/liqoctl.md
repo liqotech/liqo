@@ -127,7 +127,7 @@ After reloading your shell, *liqoctl* autocompletion should be working.
 
 The *liqoctl* completion script for Zsh can be generated with the `liqoctl completion zsh` command.
 
-If shell completion is not already enabled in your environment you will need to enable it.
+If shell completion is not already enabled in your environment, you will need to enable it.
 You can execute the following once:
 
 ```zsh
