@@ -133,6 +133,10 @@ type NamespaceOffloadingStatus struct {
 	// RemoteNamespacesConditions -> allows user to verify remote Namespaces' presence and status on all remote
 	// clusters through RemoteNamespaceCondition.
 	RemoteNamespacesConditions map[string]RemoteNamespaceConditions `json:"remoteNamespacesConditions,omitempty"`
+	// The generation observed by the NamespaceOffloading controller.
+	// This field allows external tools (e.g., liqoctl) to detect whether a spec modification has already been processed
+	// or not (i.e., whether the status should be expected to be up-to-date or not), and thus act accordingly.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

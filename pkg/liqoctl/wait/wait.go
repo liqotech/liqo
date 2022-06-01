@@ -148,6 +148,11 @@ func (w *Waiter) ForOffloading(ctx context.Context, namespace string) error {
 			return false, client.IgnoreNotFound(err)
 		}
 
+		// Retry in case the observed generation does not match, as the status still needs to be updated.
+		if offload.Status.ObservedGeneration != offload.GetGeneration() {
+			return false, nil
+		}
+
 		someFailed := offload.Status.OffloadingPhase == offloadingv1alpha1.SomeFailedOffloadingPhaseType
 		allFailed := offload.Status.OffloadingPhase == offloadingv1alpha1.AllFailedOffloadingPhaseType
 		if someFailed || allFailed {
@@ -167,7 +172,7 @@ func (w *Waiter) ForOffloading(ctx context.Context, namespace string) error {
 		s.Warning("Offloading completed, but no cluster was selected")
 		return nil
 	}
-	s.Success("Offloading completed")
+	s.Success("Offloading completed successfully")
 	return nil
 }
 
@@ -183,6 +188,6 @@ func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
 		s.Fail(fmt.Sprintf("Failed waiting for unoffloading to complete: %s", err.Error()))
 		return err
 	}
-	s.Success("Unoffloading completed")
+	s.Success("Unoffloading completed successfully")
 	return nil
 }

@@ -32,6 +32,9 @@ func (r *NamespaceOffloadingReconciler) enforceStatus(ctx context.Context, nsoff
 	nsmaps map[string]*mapsv1alpha1.NamespaceMap) error {
 	nsoff.Status.RemoteNamespaceName = r.remoteNamespaceName(nsoff)
 
+	// Update the observed generation.
+	nsoff.Status.ObservedGeneration = nsoff.Generation
+
 	// Remove the conditions for the clusters which do no longer exist.
 	ensureRemoteConditionsConsistence(nsoff, nsmaps)
 

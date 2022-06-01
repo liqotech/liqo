@@ -169,6 +169,14 @@ spec:
           status:
             description: NamespaceOffloadingStatus defines the observed state of NamespaceOffloading.
             properties:
+              observedGeneration:
+                description: The generation observed by the NamespaceOffloading controller.
+                  This field allows external tools (e.g., liqoctl) to detect whether
+                  a spec modification has already been processed or not (i.e., whether
+                  the status should be expected to be up-to-date or not), and thus
+                  act accordingly.
+                format: int64
+                type: integer
               offloadingPhase:
                 description: 'OffloadingPhase -> informs users about namespaces offloading
                   status: "Ready" (i.e. remote Namespaces have been correctly created

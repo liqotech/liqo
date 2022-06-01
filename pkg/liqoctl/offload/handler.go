@@ -41,11 +41,6 @@ type Options struct {
 	Timeout time.Duration
 }
 
-const successMessage = `
-Check the offloading status with:
-$ kubectl get namespaceoffloading -n %s %s
-`
-
 // ParseClusterSelectors parses the cluster selector.
 func (o *Options) ParseClusterSelectors(selectors []string) error {
 	for _, selector := range selectors {
@@ -76,7 +71,9 @@ func (o *Options) Run(ctx context.Context) error {
 	nsoff := &offloadingv1alpha1.NamespaceOffloading{ObjectMeta: metav1.ObjectMeta{
 		Name: consts.DefaultNamespaceOffloadingName, Namespace: o.Namespace}}
 
+	var oldStrategy offloadingv1alpha1.PodOffloadingStrategyType
 	_, err := controllerutil.CreateOrUpdate(ctx, o.CRClient, nsoff, func() error {
+		oldStrategy = nsoff.Spec.PodOffloadingStrategy
 		nsoff.Spec.PodOffloadingStrategy = o.PodOffloadingStrategy
 		nsoff.Spec.NamespaceMappingStrategy = o.NamespaceMappingStrategy
 		nsoff.Spec.ClusterSelector = toNodeSelector(o.ClusterSelector)
@@ -88,12 +85,21 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 	s.Success(fmt.Sprintf("Offloading of namespace %q correctly enabled", o.Namespace))
 
+	switch {
+	case oldStrategy == "", // The NamespaceOffloading has just been created
+		o.PodOffloadingStrategy == oldStrategy,                                                // The pod offloading strategy has not been changed
+		o.PodOffloadingStrategy == offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType: // The new pod offloading strategy is less restrictive
+		break
+	default:
+		o.Printer.Warning.Println("The PodOffloadingStrategy was mutated to a more restrictive setting")
+		o.Printer.Warning.Println("Existing pods violating this policy might still be running")
+	}
+
 	waiter := wait.NewWaiterFromFactory(o.Factory)
 	if err := waiter.ForOffloading(ctx, o.Namespace); err != nil {
 		return err
 	}
 
-	fmt.Printf(successMessage, o.Namespace, consts.DefaultNamespaceOffloadingName)
 	return nil
 }
 

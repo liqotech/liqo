@@ -58,6 +58,13 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 				returnErr = fmt.Errorf("failed to configure all desired mappings")
 				continue
 			}
+		} else {
+			// Ensure old mappings are removed in case the cluster selector is updated.
+			if err = removeDesiredMapping(ctx, r.Client, nsoff.Namespace,
+				clusterIDMap[virtualNodes.Items[i].Labels[liqoconst.RemoteClusterID]]); err != nil {
+				returnErr = fmt.Errorf("failed to configure all desired mappings")
+				continue
+			}
 		}
 	}
 
