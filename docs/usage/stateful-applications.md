@@ -1,12 +1,12 @@
 # Stateful Applications
 
-As introduced in the [storage fabric features section](/features/storage-fabric.md), Liqo supports **multi-cluster stateful applications** by extending the classical approaches adopted in standard Kubernetes cluster.
+As introduced in the [storage fabric features section](/features/storage-fabric.md), Liqo supports **multi-cluster stateful applications** by extending the classical approaches adopted in standard Kubernetes clusters.
 
 (UsageStatefulApplicationsVirtualStorageClass)=
 
 ## Liqo virtual storage class
 
-The Liqo virtual storage class is a [*Storage Class*](https://kubernetes.io/docs/concepts/storage/storage-classes/) that embeds the logic to create the appropriate *Persistent Volumes*, depending on the target cluster the mounting pod is scheduled onto.
+The Liqo virtual storage class is a [*Storage Class*](https://kubernetes.io/docs/concepts/storage/storage-classes/) that embeds the logic to create the appropriate *PersistentVolumes*, depending on the target cluster the mounting pod is scheduled onto.
 All operations performed on virtual objects (i.e., *PersistentVolumeClaims (PVCs)* and *PersistentVolumes (PVs)* associated with the *liqo* storage class) are then automatically propagated by Liqo to the corresponding real ones (i.e., associated with the storage class available in the target cluster).
 
 Additionally, once a real *PV* gets created, the corresponding virtual one is enriched with a set of policies to attract mounting pods in the appropriate cluster, following the **data gravity** approach.
@@ -56,7 +56,7 @@ Still, if necessary, you can **manually move** the storage backing a virtual *PV
 Then, subsequent pods will get scheduled in the cluster the storage has been moved to.
 
 ```{warning}
-This procedure requires the *PVC/PV* to not be bound to any pods during the entire process.
+This procedure requires the *PVC/PV* not to be bound to any pods during the entire process.
 In other words, live migration is currently not supported.
 ```
 
@@ -87,7 +87,7 @@ Specifically, the *volumes* stanza of the pod specification is propagated verbat
 
 ```{admonition} Note
 In case a piece of externally managed storage is available only in one remote cluster, it is likely necessary to manually force pods to get scheduled exactly in that cluster.
-To prevent scheduling issues (e.g., the pod is marked as *Pending* since the local cluster has no visibility on the remote *PVC*), it is suggested to configure the target *NodeName* in the pod specifications to match that of the corresponsing virtual nodes, hence bypassing the standard Kubernetes scheduling logic.
+To prevent scheduling issues (e.g., the pod is marked as *Pending* since the local cluster has no visibility on the remote *PVC*), it is suggested to configure the target *NodeName* in the pod specifications to match that of the corresponding virtual nodes, hence bypassing the standard Kubernetes scheduling logic.
 ```
 
 ```{warning}

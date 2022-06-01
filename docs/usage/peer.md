@@ -6,7 +6,7 @@ You can refer to the [dedicated features section](FeaturesPeeringApproaches) for
 ## Overview
 
 The peering process leverages **[liqoctl](/installation/liqoctl.md)** to interact with the clusters, abstracting the creation and update of the appropriate custom resources.
-To this end, the most important one is the ***ForeignCluster***, which **represents a remote cluster**, including its identity, the associated authentication endpoint, and the desired peering state (i.e., whether it should be established, and in which directions).
+To this end, the most important one is the ***ForeignCluster*** resource, which **represents a remote cluster**, including its identity, the associated authentication endpoint, and the desired peering state (i.e., whether it should be established, and in which directions).
 Additionally, its status reports a **summary of the current peering status**, detailing whether the different phases (e.g., authentication, network establishment, resource negotiation, ...) correctly succeeded.
 
 The following sections present the respective procedures to **peer a local cluster A** (i.e., the *consumer*), with a **remote cluster B** (i.e., the *provider*).
@@ -33,7 +33,7 @@ To proceed, ensure that you are operating in the *provider* cluster, and then is
 liqoctl --context=provider generate peer-command
 ```
 
-It retrieves the information concerning the *provider* cluster (i.e., authentication endpoint and token, cluster ID, ...) and generates a command that can be executed on a *different* cluster (i.e., the *consumer*) to establish an out-of-band outgoing peering towards the *provider* cluster.
+This retrieves the information concerning the *provider* cluster (i.e., authentication endpoint and token, cluster ID, ...) and generates a command that can be executed on a *different* cluster (i.e., the *consumer*) to establish an out-of-band outgoing peering towards the *provider* cluster.
 
 An example of the resulting command is the following:
 
@@ -55,7 +55,7 @@ liqoctl --context=consumer peer out-of-band <cluster-name> --auth-url <auth-url>
     --cluster-id <cluster-id> --auth-token <auth-token>
 ```
 
-The above command configures the appropriate authentication tokens, and then creates a new *ForeignCluster* resource in the *consumer cluster*.
+The above command configures the appropriate authentication token, and then creates a new *ForeignCluster* resource in the *consumer cluster*.
 Finally, it waits for the different peering phases to complete (this might require a few seconds, depending on the download time of the Liqo virtual kubelet image).
 
 The *ForeignCluster* resource can be inspected through *kubectl*:
@@ -86,7 +86,7 @@ liqo-provider   Ready    agent   179m   v1.23.4
 ```
 
 ```{admonition} Note
-The name of the *ForeignCluster* resource, as well as that of the *virtual node*, reflect the cluster name specified with the *liqoctl peer out-of-band* command.
+The name of the *ForeignCluster* resource, as well as that of the *virtual node*, reflects the cluster name specified with the *liqoctl peer out-of-band* command.
 ```
 
 ### Bidirectional peering
@@ -126,7 +126,7 @@ liqoctl peer in-band --context=consumer --remote-context=provider
 ```
 
 The above command outputs a set of information concerning the different operations performed on the two clusters.
-Notably, it exchanges the appropriate authentication tokens, establishes the cross-cluster VPN tunnel, and then creates a new *ForeignCluster* resource in both *clusters*.
+Notably, it exchanges the appropriate authentication tokens, establishes the cross-cluster VPN tunnel, and then creates a new *ForeignCluster* resource in *both clusters*.
 Finally, it waits for the different peering phases to complete (this might require a few seconds, depending on the download time of the Liqo virtual kubelet image).
 
 The *ForeignCluster* resource can be inspected through *kubectl* (e.g., on the *consumer*):
@@ -157,7 +157,7 @@ liqo-provider    Ready    agent   179m   v1.23.4
 ```
 
 ```{admonition} Note
-The name of the *ForeignCluster* resource, as well as that of the *virtual node*, reflect the cluster name specified by the remote cluster administrators at install time.
+The name of the *ForeignCluster* resource, as well as that of the *virtual node*, reflects the cluster name specified by the remote cluster administrators at install time.
 ```
 
 <!-- markdownlint-disable-next-line no-duplicate-heading -->

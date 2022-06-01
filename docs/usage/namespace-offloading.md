@@ -6,9 +6,9 @@ Hence, enabling **pod offloading**, as well as triggering the [**resource reflec
 ## Overview
 
 The offloading of a namespace can be easily controlled through the dedicated **[liqoctl](/installation/liqoctl.md)** commands, which abstract the creation and update of the appropriate custom resources.
-In this context, the most important one is the ***NamespaceOffloading***, which enables the offloading of the corresponding namespace, configuring at the same time the subset of target remote clusters, additional constraints concerning pod offloading and the naming strategy.
-Different namespaces can be characterized by different configurations, hence achieving a high degree of flexibility.
-Finally, the *NamespaceOffloading* status reports for each remote cluster a **summary about its status** (i.e., whether it has been selected for offloading, and the twin namespace has been correctly created).
+In this context, the most important one is the ***NamespaceOffloading*** resource, which enables the offloading of the corresponding namespace, configuring at the same time the subset of target remote clusters, additional constraints concerning pod offloading and the naming strategy.
+Moreover, different namespaces can be characterized by different configurations, hence achieving a high degree of flexibility.
+Finally, the *NamespaceOffloading* status reports for each remote cluster a **summary about its status** (i.e., whether the remote cluster has been selected for offloading, and the twin namespace has been correctly created).
 
 ## Offloading a namespace
 
@@ -25,8 +25,8 @@ Namespace offloading can be further configured in terms of the three main parame
 The *namespace mapping strategy* defines the naming strategy used to create the remote namespaces, and can be configured through the `--namespace-mapping-strategy` flag.
 The accepted values are:
 
-* **DefaultName** (default): remote namespace names are generated to **prevent conflicts** on the target cluster, as the concatenation of the local namespace name, the cluster name of the local cluster and a unique identifier (e.g., *foo* could be mapped to *foo-lively-voice-dd8531*).
-* **EnforceSameName**: remote namespaces are created with the same name as that of the namespace in the local cluster.
+* **DefaultName** (default): to **prevent conflicts** on the target cluster, remote namespace names are generated as the concatenation of the local namespace name, the cluster name of the local cluster and a unique identifier (e.g., *foo* could be mapped to *foo-lively-voice-dd8531*).
+* **EnforceSameName**: remote namespaces are named after the local cluster's namespace.
 This approach ensures **naming transparency**, which is required by certain applications, as well as guarantees that **cross-namespace DNS queries** referring to reflected services work out of the box (i.e., without adapting the target namespace name).
 Yet, it can lead to **conflicts** in case a namespace with the same name already exists inside the selected remote clusters, ultimately causing the remote namespace creation request to be rejected.
 
@@ -49,7 +49,7 @@ The *pod offloading strategy* applies to pods only, while the other objects that
 ### Cluster selector
 
 The *cluster selector* provides the possibility to **restrict the set of remote clusters** (in case more than one peering is active) selected as targets for offloading the given namespace.
-The *twin* namespace is not created in the clusters not matching the cluster selector, as well as the resource reflection mechanism is not activated for those namespaces.
+The *twin* namespace is not created in clusters that do not match the cluster selector, as well as the resource reflection mechanism is not activated for those namespaces.
 Yet, different *cluster selectors* can be specified for different namespaces, depending on the desired configuration.
 
 The cluster selector follows the standard **label selector** syntax, and refers to the Kubernetes labels characterizing the **virtual nodes**.
@@ -69,7 +69,7 @@ In other words, an empty *cluster selector* matches all virtual clusters.
 The offloading of a namespace can be disabled through the dedicated *liqoctl* command, causing in turn the deletion of all resources reflected to remote clusters (including the namespaces themselves), and triggering the rescheduling of all offloaded pods locally:
 
 ```bash
-liqoctl offload namespace foo
+liqoctl unoffload namespace foo
 ```
 
 ```{warning}
