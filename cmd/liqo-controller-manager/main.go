@@ -17,7 +17,6 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	"fmt"
 	"net/http"
 	"os"
 	"sync"
@@ -54,6 +53,7 @@ import (
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
+	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -72,8 +72,6 @@ const (
 
 var (
 	scheme = runtime.NewScheme()
-
-	healthFlag = false
 )
 
 func init() {
@@ -84,15 +82,6 @@ func init() {
 	_ = discoveryv1alpha1.AddToScheme(scheme)
 	_ = offloadingv1alpha1.AddToScheme(scheme)
 	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
-
-	// +kubebuilder:scaffold:scheme
-}
-
-func probe(req *http.Request) error {
-	if healthFlag {
-		return nil
-	}
-	return fmt.Errorf("controller manager not yet configured")
 }
 
 func main() {
@@ -103,6 +92,7 @@ func main() {
 	var kubeletCPURequests, kubeletCPULimits = argsutils.NewQuantity("250m"), argsutils.NewQuantity("1000m")
 	var kubeletRAMRequests, kubeletRAMLimits = argsutils.NewQuantity("100M"), argsutils.NewQuantity("250M")
 
+	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
 	probeAddr := flag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
 
@@ -181,7 +171,7 @@ func main() {
 		HealthProbeBindAddress: *probeAddr,
 		LeaderElection:         false,
 		LeaderElectionID:       "66cf253f.liqo.io",
-		Port:                   9443,
+		Port:                   int(*webhookPort),
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
 				&corev1.Pod{}: {
@@ -195,15 +185,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = mgr.AddReadyzCheck("/readyz", probe); err != nil {
-		klog.Error(err)
+	// Register the healthiness probes.
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		klog.Errorf("Unable to set up healthz probe: %v", err)
+		os.Exit(1)
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		klog.Errorf("Unable to set up readyz probe: %v", err)
 		os.Exit(1)
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Fatal(err)
-	}
+	// Register the webhooks.
+	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
+
+	clientset := kubernetes.NewForConfigOrDie(config)
 
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
 	idManager := identitymanager.NewCertificateIdentityManager(clientset, clusterIdentity, namespaceManager)
@@ -211,7 +206,7 @@ func main() {
 	// populate the lists of ClusterRoles to bind in the different peering states
 	permissions, err := peeringroles.GetPeeringPermission(ctx, clientset)
 	if err != nil {
-		klog.Fatalf("Unable to populate peering permission: %w", err)
+		klog.Fatalf("Unable to populate peering permission: %v", err)
 	}
 
 	// Configure the tranports used for the intaction with the remote authentication service.
@@ -342,15 +337,6 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		klog.Error(err, " unable to set up health check")
-		os.Exit(1)
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		klog.Error(err, " unable to set up ready check")
-		os.Exit(1)
-	}
-
 	// Start the handler to approve the virtual kubelet certificate signing requests.
 	csrWatcher := csr.NewWatcher(clientset, *resyncPeriod, labels.SelectorFromSet(vkMachinery.CsrLabels))
 	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo"))
@@ -360,7 +346,7 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	if enableStorage != nil && *enableStorage {
+	if *enableStorage {
 		liqoProvisioner, err := liqostorageprovisioner.NewLiqoLocalStorageProvisioner(ctx, mgr.GetClient(),
 			*virtualStorageClassName, *storageNamespace, *realStorageClassName)
 		if err != nil {
@@ -378,8 +364,6 @@ func main() {
 			klog.Fatal(err)
 		}
 	}
-
-	healthFlag = true
 
 	klog.Info("starting manager as controller manager")
 	if err := mgr.Start(ctx); err != nil {
