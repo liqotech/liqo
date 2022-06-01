@@ -1,0 +1,16 @@
+---
+{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+  labels:
+    {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
+spec:
+  selector:
+    {{- include "liqo.selectorLabels" $ctrlManagerConfig | nindent 4 }}
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.webhook.port }}
+    targetPort: webhook
