@@ -13,7 +13,7 @@ Briefly, the set of supported resources includes (by category):
 
 ## Pods offloading
 
-Liqo leverages a custom resource, named *ShadowPod*, combined with an appropriate enforcement logic to ensure **remote pod resiliency** even in case of temporary connectivity loss between the two control planes.
+Liqo leverages a custom resource, named *ShadowPod*, combined with an appropriate enforcement logic to ensure **remote pod resiliency** even in case of temporary connectivity loss between the local and remote clusters.
 
 **Pod specifications** are propagated to the remote cluster **verbatim**, except for the following fields that are mutated:
 
@@ -21,7 +21,7 @@ Liqo leverages a custom resource, named *ShadowPod*, combined with an appropriat
 * Mutation of **service account** related information, to allow offloaded pods to transparently interact with the local (i.e., origin) API server, instead of the remote one.
 * Enforcement of the properties concerning the usage of **host namespaces** (e.g., network, IPC, PID) to *false* (i.e., disabled), as potentially invasive and troublesome.
 
-Differently **pod status** is propagated from the remote cluster to the local one, performing the following modifications:
+Differently, **pod status** is propagated from the remote cluster to the local one, performing the following modifications:
 
 * The *PodIP* is **remapped** according to the network fabric configuration, such as to be reachable from the other pods running in the same cluster.
 * The *NodeIP* is replaced with the one of the corresponding virtual kubelet pod.
@@ -54,7 +54,7 @@ In addition, the propagation of **Ingresses** enables the definition of multiple
 
 ### Services
 
-**Services** are reflected verbatim into remote clusters, expect for what concerns the *ClusterIP*, *LoadBalancerIP* and *NodePort* fields (when applicable), which are left empty (hence defaulted by the remote cluster), as likely conflicting.
+**Services** are reflected **verbatim** into remote clusters, except for what concerns the *ClusterIP*, *LoadBalancerIP* and *NodePort* fields (when applicable), which are left empty (hence defaulted by the remote cluster), as likely conflicting.
 Still, the usage of **standard DNS discovery** mechanisms (i.e., based on service name/namespace) abstracts away the *ClusterIP* differences, with each pod retrieving the correct IP address.
 
 ```{admonition} Note
@@ -65,7 +65,7 @@ In case *node port* correspondence across clusters is required, its propagation 
 
 ### EndpointSlices
 
-In the local cluster, Services are transparently handled by the vanilla Kubernetes control plane, since it has **full visibility of all pods** (although possibly offloaded), hence leading to the creation of the corresponding **EndpointSlice** entries.
+In the local cluster, Services are transparently handled by the vanilla Kubernetes control plane, since it has **full visibility of all pods** (even those offloaded), hence leading to the creation of the corresponding **EndpointSlice** entries.
 Differently, the control plane of each remote cluster perceives **only the pods running in that cluster**, and the standard *EndpointSlice* creation logic alone is not sufficient (as it would not include the pods hosted by other clusters).
 
 This gap is filled by the Liqo **EndpointSlice reflection** logic, which takes care of propagating all *EndpointSlice* entries (i.e. endpoints) not already present in the destination cluster.
@@ -77,8 +77,8 @@ Each pod, no matter where it is located, contributes with a distinct *EndpointSl
 ### Ingresses
 
 The propagation of **Ingress** resources enables the configuration of multiple points of entrance for **external traffic**.
-*Ingress* resources are propagated **verbatim** into the remote cluster, except for the *IngressClassName* field, which is left empty.
-Hence, selecting the default *ingress class* in the remote cluster, as the local one might not be present.
+*Ingress* resources are propagated **verbatim** into remote clusters, except for the *IngressClassName* field, which is left empty.
+Hence, selecting the default *ingress class* in the remote cluster, as the local one (i.e., the one in the origin cluster) might not be present.
 
 (UsageReflectionStorage)=
 
@@ -95,7 +95,7 @@ Hence, subsequent pods mounting that *PV* will be scheduled on that virtual node
 
 ## Configuration data
 
-**ConfigMaps** and **Secrets** typically hold **configuration data** consumed by pods, and both types of resources are propagated by Liqo **verbatim** into the remote clusters.
+**ConfigMaps** and **Secrets** typically hold **configuration data** consumed by pods, and both types of resources are propagated by Liqo **verbatim** into remote clusters.
 In this respect, Liqo features also the propagation of Secrets holding **ServiceAccount tokens**, to enable offloaded pods to contact the Kubernetes API server of the origin cluster, as well as to support those applications leveraging *ServiceAccounts* for internal authentication purposes.
 
 ```{warning}
