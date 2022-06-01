@@ -22,7 +22,7 @@ Specifically, PRs characterized by the following labels get included in the resp
 ## Local development
 
 While developing a new feature, it is typically useful to test the changes in a local environment, as well as debug the code to identify possible problems.
-To this end, you can leverage the *setup.sh* script provided for the *quick start example* to spawn two development clusters using [Kind](https://kind.sigs.k8s.io/), and then install Liqo on both of them (you can refer to the [dedicated section](InstallationDevelopmentVersions) for additional information concerning the installation of development versions through liqoctl):
+To this end, you can leverage the *setup.sh* script provided for the *quick start example* to spawn two development clusters using [KinD](https://kind.sigs.k8s.io/), and then install Liqo on both of them (you can refer to the [dedicated section](InstallationDevelopmentVersions) for additional information concerning the installation of development versions through liqoctl):
 
 ```bash
 ./examples/quick-start/setup.sh
@@ -44,7 +44,7 @@ Liqo features two major test suites:
 * *End-to-end (E2E) tests*, which assess the correct functioning of the main Liqo features.
 * *Unit Tests*, which focus on each specific component, in multiple operating conditions.
 
-Both test suites are automatically executed through the GitHub action pipelines, following the corresponding slash command trigger.
+Both test suites are automatically executed through the GitHub Actions pipelines, following the corresponding slash command trigger.
 A successful outcome is required to make PRs eligible for being considered for review and merged.
 
 The following sections provide additional details concerning how to run the above tests in a local environment, for troubleshooting.
@@ -55,7 +55,7 @@ We suggest executing the E2E tests on a system with at least 8 GB of free RAM.
 Additionally, please review the requirements presented in the [Liqo examples section](/examples/requirements.md), which also apply in this case (including the suggestions concerning increasing the maximum number of *inotify* watches).
 
 Once all requirements are met, it is necessary to export the set of environment variables shown below, to configure the tests.
-In most scenarios, the only variable that needs to be modified is `LIQO_VERSION`, which should point to the SHA of the commit referring to the Liqo development version to be tested (the appropriate Docker images shall have been built in advance through the appropriate GitHub actions pipeline).
+In most scenarios, the only variable that needs to be modified is `LIQO_VERSION`, which should point to the SHA of the commit referring to the Liqo development version to be tested (the appropriate Docker images shall have been built in advance through the appropriate GitHub Actions pipeline).
 
 ```bash
 export CLUSTER_NUMBER=4
