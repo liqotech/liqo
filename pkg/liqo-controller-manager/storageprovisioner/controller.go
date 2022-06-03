@@ -27,6 +27,9 @@ type StorageControllerRunnable struct {
 
 // Start starts the runnable and make it run until the context is open.
 func (c StorageControllerRunnable) Start(ctx context.Context) error {
-	c.Ctrl.Run(ctx)
+	// The Run method blocks forever, regardless of the context status.
+	// Hence, this is executed in a goroutine, to ensure the method terminates when the context is closed.
+	go c.Ctrl.Run(ctx)
+	<-ctx.Done()
 	return nil
 }

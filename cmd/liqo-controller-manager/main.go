@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -96,6 +97,9 @@ func main() {
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
 	probeAddr := flag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
+
+	// Leader election
+	leaderElection := flag.Bool("enable-leader-election", false, "Enable leader election for controller manager")
 
 	// Global parameters
 	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
@@ -166,13 +170,16 @@ func main() {
 	utilruntime.Must(err)
 
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:         mapper.LiqoMapperProvider(scheme),
-		Scheme:                 scheme,
-		MetricsBindAddress:     *metricsAddr,
-		HealthProbeBindAddress: *probeAddr,
-		LeaderElection:         false,
-		LeaderElectionID:       "66cf253f.liqo.io",
-		Port:                   int(*webhookPort),
+		MapperProvider:                mapper.LiqoMapperProvider(scheme),
+		Scheme:                        scheme,
+		MetricsBindAddress:            *metricsAddr,
+		HealthProbeBindAddress:        *probeAddr,
+		LeaderElection:                *leaderElection,
+		LeaderElectionID:              "66cf253f.ctrlmgr.liqo.io",
+		LeaderElectionNamespace:       *liqoNamespace,
+		LeaderElectionReleaseOnCancel: true,
+		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
+		Port:                          int(*webhookPort),
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
 				&corev1.Pod{}: {
