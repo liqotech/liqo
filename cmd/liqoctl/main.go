@@ -19,7 +19,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -30,10 +29,6 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqocmd "github.com/liqotech/liqo/cmd/liqoctl/cmd"
-)
-
-const (
-	terminationTimeout = 5 * time.Second
 )
 
 func init() {
@@ -48,10 +43,7 @@ func main() {
 
 	go func() {
 		<-ctx.Done()
-
 		stop() // Reset the default behavior if further signals are received.
-		<-time.After(terminationTimeout)
-		os.Exit(1)
 	}()
 
 	cmd := liqocmd.NewRootCommand(ctx)

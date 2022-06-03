@@ -20,10 +20,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mattn/go-isatty"
 	"github.com/pterm/pterm"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/kubectl/pkg/cmd/util"
 )
+
+func init() {
+	// Disable styling if we are not in a standard terminal, as control sequences would not work.
+	if !isatty.IsTerminal(os.Stdout.Fd()) {
+		pterm.DisableStyling()
+	}
+}
 
 const (
 	localClusterName  = "local"
@@ -56,7 +64,7 @@ func (p *Printer) StartSpinner(text ...interface{}) *pterm.SpinnerPrinter {
 // Verbosef outputs verbose messages guarded by the corresponding flag.
 func (p *Printer) Verbosef(format string, args ...interface{}) {
 	if p.verbose {
-		p.Info.Printf(format, args...)
+		p.Info.Printfln(strings.TrimRight(format, "\n"), args...)
 	}
 }
 
