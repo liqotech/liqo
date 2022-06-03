@@ -13,6 +13,8 @@ apiServer:
   trustedCA: false
 
 controllerManager:
+  # -- The number of controller-manager instances to run, which can be increased for active/passive high availability.
+  replicas: 1
   pod:
     # -- controller-manager pod annotations
     annotations: {}

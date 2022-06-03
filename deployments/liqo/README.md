@@ -27,6 +27,7 @@
 | controllerManager.pod.annotations | object | `{}` | controller-manager pod annotations |
 | controllerManager.pod.extraArgs | list | `[]` | controller-manager pod extra arguments |
 | controllerManager.pod.labels | object | `{}` | controller-manager pod labels |
+| controllerManager.replicas | int | `1` | The number of controller-manager instances to run, which can be increased for active/passive high availability. |
 | crdReplicator.imageName | string | `"liqo/crd-replicator"` | crdReplicator image repository |
 | crdReplicator.pod.annotations | object | `{}` | crdReplicator pod annotations |
 | crdReplicator.pod.extraArgs | list | `[]` | crdReplicator pod extra arguments |

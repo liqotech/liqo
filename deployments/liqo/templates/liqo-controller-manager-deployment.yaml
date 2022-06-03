@@ -9,7 +9,7 @@ metadata:
     {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
   name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.controllerManager.replicas }}
   selector:
     matchLabels:
       {{- include "liqo.selectorLabels" $ctrlManagerConfig | nindent 6 }}
@@ -25,6 +25,17 @@ spec:
         {{- toYaml .Values.controllerManager.pod.labels | nindent 8 }}
       {{- end }}
     spec:
+      {{- if gt .Values.controllerManager.replicas 1.0 }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  {{- include "liqo.selectorLabels" $ctrlManagerConfig | nindent 18 }}
+              topologyKey: kubernetes.io/hostname
+      {{- end }}
       securityContext:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
@@ -86,6 +97,9 @@ spec:
           {{- $d := dict "commandName" "--cluster-labels" "dictionary" .Values.discovery.config.clusterLabels }}
           {{- include "liqo.concatenateMap" $d | nindent 10 }}
           {{- end }}
+          {{- if gt .Values.controllerManager.replicas 1.0 }}
+          - --enable-leader-election=true
+          {{- end}}
         env:
           - name: CLUSTER_ID
             valueFrom:

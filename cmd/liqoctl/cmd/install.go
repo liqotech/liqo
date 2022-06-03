@@ -143,7 +143,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().Var(&sharingPercentage, "sharing-percentage",
 		"The maximum percentage of available cluster resources that could be shared with remote clusters (0-100)")
 	cmd.PersistentFlags().BoolVar(&options.EnableHA, "enable-ha", false,
-		"Enable the support for high-availability of Liqo components, currently supported by the gateway.")
+		"Enable the support for high-availability of Liqo components, currently supported by the gateway and the controller manager.")
 	cmd.PersistentFlags().Var(&reservedSubnets, "reserved-subnets",
 		"The private CIDRs to be excluded, as already in use (e.g., the subnet of the cluster nodes); PodCIDR and ServiceCIDR shall not be included.")
 

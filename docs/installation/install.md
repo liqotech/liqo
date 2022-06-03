@@ -295,6 +295,12 @@ Alternatively, you can manually specify a desired name with the `--cluster-name`
 The following lists the main **customization parameters** exposed by the *liqoctl install* commands, along with a brief description.
 Additionally, **arbitrary parameters** available in the Helm *values* file (the full list is provided in the dedicated [repository page](https://github.com/liqotech/liqo/tree/master/deployments/liqo)) can be modified through the `--set` flag, which supports the standard Helm syntax.
 
+### Global
+
+The main global flags, besides those concerning the installation of [development versions](InstallationDevelopmentVersions), include:
+
+* `--enable-ha`: whether to enable the support for **high-availability of the Liqo components**, starting two replicas (in an active/standby configuration) of the **gateway** to ensure no cross-cluster connectivity downtime in case one of the replicas is restarted, as well as of the **controller manager**, which embeds the Liqo control plane logic.
+
 ### Control plane
 
 The main control plane flags include:
@@ -311,7 +317,6 @@ The main networking flags include:
 
 * `--reserved-subnets`: the list of **private CIDRs to be excluded** from the ones used by Liqo to remap remote clusters in case of address conflicts, as already in use (e.g., the subnet of the cluster nodes).
 The Pod CIDR and the Service CIDR shall not be manually specified, as automatically included in the reserved list.
-* `--enable-ha`: whether to enable the support for **high-availability of the Liqo gateway**, starting two replicas (in an active/standby configuration) to ensure no cross-cluster connectivity downtime in case one of the replicas is restarted.
 
 ## Install with Helm
 
