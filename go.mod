@@ -17,9 +17,10 @@ require (
 	github.com/gruntwork-io/terratest v0.40.7
 	github.com/jinzhu/copier v0.3.5
 	github.com/julienschmidt/httprouter v1.3.0
+	github.com/mattn/go-isatty v0.0.14
 	github.com/metal-stack/go-ipam v1.8.6
 	github.com/miekg/dns v1.1.47
-	github.com/mittwald/go-helm-client v0.8.3-0.20211026133933-a26889186afc
+	github.com/mittwald/go-helm-client v0.11.1
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/openshift/api v0.0.0-20210521075222-e273a339932a
@@ -58,7 +59,6 @@ require (
 	sigs.k8s.io/aws-iam-authenticator v0.5.7
 	sigs.k8s.io/controller-runtime v0.11.2
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
-	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
@@ -161,7 +161,6 @@ require (
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/mattn/go-zglob v0.0.3 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
@@ -233,8 +232,9 @@ require (
 	sigs.k8s.io/kustomize/api v0.11.4 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.6 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
+	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
 replace github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
 
-replace github.com/mittwald/go-helm-client v0.8.3-0.20211026133933-a26889186afc => github.com/liqotech/go-helm-client v0.8.3-0.20211106110643-962712c10b2d
+replace github.com/mittwald/go-helm-client v0.11.1 => github.com/liqotech/go-helm-client v0.11.1-liqo
