@@ -54,6 +54,7 @@ import (
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
+	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -197,6 +198,7 @@ func main() {
 
 	// Register the webhooks.
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
+	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient()))
 
 	clientset := kubernetes.NewForConfigOrDie(config)
 

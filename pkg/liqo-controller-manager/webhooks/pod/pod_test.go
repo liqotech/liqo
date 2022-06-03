@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mutate
+package pod
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ import (
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	testutils "github.com/liqotech/liqo/pkg/mutate/testUtils"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod/testutils"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )

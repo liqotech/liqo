@@ -37,7 +37,6 @@ var (
 		"liqo-network-manager",
 		"liqo-crd-replicator",
 		"liqo-metric-agent",
-		"liqo-webhook",
 		"liqo-gateway",
 		"liqo-auth",
 		"liqo-proxy",
