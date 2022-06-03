@@ -81,7 +81,6 @@ jobs:
         - discovery
         - init-virtual-kubelet
         - liqonet
-        - liqo-webhook
         - uninstaller
         - virtual-kubelet
         - webhook-configuration

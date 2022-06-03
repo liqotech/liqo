@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mutate defines the logic of Liqo Mutating Webhook.
-package mutate
+// Package pod contains the logic of the pod mutating webhook.
+package pod
