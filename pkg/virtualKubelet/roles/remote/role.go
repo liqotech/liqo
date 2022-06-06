@@ -15,7 +15,7 @@
 // Package remote defines the ClusterRole containing the permissions required by the virtual kubelet in the remote cluster.
 package remote
 
-// +kubebuilder:rbac:groups=core,resources=configmaps;services;secrets,verbs=get;list;watch;create;update;patch;delete;
+// +kubebuilder:rbac:groups=core,resources=configmaps;services;secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=pods/log,verbs=get;list
 // +kubebuilder:rbac:groups=core,resources=pods/exec,verbs=create
