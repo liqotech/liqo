@@ -69,6 +69,7 @@
 | networkManager.pod.extraArgs | list | `[]` | networkManager pod extra arguments |
 | networkManager.pod.labels | object | `{}` | networkManager pod labels |
 | openshiftConfig.enable | bool | `false` | enable the OpenShift support |
+| openshiftConfig.virtualKubeletSCCs | list | `["anyuid"]` | the security context configurations granted to the virtual kubelet in the local cluster. The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments. Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when attempting to offload pods not managed by higher-level abstractions (e.g., Deployments), and not associated with a properly privileged service account. Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators. Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded. |
 | proxy.config.listeningPort | int | `8118` | port used by envoy proxy |
 | proxy.imageName | string | `"envoyproxy/envoy:v1.21.0"` | proxy image repository |
 | proxy.pod.annotations | object | `{}` | proxy pod annotations |
