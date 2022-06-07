@@ -44,10 +44,12 @@ Create version used to select the liqo version to be installed .
 {{- end }}
 
 {{/*
-Create version used to select the liqo version to be installed.
+The suffix added to the Liqo images, to identify CI builds.
 */}}
 {{- define "liqo.suffix" -}}
-{{- if or (eq .Values.tag "") (eq .Chart.AppVersion .Values.tag) }}
+{{/* https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string */}}
+{{- $semverregex := "^v(?P<major>0|[1-9]\\d*)\\.(?P<minor>0|[1-9]\\d*)\\.(?P<patch>0|[1-9]\\d*)(?:-(?P<prerelease>(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$" }}
+{{- if or (eq .Values.tag "") (mustRegexMatch $semverregex .Values.tag) }}
 {{- print "" }}
 {{- else }}
 {{- print "-ci" }}
