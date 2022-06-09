@@ -15,6 +15,7 @@
 package netns
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/containernetworking/plugins/pkg/ip"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
@@ -81,7 +83,7 @@ func CreateVethPair(hostVethName, gatewayVethName string, hostNetns, gatewayNetn
 
 // ConfigureVeth configures the veth interface passed as argument. If the veth interface is the one
 // living the gateway netns then additional actions are carried out.
-func ConfigureVeth(veth *net.Interface, gatewayIP string, gatewayMAC net.HardwareAddr, netNS ns.NetNS) error {
+func ConfigureVeth(veth *net.Interface, gatewayIP string, netNS ns.NetNS) error {
 	var defaultCIDR = "0.0.0.0/0"
 
 	gwIP := net.ParseIP(gatewayIP)
@@ -115,14 +117,6 @@ func ConfigureVeth(veth *net.Interface, gatewayIP string, gatewayMAC net.Hardwar
 		klog.V(5).Infof("route for ip {%s} correctly configured on device {%s} with index {%d}",
 			gatewayIP, veth.Name, veth.Index)
 
-		// Add static/permanent neighbor entry for the gateway IP address.
-		if _, err := AddNeigh(gwIP, gatewayMAC, veth); err != nil {
-			return fmt.Errorf("unable to add neighbor entry for ip {%s} and MAC {%s} on device {%s} with index {%d}",
-				gatewayIP, gatewayMAC.String(), veth.Name, veth.Index)
-		}
-		klog.V(5).Infof("neighbor entry for ip {%s} and MAC {%s} correctly configured on device {%s} with index {%d}",
-			gatewayIP, gatewayMAC.String(), veth.Name, veth.Index)
-
 		// The following configuration is done only for the veth pair living in the gateway network namespace.
 		if veth.Name == liqoconst.GatewayVethName {
 			// Add default route to use the veth interface.
@@ -146,4 +140,68 @@ func ConfigureVeth(veth *net.Interface, gatewayIP string, gatewayMAC net.Hardwar
 	}
 
 	return netNS.Do(configuration)
+}
+
+// ConfigureVethNeigh configures an entry in the ARP table, according to the specified parameters.
+func ConfigureVethNeigh(veth *net.Interface, gatewayIP string, gatewayMAC net.HardwareAddr, netNS ns.NetNS) error {
+	gwIP := net.ParseIP(gatewayIP)
+	if gwIP == nil {
+		return &liqoneterrors.ParseIPError{IPToBeParsed: gatewayIP}
+	}
+
+	return netNS.Do(func(nn ns.NetNS) error {
+		// Add static/permanent neighbor entry for the gateway IP address.
+		if _, err := AddNeigh(gwIP, gatewayMAC, veth); err != nil {
+			return fmt.Errorf("unable to add neighbor entry for ip {%s} and MAC {%s} on device {%s} with index {%d} in ns {%s}: %w",
+				gatewayIP, gatewayMAC.String(), veth.Name, veth.Index, nn.Path(), err)
+		}
+
+		klog.V(5).Infof("neighbor entry for ip {%s} and MAC {%s} correctly configured on device {%s} with index {%d}",
+			gatewayIP, gatewayMAC.String(), veth.Name, veth.Index)
+
+		return nil
+	})
+}
+
+// RegisterOnVethHwAddrChangeHandler registers a handler to be executed whenever an attribute of the given veth interface changes.
+// The handler is always executed once upon registration.
+func RegisterOnVethHwAddrChangeHandler(namespace ns.NetNS, vethName string, handler func(net.HardwareAddr) error) error {
+	updates := make(chan netlink.LinkUpdate)
+
+	if err := netlink.LinkSubscribeAt(netns.NsHandle(namespace.Fd()), updates, context.Background().Done()); err != nil {
+		return err
+	}
+
+	// Immediately execute the handler, retrieving the updated value for the MAC address. This also ensures that the update is performed
+	// once in the main thread, returning an appropriate error in case it fails.
+	// Since we already subscribed to events, we can be sure that the handler will be executed again in case of further changes.
+	veth, err := netlink.LinkByName(vethName)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve veth interface {%s} in namespace {%s}: %w", vethName, namespace.Path(), err)
+	}
+
+	if err := handler(veth.Attrs().HardwareAddr); err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			update := <-updates
+			if update.Attrs().Name != vethName || (update.Attrs().Flags&net.FlagUp) == 0 {
+				// Skip updates related to other interfaces, or in case it is down.
+				continue
+			}
+
+			klog.V(5).Infof("received update for device {%s} with index {%d}, and hardware address {%s}",
+				update.Attrs().Name, update.Attrs().Index, update.Attrs().HardwareAddr)
+
+			if err := retry.OnError(retry.DefaultRetry, func(error) bool { return true },
+				func() error { return handler(update.Attrs().HardwareAddr) }); err != nil {
+				klog.Errorf("failed to handle MAC address change for veth {%s} with index {%d}: %v",
+					update.Attrs().Name, update.Attrs().Index, err)
+			}
+		}
+	}()
+
+	return nil
 }
