@@ -428,8 +428,6 @@ func (tc *TunnelController) SetUpRouteManager() error {
 }
 
 func (tc *TunnelController) setUpGWNetns(hostVethName, gatewayVethName string, vethMtu int) error {
-	var err error
-
 	// Create veth pair to connect the two namespaces.
 	hostVeth, gatewayVeth, err := liqonetns.CreateVethPair(hostVethName, gatewayVethName, tc.hostNetns, tc.gatewayNetns, vethMtu)
 	if err != nil {
@@ -444,12 +442,27 @@ func (tc *TunnelController) setUpGWNetns(hostVethName, gatewayVethName string, v
 	tc.gatewayVeth = gatewayVeth
 
 	// Configure hostveth.
-	if err = liqonetns.ConfigureVeth(&hostVeth, liqoconst.GatewayVethIPAddr, gatewayVeth.HardwareAddr, tc.hostNetns); err != nil {
+	if err = liqonetns.ConfigureVeth(&hostVeth, liqoconst.GatewayVethIPAddr, tc.hostNetns); err != nil {
 		return err
 	}
 
 	// Configure gatewayveth.
-	return liqonetns.ConfigureVeth(&gatewayVeth, liqoconst.HostVethIPAddr, hostVeth.HardwareAddr, tc.gatewayNetns)
+	if err = liqonetns.ConfigureVeth(&gatewayVeth, liqoconst.HostVethIPAddr, tc.gatewayNetns); err != nil {
+		return err
+	}
+
+	// Configure the static neighbor entries, and subscribe to the events to perform updates in case the veth MAC address changes.
+	return liqonetns.RegisterOnVethHwAddrChangeHandler(tc.hostNetns, hostVethName, func(hwaddr net.HardwareAddr) error {
+		if err := liqonetns.ConfigureVethNeigh(&hostVeth, liqoconst.GatewayVethIPAddr, gatewayVeth.HardwareAddr, tc.hostNetns); err != nil {
+			return err
+		}
+
+		if err := liqonetns.ConfigureVethNeigh(&gatewayVeth, liqoconst.HostVethIPAddr, hwaddr, tc.gatewayNetns); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (tc *TunnelController) updateStatus(con *netv1alpha1.Connection, tep *netv1alpha1.TunnelEndpoint) error {
