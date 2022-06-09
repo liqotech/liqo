@@ -148,9 +148,10 @@ func (o *Options) parseClusterOutput(ctx context.Context, cluster *containerserv
 		return fmt.Errorf("unknown AKS network plugin %v", cluster.NetworkProfile.NetworkPlugin)
 	}
 
-	if cluster.Fqdn != nil {
-		o.APIServer = *cluster.Fqdn
+	if cluster.Fqdn == nil {
+		return fmt.Errorf("failed to retrieve cluster APIServer FQDN, is the cluster running?")
 	}
+	o.APIServer = *cluster.Fqdn
 
 	if cluster.Location != nil {
 		o.ClusterLabels[consts.TopologyRegionClusterLabel] = *cluster.Location
