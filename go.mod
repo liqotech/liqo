@@ -29,7 +29,7 @@ require (
 	github.com/pterm/pterm v0.12.41
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/testify v1.7.2
 	github.com/virtual-kubelet/virtual-kubelet v1.6.0
 	github.com/vishvananda/netlink v1.2.0-beta
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
@@ -41,7 +41,7 @@ require (
 	google.golang.org/api v0.74.0
 	google.golang.org/grpc v1.46.0
 	google.golang.org/protobuf v1.28.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools v2.2.0+incompatible
 	helm.sh/helm v2.17.0+incompatible
 	helm.sh/helm/v3 v3.8.2
