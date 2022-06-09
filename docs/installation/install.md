@@ -102,6 +102,12 @@ liqoctl install aks --resource-group-name "${AKS_RESOURCE_GROUP}" \
 
 By default, the cluster is assigned the same name as that specified through the `--resource-name` parameter.
 Alternatively, you can manually specify a different name with the `--cluster-name` *liqoctl* flag.
+
+```{admonition} Note
+If you are running an [AKS private cluster](https://docs.microsoft.com/en-us/azure/aks/private-clusters), you may need to set the `--disable-endpoint-check` *liqoctl* flag, since the API Server in your kubeconfig may be different from the one retrieved from the Azure APIs.
+
+Additionally, since your API Server is not accessible from the public Internet, you shall leverage the [in-band peering approach](FeaturesPeeringInBandControlPlane) towards the clusters not attached to the same Azure Virtual Network.
+```
 ````
 
 ````{tab} EKS

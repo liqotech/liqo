@@ -22,7 +22,7 @@ Ensure you selected the correct target cluster before issuing *liqoctl* commands
 
 ## Out-of-band control plane
 
-Briefly, the procedure to establish an out-of-band control plane peering consists of a first step performed on the *provider*, to **retrieve the set of information** required (i.e., authentication endpoint and token, cluster ID, ...), followed by the creation of the necessary resources to **start the actual peering**.
+Briefly, the procedure to establish an [out-of-band control plane peering](FeaturesPeeringOutOfBandControlPlane) consists of a first step performed on the *provider*, to **retrieve the set of information** required (i.e., authentication endpoint and token, cluster ID, ...), followed by the creation of the necessary resources to **start the actual peering**.
 The remainder of the process, including identity retrieval, resource negotiation and network tunnel establishment is **performed automatically** by Liqo, through a mutual exchange of information and negotiation between the two clusters involved.
 
 ### Information retrieval
@@ -111,9 +111,11 @@ node representing the local cluster.
 Hence, the same command shall be executed on both clusters to completely tear down a bidirectional peering.
 ```
 
+(UsagePeerInBand)=
+
 ## In-band control plane
 
-Briefly, the procedure to establish an in-band control plane peering consists of a first step performed by *liqoctl*, which interacts alternatively with both clusters to **establish the cross-cluster VPN tunnel**, exchange the **authentication tokens** and configure the Liqo control plane traffic to flow inside the VPN.
+Briefly, the procedure to establish an [in-band control plane peering](FeaturesPeeringInBandControlPlane) consists of a first step performed by *liqoctl*, which interacts alternatively with both clusters to **establish the cross-cluster VPN tunnel**, exchange the **authentication tokens** and configure the Liqo control plane traffic to flow inside the VPN.
 The remainder of the process, including identity retrieval and resource negotiation, is **performed automatically** by Liqo, through a mutual exchange of information and negotiation between the two clusters involved.
 
 <!-- markdownlint-disable-next-line no-duplicate-heading -->
