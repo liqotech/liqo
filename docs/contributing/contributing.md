@@ -95,11 +95,16 @@ Some networking tests, however, require an isolated environment.
 To this end, you can leverage the dedicated *liqo-test* Docker image (the Dockerfile is available in *build/liqo-test*):
 
 ```bash
-# Run all unit tests
-docker run --rm -v $PATH_TO_LIQO:/go/src/github.com/liqotech/liqo liqo-test
+# Build the liqo-test Docker image
+make test-container
 
-# Run the tests for a specific package
-docker run --rm --entrypoint="" -v $PATH_TO_LIQO:/go/src/github.com/liqotech/liqo liqo-test go test $PACKAGE
+# Run all unit tests, and retrieve coverage
+make unit
+
+# Run the tests for a specific package.
+# Note, the package path must start with ./ to avoid the "package ... is not in GOROOT error".
+docker run --rm --entrypoint="" --mount type=bind,src=$(pwd),dst=/go/src/liqo \
+   --privileged=true --workdir /go/src/liqo liqo-test go test <package>
 ```
 
 #### Debugging unit tests
@@ -109,9 +114,8 @@ When executing the unit tests from the *liqo-test* container, it is possible to 
 1. Start the *liqo-test* container with an idle entry point, exposing a port of choice (e.g. 2345):
 
    ```bash
-   docker run --name=liqo-test -d -p 2345:2345 --entrypoint="" \
-      -v $PATH_TO_LIQO:/go/src/github.com/liqotech/liqo liqo-test tail -f /dev/null
-
+   docker run --name=liqo-test -d -p 2345:2345 --mount type=bind,src=$(pwd),dst=/go/src/liqo \
+      --privileged=true --workdir /go/src/liqo --entrypoint="" liqo-test tail -f /dev/null
    ```
 
 2. Open a shell inside the *liqo-test* container, and install Delve:
