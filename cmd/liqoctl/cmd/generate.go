@@ -60,15 +60,6 @@ func newGeneratePeerCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		Long:  WithTemplate(liqoctlGeneratePeerLongHelp),
 		Args:  cobra.NoArgs,
 
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			if options.OnlyCommand {
-				// Do not print the initialization messages in case the only-command flag is set.
-				singleClusterPersistentPreRun(cmd, f, factory.Silent)
-			} else {
-				singleClusterPersistentPreRun(cmd, f)
-			}
-		},
-
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return options.Run(ctx)
 		},

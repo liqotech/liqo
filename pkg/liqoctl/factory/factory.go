@@ -167,16 +167,13 @@ func (f *Factory) AddLiqoNamespaceFlag(flags *pflag.FlagSet) {
 	flags.AddFlag(f.remotifyFlag(tmp.Lookup(FlagNamespace)))
 }
 
-type options struct{ scoped, silent bool }
+type options struct{ scoped bool }
 
 // Options represents an option for the initialize function.
 type Options func(*options)
 
 // WithScopedPrinter marks the generated printer as scoped.
 func WithScopedPrinter(o *options) { o.scoped = true }
-
-// Silent disables the output of informational messages during the initialization.
-func Silent(o *options) { o.silent = true }
 
 // Initialize populates the object based on the provided flags.
 func (f *Factory) Initialize(opts ...Options) (err error) {
@@ -191,19 +188,6 @@ func (f *Factory) Initialize(opts ...Options) (err error) {
 		f.Printer = newLocalPrinter(o.scoped, verbose)
 	}
 
-	// Handle the output of the initialization messages.
-	var s *pterm.SpinnerPrinter
-	if !o.silent {
-		s = f.Printer.StartSpinner("Initializing Kubernetes clients")
-	}
-
-	defer func() {
-		if !o.silent {
-			f.Printer.CheckErr(err, s)
-			s.Success("Kubernetes clients successfully initialized")
-		}
-	}()
-
 	if f.Namespace == "" {
 		f.Namespace, _, err = f.factory.ToRawKubeConfigLoader().Namespace()
 		if err != nil {
@@ -217,12 +201,19 @@ func (f *Factory) Initialize(opts ...Options) (err error) {
 	}
 	restcfg.SetRateLimiter(f.RESTConfig)
 
+	restMapper, err := f.factory.ToRESTMapper()
+	if err != nil {
+		return err
+	}
+
 	f.KubeClient, err = f.factory.KubernetesClientSet()
 	if err != nil {
 		return err
 	}
 
-	f.CRClient, err = client.New(f.RESTConfig, client.Options{})
+	// Leverage the REST mapper retrieved from the factory, to defer the loading of the mappings until the first API
+	// request is made. This prevents errors in case of invalid kubeconfigs, if no interaction is required.
+	f.CRClient, err = client.New(f.RESTConfig, client.Options{Mapper: restMapper})
 	return err
 }
 

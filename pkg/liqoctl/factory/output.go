@@ -84,7 +84,7 @@ func (p *Printer) CheckErr(err error, s ...*pterm.SpinnerPrinter) {
 			os.Exit(code)
 		})
 
-	// Print the error through the printer, if initialize.
+	// Print the error through the printer, if initialized.
 	case p != nil:
 		util.BehaviorOnFatal(func(msg string, code int) {
 			p.Error.Println(strings.TrimRight(msg, "\n"))

@@ -32,7 +32,7 @@ optionally removing all the associated CRDs (i.e., with the --purge flag).
 
 Warning: due to current limitations, the uninstallation process might hang in
 case peerings are still established, or namespaces are selected for offloading.
-It is suggested to unpeer all clusters and unoffload all namespaces in advance.
+It is necessary to unpeer all clusters and unoffload all namespaces in advance.
 
 Examples:
   $ {{ .Executable }} uninstall
@@ -47,8 +47,6 @@ func newUninstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command
 		Use:   "uninstall",
 		Short: "Uninstall Liqo from the selected cluster",
 		Long:  WithTemplate(liqoctlUninstallLongHelp),
-
-		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return options.Run(ctx)

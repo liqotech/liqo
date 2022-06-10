@@ -45,8 +45,6 @@ func newStatusCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Long:  WithTemplate(liqoctlStatusLongHelp),
 		Args:  cobra.NoArgs,
 
-		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
-
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return options.Run(ctx)
 		},

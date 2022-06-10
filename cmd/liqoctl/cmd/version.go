@@ -42,15 +42,12 @@ func newVersionCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Long:  WithTemplate(liqoctlVersionLongHelp),
 		Args:  cobra.NoArgs,
 
-		// The factory is directly initialized by the command itself.
-		PreRun: func(cmd *cobra.Command, args []string) { cmd.SilenceErrors = true },
-
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return options.Run(ctx)
 		},
 	}
 
-	cmd.Flags().BoolVar(&options.ClientOnly, "client", false, "Sho client version only (no server required) (default false)")
+	cmd.Flags().BoolVar(&options.ClientOnly, "client", false, "Show client version only (no server required) (default false)")
 
 	f.AddLiqoNamespaceFlag(cmd.Flags())
 	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
