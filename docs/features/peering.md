@@ -6,7 +6,7 @@ In this case, we say that the consumer establishes an **outgoing peering** towar
 This configuration allows for maximum flexibility in asymmetric setups, while transparently supporting bidirectional peerings through their combination.
 Additionally, the same cluster can play the role of provider and consumer in multiple peerings.
 
-## Peering in a nutshell
+## Overview
 
 Overall, the establishment of a peering relationship between two clusters involves four main tasks:
 
@@ -22,7 +22,7 @@ Additional details are presented in the [network fabric section](/features/netwo
 
 (FeaturesPeeringApproaches)=
 
-## Peering approaches
+## Approaches
 
 Liqo supports two non-mutually exclusive peering approaches (i.e., the same cluster can leverage a different approach for different remote clusters), respectively referred to as **out-of-band control plane** and **in-band control plane**.
 The following sections briefly overview the differences among them, outlining the respective trade-offs.
