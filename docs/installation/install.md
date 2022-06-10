@@ -26,9 +26,15 @@ Ensure you selected the correct target cluster before issuing *liqoctl* commands
 **Supported CNIs**
 
 Liqo supports Kubernetes clusters using the following CNIs: [Flannel](https://github.com/coreos/flannel), [Calico](https://www.projectcalico.org/), [Canal](https://docs.projectcalico.org/getting-started/kubernetes/flannel/flannel), [Weave](https://github.com/weaveworks/weave).
+Additionally, partial support is provided for [Cilium](https://cilium.io/), although with the limitations listed below.
 
 ```{warning}
 If you are installing Liqo on a cluster using the **Calico** CNI, you MUST read the [dedicated configuration section](InstallationCalicoConfiguration) to avoid unwanted misconfigurations.
+```
+
+```{admonition} Liqo + Cilium limitations
+Currently, Liqo supports the Cilium CNI only when *kube-proxy* is enabled.
+Additionally, known limitations concern the impossibility of accessing the backends of *NodePort* and *LoadBalancer* services hosted on remote clusters, from a local cluster using Cilium as CNI.
 ```
 
 **Installation**
