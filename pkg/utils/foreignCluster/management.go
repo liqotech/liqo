@@ -25,7 +25,7 @@ import (
 )
 
 // HasHigherPriority upgrades the discovery type. If we discovered a cluster with IncomingPeering, we can upgrade this
-// discovery when we found it also in other way, for example inserting a SearchDomain or adding it manually.
+// discovery when we found it also in other way, for example adding it manually.
 func HasHigherPriority(fc *discoveryv1alpha1.ForeignCluster, discoveryType discovery.Type) bool {
 	b1 := GetDiscoveryType(fc) == discovery.IncomingPeeringDiscovery
 	b2 := discoveryType != discovery.IncomingPeeringDiscovery

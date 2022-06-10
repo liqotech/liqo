@@ -58,7 +58,6 @@ const (
 	// manual -> No
 	// incomingPeering -> No
 	// LAN -> Yes
-	// WAN -> looks at the SearchDomain Spec.
 	PeeringEnabledAuto PeeringEnabledType = "Auto"
 	// PeeringEnabledNo indicates to disable the peering with this remote cluster.
 	PeeringEnabledNo PeeringEnabledType = "No"
@@ -110,7 +109,7 @@ type ForeignClusterSpec struct {
 	// +kubebuilder:default=true
 	// +kubebuilder:validation:Optional
 	InsecureSkipTLSVerify *bool `json:"insecureSkipTLSVerify"`
-	// If discoveryType is LAN or WAN and this indicates the number of seconds after that
+	// If discoveryType is LAN, this indicates the number of seconds after that
 	// this ForeignCluster will be removed if no updates have been received.
 	// +kubebuilder:validation:Minimum=0
 	TTL int `json:"ttl,omitempty"`

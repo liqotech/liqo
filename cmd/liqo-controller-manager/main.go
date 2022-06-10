@@ -50,7 +50,6 @@ import (
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
-	searchdomainoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/search-domain-operator"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
@@ -225,17 +224,6 @@ func main() {
 	insecureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute, TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 
 	// Setup operators
-	searchDomainReconciler := &searchdomainoperator.SearchDomainReconciler{
-		Client:            mgr.GetClient(),
-		Scheme:            mgr.GetScheme(),
-		ResyncPeriod:      *resyncPeriod,
-		LocalCluster:      clusterIdentity,
-		InsecureTransport: insecureTransport,
-	}
-	if err = searchDomainReconciler.SetupWithManager(mgr); err != nil {
-		klog.Fatal(err)
-	}
-
 	foreignClusterReconciler := &foreignclusteroperator.ForeignClusterReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
