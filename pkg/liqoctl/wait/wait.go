@@ -143,7 +143,7 @@ func (w *Waiter) ForOffloading(ctx context.Context, namespace string) error {
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for offloading of namespace %q to complete", namespace))
 	noClusterSelected := false
 	var offload *offloadingv1alpha1.NamespaceOffloading
-	err := wait.PollImmediateUntilWithContext(ctx, 1*time.Second, func(ctx context.Context) (done bool, err error) {
+	err := wait.PollImmediateUntilWithContext(ctx, 100*time.Millisecond, func(ctx context.Context) (done bool, err error) {
 		offload, err = getters.GetOffloadingByNamespace(ctx, w.CRClient, namespace)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)

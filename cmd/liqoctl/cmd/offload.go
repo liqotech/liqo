@@ -45,6 +45,10 @@ Namespace offloading can be tuned in terms of:
 * Naming: whether remote namespaces have the same name or a suffix is added to
   prevent conflicts.
 
+Besides the direct offloading of a namespace, this command also provides the
+possibility to generate and output the underlying NamespaceOffloading
+resource, that can later be applied through automation tools.
+
 Examples:
   $ {{ .Executable }} offload namespace foo
 or
@@ -55,6 +59,8 @@ or (cluster labels in logical AND)
 or (cluster labels in logical OR)
   $ {{ .Executable }} offload namespace foo --namespace-mapping-strategy EnforceSameName \
       --selector 'region in (europe,us-west)' --selector '!staging'
+or (output the NamespaceOffloading resource as a yaml manifest, without applying it)
+  $ {{ .Executable }} offload namespace foo --output yaml
 `
 
 func newOffloadCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
@@ -83,6 +89,8 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 		string(offloadingv1alpha1.DefaultNameMappingStrategyType)},
 		string(offloadingv1alpha1.DefaultNameMappingStrategyType))
 
+	outputFormat := args.NewEnum([]string{"json", "yaml"}, "")
+
 	options := offload.Options{Factory: f}
 	cmd := &cobra.Command{
 		Use:     "namespace name",
@@ -96,6 +104,7 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 		PreRun: func(cmd *cobra.Command, args []string) {
 			options.PodOffloadingStrategy = offloadingv1alpha1.PodOffloadingStrategyType(podOffloadingStrategy.Value)
 			options.NamespaceMappingStrategy = offloadingv1alpha1.NamespaceMappingStrategyType(namespaceMappingStrategy.Value)
+			options.OutputFormat = outputFormat.Value
 			options.Printer.CheckErr(options.ParseClusterSelectors(selectors))
 		},
 
@@ -114,8 +123,12 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 	cmd.Flags().StringArrayVarP(&selectors, "selector", "l", []string{},
 		"The selector to filter the target clusters. Can be specified multiple times, defining alternative requirements (i.e., in logical OR)")
 
+	cmd.Flags().VarP(outputFormat, "output", "o",
+		"Output the resulting NamespaceOffloading resource, instead of applying it. Supported formats: json, yaml")
+
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("pod-offloading-strategy", completion.Enumeration(podOffloadingStrategy.Allowed)))
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("namespace-mapping-strategy", completion.Enumeration(namespaceMappingStrategy.Allowed)))
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 
 	return cmd
 }
