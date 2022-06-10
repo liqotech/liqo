@@ -63,11 +63,6 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return errors.New("cluster name is mandatory")
 	}
 
-	if c.PodWorkers == 0 || c.ServiceWorkers == 0 || c.IngressWorkers == 0 ||
-		c.EndpointSliceWorkers == 0 || c.ConfigMapWorkers == 0 || c.SecretWorkers == 0 {
-		return errors.New("reflection workers must be greater than 0")
-	}
-
 	localConfig, err := utils.GetRestConfig(c.HomeKubeconfig)
 	if err != nil {
 		return err
