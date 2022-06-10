@@ -34,4 +34,12 @@ jobs:
                 "command": "build",
                 "permission": "triage"
               }
+              {
+                "command": "hold",
+                "permission": "none"
+              },
+              {
+                "command": "unhold",
+                "permission": "none"
+              }
             ]
