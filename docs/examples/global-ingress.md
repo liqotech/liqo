@@ -281,7 +281,7 @@ kubectl run -it --rm curl --restart=Never --image=curlimages/curl:7.82.0 --comma
     -- curl $HOSTNAME -v
 ```
 
-```{admonition} Note:
+```{admonition} Note
 Launching this pod several times, you will see different IPs and different frontend pods answering in a round-robin fashion (as set in the *Gslb* policy).
 ```
 

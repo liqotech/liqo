@@ -18,7 +18,22 @@ A given namespace *foo* can be offloaded, leveraging the default configuration, 
 liqoctl offload namespace foo
 ```
 
-Namespace offloading can be further configured in terms of the three main parameters presented below, each one exposed through a dedicated CLI flag.
+Alternatively, the underlying *NamespaceOffloading* resource can be generated and output (either in *yaml* or *json* format) leveraging the dedicated `--output` flag:
+
+```bash
+liqoctl offload namespace foo --output yaml
+```
+
+Then, the resulting manifest can be applied with *kubectl*, or through automation tools (e.g., by means of GitOps approaches).
+
+```{admonition} Note
+Possible race conditions might occur in case a *NamespaceOffloading* resource is created at the same time (e.g., as a batch) as pods (or higher level abstractions such as *Deployments*), preventing them from being considered for offloading until the *NamespaceOffloading* resource is not processed.
+
+This situation can be prevented manually labeling in advance the hosting namespace with the *liqo.io/scheduling-enabled=true* label, hence enabling the Liqo mutating webhook and causing pod creations to be rejected until pod offloading is possible.
+Still, this causes no problems, as the Kubernetes abstractions (e.g., *Deployments*) ensure that the desired pods get eventually created correctly.
+```
+
+Regardless of the approach adopted, namespace offloading can be further configured in terms of the three main parameters presented below, each one exposed through a dedicated CLI flag.
 
 ### Namespace mapping strategy
 

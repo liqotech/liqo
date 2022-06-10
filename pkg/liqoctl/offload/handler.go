@@ -17,10 +17,12 @@ package offload
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/printers"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -38,6 +40,8 @@ type Options struct {
 	PodOffloadingStrategy    offloadingv1alpha1.PodOffloadingStrategyType
 	NamespaceMappingStrategy offloadingv1alpha1.NamespaceMappingStrategyType
 	ClusterSelector          [][]metav1.LabelSelectorRequirement
+
+	OutputFormat string
 
 	Timeout time.Duration
 }
@@ -66,6 +70,12 @@ func (o *Options) ParseClusterSelectors(selectors []string) error {
 func (o *Options) Run(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
+
+	// Output the NamespaceOffloading resource, instead of applying it.
+	if o.OutputFormat != "" {
+		o.Printer.CheckErr(o.output())
+		return nil
+	}
 
 	s := o.Printer.StartSpinner(fmt.Sprintf("Enabling namespace offloading for %q", o.Namespace))
 
@@ -102,6 +112,31 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// output implements the logic to output the generated NamespaceOffloading resource.
+func (o *Options) output() error {
+	var printer printers.ResourcePrinter
+	switch o.OutputFormat {
+	case "yaml":
+		printer = &printers.YAMLPrinter{}
+	case "json":
+		printer = &printers.JSONPrinter{}
+	default:
+		return fmt.Errorf("unsupported output format %q", o.OutputFormat)
+	}
+
+	nsoff := offloadingv1alpha1.NamespaceOffloading{
+		TypeMeta:   metav1.TypeMeta{APIVersion: offloadingv1alpha1.GroupVersion.String(), Kind: "NamespaceOffloading"},
+		ObjectMeta: metav1.ObjectMeta{Name: consts.DefaultNamespaceOffloadingName, Namespace: o.Namespace},
+		Spec: offloadingv1alpha1.NamespaceOffloadingSpec{
+			PodOffloadingStrategy:    o.PodOffloadingStrategy,
+			NamespaceMappingStrategy: o.NamespaceMappingStrategy,
+			ClusterSelector:          toNodeSelector(o.ClusterSelector),
+		},
+	}
+
+	return printer.PrintObj(&nsoff, os.Stdout)
 }
 
 func toNodeSelector(selectors [][]metav1.LabelSelectorRequirement) corev1.NodeSelector {
