@@ -54,8 +54,6 @@ func newMoveCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Short: "Move an object to a different cluster",
 		Long:  "Move an object to a different cluster.",
 		Args:  cobra.NoArgs,
-
-		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
 	}
 
 	cmd.AddCommand(newMoveVolumeCommand(ctx, f))

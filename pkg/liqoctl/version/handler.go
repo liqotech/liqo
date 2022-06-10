@@ -24,14 +24,14 @@ import (
 
 var liqoctlVersion = "development"
 
-// Options encapsulates the arguments of the offload namespace command.
+// Options encapsulates the arguments of the version command.
 type Options struct {
 	*factory.Factory
 
 	ClientOnly bool
 }
 
-// Run implements the offload namespace command.
+// Run implements the version command.
 func (o *Options) Run(ctx context.Context) error {
 	fmt.Printf("Client version: %s\n", liqoctlVersion)
 
@@ -39,7 +39,6 @@ func (o *Options) Run(ctx context.Context) error {
 		return nil
 	}
 
-	o.Printer.CheckErr(o.Factory.Initialize(factory.Silent))
 	release, err := o.HelmClient().GetRelease(install.LiqoReleaseName)
 	if err != nil {
 		o.Printer.Error.Printf("Failed to retrieve release information from namespace %q: %v\n", o.LiqoNamespace, err)

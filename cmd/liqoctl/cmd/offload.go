@@ -63,8 +63,6 @@ func newOffloadCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Short: "Offload a resource to remote clusters",
 		Long:  "Offload a resource to remote clusters.",
 		Args:  cobra.NoArgs,
-
-		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
 	}
 
 	cmd.AddCommand(newOffloadNamespaceCommand(ctx, f))

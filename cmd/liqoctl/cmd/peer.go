@@ -114,8 +114,6 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ForeignClusters(ctx, f, 1),
 
-		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
-
 		RunE: func(cmd *cobra.Command, args []string) error {
 			options.ClusterName = args[0]
 			return options.Run(ctx)

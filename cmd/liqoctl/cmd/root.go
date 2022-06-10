@@ -69,8 +69,10 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // Do not show the usage message in case of errors.
 
-		// The factory is not initialized by a PersistentPreRun here, to avoid issues with the completion
-		// functions (that do not require the clients to be setup) and allow for better customization.
+		// Initialize the factory with default parameters: thanks to lazy loading, this introduces no overhead,
+		// as well as no requirement for a valid kubeconfig if no subsequent API interaction is involved.
+		// The behavior can be customized in subcommands defining an appropriate PersistentPreRun function.
+		PersistentPreRun: func(cmd *cobra.Command, args []string) { singleClusterPersistentPreRun(cmd, f) },
 	}
 
 	// Since we cannot access internal klog configuration, we create a new flagset, let klog to install
