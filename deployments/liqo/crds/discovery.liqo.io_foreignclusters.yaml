@@ -115,9 +115,9 @@ spec:
                 - "Yes"
                 type: string
               ttl:
-                description: If discoveryType is LAN or WAN and this indicates the
-                  number of seconds after that this ForeignCluster will be removed
-                  if no updates have been received.
+                description: If discoveryType is LAN, this indicates the number of
+                  seconds after that this ForeignCluster will be removed if no updates
+                  have been received.
                 minimum: 0
                 type: integer
             required:

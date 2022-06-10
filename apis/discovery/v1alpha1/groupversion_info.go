@@ -49,7 +49,4 @@ var (
 
 	// ResourceRequestGroupResource is the group resource used to register ResourceRequest CRD.
 	ResourceRequestGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: ResourceRequestResource}
-
-	// SearchDomainGroupResource is the group resource used to register SearchDomain CRD.
-	SearchDomainGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "searchdomains"}
 )

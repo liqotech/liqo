@@ -44,7 +44,6 @@ func (discovery *Controller) startGarbageCollector(ctx context.Context) {
 func (discovery *Controller) collectGarbage(ctx context.Context) error {
 	req, err := labels.NewRequirement(discoveryPkg.DiscoveryTypeLabel, selection.In, []string{
 		string(discoveryPkg.LanDiscovery),
-		string(discoveryPkg.WanDiscovery),
 	})
 	utilruntime.Must(err)
 

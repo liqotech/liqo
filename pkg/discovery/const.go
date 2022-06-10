@@ -30,8 +30,6 @@ const (
 	AuthTokenLabel = "discovery.liqo.io/auth-token"
 	// DiscoveryTypeLabel used to mark the discovery type.
 	DiscoveryTypeLabel = "discovery.liqo.io/discovery-type"
-	// SearchDomainLabel used to mark the search domain linked to the foreign cluster.
-	SearchDomainLabel = "discovery.liqo.io/searchdomain"
 )
 
 // Type indicates how a ForeignCluster has been discovered.
@@ -40,8 +38,6 @@ type Type string
 const (
 	// LanDiscovery value.
 	LanDiscovery Type = "LAN"
-	// WanDiscovery value.
-	WanDiscovery Type = "WAN"
 	// ManualDiscovery value.
 	ManualDiscovery Type = "Manual"
 	// IncomingPeeringDiscovery value.

@@ -108,8 +108,6 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/finalizers,verbs=get;update;patch
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=searchdomains,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=searchdomains/finalizers,verbs=get;update;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests,verbs=get;list;watch;create;update;patch;delete;deletecollection
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests/status,verbs=create;delete;deletecollection;list;watch
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;list;watch;create;update;patch;delete;deletecollection
@@ -436,24 +434,6 @@ func (r *ForeignClusterReconciler) getOutgoingResourceOffer(ctx context.Context,
 	offer, err := liqogetters.GetResourceOfferByLabel(ctx, r.Client, metav1.NamespaceAll,
 		liqolabels.RemoteLabelSelector(foreignCluster.Spec.ClusterIdentity.ClusterID))
 	return offer, client.IgnoreNotFound(err)
-}
-
-// getResourceOfferWithLabels returns the ResourceOffer with the given labels.
-func (r *ForeignClusterReconciler) getResourceOfferWithLabels(ctx context.Context,
-	labels []client.ListOption) (*sharingv1alpha1.ResourceOffer, error) {
-	var resourceOfferList sharingv1alpha1.ResourceOfferList
-	if err := r.Client.List(ctx, &resourceOfferList, labels...); err != nil {
-		return nil, err
-	}
-
-	switch len(resourceOfferList.Items) {
-	case 0:
-		return nil, nil
-	case 1:
-		return &resourceOfferList.Items[0], nil
-	default:
-		return nil, fmt.Errorf("more than one resource offer found")
-	}
 }
 
 func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,

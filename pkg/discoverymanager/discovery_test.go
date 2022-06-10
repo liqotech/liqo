@@ -297,7 +297,6 @@ var _ = Describe("Discovery", func() {
 				data            discoveryData
 				expectedLength  types.GomegaMatcher
 				expectedPeering types.GomegaMatcher
-				expectedSdLabel types.GomegaMatcher
 			}
 
 			Context("UpdateForeignLAN", func() {
@@ -316,7 +315,6 @@ var _ = Describe("Discovery", func() {
 							fc := fcs.Items[0]
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(BeEmpty())
 							Expect(fc.Spec.OutgoingPeeringEnabled).To(c.expectedPeering)
-							Expect(fc.GetAnnotations()[discovery.SearchDomainLabel]).To(c.expectedSdLabel)
 						}
 					},
 
@@ -330,7 +328,6 @@ var _ = Describe("Discovery", func() {
 						},
 						expectedLength:  Equal(0),
 						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
-						expectedSdLabel: BeEmpty(),
 					}),
 
 					Entry("foreign cluster (untrusted)", updateForeignTestcase{
@@ -343,7 +340,6 @@ var _ = Describe("Discovery", func() {
 						},
 						expectedLength:  Equal(1),
 						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
-						expectedSdLabel: BeEmpty(),
 					}),
 
 					Entry("foreign cluster (trusted)", updateForeignTestcase{
@@ -356,7 +352,6 @@ var _ = Describe("Discovery", func() {
 						},
 						expectedLength:  Equal(1),
 						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
-						expectedSdLabel: BeEmpty(),
 					}),
 				)
 			})
@@ -401,7 +396,6 @@ var _ = Describe("Discovery", func() {
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(BeEmpty())
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(Equal(updateTime))
 							Expect(fc.Spec.OutgoingPeeringEnabled).To(c.expectedPeering)
-							Expect(fc.GetAnnotations()[discovery.SearchDomainLabel]).To(c.expectedSdLabel)
 						}
 					},
 
@@ -415,7 +409,6 @@ var _ = Describe("Discovery", func() {
 						},
 						expectedLength:  Equal(1),
 						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
-						expectedSdLabel: BeEmpty(),
 					}),
 
 					Entry("update", updateForeignTestcase{
@@ -428,7 +421,6 @@ var _ = Describe("Discovery", func() {
 						},
 						expectedLength:  Equal(1),
 						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
-						expectedSdLabel: BeEmpty(),
 					}),
 				)
 
@@ -472,7 +464,6 @@ var _ = Describe("Discovery", func() {
 							fc := fcs.Items[0]
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(BeEmpty())
 							Expect(fc.Spec.OutgoingPeeringEnabled).To(c.expectedPeering)
-							Expect(fc.GetAnnotations()[discovery.SearchDomainLabel]).To(c.expectedSdLabel)
 							Expect(foreignclusterutils.GetDiscoveryType(&fc)).To(Equal(discovery.LanDiscovery))
 						}
 					},
@@ -487,7 +478,6 @@ var _ = Describe("Discovery", func() {
 						},
 						expectedLength:  Equal(1),
 						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
-						expectedSdLabel: BeEmpty(),
 					}),
 				)
 
