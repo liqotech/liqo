@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -44,13 +45,13 @@ func (o *Options) Run(ctx context.Context) error {
 
 	var pvc corev1.PersistentVolumeClaim
 	if err := o.CRClient.Get(ctx, client.ObjectKey{Namespace: o.Namespace, Name: o.VolumeName}, &pvc); err != nil {
-		s.Fail(fmt.Sprintf("Failed to get PVC %s/%s: %v", o.Namespace, o.VolumeName, err))
+		s.Fail(fmt.Sprintf("Failed to get PVC %s/%s: %v", o.Namespace, o.VolumeName, output.PrettyErr(err)))
 		return err
 	}
 
 	err := checkNoMounter(ctx, o.CRClient, &pvc)
 	if err != nil {
-		s.Fail("Failed to check mounter pod: ", err)
+		s.Fail("Failed to check mounter pod: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Pre-flight checks passed")
@@ -59,19 +60,19 @@ func (o *Options) Run(ctx context.Context) error {
 
 	var targetNode corev1.Node
 	if err := o.CRClient.Get(ctx, client.ObjectKey{Name: o.TargetNode}, &targetNode); err != nil {
-		s.Fail("Failed to get target node: ", err)
+		s.Fail("Failed to get target node: ", output.PrettyErr(err))
 		return err
 	}
 	targetIsLocal := !utils.IsVirtualNode(&targetNode)
 
 	originIsLocal, originNode, err := isLocalVolume(ctx, o.CRClient, &pvc)
 	if err != nil {
-		s.Fail("Failed to check if the volume is local: ", err)
+		s.Fail("Failed to check if the volume is local: ", output.PrettyErr(err))
 		return err
 	}
 
 	if err = offloadLiqoStorageNamespace(ctx, o.CRClient, originNode, &targetNode); err != nil {
-		s.Fail("Failed to offload the liqo-storage namespace: ", err)
+		s.Fail("Failed to offload the liqo-storage namespace: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Liqo-storage namespace offloaded")
@@ -80,7 +81,7 @@ func (o *Options) Run(ctx context.Context) error {
 		s = o.Printer.StartSpinner("Repatriating the liqo-storage namespace")
 
 		if err := repatriateLiqoStorageNamespace(deferCtx, o.CRClient); err != nil {
-			s.Fail("Failed to repatriate the liqo-storage namespace: ", err)
+			s.Fail("Failed to repatriate the liqo-storage namespace: ", output.PrettyErr(err))
 			return
 		}
 		s.Success("Repatriated the liqo-storage namespace")
@@ -89,7 +90,7 @@ func (o *Options) Run(ctx context.Context) error {
 	s = o.Printer.StartSpinner("Ensuring restic repository")
 
 	if err := ensureResticRepository(ctx, o.CRClient, &pvc); err != nil {
-		s.Fail("Failed to ensure restic repository: ", err)
+		s.Fail("Failed to ensure restic repository: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Ensured restic repository")
@@ -98,7 +99,7 @@ func (o *Options) Run(ctx context.Context) error {
 		s = o.Printer.StartSpinner("Removing restic repository")
 
 		if err = deleteResticRepository(deferCtx, o.CRClient); err != nil {
-			s.Fail("Failed to remove restic repository: ", err)
+			s.Fail("Failed to remove restic repository: ", output.PrettyErr(err))
 			return
 		}
 		s.Success("Removed restic repository")
@@ -107,7 +108,7 @@ func (o *Options) Run(ctx context.Context) error {
 	s = o.Printer.StartSpinner("Waiting for restic repository to be up and running")
 
 	if err = waitForResticRepository(ctx, o.CRClient); err != nil {
-		s.Fail("Failed to wait for restic repository to be up and running: ", ctx.Err())
+		s.Fail("Failed to wait for restic repository to be up and running: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Restic repository is up and running")
@@ -116,12 +117,12 @@ func (o *Options) Run(ctx context.Context) error {
 
 	originResticRepositoryURL, err := getResticRepositoryURL(ctx, o.CRClient, originIsLocal)
 	if err != nil {
-		s.Fail("Failed to get origin restic repository URL: ", err)
+		s.Fail("Failed to get origin restic repository URL: ", output.PrettyErr(err))
 		return err
 	}
 	if err = takeSnapshot(ctx, o.CRClient, &pvc,
 		originResticRepositoryURL, o.ResticPassword); err != nil {
-		s.Fail("Failed to take snapshot: ", err)
+		s.Fail("Failed to take snapshot: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Snapshot taken")
@@ -130,19 +131,19 @@ func (o *Options) Run(ctx context.Context) error {
 
 	newPvc, err := recreatePvc(ctx, o.CRClient, &pvc)
 	if err != nil {
-		s.Fail("Failed to recreate PVC: ", err)
+		s.Fail("Failed to recreate PVC: ", output.PrettyErr(err))
 		return err
 	}
 
 	targetResticRepositoryURL, err := getResticRepositoryURL(ctx, o.CRClient, targetIsLocal)
 	if err != nil {
-		s.Fail("Failed to get target restic repository URL: ", err)
+		s.Fail("Failed to get target restic repository URL: ", output.PrettyErr(err))
 		return err
 	}
 	if err = restoreSnapshot(ctx, o.CRClient,
 		&pvc, newPvc, o.TargetNode,
 		targetResticRepositoryURL, o.ResticPassword); err != nil {
-		s.Fail("Failed to restore snapshot: ", err)
+		s.Fail("Failed to restore snapshot: ", output.PrettyErr(err))
 		return err
 	}
 

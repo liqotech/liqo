@@ -18,11 +18,11 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/move"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -71,20 +71,20 @@ func newMoveVolumeCommand(ctx context.Context, f *factory.Factory) *cobra.Comman
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.PVCs(ctx, f, 1),
 
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			options.VolumeName = args[0]
-			return options.Run(ctx)
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
 	f.AddNamespaceFlag(cmd.Flags())
-	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
 
 	cmd.Flags().StringVar(&options.TargetNode, "target-node", "",
 		"The target node (either physical or virtual) the PVC will be moved to")
 
-	utilruntime.Must(cmd.MarkFlagRequired("target-node"))
-	utilruntime.Must(cmd.RegisterFlagCompletionFunc("target-node", completion.Nodes(ctx, f, completion.NoLimit)))
+	f.Printer.CheckErr(cmd.MarkFlagRequired("target-node"))
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("target-node", completion.Nodes(ctx, f, completion.NoLimit)))
 
 	return cmd
 }

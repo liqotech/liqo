@@ -19,10 +19,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/unpeerib"
 	"github.com/liqotech/liqo/pkg/liqoctl/unpeeroob"
 )
@@ -97,9 +97,9 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ForeignClusters(ctx, f, 1),
 
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			options.ClusterName = args[0]
-			return options.Run(ctx)
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
@@ -122,7 +122,7 @@ func newUnpeerOutOfBandCommand(ctx context.Context, options *unpeeroob.Options) 
 
 		Run: func(cmd *cobra.Command, args []string) {
 			options.ClusterName = args[0]
-			options.Printer.CheckErr(options.Run(ctx))
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
@@ -144,9 +144,9 @@ func newUnpeerInBandCommand(ctx context.Context, unpeerOptions *unpeeroob.Option
 			twoClustersPersistentPreRun(cmd, local, remote, factory.WithScopedPrinter)
 		},
 
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
+		Run: func(cmd *cobra.Command, args []string) {
 			options.Timeout = unpeerOptions.Timeout
-			return options.Run(ctx)
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
@@ -154,8 +154,8 @@ func newUnpeerInBandCommand(ctx context.Context, unpeerOptions *unpeeroob.Option
 	remote.AddLiqoNamespaceFlag(cmd.Flags())
 	remote.AddFlags(cmd.Flags(), cmd.RegisterFlagCompletionFunc)
 
-	utilruntime.Must(cmd.RegisterFlagCompletionFunc("namespace", completion.Namespaces(ctx, options.LocalFactory, completion.NoLimit)))
-	utilruntime.Must(cmd.RegisterFlagCompletionFunc("remote-namespace", completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
+	local.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("namespace", completion.Namespaces(ctx, options.LocalFactory, completion.NoLimit)))
+	local.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("remote-namespace", completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
 
 	return cmd
 }

@@ -26,6 +26,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	getters "github.com/liqotech/liqo/pkg/utils/getters"
@@ -34,7 +35,7 @@ import (
 // Waiter is a struct that contains the necessary information to wait for resource events.
 type Waiter struct {
 	// Printer is the object used to output messages in the appropriate format.
-	Printer *factory.Printer
+	Printer *output.Printer
 	// crClient is the controller runtime client.
 	CRClient client.Client
 }
@@ -54,7 +55,7 @@ func (w *Waiter) ForUnpeering(ctx context.Context, remoteClusterID *discoveryv1a
 	s := w.Printer.StartSpinner(fmt.Sprintf("Unpeering from the remote cluster %q", remName))
 	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsUnpeered, 1*time.Second)
 	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("Failed unpeering from remote cluster %q: %s", remName, err.Error()))
+		s.Fail(fmt.Sprintf("Failed unpeering from remote cluster %q: %s", remName, output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("Successfully unpeered from remote cluster %q", remName))
@@ -68,7 +69,7 @@ func (w *Waiter) ForOutgoingUnpeering(ctx context.Context, remoteClusterID *disc
 	s := w.Printer.StartSpinner(fmt.Sprintf("Disabling outgoing peering to the remote cluster %q", remName))
 	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsOutgoingPeeringNone, 1*time.Second)
 	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("Failed disabling outgoing peering to the remote cluster %q: %s", remName, err.Error()))
+		s.Fail(fmt.Sprintf("Failed disabling outgoing peering to the remote cluster %q: %s", remName, output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("Successfully disabled outgoing peering to the remote cluster %q", remName))
@@ -81,7 +82,7 @@ func (w *Waiter) ForAuth(ctx context.Context, remoteClusterID *discoveryv1alpha1
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for authentication to the cluster %q", remName))
 	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsAuthenticated, 1*time.Second)
 	if err != nil {
-		s.Fail(fmt.Sprintf("Authentication to the remote cluster %q failed: %s", remName, err.Error()))
+		s.Fail(fmt.Sprintf("Authentication to the remote cluster %q failed: %s", remName, output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("Authenticated to cluster %q", remName))
@@ -94,7 +95,7 @@ func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID *discoveryv1alp
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for network to the remote cluster %q", remName))
 	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsNetworkingEstablished, 1*time.Second)
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed establishing networking to the remote cluster %q: %s", remName, err.Error()))
+		s.Fail(fmt.Sprintf("Failed establishing networking to the remote cluster %q: %s", remName, output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("Network established to the remote cluster %q", remName))
@@ -108,7 +109,7 @@ func (w *Waiter) ForOutgoingPeering(ctx context.Context, remoteClusterID *discov
 	s := w.Printer.StartSpinner(fmt.Sprintf("Activating outgoing peering to the remote cluster %q", remName))
 	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsOutgoingJoined, 1*time.Second)
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed activating outgoing peering to the remote cluster %q: %s", remName, err.Error()))
+		s.Fail(fmt.Sprintf("Failed activating outgoing peering to the remote cluster %q: %s", remName, output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("Outgoing peering activated to the remote cluster %q", remName))
@@ -129,7 +130,7 @@ func (w *Waiter) ForNode(ctx context.Context, remoteClusterID *discoveryv1alpha1
 		return utils.IsNodeReady(node), nil
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed waiting for node to be created for remote cluster %q: %s", remName, err.Error()))
+		s.Fail(fmt.Sprintf("Failed waiting for node to be created for remote cluster %q: %s", remName, output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("Node created for remote cluster %q", remName))
@@ -165,7 +166,7 @@ func (w *Waiter) ForOffloading(ctx context.Context, namespace string) error {
 		return ready || noClusterSelected, nil
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed waiting for offloading to complete: %s", err.Error()))
+		s.Fail(fmt.Sprintf("Failed waiting for offloading to complete: %s", output.PrettyErr(err)))
 		return err
 	}
 	if noClusterSelected {
@@ -185,7 +186,7 @@ func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
 		return apierrors.IsNotFound(err), client.IgnoreNotFound(err)
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed waiting for unoffloading to complete: %s", err.Error()))
+		s.Fail(fmt.Sprintf("Failed waiting for unoffloading to complete: %s", output.PrettyErr(err)))
 		return err
 	}
 	s.Success("Unoffloading completed successfully")

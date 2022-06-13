@@ -55,6 +55,6 @@ func (o *Options) Run(ctx context.Context) error {
 		manHdr := &doc.GenManHeader{Title: "LIQOCTL", Section: "1"}
 		return doc.GenManTree(o.Root, manHdr, o.Destination)
 	default:
-		return errors.Errorf("unknown doc type %q. Try 'markdown' or 'man'", o.DocTypeString)
+		return errors.Errorf("unknown doc type %q. Try \"markdown\" or \"man\"", o.DocTypeString)
 	}
 }

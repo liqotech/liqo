@@ -22,6 +22,7 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/peeroob"
 	"github.com/liqotech/liqo/pkg/liqoctl/util"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -41,7 +42,7 @@ func (o *Options) Run(ctx context.Context) error {
 	if o.OnlyCommand {
 		command, err := o.generate(ctx)
 		if err != nil {
-			o.Printer.Error.Printf("Failed to retrieve peering information: %v\n", err)
+			o.Printer.Error.Printfln("Failed to retrieve peering information: %v", output.PrettyErr(err))
 			return err
 		}
 
@@ -52,7 +53,7 @@ func (o *Options) Run(ctx context.Context) error {
 	s := o.Printer.StartSpinner("Retrieving peering information")
 	command, err := o.generate(ctx)
 	if err != nil {
-		s.Fail("Failed to retrieve peering information: ", err)
+		s.Fail("Failed to retrieve peering information: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Peering information correctly retrieved")

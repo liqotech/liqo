@@ -26,6 +26,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 )
 
@@ -80,7 +81,7 @@ func (o *Options) Run(ctx context.Context) error {
 		return nil
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed enabling namespace offloading: %v", err))
+		s.Fail(fmt.Sprintf("Failed enabling namespace offloading: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("Offloading of namespace %q correctly enabled", o.Namespace))

@@ -41,6 +41,7 @@ import (
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -116,17 +117,17 @@ func (c *Cluster) Init(ctx context.Context) error {
 	s := c.local.Printer.StartSpinner("retrieving cluster identity")
 	selector, err := metav1.LabelSelectorAsSelector(&liqolabels.ClusterIDConfigMapLabelSelector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving cluster identity: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
 		return err
 	}
 	cm, err := liqogetters.GetConfigMapByLabel(ctx, c.local.CRClient, c.local.LiqoNamespace, selector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving cluster identity: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
 		return err
 	}
 	clusterID, err := liqogetters.RetrieveClusterIDFromConfigMap(cm)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving cluster identity: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success("cluster identity correctly retrieved")
@@ -135,17 +136,17 @@ func (c *Cluster) Init(ctx context.Context) error {
 	s = c.local.Printer.StartSpinner("retrieving network configuration")
 	selector, err = metav1.LabelSelectorAsSelector(&liqolabels.IPAMStorageLabelSelector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving network configuration: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
 		return err
 	}
 	ipamStore, err := liqogetters.GetIPAMStorageByLabel(ctx, c.local.CRClient, "default", selector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving network configuration: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
 		return err
 	}
 	netcfg, err := liqogetters.RetrieveNetworkConfiguration(ipamStore)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving network configuration: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success("network configuration correctly retrieved")
@@ -154,17 +155,17 @@ func (c *Cluster) Init(ctx context.Context) error {
 	s = c.local.Printer.StartSpinner("retrieving WireGuard configuration")
 	selector, err = metav1.LabelSelectorAsSelector(&liqolabels.GatewayServiceLabelSelector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", output.PrettyErr(err)))
 		return err
 	}
 	svc, err := liqogetters.GetServiceByLabel(ctx, c.local.CRClient, c.local.LiqoNamespace, selector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", output.PrettyErr(err)))
 		return err
 	}
 	ip, port, err := liqogetters.RetrieveWGEPFromService(svc, liqoconsts.GatewayServiceAnnotationKey, liqoconsts.DriverName)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", output.PrettyErr(err)))
 		return err
 	}
 	wgIP := net.ParseIP(ip)
@@ -174,17 +175,17 @@ func (c *Cluster) Init(ctx context.Context) error {
 	}
 	selector, err = metav1.LabelSelectorAsSelector(&liqolabels.WireGuardSecretLabelSelector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", output.PrettyErr(err)))
 		return err
 	}
 	secret, err := liqogetters.GetSecretByLabel(ctx, c.local.CRClient, c.local.LiqoNamespace, selector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", output.PrettyErr(err)))
 		return err
 	}
 	pubKey, err := liqogetters.RetrieveWGPubKeyFromSecret(secret, liqoconsts.PublicKey)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", output.PrettyErr(err)))
 		return err
 	}
 	if wgIP.IsPrivate() {
@@ -197,7 +198,7 @@ func (c *Cluster) Init(ctx context.Context) error {
 	s = c.local.Printer.StartSpinner("retrieving authentication token")
 	authToken, err := auth.GetToken(ctx, c.local.CRClient, c.local.LiqoNamespace)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving auth token: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving auth token: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success("authentication token correctly retrieved")
@@ -206,17 +207,17 @@ func (c *Cluster) Init(ctx context.Context) error {
 	s = c.local.Printer.StartSpinner("retrieving authentication  endpoint")
 	selector, err = metav1.LabelSelectorAsSelector(&liqolabels.AuthServiceLabelSelector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving authentication endpoint: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving authentication endpoint: %v", output.PrettyErr(err)))
 		return err
 	}
 	svc, err = liqogetters.GetServiceByLabel(ctx, c.local.CRClient, c.local.LiqoNamespace, selector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving authentication endpoint: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving authentication endpoint: %v", output.PrettyErr(err)))
 		return err
 	}
 	ipAuth, portAuth, err := liqogetters.RetrieveEndpointFromService(svc, corev1.ServiceTypeClusterIP, authPort)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving authentication endpoint: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving authentication endpoint: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success("authentication endpoint correctly retrieved")
@@ -225,17 +226,17 @@ func (c *Cluster) Init(ctx context.Context) error {
 	s = c.local.Printer.StartSpinner("retrieving proxy endpoint")
 	selector, err = metav1.LabelSelectorAsSelector(&liqolabels.ProxyServiceLabelSelector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", output.PrettyErr(err)))
 		return err
 	}
 	svc, err = liqogetters.GetServiceByLabel(ctx, c.local.CRClient, c.local.LiqoNamespace, selector)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", output.PrettyErr(err)))
 		return err
 	}
 	ipProxy, portProxy, err := liqogetters.RetrieveEndpointFromService(svc, corev1.ServiceTypeClusterIP, proxyPort)
 	if err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while retrieving proxy endpoint: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success("proxy endpoint correctly retrieved")
@@ -355,7 +356,7 @@ func (c *Cluster) ExchangeNetworkCfg(ctx context.Context, remoteClusterID *disco
 	// Enforce the network configuration in the local cluster.
 	s := c.local.Printer.StartSpinner("creating network configuration in local cluster")
 	if err := c.enforceNetworkCfg(ctx, remoteClusterID, true); err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while creating network configuration in local cluster: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while creating network configuration in local cluster: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("network configuration created in local cluster %q", c.clusterID.ClusterName))
@@ -363,7 +364,7 @@ func (c *Cluster) ExchangeNetworkCfg(ctx context.Context, remoteClusterID *disco
 	// Enforce the network configuration in the local cluster.
 	s = c.local.Printer.StartSpinner(fmt.Sprintf("creating network configuration in remote cluster %q", remoteClusterID.ClusterName))
 	if err := c.enforceNetworkCfg(ctx, remoteClusterID, false); err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while creating network configuration in remote cluster: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while creating network configuration in remote cluster: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("network configuration created in remote cluster %q", remoteClusterID.ClusterName))
@@ -573,7 +574,7 @@ func (c *Cluster) PortForwardIPAM(ctx context.Context) error {
 	s := c.local.Printer.StartSpinner("port-forwarding IPAM service")
 
 	if err := c.PortForwardOpts.RunPortForward(ctx); err != nil {
-		s.Fail(fmt.Sprintf("an error occurred while port-forwarding IPAM service: %v", err))
+		s.Fail(fmt.Sprintf("an error occurred while port-forwarding IPAM service: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("IPAM service correctly port-forwarded %q", c.PortForwardOpts.Ports[0]))
@@ -672,7 +673,7 @@ func (c *Cluster) NewIPAMClient(ctx context.Context) (ipam.IpamClient, error) {
 		grpc.WithBlock())
 	cancel()
 	if err != nil {
-		c.local.Printer.Error.Printf("an error occurred while creating IPAM client: %v", err)
+		c.local.Printer.Error.Printfln("an error occurred while creating IPAM client: %v", output.PrettyErr(err))
 		return nil, err
 	}
 

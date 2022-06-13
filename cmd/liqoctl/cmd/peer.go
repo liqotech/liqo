@@ -19,10 +19,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/peer"
 	"github.com/liqotech/liqo/pkg/liqoctl/peerib"
 	"github.com/liqotech/liqo/pkg/liqoctl/peeroob"
@@ -114,9 +114,9 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ForeignClusters(ctx, f, 1),
 
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			options.ClusterName = args[0]
-			return options.Run(ctx)
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
@@ -136,9 +136,9 @@ func newPeerOutOfBandCommand(ctx context.Context, peerOptions *peer.Options) *co
 		Long:    WithTemplate(liqoctlPeerOOBLongHelp),
 		Args:    cobra.ExactArgs(1),
 
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			options.ClusterName = args[0]
-			return options.Run(ctx)
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
@@ -151,11 +151,11 @@ func newPeerOutOfBandCommand(ctx context.Context, peerOptions *peer.Options) *co
 
 	f := peerOptions.Factory
 	f.AddLiqoNamespaceFlag(cmd.Flags())
-	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
 
-	utilruntime.Must(cmd.MarkFlagRequired(peeroob.ClusterIDFlagName))
-	utilruntime.Must(cmd.MarkFlagRequired(peeroob.ClusterTokenFlagName))
-	utilruntime.Must(cmd.MarkFlagRequired(peeroob.AuthURLFlagName))
+	f.Printer.CheckErr(cmd.MarkFlagRequired(peeroob.ClusterIDFlagName))
+	f.Printer.CheckErr(cmd.MarkFlagRequired(peeroob.ClusterTokenFlagName))
+	f.Printer.CheckErr(cmd.MarkFlagRequired(peeroob.AuthURLFlagName))
 
 	return cmd
 }
@@ -175,9 +175,9 @@ func newPeerInBandCommand(ctx context.Context, peerOptions *peer.Options) *cobra
 			twoClustersPersistentPreRun(cmd, local, remote, factory.WithScopedPrinter)
 		},
 
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
+		Run: func(cmd *cobra.Command, args []string) {
 			options.Timeout = peerOptions.Timeout
-			return options.Run(ctx)
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
@@ -188,8 +188,8 @@ func newPeerInBandCommand(ctx context.Context, peerOptions *peer.Options) *cobra
 	cmd.Flags().BoolVar(&options.Bidirectional, "bidirectional", false,
 		"Whether to establish a bidirectional peering (i.e., also from remote to local) (default false)")
 
-	utilruntime.Must(cmd.RegisterFlagCompletionFunc("namespace", completion.Namespaces(ctx, options.LocalFactory, completion.NoLimit)))
-	utilruntime.Must(cmd.RegisterFlagCompletionFunc("remote-namespace", completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
+	local.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("namespace", completion.Namespaces(ctx, options.LocalFactory, completion.NoLimit)))
+	local.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("remote-namespace", completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
 
 	return cmd
 }

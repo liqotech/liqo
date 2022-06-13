@@ -22,6 +22,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/unoffload"
 )
 
@@ -58,9 +59,9 @@ func newUnoffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobr
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.OffloadedNamespaces(ctx, f, 1),
 
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			options.Namespace = args[0]
-			return options.Run(ctx)
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 

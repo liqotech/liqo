@@ -31,6 +31,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kind"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/openshift"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
@@ -111,12 +112,8 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 			options.ReservedSubnets = reservedSubnets.StringList.StringList
 		},
 
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return options.Run(ctx, base)
-		},
-
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			options.Printer.CheckErr(options.PostRun())
+		Run: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.Run(ctx, base))
 		},
 	}
 
@@ -173,8 +170,8 @@ func newInstallProviderCommand(ctx context.Context, options *install.Options, cr
 		Long:  WithTemplate(fmt.Sprintf(liqoctlInstallProviderLongHelp, provider.Name(), provider.Name(), provider.Examples())),
 		Args:  cobra.NoArgs,
 
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return options.Run(ctx, provider)
+		Run: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.Run(ctx, provider))
 		},
 	}
 

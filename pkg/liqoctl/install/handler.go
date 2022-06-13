@@ -35,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/util"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -93,9 +94,13 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
+	// Defer the function which performs the cleanup of the temporary directory,
+	// in case it is created to download a custom version of the Liqo git repository.
+	defer func() { o.Printer.CheckErr(o.cleanup()) }()
+
 	s := o.Printer.StartSpinner("Initializing installer")
 	if err := o.initialize(ctx, provider); err != nil {
-		s.Fail("Error initializing installer: ", err)
+		s.Fail("Error initializing installer: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Installer initialized")
@@ -104,13 +109,13 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 
 	err := provider.Initialize(ctx)
 	if err != nil {
-		s.Fail("Error retrieving provider specific configuration: ", err)
+		s.Fail("Error retrieving provider specific configuration: ", output.PrettyErr(err))
 		return err
 	}
 
 	err = o.validate(ctx)
 	if err != nil {
-		s.Fail("Error retrieving configuration: ", err)
+		s.Fail("Error retrieving configuration: ", output.PrettyErr(err))
 		return err
 	}
 
@@ -120,27 +125,27 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 
 	values, err := util.MergeMaps(o.chartValues, o.values())
 	if err != nil {
-		s.Fail("Error generating installation parameters: ", err)
+		s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
 		return err
 	}
 
 	values, err = util.MergeMaps(values, provider.Values())
 	if err != nil {
-		s.Fail("Error generating installation parameters: ", err)
+		s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
 		return err
 	}
 
 	for _, value := range o.OverrideValues {
 		if err := strvals.ParseInto(value, values); err != nil {
 			err := fmt.Errorf("failed parsing --set data: %w", err)
-			s.Fail("Error generating installation parameters: ", err)
+			s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
 			return err
 		}
 	}
 
 	rawValues, err := yaml.Marshal(values)
 	if err != nil {
-		s.Fail("Error generating values file: ", err)
+		s.Fail("Error generating values file: ", output.PrettyErr(err))
 		return err
 	}
 
@@ -149,7 +154,7 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 	if o.OnlyOutputValues {
 		s = o.Printer.StartSpinner("Generating values.yaml file with the Liqo chart parameters for your cluster")
 		if err = utils.WriteFile(o.ValuesPath, rawValues); err != nil {
-			s.Fail(fmt.Sprintf("Unable to write the values file to %q: %v", o.ValuesPath, err))
+			s.Fail(fmt.Sprintf("Unable to write the values file to %q: %v", o.ValuesPath, output.PrettyErr(err)))
 			return err
 		}
 		s.Success(fmt.Sprintf("All Set! Chart values written to %q", o.ValuesPath))
@@ -159,9 +164,8 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 	s = o.Printer.StartSpinner("Installing or upgrading Liqo... (this may take a few minutes)")
 	err = o.installOrUpdate(ctx, string(rawValues), s)
 	if err != nil {
-		msg := strings.Replace(err.Error(), context.DeadlineExceeded.Error(), "timed out waiting for the condition", 1)
-		s.Fail("Error installing or upgrading Liqo: ", msg)
-		if strings.Contains(msg, "timed out waiting for the condition") {
+		s.Fail("Error installing or upgrading Liqo: ", output.PrettyErr(err))
+		if strings.Contains(output.PrettyErr(err), "timed out waiting for the condition") {
 			o.Printer.Info.Println("Likely causes for the installation/upgrade timeout could include:")
 			o.Printer.Info.Println("* One or more pods failed to start (e.g., they are in the ImagePullBackOff status)")
 			o.Printer.Info.Println("* A service of type LoadBalancer has been configured, but no provider is available")
@@ -178,14 +182,6 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 	}
 
 	s.Success(fmt.Sprintf("All Set! You can now proceed establishing a peering (%v peer --help for more information)", o.CommandName))
-	return nil
-}
-
-// PostRun performs the cleanup after the installation.
-func (o *Options) PostRun() error {
-	if o.tmpDir != "" {
-		return os.RemoveAll(o.tmpDir)
-	}
 	return nil
 }
 
@@ -323,4 +319,11 @@ func (o *Options) values() map[string]interface{} {
 			"replicas": float64(replicas),
 		},
 	}
+}
+
+func (o *Options) cleanup() error {
+	if o.tmpDir != "" {
+		return os.RemoveAll(o.tmpDir)
+	}
+	return nil
 }
