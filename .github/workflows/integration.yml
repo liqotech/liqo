@@ -222,10 +222,23 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
 
-      - uses: actions/upload-artifact@v2
+      - name: Create Archives
+        run: |
+          cp liqoctl-${{ matrix.goos }}-${{ matrix.goarch }} kubectl-liqo
+          tar -czvf liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz kubectl-liqo
+
+      - name: Upload Liqoctl
+        uses: actions/upload-artifact@v2
         with:
          name: liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
          path: ./liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
+         retention-days: 1
+
+      - name: Upload Liqoctl Archive
+        uses: actions/upload-artifact@v2
+        with:
+         name: liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+         path: ./liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
          retention-days: 1
 
   release:
