@@ -18,10 +18,10 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/uninstall"
 )
 
@@ -48,15 +48,15 @@ func newUninstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command
 		Short: "Uninstall Liqo from the selected cluster",
 		Long:  WithTemplate(liqoctlUninstallLongHelp),
 
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return options.Run(ctx)
+		Run: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
 	cmd.Flags().BoolVar(&options.Purge, "purge", false, "Whether to purge all Liqo CRDs from the cluster (default false)")
 
 	f.AddLiqoNamespaceFlag(cmd.Flags())
-	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
 
 	return cmd
 }

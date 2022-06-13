@@ -18,11 +18,11 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/generate"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 )
 
 const liqoctlGeneratePeerLongHelp = `Generate the command to execute on another cluster to peer with the local cluster.
@@ -60,14 +60,14 @@ func newGeneratePeerCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		Long:  WithTemplate(liqoctlGeneratePeerLongHelp),
 		Args:  cobra.NoArgs,
 
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return options.Run(ctx)
+		Run: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.Run(ctx))
 		},
 	}
 
 	cmd.Flags().BoolVar(&options.OnlyCommand, "only-command", false, "Print only the resulting peer command, for scripts usage (default false)")
 
 	f.AddLiqoNamespaceFlag(cmd.Flags())
-	utilruntime.Must(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
 	return cmd
 }

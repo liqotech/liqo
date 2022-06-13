@@ -37,6 +37,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 )
 
 var liqoGroupVersions = []schema.GroupVersion{
@@ -58,7 +59,7 @@ type Options struct {
 func (o *Options) Run(ctx context.Context) error {
 	s := o.Printer.StartSpinner("Running pre-uninstall checks")
 	if err := o.preUninstall(ctx); err != nil {
-		s.Fail(fmt.Sprintf("Pre-uninstall checks failed: %v", err))
+		s.Fail("Pre-uninstall checks failed: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Pre-uninstall checks passed")
@@ -66,7 +67,7 @@ func (o *Options) Run(ctx context.Context) error {
 	s = o.Printer.StartSpinner("Uninstalling Liqo")
 	err := o.HelmClient().UninstallReleaseByName(install.LiqoReleaseName)
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
-		s.Fail("Error uninstalling Liqo: ", err)
+		s.Fail("Error uninstalling Liqo: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Liqo uninstalled")
@@ -75,14 +76,14 @@ func (o *Options) Run(ctx context.Context) error {
 		s = o.Printer.StartSpinner("Purging Liqo CRDs")
 
 		if err = o.purge(ctx); err != nil {
-			s.Fail("Error purging CRDs: ", err)
+			s.Fail("Error purging CRDs: ", output.PrettyErr(err))
 			return err
 		}
 		s.Success("Liqo CRDs purged")
 
 		s = o.Printer.StartSpinner("Deleting Liqo namespaces")
 		if err = o.deleteLiqoNamespaces(ctx); err != nil {
-			s.Fail("Error deleting namespaces: ", err)
+			s.Fail("Error deleting namespaces: ", output.PrettyErr(err))
 			return err
 		}
 		s.Success("Liqo namespaces deleted")

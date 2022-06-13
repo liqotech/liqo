@@ -25,6 +25,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/peer"
 	"github.com/liqotech/liqo/pkg/utils"
 	authenticationtokenutils "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
@@ -49,13 +50,12 @@ func (o *Options) Run(ctx context.Context) error {
 
 	fc, err := o.peer(ctx)
 	if err != nil {
-		s.Fail(err.Error())
+		s.Fail("Failed peering clusters:", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Peering enabled")
 
 	if err := o.Wait(ctx, &fc.Spec.ClusterIdentity); err != nil {
-		s.Fail(err.Error())
 		return err
 	}
 

@@ -26,6 +26,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 )
 
 var (
@@ -79,7 +80,7 @@ var _ = Describe("Extract elements from apiServer", func() {
 	BeforeEach(func() {
 		options = Options{Options: &install.Options{Factory: &factory.Factory{
 			KubeClient: fake.NewSimpleClientset(p),
-			Printer:    factory.NewFakePrinter(GinkgoWriter),
+			Printer:    output.NewFakePrinter(GinkgoWriter),
 		}}}
 	})
 

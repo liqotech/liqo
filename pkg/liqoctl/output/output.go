@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package factory
+package output
 
 import (
+	"context"
+	"errors"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -69,18 +72,18 @@ func (p *Printer) Verbosef(format string, args ...interface{}) {
 }
 
 // CheckErr prints a user friendly error and exits with a non-zero exit code.
-// If the spinner it is provided, then it is leveraged to print the message,
+// If a spinner is currently active, then it is leveraged to print the message,
 // otherwise it outputs the message through the printer or, if nil, to STDERR.
-func (p *Printer) CheckErr(err error, s ...*pterm.SpinnerPrinter) {
+func (p *Printer) CheckErr(err error) {
 	switch {
 	// Shortcircuit in case no error occurred.
 	case err == nil:
 		return
 
 	// Print the error through the spinner, if specified.
-	case len(s) > 0:
+	case p != nil && p.spinner.IsActive:
 		util.BehaviorOnFatal(func(msg string, code int) {
-			s[0].Fail(msg)
+			p.spinner.Fail(msg)
 			os.Exit(code)
 		})
 
@@ -90,16 +93,44 @@ func (p *Printer) CheckErr(err error, s ...*pterm.SpinnerPrinter) {
 			p.Error.Println(strings.TrimRight(msg, "\n"))
 			os.Exit(code)
 		})
+
+	// Otherwise, restore the default behavior.
+	default:
+		util.DefaultBehaviorOnFatal()
 	}
 
 	util.CheckErr(err)
 }
 
-func newLocalPrinter(scoped, verbose bool) *Printer {
+// PrettyErr returns a prettified error message, according to standard kubectl style.
+func PrettyErr(err error) string {
+	// Unwrap possible URL errors, to return the prettified message.
+	urlErr := &url.Error{}
+	if errors.As(err, &urlErr) {
+		err = urlErr
+	}
+
+	if msg, ok := util.StandardErrorMessage(err); ok {
+		return msg
+	}
+
+	return strings.Replace(err.Error(), context.DeadlineExceeded.Error(), "timed out waiting for the condition", 1)
+}
+
+// ExitOnErr aborts the execution in case of errors, without printing any error message.
+func ExitOnErr(err error) {
+	if err != nil {
+		os.Exit(util.DefaultErrorExitCode)
+	}
+}
+
+// NewLocalPrinter returns a new printer referring to the local cluster.
+func NewLocalPrinter(scoped, verbose bool) *Printer {
 	return newPrinter(localClusterName, localClusterColor, scoped, verbose)
 }
 
-func newRemotePrinter(scoped, verbose bool) *Printer {
+// NewRemotePrinter returns a new printer referring to the remote cluster.
+func NewRemotePrinter(scoped, verbose bool) *Printer {
 	return newPrinter(remoteClusterName, remoteClusterColor, scoped, verbose)
 }
 

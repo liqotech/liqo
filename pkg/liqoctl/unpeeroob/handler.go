@@ -22,6 +22,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 )
 
@@ -42,7 +43,7 @@ func (o *Options) Run(ctx context.Context) error {
 
 	fc, err := o.unpeer(ctx)
 	if err != nil {
-		s.Fail(err.Error())
+		s.Fail("Failed unpeering clusters: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Peering disabled")

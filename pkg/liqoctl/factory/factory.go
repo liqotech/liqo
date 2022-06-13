@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -54,7 +55,7 @@ type Factory struct {
 	remote bool
 
 	// Printer is the object used to output messages in the appropriate format.
-	Printer *Printer
+	Printer *output.Printer
 	// Whether to add a scope to the printer (i.e., local/remote).
 	ScopedPrinter bool
 
@@ -183,9 +184,9 @@ func (f *Factory) Initialize(opts ...Options) (err error) {
 	}
 
 	if f.remote {
-		f.Printer = newRemotePrinter(o.scoped, verbose)
+		f.Printer = output.NewRemotePrinter(o.scoped, verbose)
 	} else {
-		f.Printer = newLocalPrinter(o.scoped, verbose)
+		f.Printer = output.NewLocalPrinter(o.scoped, verbose)
 	}
 
 	if f.Namespace == "" {

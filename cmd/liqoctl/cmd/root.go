@@ -28,6 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
+	"k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 )
@@ -107,15 +108,12 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 func WithTemplate(str string) string {
 	tmpl := template.Must(template.New("liqoctl").Parse(str))
 	var buf bytes.Buffer
-	utilruntime.Must(tmpl.Execute(&buf, struct{ Executable string }{liqoctl}))
+	util.CheckErr(tmpl.Execute(&buf, struct{ Executable string }{liqoctl}))
 	return buf.String()
 }
 
 // singleClusterPersistentPreRun initializes the local factory.
 func singleClusterPersistentPreRun(cmd *cobra.Command, f *factory.Factory, opts ...factory.Options) {
-	// Errors are silenced here, to ensure those referring to incorrect flags are printed out.
-	cmd.SilenceErrors = true
-
 	// Populate the factory fields based on the configured parameters.
 	f.Printer.CheckErr(f.Initialize(opts...))
 }

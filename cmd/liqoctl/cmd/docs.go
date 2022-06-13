@@ -32,8 +32,6 @@ func newDocsCommand(ctx context.Context) *cobra.Command {
 		Long:  WithTemplate("Generate {{ .Executable }} documentation"),
 		Args:  cobra.NoArgs,
 
-		PreRun: func(cmd *cobra.Command, args []string) { cmd.SilenceErrors = true },
-
 		Run: func(cmd *cobra.Command, args []string) {
 			options.Root = cmd.Root()
 			util.CheckErr(options.Run(ctx))
