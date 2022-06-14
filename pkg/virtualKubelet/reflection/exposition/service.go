@@ -92,7 +92,9 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 
 	// Abort the reflection if the remote object is not managed by us, as we do not want to mutate others' objects.
 	if rerr == nil && !forge.IsReflected(remote) {
-		klog.Infof("Skipping reflection of local Service %q as remote already exists and is not managed by us", nsr.LocalRef(name))
+		if lerr == nil { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
+			klog.Infof("Skipping reflection of local Service %q as remote already exists and is not managed by us", nsr.LocalRef(name))
+		}
 		return nil
 	}
 	tracer.Step("Performed the sanity checks")

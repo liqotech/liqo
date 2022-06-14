@@ -121,7 +121,9 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 
 	// Abort the reflection if the remote object is not managed by us, as we do not want to mutate others' objects.
 	if (remoteExists && !forge.IsReflected(remote)) || (shadowExists && !forge.IsReflected(shadow)) {
-		klog.Infof("Skipping reflection of local pod %q as remote already exists and is not managed by us", npr.LocalRef(name))
+		if !localExists { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
+			klog.Infof("Skipping reflection of local pod %q as remote already exists and is not managed by us", npr.LocalRef(name))
+		}
 		return nil
 	}
 	tracer.Step("Performed the sanity checks")

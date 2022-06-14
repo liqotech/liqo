@@ -162,12 +162,10 @@ func (m *manager) StartNamespace(local, remote string) {
 	localFactory := informers.NewSharedInformerFactoryWithOptions(m.local, m.resync, informers.WithNamespace(local))
 	localLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.localLiqo, m.resync, liqoinformers.WithNamespace(local))
 
-	// The remote informer factories, which select all resources in the given namespace and with the reflection labels.
-	remoteTweakListOptions := func(opts *metav1.ListOptions) { opts.LabelSelector = forge.ReflectedLabelSelector().String() }
-	remoteFactory := informers.NewSharedInformerFactoryWithOptions(m.remote, m.resync,
-		informers.WithNamespace(remote), informers.WithTweakListOptions(remoteTweakListOptions))
-	remoteLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.remoteLiqo, m.resync,
-		liqoinformers.WithNamespace(remote), liqoinformers.WithTweakListOptions(remoteTweakListOptions))
+	// The remote informer factories, which select all resources in the given namespace.
+	// We do not filter the resources by label selector, to be able to abort reflection in case the remote object already exists.
+	remoteFactory := informers.NewSharedInformerFactoryWithOptions(m.remote, m.resync, informers.WithNamespace(remote))
+	remoteLiqoFactory := liqoinformers.NewSharedInformerFactoryWithOptions(m.remoteLiqo, m.resync, liqoinformers.WithNamespace(remote))
 
 	ready := false
 	for _, reflector := range m.reflectors {
