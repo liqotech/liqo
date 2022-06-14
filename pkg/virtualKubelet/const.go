@@ -19,12 +19,6 @@ import discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 const (
 	// VirtualNodePrefix -> the prefix used to generate the virtual node name.
 	VirtualNodePrefix = "liqo-"
-	// VirtualKubeletPrefix -> the prefix used to generate the virtual kubelet deployment name.
-	VirtualKubeletPrefix = "virtual-kubelet-"
-	// ReflectedpodKey -> the key of the label added to reflected pods.
-	ReflectedpodKey = "virtualkubelet.liqo.io/source-pod"
-	// HomePodFinalizer -> the finalizer added to local pods when reflected.
-	HomePodFinalizer = "virtual-kubelet.liqo.io/provider"
 )
 
 // VirtualNodeName generates the virtual node name based on the cluster ID.
