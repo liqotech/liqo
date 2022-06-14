@@ -142,7 +142,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 					}
 
 					When("phase is succeeded", WhenBody(corev1.PodStatus{Phase: corev1.PodSucceeded}, corev1.PodSucceeded, ""))
-					When("phase is pending", WhenBody(corev1.PodStatus{Phase: corev1.PodPending}, corev1.PodPending, forge.PodOffloadingBackoffReason))
+					When("phase is pending", WhenBody(corev1.PodStatus{Phase: corev1.PodPending}, corev1.PodPending, forge.PodOffloadingBackOffReason))
 					When("phase is pending (and containers are present)", WhenBody(
 						corev1.PodStatus{Phase: corev1.PodPending, ContainerStatuses: []corev1.ContainerStatus{{Name: "foo"}}},
 						corev1.PodFailed, forge.PodOffloadingAbortedReason),
