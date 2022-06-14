@@ -24,6 +24,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Options encapsulates the arguments of the docs command.
@@ -44,7 +46,7 @@ func (o *Options) Run(ctx context.Context) error {
 			hdrFunc := func(filename string) string {
 				base := filepath.Base(filename)
 				name := strings.TrimSuffix(base, path.Ext(base))
-				title := strings.Title(strings.ReplaceAll(name, "_", " "))
+				title := cases.Title(language.English).String(strings.ReplaceAll(name, "_", " "))
 				return fmt.Sprintf("---\ntitle: %q\n---\n\n", title)
 			}
 
