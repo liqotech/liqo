@@ -266,7 +266,7 @@ func (fpr *FallbackPodReflector) Handle(ctx context.Context, key types.Namespace
 
 	// Otherwise, mark the pod as rejected (either Pending or Failed based on its previous status).
 	phase := corev1.PodPending
-	reason := forge.PodOffloadingBackoffReason
+	reason := forge.PodOffloadingBackOffReason
 
 	// If the local pod was already running, mark it as Failed to cause its controller to recreate it.
 	if local.Status.Phase != corev1.PodPending || len(local.Status.ContainerStatuses) > 0 {

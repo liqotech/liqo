@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	// PodOffloadingBackoffReason -> the reason assigned to pods rejected by the virtual kubelet before offloading has started.
-	PodOffloadingBackoffReason = "OffloadingBackoff"
+	// PodOffloadingBackOffReason -> the reason assigned to pods rejected by the virtual kubelet before offloading has started.
+	PodOffloadingBackOffReason = "OffloadingBackOff"
 	// PodOffloadingAbortedReason -> the reason assigned to pods rejected by the virtual kubelet after offloading has started.
 	PodOffloadingAbortedReason = "OffloadingAborted"
 
