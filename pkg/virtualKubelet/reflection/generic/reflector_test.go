@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -62,9 +63,26 @@ var _ = Describe("Reflector tests", func() {
 		})
 
 		Context("a new reflector is created", func() {
-			BeforeEach(func() { workers = 10 })
 			JustBeforeEach(func() {
 				rfl = NewReflector(reflectorName, NewFakeNamespacedReflector, NewFakeFallbackReflector, workers)
+			})
+
+			When("no workers are specified", func() {
+				BeforeEach(func() { workers = 0 })
+				It("should return a dummy reflector", func() { Expect(rfl).To(PointTo(BeAssignableToTypeOf(dummyreflector{}))) })
+			})
+
+			When("at least one worker is specified", func() {
+				BeforeEach(func() { workers = 1 })
+				It("should return a real reflector", func() { Expect(rfl).To(PointTo(BeAssignableToTypeOf(reflector{}))) })
+			})
+		})
+
+		Context("a new real reflector is created", func() {
+			BeforeEach(func() { workers = 10 })
+			JustBeforeEach(func() {
+				// Here, we use the internal function, to retrieve the real reflector also in case no workers are set.
+				rfl = newReflector(reflectorName, NewFakeNamespacedReflector, NewFakeFallbackReflector, workers)
 			})
 			It("should return a non nil reflector", func() { Expect(rfl).ToNot(BeNil()) })
 			It("should correctly populate the reflector fields", func() {

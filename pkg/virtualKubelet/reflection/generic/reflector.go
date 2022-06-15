@@ -36,6 +36,7 @@ import (
 )
 
 var _ manager.Reflector = (*reflector)(nil)
+var _ manager.Reflector = (*dummyreflector)(nil)
 
 // NamespacedReflectorFactoryFunc represents the function type to create a new NamespacedReflector.
 type NamespacedReflectorFactoryFunc func(*options.NamespacedOpts) manager.NamespacedReflector
@@ -59,8 +60,18 @@ type reflector struct {
 	fallbackFactory   FallbackReflectorFactoryFunc
 }
 
-// NewReflector returns a new reflector to implement the reflection towards a remote clusters.
+// NewReflector returns a new reflector to implement the reflection towards a remote clusters, of a dummy one if no workers are specified.
 func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc, workers uint) manager.Reflector {
+	if workers == 0 {
+		// Return a dummy reflector in case no workers are specified, to avoid starting the working queue and registering the infromers.
+		return &dummyreflector{name: name}
+	}
+
+	return newReflector(name, namespaced, fallback, workers)
+}
+
+// newReflector returns a new reflector to implement the reflection towards a remote clusters.
+func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc, workers uint) manager.Reflector {
 	return &reflector{
 		name:    name,
 		workers: workers,
@@ -257,4 +268,23 @@ func NamespacedKeyer(namespace string) func(metadata metav1.Object) types.Namesp
 // WithoutFallback returns a FallbackReflectorFactoryFunc which disables the fallback functionality.
 func WithoutFallback() FallbackReflectorFactoryFunc {
 	return func(ro *options.ReflectorOpts) manager.FallbackReflector { return nil }
+}
+
+type dummyreflector struct{ name string }
+
+// Start starts the dummy reflector (no-op).
+func (dr *dummyreflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
+	klog.Infof("Skipping starting the %v reflector, as no workers are configured", dr.name)
+}
+
+// StartNamespace starts the reflection for the given namespace (no-op).
+func (dr *dummyreflector) StartNamespace(opts *options.NamespacedOpts) {
+	klog.Infof("Skipping starting the %v reflection between local namespace %q and remote namespace %q, as no workers are configured",
+		dr.name, opts.LocalNamespace, opts.RemoteNamespace)
+}
+
+// StopNamespace stops the reflection for the given namespace (no-op).
+func (dr *dummyreflector) StopNamespace(local, remote string) {
+	klog.Infof("Skipping stopping the %v reflection between local namespace %q and remote namespace %q, as no workers are configured",
+		dr.name, local, remote)
 }
