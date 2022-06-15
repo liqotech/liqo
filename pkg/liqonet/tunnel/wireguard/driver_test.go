@@ -127,29 +127,6 @@ var _ = Describe("Driver", func() {
 			})
 		})
 
-		Context("protocol family ipv6", func() {
-			It("address is in literal format", func() {
-				tep.Spec.EndpointIP = ipv6Literal
-				addr, err := getTunnelAddressFromTep(tep, addressResolverMock)
-				Expect(addr.IP.String()).Should(ContainSubstring(ipv6Literal))
-				Expect(err).To(BeNil())
-			})
-
-			It("address is in dns format", func() {
-				tep.Spec.EndpointIP = ipv6Dns
-				addr, err := getTunnelAddressFromTep(tep, addressResolverMock)
-				Expect(addr.IP.String()).Should(ContainSubstring(ipv6Literal))
-				Expect(err).To(BeNil())
-			})
-
-			It("address could not be found", func() {
-				tep.Spec.EndpointIP = invalidAddress
-				addr, err := getTunnelAddressFromTep(tep, addressResolverMock)
-				Expect(addr).Should(BeNil())
-				Expect(err).To(HaveOccurred())
-			})
-		})
-
 		Describe("testing getEndpoint", func() {
 			JustBeforeEach(func() {
 				tep = &netv1alpha1.TunnelEndpoint{

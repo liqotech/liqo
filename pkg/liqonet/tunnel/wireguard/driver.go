@@ -39,6 +39,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
+	"github.com/liqotech/liqo/pkg/liqonet/tunnel/resolver"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
@@ -73,7 +74,7 @@ type wgConfig struct {
 
 // ResolverFunc type of function that knows how to resolve an ip address belonging to
 // ipv4 or ipv6 family.
-type ResolverFunc func(network string, address string) (*net.IPAddr, error)
+type ResolverFunc func(address string) (*net.IPAddr, error)
 
 // Wireguard a wrapper for the wireguard device and its configuration.
 type Wireguard struct {
@@ -164,7 +165,9 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	}
 
 	// parse remote endpoint.
-	endpoint, err := getEndpoint(tep, net.ResolveIPAddr)
+	endpoint, err := getEndpoint(tep, func(address string) (*net.IPAddr, error) {
+		return resolver.Resolve(context.TODO(), address)
+	})
 	if err != nil {
 		return newConnectionOnError(err.Error()), err
 	}
@@ -395,28 +398,7 @@ func getTunnelPortFromTep(tep *netv1alpha1.TunnelEndpoint) (int, error) {
 }
 
 func getTunnelAddressFromTep(tep *netv1alpha1.TunnelEndpoint, addrResolver ResolverFunc) (*net.IPAddr, error) {
-	protocolFamilies := map[string]string{"ipv4": "ip4", "ipv6": "ip6"}
-	clusterID := tep.Spec.ClusterID
-	tepName := tep.Name
-	endpoint := tep.Spec.EndpointIP
-
-	// For each protocol family we try to get the endpoint ip address.
-	// After the first match we return otherwise we continue.
-	for pfKey, pfValue := range protocolFamilies {
-		// Get endpoint ip, first we assume the ip address belongs to the ipv4 protocol family.
-		klog.V(4).Infof("%s -> trying to retrieve endpoint address {%s} from tunnelendpoint "+
-			"resource {%s} as {%s} address", clusterID, endpoint, tepName, pfKey)
-		tunnelAddress, err := addrResolver(pfValue, tep.Spec.EndpointIP)
-		if err != nil {
-			klog.V(4).Infof("%s -> unable to retrieve the endpoint address {%s}, "+
-				"found in tunnelendpoint resource {%s}, as an {%s} address: %v", clusterID, endpoint, tepName, pfKey, err)
-		} else {
-			klog.V(4).Infof("%s -> successfully retrieved endpoint address {%s} from tunnelendpoint resource "+
-				"{%s} as {%s} address", clusterID, tepName, endpoint, pfKey)
-			return tunnelAddress, nil
-		}
-	}
-	return nil, fmt.Errorf(" endpoint address {%s} is neither an ipv4 address nor an ipv6 one", endpoint)
+	return addrResolver(tep.Spec.EndpointIP)
 }
 
 func newConnectionOnError(msg string) *netv1alpha1.Connection {
