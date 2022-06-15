@@ -129,3 +129,4 @@ jobs:
       uses: shogo82148/actions-goveralls@v1.4.5
       with:
         path-to-profile: coverage.txt
+      if: github.event_name == 'push'
