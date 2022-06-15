@@ -100,4 +100,5 @@ In this respect, Liqo features also the propagation of Secrets holding **Service
 
 ```{warning}
 Currently, Liqo supports only the propagation of *ServiceAccount* tokens contained in the respective *Secret* object (i.e., *first party tokens*), and not of those to be retrieved from the *TokenRequest* API (i.e., *third party tokens*).
+Due to this limitation, service account reflection is currently *disabled* by default in Kubernetes v1.24+, as ServiceAccounts do not longer automatically generate the corresponding Secret.
 ```

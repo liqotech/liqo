@@ -103,8 +103,9 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		IngressWorkers:              c.IngressWorkers,
 		ConfigMapWorkers:            c.ConfigMapWorkers,
 		SecretWorkers:               c.SecretWorkers,
-		PersistenVolumeClaimWorkers: c.PersistenVolumeClaimWorkers,
+		PersistenVolumeClaimWorkers: c.PersistentVolumeClaimWorkers,
 
+		EnableAPIServerSupport:     c.EnableAPIServerSupport,
 		EnableStorage:              c.EnableStorage,
 		VirtualStorageClassName:    c.VirtualStorageClassName,
 		RemoteRealStorageClassName: c.RemoteRealStorageClassName,

@@ -2,6 +2,14 @@
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 
+{{- /* Enable the API support only in for Kubernetes versions < 1.24 (due to lack of support for third party tokens), if not overridden by the user */ -}}
+{{- $vkargs := .Values.virtualKubelet.extra.args }}
+{{- if semverCompare "< 1.24.0" .Capabilities.KubeVersion.Version }}
+{{- if not (or (has "--enable-apiserver-support" $vkargs ) (has "--enable-apiserver-support=true" $vkargs ) (has "--enable-apiserver-support=false" $vkargs )) }}
+{{- $vkargs = append $vkargs "--enable-apiserver-support=true" }}
+{{- end }}
+{{- end }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -78,8 +86,8 @@ spec:
           {{- $d := dict "commandName" "--kubelet-extra-labels" "dictionary" .Values.virtualKubelet.extra.labels }}
           {{- include "liqo.concatenateMap" $d | nindent 10 }}
           {{- end }}
-          {{- if .Values.virtualKubelet.extra.args }}
-          {{- $d := dict "commandName" "--kubelet-extra-args" "list" .Values.virtualKubelet.extra.args }}
+          {{- if ge (len $vkargs) 1 }}
+          {{- $d := dict "commandName" "--kubelet-extra-args" "list" $vkargs }}
           {{- include "liqo.concatenateList" $d | nindent 10 }}
           {{- end }}
           {{- if .Values.virtualKubelet.virtualNode.extra.annotations }}

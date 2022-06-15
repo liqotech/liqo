@@ -65,6 +65,7 @@ type InitConfig struct {
 	ConfigMapWorkers            uint
 	SecretWorkers               uint
 
+	EnableAPIServerSupport     bool
 	EnableStorage              bool
 	VirtualStorageClassName    string
 	RemoteRealStorageClassName string
@@ -84,7 +85,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 
 	remoteClient := kubernetes.NewForConfigOrDie(cfg.RemoteConfig)
 	remoteLiqoClient := liqoclient.NewForConfigOrDie(cfg.RemoteConfig)
-	remoteMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig)
+	remoteMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig).MetricsV1beta1().PodMetricses
 
 	dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer, grpc.WithInsecure(), grpc.WithBlock())
@@ -95,14 +96,14 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	ipamClient := ipam.NewIpamClient(connection)
 
 	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb)
-	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient.MetricsV1beta1().PodMetricses, ipamClient, cfg.PodWorkers)
+	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, cfg.EnableAPIServerSupport, cfg.PodWorkers)
 	namespaceMapHandler := namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod)
 	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers)).
 		With(exposition.NewIngressReflector(cfg.IngressWorkers)).
 		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
-		With(configuration.NewSecretReflector(cfg.SecretWorkers)).
+		With(configuration.NewSecretReflector(cfg.EnableAPIServerSupport, cfg.SecretWorkers)).
 		With(podreflector).
 		With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
 			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage)).

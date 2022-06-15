@@ -36,7 +36,7 @@ import (
 var _ = Describe("Secret Reflection", func() {
 	Describe("NewSecretReflector", func() {
 		It("should create a non-nil reflector", func() {
-			Expect(configuration.NewSecretReflector(1)).NotTo(BeNil())
+			Expect(configuration.NewSecretReflector(false, 1)).NotTo(BeNil())
 		})
 	})
 
@@ -44,7 +44,8 @@ var _ = Describe("Secret Reflection", func() {
 		const SecretName = "name"
 
 		var (
-			reflector manager.NamespacedReflector
+			reflector          manager.NamespacedReflector
+			enableSAReflection bool
 
 			name          string
 			local, remote corev1.Secret
@@ -64,6 +65,7 @@ var _ = Describe("Secret Reflection", func() {
 		}
 
 		BeforeEach(func() {
+			enableSAReflection = true
 			name = SecretName
 			local = corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: LocalNamespace}}
 			remote = corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: RemoteNamespace}}
@@ -78,7 +80,7 @@ var _ = Describe("Secret Reflection", func() {
 
 		JustBeforeEach(func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
-			reflector = configuration.NewNamespacedSecretReflector(options.NewNamespaced().
+			reflector = configuration.NewNamespacedSecretReflector(enableSAReflection)(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
@@ -186,11 +188,23 @@ var _ = Describe("Secret Reflection", func() {
 				CreateSecret(&local)
 			})
 
-			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-			It("the remote object should be created, and be of type opaque", func() {
-				remote := GetSecret(RemoteNamespace)
-				Expect(remote.Type).To(Equal(corev1.SecretTypeOpaque))
+			When("service account reflection is enabled", func() {
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should be created, and be of type opaque", func() {
+					remote := GetSecret(RemoteNamespace)
+					Expect(remote.Type).To(Equal(corev1.SecretTypeOpaque))
+				})
 			})
+
+			When("service account reflection is disabled", func() {
+				BeforeEach(func() { enableSAReflection = false })
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should not be created", func() {
+					_, err = client.CoreV1().Secrets(RemoteNamespace).Get(ctx, name, metav1.GetOptions{})
+					Expect(err).To(BeNotFound())
+				})
+			})
+
 		})
 	})
 })

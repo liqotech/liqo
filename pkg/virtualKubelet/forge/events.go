@@ -75,3 +75,8 @@ func EventReflectionDisabledMsg(namespace string) string {
 func EventReflectionDisabledErrorMsg(namespace string, err error) string {
 	return fmt.Sprintf("Reflection to cluster %q disabled for namespace %q: error updating status: %v", RemoteCluster.ClusterName, namespace, err)
 }
+
+// EventSAReflectionDisabledMsg returns the message for the event when service account reflection is disabled.
+func EventSAReflectionDisabledMsg() string {
+	return fmt.Sprintf("Reflection to cluster %q disabled for secrets holding service account tokens", RemoteCluster.ClusterName)
+}

@@ -118,7 +118,7 @@ func LocalRejectedPodStatus(local *corev1.PodStatus, phase corev1.PodPhase, reas
 }
 
 // RemoteShadowPod forges the reflected shadowpod, given the local one.
-func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetNamespace string,
+func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetNamespace string, enableAPIServerSupport bool,
 	saSecretRetriever SASecretRetriever, kubernetesServiceIPRetriever KubernetesServiceIPGetter) *vkv1alpha1.ShadowPod {
 	if remote == nil {
 		// The remote is nil if not already created.
@@ -135,26 +135,27 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetName
 	return &vkv1alpha1.ShadowPod{
 		ObjectMeta: RemoteObjectMeta(FilterLocalPodOffloadedLabel(&local.ObjectMeta), &remote.ObjectMeta),
 		Spec: vkv1alpha1.ShadowPodSpec{
-			Pod: RemotePodSpec(local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy(), saSecretRetriever, kubernetesServiceIPRetriever),
+			Pod: RemotePodSpec(local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy(), enableAPIServerSupport,
+				saSecretRetriever, kubernetesServiceIPRetriever),
 		},
 	}
 }
 
 // RemotePodSpec forges the specs of the reflected pod specs, given the local ones.
 // It expects the local and remote objects to be deepcopies, as they are mutated.
-func RemotePodSpec(local, remote *corev1.PodSpec, saSecretRetriever SASecretRetriever,
-	kubernetesServiceIPRetriever KubernetesServiceIPGetter) corev1.PodSpec {
+func RemotePodSpec(local, remote *corev1.PodSpec, enableAPIServerSupport bool,
+	saSecretRetriever SASecretRetriever, kubernetesServiceIPRetriever KubernetesServiceIPGetter) corev1.PodSpec {
 	// The ServiceAccountName field in the pod specifications is optional, and empty means default.
 	if local.ServiceAccountName == "" {
 		local.ServiceAccountName = "default"
 	}
 
-	remote.Containers = RemoteContainers(local.Containers, local.ServiceAccountName)
-	remote.InitContainers = RemoteContainers(local.InitContainers, local.ServiceAccountName)
+	remote.Containers = RemoteContainers(local.Containers, enableAPIServerSupport, local.ServiceAccountName)
+	remote.InitContainers = RemoteContainers(local.InitContainers, enableAPIServerSupport, local.ServiceAccountName)
 
-	remote.HostAliases = RemoteHostAliases(local.HostAliases, kubernetesServiceIPRetriever)
+	remote.HostAliases = RemoteHostAliases(local.HostAliases, enableAPIServerSupport, kubernetesServiceIPRetriever)
 	remote.Tolerations = RemoteTolerations(local.Tolerations)
-	remote.Volumes = RemoteVolumes(local.Volumes, func() string { return saSecretRetriever(local.ServiceAccountName) })
+	remote.Volumes = RemoteVolumes(local.Volumes, enableAPIServerSupport, func() string { return saSecretRetriever(local.ServiceAccountName) })
 
 	remote.ActiveDeadlineSeconds = local.ActiveDeadlineSeconds
 	remote.DNSConfig = local.DNSConfig
@@ -185,7 +186,11 @@ func RemotePodSpec(local, remote *corev1.PodSpec, saSecretRetriever SASecretRetr
 
 // RemoteContainers forges the containers for a reflected pod, appropriately adding the environment variables
 // to enable the offloaded containers to contact back the local API server, instead of the remote one.
-func RemoteContainers(containers []corev1.Container, saName string) []corev1.Container {
+func RemoteContainers(containers []corev1.Container, enableAPIServerSupport bool, saName string) []corev1.Container {
+	if !enableAPIServerSupport {
+		return containers
+	}
+
 	for i := range containers {
 		containers[i].Env = RemoteContainerEnvVariables(containers[i].Env, saName)
 	}
@@ -223,9 +228,13 @@ func RemoteContainerEnvVariables(envs []corev1.EnvVar, saName string) []corev1.E
 
 // RemoteHostAliases forges the host aliases to override the IP address associated with the kubernetes.default service
 // to enable offloaded containers to contact back the local API server, instead of the remote one.
-func RemoteHostAliases(aliases []corev1.HostAlias, kubernetesServiceIPRetriever KubernetesServiceIPGetter) []corev1.HostAlias {
+func RemoteHostAliases(aliases []corev1.HostAlias, enableAPIServerSupport bool, retriever KubernetesServiceIPGetter) []corev1.HostAlias {
+	if !enableAPIServerSupport {
+		return aliases
+	}
+
 	return append(aliases, corev1.HostAlias{
-		IP: kubernetesServiceIPRetriever(), Hostnames: []string{kubernetesAPIService, kubernetesAPIService + ".svc"}})
+		IP: retriever(), Hostnames: []string{kubernetesAPIService, kubernetesAPIService + ".svc"}})
 }
 
 // RemoteTolerations forges the tolerations for a reflected pod.
@@ -244,18 +253,27 @@ func RemoteTolerations(inputTolerations []corev1.Toleration) []corev1.Toleration
 }
 
 // RemoteVolumes forges the volumes for a reflected pod, appropriately modifying the one related to the service account.
-func RemoteVolumes(volumes []corev1.Volume, saSecretRetriever func() string) []corev1.Volume {
+func RemoteVolumes(volumes []corev1.Volume, enableAPIServerSupport bool, saSecretRetriever func() string) []corev1.Volume {
 	for i := range volumes {
 		// Modify the projected volume which refers to the service account (if any),
 		// to make it target the underlying secret/configmap reflected to the remote cluster.
 		if volumes[i].Projected != nil && strings.HasPrefix(volumes[i].Name, ServiceAccountVolumeName) {
+			var offset int
 			for j := range volumes[i].Projected.Sources {
+				j -= offset // Acccount for the entry that might have been previously deleted.
 				source := &volumes[i].Projected.Sources[j]
 				if source.ConfigMap != nil {
 					// Replace the certification authority configmap with the remapped name.
 					source.ConfigMap.Name = RemoteConfigMapName(source.ConfigMap.Name)
 				} else if source.ServiceAccountToken != nil {
-					// Replace the ServiceAccountToken entry with the corresponding secret one.
+					if !enableAPIServerSupport {
+						// Remove the entry referring to the service account.
+						volumes[i].Projected.Sources = append(volumes[i].Projected.Sources[:j], volumes[i].Projected.Sources[j+1:]...)
+						offset++
+						continue
+					}
+
+					// Replace the ServiceAccountToken entry with the corresponding secret one, only in case it is enabled.
 					source.ServiceAccountToken = nil
 					source.Secret = &corev1.SecretProjection{
 						LocalObjectReference: corev1.LocalObjectReference{Name: saSecretRetriever()},

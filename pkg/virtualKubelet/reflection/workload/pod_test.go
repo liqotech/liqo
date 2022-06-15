@@ -42,7 +42,7 @@ import (
 var _ = Describe("Pod Reflection Tests", func() {
 	Describe("the NewPodReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflector := workload.NewPodReflector(nil, nil, nil, 0)
+			reflector := workload.NewPodReflector(nil, nil, nil, false, 0)
 			Expect(reflector).ToNot(BeNil())
 			Expect(reflector.Reflector).ToNot(BeNil())
 		})
@@ -59,7 +59,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 		BeforeEach(func() {
 			ipam := fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			reflector := workload.NewPodReflector(nil, metricsFactory, ipam, 0)
+			reflector := workload.NewPodReflector(nil, metricsFactory, ipam, false, 0)
 			kubernetesServiceIPGetter = reflector.KubernetesServiceIPGetter()
 		})
 
@@ -106,7 +106,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 			client = fake.NewSimpleClientset(&local)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 
-			reflector = workload.NewPodReflector(nil, nil, nil, 0)
+			reflector = workload.NewPodReflector(nil, nil, nil, false, 0)
 
 			opts := options.New(client, factory.Core().V1().Pods()).
 				WithHandlerFactory(FakeEventHandler).

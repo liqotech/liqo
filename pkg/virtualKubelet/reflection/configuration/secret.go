@@ -44,28 +44,33 @@ type NamespacedSecretReflector struct {
 	localSecrets        corev1listers.SecretNamespaceLister
 	remoteSecrets       corev1listers.SecretNamespaceLister
 	remoteSecretsClient corev1clients.SecretInterface
+
+	enableSAReflection bool
 }
 
 // NewSecretReflector builds a SecretReflector.
-func NewSecretReflector(workers uint) manager.Reflector {
-	return generic.NewReflector(SecretReflectorName, NewNamespacedSecretReflector, generic.WithoutFallback(), workers)
+func NewSecretReflector(enableSAReflection bool, workers uint) manager.Reflector {
+	return generic.NewReflector(SecretReflectorName, NewNamespacedSecretReflector(enableSAReflection), generic.WithoutFallback(), workers)
 }
 
 // NewNamespacedSecretReflector returns a function generating NamespacedSecretReflector instances.
-func NewNamespacedSecretReflector(opts *options.NamespacedOpts) manager.NamespacedReflector {
-	local := opts.LocalFactory.Core().V1().Secrets()
-	remote := opts.RemoteFactory.Core().V1().Secrets()
+func NewNamespacedSecretReflector(enableSAReflection bool) func(*options.NamespacedOpts) manager.NamespacedReflector {
+	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
+		local := opts.LocalFactory.Core().V1().Secrets()
+		remote := opts.RemoteFactory.Core().V1().Secrets()
 
-	// Using opts.LocalNamespace for both event handlers so that the object will be put in the same workqueue
-	// no matter the cluster, hence it will be processed by the handle function in the same way.
-	local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
-	remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		// Using opts.LocalNamespace for both event handlers so that the object will be put in the same workqueue
+		// no matter the cluster, hence it will be processed by the handle function in the same way.
+		local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 
-	return &NamespacedSecretReflector{
-		NamespacedReflector: generic.NewNamespacedReflector(opts, SecretReflectorName),
-		localSecrets:        local.Lister().Secrets(opts.LocalNamespace),
-		remoteSecrets:       remote.Lister().Secrets(opts.RemoteNamespace),
-		remoteSecretsClient: opts.RemoteClient.CoreV1().Secrets(opts.RemoteNamespace),
+		return &NamespacedSecretReflector{
+			NamespacedReflector: generic.NewNamespacedReflector(opts, SecretReflectorName),
+			localSecrets:        local.Lister().Secrets(opts.LocalNamespace),
+			remoteSecrets:       remote.Lister().Secrets(opts.RemoteNamespace),
+			remoteSecretsClient: opts.RemoteClient.CoreV1().Secrets(opts.RemoteNamespace),
+			enableSAReflection:  enableSAReflection,
+		}
 	}
 }
 
@@ -81,6 +86,13 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 	remote, rerr := nsr.remoteSecrets.Get(name)
 	utilruntime.Must(client.IgnoreNotFound(rerr))
 	tracer.Step("Retrieved the local and remote objects")
+
+	// Abort the reflection if the local object is a secret of type "kubernetes.io/service-account-token", and service account reflection is disabled.
+	if !nsr.enableSAReflection && lerr == nil && local.Type == corev1.SecretTypeServiceAccountToken {
+		klog.Infof("Skipping reflection of local Secret %q because of type %s", nsr.LocalRef(name), corev1.SecretTypeServiceAccountToken)
+		nsr.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventSAReflectionDisabledMsg())
+		return nil
+	}
 
 	// Abort the reflection if the remote object is not managed by us, as we do not want to mutate others' objects.
 	if rerr == nil && !forge.IsReflected(remote) {

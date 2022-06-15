@@ -149,7 +149,7 @@ var _ = Describe("Pod forging", func() {
 		})
 
 		JustBeforeEach(func() {
-			output = forge.RemoteShadowPod(local, remote, "remote-namespace", SASecretRetriever, KubernetesServiceIPGetter)
+			output = forge.RemoteShadowPod(local, remote, "remote-namespace", false, SASecretRetriever, KubernetesServiceIPGetter)
 		})
 
 		Context("the remote pod does not exist", func() {
@@ -191,6 +191,7 @@ var _ = Describe("Pod forging", func() {
 	Describe("the RemoteContainers function", func() {
 		var container corev1.Container
 		var output []corev1.Container
+		var enableAPIServerSupport bool
 
 		BeforeEach(func() {
 			container = corev1.Container{
@@ -208,35 +209,50 @@ var _ = Describe("Pod forging", func() {
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteContainers([]corev1.Container{container}, "service-account-name") })
-
-		It("should propagate all container values", func() {
-			// Remove the environment variables from the containers, as checked in the test below.
-			envcleaner := func(c corev1.Container) corev1.Container {
-				c.Env = nil
-				return c
-			}
-
-			Expect(output).To(HaveLen(1))
-			Expect(envcleaner(output[0])).To(Equal(envcleaner(container)))
+		JustBeforeEach(func() {
+			output = forge.RemoteContainers([]corev1.Container{container}, enableAPIServerSupport, "service-account-name")
 		})
 
-		It("should configure the appropriate environment variables", func() {
-			Expect(output).To(HaveLen(1))
-			Expect(output[0].Env).To(ConsistOf(
-				corev1.EnvVar{Name: "ENV_1", Value: "VALUE_1"},
-				corev1.EnvVar{Name: "ENV_2", Value: "VALUE_2"},
-				corev1.EnvVar{Name: "ENV_3", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{Key: "foo"}}},
-				corev1.EnvVar{Name: "ENV_4", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
-				corev1.EnvVar{Name: "ENV_5", Value: "service-account-name"},
-				corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: "8443"},
-				corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: "kubernetes.default"},
-				corev1.EnvVar{Name: "KUBERNETES_PORT", Value: "tcp://kubernetes.default:8443"},
-				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP", Value: "tcp://kubernetes.default:8443"},
-				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PROTO", Value: "tcp"},
-				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PORT", Value: "8443"},
-				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_ADDR", Value: "kubernetes.default"},
-			))
+		When("API server support is enabled", func() {
+			BeforeEach(func() { enableAPIServerSupport = true })
+
+			It("should propagate all container values", func() {
+				// Remove the environment variables from the containers, as checked in the test below.
+				envcleaner := func(c corev1.Container) corev1.Container {
+					c.Env = nil
+					return c
+				}
+
+				Expect(output).To(HaveLen(1))
+				Expect(envcleaner(output[0])).To(Equal(envcleaner(container)))
+			})
+
+			It("should configure the appropriate environment variables", func() {
+				Expect(output).To(HaveLen(1))
+				Expect(output[0].Env).To(ConsistOf(
+					corev1.EnvVar{Name: "ENV_1", Value: "VALUE_1"},
+					corev1.EnvVar{Name: "ENV_2", Value: "VALUE_2"},
+					corev1.EnvVar{Name: "ENV_3", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{Key: "foo"}}},
+					corev1.EnvVar{Name: "ENV_4", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+					corev1.EnvVar{Name: "ENV_5", Value: "service-account-name"},
+					corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: "8443"},
+					corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: "kubernetes.default"},
+					corev1.EnvVar{Name: "KUBERNETES_PORT", Value: "tcp://kubernetes.default:8443"},
+					corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP", Value: "tcp://kubernetes.default:8443"},
+					corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PROTO", Value: "tcp"},
+					corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PORT", Value: "8443"},
+					corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_ADDR", Value: "kubernetes.default"},
+				))
+			})
+		})
+
+		When("API server support is disabled", func() {
+			BeforeEach(func() { enableAPIServerSupport = false })
+
+			It("should propagate all container values verbatim", func() {
+				Expect(output).To(HaveLen(1))
+				Expect(output[0]).To(Equal(container))
+			})
 		})
 	})
 
@@ -265,6 +281,7 @@ var _ = Describe("Pod forging", func() {
 
 	Describe("the RemoteVolumes function", func() {
 		var volumes, output []corev1.Volume
+		var enableAPIServerSupport bool
 
 		BeforeEach(func() {
 			volumes = []corev1.Volume{
@@ -282,42 +299,65 @@ var _ = Describe("Pod forging", func() {
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteVolumes(volumes, func() string { return "service-account-secret" }) })
-
-		It("should propagate all volume types, except the one referring to the service account (which is mutated)", func() {
-			Expect(output).To(HaveLen(5))
-			Expect(output[0:3]).To(ConsistOf(volumes[0:3]))
+		JustBeforeEach(func() {
+			output = forge.RemoteVolumes(volumes, enableAPIServerSupport, func() string { return "service-account-secret" })
 		})
 
-		It("should mutate the service account projected volume", func() {
-			Expect(output).To(HaveLen(5))
-			Expect(output[4].Name).To(Equal("kube-api-access-foo"))
-			Expect(output[4].Projected.Sources).To(HaveLen(3))
+		WhenBodyCommon := func(projectedSourcesLen int) {
+			It("should propagate all volume types, except the one referring to the service account (which is mutated)", func() {
+				Expect(output).To(HaveLen(5))
+				Expect(output[0:3]).To(ConsistOf(volumes[0:3]))
+			})
 
-			Expect(output[4].Projected.Sources[0]).To(Equal(corev1.VolumeProjection{
-				ConfigMap: &corev1.ConfigMapProjection{
-					// The configmap name is mutated to account for the remapping.
-					LocalObjectReference: corev1.LocalObjectReference{Name: forge.RootCAConfigMapName + ".local"},
-					Items:                []corev1.KeyToPath{{Key: "ca.crt", Path: "ca.crt"}},
-				}},
-			))
+			It("should mutate the service account projected volume", func() {
+				Expect(output).To(HaveLen(5))
+				Expect(output[4].Name).To(Equal("kube-api-access-foo"))
+				Expect(output[4].Projected.Sources).To(HaveLen(projectedSourcesLen))
 
-			Expect(output[4].Projected.Sources[1]).To(Equal(corev1.VolumeProjection{
-				DownwardAPI: &corev1.DownwardAPIProjection{Items: []corev1.DownwardAPIVolumeFile{{Path: "namespace"}}}},
-			))
+				Expect(output[4].Projected.Sources[0]).To(Equal(corev1.VolumeProjection{
+					ConfigMap: &corev1.ConfigMapProjection{
+						// The configmap name is mutated to account for the remapping.
+						LocalObjectReference: corev1.LocalObjectReference{Name: forge.RootCAConfigMapName + ".local"},
+						Items:                []corev1.KeyToPath{{Key: "ca.crt", Path: "ca.crt"}},
+					}},
+				))
 
-			Expect(output[4].Projected.Sources[2]).To(Equal(corev1.VolumeProjection{
-				// The service account entry is replaced with the one of the corresponding secret.
-				Secret: &corev1.SecretProjection{
-					LocalObjectReference: corev1.LocalObjectReference{Name: "service-account-secret"},
-					Items:                []corev1.KeyToPath{{Key: corev1.ServiceAccountTokenKey, Path: corev1.ServiceAccountTokenKey}},
-				}},
-			))
+				Expect(output[4].Projected.Sources[1]).To(Equal(corev1.VolumeProjection{
+					DownwardAPI: &corev1.DownwardAPIProjection{Items: []corev1.DownwardAPIVolumeFile{{Path: "namespace"}}}},
+				))
+			})
+		}
+
+		When("API server support is enabled", func() {
+			BeforeEach(func() { enableAPIServerSupport = true })
+
+			WhenBodyCommon(3)
+
+			It("should mutate the service account projected volume, adding a secret entry", func() {
+				Expect(output).To(HaveLen(5))
+				Expect(output[4].Name).To(Equal("kube-api-access-foo"))
+				Expect(output[4].Projected.Sources).To(HaveLen(3))
+
+				Expect(output[4].Projected.Sources[2]).To(Equal(corev1.VolumeProjection{
+					// The service account entry is replaced with the one of the corresponding secret.
+					Secret: &corev1.SecretProjection{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "service-account-secret"},
+						Items:                []corev1.KeyToPath{{Key: corev1.ServiceAccountTokenKey, Path: corev1.ServiceAccountTokenKey}},
+					}},
+				))
+			})
+		})
+
+		When("API server support is disabled", func() {
+			BeforeEach(func() { enableAPIServerSupport = false })
+
+			WhenBodyCommon(2)
 		})
 	})
 
 	Describe("the RemoteHostAliases function", func() {
 		var aliases, output []corev1.HostAlias
+		var enableAPIServerSupport bool
 
 		BeforeEach(func() {
 			aliases = []corev1.HostAlias{
@@ -326,13 +366,22 @@ var _ = Describe("Pod forging", func() {
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteHostAliases(aliases, KubernetesServiceIPGetter) })
+		JustBeforeEach(func() { output = forge.RemoteHostAliases(aliases, enableAPIServerSupport, KubernetesServiceIPGetter) })
 
-		It("should preserve the existing aliases", func() { Expect(output).To(ContainElements(aliases)) })
-		It("should append the alias corresponding to the kubernetes.default service", func() {
-			Expect(output).To(ContainElement(corev1.HostAlias{
-				Hostnames: []string{"kubernetes.default", "kubernetes.default.svc"}, IP: KubernetesServiceIPGetter(),
-			}))
+		When("API server support is enabled", func() {
+			BeforeEach(func() { enableAPIServerSupport = true })
+
+			It("should preserve the existing aliases", func() { Expect(output).To(ContainElements(aliases)) })
+			It("should append the alias corresponding to the kubernetes.default service", func() {
+				Expect(output).To(ContainElement(corev1.HostAlias{
+					Hostnames: []string{"kubernetes.default", "kubernetes.default.svc"}, IP: KubernetesServiceIPGetter(),
+				}))
+			})
+		})
+
+		When("API server support is disabled", func() {
+			BeforeEach(func() { enableAPIServerSupport = false })
+			It("should propagate all host aliases verbatim", func() { Expect(output).To(ConsistOf(aliases)) })
 		})
 	})
 
