@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/record"
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
@@ -70,13 +71,14 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
 
+			broadcaster := record.NewBroadcaster()
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
 			rfl := workload.NewPodReflector(nil, metricsFactory, ipam, 0)
-			rfl.Start(ctx, options.New(client, factory.Core().V1().Pods()))
+			rfl.Start(ctx, options.New(client, factory.Core().V1().Pods()).WithEventBroadcaster(broadcaster))
 			reflector = rfl.NewNamespaced(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).WithLiqoLocal(liqoClient, liqoFactory).
 				WithRemote(RemoteNamespace, client, factory).WithLiqoRemote(liqoClient, liqoFactory).
-				WithHandlerFactory(FakeEventHandler))
+				WithHandlerFactory(FakeEventHandler).WithEventBroadcaster(broadcaster))
 
 			factory.Start(ctx.Done())
 			liqoFactory.Start(ctx.Done())

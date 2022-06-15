@@ -69,7 +69,7 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 		remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 
 		return &NamespacedEndpointSliceReflector{
-			NamespacedReflector:        generic.NewNamespacedReflector(opts),
+			NamespacedReflector:        generic.NewNamespacedReflector(opts, EndpointSliceReflectorName),
 			localEndpointSlices:        local.Lister().EndpointSlices(opts.LocalNamespace),
 			remoteEndpointSlices:       remote.Lister().EndpointSlices(opts.RemoteNamespace),
 			remoteEndpointSlicesClient: opts.RemoteClient.DiscoveryV1beta1().EndpointSlices(opts.RemoteNamespace),
@@ -102,6 +102,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		// the labels from the service. Hence, vanilla remote endpointslices do also trigger the Handle function.
 		if lerr == nil {
 			klog.Infof("Skipping reflection of local EndpointSlice %q as remote already exists and is not managed by us", ner.LocalRef(name))
+			ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
 		}
 		return nil
 	}
@@ -141,6 +142,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 	mutation := forge.RemoteEndpointSlice(local, ner.RemoteNamespace(), translator)
 	if terr != nil {
 		klog.Errorf("Reflection of local EndpointSlice %q to %q failed: %v", ner.LocalRef(name), ner.RemoteRef(name), terr)
+		ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(terr))
 		return terr
 	}
 	tracer.Step("Remote mutation created")
@@ -149,10 +151,13 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 	defer tracer.Step("Enforced the correctness of the remote object")
 	if _, err := ner.remoteEndpointSlicesClient.Apply(ctx, mutation, forge.ApplyOptions()); err != nil {
 		klog.Errorf("Failed to enforce remote EndpointSlice %q (local: %q): %v", ner.RemoteRef(name), ner.LocalRef(name), err)
+		ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return err
 	}
 
 	klog.Infof("Remote EndpointSlice %q successfully enforced (local: %q)", ner.RemoteRef(name), ner.LocalRef(name))
+	ner.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
+
 	return nil
 }
 

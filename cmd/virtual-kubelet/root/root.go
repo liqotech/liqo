@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
+	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -110,6 +111,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	}
 
 	eb := record.NewBroadcaster()
+	eb.StartRecordingToSink(&corev1clients.EventSinkImpl{Interface: localClient.CoreV1().Events(corev1.NamespaceAll)})
+
 	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg, eb)
 	if err != nil {
 		return err

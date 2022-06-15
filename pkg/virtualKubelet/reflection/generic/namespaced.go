@@ -16,10 +16,14 @@ package generic
 
 import (
 	"context"
+	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -27,6 +31,8 @@ import (
 
 // NamespacedReflector implements the logic common to all namespaced reflectors.
 type NamespacedReflector struct {
+	record.EventRecorder
+
 	ready func() bool
 
 	local  string
@@ -39,8 +45,11 @@ type ResourceDeleter interface {
 }
 
 // NewNamespacedReflector returns a new NamespacedReflector for the given namespaces.
-func NewNamespacedReflector(opts *options.NamespacedOpts) NamespacedReflector {
-	return NamespacedReflector{local: opts.LocalNamespace, remote: opts.RemoteNamespace, ready: opts.Ready}
+func NewNamespacedReflector(opts *options.NamespacedOpts, name string) NamespacedReflector {
+	return NamespacedReflector{
+		EventRecorder: opts.EventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "liqo-" + strings.ToLower(name) + "-reflection"}),
+		local:         opts.LocalNamespace, remote: opts.RemoteNamespace, ready: opts.Ready,
+	}
 }
 
 // Ready returns whether the NamespacedReflector is completely initialized.

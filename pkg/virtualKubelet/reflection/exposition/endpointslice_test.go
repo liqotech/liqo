@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
 	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
@@ -82,7 +83,8 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			reflector = exposition.NewNamespacedEndpointSliceReflector(ipam)(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
-				WithHandlerFactory(FakeEventHandler))
+				WithHandlerFactory(FakeEventHandler).
+				WithEventBroadcaster(record.NewBroadcaster()))
 
 			factory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())

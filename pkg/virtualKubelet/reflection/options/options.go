@@ -34,6 +34,7 @@ type Keyer func(metadata metav1.Object) types.NamespacedName
 type ReflectorOpts struct {
 	LocalClient      kubernetes.Interface
 	LocalPodInformer corev1informers.PodInformer
+	EventBroadcaster record.EventBroadcaster
 
 	HandlerFactory func(Keyer) cache.ResourceEventHandler
 
@@ -54,6 +55,12 @@ func (ro *ReflectorOpts) WithHandlerFactory(handler func(Keyer) cache.ResourceEv
 // WithReadinessFunc configures the readiness function of the ReflectorOpts.
 func (ro *ReflectorOpts) WithReadinessFunc(ready func() bool) *ReflectorOpts {
 	ro.Ready = ready
+	return ro
+}
+
+// WithEventBroadcaster configures the event broadcaster of the NamespacedOpts.
+func (ro *ReflectorOpts) WithEventBroadcaster(broadcaster record.EventBroadcaster) *ReflectorOpts {
+	ro.EventBroadcaster = broadcaster
 	return ro
 }
 

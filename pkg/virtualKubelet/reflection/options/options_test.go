@@ -40,11 +40,13 @@ var _ = Describe("Options", func() {
 			opts, returned *options.ReflectorOpts
 			client         kubernetes.Interface
 			informer       corev1informers.PodInformer
+			broadcaster    record.EventBroadcaster
 		)
 
 		BeforeEach(func() {
 			client = fake.NewSimpleClientset()
 			informer = informers.NewSharedInformerFactory(client, 0).Core().V1().Pods()
+			broadcaster = record.NewBroadcaster()
 		})
 		JustBeforeEach(func() { opts = options.New(client, informer) })
 		It("should return a non-nil pointer", func() { Expect(opts).ToNot(BeNil()) })
@@ -81,6 +83,14 @@ var _ = Describe("Options", func() {
 
 				It("the opts readiness function should return false", func() { Expect(returned.Ready()).To(BeFalse()) })
 			})
+		})
+
+		Describe("The WithEventBroadcaster function", func() {
+			JustBeforeEach(func() { opts = opts.WithEventBroadcaster(broadcaster) })
+
+			It("should return a non-nil pointer", func() { Expect(opts).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(opts).To(BeIdenticalTo(opts)) })
+			It("should correctly set the event broadcaster value", func() { Expect(opts.EventBroadcaster).To(BeIdenticalTo(broadcaster)) })
 		})
 	})
 
