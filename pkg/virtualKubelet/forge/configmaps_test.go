@@ -27,8 +27,6 @@ import (
 )
 
 var _ = Describe("ConfigMaps Forging", func() {
-	BeforeEach(func() { forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP) })
-
 	Describe("the RemoteConfigMap function", func() {
 		var (
 			input  *corev1.ConfigMap

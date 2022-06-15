@@ -30,7 +30,6 @@ import (
 
 var _ = Describe("Meta forging", func() {
 	Describe("Reflection labels", func() {
-		BeforeEach(func() { forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP) })
 
 		Describe("the ReflectionLabels function", func() {
 			It("should set exactly two labels", func() { Expect(forge.ReflectionLabels()).To(HaveLen(2)) })

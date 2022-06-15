@@ -15,7 +15,6 @@
 package forge_test
 
 import (
-	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -38,12 +37,6 @@ var _ = Describe("Pod forging", func() {
 	Translator := func(input string) string { return input + "-reflected" }
 	SASecretRetriever := func(input string) string { return input + "-secret" }
 	KubernetesServiceIPGetter := func() string { return "k8ssvcaddr" }
-
-	BeforeEach(func() {
-		// Configure the environment variable that is retrieved by the forge.Init function.
-		Expect(os.Setenv("KUBERNETES_SERVICE_PORT", "8443")).To(Succeed())
-		forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP)
-	})
 
 	Describe("the LocalPod function", func() {
 		const restarts = 3
@@ -369,7 +362,6 @@ var _ = Describe("Pod forging", func() {
 			)
 
 			BeforeEach(func() {
-				forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP)
 				input = []statsv1alpha1.PodStats{PodStats(0.2, 10), PodStats(0.5, 100)}
 			})
 

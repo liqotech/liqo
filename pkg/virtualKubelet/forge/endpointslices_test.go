@@ -35,8 +35,6 @@ var _ = Describe("EndpointSlices Forging", func() {
 		return outputs
 	}
 
-	BeforeEach(func() { forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP) })
-
 	Describe("the RemoteEndpointSlice function", func() {
 		var (
 			input  *discoveryv1beta1.EndpointSlice

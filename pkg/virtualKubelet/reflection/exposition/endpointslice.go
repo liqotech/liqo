@@ -171,7 +171,7 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context,
 
 		if !found {
 			// Cache miss -> we need to interact with the IPAM to request the translation.
-			response, err := ner.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{ClusterID: forge.RemoteClusterID, Ip: original})
+			response, err := ner.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{ClusterID: forge.RemoteCluster.ClusterID, Ip: original})
 			if err != nil {
 				return nil, fmt.Errorf("failed to translate endpoint IP %v: %w", original, err)
 			}
@@ -200,7 +200,7 @@ func (ner *NamespacedEndpointSliceReflector) UnmapEndpointIPs(ctx context.Contex
 	cache := ucache.(map[string]string)
 	for original, translation := range cache {
 		// Interact with the IPAM to release the translation.
-		_, err := ner.ipamclient.UnmapEndpointIP(ctx, &ipam.UnmapRequest{ClusterID: forge.RemoteClusterID, Ip: original})
+		_, err := ner.ipamclient.UnmapEndpointIP(ctx, &ipam.UnmapRequest{ClusterID: forge.RemoteCluster.ClusterID, Ip: original})
 		if err != nil {
 			klog.Errorf("Failed to release endpoint IP %v of EndpointSlice %q: %w", original, ner.LocalRef(endpointslice), err)
 			return fmt.Errorf("failed to release endpoint IP %v of EndpointSlice %q: %w", original, ner.LocalRef(endpointslice), err)

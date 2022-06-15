@@ -64,7 +64,6 @@ func RemoteEndpointSlice(local *discoveryv1beta1.EndpointSlice, targetNamespace 
 func RemoteEndpointSliceEndpoints(locals []discoveryv1beta1.Endpoint,
 	translator EndpointTranslator) []*discoveryv1beta1apply.EndpointApplyConfiguration {
 	var remotes []*discoveryv1beta1apply.EndpointApplyConfiguration
-	hostname := LocalClusterID
 
 	for i := range locals {
 		if !EndpointToBeReflected(&locals[i]) {
@@ -77,7 +76,7 @@ func RemoteEndpointSliceEndpoints(locals []discoveryv1beta1.Endpoint,
 
 		remote := discoveryv1beta1apply.Endpoint().
 			WithAddresses(translator(local.Addresses)...).WithConditions(conditions).
-			WithTopology(local.Topology).WithTopology(map[string]string{corev1.LabelHostname: hostname}).
+			WithTopology(local.Topology).WithTopology(map[string]string{corev1.LabelHostname: LocalCluster.ClusterID}).
 			WithTargetRef(RemoteObjectReference(local.TargetRef))
 		remote.Hostname = local.Hostname
 
