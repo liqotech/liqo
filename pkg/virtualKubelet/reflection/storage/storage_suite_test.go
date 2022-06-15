@@ -35,6 +35,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -46,8 +47,10 @@ const (
 	LocalNamespace  = "local-namespace"
 	RemoteNamespace = "remote-namespace"
 
-	LocalClusterID  = "local-cluster"
-	RemoteClusterID = "remote-cluster"
+	LocalClusterID    = "local-cluster-id"
+	LocalClusterName  = "local-cluster-name"
+	RemoteClusterID   = "remote-cluster-id"
+	RemoteClusterName = "remote-cluster-name"
 
 	VirtualStorageClassName    = "liqo"
 	RealRemoteStorageClassName = "other-class"
@@ -202,7 +205,9 @@ var _ = BeforeEach(func() {
 	checkErrIgnoreAlreadyExists(k8sClient.CoreV1().PersistentVolumeClaims(LocalNamespace).Create(ctx, remotePvc, metav1.CreateOptions{}))
 	checkErrIgnoreAlreadyExists(k8sClient.CoreV1().PersistentVolumeClaims(LocalNamespace).Create(ctx, remotePvc2, metav1.CreateOptions{}))
 
-	forge.Init(LocalClusterID, RemoteClusterID, virtualNode.Name, "127.0.0.1")
+	local := discoveryv1alpha1.ClusterIdentity{ClusterID: LocalClusterID, ClusterName: LocalClusterName}
+	remote := discoveryv1alpha1.ClusterIdentity{ClusterID: RemoteClusterID, ClusterName: RemoteClusterName}
+	forge.Init(local, remote, virtualNode.Name, "127.0.0.1")
 
 	reflectorBuilder = NewNamespacedPersistentVolumeClaimReflector(VirtualStorageClassName,
 		RealRemoteStorageClassName, true)

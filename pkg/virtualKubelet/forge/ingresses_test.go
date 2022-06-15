@@ -28,8 +28,6 @@ import (
 )
 
 var _ = Describe("Ingresses Forging", func() {
-	BeforeEach(func() { forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP) })
-
 	ForgeIngressSpec := func(ing *netv1.Ingress) *netv1.Ingress {
 		ing.Spec.DefaultBackend = &netv1.IngressBackend{
 			Service: &netv1.IngressServiceBackend{

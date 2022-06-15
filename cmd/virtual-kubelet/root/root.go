@@ -84,9 +84,9 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	// Initialize the pod provider
 	podcfg := podprovider.InitConfig{
-		HomeConfig:    localConfig,
+		LocalConfig:   localConfig,
 		RemoteConfig:  remoteConfig,
-		HomeCluster:   c.HomeCluster,
+		LocalCluster:  c.HomeCluster,
 		RemoteCluster: c.ForeignCluster,
 
 		Namespace: c.TenantNamespace,

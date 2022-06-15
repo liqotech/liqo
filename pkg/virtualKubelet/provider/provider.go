@@ -46,9 +46,9 @@ func init() {
 
 // InitConfig is the config passed to initialize the LiqoPodProvider.
 type InitConfig struct {
-	HomeConfig    *rest.Config
+	LocalConfig   *rest.Config
 	RemoteConfig  *rest.Config
-	HomeCluster   discoveryv1alpha1.ClusterIdentity
+	LocalCluster  discoveryv1alpha1.ClusterIdentity
 	RemoteCluster discoveryv1alpha1.ClusterIdentity
 	Namespace     string
 
@@ -78,13 +78,13 @@ type LiqoProvider struct {
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
 func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadcaster) (*LiqoProvider, error) {
-	forge.Init(cfg.HomeCluster.ClusterID, cfg.RemoteCluster.ClusterID, cfg.NodeName, cfg.NodeIP)
-	homeClient := kubernetes.NewForConfigOrDie(cfg.HomeConfig)
-	homeLiqoClient := liqoclient.NewForConfigOrDie(cfg.HomeConfig)
+	forge.Init(cfg.LocalCluster, cfg.RemoteCluster, cfg.NodeName, cfg.NodeIP)
+	localClient := kubernetes.NewForConfigOrDie(cfg.LocalConfig)
+	localLiqoClient := liqoclient.NewForConfigOrDie(cfg.LocalConfig)
 
-	foreignClient := kubernetes.NewForConfigOrDie(cfg.RemoteConfig)
-	foreignLiqoClient := liqoclient.NewForConfigOrDie(cfg.RemoteConfig)
-	foreignMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig)
+	remoteClient := kubernetes.NewForConfigOrDie(cfg.RemoteConfig)
+	remoteLiqoClient := liqoclient.NewForConfigOrDie(cfg.RemoteConfig)
+	remoteMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig)
 
 	dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer, grpc.WithInsecure(), grpc.WithBlock())
@@ -94,9 +94,9 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	}
 	ipamClient := ipam.NewIpamClient(connection)
 
-	reflectionManager := manager.New(homeClient, foreignClient, homeLiqoClient, foreignLiqoClient, cfg.InformerResyncPeriod, eb)
-	podreflector := workload.NewPodReflector(cfg.RemoteConfig, foreignMetricsClient.MetricsV1beta1().PodMetricses, ipamClient, cfg.PodWorkers)
-	namespaceMapHandler := namespacemap.NewHandler(homeLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod)
+	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb)
+	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient.MetricsV1beta1().PodMetricses, ipamClient, cfg.PodWorkers)
+	namespaceMapHandler := namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod)
 	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers)).
