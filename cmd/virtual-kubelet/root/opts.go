@@ -65,13 +65,13 @@ type Opts struct {
 	EnableProfiling bool
 
 	// Number of workers to use to handle pod notifications and resource reflection
-	PodWorkers                  uint
-	ServiceWorkers              uint
-	EndpointSliceWorkers        uint
-	IngressWorkers              uint
-	ConfigMapWorkers            uint
-	SecretWorkers               uint
-	PersistenVolumeClaimWorkers uint
+	PodWorkers                   uint
+	ServiceWorkers               uint
+	EndpointSliceWorkers         uint
+	IngressWorkers               uint
+	ConfigMapWorkers             uint
+	SecretWorkers                uint
+	PersistentVolumeClaimWorkers uint
 
 	NodeLeaseDuration time.Duration
 	NodePingInterval  time.Duration
@@ -80,6 +80,7 @@ type Opts struct {
 	NodeExtraAnnotations argsutils.StringMap
 	NodeExtraLabels      argsutils.StringMap
 
+	EnableAPIServerSupport     bool
 	EnableStorage              bool
 	VirtualStorageClassName    string
 	RemoteRealStorageClassName string
@@ -99,13 +100,13 @@ func NewOpts() *Opts {
 		MetricsAddress:  DefaultMetricsAddress,
 		EnableProfiling: false,
 
-		PodWorkers:                  DefaultPodWorkers,
-		ServiceWorkers:              DefaultServiceWorkers,
-		EndpointSliceWorkers:        DefaultEndpointSliceWorkers,
-		IngressWorkers:              DefaultIngressWorkers,
-		ConfigMapWorkers:            DefaultConfigMapWorkers,
-		SecretWorkers:               DefaultSecretWorkers,
-		PersistenVolumeClaimWorkers: DefaultPersistenVolumeClaimWorkers,
+		PodWorkers:                   DefaultPodWorkers,
+		ServiceWorkers:               DefaultServiceWorkers,
+		EndpointSliceWorkers:         DefaultEndpointSliceWorkers,
+		IngressWorkers:               DefaultIngressWorkers,
+		ConfigMapWorkers:             DefaultConfigMapWorkers,
+		SecretWorkers:                DefaultSecretWorkers,
+		PersistentVolumeClaimWorkers: DefaultPersistenVolumeClaimWorkers,
 
 		NodeLeaseDuration: node.DefaultLeaseDuration * time.Second,
 		NodePingInterval:  node.DefaultPingInterval,

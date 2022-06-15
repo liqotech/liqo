@@ -84,6 +84,7 @@ type NamespacedPodReflector struct {
 	remoteMetrics    metricsv1beta1.PodMetricsInterface
 
 	ipamclient                ipam.IpamClient
+	enableAPIServerSupport    bool
 	kubernetesServiceIPGetter func(context.Context) (string, error)
 	pods                      sync.Map /* implicit signature: map[string]*PodInfo */
 }
@@ -290,7 +291,7 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 	}
 
 	// Forge the target shadowpod object.
-	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(), saSecretRetriever, ipGetter)
+	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(), npr.enableAPIServerSupport, saSecretRetriever, ipGetter)
 
 	// Check whether an error occurred during secret name retrieval.
 	if saerr != nil {

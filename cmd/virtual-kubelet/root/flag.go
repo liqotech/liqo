@@ -47,7 +47,7 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.UintVar(&o.IngressWorkers, "ingress-reflection-workers", o.IngressWorkers, "The number of ingress reflection workers")
 	flags.UintVar(&o.ConfigMapWorkers, "configmap-reflection-workers", o.ConfigMapWorkers, "The number of configmap reflection workers")
 	flags.UintVar(&o.SecretWorkers, "secret-reflection-workers", o.SecretWorkers, "The number of secret reflection workers")
-	flags.UintVar(&o.PersistenVolumeClaimWorkers, "persistentvolumeclaim-reflection-workers", o.PersistenVolumeClaimWorkers,
+	flags.UintVar(&o.PersistentVolumeClaimWorkers, "persistentvolumeclaim-reflection-workers", o.PersistentVolumeClaimWorkers,
 		"The number of persistentvolumeclaim reflection workers")
 
 	flags.DurationVar(&o.NodeLeaseDuration, "node-lease-duration", o.NodeLeaseDuration, "The duration of the node leases")
@@ -59,6 +59,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.Var(&o.NodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flags.Var(&o.NodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
 
+	flags.BoolVar(&o.EnableAPIServerSupport, "enable-apiserver-support", false,
+		"Enable offloaded pods to interact back with the local Kubernetes API server")
 	flags.BoolVar(&o.EnableStorage, "enable-storage", false, "Enable the Liqo storage reflection")
 	flags.StringVar(&o.VirtualStorageClassName, "virtual-storage-class-name", "liqo", "Name of the virtual storage class")
 	flags.StringVar(&o.RemoteRealStorageClassName, "remote-real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
