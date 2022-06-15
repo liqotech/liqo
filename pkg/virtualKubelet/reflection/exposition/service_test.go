@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -79,7 +80,8 @@ var _ = Describe("Service Reflection Tests", func() {
 			reflector = exposition.NewNamespacedServiceReflector(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
-				WithHandlerFactory(FakeEventHandler))
+				WithHandlerFactory(FakeEventHandler).
+				WithEventBroadcaster(record.NewBroadcaster()))
 
 			factory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())

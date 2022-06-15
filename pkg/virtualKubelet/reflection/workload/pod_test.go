@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
@@ -109,7 +110,8 @@ var _ = Describe("Pod Reflection Tests", func() {
 
 			opts := options.New(client, factory.Core().V1().Pods()).
 				WithHandlerFactory(FakeEventHandler).
-				WithReadinessFunc(func() bool { return fallbackReflectorReady })
+				WithReadinessFunc(func() bool { return fallbackReflectorReady }).
+				WithEventBroadcaster(record.NewBroadcaster())
 			fallback = reflector.NewFallback(opts)
 
 			factory.Start(ctx.Done())

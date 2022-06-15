@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -45,11 +46,15 @@ var _ = Describe("NamespacedReflector tests", func() {
 
 		BeforeEach(func() { ready = false })
 		JustBeforeEach(func() {
-			opts := options.NamespacedOpts{LocalNamespace: localNamespace, RemoteNamespace: remoteNamespace, Ready: func() bool { return ready }}
-			nsrfl = NewNamespacedReflector(&opts)
+			opts := options.NamespacedOpts{
+				LocalNamespace: localNamespace, RemoteNamespace: remoteNamespace,
+				Ready: func() bool { return ready }, EventBroadcaster: record.NewBroadcaster(),
+			}
+			nsrfl = NewNamespacedReflector(&opts, name)
 		})
 
 		It("should correctly initialize the namespaced reflector", func() {
+			Expect(nsrfl.EventRecorder).ToNot(BeNil())
 			Expect(nsrfl.local).To(BeIdenticalTo(localNamespace))
 			Expect(nsrfl.remote).To(BeIdenticalTo(remoteNamespace))
 			Expect(nsrfl.ready).ToNot(BeNil())

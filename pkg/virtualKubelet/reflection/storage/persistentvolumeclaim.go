@@ -17,17 +17,14 @@ package storage
 import (
 	"context"
 	"fmt"
-	"path"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	storagev1listers "k8s.io/client-go/listers/storage/v1"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,8 +64,6 @@ type NamespacedPersistentVolumeClaimReflector struct {
 
 	virtualStorageClassName    string
 	remoteRealStorageClassName string
-
-	eventRecorder record.EventRecorder
 }
 
 // NewPersistentVolumeClaimReflector returns a new PersistentVolumeClaimReflector instance.
@@ -93,7 +88,7 @@ func NewNamespacedPersistentVolumeClaimReflector(virtualStorageClassName,
 		remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 
 		return &NamespacedPersistentVolumeClaimReflector{
-			NamespacedReflector: generic.NewNamespacedReflector(opts),
+			NamespacedReflector: generic.NewNamespacedReflector(opts, PersistentVolumeClaimReflectorName),
 
 			classes:                             localStorage.Lister(),
 			volumes:                             localVolumes.Lister(),
@@ -109,9 +104,6 @@ func NewNamespacedPersistentVolumeClaimReflector(virtualStorageClassName,
 
 			virtualStorageClassName:    virtualStorageClassName,
 			remoteRealStorageClassName: remoteRealStorageClassName,
-
-			eventRecorder: opts.EventBroadcaster.NewRecorder(scheme.Scheme,
-				corev1.EventSource{Component: path.Join("remote-storage-provisioner", forge.RemoteClusterID)}),
 		}
 	}
 }
@@ -132,6 +124,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 	if rerr == nil && !forge.IsReflected(remote) {
 		if lerr == nil { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
 			klog.Infof("Skipping reflection of local PersistentVolumeClaim %q as remote already exists and is not managed by us", npvcr.LocalRef(name))
+			npvcr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
 		}
 		return nil
 	}
@@ -155,6 +148,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 	// Check if we should provision storage for that PVC. We have to check if no volume is already provisioned and the storage class is the expected one.
 	if should, err := npvcr.shouldProvision(local); err != nil {
 		klog.V(4).Infof("Error checking if should provision a local PersistentVolumeClaim %q: %v", npvcr.LocalRef(name), err.Error())
+		npvcr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return err
 	} else if !should {
 		klog.V(4).Infof("Skipping PersistentVolumeClaim %q since we should not provision it", npvcr.LocalRef(name))
@@ -165,7 +159,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 	if !npvcr.storageEnabled {
 		msg := fmt.Sprintf("Required PersistentVolumeClaim %q rescheduling since storage is not enabled on the current node", npvcr.LocalRef(name))
 		klog.V(4).Info(msg)
-		npvcr.eventRecorder.Event(local, corev1.EventTypeWarning, "ReschedulingRequired", msg)
+		npvcr.Event(local, corev1.EventTypeWarning, "ReschedulingRequired", msg)
 		// The provisioner may remove
 		// annSelectedNode to notify scheduler to reschedule again.
 		delete(local.Annotations, annSelectedNode)
@@ -194,16 +188,22 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 		})
 	if err != nil {
 		klog.Errorf("Error provisioning the remote PersistentVolumeClaim %q: %v", npvcr.RemoteRef(name), err.Error())
+		npvcr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return err
 	}
+	npvcr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 	tracer.Step("Remote mutation created")
 
 	klog.V(4).Infof("Handle of local PersistentVolumeClaim %q (remote: %q) finished with state %q", npvcr.LocalRef(name), npvcr.RemoteRef(name), state)
 	switch state {
 	case controller.ProvisioningFinished, controller.ProvisioningNoChange, controller.ProvisioningReschedule:
 		if _, err = npvcr.localPersistentVolumeClaimsClient.Update(ctx, local, metav1.UpdateOptions{}); err != nil {
+			if !kerrors.IsConflict(err) {
+				npvcr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedStatusReflectionMsg(err))
+			}
 			return err
 		}
+		npvcr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulStatusReflectionMsg())
 		return nil
 	case controller.ProvisioningInBackground:
 		return fmt.Errorf("provisioning of local PersistentVolumeClaim %q is still in progress", npvcr.LocalRef(name))

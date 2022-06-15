@@ -17,6 +17,7 @@ package configuration
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -71,7 +72,7 @@ func NewNamespacedConfigMapReflector(opts *options.NamespacedOpts) manager.Names
 	remote.Informer().AddEventHandler(opts.HandlerFactory(RemoteConfigMapNamespacedKeyer(opts.LocalNamespace)))
 
 	return &NamespacedConfigMapReflector{
-		NamespacedReflector:    generic.NewNamespacedReflector(opts),
+		NamespacedReflector:    generic.NewNamespacedReflector(opts, ConfigMapReflectorName),
 		localConfigMaps:        local.Lister().ConfigMaps(opts.LocalNamespace),
 		remoteConfigMaps:       remote.Lister().ConfigMaps(opts.RemoteNamespace),
 		remoteConfigMapsClient: opts.RemoteClient.CoreV1().ConfigMaps(opts.RemoteNamespace),
@@ -100,6 +101,7 @@ func (ncr *NamespacedConfigMapReflector) Handle(ctx context.Context, name string
 	if rerr == nil && !forge.IsReflected(remote) {
 		if lerr == nil { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
 			klog.Infof("Skipping reflection of local ConfigMap %q as remote already exists and is not managed by us", ncr.LocalRef(name))
+			ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
 		}
 		return nil
 	}
@@ -123,10 +125,12 @@ func (ncr *NamespacedConfigMapReflector) Handle(ctx context.Context, name string
 	defer tracer.Step("Enforced the correctness of the remote object")
 	if _, err := ncr.remoteConfigMapsClient.Apply(ctx, mutation, forge.ApplyOptions()); err != nil {
 		klog.Errorf("Failed to enforce remote ConfigMap %q (local: %q): %v", ncr.RemoteRef(name), ncr.LocalRef(name), err)
+		ncr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return err
 	}
 
 	klog.Infof("Remote ConfigMap %q successfully enforced (local: %q)", ncr.RemoteRef(name), ncr.LocalRef(name))
+	ncr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 
 	return nil
 }

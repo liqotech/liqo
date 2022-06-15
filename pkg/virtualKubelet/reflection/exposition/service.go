@@ -65,7 +65,7 @@ func NewNamespacedServiceReflector(opts *options.NamespacedOpts) manager.Namespa
 	remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 
 	return &NamespacedServiceReflector{
-		NamespacedReflector:  generic.NewNamespacedReflector(opts),
+		NamespacedReflector:  generic.NewNamespacedReflector(opts, ServiceReflectorName),
 		localServices:        local.Lister().Services(opts.LocalNamespace),
 		remoteServices:       remote.Lister().Services(opts.RemoteNamespace),
 		remoteServicesClient: opts.RemoteClient.CoreV1().Services(opts.RemoteNamespace),
@@ -94,6 +94,7 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 	if rerr == nil && !forge.IsReflected(remote) {
 		if lerr == nil { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
 			klog.Infof("Skipping reflection of local Service %q as remote already exists and is not managed by us", nsr.LocalRef(name))
+			nsr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
 		}
 		return nil
 	}
@@ -118,9 +119,12 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 	defer tracer.Step("Enforced the correctness of the remote object")
 	if _, err := nsr.remoteServicesClient.Apply(ctx, mutation, forge.ApplyOptions()); err != nil {
 		klog.Errorf("Failed to enforce remote Service %q (local: %q): %v", nsr.RemoteRef(name), nsr.LocalRef(name), err)
+		nsr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return err
 	}
 
 	klog.Infof("Remote Service %q successfully enforced (local: %q)", nsr.RemoteRef(name), nsr.LocalRef(name))
+	nsr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
+
 	return nil
 }

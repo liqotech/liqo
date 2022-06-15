@@ -17,6 +17,7 @@ package configuration
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -61,7 +62,7 @@ func NewNamespacedSecretReflector(opts *options.NamespacedOpts) manager.Namespac
 	remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 
 	return &NamespacedSecretReflector{
-		NamespacedReflector: generic.NewNamespacedReflector(opts),
+		NamespacedReflector: generic.NewNamespacedReflector(opts, SecretReflectorName),
 		localSecrets:        local.Lister().Secrets(opts.LocalNamespace),
 		remoteSecrets:       remote.Lister().Secrets(opts.RemoteNamespace),
 		remoteSecretsClient: opts.RemoteClient.CoreV1().Secrets(opts.RemoteNamespace),
@@ -85,6 +86,7 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 	if rerr == nil && !forge.IsReflected(remote) {
 		if lerr == nil { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
 			klog.Infof("Skipping reflection of local Secret %q as remote already exists and is not managed by us", nsr.LocalRef(name))
+			nsr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
 		}
 		return nil
 	}
@@ -108,10 +110,12 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 	defer tracer.Step("Enforced the correctness of the remote object")
 	if _, err := nsr.remoteSecretsClient.Apply(ctx, mutation, forge.ApplyOptions()); err != nil {
 		klog.Errorf("Failed to enforce remote Secret %q (local: %q): %v", nsr.RemoteRef(name), nsr.LocalRef(name), err)
+		nsr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
 		return err
 	}
 
 	klog.Infof("Remote Secret %q successfully enforced (local: %q)", nsr.RemoteRef(name), nsr.LocalRef(name))
+	nsr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 
 	return nil
 }

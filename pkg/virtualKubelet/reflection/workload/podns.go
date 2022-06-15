@@ -123,6 +123,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	if (remoteExists && !forge.IsReflected(remote)) || (shadowExists && !forge.IsReflected(shadow)) {
 		if !localExists { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
 			klog.Infof("Skipping reflection of local pod %q as remote already exists and is not managed by us", npr.LocalRef(name))
+			npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
 		}
 		return nil
 	}
@@ -151,6 +152,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 			opts.Preconditions = metav1.NewUIDPreconditions(string(local.GetUID()))
 			if err := npr.localPodsClient.Delete(ctx, name, *opts); err != nil && !kerrors.IsNotFound(err) {
 				klog.Errorf("Failed to delete local terminated pod %q: %v", npr.LocalRef(name), err)
+				npr.Event(local, corev1.EventTypeWarning, forge.EventFailedDeletion, forge.EventFailedDeletionMsg(err))
 				return err
 			}
 
@@ -195,6 +197,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	target, terr := npr.ForgeShadowPod(ctx, local, shadow, info)
 	if terr != nil {
 		klog.Errorf("Reflection of local pod %q to %q failed: %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), terr)
+		npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(terr))
 		return terr
 	}
 	tracer.Step("Forged the remote pod")
@@ -208,10 +211,14 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 				return nil
 			}
 			klog.Errorf("Failed to create remote shadowpod %q (local pod: %q): %v", npr.RemoteRef(name), npr.LocalRef(name), err)
+			if !kerrors.IsConflict(err) {
+				npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
+			}
 			return err
 		}
 
 		klog.Infof("Remote shadowpod %q successfully created (local: %q)", npr.RemoteRef(name), npr.LocalRef(name))
+		npr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 		tracer.Step("Created the remote shadowpod")
 		// Whatever the outcome, here we return without updating the status, as it will be triggered by future events.
 		return nil
@@ -228,10 +235,14 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 		_, rerr = npr.remoteShadowPodsClient.Update(ctx, target, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager})
 		if rerr != nil {
 			klog.Errorf("Failed to update remote shadowpod %q (local pod: %q): %v", npr.RemoteRef(name), npr.LocalRef(name), rerr)
+			if !kerrors.IsConflict(rerr) {
+				npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(rerr))
+			}
 			return rerr
 		}
 
 		klog.Infof("Remote shadowpod %q successfully updated (local pod: %q)", npr.RemoteRef(name), npr.LocalRef(name))
+		npr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 		tracer.Step("Updated the remote shadowpod")
 	} else {
 		klog.V(4).Infof("Skipping remote shadowpod %q update, as already synced", npr.RemoteRef(name))
@@ -253,6 +264,7 @@ func (npr *NamespacedPodReflector) HandleLabels(ctx context.Context, local *core
 	defer trace.FromContext(ctx).Step("Updated the local pod labels")
 	if _, err := npr.localPodsClient.Apply(ctx, mutation, forge.ApplyOptions()); err != nil {
 		klog.Errorf("Failed to enforce local pod %q labels: %v", npr.LocalRef(local.GetName()), err)
+		npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedLabelsUpdateMsg(err))
 		return err
 	}
 
@@ -326,6 +338,7 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 	// Check whether an error occurred during address translation.
 	if terr != nil {
 		klog.Errorf("Reflection of local pod %q to %q failed: %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), terr)
+		npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedStatusReflectionMsg(terr))
 		return terr
 	}
 
@@ -341,10 +354,14 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 	_, err := npr.localPodsClient.UpdateStatus(ctx, po, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager})
 	if err != nil {
 		klog.Errorf("Failed to update local pod status %q (remote: %q): %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), err)
+		if !kerrors.IsConflict(err) {
+			npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedStatusReflectionMsg(terr))
+		}
 		return err
 	}
 
 	klog.Infof("Local pod %q status successfully updated (remote: %q)", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()))
+	npr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulStatusReflectionMsg())
 	tracer.Step("Updated the local pod status")
 	return nil
 }

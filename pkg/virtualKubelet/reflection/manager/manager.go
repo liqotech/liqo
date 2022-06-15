@@ -111,7 +111,7 @@ func (m *manager) Start(ctx context.Context) {
 	ready := false
 	for _, reflector := range m.reflectors {
 		opts := options.New(m.local, m.localPodInformerFactory.Core().V1().Pods()).
-			WithReadinessFunc(func() bool { return ready })
+			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster)
 		reflector.Start(ctx, opts)
 	}
 

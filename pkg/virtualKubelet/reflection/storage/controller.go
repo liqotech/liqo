@@ -139,7 +139,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) provisionClaimOperation(c
 		selectedNode, err = npvcr.nodes.Get(nodeName)
 		if err != nil {
 			err = fmt.Errorf("failed to get target node: %w", err)
-			npvcr.eventRecorder.Event(claim, corev1.EventTypeWarning, "ProvisioningFailed", err.Error())
+			npvcr.Event(claim, corev1.EventTypeWarning, "ProvisioningFailed", err.Error())
 			return controller.ProvisioningNoChange, err
 		}
 	}
@@ -151,7 +151,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) provisionClaimOperation(c
 		SelectedNode: selectedNode,
 	}
 
-	npvcr.eventRecorder.Event(claim, corev1.EventTypeNormal, "Provisioning",
+	npvcr.Event(claim, corev1.EventTypeNormal, "Provisioning",
 		fmt.Sprintf("External provisioner is provisioning volume for claim %q", npvcr.LocalRef(claim.GetName())))
 
 	volume, result, err := provision(ctx, options)
@@ -163,7 +163,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) provisionClaimOperation(c
 			return controller.ProvisioningFinished, nil
 		}
 		err = fmt.Errorf("failed to provision volume with StorageClass %q: %w", claimClass, err)
-		npvcr.eventRecorder.Event(claim, corev1.EventTypeWarning, "ProvisioningFailed", err.Error())
+		npvcr.Event(claim, corev1.EventTypeWarning, "ProvisioningFailed", err.Error())
 		return result, err
 	}
 

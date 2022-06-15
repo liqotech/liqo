@@ -29,9 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
@@ -86,6 +88,7 @@ type FallbackPodReflector struct {
 	localPods       corev1listers.PodLister
 	localPodsClient func(namespace string) corev1clients.PodInterface
 	ready           func() bool
+	recorder        record.EventRecorder
 }
 
 // NewPodReflector returns a new PodReflector instance.
@@ -114,7 +117,7 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 	remoteSecrets := opts.RemoteFactory.Core().V1().Secrets()
 
 	reflector := &NamespacedPodReflector{
-		NamespacedReflector: generic.NewNamespacedReflector(opts),
+		NamespacedReflector: generic.NewNamespacedReflector(opts, PodReflectorName),
 
 		localPods:        pr.localPods.Pods(opts.LocalNamespace),
 		remotePods:       remote.Lister().Pods(opts.RemoteNamespace),
@@ -144,6 +147,8 @@ func (pr *PodReflector) NewFallback(opts *options.ReflectorOpts) manager.Fallbac
 		localPods:       opts.LocalPodInformer.Lister(),
 		localPodsClient: opts.LocalClient.CoreV1().Pods,
 		ready:           opts.Ready,
+		recorder: opts.EventBroadcaster.NewRecorder(scheme.Scheme,
+			corev1.EventSource{Component: "liqo-pod-reflection"}),
 	}
 }
 
@@ -253,6 +258,7 @@ func (fpr *FallbackPodReflector) Handle(ctx context.Context, key types.Namespace
 		opts.Preconditions = metav1.NewUIDPreconditions(string(local.GetUID()))
 		if err := fpr.localPodsClient(key.Namespace).Delete(ctx, key.Name, *opts); err != nil && !kerrors.IsNotFound(err) {
 			klog.Errorf("Failed to delete orphan local terminated pod %q: %v", klog.KObj(local), err)
+			fpr.recorder.Event(local, corev1.EventTypeWarning, forge.EventFailedDeletion, forge.EventFailedDeletionMsg(err))
 			return err
 		}
 		klog.Infof("Local orphan pod %q successfully deleted", klog.KObj(local))
@@ -278,10 +284,12 @@ func (fpr *FallbackPodReflector) Handle(ctx context.Context, key types.Namespace
 	_, err = fpr.localPodsClient(key.Namespace).UpdateStatus(ctx, pod, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager})
 	if err != nil {
 		klog.Errorf("Failed to mark local pod %q as %v (%v): %v", klog.KObj(local), phase, reason, err)
+		fpr.recorder.Event(local, corev1.EventTypeWarning, forge.EventReflectionDisabled, forge.EventReflectionDisabledErrorMsg(key.Namespace, err))
 		return err
 	}
 
 	klog.Infof("Pod %q successfully marked as %v (%v)", klog.KObj(local), phase, reason)
+	fpr.recorder.Event(local, corev1.EventTypeWarning, forge.EventReflectionDisabled, forge.EventReflectionDisabledMsg(key.Namespace))
 	tracer.Step("Updated the local pod status")
 	return nil
 }
