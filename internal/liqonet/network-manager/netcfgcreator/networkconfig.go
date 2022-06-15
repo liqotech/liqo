@@ -229,6 +229,6 @@ func (ncc *NetworkConfigCreator) EnforceNetworkConfigAbsence(ctx context.Context
 		return err
 	}
 
-	klog.Errorf("Correctly ensured no NetworkConfigs associated with cluster %s are present", clusterIdentity)
+	klog.Infof("Correctly ensured no NetworkConfigs associated with cluster %s are present", clusterIdentity)
 	return nil
 }
