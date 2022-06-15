@@ -12,30 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package wireguard
+package resolver
 
 import (
-	"fmt"
-	"net"
+	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-const (
-	ipv4Literal = "10.1.1.1"
-	ipv4Dns     = "ipv4.liqodns.resolver"
-)
-
-func addressResolverMock(address string) (*net.IPAddr, error) {
-	ipv4Addr := net.ParseIP(ipv4Literal)
-	ipv4Map := map[string]net.IP{
-		ipv4Literal: ipv4Addr,
-		ipv4Dns:     ipv4Addr,
-	}
-	val, found := ipv4Map[address]
-	if found {
-		return &net.IPAddr{
-			IP:   val,
-			Zone: "",
-		}, nil
-	}
-	return nil, fmt.Errorf("ip not found")
+func TestResolver(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Resolver Suite")
 }
