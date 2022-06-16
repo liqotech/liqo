@@ -29,8 +29,13 @@ author = 'The Liqo Authors'
 # ones.
 extensions = [
     'myst_parser',
-    'sphinx_tabs.tabs',
     'sphinx_copybutton',
+    'sphinx_design',
+    'sphinx_external_toc',
+]
+
+myst_enable_extensions = [
+    "substitution",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -42,8 +47,8 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', '_legacy', 'Thumbs.db', '.DS_Store', 'README.md', 'requirements.txt']
 
 linkcheck_ignore = [
-    r'http://localhost:\d+/?', # Localhost links
-    'https://github.com/virtual-kubelet/virtual-kubelet#liqo-provider' # This anchor is not found by the linter, but it works
+    r'http://localhost:\d+/?',  # Localhost links
+    'https://github.com/virtual-kubelet/virtual-kubelet#liqo-provider'  # This anchor is not found by the linter, but it works
 ]
 
 
@@ -58,6 +63,11 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+# These paths are either relative to html_static_path or fully qualified paths (eg. https://...)
+html_css_files = ['css/custom.css']
+
+html_title = 'Liqo'
 
 # Configure the logo shown above the search bar.
 html_logo = "_static/images/common/liqo-logo.svg"
@@ -81,3 +91,7 @@ html_theme_options = {
     'includehidden': True,
     'titles_only': False
 }
+
+# External TOC options
+external_toc_path = "_toc.yml"
+external_toc_exclude_missing = True
