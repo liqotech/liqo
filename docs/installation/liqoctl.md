@@ -28,8 +28,8 @@ When installed with Homebrew, autocompletion scripts are automatically configure
 
 You can download and install *liqoctl* manually, following the appropriate instructions based on your operating system and architecture.
 
-`````{tabs}
-````{tab} Linux
+`````{tab-set}
+````{tab-item} Linux
 
 Download *liqoctl* and move it a to a file location in your system `PATH`:
 
@@ -52,9 +52,7 @@ Make sure `/usr/local/bin` is in your `PATH` environment variable.
 ```
 ````
 
-````{tab} MacOS
-
-```{tabs}
+````{tab-item} MacOS
 
 Download *liqoctl*, make it executable, and move it a to a file location in your system `PATH`:
 
@@ -79,7 +77,7 @@ Make sure `/usr/local/bin` is in your `PATH` environment variable.
 ```
 ````
 
-````{tab} Windows
+````{tab-item} Windows
 
 Download the *liqoctl* binary:
 
@@ -98,8 +96,8 @@ Alternatively, you can download *liqoctl* from the [Liqo releases](https://githu
 
 *liqoctl* provides autocompletion support for Bash, Zsh, Fish, and PowerShell.
 
-`````{tabs}
-````{tab} Bash
+`````{tab-set}
+````{tab-item} Bash
 
 The *liqoctl* completion script for Bash can be generated with the `liqoctl completion bash` command.
 Sourcing the completion script in your shell enables *liqoctl* autocompletion.
@@ -123,7 +121,7 @@ source <(liqoctl completion bash) >> ~/.bashrc
 After reloading your shell, *liqoctl* autocompletion should be working.
 ````
 
-````{tab} Zsh
+````{tab-item} Zsh
 
 The *liqoctl* completion script for Zsh can be generated with the `liqoctl completion zsh` command.
 
@@ -143,7 +141,7 @@ liqoctl completion zsh > "${fpath[1]}/_liqoctl"
 After reloading your shell, *liqoctl* autocompletion should be working.
 ````
 
-````{tab} Fish
+````{tab-item} Fish
 
 The *liqoctl* completion script for Fish can be generated with the `liqoctl completion fish` command.
 
@@ -162,7 +160,7 @@ liqoctl completion fish > ~/.config/fish/completions/liqoctl.fish
 After reloading your shell, *liqoctl* autocompletion should be working.
 ````
 
-````{tab} PowerShell
+````{tab-item} PowerShell
 
 The *liqoctl* completion script for PowerShell can be generated with the `liqoctl completion powershell` command.
 

@@ -19,9 +19,9 @@ The reminder of this page, then, presents **additional customization options** w
 Ensure you selected the correct target cluster before issuing *liqoctl* commands (as you would do with *kubectl*).
 ```
 
-`````{tabs}
+`````{tab-set}
 
-````{tab} Kubeadm
+````{tab-item} Kubeadm
 
 **Supported CNIs**
 
@@ -49,7 +49,7 @@ By default, the cluster is assigned an automatically generated name, then levera
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ````
 
-````{tab} OpenShift
+````{tab-item} OpenShift
 
 **Supported versions**
 
@@ -67,7 +67,7 @@ By default, the cluster is assigned an automatically generated name, then levera
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ````
 
-````{tab} AKS
+````{tab-item} AKS
 
 **Supported CNIs**
 
@@ -116,7 +116,7 @@ Additionally, since your API Server is not accessible from the public Internet, 
 ```
 ````
 
-````{tab} EKS
+````{tab-item} EKS
 
 **Supported CNIs**
 
@@ -164,7 +164,7 @@ By default, the cluster is assigned the same name as that specified through the 
 Alternatively, you can manually specify a different name with the `--cluster-name` *liqoctl* flag.
 ````
 
-````{tab} GKE
+````{tab-item} GKE
 
 **Supported CNIs**
 
@@ -248,7 +248,7 @@ By default, the cluster is assigned the same name as that assigned in GCP.
 Alternatively, you can manually specify a different name with the `--cluster-name` *liqoctl* flag.
 ````
 
-````{tab} K3s
+````{tab-item} K3s
 
 **Installation**
 
@@ -262,7 +262,7 @@ By default, the cluster is assigned an automatically generated name, then levera
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ````
 
-````{tab} KinD
+````{tab-item} KinD
 
 **Installation**
 
@@ -276,7 +276,7 @@ By default, the cluster is assigned an automatically generated name, then levera
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ````
 
-````{tab} Other
+````{tab-item} Other
 
 **Configuration**
 
