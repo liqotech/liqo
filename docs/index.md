@@ -25,9 +25,9 @@ myst:
 
 # What is Liqo?
 
-Liqo is an open-source project that enables **dynamic and seamless Kubernetes multi-cluster topologies**, encompassing heterogeneous on-premise, cloud-provided, and edge infrastructures.
+Liqo is an open-source project that enables **dynamic and seamless Kubernetes multi-cluster topologies**, supporting heterogeneous on-premise, cloud and edge infrastructures.
 
-## What does Liqo provide?
+## What does it provide?
 
 ````{grid} 1 1 1 2
 :padding: 0
