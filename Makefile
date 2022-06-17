@@ -113,6 +113,7 @@ md-lint: markdownlint
 	@find . -type f -name '*.md' -a -not -path "./.github/*" \
 		-not -path "./docs/_legacy/*" \
 		-not -path "./deployments/*" \
+		-not -path "./hack/code-generator/*" \
 		-exec $(MARKDOWNLINT) {} +
 
 lint: golangci-lint
