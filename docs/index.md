@@ -25,7 +25,7 @@ myst:
 
 # What is Liqo?
 
-Liqo is an open-source project which enables **dynamic and seamless Kubernetes multi-cluster topologies**, encompassing heterogeneous on-premise, cloud-provided, and edge infrastructures.
+Liqo is an open-source project that enables **dynamic and seamless Kubernetes multi-cluster topologies**, encompassing heterogeneous on-premise, cloud-provided, and edge infrastructures.
 
 ## What does Liqo provide?
 
@@ -42,7 +42,7 @@ Liqo is an open-source project which enables **dynamic and seamless Kubernetes m
 ^^^
 
 Automatic peer-to-peer establishment of **resource and service consumption relationships** between independent and heterogeneous clusters.
-Do not worry about complex VPN configurations and certification authorities: everything is transparently **self-negotiated** for you.
+No need to worry about complex VPN configurations and certification authorities: everything is transparently **self-negotiated** for you.
 ```
 
 ```{grid-item-card}
@@ -114,7 +114,7 @@ Here you can find an in-depth overview of what a **peering** is, how the *virtua
 ^^^
 
 Ready to give Liqo a try?
-Learn about installation and connectivity **requirements**, discover how to download and install **liqoctl**, the CLI tool to streamline the installation and management Liqo, as well as explore the **customization options**, based on the target environment characteristics.
+Learn about installation and connectivity **requirements**, discover how to download and install **liqoctl**, the CLI tool to streamline the installation and management of Liqo, and explore the **customization options**, based on the target environment characteristics.
 
 +++
 [](installation/requirements.md) ·
@@ -131,8 +131,8 @@ Learn about installation and connectivity **requirements**, discover how to down
 ^^^
 
 Would you like to quickly join the fray and experiment with Liqo?
-Set up your playground and check out the **getting started examples**, that will guide you through a scenario-driven tour of the most notable features of Liqo.
-Discover how to **offload** (a subset) of your workloads, **access services** provided by remote clusters, **expose** multi-cluster application, and more.
+Set up your playground and check out the **getting started examples**, which will guide you through a scenario-driven tour of the most notable features of Liqo.
+Discover how to **offload** (a subset of) your workloads, **access services** provided by remote clusters, **expose** multi-cluster applications, and more.
 
 +++
 [](examples/quick-start.md) ·
@@ -149,9 +149,9 @@ Discover how to **offload** (a subset) of your workloads, **access services** pr
 {fa}`cogs;1.5rem` Usage
 ^^^
 
-Do you want to make a step further and discover all Liqo configuration options?
+Do you want to make a step further and discover all the Liqo configuration options?
 These guides get you covered!
-Discover how to **establish and configure a peering** between two clusters, as well as how to enable and customize **namespace offloading**.
+Find out how to **establish and configure a peering** between two clusters, as well as how to enable and customize **namespace offloading**.
 Explore the details about which and how native resources are **reflected** to remote clusters, and learn more about the support for **stateful applications**.
 
 +++
