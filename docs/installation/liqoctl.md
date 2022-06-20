@@ -14,6 +14,8 @@ Specifically, it abstracts the creation and modification of Liqo defined custom 
 *liqoctl* displays a *kubectl* compatible behavior concerning Kubernetes API access, hence supporting the `KUBECONFIG` environment variable, as well as the standard flags, including `--kubeconfig` and `--context`.
 ```
 
+{{ env.config.html_context.generate_liqoctl_version_warning() }}
+
 ## Install liqoctl with Homebrew
 
 If you are using the [Homebrew](https://brew.sh/) package manager, you can install *liqoctl* with Homebrew:
@@ -31,21 +33,15 @@ You can download and install *liqoctl* manually, following the appropriate instr
 `````{tab-set}
 ````{tab-item} Linux
 
-Download *liqoctl* and move it a to a file location in your system `PATH`:
+Download *liqoctl* and move it to a file location in your system `PATH`:
 
 **AMD64:**
 
-```bash
-curl --fail -LS --output liqoctl "https://get.liqo.io/liqoctl-linux-amd64"
-sudo install -o root -g root -m 0755 liqoctl /usr/local/bin/liqoctl
-```
+{{ env.config.html_context.generate_liqoctl_install('linux', 'amd64') }}
 
 **ARM64:**
 
-```bash
-curl --fail -LS --output liqoctl "https://get.liqo.io/liqoctl-linux-arm64"
-sudo install -o root -g root -m 0755 liqoctl /usr/local/bin/liqoctl
-```
+{{ env.config.html_context.generate_liqoctl_install('linux', 'arm64') }}
 
 ```{admonition} Note
 Make sure `/usr/local/bin` is in your `PATH` environment variable.
@@ -54,23 +50,15 @@ Make sure `/usr/local/bin` is in your `PATH` environment variable.
 
 ````{tab-item} MacOS
 
-Download *liqoctl*, make it executable, and move it a to a file location in your system `PATH`:
+Download *liqoctl*, make it executable, and move it to a file location in your system `PATH`:
 
 **Intel:**
 
-```bash
-curl --fail -LS --output liqoctl "https://get.liqo.io/liqoctl-darwin-amd64"
-chmod +x liqoctl
-sudo mv liqoctl /usr/local/bin/liqoctl
-```
+{{ env.config.html_context.generate_liqoctl_install('darwin', 'amd64') }}
 
 **Apple Silicon:**
 
-```bash
-curl --fail -LS --output liqoctl "https://get.liqo.io/liqoctl-darwin-arm64"
-chmod +x liqoctl
-sudo mv liqoctl /usr/local/bin/liqoctl
-```
+{{ env.config.html_context.generate_liqoctl_install('darwin', 'arm64') }}
 
 ```{admonition} Note
 Make sure `/usr/local/bin` is in your `PATH` environment variable.
@@ -81,18 +69,30 @@ Make sure `/usr/local/bin` is in your `PATH` environment variable.
 
 Download the *liqoctl* binary:
 
-```bash
-curl --fail -LSO "https://get.liqo.io/liqoctl-windows-amd64"
-```
+{{ env.config.html_context.generate_liqoctl_install('windows', 'amd64') }}
 
 And move it to a file location in your system `PATH`.
 
 ````
 `````
 
-Alternatively, you can download *liqoctl* from the [Liqo releases](https://github.com/liqotech/liqo/releases/) page on GitHub.
+Alternatively, you can manually download *liqoctl* from the [Liqo releases](https://github.com/liqotech/liqo/releases/) page on GitHub.
 
-### Enable shell autocompletion
+(InstallationLiqoctlFromSource)=
+
+## Install liqoctl from source
+
+You can install *liqoctl* building it from source.
+To do so, clone the Liqo repository, build the *liqoctl* binary, and move it to a file location in your system `PATH`:
+
+```bash
+git clone https://github.com/liqotech/liqo.git
+cd liqo
+make ctl
+mv liqoctl /usr/local/bin/liqoctl
+```
+
+## Enable shell autocompletion
 
 *liqoctl* provides autocompletion support for Bash, Zsh, Fish, and PowerShell.
 

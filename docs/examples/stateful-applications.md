@@ -10,11 +10,7 @@ First, check that you are compliant with the [requirements](/examples/requiremen
 Then, let's open a terminal on your machine and launch the following script, which creates the two above-mentioned clusters with KinD and installs Liqo on them.
 Each cluster is made by a single combined control-plane + worker node.
 
-```bash
-git clone https://github.com/liqotech/liqo.git
-cd liqo/examples/stateful-applications
-./setup.sh
-```
+{{ env.config.html_context.generate_clone_example('stateful-applications') }}
 
 Export the kubeconfigs environment variables to use them in the rest of the tutorial:
 
