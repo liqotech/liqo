@@ -15,11 +15,7 @@ Specifically, this tool is leveraged instead of KinD to match the [K8GB Sample D
 
 To provision the playground, clone the [Liqo repository](https://github.com/liqotech/liqo) and run the setup script:
 
-```bash
-git clone https://github.com/liqotech/liqo.git
-cd liqo/examples/global-ingress
-./setup.sh
-```
+{{ env.config.html_context.generate_clone_example('global-ingress') }}
 
 The setup script creates three k3s clusters and deploys the appropriate infrastructural application on top of them, as detailed in the following:
 

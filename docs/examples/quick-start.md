@@ -10,11 +10,7 @@ First, check that you are compliant with the [requirements](/examples/requiremen
 Then, let's open a terminal on your machine and launch the following script, which creates a pair of clusters with KinD.
 Each cluster is made by two nodes (one for the control plane and one as a simple worker):
 
-```bash
-git clone https://github.com/liqotech/liqo.git
-cd liqo/examples/quick-start
-./setup.sh
-```
+{{ env.config.html_context.generate_clone_example('quick-start') }}
 
 ### Explore the playground
 

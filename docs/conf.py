@@ -1,3 +1,5 @@
+import semver
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -95,3 +97,62 @@ html_theme_options = {
 # External TOC options
 external_toc_path = "_toc.yml"
 external_toc_exclude_missing = True
+
+# __get_download_url returns the download URL for the given file, for the latest or the given GitHub release.
+def __get_download_url(file: str) -> str:
+    if not 'current_version' in html_context or not __is_sem_version(html_context['current_version']):
+        return f"https://github.com/liqotech/liqo/releases/latest/download/{file}"
+    else:
+        return f"https://github.com/liqotech/liqo/releases/download/{html_context['current_version']}/{file}"
+
+# generate_clone_example generates the clone and checkout code for the given example.
+def generate_clone_example(example_name: str) -> str:
+    return f"```bash\n\
+git clone https://github.com/liqotech/liqo.git\n\
+cd liqo\n\
+git checkout {html_context['github_version']}\n\
+cd examples/{example_name}\n\
+./setup.sh\n\
+```\n"
+
+# generate_liqoctl_install generates the liqoctl installation instruction for the given platform and architecture.
+def generate_liqoctl_install(platform: str, arch: str) -> str:
+    if platform == 'windows':
+        return f"```bash\n\
+curl --fail -LSO \"{__get_download_url('liqoctl-windows-amd64')}\"\n\
+```\n"
+    elif platform == 'darwin':
+        file = __get_download_url(f"liqoctl-darwin-{arch}")
+        return f"```bash\n\
+curl --fail -LS --output liqoctl \"{file}\"\n\
+chmod +x liqoctl\n\
+sudo mv liqoctl /usr/local/bin/liqoctl\n\
+```\n"
+    elif platform == 'linux':
+        file = __get_download_url(f"liqoctl-linux-{arch}")
+        return f"```bash\n\
+curl --fail -LS --output liqoctl \"{file}\"\n\
+sudo install -o root -g root -m 0755 liqoctl /usr/local/bin/liqoctl\n\
+```\n"
+
+# __is_sem_version returns True if the given string is a semantic version or the 'stable' string.
+def __is_sem_version(version: str) -> bool:
+    return version == 'stable' or semver.VersionInfo.isvalid(version)
+
+# generate_liqoctl_version_warning generates the liqoctl version warning when the documentation is not for a released version.
+def generate_liqoctl_version_warning() -> str:
+    if not 'github_version' in html_context or not __is_sem_version(html_context['github_version']):
+        return "```{warning}\n\
+The following instructions will guide you through the installation of the **latest stable version of *liqoctl***, which might exhibit a different behavior compared to the one shown in the rest of this documentation. If you want to use the latest *liqoctl* version, [build it from source](InstallationLiqoctlFromSource).\n\
+```\n"
+    return ""
+
+html_context = {
+    'generate_clone_example': generate_clone_example,
+    'generate_liqoctl_install': generate_liqoctl_install,
+    'generate_liqoctl_version_warning': generate_liqoctl_version_warning,
+    'github_repo': 'liqo',
+    'github_version': 'master',
+    'display_github': True,
+    'commit': 'abcdefgh',
+}

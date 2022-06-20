@@ -13,11 +13,7 @@ First, check that you are compliant with the [requirements](/examples/requiremen
 Then, let's open a terminal on your machine and launch the following script, which creates the three above-mentioned clusters with KinD and installs Liqo on all of them.
 Each cluster is made by a single combined control-plane + worker node.
 
-```bash
-git clone https://github.com/liqotech/liqo.git
-cd liqo/examples/offloading-with-policies
-./setup.sh
-```
+{{ env.config.html_context.generate_clone_example('offloading-with-policies') }}
 
 Export the kubeconfigs environment variables to use them in the rest of the tutorial:
 
