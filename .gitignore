@@ -21,6 +21,7 @@ bin
 *.swo
 *~
 *.tgz
+!pages/*
 .vscode
 .devcontainer
 .DS_Store
