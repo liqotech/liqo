@@ -387,8 +387,17 @@ Development versions include:
 * The commits of *pull requests* to the Liqo repository, whose images have been built through the appropriate bot command.
 
 The installation of a development version of Liqo can be triggered specifying a **commit *SHA*** through the `--version` flag.
-In this case, *liqoctl* proceeds to **clone the repository** (either from the official repository, or from a fork configured through the `--repo-url` flag) at the given revision, and to leverage the Helm chart therein contained.
-Alternatively, the Helm chart can be retrieved from a **local path**, as configured through the `--local-chart-path` flag.
+In this case, *liqoctl* proceeds to **clone the repository** (either from the official repository, or from a fork configured through the `--repo-url` flag) at the given revision, and to leverage the Helm chart therein contained:
+
+```bash
+liqoctl install <provider> --version <commit-sha> --repo-url <forked-repo-url>
+```
+
+Alternatively, the Helm chart can be retrieved from a **local path**, as configured through the `--local-chart-path` flag:
+
+```bash
+liqoctl install <provider> --version <commit-sha> --local-chart-path <path-to-local-chart>
+```
 
 (InstallationCalicoConfiguration)=
 
