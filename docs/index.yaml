@@ -1,0 +1,99 @@
+apiVersion: v1
+entries:
+  liqo:
+  - apiVersion: v2
+    appVersion: v0.5.0-beta.2
+    created: "2022-06-13T10:55:46.635139501Z"
+    description: A Helm chart for Liqo
+    digest: e50daf856817b21992768bfd7b78ef7ff9ab614f940db8c303d149bdd090724a
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.5.0-beta.2/liqo-v0.5.0-beta.2.tgz
+    version: v0.5.0-beta.2
+  - apiVersion: v2
+    appVersion: v0.5.0-beta.1
+    created: "2022-06-13T10:55:46.630297273Z"
+    description: A Helm chart for Liqo
+    digest: 99a4760269a9de0af01b6e626bb88caa7ebbe35cd1e1ef74f225ceabebc17459
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.5.0-beta.1/liqo-v0.5.0-beta.1.tgz
+    version: v0.5.0-beta.1
+  - apiVersion: v2
+    appVersion: v0.4.0
+    created: "2022-06-13T10:55:46.626298349Z"
+    description: A Helm chart for Liqo
+    digest: 318749b5be939cc4f4217d8e523310f299d23357976ecb67edce0da19695160a
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.4.0/liqo-v0.4.0.tgz
+    version: v0.4.0
+  - apiVersion: v2
+    appVersion: v0.3.2
+    created: "2022-06-13T10:55:46.61446518Z"
+    dependencies:
+    - condition: capsule.install
+      name: capsule
+      repository: https://clastix.github.io/charts
+      version: v0.1.3
+    description: A Helm chart for Liqo
+    digest: d2a7e58997496400522c68fe335be166eede9114d61637ee38c325a2b74ab7f9
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.3.2/liqo-v0.3.2.tgz
+    version: v0.3.2
+  - apiVersion: v2
+    appVersion: v0.3.1
+    created: "2022-06-13T10:55:46.579108575Z"
+    dependencies:
+    - condition: capsule.install
+      name: capsule
+      repository: https://clastix.github.io/charts
+      version: v0.1.0
+    description: A Helm chart for Liqo
+    digest: 9e77f3d1c89acb34c6f7b920e9a6164d1f01b8a99cac60f3b50df954fe8903b4
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.3.1/liqo-v0.3.1.tgz
+    version: v0.3.1
+  - apiVersion: v2
+    appVersion: v0.3.0
+    created: "2022-06-13T10:55:46.565761597Z"
+    dependencies:
+    - condition: capsule.install
+      name: capsule
+      repository: https://clastix.github.io/charts
+      version: v0.1.0
+    description: A Helm chart for Liqo
+    digest: aa66166f0ab4e0c4e03bdd1c5cee18dcdf4948d18e20dc462ad44c6bd7087e67
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.3.0/liqo-v0.3.0.tgz
+    version: v0.3.0
+  - apiVersion: v2
+    appVersion: v0.2.1
+    created: "2022-06-13T10:55:46.542944765Z"
+    description: A Helm chart for Liqo
+    digest: 1f0073b4b4f35ecf356beafab76765a011c5f1a14d4a5c2204ae784df74c5a74
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.2.1/liqo-v0.2.1.tgz
+    version: v0.2.1
+  - apiVersion: v2
+    appVersion: v0.2
+    created: "2022-06-13T10:55:46.544422173Z"
+    description: A Helm chart for Liqo
+    digest: 46a3f8e4a6f488362562af0b7b370148550ada2acf177aa25b9b86c15ad7142e
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.2/liqo-v0.2.tgz
+    version: v0.2
+generated: "2022-06-13T10:55:46.537121931Z"
