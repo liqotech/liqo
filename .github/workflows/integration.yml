@@ -250,7 +250,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          # The changelog generation requires the entire history
           fetch-depth: 0
           ref: "${{ needs.configure.outputs.commit-ref }}"
           repository: "${{ needs.configure.outputs.repo-name }}"
@@ -263,16 +262,22 @@ jobs:
           repository: ${{ github.repository }}
           excludes: prerelease, draft
 
-      - name: Trigger Chart Upload
-        uses: peter-evans/repository-dispatch@v1
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v1
         with:
-          token: ${{ secrets.CI_TOKEN }}
-          repository: liqotech/liqops
-          event-type: "release"
-          client-payload: |
-             {
-               "version": "${{ needs.configure.outputs.commit-ref }}"
-             }
+          version: v3.8.1
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.4.0
+        with:
+          charts_dir: deployments
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Parse semver string
         id: semver_parser
