@@ -244,7 +244,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs: [build, configure, liqoctl]
-    if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
 
       - name: Checkout
@@ -263,16 +263,15 @@ jobs:
           repository: ${{ github.repository }}
           excludes: prerelease, draft
 
-      - name: Trigger Chart Upload
-        uses: peter-evans/repository-dispatch@v1
+      - name: Configure Git
+        run: |
+          git config user.name "adamjensenbot"
+          git config user.email "adamjensenbot@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v1
         with:
-          token: ${{ secrets.CI_TOKEN }}
-          repository: liqotech/liqops
-          event-type: "release"
-          client-payload: |
-             {
-               "version": "${{ needs.configure.outputs.commit-ref }}"
-             }
+          version: v3.8.1
 
       - name: Parse semver string
         id: semver_parser
@@ -281,15 +280,52 @@ jobs:
           input_string: '${{ needs.configure.outputs.commit-ref }}'
           version_extractor_regex: 'v(.*)$'
 
+      # we cannot use the official chart-releaser-action since it does not support releases on tags
+      # https://github.com/helm/chart-releaser-action/issues/60, and it is not possible to add the
+      # release artifact to the main liqo release.
+      - name: Download chart releaser
+        run: |
+          curl -sSL "https://github.com/helm/chart-releaser/releases/download/v1.4.0/chart-releaser_1.4.0_linux_amd64.tar.gz" | tar -xz
+
+      - name: Package helm chart
+        run: |
+          # the output should be in the .cr-release-packages since cr index expects to find it there to create the helm index
+          helm package deployments/liqo --version "${{ needs.configure.outputs.commit-ref }}" --app-version "${{ needs.configure.outputs.commit-ref }}" --destination .cr-release-packages
+
       - uses: actions/download-artifact@v2
         with:
          path: ./liqoctl/
+
+      # we need to upload only helm artifacts first, to make the index updater to work
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: ".cr-release-packages/*"
+          generateReleaseNotes: true
+          allowUpdates: true
+          tag: ${{ needs.configure.outputs.commit-ref }}
+          name: ${{ needs.configure.outputs.commit-ref }}
+          prerelease: ${{ steps.semver_parser.outputs.prerelease != '' }}
+
+      - name: Update Helm index
+        run: |
+          repo=$(cut -d '/' -f 2 <<< "$GITHUB_REPOSITORY")
+          owner=$(cut -d '/' -f 1 <<< "$GITHUB_REPOSITORY")
+
+          # Update index and push to github pages
+          ./cr index \
+              --owner "$owner" \
+              --git-repo "$repo" \
+              --release-name-template "${{ needs.configure.outputs.commit-ref }}" \
+              --token "${{ secrets.GITHUB_TOKEN }}" \
+              --index-path index.yaml \
+              --pages-index-path index.yaml \
+              --push
 
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "./liqoctl/**/*"
           generateReleaseNotes: true
-          token: ${{ secrets.CI_TOKEN }}
+          allowUpdates: true
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}
           prerelease: ${{ steps.semver_parser.outputs.prerelease != '' }}
