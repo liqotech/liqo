@@ -224,8 +224,8 @@ jobs:
 
       - name: Create Archives
         run: |
-          cp liqoctl-${{ matrix.goos }}-${{ matrix.goarch }} kubectl-liqo
-          tar -czvf liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz kubectl-liqo
+          cp liqoctl-${{ matrix.goos }}-${{ matrix.goarch }} liqoctl
+          tar -czvf liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz liqoctl
 
       - name: Upload Liqoctl
         uses: actions/upload-artifact@v2
