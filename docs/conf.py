@@ -1,4 +1,5 @@
 import semver
+import requests
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -107,10 +108,14 @@ def __get_download_url(file: str) -> str:
 
 # generate_clone_example generates the clone and checkout code for the given example.
 def generate_clone_example(example_name: str) -> str:
+    version = html_context['github_version']
+    if 'current_version' in html_context and html_context['current_version'] == 'stable':
+        x = requests.get('https://api.github.com/repos/liqotech/liqo/releases/latest')
+        version = x.json()['tag_name']
     return f"```bash\n\
 git clone https://github.com/liqotech/liqo.git\n\
 cd liqo\n\
-git checkout {html_context['github_version']}\n\
+git checkout {version}\n\
 cd examples/{example_name}\n\
 ./setup.sh\n\
 ```\n"
@@ -137,11 +142,11 @@ sudo install -o root -g root -m 0755 liqoctl /usr/local/bin/liqoctl\n\
 
 # __is_sem_version returns True if the given string is a semantic version or the 'stable' string.
 def __is_sem_version(version: str) -> bool:
-    return version == 'stable' or semver.VersionInfo.isvalid(version.lstrip("v"))
+    return semver.VersionInfo.isvalid(version.lstrip("v"))
 
 # generate_liqoctl_version_warning generates the liqoctl version warning when the documentation is not for a released version.
 def generate_liqoctl_version_warning() -> str:
-    if 'github_version' not in html_context or not __is_sem_version(html_context['github_version']):
+    if 'current_version' not in html_context or (not __is_sem_version(html_context['current_version']) and html_context['current_version'] != 'stable'):
         return "```{warning}\n\
 The following instructions will guide you through the installation of the **latest stable version of *liqoctl***, which might exhibit a different behavior compared to the one shown in the rest of this documentation. If you want to use the latest *liqoctl* version, [build it from source](InstallationLiqoctlFromSource).\n\
 ```\n"
