@@ -3,7 +3,7 @@ changelog:
     labels:
     - kind/no-changelog
     authors:
-    - dependabot[bot]
+    - dependabot
   categories:
     - title: ":boom: Breaking Change"
       labels:
