@@ -301,6 +301,7 @@ jobs:
         with:
           artifacts: ".cr-release-packages/*"
           generateReleaseNotes: true
+          token: ${{ secrets.CI_TOKEN }}
           allowUpdates: true
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}
@@ -324,7 +325,7 @@ jobs:
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "./liqoctl/**/*"
-          generateReleaseNotes: true
+          token: ${{ secrets.CI_TOKEN }}
           allowUpdates: true
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}
