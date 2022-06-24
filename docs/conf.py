@@ -122,16 +122,16 @@ def generate_liqoctl_install(platform: str, arch: str) -> str:
 curl --fail -LSO \"{__get_download_url('liqoctl-windows-amd64')}\"\n\
 ```\n"
     elif platform == 'darwin':
-        file = __get_download_url(f"liqoctl-darwin-{arch}")
+        file = __get_download_url(f"liqoctl-darwin-{arch}.tar.gz")
         return f"```bash\n\
-curl --fail -LS --output liqoctl \"{file}\"\n\
+curl --fail -LS \"{file}\" | tar -xz\n\
 chmod +x liqoctl\n\
 sudo mv liqoctl /usr/local/bin/liqoctl\n\
 ```\n"
     elif platform == 'linux':
-        file = __get_download_url(f"liqoctl-linux-{arch}")
+        file = __get_download_url(f"liqoctl-linux-{arch}.tar.gz")
         return f"```bash\n\
-curl --fail -LS --output liqoctl \"{file}\"\n\
+curl --fail -LS \"{file}\" | tar -xz\n\
 sudo install -o root -g root -m 0755 liqoctl /usr/local/bin/liqoctl\n\
 ```\n"
 
