@@ -100,7 +100,7 @@ external_toc_exclude_missing = True
 
 # __get_download_url returns the download URL for the given file, for the latest or the given GitHub release.
 def __get_download_url(file: str) -> str:
-    if not 'current_version' in html_context or not __is_sem_version(html_context['current_version']):
+    if 'current_version' not in html_context or not __is_sem_version(html_context['current_version']):
         return f"https://github.com/liqotech/liqo/releases/latest/download/{file}"
     else:
         return f"https://github.com/liqotech/liqo/releases/download/{html_context['current_version']}/{file}"
@@ -137,11 +137,11 @@ sudo install -o root -g root -m 0755 liqoctl /usr/local/bin/liqoctl\n\
 
 # __is_sem_version returns True if the given string is a semantic version or the 'stable' string.
 def __is_sem_version(version: str) -> bool:
-    return version == 'stable' or semver.VersionInfo.isvalid(version)
+    return version == 'stable' or semver.VersionInfo.isvalid(version.lstrip("v"))
 
 # generate_liqoctl_version_warning generates the liqoctl version warning when the documentation is not for a released version.
 def generate_liqoctl_version_warning() -> str:
-    if not 'github_version' in html_context or not __is_sem_version(html_context['github_version']):
+    if 'github_version' not in html_context or not __is_sem_version(html_context['github_version']):
         return "```{warning}\n\
 The following instructions will guide you through the installation of the **latest stable version of *liqoctl***, which might exhibit a different behavior compared to the one shown in the rest of this documentation. If you want to use the latest *liqoctl* version, [build it from source](InstallationLiqoctlFromSource).\n\
 ```\n"
