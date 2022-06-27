@@ -225,7 +225,7 @@ jobs:
       - name: Create Archives
         run: |
           cp liqoctl-${{ matrix.goos }}-${{ matrix.goarch }} liqoctl
-          tar -czvf liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz liqoctl
+          tar -czvf liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz liqoctl LICENSE
 
       - name: Upload Liqoctl
         uses: actions/upload-artifact@v2
