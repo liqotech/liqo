@@ -41,5 +41,7 @@ subtrees:
         title: GitHub Repository
       - url: https://medium.com/the-liqo-blog
         title: The Liqo Blog
+      - url: https://arxiv.org/pdf/2204.05710.pdf
+        title: The Liqo Paper
       - url: https://www.youtube.com/channel/UCYbWJMfwy3P6xT4JI_K84xw
         title: Liqo on YouTube
