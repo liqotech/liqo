@@ -135,6 +135,7 @@ var controllerAnnotations = []string{
 	"pv.kubernetes.io/bind-completed",
 	"pv.kubernetes.io/bound-by-controller",
 	"volume.beta.kubernetes.io/storage-provisioner",
+	"volume.kubernetes.io/storage-provisioner",
 	"volume.kubernetes.io/selected-node",
 	corev1.BetaStorageClassAnnotation,
 }
