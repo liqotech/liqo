@@ -16,6 +16,8 @@ Specifically, it abstracts the creation and modification of Liqo defined custom 
 
 {{ env.config.html_context.generate_liqoctl_version_warning() }}
 
+(InstallationLiqoctlWithHomebrew)=
+
 ## Install liqoctl with Homebrew
 
 If you are using the [Homebrew](https://brew.sh/) package manager, you can install *liqoctl* with Homebrew:
@@ -25,6 +27,8 @@ brew install liqoctl
 ```
 
 When installed with Homebrew, autocompletion scripts are automatically configured and should work out of the box.
+
+(InstallationLiqoctlManually)=
 
 ## Install liqoctl manually
 
@@ -77,6 +81,21 @@ And move it to a file location in your system `PATH`.
 `````
 
 Alternatively, you can manually download *liqoctl* from the [Liqo releases](https://github.com/liqotech/liqo/releases/) page on GitHub.
+
+## Install Kubectl plugin with Krew
+
+You can install liqoctl as a kubectl plugin by using the [Krew](https://krew.sigs.k8s.io/) plugin manager:
+
+```bash
+kubectl krew install liqo
+```
+
+Then, all commands shall be invoked with `kubectl liqo` rather than `liqoctl`, although all functionalities remain the same.
+
+```{warning}
+While the kubectl plugin is supported, it is recommended to use liqoctl as this enables a better experience via tab auto-completion.
+[Install it with Homebrew](InstallationLiqoctlWithHomebrew) if available on your system or by [manually downloading the binary from GitHub](InstallationLiqoctlManually).
+```
 
 (InstallationLiqoctlFromSource)=
 

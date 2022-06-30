@@ -1,0 +1,48 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: liqo
+spec:
+  version: {{ .TagName }}
+  homepage: https://github.com/liqotech/liqo
+  shortDescription: Install and manage Liqo on your clusters
+  description: |
+    Liqo is a platform to enable dynamic and decentralized resource sharing across
+    Kubernetes clusters, either on-prem or managed. Liqo allows to run pods on a
+    remote cluster seamlessly and without any modification of Kubernetes and the
+    applications. With Liqo it is possible to extend the control and data plane of a
+    Kubernetes cluster across the cluster's boundaries, making multi-cluster native
+    and transparent: collapse an entire remote cluster to a local virtual node,
+    enabling workloads offloading, resource management and cross-cluster communication
+    compliant with the standard Kubernetes approach.
+  platforms:
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: amd64
+    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-darwin-amd64.tar.gz" .TagName }}
+    bin: liqoctl
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: arm64
+    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-darwin-arm64.tar.gz" .TagName }}
+    bin: liqoctl
+  - selector:
+      matchLabels:
+        os: linux
+        arch: amd64
+    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-linux-amd64.tar.gz" .TagName }}
+    bin: liqoctl
+  - selector:
+      matchLabels:
+        os: linux
+        arch: arm64
+    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-linux-arm64.tar.gz" .TagName }}
+    bin: liqoctl
+  - selector:
+      matchLabels:
+        os: windows
+        arch: amd64
+    {{addURIAndSha "https://github.com/liqotech/liqo/releases/download/{{ .TagName }}/liqoctl-windows-amd64.tar.gz" .TagName }}
+    bin: liqoctl
