@@ -40,7 +40,7 @@ helm repo update &> /dev/null
 
 info "Deploying bind server..."
 
-fail_on_error kubectl apply -f "$here/manifests/edge/" --kubeconfig="${KUBECONFIG_EDGE_DNS}" "Failed to deploy bind server"
+fail_on_error "kubectl apply -f $here/manifests/edge/ --kubeconfig=${KUBECONFIG_EDGE_DNS}" "Failed to deploy bind server"
 DNS_IP=$(kubectl get nodes --selector=node-role.kubernetes.io/master -o jsonpath='{$.items[*].status.addresses[?(@.type=="InternalIP")].address}' --kubeconfig="${KUBECONFIG_EDGE_DNS}")
 
 success_clear_line "Bind server has been deployed."
