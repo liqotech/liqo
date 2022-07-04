@@ -170,6 +170,7 @@ func newPeerInBandCommand(ctx context.Context, peerOptions *peer.Options) *cobra
 		Aliases: []string{"ib"},
 		Short:   "Enable an in-band peering towards a remote cluster",
 		Long:    WithTemplate(liqoctlPeerIBLongHelp),
+		Args:    cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			twoClustersPersistentPreRun(cmd, local, remote, factory.WithScopedPrinter)

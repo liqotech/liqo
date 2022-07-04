@@ -139,6 +139,7 @@ func newUnpeerInBandCommand(ctx context.Context, unpeerOptions *unpeeroob.Option
 		Aliases: []string{"ib"},
 		Short:   "Disable an in-band peering towards a remote cluster",
 		Long:    WithTemplate(liqoctlUnpeerIBLongHelp),
+		Args:    cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			twoClustersPersistentPreRun(cmd, local, remote, factory.WithScopedPrinter)

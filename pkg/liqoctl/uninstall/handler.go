@@ -22,6 +22,7 @@ import (
 
 	"helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,6 +71,13 @@ func (o *Options) Run(ctx context.Context) error {
 		s.Fail("Error uninstalling Liqo: ", output.PrettyErr(err))
 		return err
 	}
+
+	// Ensure liqo has been correctly uninstalled before continuing, to prevent leaving leftover resources behind.
+	if err := o.checkUninstalled(ctx); err != nil {
+		s.Fail("Error uninstalling Liqo: ", output.PrettyErr(err))
+		return err
+	}
+
 	s.Success("Liqo uninstalled")
 
 	if o.Purge {
@@ -87,6 +95,19 @@ func (o *Options) Run(ctx context.Context) error {
 			return err
 		}
 		s.Success("Liqo namespaces deleted")
+	}
+
+	return nil
+}
+
+func (o *Options) checkUninstalled(ctx context.Context) error {
+	var clusterRoles rbacv1.ClusterRoleList
+	if err := o.CRClient.List(ctx, &clusterRoles, client.MatchingLabels{"app.kubernetes.io/part-of": install.LiqoReleaseName}); err != nil {
+		return fmt.Errorf("failed checking whether cluster-wide resources have been removed: %w", err)
+	}
+
+	if len(clusterRoles.Items) > 0 {
+		return errors.New("cluster-wide resources are still present - did you specify the right namespace?")
 	}
 
 	return nil

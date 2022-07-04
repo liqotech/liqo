@@ -47,6 +47,7 @@ func newUninstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command
 		Use:   "uninstall",
 		Short: "Uninstall Liqo from the selected cluster",
 		Long:  WithTemplate(liqoctlUninstallLongHelp),
+		Args:  cobra.NoArgs,
 
 		Run: func(cmd *cobra.Command, args []string) {
 			output.ExitOnErr(options.Run(ctx))
