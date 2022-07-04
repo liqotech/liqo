@@ -47,18 +47,18 @@ require (
 	helm.sh/helm v2.17.0+incompatible
 	helm.sh/helm/v3 v3.8.2
 	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6
-	k8s.io/api v0.23.6
-	k8s.io/apiextensions-apiserver v0.23.5
-	k8s.io/apimachinery v0.23.6
+	k8s.io/api v0.24.2
+	k8s.io/apiextensions-apiserver v0.24.2
+	k8s.io/apimachinery v0.24.2
 	k8s.io/cli-runtime v0.23.6
-	k8s.io/client-go v0.23.6
+	k8s.io/client-go v0.24.2
 	k8s.io/component-helpers v0.23.6
 	k8s.io/klog/v2 v2.60.1
 	k8s.io/kubectl v0.23.6
 	k8s.io/metrics v0.23.6
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 	sigs.k8s.io/aws-iam-authenticator v0.5.9
-	sigs.k8s.io/controller-runtime v0.11.2
+	sigs.k8s.io/controller-runtime v0.12.2
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
 )
 
@@ -89,7 +89,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/avast/retry-go/v3 v3.1.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/blang/semver v3.5.1+incompatible // indirect
+	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/boombuler/barcode v1.0.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -182,6 +182,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
@@ -227,9 +228,9 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/apiserver v0.23.5 // indirect
-	k8s.io/component-base v0.23.6 // indirect
-	k8s.io/kube-openapi v0.0.0-20220309203242-1cd4920c0894 // indirect
+	k8s.io/apiserver v0.24.2 // indirect
+	k8s.io/component-base v0.24.2 // indirect
+	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42 // indirect
 	oras.land/oras-go v1.1.1 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/kustomize/api v0.11.4 // indirect
