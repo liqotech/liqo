@@ -147,11 +147,13 @@ function install_liqo_k3d() {
     shift 4
     labels="$*"
 
+    api_server_address=$(kubectl get nodes --kubeconfig "$kubeconfig" --selector=node-role.kubernetes.io/master -o jsonpath='{$.items[*].status.addresses[?(@.type=="InternalIP")].address}')
+
     fail_on_error "liqoctl install k3s --cluster-name $cluster_name \
         --cluster-labels=$(join_by , "${labels[@]}") \
         --pod-cidr $pod_cidr \
         --service-cidr $service_cidr \
-        --api-server-url https://$(kubectl get nodes --kubeconfig "$kubeconfig" --selector=node-role.kubernetes.io/master -o jsonpath='{$.items[*].status.addresses[?(@.type=="InternalIP")].address}'):6443 \
+        --api-server-url https://$api_server_address:6443 \
         --kubeconfig $kubeconfig" "Failed to install liqo on cluster \"${cluster_name}\""
 
     success_clear_line "Liqo has been installed on cluster \"$cluster_name\"."
