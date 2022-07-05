@@ -20,16 +20,16 @@ import (
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	discoveryv1beta1clients "k8s.io/client-go/kubernetes/typed/discovery/v1beta1"
+	discoveryv1clients "k8s.io/client-go/kubernetes/typed/discovery/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
-	discoveryv1beta1listers "k8s.io/client-go/listers/discovery/v1beta1"
+	discoveryv1listers "k8s.io/client-go/listers/discovery/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,9 +53,9 @@ type NamespacedEndpointSliceReflector struct {
 	generic.NamespacedReflector
 
 	localServices              corev1listers.ServiceNamespaceLister
-	localEndpointSlices        discoveryv1beta1listers.EndpointSliceNamespaceLister
-	remoteEndpointSlices       discoveryv1beta1listers.EndpointSliceNamespaceLister
-	remoteEndpointSlicesClient discoveryv1beta1clients.EndpointSliceInterface
+	localEndpointSlices        discoveryv1listers.EndpointSliceNamespaceLister
+	remoteEndpointSlices       discoveryv1listers.EndpointSliceNamespaceLister
+	remoteEndpointSlicesClient discoveryv1clients.EndpointSliceInterface
 
 	ipamclient   ipam.IpamClient
 	translations sync.Map
@@ -69,8 +69,8 @@ func NewEndpointSliceReflector(ipamclient ipam.IpamClient, workers uint) manager
 // NewNamespacedEndpointSliceReflector returns a function generating NamespacedEndpointSliceReflector instances.
 func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*options.NamespacedOpts) manager.NamespacedReflector {
 	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
-		local := opts.LocalFactory.Discovery().V1beta1().EndpointSlices()
-		remote := opts.RemoteFactory.Discovery().V1beta1().EndpointSlices()
+		local := opts.LocalFactory.Discovery().V1().EndpointSlices()
+		remote := opts.RemoteFactory.Discovery().V1().EndpointSlices()
 		localServices := opts.LocalFactory.Core().V1().Services()
 
 		local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
@@ -81,7 +81,7 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 			localServices:              localServices.Lister().Services(opts.LocalNamespace),
 			localEndpointSlices:        local.Lister().EndpointSlices(opts.LocalNamespace),
 			remoteEndpointSlices:       remote.Lister().EndpointSlices(opts.RemoteNamespace),
-			remoteEndpointSlicesClient: opts.RemoteClient.DiscoveryV1beta1().EndpointSlices(opts.RemoteNamespace),
+			remoteEndpointSlicesClient: opts.RemoteClient.DiscoveryV1().EndpointSlices(opts.RemoteNamespace),
 			ipamclient:                 ipamclient,
 		}
 
@@ -130,7 +130,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		}
 
 		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
-		lerr = kerrors.NewNotFound(discoveryv1beta1.Resource("endpointslice"), local.GetName())
+		lerr = kerrors.NewNotFound(discoveryv1.Resource("endpointslice"), local.GetName())
 	}
 
 	tracer.Step("Performed the sanity checks")
@@ -256,7 +256,7 @@ func (ner *NamespacedEndpointSliceReflector) ShouldSkipReflection(obj metav1.Obj
 	}
 
 	// Check if a service is associated to the EndpointSlice, and whether it is marked to be skipped.
-	svcname, ok := obj.GetLabels()[discoveryv1beta1.LabelServiceName]
+	svcname, ok := obj.GetLabels()[discoveryv1.LabelServiceName]
 	if !ok {
 		return false
 	}
@@ -270,7 +270,7 @@ func (ner *NamespacedEndpointSliceReflector) ShouldSkipReflection(obj metav1.Obj
 
 // ServiceToEndpointSlicesKeyer returns the NamespacedName of all local EndpointSlices associated with the given local Service.
 func (ner *NamespacedEndpointSliceReflector) ServiceToEndpointSlicesKeyer(metadata metav1.Object) []types.NamespacedName {
-	req, err := labels.NewRequirement(discoveryv1beta1.LabelServiceName, selection.Equals, []string{metadata.GetName()})
+	req, err := labels.NewRequirement(discoveryv1.LabelServiceName, selection.Equals, []string{metadata.GetName()})
 	utilruntime.Must(err)
 	eps, err := ner.localEndpointSlices.List(labels.NewSelector().Add(*req))
 	utilruntime.Must(err)

@@ -19,9 +19,9 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	discoveryv1beta1apply "k8s.io/client-go/applyconfigurations/discovery/v1beta1"
+	discoveryv1apply "k8s.io/client-go/applyconfigurations/discovery/v1"
 	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -37,20 +37,20 @@ var _ = Describe("EndpointSlices Forging", func() {
 
 	Describe("the RemoteEndpointSlice function", func() {
 		var (
-			input  *discoveryv1beta1.EndpointSlice
-			output *discoveryv1beta1apply.EndpointSliceApplyConfiguration
+			input  *discoveryv1.EndpointSlice
+			output *discoveryv1apply.EndpointSliceApplyConfiguration
 		)
 
 		BeforeEach(func() {
-			input = &discoveryv1beta1.EndpointSlice{
+			input = &discoveryv1.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "name", Namespace: "original",
 					Labels:      map[string]string{"foo": "bar"},
 					Annotations: map[string]string{"bar": "baz"},
 				},
-				AddressType: discoveryv1beta1.AddressTypeFQDN,
-				Endpoints:   []discoveryv1beta1.Endpoint{{Hostname: pointer.String("Test")}},
-				Ports:       []discoveryv1beta1.EndpointPort{{Name: pointer.String("HTTPS")}},
+				AddressType: discoveryv1.AddressTypeFQDN,
+				Endpoints:   []discoveryv1.Endpoint{{Hostname: pointer.String("Test")}},
+				Ports:       []discoveryv1.EndpointPort{{Name: pointer.String("HTTPS")}},
 			}
 
 			JustBeforeEach(func() { output = forge.RemoteEndpointSlice(input, "reflected", Translator) })
@@ -64,13 +64,13 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
-				Expect(output.Labels).To(HaveKeyWithValue(discoveryv1beta1.LabelManagedBy, forge.EndpointSliceManagedBy))
+				Expect(output.Labels).To(HaveKeyWithValue(discoveryv1.LabelManagedBy, forge.EndpointSliceManagedBy))
 			})
 			It("should correctly set the annotations", func() {
 				Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
 			})
 			It("should correctly set the address type", func() {
-				Expect(output.AddressType).To(PointTo(Equal(discoveryv1beta1.AddressTypeFQDN)))
+				Expect(output.AddressType).To(PointTo(Equal(discoveryv1.AddressTypeFQDN)))
 			})
 			It("should correctly translate the endpoints", func() {
 				Expect(output.Endpoints).To(HaveLen(1))
@@ -85,23 +85,21 @@ var _ = Describe("EndpointSlices Forging", func() {
 
 	Describe("the RemoteEndpointSliceEndpoints function", func() {
 		var (
-			endpoint discoveryv1beta1.Endpoint
-			input    []discoveryv1beta1.Endpoint
-			output   []*discoveryv1beta1apply.EndpointApplyConfiguration
+			endpoint discoveryv1.Endpoint
+			input    []discoveryv1.Endpoint
+			output   []*discoveryv1apply.EndpointApplyConfiguration
 		)
 
 		BeforeEach(func() {
-			endpoint = discoveryv1beta1.Endpoint{
+			endpoint = discoveryv1.Endpoint{
 				Addresses: []string{"first", "second"},
-				Conditions: discoveryv1beta1.EndpointConditions{
+				Conditions: discoveryv1.EndpointConditions{
 					Ready: pointer.Bool(true), Serving: pointer.Bool(true), Terminating: pointer.Bool(true),
 				},
-				Hostname: pointer.String("foo.bar.com"),
-				Topology: map[string]string{
-					corev1.LabelHostname:       "whatever",
-					corev1.LabelTopologyRegion: "region",
-				},
-				Hints:     &discoveryv1beta1.EndpointHints{ForZones: []discoveryv1beta1.ForZone{{Name: "zone"}}},
+				Hostname:  pointer.String("foo.bar.com"),
+				NodeName:  pointer.String("whatever"),
+				Zone:      pointer.String("target-zone"),
+				Hints:     &discoveryv1.EndpointHints{ForZones: []discoveryv1.ForZone{{Name: "zone"}}},
 				TargetRef: &corev1.ObjectReference{Kind: "Pod"},
 			}
 		})
@@ -109,7 +107,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 		JustBeforeEach(func() { output = forge.RemoteEndpointSliceEndpoints(input, Translator) })
 
 		When("translating a single endpoint", func() {
-			BeforeEach(func() { input = []discoveryv1beta1.Endpoint{endpoint} })
+			BeforeEach(func() { input = []discoveryv1.Endpoint{endpoint} })
 			It("should return a single endpoint", func() { Expect(output).To(HaveLen(1)) })
 			It("should correctly translate and replicate the addresses", func() {
 				Expect(output[0].Addresses).To(ConsistOf("first-reflected", "second-reflected"))
@@ -122,48 +120,41 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Expect(output[0].Conditions.Terminating).To(BeNil())
 			})
 			It("should correctly translate and replicate the topology information", func() {
-				Expect(output[0].Topology).To(HaveKeyWithValue(corev1.LabelHostname, LocalClusterID))
-				Expect(output[0].Topology).To(HaveKeyWithValue(corev1.LabelTopologyRegion, "region"))
+				Expect(output[0].NodeName).To(PointTo(Equal(LocalClusterName)))
+				Expect(output[0].Zone).To(PointTo(Equal("target-zone")))
 			})
 			It("should correctly replicate the secondary fields", func() {
 				Expect(output[0].Hostname).To(PointTo(Equal("foo.bar.com")))
 				Expect(output[0].TargetRef).ToNot(BeNil())
 				Expect(output[0].TargetRef.Kind).To(PointTo(Equal("RemotePod")))
-				// Hints are currently guarded by a feature gate, hence they are not reflected.
-				Expect(output[0].Hints).To(BeNil())
+				Expect(output[0].Hints).ToNot(BeNil())
+				Expect(output[0].Hints.ForZones).To(HaveLen(1))
+				Expect(output[0].Hints.ForZones[0].Name).To(PointTo(Equal("zone")))
 			})
 		})
 
-		When("translating an endpoint referring to the remote cluster (topology)", func() {
-			BeforeEach(func() {
-				endpoint.Topology[corev1.LabelHostname] = forge.LiqoNodeName
-				input = []discoveryv1beta1.Endpoint{endpoint, endpoint, endpoint}
-			})
-			It("should return no endpoints", func() { Expect(output).To(HaveLen(0)) })
-		})
-
-		When("translating an endpoint referring to the remote cluster (nodename)", func() {
+		When("translating an endpoint referring to the remote cluster", func() {
 			BeforeEach(func() {
 				endpoint.NodeName = pointer.String(forge.LiqoNodeName)
-				input = []discoveryv1beta1.Endpoint{endpoint, endpoint, endpoint}
+				input = []discoveryv1.Endpoint{endpoint, endpoint, endpoint}
 			})
 			It("should return no endpoints", func() { Expect(output).To(HaveLen(0)) })
 		})
 
 		When("translating multiple endpoints", func() {
-			BeforeEach(func() { input = []discoveryv1beta1.Endpoint{endpoint, endpoint, endpoint} })
+			BeforeEach(func() { input = []discoveryv1.Endpoint{endpoint, endpoint, endpoint} })
 			It("should return the correct number of endpoints", func() { Expect(output).To(HaveLen(3)) })
 		})
 	})
 
 	Describe("the RemoteEndpointSlicePorts function", func() {
 		var (
-			input  discoveryv1beta1.EndpointPort
-			output []*discoveryv1beta1apply.EndpointPortApplyConfiguration
+			input  discoveryv1.EndpointPort
+			output []*discoveryv1apply.EndpointPortApplyConfiguration
 		)
 
-		BeforeEach(func() { input = discoveryv1beta1.EndpointPort{} })
-		JustBeforeEach(func() { output = forge.RemoteEndpointSlicePorts([]discoveryv1beta1.EndpointPort{input, input}) })
+		BeforeEach(func() { input = discoveryv1.EndpointPort{} })
+		JustBeforeEach(func() { output = forge.RemoteEndpointSlicePorts([]discoveryv1.EndpointPort{input, input}) })
 
 		When("the ports are correctly initialized", func() {
 			BeforeEach(func() {
