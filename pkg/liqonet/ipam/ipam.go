@@ -1160,7 +1160,7 @@ func (liqoIPAM *IPAM) getClusterIdentityInternal(ip string) (clusterID, clusterN
 	return
 }
 
-func (liqoIPAM *IPAM) GetClusterID(ctx context.Context, request *ClusterIdentityRequest) (*ClusterIdentityResponse, error) {
+func (liqoIPAM *IPAM) GetClusterIdentity(ctx context.Context, request *ClusterIdentityRequest) (*ClusterIdentityResponse, error) {
 	clusterID, clusterName, err := liqoIPAM.getClusterIdentityInternal(request.GetIp())
 	if err != nil {
 		return &ClusterIdentityResponse{}, fmt.Errorf("cannot get cluster ID starting from IP %s: %w", request.GetIp(), err)
