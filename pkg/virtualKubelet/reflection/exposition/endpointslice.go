@@ -214,7 +214,7 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context,
 				ipamClient = ner.remoteIpamClients[clusterID]
 				if ipamClient == nil {
 					identity := discoveryv1alpha1.ClusterIdentity{
-						ClusterID: clusterID,
+						ClusterID:   clusterID,
 						ClusterName: clusterName,
 					}
 					ipamClient = initRemoteIpamClient(ctx, &identity)

@@ -149,7 +149,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		return ctrl.Result{}, nil
 	}
 
-	if (currentPhase == consts.PeeringPhaseInduced) {
+	if currentPhase == consts.PeeringPhaseInduced {
 		// No need to proceed, since the reconciled foreign cluster is related to an induced peering
 		return ctrl.Result{}, nil
 	}

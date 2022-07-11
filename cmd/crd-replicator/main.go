@@ -83,9 +83,9 @@ func main() {
 	internalReflector.Start(ctx)
 
 	d := &crdreplicator.Controller{
-		Scheme:    mgr.GetScheme(),
-		Client:    mgr.GetClient(),
-		ClusterID: clusterIdentity.ClusterID,
+		Scheme:      mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		ClusterID:   clusterIdentity.ClusterID,
 		ClusterName: clusterIdentity.ClusterName,
 
 		RegisteredResources: resources.GetResourcesToReplicate(),

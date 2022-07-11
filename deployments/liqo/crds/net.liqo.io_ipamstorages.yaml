@@ -40,6 +40,9 @@ spec:
                   description: Subnets type contains relevant networks related to
                     a remote cluster.
                   properties:
+                    clusterName:
+                      description: Remote cluster name
+                      type: string
                     localNATExternalCIDR:
                       description: 'Network used in remote cluster for local service
                         endpoints. Default is "None": this means remote cluster uses
@@ -58,6 +61,7 @@ spec:
                       description: Network used for Pods in the remote cluster.
                       type: string
                   required:
+                  - clusterName
                   - localNATExternalCIDR
                   - localNATPodCIDR
                   - remoteExternalCIDR

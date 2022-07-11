@@ -478,7 +478,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	if !exists {
 		// Create cluster network configuration
 		subnets = netv1alpha1.Subnets{
-			ClusterName: 					clusterName,
+			ClusterName:          clusterName,
 			LocalNATPodCIDR:      "",
 			RemotePodCIDR:        mappedPodCIDR,
 			RemoteExternalCIDR:   mappedExternalCIDR,
@@ -869,7 +869,7 @@ func (liqoIPAM *IPAM) AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID
 		subnets.LocalNATExternalCIDR = externalCIDR
 	} else {
 		subnets = netv1alpha1.Subnets{
-			ClusterName: clusterName,
+			ClusterName:          clusterName,
 			LocalNATPodCIDR:      podCIDR,
 			RemotePodCIDR:        "",
 			LocalNATExternalCIDR: externalCIDR,

@@ -125,7 +125,7 @@ func (r *NeighborhoodCreator) getNeighbors(ctx context.Context) (map[string]disc
 
 func (r *NeighborhoodCreator) createNeighborhood(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster, neighbors map[string]discoveryv1alpha1.Neighbor) error {
 	neighborhood := forgeNeighborhood(r.ClusterID, fc, neighbors)
-	
+
 	if err := controllerutil.SetControllerReference(fc, neighborhood, r.Scheme); err != nil {
 		return err
 	}
