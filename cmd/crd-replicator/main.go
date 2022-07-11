@@ -86,6 +86,7 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
 		ClusterID: clusterIdentity.ClusterID,
+		ClusterName: clusterIdentity.ClusterName,
 
 		RegisteredResources: resources.GetResourcesToReplicate(),
 		ReflectionManager:   reflectionManager,

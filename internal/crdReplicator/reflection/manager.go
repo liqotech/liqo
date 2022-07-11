@@ -88,6 +88,7 @@ func (m *Manager) Start(ctx context.Context, registeredResources []resources.Res
 func (m *Manager) NewForTarget(clientForTarget dynamic.Interface, targetClusterID, sourceNamespace, targetNamespace string, isLocalToLocal bool) *Reflector {
 	reflector := &Reflector{
 		TenantNamespaces: make(map[string]string),
+		ClusterNames: make(map[string]string),
 
 		clientForTarget: clientForTarget,
 
@@ -106,7 +107,7 @@ func (m *Manager) NewForTarget(clientForTarget dynamic.Interface, targetClusterI
 	if targetClusterID != "" && targetNamespace != "" {
 		reflector.TenantNamespaces[targetClusterID] = targetNamespace
 	}
-	if targetNamespace != "" {
+	if sourceNamespace != "" {
 		reflector.TenantNamespaces[m.clusterID] = sourceNamespace
 	}
 

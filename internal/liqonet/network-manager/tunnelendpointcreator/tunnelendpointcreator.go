@@ -162,7 +162,7 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
-	return ctrl.Result{}, tec.processNetworkConfig(ctx, clusterID, netConfig.Namespace)
+	return ctrl.Result{}, tec.processNetworkConfig(ctx, clusterID, netConfig.Spec.RemoteCluster.ClusterName, netConfig.Namespace)
 }
 
 // SetupWithManager informs the manager that the tunnelEndpointCreator will deal with networkconfigs.
@@ -210,7 +210,7 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() context.C
 	return ctx
 }
 
-func (tec *TunnelEndpointCreator) processNetworkConfig(ctx context.Context, clusterID, namespace string) error {
+func (tec *TunnelEndpointCreator) processNetworkConfig(ctx context.Context, clusterID, clusterName, namespace string) error {
 	tracer := trace.FromContext(ctx)
 	klog.V(4).Infof("Processing NetworkConfigs for cluster ID %v", clusterID)
 
@@ -260,7 +260,7 @@ func (tec *TunnelEndpointCreator) processNetworkConfig(ctx context.Context, clus
 		return nil
 	}
 
-	if err := tec.IPManager.AddLocalSubnetsPerCluster(local.Status.PodCIDRNAT, local.Status.ExternalCIDRNAT, clusterID); err != nil {
+	if err := tec.IPManager.AddLocalSubnetsPerCluster(local.Status.PodCIDRNAT, local.Status.ExternalCIDRNAT, clusterID, clusterName); err != nil {
 		klog.Errorf("Failed to add local subnets to IPAM for cluster %s: %v", local.Spec.RemoteCluster, err)
 		return err
 	}
@@ -301,9 +301,10 @@ func (tec *TunnelEndpointCreator) enforceRemoteNetConfigMeta(ctx context.Context
 func (tec *TunnelEndpointCreator) enforceRemoteNetConfigStatus(ctx context.Context, netcfg *netv1alpha1.NetworkConfig) error {
 	tracer := trace.FromContext(ctx)
 	clusterID := netcfg.Labels[liqoconst.ReplicationOriginLabel]
+	clusterName := netcfg.Labels[liqoconst.ReplicationOriginNameLabel]
 
 	// Get the CIDR remappings
-	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netcfg.Spec.PodCIDR, netcfg.Spec.ExternalCIDR, clusterID)
+	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netcfg.Spec.PodCIDR, netcfg.Spec.ExternalCIDR, clusterID, clusterName)
 	if err != nil {
 		klog.Errorf("An error occurred while getting a new subnet for resource %q: %v", klog.KObj(netcfg), err)
 		return err

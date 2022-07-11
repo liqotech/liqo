@@ -4,7 +4,6 @@ package ipam
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -23,7 +22,7 @@ type IpamClient interface {
 	UnmapEndpointIP(ctx context.Context, in *UnmapRequest, opts ...grpc.CallOption) (*UnmapResponse, error)
 	GetHomePodIP(ctx context.Context, in *GetHomePodIPRequest, opts ...grpc.CallOption) (*GetHomePodIPResponse, error)
 	BelongsToPodCIDR(ctx context.Context, in *BelongsRequest, opts ...grpc.CallOption) (*BelongsResponse, error)
-	GetClusterID(ctx context.Context, in *ClusterIDRequest, opts ...grpc.CallOption) (*ClusterIDResponse, error)
+	GetClusterIdentity(ctx context.Context, in *ClusterIdentityRequest, opts ...grpc.CallOption) (*ClusterIdentityResponse, error)
 	DoesClusterMappingExist(ctx context.Context, in *ClusterMappingRequest, opts ...grpc.CallOption) (*ClusterMappingResponse, error)
 }
 
@@ -71,9 +70,9 @@ func (c *ipamClient) BelongsToPodCIDR(ctx context.Context, in *BelongsRequest, o
 	return out, nil
 }
 
-func (c *ipamClient) GetClusterID(ctx context.Context, in *ClusterIDRequest, opts ...grpc.CallOption) (*ClusterIDResponse, error) {
-	out := new(ClusterIDResponse)
-	err := c.cc.Invoke(ctx, "/ipam/GetClusterID", in, out, opts...)
+func (c *ipamClient) GetClusterIdentity(ctx context.Context, in *ClusterIdentityRequest, opts ...grpc.CallOption) (*ClusterIdentityResponse, error) {
+	out := new(ClusterIdentityResponse)
+	err := c.cc.Invoke(ctx, "/ipam/GetClusterIdentity", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +96,7 @@ type IpamServer interface {
 	UnmapEndpointIP(context.Context, *UnmapRequest) (*UnmapResponse, error)
 	GetHomePodIP(context.Context, *GetHomePodIPRequest) (*GetHomePodIPResponse, error)
 	BelongsToPodCIDR(context.Context, *BelongsRequest) (*BelongsResponse, error)
-	GetClusterID(context.Context, *ClusterIDRequest) (*ClusterIDResponse, error)
+	GetClusterIdentity(context.Context, *ClusterIdentityRequest) (*ClusterIdentityResponse, error)
 	DoesClusterMappingExist(context.Context, *ClusterMappingRequest) (*ClusterMappingResponse, error)
 	mustEmbedUnimplementedIpamServer()
 }
@@ -118,8 +117,8 @@ func (UnimplementedIpamServer) GetHomePodIP(context.Context, *GetHomePodIPReques
 func (UnimplementedIpamServer) BelongsToPodCIDR(context.Context, *BelongsRequest) (*BelongsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BelongsToPodCIDR not implemented")
 }
-func (UnimplementedIpamServer) GetClusterID(context.Context, *ClusterIDRequest) (*ClusterIDResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetClusterID not implemented")
+func (UnimplementedIpamServer) GetClusterIdentity(context.Context, *ClusterIdentityRequest) (*ClusterIdentityResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetClusterIdentity not implemented")
 }
 func (UnimplementedIpamServer) DoesClusterMappingExist(context.Context, *ClusterMappingRequest) (*ClusterMappingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DoesClusterMappingExist not implemented")
@@ -209,20 +208,20 @@ func _Ipam_BelongsToPodCIDR_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ipam_GetClusterID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ClusterIDRequest)
+func _Ipam_GetClusterIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClusterIdentityRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IpamServer).GetClusterID(ctx, in)
+		return srv.(IpamServer).GetClusterIdentity(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ipam/GetClusterID",
+		FullMethod: "/ipam/GetClusterIdentity",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IpamServer).GetClusterID(ctx, req.(*ClusterIDRequest))
+		return srv.(IpamServer).GetClusterIdentity(ctx, req.(*ClusterIdentityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -269,8 +268,8 @@ var Ipam_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Ipam_BelongsToPodCIDR_Handler,
 		},
 		{
-			MethodName: "GetClusterID",
-			Handler:    _Ipam_GetClusterID_Handler,
+			MethodName: "GetClusterIdentity",
+			Handler:    _Ipam_GetClusterIdentity_Handler,
 		},
 		{
 			MethodName: "DoesClusterMappingExist",

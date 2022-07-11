@@ -51,6 +51,8 @@ type Controller struct {
 
 	// Local cluster ID
 	ClusterID string
+	// Local cluster name
+	ClusterName string
 
 	// RegisteredResources is a list of GVRs of resources to be replicated, with the associated peering phase when the replication has to occur.
 	RegisteredResources []resources.Resource
@@ -136,7 +138,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	// Defer the function to start/stop the reflection of the different resources based on the peering status.
 	defer func() {
 		if err == nil {
-			err = c.enforceReflectionStatus(ctx, remoteCluster.ClusterID, !fc.ObjectMeta.DeletionTimestamp.IsZero())
+			err = c.enforceReflectionStatus(ctx, remoteCluster, !fc.ObjectMeta.DeletionTimestamp.IsZero())
 		}
 	}()
 
@@ -147,12 +149,19 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		return ctrl.Result{}, nil
 	}
 
+	if (currentPhase == consts.PeeringPhaseInduced) {
+		// No need to proceed, since the reconciled foreign cluster is related to an induced peering
+		return ctrl.Result{}, nil
+	}
+
 	// Add the finalizer to ensure the reflection is correctly stopped
 	if err := c.ensureFinalizer(ctx, &fc, true, controllerutil.AddFinalizer); err != nil {
 		klog.Errorf("An error occurred while adding the finalizer to %q: %s", fc.Name, err)
 		return ctrl.Result{}, err
 	}
 
+	// The first time, oldPhase will be "None" since the "c.peeringPhases" map is empty.
+	// "currentPhase" will be different from "None" and therefore "c.setPeeringPhase" will be called.
 	if oldPhase := c.getPeeringPhase(remoteCluster.ClusterID); oldPhase != currentPhase {
 		klog.V(4).Infof("[%v] Peering phase changed: old: %v, new: %v", remoteCluster.ClusterName, oldPhase, currentPhase)
 		c.setPeeringPhase(remoteCluster.ClusterID, currentPhase)
@@ -219,9 +228,12 @@ func (c *Controller) setupReflection(ctx context.Context, config *rest.Config, f
 			return err
 		}
 
-		remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
-		localNamespace := fc.Status.TenantNamespace.Local
-		c.InternalReflector.TenantNamespaces[remoteClusterID] = localNamespace
+		// The following is done only when reconciling full-peering foreing clusters,
+		// in order to configure the correct local-to-local namespaces.
+		// The reason is that when an induced-peering foreing cluster is reconciled, for sure
+		// the local cluster is a leaf cluster and therefore the following does not have to be done
+		// using the data of an induced-peering foreign cluster.
+		c.setupInternalReflection(fc)
 	}
 
 	return nil
@@ -245,7 +257,17 @@ func (c *Controller) setupExternalReflection(ctx context.Context, config *rest.C
 	return nil
 }
 
-func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterID string, deleting bool) error {
+func (c *Controller) setupInternalReflection(fc *discoveryv1alpha1.ForeignCluster) {
+	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
+	remoteClusterName := fc.Spec.ClusterIdentity.ClusterName
+	localNamespace := fc.Status.TenantNamespace.Local
+	c.InternalReflector.TenantNamespaces[remoteClusterID] = localNamespace
+	c.InternalReflector.ClusterNames[remoteClusterID] = remoteClusterName
+}
+
+func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterIdentity, deleting bool) error {
+	remoteClusterID := remoteCluster.ClusterID
+	remoteClusterName := remoteCluster.ClusterName
 	reflector, found := c.ExternalReflectors[remoteClusterID]
 	if !found {
 		// The reflector object has not yet been setup
@@ -256,9 +278,9 @@ func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterI
 	phase := c.getPeeringPhase(remoteClusterID)
 	for i := range c.RegisteredResources {
 		res := &c.RegisteredResources[i]
-		if reflector != nil && phase != consts.PeeringPhaseInduced {
+		if reflector != nil {
 			if !deleting && isReplicationAllowed(phase, res) && isNetworkingEnabled(netState, res) && !reflector.ResourceStarted(res, c.ClusterID, remoteClusterID) {
-				reflector.StartForResource(ctx, res, c.ClusterID, remoteClusterID, c.ClusterID)
+				reflector.StartForResource(ctx, res, c.ClusterID, remoteClusterID, c.ClusterID, c.ClusterName, remoteClusterName)
 			} else if (!isReplicationAllowed(phase, res) || !isNetworkingEnabled(netState, res)) && reflector.ResourceStarted(res, c.ClusterID, remoteClusterID) {
 				if err := reflector.StopForResource(res, c.ClusterID, remoteClusterID); err != nil {
 					return err
@@ -266,14 +288,15 @@ func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterI
 			}
 		}
 		//TODO Check network enabled for induced
-		if res.Forwardable && phase != consts.PeeringPhaseInduced && len(c.InternalReflector.TenantNamespaces) >= 2 {
+		if res.Forwardable && len(c.InternalReflector.TenantNamespaces) >= 2 {
 			for k1 := range c.InternalReflector.TenantNamespaces {
 				for k2 := range c.InternalReflector.TenantNamespaces {
+					// Skip if k1 and k2 refer to the same clusterID
 					if k1 == k2 {
 						continue
-					} // Skip if k1 and k2 refer to the same clusterID
+					}
 					if !deleting && !c.InternalReflector.ResourceStarted(res, k1, k2) {
-						c.InternalReflector.StartForResource(ctx, res, k1, k2, c.ClusterID)
+						c.InternalReflector.StartForResource(ctx, res, k1, k2, c.ClusterID, c.InternalReflector.ClusterNames[k1], c.InternalReflector.ClusterNames[k2])
 					} else if deleting && c.InternalReflector.ResourceStarted(res, k1, k2) {
 						if err := c.InternalReflector.StopForResource(res, k1, k2); err != nil {
 							return err

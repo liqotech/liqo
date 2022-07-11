@@ -30,8 +30,12 @@ const (
 	ReplicationRequestedLabel = "liqo.io/replication"
 	// ReplicationOriginLabel is the key of a label indicating the origin cluster of a replicated resource.
 	ReplicationOriginLabel = "liqo.io/originID"
+	// ReplicationOriginNameLabel is the key of a label indicating the origin cluster name of a replicated resource.
+	ReplicationOriginNameLabel = "liqo.io/originName"
 	// ReplicationDestinationLabel is the key of a label indicating the destination cluster of a replicated resource.
 	ReplicationDestinationLabel = "liqo.io/remoteID"
+	// ReplicationDestinationNameLabel is the key of a label indicating the destination cluster name of a replicated resource.
+	ReplicationDestinationNameLabel = "liqo.io/remoteName"
 	// ReplicationStatusLabel is the key of a label indicating that this resource has been created by a remote cluster through replication.
 	ReplicationStatusLabel = "liqo.io/replicated"
 

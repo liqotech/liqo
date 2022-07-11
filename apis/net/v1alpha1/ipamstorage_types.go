@@ -26,6 +26,8 @@ var ResourceIpamStorages = "ipamstorages"
 
 // Subnets type contains relevant networks related to a remote cluster.
 type Subnets struct {
+	// Remote cluster name
+	ClusterName string `json:"clusterName"`
 	// Network used in the remote cluster for local Pods. Default is "None": this means remote cluster uses local cluster PodCIDR.
 	LocalNATPodCIDR string `json:"localNATPodCIDR"`
 	// Network used for Pods in the remote cluster.

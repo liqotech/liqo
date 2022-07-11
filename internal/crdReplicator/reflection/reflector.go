@@ -46,6 +46,8 @@ type Reflector struct {
 
 	// TenantNamespaces is a map of clusterIDs and tenant namespaces.
 	TenantNamespaces map[string]string
+	// ClusterNames is a map of clusterIDs and corresponding clusterNames.
+	ClusterNames map[string]string
 
 	clientForTarget dynamic.Interface
 
@@ -74,6 +76,9 @@ type resourceToReflect struct {
 	sourceClusterID string
 	targetClusterID string
 	localClusterID  string
+
+	sourceClusterName string
+	targetClusterName string
 
 	listerForSource cache.GenericNamespaceLister
 	listerForTarget cache.GenericNamespaceLister
@@ -123,7 +128,7 @@ func (r *Reflector) ResourceStarted(resource *resources.Resource, sourceClusterI
 
 // StartForResource starts the reflection of the given resource. It panics if executed for
 // a resource with the reflection already started.
-func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Resource, sourceClusterID, targetClusterID, localClusterID string) {
+func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Resource, sourceClusterID, targetClusterID, localClusterID, sourceClusterName, targetClusterName string) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -183,6 +188,9 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 		sourceClusterID: sourceClusterID,
 		targetClusterID: targetClusterID,
 		localClusterID:  localClusterID,
+
+		sourceClusterName: sourceClusterName,
+		targetClusterName: targetClusterName,
 
 		listerForSource: listerForSource,
 		listerForTarget: listerForTarget,

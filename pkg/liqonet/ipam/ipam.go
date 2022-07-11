@@ -49,7 +49,7 @@ type Ipam interface {
 	- ExternalCIDR
 	- Both.
 	*/
-	GetSubnetsPerCluster(podCidr, externalCIDR, clusterID string) (string, string, error)
+	GetSubnetsPerCluster(podCidr, externalCIDR, clusterID, clusterName string) (string, string, error)
 	// RemoveClusterConfig deletes the IPAM configuration of a remote cluster,
 	// by freeing networks and removing data structures related to that cluster.
 	RemoveClusterConfig(clusterID string) error
@@ -65,7 +65,7 @@ type Ipam interface {
 	map the local cluster subnets. Since those networks are used in the remote cluster
 	this function must not reserve it. If the remote cluster has not remapped
 	a local subnet, then CIDR value should be equal to "None". */
-	AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID string) error
+	AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID, clusterName string) error
 	GetExternalCIDR(mask uint8) (string, error)
 	// SetPodCIDR sets the cluster PodCIDR.
 	SetPodCIDR(podCIDR string) error
@@ -432,7 +432,7 @@ The same happens for ExternalCIDR.
 func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	podCidr,
 	externalCIDR,
-	clusterID string) (mappedPodCIDR, mappedExternalCIDR string, err error) {
+	clusterID, clusterName string) (mappedPodCIDR, mappedExternalCIDR string, err error) {
 	var exists bool
 
 	// Get subnets of clusters
@@ -478,6 +478,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	if !exists {
 		// Create cluster network configuration
 		subnets = netv1alpha1.Subnets{
+			ClusterName: 					clusterName,
 			LocalNATPodCIDR:      "",
 			RemotePodCIDR:        mappedPodCIDR,
 			RemoteExternalCIDR:   mappedExternalCIDR,
@@ -835,7 +836,7 @@ func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
 
 // AddLocalSubnetsPerCluster stores how the PodCIDR and the ExternalCIDR of local cluster
 // has been remapped in a remote cluster. If no remapping happened, then the CIDR value should be equal to "None".
-func (liqoIPAM *IPAM) AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID string) error {
+func (liqoIPAM *IPAM) AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID, clusterName string) error {
 	var subnetsExist, natMappingsPerClusterConfigured bool
 	var subnets netv1alpha1.Subnets
 	if clusterID == "" {
@@ -868,6 +869,7 @@ func (liqoIPAM *IPAM) AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID
 		subnets.LocalNATExternalCIDR = externalCIDR
 	} else {
 		subnets = netv1alpha1.Subnets{
+			ClusterName: clusterName,
 			LocalNATPodCIDR:      podCIDR,
 			RemotePodCIDR:        "",
 			LocalNATExternalCIDR: externalCIDR,
@@ -1126,20 +1128,20 @@ func validateEndpointMappingInputs(clusterID, ip string) error {
 	return nil
 }
 
-func findClusterID(ip string, subnets map[string]netv1alpha1.Subnets) (clusterID string) {
+func findClusterID(ip string, subnets map[string]netv1alpha1.Subnets) (clusterID, clusterName string) {
 	for clusterID = range subnets {
 		doesBelong, err := ipBelongsToNetwork(ip, subnets[clusterID].RemotePodCIDR)
 		if err == nil && doesBelong {
-			return clusterID
+			return clusterID, subnets[clusterID].ClusterName
 		}
 	}
-	return ""
+	return "", ""
 }
 
-func (liqoIPAM *IPAM) getClusterIDInternal(ip string) (clusterID string, err error) {
+func (liqoIPAM *IPAM) getClusterIdentityInternal(ip string) (clusterID, clusterName string, err error) {
 	parsedIP := net.ParseIP(ip)
 	if parsedIP == nil {
-		return "", &liqoneterrors.WrongParameter{
+		return "", "", &liqoneterrors.WrongParameter{
 			Reason:    liqoneterrors.ValidIP,
 			Parameter: ip,
 		}
@@ -1153,17 +1155,17 @@ func (liqoIPAM *IPAM) getClusterIDInternal(ip string) (clusterID string, err err
 
 	// Find cluster ID of the cluster the ip address belongs to
 	// In case clusterID == "", return it as is and don't return an error
-	clusterID = findClusterID(ip, subnets)
+	clusterID, clusterName = findClusterID(ip, subnets)
 
 	return
 }
 
-func (liqoIPAM *IPAM) GetClusterID(ctx context.Context, request *ClusterIDRequest) (*ClusterIDResponse, error) {
-	clusterID, err := liqoIPAM.getClusterIDInternal(request.GetIp())
+func (liqoIPAM *IPAM) GetClusterID(ctx context.Context, request *ClusterIdentityRequest) (*ClusterIdentityResponse, error) {
+	clusterID, clusterName, err := liqoIPAM.getClusterIdentityInternal(request.GetIp())
 	if err != nil {
-		return &ClusterIDResponse{}, fmt.Errorf("cannot get cluster ID starting from IP %s: %w", request.GetIp(), err)
+		return &ClusterIdentityResponse{}, fmt.Errorf("cannot get cluster ID starting from IP %s: %w", request.GetIp(), err)
 	}
-	return &ClusterIDResponse{ClusterID: clusterID}, nil
+	return &ClusterIdentityResponse{ClusterID: clusterID, ClusterName: clusterName}, nil
 }
 
 func (liqoIPAM *IPAM) doesClusterMappingExistInternal(clusterID string) (doesExist bool) {

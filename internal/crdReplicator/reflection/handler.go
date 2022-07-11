@@ -68,6 +68,9 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 	sourceClusterID := resource.sourceClusterID
 	targetClusterID := resource.targetClusterID
 
+	sourceClusterName := resource.sourceClusterName
+	targetClusterName := resource.targetClusterName
+
 	// Retrieve the resource from the source cluster
 	localRes, err := resource.listerForSource.Get(key.name)
 	if err != nil {
@@ -138,7 +141,7 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 		if kerrors.IsNotFound(err) {
 			klog.Infof("[%v] Creating remote %v with name %v", targetClusterID, key.gvr, key.name)
 			defer tracer.Step("Ensured the presence of the remote object")
-			return r.createRemoteObject(ctx, resource, localUnstr, sourceClusterID, targetClusterID)
+			return r.createRemoteObject(ctx, resource, localUnstr, sourceClusterID, sourceClusterName, targetClusterID, targetClusterName)
 		}
 		klog.Errorf("[%v] Failed to retrieve remote %v with name %v: %v", targetClusterID, key.gvr, key.name, err)
 		return err
@@ -165,15 +168,15 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 }
 
 // createRemoteObject creates a given object in the remote cluster.
-func (r *Reflector) createRemoteObject(ctx context.Context, resource *resourceToReflect, local *unstructured.Unstructured, sourceClusterID, targetClusterID string) error {
+func (r *Reflector) createRemoteObject(ctx context.Context, resource *resourceToReflect, local *unstructured.Unstructured, sourceClusterID, sourceClusterName, targetClusterID, targetClusterName string) error {
 	remote := &unstructured.Unstructured{}
 	remote.SetGroupVersionKind(local.GetObjectKind().GroupVersionKind())
 	remote.SetNamespace(resource.targetNamespace)
 	remote.SetName(local.GetName())
 	if r.isLocalToLocal {
-		remote.SetLabels(r.mutateLabelsForLocalToLocal(resource.localClusterID, targetClusterID, local.GetLabels()))
+		remote.SetLabels(r.mutateLabelsForLocalToLocal(resource.localClusterID, targetClusterID, targetClusterName, local.GetLabels()))
 	} else {
-		remote.SetLabels(r.mutateLabelsForRemote(sourceClusterID, local.GetLabels()))
+		remote.SetLabels(r.mutateLabelsForRemote(sourceClusterID, sourceClusterName, local.GetLabels()))
 	}
 	remote.SetAnnotations(local.GetAnnotations())
 
@@ -325,9 +328,11 @@ func (r *Reflector) ensureLocalFinalizer(ctx context.Context, gvr schema.GroupVe
 	return updated, nil
 }
 
-func (r *Reflector) mutateLabelsForLocalToLocal(localClusterID, targetClusterID string, labels map[string]string) map[string]string {
+func (r *Reflector) mutateLabelsForLocalToLocal(localClusterID, targetClusterID, targetClusterName string, labels map[string]string) map[string]string {
 	// setting remoteID to the target clusterID (overwriting it if needed)
 	labels[consts.ReplicationDestinationLabel] = targetClusterID
+	// setting remoteName to the target clusterName (overwriting it if needed)
+	labels[consts.ReplicationDestinationNameLabel] = targetClusterName
 	// setting the replication label to true (overwriting it if needed)
 	labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(true)
 	// setting the replication status to false (overwriting it if needed)
@@ -338,13 +343,15 @@ func (r *Reflector) mutateLabelsForLocalToLocal(localClusterID, targetClusterID 
 
 // mutateLabelsForRemote mutates the labels map adding the ones for the remote cluster.
 // the ownership of the resource is removed as it would not make sense in a remote cluster.
-func (r *Reflector) mutateLabelsForRemote(sourceClusterID string, labels map[string]string) map[string]string {
+func (r *Reflector) mutateLabelsForRemote(sourceClusterID, sourceClusterName string, labels map[string]string) map[string]string {
 	// We don't check if the map is nil, since it has to be initialized because we use the labels to filter the resources
 	// which need to be replicated.
 
 	if _, ok := labels[consts.ReplicationOriginLabel]; !ok {
-		// setting originID, i.e. the source clusterID
+		// setting originID and originName, i.e. the source clusterID and clusterName, if they are not already present
+		// (otherwise they would get overwritten when reflecting to the remote peer after passing through the central cluster)
 		labels[consts.ReplicationOriginLabel] = sourceClusterID
+		labels[consts.ReplicationOriginNameLabel] = sourceClusterName
 	}
 
 	// setting the replication label to false
