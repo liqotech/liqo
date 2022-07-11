@@ -4,12 +4,11 @@ This page presents an overview of the main requirements, both in terms of **reso
 
 ## Overview
 
-Typically, Liqo requires very **limited resources** (i.e., in terms of CPU, RAM, and network bandwidth) for the control plane execution, and it is compatible with both standard clusters and more **resource constrained devices** (e.g., Raspberry Pi), leveraging K3s as Kubernetes distribution.
+Liqo requires very **limited resources** (i.e., CPU, RAM, network bandwidth), making it suitable for both traditional **K8s** clusters and **resource constrained** clusters, e.g., the ones running K3s on a Raspberry Pi.
 
-The exact numbers depend on the **number of established peerings and offloaded pods**, as well as on the **cluster size** and whether it is deployed in testing or production scenarios.
-As a rule of thumb, the Liqo control plane as a whole, executed on a two-node KinD cluster, peered with a remote cluster, and while offloading 100 pods, conservatively demands for less than:
+While the exact numbers depend on the **number of established peerings**, **number of offloaded pods** and on the **size of the cluster**, as a ballpark figure the entire Liqo control plane, executed on a two-nodes KinD cluster, peered with one remote cluster, and while offloading 100 pods, requires less than:
 
-* Half a CPU core (only during transient periods, while CPU consumption is practically negligible in all the other instants).
+* 0.5 CPU cores (only during transient periods, while CPU consumption is practically negligible in all the other instants).
 * 200 MB of RAM (this metric increases the more pods are offloaded to remote clusters).
 * 5 Mbps of cross-cluster control plane traffic (only during transient periods). Data plane traffic, instead, depends on the applications and their actual placements across the clusters.
 
@@ -17,12 +16,15 @@ A thorough analysis of the Liqo performance compared to vanilla Kubernetes, incl
 
 ## Connectivity
 
-As detailed in the [peering section](/features/peering), Liqo supports two alternative peering approaches, each characterized by **different requirements in terms of network connectivity** (i.e., mutually reachable endpoints).
-Specifically, the establishment of an [**out-of-band control plane peering**](FeaturesPeeringOutOfBandControlPlane) necessitates **three separated traffic flows** (hence, exposed endpoints), while the [**in-band control plane peering**](FeaturesPeeringInBandControlPlane) approach relaxes this requirement to a **single endpoint**, as all control plane traffic is tunneled inside the cross-cluster VPN.
+Liqo supports two alternative peering approaches, each characterized by **different requirements in terms of network connectivity** (i.e., mutually reachable endpoints):
+
+* [**Out-of-band control plane peering**](FeaturesPeeringOutOfBandControlPlane): it requires **three separated traffic flows** (hence, three exposed endpoints).
+* [**in-band control plane peering**](FeaturesPeeringInBandControlPlane): it requires a **single endpoint**, as all control plane traffic is tunneled inside the cross-cluster VPN.
+
+More details available in the [peering section](/features/peering).
 
 ```{admonition} Note
-The two peering approaches are **non-mutually exclusive**.
-In other words, a single cluster can leverage different approaches toward different remote clusters, in case all connectivity requirements are fullfilled.
+The two peering approaches are **non-mutually exclusive**: a cluster can leverage different approaches toward different remote clusters, provided that the connectivity requirements are satisfied.
 ```
 
 (InstallationRequirementsOutOfBandControlPlane)=
@@ -39,15 +41,14 @@ In order to successfully establish an out-of-band control plane peering with a r
 This implies also that any network device (**NAT**, **firewall**, etc.) sitting in the path between the two clusters must be configured to **enable direct connectivity** toward the above services, as presented in the [network firewalls](RequirementsConnectivityFirewall) section.
 
 The tuple *<IP/port>* exported by the Liqo services (i.e., `liqo-auth`, `liqo-gateway`) depends on the Liqo configuration, chosen at installation time, which may depend on the physical setup of your cluster and the characteristics of your service.
+In particular:
 
-**Authentication Service**: when you install Liqo, you can choose to expose the authentication service through a *LoadBalancer* service, a *NodePort* service, or an *Ingress* (the last allows the service to be exposed as *ClusterIP*).
-This choice depends (1) on your necessities, (2) on the cluster configuration (e.g., a *NodePort* cannot be used if your nodes have private IP addresses, hence cannot be reached from the Internet), and (3) whether the above primitives (e.g., the *Ingress Controller*) are available in your cluster.
-
-**Network Gateway**: the same applies also for the network gateway, except that it cannot be exported through an *Ingress*.
+* **Authentication Service**: when you install Liqo, you can choose to expose the authentication service through a *LoadBalancer* service, a *NodePort* service, or an *Ingress* (the last allows the service to be exposed as *ClusterIP*). This choice depends (1) on your necessities, (2) on the cluster configuration (e.g., a *NodePort* cannot be used if your nodes have private IP addresses, hence cannot be reached from the Internet), and (3) whether the above primitives (e.g., the *Ingress Controller*) are available in your cluster.
+* **Network Gateway**: the same applies also for the network gateway, except that it cannot be exported through an *Ingress*.
 In fact, while the authentication service uses a standard HTTP/REST interface, the network gateway is the termination of a UDP-based network tunnel; hence only *LoadBalancer* and *NodePort* services are supported.
 
 ```{admonition} Note
-Liqo supports scenarios in which, given two clusters, only one of the two network gateways is publicly reachable from the remote cluster (i.e., in terms of *<IP/port>* tuple), although communication must be allowed by possible firewalls sitting in the path.
+Liqo supports scenarios in which, given two clusters, only one of the two **network gateways** is publicly reachable from the remote cluster (i.e., in terms of *<IP/port>* tuple), although communication must be allowed by possible firewalls sitting in the path.
 ```
 
 By default, *liqoctl* exposes both the authentication service and the network gateway through a **dedicated *LoadBalancer* service**, falling back to a *NodePort* for simpler setups (i.e., KinD and K3s).
@@ -75,14 +76,14 @@ Yet, in such situations, we suggest leveraging the in-band peering, as it simpli
 
 ### In-band control plane peering
 
-The establishment of an in-band control plane peering with a remote cluster requires only that the **network gateways are *mutually* reachable**, since all the Liqo control plane traffic is then configured to flow inside the VPN tunnel.
+In order to successfully establish an in-band control plane peering with a remote cluster, you need only the **network gateways to be *mutually* reachable**, since all the Liqo control plane traffic is then configured to flow inside the VPN tunnel.
 All considerations presented above and referring to the exposition of the network gateway apply also in this case.
 
 Given the connectivity requirements are a subset of the previous case, this solution is compatible with the configurations that enable the out-of-band peering approach.
 Additionally, it:
 
 * Supports scenarios characterized by a **non publicly accessible Kubernetes API Server**.
-* Allows to expose the authentication service as a *ClusterIP* service, reducing the number of externally exposed services.
+* Allows to expose the authentication service as a *ClusterIP* service, reducing the number of services exposed externally.
 * Enables setups with one cluster **behind NAT**, since the VPN tunnel can be established successfully even in case only one of the two network gateways is publicly reachable from the other cluster.
 
 An overview of the overall connectivity requirements to establish in-band control plane peerings in Liqo is shown in the figure below.
