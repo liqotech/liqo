@@ -1042,7 +1042,7 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 If the received IP belongs to local PodCIDR, then it maps the address in the traditional way,
 i.e. using the network used in the remote cluster for local PodCIDR.
 If the received IP does not belong to local PodCIDR, then it maps the address using the ExternalCIDR.*/
-func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error) {
+func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string, isInduced bool) (string, error) {
 	var subnets netv1alpha1.Subnets
 	var exists bool
 
@@ -1071,21 +1071,28 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("cannot establish if IP %s belongs to PodCIDR: %w", ip, err)
 	}
-	if belongs {
-		klog.V(5).Infof("MapEndpointIP(%s, %s): ip is in pod CIDR %s, mapping to LocalNATPodCIDR %s",
+	if belongs || isInduced {
+		/*
+			case belongs == true:
+				IP belongs to local PodCIDR, this means the Pod is a local Pod and
+				the new IP should belong to the network used in the remote cluster
+				for local Pods: this can be either the cluster PodCIDR or a different network
+			case isInduced == true:
+				IP does not belong to cluster PodCIDR: Pod is a reflected Pod
+		*/
+
+		klog.Infof("MapEndpointIP(%s, %s): ip is in pod CIDR %s, mapping to LocalNATPodCIDR %s",
 			ip, clusterID, podCIDR, subnets.LocalNATPodCIDR)
 
-		/* IP belongs to local PodCIDR, this means the Pod is a local Pod and
-		the new IP should belong to the network used in the remote cluster
-		for local Pods: this can be either the cluster PodCIDR or a different network */
 		newIP, err := utils.MapIPToNetwork(subnets.LocalNATPodCIDR, ip)
 		if err != nil {
 			return "", fmt.Errorf("cannot map endpoint IP %s to PodCIDR of remote cluster %s: %w", ip, clusterID, err)
 		}
 		return newIP, nil
 	}
+
 	// IP does not belong to cluster PodCIDR: Pod is a reflected Pod
-	klog.V(5).Infof("MapEndpointIP(%s, %s): ip is not in pod CIDR %s, mapping to LocalNATExternalCIDR %s",
+	klog.Infof("MapEndpointIP(%s, %s): ip is not in pod CIDR %s, mapping to LocalNATExternalCIDR %s",
 		ip, clusterID, podCIDR, subnets.LocalNATExternalCIDR)
 
 	// Map IP to ExternalCIDR
@@ -1101,7 +1108,7 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 // if the endpoint IP does not belong to cluster PodCIDR, maps
 // the endpoint IP to a new IP taken from the remote ExternalCIDR of the remote cluster.
 func (liqoIPAM *IPAM) MapEndpointIP(ctx context.Context, mapRequest *MapRequest) (*MapResponse, error) {
-	mappedIP, err := liqoIPAM.mapEndpointIPInternal(mapRequest.GetClusterID(), mapRequest.GetIp())
+	mappedIP, err := liqoIPAM.mapEndpointIPInternal(mapRequest.GetClusterID(), mapRequest.GetIp(), mapRequest.GetIsInduced())
 	if err != nil {
 		return &MapResponse{}, fmt.Errorf("cannot map endpoint IP to ExternalCIDR of cluster %s, %w",
 			mapRequest.GetClusterID(), err)

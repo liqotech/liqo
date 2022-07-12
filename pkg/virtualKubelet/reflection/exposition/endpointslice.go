@@ -244,7 +244,7 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context,
 				klog.Infof("Using remote IPAM (cluster ID %s) for IP %s", clusterID, original)
 			}
 
-			mapResponse, err := ipamClient.MapEndpointIP(ctx, &ipam.MapRequest{ClusterID: forge.RemoteClusterID, Ip: original})
+			mapResponse, err := ipamClient.MapEndpointIP(ctx, &ipam.MapRequest{ClusterID: forge.RemoteClusterID, Ip: original, IsInduced: !useLocalIPAM})
 			if err != nil {
 				return nil, fmt.Errorf("failed to translate endpoint IP %v: %w", original, err)
 			}

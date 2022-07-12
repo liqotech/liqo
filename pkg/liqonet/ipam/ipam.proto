@@ -13,6 +13,7 @@ service ipam {
 message MapRequest {
     string clusterID = 1;
     string ip = 2;
+    bool isInduced = 3;
 }
 
 message MapResponse {
