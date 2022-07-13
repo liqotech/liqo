@@ -26,6 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -56,7 +57,7 @@ var (
 // Reconcile reconciles ForeignCluster resources.
 // For each FC it ensures a Neighborhood resource exists and is updated.
 func (r *NeighborhoodCreator) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.Info("[Neighbrohood Creator] >>>>>>>>>>>>>>>>>>>>>> START")
+	klog.Info(">>> START")
 
 	var foreignCluster discoveryv1alpha1.ForeignCluster
 	if err := r.Get(ctx, req.NamespacedName, &foreignCluster); err != nil {
@@ -185,6 +186,7 @@ func (r *NeighborhoodCreator) SetupWithManager(mgr ctrl.Manager) error {
 		klog.Error(err)
 	}
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 4}).
 		For(&discoveryv1alpha1.ForeignCluster{}, builder.WithPredicates(filterInduced)).
 		Complete(r)
 }
