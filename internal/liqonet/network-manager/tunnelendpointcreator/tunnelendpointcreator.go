@@ -84,6 +84,10 @@ type TunnelEndpointCreator struct {
 
 // Reconcile reconciles the state of NetworkConfig resources.
 func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	defer func ()  {
+		klog.Info("[TunnelEndpooint Creator] >>>>>>>>>>>>>>>>>>>>>> END")
+	}()
+
 	tunnelEndpointCreatorFinalizer := "tunnelendpointcreator." + liqoconst.FinalizersSuffix
 
 	klog.V(4).Infof("Reconciling NetworkConfig %q", req)

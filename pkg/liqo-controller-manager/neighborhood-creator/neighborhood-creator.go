@@ -56,6 +56,8 @@ var (
 // Reconcile reconciles ForeignCluster resources.
 // For each FC it ensures a Neighborhood resource exists and is updated.
 func (r *NeighborhoodCreator) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	klog.Info("[Neighbrohood Creator] >>>>>>>>>>>>>>>>>>>>>> START")
+
 	var foreignCluster discoveryv1alpha1.ForeignCluster
 	if err := r.Get(ctx, req.NamespacedName, &foreignCluster); err != nil {
 		return result, client.IgnoreNotFound(err)
