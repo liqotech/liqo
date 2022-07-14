@@ -31,7 +31,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -192,7 +191,6 @@ func (tec *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	filterPassthroughNetConf := predicate.Or(localNetConfPredicate, remoteNetConfPredicate)
 	return ctrl.NewControllerManagedBy(mgr).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 4}).
 		For(&netv1alpha1.NetworkConfig{}, builder.WithPredicates(filterPassthroughNetConf)).
 		Watches(&source.Kind{Type: &netv1alpha1.TunnelEndpoint{}},
 			&handler.EnqueueRequestForOwner{OwnerType: &netv1alpha1.NetworkConfig{}, IsController: false}).

@@ -256,7 +256,7 @@ storage:
 
 inducedPeering:
   # -- enable induced peering with remote clusters
-  enable: false
+  enable: true
 
 # -- liqo name override
 nameOverride: ""
