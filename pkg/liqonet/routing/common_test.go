@@ -233,7 +233,8 @@ var _ = Describe("Common", func() {
 
 			It("with gateway, should return true and nil", func() {
 				// Delete existing route with GW.
-				removed, err := DelRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table)
+				removed, err := DelRoute(existingRoutesCM[0].Dst.String(),
+					existingRoutesCM[0].Gw.String(), existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table)
 				Expect(removed).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Expecting no routes exist for the given destination.

@@ -171,7 +171,7 @@ func GetFirstIP(network string) (string, error) {
 
 // CheckTep checks validity of TunnelEndpoint resource fields.
 func CheckTep(tep *netv1alpha1.TunnelEndpoint) error {
-	if tep.Spec.ClusterID == "" {
+	if tep.Spec.ClusterIdentity.ClusterID == "" {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.ClusterIDLabelName,
 			Reason:    liqoneterrors.StringNotEmpty,

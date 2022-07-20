@@ -15,6 +15,7 @@
 package tunnel
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/vishvananda/netlink"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -54,4 +55,6 @@ type Driver interface {
 	GetLink() netlink.Link
 
 	Close() error
+
+	prometheus.Collector
 }

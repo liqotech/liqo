@@ -26,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"golang.zx2c4.com/wireguard/wgctrl"
@@ -36,14 +37,18 @@ import (
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	discv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
+	"github.com/liqotech/liqo/pkg/liqonet/tunnel/metrics"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/resolver"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const (
+	// DriverName is the name of the driver.
+	DriverName = "wireguard"
 	// PrivateKey is the key of private for the secret containing the wireguard keys.
 	PrivateKey = "privateKey"
 	// EndpointIP is the key of the endpointIP entry in back-end map.
@@ -78,17 +83,22 @@ type ResolverFunc func(address string) (*net.IPAddr, error)
 
 // Wireguard a wrapper for the wireguard device and its configuration.
 type Wireguard struct {
+	metrics.Metrics
+	// connections key is a clusterID.
 	connections map[string]*netv1alpha1.Connection
-	client      *wgctrl.Client
-	link        netlink.Link
-	conf        wgConfig
+	// connectedClusterIdentities key is the peer's public key.
+	connectedClusterIdentities map[wgtypes.Key]*discv1alpha1.ClusterIdentity
+	client                     *wgctrl.Client
+	link                       netlink.Link
+	conf                       wgConfig
 }
 
 // NewDriver creates a new WireGuard driver.
 func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) (tunnel.Driver, error) {
 	var err error
 	w := Wireguard{
-		connections: make(map[string]*netv1alpha1.Connection),
+		connections:                make(map[string]*netv1alpha1.Connection),
+		connectedClusterIdentities: make(map[wgtypes.Key]*discv1alpha1.ClusterIdentity),
 		conf: wgConfig{
 			port:     config.ListeningPort,
 			iFaceMTU: config.MTU,
@@ -131,6 +141,7 @@ func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) 
 		return nil, fmt.Errorf("failed to configure WireGuard device: %w", err)
 	}
 	klog.Infof("created %s interface named %s with publicKey %s", liqoconst.DriverName, liqoconst.DeviceName, w.conf.pubKey.String())
+
 	return &w, nil
 }
 
@@ -173,18 +184,17 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	}
 
 	// delete or update old peers for ClusterID.
-	oldCon, found := w.connections[tep.Spec.ClusterID]
+	oldCon, found := w.connections[tep.Spec.ClusterIdentity.ClusterID]
 	if found {
 		// check if the peer configuration is updated.
 		if stringAllowedIPs == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[liqoconst.PublicKey] &&
 			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[liqoconst.ListeningPort] {
-
 			// Update connection status.
 			return w.updateConnectionStatus(oldCon)
 		}
 
 		// If the configuration has changed then remove the peer.
-		klog.V(4).Infof("updating peer configuration for cluster %s", tep.Spec.ClusterID)
+		klog.V(4).Infof("updating peer configuration for cluster %s", tep.Spec.ClusterIdentity)
 		err = w.client.ConfigureDevice(liqoconst.DeviceName, wgtypes.Config{
 			ReplacePeers: false,
 			Peers: []wgtypes.PeerConfig{{PublicKey: *remoteKey,
@@ -192,11 +202,11 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 			}},
 		})
 		if err != nil {
-			return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterid %s: %w", tep.Spec.ClusterID, err)
+			return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with cluster %s: %w", tep.Spec.ClusterIdentity, err)
 		}
 	} else {
 		klog.V(4).Infof("Connecting cluster %s endpoint %s with publicKey %s",
-			tep.Spec.ClusterID, endpoint.IP.String(), remoteKey)
+			tep.Spec.ClusterIdentity, endpoint.IP.String(), remoteKey)
 	}
 
 	ka := KeepAliveInterval
@@ -216,27 +226,31 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 		Peers:        peerCfg,
 	})
 	if err != nil {
-		return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterid %s: %w", tep.Spec.ClusterID, err)
+		return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with cluster %s: %w", tep.Spec.ClusterIdentity, err)
 	}
 	//
+
 	c := &netv1alpha1.Connection{
 		Status:        netv1alpha1.Connecting,
 		StatusMessage: netv1alpha1.ConnectingMessage,
 		PeerConfiguration: map[string]string{liqoconst.ListeningPort: strconv.Itoa(endpoint.Port), EndpointIP: endpoint.IP.String(),
 			AllowedIPs: stringAllowedIPs, liqoconst.PublicKey: remoteKey.String()},
 	}
-	w.connections[tep.Spec.ClusterID] = c
-	klog.V(4).Infof("Done connecting cluster peer %s@%s", tep.Spec.ClusterID, endpoint.String())
+	w.connections[tep.Spec.ClusterIdentity.ClusterID] = c
+
+	w.connectedClusterIdentities[*remoteKey] = &tep.Spec.ClusterIdentity
+
+	klog.V(4).Infof("Done connecting cluster peer %s@%s", tep.Spec.ClusterIdentity, endpoint.String())
 	return c, nil
 }
 
 // DisconnectFromEndpoint disconnects a remote cluster described by the given tep.
 func (w *Wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) error {
-	klog.V(4).Infof("Removing connection with cluster %s", tep.Spec.ClusterID)
+	klog.V(4).Infof("Removing connection with cluster %s", tep.Spec.ClusterIdentity)
 
 	s, found := tep.Status.Connection.PeerConfiguration[liqoconst.PublicKey]
 	if !found {
-		klog.V(4).Infof("no tunnel configured for cluster %s, nothing to be removed", tep.Spec.ClusterID)
+		klog.V(4).Infof("no tunnel configured for cluster %s, nothing to be removed", tep.Spec.ClusterIdentity)
 		return nil
 	}
 
@@ -256,11 +270,18 @@ func (w *Wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 		Peers:        peerCfg,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to remove WireGuard peer with clusterid %s: %w", tep.Spec.ClusterID, err)
+		return fmt.Errorf("failed to remove WireGuard peer with cluster %s: %w", tep.Spec.ClusterIdentity, err)
 	}
 
-	klog.V(4).Infof("Done removing WireGuard peer with clusterid %s", tep.Spec.ClusterID)
-	delete(w.connections, tep.Spec.ClusterID)
+	remoteKey, err := getKey(tep)
+	if err == nil {
+		delete(w.connectedClusterIdentities, *remoteKey)
+		klog.V(4).Infof("Done removing WireGuard peer with cluster %s", tep.Spec.ClusterIdentity)
+	} else {
+		klog.Errorf("failed to get public key for cluster %s: %v", tep.Spec.ClusterIdentity, err)
+	}
+
+	delete(w.connections, tep.Spec.ClusterIdentity.ClusterID)
 
 	return nil
 }
@@ -339,11 +360,11 @@ func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) ([]net.IPNet, string, error)
 
 	_, podCIDR, err := net.ParseCIDR(remotePodCIDR)
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to parse podCIDR %s for cluster %s: %w", remotePodCIDR, tep.Spec.ClusterID, err)
+		return nil, "", fmt.Errorf("unable to parse podCIDR %s for cluster %s: %w", remotePodCIDR, tep.Spec.ClusterIdentity, err)
 	}
 	_, externalCIDR, err := net.ParseCIDR(remoteExternalCIDR)
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to parse externalCIDR %s for cluster %s: %w", remoteExternalCIDR, tep.Spec.ClusterID, err)
+		return nil, "", fmt.Errorf("unable to parse externalCIDR %s for cluster %s: %w", remoteExternalCIDR, tep.Spec.ClusterIdentity, err)
 	}
 	return []net.IPNet{*podCIDR, *externalCIDR}, fmt.Sprintf("%s, %s", remotePodCIDR, remoteExternalCIDR), nil
 }
@@ -500,4 +521,49 @@ func (w *Wireguard) updateConnectionStatus(oldConn *netv1alpha1.Connection) (*ne
 	err = fmt.Errorf("no peer with pubKey {%s} found on device {%s}",
 		oldConn.PeerConfiguration[liqoconst.PublicKey], liqoconst.DeviceName)
 	return newConnectionOnError(err.Error()), err
+}
+
+// Collect implements prometheus.Collector.
+func (w *Wireguard) Collect(ch chan<- prometheus.Metric) {
+	device, err := w.client.Device(liqoconst.DeviceName)
+	if err != nil {
+		w.MetricsErrorHandler(fmt.Errorf("error collecting wireguard metrics: %w", err), ch)
+		return
+	}
+
+	for i := range device.Peers {
+		publicKey := device.Peers[i].PublicKey
+		labels := []string{
+			DriverName, device.Name,
+			w.connectedClusterIdentities[publicKey].ClusterID,
+			w.connectedClusterIdentities[publicKey].ClusterName,
+		}
+
+		// Expose last handshake of 0 unless a last handshake time is set.
+		var last float64
+		if !device.Peers[i].LastHandshakeTime.IsZero() {
+			last = float64(device.Peers[i].LastHandshakeTime.Unix())
+		}
+
+		ch <- prometheus.MustNewConstMetric(
+			metrics.PeerReceivedBytes,
+			prometheus.CounterValue,
+			float64(device.Peers[i].ReceiveBytes),
+			labels...,
+		)
+
+		ch <- prometheus.MustNewConstMetric(
+			metrics.PeerTransmittedBytes,
+			prometheus.CounterValue,
+			float64(device.Peers[i].TransmitBytes),
+			labels...,
+		)
+
+		ch <- prometheus.MustNewConstMetric(
+			metrics.PeerLastHandshake,
+			prometheus.GaugeValue,
+			last,
+			labels...,
+		)
+	}
 }

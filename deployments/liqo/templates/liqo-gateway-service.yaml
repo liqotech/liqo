@@ -21,3 +21,23 @@ spec:
       protocol: UDP
   selector:
     {{- include "liqo.gatewaySelector" $gatewayConfig | nindent 4 }}
+
+---
+{{- $gatewayMetricsConfig := (merge (dict "name" "gateway-metrics" "module" "networking") .) -}}
+
+{{- if .Values.gateway.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $gatewayMetricsConfig }}
+  labels:
+    {{- include "liqo.labels" $gatewayMetricsConfig | nindent 4 }}
+    {{- include "liqo.gatewayServiceLabels" $gatewayMetricsConfig | nindent 4 }}
+spec:
+  selector:
+    {{- include "liqo.gatewaySelector" $gatewayMetricsConfig | nindent 4 }}
+  ports:
+    - name: metrics
+      port: {{ .Values.gateway.metrics.port }}
+      targetPort: metrics
+{{- end}}

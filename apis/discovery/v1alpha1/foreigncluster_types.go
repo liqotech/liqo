@@ -124,7 +124,7 @@ type ClusterIdentity struct {
 }
 
 // String returns the ClusterName. It makes it possible to format ClusterIdentities with %s.
-func (i *ClusterIdentity) String() string {
+func (i ClusterIdentity) String() string {
 	return i.ClusterName
 }
 

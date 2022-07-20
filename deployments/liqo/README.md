@@ -46,6 +46,11 @@
 | fullnameOverride | string | `""` | full liqo name override |
 | gateway.config.listeningPort | int | `5871` | port used by the vpn tunnel. |
 | gateway.imageName | string | `"liqo/liqonet"` | gateway image repository |
+| gateway.metrics.enabled | bool | `false` | expose metrics about network traffic towards cluster peers. |
+| gateway.metrics.port | int | `5872` | port used to expose metrics. |
+| gateway.metrics.serviceMonitor.enabled | bool | `false` | create a prometheus servicemonitor. |
+| gateway.metrics.serviceMonitor.interval | string | `"1m"` | setup service monitor requests interval. |
+| gateway.metrics.serviceMonitor.scrapeTimeout | string | `"15s"` | setup service monitor scrape timeout. |
 | gateway.pod.annotations | object | `{}` | gateway pod annotations |
 | gateway.pod.extraArgs | list | `[]` | gateway pod extra arguments |
 | gateway.pod.labels | object | `{}` | gateway pod labels |

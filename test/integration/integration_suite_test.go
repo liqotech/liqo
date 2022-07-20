@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	tunneloperator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
@@ -41,8 +42,10 @@ import (
 
 const (
 	iptNetnsName       = "iptNetNs"
-	clusterID1         = "cluster1"
-	clusterID2         = "cluster2"
+	clusterID1         = "clusterID1" // clusterID1 string length must be less than 10.
+	clusterID2         = "clusterID2" // clusterID2 string length must be less than 10.
+	clusterName1       = "clusterName1"
+	clusterName2       = "clusterName2"
 	remotePodCIDR      = "10.50.0.0/16"
 	remoteExternalCIDR = "10.60.0.0/16"
 	localPodCIDR       = "10.70.0.0/16"
@@ -71,7 +74,7 @@ var (
 	iptNetns ns.NetNS
 	tep1     = &netv1alpha1.TunnelEndpoint{
 		Spec: netv1alpha1.TunnelEndpointSpec{
-			ClusterID:             clusterID1,
+			ClusterIdentity:       discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID1, ClusterName: clusterName1},
 			LocalPodCIDR:          "192.168.0.0/24",
 			LocalNATPodCIDR:       "192.168.1.0/24",
 			LocalExternalCIDR:     "192.168.3.0/24",
@@ -84,7 +87,7 @@ var (
 	}
 	tep2 = &netv1alpha1.TunnelEndpoint{
 		Spec: netv1alpha1.TunnelEndpointSpec{
-			ClusterID:             clusterID2,
+			ClusterIdentity:       discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID2, ClusterName: clusterName2},
 			LocalPodCIDR:          "192.168.0.0/24",
 			LocalNATPodCIDR:       "192.168.1.0/24",
 			LocalExternalCIDR:     "192.168.3.0/24",
@@ -145,6 +148,9 @@ func initNatMappingController() error {
 		Scheme:             scheme.Scheme,
 		MetricsBindAddress: "0",
 	})
+	if err != nil {
+		return err
+	}
 
 	controller, err = tunneloperator.NewNatMappingController(mgr.GetClient(), &readyClustersMutex, readyClusters, iptNetns)
 	if err != nil {

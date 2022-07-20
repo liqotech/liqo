@@ -79,15 +79,15 @@ func setUpVxlanLink(attrs *overlay.VxlanDeviceAttrs) (netlink.Link, error) {
 		return nil, err
 	}
 	// Parse ip.
-	vxlanIp, vxlanIpNet, err := net.ParseCIDR(overlayDevIP)
+	vxlanIP, vxlanIPNet, err := net.ParseCIDR(overlayDevIP)
 	if err != nil {
 		return nil, err
 	}
 
 	// Add ip to the vxlan link.
 	err = netlink.AddrAdd(link, &netlink.Addr{IPNet: &net.IPNet{
-		IP:   vxlanIp,
-		Mask: vxlanIpNet.Mask,
+		IP:   vxlanIP,
+		Mask: vxlanIPNet.Mask,
 	}})
 	if err != nil {
 		return nil, err
@@ -126,7 +126,8 @@ var _ = Describe("VxlanRouting", func() {
 			It("routingTableID parameter out of range: superior to max value ", func() {
 				vrm, err := NewVxlanRoutingManager(unix.RT_TABLE_MAX+1, gwIPCorrect, overlayNetPrexif, overlayDevice)
 				Expect(vrm).Should(BeNil())
-				Expect(err).Should(Equal(&liqoerrors.WrongParameter{Parameter: "routingTableID", Reason: liqoerrors.MinorOrEqual + strconv.Itoa(unix.RT_TABLE_MAX)}))
+				Expect(err).Should(
+					Equal(&liqoerrors.WrongParameter{Parameter: "routingTableID", Reason: liqoerrors.MinorOrEqual + strconv.Itoa(unix.RT_TABLE_MAX)}))
 			})
 
 			It("podIP is not in right format", func() {

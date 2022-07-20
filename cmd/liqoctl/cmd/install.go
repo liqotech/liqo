@@ -161,7 +161,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&options.SkipValidation, "skip-validation", false, "Skip the validation of the arguments "+
 		"(ClusterName, PodCIDR, ServiceCIDR). "+
 		"This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)")
-
+	cmd.PersistentFlags().BoolVar(&options.EnableMetrics, "enable-metrics", false, "Enable metrics exposition through prometheus (default false)")
 	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
 	base.RegisterFlags(cmd)

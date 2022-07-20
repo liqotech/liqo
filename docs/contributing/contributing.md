@@ -103,8 +103,7 @@ make unit
 
 # Run the tests for a specific package.
 # Note, the package path must start with ./ to avoid the "package ... is not in GOROOT error".
-docker run --rm --entrypoint="" --mount type=bind,src=$(pwd),dst=/go/src/liqo \
-   --privileged=true --workdir /go/src/liqo liqo-test go test <package>
+make unit PACKAGE_PATH=<package_path>
 ```
 
 #### Debugging unit tests

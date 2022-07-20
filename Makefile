@@ -23,12 +23,12 @@ ifeq (, $(shell docker image ls | grep liqo-test))
 endif
 
 # Run unit tests
+# Run with: make unit PACKAGE_PATH="package path" , to run tests on a single package.
 unit: test-container
-	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
+	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test ${PACKAGE_PATH};
 
 BINDIR?=.
 TARGET?=kind
-
 ctl:
 	go build -o $(BINDIR) ./cmd/liqoctl
 

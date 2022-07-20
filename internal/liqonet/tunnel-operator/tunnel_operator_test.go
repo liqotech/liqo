@@ -49,6 +49,7 @@ var _ = Describe("TunnelOperator", func() {
 					Expect(link.Attrs().MTU).Should(BeNumerically("==", 1420))
 					return nil
 				})
+				Expect(err).ShouldNot(HaveOccurred())
 				// Check that we have the veth interface in gateway namespace
 				err = tc.gatewayNetns.Do(func(ns ns.NetNS) error {
 					defer GinkgoRecover()
@@ -57,6 +58,7 @@ var _ = Describe("TunnelOperator", func() {
 					Expect(link.Attrs().MTU).Should(BeNumerically("==", 1420))
 					return nil
 				})
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("incorrect name for veth interface, should return error", func() {

@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -144,6 +145,10 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 		return nil, err
 	}
 
+	for _, d := range tc.drivers {
+		metrics.Registry.MustRegister(d)
+	}
+
 	return tc, nil
 }
 
@@ -151,7 +156,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var tep = new(netv1alpha1.TunnelEndpoint)
 	var err error
-	var clusterID, remotePodCIDR string
+	var remotePodCIDR string
 	var con *netv1alpha1.Connection
 
 	var configGWNetns = func(netNamespace ns.NetNS) error {
@@ -165,23 +170,23 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		// Set cluster tunnel as ready
 		tc.readyClustersMutex.Lock()
 		defer tc.readyClustersMutex.Unlock()
-		tc.readyClusters[tep.Spec.ClusterID] = struct{}{}
+		tc.readyClusters[tep.Spec.ClusterIdentity.ClusterID] = struct{}{}
 		added, err := tc.EnsureRoutesPerCluster(tep)
 		if err != nil {
-			klog.Errorf("%s -> unable to configure route '%s': %s", clusterID, remotePodCIDR, err)
+			klog.Errorf("%s -> unable to configure route '%s': %s", tep.Spec.ClusterIdentity, remotePodCIDR, err)
 			tc.Eventf(tep, "Warning", "Processing", "unable to remove outdated route: %s", err.Error())
 			return err
 		}
 		if added {
 			tc.Event(tep, "Normal", "Processing", "route configured")
-			klog.Infof("%s -> route for destination {%s} correctly configured", clusterID, remotePodCIDR)
+			klog.Infof("%s -> route for destination {%s} correctly configured", tep.Spec.ClusterIdentity, remotePodCIDR)
 		}
 		return nil
 	}
 	var unconfigGWNetns = func(netNamespace ns.NetNS) error {
 		if err := tc.IPTHandler.RemoveIPTablesConfigurationPerCluster(tep); err != nil {
 			klog.Errorf("%s -> unable to remove iptables configuration: %s",
-				tep.Spec.ClusterID, err.Error())
+				tep.Spec.ClusterIdentity, err.Error())
 			return err
 		}
 		if err := tc.disconnectFromPeer(tep); err != nil {
@@ -190,12 +195,12 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		deleted, err := tc.RemoveRoutesPerCluster(tep)
 		if err != nil {
 			tc.Eventf(tep, "Warning", "Processing", "unable to remove route: %s", err.Error())
-			klog.Errorf("%s -> unable to remove route for destination '%s': %v", clusterID, remotePodCIDR, err)
+			klog.Errorf("%s -> unable to remove route for destination '%s': %v", tep.Spec.ClusterIdentity, remotePodCIDR, err)
 			return err
 		}
 		if deleted {
 			tc.Event(tep, "Normal", "Processing", "route correctly removed")
-			klog.Infof("%s -> route for destination '%s' correctly removed", clusterID, remotePodCIDR)
+			klog.Infof("%s -> route for destination '%s' correctly removed", tep.Spec.ClusterIdentity, remotePodCIDR)
 		}
 		return nil
 	}
@@ -208,7 +213,6 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if k8sApiErrors.IsNotFound(err) {
 		return result, nil
 	}
-	clusterID = tep.Spec.ClusterID
 
 	_, remotePodCIDR = utils.GetPodCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
@@ -220,10 +224,10 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			controllerutil.AddFinalizer(tep, tc.finalizer)
 			if err := tc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
-					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
+					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", tep.Spec.ClusterIdentity, req.String(), err)
 					return result, err
 				}
-				klog.Errorf("%s -> unable to update resource %s: %s", tep.Spec.ClusterID, tep.Name, err)
+				klog.Errorf("%s -> unable to update resource %s: %s", tep.Spec.ClusterIdentity, tep.Name, err)
 				return result, err
 			}
 		}
@@ -238,7 +242,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			controllerutil.RemoveFinalizer(tep, tc.finalizer)
 			if err := tc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
-					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
+					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", tep.Spec.ClusterIdentity, req.String(), err)
 					return result, err
 				}
 				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", tep.Name, err)
@@ -263,43 +267,41 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 }
 
 func (tc *TunnelController) connectToPeer(ep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
-	clusterID := ep.Spec.ClusterID
 	// retrieve driver based on backend type
 	driver, ok := tc.drivers[ep.Spec.BackendType]
 	if !ok {
-		klog.Errorf("%s -> no registered driver of type %s found for resources %s", clusterID, ep.Spec.BackendType, ep.Name)
+		klog.Errorf("%s -> no registered driver of type %s found for resources %s", ep.Spec.ClusterIdentity, ep.Spec.BackendType, ep.Name)
 		return nil, fmt.Errorf("no registered driver of type %s found", ep.Spec.BackendType)
 	}
 	con, err := driver.ConnectToEndpoint(ep)
 	if err != nil {
 		tc.Eventf(ep, "Warning", "Processing", "unable to establish connection: %v", err)
-		klog.Errorf("%s -> an error occurred while establishing vpn connection: %v", clusterID, err)
+		klog.Errorf("%s -> an error occurred while establishing vpn connection: %v", ep.Spec.ClusterIdentity, err)
 		return nil, err
 	}
 	if reflect.DeepEqual(*con, ep.Status.Connection) {
 		return con, nil
 	}
 	tc.Event(ep, "Normal", "Processing", "connection established")
-	klog.Infof("%s -> vpn connection correctly established", clusterID)
+	klog.Infof("%s -> vpn connection correctly established", ep.Spec.ClusterIdentity)
 	return con, nil
 }
 
 func (tc *TunnelController) disconnectFromPeer(ep *netv1alpha1.TunnelEndpoint) error {
-	clusterID := ep.Spec.ClusterID
 	// retrieve driver based on backend type
 	driver, ok := tc.drivers[ep.Spec.BackendType]
 	if !ok {
-		klog.Errorf("%s -> no registered driver of type %s found for resources %s", clusterID, ep.Spec.BackendType, ep.Name)
+		klog.Errorf("%s -> no registered driver of type %s found for resources %s", ep.Spec.ClusterIdentity, ep.Spec.BackendType, ep.Name)
 		return fmt.Errorf("no registered driver of type %s found", ep.Spec.BackendType)
 	}
 	if err := driver.DisconnectFromEndpoint(ep); err != nil {
 		// record an event and return
 		tc.Eventf(ep, "Warning", "Processing", "unable to close connection: %v", err)
-		klog.Errorf("%s -> an error occurred while closing vpn connection: %v", clusterID, err)
+		klog.Errorf("%s -> an error occurred while closing vpn connection: %v", ep.Spec.ClusterIdentity, err)
 		return err
 	}
 	tc.Event(ep, "Normal", "Processing", "connection closed")
-	klog.Infof("%s -> vpn connection correctly closed", clusterID)
+	klog.Infof("%s -> vpn connection correctly closed", ep.Spec.ClusterIdentity)
 	return nil
 }
 
@@ -320,24 +322,23 @@ func (tc *TunnelController) RemoveAllTunnels() {
 // EnsureIPTablesRulesPerCluster ensures the iptables rules needed to configure the network for
 // a given remote cluster.
 func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) error {
-	clusterID := tep.Spec.ClusterID
-	if err := tc.EnsureChainsPerCluster(tep.Spec.ClusterID); err != nil {
-		klog.Errorf("%s -> an error occurred while creating iptables chains for the remote peer: %s", clusterID, err.Error())
+	if err := tc.EnsureChainsPerCluster(tep.Spec.ClusterIdentity.ClusterID); err != nil {
+		klog.Errorf("%s -> an error occurred while creating iptables chains for the remote peer: %s", tep.Spec.ClusterIdentity, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
 	if err := tc.EnsureChainRulesPerCluster(tep); err != nil {
-		klog.Errorf("%s -> an error occurred while inserting iptables chain rules for the remote peer: %s", clusterID, err.Error())
+		klog.Errorf("%s -> an error occurred while inserting iptables chain rules for the remote peer: %s", tep.Spec.ClusterIdentity, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
 	if err := tc.EnsurePostroutingRules(tep); err != nil {
-		klog.Errorf("%s -> an error occurred while inserting iptables postrouting rules for the remote peer: %s", clusterID, err.Error())
+		klog.Errorf("%s -> an error occurred while inserting iptables postrouting rules for the remote peer: %s", tep.Spec.ClusterIdentity, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
 	if err := tc.EnsurePreroutingRulesPerTunnelEndpoint(tep); err != nil {
-		klog.Errorf("%s -> an error occurred while inserting iptables prerouting rules for the remote peer: %s", clusterID, err.Error())
+		klog.Errorf("%s -> an error occurred while inserting iptables prerouting rules for the remote peer: %s", tep.Spec.ClusterIdentity, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
@@ -479,10 +480,10 @@ func (tc *TunnelController) updateStatus(con *netv1alpha1.Connection, tep *netv1
 
 	if err := tc.Status().Update(context.Background(), tep); err != nil {
 		if k8sApiErrors.IsConflict(err) {
-			klog.V(4).Infof("%s -> unable to update status for resource %s: %v", tep.Spec.ClusterID, tep.Name, err)
+			klog.V(4).Infof("%s -> unable to update status for resource %s: %v", tep.Spec.ClusterIdentity, tep.Name, err)
 			return err
 		}
-		klog.Errorf("%s -> an error occurred while updating status for resource %s: %v", tep.Spec.ClusterID, tep.Name, err)
+		klog.Errorf("%s -> an error occurred while updating status for resource %s: %v", tep.Spec.ClusterIdentity, tep.Name, err)
 		return err
 	}
 

@@ -62,6 +62,18 @@ gateway:
   config:
     # -- port used by the vpn tunnel.
     listeningPort: 5871
+  metrics: 
+    # -- expose metrics about network traffic towards cluster peers.
+    enabled: false
+    # -- port used to expose metrics.
+    port: 5872
+    serviceMonitor:
+      # -- create a prometheus servicemonitor.
+      enabled: false
+      # -- setup service monitor requests interval.
+      interval: "1m"
+      # -- setup service monitor scrape timeout.
+      scrapeTimeout: "15s"
 
 networkManager:
   pod:

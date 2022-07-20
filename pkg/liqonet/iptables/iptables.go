@@ -263,9 +263,9 @@ func (h IPTHandler) EnsureChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) 
 		// Therefore, first we need to get existing rules
 		// related to remote cluster and then
 		// call updateSpecificRulesPerChain.
-		rules, err := h.getExistingChainRules(tep.Spec.ClusterID, chain)
+		rules, err := h.getExistingChainRules(tep.Spec.ClusterIdentity.ClusterID, chain)
 		if err != nil {
-			return fmt.Errorf("cannot get existing chain rules per cluster %s: %w", tep.Spec.ClusterID, err)
+			return fmt.Errorf("cannot get existing chain rules per cluster %s: %w", tep.Spec.ClusterIdentity, err)
 		}
 		if err := h.updateSpecificRulesPerChain(chain, rules, newRules); err != nil {
 			return fmt.Errorf("cannot update rule for chain %s (table %s): %w", chain, getTableFromChain(chain), err)
@@ -360,14 +360,14 @@ func (h IPTHandler) RemoveIPTablesConfigurationPerCluster(tep *netv1alpha1.Tunne
 	// Delete chain rules
 	err := h.deleteChainRulesPerCluster(tep)
 	if err != nil {
-		return fmt.Errorf("cannot remove chain rules per cluster %s: %w", tep.Spec.ClusterID, err)
+		return fmt.Errorf("cannot remove chain rules per cluster %s: %w", tep.Spec.ClusterIdentity, err)
 	}
 	// Delete chains
-	err = h.removeChainsPerCluster(tep.Spec.ClusterID)
+	err = h.removeChainsPerCluster(tep.Spec.ClusterIdentity.ClusterID)
 	if err != nil {
 		return fmt.Errorf("cannot remove chains per cluster: %w", err)
 	}
-	klog.Infof("IPTables config per cluster %s has been deleted", tep.Spec.ClusterID)
+	klog.Infof("IPTables config per cluster %s has been deleted", tep.Spec.ClusterIdentity)
 	return nil
 }
 
@@ -376,12 +376,12 @@ func (h IPTHandler) RemoveIPTablesConfigurationPerCluster(tep *netv1alpha1.Tunne
 func (h IPTHandler) deleteChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) error {
 	clusterChainRules, err := getChainRulesPerCluster(tep)
 	if err != nil {
-		return fmt.Errorf("cannot retrieve chain rules per cluster %s: %w", tep.Spec.ClusterID, err)
+		return fmt.Errorf("cannot retrieve chain rules per cluster %s: %w", tep.Spec.ClusterIdentity, err)
 	}
 	for chain, rules := range clusterChainRules {
 		err = h.deleteRulesInChain(chain, rules)
 		if err != nil {
-			return fmt.Errorf("cannot delete cluster %s rules in chain %s: %w", tep.Spec.ClusterID, chain, err)
+			return fmt.Errorf("cannot delete cluster %s rules in chain %s: %w", tep.Spec.ClusterIdentity, chain, err)
 		}
 	}
 	return nil
@@ -455,23 +455,21 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 
 // EnsurePostroutingRules makes sure that the postrouting rules for a given cluster are in place and updated.
 func (h IPTHandler) EnsurePostroutingRules(tep *netv1alpha1.TunnelEndpoint) error {
-	clusterID := tep.Spec.ClusterID
 	rules, err := getPostroutingRules(tep)
 	if err != nil {
 		return err
 	}
-	return h.updateRulesPerChain(getClusterPostRoutingChain(clusterID), rules)
+	return h.updateRulesPerChain(getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID), rules)
 }
 
 // EnsurePreroutingRulesPerTunnelEndpoint makes sure that the prerouting rules extracted from a
 // TunnelEndpoint resource are place and updated.
 func (h IPTHandler) EnsurePreroutingRulesPerTunnelEndpoint(tep *netv1alpha1.TunnelEndpoint) error {
-	clusterID := tep.Spec.ClusterID
 	rules, err := getPreRoutingRulesPerTunnelEndpoint(tep)
 	if err != nil {
 		return err
 	}
-	return h.updateRulesPerChain(getClusterPreRoutingChain(clusterID), rules)
+	return h.updateRulesPerChain(getClusterPreRoutingChain(tep.Spec.ClusterIdentity.ClusterID), rules)
 }
 
 // EnsurePreroutingRulesPerNatMapping makes sure that the prerouting rules extracted from a
@@ -680,7 +678,6 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 	if err := utils.CheckTep(tep); err != nil {
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
-	clusterID := tep.Spec.ClusterID
 	localPodCIDR := tep.Spec.LocalPodCIDR
 	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
 	_, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
@@ -690,7 +687,7 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 		natIP, err := utils.GetFirstIP(localRemappedPodCIDR)
 		if err != nil {
 			klog.Errorf("Unable to get the IP from localPodCidr %s for remote cluster %s used to NAT the traffic from localhosts to remote hosts",
-				localRemappedPodCIDR, clusterID)
+				localRemappedPodCIDR, tep.Spec.ClusterIdentity)
 			return nil, err
 		}
 		return []IPTableRule{
@@ -703,8 +700,8 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 	// Get the first IP address from the podCIDR of the local cluster
 	natIP, err := utils.GetFirstIP(localPodCIDR)
 	if err != nil {
-		klog.Errorf("Unable to get the IP from localPodCidr %s for cluster %s used to NAT the traffic from localhosts to remote hosts",
-			tep.Spec.RemotePodCIDR, clusterID)
+		klog.Errorf("Unable to get the IP from localPodCidr %s for cluster %v used to NAT the traffic from localhosts to remote hosts",
+			tep.Spec.RemotePodCIDR, tep.Spec.ClusterIdentity)
 		return nil, err
 	}
 	return []IPTableRule{
@@ -720,7 +717,7 @@ func getChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) (map[string][]IPTa
 	if err := utils.CheckTep(tep); err != nil {
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
-	clusterID := tep.Spec.ClusterID
+	clusterID := tep.Spec.ClusterIdentity.ClusterID
 	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
 	localRemappedExternalCIDR, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
 
