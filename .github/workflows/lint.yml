@@ -20,11 +20,11 @@ jobs:
           go-version: 1.18
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3.1.0
+        uses: golangci/golangci-lint-action@v3.2.0
         with:
           only-new-issues: true
-          version: v1.46.2
-          args: --timeout=600s
+          version: v1.47.1
+          args: --timeout=900s
 
   gomodtidy:
     name: Enforce go.mod tidiness
