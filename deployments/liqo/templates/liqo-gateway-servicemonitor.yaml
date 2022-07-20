@@ -1,0 +1,20 @@
+---
+{{- $gatewayMetricsConfig := (merge (dict "name" "gateway-metrics" "module" "networking") .) -}}
+{{- if .Values.gateway.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "liqo.prefixedName" $gatewayMetricsConfig }}
+  labels:
+    {{- include "liqo.labels" $gatewayMetricsConfig | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "liqo.labels" $gatewayMetricsConfig | nindent 6 }}
+      {{- include "liqo.gatewayServiceLabels" $gatewayMetricsConfig | nindent 6 }}
+  endpoints:
+  - port: metrics
+    interval: {{ .Values.gateway.metrics.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.gateway.metrics.serviceMonitor.scrapeTimeout }}
+{{- end }}
+

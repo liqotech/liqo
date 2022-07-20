@@ -87,7 +87,7 @@ func (vrm *VxlanRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEn
 	var gatewayIP string
 	var err error
 
-	clusterID := tep.Spec.ClusterID
+	clusterID := tep.Spec.ClusterIdentity.ClusterID
 	// Extract and save route information from the given tep.
 	_, dstPodCIDR := utils.GetPodCIDRS(tep)
 	_, dstExternalCIDR := utils.GetExternalCIDRS(tep)
@@ -161,7 +161,7 @@ func (vrm *VxlanRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEn
 	var gatewayIP string
 	var err error
 
-	clusterID := tep.Spec.ClusterID
+	clusterID := tep.Spec.ClusterIdentity.ClusterID
 	// Extract and save route information from the given tep.
 	_, dstPodCIDR := utils.GetPodCIDRS(tep)
 	_, dstExternalCIDR := utils.GetExternalCIDRS(tep)

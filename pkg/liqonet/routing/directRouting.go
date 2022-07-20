@@ -61,7 +61,7 @@ func NewDirectRoutingManager(routingTableID int, podIP string) (Routing, error) 
 // An error if something goes wrong and the routes can not be configured.
 func (drm *DirectRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) (bool, error) {
 	var routePodCIDRAdd, routeExternalCIDRAdd, policyRulePodCIDRAdd, policyRuleExternalCIDRAdd, configured bool
-	clusterID := tep.Spec.ClusterID
+	clusterID := tep.Spec.ClusterIdentity.ClusterID
 	// Extract and save route information from the given tep.
 	dstPodCIDR, dstExternalCIDR, gatewayIP, iFaceIndex, err := getRouteConfig(tep, drm.podIP)
 	if err != nil {
@@ -103,7 +103,7 @@ func (drm *DirectRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelE
 // An error if something goes wrong and the routes can not be removed.
 func (drm *DirectRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) (bool, error) {
 	var routePodCIDRDel, routeExternalCIDRDel, policyRulePodCIDRDel, policyRuleExternalCIDRDel, configured bool
-	clusterID := tep.Spec.ClusterID
+	clusterID := tep.Spec.ClusterIdentity.ClusterID
 	// Extract and save route information from the given tep.
 	dstPodCIDR, dstExternalCIDR, gatewayIP, iFaceIndex, err := getRouteConfig(tep, drm.podIP)
 	if err != nil {

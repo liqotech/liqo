@@ -19,4 +19,5 @@ RUN tar -C /usr/local/kubebuilder/ --strip-components=1 -zvxf envtest-bins.tar.g
 # Install iptables
 RUN apt-get update && apt-get install iptables iproute2 -y
 
-ENTRYPOINT go-acc ./... --ignore liqo/test/e2e -- -vet=off
+ENTRYPOINT [ "go-acc" ]
+CMD [ "./...", "--ignore", "liqo/test/e2e", "--", "-vet=off" ]

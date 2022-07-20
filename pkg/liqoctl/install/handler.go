@@ -80,6 +80,7 @@ type Options struct {
 	APIServer         string
 	SharingPercentage uint64
 	EnableHA          bool
+	EnableMetrics     bool
 
 	PodCIDR         string
 	ServiceCIDR     string
@@ -320,6 +321,12 @@ func (o *Options) values() map[string]interface{} {
 
 		"gateway": map[string]interface{}{
 			"replicas": float64(replicas),
+			"metrics": map[string]interface{}{
+				"enabled": o.EnableMetrics,
+				"serviceMonitor": map[string]interface{}{
+					"enabled": o.EnableMetrics,
+				},
+			},
 		},
 	}
 }

@@ -16,6 +16,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	discv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -26,8 +28,8 @@ var ResourceTunnelEndpoints = "tunnelendpoints"
 
 // TunnelEndpointSpec defines the desired state of TunnelEndpoint.
 type TunnelEndpointSpec struct {
-	// The ID of the remote cluster.
-	ClusterID string `json:"clusterID"`
+	// The identity of the remote cluster.
+	ClusterIdentity discv1alpha1.ClusterIdentity `json:"clusterIdentity"`
 
 	// PodCIDR of local cluster.
 	LocalPodCIDR string `json:"localPodCIDR"`
@@ -102,7 +104,7 @@ const (
 // +kubebuilder:subresource:status
 
 // TunnelEndpoint is the Schema for the endpoints API.
-// +kubebuilder:printcolumn:name="Peering Cluster ID",type=string,JSONPath=`.spec.clusterID`
+// +kubebuilder:printcolumn:name="Peering Cluster",type=string,JSONPath=`.spec.clusterIdentity.clusterName`
 // +kubebuilder:printcolumn:name="Endpoint IP",type=string,JSONPath=`.spec.endpointIP`,priority=1
 // +kubebuilder:printcolumn:name="Backend type",type=string,JSONPath=`.spec.backendType`
 // +kubebuilder:printcolumn:name="Connection status",type=string,JSONPath=`.status.connection.status`

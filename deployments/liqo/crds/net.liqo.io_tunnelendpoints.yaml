@@ -18,8 +18,8 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.clusterID
-      name: Peering Cluster ID
+    - jsonPath: .spec.clusterIdentity.clusterName
+      name: Peering Cluster
       type: string
     - jsonPath: .spec.endpointIP
       name: Endpoint IP
@@ -62,9 +62,20 @@ spec:
               backendType:
                 description: Vpn technology used to interconnect two clusters.
                 type: string
-              clusterID:
-                description: The ID of the remote cluster.
-                type: string
+              clusterIdentity:
+                description: The identity of the remote cluster.
+                properties:
+                  clusterID:
+                    description: Foreign Cluster ID, this is a unique identifier of
+                      that cluster.
+                    type: string
+                  clusterName:
+                    description: Foreign Cluster Name to be shown in GUIs.
+                    type: string
+                required:
+                - clusterID
+                - clusterName
+                type: object
               endpointIP:
                 description: Public IP of the node where the VPN tunnel is created.
                 type: string
@@ -103,7 +114,7 @@ spec:
             required:
             - backendType
             - backend_config
-            - clusterID
+            - clusterIdentity
             - endpointIP
             - localExternalCIDR
             - localPodCIDR

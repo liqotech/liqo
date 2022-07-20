@@ -61,12 +61,12 @@ func (npc *NatMappingController) Reconcile(ctx context.Context, req ctrl.Request
 			return fmt.Errorf("tunnel for cluster {%s} is not ready", nm.Spec.ClusterID)
 		}
 		if err := npc.IPTHandler.EnsurePreroutingRulesPerNatMapping(&nm); err != nil {
-			klog.Errorf("unable to ensure prerouting rules for cluster {%s}: %s",
-				nm.Spec.ClusterID, err.Error())
-			return err
+			return fmt.Errorf("unable to ensure prerouting rules for cluster {%s}: %w",
+				nm.Spec.ClusterID, err)
 		}
 		return nil
 	}); err != nil {
+		klog.Error(err)
 		return result, err
 	}
 	return result, nil

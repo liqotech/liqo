@@ -420,7 +420,10 @@ func (tec *TunnelEndpointCreator) createTunnelEndpoint(ctx context.Context, para
 }
 
 func (tec *TunnelEndpointCreator) fillTunnelEndpointSpec(tep *netv1alpha1.TunnelEndpoint, param *networkParam) {
-	tep.Spec.ClusterID = param.remoteCluster.ClusterID
+	tep.Spec.ClusterIdentity = discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   param.remoteCluster.ClusterID,
+		ClusterName: param.remoteCluster.ClusterName,
+	}
 	tep.Spec.LocalPodCIDR = param.localPodCIDR
 	tep.Spec.LocalExternalCIDR = param.localExternalCIDR
 	tep.Spec.LocalNATPodCIDR = param.localNatPodCIDR

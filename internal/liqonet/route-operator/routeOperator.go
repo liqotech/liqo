@@ -94,7 +94,7 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if tep.Status.GatewayIP == "" {
 		return result, nil
 	}
-	clusterID := tep.Spec.ClusterID
+	clusterIdentity := tep.Spec.ClusterIdentity
 	_, remotePodCIDR := utils.GetPodCIDRS(tep)
 	_, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
@@ -106,10 +106,10 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			controllerutil.AddFinalizer(tep, routeOperatorFinalizer)
 			if err := rc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
-					klog.V(4).Infof("%s -> unable to add finalizers to resource {%s}: %s", clusterID, req.String(), err)
+					klog.V(4).Infof("%s -> unable to add finalizers to resource {%s}: %s", clusterIdentity, req.String(), err)
 					return result, err
 				}
-				klog.Errorf("%s -> unable to add finalizers to resource {%s}: %s", clusterID, req.String(), err)
+				klog.Errorf("%s -> unable to add finalizers to resource {%s}: %s", clusterIdentity, req.String(), err)
 				return result, err
 			}
 		}
@@ -121,13 +121,13 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			deleted, err := rc.RemoveRoutesPerCluster(tep)
 			if err != nil {
 				klog.Errorf("%s -> unable to remove route for destinations {%s} and {%s}: %s",
-					clusterID, remotePodCIDR, remoteExternalCIDR, err)
+					clusterIdentity, remotePodCIDR, remoteExternalCIDR, err)
 				rc.Eventf(tep, "Warning", "Processing", "unable to remove route: %s", err.Error())
 				return result, err
 			}
 			if deleted {
 				klog.Infof("%s -> route for destinations {%s} and {%s} correctly removed",
-					clusterID, remotePodCIDR, remoteExternalCIDR)
+					clusterIdentity, remotePodCIDR, remoteExternalCIDR)
 				rc.Eventf(tep, "Normal", "Processing", "route for destination {%s} and {%s} correctly removed",
 					remotePodCIDR, remoteExternalCIDR)
 			}
@@ -135,10 +135,10 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			controllerutil.RemoveFinalizer(tep, routeOperatorFinalizer)
 			if err := rc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
-					klog.V(4).Infof("%s -> unable to add finalizers to resource {%s}: %s", clusterID, req.String(), err)
+					klog.V(4).Infof("%s -> unable to add finalizers to resource {%s}: %s", clusterIdentity, req.String(), err)
 					return result, err
 				}
-				klog.Errorf("%s -> unable to remove finalizers from resource {%s}: %s", clusterID, req.String(), err)
+				klog.Errorf("%s -> unable to remove finalizers from resource {%s}: %s", clusterIdentity, req.String(), err)
 				return result, err
 			}
 		}
@@ -147,13 +147,13 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	added, err := rc.EnsureRoutesPerCluster(tep)
 	if err != nil {
 		klog.Errorf("%s -> unable to configure route for destinations {%s} and {%s}: %s",
-			clusterID, remotePodCIDR, remoteExternalCIDR, err)
+			clusterIdentity, remotePodCIDR, remoteExternalCIDR, err)
 		rc.Eventf(tep, "Warning", "Processing", "unable to configure route for destinations {%s} and {%s}: %s",
 			remotePodCIDR, remoteExternalCIDR, err.Error())
 		return result, err
 	}
 	if added {
-		klog.Infof("%s -> route for destinations {%s} and {%s} correctly configured", clusterID, remotePodCIDR, remoteExternalCIDR)
+		klog.Infof("%s -> route for destinations {%s} and {%s} correctly configured", clusterIdentity, remotePodCIDR, remoteExternalCIDR)
 		rc.Eventf(tep, "Normal", "Processing", "route for destinations {%s} and {%s} configured", remotePodCIDR, remoteExternalCIDR)
 	}
 	return result, nil

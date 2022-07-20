@@ -25,14 +25,16 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/apis/net/v1alpha1"
+	discv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const (
-	clusterID1            = "cluster1"
+	clusterName1          = "clusterName1"
+	clusterID1            = "clusterID1"
 	invalidValue          = "an invalid value"
 	localNATPodCIDRValue  = "11.0.0.0/24"
 	remoteNATPodCIDRValue = "10.70.0.0/24"
@@ -45,15 +47,15 @@ const (
 var (
 	h           IPTHandler
 	ipt         *IPTables
-	tep         *v1alpha1.TunnelEndpoint
-	nm          *v1alpha1.NatMapping
-	natMappings = v1alpha1.Mappings{
+	tep         *netv1alpha1.TunnelEndpoint
+	nm          *netv1alpha1.NatMapping
+	natMappings = netv1alpha1.Mappings{
 		oldIP1: newIP1,
 		oldIP2: newIP2,
 	}
-	validTep = &v1alpha1.TunnelEndpoint{
-		Spec: v1alpha1.TunnelEndpointSpec{
-			ClusterID:             clusterID1,
+	validTep = &netv1alpha1.TunnelEndpoint{
+		Spec: netv1alpha1.TunnelEndpointSpec{
+			ClusterIdentity:       discv1alpha1.ClusterIdentity{ClusterID: clusterID1, ClusterName: clusterName1},
 			LocalPodCIDR:          "192.168.0.0/24",
 			LocalNATPodCIDR:       "192.168.1.0/24",
 			LocalExternalCIDR:     "192.168.3.0/24",
@@ -70,45 +72,45 @@ var _ = Describe("iptables", func() {
 	Describe("Init", func() {
 		BeforeEach(func() {
 			err := h.Terminate()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 		Context("Call func", func() {
 			It("should produce no errors and create Liqo chains", func() {
 				err := h.Init()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Retrieve NAT chains and Filter chains
 				natChains, err := ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				filterChains, err := ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check existence of LIQO-POSTROUTING chain
 				Expect(natChains).To(ContainElement(liqonetPostroutingChain))
 				// Check existence of rule in POSTROUTING
 				postRoutingRules, err := h.ListRulesInChain(postroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(postRoutingRules).To(ContainElement(fmt.Sprintf("-j %s", liqonetPostroutingChain)))
 
 				// Check existence of LIQO-PREROUTING chain
 				Expect(natChains).To(ContainElement(liqonetPostroutingChain))
 				// Check existence of rule in PREROUTING
 				preRoutingRules, err := h.ListRulesInChain(preroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(preRoutingRules).To(ContainElement(fmt.Sprintf("-j %s", liqonetPreroutingChain)))
 
 				// Check existence of LIQO-FORWARD chain
 				Expect(filterChains).To(ContainElement(liqonetForwardingChain))
 				// Check existence of rule in FORWARD
 				forwardRules, err := h.ListRulesInChain(forwardChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(forwardRules).To(ContainElement(fmt.Sprintf("-j %s", liqonetForwardingChain)))
 
 				// Check existence of LIQO-INPUT chain
 				Expect(filterChains).To(ContainElement(liqonetInputChain))
 				// Check existence of rule in INPUT
 				inputRules, err := h.ListRulesInChain(inputChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(inputRules).To(ContainElement(fmt.Sprintf("-j %s", liqonetInputChain)))
 			})
 		})
@@ -116,19 +118,19 @@ var _ = Describe("iptables", func() {
 		Context("Call func twice", func() {
 			It("should produce no errors and insert all the rules", func() {
 				err := h.Init()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check only POSTROUTING chain and rules
 
 				// Retrieve NAT chains
 				natChains, err := ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check existence of LIQO-POSTROUTING chain
 				Expect(natChains).To(ContainElement(liqonetPostroutingChain))
 				// Check existence of rule in POSTROUTING
 				postRoutingRules, err := h.ListRulesInChain(postroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(postRoutingRules).To(ContainElements([]string{
 					fmt.Sprintf("-j %s", liqonetPostroutingChain),
 				}))
@@ -139,18 +141,18 @@ var _ = Describe("iptables", func() {
 	Describe("EnsureChainRulesPerCluster", func() {
 		BeforeEach(func() {
 			err := h.EnsureChainsPerCluster(clusterID1)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			tep = validTep.DeepCopy()
-			nm = &v1alpha1.NatMapping{
-				Spec: v1alpha1.NatMappingSpec{
+			nm = &netv1alpha1.NatMapping{
+				Spec: netv1alpha1.NatMappingSpec{
 					ClusterID:       clusterID1,
-					ClusterMappings: make(v1alpha1.Mappings),
+					ClusterMappings: make(netv1alpha1.Mappings),
 				},
 			}
 		})
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 		Context(fmt.Sprintf("If all parameters are valid and LocalNATPodCIDR is equal to "+
 			"constant value %s in TunnelEndpoint resource", consts.DefaultCIDRValue), func() {
@@ -163,8 +165,8 @@ var _ = Describe("iptables", func() {
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 				expectedRules := []string{
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID)),
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))}
+					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID)),
+					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID))}
 				Expect(postRoutingRules).To(ContainElements(expectedRules))
 
 				// Check existence of rules in LIQO-PREROUTING chain
@@ -172,17 +174,19 @@ var _ = Describe("iptables", func() {
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 				expectedRule := fmt.Sprintf("-s %s -d %s -j %s", tep.Spec.RemoteNATPodCIDR, tep.Spec.LocalNATExternalCIDR,
-					getClusterPreRoutingMappingChain(tep.Spec.ClusterID))
+					getClusterPreRoutingMappingChain(tep.Spec.ClusterIdentity.ClusterID))
 				Expect(expectedRule).To(Equal(preRoutingRules[0]))
 
 				// Check existence of rule in LIQO-FORWARD chain
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterID))
+				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterIdentity.ClusterID))
+				Expect(err).ToNot(HaveOccurred())
 				Expect(expectedRule).To(Equal(forwardRules[0]))
 
 				// Check existence of rule in LIQO-INPUT chain
 				inputRules, err := h.ListRulesInChain(liqonetInputChain)
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterInputChain(tep.Spec.ClusterID))
+				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterInputChain(tep.Spec.ClusterIdentity.ClusterID))
+				Expect(err).ToNot(HaveOccurred())
 				Expect(expectedRule).To(Equal(inputRules[0]))
 
 			})
@@ -192,26 +196,26 @@ var _ = Describe("iptables", func() {
 			"constant value %s in TunnelEndpoint resource", consts.DefaultCIDRValue), func() {
 			It(`should add chain rules in POSTROUTING, INPUT, FORWARD and PREROUTING`, func() {
 				err := h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check existence of rule in LIQO-PREROUTING chain
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 				expectedRules := []string{
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID)),
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))}
+					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID)),
+					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID))}
 				Expect(postRoutingRules).To(ContainElements(expectedRules))
 
 				// Check existence of rule in LIQO-FORWARD chain
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
 				Expect(err).ToNot(HaveOccurred())
-				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterID))
+				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterIdentity.ClusterID))
 				Expect(expectedRule).To(Equal(forwardRules[0]))
 
 				// Check existence of rule in LIQO-INPUT chain
 				inputRules, err := h.ListRulesInChain(liqonetInputChain)
 				Expect(err).ToNot(HaveOccurred())
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterInputChain(tep.Spec.ClusterID))
+				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterInputChain(tep.Spec.ClusterIdentity.ClusterID))
 				Expect(expectedRule).To(Equal(inputRules[0]))
 
 				// Check existence of rule in LIQO-PREROUTING chain
@@ -219,9 +223,9 @@ var _ = Describe("iptables", func() {
 				Expect(err).ToNot(HaveOccurred())
 				expectedRules = []string{
 					fmt.Sprintf("-s %s -d %s -j %s", tep.Spec.RemoteNATPodCIDR,
-						tep.Spec.LocalNATPodCIDR, getClusterPreRoutingChain(tep.Spec.ClusterID)),
+						tep.Spec.LocalNATPodCIDR, getClusterPreRoutingChain(tep.Spec.ClusterIdentity.ClusterID)),
 					fmt.Sprintf("-s %s -d %s -j %s", tep.Spec.RemoteNATPodCIDR, tep.Spec.LocalNATExternalCIDR,
-						getClusterPreRoutingMappingChain(tep.Spec.ClusterID)),
+						getClusterPreRoutingMappingChain(tep.Spec.ClusterIdentity.ClusterID)),
 				}
 				Expect(preRoutingRules).To(ContainElements(expectedRules))
 			})
@@ -263,7 +267,7 @@ var _ = Describe("iptables", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Spec.LocalNATPodCIDR = invalidValue
 				err := h.Init()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				err = h.EnsureChainRulesPerCluster(tep)
 				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.LocalNATPodCIDR, errors.ValidCIDR)))
 				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
@@ -273,9 +277,9 @@ var _ = Describe("iptables", func() {
 		Context("If there are already some rules in chains but they are not in new rules", func() {
 			It(`should remove existing rules that are not in the set of new rules and add new rules`, func() {
 				err := h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
-				clusterPostRoutingChain := liqonetPostroutingClusterChainPrefix + strings.Split(tep.Spec.ClusterID, "-")[0]
+				clusterPostRoutingChain := liqonetPostroutingClusterChainPrefix + strings.Split(tep.Spec.ClusterIdentity.ClusterID, "-")[0]
 
 				// Get rule that will be removed
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
@@ -287,8 +291,9 @@ var _ = Describe("iptables", func() {
 
 				// Second call
 				err = h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newPostRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check if new rules has been added.
 				expectedRules := []string{
@@ -306,12 +311,12 @@ var _ = Describe("iptables", func() {
 	Describe("EnsureChainsPerCluster", func() {
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			tep = validTep.DeepCopy()
-			nm = &v1alpha1.NatMapping{
-				Spec: v1alpha1.NatMappingSpec{
+			nm = &netv1alpha1.NatMapping{
+				Spec: netv1alpha1.NatMappingSpec{
 					ClusterID:       clusterID1,
-					ClusterMappings: make(v1alpha1.Mappings),
+					ClusterMappings: make(netv1alpha1.Mappings),
 				},
 			}
 		})
@@ -324,12 +329,12 @@ var _ = Describe("iptables", func() {
 		Context("If chains do not exist yet", func() {
 			It("Should create chains", func() {
 				err := h.EnsureChainsPerCluster(clusterID1)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				natChains, err := ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				filterChains, err := ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check if filter chains have been created by function.
 				Expect(filterChains).To(ContainElements(
@@ -348,12 +353,12 @@ var _ = Describe("iptables", func() {
 		Context("If chains already exist", func() {
 			It("Should be a nop", func() {
 				err := h.EnsureChainsPerCluster(clusterID1)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				natChains, err := ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				filterChains, err := ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check if filter chains have been created by function.
 				Expect(filterChains).To(ContainElements(
@@ -369,13 +374,13 @@ var _ = Describe("iptables", func() {
 				))
 
 				err = h.EnsureChainsPerCluster(clusterID1)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get new chains and assert that they have not changed.
 				newNatChains, err := ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newFilterChains, err := ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(newNatChains).To(Equal(natChains))
 				Expect(newFilterChains).To(Equal(filterChains))
@@ -386,33 +391,33 @@ var _ = Describe("iptables", func() {
 	Describe("Terminate", func() {
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 		Context("If there is not a Liqo configuration", func() {
 			It("should be a nop", func() {
 				err := h.Terminate()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 		Context("If there is a Liqo configuration and Liqo chains are not empty", func() {
 			It("should remove Liqo configuration", func() {
 				err := h.Init()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Add a remote cluster config and do not terminate it
 				err = h.EnsureChainsPerCluster(clusterID1)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				err = h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = h.Terminate()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check if Liqo chains do exist
 				natChains, err := h.ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				filterChains, err := h.ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(natChains).ToNot(ContainElements(getLiqoChains()))
 				Expect(filterChains).ToNot(ContainElements(getLiqoChains()))
@@ -420,38 +425,38 @@ var _ = Describe("iptables", func() {
 				// Check if Liqo rules have been removed
 
 				postRoutingRules, err := h.ListRulesInChain(postroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(postRoutingRules).ToNot(ContainElements([]string{
 					fmt.Sprintf("-j %s", liqonetPostroutingChain),
 					fmt.Sprintf("-j %s", MASQUERADE),
 				}))
 
 				preRoutingRules, err := h.ListRulesInChain(preroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(preRoutingRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetPreroutingChain)))
 
 				forwardRules, err := h.ListRulesInChain(forwardChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(forwardRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetForwardingChain)))
 
 				inputRules, err := h.ListRulesInChain(inputChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(inputRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetInputChain)))
 			})
 		})
 		Context("If there is a Liqo configuration and Liqo chains are empty", func() {
 			It("should remove Liqo configuration", func() {
 				err := h.Init()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = h.Terminate()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check if Liqo chains do exist
 				natChains, err := h.ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				filterChains, err := h.ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(natChains).ToNot(ContainElements(getLiqoChains()))
 				Expect(filterChains).ToNot(ContainElements(getLiqoChains()))
@@ -459,21 +464,21 @@ var _ = Describe("iptables", func() {
 				// Check if Liqo rules have been removed
 
 				postRoutingRules, err := h.ListRulesInChain(postroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(postRoutingRules).ToNot(ContainElements([]string{
 					fmt.Sprintf("-j %s", liqonetPostroutingChain),
 				}))
 
 				preRoutingRules, err := h.ListRulesInChain(preroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(preRoutingRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetPreroutingChain)))
 
 				forwardRules, err := h.ListRulesInChain(forwardChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(forwardRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetForwardingChain)))
 
 				inputRules, err := h.ListRulesInChain(inputChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(inputRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetInputChain)))
 			})
 		})
@@ -485,35 +490,35 @@ var _ = Describe("iptables", func() {
 				// Read current configuration in order to compare it
 				// with the configuration after func call.
 				natChains, err := ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				filterChains, err := ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				inputRules, err := h.ListRulesInChain(liqonetInputChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = h.RemoveIPTablesConfigurationPerCluster(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				newNatChains, err := ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newFilterChains, err := ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				newPostRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newForwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newInputRules, err := h.ListRulesInChain(liqonetInputChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newPreRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Assert configs are equal
 				Expect(natChains).To(Equal(newNatChains))
@@ -526,54 +531,54 @@ var _ = Describe("iptables", func() {
 		})
 		Context("If cluster has an iptables configuration", func() {
 			It("should delete chains and rules per cluster", func() {
-				err := h.EnsureChainsPerCluster(tep.Spec.ClusterID)
-				Expect(err).To(BeNil())
+				err := h.EnsureChainsPerCluster(tep.Spec.ClusterIdentity.ClusterID)
+				Expect(err).ToNot(HaveOccurred())
 
 				err = h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get chains related to cluster
 				natChains, err := ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				filterChains, err := ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// If chain contains clusterID, then it is related to cluster
-				natChainsPerCluster := getSliceContainingString(natChains, tep.Spec.ClusterID)
-				filterChainsPerCluster := getSliceContainingString(filterChains, tep.Spec.ClusterID)
+				natChainsPerCluster := getSliceContainingString(natChains, tep.Spec.ClusterIdentity.ClusterID)
+				filterChainsPerCluster := getSliceContainingString(filterChains, tep.Spec.ClusterIdentity.ClusterID)
 
 				// Get rules related to cluster in each chain
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				inputRules, err := h.ListRulesInChain(liqonetInputChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
-				clusterPostRoutingRules := getSliceContainingString(postRoutingRules, tep.Spec.ClusterID)
-				clusterPreRoutingRules := getSliceContainingString(preRoutingRules, tep.Spec.ClusterID)
-				clusterForwardRules := getSliceContainingString(forwardRules, tep.Spec.ClusterID)
-				clusterInputRules := getSliceContainingString(inputRules, tep.Spec.ClusterID)
+				clusterPostRoutingRules := getSliceContainingString(postRoutingRules, tep.Spec.ClusterIdentity.ClusterID)
+				clusterPreRoutingRules := getSliceContainingString(preRoutingRules, tep.Spec.ClusterIdentity.ClusterID)
+				clusterForwardRules := getSliceContainingString(forwardRules, tep.Spec.ClusterIdentity.ClusterID)
+				clusterInputRules := getSliceContainingString(inputRules, tep.Spec.ClusterIdentity.ClusterID)
 
 				err = h.RemoveIPTablesConfigurationPerCluster(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Read config after call
 				newNatChains, err := ipt.ListChains(natTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newFilterChains, err := ipt.ListChains(filterTable)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				newPostRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newForwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newInputRules, err := h.ListRulesInChain(liqonetInputChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				newPreRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Check chains have been removed
 				Expect(newNatChains).ToNot(ContainElements(natChainsPerCluster))
@@ -591,22 +596,22 @@ var _ = Describe("iptables", func() {
 	Describe("EnsurePostroutingRules", func() {
 		BeforeEach(func() {
 			err := h.EnsureChainsPerCluster(clusterID1)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			tep = validTep.DeepCopy()
-			nm = &v1alpha1.NatMapping{
-				Spec: v1alpha1.NatMappingSpec{
+			nm = &netv1alpha1.NatMapping{
+				Spec: netv1alpha1.NatMappingSpec{
 					ClusterID:       clusterID1,
-					ClusterMappings: make(v1alpha1.Mappings),
+					ClusterMappings: make(netv1alpha1.Mappings),
 				},
 			}
 		})
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 		Context("If tep has an empty clusterID", func() {
 			It("should return a WrongParameter error", func() {
-				tep.Spec.ClusterID = ""
+				tep.Spec.ClusterIdentity.ClusterID = ""
 				err := h.EnsurePostroutingRules(tep)
 				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.ClusterIDLabelName, errors.StringNotEmpty)))
 				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
@@ -670,22 +675,22 @@ var _ = Describe("iptables", func() {
 			It("should remove old rules and insert updated ones", func() {
 				// First call with default tep
 				err := h.EnsurePostroutingRules(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get inserted rules
 				postRoutingRules, err := h.ListRulesInChain(getClusterPostRoutingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Edit tep
 				tep.Spec.LocalNATPodCIDR = localNATPodCIDRValue
 
 				// Second call
 				err = h.EnsurePostroutingRules(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get inserted rules
 				newPostRoutingRules, err := h.ListRulesInChain(getClusterPostRoutingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(newPostRoutingRules).ToNot(ContainElements(postRoutingRules))
 				Expect(newPostRoutingRules).To(ContainElements([]string{
@@ -702,9 +707,9 @@ var _ = Describe("iptables", func() {
 			func(editTep func(), getExpectedRules func() []string) {
 				editTep()
 				err := h.EnsurePostroutingRules(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				postRoutingRules, err := h.ListRulesInChain(getClusterPostRoutingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				expectedRules := getExpectedRules()
 				Expect(postRoutingRules).To(ContainElements(expectedRules))
 			},
@@ -828,22 +833,22 @@ var _ = Describe("iptables", func() {
 	Describe("EnsurePreroutingRulesPerTunnelEndpoint", func() {
 		BeforeEach(func() {
 			err := h.EnsureChainsPerCluster(clusterID1)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			tep = validTep.DeepCopy()
-			nm = &v1alpha1.NatMapping{
-				Spec: v1alpha1.NatMappingSpec{
+			nm = &netv1alpha1.NatMapping{
+				Spec: netv1alpha1.NatMappingSpec{
 					ClusterID:       clusterID1,
-					ClusterMappings: make(v1alpha1.Mappings),
+					ClusterMappings: make(netv1alpha1.Mappings),
 				},
 			}
 		})
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 		Context("If tep has an empty clusterID", func() {
 			It("should return a WrongParameter error", func() {
-				tep.Spec.ClusterID = ""
+				tep.Spec.ClusterIdentity.ClusterID = ""
 				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
 				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.ClusterIDLabelName, errors.StringNotEmpty)))
 				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
@@ -888,22 +893,22 @@ var _ = Describe("iptables", func() {
 			It("should remove old rules and insert updated ones", func() {
 				// First call with default tep
 				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get inserted rules
 				preRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Edit tep
 				tep.Spec.LocalNATPodCIDR = localNATPodCIDRValue
 
 				// Second call
 				err = h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get inserted rules
 				newPreRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(newPreRoutingRules).ToNot(ContainElements(preRoutingRules))
 				Expect(newPreRoutingRules).To(ContainElement(fmt.Sprintf("-s %s -d %s -j %s --to %s",
@@ -914,9 +919,9 @@ var _ = Describe("iptables", func() {
 			func(editTep func(), getExpectedRules func() []string) {
 				editTep()
 				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				preRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				expectedRules := getExpectedRules()
 				Expect(preRoutingRules).To(ContainElements(expectedRules))
 			},
@@ -938,10 +943,10 @@ var _ = Describe("iptables", func() {
 	Describe("EnsurePreroutingRulesPerNatMapping", func() {
 		BeforeEach(func() {
 			err := h.EnsureChainsPerCluster(clusterID1)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			tep = validTep.DeepCopy()
-			nm = &v1alpha1.NatMapping{
-				Spec: v1alpha1.NatMappingSpec{
+			nm = &netv1alpha1.NatMapping{
+				Spec: netv1alpha1.NatMappingSpec{
 					ClusterID:       clusterID1,
 					ClusterMappings: natMappings,
 				},
@@ -949,7 +954,7 @@ var _ = Describe("iptables", func() {
 		})
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 		Context("If nm has an empty clusterID", func() {
 			It("should return a WrongParameter error", func() {
@@ -964,19 +969,19 @@ var _ = Describe("iptables", func() {
 			It("second call should be a nop", func() {
 				// First call with default nm
 				err := h.EnsurePreroutingRulesPerNatMapping(nm)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get inserted rules
 				preRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Second call
 				err = h.EnsurePreroutingRulesPerNatMapping(nm)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get inserted rules
 				newPreRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(newPreRoutingRules).To(ContainElements(preRoutingRules))
 			})
@@ -985,26 +990,26 @@ var _ = Describe("iptables", func() {
 			It("should delete old mappings and add new ones", func() {
 				oldIP := "20.0.0.2"
 				newIP := "30.0.0.2"
-				newMappings := v1alpha1.Mappings{
+				newMappings := netv1alpha1.Mappings{
 					oldIP: newIP,
 				}
 				// First call with default nm
 				err := h.EnsurePreroutingRulesPerNatMapping(nm)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get inserted rules
 				preRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				nm.Spec.ClusterMappings = newMappings
 
 				// Second call
 				err = h.EnsurePreroutingRulesPerNatMapping(nm)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get inserted rules
 				newPreRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(newPreRoutingRules).ToNot(ContainElements(preRoutingRules))
 				Expect(newPreRoutingRules).To(ContainElements(
@@ -1015,11 +1020,11 @@ var _ = Describe("iptables", func() {
 		Context("Call once", func() {
 			It("should insert appropriate rules", func() {
 				err := h.EnsurePreroutingRulesPerNatMapping(nm)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Get inserted rules
 				preRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(preRoutingRules).To(ContainElements(
 					fmt.Sprintf("-d %s -j %s --to-destination %s", newIP1, DNAT, oldIP1),

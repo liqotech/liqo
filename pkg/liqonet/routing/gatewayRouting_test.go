@@ -63,7 +63,8 @@ var _ = Describe("GatewayRouting", func() {
 			It("routingTableID parameter out of range: superior to max value ", func() {
 				grm, err := NewGatewayRoutingManager(unix.RT_TABLE_MAX+1, tunnelDevice)
 				Expect(grm).Should(BeNil())
-				Expect(err).Should(Equal(&liqoerrors.WrongParameter{Parameter: "routingTableID", Reason: liqoerrors.MinorOrEqual + strconv.Itoa(unix.RT_TABLE_MAX)}))
+				Expect(err).Should(
+					Equal(&liqoerrors.WrongParameter{Parameter: "routingTableID", Reason: liqoerrors.MinorOrEqual + strconv.Itoa(unix.RT_TABLE_MAX)}))
 			})
 			It("tunnelDevice is nil", func() {
 				grm, err := NewGatewayRoutingManager(routingTableIDGRM, nil)

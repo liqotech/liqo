@@ -330,6 +330,7 @@ Additionally, **arbitrary parameters** available in the Helm *values* file (the 
 The main global flags, besides those concerning the installation of [development versions](InstallationDevelopmentVersions), include:
 
 * `--enable-ha`: whether to enable the support for **high-availability of the Liqo components**, starting two replicas (in an active/standby configuration) of the **gateway** to ensure no cross-cluster connectivity downtime in case one of the replicas is restarted, as well as of the **controller manager**, which embeds the Liqo control plane logic.
+* `--enable-metrics`: enable **metrics** exposition through **prometheus**.
 * `--timeout`: configures the timeout for the completion of the installation/upgrade process.
   Once expired, the process is aborted and Liqo is rolled back to the previous version.
 * `--verbose`: whether to enable verbose logs, providing additional information concerning the installation/upgrade process (i.e., for troubleshooting purposes).

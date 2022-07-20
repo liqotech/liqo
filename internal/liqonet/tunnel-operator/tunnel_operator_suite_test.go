@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/iptables"
@@ -38,8 +39,10 @@ import (
 )
 
 const (
-	clusterID1   = "cluster1"
-	clusterID2   = "cluster2"
+	clusterName1 = "clusterName1"
+	clusterName2 = "clusterName2"
+	clusterID1   = "clusterID1" // clusterID1 string length must be less than 10.
+	clusterID2   = "clusterID2" // clusterID2 string length must be less than 10.
 	iptNetnsName = "iptNetNs"
 )
 
@@ -49,14 +52,12 @@ var (
 	k8sClient          client.Client
 	controller         *NatMappingController
 	readyClustersMutex sync.Mutex
-	readyClusters      = map[string]struct{}{
-		clusterID1: {},
-	}
-	gatewayNetns ns.NetNS
-	iptNetns     ns.NetNS
-	tep1         = &netv1alpha1.TunnelEndpoint{
+	readyClusters      = map[string]struct{}{clusterID1: {}}
+	gatewayNetns       ns.NetNS
+	iptNetns           ns.NetNS
+	tep1               = &netv1alpha1.TunnelEndpoint{
 		Spec: netv1alpha1.TunnelEndpointSpec{
-			ClusterID:             clusterID1,
+			ClusterIdentity:       v1alpha1.ClusterIdentity{ClusterID: clusterID1, ClusterName: clusterName1},
 			LocalPodCIDR:          "192.168.0.0/24",
 			LocalNATPodCIDR:       "192.168.1.0/24",
 			LocalExternalCIDR:     "192.168.3.0/24",
@@ -69,7 +70,7 @@ var (
 	}
 	tep2 = &netv1alpha1.TunnelEndpoint{
 		Spec: netv1alpha1.TunnelEndpointSpec{
-			ClusterID:             clusterID2,
+			ClusterIdentity:       v1alpha1.ClusterIdentity{ClusterID: clusterID2, ClusterName: clusterName2},
 			LocalPodCIDR:          "192.168.0.0/24",
 			LocalNATPodCIDR:       "192.168.1.0/24",
 			LocalExternalCIDR:     "192.168.3.0/24",
@@ -96,33 +97,33 @@ var _ = BeforeSuite(func() {
 
 	// Create custom network namespace for tunnel-operator.
 	gatewayNetns, err = netns.CreateNetns(consts.GatewayNetnsName)
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 	tc.gatewayNetns = gatewayNetns
 	tc.hostNetns, err = ns.GetCurrentNS()
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 
 	// Create custom network namespace for natmapping-operator.
 	iptNetns, err = netns.CreateNetns(iptNetnsName)
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 
 	// Config IPTables for remote clusters
 	err = initIPTables()
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 
 	err = netv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 	envTest = &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 	}
 	config, err := envTest.Start()
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme:             scheme.Scheme,
 		MetricsBindAddress: "0",
 	})
-
+	Expect(err).ShouldNot(HaveOccurred())
 	controller, err = NewNatMappingController(mgr.GetClient(), &readyClustersMutex, readyClusters, iptNetns)
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 	go func() {
 		if err = mgr.Start(context.Background()); err != nil {
 			panic(err)
@@ -151,13 +152,13 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	err := envTest.Stop()
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 	err = terminateIPTables()
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 	err = gatewayNetns.Close()
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 	err = iptNetns.Close()
-	Expect(err).To(BeNil())
+	Expect(err).ShouldNot(HaveOccurred())
 })
 
 func terminateIPTables() error {
