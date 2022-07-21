@@ -68,9 +68,7 @@ type WireGuardConfig struct {
 type Cluster struct {
 	local  *factory.Factory
 	remote *factory.Factory
-
-	localWaiter  *wait.Waiter
-	remoteWaiter *wait.Waiter
+	Waiter *wait.Waiter
 
 	locTenantNamespace string
 	remTenantNamespace string
@@ -104,8 +102,7 @@ func NewCluster(local, remote *factory.Factory) *Cluster {
 	return &Cluster{
 		local:            local,
 		remote:           remote,
-		localWaiter:      wait.NewWaiterFromFactory(local),
-		remoteWaiter:     wait.NewWaiterFromFactory(remote),
+		Waiter:           wait.NewWaiterFromFactory(local),
 		namespaceManager: tenantnamespace.NewManager(local.KubeClient),
 		PortForwardOpts:  pfo,
 	}
@@ -847,20 +844,4 @@ func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discovery
 	s.Success(fmt.Sprintf("peering correctly disabled for remote cluster %q", remName))
 
 	return nil
-}
-
-// WaitForUnpeering waits until the status on the foreiglcusters resource states that the in/outgoing peering has been successfully
-// set to None or the timeout expires.
-func (c *Cluster) WaitForUnpeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	return c.localWaiter.ForUnpeering(ctx, remoteClusterID)
-}
-
-// WaitForAuth waits until the authentication has been established with the remote cluster or the timeout expires.
-func (c *Cluster) WaitForAuth(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	return c.localWaiter.ForAuth(ctx, remoteClusterID)
-}
-
-// WaitForNetwork waits until the networking has been established with the remote cluster or the timeout expires.
-func (c *Cluster) WaitForNetwork(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	return c.localWaiter.ForAuth(ctx, remoteClusterID)
 }
