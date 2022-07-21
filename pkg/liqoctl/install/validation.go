@@ -43,12 +43,16 @@ func (o *Options) validate(ctx context.Context) error {
 	o.Printer.Verbosef("Kubernetes API Server: %s\n", o.PodCIDR)
 
 	if err := o.validatePodCIDR(ctx); err != nil {
-		return fmt.Errorf("failed validating Pod CIDR %q: %w", o.PodCIDR, err)
+		return fmt.Errorf("failed validating Pod CIDR %q: %w. "+
+			"Try setting the correct Pod CIDR using the vanilla *liqoctl install* command, or installing Liqo with Helm",
+			o.PodCIDR, err)
 	}
 	o.Printer.Verbosef("Pod CIDR: %s\n", o.PodCIDR)
 
 	if err := o.validateServiceCIDR(ctx); err != nil {
-		return fmt.Errorf("failed validating Service CIDR %q: %w", o.ServiceCIDR, err)
+		return fmt.Errorf("failed validating Service CIDR %q: %w. "+
+			"Try setting the correct Service CIDR using the vanilla *liqoctl install* command, or installing Liqo with Helm",
+			o.ServiceCIDR, err)
 	}
 	o.Printer.Verbosef("Service CIDR: %s\n", o.ServiceCIDR)
 

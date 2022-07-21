@@ -87,6 +87,7 @@ type Options struct {
 
 	DisableAPIServerSanityChecks bool
 	DisableAPIServerDefaulting   bool
+	SkipValidation               bool
 }
 
 // Run implements the install command.
@@ -113,10 +114,12 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 		return err
 	}
 
-	err = o.validate(ctx)
-	if err != nil {
-		s.Fail("Error retrieving configuration: ", output.PrettyErr(err))
-		return err
+	if !o.SkipValidation {
+		err = o.validate(ctx)
+		if err != nil {
+			s.Fail("Error retrieving configuration: ", output.PrettyErr(err))
+			return err
+		}
 	}
 
 	s.Success("Cluster configuration correctly retrieved")
