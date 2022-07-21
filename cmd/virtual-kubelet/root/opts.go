@@ -32,7 +32,6 @@ const (
 	DefaultNodeName             = "virtual-kubelet"
 	DefaultInformerResyncPeriod = 10 * time.Hour
 	DefaultListenPort           = 10250
-	DefaultMetricsAddress       = ":10255"
 
 	DefaultPodWorkers                  = 10
 	DefaultServiceWorkers              = 3
@@ -59,10 +58,11 @@ type Opts struct {
 	ForeignCluster discoveryv1alpha1.ClusterIdentity
 	LiqoIpamServer string
 
-	// Sets the port to listen for requests from the Kubernetes API server
-	ListenPort      uint16
-	MetricsAddress  string
-	EnableProfiling bool
+	// Sets the addresses to listen for requests from the Kubernetes API server
+	NodeIP                string
+	ListenPort            uint16
+	SelfSignedCertificate bool
+	EnableProfiling       bool
 
 	// Number of workers to use to handle pod notifications and resource reflection
 	PodWorkers                   uint
@@ -97,7 +97,6 @@ func NewOpts() *Opts {
 		LiqoIpamServer: fmt.Sprintf("%v:%v", consts.NetworkManagerServiceName, consts.NetworkManagerIpamPort),
 
 		ListenPort:      DefaultListenPort,
-		MetricsAddress:  DefaultMetricsAddress,
 		EnableProfiling: false,
 
 		PodWorkers:                   DefaultPodWorkers,

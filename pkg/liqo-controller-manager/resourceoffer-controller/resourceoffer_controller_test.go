@@ -48,8 +48,7 @@ const (
 
 	testNamespace = "default"
 
-	virtualKubeletImage     = "vk-image"
-	initVirtualKubeletImage = "init-vk-image"
+	virtualKubeletImage = "vk-image"
 )
 
 var (
@@ -105,8 +104,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 		}
 
 		kubeletOpts := &forge.VirtualKubeletOpts{
-			ContainerImage:     virtualKubeletImage,
-			InitContainerImage: initVirtualKubeletImage,
+			ContainerImage: virtualKubeletImage,
 		}
 
 		controller = NewResourceOfferController(mgr, remoteClusterIdentity,

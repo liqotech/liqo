@@ -42,7 +42,7 @@ func TestApproveSigningRequest(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	err = Approve(c, &certificateToValidate, "LiqoApproval", "This CSR was approved by Liqo Advertisement Operator")
+	err = Approve(c, &certificateToValidate, "LiqoApproval", "This CSR was approved by Liqo")
 	if err != nil {
 		t.Fail()
 	}
@@ -55,5 +55,5 @@ func TestApproveSigningRequest(t *testing.T) {
 	conditions := cert.Status.Conditions
 	assert.Equal(t, conditions[0].Type, certificatesv1.CertificateApproved)
 	assert.Equal(t, conditions[0].Reason, "LiqoApproval")
-	assert.Equal(t, conditions[0].Message, "This CSR was approved by Liqo Advertisement Operator")
+	assert.Equal(t, conditions[0].Message, "This CSR was approved by Liqo")
 }

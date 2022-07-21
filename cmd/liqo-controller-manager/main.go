@@ -17,12 +17,16 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
+	certificates "k8s.io/api/certificates/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
@@ -58,17 +62,11 @@ import (
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/utils/csr"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
-	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
-)
-
-const (
-	defaultVKImage     = "liqo/virtual-kubelet"
-	defaultInitVKImage = "liqo/init-virtual-kubelet"
 )
 
 var (
@@ -131,9 +129,7 @@ func main() {
 		"The threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update")
 
 	// Virtual-kubelet parameters
-	kubeletImage := flag.String("kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
-	initKubeletImage := flag.String("init-kubelet-image", defaultInitVKImage,
-		"The image of the virtual kubelet init container to be deployed")
+	kubeletImage := flag.String("kubelet-image", "liqo/virtual-kubelet", "The image of the virtual kubelet to be deployed")
 	disableKubeletCertGeneration := flag.Bool("disable-kubelet-certificate-generation", false,
 		"Whether to disable the virtual kubelet certificate generation by means of an init container (used for logs/exec capabilities)")
 	flag.Var(&kubeletExtraAnnotations, "kubelet-extra-annotations", "Extra annotations to add to the Virtual Kubelet Deployments and Pods")
@@ -279,7 +275,6 @@ func main() {
 
 	virtualKubeletOpts := &forge.VirtualKubeletOpts{
 		ContainerImage:        *kubeletImage,
-		InitContainerImage:    *initKubeletImage,
 		DisableCertGeneration: *disableKubeletCertGeneration,
 		ExtraAnnotations:      kubeletExtraAnnotations.StringMap,
 		ExtraLabels:           kubeletExtraLabels.StringMap,
@@ -335,8 +330,14 @@ func main() {
 	}
 
 	// Start the handler to approve the virtual kubelet certificate signing requests.
-	csrWatcher := csr.NewWatcher(clientset, *resyncPeriod, labels.SelectorFromSet(vkMachinery.CsrLabels))
-	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo"))
+	csrWatcher := csr.NewWatcher(clientset, *resyncPeriod, labels.Everything(),
+		fields.OneTermEqualSelector("spec.signerName", certificates.KubeletServingSignerName))
+	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo",
+		// Approve only the CSRs for a requestor living in a liqo tenant namespace (based on the prefix).
+		// This is far from elegant, but the client-go utility generating the CSRs does not allow to customize the labels.
+		func(csr *certificates.CertificateSigningRequest) bool {
+			return strings.HasPrefix(csr.Spec.Username, fmt.Sprintf("system:serviceaccount:%v-", tenantnamespace.NamePrefix))
+		}))
 	csrWatcher.Start(ctx)
 
 	if err = mgr.Add(offerUpdater); err != nil {

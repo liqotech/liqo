@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	certv1 "k8s.io/api/certificates/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
@@ -73,7 +74,7 @@ var _ = Describe("Watcher functions", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			selector = labels.NewSelector().Add(*req)
-			watcher = NewWatcher(client, 0, selector)
+			watcher = NewWatcher(client, 0, selector, fields.Everything())
 		})
 
 		JustBeforeEach(func() {

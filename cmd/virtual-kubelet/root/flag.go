@@ -36,8 +36,9 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.StringVar(&o.ForeignCluster.ClusterName, "foreign-cluster-name", o.ForeignCluster.ClusterName, "The name of the foreign cluster")
 	flags.StringVar(&o.LiqoIpamServer, "ipam-server", o.LiqoIpamServer, "The address to contact the IPAM module")
 
+	flags.StringVar(&o.NodeIP, "node-ip", o.NodeIP, "The IP address of the virtual kubelet pod, and assigned to the virtual node as internal address")
+	flags.BoolVar(&o.SelfSignedCertificate, "self-signed-certificate", false, "Whether to use a self-signed certificate for the virtual kubelet server")
 	flags.Uint16Var(&o.ListenPort, "listen-port", o.ListenPort, "The port to listen to for requests from the Kubernetes API server")
-	flags.StringVar(&o.MetricsAddress, "metrics-address", o.MetricsAddress, "Address to listen for metrics/stats requests")
 	flags.BoolVar(&o.EnableProfiling, "enable-profiling", o.EnableProfiling, "Enable pprof profiling")
 
 	flags.UintVar(&o.PodWorkers, "pod-reflection-workers", o.PodWorkers, "The number of pod reflection workers")

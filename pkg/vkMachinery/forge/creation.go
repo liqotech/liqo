@@ -82,7 +82,7 @@ func VirtualKubeletClusterRoleBinding(kubeletNamespace string, remoteCluster *di
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     "ClusterRole",
-			Name:     vkMachinery.VKClusterRoleName,
+			Name:     vkMachinery.LocalClusterRoleName,
 		},
 	}
 }

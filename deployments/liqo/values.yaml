@@ -196,9 +196,6 @@ webhook:
 virtualKubelet:
   # -- virtual kubelet image repository
   imageName: "liqo/virtual-kubelet"
-  initContainer:
-    # -- virtual kubelet init container image repository
-    imageName: "liqo/init-virtual-kubelet"
   # add additional values for this fields to add to virtual kubelet deployments and pods
   extra:
     # -- virtual kubelet pod extra annotations

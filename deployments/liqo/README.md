@@ -91,7 +91,6 @@
 | virtualKubelet.extra.args | list | `[]` | virtual kubelet pod extra arguments |
 | virtualKubelet.extra.labels | object | `{}` | virtual kubelet pod extra labels |
 | virtualKubelet.imageName | string | `"liqo/virtual-kubelet"` | virtual kubelet image repository |
-| virtualKubelet.initContainer.imageName | string | `"liqo/init-virtual-kubelet"` | virtual kubelet init container image repository |
 | virtualKubelet.virtualNode.extra.annotations | object | `{}` | virtual node extra annotations |
 | virtualKubelet.virtualNode.extra.labels | object | `{}` | virtual node extra labels |
 | webhook.failurePolicy | string | `"Fail"` | the webhook failure policy, among Ignore and Fail |

@@ -34,7 +34,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	certificateSigningRequest "github.com/liqotech/liqo/pkg/vkMachinery/csr"
+	certificateSigningRequest "github.com/liqotech/liqo/pkg/utils/csr"
 )
 
 // random package initialization.
