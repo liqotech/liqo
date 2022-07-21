@@ -127,30 +127,54 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	// Waiting for VPN connection to be established in cluster 1.
-	if err := cluster1.WaitForNetwork(ctx, cluster2.GetClusterID()); err != nil {
+	if err := cluster1.Waiter.ForNetwork(ctx, cluster2.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for VPN connection to be established in cluster 2.
-	if err := cluster2.WaitForNetwork(ctx, cluster1.GetClusterID()); err != nil {
+	if err := cluster2.Waiter.ForNetwork(ctx, cluster1.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for VPN connection to be established in cluster 1.
-	if err := cluster1.WaitForNetwork(ctx, cluster2.GetClusterID()); err != nil {
+	if err := cluster1.Waiter.ForNetwork(ctx, cluster2.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for VPN connection to be established in cluster 2.
-	if err := cluster2.WaitForNetwork(ctx, cluster1.GetClusterID()); err != nil {
+	if err := cluster2.Waiter.ForNetwork(ctx, cluster1.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for authentication to complete in cluster 1.
-	if err := cluster1.WaitForAuth(ctx, cluster2.GetClusterID()); err != nil {
+	if err := cluster1.Waiter.ForAuth(ctx, cluster2.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Waiting for authentication to complete in cluster 2.
-	return cluster2.WaitForAuth(ctx, cluster1.GetClusterID())
+	if err := cluster2.Waiter.ForAuth(ctx, cluster1.GetClusterID()); err != nil {
+		return err
+	}
+
+	// Waiting for outgoing peering to complete in cluster 1.
+	if err := cluster1.Waiter.ForOutgoingPeering(ctx, cluster2.GetClusterID()); err != nil {
+		return err
+	}
+
+	// Waiting for virtual node to be created in cluster 1.
+	if err := cluster1.Waiter.ForNode(ctx, cluster2.GetClusterID()); err != nil {
+		return err
+	}
+
+	if !o.Bidirectional {
+		return nil
+	}
+
+	// Waiting for outgoing peering to complete in cluster 2.
+	if err := cluster2.Waiter.ForOutgoingPeering(ctx, cluster1.GetClusterID()); err != nil {
+		return err
+	}
+
+	// Waiting for virtual node to be created in cluster 2.
+	return cluster2.Waiter.ForNode(ctx, cluster1.GetClusterID())
 }

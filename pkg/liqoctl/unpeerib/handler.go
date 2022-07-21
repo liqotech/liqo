@@ -61,12 +61,12 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	// Wait to unpeer in cluster 1.
-	if err := cluster1.WaitForUnpeering(ctx, cluster2.GetClusterID()); err != nil {
+	if err := cluster1.Waiter.ForUnpeering(ctx, cluster2.GetClusterID()); err != nil {
 		return err
 	}
 
 	// Disable peering in cluster 2.
-	if err := cluster2.WaitForUnpeering(ctx, cluster1.GetClusterID()); err != nil {
+	if err := cluster2.Waiter.ForUnpeering(ctx, cluster1.GetClusterID()); err != nil {
 		return err
 	}
 
