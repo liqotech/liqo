@@ -26,80 +26,7 @@ import (
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
-func forgeVKAffinity() *v1.Affinity {
-	return &v1.Affinity{
-		NodeAffinity: &v1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-				NodeSelectorTerms: []v1.NodeSelectorTerm{
-					{
-						MatchExpressions: []v1.NodeSelectorRequirement{
-							{
-								Key:      liqoconst.TypeNode,
-								Operator: v1.NodeSelectorOpNotIn,
-								Values:   []string{liqoconst.TypeNode},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func forgeVKVolumes() []v1.Volume {
-	volumes := []v1.Volume{
-		{
-			Name: vk.VKCertsVolumeName,
-			VolumeSource: v1.VolumeSource{
-				EmptyDir: &v1.EmptyDirVolumeSource{},
-			},
-		},
-	}
-	return volumes
-}
-
-func forgeVKInitContainers(nodeName string, opts *VirtualKubeletOpts) []v1.Container {
-	initContainer := v1.Container{
-		Resources: forgeVKResources(opts),
-		Name:      "crt-generator",
-		Image:     opts.InitContainerImage,
-		Command: []string{
-			"/usr/bin/init-virtual-kubelet",
-		},
-		Env: []v1.EnvVar{
-			{
-				Name:      "POD_IP",
-				ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
-			},
-			{
-				Name:      "POD_NAME",
-				ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name", APIVersion: "v1"}},
-			},
-			{
-				Name:      "POD_NAMESPACE",
-				ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace", APIVersion: "v1"}},
-			},
-			{
-				Name:  "NODE_NAME",
-				Value: nodeName,
-			},
-		},
-		VolumeMounts: []v1.VolumeMount{
-			{
-				Name:      vk.VKCertsVolumeName,
-				MountPath: vk.VKCertsRootPath,
-			},
-		},
-	}
-
-	if opts.DisableCertGeneration {
-		initContainer.Args = append(initContainer.Args, "--self-signed-certificate")
-	}
-
-	return []v1.Container{initContainer}
-}
-
-func getDeafultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharingv1alpha1.StorageType {
+func getDefaultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharingv1alpha1.StorageType {
 	for _, storageClass := range storageClasses {
 		if storageClass.Default {
 			return storageClass
@@ -120,6 +47,7 @@ func forgeVKContainers(
 		stringifyArgument("--foreign-cluster-id", remoteCluster.ClusterID),
 		stringifyArgument("--foreign-cluster-name", remoteCluster.ClusterName),
 		stringifyArgument("--nodename", nodeName),
+		stringifyArgument("--node-ip", "$(POD_IP)"),
 		stringifyArgument("--tenant-namespace", vkNamespace),
 		stringifyArgument("--home-cluster-id", homeCluster.ClusterID),
 		stringifyArgument("--home-cluster-name", homeCluster.ClusterName),
@@ -130,7 +58,7 @@ func forgeVKContainers(
 	if len(resourceOffer.Spec.StorageClasses) > 0 {
 		args = append(args, "--enable-storage",
 			stringifyArgument("--remote-real-storage-class-name",
-				getDeafultStorageClass(resourceOffer.Spec.StorageClasses).StorageClassName))
+				getDefaultStorageClass(resourceOffer.Spec.StorageClasses).StorageClassName))
 	}
 
 	if extraAnnotations := opts.NodeExtraAnnotations.StringMap; len(extraAnnotations) != 0 {
@@ -139,35 +67,24 @@ func forgeVKContainers(
 	if extraLabels := opts.NodeExtraLabels.StringMap; len(extraLabels) != 0 {
 		args = append(args, stringifyArgument("--node-extra-labels", opts.NodeExtraLabels.String()))
 	}
-	args = append(args, opts.ExtraArgs...)
 
-	volumeMounts := []v1.VolumeMount{
-		{
-			Name:      vk.VKCertsVolumeName,
-			MountPath: vk.VKCertsRootPath,
-		},
+	if opts.DisableCertGeneration {
+		args = append(args, "--self-signed-certificate")
 	}
+
+	args = append(args, opts.ExtraArgs...)
 
 	return []v1.Container{
 		{
-			Name:         "virtual-kubelet",
-			Resources:    forgeVKResources(opts),
-			Image:        vkImage,
-			Command:      command,
-			Args:         args,
-			VolumeMounts: volumeMounts,
+			Name:      "virtual-kubelet",
+			Resources: forgeVKResources(opts),
+			Image:     vkImage,
+			Command:   command,
+			Args:      args,
 			Env: []v1.EnvVar{
 				{
-					Name:  "APISERVER_CERT_LOCATION",
-					Value: vk.CertLocation,
-				},
-				{
-					Name:  "APISERVER_KEY_LOCATION",
-					Value: vk.KeyLocation,
-				},
-				{
-					Name:      "VKUBELET_POD_IP",
-					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
+					Name:      "POD_IP",
+					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}},
 				},
 			},
 		},
@@ -180,12 +97,9 @@ func forgeVKPodSpec(
 	resourceOffer *sharingv1alpha1.ResourceOffer) v1.PodSpec {
 	nodeName := virtualKubelet.VirtualNodeName(remoteCluster)
 	return v1.PodSpec{
-		Volumes:        forgeVKVolumes(),
-		InitContainers: forgeVKInitContainers(nodeName, opts),
 		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, remoteCluster,
 			nodeName, vkNamespace, liqoNamespace, opts, resourceOffer),
 		ServiceAccountName: vk.ServiceAccountName,
-		Affinity:           forgeVKAffinity(),
 	}
 }
 

@@ -1,10 +1,10 @@
-// Copyright © 2017 The virtual-kubelet authors
+// Copyright 2019-2022 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,100 +16,55 @@ package root
 
 import (
 	"context"
+	"crypto/ed25519"
+	cryptorand "crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
-	"io"
+	"math/big"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"path"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
+	certificates "k8s.io/api/certificates/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
-// AcceptedCiphers is the list of accepted TLS ciphers, with known weak ciphers elided
-// Note this list should be a moving target.
-var AcceptedCiphers = []uint16{
-	tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-	tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-	tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-	tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+type crtretriever func(*tls.ClientHelloInfo) (*tls.Certificate, error)
 
-	tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-	tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-	tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-	tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-}
+func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClient kubernetes.Interface,
+	remoteConfig *rest.Config, cfg *Opts) (err error) {
+	var retriever crtretriever
 
-func loadTLSConfig(certPath, keyPath string) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "error loading tls certs")
+	parsedIP := net.ParseIP(cfg.NodeIP)
+	if parsedIP == nil {
+		return fmt.Errorf("failed to parse node IP %q", cfg.NodeIP)
 	}
 
-	return &tls.Config{
-		Certificates:             []tls.Certificate{cert},
-		MinVersion:               tls.VersionTLS12,
-		PreferServerCipherSuites: true,
-		CipherSuites:             AcceptedCiphers,
-	}, nil
-}
-
-func setupHTTPServer(ctx context.Context,
-	handler workload.PodHandler, cfg *apiServerConfig,
-	localClusterID string, remoteConfig *rest.Config) (_ func(), retErr error) {
-	var closers []io.Closer
-	cancel := func() {
-		for _, c := range closers {
-			c.Close()
-		}
-	}
-	defer func() {
-		if retErr != nil {
-			cancel()
-		}
-	}()
-
-	if cfg.CertPath == "" || cfg.KeyPath == "" {
-		klog.Error("TLS certificates not provided, not setting up pod http server")
+	if cfg.SelfSignedCertificate {
+		retriever = newSelfSignedCertificateRetriever(cfg.NodeName, parsedIP)
 	} else {
-		s, err := startPodHandlerServer(ctx, handler, cfg, localClusterID, remoteConfig)
+		retriever, err = newCertificateRetriever(localClient, cfg.NodeName, parsedIP)
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("failed to initialize certificate manager: %w", err)
 		}
-		if s != nil {
-			closers = append(closers, s)
-		}
-	}
-
-	return cancel, nil
-}
-
-func startPodHandlerServer(ctx context.Context, handler workload.PodHandler, cfg *apiServerConfig,
-	localClusterID string, remoteConfig *rest.Config) (*http.Server, error) {
-	tlsCfg, err := loadTLSConfig(cfg.CertPath, cfg.KeyPath)
-	if err != nil {
-		klog.Error(err)
-		// we are ingnoring this error at the moment to allow the kubelet execution with Kubernetes providers
-		// that are not issuing node certificates (i.e. EKS)
-		return nil, nil
-	}
-	l, err := tls.Listen("tcp", cfg.Addr, tlsCfg)
-	if err != nil {
-		return nil, errors.Wrap(err, "error setting up listener for pod http server")
 	}
 
 	mux := http.NewServeMux()
 
 	cl := kubernetes.NewForConfigOrDie(remoteConfig)
-	attachMetricsRoutes(ctx, mux, cl.RESTClient(), localClusterID)
+	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.ClusterID)
 
 	podRoutes := api.PodHandlerConfig{
 		RunInContainer:        handler.Exec,
@@ -121,12 +76,27 @@ func startPodHandlerServer(ctx context.Context, handler workload.PodHandler, cfg
 
 	api.AttachPodRoutes(podRoutes, mux, true)
 
-	s := &http.Server{
-		Handler:   mux,
-		TLSConfig: tlsCfg,
+	server := &http.Server{
+		Addr:              fmt.Sprintf("0.0.0.0:%d", cfg.ListenPort),
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second, // Required to limit the effects of the Slowloris attack.
+		TLSConfig: &tls.Config{
+			GetCertificate: retriever,
+			MinVersion:     tls.VersionTLS12,
+		},
 	}
-	go serveHTTP(ctx, s, l, "pods")
-	return s, nil
+
+	go func() {
+		klog.Infof("Starting the virtual kubelet HTTPs server listening on %q", server.Addr)
+
+		// Key and certificate paths are not specified, since already configured as part of the TLSConfig.
+		if err := server.ListenAndServeTLS("", ""); err != nil {
+			klog.Errorf("Failed to start the HTTPs server: %v", err)
+			os.Exit(1)
+		}
+	}()
+
+	return nil
 }
 
 func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface, localClusterID string) {
@@ -164,34 +134,125 @@ func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interf
 	mux.HandleFunc("/metrics/probes", handlerFunc)
 }
 
-func serveHTTP(ctx context.Context, s *http.Server, l net.Listener, name string) {
-	if err := s.Serve(l); err != nil {
-		select {
-		case <-ctx.Done():
-		default:
-			klog.Error(errors.Wrapf(err, "Error setting up %s http server", name))
+// newCertificateManager creates a certificate manager for the kubelet when retrieving a server certificate, or returns an error.
+// This function is inspired by the original kubelet implementation:
+// https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/certificate/kubelet.go
+func newCertificateRetriever(kubeClient kubernetes.Interface, nodeName string, nodeIP net.IP) (crtretriever, error) {
+	const (
+		vkCertsPath   = "/tmp/certs"
+		vkCertsPrefix = "virtual-kubelet"
+	)
+
+	certificateStore, err := certificate.NewFileStore(vkCertsPrefix, vkCertsPath, vkCertsPath, "", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize server certificate store: %w", err)
+	}
+
+	getTemplate := func() *x509.CertificateRequest {
+		return &x509.CertificateRequest{
+			Subject: pkix.Name{
+				CommonName:   fmt.Sprintf("system:node:%s", nodeName),
+				Organization: []string{"system:nodes"},
+			},
+			IPAddresses: []net.IP{nodeIP},
 		}
 	}
-	l.Close()
-}
 
-type apiServerConfig struct {
-	CertPath              string
-	KeyPath               string
-	Addr                  string
-	MetricsAddr           string
-	StreamIdleTimeout     time.Duration
-	StreamCreationTimeout time.Duration
-}
-
-func getAPIConfig(c *Opts) *apiServerConfig {
-	config := apiServerConfig{
-		CertPath: os.Getenv("APISERVER_CERT_LOCATION"),
-		KeyPath:  os.Getenv("APISERVER_KEY_LOCATION"),
+	mgr, err := certificate.NewManager(&certificate.Config{
+		ClientsetFn: func(current *tls.Certificate) (kubernetes.Interface, error) {
+			return kubeClient, nil
+		},
+		GetTemplate: getTemplate,
+		SignerName:  certificates.KubeletServingSignerName,
+		Usages: []certificates.KeyUsage{
+			// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
+			//
+			// Digital signature allows the certificate to be used to verify
+			// digital signatures used during TLS negotiation.
+			certificates.UsageDigitalSignature,
+			// KeyEncipherment allows the cert/key pair to be used to encrypt
+			// keys, including the symmetric keys negotiated during TLS setup
+			// and used for data transfer.
+			certificates.UsageKeyEncipherment,
+			// ServerAuth allows the cert to be used by a TLS server to
+			// authenticate itself to a TLS client.
+			certificates.UsageServerAuth,
+		},
+		CertificateStore: certificateStore,
+		Logf:             klog.V(2).Infof,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize server certificate manager: %w", err)
 	}
 
-	config.Addr = fmt.Sprintf(":%d", c.ListenPort)
-	config.MetricsAddr = c.MetricsAddress
+	mgr.Start()
 
-	return &config
+	return func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+		cert := mgr.Current()
+		if cert == nil {
+			return nil, fmt.Errorf("no serving certificate available")
+		}
+		return cert, nil
+	}, nil
+}
+
+// NewSecrets creates a new secrets by self-signing a certificate.
+func newSelfSignedCertificateRetriever(nodeName string, nodeIP net.IP) crtretriever {
+	creator := func() (*tls.Certificate, time.Time, error) {
+		expiration := time.Now().AddDate(1, 0, 0) // 1 year
+
+		// Generate a new private key.
+		publicKey, privateKey, err := ed25519.GenerateKey(cryptorand.Reader)
+		if err != nil {
+			return nil, expiration, fmt.Errorf("failed to generate a key pair: %w", err)
+		}
+
+		keyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
+		if err != nil {
+			return nil, expiration, fmt.Errorf("failed to marshal the private key: %w", err)
+		}
+
+		// Generate the corresponding certificate.
+		cert := &x509.Certificate{
+			Subject: pkix.Name{
+				CommonName:   fmt.Sprintf("system:node:%s", nodeName),
+				Organization: []string{"liqo.io"},
+			},
+			IPAddresses:  []net.IP{nodeIP},
+			SerialNumber: big.NewInt(rand.Int63()), //nolint:gosec // A weak random generator is sufficient.
+			NotBefore:    time.Now(),
+			NotAfter:     expiration,
+			KeyUsage:     x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		}
+
+		certBytes, err := x509.CreateCertificate(cryptorand.Reader, cert, cert, publicKey, privateKey)
+		if err != nil {
+			return nil, expiration, fmt.Errorf("failed to create the self-signed certificate: %w", err)
+		}
+
+		// Encode the resulting certificate and private key as a single object.
+		output, err := tls.X509KeyPair(
+			pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes}),
+			pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes}))
+		if err != nil {
+			return nil, expiration, fmt.Errorf("failed to create the X509 key pair: %w", err)
+		}
+
+		return &output, expiration, nil
+	}
+
+	// Cache the last generated cert, until it is not expired.
+	var cert *tls.Certificate
+	var expiration time.Time
+	return func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+		if cert == nil || expiration.Before(time.Now().AddDate(0, 0, 1)) {
+			var err error
+			cert, expiration, err = creator()
+			if err != nil {
+				return nil, err
+			}
+		}
+		return cert, nil
+	}
 }

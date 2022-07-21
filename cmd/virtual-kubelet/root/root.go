@@ -17,7 +17,6 @@ package root
 
 import (
 	"context"
-	"os"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -92,7 +91,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 		Namespace: c.TenantNamespace,
 		NodeName:  c.NodeName,
-		NodeIP:    os.Getenv("VKUBELET_POD_IP"),
+		NodeIP:    c.NodeIP,
 
 		LiqoIpamServer:       c.LiqoIpamServer,
 		InformerResyncPeriod: c.InformerResyncPeriod,
@@ -128,7 +127,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		Namespace:       c.TenantNamespace,
 
 		NodeName:         c.NodeName,
-		InternalIP:       os.Getenv("VKUBELET_POD_IP"),
+		InternalIP:       c.NodeIP,
 		DaemonPort:       c.ListenPort,
 		Version:          getVersion(localConfig),
 		ExtraLabels:      c.NodeExtraLabels.StringMap,
@@ -184,12 +183,10 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
-	cancelHTTP, err := setupHTTPServer(ctx,
-		podProvider.PodHandler(), getAPIConfig(c), c.HomeCluster.ClusterID, remoteConfig)
+	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, remoteConfig, c)
 	if err != nil {
-		return errors.Wrap(err, "error while setting up HTTP server")
+		return errors.Wrap(err, "error while setting up HTTPS server")
 	}
-	defer cancelHTTP()
 
 	go func() {
 		if err := nodeRunner.Run(ctx); err != nil {

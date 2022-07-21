@@ -22,6 +22,7 @@ import (
 
 	certv1 "k8s.io/api/certificates/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	k8s "k8s.io/client-go/kubernetes"
@@ -51,10 +52,13 @@ type watcher struct {
 	EventHandler func(obj interface{})
 }
 
-// NewWatcher initializes a new CSR watcher for the given label selector.
-func NewWatcher(clientset k8s.Interface, resync time.Duration, selector labels.Selector) Watcher {
+// NewWatcher initializes a new CSR watcher for the given label selector and field selector.
+func NewWatcher(clientset k8s.Interface, resync time.Duration, labelSelector labels.Selector, fieldSelector fields.Selector) Watcher {
 	factory := informers.NewSharedInformerFactoryWithOptions(clientset, resync, informers.WithTweakListOptions(
-		func(lo *metav1.ListOptions) { lo.LabelSelector = selector.String() },
+		func(lo *metav1.ListOptions) {
+			lo.LabelSelector = labelSelector.String()
+			lo.FieldSelector = fieldSelector.String()
+		},
 	))
 
 	lister := factory.Certificates().V1().CertificateSigningRequests().Lister()

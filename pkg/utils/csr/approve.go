@@ -53,12 +53,15 @@ func Approve(clientSet k8s.Interface, csr *certv1.CertificateSigningRequest, rea
 }
 
 // ApproverHandler returns an handler to approve CSRs.
-func ApproverHandler(clientset k8s.Interface, reason, message string) func(*certv1.CertificateSigningRequest) {
+func ApproverHandler(clientset k8s.Interface, reason, message string,
+	filter func(csr *certv1.CertificateSigningRequest) bool) func(*certv1.CertificateSigningRequest) {
 	return func(csr *certv1.CertificateSigningRequest) {
-		if err := Approve(clientset, csr, reason, message); err != nil {
-			klog.Error(err)
-		} else {
-			klog.Infof("CSR %v correctly approved", csr.Name)
+		if filter(csr) {
+			if err := Approve(clientset, csr, reason, message); err != nil {
+				klog.Error(err)
+			} else {
+				klog.Infof("CSR %v correctly approved", csr.Name)
+			}
 		}
 	}
 }

@@ -124,5 +124,5 @@ func (nm *tenantNamespaceManager) GetNamespace(cluster discoveryv1alpha1.Cluster
 
 // GetNameForNamespace given a cluster identity it returns the name of the tenant namespace for the cluster.
 func GetNameForNamespace(cluster discoveryv1alpha1.ClusterIdentity) string {
-	return fmt.Sprintf("liqo-tenant-%s", foreignclusterutils.UniqueName(&cluster))
+	return fmt.Sprintf("%s-%s", NamePrefix, foreignclusterutils.UniqueName(&cluster))
 }

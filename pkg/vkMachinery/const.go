@@ -14,14 +14,8 @@
 
 package vkMachinery
 
-import "path/filepath"
-
-// VKCertsRootPath defines the path where VK certificates are stored.
-const (
-	VKCertsRootPath   = "/etc/virtual-kubelet/certs"
-	VKCertsVolumeName = "virtual-kubelet-crt"
-	VKClusterRoleName = "liqo-virtual-kubelet-local"
-)
+// LocalClusterRoleName represents the name of the local cluster role associated with the virtual kubelet.
+const LocalClusterRoleName = "liqo-virtual-kubelet-local"
 
 // ServiceAccountName -> the name of the service account leveraged by the virtual kubelet.
 const ServiceAccountName = "virtual-kubelet"
@@ -31,20 +25,6 @@ const DeploymentName = "virtual-kubelet"
 
 // CRBPrefix -> the prefix used to create the virtual kubelet cluster role binding name.
 const CRBPrefix = "liqo-virtual-kubelet-"
-
-// KeyLocation defines the path where the VK Key file is stored.
-var KeyLocation = filepath.Join(VKCertsRootPath, "server-key.pem")
-
-// CertLocation defines the path where the VK Certificate is stored.
-var CertLocation = filepath.Join(VKCertsRootPath, "server.crt")
-
-// CsrLocation defines the path where the VK CSR is stored.
-var CsrLocation = filepath.Join(VKCertsRootPath, "server.csr")
-
-// CsrLabels defines the labels attached to the CSR resource.
-var CsrLabels = map[string]string{
-	"virtual-kubelet.liqo.io/csr": "true",
-}
 
 // KubeletBaseLabels are the static labels that are set on every VirtualKubelet.
 var KubeletBaseLabels = map[string]string{

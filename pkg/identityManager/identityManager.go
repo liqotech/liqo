@@ -17,6 +17,7 @@ package identitymanager
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,7 +26,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
+	"github.com/liqotech/liqo/pkg/utils/csr"
 )
 
 type identityManager struct {
@@ -61,7 +62,7 @@ func NewCertificateIdentityProvider(ctx context.Context, client kubernetes.Inter
 	req, err := labels.NewRequirement(remoteTenantCSRLabel, selection.Exists, []string{})
 	utilruntime.Must(err)
 
-	csrWatcher := csr.NewWatcher(client, 0, labels.NewSelector().Add(*req))
+	csrWatcher := csr.NewWatcher(client, 0, labels.NewSelector().Add(*req), fields.Everything())
 	csrWatcher.Start(ctx)
 	idProvider := &certificateIdentityProvider{
 		namespaceManager: namespaceManager,
