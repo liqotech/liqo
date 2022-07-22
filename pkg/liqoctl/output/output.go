@@ -207,10 +207,10 @@ func NewRemotePrinter(scoped, verbose bool) *Printer {
 }
 
 func newPrinter(scope string, color pterm.Color, scoped, verbose bool) *Printer {
-	generic := pterm.PrefixPrinter{MessageStyle: pterm.NewStyle(pterm.FgDefault)}
+	generic := &pterm.PrefixPrinter{MessageStyle: pterm.NewStyle(pterm.FgDefault)}
 
 	if scoped {
-		generic.WithScope(pterm.Scope{Text: scope, Style: pterm.NewStyle(pterm.FgGray)})
+		generic = generic.WithScope(pterm.Scope{Text: scope, Style: pterm.NewStyle(pterm.FgGray)})
 	}
 
 	printer := &Printer{
