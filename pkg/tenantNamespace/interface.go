@@ -15,6 +15,8 @@
 package tenantnamespace
 
 import (
+	"context"
+
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
@@ -24,8 +26,8 @@ import (
 // Manager provides the methods to handle the creation and
 // the management of tenant namespaces.
 type Manager interface {
-	CreateNamespace(cluster discoveryv1alpha1.ClusterIdentity) (*v1.Namespace, error)
-	GetNamespace(cluster discoveryv1alpha1.ClusterIdentity) (*v1.Namespace, error)
-	BindClusterRoles(cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
-	UnbindClusterRoles(cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...string) error
+	CreateNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity) (*v1.Namespace, error)
+	GetNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity) (*v1.Namespace, error)
+	BindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
+	UnbindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...string) error
 }

@@ -88,20 +88,20 @@ var _ = Describe("ForeignClusterOperator", func() {
 			ClusterName: "local-cluster-name",
 		}
 
-		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
+		namespaceManager := tenantnamespace.NewManager(cluster.GetClient())
 		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient(), homeCluster, namespaceManager)
 
 		foreignCluster := discoveryv1alpha1.ClusterIdentity{
 			ClusterID:   "foreign-cluster-id",
 			ClusterName: "foreign-cluster-name",
 		}
-		tenantNamespace, err = namespaceManager.CreateNamespace(foreignCluster)
+		tenantNamespace, err = namespaceManager.CreateNamespace(ctx, foreignCluster)
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
 		// Make sure the namespace has been cached for subsequent retrieval.
-		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(foreignCluster) }).Should(Equal(tenantNamespace))
+		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(ctx, foreignCluster) }).Should(Equal(tenantNamespace))
 
 		controller = ForeignClusterReconciler{
 			Client:           mgr.GetClient(),
@@ -444,7 +444,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			var ns *v1.Namespace
 			Eventually(func() error {
-				ns, err = controller.NamespaceManager.GetNamespace(foreignCluster.Spec.ClusterIdentity)
+				ns, err = controller.NamespaceManager.GetNamespace(ctx, foreignCluster.Spec.ClusterIdentity)
 				return err
 			}).Should(Succeed())
 
@@ -903,7 +903,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				By("Delete RoleBindings")
 
 				// create all
-				_, err := controller.NamespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity, &clusterRole1, &clusterRole2)
+				_, err := controller.NamespaceManager.BindClusterRoles(ctx, c.fc.Spec.ClusterIdentity, &clusterRole1, &clusterRole2)
 				Expect(err).To(Succeed())
 
 				Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())

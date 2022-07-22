@@ -104,7 +104,7 @@ var _ = Describe("Auth", func() {
 		informerFactory.Start(stopChan)
 		informerFactory.WaitForCacheSync(wait.NeverStop)
 
-		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
+		namespaceManager := tenantnamespace.NewManager(cluster.GetClient())
 		identityProvider := identitymanager.NewCertificateIdentityProvider(
 			context.Background(), cluster.GetClient(), clusterIdentity, namespaceManager)
 

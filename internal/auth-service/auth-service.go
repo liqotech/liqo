@@ -94,7 +94,7 @@ func NewAuthServiceCtrl(config *rest.Config, namespace string,
 	informerFactory.Start(wait.NeverStop)
 	informerFactory.WaitForCacheSync(wait.NeverStop)
 
-	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
+	namespaceManager := tenantnamespace.NewCachedManager(clientset)
 
 	var idProvider identitymanager.IdentityProvider
 	if awsConfig.IsEmpty() {

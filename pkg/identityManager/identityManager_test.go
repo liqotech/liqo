@@ -111,17 +111,17 @@ var _ = Describe("IdentityManager", func() {
 		client = cluster.GetClient()
 		restConfig = cluster.GetCfg()
 
-		namespaceManager = tenantnamespace.NewTenantNamespaceManager(client)
+		namespaceManager = tenantnamespace.NewManager(client)
 		identityMan = NewCertificateIdentityManager(cluster.GetClient(), localCluster, namespaceManager)
 		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
 
-		namespace, err = namespaceManager.CreateNamespace(remoteCluster)
+		namespace, err = namespaceManager.CreateNamespace(ctx, remoteCluster)
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
 		// Make sure the namespace has been cached for subsequent retrieval.
-		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(remoteCluster) }).Should(Equal(namespace))
+		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(ctx, remoteCluster) }).Should(Equal(namespace))
 
 		// Certificate Secret Section
 		apiServerConfig = apiserver.Config{Address: "127.0.0.1", TrustedCA: false}

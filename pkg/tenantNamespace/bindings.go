@@ -29,9 +29,9 @@ import (
 
 // add the bindings for the remote clusterid for the given ClusterRoles
 // This method creates RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) BindClusterRoles(cluster discoveryv1alpha1.ClusterIdentity,
+func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity,
 	clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error) {
-	namespace, err := nm.GetNamespace(cluster)
+	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -39,7 +39,7 @@ func (nm *tenantNamespaceManager) BindClusterRoles(cluster discoveryv1alpha1.Clu
 
 	bindings := make([]*rbacv1.RoleBinding, len(clusterRoles))
 	for i, clusterRole := range clusterRoles {
-		bindings[i], err = nm.bindClusterRole(cluster, namespace, clusterRole)
+		bindings[i], err = nm.bindClusterRole(ctx, cluster, namespace, clusterRole)
 		if err != nil {
 			klog.Error(err)
 			return nil, err
@@ -50,15 +50,15 @@ func (nm *tenantNamespaceManager) BindClusterRoles(cluster discoveryv1alpha1.Clu
 
 // remove the bindings for the remote clusterid for the given ClusterRoles
 // This method deletes RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) UnbindClusterRoles(cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...string) error {
-	namespace, err := nm.GetNamespace(cluster)
+func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...string) error {
+	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
 	for _, clusterRole := range clusterRoles {
-		if err = nm.unbindClusterRole(namespace, clusterRole); err != nil {
+		if err = nm.unbindClusterRole(ctx, namespace, clusterRole); err != nil {
 			klog.Error(err)
 			return err
 		}
@@ -67,7 +67,7 @@ func (nm *tenantNamespaceManager) UnbindClusterRoles(cluster discoveryv1alpha1.C
 }
 
 // create a RoleBinding for the given clusterid in the given Namespace.
-func (nm *tenantNamespaceManager) bindClusterRole(cluster discoveryv1alpha1.ClusterIdentity,
+func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity,
 	namespace *v1.Namespace, clusterRole *rbacv1.ClusterRole) (*rbacv1.RoleBinding, error) {
 	ownerRef := metav1.OwnerReference{
 		APIVersion: rbacv1.SchemeGroupVersion.String(),
@@ -100,17 +100,17 @@ func (nm *tenantNamespaceManager) bindClusterRole(cluster discoveryv1alpha1.Clus
 		},
 	}
 
-	rb, err := nm.client.RbacV1().RoleBindings(namespace.Name).Create(context.TODO(), rb, metav1.CreateOptions{})
+	rb, err := nm.client.RbacV1().RoleBindings(namespace.Name).Create(ctx, rb, metav1.CreateOptions{})
 	if apierrors.IsAlreadyExists(err) {
-		return nm.client.RbacV1().RoleBindings(namespace.Name).Get(context.TODO(), name, metav1.GetOptions{})
+		return nm.client.RbacV1().RoleBindings(namespace.Name).Get(ctx, name, metav1.GetOptions{})
 	}
 	return rb, err
 }
 
 // delete a RoleBinding in the given Namespace.
-func (nm *tenantNamespaceManager) unbindClusterRole(namespace *v1.Namespace, clusterRole string) error {
+func (nm *tenantNamespaceManager) unbindClusterRole(ctx context.Context, namespace *v1.Namespace, clusterRole string) error {
 	name := getRoleBindingName(clusterRole)
-	return client.IgnoreNotFound(nm.client.RbacV1().RoleBindings(namespace.Name).Delete(context.TODO(), name, metav1.DeleteOptions{}))
+	return client.IgnoreNotFound(nm.client.RbacV1().RoleBindings(namespace.Name).Delete(ctx, name, metav1.DeleteOptions{}))
 }
 
 func getRoleBindingName(clusterRoleName string) string {

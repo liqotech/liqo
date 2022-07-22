@@ -72,7 +72,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	localClient := kubernetes.NewForConfigOrDie(localConfig)
 
 	// Retrieve the remote restcfg
-	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(localClient)
+	tenantNamespaceManager := tenantnamespace.NewManager(localClient) // Do not use the cached version, as leveraged only once.
 	identityManager := identitymanager.NewCertificateIdentityReader(localClient, c.HomeCluster, tenantNamespaceManager)
 
 	remoteConfig, err := identityManager.GetConfig(c.ForeignCluster, c.TenantNamespace)

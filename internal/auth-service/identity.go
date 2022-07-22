@@ -96,7 +96,7 @@ func (authService *Controller) handleIdentity(
 
 	remoteClusterIdentity := identityRequest.ClusterIdentity
 	klog.V(4).Infof("Creating Tenant Namespace for cluster %s", remoteClusterIdentity)
-	namespace, err := authService.namespaceManager.CreateNamespace(remoteClusterIdentity)
+	namespace, err := authService.namespaceManager.CreateNamespace(ctx, remoteClusterIdentity)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -131,7 +131,7 @@ func (authService *Controller) handleIdentity(
 
 	// bind basic permission required to start the peering
 	if _, err = authService.namespaceManager.BindClusterRoles(
-		remoteClusterIdentity, authService.peeringPermission.Basic...); err != nil {
+		ctx, remoteClusterIdentity, authService.peeringPermission.Basic...); err != nil {
 		klog.Error(err)
 		return nil, err
 	}

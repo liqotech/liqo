@@ -25,7 +25,7 @@ import (
 // ensureLocalTenantNamespace creates the LocalTenantNamespace for the given ForeignCluster, if it is not yet present.
 func (r *ForeignClusterReconciler) ensureLocalTenantNamespace(
 	ctx context.Context, foreignCluster *v1alpha1.ForeignCluster) error {
-	namespace, err := r.NamespaceManager.CreateNamespace(foreignCluster.Spec.ClusterIdentity)
+	namespace, err := r.NamespaceManager.CreateNamespace(ctx, foreignCluster.Spec.ClusterIdentity)
 	if err != nil {
 		klog.Error(err)
 		return err
