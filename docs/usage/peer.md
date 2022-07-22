@@ -22,7 +22,7 @@ Ensure you selected the correct target cluster before issuing *liqoctl* commands
 
 ## Out-of-band control plane
 
-Briefly, the procedure to establish an [out-of-band control plane peering](FeaturesPeeringOutOfBandControlPlane) consists of a first step performed on the *provider*, to **retrieve the set of information** required (i.e., authentication endpoint and token, cluster ID, ...), followed by the creation of the necessary resources to **start the actual peering**.
+Briefly, the procedure to establish an [out-of-band control plane peering](FeaturesPeeringOutOfBandControlPlane) consists of a first step performed on the *provider*, to **retrieve the set of information** required (i.e., authentication endpoint and token, cluster ID, ...), followed by the creation, on the *consumer*, of the necessary resources to **start the actual peering**.
 The remainder of the process, including identity retrieval, resource negotiation and network tunnel establishment is **performed automatically** by Liqo, through a mutual exchange of information and negotiation between the two clusters involved.
 
 ### Information retrieval
@@ -117,6 +117,10 @@ Hence, the same command shall be executed on both clusters to completely tear do
 
 Briefly, the procedure to establish an [in-band control plane peering](FeaturesPeeringInBandControlPlane) consists of a first step performed by *liqoctl*, which interacts alternatively with both clusters to **establish the cross-cluster VPN tunnel**, exchange the **authentication tokens** and configure the Liqo control plane traffic to flow inside the VPN.
 The remainder of the process, including identity retrieval and resource negotiation, is **performed automatically** by Liqo, through a mutual exchange of information and negotiation between the two clusters involved.
+
+```{admonition} Note
+The host used to issue the *liqoctl peer in-band* command must have **concurrent access to both clusters** (i.e., *consumer* and *provider*) while carrying out the in-band control plane peering process.
+```
 
 <!-- markdownlint-disable-next-line no-duplicate-heading -->
 ### Peering establishment
