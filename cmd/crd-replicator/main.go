@@ -71,7 +71,7 @@ func main() {
 	// Create a clientSet.
 	k8sClient := kubernetes.NewForConfigOrDie(cfg)
 
-	namespaceManager := tenantnamespace.NewTenantNamespaceManager(k8sClient)
+	namespaceManager := tenantnamespace.NewCachedManager(k8sClient)
 
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 

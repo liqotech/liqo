@@ -161,7 +161,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 // storeRemoteCertificate stores the issued certificate in a Secret in the TenantNamespace.
 func (identityProvider *certificateIdentityProvider) storeRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
 	signingRequest, certificate []byte) (*v1.Secret, error) {
-	namespace, err := identityProvider.namespaceManager.GetNamespace(cluster)
+	namespace, err := identityProvider.namespaceManager.GetNamespace(context.TODO(), cluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

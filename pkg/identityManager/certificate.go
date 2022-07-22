@@ -42,7 +42,7 @@ import (
 
 // CreateIdentity creates a new key and a new csr to be used as an identity to authenticate with a remote cluster.
 func (certManager *identityManager) CreateIdentity(remoteCluster discoveryv1alpha1.ClusterIdentity) (*v1.Secret, error) {
-	namespace, err := certManager.namespaceManager.GetNamespace(remoteCluster)
+	namespace, err := certManager.namespaceManager.GetNamespace(context.TODO(), remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -129,7 +129,7 @@ func (certManager *identityManager) StoreCertificate(remoteCluster discoveryv1al
 
 // getSecret retrieves the identity secret given the clusterID.
 func (certManager *identityManager) getSecret(remoteCluster discoveryv1alpha1.ClusterIdentity) (*v1.Secret, error) {
-	namespace, err := certManager.namespaceManager.GetNamespace(remoteCluster)
+	namespace, err := certManager.namespaceManager.GetNamespace(context.TODO(), remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

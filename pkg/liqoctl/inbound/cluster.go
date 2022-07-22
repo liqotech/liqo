@@ -106,7 +106,7 @@ func NewCluster(local, remote *factory.Factory) *Cluster {
 		remote:           remote,
 		localWaiter:      wait.NewWaiterFromFactory(local),
 		remoteWaiter:     wait.NewWaiterFromFactory(remote),
-		namespaceManager: tenantnamespace.NewTenantNamespaceManager(local.KubeClient),
+		namespaceManager: tenantnamespace.NewManager(local.KubeClient),
 		PortForwardOpts:  pfo,
 	}
 }
@@ -300,7 +300,7 @@ func (c *Cluster) GetProxyURL() string {
 // SetUpTenantNamespace creates the tenant namespace in the local custer for the given remote cluster.
 func (c *Cluster) SetUpTenantNamespace(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
 	s := c.local.Printer.StartSpinner(fmt.Sprintf("creating tenant namespace for remote cluster %q", remoteClusterID.ClusterName))
-	ns, err := c.namespaceManager.CreateNamespace(*remoteClusterID)
+	ns, err := c.namespaceManager.CreateNamespace(ctx, *remoteClusterID)
 	if err != nil {
 		s.Fail(fmt.Sprintf("an error occurred while creating tenant namespace for remote cluster %q: %v", remoteClusterID.ClusterName, err))
 		return err

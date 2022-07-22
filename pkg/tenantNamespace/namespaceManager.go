@@ -26,7 +26,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -34,13 +33,36 @@ import (
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
+type namespaceLister func(ctx context.Context, selector labels.Selector) (ret []*v1.Namespace, err error)
+
 type tenantNamespaceManager struct {
-	client          kubernetes.Interface
-	namespaceLister corev1listers.NamespaceLister
+	client         kubernetes.Interface
+	listNamespaces namespaceLister
 }
 
-// NewTenantNamespaceManager creates a new TenantNamespaceManager object.
-func NewTenantNamespaceManager(client kubernetes.Interface) Manager {
+// NewManager creates a new TenantNamespaceManager object.
+func NewManager(client kubernetes.Interface) Manager {
+	listNamespaces := func(ctx context.Context, selector labels.Selector) (ret []*v1.Namespace, err error) {
+		ns, err := client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+		if err != nil {
+			return nil, err
+		}
+
+		nsref := make([]*v1.Namespace, len(ns.Items))
+		for i := range ns.Items {
+			nsref[i] = &ns.Items[i]
+		}
+		return nsref, nil
+	}
+
+	return &tenantNamespaceManager{
+		client:         client,
+		listNamespaces: listNamespaces,
+	}
+}
+
+// NewCachedManager creates a new TenantNamespaceManager object, supporting cached retrieval of namespaces for increased efficiency.
+func NewCachedManager(client kubernetes.Interface) Manager {
 	// TODO: the context should be propagated from the caller. It is currently set here to avoid
 	// modifying all callers, since most to not even have a proper context themselves.
 	ctx := context.Background()
@@ -54,21 +76,24 @@ func NewTenantNamespaceManager(client kubernetes.Interface) Manager {
 		func(lo *metav1.ListOptions) { lo.LabelSelector = labels.NewSelector().Add(*req).String() },
 	))
 	namespaceLister := factory.Core().V1().Namespaces().Lister()
+	listNamespaces := func(ctx context.Context, selector labels.Selector) (ret []*v1.Namespace, err error) {
+		return namespaceLister.List(selector)
+	}
 
 	factory.Start(ctx.Done())
 	factory.WaitForCacheSync(ctx.Done())
 
 	return &tenantNamespaceManager{
-		client:          client,
-		namespaceLister: namespaceLister,
+		client:         client,
+		listNamespaces: listNamespaces,
 	}
 }
 
 // CreateNamespace creates a new Tenant Namespace given the clusterid
 // This method is idempotent, multiple calls of it will not lead to multiple namespace creations.
-func (nm *tenantNamespaceManager) CreateNamespace(cluster discoveryv1alpha1.ClusterIdentity) (ns *v1.Namespace, err error) {
-	// Let immediately check if the namespace already exists, since this is operation cached and thus fast
-	if ns, err = nm.GetNamespace(cluster); err == nil {
+func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity) (ns *v1.Namespace, err error) {
+	// Let immediately check if the namespace already exists, since this might be cached and thus fast
+	if ns, err = nm.GetNamespace(ctx, cluster); err == nil {
 		return ns, nil
 	} else if !kerrors.IsNotFound(err) {
 		klog.Error(err)
@@ -88,7 +113,7 @@ func (nm *tenantNamespaceManager) CreateNamespace(cluster discoveryv1alpha1.Clus
 		},
 	}
 
-	ns, err = nm.client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+	ns, err = nm.client.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -99,11 +124,11 @@ func (nm *tenantNamespaceManager) CreateNamespace(cluster discoveryv1alpha1.Clus
 }
 
 // GetNamespace gets a Tenant Namespace given the clusterid.
-func (nm *tenantNamespaceManager) GetNamespace(cluster discoveryv1alpha1.ClusterIdentity) (*v1.Namespace, error) {
+func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity) (*v1.Namespace, error) {
 	req, err := labels.NewRequirement(discovery.ClusterIDLabel, selection.Equals, []string{cluster.ClusterID})
 	utilruntime.Must(err)
 
-	namespaces, err := nm.namespaceLister.List(labels.NewSelector().Add(*req))
+	namespaces, err := nm.listNamespaces(ctx, labels.NewSelector().Add(*req))
 	if err != nil {
 		klog.Error(err)
 		return nil, err
