@@ -165,11 +165,9 @@ func (c *Cluster) Init(ctx context.Context) error {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", output.PrettyErr(err)))
 		return err
 	}
+	// If we can't parse the ip address it could be that is not in the dot-decimal notation.
+	// The WireGuard IP address could be expressed using a fqdn address. So we do not check if the parsing was successful or not.
 	wgIP := net.ParseIP(ip)
-	if wgIP == nil {
-		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: unable to parse ip address %s", ip))
-		return err
-	}
 	selector, err = metav1.LabelSelectorAsSelector(&liqolabels.WireGuardSecretLabelSelector)
 	if err != nil {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", output.PrettyErr(err)))
@@ -185,7 +183,9 @@ func (c *Cluster) Init(ctx context.Context) error {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving WireGuard configuration: %v", output.PrettyErr(err)))
 		return err
 	}
-	if wgIP.IsPrivate() {
+	// It is safe to do this even when the wgIP is nil thanks to the short circuit evaluation.
+	// wgIP will be dereferenced only when it is not nil.
+	if wgIP != nil && wgIP.IsPrivate() {
 		s.Warning(fmt.Sprintf("wireGuard configuration correctly retrieved: endpoint IP %q seems to be private.", ip))
 	} else {
 		s.Success("wireGuard configuration correctly retrieved")
