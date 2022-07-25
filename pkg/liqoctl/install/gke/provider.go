@@ -38,6 +38,7 @@ type Options struct {
 	credentialsPath string
 	projectID       string
 	zone            string
+	region          string
 	clusterID       string
 }
 
@@ -64,11 +65,12 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.projectID, "project-id", "", "The GCP project where the cluster is deployed in")
 	cmd.Flags().StringVar(&o.clusterID, "cluster-id", "", "The GKE clusterID of the cluster")
 	cmd.Flags().StringVar(&o.zone, "zone", "", "The GCP zone where the cluster is running")
+	cmd.Flags().StringVar(&o.region, "region", "", "The GCP region where the cluster is running")
 
+	cmd.MarkFlagsMutuallyExclusive("zone", "region")
 	utilruntime.Must(cmd.MarkFlagRequired("credentials-path"))
 	utilruntime.Must(cmd.MarkFlagRequired("project-id"))
 	utilruntime.Must(cmd.MarkFlagRequired("cluster-id"))
-	utilruntime.Must(cmd.MarkFlagRequired("zone"))
 }
 
 // Initialize performs the initialization tasks to retrieve the provider-specific parameters.
@@ -76,16 +78,26 @@ func (o *Options) Initialize(ctx context.Context) error {
 	o.Printer.Verbosef("GKE Credentials Path: %q", o.credentialsPath)
 	o.Printer.Verbosef("GKE ProjectID: %q", o.projectID)
 	o.Printer.Verbosef("GKE Zone: %q", o.zone)
+	o.Printer.Verbosef("GKE Region: %q", o.region)
 	o.Printer.Verbosef("GKE ClusterID: %q", o.clusterID)
+
+	location := o.getLocation()
+	if location == "" {
+		return fmt.Errorf("zone or region must be provided")
+	}
 
 	svc, err := container.NewService(ctx, option.WithCredentialsFile(o.credentialsPath))
 	if err != nil {
 		return fmt.Errorf("failed connecting to the Google container API: %w", err)
 	}
 
-	cluster, err := svc.Projects.Zones.Clusters.Get(o.projectID, o.zone, o.clusterID).Do()
+	name := fmt.Sprintf("projects/%s/locations/%s/clusters/%s", o.projectID, location, o.clusterID)
+	cluster, err := svc.Projects.Locations.Clusters.Get(name).Context(ctx).Do()
 	if err != nil {
 		return fmt.Errorf("failed retrieving GKE cluster information: %w", err)
+	}
+	if err = o.checkFeatures(cluster); err != nil {
+		return fmt.Errorf("failed checking GKE cluster features: %w", err)
 	}
 	o.parseClusterOutput(cluster)
 
@@ -94,7 +106,8 @@ func (o *Options) Initialize(ctx context.Context) error {
 		return fmt.Errorf("failed connecting to the Google compute API: %w", err)
 	}
 
-	subnet, err := netSvc.Subnetworks.Get(o.projectID, o.getRegion(), getSubnetName(cluster.NetworkConfig.Subnetwork)).Do()
+	subnet, err := netSvc.Subnetworks.Get(o.projectID, o.getRegion(), getSubnetName(cluster.NetworkConfig.Subnetwork)).
+		Context(ctx).Do()
 	if err != nil {
 		return fmt.Errorf("failed retrieving subnets information: %w", err)
 	}
@@ -106,6 +119,20 @@ func (o *Options) Initialize(ctx context.Context) error {
 // Values returns the customized provider-specifc values file parameters.
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{}
+}
+
+func (o *Options) checkFeatures(cluster *container.Cluster) error {
+	if cluster.IpAllocationPolicy.UseRoutes {
+		return fmt.Errorf("IP allocation policy is set to use routes. Liqo currently supports VPC-native traffic routing clusters only")
+	}
+	return nil
+}
+
+func (o *Options) getLocation() string {
+	if o.zone != "" {
+		return o.zone
+	}
+	return o.region
 }
 
 func (o *Options) parseClusterOutput(cluster *container.Cluster) {
@@ -122,6 +149,9 @@ func (o *Options) parseClusterOutput(cluster *container.Cluster) {
 }
 
 func (o *Options) getRegion() string {
+	if o.region != "" {
+		return o.region
+	}
 	strs := strings.Split(o.zone, "-")
 	return strings.Join(strs[:2], "-")
 }
