@@ -41,6 +41,10 @@ func common(ctx context.Context, f *factory.Factory, argsLimit int, retrieve ret
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
+		if err := f.Initialize(); err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		values, err := retrieve(ctx, f)
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveError
