@@ -37,7 +37,7 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.StringVar(&o.LiqoIpamServer, "ipam-server", o.LiqoIpamServer, "The address to contact the IPAM module")
 
 	flags.StringVar(&o.NodeIP, "node-ip", o.NodeIP, "The IP address of the virtual kubelet pod, and assigned to the virtual node as internal address")
-	flags.BoolVar(&o.SelfSignedCertificate, "self-signed-certificate", false, "Whether to use a self-signed certificate for the virtual kubelet server")
+	flags.Var(o.CertificateType, "certificate-type", "The type of virtual kubelet server certificate to generate, among kubelet, aws, self-signed")
 	flags.Uint16Var(&o.ListenPort, "listen-port", o.ListenPort, "The port to listen to for requests from the Kubernetes API server")
 	flags.BoolVar(&o.EnableProfiling, "enable-profiling", o.EnableProfiling, "Enable pprof profiling")
 

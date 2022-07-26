@@ -68,10 +68,6 @@ func forgeVKContainers(
 		args = append(args, stringifyArgument("--node-extra-labels", opts.NodeExtraLabels.String()))
 	}
 
-	if opts.DisableCertGeneration {
-		args = append(args, "--self-signed-certificate")
-	}
-
 	args = append(args, opts.ExtraArgs...)
 
 	return []v1.Container{

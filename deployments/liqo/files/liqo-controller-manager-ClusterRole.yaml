@@ -76,6 +76,14 @@ rules:
 - apiGroups:
   - certificates.k8s.io
   resourceNames:
+  - beta.eks.amazonaws.com/app-serving
+  resources:
+  - signers
+  verbs:
+  - approve
+- apiGroups:
+  - certificates.k8s.io
+  resourceNames:
   - kubernetes.io/kubelet-serving
   resources:
   - signers
