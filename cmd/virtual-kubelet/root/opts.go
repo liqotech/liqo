@@ -27,6 +27,15 @@ import (
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
+const (
+	// CertificateTypeKubelet -> the kubelet certificate is requested to be signed by kubernetes.io/kubelet-serving.
+	CertificateTypeKubelet = "kubelet"
+	// CertificateTypeAWS -> the kubelet certificate is requested to be signed by beta.eks.amazonaws.com/app-serving.
+	CertificateTypeAWS = "aws"
+	// CertificateTypeSelfSigned -> the kubelet certificate is self signed.
+	CertificateTypeSelfSigned = "self-signed"
+)
+
 // Defaults for root command options.
 const (
 	DefaultNodeName             = "virtual-kubelet"
@@ -59,10 +68,10 @@ type Opts struct {
 	LiqoIpamServer string
 
 	// Sets the addresses to listen for requests from the Kubernetes API server
-	NodeIP                string
-	ListenPort            uint16
-	SelfSignedCertificate bool
-	EnableProfiling       bool
+	NodeIP          string
+	ListenPort      uint16
+	CertificateType *argsutils.StringEnum
+	EnableProfiling bool
 
 	// Number of workers to use to handle pod notifications and resource reflection
 	PodWorkers                   uint
@@ -96,6 +105,7 @@ func NewOpts() *Opts {
 
 		LiqoIpamServer: fmt.Sprintf("%v:%v", consts.NetworkManagerServiceName, consts.NetworkManagerIpamPort),
 
+		CertificateType: argsutils.NewEnum([]string{CertificateTypeKubelet, CertificateTypeAWS, CertificateTypeSelfSigned}, CertificateTypeKubelet),
 		ListenPort:      DefaultListenPort,
 		EnableProfiling: false,
 

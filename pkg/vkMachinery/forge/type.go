@@ -23,17 +23,14 @@ import (
 // VirtualKubeletOpts defines the custom options associated with the virtual kubelet deployment forging.
 type VirtualKubeletOpts struct {
 	// ContainerImage contains the virtual kubelet image name and tag.
-	ContainerImage string
-	// DisableCertGeneration allows to disable the virtual kubelet certificate generation (with the Kubernetes CSR)
-	// by means of the init container (used for logs/exec capabilities).
-	DisableCertGeneration bool
-	ExtraAnnotations      map[string]string
-	ExtraLabels           map[string]string
-	ExtraArgs             []string
-	NodeExtraAnnotations  argsutils.StringMap
-	NodeExtraLabels       argsutils.StringMap
-	RequestsCPU           resource.Quantity
-	LimitsCPU             resource.Quantity
-	RequestsRAM           resource.Quantity
-	LimitsRAM             resource.Quantity
+	ContainerImage       string
+	ExtraAnnotations     map[string]string
+	ExtraLabels          map[string]string
+	ExtraArgs            []string
+	NodeExtraAnnotations argsutils.StringMap
+	NodeExtraLabels      argsutils.StringMap
+	RequestsCPU          resource.Quantity
+	LimitsCPU            resource.Quantity
+	RequestsRAM          resource.Quantity
+	LimitsRAM            resource.Quantity
 }

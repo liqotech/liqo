@@ -52,10 +52,17 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 		return fmt.Errorf("failed to parse node IP %q", cfg.NodeIP)
 	}
 
-	if cfg.SelfSignedCertificate {
+	switch cfg.CertificateType.Value {
+	case CertificateTypeSelfSigned:
 		retriever = newSelfSignedCertificateRetriever(cfg.NodeName, parsedIP)
-	} else {
-		retriever, err = newCertificateRetriever(localClient, cfg.NodeName, parsedIP)
+	default:
+		// Determine the appropriate signer based on the requested certificate type.
+		signer := map[string]string{
+			CertificateTypeKubelet: certificates.KubeletServingSignerName,
+			CertificateTypeAWS:     "beta.eks.amazonaws.com/app-serving",
+		}
+
+		retriever, err = newCertificateRetriever(localClient, signer[cfg.CertificateType.Value], cfg.NodeName, parsedIP)
 		if err != nil {
 			return fmt.Errorf("failed to initialize certificate manager: %w", err)
 		}
@@ -137,7 +144,7 @@ func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interf
 // newCertificateManager creates a certificate manager for the kubelet when retrieving a server certificate, or returns an error.
 // This function is inspired by the original kubelet implementation:
 // https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/certificate/kubelet.go
-func newCertificateRetriever(kubeClient kubernetes.Interface, nodeName string, nodeIP net.IP) (crtretriever, error) {
+func newCertificateRetriever(kubeClient kubernetes.Interface, signer, nodeName string, nodeIP net.IP) (crtretriever, error) {
 	const (
 		vkCertsPath   = "/tmp/certs"
 		vkCertsPrefix = "virtual-kubelet"
@@ -163,7 +170,7 @@ func newCertificateRetriever(kubeClient kubernetes.Interface, nodeName string, n
 			return kubeClient, nil
 		},
 		GetTemplate: getTemplate,
-		SignerName:  certificates.KubeletServingSignerName,
+		SignerName:  signer,
 		Usages: []certificates.KeyUsage{
 			// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
 			//

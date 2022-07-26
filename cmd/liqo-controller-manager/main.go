@@ -130,8 +130,6 @@ func main() {
 
 	// Virtual-kubelet parameters
 	kubeletImage := flag.String("kubelet-image", "liqo/virtual-kubelet", "The image of the virtual kubelet to be deployed")
-	disableKubeletCertGeneration := flag.Bool("disable-kubelet-certificate-generation", false,
-		"Whether to disable the virtual kubelet certificate generation by means of an init container (used for logs/exec capabilities)")
 	flag.Var(&kubeletExtraAnnotations, "kubelet-extra-annotations", "Extra annotations to add to the Virtual Kubelet Deployments and Pods")
 	flag.Var(&kubeletExtraLabels, "kubelet-extra-labels", "Extra labels to add to the Virtual Kubelet Deployments and Pods")
 	flag.Var(&kubeletExtraArgs, "kubelet-extra-args", "Extra arguments to add to the Virtual Kubelet Deployments and Pods")
@@ -274,17 +272,16 @@ func main() {
 	}
 
 	virtualKubeletOpts := &forge.VirtualKubeletOpts{
-		ContainerImage:        *kubeletImage,
-		DisableCertGeneration: *disableKubeletCertGeneration,
-		ExtraAnnotations:      kubeletExtraAnnotations.StringMap,
-		ExtraLabels:           kubeletExtraLabels.StringMap,
-		ExtraArgs:             kubeletExtraArgs.StringList,
-		NodeExtraAnnotations:  nodeExtraAnnotations,
-		NodeExtraLabels:       nodeExtraLabels,
-		RequestsCPU:           kubeletCPURequests.Quantity,
-		RequestsRAM:           kubeletRAMRequests.Quantity,
-		LimitsCPU:             kubeletCPULimits.Quantity,
-		LimitsRAM:             kubeletRAMLimits.Quantity,
+		ContainerImage:       *kubeletImage,
+		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
+		ExtraLabels:          kubeletExtraLabels.StringMap,
+		ExtraArgs:            kubeletExtraArgs.StringList,
+		NodeExtraAnnotations: nodeExtraAnnotations,
+		NodeExtraLabels:      nodeExtraLabels,
+		RequestsCPU:          kubeletCPURequests.Quantity,
+		RequestsRAM:          kubeletRAMRequests.Quantity,
+		LimitsCPU:            kubeletCPULimits.Quantity,
+		LimitsRAM:            kubeletRAMLimits.Quantity,
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
@@ -330,8 +327,7 @@ func main() {
 	}
 
 	// Start the handler to approve the virtual kubelet certificate signing requests.
-	csrWatcher := csr.NewWatcher(clientset, *resyncPeriod, labels.Everything(),
-		fields.OneTermEqualSelector("spec.signerName", certificates.KubeletServingSignerName))
+	csrWatcher := csr.NewWatcher(clientset, *resyncPeriod, labels.Everything(), fields.Everything())
 	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo",
 		// Approve only the CSRs for a requestor living in a liqo tenant namespace (based on the prefix).
 		// This is far from elegant, but the client-go utility generating the CSRs does not allow to customize the labels.

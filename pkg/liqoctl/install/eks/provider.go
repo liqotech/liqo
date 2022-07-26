@@ -137,11 +137,5 @@ func (o *Options) Values() map[string]interface{} {
 			"region":          o.region,
 			"clusterName":     o.eksClusterName,
 		},
-
-		"controllerManager": map[string]interface{}{
-			"pod": map[string]interface{}{
-				"extraArgs": []interface{}{"--disable-kubelet-certificate-generation=true"},
-			},
-		},
 	}
 }

@@ -2,11 +2,17 @@
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 
-{{- /* Enable the API support only in for Kubernetes versions < 1.24 (due to lack of support for third party tokens), if not overridden by the user */ -}}
 {{- $vkargs := .Values.virtualKubelet.extra.args }}
+{{- /* Enable the API support only in for Kubernetes versions < 1.24 (due to lack of support for third party tokens), if not overridden by the user */ -}}
 {{- if semverCompare "< 1.24.0" .Capabilities.KubeVersion.Version }}
 {{- if not (or (has "--enable-apiserver-support" $vkargs ) (has "--enable-apiserver-support=true" $vkargs ) (has "--enable-apiserver-support=false" $vkargs )) }}
 {{- $vkargs = append $vkargs "--enable-apiserver-support=true" }}
+{{- end }}
+{{- end }}
+{{- /* Configure the appropriate certificate generation approach on EKS clusters, if not overridden by the user */ -}}
+{{- if .Values.awsConfig.accessKeyId }}
+{{- if not (or (has "--certificate-type=kubelet" $vkargs ) (has "--certificate-type=aws" $vkargs ) (has "--certificate-type=self-signed" $vkargs )) }}
+{{- $vkargs = append $vkargs "--certificate-type=aws" }}
 {{- end }}
 {{- end }}
 
