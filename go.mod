@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/Azure/azure-sdk-for-go v66.0.0+incompatible
-	github.com/Azure/go-autorest/autorest v0.11.27
+	github.com/Azure/go-autorest/autorest v0.11.28
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.11
 	github.com/aws/aws-sdk-go v1.43.30
 	github.com/containernetworking/plugins v1.1.1
@@ -213,7 +213,7 @@ require (
 	go.starlark.net v0.0.0-20220328144851-d1966c6b9fcd // indirect
 	go4.org/intern v0.0.0-20220301175310-a089fc204883 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20211027215541-db492cf91b37 // indirect
-	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29 // indirect
+	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4 // indirect
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
