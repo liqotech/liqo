@@ -9,6 +9,10 @@ Briefly, the set of supported resources includes (by category):
 * [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PresistentVolumes*
 * [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*
 
+```{admonition} Note
+The reflection of a given object belonging to the *Exposition* or *Configuration* categories, and living in a namespace enabled for offloading, can be manually disabled adding the `liqo.io/skip-reflection` annotation to the object itself.
+```
+
 (UsageReflectionPods)=
 
 ## Pods offloading
