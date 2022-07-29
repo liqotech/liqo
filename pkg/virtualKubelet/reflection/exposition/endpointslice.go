@@ -20,9 +20,15 @@ import (
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	discoveryv1beta1clients "k8s.io/client-go/kubernetes/typed/discovery/v1beta1"
+	corev1listers "k8s.io/client-go/listers/core/v1"
 	discoveryv1beta1listers "k8s.io/client-go/listers/discovery/v1beta1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
@@ -46,6 +52,7 @@ const (
 type NamespacedEndpointSliceReflector struct {
 	generic.NamespacedReflector
 
+	localServices              corev1listers.ServiceNamespaceLister
 	localEndpointSlices        discoveryv1beta1listers.EndpointSliceNamespaceLister
 	remoteEndpointSlices       discoveryv1beta1listers.EndpointSliceNamespaceLister
 	remoteEndpointSlicesClient discoveryv1beta1clients.EndpointSliceInterface
@@ -64,17 +71,24 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
 		local := opts.LocalFactory.Discovery().V1beta1().EndpointSlices()
 		remote := opts.RemoteFactory.Discovery().V1beta1().EndpointSlices()
+		localServices := opts.LocalFactory.Core().V1().Services()
 
 		local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 
-		return &NamespacedEndpointSliceReflector{
+		ner := &NamespacedEndpointSliceReflector{
 			NamespacedReflector:        generic.NewNamespacedReflector(opts, EndpointSliceReflectorName),
+			localServices:              localServices.Lister().Services(opts.LocalNamespace),
 			localEndpointSlices:        local.Lister().EndpointSlices(opts.LocalNamespace),
 			remoteEndpointSlices:       remote.Lister().EndpointSlices(opts.RemoteNamespace),
 			remoteEndpointSlicesClient: opts.RemoteClient.DiscoveryV1beta1().EndpointSlices(opts.RemoteNamespace),
 			ipamclient:                 ipamclient,
 		}
+
+		// Enqueue all existing remote EndpointSlices in case the local Service has the "skip-reflection" annotation, to ensure they are also deleted.
+		localServices.Informer().AddEventHandler(opts.HandlerFactory(ner.ServiceToEndpointSlicesKeyer))
+
+		return ner
 	}
 }
 
@@ -106,6 +120,19 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		}
 		return nil
 	}
+
+	// Abort the reflection if the local object has the "skip-reflection" annotation.
+	if !kerrors.IsNotFound(lerr) && ner.ShouldSkipReflection(local) {
+		klog.Infof("Skipping reflection of local EndpointSlice %q as marked with the skip annotation", ner.LocalRef(name))
+		ner.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg())
+		if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
+			return nil
+		}
+
+		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
+		lerr = kerrors.NewNotFound(discoveryv1beta1.Resource("endpointslice"), local.GetName())
+	}
+
 	tracer.Step("Performed the sanity checks")
 
 	// The local endpointslice does no longer exist. Ensure it is also absent from the remote cluster.
@@ -220,4 +247,39 @@ func (ner *NamespacedEndpointSliceReflector) UnmapEndpointIPs(ctx context.Contex
 	ner.translations.Delete(endpointslice)
 	klog.V(4).Infof("Released mappings from local EndpointSlice %q to remote %q", ner.LocalRef(endpointslice), ner.RemoteRef(endpointslice))
 	return nil
+}
+
+// ShouldSkipReflection returns whether the reflection of the given object should be skipped.
+func (ner *NamespacedEndpointSliceReflector) ShouldSkipReflection(obj metav1.Object) bool {
+	if ner.NamespacedReflector.ShouldSkipReflection(obj) {
+		return true
+	}
+
+	// Check if a service is associated to the EndpointSlice, and whether it is marked to be skipped.
+	svcname, ok := obj.GetLabels()[discoveryv1beta1.LabelServiceName]
+	if !ok {
+		return false
+	}
+
+	svc, err := ner.localServices.Get(svcname)
+	// Continue with the reflection in case the service is not found, as this is likely due to a race conditions
+	// (i.e., the service has not yet been cached). If necessary, the informer will trigger a re-enqueue,
+	// thus performing once more this check.
+	return err == nil && ner.NamespacedReflector.ShouldSkipReflection(svc)
+}
+
+// ServiceToEndpointSlicesKeyer returns the NamespacedName of all local EndpointSlices associated with the given local Service.
+func (ner *NamespacedEndpointSliceReflector) ServiceToEndpointSlicesKeyer(metadata metav1.Object) []types.NamespacedName {
+	req, err := labels.NewRequirement(discoveryv1beta1.LabelServiceName, selection.Equals, []string{metadata.GetName()})
+	utilruntime.Must(err)
+	eps, err := ner.localEndpointSlices.List(labels.NewSelector().Add(*req))
+	utilruntime.Must(err)
+
+	keys := make([]types.NamespacedName, 0, len(eps))
+	keyer := generic.NamespacedKeyer(ner.LocalNamespace())
+	for _, ep := range eps {
+		keys = append(keys, keyer(ep)...)
+	}
+
+	return keys
 }

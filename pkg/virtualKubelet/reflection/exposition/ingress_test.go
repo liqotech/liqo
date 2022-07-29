@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
@@ -75,6 +76,24 @@ var _ = Describe("Ingress Reflection Tests", func() {
 			return ing
 		}
 
+		WhenBodyRemoteShouldNotExist := func(createRemote bool) func() {
+			return func() {
+				BeforeEach(func() {
+					if createRemote {
+						remote.SetLabels(forge.ReflectionLabels())
+						ForgeIngressSpec(&remote)
+						CreateIngress(&remote)
+					}
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should not be present", func() {
+					_, err = client.NetworkingV1().Ingresses(RemoteNamespace).Get(ctx, IngressName, metav1.GetOptions{})
+					Expect(err).To(BeNotFound())
+				})
+			}
+		}
+
 		BeforeEach(func() {
 			local = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: LocalNamespace}}
 			remote = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: RemoteNamespace}}
@@ -102,26 +121,8 @@ var _ = Describe("Ingress Reflection Tests", func() {
 		})
 
 		When("the local object does not exist", func() {
-			WhenBody := func(createRemote bool) func() {
-				return func() {
-					BeforeEach(func() {
-						if createRemote {
-							remote.SetLabels(forge.ReflectionLabels())
-							ForgeIngressSpec(&remote)
-							CreateIngress(&remote)
-						}
-					})
-
-					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-					It("the remote object should not be created", func() {
-						_, err = client.NetworkingV1().Ingresses(RemoteNamespace).Get(ctx, IngressName, metav1.GetOptions{})
-						Expect(err).To(BeNotFound())
-					})
-				}
-			}
-
-			When("the remote object does not exist", WhenBody(false))
-			When("the remote object does exist", WhenBody(true))
+			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 		})
 
 		When("the local object does exist", func() {
@@ -186,6 +187,17 @@ var _ = Describe("Ingress Reflection Tests", func() {
 					Expect(remoteAfter).To(Equal(remoteBefore))
 				})
 			})
+		})
+
+		When("the local object does exist, but has the skip annotation", func() {
+			BeforeEach(func() {
+				local.SetAnnotations(map[string]string{consts.SkipReflectionAnnotationKey: "whatever"})
+				ForgeIngressSpec(&local)
+				CreateIngress(&local)
+			})
+
+			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 		})
 	})
 })

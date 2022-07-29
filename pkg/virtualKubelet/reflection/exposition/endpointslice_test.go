@@ -19,14 +19,18 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -44,6 +48,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 	Describe("endpointslice handling", func() {
 		const EndpointSliceName = "name"
+		const ServiceName = "service"
 
 		var (
 			reflector manager.NamespacedReflector
@@ -65,15 +70,41 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			return epslice
 		}
 
+		CreateService := func(svc *corev1.Service) *corev1.Service {
+			svc, errsvc := client.CoreV1().Services(svc.GetNamespace()).Create(ctx, svc, metav1.CreateOptions{})
+			Expect(errsvc).ToNot(HaveOccurred())
+			return svc
+		}
+
+		WhenBodyRemoteShouldNotExist := func(createRemote bool) func() {
+			return func() {
+				BeforeEach(func() {
+					if createRemote {
+						remote.SetLabels(labels.Merge(forge.ReflectionLabels(), forge.EndpointSliceLabels()))
+						remote.AddressType = discoveryv1beta1.AddressTypeIPv4
+						CreateEndpointSlice(&remote)
+					}
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should not be present", func() {
+					_, err = client.DiscoveryV1beta1().EndpointSlices(RemoteNamespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
+					Expect(err).To(BeNotFound())
+				})
+			}
+		}
+
 		BeforeEach(func() {
 			local = discoveryv1beta1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: LocalNamespace}}
 			remote = discoveryv1beta1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
 		})
 
 		AfterEach(func() {
-			Expect(client.DiscoveryV1beta1().EndpointSlices(LocalNamespace).Delete(ctx, EndpointSliceName, metav1.DeleteOptions{})).To(
+			Expect(client.DiscoveryV1beta1().EndpointSlices(LocalNamespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
-			Expect(client.DiscoveryV1beta1().EndpointSlices(RemoteNamespace).Delete(ctx, EndpointSliceName, metav1.DeleteOptions{})).To(
+			Expect(client.DiscoveryV1beta1().EndpointSlices(RemoteNamespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(
+				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
+			Expect(client.CoreV1().Services(LocalNamespace).Delete(ctx, ServiceName, metav1.DeleteOptions{})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
 		})
 
@@ -96,26 +127,8 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			})
 
 			When("the local object does not exist", func() {
-				WhenBody := func(createRemote bool) func() {
-					return func() {
-						BeforeEach(func() {
-							if createRemote {
-								remote.SetLabels(labels.Merge(forge.ReflectionLabels(), forge.EndpointSliceLabels()))
-								remote.AddressType = discoveryv1beta1.AddressTypeIPv4
-								CreateEndpointSlice(&remote)
-							}
-						})
-
-						It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-						It("the remote object should not be created", func() {
-							_, err = client.DiscoveryV1beta1().EndpointSlices(RemoteNamespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
-							Expect(err).To(BeNotFound())
-						})
-					}
-				}
-
-				When("the remote object does not exist", WhenBody(false))
-				When("the remote object does exist", WhenBody(true))
+				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 			})
 
 			When("the local object does exist", func() {
@@ -188,6 +201,36 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					})
 				})
 			})
+
+			When("the local object does exist, but has the skip annotation", func() {
+				BeforeEach(func() {
+					local.SetAnnotations(map[string]string{consts.SkipReflectionAnnotationKey: "whatever"})
+					local.AddressType = discoveryv1beta1.AddressTypeIPv4
+					CreateEndpointSlice(&local)
+				})
+
+				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+			})
+
+			When("the local object does exist, but the associated service has the skip annotation", func() {
+				BeforeEach(func() {
+					local.Labels = map[string]string{discoveryv1beta1.LabelServiceName: ServiceName}
+					local.AddressType = discoveryv1beta1.AddressTypeIPv4
+					CreateEndpointSlice(&local)
+
+					CreateService(&corev1.Service{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: ServiceName, Namespace: LocalNamespace,
+							Annotations: map[string]string{consts.SkipReflectionAnnotationKey: "whatever"},
+						},
+						Spec: corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}},
+					})
+				})
+
+				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+			})
 		})
 
 		Context("address translation", func() {
@@ -236,6 +279,46 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					})
 					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				})
+			})
+		})
+
+		Context("retrieving the remote endpointslices associated with a service", func() {
+			var (
+				service corev1.Service
+				keys    []types.NamespacedName
+			)
+
+			BeforeEach(func() {
+				service = corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: LocalNamespace},
+					Spec:       corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}},
+				}
+				CreateService(&service)
+
+				creator := func(suffix, service string) {
+					CreateEndpointSlice(&discoveryv1beta1.EndpointSlice{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: EndpointSliceName + "-" + suffix, Namespace: LocalNamespace,
+							Labels: map[string]string{discoveryv1beta1.LabelServiceName: service},
+						},
+						AddressType: discoveryv1beta1.AddressTypeIPv4,
+					})
+				}
+
+				creator("first", ServiceName)
+				creator("second", "other")
+				creator("third", ServiceName)
+			})
+
+			JustBeforeEach(func() {
+				keys = reflector.(*exposition.NamespacedEndpointSliceReflector).ServiceToEndpointSlicesKeyer(&service)
+			})
+
+			It("should return the expected keys", func() {
+				Expect(keys).To(ConsistOf(
+					types.NamespacedName{Namespace: LocalNamespace, Name: EndpointSliceName + "-first"},
+					types.NamespacedName{Namespace: LocalNamespace, Name: EndpointSliceName + "-third"},
+				))
 			})
 		})
 	})

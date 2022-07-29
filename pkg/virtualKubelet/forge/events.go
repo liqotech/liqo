@@ -26,7 +26,7 @@ const (
 	// EventFailedDeletion -> the reason for the event when the deletion of an object fails.
 	EventFailedDeletion = "FailedDeletion"
 
-	// EventReflectionDisabled -> the reason for the event when reflection is disabled for the given namespace.
+	// EventReflectionDisabled -> the reason for the event when reflection is disabled for the given namespace/object.
 	EventReflectionDisabled = "ReflectionDisabled"
 )
 
@@ -74,6 +74,11 @@ func EventReflectionDisabledMsg(namespace string) string {
 // EventReflectionDisabledErrorMsg returns the message for the event when reflection is disabled for the given namespace, and an error occurs.
 func EventReflectionDisabledErrorMsg(namespace string, err error) string {
 	return fmt.Sprintf("Reflection to cluster %q disabled for namespace %q: error updating status: %v", RemoteCluster.ClusterName, namespace, err)
+}
+
+// EventObjectReflectionDisabledMsg returns the message for the event when reflection is disabled for a given resource.
+func EventObjectReflectionDisabledMsg() string {
+	return fmt.Sprintf("Reflection to cluster %q disabled for the current object", RemoteCluster.ClusterName)
 }
 
 // EventSAReflectionDisabledMsg returns the message for the event when service account reflection is disabled.

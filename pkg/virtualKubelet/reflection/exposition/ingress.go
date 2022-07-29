@@ -18,6 +18,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	netv1clients "k8s.io/client-go/kubernetes/typed/networking/v1"
@@ -89,6 +90,19 @@ func (nir *NamespacedIngressReflector) Handle(ctx context.Context, name string) 
 		}
 		return nil
 	}
+
+	// Abort the reflection if the local object has the "skip-reflection" annotation.
+	if !kerrors.IsNotFound(lerr) && nir.ShouldSkipReflection(local) {
+		klog.Infof("Skipping reflection of local Ingress %q as marked with the skip annotation", nir.LocalRef(name))
+		nir.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg())
+		if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
+			return nil
+		}
+
+		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
+		lerr = kerrors.NewNotFound(netv1.Resource("ingress"), local.GetName())
+	}
+
 	tracer.Step("Performed the sanity checks")
 
 	// The local ingress does no longer exist. Ensure it is also absent from the remote cluster.
