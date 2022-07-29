@@ -72,7 +72,7 @@ func (o *Options) Initialize(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if len(cm.Items) != 1 {
+	if len(cm.Items) < 1 {
 		return fmt.Errorf("kube-controller-manager not found")
 	}
 	if len(cm.Items[0].Spec.Containers) != 1 {

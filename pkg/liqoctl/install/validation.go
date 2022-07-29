@@ -40,7 +40,7 @@ func (o *Options) validate(ctx context.Context) error {
 	if err := o.validateAPIServer(); err != nil {
 		return fmt.Errorf("failed validating API Server URL %q: %w", o.APIServer, err)
 	}
-	o.Printer.Verbosef("Kubernetes API Server: %s\n", o.PodCIDR)
+	o.Printer.Verbosef("Kubernetes API Server: %s\n", o.APIServer)
 
 	if err := o.validatePodCIDR(ctx); err != nil {
 		return fmt.Errorf("failed validating Pod CIDR %q: %w. "+

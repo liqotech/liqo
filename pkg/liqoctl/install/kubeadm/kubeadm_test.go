@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
@@ -30,42 +31,44 @@ import (
 )
 
 var (
-	ctx = context.Background()
-	p   = &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kube-controller-manager-test",
-			Namespace: "kube-system",
-			Labels:    kubeControllerManagerLabels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:  "kube-controller-manager",
-					Image: "k8s.gcr.io/kube-controller-manager:v1.20.1",
-					Command: []string{
-						"kube-controller-manager",
-						"--allocate-node-cidrs=true",
-						"--authentication-kubeconfig=/etc/kubernetes/controller-manager.conf",
-						"--authorization-kubeconfig=/etc/kubernetes/controller-manager.conf",
-						"--bind-address=127.0.0.1",
-						"--client-ca-file=/etc/kubernetes/pki/ca.crt",
-						"--cluster-cidr=10.244.0.0/16",
-						"--cluster-name=kubernetes",
-						"--cluster-signing-cert-file=/etc/kubernetes/pki/ca.crt",
-						"--cluster-signing-key-file=/etc/kubernetes/pki/ca.key",
-						"--controllers=*,bootstrapsigner,tokencleaner",
-						"--kubeconfig=/etc/kubernetes/controller-manager.conf",
-						"--leader-elect=true",
-						"--port=0",
-						"--requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt",
-						"--root-ca-file=/etc/kubernetes/pki/ca.crt",
-						"--service-account-private-key-file=/etc/kubernetes/pki/sa.key",
-						"--service-cluster-ip-range=10.96.0.0/12",
-						"--use-service-account-credentials=true",
+	ctx       = context.Background()
+	generator = func(suffix string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kube-controller-manager-" + suffix,
+				Namespace: "kube-system",
+				Labels:    kubeControllerManagerLabels,
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  "kube-controller-manager",
+						Image: "k8s.gcr.io/kube-controller-manager:v1.20.1",
+						Command: []string{
+							"kube-controller-manager",
+							"--allocate-node-cidrs=true",
+							"--authentication-kubeconfig=/etc/kubernetes/controller-manager.conf",
+							"--authorization-kubeconfig=/etc/kubernetes/controller-manager.conf",
+							"--bind-address=127.0.0.1",
+							"--client-ca-file=/etc/kubernetes/pki/ca.crt",
+							"--cluster-cidr=10.244.0.0/16",
+							"--cluster-name=kubernetes",
+							"--cluster-signing-cert-file=/etc/kubernetes/pki/ca.crt",
+							"--cluster-signing-key-file=/etc/kubernetes/pki/ca.key",
+							"--controllers=*,bootstrapsigner,tokencleaner",
+							"--kubeconfig=/etc/kubernetes/controller-manager.conf",
+							"--leader-elect=true",
+							"--port=0",
+							"--requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt",
+							"--root-ca-file=/etc/kubernetes/pki/ca.crt",
+							"--service-account-private-key-file=/etc/kubernetes/pki/sa.key",
+							"--service-cluster-ip-range=10.96.0.0/12",
+							"--use-service-account-credentials=true",
+						},
 					},
 				},
 			},
-		},
+		}
 	}
 )
 
@@ -75,18 +78,44 @@ func TestFetchingParameters(t *testing.T) {
 }
 
 var _ = Describe("Extract elements from apiServer", func() {
-	var options Options
+	var (
+		options Options
+		pods    []runtime.Object
+	)
 
-	BeforeEach(func() {
+	JustBeforeEach(func() {
 		options = Options{Options: &install.Options{Factory: &factory.Factory{
-			KubeClient: fake.NewSimpleClientset(p),
+			KubeClient: fake.NewSimpleClientset(pods...),
 			Printer:    output.NewFakePrinter(GinkgoWriter),
 		}}}
 	})
 
-	It("Retrieve parameters from kube-controller-manager pod", func() {
-		Expect(options.Initialize(ctx)).ToNot(HaveOccurred())
-		Expect(options.PodCIDR).To(Equal("10.244.0.0/16"))
-		Expect(options.ServiceCIDR).To(Equal("10.96.0.0/12"))
+	When("no kube-controller-manager pods is present", func() {
+		BeforeEach(func() { pods = []runtime.Object{} })
+
+		It("should return an error", func() {
+			Expect(options.Initialize(ctx)).To(HaveOccurred())
+		})
 	})
+
+	When("a single kube-controller-manager pod is present", func() {
+		BeforeEach(func() { pods = []runtime.Object{generator("1")} })
+
+		It("should retrieve the appropriate parameters", func() {
+			Expect(options.Initialize(ctx)).ToNot(HaveOccurred())
+			Expect(options.PodCIDR).To(Equal("10.244.0.0/16"))
+			Expect(options.ServiceCIDR).To(Equal("10.96.0.0/12"))
+		})
+	})
+
+	When("multiple kube-controller-manager pods are present", func() {
+		BeforeEach(func() { pods = []runtime.Object{generator("1"), generator("2"), generator("3")} })
+
+		It("should retrieve the appropriate parameters", func() {
+			Expect(options.Initialize(ctx)).ToNot(HaveOccurred())
+			Expect(options.PodCIDR).To(Equal("10.244.0.0/16"))
+			Expect(options.ServiceCIDR).To(Equal("10.96.0.0/12"))
+		})
+	})
+
 })
