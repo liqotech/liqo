@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
@@ -64,6 +65,23 @@ var _ = Describe("Secret Reflection", func() {
 			return createdCfg
 		}
 
+		WhenBodyRemoteShouldNotExist := func(createRemote bool) func() {
+			return func() {
+				BeforeEach(func() {
+					if createRemote {
+						remote.SetLabels(forge.ReflectionLabels())
+						CreateSecret(&remote)
+					}
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should not be present", func() {
+					_, err = client.CoreV1().Secrets(RemoteNamespace).Get(ctx, name, metav1.GetOptions{})
+					Expect(err).To(BeNotFound())
+				})
+			}
+		}
+
 		BeforeEach(func() {
 			enableSAReflection = true
 			name = SecretName
@@ -93,25 +111,8 @@ var _ = Describe("Secret Reflection", func() {
 		})
 
 		When("the local object does not exist", func() {
-			WhenBody := func(createRemote bool) func() {
-				return func() {
-					BeforeEach(func() {
-						if createRemote {
-							remote.SetLabels(forge.ReflectionLabels())
-							CreateSecret(&remote)
-						}
-					})
-
-					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-					It("the remote object should not be created", func() {
-						_, err = client.CoreV1().Secrets(RemoteNamespace).Get(ctx, name, metav1.GetOptions{})
-						Expect(err).To(BeNotFound())
-					})
-				}
-			}
-
-			When("the remote object does not exist", WhenBody(false))
-			When("the remote object does exist", WhenBody(true))
+			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 		})
 
 		When("the local object does exists", func() {
@@ -179,6 +180,16 @@ var _ = Describe("Secret Reflection", func() {
 					Expect(remoteAfter).To(Equal(remoteBefore))
 				})
 			})
+		})
+
+		When("the local object does exist, but has the skip annotation", func() {
+			BeforeEach(func() {
+				local.SetAnnotations(map[string]string{consts.SkipReflectionAnnotationKey: "whatever"})
+				CreateSecret(&local)
+			})
+
+			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 		})
 
 		When("handling secrets of type kubernetes.io/service-account-token", func() {

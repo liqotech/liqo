@@ -102,6 +102,19 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 		}
 		return nil
 	}
+
+	// Abort the reflection if the local object has the "skip-reflection" annotation.
+	if !kerrors.IsNotFound(lerr) && nsr.ShouldSkipReflection(local) {
+		klog.Infof("Skipping reflection of local Secret %q as marked with the skip annotation", nsr.LocalRef(name))
+		nsr.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg())
+		if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
+			return nil
+		}
+
+		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
+		lerr = kerrors.NewNotFound(corev1.Resource("secret"), local.GetName())
+	}
+
 	tracer.Step("Performed the sanity checks")
 
 	if kerrors.IsNotFound(lerr) {

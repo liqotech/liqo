@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
 
@@ -87,4 +88,10 @@ func (gnr *NamespacedReflector) DeleteRemote(ctx context.Context, deleter Resour
 
 	klog.Infof("Remote %v %q successfully deleted (local: %q)", resource, gnr.RemoteRef(name), gnr.LocalRef(name))
 	return nil
+}
+
+// ShouldSkipReflection returns whether the reflection of the given object should be skipped.
+func (gnr *NamespacedReflector) ShouldSkipReflection(obj metav1.Object) bool {
+	_, ok := obj.GetAnnotations()[consts.SkipReflectionAnnotationKey]
+	return ok
 }

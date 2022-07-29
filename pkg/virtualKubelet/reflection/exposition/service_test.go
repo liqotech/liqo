@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
@@ -63,6 +64,24 @@ var _ = Describe("Service Reflection Tests", func() {
 			return svc
 		}
 
+		WhenBodyRemoteShouldNotExist := func(createRemote bool) func() {
+			return func() {
+				BeforeEach(func() {
+					if createRemote {
+						remote.SetLabels(forge.ReflectionLabels())
+						remote.Spec.Ports = []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}
+						CreateService(&remote)
+					}
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should not be present", func() {
+					_, err = client.CoreV1().Services(RemoteNamespace).Get(ctx, ServiceName, metav1.GetOptions{})
+					Expect(err).To(BeNotFound())
+				})
+			}
+		}
+
 		BeforeEach(func() {
 			local = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: LocalNamespace}}
 			remote = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: RemoteNamespace}}
@@ -90,26 +109,8 @@ var _ = Describe("Service Reflection Tests", func() {
 		})
 
 		When("the local object does not exist", func() {
-			WhenBody := func(createRemote bool) func() {
-				return func() {
-					BeforeEach(func() {
-						if createRemote {
-							remote.SetLabels(forge.ReflectionLabels())
-							remote.Spec.Ports = []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}
-							CreateService(&remote)
-						}
-					})
-
-					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-					It("the remote object should not be created", func() {
-						_, err = client.CoreV1().Services(RemoteNamespace).Get(ctx, ServiceName, metav1.GetOptions{})
-						Expect(err).To(BeNotFound())
-					})
-				}
-			}
-
-			When("the remote object does not exist", WhenBody(false))
-			When("the remote object does exist", WhenBody(true))
+			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 		})
 
 		When("the local object does exist", func() {
@@ -177,6 +178,17 @@ var _ = Describe("Service Reflection Tests", func() {
 					Expect(remoteAfter).To(Equal(remoteBefore))
 				})
 			})
+		})
+
+		When("the local object does exist, but has the skip annotation", func() {
+			BeforeEach(func() {
+				local.SetAnnotations(map[string]string{consts.SkipReflectionAnnotationKey: "whatever"})
+				local.Spec = corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}}
+				CreateService(&local)
+			})
+
+			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 		})
 	})
 })

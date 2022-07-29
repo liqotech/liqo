@@ -98,6 +98,19 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 		}
 		return nil
 	}
+
+	// Abort the reflection if the local object has the "skip-reflection" annotation.
+	if !kerrors.IsNotFound(lerr) && nsr.ShouldSkipReflection(local) {
+		klog.Infof("Skipping reflection of local Service %q as marked with the skip annotation", nsr.LocalRef(name))
+		nsr.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg())
+		if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
+			return nil
+		}
+
+		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
+		lerr = kerrors.NewNotFound(corev1.Resource("service"), local.GetName())
+	}
+
 	tracer.Step("Performed the sanity checks")
 
 	// The local service does no longer exist. Ensure it is also absent from the remote cluster.
