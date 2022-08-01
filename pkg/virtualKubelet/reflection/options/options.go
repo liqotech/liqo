@@ -27,8 +27,8 @@ import (
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 )
 
-// Keyer retrieves a NamespacedName referring to the reconciliation target from the object metadata.
-type Keyer func(metadata metav1.Object) types.NamespacedName
+// Keyer retrieves a set of NamespacedNames referring to the reconciliation targets from the object metadata.
+type Keyer func(metadata metav1.Object) []types.NamespacedName
 
 // ReflectorOpts is a structure grouping the parameters to start a Reflector.
 type ReflectorOpts struct {

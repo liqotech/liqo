@@ -239,8 +239,11 @@ func (gr *reflector) handlers(keyer options.Keyer) cache.ResourceEventHandler {
 	eh := func(obj interface{}) {
 		metadata, err := meta.Accessor(obj)
 		utilruntime.Must(err)
-		klog.V(5).Infof("Enqueuing %v %q for reconciliation", gr.name, klog.KRef(metadata.GetNamespace(), metadata.GetName()))
-		gr.workqueue.Add(keyer(metadata))
+
+		for _, key := range keyer(metadata) {
+			klog.V(5).Infof("Enqueuing %v %q for reconciliation", gr.name, klog.KRef(metadata.GetNamespace(), metadata.GetName()))
+			gr.workqueue.Add(key)
+		}
 	}
 
 	return cache.ResourceEventHandlerFuncs{
@@ -251,17 +254,17 @@ func (gr *reflector) handlers(keyer options.Keyer) cache.ResourceEventHandler {
 }
 
 // BasicKeyer returns a keyer retrieving the name and namespace from the object metadata.
-func BasicKeyer() func(metadata metav1.Object) types.NamespacedName {
-	return func(metadata metav1.Object) types.NamespacedName {
-		return types.NamespacedName{Namespace: metadata.GetNamespace(), Name: metadata.GetName()}
+func BasicKeyer() func(metadata metav1.Object) []types.NamespacedName {
+	return func(metadata metav1.Object) []types.NamespacedName {
+		return []types.NamespacedName{{Namespace: metadata.GetNamespace(), Name: metadata.GetName()}}
 	}
 }
 
 // NamespacedKeyer returns a keyer associated with the given namespace, retrieving the
 // object name from its metadata.
-func NamespacedKeyer(namespace string) func(metadata metav1.Object) types.NamespacedName {
-	return func(metadata metav1.Object) types.NamespacedName {
-		return types.NamespacedName{Namespace: namespace, Name: metadata.GetName()}
+func NamespacedKeyer(namespace string) func(metadata metav1.Object) []types.NamespacedName {
+	return func(metadata metav1.Object) []types.NamespacedName {
+		return []types.NamespacedName{{Namespace: namespace, Name: metadata.GetName()}}
 	}
 }
 

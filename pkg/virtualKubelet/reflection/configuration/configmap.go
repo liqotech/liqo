@@ -55,9 +55,9 @@ func NewConfigMapReflector(workers uint) manager.Reflector {
 
 // RemoteConfigMapNamespacedKeyer returns a keyer associated with the given namespace,
 // which accounts for the root CA configmap name remapping.
-func RemoteConfigMapNamespacedKeyer(namespace string) func(metadata metav1.Object) types.NamespacedName {
-	return func(metadata metav1.Object) types.NamespacedName {
-		return types.NamespacedName{Namespace: namespace, Name: forge.LocalConfigMapName(metadata.GetName())}
+func RemoteConfigMapNamespacedKeyer(namespace string) func(metadata metav1.Object) []types.NamespacedName {
+	return func(metadata metav1.Object) []types.NamespacedName {
+		return []types.NamespacedName{{Namespace: namespace, Name: forge.LocalConfigMapName(metadata.GetName())}}
 	}
 }
 

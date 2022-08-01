@@ -232,29 +232,30 @@ var _ = Describe("Reflector tests", func() {
 				var (
 					handlers cache.ResourceEventHandler
 					obj      corev1.Service
-					expected types.NamespacedName
 				)
 
-				keyer := func(metadata metav1.Object) types.NamespacedName {
+				keyer := func(metadata metav1.Object) []types.NamespacedName {
 					const prefix = "Test"
-					return types.NamespacedName{
-						Namespace: prefix + metadata.GetNamespace(),
-						Name:      prefix + metadata.GetName(),
-					}
+					return []types.NamespacedName{{
+						Namespace: prefix + metadata.GetNamespace() + "1",
+						Name:      prefix + metadata.GetName() + "1",
+					}, {
+						Namespace: prefix + metadata.GetNamespace() + "2",
+						Name:      prefix + metadata.GetName() + "2",
+					}}
 				}
 
 				body := func() func() {
 					return func() {
-						Expect(rfl.(*reflector).workqueue.Len()).To(BeNumerically("==", 1))
+						Expect(rfl.(*reflector).workqueue.Len()).To(BeNumerically("==", 2))
 						key, _ := rfl.(*reflector).workqueue.Get()
-						Expect(key).To(Equal(expected))
+						Expect(key).To(Equal(types.NamespacedName{Name: "TestName1", Namespace: "TestNamespace1"}))
+						key, _ = rfl.(*reflector).workqueue.Get()
+						Expect(key).To(Equal(types.NamespacedName{Name: "TestName2", Namespace: "TestNamespace2"}))
 					}
 				}
 
-				BeforeEach(func() {
-					obj = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "Name", Namespace: "Namespace"}}
-					expected = types.NamespacedName{Name: "TestName", Namespace: "TestNamespace"}
-				})
+				BeforeEach(func() { obj = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "Name", Namespace: "Namespace"}} })
 				JustBeforeEach(func() { handlers = rfl.(*reflector).handlers(keyer) })
 
 				When("the AddFunc is executed", func() {
@@ -280,22 +281,24 @@ var _ = Describe("Reflector tests", func() {
 		)
 
 		var (
-			input  metav1.Object
-			output types.NamespacedName
+			input metav1.Object
+			keyer options.Keyer
 		)
 
 		Describe("the BasicKeyer function", func() {
 			BeforeEach(func() { input = &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}} })
-			JustBeforeEach(func() { output = BasicKeyer()(input) })
-			It("should return the same name of the object", func() { Expect(output.Name).To(BeIdenticalTo(name)) })
-			It("should return the same namespace of the object", func() { Expect(output.Namespace).To(BeIdenticalTo(namespace)) })
+			JustBeforeEach(func() { keyer = BasicKeyer() })
+			It("should return a single object", func() { Expect(keyer(input)).To(HaveLen(1)) })
+			It("should return the same name of the object", func() { Expect(keyer(input)[0].Name).To(BeIdenticalTo(name)) })
+			It("should return the same namespace of the object", func() { Expect(keyer(input)[0].Namespace).To(BeIdenticalTo(namespace)) })
 		})
 
 		Describe("the NamespacedKeyer function", func() {
 			BeforeEach(func() { input = &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "whatever"}} })
-			JustBeforeEach(func() { output = NamespacedKeyer(namespace)(input) })
-			It("should return the same name of the object", func() { Expect(output.Name).To(BeIdenticalTo(name)) })
-			It("should return the namespace given as parameter", func() { Expect(output.Namespace).To(BeIdenticalTo(namespace)) })
+			JustBeforeEach(func() { keyer = NamespacedKeyer(namespace) })
+			It("should return a single object", func() { Expect(keyer(input)).To(HaveLen(1)) })
+			It("should return the same name of the object", func() { Expect(keyer(input)[0].Name).To(BeIdenticalTo(name)) })
+			It("should return the namespace given as parameter", func() { Expect(keyer(input)[0].Namespace).To(BeIdenticalTo(namespace)) })
 		})
 	})
 })
