@@ -304,10 +304,10 @@ func (fpr *FallbackPodReflector) Keys(local, _ string) []types.NamespacedName {
 	pods, err := fpr.localPods.Pods(local).List(labels.Everything())
 	utilruntime.Must(err)
 
-	keys := make([]types.NamespacedName, len(pods))
+	keys := make([]types.NamespacedName, 0, len(pods))
 	keyer := generic.BasicKeyer()
-	for i, pod := range pods {
-		keys[i] = keyer(pod)
+	for _, pod := range pods {
+		keys = append(keys, keyer(pod)...)
 	}
 	return keys
 }
