@@ -184,8 +184,8 @@ Get the liqo clusterID ConfigMap name
 Get the Pod security context
 */}}
 {{- define "liqo.podSecurityContext" -}}
-runAsNonRoot: true
 {{- if not .Values.openshiftConfig.enable }}
+runAsNonRoot: true
 runAsUser: 1000
 runAsGroup: 1000
 fsGroup: 1000
