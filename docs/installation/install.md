@@ -187,8 +187,10 @@ export GKE_SERVICE_ACCOUNT_PATH=~/.liqo/gcp_service_account
 
 # The ID of the GCP project where your cluster was created
 export GKE_PROJECT_ID=project-id
-# The GCP zone where your GKE cluster is executed
-export GKE_CLUSTER_ZONE=europe-west-1b
+# The GCP zone where your GKE cluster is executed (if you are using zonal GKE clusters)
+export GKE_CLUSTER_ZONE=europe-west1-b
+# The GCP region where your GKE cluster is executed (if you are using regional GKE clusters)
+export GKE_CLUSTER_REGION=europe-west1
 # The name of the GKE resource on GCP
 export GKE_CLUSTER_ID=liqo-cluster
 ```
@@ -224,23 +226,39 @@ gcloud iam service-accounts keys create ${GKE_SERVICE_ACCOUNT_PATH} \
 ```
 
 Finally, you should retrieve the cluster’s kubeconfig, if you have not already.
-You may use the following CLI command:
+You may use the following CLI command, in case of zonal GKE clusters:
 
 ```bash
 gcloud container clusters get-credentials ${GKE_CLUSTER_ID} \
         --zone ${GKE_CLUSTER_ZONE} --project ${GKE_PROJECT_ID}
 ```
 
+or, in case of regional GKE clusters:
+
+```bash
+gcloud container clusters get-credentials ${GKE_CLUSTER_ID} \
+        --region ${GKE_CLUSTER_REGION} --project ${GKE_PROJECT_ID}
+```
+
 The retrieved kubeconfig will be added to the currently selected file (i.e., based on the `KUBECONFIG` environment variable, with fallback to the default path `~/.kube/config`) or created otherwise.
 
 **Installation**
 
-Liqo can be installed on a GKE cluster through:
+Liqo can be installed on a zonal GKE cluster through:
 
 ```bash
 liqoctl install gke --project-id ${GKE_PROJECT_ID} \
     --cluster-id ${GKE_CLUSTER_ID} \
     --zone ${GKE_CLUSTER_ZONE} \
+    --credentials-path ${GKE_SERVICE_ACCOUNT_PATH}
+```
+
+or, in case of regional GKE clusters:
+
+```bash
+liqoctl install gke --project-id ${GKE_PROJECT_ID} \
+    --cluster-id ${GKE_CLUSTER_ID} \
+    --region ${GKE_CLUSTER_REGION} \
     --credentials-path ${GKE_SERVICE_ACCOUNT_PATH}
 ```
 
