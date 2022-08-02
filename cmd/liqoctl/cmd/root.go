@@ -119,7 +119,7 @@ func WithTemplate(str string) string {
 }
 
 // singleClusterPersistentPreRun initializes the local factory.
-func singleClusterPersistentPreRun(cmd *cobra.Command, f *factory.Factory, opts ...factory.Options) {
+func singleClusterPersistentPreRun(_ *cobra.Command, f *factory.Factory, opts ...factory.Options) {
 	// Populate the factory fields based on the configured parameters.
 	f.Printer.CheckErr(f.Initialize(opts...))
 }

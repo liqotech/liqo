@@ -55,6 +55,9 @@ func (o *Options) Examples() string {
 	return `Examples:
   $ {{ .Executable }} install gke --credentials-path ~/.liqo/gcp_service_account \
       --cluster-id foo --project-id bar --zone europe-west-1b
+or (regional cluster)
+  $ {{ .Executable }} install gke --credentials-path ~/.liqo/gcp_service_account \
+      --cluster-id foo --project-id bar --region europe-west-1
 `
 }
 
@@ -67,7 +70,6 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.zone, "zone", "", "The GCP zone where the cluster is running")
 	cmd.Flags().StringVar(&o.region, "region", "", "The GCP region where the cluster is running")
 
-	cmd.MarkFlagsMutuallyExclusive("zone", "region")
 	utilruntime.Must(cmd.MarkFlagRequired("credentials-path"))
 	utilruntime.Must(cmd.MarkFlagRequired("project-id"))
 	utilruntime.Must(cmd.MarkFlagRequired("cluster-id"))
@@ -81,9 +83,9 @@ func (o *Options) Initialize(ctx context.Context) error {
 	o.Printer.Verbosef("GKE Region: %q", o.region)
 	o.Printer.Verbosef("GKE ClusterID: %q", o.clusterID)
 
-	location := o.getLocation()
-	if location == "" {
-		return fmt.Errorf("zone or region must be provided")
+	location, err := o.getLocation()
+	if err != nil {
+		return err
 	}
 
 	svc, err := container.NewService(ctx, option.WithCredentialsFile(o.credentialsPath))
@@ -128,11 +130,17 @@ func (o *Options) checkFeatures(cluster *container.Cluster) error {
 	return nil
 }
 
-func (o *Options) getLocation() string {
-	if o.zone != "" {
-		return o.zone
+func (o *Options) getLocation() (string, error) {
+	switch {
+	case o.zone != "" && o.region != "":
+		return "", fmt.Errorf("cannot specify both --zone and --region at the same time")
+	case o.zone != "":
+		return o.zone, nil
+	case o.region != "":
+		return o.region, nil
+	default:
+		return "", fmt.Errorf("either --zone or --region must be specified")
 	}
-	return o.region
 }
 
 func (o *Options) parseClusterOutput(cluster *container.Cluster) {
