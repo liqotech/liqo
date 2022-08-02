@@ -107,7 +107,7 @@ func (r *ForeignClusterReconciler) isClusterProcessable(ctx context.Context,
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.ProcessForeignClusterStatusCondition,
 			discoveryv1alpha1.PeeringConditionStatusSuccess,
-			"ForeignClusterProcesssable",
+			"ForeignClusterProcessable",
 			"This ForeignCluster seems to be processable",
 		)
 
