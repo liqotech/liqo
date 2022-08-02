@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/autocompletion"
 	"github.com/liqotech/liqo/pkg/liqoctl/purge"
 )
 
@@ -64,14 +63,15 @@ func newPurgeCommand(ctx context.Context) *cobra.Command {
 
 	utilruntime.Must(purgeCmd.MarkFlagRequired("kubeconfig-1"))
 
-	utilruntime.Must(purgeCmd.RegisterFlagCompletionFunc("remote-cluster",
-		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			names, err := autocompletion.GetClusterNames(cmd.Context(), toComplete)
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveError
-			}
-			return names, cobra.ShellCompDirectiveNoFileComp
-		}))
+	// TODO
+	/*utilruntime.Must(purgeCmd.RegisterFlagCompletionFunc("remote-cluster",
+	func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		names, err := autocompletion.GetClusterNames(cmd.Context(), toComplete)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveError
+		}
+		return names, cobra.ShellCompDirectiveNoFileComp
+	}))*/
 
 	return purgeCmd
 }

@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/liqoctl/common"
 )
 
 // Args contains the arguments for the purge command.
@@ -34,9 +33,9 @@ type Args struct {
 }
 
 type clusterHandler struct {
-	number                int
-	color                 pterm.Color
-	printer               *common.Printer
+	number int
+	color  pterm.Color
+	//printer               *common.Printer
 	cl                    client.Client
 	nativeCl              kubernetes.Interface
 	localClusterIdentity  discoveryv1alpha1.ClusterIdentity
