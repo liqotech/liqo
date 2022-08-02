@@ -174,6 +174,12 @@ func (p *Printer) CheckErr(err error) {
 	util.CheckErr(err)
 }
 
+// ExitWithMessage prints the error message and exits with a non-zero exit code.
+func (p *Printer) ExitWithMessage(errmsg string) {
+	p.Error.Println(errmsg)
+	os.Exit(util.DefaultErrorExitCode)
+}
+
 // PrettyErr returns a prettified error message, according to standard kubectl style.
 func PrettyErr(err error) string {
 	// Unwrap possible URL errors, to return the prettified message.

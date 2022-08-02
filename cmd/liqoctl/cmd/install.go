@@ -97,6 +97,8 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	sharingPercentage := args.Percentage{Val: 90}
 	reservedSubnets := args.CIDRList{}
 
+	defaultRepoURL := "https://github.com/liqotech/liqo"
+
 	var cmd = &cobra.Command{
 		Use:     "install",
 		Aliases: []string{"upgrade"},
@@ -110,6 +112,15 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 			options.ClusterLabels = clusterLabels.StringMap
 			options.SharingPercentage = sharingPercentage.Val
 			options.ReservedSubnets = reservedSubnets.StringList.StringList
+
+			switch {
+			case options.RepoURL != defaultRepoURL && options.ChartPath != "":
+				options.Printer.ExitWithMessage("Cannot specify both --repo-url and --local-chart-path at the same time")
+			case options.ChartPath != "" && options.Version == "":
+				options.Printer.ExitWithMessage("A version must be explicitly specified if the --local-chart-path flag is set")
+			case options.RepoURL != defaultRepoURL && options.Version == "":
+				options.Printer.ExitWithMessage("A version must be explicitly specified if the --repo-url flag is set")
+			}
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
@@ -119,7 +130,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 	cmd.PersistentFlags().StringVar(&options.Version, "version", "",
 		"The version of Liqo to be installed, among releases and commit SHAs. Defaults to the latest stable release")
-	cmd.PersistentFlags().StringVar(&options.RepoURL, "repo-url", "https://github.com/liqotech/liqo",
+	cmd.PersistentFlags().StringVar(&options.RepoURL, "repo-url", defaultRepoURL,
 		"The URL of the git repository used to retrieve the Helm chart, if a non released version is specified")
 	cmd.PersistentFlags().StringVar(&options.ChartPath, "local-chart-path", "",
 		"The local path used to retrieve the Helm chart, instead of the upstream one")
