@@ -1628,10 +1628,10 @@ var _ = Describe("Ipam", func() {
 					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(Succeed())
 					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
 					// Remove the prefix from.
-					_, err := ipam.ipamStorage.DeletePrefix(*ipam.ipam.PrefixFrom(toBeReservedSubnets1[1]))
+					_, err := ipam.ipamStorage.DeletePrefix(context.TODO(), *ipam.ipam.PrefixFrom(context.TODO(), toBeReservedSubnets1[1]))
 					Expect(err).To(BeNil())
 					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(Succeed())
-					Expect(ipam.ipam.PrefixFrom(toBeReservedSubnets1[1]).Cidr).To(Equal(toBeReservedSubnets1[1]))
+					Expect(ipam.ipam.PrefixFrom(context.TODO(), toBeReservedSubnets1[1]).Cidr).To(Equal(toBeReservedSubnets1[1]))
 				})
 			})
 
@@ -1725,7 +1725,7 @@ var _ = Describe("Ipam", func() {
 
 func checkForPrefixes(subnets []string) {
 	for _, s := range subnets {
-		prefix, err := ipam.ipamStorage.ReadPrefix(s)
+		prefix, err := ipam.ipamStorage.ReadPrefix(context.TODO(), s)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(prefix.Cidr).To(Equal(s))
 	}

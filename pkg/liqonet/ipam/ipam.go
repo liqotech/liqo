@@ -116,7 +116,7 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, listenin
 	// Have network pools been already set? If not, take them from caller
 	if len(ipamPools) == 0 {
 		for _, network := range pools {
-			if _, err := liqoIPAM.ipam.NewPrefix(network); err != nil {
+			if _, err := liqoIPAM.ipam.NewPrefix(context.TODO(), network); err != nil {
 				return fmt.Errorf("failed to create a new prefix for network %s: %w", network, err)
 			}
 			ipamPools = append(ipamPools, network)
@@ -167,12 +167,12 @@ func (liqoIPAM *IPAM) reservePoolInHalves(pool string) error {
 	klog.Infof("Network %s is equal to a network pool, acquiring first half..", pool)
 	mask := utils.GetMask(pool)
 	mask++
-	_, err := liqoIPAM.ipam.AcquireChildPrefix(pool, mask)
+	_, err := liqoIPAM.ipam.AcquireChildPrefix(context.TODO(), pool, mask)
 	if err != nil {
 		return fmt.Errorf("cannot acquire first half of pool %s: %w", pool, err)
 	}
 	klog.Infof("Acquiring second half..")
-	_, err = liqoIPAM.ipam.AcquireChildPrefix(pool, mask)
+	_, err = liqoIPAM.ipam.AcquireChildPrefix(context.TODO(), pool, mask)
 	if err != nil {
 		return fmt.Errorf("cannot acquire second half of pool %s: %w", pool, err)
 	}
@@ -199,13 +199,13 @@ func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 		return liqoIPAM.reservePoolInHalves(pool)
 	}
 	if ok && reservedNetwork != pool {
-		if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(pool, reservedNetwork); err != nil {
+		if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(context.TODO(), pool, reservedNetwork); err != nil {
 			return fmt.Errorf("cannot reserve network %s: %w", reservedNetwork, err)
 		}
 		klog.Infof("Network %s has successfully been reserved", reservedNetwork)
 		return nil
 	}
-	if _, err := liqoIPAM.ipam.NewPrefix(reservedNetwork); err != nil {
+	if _, err := liqoIPAM.ipam.NewPrefix(context.TODO(), reservedNetwork); err != nil {
 		return fmt.Errorf("cannot reserve network %s: %w", reservedNetwork, err)
 	}
 	klog.Infof("Network %s has successfully been reserved.", reservedNetwork)
@@ -224,7 +224,7 @@ func (liqoIPAM *IPAM) MarkAsAcquiredReservedSubnet(reservedNetwork string) error
 		klog.Infof("reserving subnet %s in two halves...", reservedNetwork)
 		for _, half := range utils.SplitNetwork(reservedNetwork) {
 			if !liqoIPAM.isAcquired(half) {
-				if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(pool, half); err != nil {
+				if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(context.TODO(), pool, half); err != nil {
 					return fmt.Errorf("cannot reserve network %s: %w", reservedNetwork, err)
 				}
 			}
@@ -233,7 +233,7 @@ func (liqoIPAM *IPAM) MarkAsAcquiredReservedSubnet(reservedNetwork string) error
 	}
 	if ok && reservedNetwork != pool {
 		if !liqoIPAM.isAcquired(reservedNetwork) {
-			if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(pool, reservedNetwork); err != nil {
+			if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(context.TODO(), pool, reservedNetwork); err != nil {
 				return fmt.Errorf("cannot reserve network %s: %w", reservedNetwork, err)
 			}
 		}
@@ -241,7 +241,7 @@ func (liqoIPAM *IPAM) MarkAsAcquiredReservedSubnet(reservedNetwork string) error
 		return nil
 	}
 	if !liqoIPAM.isAcquired(reservedNetwork) {
-		if _, err := liqoIPAM.ipam.NewPrefix(reservedNetwork); err != nil {
+		if _, err := liqoIPAM.ipam.NewPrefix(context.TODO(), reservedNetwork); err != nil {
 			return fmt.Errorf("cannot reserve network %s: %w", reservedNetwork, err)
 		}
 	}
@@ -253,7 +253,7 @@ func (liqoIPAM *IPAM) overlapsWithNetwork(newNetwork, network string) (overlaps 
 	if network == "" {
 		return
 	}
-	if err = liqoIPAM.ipam.PrefixesOverlapping([]string{network}, []string{newNetwork}); err != nil && strings.Contains(err.Error(), "overlaps") {
+	if err = goipam.PrefixesOverlapping([]string{network}, []string{newNetwork}); err != nil && strings.Contains(err.Error(), "overlaps") {
 		// overlaps
 		overlaps = true
 		err = nil
@@ -319,7 +319,7 @@ func (liqoIPAM *IPAM) overlapsWithReserved(network string) (overlappingReserved 
 // hasBeenAcquired checks for a given network if it has been acquired by checking if a prefix equal to
 // the network exists.
 func (liqoIPAM *IPAM) isAcquired(network string) bool {
-	if p := liqoIPAM.ipam.PrefixFrom(network); p != nil {
+	if p := liqoIPAM.ipam.PrefixFrom(context.TODO(), network); p != nil {
 		return true
 	}
 	return false
@@ -378,7 +378,7 @@ func (liqoIPAM *IPAM) getOrRemapNetwork(network string) (string, error) {
 	var mappedNetwork string
 	klog.Infof("Allocating network %s", network)
 	// First try to get a new Prefix
-	_, err := liqoIPAM.ipam.NewPrefix(network)
+	_, err := liqoIPAM.ipam.NewPrefix(context.TODO(), network)
 
 	if err != nil && !strings.Contains(err.Error(), "overlaps") {
 		// Return if get an error that is not an overlapping error
@@ -406,7 +406,7 @@ func (liqoIPAM *IPAM) getOrRemapNetwork(network string) (string, error) {
 		return mappedNetwork, nil
 	}
 	if ok && network != pool {
-		_, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(pool, network)
+		_, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(context.TODO(), pool, network)
 		if err != nil && !strings.Contains(err.Error(), "is not available") {
 			/* Unknown error, return */
 			return "", fmt.Errorf("cannot acquire prefix %s from prefix %s: %w", network, pool, err)
@@ -505,7 +505,7 @@ func (liqoIPAM *IPAM) getNetworkFromPool(mask uint8) (string, error) {
 	pools := liqoIPAM.ipamStorage.getPools()
 	// For each pool, try to get a network with mask length mask
 	for _, pool := range pools {
-		if mappedNetwork, err := liqoIPAM.ipam.AcquireChildPrefix(pool, mask); err == nil {
+		if mappedNetwork, err := liqoIPAM.ipam.AcquireChildPrefix(context.TODO(), pool, mask); err == nil {
 			klog.Infof("Acquired network %s", mappedNetwork)
 			return mappedNetwork.String(), nil
 		}
@@ -524,8 +524,8 @@ func (liqoIPAM *IPAM) freePoolInHalves(pool string) error {
 	halfCidr := utils.SetMask(pool, mask)
 
 	klog.Infof("Network %s is equal to a network pool, freeing first half..", pool)
-	if prefix := liqoIPAM.ipam.PrefixFrom(halfCidr); prefix != nil {
-		err = liqoIPAM.ipam.ReleaseChildPrefix(prefix)
+	if prefix := liqoIPAM.ipam.PrefixFrom(context.TODO(), halfCidr); prefix != nil {
+		err = liqoIPAM.ipam.ReleaseChildPrefix(context.TODO(), prefix)
 		if err != nil {
 			return fmt.Errorf("cannot free first half of pool %s", pool)
 		}
@@ -537,8 +537,8 @@ func (liqoIPAM *IPAM) freePoolInHalves(pool string) error {
 		return err
 	}
 	klog.Infof("Freeing second half..")
-	if prefix := liqoIPAM.ipam.PrefixFrom(halfCidr); prefix != nil {
-		err = liqoIPAM.ipam.ReleaseChildPrefix(prefix)
+	if prefix := liqoIPAM.ipam.PrefixFrom(context.TODO(), halfCidr); prefix != nil {
+		err = liqoIPAM.ipam.ReleaseChildPrefix(context.TODO(), prefix)
 		if err != nil {
 			return fmt.Errorf("cannot free second half of pool %s", pool)
 		}
@@ -553,7 +553,7 @@ func (liqoIPAM *IPAM) FreeReservedSubnet(network string) error {
 	var p *goipam.Prefix
 
 	// Check existence
-	if p = liqoIPAM.ipam.PrefixFrom(network); p == nil {
+	if p = liqoIPAM.ipam.PrefixFrom(context.TODO(), network); p == nil {
 		return nil
 	}
 
@@ -567,10 +567,10 @@ func (liqoIPAM *IPAM) FreeReservedSubnet(network string) error {
 	}
 
 	// Try to release it as a child prefix
-	if err := liqoIPAM.ipam.ReleaseChildPrefix(p); err != nil {
+	if err := liqoIPAM.ipam.ReleaseChildPrefix(context.TODO(), p); err != nil {
 		klog.Infof("Cannot release subnet %s previously allocated from the pools", network)
 		// It is not a child prefix, then it is a parent prefix, so delete it
-		if _, err := liqoIPAM.ipam.DeletePrefix(network); err != nil {
+		if _, err := liqoIPAM.ipam.DeletePrefix(context.TODO(), network); err != nil {
 			klog.Errorf("Cannot delete prefix %s", network)
 			return fmt.Errorf("cannot remove subnet %s: %w", network, err)
 		}
@@ -713,7 +713,7 @@ func (liqoIPAM *IPAM) terminateNatMappingsPerCluster(clusterID string) error {
 				return fmt.Errorf("cannot get ExternalCIDR: %w", err)
 			}
 			// Free IP
-			err = liqoIPAM.ipam.ReleaseIPFromPrefix(localExternalCIDR, endpointMappings[ip].IP)
+			err = liqoIPAM.ipam.ReleaseIPFromPrefix(context.TODO(), localExternalCIDR, endpointMappings[ip].IP)
 			if err != nil && !errors.Is(err, goipam.ErrNotFound) {
 				/*
 					ReleaseIPFromPrefix can return ErrNotFound either if the prefix
@@ -769,7 +769,7 @@ func (liqoIPAM *IPAM) AddNetworkPool(network string) error {
 		return fmt.Errorf("cannot add network pool %s because it overlaps with network of cluster %s", network, cluster)
 	}
 	// Add network pool
-	_, err = liqoIPAM.ipam.NewPrefix(network)
+	_, err = liqoIPAM.ipam.NewPrefix(context.TODO(), network)
 	if err != nil {
 		return fmt.Errorf("cannot add network pool %s: %w", network, err)
 	}
@@ -807,7 +807,7 @@ func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
 			network, clusterSubnets[cluster], cluster)
 	}
 	// Release it
-	_, err = liqoIPAM.ipam.DeletePrefix(network)
+	_, err = liqoIPAM.ipam.DeletePrefix(context.TODO(), network)
 	if err != nil {
 		return fmt.Errorf("cannot remove network pool %s: %w", network, err)
 	}
@@ -999,7 +999,7 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 	endpointMapping, exists := endpointMappings[ip]
 	if !exists {
 		// Acquire IP
-		ipamIP, err := liqoIPAM.ipam.AcquireIP(localExternalCIDR)
+		ipamIP, err := liqoIPAM.ipam.AcquireIP(context.TODO(), localExternalCIDR)
 		if err != nil {
 			return "", fmt.Errorf("cannot allocate a new IP for endpoint %s: %w", ip, err)
 		}
@@ -1208,7 +1208,7 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 	if len(endpointMapping.ClusterMappings) == 0 {
 		// There are no more clusters using this endpoint IP
 		// Free IP
-		err := liqoIPAM.ipam.ReleaseIPFromPrefix(localExternalCIDR, endpointMappings[endpointIP].IP)
+		err := liqoIPAM.ipam.ReleaseIPFromPrefix(context.TODO(), localExternalCIDR, endpointMappings[endpointIP].IP)
 		if err != nil && !errors.Is(err, goipam.ErrNotFound) {
 			/*
 				ReleaseIPFromPrefix can return ErrNotFound either if the prefix
