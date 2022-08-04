@@ -978,9 +978,12 @@ func (liqoIPAM *IPAM) BelongsToPodCIDR(ctx context.Context, belongsRequest *Belo
 	return &BelongsResponse{Belongs: belongs}, nil
 }
 
-/* mapIPToExternalCIDR acquires an IP belonging to the local ExternalCIDR for the specific IP and
+/*
+	mapIPToExternalCIDR acquires an IP belonging to the local ExternalCIDR for the specific IP and
+
 if necessary maps it using the remoteExternalCIDR (this means remote cluster has remapped local ExternalCIDR)
-Further invocations passing the same IP won't acquire a new IP, but will use the one already acquired. */
+Further invocations passing the same IP won't acquire a new IP, but will use the one already acquired.
+*/
 func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip string) (string, error) {
 	var externalCIDR string
 	// Get endpointMappings
@@ -1036,10 +1039,13 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 	return newIP, nil
 }
 
-/* mapEndpointIPInternal is the internal implementation of MapEndpointIP gRPC.
+/*
+	mapEndpointIPInternal is the internal implementation of MapEndpointIP gRPC.
+
 If the received IP belongs to local PodCIDR, then it maps the address in the traditional way,
 i.e. using the network used in the remote cluster for local PodCIDR.
-If the received IP does not belong to local PodCIDR, then it maps the address using the ExternalCIDR.*/
+If the received IP does not belong to local PodCIDR, then it maps the address using the ExternalCIDR.
+*/
 func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error) {
 	var subnets netv1alpha1.Subnets
 	var exists bool

@@ -56,7 +56,7 @@ func (s *section) AddSectionWithDetail(title, detail string) Section {
 	return section
 }
 
-//	AddEntry add a new entry.
+// AddEntry add a new entry.
 func (s *section) AddEntry(key string, values ...string) Section {
 	s.entries = append(s.entries, &entry{key: key, values: values})
 	return s

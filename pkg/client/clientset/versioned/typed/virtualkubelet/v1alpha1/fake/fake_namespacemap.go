@@ -116,7 +116,7 @@ func (c *FakeNamespaceMaps) UpdateStatus(ctx context.Context, namespaceMap *v1al
 // Delete takes name of the namespaceMap and deletes it. Returns an error if one occurs.
 func (c *FakeNamespaceMaps) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(namespacemapsResource, c.ns, name), &v1alpha1.NamespaceMap{})
+		Invokes(testing.NewDeleteActionWithOptions(namespacemapsResource, c.ns, name, opts), &v1alpha1.NamespaceMap{})
 
 	return err
 }

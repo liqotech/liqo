@@ -104,14 +104,14 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 
 		// Remove the finalizer from the local resource, if the remote one does no longer exist.
 		if vanished {
-			_, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, false, controllerutil.RemoveFinalizer)
+			_, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, controllerutil.RemoveFinalizer)
 			tracer.Step("Ensured the local finalizer absence")
 			return err
 		}
 	}
 
 	// Ensure the local resource has the finalizer
-	if localUnstr, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, true, controllerutil.AddFinalizer); err != nil {
+	if localUnstr, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, controllerutil.AddFinalizer); err != nil {
 		return err
 	}
 	tracer.Step("Ensured the local finalizer presence")
@@ -287,14 +287,13 @@ func (r *Reflector) getNestedMap(unstr *unstructured.Unstructured, key string, g
 
 // ensureLocalFinalizer updates the local resource ensuring the presence/absence of the finalizer.
 func (r *Reflector) ensureLocalFinalizer(ctx context.Context, gvr schema.GroupVersionResource, local *unstructured.Unstructured,
-	expected bool, updater func(client.Object, string)) (
+	updater func(client.Object, string) bool) (
 	*unstructured.Unstructured, error) {
-	// Do not perform any action if the finalizer is already absent
-	if controllerutil.ContainsFinalizer(local, finalizer) == expected {
+	// Do not perform any action if the finalizer is already as expected
+	if !updater(local, finalizer) {
 		return local, nil
 	}
 
-	updater(local, finalizer)
 	updated, err := r.manager.client.Resource(gvr).Namespace(local.GetNamespace()).Update(ctx, local, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("[%v] Failed to update finalizer of local %v with name %v: %v", r.remoteClusterID, gvr, local.GetName(), err)

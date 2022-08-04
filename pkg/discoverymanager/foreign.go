@@ -30,11 +30,11 @@ import (
 )
 
 // updateForeignLAN updates a ForeignCluster discovered in the local network
-// 1. checks if cluster ID is already known
-// 2. if not exists, create it
-// 3. else
-//   3a. if IP is different set new IP and delete CA data
-//   3b. else it is ok
+//  1. checks if cluster ID is already known
+//  2. if not exists, create it
+//  3. else
+//     3a. if IP is different set new IP and delete CA data
+//     3b. else it is ok
 func (discovery *Controller) updateForeignLAN(data *discoveryData) {
 	ctx := context.TODO()
 
