@@ -12,22 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reflection
+package tenantnamespace
 
 import (
+	"context"
+	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
-func TestReflection(t *testing.T) {
+func TestTenantNamespace(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Reflection Suite")
+	RunSpecs(t, "TenantNamespace Suite")
 }
+
+var (
+	ctx         context.Context
+	cluster     testutil.Cluster
+	homeCluster discoveryv1alpha1.ClusterIdentity
+
+	namespaceManager Manager
+)
 
 var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
+	ctx = context.Background()
+
+	homeCluster = discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   "home-cluster-id",
+		ClusterName: "home-cluster-name",
+	}
+
+	var err error
+	cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+	Expect(err).ToNot(HaveOccurred())
+
+	namespaceManager = NewCachedManager(cluster.GetClient())
+})
+
+var _ = AfterSuite(func() {
+	Expect(cluster.GetEnv().Stop()).To(Succeed())
 })

@@ -20,8 +20,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -29,6 +28,7 @@ import (
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
+	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
 func Test_Unjoin(t *testing.T) {
@@ -53,7 +53,7 @@ var _ = Describe("Liqo E2E", func() {
 						testContext.Clusters[index], testContext.Namespace))
 			}
 
-			DescribeTable("Liqo Uninstall Check",
+			DescribeTable("Liqo Uninstall Check", util.DescribeTableArgs(
 				func(homeCluster tester.ClusterContext, namespace string) {
 					Eventually(func() error {
 						return NoPods(homeCluster.NativeClient, testContext.Namespace)
@@ -62,10 +62,9 @@ var _ = Describe("Liqo E2E", func() {
 						return NoJoined(homeCluster.NativeClient)
 					}, timeout, interval).ShouldNot(HaveOccurred())
 				},
-				uninstalledTableEntries...)
-
-		},
-		)
+				uninstalledTableEntries...,
+			)...)
+		})
 	})
 })
 

@@ -22,8 +22,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -92,6 +91,10 @@ func createForeignCluster() {
 		os.Exit(1)
 	}
 }
+
+var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
+})
 
 var _ = Describe("ResourceOffer Controller", func() {
 

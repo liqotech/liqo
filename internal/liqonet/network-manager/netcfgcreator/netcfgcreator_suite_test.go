@@ -18,7 +18,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -34,6 +34,7 @@ func TestForeignclusterwatcher(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
 	clstr, _, err := testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "..", "deployments", "liqo", "crds")})
 	Expect(err).ToNot(HaveOccurred())
 

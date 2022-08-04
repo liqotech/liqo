@@ -21,12 +21,14 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 type FakeGRPCServer struct {
@@ -74,12 +76,11 @@ func (b *FakeGRPCServer) RemoveCluster(context.Context, *RemoveRequest) (*Remove
 	return &RemoveResponse{}, nil
 }
 
-const timeout = 1
-
 var fakeServer = FakeGRPCServer{}
 var grpcCtx, grpcCancel = context.WithCancel(context.Background())
 
 var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
 	fakeServer.Ready.Add(1)
 	go func() {
 		defer GinkgoRecover()
@@ -99,13 +100,13 @@ var _ = Describe("ResourceMonitors Suite", func() {
 			extMonitor, err := NewExternalMonitor(grpcCtx, "127.0.0.1:7000")
 			Expect(err).ToNot(HaveOccurred())
 			monitor = extMonitor
-		}, timeout)
+		})
 		It("Reads resources", func() {
 			fakeServer.Ready.Wait()
 			resources := monitor.ReadResources(context.Background(), "")
 			Expect(resources.Cpu().Equal(resource.MustParse("1000"))).To(BeTrue())
 			Expect(resources.Memory().Equal(resource.MustParse("200e6"))).To(BeTrue())
-		}, timeout)
+		})
 		It("Receives update notifications", func() {
 			fakeServer.Ready.Wait()
 			timeoutCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -114,6 +115,6 @@ var _ = Describe("ResourceMonitors Suite", func() {
 			Expect(err).ToNot(HaveOccurred())
 			_, err = subscription.Recv()
 			Expect(err).ToNot(HaveOccurred())
-		}, timeout)
+		})
 	})
 })
