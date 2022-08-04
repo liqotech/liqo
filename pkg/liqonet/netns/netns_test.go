@@ -16,7 +16,7 @@ package netns
 
 import (
 	"github.com/containernetworking/plugins/pkg/ns"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"

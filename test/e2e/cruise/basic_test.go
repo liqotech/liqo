@@ -22,8 +22,7 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/terratest/modules/k8s"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,15 +53,15 @@ func TestE2E(t *testing.T) {
 	RunSpecs(t, "Liqo E2E Suite")
 }
 
-var _ = Describe("Liqo E2E", func() {
-	var (
-		ctx         = context.Background()
-		testContext = tester.GetTester(ctx)
-		namespace   = "liqo"
-		interval    = 3 * time.Second
-		timeout     = 5 * time.Minute
-	)
+var (
+	ctx         = context.Background()
+	testContext = tester.GetTester(ctx)
+	namespace   = "liqo"
+	interval    = 3 * time.Second
+	timeout     = 5 * time.Minute
+)
 
+var _ = Describe("Liqo E2E", func() {
 	Describe("Assert that Liqo is up, pod offloading and network connectivity are working", func() {
 		Context("Check Join Status", func() {
 
@@ -87,7 +86,7 @@ var _ = Describe("Liqo E2E", func() {
 				}
 			}
 
-			DescribeTable("Liqo Pod to Pod Connectivity Check",
+			DescribeTable("Liqo Pod to Pod Connectivity Check", util.DescribeTableArgs(
 				func(c connectivityTestcase) {
 					By("Deploy Tester Pod", func() {
 						if testContext.OverlappingCIDRs && !c.cluster1Context.HomeCluster {
@@ -130,9 +129,9 @@ var _ = Describe("Liqo E2E", func() {
 					})
 				},
 				ConnectivityCheckTableEntries...,
-			)
+			)...)
 
-			DescribeTable("Liqo Pod to Service Connectivity Check",
+			DescribeTable("Liqo Pod to Service Connectivity Check", util.DescribeTableArgs(
 				func(c connectivityTestcase) {
 					By("Deploy Tester Services", func() {
 						cluster1PodName, cluster2PodName := net.GetTesterName(
@@ -170,7 +169,7 @@ var _ = Describe("Liqo E2E", func() {
 					})
 				},
 				ConnectivityCheckTableEntries...,
-			)
+			)...)
 		})
 
 		Context("E2E Testing with Online Boutique", func() {
@@ -216,7 +215,7 @@ var _ = Describe("Liqo E2E", func() {
 				}
 			)
 
-			DescribeTable("Testing online boutique", func(manifest, namespace string) {
+			DescribeTable("Testing online boutique", util.DescribeTableArgs(func(manifest, namespace string) {
 				By("Deploying the Online Boutique app")
 				options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespace)
 				defer GinkgoRecover()
@@ -237,7 +236,7 @@ var _ = Describe("Liqo E2E", func() {
 
 				// cleanup the namespace
 				Expect(testContext.Clusters[0].NativeClient.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})).To(Succeed())
-			}, generateTableEntries()...)
+			}, generateTableEntries()...)...)
 		})
 
 		Context("E2E Storage Testing", func() {
@@ -407,14 +406,13 @@ var _ = Describe("Liqo E2E", func() {
 				Expect(strings.TrimSuffix(retrieved, "\n")).To(Equal(podName))
 			})
 		})
-
-		AfterSuite(func() {
-			for i := range testContext.Clusters {
-				Eventually(func() error {
-					return util.EnsureNamespaceDeletion(ctx, testContext.Clusters[i].NativeClient, testconsts.LiqoTestNamespaceLabels)
-				}, timeout, interval).Should(Succeed())
-			}
-		})
 	})
+})
 
+var _ = AfterSuite(func() {
+	for i := range testContext.Clusters {
+		Eventually(func() error {
+			return util.EnsureNamespaceDeletion(ctx, testContext.Clusters[i].NativeClient, testconsts.LiqoTestNamespaceLabels)
+		}, timeout, interval).Should(Succeed())
+	}
 })

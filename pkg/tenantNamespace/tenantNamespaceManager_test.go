@@ -15,14 +15,10 @@
 package tenantnamespace
 
 import (
-	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
-	"testing"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -32,49 +28,9 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
-func TestTenantNamespace(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "TenantNamespace Suite")
-}
-
 var _ = Describe("TenantNamespace", func() {
-
-	var (
-		ctx         context.Context
-		cluster     testutil.Cluster
-		homeCluster discoveryv1alpha1.ClusterIdentity
-
-		namespaceManager Manager
-	)
-
-	BeforeSuite(func() {
-		ctx = context.Background()
-
-		homeCluster = discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   "home-cluster-id",
-			ClusterName: "home-cluster-name",
-		}
-
-		var err error
-		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-
-		namespaceManager = NewCachedManager(cluster.GetClient())
-	})
-
-	AfterSuite(func() {
-		err := cluster.GetEnv().Stop()
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-	})
 
 	It("Should correctly create the namespace", func() {
 		By("Creating the namespace once")

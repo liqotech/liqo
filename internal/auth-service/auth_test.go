@@ -21,36 +21,17 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"testing"
-	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
-	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/tools/cache"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
-	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
-	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
-
-func TestAuth(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Auth Suite")
-}
 
 type tokenManagerMock struct {
 	token string
@@ -66,85 +47,6 @@ func (man *tokenManagerMock) createToken() error {
 }
 
 var _ = Describe("Auth", func() {
-
-	var (
-		cluster         testutil.Cluster
-		clusterIdentity discoveryv1alpha1.ClusterIdentity
-		authService     Controller
-
-		tMan tokenManagerMock
-
-		stopChan chan struct{}
-
-		csr []byte
-	)
-
-	BeforeSuite(func() {
-
-		_ = tMan.createToken()
-
-		var err error
-		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-
-		informerFactory := informers.NewSharedInformerFactoryWithOptions(cluster.GetClient(), 300*time.Second, informers.WithNamespace("default"))
-
-		secretInformer := informerFactory.Core().V1().Secrets().Informer()
-		secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
-
-		clusterIdentity = discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   "default-cluster-id",
-			ClusterName: "default-cluster-name",
-		}
-
-		stopChan = make(chan struct{})
-		informerFactory.Start(stopChan)
-		informerFactory.WaitForCacheSync(wait.NeverStop)
-
-		namespaceManager := tenantnamespace.NewManager(cluster.GetClient())
-		identityProvider := identitymanager.NewCertificateIdentityProvider(
-			context.Background(), cluster.GetClient(), clusterIdentity, namespaceManager)
-
-		config := apiserver.Config{Address: cluster.GetCfg().Host, TrustedCA: false}
-		Expect(config.Complete(cluster.GetCfg(), cluster.GetClient())).To(Succeed())
-
-		authService = Controller{
-			namespace:            "default",
-			clientset:            cluster.GetClient(),
-			secretInformer:       secretInformer,
-			localCluster:         clusterIdentity,
-			namespaceManager:     namespaceManager,
-			identityProvider:     identityProvider,
-			credentialsValidator: &tokenValidator{},
-			apiServerConfig:      config,
-		}
-
-		clusterRole := &rbacv1.ClusterRole{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test",
-			},
-		}
-		_, err = cluster.GetClient().RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-
-		idManTest.StartTestApprover(cluster.GetClient(), stopChan)
-	})
-
-	AfterSuite(func() {
-		close(stopChan)
-
-		err := cluster.GetEnv().Stop()
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-	})
 
 	Context("Token", func() {
 

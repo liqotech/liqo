@@ -20,8 +20,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,7 +56,7 @@ var _ = Describe("Liqo E2E", func() {
 					testContext.Clusters[index]))
 			}
 
-			DescribeTable("Liqo pods are up and running",
+			DescribeTable("Liqo pods are up and running", util.DescribeTableArgs(
 				func(cluster tester.ClusterContext, namespace string) {
 					Eventually(func() bool {
 						readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.NativeClient, testContext.Namespace)
@@ -94,16 +93,16 @@ var _ = Describe("Liqo E2E", func() {
 					}
 				},
 				PodsUpAndRunningTableEntries...,
-			)
+			)...)
 
-			DescribeTable("Liqo Virtual nodes are ready",
+			DescribeTable("Liqo Virtual nodes are ready", util.DescribeTableArgs(
 				func(homeCluster tester.ClusterContext) {
 					Eventually(func() bool {
 						return util.CheckVirtualNodes(ctx, homeCluster.NativeClient, testContext.ClustersNumber)
 					}, timeout, interval).Should(BeTrue())
 				},
 				VirtualNodesTableEntries...,
-			)
+			)...)
 		})
 	})
 })

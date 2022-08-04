@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +36,7 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 var (
@@ -53,9 +54,8 @@ var (
 )
 
 func TestAPIs(t *testing.T) {
-	defer GinkgoRecover()
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Controller Suite")
+	RunSpecs(t, "Resource Request Controller Suite")
 }
 
 func createCluster() {
@@ -131,6 +131,7 @@ func destroyCluster() {
 }
 
 var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
 	createCluster()
 })
 

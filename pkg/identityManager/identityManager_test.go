@@ -15,181 +15,26 @@
 package identitymanager
 
 import (
-	"context"
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"os"
-	"path/filepath"
-	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/iam"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/discovery"
-	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
-	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
-func TestIdentityManager(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "IdentityManager Suite")
-}
-
 var _ = Describe("IdentityManager", func() {
-
-	var (
-		ctx context.Context
-
-		cluster       testutil.Cluster
-		client        kubernetes.Interface
-		restConfig    *rest.Config
-		localCluster  discoveryv1alpha1.ClusterIdentity
-		remoteCluster discoveryv1alpha1.ClusterIdentity
-
-		namespace *v1.Namespace
-
-		identityMan             IdentityManager
-		identityProvider        IdentityProvider
-		namespaceManager        tenantnamespace.Manager
-		apiProxyURL             string
-		apiServerConfig         apiserver.Config
-		signingIdentityResponse responsetypes.SigningRequestResponse
-		secretIdentityResponse  *auth.CertificateIdentityResponse
-		certificateSecretData   map[string]string
-		iamIdentityResponse     *auth.CertificateIdentityResponse
-		signingIAMResponse      responsetypes.SigningRequestResponse
-		iamSecretData           map[string]string
-		notFoundError           error
-	)
-
-	BeforeSuite(func() {
-		ctx = context.Background()
-
-		apiProxyURL = "http://192.168.0.0:8118"
-
-		certificateSecretData = make(map[string]string)
-		iamSecretData = make(map[string]string)
-
-		localCluster = discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   "local-cluster-id",
-			ClusterName: "local-cluster-name",
-		}
-
-		remoteCluster = discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   "remote-cluster-id",
-			ClusterName: "remote-cluster-name",
-		}
-		notFoundError = kerrors.NewNotFound(schema.GroupResource{
-			Group:    "v1",
-			Resource: "secrets",
-		}, remoteCluster.ClusterID)
-
-		var err error
-		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-
-		client = cluster.GetClient()
-		restConfig = cluster.GetCfg()
-
-		namespaceManager = tenantnamespace.NewManager(client)
-		identityMan = NewCertificateIdentityManager(cluster.GetClient(), localCluster, namespaceManager)
-		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
-
-		namespace, err = namespaceManager.CreateNamespace(ctx, remoteCluster)
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-		// Make sure the namespace has been cached for subsequent retrieval.
-		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(ctx, remoteCluster) }).Should(Equal(namespace))
-
-		// Certificate Secret Section
-		apiServerConfig = apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
-		Expect(apiServerConfig.Complete(restConfig, client)).To(Succeed())
-
-		signingIdentityResponse = responsetypes.SigningRequestResponse{
-			ResponseType: responsetypes.SigningRequestResponseCertificate,
-			Certificate:  []byte("cert"),
-		}
-
-		secretIdentityResponse, err = auth.NewCertificateIdentityResponse(
-			"remoteNamespace", &signingIdentityResponse, apiServerConfig)
-		Expect(err).ToNot(HaveOccurred())
-		certificate, err := base64.StdEncoding.DecodeString(secretIdentityResponse.Certificate)
-		Expect(err).To(BeNil())
-		certificateSecretData[privateKeySecretKey] = "private-key-test"
-		certificateSecretData[certificateSecretKey] = string(certificate)
-		apiServerCa, err := base64.StdEncoding.DecodeString(secretIdentityResponse.APIServerCA)
-		Expect(err).To(BeNil())
-		certificateSecretData[apiServerCaSecretKey] = string(apiServerCa)
-		certificateSecretData[APIServerURLSecretKey] = secretIdentityResponse.APIServerURL
-		certificateSecretData[apiProxyURLSecretKey] = apiProxyURL
-		certificateSecretData[namespaceSecretKey] = secretIdentityResponse.Namespace
-
-		// IAM Secret Section
-		signingIAMResponse = responsetypes.SigningRequestResponse{
-			ResponseType: responsetypes.SigningRequestResponseIAM,
-			AwsIdentityResponse: responsetypes.AwsIdentityResponse{
-				IamUserArn: "arn:example",
-				AccessKey: &iam.AccessKey{
-					AccessKeyId:     aws.String("key"),
-					SecretAccessKey: aws.String("secret"),
-				},
-				EksCluster: &eks.Cluster{
-					Name:     aws.String("clustername"),
-					Endpoint: aws.String("https://example.com"),
-					CertificateAuthority: &eks.Certificate{
-						Data: aws.String("cert"),
-					},
-				},
-				Region: "region",
-			},
-		}
-
-		iamIdentityResponse, err = auth.NewCertificateIdentityResponse(
-			"remoteNamespace", &signingIAMResponse, apiServerConfig)
-		Expect(err).To(BeNil())
-		iamSecretData[awsAccessKeyIDSecretKey] = iamIdentityResponse.AWSIdentityInfo.AccessKeyID
-		iamSecretData[awsSecretAccessKeySecretKey] = iamIdentityResponse.AWSIdentityInfo.SecretAccessKey
-		iamSecretData[awsRegionSecretKey] = iamIdentityResponse.AWSIdentityInfo.Region
-		iamSecretData[awsEKSClusterIDSecretKey] = iamIdentityResponse.AWSIdentityInfo.EKSClusterID
-		iamSecretData[awsIAMUserArnSecretKey] = iamIdentityResponse.AWSIdentityInfo.IAMUserArn
-		iamSecretData[APIServerURLSecretKey] = iamIdentityResponse.APIServerURL
-		apiServerCa, err = base64.StdEncoding.DecodeString(iamIdentityResponse.APIServerCA)
-		Expect(err).To(BeNil())
-		iamSecretData[apiServerCaSecretKey] = string(apiServerCa)
-		iamSecretData[apiProxyURLSecretKey] = apiProxyURL
-
-	})
-
-	AfterSuite(func() {
-		err := cluster.GetEnv().Stop()
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-	})
-
 	Context("Local Manager", func() {
 
 		It("Create Identity", func() {

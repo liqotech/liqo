@@ -21,8 +21,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	"github.com/onsi/gomega/types"
@@ -56,6 +55,10 @@ func TestNodeProvider(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "NodeProvider Suite")
 }
+
+var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
+})
 
 var _ = Describe("NodeProvider", func() {
 

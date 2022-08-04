@@ -17,14 +17,13 @@ package status
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gstruct"
 	"github.com/pterm/pterm"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -46,13 +45,8 @@ var _ = Describe("LocalInfo", func() {
 		text           string
 	)
 
-	BeforeSuite(func() {
-		ctx = context.Background()
-		_ = netv1alpha1.AddToScheme(scheme.Scheme)
-		pterm.DisableStyling()
-	})
-
 	BeforeEach(func() {
+		ctx = context.Background()
 		clientBuilder = *fake.NewClientBuilder().WithScheme(scheme.Scheme)
 		clientBuilder.WithObjects(
 			testutil.FakeClusterIDConfigMap(namespace, clusterID, clusterName),

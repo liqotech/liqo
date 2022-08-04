@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strconv"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
