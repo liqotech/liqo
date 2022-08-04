@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util"
+	"k8s.io/kubectl/pkg/util/completion"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
@@ -149,9 +149,9 @@ func (f *Factory) AddFlags(flags *pflag.FlagSet, register completionFuncRegister
 		flags.BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logs (default false)")
 	}
 
-	utilruntime.Must(register(f.remotify("context"), f.completion(util.ListContextsInConfig)))
-	utilruntime.Must(register(f.remotify("cluster"), f.completion(util.ListClustersInConfig)))
-	utilruntime.Must(register(f.remotify("user"), f.completion(util.ListUsersInConfig)))
+	utilruntime.Must(register(f.remotify("context"), f.completion(completion.ListContextsInConfig)))
+	utilruntime.Must(register(f.remotify("cluster"), f.completion(completion.ListClustersInConfig)))
+	utilruntime.Must(register(f.remotify("user"), f.completion(completion.ListUsersInConfig)))
 }
 
 // AddNamespaceFlag registers the flag to select the target namespace (alternative to AddLiqoNamespaceFlag).
@@ -236,7 +236,7 @@ func (f *Factory) remotify(name string) string {
 
 func (f *Factory) completion(cmpl func(string) []string) func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 	return func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		util.SetFactoryForCompletion(f.factory)
+		completion.SetFactoryForCompletion(f.factory)
 		return cmpl(toComplete), cobra.ShellCompDirectiveNoFileComp
 	}
 }

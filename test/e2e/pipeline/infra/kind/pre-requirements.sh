@@ -26,7 +26,7 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-KIND_VERSION="v0.11.1"
+KIND_VERSION="v0.15.0"
 
 function setup_arch_and_os(){
   ARCH=$(uname -m)
@@ -86,4 +86,3 @@ if [[ ! -f "${BINDIR}/kind" ]]; then
 	curl -Lo "${BINDIR}"/kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-${OS}-${ARCH}
 	chmod +x "${BINDIR}"/kind
 fi
-

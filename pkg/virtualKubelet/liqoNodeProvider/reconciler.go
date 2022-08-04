@@ -99,7 +99,7 @@ func (p *LiqoNodeProvider) reconcileNodeFromResourceOffer(event watch.Event) err
 // ensureFinalizer ensures the finalizer status. The patch will be applied if the provided check function
 // returns true, and it will build applying the provided changeFinalizer function.
 func (p *LiqoNodeProvider) ensureFinalizer(resourceOffer *sharingv1alpha1.ResourceOffer,
-	check func() bool, changeFinalizer func(client.Object, string)) error {
+	check func() bool, changeFinalizer func(client.Object, string) bool) error {
 	if check() {
 		original, err := json.Marshal(resourceOffer)
 		if err != nil {

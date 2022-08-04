@@ -38,9 +38,9 @@ type ClusterIdentityFlags struct {
 //
 // Example usage:
 //
-//   fcFlags := NewClusterIdentityFlags(false, nil)
-//   flag.Parse()
-//   foreignClusterIdentity := fcFlags.Read()
+//	fcFlags := NewClusterIdentityFlags(false, nil)
+//	flag.Parse()
+//	foreignClusterIdentity := fcFlags.Read()
 func NewClusterIdentityFlags(local bool, flags *flag.FlagSet) ClusterIdentityFlags {
 	var prefix, description string
 	if local {

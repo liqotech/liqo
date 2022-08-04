@@ -39,7 +39,7 @@ import (
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 )
 
-const defaultVersion = "v1.22.1" // This should follow the version of k8s.io/kubernetes we are importing
+const defaultVersion = "v1.25.0" // This should follow the version of k8s.io/kubernetes we are importing
 
 // NewCommand creates a new top-level command.
 // This command is used to start the virtual-kubelet daemon.

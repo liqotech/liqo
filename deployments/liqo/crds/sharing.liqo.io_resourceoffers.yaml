@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
+    controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
   name: resourceoffers.sharing.liqo.io
 spec:
@@ -64,8 +64,8 @@ spec:
                   description: Describe a container image
                   properties:
                     names:
-                      description: Names by which this image is known. e.g. ["k8s.gcr.io/hyperkube:v1.0.7",
-                        "dockerhub.io/google_containers/hyperkube:v1.0.7"]
+                      description: Names by which this image is known. e.g. ["kubernetes.example/hyperkube:v1.0.7",
+                        "cloud-vendor.registry.example/cloud-vendor/hyperkube:v1.0.7"]
                       items:
                         type: string
                       type: array
@@ -144,6 +144,7 @@ spec:
                           type: object
                         type: array
                     type: object
+                    x-kubernetes-map-type: atomic
                   scopes:
                     description: A collection of filters that must match each object
                       tracked by a quota. If not specified, the quota matches all
@@ -214,9 +215,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

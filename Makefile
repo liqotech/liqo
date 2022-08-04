@@ -124,7 +124,7 @@ generate-controller: controller-gen
 
 generate-groups:
 	if [ ! -d  "hack/code-generator" ]; then \
-		git clone --depth 1 -b v0.22.3 https://github.com/kubernetes/code-generator.git hack/code-generator; \
+		git clone --depth 1 -b v0.25.0 https://github.com/kubernetes/code-generator.git hack/code-generator; \
 	fi
 	rm -rf pkg/client
 	hack/code-generator/generate-groups.sh client,lister,informer \
@@ -163,7 +163,7 @@ PROTOC=$(shell which protoc)
 # download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	@go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.8.0
+	@go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.2
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
@@ -175,7 +175,7 @@ ifeq (, $(shell which helm-docs))
 	set -e ;\
 	HELM_DOCS_TMP_DIR=$$(mktemp -d) ;\
 	cd $$HELM_DOCS_TMP_DIR ;\
-	version=1.5.0 ;\
+	version=1.11.0 ;\
     arch=x86_64 ;\
     echo  $$HELM_DOCS_PATH ;\
     echo https://github.com/norwoodj/helm-docs/releases/download/v$${version}/helm-docs_$${version}_linux_$${arch}.tar.gz ;\

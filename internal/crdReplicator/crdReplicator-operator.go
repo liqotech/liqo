@@ -116,7 +116,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 			}
 
 			// remove the finalizer from the list and update it.
-			if err := c.ensureFinalizer(ctx, &fc, false, controllerutil.RemoveFinalizer); err != nil {
+			if err := c.ensureFinalizer(ctx, &fc, controllerutil.RemoveFinalizer); err != nil {
 				klog.Errorf("An error occurred while removing the finalizer to %q: %s", fc.Name, err)
 				return ctrl.Result{}, err
 			}
@@ -139,7 +139,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	}
 
 	// Add the finalizer to ensure the reflection is correctly stopped
-	if err := c.ensureFinalizer(ctx, &fc, true, controllerutil.AddFinalizer); err != nil {
+	if err := c.ensureFinalizer(ctx, &fc, controllerutil.AddFinalizer); err != nil {
 		klog.Errorf("An error occurred while adding the finalizer to %q: %s", fc.Name, err)
 		return ctrl.Result{}, err
 	}
@@ -187,13 +187,12 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 
 // ensureFinalizer updates the ForeignCluster to ensure the presence/absence of the finalizer.
 func (c *Controller) ensureFinalizer(ctx context.Context, foreignCluster *discoveryv1alpha1.ForeignCluster,
-	expected bool, updater func(client.Object, string)) error {
-	// Do not perform any action if the finalizer is already absent
-	if controllerutil.ContainsFinalizer(foreignCluster, finalizer) == expected {
+	updater func(client.Object, string) bool) error {
+	// Do not perform any action if the finalizer is already as expected
+	if !updater(foreignCluster, finalizer) {
 		return nil
 	}
 
-	updater(foreignCluster, finalizer)
 	return c.Client.Update(ctx, foreignCluster)
 }
 

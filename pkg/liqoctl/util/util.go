@@ -71,17 +71,18 @@ func ExtractValuesFromArgumentListOrDefault(key string, argumentList []string, d
 // In case the key is not found, an empty string is returned.
 // In case no keys are provided, an error is returned.
 // Example:
-// 		m := map[string]interface{}{
-//			"first": map[string]interface{}{
-// 				"second": map[string]interface{}{
-// 					"third": "value",
-// 				},
-// 			},
-// 		}
-// 		ValueFor(m, "first", "second", "third") // returns "value", nil
-// 		ValueFor(m, "first", "second") // returns map[string]interface{}{ "third": "value" }, nil
-// 		ValueFor(m, "first", "third") // returns "", nil
-// 		ValueFor(m) // returns nil, "At least one key is required"
+//
+//	m := map[string]interface{}{
+//		"first": map[string]interface{}{
+//			"second": map[string]interface{}{
+//				"third": "value",
+//			},
+//		},
+//	}
+//	ValueFor(m, "first", "second", "third") // returns "value", nil
+//	ValueFor(m, "first", "second") // returns map[string]interface{}{ "third": "value" }, nil
+//	ValueFor(m, "first", "third") // returns "", nil
+//	ValueFor(m) // returns nil, "At least one key is required"
 func ExtractValuesFromNestedMaps(m map[string]interface{}, keys ...string) (val interface{}, err error) {
 	var ok bool
 	if len(keys) == 0 {

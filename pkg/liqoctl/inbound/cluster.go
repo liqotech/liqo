@@ -714,11 +714,11 @@ func unmapServiceForCluster(ctx context.Context, ipamClient ipam.IpamClient, ipT
 
 // EnforceForeignCluster enforces the presence of the foreignclusters instance for a given remote cluster.
 // The newly created foreigncluster has the following fields set to:
-// 	* ForeignAuthURL -> the remapped ip address for the local cluster of the auth service living in the remote cluster;
-//  * ForeignProxyURL -> the remapped ip address for the local cluster of the proxy service living in the remote cluster;
-//  * OutgoingPeeringEnabled -> Yes
-//  * NetworkingEnabled -> No, we do not want the networking to be handled by the peering process. Networking is
-// 						   handled manually by the licoctl connect/disconnect commands.
+//   - ForeignAuthURL -> the remapped ip address for the local cluster of the auth service living in the remote cluster;
+//   - ForeignProxyURL -> the remapped ip address for the local cluster of the proxy service living in the remote cluster;
+//   - OutgoingPeeringEnabled -> Yes
+//   - NetworkingEnabled -> No, we do not want the networking to be handled by the peering process. Networking is
+//     handled manually by the licoctl connect/disconnect commands.
 func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity,
 	token, authURL, proxyURL string, outgoing bool) error {
 	remID := remoteClusterID.ClusterID
