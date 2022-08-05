@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 )
@@ -71,10 +70,7 @@ func MapIPToNetwork(newNetwork, oldIP string) (newIP string, err error) {
 
 func GetPodIP() (net.IP, error) {
 	ipAddress, isSet := os.LookupEnv("POD_IP")
-	if !isSet {
-		return nil, errdefs.NotFound("the pod IP is not set")
-	}
-	if ipAddress == "" {
+	if !isSet || ipAddress == "" {
 		return nil, errors.New("pod IP is not yet set")
 	}
 	return net.ParseIP(ipAddress), nil
@@ -83,8 +79,8 @@ func GetPodIP() (net.IP, error) {
 // GetPodNamespace gets the namespace of the pod passed as an environment variable.
 func GetPodNamespace() (string, error) {
 	namespace, isSet := os.LookupEnv("POD_NAMESPACE")
-	if !isSet {
-		return "", errdefs.NotFound("the POD_NAMESPACE environment variable is not set as an environment variable")
+	if !isSet || namespace == "" {
+		return "", errors.New("the POD_NAMESPACE environment variable is not set as an environment variable")
 	}
 	return namespace, nil
 }
@@ -92,8 +88,8 @@ func GetPodNamespace() (string, error) {
 // GetNodeName gets the name of the node where the pod is running passed as an environment variable.
 func GetNodeName() (string, error) {
 	nodeName, isSet := os.LookupEnv("NODE_NAME")
-	if !isSet {
-		return nodeName, errdefs.NotFound("NODE_NAME environment variable has not been set. check you manifest file")
+	if !isSet || nodeName == "" {
+		return nodeName, errors.New("NODE_NAME environment variable has not been set. check you manifest file")
 	}
 	return nodeName, nil
 }
