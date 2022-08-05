@@ -15,45 +15,47 @@
 package csr
 
 import (
-	"context"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	certificatesv1 "k8s.io/api/certificates/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	testclient "k8s.io/client-go/kubernetes/fake"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestApproveSigningRequest(t *testing.T) {
-	certificateToValidate := certificatesv1.CertificateSigningRequest{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name: "to_validate",
-			Labels: map[string]string{
-				"liqo.io/csr": "true",
-			},
-		},
-		Spec:   certificatesv1.CertificateSigningRequestSpec{},
-		Status: certificatesv1.CertificateSigningRequestStatus{},
-	}
+var _ = Describe("Approval functions", func() {
+	When("approving a CSR", func() {
+		var (
+			client kubernetes.Interface
 
-	c := testclient.NewSimpleClientset()
-	_, err := c.CertificatesV1().CertificateSigningRequests().Create(context.TODO(), &certificateToValidate, v1.CreateOptions{})
-	if err != nil {
-		t.Fail()
-	}
-	err = Approve(c, &certificateToValidate, "LiqoApproval", "This CSR was approved by Liqo")
-	if err != nil {
-		t.Fail()
-	}
-	cert, err := c.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), "to_validate", v1.GetOptions{})
-	if err != nil {
-		t.Fail()
-	}
-	assert.NotNil(t, cert)
-	assert.NotEmpty(t, cert.Status.Conditions)
-	conditions := cert.Status.Conditions
-	assert.Equal(t, conditions[0].Type, certificatesv1.CertificateApproved)
-	assert.Equal(t, conditions[0].Reason, "LiqoApproval")
-	assert.Equal(t, conditions[0].Message, "This CSR was approved by Liqo")
-}
+			csr certificatesv1.CertificateSigningRequest
+			err error
+		)
+
+		BeforeEach(func() {
+			csr = certificatesv1.CertificateSigningRequest{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "csr",
+					Labels: map[string]string{"liqo.io/csr": "true"},
+				},
+			}
+
+			client = fake.NewSimpleClientset(&csr)
+		})
+
+		JustBeforeEach(func() {
+			err = Approve(client, &csr, "LiqoApproval", "This CSR was approved by Liqo")
+		})
+
+		It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+		It("should set the appropriate conditions", func() {
+			csr, err := client.CertificatesV1().CertificateSigningRequests().Get(ctx, csr.Name, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(csr.Status.Conditions).To(HaveLen(1))
+			Expect(csr.Status.Conditions[0].Type).To(Equal(certificatesv1.CertificateApproved))
+			Expect(csr.Status.Conditions[0].Reason).To(Equal("LiqoApproval"))
+			Expect(csr.Status.Conditions[0].Message).To(Equal("This CSR was approved by Liqo"))
+		})
+	})
+})
