@@ -43,8 +43,6 @@ require (
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
-	gotest.tools v2.2.0+incompatible
-	helm.sh/helm v2.17.0+incompatible
 	helm.sh/helm/v3 v3.8.2
 	inet.af/netaddr v0.0.0-20220617031823-097006376321
 	k8s.io/api v0.23.6
@@ -118,7 +116,6 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
-	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
