@@ -27,9 +27,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v3"
-	"helm.sh/helm/pkg/strvals"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/repo"
+	"helm.sh/helm/v3/pkg/strvals"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
