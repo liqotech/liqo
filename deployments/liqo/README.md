@@ -33,6 +33,7 @@
 | crdReplicator.pod.extraArgs | list | `[]` | crdReplicator pod extra arguments |
 | crdReplicator.pod.labels | object | `{}` | crdReplicator pod labels |
 | discovery.config.autojoin | bool | `true` | Automatically join discovered clusters |
+| discovery.config.clusterIDOverride | string | `""` | Specify an unique ID (must be a valid uuidv4) for your cluster, instead of letting helm generate it automatically at install time. You can generate it using the command: `uuidgen` Setting this field is necessary when using tools such as ArgoCD, since the helm lookup function is not supported and a new value would be generated at each deployment. |
 | discovery.config.clusterLabels | object | `{}` | A set of labels which characterizes the local cluster when exposed remotely as a virtual node. It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster. |
 | discovery.config.clusterName | string | `""` | Set a mnemonic name for your cluster |
 | discovery.config.enableAdvertisement | bool | `false` | Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN |

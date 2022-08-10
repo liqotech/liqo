@@ -9,10 +9,18 @@ metadata:
     {{- include "liqo.labels" $clusterIdConfig | nindent 4 }}
   name: {{ include "liqo.prefixedName" $clusterIdConfig }}
 data:
-  {{- if (not $oldObject) }}
-  CLUSTER_ID: {{ uuidv4 }}
-  {{- else }}
+  {{- if $oldObject }}
+  {{- if and (.Values.discovery.config.clusterIDOverride) (ne $oldObject.data.CLUSTER_ID .Values.discovery.config.clusterIDOverride) }}
+    {{ fail "Changing the cluster ID by providing a different .discovery.config.clusterIDOverride value is not allowed." }}
+  {{- end}}
   CLUSTER_ID: {{ $oldObject.data.CLUSTER_ID }}
+  {{- else if .Values.discovery.config.clusterIDOverride }}
+    {{- if not (regexMatch "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" .Values.discovery.config.clusterIDOverride) }}
+      {{ fail "Provided cluster ID must be a valid UUID"}}
+    {{- end}}
+  CLUSTER_ID: {{ .Values.discovery.config.clusterIDOverride }}
+  {{- else }}
+  CLUSTER_ID: {{ uuidv4 }}
   {{- end }}
   {{- if .Values.discovery.config.clusterName }}
   CLUSTER_NAME: {{ .Values.discovery.config.clusterName }}
