@@ -897,8 +897,8 @@ github.com/gruntwork-io/go-commons v0.11.0/go.mod h1:nbZDI8IL8BCY45QXJcWKSh0MYaz
 github.com/gruntwork-io/gruntwork-cli v0.7.2 h1:aZTztE9vVxUnpNFBecOPuqk1QYl5fPPIriE15Sp3ATs=
 github.com/gruntwork-io/gruntwork-cli v0.7.2/go.mod h1:jp6Z7NcLF2avpY8v71fBx6hds9eOFPELSuD/VPv7w00=
 github.com/gruntwork-io/terratest v0.40.1/go.mod h1:CjHsEgP1Pe987X5N8K5qEqCuLtu1bqERGIAF8bTj1s0=
-github.com/gruntwork-io/terratest v0.40.19 h1:slnTF0Amrc9yRVUV/X/fHlVWKNF0H8fwa2OLyeV2IOA=
-github.com/gruntwork-io/terratest v0.40.19/go.mod h1:JGeIGgLbxbG9/Oqm06z6YXVr76CfomdmLkV564qov+8=
+github.com/gruntwork-io/terratest v0.40.20 h1:pco6s3b62h2Yd13N+HvHQVTAk3aPRz4sdoVwErPCBzQ=
+github.com/gruntwork-io/terratest v0.40.20/go.mod h1:JGeIGgLbxbG9/Oqm06z6YXVr76CfomdmLkV564qov+8=
 github.com/hashicorp/consul/api v1.1.0/go.mod h1:VmuI/Lkw1nC05EYQWNKwWGbkg+FbDBtguAZLlVdkD9Q=
 github.com/hashicorp/consul/api v1.11.0/go.mod h1:XjsvQN+RJGWI2TWy1/kqaE16HrR2J/FWgkYjdZQsX9M=
 github.com/hashicorp/consul/sdk v0.1.1/go.mod h1:VKf9jXwCTEY1QZP2MOLRhb5i/I/ssyNV1vwHyQBF0x8=
