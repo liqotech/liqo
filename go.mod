@@ -45,12 +45,12 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.8.2
 	inet.af/netaddr v0.0.0-20220617031823-097006376321
-	k8s.io/api v0.23.6
+	k8s.io/api v0.24.4
 	k8s.io/apiextensions-apiserver v0.23.5
-	k8s.io/apimachinery v0.23.6
+	k8s.io/apimachinery v0.24.4
 	k8s.io/cli-runtime v0.23.6
-	k8s.io/client-go v0.23.6
-	k8s.io/component-helpers v0.23.6
+	k8s.io/client-go v0.24.4
+	k8s.io/component-helpers v0.24.4
 	k8s.io/klog/v2 v2.60.1
 	k8s.io/kubectl v0.23.6
 	k8s.io/metrics v0.23.6
@@ -183,6 +183,7 @@ require (
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/montanaflynn/stats v0.6.6 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -240,7 +241,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apiserver v0.23.5 // indirect
 	k8s.io/component-base v0.23.6 // indirect
-	k8s.io/kube-openapi v0.0.0-20220309203242-1cd4920c0894 // indirect
+	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42 // indirect
 	oras.land/oras-go v1.1.1 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/kustomize/api v0.11.4 // indirect
