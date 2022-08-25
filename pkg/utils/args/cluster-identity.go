@@ -44,7 +44,7 @@ type ClusterIdentityFlags struct {
 func NewClusterIdentityFlags(local bool, flags *flag.FlagSet) ClusterIdentityFlags {
 	var prefix, description string
 	if local {
-		prefix = "cluster" // nolint:goconst // No need to make the word "cluster" a const...
+		prefix = "cluster" //nolint:goconst // No need to make the word "cluster" a const...
 		description = "The %s of the current cluster"
 	} else {
 		prefix = "foreign-cluster"

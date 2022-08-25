@@ -51,7 +51,7 @@ func (w *nsoffwh) DecodeNamespaceOffloading(obj runtime.RawExtension) (*offv1alp
 }
 
 // Handle implements the NamespaceOffloading validating webhook logic.
-// nolint:gocritic // The signature of this method is imposed by controller runtime.
+//nolint:gocritic // The signature of this method is imposed by controller runtime.
 func (w *nsoffwh) Handle(ctx context.Context, req admission.Request) admission.Response {
 	var warnings []string
 

@@ -70,7 +70,7 @@ func (w *podwh) CreatePatchResponse(req *admission.Request, pod *corev1.Pod) adm
 }
 
 // Handle implements the pod mutating webhook logic.
-// nolint:gocritic // The signature of this method is imposed by controller runtime.
+//nolint:gocritic // The signature of this method is imposed by controller runtime.
 func (w *podwh) Handle(ctx context.Context, req admission.Request) admission.Response {
 	pod, err := w.DecodePod(req.Object)
 	if err != nil {

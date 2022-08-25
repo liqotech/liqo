@@ -42,6 +42,6 @@ const (
 	awsAccessKeyIDSecretKey     = "awsAccessKeyID"
 	awsSecretAccessKeySecretKey = "awsSecretAccessKey"
 	awsRegionSecretKey          = "awsRegion"
-	awsEKSClusterIDSecretKey    = "awsEksClusterID" // nolint:gosec // not a credential
-	awsIAMUserArnSecretKey      = "awsIamUserArn"   // nolint:gosec // not a credential
+	awsEKSClusterIDSecretKey    = "awsEksClusterID" //nolint:gosec // not a credential
+	awsIAMUserArnSecretKey      = "awsIamUserArn"   //nolint:gosec // not a credential
 )
