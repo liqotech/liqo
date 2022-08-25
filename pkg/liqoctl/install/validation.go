@@ -63,7 +63,7 @@ func (o *Options) validate(ctx context.Context) error {
 func (o *Options) validateClusterName() (err error) {
 	// If at this point the name is still empty, generate a new cluster name
 	if o.ClusterName == "" {
-		randomName := namegenerator.NewNameGenerator(rand.Int63()).Generate() // nolint:gosec // don't need crypto/rand
+		randomName := namegenerator.NewNameGenerator(rand.Int63()).Generate() //nolint:gosec // don't need crypto/rand
 		o.ClusterName = strings.ReplaceAll(randomName, "_", "-")
 		o.Printer.Info.Printf("No cluster name specified. Generated: %q", o.ClusterName)
 	}

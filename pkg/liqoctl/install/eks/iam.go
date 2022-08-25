@@ -132,7 +132,7 @@ func (o *Options) ensurePolicy(iamSvc *iam.IAM) (string, error) {
 
 	createPolicyResult, err := iamSvc.CreatePolicy(createPolicyRequest)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok { // nolint:errorlint // we need to access methods of the aws error interface
+		if aerr, ok := err.(awserr.Error); ok { //nolint:errorlint // we need to access methods of the aws error interface
 			switch aerr.Code() {
 			case iam.ErrCodeEntityAlreadyExistsException:
 				return o.checkPolicy(iamSvc)

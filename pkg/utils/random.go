@@ -22,7 +22,7 @@ const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 func RandomString(n int) string {
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))] // nolint:gosec // don't need crypto/rand
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))] //nolint:gosec // don't need crypto/rand
 	}
 	return string(b)
 }

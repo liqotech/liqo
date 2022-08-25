@@ -38,7 +38,7 @@ func ExecLiqoctl(kubeconfig string, args []string, output io.Writer) error {
 		return errors.New("failed to retrieve liqoctl executable")
 	}
 
-	// nolint:gosec // running in a trusted environment
+	//nolint:gosec // running in a trusted environment
 	cmd := exec.Command(liqoctl, args...)
 	cmd.Stdout = output
 	cmd.Stderr = output
