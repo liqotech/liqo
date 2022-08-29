@@ -47,14 +47,14 @@ require (
 	inet.af/netaddr v0.0.0-20220617031823-097006376321
 	k8s.io/api v0.23.6
 	k8s.io/apiextensions-apiserver v0.23.5
-	k8s.io/apimachinery v0.23.6
+	k8s.io/apimachinery v0.25.0
 	k8s.io/cli-runtime v0.23.6
 	k8s.io/client-go v0.23.6
 	k8s.io/component-helpers v0.23.6
-	k8s.io/klog/v2 v2.60.1
+	k8s.io/klog/v2 v2.70.1
 	k8s.io/kubectl v0.23.6
 	k8s.io/metrics v0.23.6
-	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
+	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
 	sigs.k8s.io/aws-iam-authenticator v0.5.9
 	sigs.k8s.io/controller-runtime v0.11.2
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
@@ -240,12 +240,12 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apiserver v0.23.5 // indirect
 	k8s.io/component-base v0.23.6 // indirect
-	k8s.io/kube-openapi v0.0.0-20220309203242-1cd4920c0894 // indirect
+	k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1 // indirect
 	oras.land/oras-go v1.1.1 // indirect
-	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
+	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/kustomize/api v0.11.4 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.6 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
