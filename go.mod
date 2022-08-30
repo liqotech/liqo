@@ -40,7 +40,7 @@ require (
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20220330030906-9490840b0b01
 	gomodules.xyz/jsonpatch/v2 v2.2.0
 	google.golang.org/api v0.74.0
-	google.golang.org/grpc v1.48.0
+	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.8.2
