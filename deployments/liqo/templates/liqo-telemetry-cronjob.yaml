@@ -1,0 +1,54 @@
+{{- $telemetryCronConfig := (merge (dict "name" "telemetry" "module" "telemetry") .) -}}
+
+{{- if .Values.telemetry.enable }}
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    {{- include "liqo.labels" $telemetryCronConfig | nindent 4 }}
+  name: {{ include "liqo.prefixedName" $telemetryCronConfig }}
+spec:
+  {{- if .Values.telemetry.config.schedule }}
+  schedule: {{ .Values.telemetry.config.schedule | quote }}
+  {{- else }}
+  schedule: "{{ dateInZone "04 15 * * *" (now | mustDateModify "+10m") "UTC"}}"
+  {{- end }}
+  concurrencyPolicy: Replace
+  successfulJobsHistoryLimit: 0
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+      {{- if .Values.telemetry.pod.annotations }}
+          annotations:
+          {{- toYaml .Values.telemetry.pod.annotations | nindent 12 }}
+      {{- end }}
+          labels:
+          {{- include "liqo.labels" $telemetryCronConfig | nindent 12 }}
+          {{- if .Values.telemetry.pod.labels }}
+              {{- toYaml .Values.telemetry.pod.labels | nindent 12 }}
+          {{- end }}
+        spec:
+          securityContext:
+          {{- include "liqo.podSecurityContext" . | nindent 12 }}
+          serviceAccountName: {{ include "liqo.prefixedName" $telemetryCronConfig }}
+          restartPolicy: Never
+          containers:
+          - image: {{ .Values.telemetry.imageName }}{{ include "liqo.suffix" . }}:{{ include "liqo.version" . }}
+            imagePullPolicy: {{ .Values.pullPolicy }}
+            securityContext:
+            {{- include "liqo.containerSecurityContext" . | nindent 14 }}
+            name: {{ $telemetryCronConfig.name }}
+            args:
+              - --liqo-version={{ include "liqo.version" . }}
+              - --kubernetes-version={{ .Capabilities.KubeVersion.GitVersion }}
+              - --namespace={{ .Release.Namespace }}
+              {{- if .Values.discovery.config.clusterLabels }}
+              {{- $d := dict "commandName" "--cluster-labels" "dictionary" .Values.discovery.config.clusterLabels }}
+              {{- include "liqo.concatenateMap" $d | nindent 14 }}
+              {{- end }}
+            resources: {{- toYaml .Values.telemetry.pod.resources | nindent 14 }}
+
+{{- end }}

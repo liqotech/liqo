@@ -106,6 +106,13 @@
 | storage.storageNamespace | string | `"liqo-storage"` | namespace where liqo will deploy specific PVCs |
 | storage.virtualStorageClassName | string | `"liqo"` | name to assign to the liqo virtual storage class |
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
+| telemetry.config.schedule | string | `""` | Set the schedule of the telemetry collector CronJob |
+| telemetry.enable | bool | `true` | Enable the telemetry collector |
+| telemetry.imageName | string | `"liqo/telemetry"` | telemetry image repository |
+| telemetry.pod.annotations | object | `{}` | telemetry pod annotations |
+| telemetry.pod.extraArgs | list | `[]` | telemetry pod extra arguments |
+| telemetry.pod.labels | object | `{}` | telemetry pod labels |
+| telemetry.pod.resources | object | `{"limits":{},"requests":{}}` | telemetry pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | virtualKubelet.extra.annotations | object | `{}` | virtual kubelet pod extra annotations |
 | virtualKubelet.extra.args | list | `[]` | virtual kubelet pod extra arguments |
 | virtualKubelet.extra.labels | object | `{}` | virtual kubelet pod extra labels |

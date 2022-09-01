@@ -42,6 +42,7 @@ import (
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
@@ -334,18 +335,17 @@ func (tec *TunnelEndpointCreator) enforceTunnelEndpoint(ctx context.Context, loc
 	}
 
 	// Try to get the tunnelEndpoint, which may not exist
-	_, found, err := tec.GetTunnelEndpoint(ctx, param.remoteCluster.ClusterID, local.GetNamespace())
+	_, err := getters.GetTunnelEndpoint(ctx, tec.Client, &param.remoteCluster, local.GetNamespace())
 	tracer.Step("TunnelEndpoint retrieval")
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			controllerRef := metav1.GetControllerOf(local)
+			defer tracer.Step("TunnelEndpoint creation")
+			return tec.createTunnelEndpoint(ctx, param, controllerRef, local.GetNamespace(), local)
+		}
 		klog.Errorf("an error occurred while getting resource tunnelEndpoint for cluster %s: %s",
 			param.remoteCluster, err)
 		return err
-	}
-
-	if !found {
-		controllerRef := metav1.GetControllerOf(local)
-		defer tracer.Step("TunnelEndpoint creation")
-		return tec.createTunnelEndpoint(ctx, param, controllerRef, local.GetNamespace(), local)
 	}
 
 	defer tracer.Step("TunnelEndpoint update")
@@ -354,17 +354,12 @@ func (tec *TunnelEndpointCreator) enforceTunnelEndpoint(ctx context.Context, loc
 
 func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(ctx context.Context, param *networkParam, namespace string) error {
 	var tep *netv1alpha1.TunnelEndpoint
-	var found bool
 	var err error
 	// here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		tep, found, err = tec.GetTunnelEndpoint(ctx, param.remoteCluster.ClusterID, namespace)
+		tep, err = getters.GetTunnelEndpoint(ctx, tec.Client, &param.remoteCluster, namespace)
 		if err != nil {
 			return err
-		}
-		if !found {
-			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
-				"tunnelEndpoint for cluster: "+param.remoteCluster.ClusterID)
 		}
 
 		original := tep.Spec.DeepCopy()
@@ -437,39 +432,14 @@ func (tec *TunnelEndpointCreator) fillTunnelEndpointSpec(tep *netv1alpha1.Tunnel
 	tep.Spec.BackendConfig = param.backendConfig
 }
 
-// GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster.
-func (tec *TunnelEndpointCreator) GetTunnelEndpoint(ctx context.Context, destinationClusterID, namespace string) (
-	*netv1alpha1.TunnelEndpoint,
-	bool,
-	error) {
-	clusterID := destinationClusterID
-	tunEndpointList := &netv1alpha1.TunnelEndpointList{}
-	labels := client.MatchingLabels{liqoconst.ClusterIDLabelName: clusterID}
-	err := tec.List(ctx, tunEndpointList, labels, client.InNamespace(namespace))
-	if err != nil {
-		klog.Errorf("an error occurred while listing resources: %s", err)
-		return nil, false, err
-	}
-	if len(tunEndpointList.Items) != 1 {
-		if len(tunEndpointList.Items) == 0 {
-			return nil, false, nil
-		}
-		klog.Errorf("more than one instances of type %s exists for remote cluster %s",
-			netv1alpha1.GroupVersion.String(), clusterID)
-		return nil, false, fmt.Errorf("multiple instances of %s for remote cluster %s",
-			netv1alpha1.GroupVersion.String(), clusterID)
-	}
-	return &tunEndpointList.Items[0], true, nil
-}
-
 func (tec *TunnelEndpointCreator) deleteTunEndpoint(ctx context.Context, netConfig *netv1alpha1.NetworkConfig) error {
-	tep, found, err := tec.GetTunnelEndpoint(ctx, netConfig.Spec.RemoteCluster.ClusterID, netConfig.GetNamespace())
+	tep, err := getters.GetTunnelEndpoint(ctx, tec.Client, &netConfig.Spec.RemoteCluster, netConfig.GetNamespace())
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.Infof("tunnelendpoint resource for cluster %s not found", netConfig.Spec.RemoteCluster)
+			return nil
+		}
 		return err
-	}
-	if !found {
-		klog.Infof("tunnelendpoint resource for cluster %s not found", netConfig.Spec.RemoteCluster)
-		return nil
 	}
 	err = tec.Delete(ctx, tep)
 	if err != nil {

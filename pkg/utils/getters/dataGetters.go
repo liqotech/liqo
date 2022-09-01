@@ -56,6 +56,14 @@ func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (*discoveryv1alpha1.Cl
 	}, nil
 }
 
+// RetrieveClusterIDFromVirtualNode retrieves the cluster id from the given node labels.
+func RetrieveClusterIDFromVirtualNode(node *corev1.Node) (string, error) {
+	if v, ok := node.Labels[liqoconsts.RemoteClusterID]; ok {
+		return v, nil
+	}
+	return "", fmt.Errorf("no %s label found in node %q", liqoconsts.RemoteClusterID, node.Name)
+}
+
 // RetrieveEndpointFromService retrieves an ip address and port from a given service object
 // based on the service and port name.
 func RetrieveEndpointFromService(svc *corev1.Service, svcType corev1.ServiceType, portName string) (endpointIP, endpointPort string, err error) {

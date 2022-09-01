@@ -243,6 +243,27 @@ metricAgent:
     # -- auth init container image repository
     imageName: "liqo/cert-creator"
 
+telemetry:
+  # -- Enable the telemetry collector
+  enable: true
+  pod:
+    # -- telemetry pod annotations
+    annotations: {}
+    # -- telemetry pod labels
+    labels: {}
+    # -- telemetry pod extra arguments
+    extraArgs: []
+    # -- telemetry pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
+  # -- telemetry image repository
+  imageName: "liqo/telemetry"
+  config:
+    # -- Set the schedule of the telemetry collector CronJob
+    schedule: ""
+    # schedule: "0 */12 * * *"
+
 webhook:
   # -- the port the webhook server binds to
   port: 9443
