@@ -207,3 +207,44 @@ func GetOffloadingByNamespace(ctx context.Context, cl client.Client, namespace s
 	}
 	return &nsOffloading, nil
 }
+
+// ListOffloadedPods returns the list of pods offloaded from the given namespace.
+func ListOffloadedPods(ctx context.Context, cl client.Client, namespace string) (corev1.PodList, error) {
+	var offloadedPods corev1.PodList
+	err := cl.List(ctx, &offloadedPods, client.InNamespace(namespace), client.MatchingLabels{
+		consts.LocalPodLabelKey: consts.LocalPodLabelValue,
+	})
+	return offloadedPods, err
+}
+
+// ListVirtualNodes returns the list of virtual nodes.
+func ListVirtualNodes(ctx context.Context, cl client.Client) (corev1.NodeList, error) {
+	var virtualNodes corev1.NodeList
+	err := cl.List(ctx, &virtualNodes, client.MatchingLabels{
+		consts.TypeLabel: consts.TypeNode,
+	})
+	return virtualNodes, err
+}
+
+// GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster.
+func GetTunnelEndpoint(ctx context.Context, cl client.Client,
+	destinationClusterIdentity *discoveryv1alpha1.ClusterIdentity, namespace string) (*netv1alpha1.TunnelEndpoint, error) {
+	tunEndpointList := &netv1alpha1.TunnelEndpointList{}
+	lbls := client.MatchingLabels{consts.ClusterIDLabelName: destinationClusterIdentity.ClusterID}
+	err := cl.List(ctx, tunEndpointList, lbls, client.InNamespace(namespace))
+	if err != nil {
+		return nil, err
+	}
+
+	switch len(tunEndpointList.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
+			fmt.Sprintf("tunnelEndpoint for cluster: %q (ID: %s)",
+				destinationClusterIdentity.ClusterName, destinationClusterIdentity.ClusterID))
+	case 1:
+		return &tunEndpointList.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type tunnelendpoint found for cluster %q (ID: %s)"+
+			" when only one was expected", destinationClusterIdentity.ClusterName, destinationClusterIdentity.ClusterID)
+	}
+}

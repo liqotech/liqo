@@ -81,6 +81,7 @@ type Options struct {
 	SharingPercentage uint64
 	EnableHA          bool
 	EnableMetrics     bool
+	DisableTelemetry  bool
 
 	PodCIDR         string
 	ServiceCIDR     string
@@ -196,7 +197,8 @@ func (o *Options) initialize(ctx context.Context, provider Provider) error {
 	switch {
 	// In case a local chart path is specified, use that.
 	case o.ChartPath != "":
-		break
+		// disable telemetry for local charts (development)
+		o.DisableTelemetry = true
 
 	// In case the specified version is valid, add the chart through the client.
 	case o.isRelease():
@@ -216,6 +218,9 @@ func (o *Options) initialize(ctx context.Context, provider Provider) error {
 
 			return err
 		}
+
+		// disable telemetry if the version is not a release
+		o.DisableTelemetry = true
 	}
 
 	// Retrieve the default chart values.
@@ -327,6 +332,10 @@ func (o *Options) values() map[string]interface{} {
 					"enabled": o.EnableMetrics,
 				},
 			},
+		},
+
+		"telemetry": map[string]interface{}{
+			"enable": !o.DisableTelemetry,
 		},
 	}
 }

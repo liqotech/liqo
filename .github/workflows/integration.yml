@@ -83,6 +83,7 @@ jobs:
         - uninstaller
         - virtual-kubelet
         - metric-agent
+        - telemetry
     steps:
 
       - name: Set up QEMU

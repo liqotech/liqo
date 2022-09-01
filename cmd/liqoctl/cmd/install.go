@@ -164,6 +164,8 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		"(ClusterName, PodCIDR, ServiceCIDR). "+
 		"This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)")
 	cmd.PersistentFlags().BoolVar(&options.EnableMetrics, "enable-metrics", false, "Enable metrics exposition through prometheus (default false)")
+	cmd.PersistentFlags().BoolVar(&options.DisableTelemetry, "disable-telemetry", false,
+		"Disable the anonymous and aggregated Liqo telemetry collection (default false)")
 	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
 	base.RegisterFlags(cmd)
