@@ -26,6 +26,8 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/discovery"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -364,9 +366,21 @@ var _ = Describe("Liqo E2E", func() {
 				sleepBetweenRetries = 1 * time.Second
 			)
 
-			var options *k8s.KubectlOptions
+			var (
+				options *k8s.KubectlOptions
+				v       *version.Info
+			)
 
 			BeforeEach(func() {
+				client, err := discovery.NewDiscoveryClientForConfig(testContext.Clusters[0].Config)
+				Expect(err).ToNot(HaveOccurred())
+				v, err = client.ServerVersion()
+				Expect(err).ToNot(HaveOccurred())
+
+				if v.Major == "1" && v.Minor >= "24" {
+					Skip("Disabling the API server interaction test for kubernetes version >=1.24, as currently not supported")
+				}
+
 				options = k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespace)
 			})
 
@@ -395,7 +409,7 @@ var _ = Describe("Liqo E2E", func() {
 				Expect(apiserver.CreateRoleBinding(ctx, testContext.Clusters[0].ControllerClient, namespace)).To(Succeed())
 
 				By("Deploying the kubectl job")
-				Expect(apiserver.CreateKubectlJob(ctx, testContext.Clusters[0].ControllerClient, namespace)).To(Succeed())
+				Expect(apiserver.CreateKubectlJob(ctx, testContext.Clusters[0].ControllerClient, namespace, v)).To(Succeed())
 
 				By("Waiting for the job to complete")
 				Expect(k8s.WaitUntilJobSucceedE(GinkgoT(), options, apiserver.JobName, retries, sleepBetweenRetries)).To(Succeed())
