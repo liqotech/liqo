@@ -17,15 +17,13 @@ package apiserver
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"os"
-	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -41,12 +39,7 @@ const (
 )
 
 // CreateKubectlJob creates the offloaded kubectl job to perform a request on the remote API server.
-func CreateKubectlJob(ctx context.Context, cl client.Client, namespace string) error {
-	version := os.Getenv("K8S_VERSION")
-	if version == "" {
-		return errors.New("failed to retrieve kubernetes version from the K8S_VERSION environment variable")
-	}
-
+func CreateKubectlJob(ctx context.Context, cl client.Client, namespace string, v *version.Info) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{Name: JobName, Namespace: namespace},
 		Spec: batchv1.JobSpec{
@@ -54,7 +47,7 @@ func CreateKubectlJob(ctx context.Context, cl client.Client, namespace string) e
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:  containerName,
-						Image: fmt.Sprintf("%s:%s", image, strings.Replace(version, "v", "", 1)),
+						Image: fmt.Sprintf("%s:%s.%s", image, v.Major, v.Minor),
 						Args:  []string{"get", "pods", "-n", namespace, "--no-headers", "-o", "custom-columns=:.metadata.name"},
 					}},
 					ServiceAccountName: serviceAccountName,
