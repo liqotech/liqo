@@ -28,14 +28,8 @@ spec:
           operator: Exists
         - effect: NoSchedule
           key: node-role.kubernetes.io/master
-        - effect: NoExecute
-          key: node.kubernetes.io/not-ready
-          operator: Exists
-          tolerationSeconds: 300
-        - effect: NoExecute
-          key: node.kubernetes.io/unreachable
-          operator: Exists
-          tolerationSeconds: 300
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
       serviceAccountName: {{ include "liqo.prefixedName" $routeConfig }}
       containers:
         - image: {{ .Values.route.imageName }}{{ include "liqo.suffix" $routeConfig }}:{{ include "liqo.version" $routeConfig }}
