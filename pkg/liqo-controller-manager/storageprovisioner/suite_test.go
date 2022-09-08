@@ -21,6 +21,8 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 var (
@@ -34,6 +36,8 @@ func TestStorageProvisioner(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	testutil.LogsToGinkgoWriter()
+
 	testEnv = envtest.Environment{}
 	cfg, err := testEnv.Start()
 	Expect(err).ToNot(HaveOccurred())

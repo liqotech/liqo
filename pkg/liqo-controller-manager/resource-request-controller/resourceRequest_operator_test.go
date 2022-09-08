@@ -161,9 +161,11 @@ var _ = Describe("ResourceRequest Operator", func() {
 			return rrl.Items
 		}, timeout, interval).Should(HaveLen(0))
 
-		Expect(k8sClient.DeleteAllOf(ctx, &sharingv1alpha1.ResourceOffer{}, client.InNamespace(ResourcesNamespace))).To(Succeed())
-		Expect(k8sClient.DeleteAllOf(ctx, &sharingv1alpha1.ResourceOffer{}, client.InNamespace(ResourcesNamespace2))).To(Succeed())
 		Eventually(func() []sharingv1alpha1.ResourceOffer {
+			// These two operations are performed here, as leaving them outside seems to cause tests to be more flaky.
+			Expect(k8sClient.DeleteAllOf(ctx, &sharingv1alpha1.ResourceOffer{}, client.InNamespace(ResourcesNamespace))).To(Succeed())
+			Expect(k8sClient.DeleteAllOf(ctx, &sharingv1alpha1.ResourceOffer{}, client.InNamespace(ResourcesNamespace2))).To(Succeed())
+
 			var rro sharingv1alpha1.ResourceOfferList
 			Expect(k8sClient.List(ctx, &rro)).To(Succeed())
 			return rro.Items
@@ -174,6 +176,11 @@ var _ = Describe("ResourceRequest Operator", func() {
 		Expect(clientset.StorageV1().StorageClasses().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Succeed())
 
 		Expect(k8sClient.DeleteAllOf(ctx, &discoveryv1alpha1.ForeignCluster{})).To(Succeed())
+		Eventually(func() []discoveryv1alpha1.ForeignCluster {
+			var fc discoveryv1alpha1.ForeignClusterList
+			Expect(k8sClient.List(ctx, &fc)).To(Succeed())
+			return fc.Items
+		}, timeout, interval).Should(HaveLen(0))
 	})
 
 	When("Creating a new ResourceRequest", func() {

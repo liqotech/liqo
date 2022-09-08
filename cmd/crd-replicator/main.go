@@ -55,6 +55,7 @@ func main() {
 
 	flag.Parse()
 
+	ctx := ctrl.SetupSignalHandler()
 	clusterIdentity := clusterFlags.ReadOrDie()
 
 	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
@@ -71,11 +72,10 @@ func main() {
 	// Create a clientSet.
 	k8sClient := kubernetes.NewForConfigOrDie(cfg)
 
-	namespaceManager := tenantnamespace.NewCachedManager(k8sClient)
+	namespaceManager := tenantnamespace.NewCachedManager(ctx, k8sClient)
 
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 
-	ctx := ctrl.SetupSignalHandler()
 	reflectionManager := reflection.NewManager(dynClient, clusterIdentity.ClusterID, *workers, *resyncPeriod)
 	reflectionManager.Start(ctx, resources.GetResourcesToReplicate())
 

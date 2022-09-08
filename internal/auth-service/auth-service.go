@@ -22,7 +22,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -72,7 +71,7 @@ type Controller struct {
 }
 
 // NewAuthServiceCtrl creates a new Auth Controller.
-func NewAuthServiceCtrl(config *rest.Config, namespace string,
+func NewAuthServiceCtrl(ctx context.Context, config *rest.Config, namespace string,
 	awsConfig identitymanager.AwsConfig, resyncTime time.Duration,
 	apiServerConfig apiserver.Config, authEnabled, useTLS bool,
 	localCluster discoveryv1alpha1.ClusterIdentity) (*Controller, error) {
@@ -91,10 +90,10 @@ func NewAuthServiceCtrl(config *rest.Config, namespace string,
 	secretInformer := informerFactory.Core().V1().Secrets().Informer()
 	secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
-	informerFactory.Start(wait.NeverStop)
-	informerFactory.WaitForCacheSync(wait.NeverStop)
+	informerFactory.Start(ctx.Done())
+	informerFactory.WaitForCacheSync(ctx.Done())
 
-	namespaceManager := tenantnamespace.NewCachedManager(clientset)
+	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
 
 	var idProvider identitymanager.IdentityProvider
 	if awsConfig.IsEmpty() {
@@ -121,14 +120,13 @@ func NewAuthServiceCtrl(config *rest.Config, namespace string,
 }
 
 // Start starts the authentication service.
-func (authService *Controller) Start(address string, useTLS bool, certPath, keyPath string) error {
+func (authService *Controller) Start(ctx context.Context, address string, useTLS bool, certPath, keyPath string) error {
 	if err := authService.configureToken(); err != nil {
 		return err
 	}
 
 	// populate the lists of ClusterRoles to bind in the different peering states.
-	// populate the lists of ClusterRoles to bind in the different peering states
-	permissions, err := peeringroles.GetPeeringPermission(context.TODO(), authService.clientset)
+	permissions, err := peeringroles.GetPeeringPermission(ctx, authService.clientset)
 	if err != nil {
 		klog.Errorf("Unable to populate peering permission: %w", err)
 		return err

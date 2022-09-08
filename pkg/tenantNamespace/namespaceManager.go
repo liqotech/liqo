@@ -62,11 +62,7 @@ func NewManager(client kubernetes.Interface) Manager {
 }
 
 // NewCachedManager creates a new TenantNamespaceManager object, supporting cached retrieval of namespaces for increased efficiency.
-func NewCachedManager(client kubernetes.Interface) Manager {
-	// TODO: the context should be propagated from the caller. It is currently set here to avoid
-	// modifying all callers, since most to not even have a proper context themselves.
-	ctx := context.Background()
-
+func NewCachedManager(ctx context.Context, client kubernetes.Interface) Manager {
 	// Here, we create a new namepace lister, so that it is possible to perform cached get/list operations.
 	// The informer factory is configured with an appropriate filter to cache only tenant namespaces.
 	req, err := labels.NewRequirement(discovery.TenantNamespaceLabel, selection.Exists, []string{})

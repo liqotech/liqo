@@ -1,7 +1,7 @@
 FROM golang:1.19 as builder
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
-ENV K8S_VERSION=1.19.2
+ENV K8S_VERSION=1.25.0
 
 # Install required go binaries
 RUN go install github.com/ory/go-acc@v0.2.8
@@ -12,7 +12,7 @@ COPY go.sum ./go.sum
 RUN  go mod download
 
 # Install kubebuilder
-RUN curl --fail -sSLo envtest-bins.tar.gz "https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-${K8S_VERSION}-$(go env GOOS)-$(go env GOARCH).tar.gz"
+RUN curl --fail -sSLo envtest-bins.tar.gz "https://go.kubebuilder.io/test-tools/${K8S_VERSION}/$(go env GOOS)/$(go env GOARCH)"
 RUN mkdir /usr/local/kubebuilder/
 RUN tar -C /usr/local/kubebuilder/ --strip-components=1 -zvxf envtest-bins.tar.gz
 

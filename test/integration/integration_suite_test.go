@@ -58,6 +58,9 @@ const (
 )
 
 var (
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	err                error
 	envTest            *envtest.Environment
 	ipt                iptables.IPTHandler
@@ -106,6 +109,8 @@ func TestIntegration(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	ctx, cancel = context.WithCancel(context.Background())
+
 	// Create custom network namespace for natmapping-operator.
 	iptNetns, err = netns.CreateNetns(iptNetnsName)
 	Expect(err).To(BeNil())
@@ -124,12 +129,10 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	err := envTest.Stop()
-	Expect(err).To(BeNil())
-	err = terminateNATDriver()
-	Expect(err).To(BeNil())
-	err = iptNetns.Close()
-	Expect(err).To(BeNil())
+	cancel()
+	Expect(envTest.Stop()).To(Succeed())
+	Expect(terminateNATDriver()).To(Succeed())
+	Expect(iptNetns.Close()).To(Succeed())
 })
 
 func initNatMappingController() error {
@@ -157,7 +160,7 @@ func initNatMappingController() error {
 		return err
 	}
 	go func() {
-		if err = mgr.Start(context.Background()); err != nil {
+		if err = mgr.Start(ctx); err != nil {
 			panic(err)
 		}
 	}()

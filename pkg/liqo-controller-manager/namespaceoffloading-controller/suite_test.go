@@ -55,7 +55,8 @@ const (
 )
 
 var (
-	ctx context.Context
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	localCluster = discoveryv1alpha1.ClusterIdentity{
 		ClusterID:   "local-cluster-id",
@@ -117,7 +118,7 @@ var _ = BeforeSuite(func() {
 	}
 
 	By("bootstrapping test environments")
-	ctx = context.Background()
+	ctx, cancel = context.WithCancel(context.Background())
 	testutil.LogsToGinkgoWriter()
 
 	homeClusterEnv = &envtest.Environment{
@@ -157,7 +158,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
-		err = k8sManager.Start(ctrl.SetupSignalHandler())
+		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
 
@@ -216,6 +217,6 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
-	err := homeClusterEnv.Stop()
-	Expect(err).ToNot(HaveOccurred())
+	cancel()
+	Expect(homeClusterEnv.Stop()).To(Succeed())
 })

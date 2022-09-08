@@ -82,13 +82,17 @@ make e2e
 ### Unit tests
 
 Most unit tests can be run directly using [the *ginkgo* CLI](https://onsi.github.io/ginkgo/#installing-ginkgo), which in turn supports the standard testing API (*go test*, IDE features, ...).
-The only requirement is the [controller-runtime envtest environment](https://book.kubebuilder.io/reference/envtest.html), which can be installed through:
+The only requirement is the [controller-runtime envtest environment](https://book.kubebuilder.io/reference/envtest.html), which can be installed through [`setup-envtest`](https://pkg.go.dev/sigs.k8s.io/controller-runtime/tools/setup-envtest):
 
 ```bash
-export K8S_VERSION=1.19.2
-curl --fail -sSLo envtest-bins.tar.gz "https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-${K8S_VERSION}-$(go env GOOS)-$(go env GOARCH).tar.gz"
-mkdir /usr/local/kubebuilder/
-tar -C /usr/local/kubebuilder/ --strip-components=1 -zvxf envtest-bins.tar.gz
+go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+setup-envtest use 1.25.x!
+```
+
+To enable the downloaded envtest, you can append the following line to your `~/.bashrc` or `~/.zshrc` file:
+
+```bash
+source <(setup-envtest use --installed-only --print env 1.25.x)
 ```
 
 Some networking tests, however, require an isolated environment.
