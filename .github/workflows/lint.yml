@@ -103,7 +103,7 @@ jobs:
         repository: ${{github.event.pull_request.head.repo.full_name}}
         persist-credentials: false
     - name: Setup python3
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: '3.x'
     - name: Install python3 dependencies
