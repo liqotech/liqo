@@ -15,7 +15,6 @@
 package tunneloperator
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -66,7 +65,7 @@ var _ = Describe("NatmappingOperator", func() {
 		}
 	})
 	AfterEach(func() {
-		err := k8sClient.DeleteAllOf(context.Background(), &v1alpha1.NatMapping{}, &client.DeleteAllOfOptions{
+		err := k8sClient.DeleteAllOf(ctx, &v1alpha1.NatMapping{}, &client.DeleteAllOfOptions{
 			ListOptions: client.ListOptions{
 				Namespace: namespace,
 			},
@@ -77,7 +76,7 @@ var _ = Describe("NatmappingOperator", func() {
 		It("the controller should return no errors", func() {
 			nm2.ObjectMeta.Name = "resource-not-exists"
 			request.Name = nm2.ObjectMeta.Name
-			Consistently(func() error { _, err := controller.Reconcile(context.TODO(), request); return err }).Should(BeNil())
+			Consistently(func() error { _, err := controller.Reconcile(ctx, request); return err }).Should(BeNil())
 		})
 	})
 	Context("If the cluster is not ready", func() {
@@ -93,11 +92,11 @@ var _ = Describe("NatmappingOperator", func() {
 			nm2.Spec.ClusterMappings[oldIP1] = newIP1
 			nm2.Spec.ClusterMappings[oldIP2] = newIP2
 			Eventually(func() error {
-				err := k8sClient.Create(context.Background(), nm2, &client.CreateOptions{})
+				err := k8sClient.Create(ctx, nm2, &client.CreateOptions{})
 				return err
 			}).Should(BeNil())
 
-			Eventually(func() error { _, err := controller.Reconcile(context.TODO(), request); return err }).
+			Eventually(func() error { _, err := controller.Reconcile(ctx, request); return err }).
 				Should(MatchError(fmt.Sprintf("tunnel for cluster {%s} is not ready", clusterID2)))
 
 			Consistently(func() []string {
@@ -120,10 +119,10 @@ var _ = Describe("NatmappingOperator", func() {
 			nm1.Spec.ClusterMappings[oldIP1] = newIP1
 			nm1.Spec.ClusterMappings[oldIP2] = newIP2
 			Eventually(func() error {
-				err := k8sClient.Create(context.Background(), nm1, &client.CreateOptions{})
+				err := k8sClient.Create(ctx, nm1, &client.CreateOptions{})
 				return err
 			}).Should(BeNil())
-			Consistently(func() error { _, err := controller.Reconcile(context.TODO(), request); return err }).Should(BeNil())
+			Consistently(func() error { _, err := controller.Reconcile(ctx, request); return err }).Should(BeNil())
 			Eventually(func() []string {
 				rules, err := ListRulesInChainInCustomNs(getClusterPreRoutingMappingChain(clusterID1))
 				if err != nil {
@@ -143,11 +142,11 @@ var _ = Describe("NatmappingOperator", func() {
 			// Insert mapping for oldIP1
 			nm1.Spec.ClusterMappings[oldIP1] = newIP1
 			Eventually(func() error {
-				err := k8sClient.Create(context.Background(), nm1, &client.CreateOptions{})
+				err := k8sClient.Create(ctx, nm1, &client.CreateOptions{})
 				return err
 			}).Should(BeNil())
 
-			Consistently(func() error { _, err := controller.Reconcile(context.TODO(), request); return err }).Should(BeNil())
+			Consistently(func() error { _, err := controller.Reconcile(ctx, request); return err }).Should(BeNil())
 
 			Eventually(func() []string {
 				rules, err := ListRulesInChainInCustomNs(getClusterPreRoutingMappingChain(clusterID1))
@@ -160,7 +159,7 @@ var _ = Describe("NatmappingOperator", func() {
 			))
 
 			Eventually(func() bool {
-				err := k8sClient.Get(context.Background(), types.NamespacedName{Name: nm1.ObjectMeta.Name, Namespace: namespace}, nm1)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nm1.ObjectMeta.Name, Namespace: namespace}, nm1)
 				if err != nil {
 					return false
 				}
@@ -168,11 +167,11 @@ var _ = Describe("NatmappingOperator", func() {
 				delete(nm1.Spec.ClusterMappings, oldIP1)
 				// Insert mapping for oldIP2
 				nm1.Spec.ClusterMappings[oldIP2] = newIP2
-				err = k8sClient.Update(context.Background(), nm1, &client.UpdateOptions{})
+				err = k8sClient.Update(ctx, nm1, &client.UpdateOptions{})
 				return err == nil
 			}).Should(BeTrue())
 
-			Consistently(func() error { _, err := controller.Reconcile(context.TODO(), request); return err }).Should(BeNil())
+			Consistently(func() error { _, err := controller.Reconcile(ctx, request); return err }).Should(BeNil())
 
 			Eventually(func() bool {
 				rules, err := ListRulesInChainInCustomNs(getClusterPreRoutingMappingChain(clusterID1))
@@ -200,22 +199,22 @@ var _ = Describe("NatmappingOperator", func() {
 			// Insert mapping for oldIP1 in cluster1
 			nm1.Spec.ClusterMappings[oldIP1] = newIP1
 			Eventually(func() error {
-				err := k8sClient.Create(context.Background(), nm1, &client.CreateOptions{})
+				err := k8sClient.Create(ctx, nm1, &client.CreateOptions{})
 				return err
 			}).Should(BeNil())
 
-			Consistently(func() error { _, err := controller.Reconcile(context.TODO(), request); return err }).Should(BeNil())
+			Consistently(func() error { _, err := controller.Reconcile(ctx, request); return err }).Should(BeNil())
 
 			// Insert mapping for oldIP2 in cluster2
 			nm2.ObjectMeta.Name = "more-clusters-2"
 			request.Name = nm2.ObjectMeta.Name
 			nm2.Spec.ClusterMappings[oldIP2] = newIP2
 			Eventually(func() error {
-				err := k8sClient.Create(context.Background(), nm2, &client.CreateOptions{})
+				err := k8sClient.Create(ctx, nm2, &client.CreateOptions{})
 				return err
 			}).Should(BeNil())
 
-			Consistently(func() error { _, err := controller.Reconcile(context.TODO(), request); return err }).Should(BeNil())
+			Consistently(func() error { _, err := controller.Reconcile(ctx, request); return err }).Should(BeNil())
 
 			Eventually(func() bool {
 				cluster1Rules, err := ListRulesInChainInCustomNs(getClusterPreRoutingMappingChain(clusterID1))

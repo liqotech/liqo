@@ -33,6 +33,7 @@ func TestTenantNamespace(t *testing.T) {
 
 var (
 	ctx         context.Context
+	cancel      context.CancelFunc
 	cluster     testutil.Cluster
 	homeCluster discoveryv1alpha1.ClusterIdentity
 
@@ -41,7 +42,7 @@ var (
 
 var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
-	ctx = context.Background()
+	ctx, cancel = context.WithCancel(context.Background())
 
 	homeCluster = discoveryv1alpha1.ClusterIdentity{
 		ClusterID:   "home-cluster-id",
@@ -52,9 +53,10 @@ var _ = BeforeSuite(func() {
 	cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 	Expect(err).ToNot(HaveOccurred())
 
-	namespaceManager = NewCachedManager(cluster.GetClient())
+	namespaceManager = NewCachedManager(ctx, cluster.GetClient())
 })
 
 var _ = AfterSuite(func() {
+	cancel()
 	Expect(cluster.GetEnv().Stop()).To(Succeed())
 })

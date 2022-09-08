@@ -47,12 +47,18 @@ const (
 var _ = Describe("Test Storage Provisioner", func() {
 
 	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+
 		k8sClient client.Client
 	)
 
 	BeforeEach(func() {
+		ctx, cancel = context.WithCancel(context.Background())
 		k8sClient = ctrlfake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 	})
+
+	AfterEach(func() { cancel() })
 
 	Context("Provision function", func() {
 
@@ -106,8 +112,6 @@ var _ = Describe("Test Storage Provisioner", func() {
 
 		DescribeTable("Provision table",
 			func(c provisionTestcase) {
-				ctx := context.TODO()
-
 				Expect(k8sClient.Create(ctx, c.options.SelectedNode)).To(Succeed())
 				defer Expect(k8sClient.Delete(ctx, c.options.SelectedNode)).To(Succeed())
 
@@ -150,8 +154,6 @@ var _ = Describe("Test Storage Provisioner", func() {
 
 		DescribeTable("provision a real PVC",
 			func(c provisionRealTestcase) {
-				ctx := context.TODO()
-
 				forgeOpts := func() controller.ProvisionOptions {
 					return controller.ProvisionOptions{
 						SelectedNode: c.node,
@@ -265,15 +267,11 @@ var _ = Describe("Test Storage Provisioner", func() {
 			)
 
 			var (
-				ctx context.Context
-
 				remotePersistentVolumeClaims        corev1listers.PersistentVolumeClaimNamespaceLister
 				remotePersistentVolumesClaimsClient corev1clients.PersistentVolumeClaimInterface
 			)
 
 			BeforeEach(func() {
-				ctx = context.Background()
-
 				_, err := testEnvClient.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: RemoteNamespace,

@@ -15,7 +15,6 @@
 package virtualnodectrl
 
 import (
-	"context"
 	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -55,22 +54,22 @@ var _ = Describe("VirtualNode controller", func() {
 				},
 			}
 			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode1))
-			Expect(k8sClient.Create(context.TODO(), virtualNode1)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, virtualNode1)).Should(Succeed())
 			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode2))
-			Expect(k8sClient.Create(context.TODO(), virtualNode2)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, virtualNode2)).Should(Succeed())
 		})
 
 		AfterEach(func() {
 			By(fmt.Sprintf("Delete the virtual-node '%s'", nameVirtualNode1))
-			Expect(k8sClient.Delete(context.TODO(), virtualNode1)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, virtualNode1)).Should(Succeed())
 			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
 				return apierrors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 			By(fmt.Sprintf("Delete the virtual-node '%s'", nameVirtualNode2))
-			Expect(k8sClient.Delete(context.TODO(), virtualNode2)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, virtualNode2)).Should(Succeed())
 			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode2}, virtualNode2)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2)
 				return apierrors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 		})
@@ -79,7 +78,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(tenantNamespaceNameID1),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID1),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
@@ -88,7 +87,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID2))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(tenantNamespaceNameID2),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID2),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return false
 				}
@@ -101,13 +100,13 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode1))
 			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(tenantNamespaceNameID1),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID1),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
@@ -128,7 +127,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to check presence of finalizer on the virtual-Node: %s", virtualNode1.GetName()))
 			Eventually(func() bool {
-				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode1},
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1},
 					virtualNode1); err != nil {
 					return false
 				}
@@ -141,13 +140,13 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode2))
 			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode2}, virtualNode2)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID2))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(tenantNamespaceNameID2),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID2),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return false
 				}
@@ -169,7 +168,7 @@ var _ = Describe("VirtualNode controller", func() {
 			By(fmt.Sprintf("Try to check presence of finalizer in VirtualNode: %s", virtualNode2.GetName()))
 			// i have to update my node instance, because finalizer could be updated after my first get
 			Eventually(func() bool {
-				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode2},
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2},
 					virtualNode2); err != nil {
 					return false
 				}
@@ -195,17 +194,17 @@ var _ = Describe("VirtualNode controller", func() {
 				},
 			}
 			By(fmt.Sprintf("Create the simple-node '%s'", nameSimpleNode))
-			Expect(k8sClient.Create(context.TODO(), simpleNode)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, simpleNode)).Should(Succeed())
 
 			By(fmt.Sprintf("Try to get not virtual-node: %s", nameSimpleNode))
 			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameSimpleNode}, simpleNode)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameSimpleNode}, simpleNode)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Check absence of finalizer %s: ", virtualNodeControllerFinalizer))
 			Consistently(func() bool {
-				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameSimpleNode},
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameSimpleNode},
 					simpleNode); err != nil {
 					return false
 				}
@@ -213,7 +212,7 @@ var _ = Describe("VirtualNode controller", func() {
 			}, timeout/5, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Delete the simple-node '%s'", nameSimpleNode))
-			Expect(k8sClient.Delete(context.TODO(), simpleNode)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, simpleNode)).Should(Succeed())
 
 		})
 
@@ -233,12 +232,12 @@ var _ = Describe("VirtualNode controller", func() {
 				},
 			}
 			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode1))
-			Expect(k8sClient.Create(context.TODO(), virtualNode1)).Should(Succeed())
+			Expect(k8sClient.Create(ctx, virtualNode1)).Should(Succeed())
 
 			var oldUUID types.UID
 			By(fmt.Sprintf("Try to delete NamespaceMap associated to: %s", remoteClusterID1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms,
+				if err := k8sClient.List(ctx, nms,
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
@@ -246,13 +245,13 @@ var _ = Describe("VirtualNode controller", func() {
 					return false
 				}
 				oldUUID = nms.Items[0].UID
-				err := k8sClient.Delete(context.TODO(), &nms.Items[0])
+				err := k8sClient.Delete(ctx, &nms.Items[0])
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Try to get new NamespaceMap associated to: %s", remoteClusterID1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(tenantNamespaceNameID1),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID1),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
@@ -260,9 +259,9 @@ var _ = Describe("VirtualNode controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Delete the virtual-node '%s'", nameVirtualNode1))
-			Expect(k8sClient.Delete(context.TODO(), virtualNode1)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, virtualNode1)).Should(Succeed())
 			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
 				return apierrors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 

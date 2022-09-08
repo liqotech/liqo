@@ -24,7 +24,6 @@ import (
 	. "github.com/onsi/gomega"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 
@@ -46,14 +45,16 @@ var (
 	clusterIdentity discoveryv1alpha1.ClusterIdentity
 	authService     Controller
 
-	tMan tokenManagerMock
+	ctx    context.Context
+	cancel context.CancelFunc
 
-	stopChan chan struct{}
+	tMan tokenManagerMock
 
 	csr []byte
 )
 
 var _ = BeforeSuite(func() {
+	ctx, cancel = context.WithCancel(context.Background())
 	testutil.LogsToGinkgoWriter()
 
 	_ = tMan.createToken()
@@ -72,13 +73,12 @@ var _ = BeforeSuite(func() {
 		ClusterName: "default-cluster-name",
 	}
 
-	stopChan = make(chan struct{})
-	informerFactory.Start(stopChan)
-	informerFactory.WaitForCacheSync(wait.NeverStop)
+	informerFactory.Start(ctx.Done())
+	informerFactory.WaitForCacheSync(ctx.Done())
 
 	namespaceManager := tenantnamespace.NewManager(cluster.GetClient())
 	identityProvider := identitymanager.NewCertificateIdentityProvider(
-		context.Background(), cluster.GetClient(), clusterIdentity, namespaceManager)
+		ctx, cluster.GetClient(), clusterIdentity, namespaceManager)
 
 	config := apiserver.Config{Address: cluster.GetCfg().Host, TrustedCA: false}
 	Expect(config.Complete(cluster.GetCfg(), cluster.GetClient())).To(Succeed())
@@ -99,13 +99,13 @@ var _ = BeforeSuite(func() {
 			Name: "test",
 		},
 	}
-	_, err = cluster.GetClient().RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
+	_, err = cluster.GetClient().RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
 
-	idManTest.StartTestApprover(cluster.GetClient(), stopChan)
+	idManTest.StartTestApprover(cluster.GetClient(), ctx.Done())
 })
 
 var _ = AfterSuite(func() {
-	close(stopChan)
+	cancel()
 	Expect(cluster.GetEnv().Stop()).To(Succeed())
 })

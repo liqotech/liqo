@@ -36,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/iptables"
 	"github.com/liqotech/liqo/pkg/liqonet/netns"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 const (
@@ -47,6 +48,9 @@ const (
 )
 
 var (
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	envTest            *envtest.Environment
 	ipt                iptables.IPTHandler
 	k8sClient          client.Client
@@ -95,6 +99,9 @@ func TestTunnelOperator(t *testing.T) {
 var _ = BeforeSuite(func() {
 	var err error
 
+	testutil.LogsToGinkgoWriter()
+	ctx, cancel = context.WithCancel(context.Background())
+
 	// Create custom network namespace for tunnel-operator.
 	gatewayNetns, err = netns.CreateNetns(consts.GatewayNetnsName)
 	Expect(err).ShouldNot(HaveOccurred())
@@ -125,7 +132,7 @@ var _ = BeforeSuite(func() {
 	controller, err = NewNatMappingController(mgr.GetClient(), &readyClustersMutex, readyClusters, iptNetns)
 	Expect(err).ShouldNot(HaveOccurred())
 	go func() {
-		if err = mgr.Start(context.Background()); err != nil {
+		if err = mgr.Start(ctx); err != nil {
 			panic(err)
 		}
 	}()
@@ -151,14 +158,11 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	err := envTest.Stop()
-	Expect(err).ShouldNot(HaveOccurred())
-	err = terminateIPTables()
-	Expect(err).ShouldNot(HaveOccurred())
-	err = gatewayNetns.Close()
-	Expect(err).ShouldNot(HaveOccurred())
-	err = iptNetns.Close()
-	Expect(err).ShouldNot(HaveOccurred())
+	cancel()
+	Expect(envTest.Stop()).To(Succeed())
+	Expect(terminateIPTables()).To(Succeed())
+	Expect(gatewayNetns.Close()).To(Succeed())
+	Expect(iptNetns.Close()).To(Succeed())
 })
 
 func terminateIPTables() error {

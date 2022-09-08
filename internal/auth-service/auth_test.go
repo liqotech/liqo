@@ -15,7 +15,6 @@
 package authservice
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -144,7 +143,7 @@ var _ = Describe("Auth", func() {
 				Expect(err).To(BeNil())
 				c.request.CertificateSigningRequest = base64.StdEncoding.EncodeToString(req)
 
-				response, err := authService.handleIdentity(context.TODO(), c.request)
+				response, err := authService.handleIdentity(ctx, c.request)
 				Expect(err).To(c.expectedOutput)
 				c.expectedResponse(response)
 			},

@@ -202,7 +202,7 @@ func main() {
 
 	clientset := kubernetes.NewForConfigOrDie(config)
 
-	namespaceManager := tenantnamespace.NewCachedManager(clientset)
+	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
 	idManager := identitymanager.NewCertificateIdentityManager(clientset, clusterIdentity, namespaceManager)
 
 	// populate the lists of ClusterRoles to bind in the different peering states

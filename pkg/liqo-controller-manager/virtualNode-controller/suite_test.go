@@ -62,6 +62,9 @@ const (
 )
 
 var (
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	nms              *mapsv1alpha1.NamespaceMapList
 	virtualNode1     *corev1.Node
 	virtualNode2     *corev1.Node
@@ -83,6 +86,7 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 	}
 
+	ctx, cancel = context.WithCancel(context.Background())
 	testutil.LogsToGinkgoWriter()
 
 	var err error
@@ -113,7 +117,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
-		err = k8sManager.Start(ctrl.SetupSignalHandler())
+		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
 
@@ -167,30 +171,30 @@ var _ = BeforeSuite(func() {
 	}
 
 	// create the 2 tenant namespaces and the foreignClusters.
-	Expect(k8sClient.Create(context.TODO(), foreignCluster1)).To(Succeed())
-	Expect(k8sClient.Create(context.TODO(), foreignCluster2)).To(Succeed())
-	Expect(k8sClient.Create(context.TODO(), tenantNamespace1)).To(Succeed())
-	Expect(k8sClient.Create(context.TODO(), tenantNamespace2)).To(Succeed())
+	Expect(k8sClient.Create(ctx, foreignCluster1)).To(Succeed())
+	Expect(k8sClient.Create(ctx, foreignCluster2)).To(Succeed())
+	Expect(k8sClient.Create(ctx, tenantNamespace1)).To(Succeed())
+	Expect(k8sClient.Create(ctx, tenantNamespace2)).To(Succeed())
 
 	fc := &discoveryv1alpha1.ForeignCluster{}
-	Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: remoteClusterID1}, fc)).To(Succeed())
+	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: remoteClusterID1}, fc)).To(Succeed())
 	fc.Status = discoveryv1alpha1.ForeignClusterStatus{
 		TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 			Local:  tenantNamespaceNameID1,
 			Remote: "remote",
 		},
 	}
-	Expect(k8sClient.Status().Update(context.TODO(), fc)).To(Succeed())
+	Expect(k8sClient.Status().Update(ctx, fc)).To(Succeed())
 
 	fc = &discoveryv1alpha1.ForeignCluster{}
-	Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: remoteClusterID2}, fc)).To(Succeed())
+	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: remoteClusterID2}, fc)).To(Succeed())
 	fc.Status = discoveryv1alpha1.ForeignClusterStatus{
 		TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 			Local:  tenantNamespaceNameID2,
 			Remote: "remote",
 		},
 	}
-	Expect(k8sClient.Status().Update(context.TODO(), fc)).To(Succeed())
+	Expect(k8sClient.Status().Update(ctx, fc)).To(Succeed())
 
 	simpleNode = &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -206,6 +210,6 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).ToNot(HaveOccurred())
+	cancel()
+	Expect(testEnv.Stop()).To(Succeed())
 })

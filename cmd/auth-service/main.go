@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"time"
@@ -64,13 +65,13 @@ func main() {
 
 	clusterIdentity := clusterFlags.ReadOrDie()
 	authService, err := authservice.NewAuthServiceCtrl(
-		config, *namespace, awsConfig, *resync, apiserver.GetConfig(), *enableAuth, *useTLS, clusterIdentity)
+		context.Background(), config, *namespace, awsConfig, *resync, apiserver.GetConfig(), *enableAuth, *useTLS, clusterIdentity)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
 
-	if err = authService.Start(*address, *useTLS, *certPath, *keyPath); err != nil {
+	if err = authService.Start(context.Background(), *address, *useTLS, *certPath, *keyPath); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}

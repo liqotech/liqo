@@ -39,7 +39,8 @@ import (
 )
 
 var (
-	ctx context.Context
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	cluster       testutil.Cluster
 	client        kubernetes.Interface
@@ -67,7 +68,7 @@ func TestIdentityManager(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
-	ctx = context.Background()
+	ctx, cancel = context.WithCancel(context.Background())
 
 	apiProxyURL = "http://192.168.0.0:8118"
 
@@ -164,5 +165,6 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	cancel()
 	Expect(cluster.GetEnv().Stop()).To(Succeed())
 })
