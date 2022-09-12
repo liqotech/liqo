@@ -227,14 +227,14 @@ jobs:
           tar -czvf liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz liqoctl LICENSE
 
       - name: Upload Liqoctl
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
          name: liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
          path: ./liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
          retention-days: 1
 
       - name: Upload Liqoctl Archive
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
          name: liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
          path: ./liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
