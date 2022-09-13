@@ -94,7 +94,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: "${{ needs.configure.outputs.commit-ref }}"
           repository: "${{ needs.configure.outputs.repo-name }}"
@@ -205,7 +205,7 @@ jobs:
         env:
           GOPATH: ${{ github.workspace }}
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: "${{ needs.configure.outputs.commit-ref }}"
           repository: "${{ needs.configure.outputs.repo-name }}"
@@ -247,7 +247,7 @@ jobs:
     steps:
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # The changelog generation requires the entire history
           fetch-depth: 0
