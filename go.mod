@@ -48,11 +48,11 @@ require (
 	k8s.io/api v0.25.1
 	k8s.io/apiextensions-apiserver v0.25.0
 	k8s.io/apimachinery v0.25.1
-	k8s.io/cli-runtime v0.25.0
+	k8s.io/cli-runtime v0.25.1
 	k8s.io/client-go v0.25.1
-	k8s.io/component-helpers v0.25.0
+	k8s.io/component-helpers v0.25.1
 	k8s.io/klog/v2 v2.80.0
-	k8s.io/kubectl v0.25.0
+	k8s.io/kubectl v0.25.1
 	k8s.io/metrics v0.25.1
 	k8s.io/utils v0.0.0-20220823124924-e9cbc92d1a73
 	sigs.k8s.io/aws-iam-authenticator v0.5.8-0.20220803211948-538f7f4314ef
@@ -241,7 +241,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apiserver v0.25.0 // indirect
-	k8s.io/component-base v0.25.0 // indirect
+	k8s.io/component-base v0.25.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803164354-a70c9af30aea // indirect
 	oras.land/oras-go v1.2.0 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
