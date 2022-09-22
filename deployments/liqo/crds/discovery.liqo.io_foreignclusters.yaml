@@ -18,6 +18,9 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.peeringType
+      name: Type
+      type: string
     - jsonPath: .spec.clusterIdentity.clusterID
       name: ClusterID
       priority: 1
@@ -98,14 +101,6 @@ spec:
                 description: Indicates if the local cluster has to skip the tls verification
                   over the remote Authentication Service or not.
                 type: boolean
-              networkingEnabled:
-                default: "Yes"
-                description: Indicates if Liqo has to handle the network interconnection
-                  with the remote cluster.
-                enum:
-                - "No"
-                - "Yes"
-                type: string
               outgoingPeeringEnabled:
                 default: Auto
                 description: Enable the peering process to the remote cluster.
@@ -113,6 +108,13 @@ spec:
                 - Auto
                 - "No"
                 - "Yes"
+                type: string
+              peeringType:
+                default: OutOfBand
+                description: The type of peering to be established.
+                enum:
+                - OutOfBand
+                - InBand
                 type: string
               ttl:
                 description: If discoveryType is LAN, this indicates the number of

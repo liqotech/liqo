@@ -8,6 +8,23 @@ metadata:
   labels:
     {{- include "liqo.labels" $webhookConfig | nindent 4 }}
 webhooks:
+  - name: fc.validate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/validate/foreign-cluster"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["UPDATE"]
+        apiGroups: ["discovery.liqo.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["foreignclusters"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
   - name: nsoff.validate.liqo.io
     admissionReviewVersions:
       - v1

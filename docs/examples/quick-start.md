@@ -153,8 +153,8 @@ kubectl get foreignclusters
 The output should look like the following, indicating that the cross-cluster network tunnel has been established, and an outgoing peering is currently active (i.e., the *Rome* cluster can offload workloads to the *Milan* one, but not vice versa):
 
 ```text
-NAME    OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-milan   Established        None               Established   Established      12s
+NAME    TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
+milan   OutOfBand   Established        None               Established   Established      12s
 ```
 
 At the same time, you should see a virtual node (`liqo-milan`) in addition to your physical nodes:

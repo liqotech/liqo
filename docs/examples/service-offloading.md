@@ -53,8 +53,8 @@ kubectl get foreignclusters
 The output should look like the following, indicating that an outgoing peering is currently active towards the *New York* cluster, as well as that the cross-cluster network tunnel has been established:
 
 ```text
-NAME      OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-newyork   Established        None               Established   Established      61s
+NAME      TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
+newyork   OutOfBand   Established        None               Established   Established      61s
 ```
 
 ## Offload a service

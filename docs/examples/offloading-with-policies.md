@@ -73,9 +73,9 @@ kubectl get foreignclusters
 The output should look like the following, indicating that an outgoing peering is currently active towards both the *Florence* and the *Naples* clusters, as well as the cross-cluster network tunnels have been established:
 
 ```text
-NAME       OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-florence   Established        None               Established   Established      111s
-naples     Established        None               Established   Established      98s
+NAME       TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
+florence   OutOfBand   Established        None               Established   Established      111s
+naples     OutOfBand   Established        None               Established   Established      98s
 ```
 
 Additionally, you should have two new virtual nodes in the *Venice* cluster, characterized by the install-time provided labels:

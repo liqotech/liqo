@@ -48,6 +48,16 @@ func (o *Options) Run(ctx context.Context) error {
 		return err
 	}
 
+	// Check whether a ForeignCluster resource already exists in cluster 1 for cluster 2, and perform sanity checks.
+	if err := cluster1.CheckForeignCluster(ctx, cluster2.GetClusterID()); err != nil {
+		return err
+	}
+
+	// Check whether a ForeignCluster resource already exists in cluster 2 for cluster 1, and perform sanity checks.
+	if err := cluster2.CheckForeignCluster(ctx, cluster1.GetClusterID()); err != nil {
+		return err
+	}
+
 	// SetUp tenant namespace for cluster 2 in cluster 1.
 	if err := cluster1.SetUpTenantNamespace(ctx, cluster2.GetClusterID()); err != nil {
 		return err

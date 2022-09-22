@@ -55,8 +55,8 @@ kubectl get foreignclusters
 The output should look like the following, indicating that an outgoing peering is currently active towards the *Lyon* cluster,, as well as that the cross-cluster network tunnel has been established:
 
 ```text
-NAME   OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-lyon   Established        None               Established   Established      1m28s
+NAME   TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
+lyon   OutOfBand   Established        None               Established   Established      1m28s
 ```
 
 ## Deploy a stateful application

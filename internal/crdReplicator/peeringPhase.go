@@ -17,6 +17,7 @@ package crdreplicator
 import (
 	"k8s.io/klog/v2"
 
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -25,9 +26,7 @@ import (
 func (c *Controller) getPeeringPhase(clusterID string) consts.PeeringPhase {
 	c.peeringPhasesMutex.RLock()
 	defer c.peeringPhasesMutex.RUnlock()
-	if c.peeringPhases == nil {
-		return consts.PeeringPhaseNone
-	}
+
 	if phase, ok := c.peeringPhases[clusterID]; ok {
 		return phase
 	}
@@ -38,15 +37,17 @@ func (c *Controller) getPeeringPhase(clusterID string) consts.PeeringPhase {
 func (c *Controller) setPeeringPhase(clusterID string, phase consts.PeeringPhase) {
 	c.peeringPhasesMutex.Lock()
 	defer c.peeringPhasesMutex.Unlock()
-	if c.peeringPhases == nil {
-		c.peeringPhases = map[string]consts.PeeringPhase{}
-	}
 	c.peeringPhases[clusterID] = phase
 }
 
 // isReplicationEnabled indicates if the replication has to be enabled for a given peeringPhase
 // and a given CRD.
-func isReplicationEnabled(peeringPhase consts.PeeringPhase, resource *resources.Resource) bool {
+func isReplicationEnabled(peeringPhase consts.PeeringPhase, networkingEnabled bool, resource *resources.Resource) (enabled bool) {
+	defer func() {
+		enabled = enabled && // Replication is disabled for NetworkConfigs, if networking is not enabled.
+			(networkingEnabled || resource.GroupVersionResource != netv1alpha1.NetworkConfigGroupVersionResource)
+	}()
+
 	switch resource.PeeringPhase {
 	case consts.PeeringPhaseNone:
 		return false

@@ -67,8 +67,8 @@ kubectl --context=consumer get foreignclusters
 If the peering process completed successfully, you should observe an output similar to the following, indicating that the cross-cluster network tunnel has been established, and an outgoing peering is currently active (i.e., the *consumer* cluster can offload workloads to the *provider* one, but not vice versa):
 
 ```text
-NAME       OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION
-provider   Established        None               Established   Established
+NAME       TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION
+provider   OutOfBand   Established        None               Established   Established
 ```
 
 At the same time, a new *virtual node* should have been created in the *consumer* cluster.
@@ -108,7 +108,14 @@ liqoctl --context=consumer unpeer out-of-band
 ```{admonition} Note
 The reverse peering direction, if any, is preserved, and the remote cluster can continue offloading workloads to its virtual
 node representing the local cluster.
+In this case, the command *emits a warning*, and it does not proceed deleting the *ForeignCluster* resource.
 Hence, the same command shall be executed on both clusters to completely tear down a bidirectional peering.
+```
+
+In case only one peering direction shall be teared down, while preserving the opposite, it is suggested to leverage the appropriate *liqoctl unpeer* command to disable the outgoing peering (e.g., on the *provider* cluster):
+
+```bash
+liqoctl --context=provider unpeer consumer
 ```
 
 (UsagePeerInBand)=
@@ -144,8 +151,8 @@ kubectl --context=consumer get foreignclusters
 If the peering process completed successfully, you should observe an output similar to the following, indicating that the cross-cluster network tunnel has been established, and an outgoing peering is currently active (i.e., the *consumer* cluster can offload workloads to the *provider* one, but not vice versa):
 
 ```text
-NAME       OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION
-provider   Established        None               Established   Established
+NAME       TYPE     OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION
+provider   InBand   Established        None               Established   Established
 ```
 
 At the same time, a new *virtual node* should have been created in the *consumer* cluster.

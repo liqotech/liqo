@@ -57,6 +57,7 @@ import (
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
+	fcwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/foreigncluster"
 	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
 	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -197,6 +198,7 @@ func main() {
 	}
 
 	// Register the webhooks.
+	mgr.GetWebhookServer().Register("/validate/foreign-cluster", fcwh.New())
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient()))
 
