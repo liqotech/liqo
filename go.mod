@@ -45,11 +45,11 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.9.4
 	inet.af/netaddr v0.0.0-20220811202034-502d2d690317
-	k8s.io/api v0.25.1
+	k8s.io/api v0.25.2
 	k8s.io/apiextensions-apiserver v0.25.0
-	k8s.io/apimachinery v0.25.1
+	k8s.io/apimachinery v0.25.2
 	k8s.io/cli-runtime v0.25.1
-	k8s.io/client-go v0.25.1
+	k8s.io/client-go v0.25.2
 	k8s.io/component-helpers v0.25.1
 	k8s.io/klog/v2 v2.80.0
 	k8s.io/kubectl v0.25.1
