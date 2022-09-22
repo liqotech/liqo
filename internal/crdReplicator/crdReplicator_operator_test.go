@@ -70,10 +70,6 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 		})).To(Succeed())
 	}
 
-	DisableNetworking := func() {
-		foreignCluster.Spec.NetworkingEnabled = discoveryv1alpha1.NetworkingEnabledNo
-	}
-
 	RemoteRef := func(name string) types.NamespacedName {
 		return types.NamespacedName{Name: name, Namespace: remoteNamespace}
 	}
@@ -115,7 +111,6 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 				ClusterIdentity: remoteCluster,
 				ForeignAuthURL:  authURL, OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 				IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto, InsecureSkipTLSVerify: pointer.Bool(true),
-				NetworkingEnabled: discoveryv1alpha1.NetworkingEnabledYes,
 			},
 			Status: discoveryv1alpha1.ForeignClusterStatus{
 				TenantNamespace: discoveryv1alpha1.TenantNamespaceType{Local: localNamespace, Remote: remoteNamespace}},
@@ -169,7 +164,11 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 		Expect(GetRemoteNetworkConfig()()).To(MatchError(networkConfigNotFound))
 	})
 
-	Context("replication tests by phase with networking", func() {
+	Context("replication tests by phase for out-of-band control-plane peering (i.e., with replication of network configs)", func() {
+		BeforeEach(func() {
+			foreignCluster.Spec.PeeringType = discoveryv1alpha1.PeeringTypeOutOfBand
+		})
+
 		When("the peering phase is none", func() {
 			It("Should replicate no resources", func() {
 				Consistently(GetForeignClusterFinalizer()).ShouldNot(ContainElement("crdReplicator.liqo.io"))
@@ -214,8 +213,10 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 		})
 	})
 
-	Context("replication tests by phase without networking", func() {
-		BeforeEach(func() { DisableNetworking() })
+	Context("replication tests by phase for in-band control-plane peering (i.e., without replication of network configs)", func() {
+		BeforeEach(func() {
+			foreignCluster.Spec.PeeringType = discoveryv1alpha1.PeeringTypeInBand
+		})
 
 		When("the peering phase is none", func() {
 

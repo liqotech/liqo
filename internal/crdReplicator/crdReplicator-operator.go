@@ -64,8 +64,8 @@ type Controller struct {
 	peeringPhases      map[string]consts.PeeringPhase
 	peeringPhasesMutex sync.RWMutex
 
-	networkingStates     map[string]discoveryv1alpha1.NetworkingEnabledType
-	networkingStateMutex sync.RWMutex
+	networkingEnabled      map[string]bool
+	networkingEnabledMutex sync.RWMutex
 }
 
 // cluster-role
@@ -149,10 +149,10 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		c.setPeeringPhase(remoteCluster.ClusterID, currentPhase)
 	}
 
-	currentNetState := foreigncluster.GetNetworkingState(&fc)
-	if oldNetState := c.getNetworkingState(remoteCluster.ClusterID); oldNetState != currentNetState {
-		klog.V(4).Infof("[%v] Networking state changed: old: %v, new %v", remoteCluster.ClusterName, oldNetState, currentNetState)
-		c.setNetworkingState(remoteCluster.ClusterID, currentNetState)
+	currentNetEnabled := foreigncluster.IsNetworkingEnabled(&fc)
+	if oldNetEnabled := c.getNetworkingEnabled(remoteCluster.ClusterID); oldNetEnabled != currentNetEnabled {
+		klog.V(4).Infof("[%v] Networking enabled status changed: old: %v, new %v", remoteCluster.ClusterName, oldNetEnabled, currentNetEnabled)
+		c.setNetworkingEnabled(remoteCluster.ClusterID, currentNetEnabled)
 	}
 
 	// Check if reflection towards the remote cluster has already been started.
@@ -175,6 +175,9 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 
 // SetupWithManager registers a new controller for ForeignCluster resources.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
+	c.peeringPhases = make(map[string]consts.PeeringPhase)
+	c.networkingEnabled = make(map[string]bool)
+
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return false
@@ -220,13 +223,13 @@ func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterI
 		return nil
 	}
 
-	netState := c.getNetworkingState(remoteClusterID)
 	phase := c.getPeeringPhase(remoteClusterID)
+	networkingEnabled := c.getNetworkingEnabled(remoteClusterID)
 	for i := range c.RegisteredResources {
 		res := &c.RegisteredResources[i]
-		if !deleting && isReplicationEnabled(phase, res) && isNetworkingEnabled(netState, res) && !reflector.ResourceStarted(res) {
+		if !deleting && isReplicationEnabled(phase, networkingEnabled, res) && !reflector.ResourceStarted(res) {
 			reflector.StartForResource(ctx, res)
-		} else if (!isReplicationEnabled(phase, res) || !isNetworkingEnabled(netState, res)) && reflector.ResourceStarted(res) {
+		} else if !isReplicationEnabled(phase, networkingEnabled, res) && reflector.ResourceStarted(res) {
 			if err := reflector.StopForResource(res); err != nil {
 				return err
 			}

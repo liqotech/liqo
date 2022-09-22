@@ -50,7 +50,7 @@ func (o *Options) Run(ctx context.Context) error {
 
 	fc, err := o.peer(ctx)
 	if err != nil {
-		s.Fail("Failed peering clusters:", output.PrettyErr(err))
+		s.Fail("Failed peering clusters: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Peering enabled")
@@ -95,12 +95,19 @@ func (o *Options) enforceForeignCluster(ctx context.Context) (*discoveryv1alpha1
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, o.CRClient, fc, func() error {
+		if fc.Spec.PeeringType != discoveryv1alpha1.PeeringTypeUnknown && fc.Spec.PeeringType != discoveryv1alpha1.PeeringTypeOutOfBand {
+			return fmt.Errorf("a peering of type %s already exists towards remote cluster %q, cannot be changed to %s",
+				fc.Spec.PeeringType, o.ClusterName, discoveryv1alpha1.PeeringTypeOutOfBand)
+		}
+
+		fc.Spec.PeeringType = discoveryv1alpha1.PeeringTypeOutOfBand
 		fc.Spec.ClusterIdentity.ClusterID = o.ClusterID
 		if fc.Spec.ClusterIdentity.ClusterName == "" {
 			fc.Spec.ClusterIdentity.ClusterName = o.ClusterName
 		}
 
 		fc.Spec.ForeignAuthURL = o.ClusterAuthURL
+		fc.Spec.ForeignProxyURL = ""
 		fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
 		if fc.Spec.IncomingPeeringEnabled == "" {
 			fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto

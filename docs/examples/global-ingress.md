@@ -70,8 +70,8 @@ kubectl get foreignclusters
 The output should look like the following, indicating that an outgoing peering is currently active towards the *gslb-us* cluster, as well as that the cross-cluster network tunnel has been established:
 
 ```text
-NAME      OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-gslb-us   Established        None               Established   Established      57s
+NAME      TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
+gslb-us   OutOfBand   Established        None               Established   Established      57s
 ```
 
 Additionally, you should see a new virtual node (`liqo-gslb-us`) in the *gslb-eu* cluster, and representing the whole *gslb-us* cluster.

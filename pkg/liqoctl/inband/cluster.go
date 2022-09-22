@@ -39,7 +39,6 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
@@ -74,6 +73,7 @@ type Cluster struct {
 	remTenantNamespace string
 	namespaceManager   tenantnamespace.Manager
 	clusterID          *discoveryv1alpha1.ClusterIdentity
+	foreignCluster     *discoveryv1alpha1.ForeignCluster
 	netConfig          *liqogetters.NetworkConfig
 	wgConfig           *WireGuardConfig
 	PortForwardOpts    *PortForwardOptions
@@ -712,7 +712,48 @@ func unmapServiceForCluster(ctx context.Context, ipamClient ipam.IpamClient, ipT
 	return err
 }
 
+// CheckForeignCluster retrieves the ForeignCluster resource associated with the remote cluster (if any), and stores it for later usage.
+// Additionally, it performs the appropriate sanity checks, ensuring that the type of peering is not mutated.
+func (c *Cluster) CheckForeignCluster(ctx context.Context, remoteIdentity *discoveryv1alpha1.ClusterIdentity) (err error) {
+	s := c.local.Printer.StartSpinner(fmt.Sprintf("checking if the foreign cluster resource for remote cluster %q already exists", remoteIdentity))
+
+	defer func() {
+		if err != nil {
+			s.Fail(err)
+		}
+	}()
+
+	// Check that the cluster is not peering towards itself.
+	if c.clusterID.ClusterID == remoteIdentity.ClusterID {
+		return fmt.Errorf("the clusterID %q of remote cluster %q is equal to the ID of the local cluster", c.clusterID.ClusterID, remoteIdentity)
+	}
+
+	// Get existing foreign cluster if it does exist
+	fc, err := fcutils.GetForeignClusterByID(ctx, c.local.CRClient, remoteIdentity.ClusterID)
+	if client.IgnoreNotFound(err) != nil {
+		return fmt.Errorf("an error occurred while getting foreign cluster for remote cluster %q: %w", remoteIdentity, err)
+	}
+
+	if k8serrors.IsNotFound(err) {
+		// If not found, create a new struct, which will be applied in a later step.
+		c.foreignCluster = &discoveryv1alpha1.ForeignCluster{ObjectMeta: metav1.ObjectMeta{Name: remoteIdentity.ClusterName}}
+		s.Success(fmt.Sprintf("foreign cluster for remote cluster %q not found: marked for creation", remoteIdentity))
+		return nil
+	}
+
+	// Otherwise, check that the type of peering is not mutated.
+	if fc.Spec.PeeringType != discoveryv1alpha1.PeeringTypeInBand {
+		return fmt.Errorf("a peering of type %s already exists towards remote cluster %q, cannot be changed to %s",
+			fc.Spec.PeeringType, remoteIdentity, discoveryv1alpha1.PeeringTypeInBand)
+	}
+	c.foreignCluster = fc
+
+	s.Success(fmt.Sprintf("foreign cluster for remote cluster %q correctly retrieved", remoteIdentity))
+	return nil
+}
+
 // EnforceForeignCluster enforces the presence of the foreignclusters instance for a given remote cluster.
+// This function must be executed after CheckForeignCluster, which retrieves the ForeignCluster and performs the appropriate sanity checks.
 // The newly created foreigncluster has the following fields set to:
 //   - ForeignAuthURL -> the remapped ip address for the local cluster of the auth service living in the remote cluster;
 //   - ForeignProxyURL -> the remapped ip address for the local cluster of the proxy service living in the remote cluster;
@@ -723,49 +764,31 @@ func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *di
 	token, authURL, proxyURL string, outgoing bool) error {
 	remID := remoteClusterID.ClusterID
 	remName := remoteClusterID.ClusterName
-	s := c.local.Printer.StartSpinner(fmt.Sprintf("creating foreign cluster for the remote cluster %q", remName))
-	if c.clusterID.ClusterID == remoteClusterID.ClusterID {
-		msg := fmt.Sprintf("the clusterID %q of remote cluster %q is equal to the ID of the local cluster", remID, remName)
-		s.Fail(msg)
-		return errors.New(msg)
-	}
 
+	s := c.local.Printer.StartSpinner(fmt.Sprintf("configuring the foreign cluster resource for the remote cluster %q", remName))
 	if err := authenticationtoken.StoreInSecret(ctx, c.local.KubeClient, remID, token, c.local.LiqoNamespace); err != nil {
 		msg := fmt.Sprintf("an error occurred while storing auth token for remote cluster %q: %v", remName, err)
 		s.Fail(msg)
 		return errors.New(msg)
 	}
 
-	// Get existing foreign cluster if it does exist
-	fc, err := fcutils.GetForeignClusterByID(ctx, c.local.CRClient, remID)
-	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("an error occurred while getting foreign cluster for remote cluster %q: %v", remName, err))
-		return err
-	}
-
-	// Not nil only if the foreign cluster does not exist.
-	if err != nil {
-		fc = &discoveryv1alpha1.ForeignCluster{ObjectMeta: metav1.ObjectMeta{Name: remName,
-			Labels: map[string]string{discovery.ClusterIDLabel: remID}}}
-	}
-
-	if _, err = controllerutil.CreateOrPatch(ctx, c.local.CRClient, fc, func() error {
-		fc.Spec.ClusterIdentity = *remoteClusterID
-		fc.Spec.ForeignAuthURL = authURL
-		fc.Spec.ForeignProxyURL = proxyURL
+	if _, err := controllerutil.CreateOrUpdate(ctx, c.local.CRClient, c.foreignCluster, func() error {
+		c.foreignCluster.Spec.PeeringType = discoveryv1alpha1.PeeringTypeInBand
+		c.foreignCluster.Spec.ClusterIdentity = *remoteClusterID
+		c.foreignCluster.Spec.ForeignAuthURL = authURL
+		c.foreignCluster.Spec.ForeignProxyURL = proxyURL
 
 		if outgoing {
-			fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+			c.foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
 		} else {
-			fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
+			c.foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
 		}
 
-		fc.Spec.NetworkingEnabled = discoveryv1alpha1.NetworkingEnabledNo
-		if fc.Spec.IncomingPeeringEnabled == "" {
-			fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto
+		if c.foreignCluster.Spec.IncomingPeeringEnabled == "" {
+			c.foreignCluster.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto
 		}
-		if fc.Spec.InsecureSkipTLSVerify == nil {
-			fc.Spec.InsecureSkipTLSVerify = pointer.BoolPtr(true)
+		if c.foreignCluster.Spec.InsecureSkipTLSVerify == nil {
+			c.foreignCluster.Spec.InsecureSkipTLSVerify = pointer.BoolPtr(true)
 		}
 		return nil
 	}); err != nil {
@@ -810,21 +833,25 @@ func (c *Cluster) DeleteForeignCluster(ctx context.Context, remoteClusterID *dis
 }
 
 // DisablePeering disables the peering for the remote cluster by patching the foreigncusters resource.
-func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) (err error) {
 	remID := remoteClusterID.ClusterID
 	remName := remoteClusterID.ClusterName
 	s := c.local.Printer.StartSpinner(fmt.Sprintf("disabling peering for the remote cluster %q", remName))
+
+	defer func() {
+		if err != nil {
+			s.Fail(err)
+		}
+	}()
+
 	if c.clusterID.ClusterID == remoteClusterID.ClusterID {
-		msg := fmt.Sprintf("the clusterID %q of remote cluster %q is equal to the ID of the local cluster", remID, remName)
-		s.Fail(msg)
-		return errors.New(msg)
+		return fmt.Errorf("the clusterID %q of remote cluster %q is equal to the ID of the local cluster", remID, remName)
 	}
 
 	// Get existing foreign cluster if it does exist
 	fc, err := fcutils.GetForeignClusterByID(ctx, c.local.CRClient, remID)
 	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("an error occurred while getting foreign cluster for remote cluster %q: %v", remName, err))
-		return err
+		return fmt.Errorf("an error occurred while getting foreign cluster for remote cluster %q: %w", remName, err)
 	}
 
 	// Not nil only if the foreign cluster does not exist.
@@ -833,13 +860,18 @@ func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discovery
 		return nil
 	}
 
+	// Do not proceed if the peering is not in-band.
+	if fc.Spec.PeeringType != discoveryv1alpha1.PeeringTypeInBand {
+		return fmt.Errorf("the peering type towards remote cluster %q is %s, expected %s",
+			remName, fc.Spec.PeeringType, discoveryv1alpha1.PeeringTypeInBand)
+	}
+
 	// Set outgoing peering to no.
-	if _, err := controllerutil.CreateOrPatch(ctx, c.local.CRClient, fc, func() error {
+	if _, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, fc, func() error {
 		fc.Spec.OutgoingPeeringEnabled = "No"
 		return nil
 	}); err != nil {
-		s.Fail(fmt.Sprintf("an error occurred withe disabling peering for remote cluster %q: %v", remName, err))
-		return err
+		return fmt.Errorf("an error occurred while disabling peering for remote cluster %q: %w", remName, err)
 	}
 	s.Success(fmt.Sprintf("peering correctly disabled for remote cluster %q", remName))
 

@@ -14,48 +14,16 @@
 
 package crdreplicator
 
-import (
-	"k8s.io/klog/v2"
-
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator/resources"
-)
-
 // getNetworkingState returns the state of the networking for a cluster given its clusterID.
-func (c *Controller) getNetworkingState(clusterID string) discoveryv1alpha1.NetworkingEnabledType {
-	c.networkingStateMutex.RLock()
-	defer c.networkingStateMutex.RUnlock()
-	if state, ok := c.networkingStates[clusterID]; ok {
-		return state
-	}
-	return discoveryv1alpha1.NetworkingEnabledNone
+func (c *Controller) getNetworkingEnabled(clusterID string) bool {
+	c.networkingEnabledMutex.RLock()
+	defer c.networkingEnabledMutex.RUnlock()
+	return c.networkingEnabled[clusterID]
 }
 
 // setNetworkingState sets the networking state for a given clusterID.
-func (c *Controller) setNetworkingState(clusterID string, state discoveryv1alpha1.NetworkingEnabledType) {
-	c.networkingStateMutex.RLock()
-	defer c.networkingStateMutex.RUnlock()
-	if c.networkingStates == nil {
-		c.networkingStates = map[string]discoveryv1alpha1.NetworkingEnabledType{}
-	}
-	c.networkingStates[clusterID] = state
-}
-
-// isNetworkingEnabled indicates if the replication for the networkconfigs has to be enabled based on the state
-// of the networking.
-func isNetworkingEnabled(networkingState discoveryv1alpha1.NetworkingEnabledType, resource *resources.Resource) bool {
-	// We are interested only for the networkconfigs resources.
-	if resource.GroupVersionResource != netv1alpha1.NetworkConfigGroupVersionResource {
-		return true
-	}
-	switch networkingState {
-	case discoveryv1alpha1.NetworkingEnabledNone, discoveryv1alpha1.NetworkingEnabledNo:
-		return false
-	case discoveryv1alpha1.NetworkingEnabledYes:
-		return true
-	default:
-		klog.Warning("Unknown networking state %v", resource.PeeringPhase)
-		return false
-	}
+func (c *Controller) setNetworkingEnabled(clusterID string, enabled bool) {
+	c.networkingEnabledMutex.RLock()
+	defer c.networkingEnabledMutex.RUnlock()
+	c.networkingEnabled[clusterID] = enabled
 }

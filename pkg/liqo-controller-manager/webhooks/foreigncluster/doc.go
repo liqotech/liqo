@@ -12,11 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package foreigncluster
-
-import discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-
-// IsNetworkingEnabled checks if the automatic creation/propagation of NetworkConfigs is enabled.
-func IsNetworkingEnabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
-	return foreignCluster.Spec.PeeringType == discoveryv1alpha1.PeeringTypeOutOfBand
-}
+// Package fcwh contains the logic of the ForeignCluster webhook.
+package fcwh

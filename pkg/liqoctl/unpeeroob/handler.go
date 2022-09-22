@@ -16,14 +16,17 @@ package unpeeroob
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
+	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
 // Options encapsulates the arguments of the unpeer out-of-band command.
@@ -32,6 +35,9 @@ type Options struct {
 
 	ClusterName string
 	Timeout     time.Duration
+
+	// Whether to enforce the peering to be of type out-of-band, and delete the ForeignCluster resource.
+	UnpeerOOBMode bool
 }
 
 // Run implements the unpeer out-of-band command.
@@ -46,13 +52,28 @@ func (o *Options) Run(ctx context.Context) error {
 		s.Fail("Failed unpeering clusters: ", output.PrettyErr(err))
 		return err
 	}
-	s.Success("Peering disabled")
+	s.Success("Outgoing peering marked as disabled")
 
 	if err = o.wait(ctx, &fc.Spec.ClusterIdentity); err != nil {
 		return err
 	}
 
-	o.Printer.Success.Println("Peering successfully removed")
+	// Do not attempt to delete the ForeignCluster resource if the unpeer command is not in OOB mode.
+	if !o.UnpeerOOBMode {
+		return nil
+	}
+
+	s = o.Printer.StartSpinner("Removing the foreign cluster resource")
+	if deleted, err := o.delete(ctx, fc); err != nil {
+		s.Fail("Failed removing the foreign cluster resource: ", output.PrettyErr(err))
+		return err
+	} else if !deleted {
+		s.Warning("The foreign cluster resource was not removed, as an incoming peering is still active")
+		s.Warning(fmt.Sprintf("Issue the unpeer command on the remote cluster %q to disable it", o.ClusterName))
+		return nil
+	}
+
+	o.Printer.Success.Println("Foreign cluster resource successfully removed")
 	return nil
 }
 
@@ -62,11 +83,30 @@ func (o *Options) unpeer(ctx context.Context) (*discoveryv1alpha1.ForeignCluster
 		return nil, err
 	}
 
+	// Do not proceed if the peering is not out-of-band and that mode is set.
+	if o.UnpeerOOBMode && foreignCluster.Spec.PeeringType != discoveryv1alpha1.PeeringTypeOutOfBand {
+		return nil, fmt.Errorf("the peering type towards remote cluster %q is %s, expected %s",
+			o.ClusterName, foreignCluster.Spec.PeeringType, discoveryv1alpha1.PeeringTypeOutOfBand)
+	}
+
 	foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
 	if err := o.CRClient.Update(ctx, &foreignCluster); err != nil {
 		return nil, err
 	}
 	return &foreignCluster, nil
+}
+
+func (o *Options) delete(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) (deleted bool, err error) {
+	incoming := peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.IncomingPeeringCondition)
+	if incoming != discoveryv1alpha1.PeeringConditionStatusNone {
+		return false, nil
+	}
+
+	if err := o.Factory.CRClient.Delete(ctx, fc); err != nil {
+		return true, client.IgnoreNotFound(err)
+	}
+
+	return true, nil
 }
 
 func (o *Options) wait(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {

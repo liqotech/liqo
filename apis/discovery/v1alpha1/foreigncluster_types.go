@@ -48,6 +48,20 @@ const (
 	PeeringConditionStatusSuccess PeeringConditionStatusType = "Success"
 )
 
+// PeeringType defines the type of peering to be established.
+type PeeringType string
+
+const (
+	// PeeringTypeOutOfBand represents an out-of-band control-plane peering
+	// (i.e., control plane traffic flows outside the network fabric).
+	PeeringTypeOutOfBand PeeringType = "OutOfBand"
+	// PeeringTypeInBand represents an in-band control-plane peering.
+	// (i.e., control plane traffic flows inside the network fabric).
+	PeeringTypeInBand PeeringType = "InBand"
+	// PeeringTypeUnknown represents the empty value for the peering type.
+	PeeringTypeUnknown PeeringType = ""
+)
+
 // PeeringEnabledType indicates the desired state for the peering with this remote cluster.
 type PeeringEnabledType string
 
@@ -55,9 +69,9 @@ const (
 	// PeeringEnabledAuto indicates to use the default settings for the discovery method.
 	// This is useful to track that the user did not set the peering state for that cluster,
 	// if the peering is Auto liqo will use the default for that discovery method:
-	// manual -> No
-	// incomingPeering -> No
-	// LAN -> Yes
+	// manual -> No.
+	// incomingPeering -> No.
+	// LAN -> Yes.
 	PeeringEnabledAuto PeeringEnabledType = "Auto"
 	// PeeringEnabledNo indicates to disable the peering with this remote cluster.
 	PeeringEnabledNo PeeringEnabledType = "No"
@@ -65,22 +79,13 @@ const (
 	PeeringEnabledYes PeeringEnabledType = "Yes"
 )
 
-// NetworkingEnabledType indicates the desired state for the network interconnection with this remote cluster.
-type NetworkingEnabledType string
-
-const (
-	// NetworkingEnabledNo indicates to not handle the network interconnection with this remote cluster.
-	NetworkingEnabledNo NetworkingEnabledType = "No"
-	// NetworkingEnabledYes indicates to handle the network interconnection with this remote cluster.
-	NetworkingEnabledYes NetworkingEnabledType = "Yes"
-	// NetworkingEnabledNone is a placeholder to be used when the state of the networking is not known.
-	NetworkingEnabledNone NetworkingEnabledType = "None"
-)
-
 // ForeignClusterSpec defines the desired state of ForeignCluster.
 type ForeignClusterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// The type of peering to be established.
+	// +kubebuilder:validation:Enum="OutOfBand";"InBand"
+	// +kubebuilder:default="OutOfBand"
+	// +kubebuilder:validation:Optional
+	PeeringType PeeringType `json:"peeringType,omitempty"`
 
 	// Foreign Cluster Identity.
 	ClusterIdentity ClusterIdentity `json:"clusterIdentity,omitempty"`
@@ -94,11 +99,6 @@ type ForeignClusterSpec struct {
 	// +kubebuilder:default="Auto"
 	// +kubebuilder:validation:Optional
 	IncomingPeeringEnabled PeeringEnabledType `json:"incomingPeeringEnabled"`
-	// Indicates if Liqo has to handle the network interconnection with the remote cluster.
-	// +kubebuilder:validation:Enum="No";"Yes"
-	// +kubebuilder:default="Yes"
-	// +kubebuilder:validation:Optional
-	NetworkingEnabled NetworkingEnabledType `json:"networkingEnabled,omitempty"`
 	// URL where to contact foreign Auth service.
 	// +kubebuilder:validation:Pattern=`https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 	ForeignAuthURL string `json:"foreignAuthUrl"`
@@ -190,6 +190,7 @@ type TenantNamespaceType struct {
 // +kubebuilder:subresource:status
 
 // ForeignCluster is the Schema for the foreignclusters API.
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.peeringType`
 // +kubebuilder:printcolumn:name="ClusterID",type=string,priority=1,JSONPath=`.spec.clusterIdentity.clusterID`
 // +kubebuilder:printcolumn:name="ClusterName",type=string,priority=1,JSONPath=`.spec.clusterIdentity.clusterName`
 // +kubebuilder:printcolumn:name="Outgoing peering",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'OutgoingPeering')].status`

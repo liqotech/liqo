@@ -227,8 +227,7 @@ var _ = Describe("Network config functions", func() {
 				},
 				ObjectMeta: metav1.ObjectMeta{Name: "whatever", UID: "8a402261-9cf4-402e-89e8-4d743fb315fb"},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
-					ClusterIdentity:   discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID, ClusterName: clusterName},
-					NetworkingEnabled: discoveryv1alpha1.NetworkingEnabledYes,
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID, ClusterName: clusterName},
 				},
 				Status: discoveryv1alpha1.ForeignClusterStatus{
 					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{Local: namespace},

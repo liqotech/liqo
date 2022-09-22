@@ -82,8 +82,8 @@ The command above can be generated executing the following from the target clust
 
 const liqoctlPeerIBLongHelp = `Enable an in-band peering towards a remote cluster.
 
-The in-band control plane peering is an peering approach, characterized by all
-Liqo control-plane traffic flowing inside the VPN tunnel interconnecting the
+The in-band control plane peering is an alternative peering approach, characterized
+by all Liqo control-plane traffic flowing inside the VPN tunnel interconnecting the
 two clusters. The VPN tunnel is established by {{ .Executable }} before starting the
 remainder of the peering process.
 

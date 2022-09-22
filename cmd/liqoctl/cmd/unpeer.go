@@ -31,7 +31,7 @@ const liqoctlUnpeerLongHelp = `Disable a peering towards a remote cluster.
 
 Depending on the approach adopted to initially establish the peering towards a
 remote cluster, the corresponding unpeer command performs the symmetrical
-operations to tear the peering down (although with slightly different semantic).
+operations to tear the peering down.
 
 This command disables an *outgoing peering* towards a remote cluster, causing
 the local virtual node (abstracting the remote cluster) to be destroyed, and all
@@ -40,8 +40,7 @@ and the remote cluster can continue offloading workloads to its virtual node
 representing the local cluster.
 
 The same operation can be executed regardless of whether the peering is
-out-of-band or in-band, although in the latter case the VPN tunnel is not teared
-down (as the *unpeer in-band* instead would do).
+out-of-band or in-band.
 
 Examples:
   $ {{ .Executable }} unpeer eternal-donkey
@@ -51,13 +50,12 @@ const liqoctlUnpeerOOBLongHelp = `Disable an out-of-band peering towards a remot
 
 This command disables an *out-of-band outgoing peering* towards a remote cluster,
 causing the local virtual node (abstracting the remote cluster) to be destroyed,
-and all offloaded workloads to be rescheduled. The reverse peering, if any, is
-preserved, and the remote cluster can continue offloading workloads to its
-virtual node representing the local cluster.
+and all offloaded workloads to be rescheduled. In addition, it attempts to remove
+the foreign cluster resource, giving up and issuing a warning if an incoming
+peering is still active.
 
-The same operation can be executed regardless of whether the peering is
-out-of-band or in-band, although in the latter case the VPN tunnel is not teared
-down (as the *unpeer in-band* instead would do).
+In case the peering needs to be disabled only in one direction, while preserving
+the other, it is possible to leverage the *unpeer <cluster-name>* command.
 
 Examples:
   $ {{ .Executable }} unpeer out-of-band eternal-donkey
@@ -72,7 +70,7 @@ everything is restored to the same status as if the *peer in-band* command
 towards that cluster had never been executed.
 
 In case the peering needs to be disabled only in one direction, while preserving
-the other, it is possible to leverage the *unpeer out-of-band* command.
+the other, it is possible to leverage the *unpeer <cluster-name>* command.
 
 Examples:
   $ {{ .Executable }} unpeer in-band --remote-kubeconfig "~/kube/config-remote"
@@ -122,6 +120,7 @@ func newUnpeerOutOfBandCommand(ctx context.Context, options *unpeeroob.Options) 
 
 		Run: func(cmd *cobra.Command, args []string) {
 			options.ClusterName = args[0]
+			options.UnpeerOOBMode = true
 			output.ExitOnErr(options.Run(ctx))
 		},
 	}
