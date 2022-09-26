@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package inbound contains common functions used for the in-bound peer and depeer commands
-package inbound
+// Package inband contains common functions used for the in-band peer and unpeer commands.
+package inband
