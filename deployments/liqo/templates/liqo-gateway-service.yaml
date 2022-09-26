@@ -32,7 +32,6 @@ metadata:
   name: {{ include "liqo.prefixedName" $gatewayMetricsConfig }}
   labels:
     {{- include "liqo.labels" $gatewayMetricsConfig | nindent 4 }}
-    {{- include "liqo.gatewayServiceLabels" $gatewayMetricsConfig | nindent 4 }}
 spec:
   selector:
     {{- include "liqo.gatewaySelector" $gatewayMetricsConfig | nindent 4 }}
