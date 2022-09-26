@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
-	"github.com/liqotech/liqo/pkg/liqoctl/inbound"
+	"github.com/liqotech/liqo/pkg/liqoctl/inband"
 )
 
 // Options encapsulates the arguments of the unpeer in-band command.
@@ -39,13 +39,13 @@ func (o *Options) Run(ctx context.Context) error {
 	defer cancel()
 
 	// Create and initialize cluster 1.
-	cluster1 := inbound.NewCluster(o.LocalFactory, o.RemoteFactory)
+	cluster1 := inband.NewCluster(o.LocalFactory, o.RemoteFactory)
 	if err := cluster1.Init(ctx); err != nil {
 		return err
 	}
 
 	// Create and initialize cluster 2.
-	cluster2 := inbound.NewCluster(o.RemoteFactory, o.LocalFactory)
+	cluster2 := inband.NewCluster(o.RemoteFactory, o.LocalFactory)
 	if err := cluster2.Init(ctx); err != nil {
 		return err
 	}
