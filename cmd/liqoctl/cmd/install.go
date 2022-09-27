@@ -155,7 +155,9 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().Var(&reservedSubnets, "reserved-subnets",
 		"The private CIDRs to be excluded, as already in use (e.g., the subnet of the cluster nodes); PodCIDR and ServiceCIDR shall not be included.")
 
-	cmd.PersistentFlags().StringSliceVar(&options.OverrideValues, "set", []string{}, "Set additional values on the command line (key1=val1,key2=val2)")
+	// Using StringArray rather than StringSlice: splitting is left to the Helm library, which takes care of special cases (e.g., lists).
+	cmd.PersistentFlags().StringArrayVar(&options.OverrideValues, "set", []string{},
+		"Set additional values on the command line (can specify multiple times or separate values with commas: key1=val1,key2=val2)")
 	cmd.PersistentFlags().BoolVar(&options.DisableAPIServerSanityChecks, "disable-api-server-sanity-check", false,
 		"Disable the sanity checks concerning the retrieved Kubernetes API server URL (default false)")
 	cmd.PersistentFlags().BoolVar(&options.SkipValidation, "skip-validation", false, "Skip the validation of the arguments "+

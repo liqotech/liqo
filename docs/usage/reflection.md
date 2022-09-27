@@ -9,9 +9,15 @@ Briefly, the set of supported resources includes (by category):
 * [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PresistentVolumes*
 * [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*
 
-```{admonition} Note
+````{admonition} Note
 The reflection of a given object belonging to the *Exposition* or *Configuration* categories, and living in a namespace enabled for offloading, can be manually disabled adding the `liqo.io/skip-reflection` annotation to the object itself.
+
+Additionally, the reflection of a given type of resources (e.g., *Secrets*) towards remote clusters can be completely disabled setting the corresponding `--<resource>-reflection-workers=0` virtual kubelet flag at install time:
+
+```bash
+liqoctl install ... --set "virtualKubelet.extra.args={--secret-reflection-workers=0}"
 ```
+````
 
 (UsageReflectionPods)=
 
