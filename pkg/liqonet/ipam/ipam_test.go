@@ -1158,7 +1158,8 @@ var _ = Describe("Ipam", func() {
 					Expect(err).To(BeNil())
 
 					// Fill up ExternalCIDR
-					for i := 0; i < 254; i++ {
+					// It tests only 253 IPs because the first one has been already acquired to be used by liqo.tunnel interface
+					for i := 0; i < 253; i++ {
 						response, err = ipam.MapEndpointIP(context.Background(), &MapRequest{
 							ClusterID: clusterID1,
 							Ip:        fmt.Sprintf("20.0.0.%d", i),
@@ -1402,7 +1403,8 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// Check if IP is freed
-				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(0))
+				// Uses "HaveLen(1)" because the first IP is reserved for the liqo.tunnel by default
+				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(1))
 
 				// Check that endpoint mapping does not exist anymore
 				// in natmapping resources of remote clusters.
@@ -1466,7 +1468,8 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// Check if IP is not freed
-				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(1))
+				// Uses "HaveLen(2)" because the first IP is reserved for liqo.tunnel by default
+				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(2))
 				Expect(ipamConfig.Spec.EndpointMappings[endpointIP].ExternalCIDROriginalIP).To(Equal(ip))
 
 				// Check NatMapping resources
@@ -1542,7 +1545,8 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// Check if IP is freed
-				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(0))
+				// Uses "HaveLen(2)" because the first IP is reserved for liqo.tunnel by default
+				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(1))
 
 				// Check that endpoint mapping does not exist anymore
 				// in natmapping resources of remote clusters.

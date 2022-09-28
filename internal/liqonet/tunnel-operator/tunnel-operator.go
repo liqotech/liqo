@@ -28,6 +28,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -40,16 +41,13 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqonet/conncheck"
 	"github.com/liqotech/liqo/pkg/liqonet/iptables"
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
-)
-
-var (
-	result = ctrl.Result{}
 )
 
 // TunnelController type of the tunnel controller.
@@ -59,17 +57,18 @@ type TunnelController struct {
 	tunnel.Driver
 	liqorouting.Routing
 	iptables.IPTHandler
-	k8sClient          k8s.Interface
-	drivers            map[string]tunnel.Driver
-	namespace          string
-	podIP              string
-	finalizer          string
-	hostNetns          ns.NetNS
-	gatewayNetns       ns.NetNS
-	hostVeth           net.Interface
-	gatewayVeth        net.Interface
-	readyClustersMutex *sync.Mutex
-	readyClusters      map[string]struct{}
+	k8sClient            k8s.Interface
+	drivers              map[string]tunnel.Driver
+	namespace            string
+	podIP                string
+	finalizer            string
+	hostNetns            ns.NetNS
+	gatewayNetns         ns.NetNS
+	hostVeth             net.Interface
+	gatewayVeth          net.Interface
+	readyClustersMutex   *sync.Mutex
+	readyClusters        map[string]struct{}
+	updateStatusInterval time.Duration
 }
 
 // cluster-role
@@ -82,19 +81,21 @@ type TunnelController struct {
 
 // NewTunnelController instantiates and initializes the tunnel controller.
 func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sClient k8s.Interface, cl client.Client,
-	readyClustersMutex *sync.Mutex, readyClusters map[string]struct{}, gatewayNetns, hostNetns ns.NetNS, mtu, port int) (*TunnelController, error) {
+	readyClustersMutex *sync.Mutex, readyClusters map[string]struct{}, gatewayNetns, hostNetns ns.NetNS, mtu, port int,
+	updateStatusInterval time.Duration) (*TunnelController, error) {
 	tunnelEndpointFinalizer := liqoconst.LiqoGatewayOperatorName + "." + liqoconst.FinalizersSuffix
 	tc := &TunnelController{
-		Client:             cl,
-		EventRecorder:      er,
-		k8sClient:          k8sClient,
-		podIP:              podIP,
-		namespace:          namespace,
-		finalizer:          tunnelEndpointFinalizer,
-		readyClustersMutex: readyClustersMutex,
-		readyClusters:      readyClusters,
-		gatewayNetns:       gatewayNetns,
-		hostNetns:          hostNetns,
+		Client:               cl,
+		EventRecorder:        er,
+		k8sClient:            k8sClient,
+		podIP:                podIP,
+		namespace:            namespace,
+		finalizer:            tunnelEndpointFinalizer,
+		readyClustersMutex:   readyClustersMutex,
+		readyClusters:        readyClusters,
+		gatewayNetns:         gatewayNetns,
+		hostNetns:            hostNetns,
+		updateStatusInterval: updateStatusInterval,
 	}
 
 	err := tc.SetUpTunnelDrivers(tunnel.Config{
@@ -106,14 +107,14 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 	}
 	link, err := netlink.LinkByName(liqoconst.DeviceName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve tunnel iface from host netns: %w", err)
 	}
 	if err = tc.setUpGWNetns(liqoconst.HostVethName, liqoconst.GatewayVethName, mtu); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to setup gateway netns: %w", err)
 	}
 	// Move wireguard interface in the gateway network namespace.
 	if err = netlink.LinkSetNsFd(link, int(tc.gatewayNetns.Fd())); err != nil {
-		return nil, fmt.Errorf("failed to move wireguard interfacte to gateway netns: %w", err)
+		return nil, fmt.Errorf("failed to move wireguard iface from host netns to gateway netns: %w", err)
 	}
 	// After the wireguard device has been moved to the new netns we need to:
 	// 1) set it up;
@@ -121,7 +122,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 	var configureWg = func(netnsNamespace ns.NetNS) error {
 		link, err = netlink.LinkByName(liqoconst.DeviceName)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to retrieve tunnel iface from gateway netns: %w", err)
 		}
 		err = netlink.LinkSetUp(link)
 		if err != nil {
@@ -132,6 +133,19 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 		if err := wg.SetNewClient(); err != nil {
 			return fmt.Errorf("an error occurred while setting new client in tunnel driver")
 		}
+		err = EnforceIP(link, liqoconst.TunnelIP)
+		if err != nil {
+			return fmt.Errorf("unable to enforce tunnel IP: %w", err)
+		}
+
+		wg.Connchecker, err = conncheck.NewConnChecker()
+		if err != nil {
+			return fmt.Errorf("failed to create connchecker: %w", err)
+		}
+
+		go wg.Connchecker.RunReceiver()
+		go wg.Connchecker.RunReceiverDisconnectObserver()
+
 		return nil
 	}
 	if err := tc.gatewayNetns.Do(configureWg); err != nil {
@@ -160,11 +174,11 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	var con *netv1alpha1.Connection
 
 	var configGWNetns = func(netNamespace ns.NetNS) error {
-		con, err = tc.connectToPeer(tep)
-		if err != nil {
+		if err = tc.EnsureIPTablesRulesPerCluster(tep); err != nil {
 			return err
 		}
-		if err = tc.EnsureIPTablesRulesPerCluster(tep); err != nil {
+		con, err = tc.connectToPeer(tep, tc.forgeConncheckUpdateStatus(ctx, req))
+		if err != nil {
 			return err
 		}
 		// Set cluster tunnel as ready
@@ -211,7 +225,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	// In case the resource does not exist anymore, we just forget it.
 	if k8sApiErrors.IsNotFound(err) {
-		return result, nil
+		return ctrl.Result{}, nil
 	}
 
 	_, remotePodCIDR = liqonetutils.GetPodCIDRS(tep)
@@ -225,17 +239,17 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err := tc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
 					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", tep.Spec.ClusterIdentity, req.String(), err)
-					return result, err
+					return ctrl.Result{}, err
 				}
 				klog.Errorf("%s -> unable to update resource %s: %s", tep.Spec.ClusterIdentity, tep.Name, err)
-				return result, err
+				return ctrl.Result{}, err
 			}
 		}
 	} else {
 		// The object is being deleted.
 		if controllerutil.ContainsFinalizer(tep, tc.finalizer) {
 			if err = tc.gatewayNetns.Do(unconfigGWNetns); err != nil {
-				return result, err
+				return ctrl.Result{}, err
 			}
 
 			// Remove the finalizer from the list and update it.
@@ -243,37 +257,44 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err := tc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
 					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", tep.Spec.ClusterIdentity, req.String(), err)
-					return result, err
+					return ctrl.Result{}, err
 				}
 				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", tep.Name, err)
-				return result, err
+				return ctrl.Result{}, err
 			}
 		}
 		// If object is being deleted and does not have a finalizer we just return.
-		return result, nil
+		return ctrl.Result{}, nil
 	}
 	if err := tc.gatewayNetns.Do(configGWNetns); err != nil {
-		return result, err
-	}
-	// When the status of VPN tunnel is "Connecting" than we requeue the tunnelendpoint resource in order to
-	// reprocess it and check the VPN tunnel state.
-	if con.Status == netv1alpha1.Connecting {
-		result = ctrl.Result{
-			RequeueAfter: 2 * time.Second,
-		}
+		return ctrl.Result{}, err
 	}
 
-	return result, tc.updateStatus(con, tep)
+	return ctrl.Result{}, tc.updateStatus(con, tep)
 }
 
-func (tc *TunnelController) connectToPeer(ep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
+// EnforceIP enforce the presence of an ip on an interface.
+func EnforceIP(link netlink.Link, ip string) error {
+	ipnet, err := netlink.ParseIPNet(ip + "/32")
+	if err != nil {
+		return fmt.Errorf("unable to forge ip: %w", err)
+	}
+	addr := &netlink.Addr{IPNet: ipnet}
+	err = netlink.AddrAdd(link, addr)
+	if err != nil {
+		return fmt.Errorf("unable to add ip %q to the tunnel interface: %w", addr, err)
+	}
+	return nil
+}
+
+func (tc *TunnelController) connectToPeer(ep *netv1alpha1.TunnelEndpoint, updateStatus conncheck.UpdateFunc) (*netv1alpha1.Connection, error) {
 	// retrieve driver based on backend type
 	driver, ok := tc.drivers[ep.Spec.BackendType]
 	if !ok {
 		klog.Errorf("%s -> no registered driver of type %s found for resources %s", ep.Spec.ClusterIdentity, ep.Spec.BackendType, ep.Name)
 		return nil, fmt.Errorf("no registered driver of type %s found", ep.Spec.BackendType)
 	}
-	con, err := driver.ConnectToEndpoint(ep)
+	con, err := driver.ConnectToEndpoint(ep, updateStatus)
 	if err != nil {
 		tc.Eventf(ep, "Warning", "Processing", "unable to establish connection: %v", err)
 		klog.Errorf("%s -> an error occurred while establishing vpn connection: %v", ep.Spec.ClusterIdentity, err)
@@ -303,6 +324,39 @@ func (tc *TunnelController) disconnectFromPeer(ep *netv1alpha1.TunnelEndpoint) e
 	tc.Event(ep, "Normal", "Processing", "connection closed")
 	klog.Infof("%s -> vpn connection correctly closed", ep.Spec.ClusterIdentity)
 	return nil
+}
+
+func (tc *TunnelController) forgeConncheckUpdateStatus(ctx context.Context, req ctrl.Request) conncheck.UpdateFunc {
+	return func(connected bool, latency time.Duration, timestamp time.Time) error {
+		var tep = new(netv1alpha1.TunnelEndpoint)
+		if err := tc.Get(ctx, req.NamespacedName, tep); err != nil && !k8sApiErrors.IsNotFound(err) {
+			return fmt.Errorf("unable to fetch resource %s: %w", req.String(), err)
+		}
+		conn := tep.Status.Connection
+		if connected {
+			conn.Status = netv1alpha1.Connected
+			conn.StatusMessage = netv1alpha1.ConnectedMessage
+		} else {
+			conn.Status = netv1alpha1.ConnectionError
+			conn.StatusMessage = netv1alpha1.ConnectionErrorMessage
+		}
+		if tep.Status.Connection.Status != conn.Status || tep.Status.Connection.StatusMessage != conn.StatusMessage ||
+			timestamp.Sub(tep.Status.Connection.Latency.Timestamp.Time) > tc.updateStatusInterval {
+			if tep.Status.Connection.Status != conn.Status || tep.Status.Connection.StatusMessage != conn.StatusMessage {
+				klog.Infof("%s -> changing status to %s %q",
+					tep.Spec.ClusterIdentity, conn.Status, conn.StatusMessage)
+			}
+			conn.Latency = netv1alpha1.ConnectionLatency{
+				Value:     liqonetutils.FormatLatency(latency),
+				Timestamp: metav1.Time{Time: timestamp},
+			}
+			tep.Status.Connection = conn
+			if err := tc.Client.Status().Update(ctx, tep); err != nil {
+				return fmt.Errorf("unable to update resource %s: %w", req.String(), err)
+			}
+		}
+		return nil
+	}
 }
 
 // RemoveAllTunnels used to remove all the tunnel interfaces when the controller is closed.

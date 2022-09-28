@@ -28,6 +28,10 @@ spec:
     - jsonPath: .spec.backendType
       name: Backend type
       type: string
+    - jsonPath: .status.connection.latency.value
+      name: Latency
+      priority: 1
+      type: string
     - jsonPath: .status.connection.status
       name: Connection status
       type: string
@@ -128,6 +132,16 @@ spec:
                 description: Connection holds the configuration and status of a vpn
                   tunnel connecting to remote cluster.
                 properties:
+                  latency:
+                    description: ConnectionLatency represents the latency between
+                      two clusters.
+                    properties:
+                      timestamp:
+                        format: date-time
+                        type: string
+                      value:
+                        type: string
+                    type: object
                   peerConfiguration:
                     additionalProperties:
                       type: string

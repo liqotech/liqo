@@ -18,9 +18,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"strings"
 	"syscall"
+	"time"
 
 	"inet.af/netaddr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -164,6 +166,15 @@ func GetFirstIP(network string) (string, error) {
 		return "", err
 	}
 	return firstIP.String(), nil
+}
+
+// GetTunnelIP returns the IP address of the tunnel, which is the first external CIDR ip.
+func GetTunnelIP(externalCIDR string) (string, error) {
+	ipPrefix, err := netip.ParsePrefix(externalCIDR)
+	if err != nil {
+		return "", err
+	}
+	return ipPrefix.Addr().Next().String(), nil
 }
 
 // CheckTep checks validity of TunnelEndpoint resource fields.
@@ -313,4 +324,15 @@ func SplitNetwork(network string) []string {
 	halves[1] = Next(halves[0])
 
 	return halves
+}
+
+// FormatLatency returns a string representing the given latency in a human readable format.
+func FormatLatency(latency time.Duration) string {
+	if latency == 0 {
+		return consts.NotApplicable
+	}
+	if latency.Milliseconds() > 0 {
+		return fmt.Sprintf("%dms", latency.Milliseconds())
+	}
+	return fmt.Sprintf("%dμs", latency.Microseconds())
 }

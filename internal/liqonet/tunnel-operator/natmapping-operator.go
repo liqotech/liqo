@@ -45,7 +45,7 @@ func (npc *NatMappingController) Reconcile(ctx context.Context, req ctrl.Request
 	var nm netv1alpha1.NatMapping
 
 	if err := npc.Get(ctx, req.NamespacedName, &nm); err != nil {
-		return result, client.IgnoreNotFound(err)
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	// There's no need of a pre-delete logic since IPTables rules for cluster are removed by the
 	// tunnel-operator after the un-peer.
@@ -67,9 +67,9 @@ func (npc *NatMappingController) Reconcile(ctx context.Context, req ctrl.Request
 		return nil
 	}); err != nil {
 		klog.Error(err)
-		return result, err
+		return ctrl.Result{}, err
 	}
-	return result, nil
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

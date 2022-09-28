@@ -74,7 +74,7 @@ type IpamStorage interface {
 
 // IPAMStorage is an implementation of IpamStorage that takes advantage of the CRD IpamStorage.
 type IPAMStorage struct {
-	sync.RWMutex
+	m sync.RWMutex
 
 	dynClient dynamic.Interface
 	storage   *netv1alpha1.IpamStorage
@@ -293,9 +293,9 @@ func (ipamStorage *IPAMStorage) updateConfig(updateType string, data interface{}
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstr.UnstructuredContent(), &storage)
 	utilruntime.Must(err)
 
-	ipamStorage.Lock()
+	ipamStorage.m.Lock()
 	ipamStorage.storage = &storage
-	ipamStorage.Unlock()
+	ipamStorage.m.Unlock()
 
 	return nil
 }
@@ -333,15 +333,15 @@ func (ipamStorage *IPAMStorage) getNatMappingsConfigured() map[string]netv1alpha
 }
 
 func (ipamStorage *IPAMStorage) getConfig() *netv1alpha1.IpamStorage {
-	ipamStorage.RLock()
-	defer ipamStorage.RUnlock()
+	ipamStorage.m.RLock()
+	defer ipamStorage.m.RUnlock()
 
 	return ipamStorage.storage.DeepCopy()
 }
 
 func (ipamStorage *IPAMStorage) getConfigName() string {
-	ipamStorage.RLock()
-	defer ipamStorage.RUnlock()
+	ipamStorage.m.RLock()
+	defer ipamStorage.m.RUnlock()
 
 	return ipamStorage.storage.GetName()
 }

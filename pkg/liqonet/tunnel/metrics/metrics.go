@@ -24,8 +24,10 @@ var (
 	PeerReceivedBytes *prometheus.Desc
 	// PeerTransmittedBytes is the metric that counts the number of bytes transmitted to a given peer.
 	PeerTransmittedBytes *prometheus.Desc
-	// PeerLastHandshake is the metric that counts the number of seconds since the last handshake with a given peer.
-	PeerLastHandshake *prometheus.Desc
+	// PeerLatency is the metric that exposes the latency towards a given peer.
+	PeerLatency *prometheus.Desc
+	// PeerIsConnected is the metric that outputs the connection status.
+	PeerIsConnected *prometheus.Desc
 	// MetricsLabels is the labels that are used for the metrics.
 	MetricsLabels []string
 )
@@ -48,9 +50,16 @@ func init() {
 		nil,
 	)
 
-	PeerLastHandshake = prometheus.NewDesc(
-		"liqo_peer_last_handshake_seconds",
-		"UNIX timestamp for the last handshake with a given peer.",
+	PeerLatency = prometheus.NewDesc(
+		"liqo_peer_latency_us",
+		"Latency of a given peer in microseconds.",
+		MetricsLabels,
+		nil,
+	)
+
+	PeerIsConnected = prometheus.NewDesc(
+		"liqo_peer_is_connected",
+		"Checks if connection is working.",
 		MetricsLabels,
 		nil,
 	)
@@ -60,12 +69,14 @@ func init() {
 func (m *Metrics) Describe(ch chan<- *prometheus.Desc) {
 	ch <- PeerReceivedBytes
 	ch <- PeerTransmittedBytes
-	ch <- PeerLastHandshake
+	ch <- PeerLatency
+	ch <- PeerIsConnected
 }
 
 // MetricsErrorHandler is a function that handles metrics errors.
 func (m *Metrics) MetricsErrorHandler(err error, ch chan<- prometheus.Metric) {
 	ch <- prometheus.NewInvalidMetric(PeerReceivedBytes, err)
 	ch <- prometheus.NewInvalidMetric(PeerTransmittedBytes, err)
-	ch <- prometheus.NewInvalidMetric(PeerLastHandshake, err)
+	ch <- prometheus.NewInvalidMetric(PeerLatency, err)
+	ch <- prometheus.NewInvalidMetric(PeerIsConnected, err)
 }
