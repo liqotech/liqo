@@ -21,6 +21,7 @@ import (
 	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqonet/conncheck"
 )
 
 // DriverCreateFunc function prototype to create a new driver.
@@ -48,7 +49,7 @@ type Config struct {
 type Driver interface {
 	Init() error
 
-	ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error)
+	ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint, updateStatus conncheck.UpdateFunc) (*netv1alpha1.Connection, error)
 
 	DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) error
 

@@ -426,7 +426,9 @@ func (inflater *NatMappingInflater) recoverMappingsFromResources() error {
 			return fmt.Errorf("cannot map unstructured resource to NatMapping resource: %w", err)
 		}
 		inflater.natMappingsPerCluster[nm.Spec.ClusterID] = nm.Spec.ClusterMappings.DeepCopy()
-		klog.Infof("Mappings for cluster %s has been recovered from natmapping resource", nm.Spec.ClusterID)
+		for old, new := range nm.Spec.ClusterMappings {
+			klog.Infof("Mappings for cluster %s has been recovered from natmapping resource: %s -> %s", nm.Spec.ClusterID, old, new)
+		}
 	}
 	klog.Infof("In memory structure of NatMappingInflater has been successfully recovered from resources.")
 	return nil

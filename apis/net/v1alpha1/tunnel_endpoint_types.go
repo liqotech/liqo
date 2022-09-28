@@ -76,11 +76,18 @@ type TunnelEndpointStatus struct {
 	Connection       Connection `json:"connection,omitempty"`
 }
 
+// ConnectionLatency represents the latency between two clusters.
+type ConnectionLatency struct {
+	Value     string      `json:"value,omitempty"`
+	Timestamp metav1.Time `json:"timestamp,omitempty"`
+}
+
 // Connection holds the configuration and status of a vpn tunnel connecting to remote cluster.
 type Connection struct {
 	Status            ConnectionStatus  `json:"status,omitempty"`
 	StatusMessage     string            `json:"statusMessage,omitempty"`
 	PeerConfiguration map[string]string `json:"peerConfiguration,omitempty"`
+	Latency           ConnectionLatency `json:"latency,omitempty"`
 }
 
 // ConnectionStatus type that describes the status of vpn connection with a remote cluster.
@@ -97,6 +104,8 @@ const (
 	ConnectingMessage string = "Waiting VPN connection to be established"
 	// ConnectionError used to se the status in case of errors.
 	ConnectionError ConnectionStatus = "Error"
+	// ConnectionErrorMessage is the message sent when a connection error occurs.
+	ConnectionErrorMessage string = "No network connectivity towards remote cluster"
 )
 
 // +kubebuilder:object:root=true
@@ -107,6 +116,7 @@ const (
 // +kubebuilder:printcolumn:name="Peering Cluster",type=string,JSONPath=`.spec.clusterIdentity.clusterName`
 // +kubebuilder:printcolumn:name="Endpoint IP",type=string,JSONPath=`.spec.endpointIP`,priority=1
 // +kubebuilder:printcolumn:name="Backend type",type=string,JSONPath=`.spec.backendType`
+// +kubebuilder:printcolumn:name="Latency",type=string,JSONPath=`.status.connection.latency.value`,priority=1
 // +kubebuilder:printcolumn:name="Connection status",type=string,JSONPath=`.status.connection.status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type TunnelEndpoint struct {

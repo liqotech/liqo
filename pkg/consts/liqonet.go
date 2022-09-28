@@ -93,6 +93,8 @@ const (
 	DefaultMTU = 1440
 	// GatewayListeningPort port used by the vpn tunnel.
 	GatewayListeningPort = 5871
+	// NotApplicable is a constant used to represent a not applicable value.
+	NotApplicable = "N/A"
 
 	// **** Liqo Gateway Service ****.
 

@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -40,6 +41,7 @@ import (
 	discv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqonet/conncheck"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/metrics"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/resolver"
@@ -57,8 +59,6 @@ const (
 	AllowedIPs = "allowedIPs"
 	// name of the secret that contains the public key used by wireguard.
 	keysName = "wireguard-pubkey"
-	// KeepAliveInterval interval used to send keepalive checks for the wireguard tunnels.
-	KeepAliveInterval = 10 * time.Second
 )
 
 // Registering the driver as available.
@@ -85,12 +85,14 @@ type ResolverFunc func(address string) (*net.IPAddr, error)
 type Wireguard struct {
 	metrics.Metrics
 	// connections key is a clusterID.
-	connections map[string]*netv1alpha1.Connection
+	connections      map[string]*netv1alpha1.Connection
+	connectionsMutex sync.RWMutex
 	// connectedClusterIdentities key is the peer's public key.
 	connectedClusterIdentities map[wgtypes.Key]*discv1alpha1.ClusterIdentity
 	client                     *wgctrl.Client
 	link                       netlink.Link
 	conf                       wgConfig
+	Connchecker                *conncheck.ConnChecker
 }
 
 // NewDriver creates a new WireGuard driver.
@@ -140,6 +142,7 @@ func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) 
 	if err = w.client.ConfigureDevice(liqoconst.DeviceName, cfg); err != nil {
 		return nil, fmt.Errorf("failed to configure WireGuard device: %w", err)
 	}
+
 	klog.Infof("created %s interface named %s with publicKey %s", liqoconst.DriverName, liqoconst.DeviceName, w.conf.pubKey.String())
 
 	return &w, nil
@@ -162,7 +165,8 @@ func (w *Wireguard) Init() error {
 }
 
 // ConnectToEndpoint connects to a remote cluster described by the given tep.
-func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
+// updateStatusCallback is a function used by conncheck to update TunnelEndpoint connected status.
+func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint, updateStatus conncheck.UpdateFunc) (*netv1alpha1.Connection, error) {
 	// parse allowed IPs.
 	allowedIPs, stringAllowedIPs, err := getAllowedIPs(tep)
 	if err != nil {
@@ -184,15 +188,16 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	}
 
 	// delete or update old peers for ClusterID.
+	w.connectionsMutex.RLock()
 	oldCon, found := w.connections[tep.Spec.ClusterIdentity.ClusterID]
+	w.connectionsMutex.RUnlock()
 	if found {
 		// check if the peer configuration is updated.
 		if stringAllowedIPs == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[liqoconst.PublicKey] &&
 			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[liqoconst.ListeningPort] {
 			// Update connection status.
-			return w.updateConnectionStatus(oldCon)
+			return &tep.Status.Connection, nil
 		}
-
 		// If the configuration has changed then remove the peer.
 		klog.V(4).Infof("updating peer configuration for cluster %s", tep.Spec.ClusterIdentity)
 		err = w.client.ConfigureDevice(liqoconst.DeviceName, wgtypes.Config{
@@ -201,6 +206,9 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 				Remove: true,
 			}},
 		})
+
+		w.Connchecker.DelAndStopSender(tep.Spec.ClusterIdentity.ClusterID)
+
 		if err != nil {
 			return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with cluster %s: %w", tep.Spec.ClusterIdentity, err)
 		}
@@ -209,16 +217,21 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 			tep.Spec.ClusterIdentity, endpoint.IP.String(), remoteKey)
 	}
 
-	ka := KeepAliveInterval
+	_, externalCIDR := liqonetutils.GetExternalCIDRS(tep)
+	pingIP, err := liqonetutils.GetTunnelIP(externalCIDR)
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to get the tunnel ip: %w", err)
+	}
+
 	// configure peer.
 	peerCfg := []wgtypes.PeerConfig{{
-		PublicKey:                   *remoteKey,
-		Remove:                      false,
-		UpdateOnly:                  false,
-		Endpoint:                    endpoint,
-		PersistentKeepaliveInterval: &ka,
-		ReplaceAllowedIPs:           true,
-		AllowedIPs:                  allowedIPs,
+		PublicKey:         *remoteKey,
+		Remove:            false,
+		UpdateOnly:        false,
+		Endpoint:          endpoint,
+		ReplaceAllowedIPs: true,
+		AllowedIPs:        allowedIPs,
 	}}
 
 	err = w.client.ConfigureDevice(liqoconst.DeviceName, wgtypes.Config{
@@ -228,17 +241,26 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	if err != nil {
 		return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with cluster %s: %w", tep.Spec.ClusterIdentity, err)
 	}
-	//
 
 	c := &netv1alpha1.Connection{
 		Status:        netv1alpha1.Connecting,
 		StatusMessage: netv1alpha1.ConnectingMessage,
 		PeerConfiguration: map[string]string{liqoconst.ListeningPort: strconv.Itoa(endpoint.Port), EndpointIP: endpoint.IP.String(),
 			AllowedIPs: stringAllowedIPs, liqoconst.PublicKey: remoteKey.String()},
+		Latency: netv1alpha1.ConnectionLatency{
+			Value:     liqoconst.NotApplicable,
+			Timestamp: metav1.Time{Time: time.Now()},
+		},
 	}
+	w.connectionsMutex.Lock()
 	w.connections[tep.Spec.ClusterIdentity.ClusterID] = c
+	w.connectionsMutex.Unlock()
 
 	w.connectedClusterIdentities[*remoteKey] = &tep.Spec.ClusterIdentity
+
+	klog.Infof("%s -> starting conncheck sender", tep.Spec.ClusterIdentity)
+
+	go w.Connchecker.AddAndRunSender(tep.Spec.ClusterIdentity.ClusterID, pingIP, updateStatus)
 
 	klog.V(4).Infof("Done connecting cluster peer %s@%s", tep.Spec.ClusterIdentity, endpoint.String())
 	return c, nil
@@ -281,7 +303,11 @@ func (w *Wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 		klog.Errorf("failed to get public key for cluster %s: %v", tep.Spec.ClusterIdentity, err)
 	}
 
+	w.connectionsMutex.Lock()
 	delete(w.connections, tep.Spec.ClusterIdentity.ClusterID)
+	w.connectionsMutex.Unlock()
+
+	w.Connchecker.DelAndStopSender(tep.Spec.ClusterIdentity.ClusterID)
 
 	return nil
 }
@@ -328,7 +354,7 @@ func (w *Wireguard) setWGLink() error {
 	}
 
 	if err = netlink.LinkAdd(link); err != nil && !errors.Is(err, unix.EOPNOTSUPP) {
-		return fmt.Errorf("failed to add wireguard device '%s': %w", liqoconst.DeviceName, err)
+		return fmt.Errorf("failed to add wireguard device %q: %w", liqoconst.DeviceName, err)
 	}
 	if errors.Is(err, unix.EOPNOTSUPP) {
 		klog.Warningf("wireguard kernel module not present, falling back to the userspace implementation")
@@ -495,34 +521,6 @@ func (w *Wireguard) SetNewClient() error {
 	return nil
 }
 
-func (w *Wireguard) updateConnectionStatus(oldConn *netv1alpha1.Connection) (*netv1alpha1.Connection, error) {
-	var err error
-	var wgDev *wgtypes.Device
-
-	// Get WireGuard device.
-	if wgDev, err = w.client.Device(liqoconst.DeviceName); err != nil {
-		return newConnectionOnError(err.Error()), err
-	}
-
-	for i := range wgDev.Peers {
-		if wgDev.Peers[i].PublicKey.String() == oldConn.PeerConfiguration[liqoconst.PublicKey] {
-			// Peer has been found.
-			peer := wgDev.Peers[i]
-			// Check if the handshake with the remote peer completed.
-			if !peer.LastHandshakeTime.IsZero() {
-				oldConn.Status = netv1alpha1.Connected
-				oldConn.StatusMessage = netv1alpha1.ConnectedMessage
-				return oldConn, nil
-			}
-			// Return oldConn if handshake did not complete.
-			return oldConn, nil
-		}
-	}
-	err = fmt.Errorf("no peer with pubKey {%s} found on device {%s}",
-		oldConn.PeerConfiguration[liqoconst.PublicKey], liqoconst.DeviceName)
-	return newConnectionOnError(err.Error()), err
-}
-
 // Collect implements prometheus.Collector.
 func (w *Wireguard) Collect(ch chan<- prometheus.Metric) {
 	device, err := w.client.Device(liqoconst.DeviceName)
@@ -539,31 +537,47 @@ func (w *Wireguard) Collect(ch chan<- prometheus.Metric) {
 			w.connectedClusterIdentities[publicKey].ClusterName,
 		}
 
-		// Expose last handshake of 0 unless a last handshake time is set.
-		var last float64
-		if !device.Peers[i].LastHandshakeTime.IsZero() {
-			last = float64(device.Peers[i].LastHandshakeTime.Unix())
+		connected, err := w.Connchecker.GetConnected(w.connectedClusterIdentities[publicKey].ClusterID)
+		if err != nil {
+			ch <- prometheus.NewInvalidMetric(metrics.PeerIsConnected, err)
+		} else {
+			var result float64
+			if connected {
+				result = 1
+			}
+			ch <- prometheus.MustNewConstMetric(
+				metrics.PeerIsConnected,
+				prometheus.GaugeValue,
+				result,
+				labels...,
+			)
 		}
 
-		ch <- prometheus.MustNewConstMetric(
-			metrics.PeerReceivedBytes,
-			prometheus.CounterValue,
-			float64(device.Peers[i].ReceiveBytes),
-			labels...,
-		)
+		if connected {
+			ch <- prometheus.MustNewConstMetric(
+				metrics.PeerReceivedBytes,
+				prometheus.CounterValue,
+				float64(device.Peers[i].ReceiveBytes),
+				labels...,
+			)
 
-		ch <- prometheus.MustNewConstMetric(
-			metrics.PeerTransmittedBytes,
-			prometheus.CounterValue,
-			float64(device.Peers[i].TransmitBytes),
-			labels...,
-		)
+			ch <- prometheus.MustNewConstMetric(
+				metrics.PeerTransmittedBytes,
+				prometheus.CounterValue,
+				float64(device.Peers[i].TransmitBytes),
+				labels...,
+			)
 
-		ch <- prometheus.MustNewConstMetric(
-			metrics.PeerLastHandshake,
-			prometheus.GaugeValue,
-			last,
-			labels...,
-		)
+			latency, err := w.Connchecker.GetLatency(w.connectedClusterIdentities[publicKey].ClusterID)
+			if err != nil {
+				ch <- prometheus.NewInvalidMetric(metrics.PeerLatency, err)
+			}
+			ch <- prometheus.MustNewConstMetric(
+				metrics.PeerLatency,
+				prometheus.GaugeValue,
+				float64(latency.Microseconds()),
+				labels...,
+			)
+		}
 	}
 }

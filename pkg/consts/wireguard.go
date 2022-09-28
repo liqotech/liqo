@@ -25,4 +25,6 @@ const (
 	DriverName = "wireguard"
 	// KeysLabel label for the secret that contains the public key.
 	KeysLabel = "net.liqo.io/key"
+	// TunnelIP is the IP address of the tunnel.
+	TunnelIP = "169.254.0.1"
 )

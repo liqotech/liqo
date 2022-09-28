@@ -507,7 +507,7 @@ func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
 				tunnelEndpointConnectingReason, fmt.Sprintf(tunnelEndpointConnectingMessage, foreignCluster.Status.TenantNamespace.Local))
 		case netv1alpha1.ConnectionError:
 			peeringconditionsutils.EnsureStatus(foreignCluster,
-				discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusNone,
+				discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusError,
 				tunnelEndpointErrorReason, tep.Status.Connection.StatusMessage)
 		}
 	}
