@@ -25,6 +25,7 @@ import (
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
+	"github.com/liqotech/liqo/pkg/utils/maps"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -141,20 +142,5 @@ var controllerAnnotations = []string{
 }
 
 func filterAnnotations(annotations map[string]string) map[string]string {
-	filtered := make(map[string]string)
-	for k, v := range annotations {
-		if !isBacklisted(k) {
-			filtered[k] = v
-		}
-	}
-	return filtered
-}
-
-func isBacklisted(key string) bool {
-	for _, k := range controllerAnnotations {
-		if k == key {
-			return true
-		}
-	}
-	return false
+	return maps.Filter(annotations, maps.FilterBlacklist(controllerAnnotations...))
 }

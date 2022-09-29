@@ -251,6 +251,130 @@ var _ = Describe("Pod forging", func() {
 		})
 	})
 
+	Describe("the AntiAffinityMutator functions", func() {
+		var (
+			labels map[string]string
+			remote *corev1.PodSpec
+		)
+
+		BeforeEach(func() {
+			labels = map[string]string{"foo": "bar", "baz": "qux"}
+			remote = &corev1.PodSpec{}
+		})
+
+		CommonBody := func() {
+			It("should only mutate the pod affinities", func() {
+				remote.Affinity = nil
+				Expect(remote).To(Equal(&corev1.PodSpec{}))
+			})
+
+			It("should forge the appropriate anti-affinity", func() {
+				Expect(remote.Affinity).ToNot(BeNil())
+				Expect(remote.Affinity.PodAffinity).To(BeNil())
+				Expect(remote.Affinity.PodAntiAffinity).ToNot(BeNil())
+				Expect(remote.Affinity.NodeAffinity).To(BeNil())
+			})
+		}
+
+		Describe("the AntiAffinityPropagateMutator function", func() {
+			var affinity *corev1.Affinity
+
+			JustBeforeEach(func() { forge.AntiAffinityPropagateMutator(affinity)(remote) })
+
+			When("the local affinity is not set", func() {
+				BeforeEach(func() { affinity = nil })
+				It("should not mutate the remote affinity", func() { Expect(remote.Affinity).To(BeNil()) })
+			})
+
+			When("the local pod anti-affinity is not set", func() {
+				BeforeEach(func() { affinity = &corev1.Affinity{} })
+				It("should not mutate the remote affinity", func() { Expect(remote.Affinity).To(BeNil()) })
+			})
+
+			When("the local pod anti-affinity is set", func() {
+				BeforeEach(func() {
+					affinity = &corev1.Affinity{
+						PodAffinity:  &corev1.PodAffinity{},
+						NodeAffinity: &corev1.NodeAffinity{},
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{TopologyKey: "kubernetes.io/hostname"}},
+						}}
+				})
+
+				Context("preliminary checks", func() { CommonBody() })
+				It("should propagate the appropriate anti-affinity constraints", func() {
+					constraints := remote.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+					Expect(constraints).To(HaveLen(1))
+					Expect(constraints[0].TopologyKey).To(Equal("kubernetes.io/hostname"))
+				})
+			})
+		})
+
+		Describe("the AntiAffinitySoftMutator function", func() {
+			JustBeforeEach(func() { forge.AntiAffinitySoftMutator(labels)(remote) })
+
+			Context("preliminary checks", func() { CommonBody() })
+
+			It("should forge the appropriate anti-affinity constraints", func() {
+				constraints := remote.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+				Expect(constraints).To(HaveLen(1))
+				Expect(constraints[0].PodAffinityTerm.LabelSelector.MatchLabels).To(Equal(labels))
+				Expect(constraints[0].PodAffinityTerm.LabelSelector.MatchExpressions).To(HaveLen(0))
+				Expect(constraints[0].PodAffinityTerm.TopologyKey).To(Equal("kubernetes.io/hostname"))
+			})
+		})
+
+		Describe("the AntiAffinityHardMutator function", func() {
+			JustBeforeEach(func() { forge.AntiAffinityHardMutator(labels)(remote) })
+
+			Context("preliminary checks", func() { CommonBody() })
+
+			It("should forge the appropriate anti-affinity constraints", func() {
+				constraints := remote.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+				Expect(constraints[0].LabelSelector.MatchLabels).To(Equal(labels))
+				Expect(constraints[0].LabelSelector.MatchExpressions).To(HaveLen(0))
+				Expect(constraints[0].TopologyKey).To(Equal("kubernetes.io/hostname"))
+			})
+		})
+	})
+
+	Describe("the FilterAntiAffinityLabels function", func() {
+		var (
+			input, output map[string]string
+			whitelist     string
+		)
+
+		BeforeEach(func() {
+			input = map[string]string{
+				"key1":                     "value1",
+				"key2":                     "value2",
+				"key3":                     "value3",
+				"controller-revision-hash": "value4",
+			}
+		})
+
+		JustBeforeEach(func() { output = forge.FilterAntiAffinityLabels(input, whitelist) })
+
+		When("a whitelist is specified", func() {
+			BeforeEach(func() { whitelist = "key2,key3" })
+			It("should preserve only the appropriate label", func() {
+				Expect(output).To(HaveLen(2))
+				Expect(output).To(HaveKeyWithValue("key2", "value2"))
+				Expect(output).To(HaveKeyWithValue("key3", "value3"))
+			})
+		})
+
+		When("no whitelist is specified", func() {
+			BeforeEach(func() { whitelist = "" })
+			It("should remove the labels added by kubernetes", func() {
+				Expect(output).To(HaveLen(3))
+				Expect(output).To(HaveKeyWithValue("key1", "value1"))
+				Expect(output).To(HaveKeyWithValue("key2", "value2"))
+				Expect(output).To(HaveKeyWithValue("key3", "value3"))
+			})
+		})
+	})
+
 	Describe("the RemoteContainersAPIServerSupport function", func() {
 		var container corev1.Container
 		var output []corev1.Container

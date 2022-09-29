@@ -12,23 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package maps_test
 
-// MergeMaps merges two maps.
-func MergeMaps(m1, m2 map[string]string) map[string]string {
-	if m1 == nil {
-		return m2
-	}
-	for k, v := range m2 {
-		m1[k] = v
-	}
-	return m1
-}
+import (
+	"testing"
 
-// SubMaps removes elements of m2 from m1.
-func SubMaps(m1, m2 map[string]string) map[string]string {
-	for k := range m2 {
-		delete(m1, k)
-	}
-	return m1
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+func TestMaps(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Maps Suite")
 }

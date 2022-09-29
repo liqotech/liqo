@@ -56,4 +56,19 @@ const (
 
 	// SkipReflectionAnnotationKey is the annotation key used to indicate that a given object should not be reflected into a remote cluster.
 	SkipReflectionAnnotationKey = "liqo.io/skip-reflection"
+
+	// PodAntiAffinityPresetKey is the annotation key used to express an anti-affinity preset to apply to offloaded pods.
+	PodAntiAffinityPresetKey = "liqo.io/anti-affinity-preset"
+
+	// PodAntiAffinityPresetValueSoft is the annotation value corresponding to the "soft" anti-affinity preset (i.e., preferred).
+	PodAntiAffinityPresetValueSoft = "soft"
+
+	// PodAntiAffinityPresetValueHard is the annotation value corresponding to the "hard" anti-affinity preset (i.e., required).
+	PodAntiAffinityPresetValueHard = "hard"
+
+	// PodAntiAffinityPresetValuePropagate is the annotation value corresponding to the propagation of the original pod anti-affinity constrains.
+	PodAntiAffinityPresetValuePropagate = "propagate"
+
+	// PodAntiAffinityLabelsKey is the annotation key used to specify a subset of the pod label keys for the anti-affinity constraints.
+	PodAntiAffinityLabelsKey = "liqo.io/anti-affinity-labels"
 )

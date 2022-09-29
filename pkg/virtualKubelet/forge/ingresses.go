@@ -17,6 +17,8 @@ package forge
 import (
 	netv1 "k8s.io/api/networking/v1"
 	netv1apply "k8s.io/client-go/applyconfigurations/networking/v1"
+
+	"github.com/liqotech/liqo/pkg/utils/maps"
 )
 
 // RemoteIngress forges the apply patch for the reflected ingress, given the local one.
@@ -29,13 +31,7 @@ func RemoteIngress(local *netv1.Ingress, targetNamespace string) *netv1apply.Ing
 
 // FilterIngressAnnotations filters the ingress annotations to be reflected, removing the ingress class annotation.
 func FilterIngressAnnotations(local map[string]string) map[string]string {
-	res := make(map[string]string)
-	for k, v := range local {
-		if k != "kubernetes.io/ingress.class" {
-			res[k] = v
-		}
-	}
-	return res
+	return maps.Filter(local, maps.FilterBlacklist("kubernetes.io/ingress.class"))
 }
 
 // RemoteIngressSpec forges the apply patch for the specs of the reflected ingress, given the local one.
