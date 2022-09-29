@@ -56,7 +56,8 @@ for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
   CLUSTER_LABELS="$(get_cluster_labels "${i}")"
-  COMMON_ARGS=(--cluster-name "liqo-${i}" --local-chart-path ./deployments/liqo --version "${LIQO_VERSION}")
+  COMMON_ARGS=(--cluster-name "liqo-${i}" --local-chart-path ./deployments/liqo
+    --version "${LIQO_VERSION}" --set controllerManager.config.enableResourceEnforcement=true)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi
