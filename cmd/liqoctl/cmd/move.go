@@ -24,6 +24,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/move"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 const liqoctlMoveVolumeLongHelp = `Move a Liqo-managed PVC to a different node (i.e., cluster).
@@ -45,6 +46,7 @@ Examples:
   $ {{ .Executable }} move volume database01 --namespace foo --target-node worker-023"
 or
   $ {{ .Executable }} move volume database01 --namespace foo --target-node liqo-neutral-colt"
+      --containers-cpu-limits 1000m --containers-ram-limits 2Gi
 `
 
 // moveCmd represents the move command.
@@ -62,6 +64,9 @@ func newMoveCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 func newMoveVolumeCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	options := &move.Options{Factory: f, ResticPassword: utils.RandomString(16)}
+	var containersCPURequests, containersCPULimits args.Quantity
+	var containersRAMRequests, containersRAMLimits args.Quantity
+
 	var cmd = &cobra.Command{
 		Use:     "volume",
 		Aliases: []string{"pvc"},
@@ -70,6 +75,13 @@ func newMoveVolumeCommand(ctx context.Context, f *factory.Factory) *cobra.Comman
 
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.PVCs(ctx, f, 1),
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			options.ContainersCPURequests = containersCPURequests.Quantity
+			options.ContainersCPULimits = containersCPULimits.Quantity
+			options.ContainersRAMRequests = containersRAMRequests.Quantity
+			options.ContainersRAMLimits = containersRAMLimits.Quantity
+		},
 
 		Run: func(cmd *cobra.Command, args []string) {
 			options.VolumeName = args[0]
@@ -82,6 +94,11 @@ func newMoveVolumeCommand(ctx context.Context, f *factory.Factory) *cobra.Comman
 
 	cmd.Flags().StringVar(&options.TargetNode, "target-node", "",
 		"The target node (either physical or virtual) the PVC will be moved to")
+
+	cmd.Flags().Var(&containersCPURequests, "containers-cpu-requests", "The CPU requests for the Restic containers")
+	cmd.Flags().Var(&containersCPULimits, "containers-cpu-limits", "The CPU limits for the Restic containers")
+	cmd.Flags().Var(&containersRAMRequests, "containers-ram-requests", "The RAM requests for the Restic containers")
+	cmd.Flags().Var(&containersRAMLimits, "containers-ram-limits", "The RAM limits for the Restic containers")
 
 	f.Printer.CheckErr(cmd.MarkFlagRequired("target-node"))
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("target-node", completion.Nodes(ctx, f, completion.NoLimit)))

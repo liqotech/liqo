@@ -26,20 +26,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func takeSnapshot(ctx context.Context, cl client.Client,
-	pvc *corev1.PersistentVolumeClaim, resticRepositoryURL, resticPassword string) error {
-	job, err := createSnapshotterJob(ctx, cl, pvc, resticRepositoryURL, resticPassword)
+func (o *Options) takeSnapshot(ctx context.Context, pvc *corev1.PersistentVolumeClaim, resticRepositoryURL string) error {
+	job, err := o.createSnapshotterJob(ctx, pvc, resticRepositoryURL)
 	if err != nil {
 		return err
 	}
 
-	return waitForJob(ctx, cl, job)
+	return waitForJob(ctx, o.CRClient, job)
 }
 
-func createSnapshotterJob(ctx context.Context, cl client.Client,
-	pvc *corev1.PersistentVolumeClaim, resticRepositoryURL, resticPassword string) (*batchv1.Job, error) {
+func (o *Options) createSnapshotterJob(ctx context.Context, pvc *corev1.PersistentVolumeClaim,
+	resticRepositoryURL string) (*batchv1.Job, error) {
 	var pv corev1.PersistentVolume
-	if err := cl.Get(ctx, client.ObjectKey{Name: pvc.Spec.VolumeName}, &pv); err != nil {
+	if err := o.CRClient.Get(ctx, client.ObjectKey{Name: pvc.Spec.VolumeName}, &pv); err != nil {
 		return nil, err
 	}
 
@@ -65,9 +64,10 @@ func createSnapshotterJob(ctx context.Context, cl client.Client,
 							Env: []corev1.EnvVar{
 								{
 									Name:  "RESTIC_PASSWORD",
-									Value: resticPassword,
+									Value: o.ResticPassword,
 								},
 							},
+							Resources: o.forgeContainerResources(),
 						},
 					},
 					Containers: []corev1.Container{
@@ -84,9 +84,10 @@ func createSnapshotterJob(ctx context.Context, cl client.Client,
 							Env: []corev1.EnvVar{
 								{
 									Name:  "RESTIC_PASSWORD",
-									Value: resticPassword,
+									Value: o.ResticPassword,
 								},
 							},
+							Resources:  o.forgeContainerResources(),
 							WorkingDir: "/backup",
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -112,7 +113,7 @@ func createSnapshotterJob(ctx context.Context, cl client.Client,
 		},
 	}
 
-	if err := cl.Create(ctx, &job); err != nil {
+	if err := o.CRClient.Create(ctx, &job); err != nil {
 		return nil, err
 	}
 	return &job, nil

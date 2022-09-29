@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
@@ -32,6 +33,9 @@ type Options struct {
 
 	VolumeName string
 	TargetNode string
+
+	ContainersCPURequests, ContainersCPULimits resource.Quantity
+	ContainersRAMRequests, ContainersRAMLimits resource.Quantity
 
 	ResticPassword string
 }
@@ -89,7 +93,7 @@ func (o *Options) Run(ctx context.Context) error {
 
 	s = o.Printer.StartSpinner("Ensuring restic repository")
 
-	if err := ensureResticRepository(ctx, o.CRClient, &pvc); err != nil {
+	if err := o.ensureResticRepository(ctx, &pvc); err != nil {
 		s.Fail("Failed to ensure restic repository: ", output.PrettyErr(err))
 		return err
 	}
@@ -120,8 +124,7 @@ func (o *Options) Run(ctx context.Context) error {
 		s.Fail("Failed to get origin restic repository URL: ", output.PrettyErr(err))
 		return err
 	}
-	if err = takeSnapshot(ctx, o.CRClient, &pvc,
-		originResticRepositoryURL, o.ResticPassword); err != nil {
+	if err = o.takeSnapshot(ctx, &pvc, originResticRepositoryURL); err != nil {
 		s.Fail("Failed to take snapshot: ", output.PrettyErr(err))
 		return err
 	}
@@ -140,9 +143,7 @@ func (o *Options) Run(ctx context.Context) error {
 		s.Fail("Failed to get target restic repository URL: ", output.PrettyErr(err))
 		return err
 	}
-	if err = restoreSnapshot(ctx, o.CRClient,
-		&pvc, newPvc, o.TargetNode,
-		targetResticRepositoryURL, o.ResticPassword); err != nil {
+	if err = o.restoreSnapshot(ctx, &pvc, newPvc, targetResticRepositoryURL); err != nil {
 		s.Fail("Failed to restore snapshot: ", output.PrettyErr(err))
 		return err
 	}
@@ -164,4 +165,24 @@ func getResticRepositoryURL(ctx context.Context, cl client.Client, isLocal bool)
 	}
 
 	return fmt.Sprintf("rest:http://%s.%s.svc.cluster.local:%d/", resticRegistry, namespace, resticPort), nil
+}
+
+func (o *Options) forgeContainerResources() corev1.ResourceRequirements {
+	configure := func(rl corev1.ResourceList, key corev1.ResourceName, value resource.Quantity) {
+		if !value.IsZero() {
+			rl[key] = value
+		}
+	}
+
+	requirements := corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{},
+		Limits:   corev1.ResourceList{},
+	}
+
+	configure(requirements.Requests, corev1.ResourceCPU, o.ContainersCPURequests)
+	configure(requirements.Requests, corev1.ResourceMemory, o.ContainersRAMRequests)
+	configure(requirements.Limits, corev1.ResourceCPU, o.ContainersCPULimits)
+	configure(requirements.Limits, corev1.ResourceMemory, o.ContainersRAMLimits)
+
+	return requirements
 }
