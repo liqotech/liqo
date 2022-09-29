@@ -15,7 +15,7 @@ By default, *liqoctl install* installs the latest stable version of Liqo, althou
 The reminder of this page, then, presents **additional customization options** which apply to all setups, as well as advanced options.
 
 ```{admonition} Note
-*liqoctl* displays a *kubectl* compatible behavior concerning Kubernetes API access, hence supporting the `KUBECONFIG` environment variable, as well as the standard flags, including `--kubeconfig` and `--context`.
+*liqoctl* displays a *kubectl* compatible behavior concerning Kubernetes API access, hence supporting the `KUBECONFIG` environment variable, as well as all the standard flags, including `--kubeconfig` and `--context`.
 Ensure you selected the correct target cluster before issuing *liqoctl* commands (as you would do with *kubectl*).
 ```
 
