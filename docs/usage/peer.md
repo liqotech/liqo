@@ -16,7 +16,7 @@ Additional details are also provided to enable the reverse peering direction, he
 All examples leverage two different *contexts* to refer to *consumer* and *provider* clusters, respectively named `consumer` and `provider`.
 
 ```{admonition} Note
-*liqoctl* displays a *kubectl* compatible behavior concerning Kubernetes API access, hence supporting the `KUBECONFIG` environment variable, as well as the standard flags, including `--kubeconfig` and `--context`.
+*liqoctl* displays a *kubectl* compatible behavior concerning Kubernetes API access, hence supporting the `KUBECONFIG` environment variable, as well as all the standard flags, including `--kubeconfig` and `--context`.
 Ensure you selected the correct target cluster before issuing *liqoctl* commands (as you would do with *kubectl*).
 ```
 
@@ -127,6 +127,7 @@ The remainder of the process, including identity retrieval and resource negotiat
 
 ```{admonition} Note
 The host used to issue the *liqoctl peer in-band* command must have **concurrent access to both clusters** (i.e., *consumer* and *provider*) while carrying out the in-band control plane peering process.
+To this end, these subcommands feature a parallel set of flags concerning Kubernetes API access to the remote cluster, in the form `--remote-<flag>` (e.g., `--remote-kubeconfig`, `--remote-context`).
 ```
 
 <!-- markdownlint-disable-next-line no-duplicate-heading -->
