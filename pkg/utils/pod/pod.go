@@ -113,3 +113,13 @@ func ForgeContainerResources(cpuRequests, cpuLimits, ramRequests, ramLimits reso
 
 	return requirements
 }
+
+// ServiceAccountName returns the name of the service account, or default if not set.
+// Indeed, the ServiceAccountName field in the pod specifications is optional, and empty means default.
+func ServiceAccountName(pod *corev1.Pod) string {
+	if pod.Spec.ServiceAccountName != "" {
+		return pod.Spec.ServiceAccountName
+	}
+
+	return "default"
+}

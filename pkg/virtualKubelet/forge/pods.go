@@ -48,6 +48,9 @@ const (
 // PodIPTranslator defines the function to translate between remote and local IP addresses.
 type PodIPTranslator func(string) string
 
+// RemotePodSpecMutator defines the function type to mutate the remote pod specifications and implement additional capabilities.
+type RemotePodSpecMutator func(remote *corev1.PodSpec)
+
 // SASecretRetriever defines the function to retrieve the secret associated with a given service account.
 type SASecretRetriever func(string) string
 
@@ -118,10 +121,12 @@ func LocalRejectedPodStatus(local *corev1.PodStatus, phase corev1.PodPhase, reas
 }
 
 // RemoteShadowPod forges the reflected shadowpod, given the local one.
-func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetNamespace string, enableAPIServerSupport bool,
-	saSecretRetriever SASecretRetriever, kubernetesServiceIPRetriever KubernetesServiceIPGetter) *vkv1alpha1.ShadowPod {
+func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod,
+	targetNamespace string, mutators ...RemotePodSpecMutator) *vkv1alpha1.ShadowPod {
+	var creation bool
 	if remote == nil {
 		// The remote is nil if not already created.
+		creation = true
 		remote = &vkv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
 	}
 
@@ -135,32 +140,32 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod, targetName
 	return &vkv1alpha1.ShadowPod{
 		ObjectMeta: RemoteObjectMeta(FilterLocalPodOffloadedLabel(&local.ObjectMeta), &remote.ObjectMeta),
 		Spec: vkv1alpha1.ShadowPodSpec{
-			Pod: RemotePodSpec(local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy(), enableAPIServerSupport,
-				saSecretRetriever, kubernetesServiceIPRetriever),
+			Pod: RemotePodSpec(creation, local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy(), mutators...),
 		},
 	}
 }
 
 // RemotePodSpec forges the specs of the reflected pod specs, given the local ones.
 // It expects the local and remote objects to be deepcopies, as they are mutated.
-func RemotePodSpec(local, remote *corev1.PodSpec, enableAPIServerSupport bool,
-	saSecretRetriever SASecretRetriever, kubernetesServiceIPRetriever KubernetesServiceIPGetter) corev1.PodSpec {
-	// The ServiceAccountName field in the pod specifications is optional, and empty means default.
-	if local.ServiceAccountName == "" {
-		local.ServiceAccountName = "default"
+func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...RemotePodSpecMutator) corev1.PodSpec {
+	// Do not mutate the pod specifications after it has been created, since it is likely the modification
+	// would be rejected by the API server, as only a very limited set of fields can be mutated.
+	// Additionally, such modification would not be currently propagated by the remote ShadowPod controller.
+	if !creation {
+		return *remote
 	}
 
-	remote.Containers = RemoteContainers(local.Containers, enableAPIServerSupport, local.ServiceAccountName)
-	remote.InitContainers = RemoteContainers(local.InitContainers, enableAPIServerSupport, local.ServiceAccountName)
+	remote.Containers = local.Containers
+	remote.InitContainers = local.InitContainers
 
-	remote.HostAliases = RemoteHostAliases(local.HostAliases, enableAPIServerSupport, kubernetesServiceIPRetriever)
 	remote.Tolerations = RemoteTolerations(local.Tolerations)
-	remote.Volumes = RemoteVolumes(local.Volumes, enableAPIServerSupport, func() string { return saSecretRetriever(local.ServiceAccountName) })
+	remote.Volumes = local.Volumes
 
 	remote.ActiveDeadlineSeconds = local.ActiveDeadlineSeconds
 	remote.DNSConfig = local.DNSConfig
 	remote.DNSPolicy = local.DNSPolicy
 	remote.EnableServiceLinks = local.EnableServiceLinks
+	remote.HostAliases = local.HostAliases
 	remote.Hostname = local.Hostname
 	remote.ImagePullSecrets = local.ImagePullSecrets
 	remote.ReadinessGates = local.ReadinessGates
@@ -181,27 +186,49 @@ func RemotePodSpec(local, remote *corev1.PodSpec, enableAPIServerSupport bool,
 	remote.HostNetwork = false
 	remote.HostPID = false
 
+	// Perform the additional mutations to implement advanced functionalities.
+	for _, mutator := range mutators {
+		mutator(remote)
+	}
+
 	return *remote
 }
 
-// RemoteContainers forges the containers for a reflected pod, appropriately adding the environment variables
-// to enable the offloaded containers to contact back the local API server, instead of the remote one.
-func RemoteContainers(containers []corev1.Container, enableAPIServerSupport bool, saName string) []corev1.Container {
-	if !enableAPIServerSupport {
-		return containers
-	}
+// APIServerSupportMutator is a mutator which implements the support to enable offloaded pods to interact back with the local Kubernetes API server.
+func APIServerSupportMutator(enabled bool, saName string, saSecretRetriever SASecretRetriever,
+	kubernetesServiceIPRetriever KubernetesServiceIPGetter) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		// The mutation of the service account related volume needs to be performed regardless of whether this feature is enabled.
+		remote.Volumes = RemoteVolumes(remote.Volumes, enabled, func() string { return saSecretRetriever(saName) })
 
+		// No additional operations need to be performed if the API server support is disabled.
+		if !enabled {
+			return
+		}
+
+		// Mutate the environment variables of the containers concerning the target API server hostname, and the service account name.
+		remote.Containers = RemoteContainersAPIServerSupport(remote.Containers, saName)
+		remote.InitContainers = RemoteContainersAPIServerSupport(remote.InitContainers, saName)
+
+		// Add a custom host alias to reach "kubernetes.default" through the remapped IP address.
+		remote.HostAliases = RemoteHostAliasesAPIServerSupport(remote.HostAliases, kubernetesServiceIPRetriever)
+	}
+}
+
+// RemoteContainersAPIServerSupport forges the containers for a reflected pod, appropriately adding the environment variables
+// to enable the offloaded containers to contact back the local API server, instead of the remote one.
+func RemoteContainersAPIServerSupport(containers []corev1.Container, saName string) []corev1.Container {
 	for i := range containers {
-		containers[i].Env = RemoteContainerEnvVariables(containers[i].Env, saName)
+		containers[i].Env = RemoteContainerEnvVariablesAPIServerSupport(containers[i].Env, saName)
 	}
 
 	return containers
 }
 
-// RemoteContainerEnvVariables forges the environment variables to enable offloaded containers to
+// RemoteContainerEnvVariablesAPIServerSupport forges the environment variables to enable offloaded containers to
 // contact back the local API server, instead of the remote one. In addition, it also hardcodes the
 // service account name in case it was retrieved from the pod spec, as it is not reflected remotely.
-func RemoteContainerEnvVariables(envs []corev1.EnvVar, saName string) []corev1.EnvVar {
+func RemoteContainerEnvVariablesAPIServerSupport(envs []corev1.EnvVar, saName string) []corev1.EnvVar {
 	for i := range envs {
 		if envs[i].ValueFrom != nil && envs[i].ValueFrom.FieldRef != nil &&
 			envs[i].ValueFrom.FieldRef.FieldPath == "spec.serviceAccountName" {
@@ -226,13 +253,9 @@ func RemoteContainerEnvVariables(envs []corev1.EnvVar, saName string) []corev1.E
 	)
 }
 
-// RemoteHostAliases forges the host aliases to override the IP address associated with the kubernetes.default service
-// to enable offloaded containers to contact back the local API server, instead of the remote one.
-func RemoteHostAliases(aliases []corev1.HostAlias, enableAPIServerSupport bool, retriever KubernetesServiceIPGetter) []corev1.HostAlias {
-	if !enableAPIServerSupport {
-		return aliases
-	}
-
+// RemoteHostAliasesAPIServerSupport forges the host aliases to override the IP address associated with the kubernetes.default
+// service to enable offloaded containers to contact back the local API server, instead of the remote one.
+func RemoteHostAliasesAPIServerSupport(aliases []corev1.HostAlias, retriever KubernetesServiceIPGetter) []corev1.HostAlias {
 	return append(aliases, corev1.HostAlias{
 		IP: retriever(), Hostnames: []string{kubernetesAPIService, kubernetesAPIService + ".svc"}})
 }
@@ -260,7 +283,7 @@ func RemoteVolumes(volumes []corev1.Volume, enableAPIServerSupport bool, saSecre
 		if volumes[i].Projected != nil && strings.HasPrefix(volumes[i].Name, ServiceAccountVolumeName) {
 			var offset int
 			for j := range volumes[i].Projected.Sources {
-				j -= offset // Acccount for the entry that might have been previously deleted.
+				j -= offset // Account for the entry that might have been previously deleted.
 				source := &volumes[i].Projected.Sources[j]
 				if source.ConfigMap != nil {
 					// Replace the certification authority configmap with the remapped name.

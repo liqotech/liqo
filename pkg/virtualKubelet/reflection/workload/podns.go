@@ -297,7 +297,8 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 	}
 
 	// Forge the target shadowpod object.
-	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(), npr.enableAPIServerSupport, saSecretRetriever, ipGetter)
+	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(),
+		forge.APIServerSupportMutator(npr.enableAPIServerSupport, pod.ServiceAccountName(local), saSecretRetriever, ipGetter))
 
 	// Check whether an error occurred during secret name retrieval.
 	if saerr != nil {

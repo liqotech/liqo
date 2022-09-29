@@ -140,6 +140,10 @@ var _ = Describe("Pod forging", func() {
 			remote, output *vkv1alpha1.ShadowPod
 		)
 
+		Mutator := func(remote *corev1.PodSpec) {
+			remote.ActiveDeadlineSeconds = pointer.Int64Ptr(99)
+		}
+
 		BeforeEach(func() {
 			local = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "local-name", Namespace: "local-namespace",
@@ -149,7 +153,7 @@ var _ = Describe("Pod forging", func() {
 		})
 
 		JustBeforeEach(func() {
-			output = forge.RemoteShadowPod(local, remote, "remote-namespace", false, SASecretRetriever, KubernetesServiceIPGetter)
+			output = forge.RemoteShadowPod(local, remote, "remote-namespace", Mutator)
 		})
 
 		Context("the remote pod does not exist", func() {
@@ -166,32 +170,90 @@ var _ = Describe("Pod forging", func() {
 				// Here we assert only a single field, leaving the complete checks to the child functions tests.
 				Expect(output.Spec.Pod.TerminationGracePeriodSeconds).To(PointTo(BeNumerically("==", 15)))
 			})
+
+			It("should correctly trigger the additional mutators", func() {
+				// Here we assert only a single field, leaving the complete checks to the child functions tests.
+				Expect(output.Spec.Pod.ActiveDeadlineSeconds).To(PointTo(BeNumerically("==", 99)))
+			})
 		})
 
 		Context("the remote pod already exists", func() {
 			BeforeEach(func() {
 				remote = &vkv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: "remote-name", Namespace: "remote-namespace", UID: "remote-uid"}}
+			})
 
-				It("should correctly update the object meta", func() {
-					Expect(output.GetName()).To(Equal("local-name"))
-					Expect(output.GetNamespace()).To(Equal("remote-namespace"))
-					Expect(output.UID).To(BeEquivalentTo("remote-uid"))
-					Expect(output.GetLabels()).To(HaveKeyWithValue("foo", "bar"))
-					Expect(output.GetLabels()).ToNot(HaveKeyWithValue(consts.LocalPodLabelKey, consts.LocalPodLabelValue))
-				})
+			It("should correctly update the object meta", func() {
+				Expect(output.GetName()).To(Equal("remote-name"))
+				Expect(output.GetNamespace()).To(Equal("remote-namespace"))
+				Expect(output.UID).To(BeEquivalentTo("remote-uid"))
+				Expect(output.GetLabels()).To(HaveKeyWithValue("foo", "bar"))
+				Expect(output.GetLabels()).ToNot(HaveKeyWithValue(consts.LocalPodLabelKey, consts.LocalPodLabelValue))
+			})
 
-				It("should correctly update the pod spec", func() {
-					// Here we assert only a single field, leaving the complete checks to the child functions tests.
-					Expect(output.Spec.Pod.TerminationGracePeriodSeconds).To(PointTo(BeNumerically("==", 15)))
-				})
+			It("should not update the pod spec", func() {
+				Expect(output.Spec.Pod).To(Equal(corev1.PodSpec{}))
 			})
 		})
 	})
 
-	Describe("the RemoteContainers function", func() {
+	Describe("the APIServerSupportMutator function", func() {
+		const saName = "service-account"
+
+		var (
+			enableAPIServerSupport bool
+			remote, original       *corev1.PodSpec
+		)
+
+		BeforeEach(func() {
+			remote = &corev1.PodSpec{
+				Containers:     []corev1.Container{{Name: "foo", Image: "foo/bar:v0.1-alpha3"}},
+				InitContainers: []corev1.Container{{Name: "bar", Image: "foo/baz:v0.1-alpha3"}},
+			}
+		})
+
+		JustBeforeEach(func() {
+			original = remote.DeepCopy()
+			forge.APIServerSupportMutator(enableAPIServerSupport, saName, SASecretRetriever, KubernetesServiceIPGetter)(remote)
+		})
+
+		When("API server support is enabled", func() {
+			BeforeEach(func() { enableAPIServerSupport = true })
+
+			It("should correctly mutate the volumes", func() {
+				Expect(remote.Volumes).To(Equal(forge.RemoteVolumes(original.Volumes, enableAPIServerSupport,
+					func() string { return SASecretRetriever(saName) })))
+			})
+
+			It("should appropriately mutate the remote containers", func() {
+				Expect(remote.Containers).To(Equal(forge.RemoteContainersAPIServerSupport(original.Containers, saName)))
+			})
+
+			It("should appropriately mutate the remote init containers", func() {
+				Expect(remote.InitContainers).To(Equal(forge.RemoteContainersAPIServerSupport(original.InitContainers, saName)))
+			})
+
+			It("should appropriately mutate host aliases", func() {
+				Expect(remote.HostAliases).To(Equal(forge.RemoteHostAliasesAPIServerSupport(original.HostAliases, KubernetesServiceIPGetter)))
+			})
+		})
+
+		When("API server support is disabled", func() {
+			BeforeEach(func() { enableAPIServerSupport = false })
+
+			It("should correctly mutate the volumes", func() {
+				Expect(remote.Volumes).To(Equal(forge.RemoteVolumes(original.Volumes, enableAPIServerSupport,
+					func() string { return SASecretRetriever(saName) })))
+			})
+
+			It("should not mutate the remote containers", func() { Expect(remote.Containers).To(Equal(original.Containers)) })
+			It("should not mutate the remote init containers", func() { Expect(remote.InitContainers).To(Equal(original.InitContainers)) })
+			It("should not mutate the remote host aliases", func() { Expect(remote.HostAliases).To(Equal(original.HostAliases)) })
+		})
+	})
+
+	Describe("the RemoteContainersAPIServerSupport function", func() {
 		var container corev1.Container
 		var output []corev1.Container
-		var enableAPIServerSupport bool
 
 		BeforeEach(func() {
 			container = corev1.Container{
@@ -210,49 +272,36 @@ var _ = Describe("Pod forging", func() {
 		})
 
 		JustBeforeEach(func() {
-			output = forge.RemoteContainers([]corev1.Container{container}, enableAPIServerSupport, "service-account-name")
+			output = forge.RemoteContainersAPIServerSupport([]corev1.Container{container}, "service-account-name")
 		})
 
-		When("API server support is enabled", func() {
-			BeforeEach(func() { enableAPIServerSupport = true })
+		It("should propagate all container values", func() {
+			// Remove the environment variables from the containers, as checked in the test below.
+			envcleaner := func(c corev1.Container) corev1.Container {
+				c.Env = nil
+				return c
+			}
 
-			It("should propagate all container values", func() {
-				// Remove the environment variables from the containers, as checked in the test below.
-				envcleaner := func(c corev1.Container) corev1.Container {
-					c.Env = nil
-					return c
-				}
-
-				Expect(output).To(HaveLen(1))
-				Expect(envcleaner(output[0])).To(Equal(envcleaner(container)))
-			})
-
-			It("should configure the appropriate environment variables", func() {
-				Expect(output).To(HaveLen(1))
-				Expect(output[0].Env).To(ConsistOf(
-					corev1.EnvVar{Name: "ENV_1", Value: "VALUE_1"},
-					corev1.EnvVar{Name: "ENV_2", Value: "VALUE_2"},
-					corev1.EnvVar{Name: "ENV_3", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{Key: "foo"}}},
-					corev1.EnvVar{Name: "ENV_4", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
-					corev1.EnvVar{Name: "ENV_5", Value: "service-account-name"},
-					corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: "8443"},
-					corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: "kubernetes.default"},
-					corev1.EnvVar{Name: "KUBERNETES_PORT", Value: "tcp://kubernetes.default:8443"},
-					corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP", Value: "tcp://kubernetes.default:8443"},
-					corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PROTO", Value: "tcp"},
-					corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PORT", Value: "8443"},
-					corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_ADDR", Value: "kubernetes.default"},
-				))
-			})
+			Expect(output).To(HaveLen(1))
+			Expect(envcleaner(output[0])).To(Equal(envcleaner(container)))
 		})
 
-		When("API server support is disabled", func() {
-			BeforeEach(func() { enableAPIServerSupport = false })
-
-			It("should propagate all container values verbatim", func() {
-				Expect(output).To(HaveLen(1))
-				Expect(output[0]).To(Equal(container))
-			})
+		It("should configure the appropriate environment variables", func() {
+			Expect(output).To(HaveLen(1))
+			Expect(output[0].Env).To(ConsistOf(
+				corev1.EnvVar{Name: "ENV_1", Value: "VALUE_1"},
+				corev1.EnvVar{Name: "ENV_2", Value: "VALUE_2"},
+				corev1.EnvVar{Name: "ENV_3", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{Key: "foo"}}},
+				corev1.EnvVar{Name: "ENV_4", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+				corev1.EnvVar{Name: "ENV_5", Value: "service-account-name"},
+				corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: "8443"},
+				corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: "kubernetes.default"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT", Value: "tcp://kubernetes.default:8443"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP", Value: "tcp://kubernetes.default:8443"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PROTO", Value: "tcp"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PORT", Value: "8443"},
+				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_ADDR", Value: "kubernetes.default"},
+			))
 		})
 	})
 
@@ -355,9 +404,8 @@ var _ = Describe("Pod forging", func() {
 		})
 	})
 
-	Describe("the RemoteHostAliases function", func() {
+	Describe("the RemoteHostAliasesAPIServerSupport function", func() {
 		var aliases, output []corev1.HostAlias
-		var enableAPIServerSupport bool
 
 		BeforeEach(func() {
 			aliases = []corev1.HostAlias{
@@ -366,22 +414,13 @@ var _ = Describe("Pod forging", func() {
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteHostAliases(aliases, enableAPIServerSupport, KubernetesServiceIPGetter) })
+		JustBeforeEach(func() { output = forge.RemoteHostAliasesAPIServerSupport(aliases, KubernetesServiceIPGetter) })
 
-		When("API server support is enabled", func() {
-			BeforeEach(func() { enableAPIServerSupport = true })
-
-			It("should preserve the existing aliases", func() { Expect(output).To(ContainElements(aliases)) })
-			It("should append the alias corresponding to the kubernetes.default service", func() {
-				Expect(output).To(ContainElement(corev1.HostAlias{
-					Hostnames: []string{"kubernetes.default", "kubernetes.default.svc"}, IP: KubernetesServiceIPGetter(),
-				}))
-			})
-		})
-
-		When("API server support is disabled", func() {
-			BeforeEach(func() { enableAPIServerSupport = false })
-			It("should propagate all host aliases verbatim", func() { Expect(output).To(ConsistOf(aliases)) })
+		It("should preserve the existing aliases", func() { Expect(output).To(ContainElements(aliases)) })
+		It("should append the alias corresponding to the kubernetes.default service", func() {
+			Expect(output).To(ContainElement(corev1.HostAlias{
+				Hostnames: []string{"kubernetes.default", "kubernetes.default.svc"}, IP: KubernetesServiceIPGetter(),
+			}))
 		})
 	})
 
