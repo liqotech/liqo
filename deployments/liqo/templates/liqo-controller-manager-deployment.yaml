@@ -78,14 +78,6 @@ spec:
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
           {{- end }}
-          {{- if .Values.auth.ingress.enable }}
-          - --auth-service-address-override={{ .Values.auth.ingress.host }}
-          {{- end }}
-          {{- if .Values.auth.portOverride }}
-          - --auth-service-port-override={{ .Values.auth.portOverride }}
-          {{- else if .Values.auth.ingress.enable }}
-          - --auth-service-port-override=443
-          {{- end }}
           {{- if .Values.virtualKubelet.extra.annotations }}
           {{- $d := dict "commandName" "--kubelet-extra-annotations" "dictionary" .Values.virtualKubelet.extra.annotations }}
           {{- include "liqo.concatenateMap" $d | nindent 10 }}

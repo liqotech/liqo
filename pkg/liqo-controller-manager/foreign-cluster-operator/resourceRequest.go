@@ -36,8 +36,7 @@ func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
-	authURL, err := foreigncluster.GetHomeAuthURL(ctx, r.Client,
-		r.AuthServiceAddressOverride, r.AuthServicePortOverride, r.LiqoNamespace)
+	authURL, err := foreigncluster.GetHomeAuthURL(ctx, r.Client, r.LiqoNamespace)
 	if err != nil {
 		return nil, err
 	}

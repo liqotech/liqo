@@ -5,10 +5,16 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "liqo.prefixedName" $gatewayConfig }}
-{{- if .Values.gateway.service.annotations }}
   annotations:
+    {{- if .Values.gateway.service.annotations }}
     {{- toYaml .Values.gateway.service.annotations | nindent 4 }}
-{{- end}}
+    {{- end}}
+    {{- if .Values.gateway.config.addressOverride }}
+    liqo.io/override-address: {{ .Values.gateway.config.addressOverride | quote }}
+    {{- end }}
+    {{- if .Values.gateway.config.portOverride }}
+    liqo.io/override-port: {{ .Values.gateway.config.portOverride | quote }}
+    {{- end }}
   labels:
     {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
     {{- include "liqo.gatewayServiceLabels" $gatewayConfig | nindent 4 }}

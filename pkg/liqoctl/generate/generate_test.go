@@ -45,7 +45,7 @@ var (
 )
 
 var _ = Describe("Test the generate command works as expected", func() {
-	setup := func(deployArgs []string) {
+	setup := func(deployArgs []string, authServiceAnnotations map[string]string) {
 		options = &Options{CommandName: commandName, Factory: &factory.Factory{LiqoNamespace: "liqo-non-standard"}}
 
 		// Create Namespace
@@ -81,6 +81,7 @@ var _ = Describe("Test the generate command works as expected", func() {
 		authService := &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "liqo-auth", Namespace: options.LiqoNamespace,
+				Annotations: authServiceAnnotations,
 			},
 			Spec: corev1.ServiceSpec{
 				Ports:     []corev1.ServicePort{{Name: "https", Port: 443, NodePort: 34000}},
@@ -98,19 +99,22 @@ var _ = Describe("Test the generate command works as expected", func() {
 	}
 
 	DescribeTable("A generate command is performed",
-		func(deployArgs []string, expected string) {
-			setup(deployArgs)
+		func(deployArgs []string, authServiceAnnotations map[string]string, expected string) {
+			setup(deployArgs, authServiceAnnotations)
 			Expect(options.generate(ctx)).To(BeIdenticalTo(expected))
 		},
 		Entry("Default authentication service endpoint",
 			[]string{fmt.Sprintf("--%v=%v", consts.ClusterNameParameter, localClusterName)},
+			map[string]string{},
 			commandName+" peer out-of-band "+localClusterName+" --auth-url https://"+authEndpoint+" --cluster-id "+localClusterID+" --auth-token "+token,
 		),
 		Entry("Overridden authentication service endpoint",
 			[]string{
 				fmt.Sprintf("--%v=%v", consts.ClusterNameParameter, localClusterName),
-				fmt.Sprintf("--%v=%v", consts.AuthServiceAddressOverrideParameter, "foo.bar.com"),
-				fmt.Sprintf("--%v=%v", consts.AuthServicePortOverrideParameter, "8443"),
+			},
+			map[string]string{
+				consts.OverrideAddressAnnotation: "foo.bar.com",
+				consts.OverridePortAnnotation:    "8443",
 			},
 			commandName+" peer out-of-band "+localClusterName+" --auth-url https://foo.bar.com:8443 --cluster-id "+localClusterID+" --auth-token "+token,
 		),

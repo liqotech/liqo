@@ -87,11 +87,9 @@ type ForeignClusterReconciler struct {
 
 	LiqoNamespace string
 
-	ResyncPeriod               time.Duration
-	HomeCluster                discoveryv1alpha1.ClusterIdentity
-	AuthServiceAddressOverride string
-	AuthServicePortOverride    string
-	AutoJoin                   bool
+	ResyncPeriod time.Duration
+	HomeCluster  discoveryv1alpha1.ClusterIdentity
+	AutoJoin     bool
 
 	NamespaceManager tenantnamespace.Manager
 	IdentityManager  identitymanager.IdentityManager

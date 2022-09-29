@@ -4,7 +4,9 @@
 |-----|------|---------|-------------|
 | apiServer.address | string | `""` | The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP) |
 | apiServer.trustedCA | bool | `false` | Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority |
+| auth.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
 | auth.config.enableAuthentication | bool | `true` | Set to false to disable the authentication of discovered clusters. NB: use it only for testing installations |
+| auth.config.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT or using an Ingress with a port different from 443. |
 | auth.imageName | string | `"liqo/auth-service"` | auth image repository |
 | auth.ingress.annotations | object | `{}` | Auth ingress annotations |
 | auth.ingress.class | string | `""` | Set your ingress class |
@@ -14,7 +16,6 @@
 | auth.pod.annotations | object | `{}` | auth pod annotations |
 | auth.pod.extraArgs | list | `[]` | auth pod extra arguments |
 | auth.pod.labels | object | `{}` | auth pod labels |
-| auth.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443. |
 | auth.service.annotations | object | `{}` | auth service annotations |
 | auth.service.type | string | `"LoadBalancer"` | The type of service used to expose the Authentication Service. If you are exposing this service with an Ingress, you can change it to ClusterIP; if your cluster does not support LoadBalancer services, consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource. |
@@ -46,7 +47,9 @@
 | discovery.pod.extraArgs | list | `[]` | discovery pod extra arguments |
 | discovery.pod.labels | object | `{}` | discovery pod labels |
 | fullnameOverride | string | `""` | full liqo name override |
+| gateway.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
 | gateway.config.listeningPort | int | `5871` | port used by the vpn tunnel. |
+| gateway.config.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT and is different from the listening port. |
 | gateway.imageName | string | `"liqo/liqonet"` | gateway image repository |
 | gateway.metrics.enabled | bool | `false` | expose metrics about network traffic towards cluster peers. |
 | gateway.metrics.port | int | `5872` | port used to expose metrics. |

@@ -29,6 +29,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	machtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -91,6 +92,46 @@ var _ = Describe("ForeignClusterOperator", func() {
 			ClusterName: "local-cluster-name",
 		}
 
+		authSvc := &v1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "liqo-auth",
+				Annotations: map[string]string{
+					consts.OverrideAddressAnnotation: "auth.liqo.io",
+					consts.OverridePortAnnotation:    "443",
+				},
+			},
+			Spec: v1.ServiceSpec{
+				Type: v1.ServiceTypeLoadBalancer,
+				Ports: []v1.ServicePort{
+					{
+						Name:       "https",
+						Port:       443,
+						Protocol:   v1.ProtocolTCP,
+						NodePort:   30000,
+						TargetPort: intstr.FromInt(8443),
+					},
+				},
+			},
+			Status: v1.ServiceStatus{
+				LoadBalancer: v1.LoadBalancerStatus{
+					Ingress: []v1.LoadBalancerIngress{
+						{
+							IP: "1.2.3.4",
+						},
+					},
+				},
+			},
+		}
+		authSvcStatus := authSvc.Status.DeepCopy()
+		authSvc, err = cluster.GetClient().CoreV1().Services("default").Create(ctx, authSvc, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(authSvc).ToNot(BeNil())
+
+		authSvc.Status = *authSvcStatus
+		authSvc, err = cluster.GetClient().CoreV1().Services("default").UpdateStatus(ctx, authSvc, metav1.UpdateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(authSvc).ToNot(BeNil())
+
 		namespaceManager := tenantnamespace.NewManager(cluster.GetClient())
 		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient(), homeCluster, namespaceManager)
 
@@ -113,9 +154,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			ResyncPeriod:     300,
 			NamespaceManager: namespaceManager,
 			IdentityManager:  identityManagerCtrl,
-
-			AuthServiceAddressOverride: "127.0.0.1",
-			AuthServicePortOverride:    "8443",
+			LiqoNamespace:    "default",
 		}
 
 		go mgr.GetCache().Start(ctx)

@@ -117,10 +117,6 @@ func main() {
 	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
 
 	// Discovery parameters
-	authServiceAddressOverride := flag.String(consts.AuthServiceAddressOverrideParameter, "",
-		"The address the authentication service is reachable from foreign clusters (automatically retrieved if not set")
-	authServicePortOverride := flag.String(consts.AuthServicePortOverrideParameter, "",
-		"The port the authentication service is reachable from foreign clusters (automatically retrieved if not set")
 	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
 
 	// Resource sharing parameters
@@ -237,11 +233,9 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		LiqoNamespace: *liqoNamespace,
 
-		ResyncPeriod:               *resyncPeriod,
-		HomeCluster:                clusterIdentity,
-		AuthServiceAddressOverride: *authServiceAddressOverride,
-		AuthServicePortOverride:    *authServicePortOverride,
-		AutoJoin:                   *autoJoin,
+		ResyncPeriod: *resyncPeriod,
+		HomeCluster:  clusterIdentity,
+		AutoJoin:     *autoJoin,
 
 		NamespaceManager:  namespaceManager,
 		IdentityManager:   idManager,
