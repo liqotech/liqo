@@ -193,7 +193,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 						Expect(shadowAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
 						Expect(shadowAfter.Annotations).To(HaveKeyWithValue("existing", "existing"))
 					})
-					It("the spec should not have replicated to the remote object, to prevent possible issues", func() {
+					It("the spec should not have been replicated to the remote object, to prevent possible issues", func() {
 						shadowAfter := GetShadowPod(liqoClient, RemoteNamespace, PodName)
 						// Here, we assert only a few fields, as already tested in the forge package.
 						Expect(shadowAfter.Spec.Pod).To(Equal(shadow.Spec.Pod))

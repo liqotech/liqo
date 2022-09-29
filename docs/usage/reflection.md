@@ -31,6 +31,27 @@ Liqo leverages a custom resource, named *ShadowPod*, combined with an appropriat
 * Mutation of **service account** related information, to allow offloaded pods to transparently interact with the local (i.e., origin) API server, instead of the remote one.
 * Enforcement of the properties concerning the usage of **host namespaces** (e.g., network, IPC, PID) to *false* (i.e., disabled), as potentially invasive and troublesome.
 
+````{admonition} Note
+*Anti-affinity presets* can be leveraged to specify predefined scheduling constraints for offloaded pods, spreading them across different nodes in the remote cluster.
+This feature is enabled through the `liqo.io/anti-affinity-preset` pod annotation, which can take three values:
+
+* `propagate`: the anti-affinity constraints of the pod are propagated *verbatim* when offloaded to the remote cluster.
+  Make sure that they match both the virtual node in the local cluster and at least one physical node in the remote cluster, otherwise the pod will fail to be scheduled (i.e., remain in pending status).
+* `soft`: the pods sharing the same labels are *preferred* to be scheduled on different nodes (i.e., it is translated into a *preferredDuringSchedulingIgnoredDuringExecution* anti-affinity constraint).
+* `hard`: the pods sharing the same labels are *required* to be scheduled on different nodes (i.e., it is translated into a *requiredDuringSchedulingIgnoredDuringExecution* anti-affinity constraint).
+
+When set to *soft* or *hard*, the `liqo.io/anti-affinity-labels` annotation allows to select a subset of the pod label keys to build the anti-affinity constraints:
+
+```yaml
+annotations:
+  liqo.io/anti-affinity-preset: soft
+  liqo.io/anti-affinity-labels: app.kubernetes.io/name,app.kubernetes.io/instance
+```
+
+Given that affinity constraints are *immutable*, the addition/removal of the annotations to/from an already existing pod *does not have any effect*.
+Make sure that the annotations are configured appropriately in the template of the managing object (e.g., *Deployment*, or *StatefulSet*).
+````
+
 Differently, **pod status** is propagated from the remote cluster to the local one, performing the following modifications:
 
 * The *PodIP* is **remapped** according to the network fabric configuration, such as to be reachable from the other pods running in the same cluster.

@@ -34,7 +34,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/maps"
 )
 
 func isResourceOfferTerminating(resourceOffer *sharingv1alpha1.ResourceOffer) bool {
@@ -271,8 +271,8 @@ func (p *LiqoNodeProvider) patchLabels(labels map[string]string) error {
 
 	if err := p.patchNode(func(node *v1.Node) error {
 		nodeLabels := node.GetLabels()
-		nodeLabels = utils.SubMaps(nodeLabels, p.lastAppliedLabels)
-		nodeLabels = utils.MergeMaps(nodeLabels, labels)
+		nodeLabels = maps.Sub(nodeLabels, p.lastAppliedLabels)
+		nodeLabels = maps.Merge(nodeLabels, labels)
 		node.Labels = nodeLabels
 		return nil
 	}); err != nil {

@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,6 +30,7 @@ import (
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/maps"
 )
 
 const (
@@ -131,14 +133,23 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod,
 	}
 
 	// Remove the label which identifies offloaded pods, as meaningful only locally.
-	FilterLocalPodOffloadedLabel := func(meta *metav1.ObjectMeta) *metav1.ObjectMeta {
-		output := meta.DeepCopy()
-		delete(output.GetLabels(), liqoconst.LocalPodLabelKey)
-		return output
+	localMetaFiltered := local.ObjectMeta.DeepCopy()
+	delete(localMetaFiltered.GetLabels(), liqoconst.LocalPodLabelKey)
+
+	// Initialize the appropriate anti-affinity mutator if the corresponding annotation is present.
+	switch local.Annotations[liqoconst.PodAntiAffinityPresetKey] {
+	case liqoconst.PodAntiAffinityPresetValuePropagate:
+		mutators = append(mutators, AntiAffinityPropagateMutator(local.Spec.Affinity.DeepCopy()))
+	case liqoconst.PodAntiAffinityPresetValueSoft:
+		mutators = append(mutators,
+			AntiAffinitySoftMutator(FilterAntiAffinityLabels(localMetaFiltered.GetLabels(), local.Annotations[liqoconst.PodAntiAffinityLabelsKey])))
+	case liqoconst.PodAntiAffinityPresetValueHard:
+		mutators = append(mutators,
+			AntiAffinityHardMutator(FilterAntiAffinityLabels(localMetaFiltered.GetLabels(), local.Annotations[liqoconst.PodAntiAffinityLabelsKey])))
 	}
 
 	return &vkv1alpha1.ShadowPod{
-		ObjectMeta: RemoteObjectMeta(FilterLocalPodOffloadedLabel(&local.ObjectMeta), &remote.ObjectMeta),
+		ObjectMeta: RemoteObjectMeta(localMetaFiltered, &remote.ObjectMeta),
 		Spec: vkv1alpha1.ShadowPodSpec{
 			Pod: RemotePodSpec(creation, local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy(), mutators...),
 		},
@@ -213,6 +224,52 @@ func APIServerSupportMutator(enabled bool, saName string, saSecretRetriever SASe
 		// Add a custom host alias to reach "kubernetes.default" through the remapped IP address.
 		remote.HostAliases = RemoteHostAliasesAPIServerSupport(remote.HostAliases, kubernetesServiceIPRetriever)
 	}
+}
+
+// AntiAffinityPropagateMutator is a mutator which implements the support to propagate a given anti-affinity constraint.
+func AntiAffinityPropagateMutator(affinity *corev1.Affinity) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		if affinity != nil && affinity.PodAntiAffinity != nil {
+			remote.Affinity = &corev1.Affinity{PodAntiAffinity: affinity.PodAntiAffinity}
+		}
+	}
+}
+
+// AntiAffinitySoftMutator is a mutator which implements the support to enable soft anti-affinity between pods sharing the same labels.
+func AntiAffinitySoftMutator(labels map[string]string) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		remote.Affinity = &corev1.Affinity{PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+				Weight: 1,
+				PodAffinityTerm: corev1.PodAffinityTerm{
+					TopologyKey:   corev1.LabelHostname,
+					LabelSelector: &metav1.LabelSelector{MatchLabels: labels},
+				},
+			}},
+		}}
+	}
+}
+
+// AntiAffinityHardMutator is a mutator which implements the support to enable hard anti-affinity between pods sharing the same labels.
+func AntiAffinityHardMutator(labels map[string]string) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		remote.Affinity = &corev1.Affinity{PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+				TopologyKey:   corev1.LabelHostname,
+				LabelSelector: &metav1.LabelSelector{MatchLabels: labels},
+			}},
+		}}
+	}
+}
+
+// FilterAntiAffinityLabels filters the label keys which are used to implement the anti-affinity constraints, based on the specified whitelist.
+func FilterAntiAffinityLabels(labels map[string]string, whitelist string) map[string]string {
+	if whitelist != "" {
+		return maps.Filter(labels, maps.FilterWhitelist(strings.Split(whitelist, ",")...))
+	}
+
+	return maps.Filter(labels, maps.FilterBlacklist(appsv1.ControllerRevisionHashLabelKey,
+		appsv1.DefaultDeploymentUniqueLabelKey, appsv1.StatefulSetPodNameLabel))
 }
 
 // RemoteContainersAPIServerSupport forges the containers for a reflected pod, appropriately adding the environment variables
