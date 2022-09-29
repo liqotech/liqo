@@ -26,13 +26,6 @@ const (
 	// GenerateNameParameter is the name of the parameter specifying whether to generate a random name for the cluster.
 	GenerateNameParameter = "generate-name"
 
-	// AuthServiceAddressOverrideParameter is the name of the parameter overriding
-	// the automatically detected authentication service address.
-	AuthServiceAddressOverrideParameter = "auth-service-address-override"
-	// AuthServicePortOverrideParameter is the name of the parameter overriding
-	// the automatically detected authentication service address.
-	AuthServicePortOverrideParameter = "auth-service-port-override"
-
 	// ExternalResourceMonitorParameter is the name of the parameter specifying the address of an ExternalResourceMonitor.
 	ExternalResourceMonitorParameter = "external-monitor"
 )

@@ -108,15 +108,24 @@ func RetrieveWGEPFromLoadBalancer(svc *corev1.Service, portName string) (endpoin
 func RetrieveWGEPFromService(svc *corev1.Service, annotationKey, portName string) (endpointIP, endpointPort string, err error) {
 	switch svc.Spec.Type {
 	case corev1.ServiceTypeNodePort:
-		return RetrieveWGEPFromNodePort(svc, annotationKey, portName)
+		endpointIP, endpointPort, err = RetrieveWGEPFromNodePort(svc, annotationKey, portName)
 
 	case corev1.ServiceTypeLoadBalancer:
-		return RetrieveWGEPFromLoadBalancer(svc, portName)
+		endpointIP, endpointPort, err = RetrieveWGEPFromLoadBalancer(svc, portName)
 
 	default:
 		return endpointIP, endpointPort, fmt.Errorf("service {%s/%s} is of type {%s}, only types of {%s} and {%s} are accepted",
 			svc.Namespace, svc.Name, svc.Spec.Type, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort)
 	}
+
+	if overrideAddress, ok := svc.GetAnnotations()[liqoconsts.OverrideAddressAnnotation]; ok {
+		endpointIP = overrideAddress
+	}
+	if overridePort, ok := svc.GetAnnotations()[liqoconsts.OverridePortAnnotation]; ok {
+		endpointPort = overridePort
+	}
+
+	return endpointIP, endpointPort, err
 }
 
 // RetrieveWGPubKeyFromSecret retrieves the WireGuard public key from a given secret if present.

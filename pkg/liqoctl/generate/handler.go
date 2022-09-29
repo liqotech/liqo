@@ -20,11 +20,9 @@ import (
 	"strings"
 
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/peeroob"
-	"github.com/liqotech/liqo/pkg/liqoctl/util"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
@@ -74,17 +72,7 @@ func (o *Options) generate(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	// Retrieve the liqo controller manager deployment args
-	args, err := util.RetrieveLiqoControllerManagerDeploymentArgs(ctx, o.CRClient, o.LiqoNamespace)
-	if err != nil {
-		return "", err
-	}
-
-	// The error is discarded, since an empty string is returned in case the key is not found, which is fine.
-	authServiceAddressOverride, _ := util.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServiceAddressOverrideParameter), args)
-	authServicePortOverride, _ := util.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServicePortOverrideParameter), args)
-
-	authEP, err := foreigncluster.GetHomeAuthURL(ctx, o.CRClient, authServiceAddressOverride, authServicePortOverride, o.LiqoNamespace)
+	authEP, err := foreigncluster.GetHomeAuthURL(ctx, o.CRClient, o.LiqoNamespace)
 	if err != nil {
 		return "", err
 	}

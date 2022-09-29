@@ -64,6 +64,10 @@ gateway:
     type: "LoadBalancer"
     annotations: {}
   config:
+    # -- Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT.
+    addressOverride: ""
+    # -- Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT and is different from the listening port.
+    portOverride: ""
     # -- port used by the vpn tunnel.
     listeningPort: 5871
   metrics: 
@@ -172,8 +176,6 @@ auth:
   # -- Enable TLS for the Authentication Service Pod (using a self-signed certificate).
   # If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource.
   tls: true
-  # -- Overrides the port where your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443.
-  portOverride: ""
   ingress:
     # -- Auth ingress annotations
     annotations: {}
@@ -186,6 +188,10 @@ auth:
   config:
     # -- Set to false to disable the authentication of discovered clusters. NB: use it only for testing installations
     enableAuthentication: true
+    # -- Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT.
+    addressOverride: ""
+    # -- Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT or using an Ingress with a port different from 443.
+    portOverride: ""
 
 metricAgent:
   # -- Enable the metric agent

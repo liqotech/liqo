@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -71,17 +72,12 @@ func GetOlderForeignCluster(
 }
 
 // getAuthAddress retrieves the external address where the Authentication Service is reachable from the external world.
-func getAuthAddress(ctx context.Context, cl client.Client, authServiceAddress, namespace string) (string, error) {
-	if authServiceAddress != "" {
-		return authServiceAddress, nil
-	}
-
-	// get the authentication service  (the namespace is automatically inferred by the namespaced client).
-	var svc corev1.Service
-	ref := types.NamespacedName{Name: liqoconst.AuthServiceName, Namespace: namespace}
-	if err := cl.Get(ctx, ref, &svc); err != nil {
-		klog.Error(err)
-		return "", err
+func getAuthAddress(ctx context.Context, cl client.Client, svc *corev1.Service) (string, error) {
+	if overrideAddress, ok := svc.Annotations[liqoconst.OverrideAddressAnnotation]; ok {
+		overrideAddress = strings.TrimPrefix(overrideAddress, "https://")
+		overrideAddress = strings.TrimPrefix(overrideAddress, "http://")
+		overrideAddress = strings.TrimSuffix(overrideAddress, "/")
+		return overrideAddress, nil
 	}
 
 	// if the service is exposed as LoadBalancer
@@ -139,18 +135,9 @@ func getAuthAddress(ctx context.Context, cl client.Client, authServiceAddress, n
 }
 
 // getAuthPort retrieves the external port where the Authentication Service is reachable from the external world.
-func getAuthPort(ctx context.Context, cl client.Client, authServicePort, authServiceNamespace string) (string, error) {
-	// this port can be overwritten setting this environment variable
-	if authServicePort != "" {
-		return authServicePort, nil
-	}
-
-	// get the authentication service (the namespace is automatically inferred by the namespaced client).
-	var svc corev1.Service
-	ref := types.NamespacedName{Name: liqoconst.AuthServiceName, Namespace: authServiceNamespace}
-	if err := cl.Get(ctx, ref, &svc); err != nil {
-		klog.Error(err)
-		return "", err
+func getAuthPort(svc *corev1.Service) (string, error) {
+	if overridePort, ok := svc.Annotations[liqoconst.OverridePortAnnotation]; ok {
+		return overridePort, nil
 	}
 
 	if len(svc.Spec.Ports) == 0 {
@@ -176,15 +163,21 @@ func getAuthPort(ctx context.Context, cl client.Client, authServicePort, authSer
 }
 
 // GetHomeAuthURL retrieves the auth service endpoint by inspecting the cluster. It returns an empty string and an error if it does not succeed.
-func GetHomeAuthURL(ctx context.Context, cl client.Client, authServiceAddress,
-	authServicePort, liqoNamespace string) (string, error) {
-	// If set, authServiceAddress and authServicePort will overwrite the value extracted from the Liqo services.
-	address, err := getAuthAddress(ctx, cl, authServiceAddress, liqoNamespace)
+func GetHomeAuthURL(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
+	// get the authentication service
+	var svc corev1.Service
+	ref := types.NamespacedName{Name: liqoconst.AuthServiceName, Namespace: liqoNamespace}
+	if err := cl.Get(ctx, ref, &svc); err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
+	address, err := getAuthAddress(ctx, cl, &svc)
 	if err != nil {
 		return "", err
 	}
 
-	port, err := getAuthPort(ctx, cl, authServicePort, liqoNamespace)
+	port, err := getAuthPort(&svc)
 	if err != nil {
 		return "", err
 	}

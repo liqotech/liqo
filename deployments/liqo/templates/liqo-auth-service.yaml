@@ -12,6 +12,16 @@ metadata:
     {{- if .Values.auth.service.annotations }}
     {{- toYaml .Values.auth.service.annotations | nindent 4}}
     {{- end }}
+    {{- if .Values.auth.config.addressOverride }}
+    liqo.io/override-address: {{ .Values.auth.config.addressOverride | quote }}
+    {{- else if .Values.auth.ingress.enable }}
+    liqo.io/override-address: {{ .Values.auth.ingress.host | quote }}
+    {{- end }}
+    {{- if .Values.auth.config.portOverride }}
+    liqo.io/override-port: {{ .Values.auth.config.portOverride | quote }}
+    {{- else if .Values.auth.ingress.enable }}
+    liqo.io/override-port: "443"
+    {{- end }}
 spec:
   type: {{ .Values.auth.service.type }}
   selector:
