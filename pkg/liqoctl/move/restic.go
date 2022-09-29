@@ -29,14 +29,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func ensureResticRepository(ctx context.Context, cl client.Client, targetPvc *corev1.PersistentVolumeClaim) error {
+func (o *Options) ensureResticRepository(ctx context.Context, targetPvc *corev1.PersistentVolumeClaim) error {
 	svc := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resticRegistry,
 			Namespace: liqoStorageNamespace,
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, cl, &svc, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctx, o.CRClient, &svc, func() error {
 		svc.Spec = corev1.ServiceSpec{
 			Selector: map[string]string{
 				"app": resticRegistry,
@@ -61,7 +61,7 @@ func ensureResticRepository(ctx context.Context, cl client.Client, targetPvc *co
 			Namespace: liqoStorageNamespace,
 		},
 	}
-	_, err = controllerutil.CreateOrUpdate(ctx, cl, &statefulSet, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, o.CRClient, &statefulSet, func() error {
 		statefulSet.Spec = appsv1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -96,6 +96,7 @@ func ensureResticRepository(ctx context.Context, cl client.Client, targetPvc *co
 									ContainerPort: resticPort,
 								},
 							},
+							Resources: o.forgeContainerResources(),
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "restic-registry-data",

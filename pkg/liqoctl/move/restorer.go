@@ -22,22 +22,21 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func restoreSnapshot(ctx context.Context, cl client.Client,
-	oldPvc, newPvc *corev1.PersistentVolumeClaim, nodeName, resticRepositoryURL, resticPassword string) error {
-	job, err := createRestorerJob(ctx, cl, oldPvc, newPvc, nodeName, resticRepositoryURL, resticPassword)
+func (o *Options) restoreSnapshot(ctx context.Context,
+	oldPvc, newPvc *corev1.PersistentVolumeClaim, resticRepositoryURL string) error {
+	job, err := o.createRestorerJob(ctx, oldPvc, newPvc, resticRepositoryURL)
 	if err != nil {
 		return err
 	}
 
-	return waitForJob(ctx, cl, job)
+	return waitForJob(ctx, o.CRClient, job)
 }
 
-func createRestorerJob(ctx context.Context, cl client.Client,
+func (o *Options) createRestorerJob(ctx context.Context,
 	oldPvc, newPvc *corev1.PersistentVolumeClaim,
-	nodeName, resticRepositoryURL, resticPassword string) (*batchv1.Job, error) {
+	resticRepositoryURL string) (*batchv1.Job, error) {
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "liqo-restorer-",
@@ -56,7 +55,7 @@ func createRestorerJob(ctx context.Context, cl client.Client,
 											{
 												Key:      "kubernetes.io/hostname",
 												Operator: corev1.NodeSelectorOpIn,
-												Values:   []string{nodeName},
+												Values:   []string{o.TargetNode},
 											},
 										},
 									},
@@ -78,9 +77,10 @@ func createRestorerJob(ctx context.Context, cl client.Client,
 							Env: []corev1.EnvVar{
 								{
 									Name:  "RESTIC_PASSWORD",
-									Value: resticPassword,
+									Value: o.ResticPassword,
 								},
 							},
+							Resources: o.forgeContainerResources(),
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "restore",
@@ -105,7 +105,7 @@ func createRestorerJob(ctx context.Context, cl client.Client,
 		},
 	}
 
-	if err := cl.Create(ctx, &job); err != nil {
+	if err := o.CRClient.Create(ctx, &job); err != nil {
 		return nil, err
 	}
 	return &job, nil

@@ -35,6 +35,7 @@ import (
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -218,6 +219,7 @@ var _ = Context("Move Volumes", func() {
 		Context("createSnapshotterJob", func() {
 
 			var (
+				o   Options
 				cl  client.Client
 				pvc *corev1.PersistentVolumeClaim
 			)
@@ -229,6 +231,8 @@ var _ = Context("Move Volumes", func() {
 				pvc.Spec.VolumeName = pv.Name
 
 				cl = fake.NewClientBuilder().WithObjects(pv, pvc).Build()
+				o = Options{Factory: &factory.Factory{CRClient: cl}, ResticPassword: resticPassword,
+					ContainersCPURequests: resource.MustParse("100m"), ContainersRAMLimits: resource.MustParse("100M")}
 			})
 
 			When("creates a snapshotter job", func() {
@@ -240,7 +244,7 @@ var _ = Context("Move Volumes", func() {
 				)
 
 				BeforeEach(func() {
-					job, err = createSnapshotterJob(ctx, cl, pvc, resticRepositoryURL, resticPassword)
+					job, err = o.createSnapshotterJob(ctx, pvc, resticRepositoryURL)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(job).ToNot(BeNil())
 
@@ -267,6 +271,8 @@ var _ = Context("Move Volumes", func() {
 						Name:  "RESTIC_PASSWORD",
 						Value: resticPassword,
 					}))
+					Expect(podSpec.InitContainers[0].Resources.Requests).To(HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("100m")))
+					Expect(podSpec.InitContainers[0].Resources.Limits).To(HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("100M")))
 				})
 
 				It("should populate the containers", func() {
@@ -282,6 +288,8 @@ var _ = Context("Move Volumes", func() {
 						Name:  "RESTIC_PASSWORD",
 						Value: resticPassword,
 					}))
+					Expect(podSpec.InitContainers[0].Resources.Requests).To(HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("100m")))
+					Expect(podSpec.InitContainers[0].Resources.Limits).To(HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("100M")))
 					Expect(podSpec.Containers[0].WorkingDir).To(Equal("/backup"))
 					Expect(podSpec.Containers[0].VolumeMounts).To(HaveLen(1))
 					Expect(podSpec.Containers[0].VolumeMounts).To(ContainElement(corev1.VolumeMount{
@@ -308,10 +316,10 @@ var _ = Context("Move Volumes", func() {
 		Context("createRestorerJob", func() {
 
 			var (
-				cl       client.Client
-				oPvc     *corev1.PersistentVolumeClaim
-				nPvc     *corev1.PersistentVolumeClaim
-				nodeName string
+				o    Options
+				cl   client.Client
+				oPvc *corev1.PersistentVolumeClaim
+				nPvc *corev1.PersistentVolumeClaim
 			)
 
 			BeforeEach(func() {
@@ -319,7 +327,8 @@ var _ = Context("Move Volumes", func() {
 				nPvc = newPvc("pvc2")
 
 				cl = fake.NewClientBuilder().WithObjects(oPvc, nPvc).Build()
-				nodeName = "node1"
+				o = Options{Factory: &factory.Factory{CRClient: cl}, ResticPassword: resticPassword, TargetNode: "node1",
+					ContainersCPURequests: resource.MustParse("100m"), ContainersRAMLimits: resource.MustParse("100M")}
 			})
 
 			When("creates a restorer job", func() {
@@ -331,7 +340,7 @@ var _ = Context("Move Volumes", func() {
 				)
 
 				BeforeEach(func() {
-					job, err = createRestorerJob(ctx, cl, oPvc, nPvc, nodeName, resticRepositoryURL, resticPassword)
+					job, err = o.createRestorerJob(ctx, oPvc, nPvc, resticRepositoryURL)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(job).ToNot(BeNil())
 
@@ -359,6 +368,8 @@ var _ = Context("Move Volumes", func() {
 						Name:  "RESTIC_PASSWORD",
 						Value: resticPassword,
 					}))
+					Expect(podSpec.Containers[0].Resources.Requests).To(HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("100m")))
+					Expect(podSpec.Containers[0].Resources.Limits).To(HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("100M")))
 					Expect(podSpec.Containers[0].VolumeMounts).To(HaveLen(1))
 					Expect(podSpec.Containers[0].VolumeMounts).To(ContainElement(corev1.VolumeMount{
 						Name:      "restore",
@@ -376,7 +387,7 @@ var _ = Context("Move Volumes", func() {
 											{
 												Key:      "kubernetes.io/hostname",
 												Operator: corev1.NodeSelectorOpIn,
-												Values:   []string{nodeName},
+												Values:   []string{o.TargetNode},
 											},
 										},
 									},
@@ -407,6 +418,7 @@ var _ = Context("Move Volumes", func() {
 	Context("ensure restic repository", func() {
 
 		var (
+			o  Options
 			cl client.Client
 		)
 
@@ -418,6 +430,7 @@ var _ = Context("Move Volumes", func() {
 
 			BeforeEach(func() {
 				cl = fake.NewClientBuilder().Build()
+				o = Options{Factory: &factory.Factory{CRClient: cl}}
 
 				targetPvc = newPvc("pvc1")
 				targetPvc.Spec.Resources = corev1.ResourceRequirements{
@@ -428,7 +441,7 @@ var _ = Context("Move Volumes", func() {
 			})
 
 			It("creates a restic repository", func() {
-				Expect(ensureResticRepository(ctx, cl, targetPvc)).To(Succeed())
+				Expect(o.ensureResticRepository(ctx, targetPvc)).To(Succeed())
 
 				var repo appsv1.StatefulSet
 				Expect(cl.Get(ctx, types.NamespacedName{Name: resticRegistry, Namespace: liqoStorageNamespace}, &repo)).To(Succeed())
