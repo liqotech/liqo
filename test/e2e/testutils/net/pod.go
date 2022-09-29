@@ -125,7 +125,7 @@ func forgeTesterPod(image, namespace string, opts *TesterOpts) *v1.Pod {
 				{
 					Name:            "tester",
 					Image:           image,
-					Resources:       v1.ResourceRequirements{},
+					Resources:       util.ResourceRequirements(),
 					ImagePullPolicy: "IfNotPresent",
 					Ports: []v1.ContainerPort{{
 						ContainerPort: 80,
@@ -145,7 +145,6 @@ func forgeTesterPod(image, namespace string, opts *TesterOpts) *v1.Pod {
 				},
 			},
 		},
-		Status: v1.PodStatus{},
 	}
 	return &pod1
 }

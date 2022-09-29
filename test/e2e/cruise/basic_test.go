@@ -341,7 +341,8 @@ var _ = Describe("Liqo E2E", func() {
 
 				By("Moving the statefulset to the virtual node")
 				Expect(util.ExecLiqoctl(testContext.Clusters[0].KubeconfigPath,
-					[]string{"move", "volume", originPvc.Name, "-n", namespace, "--target-node", virtualNodesList.Items[0].Name}, GinkgoWriter)).To(Succeed())
+					[]string{"move", "volume", originPvc.Name, "-n", namespace, "--target-node", virtualNodesList.Items[0].Name,
+						"--containers-cpu-limits", "500m", "--containers-ram-limits", "500Mi"}, GinkgoWriter)).To(Succeed())
 
 				By("Scaling the statefulset to one replica")
 				Expect(storage.ScaleStatefulSet(ctx, GinkgoT(), options, testContext.Clusters[0].NativeClient, namespace, 1)).To(Succeed())

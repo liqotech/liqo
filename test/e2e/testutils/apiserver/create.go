@@ -26,6 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
 const (
@@ -46,9 +48,10 @@ func CreateKubectlJob(ctx context.Context, cl client.Client, namespace string, v
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
-						Name:  containerName,
-						Image: fmt.Sprintf("%s:%s.%s", image, v.Major, v.Minor),
-						Args:  []string{"get", "pods", "-n", namespace, "--no-headers", "-o", "custom-columns=:.metadata.name"},
+						Name:      containerName,
+						Image:     fmt.Sprintf("%s:%s.%s", image, v.Major, v.Minor),
+						Args:      []string{"get", "pods", "-n", namespace, "--no-headers", "-o", "custom-columns=:.metadata.name"},
+						Resources: util.ResourceRequirements(),
 					}},
 					ServiceAccountName: serviceAccountName,
 					RestartPolicy:      corev1.RestartPolicyNever,

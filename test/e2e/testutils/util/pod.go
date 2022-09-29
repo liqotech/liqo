@@ -17,6 +17,8 @@ package util
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -68,4 +70,12 @@ func ArePodsUp(ctx context.Context, clientset kubernetes.Interface, namespace st
 		ready = append(ready, pods.Items[index].Name)
 	}
 	return ready, notReady, nil
+}
+
+// ResourceRequirements returns the default resource requirements for a pod during tests.
+func ResourceRequirements() corev1.ResourceRequirements {
+	return corev1.ResourceRequirements{Limits: corev1.ResourceList{
+		corev1.ResourceCPU:    *resource.NewScaledQuantity(250, resource.Milli),
+		corev1.ResourceMemory: *resource.NewScaledQuantity(100, resource.Mega),
+	}}
 }

@@ -77,8 +77,9 @@ func DeployApp(ctx context.Context, cluster *tester.ClusterContext, namespace st
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "tester",
-							Image: "nginx",
+							Name:      "tester",
+							Image:     "nginx",
+							Resources: testutils.ResourceRequirements(),
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "liqo-storage-claim",
