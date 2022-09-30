@@ -91,6 +91,8 @@ type NamespacedPodReflector struct {
 
 // PodInfo contains information about known pods.
 type PodInfo struct {
+	PreventCreationUntilSeen bool
+
 	Restarts  int32
 	RemoteUID types.UID
 
@@ -194,7 +196,15 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	// Retrieve the cached information about the current pod.
 	info := npr.RetrievePodInfo(local.GetName())
 
-	// The local target is currently running, and it is necessary to enforce its presence in the remote cluster.
+	// Do not forge the shadowpod in case it is already marked as created, but the informer did not yet see it, as creation would fail.
+	if !shadowExists && info.PreventCreationUntilSeen {
+		klog.V(4).Infof("Skipping remote shadowpod %q update, as waiting for its creation to be reported", npr.RemoteRef(name))
+		return nil
+	}
+
+	info.PreventCreationUntilSeen = false
+
+	// The local pod is currently running, and it is necessary to enforce its presence in the remote cluster.
 	target, terr := npr.ForgeShadowPod(ctx, local, shadow, info)
 	if terr != nil {
 		klog.Errorf("Reflection of local pod %q to %q failed: %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), terr)
@@ -203,7 +213,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	}
 	tracer.Step("Forged the remote pod")
 
-	// If the remote pod does not exist, then create it.
+	// If the remote shadowpod does not exist, then create it.
 	if !shadowExists {
 		defer tracer.Step("Ensured the presence of the remote object")
 		if _, err := npr.remoteShadowPodsClient.Create(ctx, target, metav1.CreateOptions{FieldManager: forge.ReflectionFieldManager}); err != nil {
@@ -218,6 +228,8 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 			return err
 		}
 
+		// Do not attempt to create this shadowpod again until the informer has seen it.
+		info.PreventCreationUntilSeen = true
 		klog.Infof("Remote shadowpod %q successfully created (local: %q)", npr.RemoteRef(name), npr.LocalRef(name))
 		npr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 		tracer.Step("Created the remote shadowpod")
@@ -225,14 +237,8 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 		return nil
 	}
 
-	// Check whether it is necessary to update the shadowpod.
-	needsUpdate := !labels.Equals(shadow.ObjectMeta.GetLabels(), target.ObjectMeta.GetLabels()) ||
-		!labels.Equals(shadow.ObjectMeta.GetAnnotations(), target.ObjectMeta.GetAnnotations()) ||
-		!pod.IsPodSpecEqual(&shadow.Spec.Pod, &target.Spec.Pod)
-	tracer.Step("Checked whether a shadowpod update was needed")
-
 	// If so, perform the actual update operation.
-	if needsUpdate {
+	if npr.ShouldUpdateShadowPod(ctx, shadow, target) {
 		_, rerr = npr.remoteShadowPodsClient.Update(ctx, target, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager})
 		if rerr != nil {
 			klog.Errorf("Failed to update remote shadowpod %q (local pod: %q): %v", npr.RemoteRef(name), npr.LocalRef(name), rerr)
@@ -304,6 +310,14 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 	}
 
 	return target, nil
+}
+
+// ShouldUpdateShadowPod checks whether it is necessary to update the remote shadowpod, based on the forged one.
+func (npr *NamespacedPodReflector) ShouldUpdateShadowPod(ctx context.Context, shadow, target *vkv1alpha1.ShadowPod) bool {
+	defer trace.FromContext(ctx).Step("Checked whether a shadowpod update was needed")
+	return !labels.Equals(shadow.ObjectMeta.GetLabels(), target.ObjectMeta.GetLabels()) ||
+		!labels.Equals(shadow.ObjectMeta.GetAnnotations(), target.ObjectMeta.GetAnnotations()) ||
+		!pod.IsPodSpecEqual(&shadow.Spec.Pod, &target.Spec.Pod)
 }
 
 // HandleStatus reflects the status from the remote Pod to the local one.
