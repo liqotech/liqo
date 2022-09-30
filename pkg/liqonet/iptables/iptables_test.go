@@ -104,13 +104,6 @@ var _ = Describe("iptables", func() {
 				forwardRules, err := h.ListRulesInChain(forwardChain)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(forwardRules).To(ContainElement(fmt.Sprintf("-j %s", liqonetForwardingChain)))
-
-				// Check existence of LIQO-INPUT chain
-				Expect(filterChains).To(ContainElement(liqonetInputChain))
-				// Check existence of rule in INPUT
-				inputRules, err := h.ListRulesInChain(inputChain)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(inputRules).To(ContainElement(fmt.Sprintf("-j %s", liqonetInputChain)))
 			})
 		})
 
@@ -164,30 +157,36 @@ var _ = Describe("iptables", func() {
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 				expectedRules := []string{
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID)),
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID))}
-				Expect(postRoutingRules).To(ContainElements(expectedRules))
+					fmt.Sprintf("-d %s -m \"comment\" --comment %q -j %s",
+						tep.Spec.RemoteNATPodCIDR,
+						getClusterPostRoutingChainComment(tep.Spec.ClusterIdentity.ClusterName, consts.PodCIDR),
+						getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID)),
+					fmt.Sprintf("-d %s -m \"comment\" --comment %q -j %s",
+						tep.Spec.RemoteNATExternalCIDR,
+						getClusterPostRoutingChainComment(tep.Spec.ClusterIdentity.ClusterName, consts.ExternalCIDR),
+						getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID))}
+				Expect(normalizeRules(postRoutingRules)).To(ContainElements(normalizeRules(expectedRules)))
 
 				// Check existence of rules in LIQO-PREROUTING chain
 				// Rule for NAT-ting the PodCIDR should not be present
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
 				Expect(err).ToNot(HaveOccurred())
-				expectedRule := fmt.Sprintf("-s %s -d %s -j %s", tep.Spec.RemoteNATPodCIDR, tep.Spec.LocalNATExternalCIDR,
+				normalizeRules(preRoutingRules)
+				expectedRule := fmt.Sprintf("-s %s -d %s -m \"comment\" --comment %s -j %s",
+					tep.Spec.RemoteNATPodCIDR, tep.Spec.LocalNATExternalCIDR,
+					getClusterPreRoutingChainComment(tep.Spec.ClusterIdentity.ClusterName, consts.ExternalCIDR),
 					getClusterPreRoutingMappingChain(tep.Spec.ClusterIdentity.ClusterID))
-				Expect(expectedRule).To(Equal(preRoutingRules[0]))
+				Expect(normalizeRuleString(expectedRule)).To(Equal(normalizeRuleString(preRoutingRules[0])))
 
 				// Check existence of rule in LIQO-FORWARD chain
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterIdentity.ClusterID))
+				localRemappedExternalCIDR, _ := liqonetutils.GetExternalCIDRS(tep)
+				expectedRules = []string{
+					fmt.Sprintf("-s %s -d %s -j %s", tep.Spec.RemoteNATPodCIDR, localRemappedExternalCIDR,
+						getClusterForwardExtChain(tep.Spec.ClusterIdentity.ClusterID)),
+				}
 				Expect(err).ToNot(HaveOccurred())
-				Expect(expectedRule).To(Equal(forwardRules[0]))
-
-				// Check existence of rule in LIQO-INPUT chain
-				inputRules, err := h.ListRulesInChain(liqonetInputChain)
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterInputChain(tep.Spec.ClusterIdentity.ClusterID))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(expectedRule).To(Equal(inputRules[0]))
-
+				Expect(normalizeRules(forwardRules)).To(ContainElements(normalizeRules(expectedRules)))
 			})
 		})
 
@@ -201,32 +200,42 @@ var _ = Describe("iptables", func() {
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 				expectedRules := []string{
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID)),
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID))}
-				Expect(postRoutingRules).To(ContainElements(expectedRules))
+					fmt.Sprintf("-d %s -m \"comment\" --comment %q -j %s",
+						tep.Spec.RemoteNATPodCIDR,
+						getClusterPostRoutingChainComment(clusterName1, consts.PodCIDR),
+						getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID)),
+					fmt.Sprintf("-d %s -m \"comment\" --comment %q -j %s",
+						tep.Spec.RemoteNATExternalCIDR,
+						getClusterPostRoutingChainComment(clusterName1, consts.ExternalCIDR),
+						getClusterPostRoutingChain(tep.Spec.ClusterIdentity.ClusterID))}
+				Expect(normalizeRules(postRoutingRules)).To(ContainElements(normalizeRules(expectedRules)))
 
 				// Check existence of rule in LIQO-FORWARD chain
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
 				Expect(err).ToNot(HaveOccurred())
-				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterIdentity.ClusterID))
-				Expect(expectedRule).To(Equal(forwardRules[0]))
-
-				// Check existence of rule in LIQO-INPUT chain
-				inputRules, err := h.ListRulesInChain(liqonetInputChain)
+				localRemappedExternalCIDR, _ := liqonetutils.GetExternalCIDRS(tep)
+				expectedRules = []string{
+					fmt.Sprintf("-s %s -d %s -j %s",
+						tep.Spec.RemoteNATPodCIDR, localRemappedExternalCIDR,
+						getClusterForwardExtChain(tep.Spec.ClusterIdentity.ClusterID)),
+				}
 				Expect(err).ToNot(HaveOccurred())
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, getClusterInputChain(tep.Spec.ClusterIdentity.ClusterID))
-				Expect(expectedRule).To(Equal(inputRules[0]))
+				Expect(normalizeRules(forwardRules)).To(ContainElements(normalizeRules(expectedRules)))
 
 				// Check existence of rule in LIQO-PREROUTING chain
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 				expectedRules = []string{
-					fmt.Sprintf("-s %s -d %s -j %s", tep.Spec.RemoteNATPodCIDR,
-						tep.Spec.LocalNATPodCIDR, getClusterPreRoutingChain(tep.Spec.ClusterIdentity.ClusterID)),
-					fmt.Sprintf("-s %s -d %s -j %s", tep.Spec.RemoteNATPodCIDR, tep.Spec.LocalNATExternalCIDR,
+					fmt.Sprintf("-s %s -d %s -m \"comment\" --comment %q -j %s",
+						tep.Spec.RemoteNATPodCIDR, tep.Spec.LocalNATExternalCIDR,
+						getClusterPreRoutingChainComment(clusterName1, consts.ExternalCIDR),
 						getClusterPreRoutingMappingChain(tep.Spec.ClusterIdentity.ClusterID)),
+					fmt.Sprintf("-s %s -d %s -m \"comment\" --comment %q -j %s",
+						tep.Spec.RemoteNATPodCIDR, tep.Spec.LocalNATPodCIDR,
+						getClusterPreRoutingChainComment(clusterName1, consts.PodCIDR),
+						getClusterPreRoutingChain(tep.Spec.ClusterIdentity.ClusterID)),
 				}
-				Expect(preRoutingRules).To(ContainElements(expectedRules))
+				Expect(normalizeRules(preRoutingRules)).To(ContainElements(normalizeRules(expectedRules)))
 			})
 		})
 
@@ -296,13 +305,18 @@ var _ = Describe("iptables", func() {
 
 				// Check if new rules has been added.
 				expectedRules := []string{
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATPodCIDR, clusterPostRoutingChain),
-					fmt.Sprintf("-d %s -j %s", tep.Spec.RemoteNATExternalCIDR, clusterPostRoutingChain),
+					fmt.Sprintf(`-d %s -m "comment" --comment %q -j %s`,
+						tep.Spec.RemoteNATPodCIDR,
+						getClusterPostRoutingChainComment(clusterName1, consts.PodCIDR),
+						clusterPostRoutingChain),
+					fmt.Sprintf(`-d %s -m "comment" --comment %q -j %s`, tep.Spec.RemoteNATExternalCIDR,
+						getClusterPostRoutingChainComment(clusterName1, consts.ExternalCIDR),
+						clusterPostRoutingChain),
 				}
-				Expect(newPostRoutingRules).To(ContainElements(expectedRules))
+				Expect(normalizeRules(newPostRoutingRules)).To(ContainElements(normalizeRules(expectedRules)))
 
 				// Check if outdated rule has been removed
-				Expect(newPostRoutingRules).ToNot(ContainElement(outdatedRule))
+				Expect(normalizeRules(newPostRoutingRules)).ToNot(ContainElement(normalizeRuleString(outdatedRule)))
 			})
 		})
 	})
@@ -337,8 +351,7 @@ var _ = Describe("iptables", func() {
 
 				// Check if filter chains have been created by function.
 				Expect(filterChains).To(ContainElements(
-					liqonetForwardingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
-					liqonetInputClusterChainPrefix+strings.Split(clusterID1, "-")[0],
+					liqonetForwardingExtClusterChainPrefix + strings.Split(clusterID1, "-")[0],
 				))
 
 				// Check if nat chains have been created by function.
@@ -361,8 +374,7 @@ var _ = Describe("iptables", func() {
 
 				// Check if filter chains have been created by function.
 				Expect(filterChains).To(ContainElements(
-					liqonetForwardingClusterChainPrefix+strings.Split(clusterID1, "-")[0],
-					liqonetInputClusterChainPrefix+strings.Split(clusterID1, "-")[0],
+					liqonetForwardingExtClusterChainPrefix + strings.Split(clusterID1, "-")[0],
 				))
 
 				// Check if nat chains have been created by function.
@@ -437,10 +449,6 @@ var _ = Describe("iptables", func() {
 				forwardRules, err := h.ListRulesInChain(forwardChain)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(forwardRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetForwardingChain)))
-
-				inputRules, err := h.ListRulesInChain(inputChain)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(inputRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetInputChain)))
 			})
 		})
 		Context("If there is a Liqo configuration and Liqo chains are empty", func() {
@@ -475,10 +483,6 @@ var _ = Describe("iptables", func() {
 				forwardRules, err := h.ListRulesInChain(forwardChain)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(forwardRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetForwardingChain)))
-
-				inputRules, err := h.ListRulesInChain(inputChain)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(inputRules).ToNot(ContainElement(fmt.Sprintf("-j %s", liqonetInputChain)))
 			})
 		})
 	})
@@ -497,8 +501,6 @@ var _ = Describe("iptables", func() {
 				Expect(err).ToNot(HaveOccurred())
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
 				Expect(err).ToNot(HaveOccurred())
-				inputRules, err := h.ListRulesInChain(liqonetInputChain)
-				Expect(err).ToNot(HaveOccurred())
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -514,8 +516,6 @@ var _ = Describe("iptables", func() {
 				Expect(err).ToNot(HaveOccurred())
 				newForwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
 				Expect(err).ToNot(HaveOccurred())
-				newInputRules, err := h.ListRulesInChain(liqonetInputChain)
-				Expect(err).ToNot(HaveOccurred())
 				newPreRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -525,7 +525,6 @@ var _ = Describe("iptables", func() {
 				Expect(postRoutingRules).To(Equal(newPostRoutingRules))
 				Expect(preRoutingRules).To(Equal(newPreRoutingRules))
 				Expect(forwardRules).To(Equal(newForwardRules))
-				Expect(inputRules).To(Equal(newInputRules))
 			})
 		})
 		Context("If cluster has an iptables configuration", func() {
@@ -551,15 +550,12 @@ var _ = Describe("iptables", func() {
 				Expect(err).ToNot(HaveOccurred())
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
 				Expect(err).ToNot(HaveOccurred())
-				inputRules, err := h.ListRulesInChain(liqonetInputChain)
-				Expect(err).ToNot(HaveOccurred())
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 
 				clusterPostRoutingRules := getSliceContainingString(postRoutingRules, tep.Spec.ClusterIdentity.ClusterID)
 				clusterPreRoutingRules := getSliceContainingString(preRoutingRules, tep.Spec.ClusterIdentity.ClusterID)
 				clusterForwardRules := getSliceContainingString(forwardRules, tep.Spec.ClusterIdentity.ClusterID)
-				clusterInputRules := getSliceContainingString(inputRules, tep.Spec.ClusterIdentity.ClusterID)
 
 				err = h.RemoveIPTablesConfigurationPerCluster(tep)
 				Expect(err).ToNot(HaveOccurred())
@@ -574,8 +570,6 @@ var _ = Describe("iptables", func() {
 				Expect(err).ToNot(HaveOccurred())
 				newForwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
 				Expect(err).ToNot(HaveOccurred())
-				newInputRules, err := h.ListRulesInChain(liqonetInputChain)
-				Expect(err).ToNot(HaveOccurred())
 				newPreRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -586,7 +580,6 @@ var _ = Describe("iptables", func() {
 				// Check rules have been removed
 				Expect(newPostRoutingRules).ToNot(ContainElements(clusterPostRoutingRules))
 				Expect(newForwardRules).ToNot(ContainElements(clusterForwardRules))
-				Expect(newInputRules).ToNot(ContainElements(clusterInputRules))
 				Expect(newPreRoutingRules).ToNot(ContainElements(clusterPreRoutingRules))
 			})
 		})
@@ -1032,6 +1025,81 @@ var _ = Describe("iptables", func() {
 			})
 		})
 	})
+	Describe("Utilities", func() {
+		var (
+			words = []string{"word0", "word1", "word2", "word3"}
+		)
+		DescribeTable("IPTableRule Parser",
+			func(rule string, expectedIptr IPTableRule) {
+				iptr, err := ParseRule(rule)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(iptr).To(Equal(expectedIptr))
+			},
+			Entry(`should parse: word0`,
+				words[0],
+				IPTableRule{words[0]}),
+			Entry(`should parse: "word0"`,
+				fmt.Sprintf("%q", words[0]),
+				IPTableRule{words[0]}),
+			Entry(`should parse: word0 word1 word2 word3`,
+				fmt.Sprintf("%s %s %s %s", words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], words[1], words[2], words[3]}),
+			Entry(`should parse: "word0" "word1" "word2" "word3"`,
+				fmt.Sprintf("%q %q %q %q", words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], words[1], words[2], words[3]}),
+			Entry(`should parse: word0 "word1" word2 "word3"`,
+				fmt.Sprintf("%s %q %s %q", words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], words[1], words[2], words[3]}),
+			Entry(`should parse: "word0" word1 "word2" word3`,
+				fmt.Sprintf("%q %s %q %s", words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], words[1], words[2], words[3]}),
+			Entry(`should parse: "word0" "word1" word2 word3`,
+				fmt.Sprintf("%q %q %s %s", words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], words[1], words[2], words[3]}),
+			Entry(`should parse: word0 word1 "word2" "word3"`,
+				fmt.Sprintf("%s %s %q %q", words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], words[1], words[2], words[3]}),
+			Entry(`should parse: "word0" word1 word2 "word3"`,
+				fmt.Sprintf("%q %s %s %q", words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], words[1], words[2], words[3]}),
+			Entry(`should parse: word0 "word1" "word2" word3`,
+				fmt.Sprintf("%s %q %q %s", words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], words[1], words[2], words[3]}),
+			Entry(`should parse: "\'word0\'"`,
+				fmt.Sprintf(`"\'%s\'"`, words[0]),
+				IPTableRule{fmt.Sprintf(`'%s'`, words[0])}),
+			Entry(`should parse: word0 "\'word1\'"`,
+				fmt.Sprintf(`%s "\'%s\'"`, words[0], words[1]),
+				IPTableRule{words[0], fmt.Sprintf(`'%s'`, words[1])}),
+			Entry(`should parse: "\'word0\'" word1`,
+				fmt.Sprintf(`"\'%s\'" %s`, words[0], words[1]),
+				IPTableRule{fmt.Sprintf(`'%s'`, words[0]), words[1]}),
+			Entry(`should parse: word0 "\'word1\'" word2`,
+				fmt.Sprintf(`%s "\'%s\'" %s`, words[0], words[1], words[2]),
+				IPTableRule{words[0], fmt.Sprintf(`'%s'`, words[1]), words[2]}),
+			Entry(`should parse: "\'word0 word1\'"`,
+				fmt.Sprintf(`"\'%s %s\'"`, words[0], words[1]),
+				IPTableRule{fmt.Sprintf(`'%s'`, fmt.Sprintf("%s %s", words[0], words[1]))}),
+			Entry(`should parse: word0 "\'word1 word2\'"`,
+				fmt.Sprintf(`%s "\'%s %s\'"`, words[0], words[1], words[2]),
+				IPTableRule{words[0], fmt.Sprintf(`'%s'`, fmt.Sprintf("%s %s", words[1], words[2]))}),
+			Entry(`should parse: "\'word0 word1\'" word2`,
+				fmt.Sprintf(`"\'%s %s\'" %s`, words[0], words[1], words[2]),
+				IPTableRule{fmt.Sprintf(`'%s'`, fmt.Sprintf("%s %s", words[0], words[1])), words[2]}),
+			Entry(`should parse: word0 "\'word1 word2\'" word3`,
+				fmt.Sprintf(`%s "\'%s %s\'" %s`, words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], fmt.Sprintf(`'%s'`, fmt.Sprintf("%s %s", words[1], words[2])), words[3]}),
+			Entry(`should parse: "\'word0\'" "\'word1\'"`,
+				fmt.Sprintf(`"\'%s\'" "\'%s\'"`, words[0], words[1]),
+				IPTableRule{fmt.Sprintf(`'%s'`, words[0]), fmt.Sprintf(`'%s'`, words[1])}),
+			Entry(`should parse: word0 "\'word1\'" word2 "\'word3\'"`,
+				fmt.Sprintf(`%s "\'%s\'" %s "\'%s\'"`, words[0], words[1], words[2], words[3]),
+				IPTableRule{words[0], fmt.Sprintf(`'%s'`, words[1]), words[2], fmt.Sprintf(`'%s'`, words[3])}),
+			Entry(`should parse: "\'word0\'" word1 "\'word2\'" word3`,
+				fmt.Sprintf(`"\'%s\'" %s "\'%s\'" %s`, words[0], words[1], words[2], words[3]),
+				IPTableRule{fmt.Sprintf(`'%s'`, words[0]), words[1], fmt.Sprintf(`'%s'`, words[2]), words[3]}),
+		)
+	})
 })
 
 func mustGetFirstIP(network string) string {
@@ -1041,4 +1109,17 @@ func mustGetFirstIP(network string) string {
 		os.Exit(1)
 	}
 	return firstIP
+}
+
+// normalizeRules returns a slice of strings in which each string is a normalized representation of the rule.
+func normalizeRules(rules []string) []string {
+	for i, v := range rules {
+		rules[i] = normalizeRuleString(v)
+	}
+	return rules
+}
+
+// normalizeRuleString returns a normalized string representation of the rule.
+func normalizeRuleString(rule string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(rule, "\"", ""), "\\", "")
 }

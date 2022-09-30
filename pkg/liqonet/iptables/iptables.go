@@ -15,6 +15,7 @@
 package iptables
 
 import (
+	"encoding/csv"
 	"fmt"
 	"strings"
 
@@ -35,16 +36,12 @@ const (
 	liqonetPreroutingChain = "LIQO-PREROUTING"
 	// liqonetForwardingChain is the name of the forwarding chain inserted by liqo.
 	liqonetForwardingChain = "LIQO-FORWARD"
-	// liqonetInputChain is the name of the input chain inserted by liqo.
-	liqonetInputChain = "LIQO-INPUT"
 	// liqonetPostroutingClusterChainPrefix the prefix used to name the postrouting chains for a specific cluster.
 	liqonetPostroutingClusterChainPrefix = "LIQO-PSTRT-CLS-"
 	// liqonetPreroutingClusterChainPrefix prefix used to name the prerouting chains for a specific cluster.
 	liqonetPreroutingClusterChainPrefix = "LIQO-PRRT-CLS-"
-	// liqonetForwardingClusterChainPrefix prefix used to name the forwarding chains for a specific cluster.
-	liqonetForwardingClusterChainPrefix = "LIQO-FRWD-CLS-"
 	// liqonetInputClusterChainPrefix prefix used to name the input chains for a specific cluster.
-	liqonetInputClusterChainPrefix = "LIQO-INPT-CLS-"
+	liqonetForwardingExtClusterChainPrefix = "LIQO-FRWD-EXT-CLS-"
 	// liqonetPreRoutingMappingClusterChainPrefix prefix used to name the prerouting mapping chain for a specific cluster.
 	liqonetPreRoutingMappingClusterChainPrefix = "LIQO-PRRT-MAP-CLS-"
 	// natTable constant used for the "nat" table.
@@ -69,10 +66,27 @@ const (
 	NETMAP = "NETMAP"
 	// ACCEPT action constant.
 	ACCEPT = "ACCEPT"
+	// DROP action constant.
+	DROP = "DROP"
 )
 
 // IPTableRule is a slice of string. This is the format used by module go-iptables.
 type IPTableRule []string
+
+// String returns the string representation of the rule.
+func (itr IPTableRule) String() string {
+	return strings.Join(itr, " ")
+}
+
+// ParseRule parses a string rule in the format used by go-iptables.
+func ParseRule(rule string) (IPTableRule, error) {
+	// replace \' contained in the rule returned by go-iptables "List" method to match generated comments.
+	rule = strings.ReplaceAll(rule, `\'`, "'")
+	r := csv.NewReader(strings.NewReader(rule))
+	r.Comma = ' '
+	fields, err := r.Read()
+	return IPTableRule(fields), err
+}
 
 // IPTHandler a handler that exposes all the functions needed to configure the iptables chains and rules.
 type IPTHandler struct {
@@ -139,7 +153,6 @@ func (h IPTHandler) ensureLiqoRules(rules map[string]IPTableRule) error {
 // and key is the chain the rule should be inserted in.
 func getLiqoRules() map[string]IPTableRule {
 	return map[string]IPTableRule{
-		inputChain:       {"-j", liqonetInputChain},
 		forwardChain:     {"-j", liqonetForwardingChain},
 		preroutingChain:  {"-j", liqonetPreroutingChain},
 		postroutingChain: {"-j", liqonetPostroutingChain},
@@ -197,14 +210,10 @@ func (h IPTHandler) deleteLiqoChainsFromTable(liqoChains map[string]string, tabl
 	case filterTable:
 		// Add to the set of chains to be removed the Liqo chains
 		chainsToBeRemoved = append(chainsToBeRemoved,
-			liqoChains[inputChain],
 			liqoChains[forwardChain])
 		// Get cluster chains that may have not been removed in table
 		chainsToBeRemoved = append(chainsToBeRemoved,
-			getSliceContainingString(existingChains, liqonetInputClusterChainPrefix)...,
-		)
-		chainsToBeRemoved = append(chainsToBeRemoved,
-			getSliceContainingString(existingChains, liqonetForwardingClusterChainPrefix)...,
+			getSliceContainingString(existingChains, liqonetForwardingExtClusterChainPrefix)...,
 		)
 	}
 	// Delete chains in table
@@ -302,8 +311,7 @@ func (h IPTHandler) getExistingChainRules(clusterID, chain string) ([]string, er
 
 func getChainsPerCluster(clusterID string) []string {
 	chains := []string{
-		getClusterForwardChain(clusterID),
-		getClusterInputChain(clusterID),
+		getClusterForwardExtChain(clusterID),
 		getClusterPostRoutingChain(clusterID),
 		getClusterPreRoutingChain(clusterID),
 		getClusterPreRoutingMappingChain(clusterID),
@@ -324,7 +332,7 @@ func (h IPTHandler) EnsureChainsPerCluster(clusterID string) error {
 	chains := getChainsPerCluster(clusterID)
 	for _, chain := range chains {
 		if err := h.createIptablesChainIfNotExists(getTableFromChain(chain), chain); err != nil {
-			return err
+			return fmt.Errorf("unable to create chain %s: %w", chain, err)
 		}
 	}
 	return nil
@@ -334,8 +342,7 @@ func (h IPTHandler) EnsureChainsPerCluster(clusterID string) error {
 // the table name the chain should belong to.
 func getTableFromChain(chain string) string {
 	// First manage the case the chain is a cluster chain
-	if strings.Contains(chain, liqonetForwardingClusterChainPrefix) ||
-		strings.Contains(chain, liqonetInputClusterChainPrefix) {
+	if strings.Contains(chain, liqonetForwardingExtClusterChainPrefix) {
 		return filterTable
 	}
 	if strings.Contains(chain, liqonetPostroutingClusterChainPrefix) ||
@@ -345,7 +352,7 @@ func getTableFromChain(chain string) string {
 	}
 	// Chain is a default iptables chain or a Liqo chain
 	switch chain {
-	case forwardChain, inputChain, liqonetForwardingChain, liqonetInputChain:
+	case forwardChain, inputChain, liqonetForwardingChain:
 		return filterTable
 	case preroutingChain, postroutingChain, liqonetPreroutingChain, liqonetPostroutingChain:
 		return natTable
@@ -390,11 +397,19 @@ func (h IPTHandler) deleteChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) 
 func (h IPTHandler) deleteRulesInChain(chain string, rules []IPTableRule) error {
 	table := getTableFromChain(chain)
 	existingRules, err := h.ListRulesInChain(chain)
+	// the next lines parse listed rules in the format used by go-iptables.
+	for i := range existingRules {
+		existingRule, err := ParseRule(existingRules[i])
+		if err != nil {
+			return fmt.Errorf("cannot parse rule %q: %w", existingRules[i], err)
+		}
+		existingRules[i] = existingRule.String()
+	}
 	if err != nil {
 		return fmt.Errorf("unable to list rules in chain %s (table %s): %w", chain, table, err)
 	}
 	for _, rule := range rules {
-		if !slice.ContainsString(existingRules, strings.Join(rule, " ")) {
+		if !slice.ContainsString(existingRules, rule.String()) {
 			continue
 		}
 		// Rule exists, then delete it
@@ -428,10 +443,7 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 			if !slice.ContainsString(existingChainsNAT, chain) {
 				continue
 			}
-			if err := h.ipt.ClearChain(natTable, chain); err != nil {
-				return err
-			}
-			if err := h.ipt.DeleteChain(natTable, chain); err != nil {
+			if err := h.ipt.ClearAndDeleteChain(natTable, chain); err != nil {
 				return err
 			}
 			klog.Infof("Deleted chain %s in table %s", chain, getTableFromChain(chain))
@@ -451,6 +463,15 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 		}
 	}
 	return nil
+}
+
+// EnsureForwardExtRules makes sure that the forwarding rules for a given cluster are in place and updated.
+func (h IPTHandler) EnsureForwardExtRules(tep *netv1alpha1.TunnelEndpoint) error {
+	rules, err := getClusterForwardExtRules(tep)
+	if err != nil {
+		return err
+	}
+	return h.updateRulesPerChain(getClusterForwardExtChain(tep.Spec.ClusterIdentity.ClusterID), rules)
 }
 
 // EnsurePostroutingRules makes sure that the postrouting rules for a given cluster are in place and updated.
@@ -583,7 +604,7 @@ func (h IPTHandler) insertLiqoRuleIfNotExists(chain string, rule IPTableRule) er
 	// Check if the rule exists and at the same time if it exists more then once
 	numOccurrences := 0
 	for _, existingRule := range existingRules {
-		if strings.Contains(existingRule, strings.Join(rule, " ")) {
+		if strings.Contains(existingRule, rule.String()) {
 			numOccurrences++
 		}
 	}
@@ -600,7 +621,7 @@ func (h IPTHandler) insertLiqoRuleIfNotExists(chain string, rule IPTableRule) er
 	}
 	if numOccurrences == 1 {
 		// If the occurrence is one then check the position and if not at the first one we delete and reinsert it
-		if strings.Contains(existingRules[0], strings.Join(rule, " ")) {
+		if strings.Contains(existingRules[0], rule.String()) {
 			return nil
 		}
 		if err = h.ipt.Delete(table, chain, rule...); err != nil {
@@ -624,17 +645,22 @@ func (h IPTHandler) insertLiqoRuleIfNotExists(chain string, rule IPTableRule) er
 // Function to update specific rules in a given chain.
 func (h IPTHandler) updateSpecificRulesPerChain(chain string, existingRules []string, newRules []IPTableRule) error {
 	table := getTableFromChain(chain)
-	for _, existingRule := range existingRules {
+	for _, existingRuleString := range existingRules {
+		existingRule, err := ParseRule(existingRuleString)
+		if err != nil {
+			return fmt.Errorf("cannot parse rule %q: %w", existingRuleString, err)
+		}
+
 		// Remove existing rules that are not in the set of new rules,
 		// they are outdated.
 		outdated := true
 		for _, newRule := range newRules {
-			if strings.Contains(existingRule, strings.Join(newRule, " ")) {
+			if strings.Contains(existingRule.String(), newRule.String()) {
 				outdated = false
 			}
 		}
 		if outdated {
-			if err := h.ipt.Delete(table, chain, strings.Split(existingRule, " ")...); err != nil {
+			if err := h.ipt.Delete(table, chain, existingRule...); err != nil {
 				return fmt.Errorf("unable to delete outdated rule %s from chain %s (table %s): %w",
 					existingRule, chain, table, err)
 			}
@@ -672,6 +698,18 @@ func (h IPTHandler) insertRulesIfNotPresent(table, chain string, rules []IPTable
 		}
 	}
 	return nil
+}
+
+func getClusterForwardExtRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error) {
+	if err := liqonetutils.CheckTep(tep); err != nil {
+		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
+	}
+	return []IPTableRule{
+		{"-m", "comment", "--comment",
+			// WARNING: Never use double-quotes inside the comment, otherwise IpTableRule parser will fail
+			fmt.Sprintf("Avoid forwarding '%s' remapped %s to %s",
+				tep.Spec.ClusterIdentity.ClusterName, consts.ExternalCIDR, consts.GatewayVethName), "-j", DROP},
+	}, nil
 }
 
 func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error) {
@@ -726,25 +764,42 @@ func getChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) (map[string][]IPTa
 	chainRules[liqonetPostroutingChain] = make([]IPTableRule, 0)
 	chainRules[liqonetPreroutingChain] = make([]IPTableRule, 0)
 	chainRules[liqonetForwardingChain] = make([]IPTableRule, 0)
-	chainRules[liqonetInputChain] = make([]IPTableRule, 0)
 
 	// For these rules, source in not necessary since
 	// the remotePodCIDR is unique in home cluster
 	chainRules[liqonetPostroutingChain] = append(chainRules[liqonetPostroutingChain],
-		IPTableRule{"-d", remotePodCIDR, "-j", getClusterPostRoutingChain(clusterID)},
-		IPTableRule{"-d", remoteExternalCIDR, "-j", getClusterPostRoutingChain(clusterID)})
-	chainRules[liqonetInputChain] = append(chainRules[liqonetInputChain],
-		IPTableRule{"-d", remotePodCIDR, "-j", getClusterInputChain(clusterID)})
+		IPTableRule{
+			"-d", remotePodCIDR,
+			"-m", "comment", "--comment", getClusterPostRoutingChainComment(tep.Spec.ClusterIdentity.ClusterName, consts.PodCIDR),
+			"-j", getClusterPostRoutingChain(clusterID)},
+		IPTableRule{
+			"-d", remoteExternalCIDR,
+			"-m", "comment", "--comment", getClusterPostRoutingChainComment(tep.Spec.ClusterIdentity.ClusterName, consts.ExternalCIDR),
+			"-j", getClusterPostRoutingChain(clusterID)})
+
 	chainRules[liqonetForwardingChain] = append(chainRules[liqonetForwardingChain],
-		IPTableRule{"-d", remotePodCIDR, "-j", getClusterForwardChain(clusterID)})
+		IPTableRule{
+			"-s", remotePodCIDR,
+			"-d", localRemappedExternalCIDR,
+			"-j", getClusterForwardExtChain(clusterID)})
+
 	chainRules[liqonetPreroutingChain] = append(chainRules[liqonetPreroutingChain],
-		IPTableRule{"-s", remotePodCIDR, "-d", localRemappedExternalCIDR, "-j", getClusterPreRoutingMappingChain(clusterID)})
+		IPTableRule{
+			"-s", remotePodCIDR,
+			"-d", localRemappedExternalCIDR,
+			"-m", "comment", "--comment", getClusterPreRoutingChainComment(tep.Spec.ClusterIdentity.ClusterName, consts.ExternalCIDR),
+			"-j", getClusterPreRoutingMappingChain(clusterID)})
+
 	if localRemappedPodCIDR != consts.DefaultCIDRValue {
 		// For the following rule, source is necessary
 		// because more remote clusters could have
 		// remapped home PodCIDR in the same way, then only use dst is not enough.
 		chainRules[liqonetPreroutingChain] = append(chainRules[liqonetPreroutingChain],
-			IPTableRule{"-s", remotePodCIDR, "-d", localRemappedPodCIDR, "-j", getClusterPreRoutingChain(clusterID)})
+			IPTableRule{
+				"-s", remotePodCIDR,
+				"-d", localRemappedPodCIDR,
+				"-m", "comment", "--comment", getClusterPreRoutingChainComment(tep.Spec.ClusterIdentity.ClusterName, consts.PodCIDR),
+				"-j", getClusterPreRoutingChain(clusterID)})
 	}
 	return chainRules, nil
 }
@@ -753,16 +808,22 @@ func getClusterPreRoutingChain(clusterID string) string {
 	return fmt.Sprintf("%s%s", liqonetPreroutingClusterChainPrefix, strings.Split(clusterID, "-")[0])
 }
 
+func getClusterPreRoutingChainComment(clusterName, typeCIDR string) string {
+	// WARNING: Never use double-quotes inside the comment, otherwise IpTableRule parser will fail.
+	return fmt.Sprintf("DNAT '%s' traffic for local %s", clusterName, typeCIDR)
+}
+
 func getClusterPostRoutingChain(clusterID string) string {
 	return fmt.Sprintf("%s%s", liqonetPostroutingClusterChainPrefix, strings.Split(clusterID, "-")[0])
 }
 
-func getClusterForwardChain(clusterID string) string {
-	return fmt.Sprintf("%s%s", liqonetForwardingClusterChainPrefix, strings.Split(clusterID, "-")[0])
+func getClusterPostRoutingChainComment(clusterName, typeCIDR string) string {
+	// WARNING: Never use double-quotes inside the comment, otherwise IpTableRule parser will fail
+	return fmt.Sprintf("SNAT local traffic for '%s' %s", clusterName, typeCIDR)
 }
 
-func getClusterInputChain(clusterID string) string {
-	return fmt.Sprintf("%s%s", liqonetInputClusterChainPrefix, strings.Split(clusterID, "-")[0])
+func getClusterForwardExtChain(clusterID string) string {
+	return fmt.Sprintf("%s%s", liqonetForwardingExtClusterChainPrefix, strings.Split(clusterID, "-")[0])
 }
 
 func getClusterPreRoutingMappingChain(clusterID string) string {
@@ -777,6 +838,5 @@ func getLiqoChains() map[string]string {
 		preroutingChain:  liqonetPreroutingChain,
 		postroutingChain: liqonetPostroutingChain,
 		forwardChain:     liqonetForwardingChain,
-		inputChain:       liqonetInputChain,
 	}
 }
