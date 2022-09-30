@@ -34,5 +34,8 @@ token
 # to ease the local development of liqoctl
 /liqoctl
 
+# test generated files
+coverage.txt
+
 hack/code-generator
 docs/_build
