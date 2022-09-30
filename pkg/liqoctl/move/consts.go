@@ -17,7 +17,7 @@ package move
 const (
 	liqoStorageNamespace = "liqo-storage"
 	resticRegistry       = "restic-registry"
-	resticServerImage    = "restic/rest-server:0.10.0"
-	resticImage          = "restic/restic:0.12.1"
+	resticServerImage    = "restic/rest-server:0.11.0"
+	resticImage          = "restic/restic:0.14.0"
 	resticPort           = 8000
 )
