@@ -25,8 +25,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 )
 
@@ -68,6 +71,19 @@ func EnsureNamespaceDeletion(ctx context.Context, cl kubernetes.Interface, label
 		_ = cl.CoreV1().Namespaces().Delete(ctx, namespaceList.Items[i].Name, metav1.DeleteOptions{})
 	}
 	return fmt.Errorf("still deleting namespaces")
+}
+
+// CreateNamespaceOffloading creates a new NamespaceOffloading resource, with the given parameters.
+func CreateNamespaceOffloading(ctx context.Context, cl client.Client, namespace string,
+	nms offloadingv1alpha1.NamespaceMappingStrategyType, pof offloadingv1alpha1.PodOffloadingStrategyType) error {
+	nsoff := &offloadingv1alpha1.NamespaceOffloading{
+		ObjectMeta: metav1.ObjectMeta{Name: consts.DefaultNamespaceOffloadingName, Namespace: namespace},
+		Spec: offloadingv1alpha1.NamespaceOffloadingSpec{
+			NamespaceMappingStrategy: nms, PodOffloadingStrategy: pof,
+			ClusterSelector: corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}}},
+	}
+
+	return cl.Create(ctx, nsoff)
 }
 
 // OffloadNamespace offloads a namespace using liqoctl.

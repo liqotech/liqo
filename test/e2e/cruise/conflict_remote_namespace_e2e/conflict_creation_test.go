@@ -85,8 +85,10 @@ var _ = Describe("Liqo E2E", func() {
 					return err
 				}
 
-				return util.OffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, testNamespaceName,
-					"--namespace-mapping-strategy", "EnforceSameName")
+				// Do not use liqoctl to create the resource, since it will fail waiting for offloading to complete.
+				return util.CreateNamespaceOffloading(ctx, testContext.Clusters[localIndex].ControllerClient, testNamespaceName,
+					offloadingv1alpha1.EnforceSameNameMappingStrategyType, offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType)
+
 			}, timeout, interval).Should(BeNil())
 
 			By(" 3 - Getting the NamespaceOffloading resource")
