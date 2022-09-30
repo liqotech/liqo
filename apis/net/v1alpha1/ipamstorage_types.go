@@ -37,15 +37,18 @@ type Subnets struct {
 }
 
 // ClusterMapping is an empty struct.
-type ClusterMapping struct{}
+type ClusterMapping struct {
+	// ExternalCIDRNattedIP belonging to cluster ExtenalCIDR assigned to this endpoint.
+	ExternalCIDRNattedIP string `json:"ExternalCIDRNattedIP"`
+}
 
 // ConfiguredCluster is an empty struct used as value for NatMappingsConfigured.
 type ConfiguredCluster struct{}
 
 // EndpointMapping describes a relation between an enpoint IP and an IP belonging to ExternalCIDR.
 type EndpointMapping struct {
-	// IP belonging to cluster ExtenalCIDR assigned to this endpoint.
-	IP string `json:"ip"`
+	// IP belonging to cluster LocalExternalCIDR assigned to this endpoint.
+	ExternalCIDROriginalIP string `json:"ExternalCIDROriginalIP"`
 	// Set of clusters to which this endpoint has been reflected. Only the key, which is the ClusterID, is useful.
 	ClusterMappings map[string]ClusterMapping `json:"clusterMappings"`
 }

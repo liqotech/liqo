@@ -74,20 +74,27 @@ spec:
                   description: EndpointMapping describes a relation between an enpoint
                     IP and an IP belonging to ExternalCIDR.
                   properties:
+                    ExternalCIDROriginalIP:
+                      description: IP belonging to cluster LocalExternalCIDR assigned
+                        to this endpoint.
+                      type: string
                     clusterMappings:
                       additionalProperties:
                         description: ClusterMapping is an empty struct.
+                        properties:
+                          ExternalCIDRNattedIP:
+                            description: ExternalCIDRNattedIP belonging to cluster
+                              ExtenalCIDR assigned to this endpoint.
+                            type: string
+                        required:
+                        - ExternalCIDRNattedIP
                         type: object
                       description: Set of clusters to which this endpoint has been
                         reflected. Only the key, which is the ClusterID, is useful.
                       type: object
-                    ip:
-                      description: IP belonging to cluster ExtenalCIDR assigned to
-                        this endpoint.
-                      type: string
                   required:
+                  - ExternalCIDROriginalIP
                   - clusterMappings
-                  - ip
                   type: object
                 description: Endpoint IP mappings. Key is the IP address of the local
                   endpoint, value is an EndpointMapping struct that contains the related

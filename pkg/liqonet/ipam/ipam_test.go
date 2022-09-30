@@ -50,6 +50,7 @@ const (
 	localNATExternalCIDR = "192.168.30.0/24"
 	externalEndpointIP   = "10.0.50.6"
 	invalidValue         = "invalid value"
+	endpointIP           = "20.0.0.1"
 )
 
 var (
@@ -539,7 +540,7 @@ var _ = Describe("Ipam", func() {
 				ipamStorage, err := getIpamStorageResource()
 				Expect(err).To(BeNil())
 				ipamStorage.Spec.EndpointMappings[externalEndpointIP] = liqonetapi.EndpointMapping{
-					IP: "10.60.1.1",
+					ExternalCIDROriginalIP: "10.60.1.1",
 					ClusterMappings: map[string]liqonetapi.ClusterMapping{
 						clusterID1: {},
 					},
@@ -1415,7 +1416,7 @@ var _ = Describe("Ipam", func() {
 		})
 		Context("If there are other clusters using an endpointIP", func() {
 			It("should not free the relative IP", func() {
-				endpointIP := "20.0.0.1"
+
 				// Set PodCIDR
 				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
@@ -1467,7 +1468,7 @@ var _ = Describe("Ipam", func() {
 
 				// Check if IP is not freed
 				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(1))
-				Expect(ipamConfig.Spec.EndpointMappings[endpointIP].IP).To(Equal(ip))
+				Expect(ipamConfig.Spec.EndpointMappings[endpointIP].ExternalCIDROriginalIP).To(Equal(ip))
 
 				// Check NatMapping resources
 				nm1, err := getNatMappingResourcePerCluster(clusterID1)
@@ -1505,7 +1506,7 @@ var _ = Describe("Ipam", func() {
 				ipamStorage, err := getIpamStorageResource()
 				Expect(err).To(BeNil())
 				ipamStorage.Spec.EndpointMappings[externalEndpointIP] = liqonetapi.EndpointMapping{
-					IP: "10.60.1.1",
+					ExternalCIDROriginalIP: "10.60.1.1",
 					ClusterMappings: map[string]liqonetapi.ClusterMapping{
 						clusterID1: {},
 					},

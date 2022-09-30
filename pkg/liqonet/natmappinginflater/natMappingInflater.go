@@ -441,12 +441,12 @@ func (inflater *NatMappingInflater) ipamConsistencyCheck() error {
 	// For each mapping in the IPAM storage, check if there is a corresponding NatMapping
 	for oldIP, mapping := range ipamConfig.Spec.EndpointMappings {
 		for clusterID := range mapping.ClusterMappings {
-			if inflater.natMappingsPerCluster[clusterID][oldIP] != mapping.IP {
-				if err := inflater.AddMapping(oldIP, mapping.IP, clusterID); err != nil {
+			if inflater.natMappingsPerCluster[clusterID][oldIP] != mapping.ClusterMappings[clusterID].ExternalCIDRNattedIP {
+				if err := inflater.AddMapping(oldIP, mapping.ClusterMappings[clusterID].ExternalCIDRNattedIP, clusterID); err != nil {
 					return err
 				}
 				klog.Infof("Mapping of %s on %s of cluster %s has been recovered from IPAM configuration",
-					oldIP, mapping.IP, clusterID)
+					oldIP, mapping.ClusterMappings[clusterID].ExternalCIDRNattedIP, clusterID)
 			}
 		}
 	}
