@@ -514,9 +514,11 @@ func forgeIPAMConfigWithMapping() *netv1alpha1.IpamStorage {
 			ClusterSubnets: make(map[string]netv1alpha1.Subnets),
 			EndpointMappings: map[string]netv1alpha1.EndpointMapping{
 				oldIP2: {
-					IP: newIP2,
+					ExternalCIDROriginalIP: newIP2,
 					ClusterMappings: map[string]netv1alpha1.ClusterMapping{
-						clusterID2: {},
+						clusterID2: {
+							ExternalCIDRNattedIP: newIP2,
+						},
 					},
 				},
 			},
