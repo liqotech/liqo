@@ -22,6 +22,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
@@ -73,7 +74,7 @@ func forgeVKContainers(
 	return []v1.Container{
 		{
 			Name:      "virtual-kubelet",
-			Resources: forgeVKResources(opts),
+			Resources: pod.ForgeContainerResources(opts.RequestsCPU, opts.LimitsCPU, opts.RequestsRAM, opts.LimitsRAM),
 			Image:     vkImage,
 			Command:   command,
 			Args:      args,
@@ -96,19 +97,6 @@ func forgeVKPodSpec(
 		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, remoteCluster,
 			nodeName, vkNamespace, liqoNamespace, opts, resourceOffer),
 		ServiceAccountName: vk.ServiceAccountName,
-	}
-}
-
-func forgeVKResources(opts *VirtualKubeletOpts) v1.ResourceRequirements {
-	return v1.ResourceRequirements{
-		Limits: v1.ResourceList{
-			v1.ResourceCPU:    opts.LimitsCPU,
-			v1.ResourceMemory: opts.LimitsRAM,
-		},
-		Requests: v1.ResourceList{
-			v1.ResourceCPU:    opts.RequestsCPU,
-			v1.ResourceMemory: opts.RequestsRAM,
-		},
 	}
 }
 

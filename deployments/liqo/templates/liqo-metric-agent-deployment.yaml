@@ -54,10 +54,7 @@ spec:
             - /certs/key.pem
             - -out
             - /certs/cert.pem
-          resources:
-            requests:
-              cpu: "200m"
-              memory: "100M"
+          resources: {{- toYaml .Values.metricAgent.pod.resources | nindent 12 }}
       containers:
         - image: {{ .Values.metricAgent.imageName }}{{ include "liqo.suffix" $metricConfig }}:{{ include "liqo.version" $metricConfig }}
           securityContext:
@@ -68,10 +65,7 @@ spec:
           args:
           - --key-path=/certs/key.pem
           - --cert-path=/certs/cert.pem
-          resources:
-            requests:
-              cpu: 100m
-              memory: 50M
+          resources: {{- toYaml .Values.metricAgent.pod.resources | nindent 12 }}
           volumeMounts:
             - mountPath: '/certs'
               name: certs

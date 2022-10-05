@@ -25,6 +25,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/pod"
 )
 
 // Options encapsulates the arguments of the move volume command.
@@ -168,21 +169,5 @@ func getResticRepositoryURL(ctx context.Context, cl client.Client, isLocal bool)
 }
 
 func (o *Options) forgeContainerResources() corev1.ResourceRequirements {
-	configure := func(rl corev1.ResourceList, key corev1.ResourceName, value resource.Quantity) {
-		if !value.IsZero() {
-			rl[key] = value
-		}
-	}
-
-	requirements := corev1.ResourceRequirements{
-		Requests: corev1.ResourceList{},
-		Limits:   corev1.ResourceList{},
-	}
-
-	configure(requirements.Requests, corev1.ResourceCPU, o.ContainersCPURequests)
-	configure(requirements.Requests, corev1.ResourceMemory, o.ContainersRAMRequests)
-	configure(requirements.Limits, corev1.ResourceCPU, o.ContainersCPULimits)
-	configure(requirements.Limits, corev1.ResourceMemory, o.ContainersRAMLimits)
-
-	return requirements
+	return pod.ForgeContainerResources(o.ContainersCPURequests, o.ContainersCPULimits, o.ContainersRAMRequests, o.ContainersRAMLimits)
 }

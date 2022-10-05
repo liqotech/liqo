@@ -54,10 +54,7 @@ spec:
             - /certs/key.pem
             - -out
             - /certs/cert.pem
-          resources:
-            requests:
-              cpu: "200m"
-              memory: "100M"
+          resources: {{- toYaml .Values.auth.pod.resources | nindent 12 }}
       {{- end }}
       containers:
         - image: {{ .Values.auth.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
@@ -122,10 +119,7 @@ spec:
                   name: {{ include "liqo.prefixedName" $awsConfig }}
                   key: SECRET_ACCESS_KEY
             {{- end }}
-          resources:
-            requests:
-              cpu: 100m
-              memory: 50M
+          resources: {{- toYaml .Values.auth.pod.resources | nindent 12 }}
           volumeMounts:
             - mountPath: '/certs'
               name: certs

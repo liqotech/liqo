@@ -52,10 +52,7 @@ spec:
           {{- if .Values.gateway.pod.extraArgs }}
           {{- toYaml .Values.gateway.pod.extraArgs | nindent 10 }}
           {{- end }}
-          resources:
-            requests:
-              cpu: 250m
-              memory: 100M
+          resources: {{- toYaml .Values.gateway.pod.resources | nindent 12 }}
           securityContext:
             privileged: true
           env:

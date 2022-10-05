@@ -16,6 +16,7 @@
 | auth.pod.annotations | object | `{}` | auth pod annotations |
 | auth.pod.extraArgs | list | `[]` | auth pod extra arguments |
 | auth.pod.labels | object | `{}` | auth pod labels |
+| auth.pod.resources | object | `{"limits":{},"requests":{}}` | auth pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | auth.service.annotations | object | `{}` | auth service annotations |
 | auth.service.type | string | `"LoadBalancer"` | The type of service used to expose the Authentication Service. If you are exposing this service with an Ingress, you can change it to ClusterIP; if your cluster does not support LoadBalancer services, consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource. |
@@ -29,11 +30,13 @@
 | controllerManager.pod.annotations | object | `{}` | controller-manager pod annotations |
 | controllerManager.pod.extraArgs | list | `[]` | controller-manager pod extra arguments |
 | controllerManager.pod.labels | object | `{}` | controller-manager pod labels |
+| controllerManager.pod.resources | object | `{"limits":{},"requests":{}}` | controller-manager pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | controllerManager.replicas | int | `1` | The number of controller-manager instances to run, which can be increased for active/passive high availability. |
 | crdReplicator.imageName | string | `"liqo/crd-replicator"` | crdReplicator image repository |
 | crdReplicator.pod.annotations | object | `{}` | crdReplicator pod annotations |
 | crdReplicator.pod.extraArgs | list | `[]` | crdReplicator pod extra arguments |
 | crdReplicator.pod.labels | object | `{}` | crdReplicator pod labels |
+| crdReplicator.pod.resources | object | `{"limits":{},"requests":{}}` | crdReplicator pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | discovery.config.autojoin | bool | `true` | Automatically join discovered clusters |
 | discovery.config.clusterIDOverride | string | `""` | Specify an unique ID (must be a valid uuidv4) for your cluster, instead of letting helm generate it automatically at install time. You can generate it using the command: `uuidgen` Setting this field is necessary when using tools such as ArgoCD, since the helm lookup function is not supported and a new value would be generated at each deployment. |
 | discovery.config.clusterLabels | object | `{}` | A set of labels which characterizes the local cluster when exposed remotely as a virtual node. It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster. |
@@ -46,6 +49,7 @@
 | discovery.pod.annotations | object | `{}` | discovery pod annotations |
 | discovery.pod.extraArgs | list | `[]` | discovery pod extra arguments |
 | discovery.pod.labels | object | `{}` | discovery pod labels |
+| discovery.pod.resources | object | `{"limits":{},"requests":{}}` | discovery pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | fullnameOverride | string | `""` | full liqo name override |
 | gateway.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
 | gateway.config.listeningPort | int | `5871` | port used by the vpn tunnel. |
@@ -59,6 +63,7 @@
 | gateway.pod.annotations | object | `{}` | gateway pod annotations |
 | gateway.pod.extraArgs | list | `[]` | gateway pod extra arguments |
 | gateway.pod.labels | object | `{}` | gateway pod labels |
+| gateway.pod.resources | object | `{"limits":{},"requests":{}}` | gateway pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | gateway.replicas | int | `1` | The number of gateway instances to run. The gateway component supports active/passive high availability. Make sure that there are enough nodes to accommodate the replicas, because being the instances in host network no more than one replica can be scheduled on a given node. |
 | gateway.service.annotations | object | `{}` |  |
 | gateway.service.type | string | `"LoadBalancer"` | If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer". Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort". |
@@ -68,6 +73,7 @@
 | metricAgent.pod.annotations | object | `{}` | metricAgent pod annotations |
 | metricAgent.pod.extraArgs | list | `[]` | metricAgent pod extra arguments |
 | metricAgent.pod.labels | object | `{}` | metricAgent pod labels |
+| metricAgent.pod.resources | object | `{"limits":{},"requests":{}}` | metricAgent pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | nameOverride | string | `""` | liqo name override |
 | networkConfig.mtu | int | `1340` | set the mtu for the interfaces managed by liqo: vxlan, tunnel and veth interfaces The value is used by the gateway and route operators. The default value is configured to ensure correct functioning regardless of the combination of the underlying environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops. |
 | networkManager.config.additionalPools | list | `[]` | Set of additional network pools. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
@@ -78,6 +84,7 @@
 | networkManager.pod.annotations | object | `{}` | networkManager pod annotations |
 | networkManager.pod.extraArgs | list | `[]` | networkManager pod extra arguments |
 | networkManager.pod.labels | object | `{}` | networkManager pod labels |
+| networkManager.pod.resources | object | `{"limits":{},"requests":{}}` | networkManager pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | openshiftConfig.enable | bool | `false` | enable the OpenShift support |
 | openshiftConfig.virtualKubeletSCCs | list | `["anyuid"]` | the security context configurations granted to the virtual kubelet in the local cluster. The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments. Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when attempting to offload pods not managed by higher-level abstractions (e.g., Deployments), and not associated with a properly privileged service account. Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators. Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded. |
 | proxy.config.listeningPort | int | `8118` | port used by envoy proxy |
@@ -85,6 +92,7 @@
 | proxy.pod.annotations | object | `{}` | proxy pod annotations |
 | proxy.pod.extraArgs | list | `[]` | proxy pod extra arguments |
 | proxy.pod.labels | object | `{}` | proxy pod labels |
+| proxy.pod.resources | object | `{"limits":{},"requests":{}}` | proxy pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods |
@@ -92,6 +100,7 @@
 | route.pod.annotations | object | `{}` | route pod annotations |
 | route.pod.extraArgs | list | `[]` | route pod extra arguments |
 | route.pod.labels | object | `{}` | route pod labels |
+| route.pod.resources | object | `{"limits":{},"requests":{}}` | route pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | storage.enable | bool | `true` | enable the liqo virtual storage class on the local cluster. You will be able to offload your persistent volumes and other clusters will be able to schedule their persistent workloads on the current cluster. |
 | storage.realStorageClassName | string | `""` | name of the real storage class to use in the local cluster |
 | storage.storageNamespace | string | `"liqo-storage"` | namespace where liqo will deploy specific PVCs |
@@ -100,6 +109,7 @@
 | virtualKubelet.extra.annotations | object | `{}` | virtual kubelet pod extra annotations |
 | virtualKubelet.extra.args | list | `[]` | virtual kubelet pod extra arguments |
 | virtualKubelet.extra.labels | object | `{}` | virtual kubelet pod extra labels |
+| virtualKubelet.extra.resources | object | `{"limits":{},"requests":{}}` | virtual kubelet pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | virtualKubelet.imageName | string | `"liqo/virtual-kubelet"` | virtual kubelet image repository |
 | virtualKubelet.virtualNode.extra.annotations | object | `{}` | virtual node extra annotations |
 | virtualKubelet.virtualNode.extra.labels | object | `{}` | virtual node extra labels |

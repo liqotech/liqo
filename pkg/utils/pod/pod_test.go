@@ -19,6 +19,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/pkg/utils/pod"
@@ -144,6 +145,31 @@ var _ = Describe("Pod utility functions", func() {
 				previous: []corev1.Container{{Name: "foo", Image: "bar"}, {Name: "bar", Image: "baz"}},
 				updated:  []corev1.Container{{Name: "bar", Image: "baz"}},
 				expected: BeFalse(),
+			}),
+		)
+	})
+
+	Describe("The ForgeContainerResources function", func() {
+		DescribeTable("tests table",
+			func(resources corev1.ResourceRequirements) {
+				Expect(pod.ForgeContainerResources(
+					resources.Requests[corev1.ResourceCPU],
+					resources.Limits[corev1.ResourceCPU],
+					resources.Requests[corev1.ResourceMemory],
+					resources.Limits[corev1.ResourceMemory],
+				)).To(Equal(resources))
+			},
+			Entry("no resources are set", corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{},
+				Limits:   corev1.ResourceList{},
+			}),
+			Entry("only some resources are set", corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
+				Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("200Mi")},
+			}),
+			Entry("all resources are set", corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m"), corev1.ResourceMemory: resource.MustParse("100Mi")},
+				Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("200m"), corev1.ResourceMemory: resource.MustParse("200Mi")},
 			}),
 		)
 	})
