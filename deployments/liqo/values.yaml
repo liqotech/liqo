@@ -22,6 +22,10 @@ controllerManager:
     labels: {}
     # -- controller-manager pod extra arguments
     extraArgs: []
+    # -- controller-manager pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   # -- controller-manager image repository
   imageName: "liqo/liqo-controller-manager"
   config:
@@ -40,6 +44,10 @@ route:
     labels: {}
     # -- route pod extra arguments
     extraArgs: []
+    # -- route pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   # -- route image repository
   imageName: "liqo/liqonet"
 
@@ -56,6 +64,10 @@ gateway:
     labels: {}
     # -- gateway pod extra arguments
     extraArgs: []
+    # -- gateway pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   # -- gateway image repository
   imageName: "liqo/liqonet"
   service:
@@ -70,7 +82,7 @@ gateway:
     portOverride: ""
     # -- port used by the vpn tunnel.
     listeningPort: 5871
-  metrics: 
+  metrics:
     # -- expose metrics about network traffic towards cluster peers.
     enabled: false
     # -- port used to expose metrics.
@@ -91,6 +103,10 @@ networkManager:
     labels: {}
     # -- networkManager pod extra arguments
     extraArgs: []
+    # -- networkManager pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   # -- networkManager image repository
   imageName: "liqo/liqonet"
   config:
@@ -116,6 +132,10 @@ crdReplicator:
     labels: {}
     # -- crdReplicator pod extra arguments
     extraArgs: []
+    # -- crdReplicator pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   # -- crdReplicator image repository
   imageName: "liqo/crd-replicator"
 
@@ -127,6 +147,10 @@ discovery:
     labels: {}
     # -- discovery pod extra arguments
     extraArgs: []
+    # -- discovery pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   # -- discovery image repository
   imageName: "liqo/discovery"
   config:
@@ -160,6 +184,10 @@ auth:
     labels: {}
     # -- auth pod extra arguments
     extraArgs: []
+    # -- auth pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   # -- auth image repository
   imageName: "liqo/auth-service"
   initContainer:
@@ -203,6 +231,10 @@ metricAgent:
     labels: {}
     # -- metricAgent pod extra arguments
     extraArgs: []
+    # -- metricAgent pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   # -- metricAgent image repository
   imageName: "liqo/metric-agent"
   initContainer:
@@ -229,6 +261,10 @@ virtualKubelet:
     labels: {}
     # -- virtual kubelet pod extra arguments
     args: []
+    # -- virtual kubelet pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   virtualNode:
     extra:
       # -- virtual node extra annotations
@@ -244,6 +280,10 @@ proxy:
     labels: {}
     # -- proxy pod extra arguments
     extraArgs: []
+    # -- proxy pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
   # -- proxy image repository
   imageName: "envoyproxy/envoy:v1.21.0"
   service:

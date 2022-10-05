@@ -92,8 +92,8 @@ func main() {
 	var kubeletExtraAnnotations, kubeletExtraLabels argsutils.StringMap
 	var kubeletExtraArgs argsutils.StringList
 	var nodeExtraAnnotations, nodeExtraLabels argsutils.StringMap
-	var kubeletCPURequests, kubeletCPULimits = argsutils.NewQuantity("250m"), argsutils.NewQuantity("1000m")
-	var kubeletRAMRequests, kubeletRAMLimits = argsutils.NewQuantity("100M"), argsutils.NewQuantity("250M")
+	var kubeletCPURequests, kubeletCPULimits argsutils.Quantity
+	var kubeletRAMRequests, kubeletRAMLimits argsutils.Quantity
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")

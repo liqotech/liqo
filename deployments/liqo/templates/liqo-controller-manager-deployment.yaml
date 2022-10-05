@@ -107,7 +107,27 @@ spec:
           {{- end }}
           {{- if gt .Values.controllerManager.replicas 1.0 }}
           - --enable-leader-election=true
-          {{- end}}
+          {{- end }}
+          {{- /* virtual kubelet pod containers' requests */ -}}
+          {{- range $resource, $value := .Values.virtualKubelet.extra.resources.requests }}
+          {{- if eq $resource "cpu" }}
+          - --kubelet-cpu-requests={{ $value }}
+          {{- else if eq $resource "memory" }}
+          - --kubelet-ram-requests={{ $value }}
+          {{- else }}
+          {{ fail (printf "Unsupported resource type \"%s\" for virtual kubelet containers' requests" $resource) }}
+          {{- end }}
+          {{- end }}
+          {{- /* virtual kubelet pod containers' limits */ -}}
+          {{- range $resource, $value := .Values.virtualKubelet.extra.resources.limits }}
+          {{- if eq $resource "cpu" }}
+          - --kubelet-cpu-limits={{ $value }}
+          {{- else if eq $resource "memory" }}
+          - --kubelet-ram-limits={{ $value }}
+          {{- else }}
+          {{ fail (printf "Unsupported resource type \"%s\" for virtual kubelet containers' limits" $resource) }}
+          {{- end }}
+          {{- end }}
         env:
           - name: CLUSTER_ID
             valueFrom:
@@ -118,10 +138,7 @@ spec:
             valueFrom:
              fieldRef:
                fieldPath: metadata.namespace
-        resources:
-          requests:
-            cpu: 100m
-            memory: 150M
+        resources: {{- toYaml .Values.controllerManager.pod.resources | nindent 10 }}
         volumeMounts:
           - name: webhook-certs
             mountPath: /tmp/k8s-webhook-server/serving-certs/

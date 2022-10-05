@@ -34,10 +34,7 @@ spec:
             {{- include "liqo.containerSecurityContext" . | nindent 12 }}
           ports:
           - containerPort: {{ .Values.proxy.config.listeningPort }}
-          resources:
-            requests:
-              cpu: 250m
-              memory: 100M
+          resources: {{- toYaml .Values.proxy.pod.resources | nindent 12 }}
           volumeMounts:
           - mountPath: /etc/envoy/envoy.yaml
             name: config-volume

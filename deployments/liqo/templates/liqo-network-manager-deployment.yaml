@@ -56,7 +56,4 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          resources:
-            requests:
-              cpu: 50m
-              memory: 50M
+          resources: {{- toYaml .Values.networkManager.pod.resources | nindent 12 }}

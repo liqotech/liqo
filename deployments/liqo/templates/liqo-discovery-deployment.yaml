@@ -58,10 +58,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          resources:
-            requests:
-              cpu: 50m
-              memory: 50M
+          resources: {{- toYaml .Values.discovery.pod.resources | nindent 12 }}
       hostNetwork: true
 
 {{- end }}

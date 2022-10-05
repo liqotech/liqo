@@ -18,6 +18,7 @@ import (
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/pointer"
 )
 
@@ -90,4 +91,25 @@ outer:
 	}
 
 	return true
+}
+
+// ForgeContainerResources forges the container resource requirements, leaving unset the ones not specified.
+func ForgeContainerResources(cpuRequests, cpuLimits, ramRequests, ramLimits resource.Quantity) corev1.ResourceRequirements {
+	configure := func(rl corev1.ResourceList, key corev1.ResourceName, value resource.Quantity) {
+		if !value.IsZero() {
+			rl[key] = value
+		}
+	}
+
+	requirements := corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{},
+		Limits:   corev1.ResourceList{},
+	}
+
+	configure(requirements.Requests, corev1.ResourceCPU, cpuRequests)
+	configure(requirements.Requests, corev1.ResourceMemory, ramRequests)
+	configure(requirements.Limits, corev1.ResourceCPU, cpuLimits)
+	configure(requirements.Limits, corev1.ResourceMemory, ramLimits)
+
+	return requirements
 }
