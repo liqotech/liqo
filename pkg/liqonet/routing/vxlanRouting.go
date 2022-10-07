@@ -26,7 +26,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // VxlanRoutingManager implements the routing manager interface.
@@ -68,7 +68,7 @@ func NewVxlanRoutingManager(routingTableID int, podIP, vxlanNetPrefix string, vx
 		vxlanNetPrefix: vxlanNetPrefix,
 	}
 	// Configure IP address of the vxlan interface
-	overlayIP := utils.GetOverlayIP(podIP)
+	overlayIP := liqonetutils.GetOverlayIP(podIP)
 	overlayIPCIDR := overlayIP + liqoconst.OverlayNetworkMask
 	if err := vrm.vxlanDevice.ConfigureIPAddress(overlayIPCIDR); err != nil {
 		return nil, err
@@ -89,11 +89,11 @@ func (vrm *VxlanRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEn
 
 	clusterID := tep.Spec.ClusterIdentity.ClusterID
 	// Extract and save route information from the given tep.
-	_, dstPodCIDR := utils.GetPodCIDRS(tep)
-	_, dstExternalCIDR := utils.GetExternalCIDRS(tep)
+	_, dstPodCIDR := liqonetutils.GetPodCIDRS(tep)
+	_, dstExternalCIDR := liqonetutils.GetExternalCIDRS(tep)
 
 	if tep.Status.GatewayIP != vrm.podIP {
-		gatewayIP = utils.GetOverlayIP(tep.Status.GatewayIP)
+		gatewayIP = liqonetutils.GetOverlayIP(tep.Status.GatewayIP)
 		iFaceIndex = vrm.vxlanDevice.Link.Index
 		iFaceName = vrm.vxlanDevice.Link.Name
 
@@ -163,11 +163,11 @@ func (vrm *VxlanRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEn
 
 	clusterID := tep.Spec.ClusterIdentity.ClusterID
 	// Extract and save route information from the given tep.
-	_, dstPodCIDR := utils.GetPodCIDRS(tep)
-	_, dstExternalCIDR := utils.GetExternalCIDRS(tep)
+	_, dstPodCIDR := liqonetutils.GetPodCIDRS(tep)
+	_, dstExternalCIDR := liqonetutils.GetExternalCIDRS(tep)
 
 	if tep.Status.GatewayIP != vrm.podIP {
-		gatewayIP = utils.GetOverlayIP(tep.Status.GatewayIP)
+		gatewayIP = liqonetutils.GetOverlayIP(tep.Status.GatewayIP)
 		iFaceIndex = vrm.vxlanDevice.Link.Index
 		iFaceName = vrm.vxlanDevice.Link.Name
 	} else {

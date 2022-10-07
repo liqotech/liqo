@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update
@@ -84,7 +84,7 @@ func (lbc *LabelerController) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	// If it is our pod/current pod then ensure that the labels values is set to "active".
 	if lbc.PodIP == pod.Status.PodIP {
-		if liqoutils.AddLabelToObj(pod, gatewayLabelKey, gatewayStatusActive) {
+		if liqonetutils.AddLabelToObj(pod, gatewayLabelKey, gatewayStatusActive) {
 			if err := lbc.Update(ctx, pod); err != nil {
 				klog.Errorf("an error occurred while updating value of label {%s} to {%s} for pod {%s}: %v",
 					gatewayLabelKey, gatewayStatusActive, req.String(), err)
@@ -100,8 +100,8 @@ func (lbc *LabelerController) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 	// Make sure that the other replicas has the label set to "standby".
-	if val := liqoutils.GetLabelValueFromObj(pod, gatewayLabelKey); val == gatewayStatusActive {
-		if liqoutils.AddLabelToObj(pod, gatewayLabelKey, gatewayStatusStandby) {
+	if val := liqonetutils.GetLabelValueFromObj(pod, gatewayLabelKey); val == gatewayStatusActive {
+		if liqonetutils.AddLabelToObj(pod, gatewayLabelKey, gatewayStatusStandby) {
 			if err := lbc.Update(ctx, pod); err != nil {
 				klog.Errorf("an error occurred while updating value of label {%s} to {%s} for pod {%s}: %v",
 					gatewayLabelKey, gatewayStatusStandby, req.String(), err)
@@ -133,7 +133,7 @@ func (lbc *LabelerController) annotateGatewayService(ctx context.Context) error 
 	}
 	// We come here only if one service has been found.
 	svc := &svcList.Items[0]
-	if liqoutils.AddAnnotationToObj(svc, serviceAnnotationKey, lbc.PodIP) {
+	if liqonetutils.AddAnnotationToObj(svc, serviceAnnotationKey, lbc.PodIP) {
 		if err := lbc.Update(ctx, svc); err != nil {
 			klog.Errorf("an error occurred while annotating gateway service {%s/%s}: %v",
 				svc.Namespace, svc.Name, serviceAnnotationKey, err)

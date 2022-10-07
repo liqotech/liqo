@@ -30,7 +30,7 @@ import (
 	tunneloperator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/liqonet/utils/links"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -76,12 +76,12 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 	MTU := gatewayFlags.tunnelMTU
 
 	// Get the pod ip and parse to net.IP.
-	podIP, err := utils.GetPodIP()
+	podIP, err := liqonetutils.GetPodIP()
 	if err != nil {
 		klog.Errorf("unable to get podIP: %v", err)
 		os.Exit(1)
 	}
-	podNamespace, err := utils.GetPodNamespace()
+	podNamespace, err := liqonetutils.GetPodNamespace()
 	if err != nil {
 		klog.Errorf("unable to get pod namespace: %v", err)
 		os.Exit(1)

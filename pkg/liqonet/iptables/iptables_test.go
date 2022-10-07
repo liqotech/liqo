@@ -28,7 +28,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/errors"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const (
@@ -1035,7 +1035,7 @@ var _ = Describe("iptables", func() {
 })
 
 func mustGetFirstIP(network string) string {
-	firstIP, err := utils.GetFirstIP(network)
+	firstIP, err := liqonetutils.GetFirstIP(network)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)

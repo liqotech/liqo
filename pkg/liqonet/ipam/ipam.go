@@ -32,7 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/natmappinginflater"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
@@ -165,7 +165,7 @@ func (liqoIPAM *IPAM) initRPCServer(port int) error {
 // halves of the network pool.
 func (liqoIPAM *IPAM) reservePoolInHalves(pool string) error {
 	klog.Infof("Network %s is equal to a network pool, acquiring first half..", pool)
-	mask := utils.GetMask(pool)
+	mask := liqonetutils.GetMask(pool)
 	mask++
 	_, err := liqoIPAM.ipam.AcquireChildPrefix(context.TODO(), pool, mask)
 	if err != nil {
@@ -222,7 +222,7 @@ func (liqoIPAM *IPAM) MarkAsAcquiredReservedSubnet(reservedNetwork string) error
 	}
 	if ok && reservedNetwork == pool {
 		klog.Infof("reserving subnet %s in two halves...", reservedNetwork)
-		for _, half := range utils.SplitNetwork(reservedNetwork) {
+		for _, half := range liqonetutils.SplitNetwork(reservedNetwork) {
 			if !liqoIPAM.isAcquired(half) {
 				if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(context.TODO(), pool, half); err != nil {
 					return fmt.Errorf("cannot reserve network %s: %w", reservedNetwork, err)
@@ -360,7 +360,7 @@ func (liqoIPAM *IPAM) getPoolFromNetwork(network string) (networkPool string, su
 
 func (liqoIPAM *IPAM) clusterSubnetEqualToPool(pool string) (string, error) {
 	klog.Infof("Network %s is equal to a pool, looking for a mapping..", pool)
-	mappedNetwork, err := liqoIPAM.getNetworkFromPool(utils.GetMask(pool))
+	mappedNetwork, err := liqoIPAM.getNetworkFromPool(liqonetutils.GetMask(pool))
 	if err != nil {
 		klog.Infof("Mapping not found, acquiring the entire network pool..")
 		err = liqoIPAM.reservePoolInHalves(pool)
@@ -416,7 +416,7 @@ func (liqoIPAM *IPAM) getOrRemapNetwork(network string) (string, error) {
 		}
 	}
 	/* Network is already reserved, need a mapping */
-	mappedNetwork, err = liqoIPAM.getNetworkFromPool(utils.GetMask(network))
+	mappedNetwork, err = liqoIPAM.getNetworkFromPool(liqonetutils.GetMask(network))
 	if err != nil {
 		return "", err
 	}
@@ -445,7 +445,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	}
 
 	// Check if podCidr is a valid CIDR
-	err = utils.IsValidCIDR(podCidr)
+	err = liqonetutils.IsValidCIDR(podCidr)
 	if err != nil {
 		return "", "", fmt.Errorf("PodCidr is an invalid CIDR: %w", err)
 	}
@@ -461,7 +461,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	klog.Infof("PodCIDR %s has been assigned to cluster %s", mappedPodCIDR, clusterID)
 
 	// Check if externalCIDR is a valid CIDR
-	err = utils.IsValidCIDR(externalCIDR)
+	err = liqonetutils.IsValidCIDR(externalCIDR)
 	if err != nil {
 		return "", "", fmt.Errorf("ExternalCIDR is an invalid CIDR: %w", err)
 	}
@@ -517,11 +517,11 @@ func (liqoIPAM *IPAM) freePoolInHalves(pool string) error {
 	var err error
 
 	// Get halves mask length
-	mask := utils.GetMask(pool)
+	mask := liqonetutils.GetMask(pool)
 	mask++
 
 	// Get first half CIDR
-	halfCidr := utils.SetMask(pool, mask)
+	halfCidr := liqonetutils.SetMask(pool, mask)
 
 	klog.Infof("Network %s is equal to a network pool, freeing first half..", pool)
 	if prefix := liqoIPAM.ipam.PrefixFrom(context.TODO(), halfCidr); prefix != nil {
@@ -532,7 +532,7 @@ func (liqoIPAM *IPAM) freePoolInHalves(pool string) error {
 	}
 
 	// Get second half CIDR
-	halfCidr = utils.Next(halfCidr)
+	halfCidr = liqonetutils.Next(halfCidr)
 	if err != nil {
 		return err
 	}
@@ -1016,7 +1016,7 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 
 	if _, exists := endpointMappings[ip].ClusterMappings[clusterID]; !exists {
 		// Map IP if remote cluster has remapped local ExternalCIDR
-		externalCIDRNattedIP, err := utils.MapIPToNetwork(externalCIDR, endpointMappings[ip].ExternalCIDROriginalIP)
+		externalCIDRNattedIP, err := liqonetutils.MapIPToNetwork(externalCIDR, endpointMappings[ip].ExternalCIDROriginalIP)
 		if err != nil {
 			return "", fmt.Errorf("cannot map IP %s to network %s: %w", endpointMappings[ip].ExternalCIDROriginalIP, externalCIDR, err)
 		}
@@ -1082,7 +1082,7 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 		/* IP belongs to local PodCIDR, this means the Pod is a local Pod and
 		the new IP should belong to the network used in the remote cluster
 		for local Pods: this can be either the cluster PodCIDR or a different network */
-		newIP, err := utils.MapIPToNetwork(subnets.LocalNATPodCIDR, ip)
+		newIP, err := liqonetutils.MapIPToNetwork(subnets.LocalNATPodCIDR, ip)
 		if err != nil {
 			return "", fmt.Errorf("cannot map endpoint IP %s to PodCIDR of remote cluster %s: %w", ip, clusterID, err)
 		}
@@ -1178,7 +1178,7 @@ func (liqoIPAM *IPAM) getHomePodIPInternal(clusterID, ip string) (string, error)
 
 	klog.V(5).Infof("GetHomePodIP(%s, %s): mapping to RemotePodCIDR %s",
 		ip, clusterID, subnets.RemotePodCIDR)
-	return utils.MapIPToNetwork(subnets.RemotePodCIDR, ip)
+	return liqonetutils.MapIPToNetwork(subnets.RemotePodCIDR, ip)
 }
 
 // unmapEndpointIPInternal is the internal implementation of UnmapEndpointIP.

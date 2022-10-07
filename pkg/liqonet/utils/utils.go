@@ -68,6 +68,7 @@ func MapIPToNetwork(newNetwork, oldIP string) (newIP string, err error) {
 	return
 }
 
+// GetPodIP returns the pod IP address.
 func GetPodIP() (net.IP, error) {
 	ipAddress, isSet := os.LookupEnv("POD_IP")
 	if !isSet || ipAddress == "" {

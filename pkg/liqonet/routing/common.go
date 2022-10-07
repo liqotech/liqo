@@ -26,7 +26,7 @@ import (
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const (
@@ -230,8 +230,8 @@ func flushRulesForRoutingTable(routingTableID int) error {
 }
 
 func getRouteConfig(tep *v1alpha1.TunnelEndpoint, podIP string) (dstPodCIDRNet, dstExternalCIDRNet, gatewayIP string, iFaceIndex int, err error) {
-	_, dstPodCIDRNet = utils.GetPodCIDRS(tep)
-	_, dstExternalCIDRNet = utils.GetExternalCIDRS(tep)
+	_, dstPodCIDRNet = liqonetutils.GetPodCIDRS(tep)
+	_, dstExternalCIDRNet = liqonetutils.GetExternalCIDRS(tep)
 	// Check if we are running on the same host as the gateway pod.
 	if tep.Status.GatewayIP != podIP {
 		// If the pod is not running on the same host then set the IP address of the Gateway as next hop.

@@ -34,7 +34,7 @@ import (
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
-	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var (
@@ -215,7 +215,7 @@ var _ = Describe("OverlayOperator", func() {
 		Context("when input parameters are incorrect", func() {
 			It("incorrect MAC address, should return false and error", func() {
 				overlayTestPod.Status.PodIP = overlayPodIP
-				liqoutils.AddAnnotationToObj(overlayTestPod, overlayAnnKey, "wrongMAC")
+				liqonetutils.AddAnnotationToObj(overlayTestPod, overlayAnnKey, "wrongMAC")
 				added, err := ovc.addPeer(overlayReq, overlayTestPod)
 				Expect(err).To(HaveOccurred())
 				Expect(added).Should(BeFalse())
@@ -277,7 +277,7 @@ var _ = Describe("OverlayOperator", func() {
 			It("should return false and nil", func() {
 				ovc.vxlanPeers[overlayReq.String()] = &overlayExistingNeigh
 				overlayTestPod.Status.PodIP = overlayPeerIP
-				liqoutils.AddAnnotationToObj(overlayTestPod, overlayAnnKey, overlayPeerMAC)
+				liqonetutils.AddAnnotationToObj(overlayTestPod, overlayAnnKey, overlayPeerMAC)
 				added, err := ovc.addPeer(overlayReq, overlayTestPod)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(added).Should(BeFalse())
@@ -309,7 +309,7 @@ var _ = Describe("OverlayOperator", func() {
 				ovc.podToNode[overlayReq.String()] = overlayTestPod.Spec.NodeName
 				ovc.vxlanNodes[overlayTestPod.Spec.NodeName] = overlayExistingNeigh.IP.String()
 				overlayTestPod.Status.PodIP = overlayPeerIP
-				liqoutils.AddAnnotationToObj(overlayTestPod, overlayAnnKey, overlayPeerMAC)
+				liqonetutils.AddAnnotationToObj(overlayTestPod, overlayAnnKey, overlayPeerMAC)
 				deleted, err := ovc.delPeer(overlayReq)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(deleted).Should(BeTrue())

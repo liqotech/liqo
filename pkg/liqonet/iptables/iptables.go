@@ -24,7 +24,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/errors"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
@@ -485,11 +485,11 @@ func (h IPTHandler) EnsurePreroutingRulesPerNatMapping(nm *netv1alpha1.NatMappin
 
 func getPreRoutingRulesPerTunnelEndpoint(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error) {
 	// Check tep fields
-	if err := utils.CheckTep(tep); err != nil {
+	if err := liqonetutils.CheckTep(tep); err != nil {
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
 	localPodCIDR := tep.Spec.LocalPodCIDR
-	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
+	localRemappedPodCIDR, remotePodCIDR := liqonetutils.GetPodCIDRS(tep)
 
 	rules := make([]IPTableRule, 0)
 	if localRemappedPodCIDR == consts.DefaultCIDRValue {
@@ -675,16 +675,16 @@ func (h IPTHandler) insertRulesIfNotPresent(table, chain string, rules []IPTable
 }
 
 func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error) {
-	if err := utils.CheckTep(tep); err != nil {
+	if err := liqonetutils.CheckTep(tep); err != nil {
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
 	localPodCIDR := tep.Spec.LocalPodCIDR
-	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
-	_, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
+	localRemappedPodCIDR, remotePodCIDR := liqonetutils.GetPodCIDRS(tep)
+	_, remoteExternalCIDR := liqonetutils.GetExternalCIDRS(tep)
 	if localRemappedPodCIDR != consts.DefaultCIDRValue {
 		// Get the first IP address from the podCIDR of the local cluster
 		// in this case it is the podCIDR to which the local podCIDR has bee remapped by the remote peering cluster
-		natIP, err := utils.GetFirstIP(localRemappedPodCIDR)
+		natIP, err := liqonetutils.GetFirstIP(localRemappedPodCIDR)
 		if err != nil {
 			klog.Errorf("Unable to get the IP from localPodCidr %s for remote cluster %s used to NAT the traffic from localhosts to remote hosts",
 				localRemappedPodCIDR, tep.Spec.ClusterIdentity)
@@ -698,7 +698,7 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 		}, nil
 	}
 	// Get the first IP address from the podCIDR of the local cluster
-	natIP, err := utils.GetFirstIP(localPodCIDR)
+	natIP, err := liqonetutils.GetFirstIP(localPodCIDR)
 	if err != nil {
 		klog.Errorf("Unable to get the IP from localPodCidr %s for cluster %v used to NAT the traffic from localhosts to remote hosts",
 			tep.Spec.RemotePodCIDR, tep.Spec.ClusterIdentity)
@@ -714,12 +714,12 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 // related to a remote cluster. Return value is a map of slices in which value
 // is the a set of rules and key is the chain the set of rules should belong to.
 func getChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) (map[string][]IPTableRule, error) {
-	if err := utils.CheckTep(tep); err != nil {
+	if err := liqonetutils.CheckTep(tep); err != nil {
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
 	clusterID := tep.Spec.ClusterIdentity.ClusterID
-	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
-	localRemappedExternalCIDR, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
+	localRemappedPodCIDR, remotePodCIDR := liqonetutils.GetPodCIDRS(tep)
+	localRemappedExternalCIDR, remoteExternalCIDR := liqonetutils.GetExternalCIDRS(tep)
 
 	// Init chain rules
 	chainRules := make(map[string][]IPTableRule)

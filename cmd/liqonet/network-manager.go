@@ -29,7 +29,7 @@ import (
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/tunnelendpointcreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -53,7 +53,7 @@ func addNetworkManagerFlags(managerFlags *networkManagerFlags) {
 }
 
 func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkManagerFlags) {
-	podNamespace, err := utils.GetPodNamespace()
+	podNamespace, err := liqonetutils.GetPodNamespace()
 	if err != nil {
 		klog.Errorf("unable to get pod namespace: %v", err)
 		os.Exit(1)
@@ -82,7 +82,7 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 		os.Exit(1)
 	}
 
-	externalCIDR, err := ipam.GetExternalCIDR(utils.GetMask(managerFlags.podCIDR.String()))
+	externalCIDR, err := ipam.GetExternalCIDR(liqonetutils.GetMask(managerFlags.podCIDR.String()))
 	if err != nil {
 		klog.Errorf("Failed to initialize the external CIDR: %s", err)
 		os.Exit(1)

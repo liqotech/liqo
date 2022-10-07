@@ -22,7 +22,7 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // GatewayRoutingManager implements the routing manager interface.
@@ -61,8 +61,8 @@ func (grm *GatewayRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.Tunnel
 	var routePodCIDRAdd, routeExternalCIDRAdd, configured bool
 	var err error
 	// Extract and save route information from the given tep.
-	_, dstPodCIDRNet := utils.GetPodCIDRS(tep)
-	_, dstExternalCIDRNet := utils.GetExternalCIDRS(tep)
+	_, dstPodCIDRNet := liqonetutils.GetPodCIDRS(tep)
+	_, dstExternalCIDRNet := liqonetutils.GetExternalCIDRS(tep)
 	// Add routes for the given cluster.
 	routePodCIDRAdd, err = AddRoute(dstPodCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID, DefaultFlags, DefaultScope)
 	if err != nil {
@@ -86,8 +86,8 @@ func (grm *GatewayRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.Tunnel
 	var routePodCIDRDel, routeExternalCIDRDel, configured bool
 	var err error
 	// Extract and save route information from the given tep.
-	_, dstPodCIDRNet := utils.GetPodCIDRS(tep)
-	_, dstExternalCIDRNet := utils.GetExternalCIDRS(tep)
+	_, dstPodCIDRNet := liqonetutils.GetPodCIDRS(tep)
+	_, dstExternalCIDRNet := liqonetutils.GetExternalCIDRS(tep)
 	// Delete routes for the given cluster.
 	routePodCIDRDel, err = DelRoute(dstPodCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
 	if err != nil {

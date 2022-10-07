@@ -30,7 +30,7 @@ import (
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
-	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var (
@@ -77,7 +77,7 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	// If it is our pod than add the mac address annotation.
 	if ovc.podIP == pod.Status.PodIP {
-		if liqoutils.AddAnnotationToObj(&pod, vxlanMACAddressKey, ovc.vxlanDev.Link.HardwareAddr.String()) {
+		if liqonetutils.AddAnnotationToObj(&pod, vxlanMACAddressKey, ovc.vxlanDev.Link.HardwareAddr.String()) {
 			if err := ovc.Update(ctx, &pod); err != nil {
 				klog.Errorf("an error occurred while adding mac address annotation to pod {%s}: %v", req.String(), err)
 				return ctrl.Result{}, err
@@ -91,12 +91,12 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 	added, err := ovc.addPeer(req, &pod)
 	if err != nil {
 		klog.Errorf("an error occurred while adding peer {%s} with IP address {%s} and MAC address {%s} to the vxlan overlay network: %v",
-			req.String(), pod.Status.PodIP, liqoutils.GetAnnotationValueFromObj(&pod, vxlanMACAddressKey), err)
+			req.String(), pod.Status.PodIP, liqonetutils.GetAnnotationValueFromObj(&pod, vxlanMACAddressKey), err)
 		return ctrl.Result{}, err
 	}
 	if added {
 		klog.Errorf("successfully added peer {%s} with IP address {%s} and MAC address {%s} to the vxlan overlay network",
-			req.String(), pod.Status.PodIP, liqoutils.GetAnnotationValueFromObj(&pod, vxlanMACAddressKey))
+			req.String(), pod.Status.PodIP, liqonetutils.GetAnnotationValueFromObj(&pod, vxlanMACAddressKey))
 	}
 	return ctrl.Result{}, nil
 }
