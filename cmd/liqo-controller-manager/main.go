@@ -205,7 +205,8 @@ func main() {
 	spv := shadowpodswh.NewValidator(mgr.GetClient(), *enableResourceValidation)
 
 	// Register the webhooks.
-	mgr.GetWebhookServer().Register("/validate/foreign-cluster", fcwh.New())
+	mgr.GetWebhookServer().Register("/validate/foreign-cluster", fcwh.NewValidator())
+	mgr.GetWebhookServer().Register("/mutate/foreign-cluster", fcwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient()))

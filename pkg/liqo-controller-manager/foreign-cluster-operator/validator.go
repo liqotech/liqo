@@ -23,7 +23,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
@@ -43,16 +42,6 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 				RequeueAfter: r.ResyncPeriod,
 			}, err
 		}
-		requireUpdate = true
-	}
-
-	// set cluster-id label to easy retrieve ForeignClusters by ClusterId,
-	// if it is added manually, the name maybe not coincide with ClusterId
-	if foreignCluster.ObjectMeta.Labels[discovery.ClusterIDLabel] == "" {
-		if foreignCluster.ObjectMeta.Labels == nil {
-			foreignCluster.ObjectMeta.Labels = map[string]string{}
-		}
-		foreignCluster.ObjectMeta.Labels[discovery.ClusterIDLabel] = foreignCluster.Spec.ClusterIdentity.ClusterID
 		requireUpdate = true
 	}
 

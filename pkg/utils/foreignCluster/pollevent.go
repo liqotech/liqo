@@ -18,7 +18,6 @@ import (
 	"context"
 	"time"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -40,10 +39,6 @@ func PollForEvent(ctx context.Context, cl client.Client, identity *discoveryv1al
 	err := wait.PollImmediateUntilWithContext(ctx, interval, func(ctx context.Context) (done bool, err error) {
 		fc, err := GetForeignClusterByID(ctx, cl, identity.ClusterID)
 		if err != nil {
-			// Avoid to return an error if the Foreign Clusters labels have not been applied yet by the corresponding operator.
-			if apierrors.IsNotFound(err) {
-				return false, nil
-			}
 			return false, err
 		}
 
