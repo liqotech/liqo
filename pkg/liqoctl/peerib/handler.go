@@ -146,16 +146,6 @@ func (o *Options) Run(ctx context.Context) error {
 		return err
 	}
 
-	// Waiting for VPN connection to be established in cluster 1.
-	if err := cluster1.Waiter.ForNetwork(ctx, cluster2.GetClusterID()); err != nil {
-		return err
-	}
-
-	// Waiting for VPN connection to be established in cluster 2.
-	if err := cluster2.Waiter.ForNetwork(ctx, cluster1.GetClusterID()); err != nil {
-		return err
-	}
-
 	// Waiting for authentication to complete in cluster 1.
 	if err := cluster1.Waiter.ForAuth(ctx, cluster2.GetClusterID()); err != nil {
 		return err
