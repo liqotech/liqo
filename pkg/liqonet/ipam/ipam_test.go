@@ -35,7 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/natmappinginflater"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const (
@@ -61,11 +61,11 @@ var (
 func fillNetworkPool(pool string, ipam *IPAM) error {
 
 	// Get halves mask length
-	mask := utils.GetMask(pool)
+	mask := liqonetutils.GetMask(pool)
 	mask++
 
 	// Get first half CIDR
-	halfCidr := utils.SetMask(pool, mask)
+	halfCidr := liqonetutils.SetMask(pool, mask)
 
 	err := ipam.AcquireReservedSubnet(halfCidr)
 	if err != nil {
@@ -73,7 +73,7 @@ func fillNetworkPool(pool string, ipam *IPAM) error {
 	}
 
 	// Get second half CIDR
-	halfCidr = utils.Next(halfCidr)
+	halfCidr = liqonetutils.Next(halfCidr)
 	err = ipam.AcquireReservedSubnet(halfCidr)
 
 	return err
@@ -1271,7 +1271,7 @@ var _ = Describe("Ipam", func() {
 		Context(`When the remote Pod CIDR has not been remapped by home cluster
 			and the call refers to a remote Pod`, func() {
 			It("should return the same IP", func() {
-				ip, err := utils.GetFirstIP(remotePodCIDR)
+				ip, err := liqonetutils.GetFirstIP(remotePodCIDR)
 				Expect(err).To(BeNil())
 
 				// Home cluster has not remapped remote PodCIDR
@@ -1292,7 +1292,7 @@ var _ = Describe("Ipam", func() {
 			and the call refers to a remote Pod`, func() {
 			It("should return the remapped IP", func() {
 				// Original Pod IP
-				ip, err := utils.GetFirstIP(remotePodCIDR)
+				ip, err := liqonetutils.GetFirstIP(remotePodCIDR)
 				Expect(err).To(BeNil())
 
 				// Reserve original PodCIDR so that home cluster will remap it
@@ -1312,7 +1312,7 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// IP should be mapped to remoteNATPodCIDR
-				remappedIP, err := utils.MapIPToNetwork(mappedPodCIDR, ip)
+				remappedIP, err := liqonetutils.MapIPToNetwork(mappedPodCIDR, ip)
 				Expect(err).To(BeNil())
 				Expect(response.GetHomeIP()).To(Equal(remappedIP))
 			})

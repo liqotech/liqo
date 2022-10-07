@@ -21,7 +21,7 @@ import (
 	grpc "google.golang.org/grpc"
 
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // IPAMClient provides a mock implementation of the IPAMClient interface for testing purposes.
@@ -56,7 +56,7 @@ func (mock *IPAMClient) MapEndpointIP(_ context.Context, req *ipam.MapRequest, _
 		return &ipam.MapResponse{Ip: translation}, nil
 	}
 
-	ip, err := utils.MapIPToNetwork(mock.localRemappedPodCIDR, req.GetIp())
+	ip, err := liqonetutils.MapIPToNetwork(mock.localRemappedPodCIDR, req.GetIp())
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (mock *IPAMClient) GetHomePodIP(_ context.Context, req *ipam.GetHomePodIPRe
 		return &ipam.GetHomePodIPResponse{HomeIP: translation}, nil
 	}
 
-	homeIP, err := utils.MapIPToNetwork(mock.remoteRemappedPodCIDR, req.GetIp())
+	homeIP, err := liqonetutils.MapIPToNetwork(mock.remoteRemappedPodCIDR, req.GetIp())
 	if err != nil {
 		return nil, err
 	}

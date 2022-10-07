@@ -45,7 +45,7 @@ import (
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var (
@@ -214,7 +214,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return result, nil
 	}
 
-	_, remotePodCIDR = utils.GetPodCIDRS(tep)
+	_, remotePodCIDR = liqonetutils.GetPodCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
 	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(tep, tc.finalizer) {
@@ -351,7 +351,7 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Context {
 	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, utils.ShutdownSignals...)
+	signal.Notify(c, liqonetutils.ShutdownSignals...)
 	go func(tc *TunnelController) {
 		sig := <-c
 		klog.Infof("the operator received signal {%s}: cleaning up", sig.String())

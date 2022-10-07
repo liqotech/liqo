@@ -30,7 +30,7 @@ import (
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	"github.com/liqotech/liqo/pkg/liqonet/routing"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const infoLogLevel = 4
@@ -125,7 +125,7 @@ func (src *SymmetricRoutingController) addRoute(req ctrl.Request, p *corev1.Pod)
 	if !ok {
 		return false, fmt.Errorf("ip not set")
 	}
-	gwIP := utils.GetOverlayIP(nodeIP)
+	gwIP := liqonetutils.GetOverlayIP(nodeIP)
 	dstNet := p.Status.PodIP + "/32"
 	added, err := routing.AddRoute(dstNet, gwIP, src.vxlanDev.Link.Attrs().Index, src.routingTableID, routing.DefaultFlags, routing.DefaultScope)
 	if err != nil {

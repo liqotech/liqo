@@ -29,7 +29,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/errors"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // Interface is the interface to be implemented for
@@ -99,13 +99,13 @@ func checkParams(podCIDR, externalCIDR, clusterID string) error {
 			Reason:    errors.StringNotEmpty,
 		}
 	}
-	if err := utils.IsValidCIDR(podCIDR); err != nil {
+	if err := liqonetutils.IsValidCIDR(podCIDR); err != nil {
 		return &errors.WrongParameter{
 			Reason:    errors.ValidCIDR,
 			Parameter: podCIDR,
 		}
 	}
-	if err := utils.IsValidCIDR(externalCIDR); err != nil {
+	if err := liqonetutils.IsValidCIDR(externalCIDR); err != nil {
 		return &errors.WrongParameter{
 			Reason:    errors.ValidCIDR,
 			Parameter: externalCIDR,

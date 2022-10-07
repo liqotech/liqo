@@ -43,7 +43,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/metrics"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/resolver"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const (
@@ -355,8 +355,8 @@ func (w *Wireguard) setWGLink() error {
 // wireguard allowedIPs. They are returned as []net.IPNet and
 // as a string (to accommodate comparison/storing on TEP resource).
 func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) ([]net.IPNet, string, error) {
-	_, remotePodCIDR := utils.GetPodCIDRS(tep)
-	_, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
+	_, remotePodCIDR := liqonetutils.GetPodCIDRS(tep)
+	_, remoteExternalCIDR := liqonetutils.GetExternalCIDRS(tep)
 
 	_, podCIDR, err := net.ParseCIDR(remotePodCIDR)
 	if err != nil {

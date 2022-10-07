@@ -36,7 +36,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var (
@@ -95,8 +95,8 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return result, nil
 	}
 	clusterIdentity := tep.Spec.ClusterIdentity
-	_, remotePodCIDR := utils.GetPodCIDRS(tep)
-	_, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
+	_, remotePodCIDR := liqonetutils.GetPodCIDRS(tep)
+	_, remoteExternalCIDR := liqonetutils.GetExternalCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
 	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(tep, routeOperatorFinalizer) {
@@ -245,7 +245,7 @@ func (rc *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 func (rc *RouteController) SetupSignalHandlerForRouteOperator() context.Context {
 	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, utils.ShutdownSignals...)
+	signal.Notify(c, liqonetutils.ShutdownSignals...)
 	go func(r *RouteController) {
 		sig := <-c
 		klog.Infof("the operator received signal {%s}: cleaning up", sig.String())

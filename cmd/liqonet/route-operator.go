@@ -32,7 +32,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -62,17 +62,17 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 	mutex := &sync.RWMutex{}
 	nodeMap := map[string]string{}
 	// Get the pod ip and parse to net.IP.
-	podIP, err := utils.GetPodIP()
+	podIP, err := liqonetutils.GetPodIP()
 	if err != nil {
 		klog.Errorf("unable to get podIP: %v", err)
 		os.Exit(1)
 	}
-	nodeName, err := utils.GetNodeName()
+	nodeName, err := liqonetutils.GetNodeName()
 	if err != nil {
 		klog.Errorf("unable to get node name: %v", err)
 		os.Exit(1)
 	}
-	podNamespace, err := utils.GetPodNamespace()
+	podNamespace, err := liqonetutils.GetPodNamespace()
 	if err != nil {
 		klog.Errorf("unable to get pod namespace: %v", err)
 		os.Exit(1)

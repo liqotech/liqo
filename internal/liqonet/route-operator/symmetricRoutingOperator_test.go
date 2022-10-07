@@ -33,7 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var (
@@ -83,7 +83,7 @@ var _ = Describe("SymmetricRoutingOperator", func() {
 				},
 			},
 		}
-		gw := net.ParseIP(utils.GetOverlayIP(srcNodeIP))
+		gw := net.ParseIP(liqonetutils.GetOverlayIP(srcNodeIP))
 		Expect(gw).NotTo(BeNil())
 		_, dst, err := net.ParseCIDR(srcRouteDst)
 		Expect(err).To(BeNil())
@@ -244,7 +244,7 @@ var _ = Describe("SymmetricRoutingOperator", func() {
 				Expect(err).Should(BeNil())
 				Expect(len(routes)).Should(BeNumerically("==", 1))
 				Expect(routes[0].Dst.String()).Should(Equal(dstNet.String()))
-				Expect(routes[0].Gw.String()).Should(Equal(utils.GetOverlayIP(srcNodeIP)))
+				Expect(routes[0].Gw.String()).Should(Equal(liqonetutils.GetOverlayIP(srcNodeIP)))
 			})
 		})
 
@@ -266,7 +266,7 @@ var _ = Describe("SymmetricRoutingOperator", func() {
 				Expect(err).Should(BeNil())
 				Expect(len(routes)).Should(BeNumerically("==", 1))
 				Expect(routes[0].Dst.String()).Should(Equal(srcRouteDst))
-				Expect(routes[0].Gw.String()).Should(Equal(utils.GetOverlayIP(srcNodeIP)))
+				Expect(routes[0].Gw.String()).Should(Equal(liqonetutils.GetOverlayIP(srcNodeIP)))
 
 			})
 		})
