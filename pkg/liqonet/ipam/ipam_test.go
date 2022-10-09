@@ -49,8 +49,8 @@ const (
 	localNATPodCIDR      = "10.0.1.0/24"
 	localNATExternalCIDR = "192.168.30.0/24"
 	externalEndpointIP   = "10.0.50.6"
-	invalidValue         = "invalid value"
 	endpointIP           = "20.0.0.1"
+	invalidValue         = "invalid value"
 )
 
 var (
@@ -1051,7 +1051,7 @@ var _ = Describe("Ipam", func() {
 
 					response, err := ipam.MapEndpointIP(context.Background(), &MapRequest{
 						ClusterID: clusterID1,
-						Ip:        "20.0.0.1",
+						Ip:        endpointIP,
 					})
 					Expect(err).To(BeNil())
 					slicedPrefix := strings.SplitN(externalCIDR, ".", 4)
@@ -1061,7 +1061,7 @@ var _ = Describe("Ipam", func() {
 					// Should create a mapping in NatMapping resource
 					nm, err := getNatMappingResourcePerCluster(clusterID1)
 					Expect(err).To(BeNil())
-					Expect(nm.Spec.ClusterMappings).To(HaveKeyWithValue("20.0.0.1", response.GetIp()))
+					Expect(nm.Spec.ClusterMappings).To(HaveKeyWithValue(endpointIP, response.GetIp()))
 				})
 				It("should return the same IP if more remote clusters ask for the same endpoint", func() {
 					// Set PodCIDR
@@ -1087,7 +1087,7 @@ var _ = Describe("Ipam", func() {
 					// Reflection cluster1
 					response, err := ipam.MapEndpointIP(context.Background(), &MapRequest{
 						ClusterID: clusterID1,
-						Ip:        "20.0.0.1",
+						Ip:        endpointIP,
 					})
 					Expect(err).To(BeNil())
 					slicedPrefix := strings.SplitN(externalCIDR, ".", 4)
@@ -1098,7 +1098,7 @@ var _ = Describe("Ipam", func() {
 					// Reflection cluster2
 					response, err = ipam.MapEndpointIP(context.Background(), &MapRequest{
 						ClusterID: clusterID1,
-						Ip:        "20.0.0.1",
+						Ip:        endpointIP,
 					})
 					Expect(err).To(BeNil())
 					Expect(response.GetIp()).To(Equal(expectedIP))
@@ -1128,7 +1128,7 @@ var _ = Describe("Ipam", func() {
 
 					response, err := ipam.MapEndpointIP(context.Background(), &MapRequest{
 						ClusterID: clusterID1,
-						Ip:        "20.0.0.1",
+						Ip:        endpointIP,
 					})
 					Expect(err).To(BeNil())
 					Expect(response.GetIp()).To(HavePrefix("192.168.0."))
@@ -1345,7 +1345,7 @@ var _ = Describe("Ipam", func() {
 		})
 		Context("If there are no more clusters using an endpointIP", func() {
 			It("should free the relative IP", func() {
-				endpointIP := "20.0.0.1"
+				endpointIP := endpointIP
 				// Set PodCIDR
 				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
@@ -1416,7 +1416,6 @@ var _ = Describe("Ipam", func() {
 		})
 		Context("If there are other clusters using an endpointIP", func() {
 			It("should not free the relative IP", func() {
-
 				// Set PodCIDR
 				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
