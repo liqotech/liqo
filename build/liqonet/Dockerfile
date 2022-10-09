@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" .
 FROM alpine:3.15
 
 RUN apk update && \
-    apk add iptables bash wireguard-tools tcpdump && \
+    apk add iptables bash wireguard-tools tcpdump conntrack-tools curl && \
     rm -rf /var/cache/apk/*
 
 COPY --from=goBuilder /tmp/builder/liqonet /usr/bin/liqonet
