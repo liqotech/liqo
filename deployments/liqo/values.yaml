@@ -90,10 +90,12 @@ gateway:
     serviceMonitor:
       # -- create a prometheus servicemonitor.
       enabled: false
-      # -- setup service monitor requests interval.
-      interval: "1m"
-      # -- setup service monitor scrape timeout.
-      scrapeTimeout: "15s"
+      # -- setup service monitor requests interval. If empty, Prometheus uses the global scrape interval.
+      # ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint
+      interval: ""
+      # -- setup service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout.
+      # ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint
+      scrapeTimeout: ""
 
 networkManager:
   pod:

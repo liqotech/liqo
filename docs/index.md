@@ -159,5 +159,6 @@ Explore the details about which and how native resources are **reflected** to re
 [](usage/namespace-offloading.md) ·
 [](usage/reflection.md) ·
 [](usage/stateful-applications.md)
+[](usage/prometheus-metrics.md)
 ```
 ````

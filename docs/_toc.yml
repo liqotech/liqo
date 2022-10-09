@@ -30,6 +30,7 @@ subtrees:
       - file: usage/namespace-offloading.md
       - file: usage/reflection.md
       - file: usage/stateful-applications.md
+      - file: usage/prometheus-metrics.md
 
   - caption: Contributing
     entries:

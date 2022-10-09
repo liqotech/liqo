@@ -352,6 +352,8 @@ The main networking flags include:
 * `--reserved-subnets`: the list of **private CIDRs to be excluded** from the ones used by Liqo to remap remote clusters in case of address conflicts, as already in use (e.g., the subnet of the cluster nodes).
 The Pod CIDR and the Service CIDR shall not be manually specified, as automatically included in the reserved list.
 
+(InstallationHelm)=
+
 ## Install with Helm
 
 To install Liqo directly with Helm, it is possible to proceed as follows:
