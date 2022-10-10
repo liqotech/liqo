@@ -35,6 +35,11 @@ subtrees:
     entries:
       - file: contributing/contributing.md
 
+  - caption: Add-Ons
+    entries:
+      - url: https://github.com/LucaRocco/liqo-public-peering-dashboard
+        title: Public Peering Dashboard
+
   - caption: More
     entries:
       - url: https://github.com/liqotech/liqo
