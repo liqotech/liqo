@@ -25,6 +25,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 // NoLimit is a constant to specify that autocompletion is not limited depending on the number of arguments.
@@ -52,7 +53,7 @@ func common(ctx context.Context, f *factory.Factory, argsLimit int, retrieve ret
 
 		var output []string
 		for _, value := range values {
-			if strings.HasPrefix(value, toComplete) {
+			if strings.HasPrefix(value, toComplete) && !slice.ContainsString(args, value) {
 				output = append(output, value)
 			}
 		}

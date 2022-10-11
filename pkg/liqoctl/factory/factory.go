@@ -61,7 +61,8 @@ type Factory struct {
 	// Namespace is the namespace that the user has requested with the "--namespace" / "-n" flag, if registered (alternative to LiqoNamespace).
 	Namespace string
 
-	// LiqoNamespace is the namespace that the user has requested with the "--namespace" / "-n" flag, if registered (alternative to Namespace).
+	// LiqoNamespace is the namespace (where Liqo is installed) that the user has requested with the "--namespace" / "-n" flag,
+	// if registered (alternative to Namespace).
 	LiqoNamespace string
 
 	// RESTConfig is a Kubernetes REST config that contains the user's authentication and access configuration.

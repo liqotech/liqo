@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package status
+package statuslocal
 
 import (
 	"context"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gstruct"
 	"github.com/pterm/pterm"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/status"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -37,12 +37,11 @@ var _ = Describe("LocalInfo", func() {
 	)
 
 	var (
-		clientBuilder  fake.ClientBuilder
-		lic            *LocalInfoChecker
-		ctx            context.Context
-		options        Options
-		errFmt, errCol error
-		text           string
+		clientBuilder fake.ClientBuilder
+		lic           *LocalInfoChecker
+		ctx           context.Context
+		text          string
+		options       status.Options
 	)
 
 	BeforeEach(func() {
@@ -52,32 +51,32 @@ var _ = Describe("LocalInfo", func() {
 			testutil.FakeClusterIDConfigMap(namespace, clusterID, clusterName),
 			testutil.FakeIPAM(namespace),
 		)
-		options = Options{Factory: factory.NewForLocal()}
+		options = status.Options{Factory: factory.NewForLocal()}
 		options.Printer = output.NewFakePrinter(GinkgoWriter)
 		options.CRClient = clientBuilder.Build()
 	})
 
 	Context("Creating a new LocalInfoChecker", func() {
 		JustBeforeEach(func() {
-			lic = newLocalInfoChecker(&options)
+			lic = NewLocalInfoCheckerTest(&options, testutil.FakeHelmValues())
 		})
 		It("should return a valid LocalInfoChecker", func() {
 			Expect(lic.localInfoSection).To(Equal(output.NewRootSection()))
-			Expect(lic.options).To(gstruct.PointTo(Equal(options)))
 			Expect(lic.getReleaseValues).ToNot(BeNil())
 		})
 	})
 	Context("Collecting and Formatting LocalInfoChecker", func() {
 		BeforeEach(func() {
-			lic = newLocalInfoCheckerTest(&options, testutil.FakeHelmValues())
-			errCol = lic.Collect(ctx)
+			lic = NewLocalInfoCheckerTest(&options, testutil.FakeHelmValues())
+			lic.Collect(ctx)
 		})
 		JustBeforeEach(func() {
-			text, errFmt = lic.Format()
+			text = lic.Format()
+			text = pterm.RemoveColorFromString(text)
+			text = testutil.SqueezeWhitespaces(text)
 		})
 		It("should not return errors", func() {
-			Expect(errCol).ToNot(HaveOccurred())
-			Expect(errFmt).ToNot(HaveOccurred())
+			Expect(lic.HasSucceeded()).To(BeTrue())
 		})
 		It("should format a valid text", func() {
 			Expect(text).To(ContainSubstring(

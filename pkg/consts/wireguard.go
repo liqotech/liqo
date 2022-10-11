@@ -25,6 +25,14 @@ const (
 	DriverName = "wireguard"
 	// KeysLabel label for the secret that contains the public key.
 	KeysLabel = "net.liqo.io/key"
-	// TunnelIP is the IP address of the tunnel.
-	TunnelIP = "169.254.0.1"
+	// WgTunnelIP is the IP address of the wireguard tunnel interface.
+	WgTunnelIP = "169.254.0.1"
+	// WgEndpointIP is the key of the endpointIP entry in back-end map of wireguard interface.
+	WgEndpointIP = "endpointIP"
+	// WgPrivateKey is the key of the private key entry for the secret containing the wireguard keys.
+	WgPrivateKey = "privateKey"
+	// WgAllowedIPs is the key of the allowedIPs entry in the back-end map of wireguard interface.
+	WgAllowedIPs = "allowedIPs"
+	// WgKeysName is the name of the secret that contains the public key used by wireguard.
+	WgKeysName = "wireguard-pubkey"
 )

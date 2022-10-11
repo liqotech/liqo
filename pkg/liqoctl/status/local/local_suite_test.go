@@ -12,5 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package status contains the implementation of the status command.
-package status
+package statuslocal
+
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+)
+
+func TestLocal(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Local Suite")
+}
+
+var _ = BeforeSuite(func() {
+	utilruntime.Must(corev1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(netv1alpha1.AddToScheme(scheme.Scheme))
+})

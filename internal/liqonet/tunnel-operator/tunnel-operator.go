@@ -137,7 +137,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 		if err := wg.SetNewClient(); err != nil {
 			return fmt.Errorf("an error occurred while setting new client in tunnel driver")
 		}
-		err = EnforceIP(link, liqoconst.TunnelIP)
+		err = EnforceIP(link, liqoconst.WgTunnelIP)
 		if err != nil {
 			return fmt.Errorf("unable to enforce tunnel IP: %w", err)
 		}

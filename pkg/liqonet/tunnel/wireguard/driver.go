@@ -48,19 +48,6 @@ import (
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
-const (
-	// DriverName is the name of the driver.
-	DriverName = "wireguard"
-	// PrivateKey is the key of private for the secret containing the wireguard keys.
-	PrivateKey = "privateKey"
-	// EndpointIP is the key of the endpointIP entry in back-end map.
-	EndpointIP = "endpointIP"
-	// AllowedIPs is the key of the allowedIPs entry in the back-end map.
-	AllowedIPs = "allowedIPs"
-	// name of the secret that contains the public key used by wireguard.
-	keysName = "wireguard-pubkey"
-)
-
 // Registering the driver as available.
 func init() {
 	tunnel.AddDriver(liqoconst.DriverName, NewDriver)
@@ -193,8 +180,10 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint, updateSta
 	w.connectionsMutex.RUnlock()
 	if found {
 		// check if the peer configuration is updated.
-		if stringAllowedIPs == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[liqoconst.PublicKey] &&
-			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[liqoconst.ListeningPort] {
+		if stringAllowedIPs == oldCon.PeerConfiguration[liqoconst.WgAllowedIPs] &&
+			remoteKey.String() == oldCon.PeerConfiguration[liqoconst.PublicKey] &&
+			endpoint.IP.String() == oldCon.PeerConfiguration[liqoconst.WgEndpointIP] &&
+			strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[liqoconst.ListeningPort] {
 			// Update connection status.
 			return &tep.Status.Connection, nil
 		}
@@ -245,8 +234,8 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint, updateSta
 	c := &netv1alpha1.Connection{
 		Status:        netv1alpha1.Connecting,
 		StatusMessage: netv1alpha1.ConnectingMessage,
-		PeerConfiguration: map[string]string{liqoconst.ListeningPort: strconv.Itoa(endpoint.Port), EndpointIP: endpoint.IP.String(),
-			AllowedIPs: stringAllowedIPs, liqoconst.PublicKey: remoteKey.String()},
+		PeerConfiguration: map[string]string{liqoconst.ListeningPort: strconv.Itoa(endpoint.Port), liqoconst.WgEndpointIP: endpoint.IP.String(),
+			liqoconst.WgAllowedIPs: stringAllowedIPs, liqoconst.PublicKey: remoteKey.String()},
 		Latency: netv1alpha1.ConnectionLatency{
 			Value:     liqoconst.NotApplicable,
 			Timestamp: metav1.Time{Time: time.Now()},
@@ -459,7 +448,7 @@ func newConnectionOnError(msg string) *netv1alpha1.Connection {
 func (w *Wireguard) setKeys(c k8s.Interface, namespace string) error {
 	var priv, pub wgtypes.Key
 	// first we check if a secret containing valid keys already exists.
-	s, err := c.CoreV1().Secrets(namespace).Get(context.Background(), keysName, metav1.GetOptions{})
+	s, err := c.CoreV1().Secrets(namespace).Get(context.Background(), liqoconst.WgKeysName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -474,22 +463,22 @@ func (w *Wireguard) setKeys(c k8s.Interface, namespace string) error {
 		w.conf.priKey = priv
 		pKey := corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      keysName,
+				Name:      liqoconst.WgKeysName,
 				Namespace: namespace,
 				Labels:    map[string]string{liqoconst.KeysLabel: liqoconst.DriverName},
 			},
-			StringData: map[string]string{liqoconst.PublicKey: pub.String(), PrivateKey: priv.String()},
+			StringData: map[string]string{liqoconst.PublicKey: pub.String(), liqoconst.WgPrivateKey: priv.String()},
 		}
 		_, err = c.CoreV1().Secrets(namespace).Create(context.Background(), &pKey, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create the secret with name %s: %w", keysName, err)
+			return fmt.Errorf("failed to create the secret with name %s: %w", liqoconst.WgKeysName, err)
 		}
 		return nil
 	}
 	// get the keys from the existing secret and set them.
-	privKey, found := s.Data[PrivateKey]
+	privKey, found := s.Data[liqoconst.WgPrivateKey]
 	if !found {
-		return fmt.Errorf("no data with key '%s' found in secret %s", PrivateKey, keysName)
+		return fmt.Errorf("no data with key '%s' found in secret %s", liqoconst.WgPrivateKey, liqoconst.WgKeysName)
 	}
 	priv, err = wgtypes.ParseKey(string(privKey))
 	if err != nil {
@@ -497,7 +486,7 @@ func (w *Wireguard) setKeys(c k8s.Interface, namespace string) error {
 	}
 	pubKey, found := s.Data[liqoconst.PublicKey]
 	if !found {
-		return fmt.Errorf("no data with key '%s' found in secret %s", liqoconst.PublicKey, keysName)
+		return fmt.Errorf("no data with key '%s' found in secret %s", liqoconst.PublicKey, liqoconst.WgKeysName)
 	}
 	pub, err = wgtypes.ParseKey(string(pubKey))
 	if err != nil {
@@ -532,7 +521,7 @@ func (w *Wireguard) Collect(ch chan<- prometheus.Metric) {
 	for i := range device.Peers {
 		publicKey := device.Peers[i].PublicKey
 		labels := []string{
-			DriverName, device.Name,
+			liqoconst.DriverName, device.Name,
 			w.connectedClusterIdentities[publicKey].ClusterID,
 			w.connectedClusterIdentities[publicKey].ClusterName,
 		}

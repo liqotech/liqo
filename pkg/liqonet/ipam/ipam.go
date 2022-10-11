@@ -698,7 +698,7 @@ func (liqoIPAM *IPAM) initNatMappingsPerCluster(clusterID string, subnets netv1a
 		return fmt.Errorf("unable to acquire IP %s: %w", natTunnelIPLocal, err)
 	}
 
-	if err := liqoIPAM.SetSpecificNatMapping(natTunnelIPLocal, natTunnelIP, consts.TunnelIP, clusterID); err != nil {
+	if err := liqoIPAM.SetSpecificNatMapping(natTunnelIPLocal, natTunnelIP, consts.WgTunnelIP, clusterID); err != nil {
 		return fmt.Errorf("an error occurred while setting the NAT mapping for the nat tunnel ip %s: %w", natTunnelIP, err)
 	}
 

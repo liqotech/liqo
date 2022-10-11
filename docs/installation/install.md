@@ -430,6 +430,15 @@ liqoctl install <provider> --version <commit-sha> --local-chart-path <path-to-lo
 
 (InstallationCalicoConfiguration)=
 
+## Check installation
+
+After the installation, it is possible to check the status of the Liqo components.
+In particular, the following command can be used to check the status of the Liqo **pods** and get **local information**:
+
+```bash
+liqoctl status
+```
+
 ## Liqo and Calico
 
 Liqo adds several interfaces to the cluster nodes to handle cross-cluster traffic routing.

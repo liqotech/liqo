@@ -24,3 +24,6 @@ install:
 
 serve: install html
 	docker run --rm -it -v $(PWD)/_build/html:/usr/share/nginx/html -p 8080:80 nginx
+
+lint:
+	markdownlint lint -c ../.markdownlint.yml **/*.md
