@@ -101,10 +101,12 @@ func (p *Printer) BoxSetTitle(title string) {
 }
 
 // BulletListSprintForBox prints the bullet list for the box.
-func (p *Printer) BulletListSprintForBox() (string, error) {
+func (p *Printer) BulletListSprintForBox() string {
+	// Srender function never throws an error.
 	text, err := p.BulletList.Srender()
+	p.CheckErr(err)
 	text = strings.TrimRight(text, "\n")
-	return text, err
+	return text
 }
 
 // BulletListAddItem adds a new message to the BulletListPrinter.

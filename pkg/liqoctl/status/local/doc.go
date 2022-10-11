@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package status contains the implementation of the status command.
-package status
+// Package statuslocal contains the logic that handles the status local command in liqoctl
+package statuslocal

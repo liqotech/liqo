@@ -92,6 +92,12 @@ NAME            STATUS   ROLES   AGE    VERSION
 liqo-provider   Ready    agent   179m   v1.23.4
 ```
 
+In addition, you can check the peering status, and retrieve more advanced information, using:
+
+```bash
+liqoctl status peer provider
+```
+
 ```{admonition} Note
 The name of the *ForeignCluster* resource, as well as that of the *virtual node*, reflects the cluster name specified with the *liqoctl peer out-of-band* command.
 ```
@@ -175,6 +181,12 @@ Should return an output similar to the following:
 ```text
 NAME             STATUS   ROLES   AGE    VERSION
 liqo-provider    Ready    agent   179m   v1.23.4
+```
+
+In addition, you can check the peering status, and retrieve more advanced information, using:
+
+```bash
+liqoctl status peer provider
 ```
 
 ```{admonition} Note

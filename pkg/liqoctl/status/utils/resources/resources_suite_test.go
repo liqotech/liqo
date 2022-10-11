@@ -12,5 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package status contains the implementation of the status command.
-package status
+package resources_test
+
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
+	sharev1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
+)
+
+func TestShare(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Share Suite")
+}
+
+var _ = BeforeSuite(func() {
+	utilruntime.Must(sharev1alpha1.AddToScheme(scheme.Scheme))
+})

@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package status contains the implementation of the status command.
-package status
+// Package resources contains utilities to get share resources quantities.
+package resources

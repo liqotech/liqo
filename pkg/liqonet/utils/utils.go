@@ -327,3 +327,8 @@ func FormatLatency(latency time.Duration) string {
 	}
 	return fmt.Sprintf("%dμs", latency.Microseconds())
 }
+
+// IsLocalNetworkConfig checks if the given network configuration is local.
+func IsLocalNetworkConfig(networkConfig *netv1alpha1.NetworkConfig) bool {
+	return networkConfig.Labels[consts.ReplicationRequestedLabel] == "true"
+}

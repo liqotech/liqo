@@ -12,5 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package status contains the implementation of the status command.
-package status
+package testutil
+
+import "regexp"
+
+// SqueezeWhitespaces squeezes a string replacing multiple whitespaces with a single one.
+func SqueezeWhitespaces(s string) string {
+	whitespaces := regexp.MustCompile(`\s+`)
+	return whitespaces.ReplaceAllString(s, " ")
+}

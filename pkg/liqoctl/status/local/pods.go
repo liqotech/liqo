@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package status
+package statuslocal
 
 import (
 	"context"
@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/status"
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
@@ -50,22 +51,6 @@ var (
 // errorCount is a struct holding a list of errors.
 type errorCount struct {
 	errors []error
-}
-
-// collectionError struct holding the error for a given deployment of Liqo while collecting its status.
-type collectionError struct {
-	appType string
-	appName string
-	err     error
-}
-
-// newCollectionError return a new collectionError with the given arguments set.
-func newCollectionError(appType, appName string, err error) collectionError {
-	return collectionError{
-		appType: appType,
-		appName: appName,
-		err:     err,
-	}
 }
 
 // errorCountMap is a map with:
@@ -183,37 +168,45 @@ func (ps *componentState) format() string {
 	return strings.Join(outputTokens, ", ")
 }
 
-// podChecker implements the Check interface.
+// PodChecker implements the Check interface.
 // holds the information about the control plane pods of Liqo.
-type podChecker struct {
-	options          *Options
+type PodChecker struct {
+	options          *status.Options
 	deployments      []string
 	daemonSets       []string
 	podsState        podStateMap
 	errors           bool
-	collectionErrors []collectionError
+	collectionErrors []error
 }
 
-// newPodChecker return a new pod checker.
-func newPodChecker(options *Options, deployments, daemonSets []string) *podChecker {
-	return &podChecker{
+// NewPodChecker return a new pod checker.
+func NewPodChecker(options *status.Options) *PodChecker {
+	return &PodChecker{
 		options:     options,
-		deployments: deployments,
-		daemonSets:  daemonSets,
+		deployments: liqoDeployments,
+		daemonSets:  liqoDaemonSets,
 		podsState:   make(podStateMap, 6),
 		errors:      false,
 	}
 }
 
+// Silent implements the Checker interface.
+func (pc *PodChecker) Silent() bool {
+	return false
+}
+
 // Collect implements the collect method of the Checker interface.
 // it collects the status of the components of Liqo. The status is
 // collected at the pod level.
-func (pc *podChecker) Collect(ctx context.Context) error {
+func (pc *PodChecker) Collect(ctx context.Context) {
 	for _, dName := range pc.deployments {
 		err := pc.deploymentStatus(ctx, dName)
 		if err != nil {
-			pc.addCollectionError("Deployment", dName,
-				fmt.Errorf("unable to collect status for deployment %s in namespace %s: %w", dName, pc.options.LiqoNamespace, err))
+			pc.addCollectionError(fmt.Errorf("unable to collect status for deployment %s in namespace %s: %w",
+				pc.options.Printer.Error.Prefix.Style.Sprint(dName),
+				pc.options.Printer.Error.Prefix.Style.Sprint(pc.options.LiqoNamespace),
+				err,
+			))
 			pc.errors = true
 		}
 	}
@@ -221,28 +214,30 @@ func (pc *podChecker) Collect(ctx context.Context) error {
 	for _, dName := range pc.daemonSets {
 		err := pc.daemonSetStatus(ctx, dName)
 		if err != nil {
-			pc.addCollectionError("DaemonSet", dName,
-				fmt.Errorf("unable to collect status for daemonSet %s in namespace %s: %w", dName, pc.options.LiqoNamespace, err))
+			pc.addCollectionError(fmt.Errorf("unable to collect status for daemonSet %s in namespace %s: %w",
+				pc.options.Printer.Error.Prefix.Style.Sprint(dName),
+				pc.options.Printer.Error.Prefix.Style.Sprint(pc.options.LiqoNamespace),
+				err,
+			))
 			pc.errors = true
 		}
 	}
-
-	return nil
 }
 
-func (pc *podChecker) HasSucceeded() bool {
+// HasSucceeded implements the HasSucceeded method of the Checker interface.
+func (pc *PodChecker) HasSucceeded() bool {
 	return !pc.errors
 }
 
-// GetTitle implements the getTitle method of the Checker interface.
-func (pc *podChecker) GetTitle() string {
+// GetTitle implements the GetTitle method of the Checker interface.
+func (pc *PodChecker) GetTitle() string {
 	return ctrlPlaneCheckerName
 }
 
-// Format implements the format method of the Checker interface.
+// Format implements the Format method of the Checker interface.
 // it outputs the status of the Liqo components in a string ready to be
 // printed out.
-func (pc *podChecker) Format() (string, error) {
+func (pc *PodChecker) Format() string {
 	var text string
 	if pc.errors {
 		text += pc.options.Printer.Error.Sprintfln("%s liqo control plane is not OK", pterm.Red(output.Cross))
@@ -259,18 +254,18 @@ func (pc *podChecker) Format() (string, error) {
 			}
 		}
 		for _, err := range pc.collectionErrors {
-			text += pc.options.Printer.Error.Sprintln(pc.options.Printer.Paragraph.Sprintf("%s\t%s\t%s", err.appType, err.appName, err.err))
+			text += pc.options.Printer.Error.Sprintln(pc.options.Printer.Paragraph.Sprintf("%s", err))
 		}
 		text = strings.TrimRight(text, "\n")
-		return text, fmt.Errorf("%s", text)
+		return text
 	}
 	text += pc.options.Printer.Success.Sprint(pterm.Sprintf("%s control plane pods are up and running",
 		pterm.FgGreen.Sprint(output.CheckMark)))
-	return text, nil
+	return text
 }
 
 // deploymentStatus collects the status of a given kubernetes Deployment.
-func (pc *podChecker) deploymentStatus(ctx context.Context, deploymentName string) error {
+func (pc *PodChecker) deploymentStatus(ctx context.Context, deploymentName string) error {
 	var errors bool
 	d, err := pc.options.KubeClient.AppsV1().Deployments(pc.options.LiqoNamespace).Get(ctx, deploymentName, metav1.GetOptions{})
 
@@ -308,7 +303,7 @@ func (pc *podChecker) deploymentStatus(ctx context.Context, deploymentName strin
 }
 
 // daemontSetStatus collects the status of a given kubernetes DaemonSet.
-func (pc *podChecker) daemonSetStatus(ctx context.Context, daemonSetName string) error {
+func (pc *PodChecker) daemonSetStatus(ctx context.Context, daemonSetName string) error {
 	d, err := pc.options.KubeClient.AppsV1().DaemonSets(pc.options.LiqoNamespace).Get(ctx, daemonSetName, metav1.GetOptions{})
 
 	if err != nil {
@@ -346,8 +341,8 @@ func (pc *podChecker) daemonSetStatus(ctx context.Context, daemonSetName string)
 
 // addCollectionError adds a collection error. A collection error is an error that happens while
 // collecting the status of a Liqo component.
-func (pc *podChecker) addCollectionError(deploymentType, deploymenName string, err error) {
-	pc.collectionErrors = append(pc.collectionErrors, newCollectionError(deploymentType, deploymenName, err))
+func (pc *PodChecker) addCollectionError(err error) {
+	pc.collectionErrors = append(pc.collectionErrors, err)
 }
 
 // checkPodsStatus fills the componentState data structure for a given pod.

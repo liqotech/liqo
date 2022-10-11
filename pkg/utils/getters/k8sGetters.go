@@ -54,8 +54,8 @@ func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, lSelector labe
 
 // GetNetworkConfigByLabel it returns a networkconfigs instance that matches the given label selector.
 func GetNetworkConfigByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.NetworkConfig, error) {
-	list := new(netv1alpha1.NetworkConfigList)
-	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+	list, err := ListNetworkConfigsByLabel(ctx, cl, ns, lSelector)
+	if err != nil {
 		return nil, err
 	}
 
@@ -68,6 +68,15 @@ func GetNetworkConfigByLabel(ctx context.Context, cl client.Client, ns string, l
 		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s} in namespace {%s},"+
 			" when only one was expected", netv1alpha1.NetworkConfigGroupResource.String(), lSelector.String(), ns)
 	}
+}
+
+// ListNetworkConfigsByLabel it returns a NetworkConfig list that matches the given label selector.
+func ListNetworkConfigsByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.NetworkConfigList, error) {
+	list := new(netv1alpha1.NetworkConfigList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
 // GetResourceOfferByLabel returns the ResourceOffer with the given labels.
@@ -247,4 +256,18 @@ func GetTunnelEndpoint(ctx context.Context, cl client.Client,
 		return nil, fmt.Errorf("multiple resources of type tunnelendpoint found for cluster %q (ID: %s)"+
 			" when only one was expected", destinationClusterIdentity.ClusterName, destinationClusterIdentity.ClusterID)
 	}
+}
+
+// MapForeignClustersByLabel returns a map of foreign clusters indexed their names.
+func MapForeignClustersByLabel(ctx context.Context, cl client.Client,
+	lSelector labels.Selector) (map[string]discoveryv1alpha1.ForeignCluster, error) {
+	result := make(map[string]discoveryv1alpha1.ForeignCluster)
+	list := new(discoveryv1alpha1.ForeignClusterList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+		return nil, err
+	}
+	for i := range list.Items {
+		result[list.Items[i].Name] = list.Items[i]
+	}
+	return result, nil
 }

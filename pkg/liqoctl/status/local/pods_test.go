@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package status
+package statuslocal
 
 import (
 	"context"
@@ -31,27 +31,11 @@ import (
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/status"
 )
 
 var _ = Describe("Pods", func() {
 	pterm.DisableStyling()
-	Describe("CollectionError", func() {
-		var (
-			appType = "Deployment"
-			appName = "app"
-			err     = errors.New("ce")
-		)
-
-		Context("creating a new collectionError", func() {
-			It("should hold the passed parameters during the creation", func() {
-				ce := newCollectionError(appType, appName, err)
-				Expect(ce.appType).To(Equal(appType))
-				Expect(ce.appName).To(Equal(appName))
-				Expect(ce.err).To(MatchError(err))
-			})
-		})
-	})
-
 	Describe("ComponentState", func() {
 		var (
 			deploymentType = "Deployment"
@@ -166,7 +150,7 @@ var _ = Describe("Pods", func() {
 			pod           *v1.Pod
 			deployment    *appsv1.Deployment
 			daemonSet     *appsv1.DaemonSet
-			podC          podChecker
+			podC          PodChecker
 			ctx           = context.Background()
 			namespace     = "namespaceTest"
 			deploymentApp = "deploymentTest"
@@ -175,7 +159,7 @@ var _ = Describe("Pods", func() {
 			daemonSets    = []string{daemonSetApp}
 			writer        io.Writer
 			printer       = output.NewFakePrinter(writer)
-			options       = &Options{Factory: factory.NewForLocal()}
+			options       = &status.Options{Factory: factory.NewForLocal()}
 			depLabels     = map[string]string{
 				"app": deploymentApp,
 			}
@@ -185,6 +169,7 @@ var _ = Describe("Pods", func() {
 		)
 		BeforeEach(func() {
 			options.LiqoNamespace = namespace
+			options.Printer = printer
 			pod = &v1.Pod{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Pod",
@@ -231,7 +216,7 @@ var _ = Describe("Pods", func() {
 			}
 		})
 		JustBeforeEach(func() {
-			podC = podChecker{
+			podC = PodChecker{
 				deployments:      deployments,
 				daemonSets:       daemonSets,
 				podsState:        make(podStateMap, 2),
@@ -243,9 +228,9 @@ var _ = Describe("Pods", func() {
 
 		Describe("creating a new podChecker", func() {
 			It("should hold the passed parameters during the creation", func() {
-				pc := newPodChecker(options, deployments, daemonSets)
-				Expect(pc.daemonSets).To(Equal(daemonSets))
-				Expect(pc.deployments).To(Equal(deployments))
+				pc := NewPodChecker(options)
+				Expect(pc.daemonSets).To(Equal(liqoDaemonSets))
+				Expect(pc.deployments).To(Equal(liqoDeployments))
 				Expect(pc.errors).To(BeFalse())
 			})
 		})
@@ -255,7 +240,7 @@ var _ = Describe("Pods", func() {
 				When("fails to get the deployment", func() {
 					It("should add an error to the collectionErrors", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset()
-						Expect(podC.Collect(ctx)).To(BeNil())
+						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
 						Expect(podC.collectionErrors).To(HaveLen(2))
 					})
@@ -264,7 +249,7 @@ var _ = Describe("Pods", func() {
 				When("fails to get the pod related to the deployment", func() {
 					It("should add an error to the collectionErrors", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset(deployment)
-						Expect(podC.Collect(ctx)).To(BeNil())
+						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
 						Expect(podC.collectionErrors).To(HaveLen(2))
 					})
@@ -274,7 +259,7 @@ var _ = Describe("Pods", func() {
 					It("should not add errors", func() {
 						pod.SetLabels(depLabels)
 						podC.options.KubeClient = fake.NewSimpleClientset(deployment, pod)
-						Expect(podC.Collect(ctx)).To(BeNil())
+						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
 						Expect(podC.collectionErrors).To(HaveLen(1))
 					})
@@ -285,7 +270,7 @@ var _ = Describe("Pods", func() {
 				When("fails to get the daemonSet", func() {
 					It("should add an error to the collectionErrors", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset()
-						Expect(podC.Collect(ctx)).To(BeNil())
+						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
 						Expect(podC.collectionErrors).To(HaveLen(2))
 					})
@@ -294,7 +279,7 @@ var _ = Describe("Pods", func() {
 				When("fails to get the pod related to the daemonSet", func() {
 					It("should add an error to the collectionErrors", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset(daemonSet)
-						Expect(podC.Collect(ctx)).To(BeNil())
+						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
 						Expect(podC.collectionErrors).To(HaveLen(2))
 					})
@@ -304,7 +289,7 @@ var _ = Describe("Pods", func() {
 					It("should not add errors", func() {
 						pod.SetLabels(dsLabels)
 						podC.options.KubeClient = fake.NewSimpleClientset(daemonSet, pod)
-						Expect(podC.Collect(ctx)).To(BeNil())
+						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
 						Expect(podC.collectionErrors).To(HaveLen(1))
 					})
@@ -365,8 +350,7 @@ var _ = Describe("Pods", func() {
 				It("should state that the status is not OK", func() {
 					podC.errors = true
 					podC.options.Printer = printer
-					msg, err := podC.Format()
-					Expect(err).To(HaveOccurred())
+					msg := podC.Format()
 					Expect(msg).To(ContainSubstring(fmt.Sprintf("%s liqo control plane is not OK", output.Cross)))
 				})
 			})
@@ -374,8 +358,7 @@ var _ = Describe("Pods", func() {
 			When("status is ok", func() {
 				It("should state that the status is OK", func() {
 					podC.options.Printer = printer
-					msg, err := podC.Format()
-					Expect(err).NotTo(HaveOccurred())
+					msg := podC.Format()
 					Expect(msg).To(ContainSubstring(fmt.Sprintf("%s control plane pods are up and running", output.CheckMark)))
 				})
 			})

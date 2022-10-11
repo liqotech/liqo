@@ -37,24 +37,25 @@ import (
 
 // GetForeignClusterByID returns a ForeignCluster CR retrieving it by its clusterID.
 func GetForeignClusterByID(ctx context.Context, cl client.Client, clusterID string) (*discoveryv1alpha1.ForeignCluster, error) {
+	lSelector := labels.SelectorFromSet(labels.Set{
+		discovery.ClusterIDLabel: clusterID,
+	})
 	// get the foreign cluster by clusterID label
 	foreignClusterList := discoveryv1alpha1.ForeignClusterList{}
 	if err := cl.List(ctx, &foreignClusterList, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{
-			discovery.ClusterIDLabel: clusterID,
-		}),
+		LabelSelector: lSelector,
 	}); err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
-	if len(foreignClusterList.Items) == 0 {
-		// object not found
-		err := kerrors.NewNotFound(discoveryv1alpha1.ForeignClusterGroupResource, clusterID)
-		klog.V(3).Info(err)
-		return nil, err
+	switch len(foreignClusterList.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(discoveryv1alpha1.ForeignClusterGroupResource, fmt.Sprintf("foreign cluster with ID %s", clusterID))
+	case 1:
+		return &foreignClusterList.Items[0], nil
+	default:
+		return GetOlderForeignCluster(&foreignClusterList), nil
 	}
-	return GetOlderForeignCluster(&foreignClusterList), nil
 }
 
 // GetOlderForeignCluster returns the ForeignCluster from the list with the older creationTimestamp.

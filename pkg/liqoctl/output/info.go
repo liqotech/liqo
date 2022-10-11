@@ -15,6 +15,8 @@
 package output
 
 import (
+	"strings"
+
 	"github.com/pterm/pterm"
 )
 
@@ -23,7 +25,7 @@ type Section interface {
 	AddSection(title string) Section
 	AddSectionWithDetail(title, detail string) Section
 	AddEntry(key string, values ...string) Section
-	SprintForBox(printer *Printer) (string, error)
+	SprintForBox(printer *Printer) string
 }
 
 // entry is a entry of the output.
@@ -63,7 +65,7 @@ func (s *section) AddEntry(key string, values ...string) Section {
 }
 
 // SprintForBox print the section for box.
-func (s *section) SprintForBox(printer *Printer) (string, error) {
+func (s *section) SprintForBox(printer *Printer) string {
 	s.print(-1, printer)
 	return printer.BulletListSprintForBox()
 }
@@ -72,7 +74,7 @@ func (s *section) SprintForBox(printer *Printer) (string, error) {
 func (s *section) String() string {
 	if s.detail != "" {
 		return pterm.Sprintf(
-			"%s [%s]",
+			"%s - %s",
 			StatusSectionStyle.Sprint(s.title),
 			StatusInfoStyle.Sprint(s.detail),
 		)
@@ -86,23 +88,40 @@ func (s *section) print(level int, printer *Printer) {
 		printer.BulletListAddItemWithoutBullet(s.String(), level)
 	}
 	for _, entry := range s.entries {
-		entry.print(level+1, printer)
+		entry.print(level+1, printer, longestEntryKey(s.entries))
 	}
 	for _, section := range s.sections {
 		section.print(level+1, printer)
 	}
 }
 
+// longestEntryKey return the longest key length of the entries.
+func longestEntryKey(entries []*entry) int {
+	longest := 0
+	for _, entry := range entries {
+		if len(entry.key) > longest {
+			longest = len(entry.key)
+		}
+	}
+	return longest
+}
+
 // print print the entry.
-func (e *entry) print(level int, printer *Printer) {
-	if len(e.values) == 1 {
-		printer.BulletListAddItemWithoutBullet(pterm.Sprintf("%s: %s",
+func (e *entry) print(level int, printer *Printer, longestKey int) {
+	switch len(e.values) {
+	case 0:
+		printer.BulletListAddItemWithoutBullet(pterm.Sprintf("%s", e.key),
+			level,
+		)
+	case 1:
+		printer.BulletListAddItemWithoutBullet(pterm.Sprintf("%s: %s%s",
 			e.key,
+			strings.Repeat(" ", longestKey-len(e.key)),
 			StatusDataStyle.Sprint(e.values[0]),
 		),
 			level,
 		)
-	} else {
+	default:
 		printer.BulletListAddItemWithoutBullet(
 			pterm.Sprintf("%s:", pterm.Sprint(e.key)),
 			level,

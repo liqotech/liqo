@@ -125,6 +125,12 @@ liqo-route-sz75m                           1/1     Running   0          2m8s
 liqo-webhook-7bb6dbf88d-2hvwx              1/1     Running   0          2m8s
 ```
 
+In addition, you can check the installation status, and the main Liqo configuration parameters, using:
+
+```bash
+liqoctl status
+```
+
 ## Peer two clusters
 
 Once Liqo is installed in your clusters, you can establish new *peerings*.
@@ -168,6 +174,12 @@ NAME                 STATUS   ROLES                  AGE     VERSION
 liqo-milan           Ready    agent                  14s     v1.23.6
 rome-control-plane   Ready    control-plane,master   7m56s   v1.23.6
 rome-worker          Ready    <none>                 7m25s   v1.23.6
+```
+
+In addition, you can check the peering status, and retrieve more advanced information, using:
+
+```bash
+liqoctl status peer milan
 ```
 
 ## Leverage remote resources

@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package status
+package statuslocal
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/status"
 	"github.com/liqotech/liqo/pkg/liqoctl/util"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -30,9 +32,9 @@ import (
 // LocalInfoChecker implements the Check interface.
 // holds the Localinformation about the cluster.
 type LocalInfoChecker struct {
-	options          *Options
+	options          *status.Options
 	localInfoSection output.Section
-	collectionErrors []collectionError
+	collectionErrors []error
 	getReleaseValues func() (map[string]interface{}, error)
 }
 
@@ -40,8 +42,8 @@ const (
 	localInfoCheckerName = "Local Cluster Information"
 )
 
-// newPodChecker return a new pod checker.
-func newLocalInfoChecker(options *Options) *LocalInfoChecker {
+// NewLocalInfoChecker returns a new LocalInfoChecker.
+func NewLocalInfoChecker(options *status.Options) *LocalInfoChecker {
 	return &LocalInfoChecker{
 		localInfoSection: output.NewRootSection(),
 		options:          options,
@@ -51,8 +53,8 @@ func newLocalInfoChecker(options *Options) *LocalInfoChecker {
 	}
 }
 
-// newPodChecker return a new pod checker.
-func newLocalInfoCheckerTest(options *Options, helmValues map[string]interface{}) *LocalInfoChecker {
+// NewLocalInfoCheckerTest returns a new LocalInfoChecker with a custom getReleaseValues function.
+func NewLocalInfoCheckerTest(options *status.Options, helmValues map[string]interface{}) *LocalInfoChecker {
 	return &LocalInfoChecker{
 		localInfoSection: output.NewRootSection(),
 		options:          options,
@@ -62,20 +64,25 @@ func newLocalInfoCheckerTest(options *Options, helmValues map[string]interface{}
 	}
 }
 
+// Silent implements the Checker interface.
+func (lic *LocalInfoChecker) Silent() bool {
+	return false
+}
+
 // Collect implements the collect method of the Checker interface.
 // it collects the infos of the local cluster.
-func (lic *LocalInfoChecker) Collect(ctx context.Context) error {
+func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 	clusterIdentity, err := utils.GetClusterIdentityWithControllerClient(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
 	if err != nil {
-		lic.addCollectionError("ClusterIdentity", "Getting clusterIdentity", err)
+		lic.addCollectionError(fmt.Errorf("unable to get cluster identity: %w", err))
 	}
 	values, err := lic.getReleaseValues()
 	if err != nil {
-		lic.addCollectionError("InfoRetrieval", "Getting release values", err)
+		lic.addCollectionError(fmt.Errorf("unable to get release values: %w", err))
 	}
 	clusterLabels, err := util.ExtractValuesFromNestedMaps(values, "discovery", "config", "clusterLabels")
 	if err != nil {
-		lic.addCollectionError("Cluster Labels", "Getting cluster labels", err)
+		lic.addCollectionError(fmt.Errorf("unable to get cluster labels: %w", err))
 	}
 
 	clusterIdentitySection := lic.localInfoSection.AddSection("Cluster Identity")
@@ -91,7 +98,7 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) error {
 	networkSection := lic.localInfoSection.AddSection("Network")
 	ipamStorage, err := getters.GetIPAMStorageByLabel(ctx, lic.options.CRClient, labels.NewSelector())
 	if err != nil {
-		lic.addCollectionError("Network", "Getting IPAM storage", err)
+		lic.addCollectionError(fmt.Errorf("unable to get ipam storage: %w", err))
 	} else {
 		networkSection.AddEntry("Pod CIDR", ipamStorage.Spec.PodCIDR)
 		networkSection.AddEntry("Service CIDR", ipamStorage.Spec.ServiceCIDR)
@@ -102,13 +109,12 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) error {
 	}
 	apiServerAddress, err := util.ExtractValuesFromNestedMaps(values, "apiServer", "address")
 	if err != nil {
-		lic.addCollectionError("Kubernetes API Server", "Getting address", err)
+		lic.addCollectionError(fmt.Errorf("unable to get api server address: %w", err))
 	}
 	if apiServerAddressString, ok := apiServerAddress.(string); ok && apiServerAddressString != "" {
 		lic.localInfoSection.AddSection("Kubernetes API Server").
 			AddEntry("Address", apiServerAddressString)
 	}
-	return nil
 }
 
 // GetTitle implements the getTitle method of the Checker interface.
@@ -118,23 +124,19 @@ func (lic *LocalInfoChecker) GetTitle() string {
 }
 
 // Format implements the format method of the Checker interface.
-// it outputs the infos about the local cluster in a string ready to be
+// it outputs the information about the local cluster in a string ready to be
 // printed out.
-func (lic *LocalInfoChecker) Format() (string, error) {
+func (lic *LocalInfoChecker) Format() string {
 	text := ""
-	var err error
 	if len(lic.collectionErrors) == 0 {
-		text, err = lic.localInfoSection.SprintForBox(lic.options.Printer)
+		text = lic.localInfoSection.SprintForBox(lic.options.Printer)
 	} else {
 		for _, cerr := range lic.collectionErrors {
-			text += lic.options.Printer.Error.Sprintfln(lic.options.Printer.Paragraph.Sprintf("%s\t%s\t%s",
-				cerr.appName,
-				cerr.appType,
-				cerr.err))
+			text += lic.options.Printer.Error.Sprintfln(lic.options.Printer.Paragraph.Sprintf("%s", cerr))
 		}
 		text = strings.TrimRight(text, "\n")
 	}
-	return text, err
+	return text
 }
 
 // HasSucceeded return true if no errors have been kept.
@@ -144,6 +146,6 @@ func (lic *LocalInfoChecker) HasSucceeded() bool {
 
 // addCollectionError adds a collection error. A collection error is an error that happens while
 // collecting the status of a Liqo component.
-func (lic *LocalInfoChecker) addCollectionError(localInfoType, localInfoName string, err error) {
-	lic.collectionErrors = append(lic.collectionErrors, newCollectionError(localInfoType, localInfoName, err))
+func (lic *LocalInfoChecker) addCollectionError(err error) {
+	lic.collectionErrors = append(lic.collectionErrors, err)
 }

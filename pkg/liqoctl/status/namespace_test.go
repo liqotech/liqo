@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	nsChecker     namespaceChecker
+	nsChecker     NamespaceChecker
 	ctx           context.Context
 	namespaceName string
 	namespace     *corev1.Namespace
@@ -54,14 +54,14 @@ var _ = Describe("Namespace", func() {
 		})
 
 		JustBeforeEach(func() {
-			nsChecker = namespaceChecker{
+			nsChecker = NamespaceChecker{
 				options: options,
 			}
 		})
 
 		Describe("creating a new namespaceChecker", func() {
 			It("should hold the parameters passed during the creation", func() {
-				nc := newNamespaceChecker(options)
+				nc := NewNamespaceChecker(options, false)
 				Expect(nc.options.LiqoNamespace).To(Equal(namespaceName))
 				Expect(nc.failureReason).To(BeNil())
 				Expect(nc.succeeded).To(BeFalse())
@@ -72,7 +72,7 @@ var _ = Describe("Namespace", func() {
 			When("fails to get the namespace", func() {
 				It("should set succeeded field to false, and the reason of failure", func() {
 					nsChecker.options.KubeClient = fake.NewSimpleClientset()
-					Expect(nsChecker.Collect(ctx)).To(BeNil())
+					nsChecker.Collect(ctx)
 					Expect(nsChecker.succeeded).To(BeFalse())
 					Expect(k8serror.IsNotFound(nsChecker.failureReason)).To(BeTrue())
 				})
@@ -81,7 +81,7 @@ var _ = Describe("Namespace", func() {
 			When("succeeds to get the namespace", func() {
 				It("should set the succeeded field to true", func() {
 					nsChecker.options.KubeClient = fake.NewSimpleClientset(namespace)
-					Expect(nsChecker.Collect(ctx)).To(BeNil())
+					nsChecker.Collect(ctx)
 					Expect(nsChecker.succeeded).To(BeTrue())
 					Expect(nsChecker.failureReason).To(BeNil())
 				})
@@ -93,9 +93,9 @@ var _ = Describe("Namespace", func() {
 				It("should state that the check has failed", func() {
 					nsChecker.succeeded = false
 					nsChecker.failureReason = fmt.Errorf("unable to find namespace foo")
-					msg, err := nsChecker.Format()
-					Expect(err).To(HaveOccurred())
-					Expect(msg).To(ContainSubstring(pterm.Sprintf("%s liqo control plane namespace %s is not OK", output.Cross, nsChecker.options.LiqoNamespace)))
+					msg := nsChecker.Format()
+					Expect(msg).To(ContainSubstring(pterm.Sprintf("%s liqo control plane namespace %s is not OK",
+						output.Cross, nsChecker.options.LiqoNamespace)))
 					Expect(msg).To(ContainSubstring(pterm.Sprintf("Reason: %s", nsChecker.failureReason)))
 				})
 			})
@@ -103,8 +103,7 @@ var _ = Describe("Namespace", func() {
 			When("succeeds to get the namespace", func() {
 				It("should set the succeeded field to true", func() {
 					nsChecker.succeeded = true
-					msg, err := nsChecker.Format()
-					Expect(err).NotTo(HaveOccurred())
+					msg := nsChecker.Format()
 					Expect(msg).To(ContainSubstring(
 						pterm.Sprintf("%s liqo control plane namespace %s exists", output.CheckMark, nsChecker.options.LiqoNamespace),
 					))
