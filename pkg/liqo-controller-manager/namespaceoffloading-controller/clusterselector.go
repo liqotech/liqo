@@ -50,7 +50,7 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 
 	var returnErr error
 	for i := range virtualNodes.Items {
-		match, err := matchVirtualNodeSelectorTerms(ctx, r.Client, &virtualNodes.Items[i], &nsoff.Spec.ClusterSelector)
+		match, err := MatchVirtualNodeSelectorTerms(ctx, r.Client, &virtualNodes.Items[i], &nsoff.Spec.ClusterSelector)
 		if err != nil {
 			r.Recorder.Eventf(nsoff, corev1.EventTypeWarning, "Invalid", "Invalid ClusterSelector: %v", err)
 			// We end the processing here, as this error will be triggered for all the virtual nodes.
@@ -97,7 +97,8 @@ func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (ma
 	return clusterIDMap, nil
 }
 
-func matchVirtualNodeSelectorTerms(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode,
+// MatchVirtualNodeSelectorTerms checks if the node match the node selector.
+func MatchVirtualNodeSelectorTerms(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode,
 	selector *corev1.NodeSelector) (bool, error) {
 	// Shortcircuit the matching logic, to always return a positive outcome in case no selector is specified.
 	if len(selector.NodeSelectorTerms) == 0 {

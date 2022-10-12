@@ -70,6 +70,7 @@ type TunnelController struct {
 	readyClustersMutex   *sync.Mutex
 	readyClusters        map[string]struct{}
 	updateStatusInterval time.Duration
+	securityMode         liqoconst.SecurityModeType
 }
 
 // cluster-role
@@ -80,12 +81,15 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=coordination.k8s.io,namespace="do-not-care",resources=leases,verbs=get;create;update
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+//+kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;
+//+kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices/endpoints,verbs=get;list;watch;
+//+kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices/endpoints/addresses,verbs=get;list;watch;
 
 // NewTunnelController instantiates and initializes the tunnel controller.
 func NewTunnelController(ctx context.Context, wg *sync.WaitGroup,
 	podIP, namespace string, er record.EventRecorder, k8sClient k8s.Interface, cl client.Client,
 	readyClustersMutex *sync.Mutex, readyClusters map[string]struct{}, gatewayNetns, hostNetns ns.NetNS, mtu, port int,
-	updateStatusInterval time.Duration) (*TunnelController, error) {
+	updateStatusInterval time.Duration, securityMode liqoconst.SecurityModeType) (*TunnelController, error) {
 	tunnelEndpointFinalizer := liqoconst.LiqoGatewayOperatorName + "." + liqoconst.FinalizersSuffix
 	tc := &TunnelController{
 		Client:               cl,
@@ -99,6 +103,7 @@ func NewTunnelController(ctx context.Context, wg *sync.WaitGroup,
 		gatewayNetns:         gatewayNetns,
 		hostNetns:            hostNetns,
 		updateStatusInterval: updateStatusInterval,
+		securityMode:         securityMode,
 	}
 
 	err := tc.SetUpTunnelDrivers(tunnel.Config{
@@ -399,6 +404,13 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 		klog.Errorf("%s -> an error occurred while inserting iptables forwarding rules for the remote peer: %s", tep.Spec.ClusterIdentity, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
+	}
+	if tc.securityMode == liqoconst.IntraClusterTrafficSegregationSecurityMode {
+		if err := tc.EnsureClusterForwardRules(tep); err != nil {
+			klog.Errorf("%s -> an error occurred while inserting iptables forwarding rules for the remote peer: %s", tep.Spec.ClusterIdentity, err.Error())
+			tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
+			return err
+		}
 	}
 	if err := tc.EnsurePostroutingRules(tep); err != nil {
 		klog.Errorf("%s -> an error occurred while inserting iptables postrouting rules for the remote peer: %s", tep.Spec.ClusterIdentity, err.Error())

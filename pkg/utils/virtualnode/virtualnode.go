@@ -61,3 +61,13 @@ func GetLabelSelectors(ctx context.Context, cl client.Client, vn *virtualkubelet
 		return n.Labels, nil
 	}
 }
+
+// GetVirtualNodeClusterID returns the clusterID given a virtual node.
+func GetVirtualNodeClusterID(vn *virtualkubeletv1alpha1.VirtualNode) (string, bool) {
+	remoteClusterID := vn.Spec.ClusterIdentity.ClusterID
+	if remoteClusterID == "" {
+		return "", false
+	}
+
+	return remoteClusterID, true
+}

@@ -24,6 +24,9 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -39,6 +42,7 @@ import (
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/liqonet/utils/links"
 	liqonetsignals "github.com/liqotech/liqo/pkg/liqonet/utils/signals"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -51,9 +55,13 @@ type gatewayOperatorFlags struct {
 	tunnelMTU            uint
 	tunnelListeningPort  uint
 	updateStatusInterval time.Duration
+	securityMode         *argsutils.StringEnum
 }
 
 func addGatewayOperatorFlags(liqonet *gatewayOperatorFlags) {
+	liqonet.securityMode = argsutils.NewEnum([]string{string(liqoconst.FullPodToPodSecurityMode),
+		string(liqoconst.IntraClusterTrafficSegregationSecurityMode)},
+		string(liqoconst.FullPodToPodSecurityMode))
 	flag.BoolVar(&liqonet.enableLeaderElection, "gateway.leader-elect", false,
 		"leader-elect enables leader election for controller manager.")
 	flag.DurationVar(&liqonet.leaseDuration, "gateway.lease-duration", 7*time.Second,
@@ -72,6 +80,7 @@ func addGatewayOperatorFlags(liqonet *gatewayOperatorFlags) {
 		"ping-loss-threshold is the number of lost packets after which the connection check is considered as failed.")
 	flag.DurationVar(&conncheck.PingInterval, "gateway.ping-interval", 2*time.Second,
 		"ping-interval is the interval between two connection checks")
+	flag.Var(liqonet.securityMode, "gateway.security-mode", "security-mode represents different security modes regarding connectivity among clusters")
 }
 
 func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOperatorFlags) {
@@ -82,6 +91,7 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 	leaseDuration := gatewayFlags.leaseDuration
 	renewDeadLine := gatewayFlags.renewDeadline
 	retryPeriod := gatewayFlags.retryPeriod
+	securityMode := liqoconst.SecurityModeType(gatewayFlags.securityMode.String())
 
 	// If port is not in the correct range, then return an error.
 	if gatewayFlags.tunnelListeningPort < liqoconst.UDPMinPort || gatewayFlags.tunnelListeningPort > liqoconst.UDPMaxPort {
@@ -103,7 +113,10 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 		klog.Errorf("unable to get pod namespace: %v", err)
 		os.Exit(1)
 	}
-	main, err := ctrl.NewManager(restcfg.SetRateLimiter(ctrl.GetConfigOrDie()), ctrl.Options{
+
+	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
+
+	main, err := ctrl.NewManager(config, ctrl.Options{
 		MapperProvider:                mapper.LiqoMapperProvider(scheme),
 		Scheme:                        scheme,
 		MetricsBindAddress:            metricsAddr,
@@ -128,6 +141,36 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 		klog.Errorf("unable to get main manager: %s", err)
 		os.Exit(1)
 	}
+
+	// Create a label selector to filter only the events for pods managed by a ShadowPod (i.e., remote offloaded pods).
+	reqRemoteLiqoPods, err := labels.NewRequirement(liqoconst.ManagedByLabelKey, selection.Equals, []string{liqoconst.ManagedByShadowPodValue})
+	utilruntime.Must(err)
+
+	// Create an accessory manager that cache only pods managed by a ShadowPod (i.e., remote offloaded pods).
+	// This manager caches only the pods that are offloaded from a remote cluster and are scheduled on this.
+	auxmgrOffloadedPods, err := ctrl.NewManager(config, ctrl.Options{
+		MapperProvider:     mapper.LiqoMapperProvider(scheme),
+		Scheme:             scheme,
+		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
+				&corev1.Pod{}: {
+					Label: labels.NewSelector().Add(*reqRemoteLiqoPods),
+				},
+			}
+			return cache.New(config, opts)
+		},
+	})
+	if err != nil {
+		klog.Errorf("Unable to create auxiliary manager: %w", err)
+		os.Exit(1)
+	}
+
+	if err := main.Add(auxmgrOffloadedPods); err != nil {
+		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
+		os.Exit(1)
+	}
+
 	clientset := kubernetes.NewForConfigOrDie(main.GetConfig())
 	eventRecorder := main.GetEventRecorderFor(liqoconst.LiqoGatewayOperatorName + "." + podIP.String())
 	// This map is updated by the tunnel operator after a successful tunnel creation
@@ -157,7 +200,7 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 		os.Exit(1)
 	}
 	tunnelController, err := tunneloperator.NewTunnelController(ctx, &wg, podIP.String(), podNamespace, eventRecorder,
-		clientset, main.GetClient(), &readyClustersMutex, readyClusters, gatewayNetns, hostNetns, int(MTU), int(port), updateStatusInterval)
+		clientset, main.GetClient(), &readyClustersMutex, readyClusters, gatewayNetns, hostNetns, int(MTU), int(port), updateStatusInterval, securityMode)
 	// If something goes wrong while creating and configuring the tunnel controller
 	// then make sure that we remove all the resources created during the create process.
 	if err != nil {
@@ -185,6 +228,30 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 	if err = natMappingController.SetupWithManager(main); err != nil {
 		klog.Errorf("unable to setup natmapping controller: %s", err)
 		os.Exit(1)
+	}
+
+	if securityMode == liqoconst.IntraClusterTrafficSegregationSecurityMode {
+		podsInfo := &sync.Map{}
+		endpointslicesInfo := &sync.Map{}
+		offloadedPodController, err := tunneloperator.NewOffloadedPodController(auxmgrOffloadedPods.GetClient(), gatewayNetns, podsInfo, endpointslicesInfo)
+		if err != nil {
+			klog.Errorf("an error occurred while creating the offloaded pod controller: %v", err)
+			os.Exit(1)
+		}
+		if err = offloadedPodController.SetupWithManager(auxmgrOffloadedPods); err != nil {
+			klog.Errorf("unable to setup offloaded pod controller: %s", err)
+			os.Exit(1)
+		}
+		reflectedEndpointsliceController, err := tunneloperator.NewReflectedEndpointsliceController(
+			main.GetClient(), main.GetScheme(), gatewayNetns, podsInfo, endpointslicesInfo)
+		if err != nil {
+			klog.Errorf("an error occurred while creating the reflected endpointslice controller: %v", err)
+			os.Exit(1)
+		}
+		if err = reflectedEndpointsliceController.SetupWithManager(main); err != nil {
+			klog.Errorf("unable to setup reflected endpointslice controller: %s", err)
+			os.Exit(1)
+		}
 	}
 
 	klog.Info("Starting manager as Tunnel-Operator")

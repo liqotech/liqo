@@ -109,3 +109,15 @@ const (
 func LiqoRouteFinalizer(podIP string) string {
 	return strings.Join([]string{LiqoRouteOperatorName, podIP, FinalizersSuffix}, ".")
 }
+
+// SecurityModeType represents different security modes regarding connectivity among clusters.
+type SecurityModeType string
+
+const (
+	// FullPodToPodSecurityMode represents the default security mode: full pod-to-pod connectivity.
+	FullPodToPodSecurityMode SecurityModeType = "FullPodToPod"
+	// IntraClusterTrafficSegregationSecurityMode represents security mode that allows remote clusters to contact:
+	// - their pods offloaded in the local cluster
+	// - endpoints of local services reflected on them.
+	IntraClusterTrafficSegregationSecurityMode SecurityModeType = "IntraClusterTrafficSegregation"
+)
