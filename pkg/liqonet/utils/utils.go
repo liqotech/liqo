@@ -300,15 +300,6 @@ func AddLabelToObj(obj client.Object, labelKey, labelValue string) bool {
 	return false
 }
 
-// GetLabelValueFromObj for a given object it return the value of the label denoted by the
-// given key. If the key does not exist it returns an empty string.
-func GetLabelValueFromObj(obj client.Object, labelKey string) string {
-	if obj.GetLabels() == nil {
-		return ""
-	}
-	return obj.GetLabels()[labelKey]
-}
-
 // SplitNetwork returns the two halves that make up a given network.
 func SplitNetwork(network string) []string {
 	halves := make([]string, 2)
