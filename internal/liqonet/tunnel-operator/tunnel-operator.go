@@ -21,12 +21,14 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
@@ -48,6 +50,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // TunnelController type of the tunnel controller.
@@ -78,6 +81,7 @@ type TunnelController struct {
 // role
 // +kubebuilder:rbac:groups=coordination.k8s.io,namespace="do-not-care",resources=leases,verbs=get;create;update
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
 // NewTunnelController instantiates and initializes the tunnel controller.
 func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sClient k8s.Interface, cl client.Client,
@@ -254,9 +258,14 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 			// Remove the finalizer from the list and update it.
 			controllerutil.RemoveFinalizer(tep, tc.finalizer)
+			if err := tc.cleanupRouteFinalizers(ctx, tep); err != nil {
+				klog.Errorf("an error occurred while attempting to cleanup possible leftover finalizers from resource %s: %s", tep.Name, err)
+				return ctrl.Result{}, err
+			}
+
 			if err := tc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
-					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", tep.Spec.ClusterIdentity, req.String(), err)
+					klog.V(4).Infof("%s -> unable to remove finalizers from resource %s: %s", tep.Spec.ClusterIdentity, req.String(), err)
 					return ctrl.Result{}, err
 				}
 				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", tep.Name, err)
@@ -546,6 +555,32 @@ func (tc *TunnelController) updateStatus(con *netv1alpha1.Connection, tep *netv1
 		return err
 	}
 
+	return nil
+}
+
+// cleanupRouteFinalizers removes possible leftover route controller finalizers,
+// which might have not been deleted in case a node is tore down ungracefully.
+func (tc *TunnelController) cleanupRouteFinalizers(ctx context.Context, tep *netv1alpha1.TunnelEndpoint) error {
+	var pods corev1.PodList
+	if err := tc.List(ctx, &pods, client.InNamespace(tc.namespace),
+		client.MatchingLabelsSelector{Selector: liqolabels.RouteLabelSelector()}); err != nil {
+		return fmt.Errorf("failed retrieving liqo route pods: %w", err)
+	}
+
+	existing := make(map[string]struct{})
+	for i := range pods.Items {
+		existing[liqoconst.LiqoRouteFinalizer(pods.Items[i].Status.PodIP)] = struct{}{}
+	}
+
+	finalizers := make([]string, 0, len(tep.GetFinalizers()))
+	for _, finalizer := range tep.GetFinalizers() {
+		if _, ok := existing[finalizer]; !strings.HasPrefix(finalizer, liqoconst.LiqoRouteOperatorName) || ok {
+			finalizers = append(finalizers, finalizer)
+		} else {
+			klog.V(4).Infof("detected leftover finalizer %q to be removed from tunnel endpoint %q", finalizer, klog.KObj(tep))
+		}
+	}
+	tep.SetFinalizers(finalizers)
 	return nil
 }
 

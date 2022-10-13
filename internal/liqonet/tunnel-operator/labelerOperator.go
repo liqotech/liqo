@@ -22,10 +22,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update
@@ -34,27 +36,10 @@ import (
 const (
 	// These labels are the ones set during the deployment of liqo using the helm chart.
 	// Any change to those labels on the helm chart has also to be reflected here.
-	podComponentLabelKey   = "app.kubernetes.io/component"
-	podComponentLabelValue = "networking"
-	podNameLabelKey        = "app.kubernetes.io/name"
-	podNameLabelValue      = "gateway"
-	gatewayLabelKey        = "net.liqo.io/gateway"
-	gatewayStatusActive    = "active"
-	gatewayStatusStandby   = "standby"
-	serviceAnnotationKey   = "net.liqo.io/gatewayNodeIP"
-)
-
-var (
-	// LabelSelector instructs the informer to only cache the pod objects that satisfy the selector.
-	// Only the pod objects with the right labels will be reconciled.
-	LabelSelector = cache.SelectorsByObject{
-		&corev1.Pod{}: {
-			Label: labels.SelectorFromSet(labels.Set{
-				podComponentLabelKey: podComponentLabelValue,
-				podNameLabelKey:      podNameLabelValue,
-			}),
-		},
-	}
+	gatewayLabelKey      = "net.liqo.io/gateway"
+	gatewayStatusActive  = "active"
+	gatewayStatusStandby = "standby"
+	serviceAnnotationKey = "net.liqo.io/gatewayNodeIP"
 )
 
 // LabelerController reconciles pods objects, in our case the tunnel operator pods.
@@ -117,11 +102,7 @@ func (lbc *LabelerController) Reconcile(ctx context.Context, req ctrl.Request) (
 func (lbc *LabelerController) annotateGatewayService(ctx context.Context) error {
 	const expectedNumOfServices = 1
 	svcList := new(corev1.ServiceList)
-	labelsSelector := client.MatchingLabels{
-		podComponentLabelKey: podComponentLabelValue,
-		podNameLabelKey:      podNameLabelValue,
-	}
-	err := lbc.List(ctx, svcList, labelsSelector)
+	err := lbc.List(ctx, svcList, client.MatchingLabelsSelector{Selector: liqolabels.GatewayLabelSelector()})
 	if err != nil {
 		return err
 	}
@@ -147,6 +128,12 @@ func (lbc *LabelerController) annotateGatewayService(ctx context.Context) error 
 
 // SetupWithManager used to set up the controller with a given manager.
 func (lbc *LabelerController) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).For(&corev1.Pod{}).
+	selector := liqolabels.GatewayLabelSelector()
+	filter := predicate.NewPredicateFuncs(func(o client.Object) bool {
+		return selector.Matches(labels.Set(o.GetLabels()))
+	})
+
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&corev1.Pod{}, builder.WithPredicates(filter)).
 		Complete(lbc)
 }

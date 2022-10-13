@@ -23,7 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // RetrieveLiqoControllerManagerDeploymentArgs retrieves the list of arguments associated with the liqo controller manager deployment.
@@ -31,7 +31,7 @@ func RetrieveLiqoControllerManagerDeploymentArgs(ctx context.Context, cl client.
 	// Retrieve the deployment of the liqo controller manager component
 	var deployments appsv1.DeploymentList
 	if err := cl.List(ctx, &deployments, client.InNamespace(namespace), client.MatchingLabelsSelector{
-		Selector: liqocontrollermanager.DeploymentLabelSelector(),
+		Selector: liqolabels.ControllerManagerLabelSelector(),
 	}); err != nil || len(deployments.Items) != 1 {
 		return nil, errors.New("failed to retrieve the liqo controller manager deployment")
 	}
