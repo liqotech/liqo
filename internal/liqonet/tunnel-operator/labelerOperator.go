@@ -85,17 +85,16 @@ func (lbc *LabelerController) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 	// Make sure that the other replicas has the label set to "standby".
-	if val := liqonetutils.GetLabelValueFromObj(pod, gatewayLabelKey); val == gatewayStatusActive {
-		if liqonetutils.AddLabelToObj(pod, gatewayLabelKey, gatewayStatusStandby) {
-			if err := lbc.Update(ctx, pod); err != nil {
-				klog.Errorf("an error occurred while updating value of label {%s} to {%s} for pod {%s}: %v",
-					gatewayLabelKey, gatewayStatusStandby, req.String(), err)
-				return ctrl.Result{}, err
-			}
-			klog.Infof("successfully updated label {%s: %s} for pod {%s}",
-				gatewayLabelKey, gatewayStatusStandby, req.String())
+	if liqonetutils.AddLabelToObj(pod, gatewayLabelKey, gatewayStatusStandby) {
+		if err := lbc.Update(ctx, pod); err != nil {
+			klog.Errorf("an error occurred while updating value of label {%s} to {%s} for pod {%s}: %v",
+				gatewayLabelKey, gatewayStatusStandby, req.String(), err)
+			return ctrl.Result{}, err
 		}
+		klog.Infof("successfully updated label {%s: %s} for pod {%s}",
+			gatewayLabelKey, gatewayStatusStandby, req.String())
 	}
+
 	return ctrl.Result{}, nil
 }
 

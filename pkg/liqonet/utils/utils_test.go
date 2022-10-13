@@ -208,28 +208,4 @@ var _ = Describe("Liqonet", func() {
 			})
 		})
 	})
-
-	Describe("testing GetLabelValueFromObj function", func() {
-		Context("when label map is nil", func() {
-			It("should return an empty string", func() {
-				testPod.Labels = nil
-				value := liqonetutils.GetLabelValueFromObj(testPod, labelKey)
-				Expect(value).Should(Equal(""))
-			})
-		})
-
-		Context("label with the given key exists", func() {
-			It("should return the correct value", func() {
-				value := liqonetutils.GetLabelValueFromObj(testPod, labelKey)
-				Expect(value).Should(Equal(labelValue))
-			})
-		})
-
-		Context("label with the given key does not exist", func() {
-			It("should return an empty string", func() {
-				value := liqonetutils.GetLabelValueFromObj(testPod, "nonExistingKey")
-				Expect(value).Should(Equal(""))
-			})
-		})
-	})
 })
