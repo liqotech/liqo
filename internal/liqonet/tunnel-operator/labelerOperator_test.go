@@ -27,6 +27,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 var (
@@ -75,8 +78,8 @@ var _ = Describe("LabelerOperator", func() {
 				Name:      labelerSvcName,
 				Namespace: labelerReq.Namespace,
 				Labels: map[string]string{
-					podNameLabelKey:      podNameLabelValue,
-					podComponentLabelKey: podComponentLabelValue,
+					consts.K8sAppNameKey:      "gateway",
+					consts.K8sAppComponentKey: "networking",
 				},
 			},
 			Spec: corev1.ServiceSpec{
@@ -116,11 +119,7 @@ var _ = Describe("LabelerOperator", func() {
 		// Remove the existing service.
 		Eventually(func() error {
 			svcList := new(corev1.ServiceList)
-			labelsSelector := client.MatchingLabels{
-				podComponentLabelKey: podComponentLabelValue,
-				podNameLabelKey:      podNameLabelValue,
-			}
-			err := lbc.List(context.TODO(), svcList, labelsSelector)
+			err := lbc.List(context.TODO(), svcList, client.MatchingLabelsSelector{Selector: labels.GatewayLabelSelector()})
 			if err != nil {
 				return err
 			}

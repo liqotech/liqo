@@ -18,7 +18,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -80,8 +79,6 @@ func NewRouteController(podIP string, vxlanDevice *overlay.VxlanDevice, router l
 func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	tep := new(netv1alpha1.TunnelEndpoint)
 	var err error
-	// Name of our finalizer set on every tep instance processed by the operator.
-	routeOperatorFinalizer := strings.Join([]string{liqoconst.LiqoRouteOperatorName, rc.podIP, "net.liqo.io"}, ".")
 	if err = rc.Get(ctx, req.NamespacedName, tep); err != nil && !k8sApiErrors.IsNotFound(err) {
 		klog.Errorf("unable to fetch resource {%s} :%v", req.String(), err)
 		return result, err
@@ -99,11 +96,11 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	_, remoteExternalCIDR := liqonetutils.GetExternalCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
 	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(tep, routeOperatorFinalizer) {
+		if !controllerutil.ContainsFinalizer(tep, liqoconst.LiqoRouteFinalizer(rc.podIP)) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			controllerutil.AddFinalizer(tep, routeOperatorFinalizer)
+			controllerutil.AddFinalizer(tep, liqoconst.LiqoRouteFinalizer(rc.podIP))
 			if err := rc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
 					klog.V(4).Infof("%s -> unable to add finalizers to resource {%s}: %s", clusterIdentity, req.String(), err)
@@ -116,7 +113,7 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	} else {
 		// The object is being deleted, if we encounter an error while removing the routes than we record an
 		// event on the resource to notify the user. The finalizer is not removed.
-		if controllerutil.ContainsFinalizer(tep, routeOperatorFinalizer) {
+		if controllerutil.ContainsFinalizer(tep, liqoconst.LiqoRouteFinalizer(rc.podIP)) {
 			klog.Infof("resource {%s} of type {%s} is being removed", tep.Name, tep.GroupVersionKind().String())
 			deleted, err := rc.RemoveRoutesPerCluster(tep)
 			if err != nil {
@@ -132,7 +129,7 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 					remotePodCIDR, remoteExternalCIDR)
 			}
 			// remove the finalizer from the list and update it.
-			controllerutil.RemoveFinalizer(tep, routeOperatorFinalizer)
+			controllerutil.RemoveFinalizer(tep, liqoconst.LiqoRouteFinalizer(rc.podIP))
 			if err := rc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
 					klog.V(4).Infof("%s -> unable to add finalizers to resource {%s}: %s", clusterIdentity, req.String(), err)
@@ -222,6 +219,27 @@ func (rc *RouteController) cleanUp() {
 		err := netlink.LinkDel(rc.vxlanDev.Link)
 		if err != nil && err.Error() != "Link not found" {
 			klog.Errorf("an error occurred while deleting vxlan device {%s}: %v", rc.vxlanDev.Link.Name, err)
+		}
+	}
+
+	// Attempt to remove our finalizer from all tunnel endpoints. In case this operation fails,
+	// the cleanup will be performed by tunnel-operator when a tunnel endpoint is going to be deleted.
+	var teps netv1alpha1.TunnelEndpointList
+	if err := rc.List(context.Background(), &teps); err != nil {
+		klog.Errorf("an error occurred while listing tunnel endpoints: %v", err)
+		return
+	}
+
+	for i := range teps.Items {
+		original := teps.Items[i].DeepCopy()
+		if controllerutil.RemoveFinalizer(&teps.Items[i], liqoconst.LiqoRouteFinalizer(rc.podIP)) {
+			// Using patch instead of update, to prevent issues in case of conflicts.
+			if err := rc.Client.Patch(context.Background(), &teps.Items[i], client.MergeFrom(original)); err != nil {
+				klog.Errorf("%s -> unable to remove finalizer from tunnel endpoint %q: %v",
+					original.Spec.ClusterIdentity, klog.KObj(&teps.Items[i]), err)
+				continue
+			}
+			klog.V(4).Infof("%s -> finalizer successfully removed from tunnel endpoint %q", original.Spec.ClusterIdentity, klog.KObj(&teps.Items[i]))
 		}
 	}
 }

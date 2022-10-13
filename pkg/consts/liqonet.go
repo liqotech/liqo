@@ -14,6 +14,8 @@
 
 package consts
 
+import "strings"
+
 const (
 	// NetworkManagerIpamPort is the port used by IPAM gRPCs.
 	NetworkManagerIpamPort = 6000
@@ -104,3 +106,8 @@ const (
 	// NetworkConfigNamePrefix prefix used to generate the names of the networkconfigs.
 	NetworkConfigNamePrefix = "net-config-"
 )
+
+// LiqoRouteFinalizer returns the finalizer used by the route operator, based on its pod IP.
+func LiqoRouteFinalizer(podIP string) string {
+	return strings.Join([]string{LiqoRouteOperatorName, podIP, FinalizersSuffix}, ".")
+}

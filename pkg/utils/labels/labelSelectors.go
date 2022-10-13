@@ -137,3 +137,34 @@ func RemoteLabelSelectorForCluster(originClusterID string) labels.Selector {
 
 	return RemoteLabelSelector().Add(*req)
 }
+
+// ComponentLabelSelector returns the label selector associated with the component characterized by the given name and component labels.
+func ComponentLabelSelector(name, component string) labels.Selector {
+	// These labels are configured through Helm at install time.
+	req1, err := labels.NewRequirement(liqoconst.K8sAppNameKey, selection.Equals, []string{name})
+	utilruntime.Must(err)
+	req2, err := labels.NewRequirement(liqoconst.K8sAppComponentKey, selection.Equals, []string{component})
+	utilruntime.Must(err)
+
+	return labels.NewSelector().Add(*req1, *req2)
+}
+
+// ControllerManagerLabelSelector returns the label selector associated with the controller-manager components.
+func ControllerManagerLabelSelector() labels.Selector {
+	return ComponentLabelSelector("controller-manager", "controller-manager")
+}
+
+// DiscoveryLabelSelector returns the label selector associated with the discovery components.
+func DiscoveryLabelSelector() labels.Selector {
+	return ComponentLabelSelector("discovery", "discovery")
+}
+
+// GatewayLabelSelector returns the label selector associated with the gateway components.
+func GatewayLabelSelector() labels.Selector {
+	return ComponentLabelSelector("gateway", "networking")
+}
+
+// RouteLabelSelector returns the label selector associated with the route components.
+func RouteLabelSelector() labels.Selector {
+	return ComponentLabelSelector("route", "networking")
+}

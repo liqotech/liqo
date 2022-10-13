@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/pointer"
 
-	"github.com/liqotech/liqo/pkg/discovery"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // ScaleDiscoveryDeployment scales the discovery deployment replicas to 0.
@@ -58,7 +58,7 @@ func ScaleDiscoveryDeployment(ctx context.Context, client dynamic.Interface, liq
 func getDiscoveryDeployment(ctx context.Context, client dynamic.Interface, liqoNamespace string) (*appsv1.Deployment, error) {
 	unstr, err := client.Resource(appsv1.SchemeGroupVersion.WithResource("deployments")).Namespace(liqoNamespace).List(
 		ctx, metav1.ListOptions{
-			LabelSelector: discovery.DeploymentLabelSelector().String(),
+			LabelSelector: liqolabels.DiscoveryLabelSelector().String(),
 		})
 	if err != nil {
 		return nil, err

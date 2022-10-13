@@ -21,8 +21,10 @@ package consts
 // service by label.
 
 const (
-	// K8sAppNameKey = key of the label used to denote a deployed application.
+	// K8sAppNameKey = key of the label used to denote a deployed application name.
 	K8sAppNameKey = "app.kubernetes.io/name"
+	// K8sAppComponentKey = key of the label used to denote a deployed application component.
+	K8sAppComponentKey = "app.kubernetes.io/component"
 
 	// GatewayServiceLabelKey key of the label used to get the service.
 	GatewayServiceLabelKey = "net.liqo.io/gateway"
