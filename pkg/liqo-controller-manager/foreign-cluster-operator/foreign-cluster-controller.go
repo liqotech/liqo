@@ -147,6 +147,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		// If the foreigncluster has been removed than remove the mapping between the local tenant namespace and
 		// the foreign cluster.
 		r.ForeignClusters.Delete(foreignCluster.Status.TenantNamespace.Local)
+		return ctrl.Result{}, nil
 	}
 	tracer.Step("Retrieved the foreign cluster")
 
