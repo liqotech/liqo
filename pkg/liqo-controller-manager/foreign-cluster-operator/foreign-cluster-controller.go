@@ -215,7 +215,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// ensure the existence of an identity to operate in the remote cluster remote cluster
 	if err = r.ensureRemoteIdentity(ctx, &foreignCluster); err != nil {
-		klog.Error(err)
+		klog.Errorf("Failed to ensure identity for remote cluster %q: %v", foreignCluster.Spec.ClusterIdentity, err)
 		return ctrl.Result{}, err
 	}
 	tracer.Step("Ensured the existence of the remote identity")

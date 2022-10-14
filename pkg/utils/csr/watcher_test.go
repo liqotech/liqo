@@ -53,7 +53,7 @@ var _ = Describe("Watcher functions", func() {
 		)
 
 		CSRForger := func(name, label string) *certv1.CertificateSigningRequest {
-			req, err := testutil.FakeCSRRequest("foobar")
+			_, req, err := NewKeyAndRequest("foobar")
 			Expect(err).ToNot(HaveOccurred())
 
 			return &certv1.CertificateSigningRequest{

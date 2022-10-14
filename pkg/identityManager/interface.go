@@ -15,7 +15,8 @@
 package identitymanager
 
 import (
-	v1 "k8s.io/api/core/v1"
+	"context"
+
 	"k8s.io/client-go/rest"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -33,9 +34,8 @@ type IdentityReader interface {
 type IdentityManager interface {
 	IdentityReader
 
-	CreateIdentity(remoteCluster discoveryv1alpha1.ClusterIdentity) (*v1.Secret, error)
-	GetSigningRequest(remoteCluster discoveryv1alpha1.ClusterIdentity) ([]byte, error)
-	StoreCertificate(remoteCluster discoveryv1alpha1.ClusterIdentity, remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error
+	StoreIdentity(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string, key []byte,
+		remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error
 }
 
 // IdentityProvider provides the interface to retrieve and approve remote cluster identities.

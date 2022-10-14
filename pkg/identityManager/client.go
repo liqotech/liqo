@@ -40,7 +40,6 @@ func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.Cl
 		secret, err = certManager.getSecretInNamespace(remoteCluster, namespace)
 	}
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 

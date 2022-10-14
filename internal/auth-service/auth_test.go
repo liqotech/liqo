@@ -29,7 +29,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
-	"github.com/liqotech/liqo/pkg/utils/testutil"
+	csrutil "github.com/liqotech/liqo/pkg/utils/csr"
 )
 
 type tokenManagerMock struct {
@@ -139,7 +139,7 @@ var _ = Describe("Auth", func() {
 
 		DescribeTable("Certificate Identity Creation table",
 			func(c certificateTestcase) {
-				req, err := testutil.FakeCSRRequest(authService.localCluster.ClusterID)
+				_, req, err := csrutil.NewKeyAndRequest(authService.localCluster.ClusterID)
 				Expect(err).To(BeNil())
 				c.request.CertificateSigningRequest = base64.StdEncoding.EncodeToString(req)
 
