@@ -30,7 +30,8 @@ unit: test-container
 BINDIR?=.
 TARGET?=kind
 ctl:
-	go build -o $(BINDIR) ./cmd/liqoctl
+	$(eval GIT_COMMIT=$(shell git rev-parse HEAD 2>/dev/null || echo "unknown"))
+	go build -o ${BINDIR} -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=$(GIT_COMMIT)'" ./cmd/liqoctl
 
 # Install LIQO into a cluster
 install: manifests ctl
