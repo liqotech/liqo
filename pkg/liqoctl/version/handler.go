@@ -23,7 +23,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 )
 
-var liqoctlVersion = "development"
+var liqoctlVersion = "unknown"
 
 // Options encapsulates the arguments of the version command.
 type Options struct {
