@@ -15,10 +15,7 @@
 package identitymanager
 
 import (
-	"crypto/ed25519"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"os"
 	"time"
 
@@ -26,83 +23,29 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
+	"github.com/liqotech/liqo/pkg/utils/csr"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 var _ = Describe("IdentityManager", func() {
-	Context("Local Manager", func() {
-
-		It("Create Identity", func() {
-			secret, err := identityMan.CreateIdentity(remoteCluster)
-			Expect(err).To(BeNil())
-			Expect(secret).NotTo(BeNil())
-			Expect(secret.Namespace).To(Equal(namespace.Name))
-
-			Expect(secret.Labels).NotTo(BeNil())
-			_, ok := secret.Labels[localIdentitySecretLabel]
-			Expect(ok).To(BeTrue())
-			v, ok := secret.Labels[discovery.ClusterIDLabel]
-			Expect(ok).To(BeTrue())
-			Expect(v).To(Equal(remoteCluster.ClusterID))
-
-			Expect(secret.Annotations).NotTo(BeNil())
-			_, ok = secret.Annotations[certificateExpireTimeAnnotation]
-			Expect(ok).To(BeTrue())
-
-			privateKey, ok := secret.Data[privateKeySecretKey]
-			Expect(ok).To(BeTrue())
-			Expect(len(privateKey)).NotTo(Equal(0))
-
-			b, _ := pem.Decode(privateKey)
-			key, err := x509.ParsePKCS8PrivateKey(b.Bytes)
-			Expect(key).To(BeAssignableToTypeOf(ed25519.PrivateKey{}))
-			Expect(err).To(BeNil())
-		})
-
-		It("Get Signing Request", func() {
-			csrBytes, err := identityMan.GetSigningRequest(remoteCluster)
-			Expect(err).To(BeNil())
-
-			b, _ := pem.Decode(csrBytes)
-			csr, err := x509.ParseCertificateRequest(b.Bytes)
-			Expect(err).To(BeNil())
-			Expect(csr.Subject.CommonName).To(Equal(localCluster.ClusterID))
-		})
-
-		It("Get Signing Request with multiple secrets", func() {
-			// we need that at least 1 second passed since the creation of the previous identity
-			time.Sleep(1 * time.Second)
-
-			secret, err := identityMan.CreateIdentity(remoteCluster)
-			Expect(err).To(BeNil())
-
-			csrBytes, err := identityMan.GetSigningRequest(remoteCluster)
-			Expect(err).To(BeNil())
-
-			csrBytesSecret, ok := secret.Data[csrSecretKey]
-			Expect(ok).To(BeTrue())
-
-			// check that it returns the data for the last identity
-			Expect(csrBytes).To(Equal(csrBytesSecret))
-		})
-
-	})
-
-	Context("Remote Manager", func() {
+	Context("Remote Manager", Ordered, func() {
 
 		var csrBytes []byte
 		var err error
 		var stopChan chan struct{}
 
-		BeforeEach(func() {
-			csrBytes, err = identityMan.GetSigningRequest(remoteCluster)
+		BeforeAll(func() {
+			_, csrBytes, err = csr.NewKeyAndRequest("foobar")
 			Expect(err).To(BeNil())
+		})
 
+		BeforeEach(func() {
 			stopChan = make(chan struct{})
 			idManTest.StartTestApprover(client, stopChan)
 		})
@@ -148,10 +91,30 @@ var _ = Describe("IdentityManager", func() {
 	})
 
 	Context("Storage", func() {
+		var key []byte
+
+		BeforeEach(func() {
+			var err error
+			key, _, err = csr.NewKeyAndRequest(remoteCluster.ClusterID)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			Expect(client.CoreV1().Secrets(namespace.Name).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Succeed())
+		})
+
+		commonSecretChecks := func(secret *v1.Secret) {
+			Expect(secret.Namespace).To(Equal(namespace.Name))
+			Expect(secret.GetLabels()).To(HaveKeyWithValue(localIdentitySecretLabel, "true"))
+			Expect(secret.GetLabels()).To(HaveKeyWithValue(certificateAvailableLabel, "true"))
+			Expect(secret.GetLabels()).To(HaveKeyWithValue(discovery.ClusterIDLabel, remoteCluster.ClusterID))
+			Expect(secret.GetAnnotations()).To(HaveKey(certificateExpireTimeAnnotation))
+			Expect(secret.Data[privateKeySecretKey]).To(Equal(key))
+		}
 
 		It("StoreCertificate", func() {
 			// store the certificate in the secret
-			err := identityMan.StoreCertificate(remoteCluster, "", secretIdentityResponse)
+			err := identityMan.StoreIdentity(ctx, remoteCluster, namespace.Name, key, "", secretIdentityResponse)
 			Expect(err).To(BeNil())
 
 			// retrieve rest config
@@ -166,6 +129,8 @@ var _ = Describe("IdentityManager", func() {
 			secret, err := idMan.getSecret(remoteCluster)
 			Expect(err).To(Succeed())
 
+			commonSecretChecks(secret)
+
 			_, found := secret.Data[apiProxyURLSecretKey]
 			Expect(found).To(BeFalse())
 
@@ -177,7 +142,7 @@ var _ = Describe("IdentityManager", func() {
 
 		It("StoreCertificate IAM", func() {
 			// store the certificate in the secret
-			err := identityMan.StoreCertificate(remoteCluster, apiProxyURL, iamIdentityResponse)
+			err := identityMan.StoreIdentity(ctx, remoteCluster, namespace.Name, key, apiProxyURL, iamIdentityResponse)
 			Expect(err).To(BeNil())
 
 			idMan, ok := identityMan.(*identityManager)
@@ -192,6 +157,8 @@ var _ = Describe("IdentityManager", func() {
 
 			secret, err := idMan.getSecret(remoteCluster)
 			Expect(err).To(Succeed())
+
+			commonSecretChecks(secret)
 
 			Expect(secret.Data[awsAccessKeyIDSecretKey]).To(Equal([]byte(*signingIAMResponse.AwsIdentityResponse.AccessKey.AccessKeyId)))
 			Expect(secret.Data[awsSecretAccessKeySecretKey]).To(Equal([]byte(*signingIAMResponse.AwsIdentityResponse.AccessKey.SecretAccessKey)))
