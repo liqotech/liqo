@@ -69,7 +69,7 @@ const (
 	virtualKubeletPendingMessage = "The remote cluster has not started the VirtualKubelet for the peering yet"
 
 	tunnelEndpointNotFoundReason  = "TunnelEndpointNotFound"
-	tunnelEndpointNotFoundMessage = "The TunnelEndpointNotFound has not been found in the Tenant Namespace %v"
+	tunnelEndpointNotFoundMessage = "The TunnelEndpoint has not been found in the Tenant Namespace %v"
 
 	tunnelEndpointAvailableReason  = "TunnelEndpointAvailable"
 	tunnelEndpointAvailableMessage = "The TunnelEndpoint has been successfully found in the Tenant Namespace %v and it is connected"

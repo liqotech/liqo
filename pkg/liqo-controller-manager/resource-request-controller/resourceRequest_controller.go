@@ -82,7 +82,6 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	newRequireSpecUpdate := false
 	// ensure creation and deletion of the ClusterRole and the ClusterRoleBinding for the remote cluster
 	switch resourceReqPhase {
 	case deletingResourceRequestPhase, denyResourceRequestPhase:
@@ -106,7 +105,6 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			return ctrl.Result{}, err
 		}
 	}
-	requireSpecUpdate = requireSpecUpdate || newRequireSpecUpdate
 
 	if requireSpecUpdate {
 		if err = r.Client.Update(ctx, &resourceRequest); err != nil {

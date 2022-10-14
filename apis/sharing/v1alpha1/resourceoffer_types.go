@@ -67,6 +67,8 @@ const (
 type VirtualKubeletStatus string
 
 const (
+	// VirtualKubeletStatusUnknown indicates that the VirtualKubelet Deployment status is unknown.
+	VirtualKubeletStatusUnknown VirtualKubeletStatus = ""
 	// VirtualKubeletStatusNone indicates that there is no VirtualKubelet Deployment.
 	VirtualKubeletStatusNone VirtualKubeletStatus = "None"
 	// VirtualKubeletStatusCreated indicates that the VirtualKubelet Deployment has been created.

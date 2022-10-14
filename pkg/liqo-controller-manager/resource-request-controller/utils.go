@@ -135,7 +135,9 @@ func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context,
 		}
 		klog.Infof("%s -> Offer: %s/%s", r.HomeCluster.ClusterName, offer.Namespace, offer.Name)
 		return nil
-	case sharingv1alpha1.VirtualKubeletStatusNone:
+	case sharingv1alpha1.VirtualKubeletStatusNone, sharingv1alpha1.VirtualKubeletStatusUnknown:
+		// The unknown status might occur in case we never succeeded in reflecting the resource offer
+		// to the remote cluster, e.g., due to an authentication issue.
 		err = client.IgnoreNotFound(r.Client.Delete(ctx, &offer))
 		if err != nil {
 			return err
