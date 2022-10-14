@@ -79,11 +79,11 @@ func (o *Options) Wait(ctx context.Context, remoteClusterID *discoveryv1alpha1.C
 		return err
 	}
 
-	if err := waiter.ForNetwork(ctx, remoteClusterID); err != nil {
+	if err := waiter.ForOutgoingPeering(ctx, remoteClusterID); err != nil {
 		return err
 	}
 
-	if err := waiter.ForOutgoingPeering(ctx, remoteClusterID); err != nil {
+	if err := waiter.ForNetwork(ctx, remoteClusterID); err != nil {
 		return err
 	}
 
