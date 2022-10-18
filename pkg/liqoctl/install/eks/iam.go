@@ -149,7 +149,9 @@ func (o *Options) ensurePolicy(iamSvc *iam.IAM) (string, error) {
 }
 
 func (o *Options) getPolicyArn(iamSvc *iam.IAM) (string, error) {
-	getUserResult, err := iamSvc.GetUser(&iam.GetUserInput{})
+	getUserResult, err := iamSvc.GetUser(&iam.GetUserInput{
+		UserName: aws.String(o.iamUser.userName),
+	})
 	if err != nil {
 		return "", err
 	}
