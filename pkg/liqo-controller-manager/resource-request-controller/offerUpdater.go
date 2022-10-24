@@ -92,13 +92,16 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 	if request == nil {
 		// invalid clusterID so return requeue = false. The clusterID will be removed from the workqueue and
 		// the resourcereader (in a daisy chain if there are multiple).
-		u.ResourceReader.RemoveClusterID(ctx, cluster.ClusterID)
-		u.OfferQueue.RemoveClusterID(cluster.ClusterID)
+		err := u.ResourceReader.RemoveClusterID(ctx, cluster.ClusterID)
+		if err != nil {
+			return true, fmt.Errorf("error while removing cluster ID from external resource monitor: %w", err)
+		}
+		delete(u.currentResources, cluster.ClusterID)
 		return false, fmt.Errorf("cluster %s is no longer valid and was deleted", cluster.ClusterName)
 	}
-	resources := u.ResourceReader.ReadResources(ctx, cluster.ClusterID)
-	if resourceIsEmpty(resources) {
-		klog.Warningf("No resources for cluster %s", cluster.ClusterName)
+	resources, err := u.ResourceReader.ReadResources(ctx, cluster.ClusterID)
+	if err != nil {
+		return true, fmt.Errorf("error while reading resources from external resource monitor: %w", err)
 	}
 	u.currentResources[cluster.ClusterID] = resources.DeepCopy()
 	u.clusterIdentityCache[cluster.ClusterID] = cluster
@@ -134,29 +137,24 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 	})
 
 	if err != nil {
-		klog.Error(err)
 		return true, err
 	}
 	klog.Infof("%s -> %s Offer: %s/%s", u.homeCluster.ClusterName, op, offer.Namespace, offer.Name)
 	return false, nil
 }
 
-// NotifyChange is used by the ResourceReader to notify that resources were added or removed.
-// It checks if any resources have changed by at least a set percentage since we last updated a ResourceOffer, and if so
-// it triggers a new update.
-func (u *OfferUpdater) NotifyChange() {
-	for clusterID := range u.currentResources {
-		if u.isAboveThreshold(clusterID) {
-			u.OfferQueue.Push(u.clusterIdentityCache[clusterID])
+// NotifyChange is used by the ResourceReader to notify that resources were changed for a single cluster
+// identified by clusterID or for all clusters by passing resourcemonitors.AllClusterIDs.
+func (u *OfferUpdater) NotifyChange(clusterID string) {
+	if clusterID == resourcemonitors.AllClusterIDs {
+		for clusterID := range u.currentResources {
+			if u.shouldUpdate(clusterID) {
+				u.OfferQueue.Push(u.clusterIdentityCache[clusterID])
+			}
 		}
+	} else {
+		u.OfferQueue.Push(u.clusterIdentityCache[clusterID])
 	}
-}
-
-// RemoveClusterID stops tracking the resources to be offered to a given cluster.
-func (u *OfferUpdater) RemoveClusterID(clusterID string) {
-	delete(u.currentResources, clusterID)
-	u.ResourceReader.RemoveClusterID(context.Background(), clusterID)
-	u.OfferQueue.RemoveClusterID(clusterID)
 }
 
 func (u *OfferUpdater) getStorageClasses(ctx context.Context) ([]sharingv1alpha1.StorageType, error) {
@@ -193,15 +191,24 @@ func (u *OfferUpdater) getStorageClasses(ctx context.Context) ([]sharingv1alpha1
 // SetThreshold sets the threshold for resource updates to trigger an update of the ResourceOffers.
 func (u *OfferUpdater) SetThreshold(updateThresholdPercentage uint) {
 	u.updateThresholdPercentage = updateThresholdPercentage
-	u.NotifyChange()
+	u.NotifyChange(resourcemonitors.AllClusterIDs)
 }
 
-// isAboveThreshold checks if the resources have changed by at least updateThresholdPercentage since the last update.
-func (u *OfferUpdater) isAboveThreshold(clusterID string) bool {
+// shouldUpdate checks if the resources have changed by at least updateThresholdPercentage since the last update.
+// checks are skipped if u.updateThresholdPercentage is 0.
+func (u *OfferUpdater) shouldUpdate(clusterID string) bool {
+	if u.updateThresholdPercentage == 0 {
+		return true
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	oldResources := u.currentResources[clusterID]
-	newResources := u.ResourceReader.ReadResources(ctx, clusterID)
-	cancel()
+	newResources, err := u.ResourceReader.ReadResources(ctx, clusterID)
+	if err != nil {
+		klog.Errorf("Error while reading resources from external monitor: %w", err)
+		// returns true when an error occurs in order to enqueue again the offer update, otherwise the update will be lost.
+		return true
+	}
 	// Check for any resources removed
 	for oldResourceName := range oldResources {
 		if _, exists := newResources[oldResourceName]; !exists {
@@ -223,16 +230,6 @@ func (u *OfferUpdater) isAboveThreshold(clusterID string) bool {
 	}
 
 	return false
-}
-
-// resourceIsEmpty checks if the ResourceList is empty.
-func resourceIsEmpty(list corev1.ResourceList) bool {
-	for _, val := range list {
-		if !val.IsZero() {
-			return false
-		}
-	}
-	return true
 }
 
 // GetResourceRequest returns ResourceRequest for the given cluster.

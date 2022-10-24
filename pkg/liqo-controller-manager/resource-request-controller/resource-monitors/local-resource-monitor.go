@@ -218,24 +218,25 @@ func (m *LocalResourceMonitor) notifyOrWarn() {
 	if m.notifier == nil {
 		klog.Warning("No notifier is configured, an update will be lost")
 	} else {
-		m.notifier.NotifyChange()
+		m.notifier.NotifyChange(AllClusterIDs)
 	}
 }
 
 // ReadResources returns the resources available in the cluster (total minus used), multiplied by resourceSharingPercentage.
-func (m *LocalResourceMonitor) ReadResources(_ context.Context, clusterID string) corev1.ResourceList {
+func (m *LocalResourceMonitor) ReadResources(_ context.Context, clusterID string) (corev1.ResourceList, error) {
 	toRead := m.readClusterResources()
 	podsResources := m.readPodResources(clusterID)
 	addResources(toRead, podsResources)
-	return toRead
+	return toRead, nil
 }
 
 // RemoveClusterID removes a clusterID from all broadcaster internal structures
 // it is useful when a particular foreign cluster has no more peering and its ResourceRequest has been deleted.
-func (m *LocalResourceMonitor) RemoveClusterID(_ context.Context, clusterID string) {
+func (m *LocalResourceMonitor) RemoveClusterID(_ context.Context, clusterID string) error {
 	m.podMutex.Lock()
 	defer m.podMutex.Unlock()
 	delete(m.resourcePodMap, clusterID)
+	return nil
 }
 
 // readClusterResources returns the total resources in the cluster.

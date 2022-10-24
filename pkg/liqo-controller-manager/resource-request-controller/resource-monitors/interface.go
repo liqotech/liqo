@@ -20,18 +20,23 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	// AllClusterIDs useful to update all the clusters.
+	AllClusterIDs = ""
+)
+
 // ResourceUpdateNotifier represents an interface for OfferUpdater to receive resource updates.
 type ResourceUpdateNotifier interface {
 	// NotifyChange signals that a change in resources may have occurred.
-	NotifyChange()
+	NotifyChange(clusterID string)
 }
 
 // ResourceReader represents an interface to read the available resources in this cluster.
 type ResourceReader interface {
 	// ReadResources returns the resources available for usage by the given cluster.
-	ReadResources(ctx context.Context, clusterID string) corev1.ResourceList
+	ReadResources(ctx context.Context, clusterID string) (corev1.ResourceList, error)
 	// Register sets the component that will be notified of changes.
 	Register(context.Context, ResourceUpdateNotifier)
 	// RemoveClusterID removes the given clusterID from all internal structures.
-	RemoveClusterID(ctx context.Context, clusterID string)
+	RemoveClusterID(ctx context.Context, clusterID string) error
 }

@@ -96,7 +96,6 @@ func (u *OfferQueue) processNextItem() bool {
 		} else {
 			// permanent error (eg. the clusterID is no longer valid), do not requeue
 			u.queue.Forget(cluster.ClusterID)
-			u.offerUpdater.RemoveClusterID(cluster.ClusterID)
 		}
 	} else {
 		// requeue after a random timeout
@@ -104,11 +103,6 @@ func (u *OfferQueue) processNextItem() bool {
 	}
 	u.queue.Done(obj)
 	return true
-}
-
-// RemoveClusterID clears updates for the given cluster.
-func (u *OfferQueue) RemoveClusterID(clusterID string) {
-	u.queue.Forget(clusterID)
 }
 
 func getRandomTimeout() time.Duration {

@@ -36,19 +36,23 @@ func (s *ResourceScaler) Register(ctx context.Context, notifier ResourceUpdateNo
 }
 
 // ReadResources returns the provider's resources scaled by the given amount.
-func (s *ResourceScaler) ReadResources(ctx context.Context, clusterID string) corev1.ResourceList {
-	resources := s.Provider.ReadResources(ctx, clusterID)
+func (s *ResourceScaler) ReadResources(ctx context.Context, clusterID string) (corev1.ResourceList, error) {
+	resources, err := s.Provider.ReadResources(ctx, clusterID)
+	if err != nil {
+		return nil, err
+	}
 	for resourceName, quantity := range resources {
 		scaled := quantity
 		ScaleResources(resourceName, &scaled, s.Factor)
 		resources[resourceName] = scaled
 	}
-	return resources
+	return resources, nil
 }
 
 // RemoveClusterID removes the given clusterID from the provider.
-func (s *ResourceScaler) RemoveClusterID(ctx context.Context, clusterID string) {
+func (s *ResourceScaler) RemoveClusterID(ctx context.Context, clusterID string) error {
 	s.Provider.RemoveClusterID(ctx, clusterID)
+	return nil
 }
 
 // ScaleResources multiplies a resource by a factor.
