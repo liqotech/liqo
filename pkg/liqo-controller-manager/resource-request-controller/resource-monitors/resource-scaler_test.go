@@ -30,12 +30,12 @@ type FakeResourceReader struct {
 func (r FakeResourceReader) Register(context.Context, ResourceUpdateNotifier) {
 }
 
-func (r FakeResourceReader) ReadResources(context.Context, string) corev1.ResourceList {
-	return r.ResourceList.DeepCopy()
+func (r FakeResourceReader) ReadResources(context.Context, string) (corev1.ResourceList, error) {
+	return r.ResourceList.DeepCopy(), nil
 }
 
-func (r FakeResourceReader) RemoveClusterID(context.Context, string) {
-
+func (r FakeResourceReader) RemoveClusterID(context.Context, string) error {
+	return nil
 }
 
 var _ = Describe("ResourceMonitors Suite", func() {
@@ -49,7 +49,7 @@ var _ = Describe("ResourceMonitors Suite", func() {
 				Provider: provider,
 				Factor:   .5,
 			}
-			scaled := scaler.ReadResources(context.Background(), "")
+			scaled, _ := scaler.ReadResources(context.Background(), "")
 			Expect(scaled.Cpu().Equal(resource.MustParse("500m"))).To(BeTrue())
 			Expect(scaled.Memory().Equal(resource.MustParse("4G"))).To(BeTrue())
 		})

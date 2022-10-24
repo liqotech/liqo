@@ -56,24 +56,25 @@ func (b *FakeGRPCServer) Start(ctx context.Context) error {
 	return b.Server.Serve(lis)
 }
 
-func (b *FakeGRPCServer) ReadResources(context.Context, *ReadRequest) (*ReadResponse, error) {
+func (b *FakeGRPCServer) ReadResources(context.Context, *ClusterIdentity) (*ResourceList, error) {
 	resources := corev1.ResourceList{}
 	resources[corev1.ResourceCPU] = resource.MustParse("1000")
 	resources[corev1.ResourceMemory] = resource.MustParse("200e6")
-	protobufResponse := &ReadResponse{Resources: map[string]string{}}
-	for name, value := range resources {
-		protobufResponse.Resources[name.String()] = value.String()
+	protobufResponse := &ResourceList{Resources: map[string]*resource.Quantity{}}
+	for name := range resources {
+		value := resources[name]
+		protobufResponse.Resources[name.String()] = &value
 	}
 	return protobufResponse, nil
 }
 
 // Subscribe pushes one update then closes the subscription.
-func (b *FakeGRPCServer) Subscribe(req *SubscribeRequest, srv ResourceReader_SubscribeServer) error {
-	return srv.Send(&UpdateNotification{})
+func (b *FakeGRPCServer) Subscribe(req *Empty, srv ResourceReader_SubscribeServer) error {
+	return srv.Send(&ClusterIdentity{})
 }
 
-func (b *FakeGRPCServer) RemoveCluster(context.Context, *RemoveRequest) (*RemoveResponse, error) {
-	return &RemoveResponse{}, nil
+func (b *FakeGRPCServer) RemoveCluster(context.Context, *ClusterIdentity) (*Empty, error) {
+	return &Empty{}, nil
 }
 
 var fakeServer = FakeGRPCServer{}
@@ -97,13 +98,16 @@ var _ = Describe("ResourceMonitors Suite", func() {
 
 		It("Connects", func() {
 			fakeServer.Ready.Wait()
-			extMonitor, err := NewExternalMonitor(grpcCtx, "127.0.0.1:7000")
+			extMonitor, err := NewExternalMonitor(grpcCtx, "127.0.0.1:7000", 100*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 			monitor = extMonitor
 		})
 		It("Reads resources", func() {
 			fakeServer.Ready.Wait()
-			resources := monitor.ReadResources(context.Background(), "")
+			resources, err := monitor.ReadResources(context.Background(), "")
+			if err != nil {
+				klog.Errorln("error while reading resources quota from grpc server: %s", err)
+			}
 			Expect(resources.Cpu().Equal(resource.MustParse("1000"))).To(BeTrue())
 			Expect(resources.Memory().Equal(resource.MustParse("200e6"))).To(BeTrue())
 		})
@@ -111,7 +115,7 @@ var _ = Describe("ResourceMonitors Suite", func() {
 			fakeServer.Ready.Wait()
 			timeoutCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
-			subscription, err := monitor.Subscribe(timeoutCtx, &SubscribeRequest{})
+			subscription, err := monitor.Subscribe(timeoutCtx, &Empty{})
 			Expect(err).ToNot(HaveOccurred())
 			_, err = subscription.Recv()
 			Expect(err).ToNot(HaveOccurred())

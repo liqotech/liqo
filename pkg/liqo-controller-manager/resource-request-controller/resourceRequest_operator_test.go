@@ -366,7 +366,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			node1, err = setNodeReadyStatus(ctx, node1, false, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				Expect(err).NotTo(HaveOccurred())
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
@@ -403,7 +404,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return checkResourceOfferUpdate(ctx, homeCluster, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			Eventually(func() bool {
-				resourcesRead := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				Expect(err).ToNot(HaveOccurred())
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
@@ -425,7 +427,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				Expect(err).ToNot(HaveOccurred())
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
@@ -445,7 +448,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				Expect(err).ToNot(HaveOccurred())
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
@@ -466,7 +470,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			node2, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node2, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				Expect(err).NotTo(HaveOccurred())
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
@@ -494,7 +499,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			err = clientset.CoreV1().Nodes().Delete(ctx, node1.Name, metav1.DeleteOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
+				Expect(err).NotTo(HaveOccurred())
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
@@ -589,7 +595,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			node2.Status.Allocatable[corev1.ResourceCPU] = cpu
 			node2, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node2, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
-			Expect(updater.isAboveThreshold(cluster1.ClusterID)).ShouldNot(BeTrue())
+			Expect(updater.shouldUpdate(cluster1.ClusterID)).ShouldNot(BeTrue())
 			updater.SetThreshold(4)
 		})
 	})

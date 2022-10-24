@@ -130,7 +130,7 @@ func main() {
 	enableIncomingPeering := flag.Bool("enable-incoming-peering", true,
 		"Enable remote clusters to establish an incoming peering with the local cluster (can be overwritten on a per foreign cluster basis)")
 	offerDisableAutoAccept := flag.Bool("offer-disable-auto-accept", false, "Disable the automatic acceptance of resource offers")
-	offerUpdateThreshold := argsutils.Percentage{Val: 5}
+	offerUpdateThreshold := argsutils.Percentage{}
 	flag.Var(&offerUpdateThreshold, "offer-update-threshold-percentage",
 		"The threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update")
 
@@ -254,9 +254,10 @@ func main() {
 	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
 	var monitor resourcemonitors.ResourceReader
 	if *externalResourceMonitorAddress != "" {
-		externalMonitor, err := resourcemonitors.NewExternalMonitor(ctx, *externalResourceMonitorAddress)
+		externalMonitor, err := resourcemonitors.NewExternalMonitor(ctx, *externalResourceMonitorAddress, 3*time.Second)
 		if err != nil {
-			klog.Fatal(err)
+			klog.Errorf("error on creating external resource monitor: %s", err)
+			os.Exit(1)
 		}
 		monitor = externalMonitor
 	} else {

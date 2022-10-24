@@ -16,8 +16,7 @@ package resourcemonitors
 
 import (
 	"context"
-	"errors"
-	"io"
+	"fmt"
 	"time"
 
 	"google.golang.org/grpc"
@@ -33,14 +32,13 @@ type ExternalResourceMonitor struct {
 }
 
 // NewExternalMonitor creates a new ExternalResourceMonitor.
-func NewExternalMonitor(ctx context.Context, address string) (*ExternalResourceMonitor, error) {
+func NewExternalMonitor(ctx context.Context, address string, connectionTimeout time.Duration) (*ExternalResourceMonitor, error) {
 	klog.Infof("Connecting to %s", address)
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, connectionTimeout)
+	defer cancel()
 	conn, err := grpc.DialContext(ctx, address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-	cancel()
 	if err != nil {
-		klog.Errorf("Could not connect to external resource monitor at %s: %s", address, err)
-		return nil, err
+		return nil, fmt.Errorf("couldn't connect to grpc server %s: %w", address, err)
 	}
 	client := NewResourceReaderClient(conn)
 	return &ExternalResourceMonitor{
@@ -50,49 +48,60 @@ func NewExternalMonitor(ctx context.Context, address string) (*ExternalResourceM
 
 // Register sets an update notifier.
 func (m *ExternalResourceMonitor) Register(ctx context.Context, notifier ResourceUpdateNotifier) {
-	stream, err := m.ResourceReaderClient.Subscribe(ctx, &SubscribeRequest{})
-	if err != nil {
-		klog.Errorf("grpc error while subscribing: %s", err)
-	}
+	var err error
+	var stream ResourceReader_SubscribeClient
 	go func() {
-		for {
-			_, err := stream.Recv()
-			if errors.Is(err, io.EOF) {
-				klog.V(4).Infof("The external monitor closed the Register() stream")
-				break
+		for ctx.Err() == nil {
+			if stream == nil {
+				if stream, err = m.Subscribe(ctx, &Empty{}); err != nil {
+					klog.Errorf("Failed to subscribe to the external resource monitor: %s", err)
+					// Prevent busy loop in case of continuous errors
+					timeout, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+					<-timeout.Done()
+					cancel()
+					continue
+				}
+				// A unidirectional stream is enough to get notified by the server
+				err := stream.CloseSend()
+				if err != nil {
+					klog.Warningf("error while making stream unidirectional to external resource monitor: %v", err)
+				}
 			}
+			notification, err := stream.Recv()
 			if err != nil {
-				klog.Errorf("grpc error while receiving notifications: %s", err)
+				klog.Errorf("stream to external resource monitor server closed due to an error: %v", err)
+
+				// this will force the retry
+				stream = nil
 				continue
 			}
-			notifier.NotifyChange()
+			notifier.NotifyChange(notification.ClusterID)
 		}
 	}()
 }
 
 // ReadResources reads the resources from the upstream API.
-func (m *ExternalResourceMonitor) ReadResources(ctx context.Context, clusterID string) corev1.ResourceList {
-	response, err := m.ResourceReaderClient.ReadResources(ctx, &ReadRequest{Originator: clusterID})
+func (m *ExternalResourceMonitor) ReadResources(ctx context.Context, clusterID string) (corev1.ResourceList, error) {
+	response, err := m.ResourceReaderClient.ReadResources(ctx, &ClusterIdentity{ClusterID: clusterID})
 	if err != nil {
-		klog.Errorf("grpc error: %s", err)
-		return corev1.ResourceList{}
+		return nil, err
 	}
 	ret := corev1.ResourceList{}
 	for key, value := range response.Resources {
-		apiQty, err := resource.ParseQuantity(value)
-		if err != nil {
-			klog.Errorf("deserialization error: %s", err)
-			continue
+		if value != nil {
+			ret[corev1.ResourceName(key)] = *value
+		} else {
+			ret[corev1.ResourceName(key)] = resource.MustParse("0")
 		}
-		ret[corev1.ResourceName(key)] = apiQty
 	}
-	return ret
+	return ret, nil
 }
 
 // RemoveClusterID calls the method on the upstream API.
-func (m *ExternalResourceMonitor) RemoveClusterID(ctx context.Context, clusterID string) {
-	_, err := m.ResourceReaderClient.RemoveCluster(ctx, &RemoveRequest{Cluster: clusterID})
+func (m *ExternalResourceMonitor) RemoveClusterID(ctx context.Context, clusterID string) error {
+	_, err := m.ResourceReaderClient.RemoveCluster(ctx, &ClusterIdentity{ClusterID: clusterID})
 	if err != nil {
-		klog.Errorf("grpc error: %s", err)
+		return err
 	}
+	return nil
 }
