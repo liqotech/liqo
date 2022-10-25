@@ -3,6 +3,10 @@
 This section describes the procedure to **establish a peering** with a remote cluster, using one of the two alternative approaches featured by Liqo.
 You can refer to the [dedicated features section](FeaturesPeeringApproaches) for a high-level presentation of their characteristics, and the associated trade-offs.
 
+```{warning}
+The establishment of a peering with a remote cluster leveraging a **different version of Liqo**, net of patch releases, is currently **not supported**, and could lead to unexpected results.
+```
+
 ## Overview
 
 The peering process leverages **[liqoctl](/installation/liqoctl.md)** to interact with the clusters, abstracting the creation and update of the appropriate custom resources.
