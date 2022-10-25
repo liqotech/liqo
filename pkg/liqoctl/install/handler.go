@@ -187,6 +187,7 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 	}
 
 	s.Success(fmt.Sprintf("All Set! You can now proceed establishing a peering (%v peer --help for more information)", o.CommandName))
+	o.Printer.Success.Println("Make sure to use the same version of Liqo on all remote clusters")
 	return nil
 }
 

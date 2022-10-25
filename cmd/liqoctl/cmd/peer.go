@@ -49,6 +49,10 @@ This command enables a peering towards an already known remote cluster, without 
 need of specifying all authentication parameters. It adopts the same approach already
 used while peering for the first time with the given remote cluster.
 
+Warning: the establishment of a peering with a remote cluster leveraging a different
+version of Liqo, net of patch releases, is currently *not supported*, and could
+lead to unexpected results.
+
 Examples:
   $ {{ .Executable }} peer eternal-donkey
 or

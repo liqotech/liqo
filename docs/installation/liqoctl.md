@@ -10,12 +10,16 @@ Specifically, it abstracts the creation and modification of Liqo defined custom 
 * Enable and configure **workload offloading** on a per-namespace basis.
 * Retrieve the **status** of Liqo, as well as of given peering relationships and offloading setups.
 
+```{warning}
+Make sure to always **use the *liqoctl* version matching that of Liqo** installed (or to be installed) in your cluster(s).
+```
+
+{{ env.config.html_context.generate_liqoctl_version_warning() }}
+
 ```{admonition} Note
 *liqoctl* displays a *kubectl* compatible behavior concerning Kubernetes API access, hence supporting the `KUBECONFIG` environment variable, as well as all the standard flags, including `--kubeconfig` and `--context`.
 Moreover, subcommands interacting with two clusters (e.g., *liqoctl peer in-band*) feature a parallel set of flags concerning Kubernetes API access to the remote cluster, in the form `--remote-<flag>` (e.g., `--remote-kubeconfig`, `--remote-context`).
 ```
-
-{{ env.config.html_context.generate_liqoctl_version_warning() }}
 
 (InstallationLiqoctlWithHomebrew)=
 
