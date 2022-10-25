@@ -124,7 +124,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 
 	// Abort the reflection if the remote object is not managed by us, as we do not want to mutate others' objects.
 	if (remoteExists && !forge.IsReflected(remote)) || (shadowExists && !forge.IsReflected(shadow)) {
-		if !localExists { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
+		if localExists { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).
 			klog.Infof("Skipping reflection of local pod %q as remote already exists and is not managed by us", npr.LocalRef(name))
 			npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
 		}
@@ -135,7 +135,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	// The local pod does no longer exist. Ensure the shadowpod is absent from the remote cluster.
 	if !localExists {
 		defer tracer.Step("Ensured the absence of the remote object")
-		if !kerrors.IsNotFound(serr) {
+		if shadowExists {
 			klog.V(4).Infof("Deleting remote shadowpod %q, since local pod %q does no longer exist", npr.RemoteRef(name), npr.LocalRef(name))
 			return npr.DeleteRemote(ctx, npr.remoteShadowPodsClient, "ShadowPod", name, shadow.GetUID())
 		}

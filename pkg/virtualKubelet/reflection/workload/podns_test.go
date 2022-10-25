@@ -94,6 +94,22 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				err           error
 			)
 
+			WhenBodyRemoteNotManagedByReflection := func() func() {
+				return func() {
+					var shadowBefore *vkv1alpha1.ShadowPod
+
+					BeforeEach(func() {
+						shadowBefore = CreateShadowPod(liqoClient, &shadow)
+					})
+
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+					It("the remote object should be unmodified", func() {
+						shadowAfter := GetShadowPod(liqoClient, RemoteNamespace, PodName)
+						Expect(shadowAfter).To(Equal(shadowBefore))
+					})
+				}
+			}
+
 			BeforeEach(func() {
 				local = corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: LocalNamespace}}
 				remote = corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: RemoteNamespace}}
@@ -124,6 +140,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 				When("the remote object does not exist", WhenBody(false))
 				When("the remote object does exist", WhenBody(true))
+				When("the remote object does exist, but is not managed by the reflection", WhenBodyRemoteNotManagedByReflection())
 			})
 
 			When("the local object does exist and is not terminating", func() {
@@ -232,19 +249,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 					})
 				})
 
-				When("the remote object already exists, but is not managed by the reflection", func() {
-					var shadowBefore *vkv1alpha1.ShadowPod
-
-					BeforeEach(func() {
-						shadowBefore = CreateShadowPod(liqoClient, &shadow)
-					})
-
-					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-					It("the remote object should be unmodified", func() {
-						shadowAfter := GetShadowPod(liqoClient, RemoteNamespace, PodName)
-						Expect(shadowAfter).To(Equal(shadowBefore))
-					})
-				})
+				When("the remote object already exists, but is not managed by the reflection", WhenBodyRemoteNotManagedByReflection())
 
 				When("the local object has already the appropriate offloading label", func() {
 					BeforeEach(func() {
