@@ -306,7 +306,6 @@ jobs:
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}
           prerelease: ${{ steps.semver_parser.outputs.prerelease != '' }}
-          draft: true
 
       - name: Update Helm index
         run: |
@@ -331,4 +330,6 @@ jobs:
           tag: ${{ needs.configure.outputs.commit-ref }}
           name: ${{ needs.configure.outputs.commit-ref }}
           prerelease: ${{ steps.semver_parser.outputs.prerelease != '' }}
-          draft: true
+
+      - name: Update new version in krew-index
+        uses: rajatjindal/krew-release-bot@v0.0.43
