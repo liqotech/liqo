@@ -268,6 +268,11 @@ Alternatively, you can manually specify a different name with the `--cluster-nam
 
 ````{tab-item} K3s
 
+```{admonition} Note
+By default, the K3s installer stores the kubeconfig to access your cluster in the non-standard path `/etc/rancher/k3s/k3s.yaml`.
+Make sure to properly refer to it when using *liqoctl* (e.g., setting the `KUBECONFIG` variable), and that the current user has permissions to read it.
+```
+
 **Installation**
 
 Liqo can be installed on a K3s cluster through:
@@ -275,6 +280,9 @@ Liqo can be installed on a K3s cluster through:
 ```bash
 liqoctl install k3s
 ```
+
+You may additionally set the `--api-server-url` flag to override the Kubernetes API Server address used by remote clusters to contact the local one.
+This operation is necessary in case the default address (`https://<control-plane-node-ip>:6443`) is unsuitable (e.g., the node IP is externally remapped).
 
 By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
