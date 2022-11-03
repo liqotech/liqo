@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 // validate validates the correctness of the different parameters.
@@ -90,8 +91,20 @@ func (o *Options) validateAPIServer() error {
 			return nil
 		}
 
-		o.APIServer = o.RESTConfig.Host
-	} else if !o.DisableAPIServerSanityChecks {
+		// Do not fallback to the API server URL in the REST config if it refers to localhost.
+		apiServerURL, err := url.Parse(o.RESTConfig.Host)
+		if err != nil {
+			return err
+		}
+
+		if !slice.ContainsString(localhostValues, apiServerURL.Hostname()) {
+			o.APIServer = o.RESTConfig.Host
+		}
+
+		return nil
+	}
+
+	if !o.DisableAPIServerSanityChecks {
 		// Validate that the retrieve endpoint matches the one of the REST config.
 		if err := o.validateAPIServerConsistency(); err != nil {
 			return err
@@ -103,11 +116,8 @@ func (o *Options) validateAPIServer() error {
 		return err
 	}
 
-	hostname := apiServerURL.Hostname()
-	for i := range localhostValues {
-		if hostname == localhostValues[i] {
-			return fmt.Errorf("cannot use localhost as API Server address")
-		}
+	if slice.ContainsString(localhostValues, apiServerURL.Hostname()) {
+		return fmt.Errorf("cannot use localhost as API Server address")
 	}
 
 	return nil
