@@ -27,7 +27,7 @@ controllerManager:
       limits: {}
       requests: {}
   # -- controller-manager image repository
-  imageName: "liqo/liqo-controller-manager"
+  imageName: "ghcr.io/liqotech/liqo-controller-manager"
   config:
     # -- It defines the percentage of available cluster resources that you are willing to share with foreign clusters.
     resourceSharingPercentage: 30
@@ -53,7 +53,7 @@ route:
       limits: {}
       requests: {}
   # -- route image repository
-  imageName: "liqo/liqonet"
+  imageName: "ghcr.io/liqotech/liqonet"
 
 gateway:
   # -- The number of gateway instances to run.
@@ -73,7 +73,7 @@ gateway:
       limits: {}
       requests: {}
   # -- gateway image repository
-  imageName: "liqo/liqonet"
+  imageName: "ghcr.io/liqotech/liqonet"
   service:
     # -- If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer".
     # Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort".
@@ -114,7 +114,7 @@ networkManager:
       limits: {}
       requests: {}
   # -- networkManager image repository
-  imageName: "liqo/liqonet"
+  imageName: "ghcr.io/liqotech/liqonet"
   config:
     # -- The subnet used by the cluster for the pods, in CIDR notation
     podCIDR: ""
@@ -143,7 +143,7 @@ crdReplicator:
       limits: {}
       requests: {}
   # -- crdReplicator image repository
-  imageName: "liqo/crd-replicator"
+  imageName: "ghcr.io/liqotech/crd-replicator"
 
 discovery:
   pod:
@@ -158,7 +158,7 @@ discovery:
       limits: {}
       requests: {}
   # -- discovery image repository
-  imageName: "liqo/discovery"
+  imageName: "ghcr.io/liqotech/discovery"
   config:
     # -- Specify an unique ID (must be a valid uuidv4) for your cluster, instead of letting helm generate it automatically at install time. You can generate it using the command: `uuidgen`
     # Setting this field is necessary when using tools such as ArgoCD, since the helm lookup function is not supported and a new value would be generated at each deployment.
@@ -195,10 +195,10 @@ auth:
       limits: {}
       requests: {}
   # -- auth image repository
-  imageName: "liqo/auth-service"
+  imageName: "ghcr.io/liqotech/auth-service"
   initContainer:
     # -- auth init container image repository
-    imageName: "liqo/cert-creator"
+    imageName: "ghcr.io/liqotech/cert-creator"
   service:
     # -- The type of service used to expose the Authentication Service.
     # If you are exposing this service with an Ingress, you can change it to ClusterIP;
@@ -242,10 +242,10 @@ metricAgent:
       limits: {}
       requests: {}
   # -- metricAgent image repository
-  imageName: "liqo/metric-agent"
+  imageName: "ghcr.io/liqotech/metric-agent"
   initContainer:
     # -- auth init container image repository
-    imageName: "liqo/cert-creator"
+    imageName: "ghcr.io/liqotech/cert-creator"
 
 telemetry:
   # -- Enable the telemetry collector
@@ -262,7 +262,7 @@ telemetry:
       limits: {}
       requests: {}
   # -- telemetry image repository
-  imageName: "liqo/telemetry"
+  imageName: "ghcr.io/liqotech/telemetry"
   config:
     # -- Set the schedule of the telemetry collector CronJob
     schedule: ""
@@ -279,7 +279,7 @@ webhook:
 
 virtualKubelet:
   # -- virtual kubelet image repository
-  imageName: "liqo/virtual-kubelet"
+  imageName: "ghcr.io/liqotech/virtual-kubelet"
   # add additional values for this fields to add to virtual kubelet deployments and pods
   extra:
     # -- virtual kubelet pod extra annotations
