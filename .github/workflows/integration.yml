@@ -1,14 +1,7 @@
 name: Integration Pipeline
 on:
   push:
-    tags:
-      - 'v*'
-    branches:
-      - master
-  repository_dispatch:
-    types:
-      - test-command
-      - build-command
+  pull_request:
 
 jobs:
   configure:
