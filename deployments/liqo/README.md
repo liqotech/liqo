@@ -7,12 +7,12 @@
 | auth.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
 | auth.config.enableAuthentication | bool | `true` | Set to false to disable the authentication of discovered clusters. NB: use it only for testing installations |
 | auth.config.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT or using an Ingress with a port different from 443. |
-| auth.imageName | string | `"liqo/auth-service"` | auth image repository |
+| auth.imageName | string | `"ghcr.io/liqotech/auth-service"` | auth image repository |
 | auth.ingress.annotations | object | `{}` | Auth ingress annotations |
 | auth.ingress.class | string | `""` | Set your ingress class |
 | auth.ingress.enable | bool | `false` | Whether to enable the creation of the Ingress resource |
 | auth.ingress.host | string | `""` | Set the hostname for your ingress |
-| auth.initContainer.imageName | string | `"liqo/cert-creator"` | auth init container image repository |
+| auth.initContainer.imageName | string | `"ghcr.io/liqotech/cert-creator"` | auth init container image repository |
 | auth.pod.annotations | object | `{}` | auth pod annotations |
 | auth.pod.extraArgs | list | `[]` | auth pod extra arguments |
 | auth.pod.labels | object | `{}` | auth pod labels |
@@ -28,13 +28,13 @@
 | controllerManager.config.externalMonitorAddress | string | `""` | The address of an external resource monitor service, overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor. |
 | controllerManager.config.offerUpdateThresholdPercentage | string | `""` | the threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update. |
 | controllerManager.config.resourceSharingPercentage | int | `30` | It defines the percentage of available cluster resources that you are willing to share with foreign clusters. |
-| controllerManager.imageName | string | `"liqo/liqo-controller-manager"` | controller-manager image repository |
+| controllerManager.imageName | string | `"ghcr.io/liqotech/liqo-controller-manager"` | controller-manager image repository |
 | controllerManager.pod.annotations | object | `{}` | controller-manager pod annotations |
 | controllerManager.pod.extraArgs | list | `[]` | controller-manager pod extra arguments |
 | controllerManager.pod.labels | object | `{}` | controller-manager pod labels |
 | controllerManager.pod.resources | object | `{"limits":{},"requests":{}}` | controller-manager pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | controllerManager.replicas | int | `1` | The number of controller-manager instances to run, which can be increased for active/passive high availability. |
-| crdReplicator.imageName | string | `"liqo/crd-replicator"` | crdReplicator image repository |
+| crdReplicator.imageName | string | `"ghcr.io/liqotech/crd-replicator"` | crdReplicator image repository |
 | crdReplicator.pod.annotations | object | `{}` | crdReplicator pod annotations |
 | crdReplicator.pod.extraArgs | list | `[]` | crdReplicator pod extra arguments |
 | crdReplicator.pod.labels | object | `{}` | crdReplicator pod labels |
@@ -47,7 +47,7 @@
 | discovery.config.enableDiscovery | bool | `false` | Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN |
 | discovery.config.incomingPeeringEnabled | bool | `true` | Allow (by default) the remote clusters to establish a peering with our cluster |
 | discovery.config.ttl | int | `90` | Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds) |
-| discovery.imageName | string | `"liqo/discovery"` | discovery image repository |
+| discovery.imageName | string | `"ghcr.io/liqotech/discovery"` | discovery image repository |
 | discovery.pod.annotations | object | `{}` | discovery pod annotations |
 | discovery.pod.extraArgs | list | `[]` | discovery pod extra arguments |
 | discovery.pod.labels | object | `{}` | discovery pod labels |
@@ -56,7 +56,7 @@
 | gateway.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
 | gateway.config.listeningPort | int | `5871` | port used by the vpn tunnel. |
 | gateway.config.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT and is different from the listening port. |
-| gateway.imageName | string | `"liqo/liqonet"` | gateway image repository |
+| gateway.imageName | string | `"ghcr.io/liqotech/liqonet"` | gateway image repository |
 | gateway.metrics.enabled | bool | `false` | expose metrics about network traffic towards cluster peers. |
 | gateway.metrics.port | int | `5872` | port used to expose metrics. |
 | gateway.metrics.serviceMonitor.enabled | bool | `false` | create a prometheus servicemonitor. |
@@ -70,8 +70,8 @@
 | gateway.service.annotations | object | `{}` |  |
 | gateway.service.type | string | `"LoadBalancer"` | If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer". Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort". |
 | metricAgent.enable | bool | `true` | Enable the metric agent |
-| metricAgent.imageName | string | `"liqo/metric-agent"` | metricAgent image repository |
-| metricAgent.initContainer.imageName | string | `"liqo/cert-creator"` | auth init container image repository |
+| metricAgent.imageName | string | `"ghcr.io/liqotech/metric-agent"` | metricAgent image repository |
+| metricAgent.initContainer.imageName | string | `"ghcr.io/liqotech/cert-creator"` | auth init container image repository |
 | metricAgent.pod.annotations | object | `{}` | metricAgent pod annotations |
 | metricAgent.pod.extraArgs | list | `[]` | metricAgent pod extra arguments |
 | metricAgent.pod.labels | object | `{}` | metricAgent pod labels |
@@ -82,7 +82,7 @@
 | networkManager.config.podCIDR | string | `""` | The subnet used by the cluster for the pods, in CIDR notation |
 | networkManager.config.reservedSubnets | list | `[]` | Usually the IPs used for the pods in k8s clusters belong to private subnets. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
 | networkManager.config.serviceCIDR | string | `""` | The subnet used by the cluster for the services, in CIDR notation |
-| networkManager.imageName | string | `"liqo/liqonet"` | networkManager image repository |
+| networkManager.imageName | string | `"ghcr.io/liqotech/liqonet"` | networkManager image repository |
 | networkManager.pod.annotations | object | `{}` | networkManager pod annotations |
 | networkManager.pod.extraArgs | list | `[]` | networkManager pod extra arguments |
 | networkManager.pod.labels | object | `{}` | networkManager pod labels |
@@ -98,7 +98,7 @@
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods |
-| route.imageName | string | `"liqo/liqonet"` | route image repository |
+| route.imageName | string | `"ghcr.io/liqotech/liqonet"` | route image repository |
 | route.pod.annotations | object | `{}` | route pod annotations |
 | route.pod.extraArgs | list | `[]` | route pod extra arguments |
 | route.pod.labels | object | `{}` | route pod labels |
@@ -110,7 +110,7 @@
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
 | telemetry.config.schedule | string | `""` | Set the schedule of the telemetry collector CronJob |
 | telemetry.enable | bool | `true` | Enable the telemetry collector |
-| telemetry.imageName | string | `"liqo/telemetry"` | telemetry image repository |
+| telemetry.imageName | string | `"ghcr.io/liqotech/telemetry"` | telemetry image repository |
 | telemetry.pod.annotations | object | `{}` | telemetry pod annotations |
 | telemetry.pod.extraArgs | list | `[]` | telemetry pod extra arguments |
 | telemetry.pod.labels | object | `{}` | telemetry pod labels |
@@ -119,7 +119,7 @@
 | virtualKubelet.extra.args | list | `[]` | virtual kubelet pod extra arguments |
 | virtualKubelet.extra.labels | object | `{}` | virtual kubelet pod extra labels |
 | virtualKubelet.extra.resources | object | `{"limits":{},"requests":{}}` | virtual kubelet pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
-| virtualKubelet.imageName | string | `"liqo/virtual-kubelet"` | virtual kubelet image repository |
+| virtualKubelet.imageName | string | `"ghcr.io/liqotech/virtual-kubelet"` | virtual kubelet image repository |
 | virtualKubelet.virtualNode.extra.annotations | object | `{}` | virtual node extra annotations |
 | virtualKubelet.virtualNode.extra.labels | object | `{}` | virtual node extra labels |
 | webhook.failurePolicy | string | `"Fail"` | the webhook failure policy, among Ignore and Fail |
