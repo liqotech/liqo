@@ -122,8 +122,8 @@ jobs:
           context: .
           platforms: ${{ needs.configure.outputs.architectures }}
           tags: |
-            ghcr.io/${{ github.repository }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
-            ghcr.io/${{ github.repository }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit-ref }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit-ref }}
           push: true
           file: ${{ steps.dockerfile.outputs.path }}
           build-args: |
