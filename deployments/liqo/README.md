@@ -115,6 +115,11 @@
 | telemetry.pod.extraArgs | list | `[]` | telemetry pod extra arguments |
 | telemetry.pod.labels | object | `{}` | telemetry pod labels |
 | telemetry.pod.resources | object | `{"limits":{},"requests":{}}` | telemetry pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
+| uninstaller.imageName | string | `"ghcr.io/liqotech/uninstaller"` | uninstaller image repository |
+| uninstaller.pod.annotations | object | `{}` | uninstaller pod annotations |
+| uninstaller.pod.extraArgs | list | `[]` | uninstaller pod extra arguments |
+| uninstaller.pod.labels | object | `{}` | uninstaller pod labels |
+| uninstaller.pod.resources | object | `{"limits":{},"requests":{}}` | uninstaller pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | virtualKubelet.extra.annotations | object | `{}` | virtual kubelet pod extra annotations |
 | virtualKubelet.extra.args | list | `[]` | virtual kubelet pod extra arguments |
 | virtualKubelet.extra.labels | object | `{}` | virtual kubelet pod extra labels |
