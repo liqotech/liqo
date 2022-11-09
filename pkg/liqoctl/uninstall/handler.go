@@ -19,7 +19,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	helm "github.com/mittwald/go-helm-client"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -53,11 +55,15 @@ var liqoGroupVersions = []schema.GroupVersion{
 type Options struct {
 	*factory.Factory
 
-	Purge bool
+	Timeout time.Duration
+	Purge   bool
 }
 
 // Run implements the uninstall command.
 func (o *Options) Run(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
 	s := o.Printer.StartSpinner("Running pre-uninstall checks")
 	if err := o.preUninstall(ctx); err != nil {
 		s.Fail("Pre-uninstall checks failed: ", output.PrettyErr(err))
@@ -66,7 +72,8 @@ func (o *Options) Run(ctx context.Context) error {
 	s.Success("Pre-uninstall checks passed")
 
 	s = o.Printer.StartSpinner("Uninstalling Liqo")
-	err := o.HelmClient().UninstallReleaseByName(install.LiqoReleaseName)
+	chartSpec := helm.ChartSpec{ReleaseName: install.LiqoReleaseName, Timeout: o.Timeout}
+	err := o.HelmClient().UninstallRelease(&chartSpec)
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		s.Fail("Error uninstalling Liqo: ", output.PrettyErr(err))
 		return err
