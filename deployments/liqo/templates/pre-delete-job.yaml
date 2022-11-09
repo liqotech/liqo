@@ -14,6 +14,13 @@ spec:
       name: {{ include "liqo.prefixedName" $predelete }}
       labels:
         {{- include "liqo.labels" $predelete| nindent 8 }}
+        {{- if .Values.uninstaller.pod.labels }}
+        {{- toYaml .Values.uninstaller.pod.labels | nindent 8 }}
+        {{- end }}
+      {{- if .Values.uninstaller.pod.annotations }}
+      annotations:
+        {{- toYaml .Values.uninstaller.pod.annotations | nindent 8 }}
+      {{- end }}
     spec:
       securityContext:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
@@ -21,12 +28,17 @@ spec:
       serviceAccountName: {{ include "liqo.prefixedName" $predelete}}
       containers:
       - name: pre-delete-job
-        image: "liqo/uninstaller{{ include "liqo.suffix" $predelete }}:{{ include "liqo.version" $predelete }}"
+        image: {{ .Values.uninstaller.imageName }}{{ include "liqo.suffix" $predelete }}:{{ include "liqo.version" $predelete }}
         securityContext:
           {{- include "liqo.containerSecurityContext" . | nindent 10 }}
         command: ["/usr/bin/uninstaller"]
+        {{- if .Values.uninstaller.pod.extraArgs }}
+        args:
+          {{- toYaml .Values.uninstaller.pod.extraArgs | nindent 10 }}
+        {{- end }}
         env:
           - name: POD_NAMESPACE
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+        resources: {{- toYaml .Values.uninstaller.pod.resources | nindent 10 }}

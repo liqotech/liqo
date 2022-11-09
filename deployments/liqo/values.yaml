@@ -299,6 +299,21 @@ virtualKubelet:
       # -- virtual node extra labels
       labels: {}
 
+uninstaller:
+  pod:
+    # -- uninstaller pod annotations
+    annotations: {}
+    # -- uninstaller pod labels
+    labels: {}
+    # -- uninstaller pod extra arguments
+    extraArgs: []
+    # -- uninstaller pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/)
+    resources:
+      limits: {}
+      requests: {}
+  # -- uninstaller image repository
+  imageName: "ghcr.io/liqotech/uninstaller"
+
 proxy:
   pod:
     # -- proxy pod annotations
