@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -55,6 +56,7 @@ func newUninstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command
 	}
 
 	cmd.Flags().BoolVar(&options.Purge, "purge", false, "Whether to purge all Liqo CRDs from the cluster (default false)")
+	cmd.Flags().DurationVar(&options.Timeout, "timeout", 10*time.Minute, "The timeout for the completion of the uninstallation process")
 
 	f.AddLiqoNamespaceFlag(cmd.Flags())
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc(factory.FlagNamespace, completion.Namespaces(ctx, f, completion.NoLimit)))
