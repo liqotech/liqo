@@ -33,7 +33,7 @@ require (
 	github.com/virtual-kubelet/virtual-kubelet v1.6.1-0.20220831210300-d2523fe808a2
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
-	golang.org/x/mod v0.6.0
+	golang.org/x/mod v0.7.0
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
 	golang.org/x/sys v0.2.0
 	golang.org/x/text v0.4.0
