@@ -108,6 +108,8 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 			tracer.Step("Ensured the local finalizer absence")
 			return err
 		}
+
+		return nil
 	}
 
 	// Ensure the local resource has the finalizer

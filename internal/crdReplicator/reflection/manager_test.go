@@ -108,6 +108,7 @@ var _ = Describe("Manager tests", func() {
 			objNamespace string
 			objGVR       schema.GroupVersionResource
 			objGVK       schema.GroupVersionKind
+			skipCreation bool
 			receiver     chan item
 		)
 
@@ -120,6 +121,7 @@ var _ = Describe("Manager tests", func() {
 			objGVK = netv1alpha1.GroupVersion.WithKind("NetworkConfig")
 			objGVR = netv1alpha1.NetworkConfigGroupVersionResource
 
+			skipCreation = false
 			receiver = make(chan item, 1)
 		})
 
@@ -141,14 +143,14 @@ var _ = Describe("Manager tests", func() {
 		ContextBody := func(alreadyPresent bool) func() {
 			return func() {
 				JustBeforeEach(func() {
-					if alreadyPresent {
+					if alreadyPresent && !skipCreation {
 						Expect(CreateNetworkConfig()).To(Succeed())
 					}
 
 					manager.Start(ctx, res)
 					manager.registerHandler(gvr, localNamespace, func(key item) { receiver <- key })
 
-					if !alreadyPresent {
+					if !alreadyPresent && !skipCreation {
 						Expect(CreateNetworkConfig()).To(Succeed())
 					}
 				})
@@ -160,7 +162,12 @@ var _ = Describe("Manager tests", func() {
 
 					if !alreadyPresent {
 						When("the handler is then unregistered", func() {
-							JustBeforeEach(func() { manager.unregisterHandler(gvr, localNamespace) })
+							BeforeEach(func() { skipCreation = true })
+							JustBeforeEach(func() {
+								manager.unregisterHandler(gvr, localNamespace)
+								// Create the object only once the handler has been unregistered, to prevent race conditions.
+								Expect(CreateNetworkConfig()).To(Succeed())
+							})
 							It("should not trigger the handler", func() { Consistently(receiver).ShouldNot(Receive()) })
 						})
 					}

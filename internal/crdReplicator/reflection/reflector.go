@@ -42,7 +42,7 @@ import (
 
 // Reflector represents an object managing the reflection of resources towards a given remote cluster.
 type Reflector struct {
-	sync.RWMutex
+	mu sync.RWMutex
 
 	manager        *Manager
 	localNamespace string
@@ -87,8 +87,8 @@ func (r *Reflector) Start(ctx context.Context) {
 
 // Stop stops the reflection towards the remote cluster, and removes the replicated resources.
 func (r *Reflector) Stop() error {
-	r.Lock()
-	defer r.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	klog.Infof("[%v] Stopping reflection towards remote cluster", r.remoteClusterID)
 
@@ -111,8 +111,8 @@ func (r *Reflector) ResourceStarted(resource *resources.Resource) bool {
 // StartForResource starts the reflection of the given resource. It panics if executed for
 // a resource with the reflection already started.
 func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Resource) {
-	r.Lock()
-	defer r.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	gvr := resource.GroupVersionResource
 	if _, found := r.resources[gvr]; found {
@@ -163,8 +163,8 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 
 // StopForResource stops the reflection of the given resource, and removes the replicated objects.
 func (r *Reflector) StopForResource(resource *resources.Resource) error {
-	r.Lock()
-	defer r.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	return r.stopForResource(resource.GroupVersionResource)
 }
@@ -203,8 +203,8 @@ func (r *Reflector) stopForResource(gvr schema.GroupVersionResource) error {
 
 // get atomically returns the reflected resource structure associated with a given GVR.
 func (r *Reflector) get(gvr schema.GroupVersionResource) (*reflectedResource, bool) {
-	r.RLock()
-	defer r.RUnlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	res, found := r.resources[gvr]
 	return res, found
