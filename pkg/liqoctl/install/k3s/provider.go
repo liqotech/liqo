@@ -41,11 +41,11 @@ func (o *Options) Name() string { return "k3s" }
 func (o *Options) Examples() string {
 	return `Examples:
   $ {{ .Executable }} install k3s --api-server-url https://liqo.example.local:6443 \
-      --cluster-labels "region=europe,environment=staging \
+      --cluster-labels region=europe,environment=staging \
       --reserved-subnets 172.16.0.0/16,192.16.254.0/24
 or
   $ {{ .Executable }} install k3s --api-server-url https://liqo.example.local:6443 \
-      --cluster-labels "region=europe,environment=staging \
+      --cluster-labels region=europe,environment=staging \
       --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
       --reserved-subnets 172.16.0.0/16,192.16.254.0/24
 `
