@@ -43,9 +43,9 @@ in the target cluster. Warning: only PVCs not currently mounted by any pod can
 be moved to a different cluster.
 
 Examples:
-  $ {{ .Executable }} move volume database01 --namespace foo --target-node worker-023"
+  $ {{ .Executable }} move volume database01 --namespace foo --target-node worker-023
 or
-  $ {{ .Executable }} move volume database01 --namespace foo --target-node liqo-neutral-colt"
+  $ {{ .Executable }} move volume database01 --namespace foo --target-node liqo-neutral-colt
       --containers-cpu-limits 1000m --containers-ram-limits 2Gi
 `
 

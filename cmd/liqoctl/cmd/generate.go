@@ -35,9 +35,9 @@ will get access to a slice of the current cluster, and have the possibility to
 offload workloads through the virtual node abstraction.
 
 Examples:
-  $ {{ .Executable }} generate peer-command"
+  $ {{ .Executable }} generate peer-command
 or
-  $ {{ .Executable }} generate peer-command --namespace liqo-system --only-command"
+  $ {{ .Executable }} generate peer-command --namespace liqo-system --only-command
 `
 
 func newGenerateCommand(ctx context.Context, f *factory.Factory) *cobra.Command {

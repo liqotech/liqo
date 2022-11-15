@@ -31,7 +31,7 @@ The CLI version is embedded in the binary and directly displayed. The deployed
 Liqo version version is determined based on the installed chart version.
 
 Examples:
-  $ {{ .Executable }} version"
+  $ {{ .Executable }} version
 `
 
 func newVersionCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
