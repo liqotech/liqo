@@ -92,6 +92,16 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	buffer := &bytes.Buffer{}
 	klog.SetOutput(buffer)
 
+	// In case liqoctl is used as a kubectl plugin, let's set a custom usage template with kubectl
+	// hardcoded in it, since Cobra does not allow to specify a two word command (i.e., "kubectl liqo")
+	if strings.HasPrefix(liqoctl, "kubectl ") {
+		cmd.Use = strings.TrimPrefix(liqoctl, "kubectl ")
+		cmd.SetUsageTemplate(strings.NewReplacer(
+			"{{.UseLine}}", "kubectl {{.UseLine}}",
+			"{{.CommandPath}}", "kubectl {{.CommandPath}}").
+			Replace(cmd.UsageTemplate()))
+	}
+
 	// Add the flags regarding Kubernetes access options.
 	f.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 
