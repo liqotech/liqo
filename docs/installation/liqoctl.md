@@ -33,6 +33,26 @@ brew install liqoctl
 
 When installed with Homebrew, autocompletion scripts are automatically configured and should work out of the box.
 
+(InstallationLiqoctlWithasdf)=
+
+## Install liqoctl with asdf
+
+If you are using the [asdf](https://asdf-vm.com/) runtime manager, you can install *liqoctl* with asdf:
+
+```bash
+# Add the liqoctl plugin for asdf
+asdf plugin add liqoctl
+
+# List all installable versions
+asdf list-all liqoctl
+
+# Install the desired version
+asdf install liqoctl <version>
+
+# set it as the global version, unless a project declares it otherwise locally
+asdf global liqoctl <version>
+```
+
 (InstallationLiqoctlManually)=
 
 ## Install liqoctl manually
