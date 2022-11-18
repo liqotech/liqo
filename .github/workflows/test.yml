@@ -21,17 +21,17 @@ jobs:
       run: |
         # The ref of the commit to checkout (do not use the merge commit if pull request)
         if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-          echo "::set-output name=commit-ref::${{ github.event.client_payload.pull_request.head.sha }}"
+          echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
         elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
-          echo "::set-output name=commit-ref::${{ steps.get_version.outputs.VERSION }}"
+          echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=commit-ref::${{ github.sha }}"
+          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
         fi
 
         if [ "${{ github.event_name }}" != "repository_dispatch" ]; then
-           echo "::set-output name=repo-name::${{ github.repository }}"
+           echo "repo-name=${{ github.repository }}" >> $GITHUB_OUTPUT
         else
-           echo "::set-output name=repo-name::${{ github.event.client_payload.github.payload.repository.full_name }}"
+           echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
         fi
 
 
