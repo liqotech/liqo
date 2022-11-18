@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -108,10 +109,12 @@ func (m *resourceGetter) GetNodeNames(ctx context.Context) []string {
 	})
 	utilruntime.Must(err)
 
-	res := make([]string, len(nodes.Items))
+	res := make([]string, 0)
 	for i := range nodes.Items {
 		node := &nodes.Items[i]
-		res[i] = node.Name
+		if liqoutils.IsNodeReady(node) {
+			res = append(res, node.Name)
+		}
 	}
 
 	klog.V(2).Infof("Scraping nodes %+v", res)

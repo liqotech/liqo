@@ -34,10 +34,18 @@ var _ = Context("Resources", func() {
 	var getter ResourceGetter
 	var ctx context.Context
 
-	var getNode = func(name string) *corev1.Node {
+	var getNode = func(name string, conditionReady corev1.ConditionStatus) *corev1.Node {
 		return &corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
+			},
+			Status: corev1.NodeStatus{
+				Conditions: []corev1.NodeCondition{
+					{
+						Type:   corev1.NodeReady,
+						Status: conditionReady,
+					},
+				},
 			},
 		}
 	}
@@ -75,8 +83,9 @@ var _ = Context("Resources", func() {
 		ctx = context.Background()
 
 		cl = fake.NewClientBuilder().WithObjects(
-			getNode("node1"),
-			getNode("node2"),
+			getNode("node1", corev1.ConditionTrue),
+			getNode("node2", corev1.ConditionTrue),
+			getNode("node3", corev1.ConditionFalse),
 			getNamespace("ns1", "origNs1", "cluster1"),
 			getNamespace("ns2", "origNs2", "cluster2"),
 			getPod("pod1", "ns1", "cluster1", "node1"),
