@@ -42,7 +42,7 @@ jobs:
           output="${output//$'\r'/'%0D'}"
 
           # Store the different as step output
-          echo "::set-output name=diff::${output}"
+          echo "diff=${output}" >> $GITHUB_OUTPUT
 
           # Trigger a failure in case the diff is not empty
           exit ${exit_code}

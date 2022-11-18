@@ -23,35 +23,35 @@ jobs:
     steps:
     - name: Get the version
       id: get_version
-      run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+      run: echo "VERSION=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_OUTPUT
       if: startsWith(github.ref, 'refs/tags/v')
     - name: Configure
       id: configure
       run: |
         # The ref of the commit to checkout (do not use the merge commit if repository dispatch)
         if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-          echo "::set-output name=master::false"
-          echo "::set-output name=architectures::linux/amd64"
-          echo "::set-output name=commit-ref::${{ github.event.client_payload.pull_request.head.sha }}"
+          echo "master=false" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
         elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
-          echo "::set-output name=master::false"
-          echo "::set-output name=architectures::linux/amd64,linux/arm64"
-          echo "::set-output name=commit-ref::${{ steps.get_version.outputs.VERSION }}"
+          echo "master=false" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=master::true"
-          echo "::set-output name=architectures::linux/amd64,linux/arm64"
-          echo "::set-output name=commit-ref::${{ github.sha }}"
+          echo "master=true" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
         fi
 
         # The suffix to append to the repository name if not triggered by a push for a release
-        [[ "${{ steps.get_version.outputs.VERSION }}" == "" ]] && \
-          echo "::set-output name=repo-suffix::-ci" ||
-          echo "::set-output name=repo-suffix::"
+        ([[ "${{ steps.get_version.outputs.VERSION }}" == "" ]] && \
+          echo "repo-suffix=-ci" ||
+          echo "repo-suffix=") >> $GITHUB_OUTPUT
 
         if [ "${{ github.event_name }}" != "repository_dispatch" ]; then
-           echo "::set-output name=repo-name::${{ github.repository }}"
+           echo "repo-name=${{ github.repository }}" >> $GITHUB_OUTPUT
         else
-           echo "::set-output name=repo-name::${{ github.event.client_payload.github.payload.repository.full_name }}"
+           echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
         fi
 
       # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
@@ -119,9 +119,9 @@ jobs:
       - name: Configure the build-push-action dockerfile path
         id: dockerfile
         run: |
-          [[ -d "build/${{ matrix.component }}" ]] && \
-            echo "::set-output name=path::build/${{ matrix.component }}/Dockerfile" || \
-            echo "::set-output name=path::build/common/Dockerfile"
+          ([[ -d "build/${{ matrix.component }}" ]] && \
+            echo "path=build/${{ matrix.component }}/Dockerfile" || \
+            echo "path=build/common/Dockerfile") >> $GITHUB_OUTPUT
 
       - name: Build (and Publish) ${{ matrix.component }} image
         uses: docker/build-push-action@v3
