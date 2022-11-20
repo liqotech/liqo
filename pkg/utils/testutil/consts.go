@@ -16,7 +16,7 @@ package testutil
 
 const (
 	// APIAddress is the address of the API server used for testing.
-	APIAddress = "fake API address"
+	APIAddress = "1.0.0.1"
 	// PodCIDR is the CIDR of the pod network used for testing.
 	PodCIDR = "fake pod CIDR"
 	// ServiceCIDR is the CIDR of the service network used for testing.
@@ -34,7 +34,10 @@ var (
 		"reserved subnet 4",
 	}
 	// ClusterLabels is the map of labels used for testing.
-	ClusterLabels = map[string]interface{}{
+	ClusterLabels = map[string]string{
 		"liqo.io/testLabel": "fake label",
 	}
+
+	// OverrideAPIAddress is the overrided address of the API server used for testing.
+	OverrideAPIAddress = "1.0.0.2:6443"
 )

@@ -21,11 +21,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/status"
-	"github.com/liqotech/liqo/pkg/liqoctl/util"
-	"github.com/liqotech/liqo/pkg/utils"
+	liqoctlutils "github.com/liqotech/liqo/pkg/liqoctl/util"
+	liqoutils "github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -35,7 +35,6 @@ type LocalInfoChecker struct {
 	options          *status.Options
 	localInfoSection output.Section
 	collectionErrors []error
-	getReleaseValues func() (map[string]interface{}, error)
 }
 
 const (
@@ -47,20 +46,6 @@ func NewLocalInfoChecker(options *status.Options) *LocalInfoChecker {
 	return &LocalInfoChecker{
 		localInfoSection: output.NewRootSection(),
 		options:          options,
-		getReleaseValues: func() (map[string]interface{}, error) {
-			return options.HelmClient().GetReleaseValues(install.LiqoReleaseName, true)
-		},
-	}
-}
-
-// NewLocalInfoCheckerTest returns a new LocalInfoChecker with a custom getReleaseValues function.
-func NewLocalInfoCheckerTest(options *status.Options, helmValues map[string]interface{}) *LocalInfoChecker {
-	return &LocalInfoChecker{
-		localInfoSection: output.NewRootSection(),
-		options:          options,
-		getReleaseValues: func() (map[string]interface{}, error) {
-			return helmValues, nil
-		},
 	}
 }
 
@@ -72,26 +57,30 @@ func (lic *LocalInfoChecker) Silent() bool {
 // Collect implements the collect method of the Checker interface.
 // it collects the infos of the local cluster.
 func (lic *LocalInfoChecker) Collect(ctx context.Context) {
-	clusterIdentity, err := utils.GetClusterIdentityWithControllerClient(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
+	clusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
 	if err != nil {
 		lic.addCollectionError(fmt.Errorf("unable to get cluster identity: %w", err))
 	}
-	values, err := lic.getReleaseValues()
-	if err != nil {
-		lic.addCollectionError(fmt.Errorf("unable to get release values: %w", err))
-	}
-	clusterLabels, err := util.ExtractValuesFromNestedMaps(values, "discovery", "config", "clusterLabels")
-	if err != nil {
-		lic.addCollectionError(fmt.Errorf("unable to get cluster labels: %w", err))
-	}
-
 	clusterIdentitySection := lic.localInfoSection.AddSection("Cluster Identity")
 	clusterIdentitySection.AddEntry("Cluster ID", clusterIdentity.ClusterID)
 	clusterIdentitySection.AddEntry("Cluster Name", clusterIdentity.ClusterName)
-	if clusterLabelsMap, ok := clusterLabels.(map[string]interface{}); ok {
-		clusterLabelsSection := clusterIdentitySection.AddSection("Cluster Labels")
-		for k, v := range clusterLabelsMap {
-			clusterLabelsSection.AddEntry(k, v.(string))
+
+	ctrlargs, err := liqoctlutils.RetrieveLiqoControllerManagerDeploymentArgs(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
+	if err != nil {
+		lic.addCollectionError(fmt.Errorf("unable to get Liqo Controller Manager Deployment Args: %w", err))
+	} else {
+		clusterLabelsArg, err := liqoctlutils.ExtractValueFromArgumentList("--cluster-labels", ctrlargs)
+		if err != nil {
+			lic.addCollectionError(fmt.Errorf("unable to get --cluster-labels arg from Liqo Controller Manager Deployment args: %w", err))
+		} else {
+			clusterLabels, err := liqoctlutils.ParseArgsMultipleValues(clusterLabelsArg, ",")
+			if err != nil {
+				lic.addCollectionError(fmt.Errorf("unable to get cluster labels: %w", err))
+			}
+			clusterLabelsSection := clusterIdentitySection.AddSection("Cluster Labels")
+			for k, v := range clusterLabels {
+				clusterLabelsSection.AddEntry(k, v)
+			}
 		}
 	}
 
@@ -107,14 +96,20 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 			networkSection.AddEntry("Reserved Subnets", ipamStorage.Spec.ReservedSubnets...)
 		}
 	}
-	apiServerAddress, err := util.ExtractValuesFromNestedMaps(values, "apiServer", "address")
+
+	var apiServerAddressArg string
+	authargs, err := liqoctlutils.RetrieveLiqoAuthDeploymentArgs(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
+	if err != nil {
+		lic.addCollectionError(fmt.Errorf("unable to get Liqo Auth Deployment Args: %w", err))
+	} else {
+		// ExtractvalueFromArgumentList errors are not handled because GetURL is able to handle void values.
+		apiServerAddressArg, _ = liqoctlutils.ExtractValueFromArgumentList("--advertise-api-server-address", authargs)
+	}
+	apiServerAddress, err := apiserver.GetURL(apiServerAddressArg, lic.options.KubeClient)
 	if err != nil {
 		lic.addCollectionError(fmt.Errorf("unable to get api server address: %w", err))
 	}
-	if apiServerAddressString, ok := apiServerAddress.(string); ok && apiServerAddressString != "" {
-		lic.localInfoSection.AddSection("Kubernetes API Server").
-			AddEntry("Address", apiServerAddressString)
-	}
+	lic.localInfoSection.AddSection("Kubernetes API Server").AddEntry("Address", apiServerAddress)
 }
 
 // GetTitle implements the getTitle method of the Checker interface.

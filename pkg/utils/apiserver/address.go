@@ -22,7 +22,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/discovery"
 )
@@ -45,12 +44,10 @@ func GetAddressFromMasterNode(ctx context.Context,
 	clientset kubernetes.Interface) (address string, err error) {
 	nodes, err := getMasterNodes(ctx, clientset)
 	if err != nil {
-		klog.Error(err)
 		return "", err
 	}
 	host, err := discovery.GetAddressFromNodeList(nodes.Items)
 	if err != nil {
-		klog.Error(err)
 		return "", err
 	}
 	return fmt.Sprintf("https://%v:6443", host), nil
@@ -72,7 +69,6 @@ func getMasterNodes(ctx context.Context, clientset kubernetes.Interface) (*v1.No
 			LabelSelector: selector,
 		})
 		if err != nil {
-			klog.Error(err)
 			return nodes, err
 		}
 		if len(nodes.Items) != 0 {
@@ -82,7 +78,6 @@ func getMasterNodes(ctx context.Context, clientset kubernetes.Interface) (*v1.No
 
 	if len(nodes.Items) == 0 {
 		err = fmt.Errorf("no ApiServer.Address variable provided and no master node found, one of the two values must be present")
-		klog.Error(err)
 		return nodes, err
 	}
 	return nodes, nil
