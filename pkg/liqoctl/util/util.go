@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
@@ -39,6 +40,28 @@ func RetrieveLiqoControllerManagerDeploymentArgs(ctx context.Context, cl client.
 	containers := deployments.Items[0].Spec.Template.Spec.Containers
 	if len(containers) != 1 {
 		return nil, errors.New("retrieved an invalid liqo controller manager deployment")
+	}
+
+	return containers[0].Args, nil
+}
+
+// RetrieveLiqoAuthDeploymentArgs retrieves the list of arguments associated with the liqo auth deployment.
+func RetrieveLiqoAuthDeploymentArgs(ctx context.Context, cl client.Client, namespace string) ([]string, error) {
+	// Retrieve the deployment of the liqo controller manager component
+	selector, err := metav1.LabelSelectorAsSelector(&liqolabels.AuthServiceLabelSelector)
+	if err != nil {
+		return nil, errors.New("failed to forge the liqo auth deployment selector")
+	}
+	var deployments appsv1.DeploymentList
+	if err := cl.List(ctx, &deployments, client.InNamespace(namespace), client.MatchingLabelsSelector{
+		Selector: selector,
+	}); err != nil || len(deployments.Items) != 1 {
+		return nil, errors.New("failed to retrieve the liqo auth deployment")
+	}
+
+	containers := deployments.Items[0].Spec.Template.Spec.Containers
+	if len(containers) != 1 {
+		return nil, errors.New("retrieved an invalid liqo auth deployment")
 	}
 
 	return containers[0].Args, nil
@@ -96,4 +119,17 @@ func ExtractValuesFromNestedMaps(m map[string]interface{}, keys ...string) (val 
 	} else {
 		return ExtractValuesFromNestedMaps(m, keys[1:]...)
 	}
+}
+
+// ParseArgsMultipleValues parse a string containing multiple key/value couples separated by ',' (eg. key1=value1,key2=value2).
+func ParseArgsMultipleValues(values, separator string) (map[string]string, error) {
+	result := make(map[string]string)
+	for _, value := range strings.Split(values, separator) {
+		parts := strings.Split(value, "=")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid value %s", value)
+		}
+		result[parts[0]] = parts[1]
+	}
+	return result, nil
 }

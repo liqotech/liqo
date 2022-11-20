@@ -23,20 +23,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// FakeHelmValues returns a fake helm values map.
-func FakeHelmValues() map[string]interface{} {
-	return map[string]interface{}{
-		"apiServer": map[string]interface{}{
-			"address": APIAddress,
-		},
-		"discovery": map[string]interface{}{
-			"config": map[string]interface{}{
-				"clusterLabels": ClusterLabels,
-			},
-		},
-	}
-}
-
 // FakeClusterIDConfigMap returns a fake ClusterID ConfigMap.
 func FakeClusterIDConfigMap(namespace, clusterID, clusterName string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
