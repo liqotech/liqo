@@ -74,7 +74,7 @@ Want to know about the features to come? Check out the [project roadmap](ROADMAP
 
 ## Contributing
 
-All contributors are warmly welcome. If you want to become a new contributor, we are so happy! Just, before doing it, read the tips and guidelines presented in the [dedicated documentation page](https://docs.liqo.io/en/stable/contributing/).
+All contributors are warmly welcome. If you want to become a new contributor, we are so happy! Just, before doing it, read the tips and guidelines presented in the [dedicated documentation page](https://docs.liqo.io/en/stable/contributing/contributing.html).
 
 ## Community
 
