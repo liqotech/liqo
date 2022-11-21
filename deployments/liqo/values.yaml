@@ -33,8 +33,8 @@ controllerManager:
     resourceSharingPercentage: 30
     # -- the threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update.
     offerUpdateThresholdPercentage: ""
-    # -- The address of an external resource monitor service, overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor.
-    externalMonitorAddress: ""
+    # -- The address of an external resource plugin service (see https://github.com/liqotech/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor.
+    resourcePluginAddress: ""
     # -- It enforces offerer-side that offloaded pods do not exceed offered resources (based on container limits).
     # This feature is suggested to be enabled when consumer-side enforcement is not sufficient.
     # It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set).

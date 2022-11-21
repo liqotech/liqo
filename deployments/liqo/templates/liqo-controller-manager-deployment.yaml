@@ -128,8 +128,8 @@ spec:
           {{ fail (printf "Unsupported resource type \"%s\" for virtual kubelet containers' limits" $resource) }}
           {{- end }}
           {{- end }}
-          {{- if .Values.controllerManager.config.externalMonitorAddress }}
-          - --external-monitor={{ .Values.controllerManager.config.externalMonitorAddress }}
+          {{- if .Values.controllerManager.config.resourcePluginAddress }}
+          - --resource-plugin-address={{ .Values.controllerManager.config.resourcePluginAddress }}
           - --offer-update-threshold-percentage={{ .Values.controllerManager.config.offerUpdateThresholdPercentage | default 0 }} 
           {{- else }}
           - --offer-update-threshold-percentage={{ .Values.controllerManager.config.offerUpdateThresholdPercentage | default 5 }}

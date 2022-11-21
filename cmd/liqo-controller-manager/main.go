@@ -120,8 +120,8 @@ func main() {
 	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
 
 	// Resource sharing parameters
-	externalResourceMonitorAddress := flag.String(consts.ExternalResourceMonitorParameter, "",
-		"The address of a resource monitor service (default: monitor local resources)")
+	resourcePluginAddress := flag.String(consts.ResourcePluginAddressParameter, "",
+		"The address of a resource plugin service (default: monitor local resources)")
 	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
 	resourceSharingPercentage := argsutils.Percentage{Val: 50}
@@ -253,8 +253,8 @@ func main() {
 
 	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
 	var monitor resourcemonitors.ResourceReader
-	if *externalResourceMonitorAddress != "" {
-		externalMonitor, err := resourcemonitors.NewExternalMonitor(ctx, *externalResourceMonitorAddress, 3*time.Second)
+	if *resourcePluginAddress != "" {
+		externalMonitor, err := resourcemonitors.NewExternalMonitor(ctx, *resourcePluginAddress, 3*time.Second)
 		if err != nil {
 			klog.Errorf("error on creating external resource monitor: %s", err)
 			os.Exit(1)

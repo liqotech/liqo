@@ -25,8 +25,8 @@
 | awsConfig.region | string | `""` | AWS region where the clsuter is runnnig |
 | awsConfig.secretAccessKey | string | `""` | secretAccessKey for the Liqo user |
 | controllerManager.config.enableResourceEnforcement | bool | `false` | It enforces offerer-side that offloaded pods do not exceed offered resources (based on container limits). This feature is suggested to be enabled when consumer-side enforcement is not sufficient. It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set). |
-| controllerManager.config.externalMonitorAddress | string | `""` | The address of an external resource monitor service, overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor. |
 | controllerManager.config.offerUpdateThresholdPercentage | string | `""` | the threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update. |
+| controllerManager.config.resourcePluginAddress | string | `""` | The address of an external resource plugin service (see https://github.com/liqotech/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor. |
 | controllerManager.config.resourceSharingPercentage | int | `30` | It defines the percentage of available cluster resources that you are willing to share with foreign clusters. |
 | controllerManager.imageName | string | `"ghcr.io/liqotech/liqo-controller-manager"` | controller-manager image repository |
 | controllerManager.pod.annotations | object | `{}` | controller-manager pod annotations |
