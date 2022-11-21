@@ -17,6 +17,9 @@ The following sections present the respective procedures to **peer a local clust
 At the end of the process, a new **virtual node** is created in the consumer, abstracting the resources shared by the provider, and enabling seamless **pod offloading** to the remote cluster.
 Additional details are also provided to enable the reverse peering direction, hence achieving a **bidirectional peering**, allowing both clusters to offload a part of their workloads to the other.
 
+By default, Liqo shares a configurable percentage of the currently available resources of the **provider** cluster with **consumers**.
+You can change this behavior by using a custom [resource plugin](https://github.com/liqotech/liqo-resource-plugins).
+
 All examples leverage two different *contexts* to refer to *consumer* and *provider* clusters, respectively named `consumer` and `provider`.
 
 ```{admonition} Note

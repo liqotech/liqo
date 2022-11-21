@@ -38,6 +38,8 @@ subtrees:
 
   - caption: Add-Ons
     entries:
+      - url: https://github.com/liqotech/liqo-resource-plugins
+        title: Liqo Resource Plugins
       - url: https://github.com/LucaRocco/liqo-public-peering-dashboard
         title: Public Peering Dashboard
 

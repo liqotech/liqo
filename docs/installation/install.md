@@ -351,7 +351,7 @@ The main control plane flags include:
 This name is propagated to remote clusters during the peering process, and used to identify the corresponding virtual nodes and the technical resources leveraged for the negotiation process. Additionally, it is leveraged as part of the suffix to ensure namespace names uniqueness during the offloading process. In case a cluster name is not specified, it is defaulted to that of the cluster in the cloud provider, if any, or it is automatically generated.
 * `--cluster-labels`: a set of **labels** (i.e., key/value pairs) **identifying the cluster in Liqo** (e.g., geographical region, Kubernetes distribution, cloud provider, ...) and automatically propagated during the peering process to the corresponding virtual nodes.
 These labels can be used later to **restrict workload offloading to a subset of clusters**, as detailed in the [namespace offloading usage section](/usage/namespace-offloading).
-* `--sharing-percentage`: the maximum percentage of available **cluster resources** that could be shared with remote clusters.
+* `--sharing-percentage`: the maximum percentage of available **cluster resources** that could be shared with remote clusters. This is the Liqo's default behavior but you can change it by using a custom [resource plugin](https://github.com/liqotech/liqo-resource-plugins).
 
 ### Networking
 
