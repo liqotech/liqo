@@ -3,11 +3,9 @@
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 
 {{- $vkargs := .Values.virtualKubelet.extra.args }}
-{{- /* Enable the API support only in for Kubernetes versions < 1.24 (due to lack of support for third party tokens), if not overridden by the user */ -}}
-{{- if semverCompare "< 1.24.0-0" .Capabilities.KubeVersion.Version }}
+{{- /* Enable the API support if not overridden by the user */ -}}
 {{- if not (or (has "--enable-apiserver-support" $vkargs ) (has "--enable-apiserver-support=true" $vkargs ) (has "--enable-apiserver-support=false" $vkargs )) }}
 {{- $vkargs = append $vkargs "--enable-apiserver-support=true" }}
-{{- end }}
 {{- end }}
 {{- /* Configure the appropriate certificate generation approach on EKS clusters, if not overridden by the user */ -}}
 {{- if .Values.awsConfig.accessKeyId }}
@@ -130,7 +128,7 @@ spec:
           {{- end }}
           {{- if .Values.controllerManager.config.resourcePluginAddress }}
           - --resource-plugin-address={{ .Values.controllerManager.config.resourcePluginAddress }}
-          - --offer-update-threshold-percentage={{ .Values.controllerManager.config.offerUpdateThresholdPercentage | default 0 }} 
+          - --offer-update-threshold-percentage={{ .Values.controllerManager.config.offerUpdateThresholdPercentage | default 0 }}
           {{- else }}
           - --offer-update-threshold-percentage={{ .Values.controllerManager.config.offerUpdateThresholdPercentage | default 5 }}
           {{- end }}

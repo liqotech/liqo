@@ -94,6 +94,12 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 		return nil
 	}
 
+	// Skip secrets containing service account tokens, as managed by the dedicated reflector.
+	if rerr == nil && forge.IsServiceAccountSecret(remote) {
+		klog.Infof("Skipping reflection of remote Secret %q as containing service account tokens", nsr.LocalRef(name))
+		return nil
+	}
+
 	// Abort the reflection if the remote object is not managed by us, as we do not want to mutate others' objects.
 	if rerr == nil && !forge.IsReflected(remote) {
 		if lerr == nil { // Do not output the warning event in case the event was triggered by the remote object (i.e., the local one does not exists).

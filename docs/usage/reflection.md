@@ -127,9 +127,15 @@ Hence, subsequent pods mounting that *PV* will be scheduled on that virtual node
 ## Configuration data
 
 **ConfigMaps** and **Secrets** typically hold **configuration data** consumed by pods, and both types of resources are propagated by Liqo **verbatim** into remote clusters.
-In this respect, Liqo features also the propagation of Secrets holding **ServiceAccount tokens**, to enable offloaded pods to contact the Kubernetes API server of the origin cluster, as well as to support those applications leveraging *ServiceAccounts* for internal authentication purposes.
+In this respect, Liqo features also the propagation of **ServiceAccount tokens**, to enable offloaded pods to contact the Kubernetes API server of the origin cluster, as well as to support those applications leveraging *ServiceAccounts* for internal authentication purposes.
 
-```{warning}
-Currently, Liqo supports only the propagation of *ServiceAccount* tokens contained in the respective *Secret* object (i.e., *first party tokens*), and not of those to be retrieved from the *TokenRequest* API (i.e., *third party tokens*).
-Due to this limitation, service account reflection is currently *disabled* by default in Kubernetes v1.24+, as ServiceAccounts do not longer automatically generate the corresponding Secret.
+````{warning}
+*ServiceAccount* tokens are stored within *Secret* objects when propagated to the remote cluster.
+This implies that any entity authorized to access *Secret* objects (or the mounting pods) might **retrieve the tokens and impersonate the offloaded workloads**.
+Hence, gaining the possibility to interact with the Kubernetes API server of the origin cluster, with the same permissions granted to the corresponding service account.
+
+If this is a security concern in your scenario (e.g., the clusters are under the control of different administrative domains), it is possible to disable this feature setting the `--enable-apiserver-support=false` virtual kubelet flag at install time:
+```bash
+liqoctl install ... --set "virtualKubelet.extra.args={--enable-apiserver-support=false}"
 ```
+````
