@@ -107,6 +107,12 @@ rules:
   - patch
   - update
 - apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices

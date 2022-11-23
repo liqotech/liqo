@@ -378,10 +378,6 @@ var _ = Describe("Liqo E2E", func() {
 				v, err = client.ServerVersion()
 				Expect(err).ToNot(HaveOccurred())
 
-				if v.Major == "1" && v.Minor >= "24" {
-					Skip("Disabling the API server interaction test for kubernetes version >=1.24, as currently not supported")
-				}
-
 				options = k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespace)
 			})
 

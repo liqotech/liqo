@@ -48,6 +48,7 @@ const (
 	DefaultIngressWorkers              = 3
 	DefaultConfigMapWorkers            = 3
 	DefaultSecretWorkers               = 3
+	DefaultServiceAccountWorkers       = 3
 	DefaultPersistenVolumeClaimWorkers = 3
 
 	DefaultNodePingTimeout = 1 * time.Second
@@ -80,6 +81,7 @@ type Opts struct {
 	IngressWorkers               uint
 	ConfigMapWorkers             uint
 	SecretWorkers                uint
+	ServiceAccountWorkers        uint
 	PersistentVolumeClaimWorkers uint
 
 	NodeLeaseDuration time.Duration
@@ -115,6 +117,7 @@ func NewOpts() *Opts {
 		IngressWorkers:               DefaultIngressWorkers,
 		ConfigMapWorkers:             DefaultConfigMapWorkers,
 		SecretWorkers:                DefaultSecretWorkers,
+		ServiceAccountWorkers:        DefaultServiceAccountWorkers,
 		PersistentVolumeClaimWorkers: DefaultPersistenVolumeClaimWorkers,
 
 		NodeLeaseDuration: node.DefaultLeaseDuration * time.Second,

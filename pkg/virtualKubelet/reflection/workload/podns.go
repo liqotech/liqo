@@ -83,8 +83,9 @@ type NamespacedPodReflector struct {
 	remoteRESTConfig *rest.Config
 	remoteMetrics    metricsv1beta1.PodMetricsInterface
 
-	ipamclient                ipam.IpamClient
-	enableAPIServerSupport    bool
+	ipamclient       ipam.IpamClient
+	apiServerSupport forge.APIServerSupportType
+
 	kubernetesServiceIPGetter func(context.Context) (string, error)
 	pods                      sync.Map /* implicit signature: map[string]*PodInfo */
 }
@@ -285,9 +286,20 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 	var saerr, kserr error
 
 	// Wrap the secret name retrieval from the service account, so that we do not have to handle errors in the forge logic.
-	saSecretRetriever := func(saName string) (secretName string) {
-		secretName, saerr = npr.RetrieveServiceAccountSecretName(info, saName)
-		return secretName
+	var saSecretRetriever func(string) string
+	switch npr.apiServerSupport {
+	case forge.APIServerSupportLegacy:
+		saSecretRetriever = func(saName string) (secretName string) {
+			secretName, saerr = npr.RetrieveLegacyServiceAccountSecretName(info, saName)
+			return secretName
+		}
+
+	case forge.APIServerSupportTokenAPI:
+		saSecretRetriever = func(_ string) (secretName string) {
+			return forge.ServiceAccountSecretName(local.GetName())
+		}
+	case forge.APIServerSupportDisabled:
+		// The function will never be invoked
 	}
 
 	// Wrap the kubernetes service remapped IP retrieval, so that we do not have to handle errors in the forge logic.
@@ -298,7 +310,7 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 
 	// Forge the target shadowpod object.
 	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(),
-		forge.APIServerSupportMutator(npr.enableAPIServerSupport, pod.ServiceAccountName(local), saSecretRetriever, ipGetter))
+		forge.APIServerSupportMutator(npr.apiServerSupport, pod.ServiceAccountName(local), saSecretRetriever, ipGetter))
 
 	// Check whether an error occurred during secret name retrieval.
 	if saerr != nil {
@@ -499,8 +511,8 @@ func (npr *NamespacedPodReflector) ForgetPodInfo(po string) {
 	npr.pods.Delete(po)
 }
 
-// RetrieveServiceAccountSecretName retrieves the name of the secret associated with a given service account.
-func (npr *NamespacedPodReflector) RetrieveServiceAccountSecretName(info *PodInfo, saName string) (string, error) {
+// RetrieveLegacyServiceAccountSecretName retrieves the name of the secret associated with a given service account (using the legacy approach).
+func (npr *NamespacedPodReflector) RetrieveLegacyServiceAccountSecretName(info *PodInfo, saName string) (string, error) {
 	// Check the pod information whether the corresponding service account secret name is already present.
 	// This allows to avoid more expensive list operations (although cached), and prevents issues in case the
 	// secret had been deleted and recreated with a different name, as that would lead to the modification of

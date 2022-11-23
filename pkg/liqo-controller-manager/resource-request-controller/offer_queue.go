@@ -16,8 +16,6 @@ package resourcerequestoperator
 
 import (
 	"context"
-	"crypto/rand"
-	"math/big"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -25,14 +23,15 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 const (
 	// requeueTimeout define a period of processed items requeue.
 	requeueTimeout = 5 * time.Minute
 
-	// maxRandom is used to generate a random delta to add to requeueTimeout to avoid syncing.
-	maxRandom = 60
+	// maxJitter is used to generate a random jitter to add to requeueTimeout to avoid syncing.
+	maxJitter = 60 * time.Second
 )
 
 // OfferQueue is a component that periodically commands a broadcaster/broker to update its ResourceOffers.
@@ -99,18 +98,8 @@ func (u *OfferQueue) processNextItem() bool {
 		}
 	} else {
 		// requeue after a random timeout
-		u.queue.AddAfter(obj, getRandomTimeout())
+		u.queue.AddAfter(obj, utils.RandomJitter(requeueTimeout, maxJitter))
 	}
 	u.queue.Done(obj)
 	return true
-}
-
-func getRandomTimeout() time.Duration {
-	max := new(big.Int)
-	max.SetInt64(int64(maxRandom))
-	n, err := rand.Int(rand.Reader, max)
-	if err != nil {
-		return requeueTimeout
-	}
-	return requeueTimeout + time.Duration(n.Int64())*time.Second
 }

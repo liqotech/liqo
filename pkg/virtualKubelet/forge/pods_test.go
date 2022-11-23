@@ -200,48 +200,62 @@ var _ = Describe("Pod forging", func() {
 		const saName = "service-account"
 
 		var (
-			enableAPIServerSupport bool
-			remote, original       *corev1.PodSpec
+			apiServerSupport forge.APIServerSupportType
+			remote, original *corev1.PodSpec
 		)
 
 		BeforeEach(func() {
 			remote = &corev1.PodSpec{
 				Containers:     []corev1.Container{{Name: "foo", Image: "foo/bar:v0.1-alpha3"}},
 				InitContainers: []corev1.Container{{Name: "bar", Image: "foo/baz:v0.1-alpha3"}},
+				Volumes: []corev1.Volume{{Name: "volume", VolumeSource: corev1.VolumeSource{
+					Projected: &corev1.ProjectedVolumeSource{Sources: []corev1.VolumeProjection{
+						{ServiceAccountToken: &corev1.ServiceAccountTokenProjection{Path: "other", Audience: "custom"}},
+					}}}}},
 			}
 		})
 
 		JustBeforeEach(func() {
 			original = remote.DeepCopy()
-			forge.APIServerSupportMutator(enableAPIServerSupport, saName, SASecretRetriever, KubernetesServiceIPGetter)(remote)
+			forge.APIServerSupportMutator(apiServerSupport, saName, SASecretRetriever, KubernetesServiceIPGetter)(remote)
 		})
 
 		When("API server support is enabled", func() {
-			BeforeEach(func() { enableAPIServerSupport = true })
+			WhenBody := func() {
+				It("should correctly mutate the volumes", func() {
+					Expect(remote.Volumes).To(Equal(forge.RemoteVolumes(original.Volumes, apiServerSupport,
+						func() string { return SASecretRetriever(saName) })))
+				})
 
-			It("should correctly mutate the volumes", func() {
-				Expect(remote.Volumes).To(Equal(forge.RemoteVolumes(original.Volumes, enableAPIServerSupport,
-					func() string { return SASecretRetriever(saName) })))
+				It("should appropriately mutate the remote containers", func() {
+					Expect(remote.Containers).To(Equal(forge.RemoteContainersAPIServerSupport(original.Containers, saName)))
+				})
+
+				It("should appropriately mutate the remote init containers", func() {
+					Expect(remote.InitContainers).To(Equal(forge.RemoteContainersAPIServerSupport(original.InitContainers, saName)))
+				})
+
+				It("should appropriately mutate host aliases", func() {
+					Expect(remote.HostAliases).To(Equal(forge.RemoteHostAliasesAPIServerSupport(original.HostAliases, KubernetesServiceIPGetter)))
+				})
+			}
+
+			When("legacy mode is set", func() {
+				BeforeEach(func() { apiServerSupport = forge.APIServerSupportLegacy })
+				WhenBody()
 			})
 
-			It("should appropriately mutate the remote containers", func() {
-				Expect(remote.Containers).To(Equal(forge.RemoteContainersAPIServerSupport(original.Containers, saName)))
-			})
-
-			It("should appropriately mutate the remote init containers", func() {
-				Expect(remote.InitContainers).To(Equal(forge.RemoteContainersAPIServerSupport(original.InitContainers, saName)))
-			})
-
-			It("should appropriately mutate host aliases", func() {
-				Expect(remote.HostAliases).To(Equal(forge.RemoteHostAliasesAPIServerSupport(original.HostAliases, KubernetesServiceIPGetter)))
+			When("token API mode is set", func() {
+				BeforeEach(func() { apiServerSupport = forge.APIServerSupportTokenAPI })
+				WhenBody()
 			})
 		})
 
 		When("API server support is disabled", func() {
-			BeforeEach(func() { enableAPIServerSupport = false })
+			BeforeEach(func() { apiServerSupport = forge.APIServerSupportDisabled })
 
 			It("should correctly mutate the volumes", func() {
-				Expect(remote.Volumes).To(Equal(forge.RemoteVolumes(original.Volumes, enableAPIServerSupport,
+				Expect(remote.Volumes).To(Equal(forge.RemoteVolumes(original.Volumes, apiServerSupport,
 					func() string { return SASecretRetriever(saName) })))
 			})
 
@@ -454,7 +468,7 @@ var _ = Describe("Pod forging", func() {
 
 	Describe("the RemoteVolumes function", func() {
 		var volumes, output []corev1.Volume
-		var enableAPIServerSupport bool
+		var apiServerSupport forge.APIServerSupportType
 
 		BeforeEach(func() {
 			volumes = []corev1.Volume{
@@ -469,23 +483,26 @@ var _ = Describe("Pod forging", func() {
 					{DownwardAPI: &corev1.DownwardAPIProjection{Items: []corev1.DownwardAPIVolumeFile{{Path: "namespace"}}}},
 					{ServiceAccountToken: &corev1.ServiceAccountTokenProjection{Path: "token"}},
 				}}}},
+				{Name: "custom-bar", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{Sources: []corev1.VolumeProjection{
+					{ServiceAccountToken: &corev1.ServiceAccountTokenProjection{Path: "other", Audience: "custom"}},
+				}}}},
 			}
 		})
 
 		JustBeforeEach(func() {
-			output = forge.RemoteVolumes(volumes, enableAPIServerSupport, func() string { return "service-account-secret" })
+			output = forge.RemoteVolumes(volumes, apiServerSupport, func() string { return "service-account-secret" })
 		})
 
-		WhenBodyCommon := func(projectedSourcesLen int) {
+		WhenBodyCommon := func(projectedSourcesLenKubeAPI, projectedSourcesLenCustom int) {
 			It("should propagate all volume types, except the one referring to the service account (which is mutated)", func() {
-				Expect(output).To(HaveLen(5))
+				Expect(output).To(HaveLen(6))
 				Expect(output[0:3]).To(ConsistOf(volumes[0:3]))
 			})
 
-			It("should mutate the service account projected volume", func() {
-				Expect(output).To(HaveLen(5))
+			It("should mutate the service account projected volume (with the kube-api token)", func() {
+				Expect(output).To(HaveLen(6))
 				Expect(output[4].Name).To(Equal("kube-api-access-foo"))
-				Expect(output[4].Projected.Sources).To(HaveLen(projectedSourcesLen))
+				Expect(output[4].Projected.Sources).To(HaveLen(projectedSourcesLenKubeAPI))
 
 				Expect(output[4].Projected.Sources[0]).To(Equal(corev1.VolumeProjection{
 					ConfigMap: &corev1.ConfigMapProjection{
@@ -499,32 +516,67 @@ var _ = Describe("Pod forging", func() {
 					DownwardAPI: &corev1.DownwardAPIProjection{Items: []corev1.DownwardAPIVolumeFile{{Path: "namespace"}}}},
 				))
 			})
+
+			It("should mutate the service account projected volume (with the custom token)", func() {
+				Expect(output).To(HaveLen(6))
+				Expect(output[5].Name).To(Equal("custom-bar"))
+				Expect(output[5].Projected.Sources).To(HaveLen(projectedSourcesLenCustom))
+			})
 		}
 
 		When("API server support is enabled", func() {
-			BeforeEach(func() { enableAPIServerSupport = true })
+			ItBody := func(key string) func() {
+				return func() {
+					Expect(output).To(HaveLen(6))
+					Expect(output[4].Name).To(Equal("kube-api-access-foo"))
+					Expect(output[4].Projected.Sources).To(HaveLen(3))
 
-			WhenBodyCommon(3)
+					Expect(output[4].Projected.Sources[2]).To(Equal(corev1.VolumeProjection{
+						// The service account entry is replaced with the one of the corresponding secret.
+						Secret: &corev1.SecretProjection{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "service-account-secret"},
+							Items:                []corev1.KeyToPath{{Key: key, Path: corev1.ServiceAccountTokenKey}},
+						}},
+					))
+				}
+			}
 
-			It("should mutate the service account projected volume, adding a secret entry", func() {
-				Expect(output).To(HaveLen(5))
-				Expect(output[4].Name).To(Equal("kube-api-access-foo"))
-				Expect(output[4].Projected.Sources).To(HaveLen(3))
+			When("legacy mode is set", func() {
+				BeforeEach(func() { apiServerSupport = forge.APIServerSupportLegacy })
+				WhenBodyCommon(3, 0)
 
-				Expect(output[4].Projected.Sources[2]).To(Equal(corev1.VolumeProjection{
-					// The service account entry is replaced with the one of the corresponding secret.
-					Secret: &corev1.SecretProjection{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "service-account-secret"},
-						Items:                []corev1.KeyToPath{{Key: corev1.ServiceAccountTokenKey, Path: corev1.ServiceAccountTokenKey}},
-					}},
-				))
+				It("should mutate the service account projected volume (with the kube-api token), adding a secret entry",
+					ItBody(corev1.ServiceAccountTokenKey))
+			})
+
+			When("token API mode is set", func() {
+				BeforeEach(func() { apiServerSupport = forge.APIServerSupportTokenAPI })
+				WhenBodyCommon(3, 1)
+
+				It("should mutate the service account projected volume (with the kube-api token), adding a secret entry",
+					ItBody(forge.ServiceAccountTokenKey("kube-api-access-foo", "token")))
+
+				It("should mutate the service account projected volume (with the custom token), adding a secret entry", func() {
+					Expect(output).To(HaveLen(6))
+					Expect(output[5].Name).To(Equal("custom-bar"))
+					Expect(output[5].Projected.Sources).To(HaveLen(1))
+
+					Expect(output[5].Projected.Sources[0]).To(Equal(corev1.VolumeProjection{
+						// The service account entry is replaced with the one of the corresponding secret.
+						Secret: &corev1.SecretProjection{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "service-account-secret"},
+							Items: []corev1.KeyToPath{
+								{Key: forge.ServiceAccountTokenKey("custom-bar", "other"), Path: "other"}},
+						}},
+					))
+				})
 			})
 		})
 
 		When("API server support is disabled", func() {
-			BeforeEach(func() { enableAPIServerSupport = false })
+			BeforeEach(func() { apiServerSupport = forge.APIServerSupportDisabled })
 
-			WhenBodyCommon(2)
+			WhenBodyCommon(2, 0)
 		})
 	})
 

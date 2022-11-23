@@ -47,6 +47,19 @@ const (
 	kubernetesAPIService = "kubernetes.default"
 )
 
+// APIServerSupportType is the enum type representing which type of API Server support is enabled,
+// i.e., to allow offloaded pods to contact the local API server.
+type APIServerSupportType string
+
+const (
+	// APIServerSupportDisabled -> API Server support is disabled.
+	APIServerSupportDisabled APIServerSupportType = "Disabled"
+	// APIServerSupportLegacy -> API Server support is enabled, using the legacy secrets associated with service accounts.
+	APIServerSupportLegacy APIServerSupportType = "Legacy"
+	// APIServerSupportTokenAPI -> API Server support is enabled, leveraging the newer TokenRequest API to retrieve the tokens.
+	APIServerSupportTokenAPI APIServerSupportType = "TokenAPI"
+)
+
 // PodIPTranslator defines the function to translate between remote and local IP addresses.
 type PodIPTranslator func(string) string
 
@@ -206,14 +219,14 @@ func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...Rem
 }
 
 // APIServerSupportMutator is a mutator which implements the support to enable offloaded pods to interact back with the local Kubernetes API server.
-func APIServerSupportMutator(enabled bool, saName string, saSecretRetriever SASecretRetriever,
+func APIServerSupportMutator(apiServerSupport APIServerSupportType, saName string, saSecretRetriever SASecretRetriever,
 	kubernetesServiceIPRetriever KubernetesServiceIPGetter) RemotePodSpecMutator {
 	return func(remote *corev1.PodSpec) {
 		// The mutation of the service account related volume needs to be performed regardless of whether this feature is enabled.
-		remote.Volumes = RemoteVolumes(remote.Volumes, enabled, func() string { return saSecretRetriever(saName) })
+		remote.Volumes = RemoteVolumes(remote.Volumes, apiServerSupport, func() string { return saSecretRetriever(saName) })
 
 		// No additional operations need to be performed if the API server support is disabled.
-		if !enabled {
+		if apiServerSupport == APIServerSupportDisabled {
 			return
 		}
 
@@ -333,11 +346,11 @@ func RemoteTolerations(inputTolerations []corev1.Toleration) []corev1.Toleration
 }
 
 // RemoteVolumes forges the volumes for a reflected pod, appropriately modifying the one related to the service account.
-func RemoteVolumes(volumes []corev1.Volume, enableAPIServerSupport bool, saSecretRetriever func() string) []corev1.Volume {
+func RemoteVolumes(volumes []corev1.Volume, apiServerSupport APIServerSupportType, saSecretRetriever func() string) []corev1.Volume {
 	for i := range volumes {
 		// Modify the projected volume which refers to the service account (if any),
 		// to make it target the underlying secret/configmap reflected to the remote cluster.
-		if volumes[i].Projected != nil && strings.HasPrefix(volumes[i].Name, ServiceAccountVolumeName) {
+		if volumes[i].Projected != nil {
 			var offset int
 			for j := range volumes[i].Projected.Sources {
 				j -= offset // Account for the entry that might have been previously deleted.
@@ -346,7 +359,9 @@ func RemoteVolumes(volumes []corev1.Volume, enableAPIServerSupport bool, saSecre
 					// Replace the certification authority configmap with the remapped name.
 					source.ConfigMap.Name = RemoteConfigMapName(source.ConfigMap.Name)
 				} else if source.ServiceAccountToken != nil {
-					if !enableAPIServerSupport {
+					if apiServerSupport == APIServerSupportDisabled ||
+						// Tokens different from the kube-api-access one are not supported in legacy mode.
+						(apiServerSupport == APIServerSupportLegacy && !strings.HasPrefix(volumes[i].Name, ServiceAccountVolumeName)) {
 						// Remove the entry referring to the service account.
 						volumes[i].Projected.Sources = append(volumes[i].Projected.Sources[:j], volumes[i].Projected.Sources[j+1:]...)
 						offset++
@@ -354,10 +369,16 @@ func RemoteVolumes(volumes []corev1.Volume, enableAPIServerSupport bool, saSecre
 					}
 
 					// Replace the ServiceAccountToken entry with the corresponding secret one, only in case it is enabled.
+					secretKey := corev1.ServiceAccountTokenKey
+					path := source.ServiceAccountToken.Path
+					if apiServerSupport == APIServerSupportTokenAPI {
+						secretKey = ServiceAccountTokenKey(volumes[i].Name, path)
+					}
+
 					source.ServiceAccountToken = nil
 					source.Secret = &corev1.SecretProjection{
 						LocalObjectReference: corev1.LocalObjectReference{Name: saSecretRetriever()},
-						Items:                []corev1.KeyToPath{{Key: corev1.ServiceAccountTokenKey, Path: corev1.ServiceAccountTokenKey}},
+						Items:                []corev1.KeyToPath{{Key: secretKey, Path: path}},
 					}
 				}
 			}

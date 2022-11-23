@@ -102,6 +102,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		IngressWorkers:              c.IngressWorkers,
 		ConfigMapWorkers:            c.ConfigMapWorkers,
 		SecretWorkers:               c.SecretWorkers,
+		ServiceAccountWorkers:       c.ServiceAccountWorkers,
 		PersistenVolumeClaimWorkers: c.PersistentVolumeClaimWorkers,
 
 		EnableAPIServerSupport:     c.EnableAPIServerSupport,

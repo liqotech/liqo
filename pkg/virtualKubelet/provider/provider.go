@@ -20,11 +20,14 @@ import (
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -64,6 +67,7 @@ type InitConfig struct {
 	PersistenVolumeClaimWorkers uint
 	ConfigMapWorkers            uint
 	SecretWorkers               uint
+	ServiceAccountWorkers       uint
 
 	EnableAPIServerSupport     bool
 	EnableStorage              bool
@@ -88,22 +92,38 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	remoteMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig).MetricsV1beta1().PodMetricses
 
 	dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer, grpc.WithInsecure(), grpc.WithBlock())
+	connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer,
+		grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	cancel()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to establish a connection to the IPAM")
 	}
 	ipamClient := ipam.NewIpamClient(connection)
 
+	apiServerSupport := forge.APIServerSupportDisabled
+	if cfg.EnableAPIServerSupport {
+		tokenAPISupported, err := isSATokenAPISupport(localClient)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check whether service account token API is supported")
+		}
+
+		apiServerSupport = forge.APIServerSupportLegacy
+		if tokenAPISupported {
+			apiServerSupport = forge.APIServerSupportTokenAPI
+		}
+		klog.V(4).Infof("Enabled support for local API server interactions (%v mode)", apiServerSupport)
+	}
+
 	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb)
-	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, cfg.EnableAPIServerSupport, cfg.PodWorkers)
+	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, apiServerSupport, cfg.PodWorkers)
 	namespaceMapHandler := namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod)
 	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers)).
 		With(exposition.NewIngressReflector(cfg.IngressWorkers)).
 		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
-		With(configuration.NewSecretReflector(cfg.EnableAPIServerSupport, cfg.SecretWorkers)).
+		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, cfg.SecretWorkers)).
+		With(configuration.NewServiceAccountReflector(apiServerSupport == forge.APIServerSupportTokenAPI, cfg.ServiceAccountWorkers)).
 		With(podreflector).
 		With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
 			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage)).
@@ -120,4 +140,19 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 // PodHandler returns an handler to interact with the pods offloaded to the remote cluster.
 func (p *LiqoProvider) PodHandler() workload.PodHandler {
 	return p.podHandler
+}
+
+func isSATokenAPISupport(localClient kubernetes.Interface) (bool, error) {
+	resources, err := localClient.Discovery().ServerResourcesForGroupVersion(corev1.SchemeGroupVersion.String())
+	if err != nil {
+		return false, err
+	}
+
+	for i := range resources.APIResources {
+		if resources.APIResources[i].Name == "serviceaccounts/token" {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

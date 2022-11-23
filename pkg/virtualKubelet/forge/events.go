@@ -28,6 +28,12 @@ const (
 
 	// EventReflectionDisabled -> the reason for the event when reflection is disabled for the given namespace/object.
 	EventReflectionDisabled = "ReflectionDisabled"
+
+	// EventSuccessfulSATokensReflection -> the reason for the event when the reflection of service account tokens completes successfully.
+	EventSuccessfulSATokensReflection = "SuccessfulSATokensReflection"
+
+	// EventFailedSATokensReflection -> the reason for the event when the reflection of service account tokens fails.
+	EventFailedSATokensReflection = "FailedSATokensReflection"
 )
 
 // EventSuccessfulReflectionMsg returns the message for the event when the outgoing reflection completes successfully.

@@ -82,7 +82,7 @@ type PodReflector struct {
 	ipamclient ipam.IpamClient
 	handlers   sync.Map /* implicit signature: map[string]NamespacedPodHandler */
 
-	enableAPIServerSupport bool
+	apiServerSupport forge.APIServerSupportType
 }
 
 // FallbackPodReflector handles the "orphan" pods outside the managed namespaces.
@@ -98,13 +98,13 @@ func NewPodReflector(
 	remoteRESTConfig *rest.Config, /* required to establish the connection to implement `kubectl exec` */
 	remoteMetricsFactory MetricsFactory, /* required to retrieve the pod metrics from the remote cluster */
 	ipamclient ipam.IpamClient, /* required to translate the remote IP addresses to the corresponding local ones */
-	enableAPIServerSupport bool, /* enables the forging of the fields required to allow offloaded pods to contact the local API server */
+	apiServerSupport forge.APIServerSupportType, /* how to forge the fields required to allow offloaded pods to contact the local API server */
 	workers uint) *PodReflector {
 	reflector := &PodReflector{
-		remoteRESTConfig:       remoteRESTConfig,
-		remoteMetricsFactory:   remoteMetricsFactory,
-		ipamclient:             ipamclient,
-		enableAPIServerSupport: enableAPIServerSupport,
+		remoteRESTConfig:     remoteRESTConfig,
+		remoteMetricsFactory: remoteMetricsFactory,
+		ipamclient:           ipamclient,
+		apiServerSupport:     apiServerSupport,
 	}
 
 	genericReflector := generic.NewReflector(PodReflectorName, reflector.NewNamespaced, reflector.NewFallback, workers)
@@ -137,7 +137,7 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 		remoteMetrics:    pr.remoteMetricsFactory(opts.RemoteNamespace),
 
 		ipamclient:                pr.ipamclient,
-		enableAPIServerSupport:    pr.enableAPIServerSupport,
+		apiServerSupport:          pr.apiServerSupport,
 		kubernetesServiceIPGetter: pr.KubernetesServiceIPGetter(),
 	}
 

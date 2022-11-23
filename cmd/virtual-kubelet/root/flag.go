@@ -48,6 +48,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.UintVar(&o.IngressWorkers, "ingress-reflection-workers", o.IngressWorkers, "The number of ingress reflection workers")
 	flags.UintVar(&o.ConfigMapWorkers, "configmap-reflection-workers", o.ConfigMapWorkers, "The number of configmap reflection workers")
 	flags.UintVar(&o.SecretWorkers, "secret-reflection-workers", o.SecretWorkers, "The number of secret reflection workers")
+	flags.UintVar(&o.ServiceAccountWorkers, "service-account-reflection-workers", o.ServiceAccountWorkers,
+		"The number of service account reflection workers (applies only if API server support is enabled in token API mode)")
 	flags.UintVar(&o.PersistentVolumeClaimWorkers, "persistentvolumeclaim-reflection-workers", o.PersistentVolumeClaimWorkers,
 		"The number of persistentvolumeclaim reflection workers")
 
