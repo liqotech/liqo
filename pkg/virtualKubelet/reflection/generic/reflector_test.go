@@ -232,6 +232,7 @@ var _ = Describe("Reflector tests", func() {
 				var (
 					handlers cache.ResourceEventHandler
 					obj      corev1.Service
+					filters  []options.EventFilter
 				)
 
 				keyer := func(metadata metav1.Object) []types.NamespacedName {
@@ -255,20 +256,62 @@ var _ = Describe("Reflector tests", func() {
 					}
 				}
 
-				BeforeEach(func() { obj = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "Name", Namespace: "Namespace"}} })
-				JustBeforeEach(func() { handlers = rfl.(*reflector).handlers(keyer) })
+				bodyEmpty := func() func() {
+					return func() {
+						Expect(rfl.(*reflector).workqueue.Len()).To(BeNumerically("==", 0))
+					}
+				}
+
+				BeforeEach(func() {
+					obj = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "Name", Namespace: "Namespace"}}
+					filters = nil
+				})
+				JustBeforeEach(func() { handlers = rfl.(*reflector).handlers(keyer, filters...) })
 
 				When("the AddFunc is executed", func() {
 					JustBeforeEach(func() { handlers.OnAdd(&obj) })
-					It("should return the correct namespaced name", body())
+
+					When("no event filter is specified", func() {
+						It("should return the correct namespaced name", body())
+					})
+					When("the Create filter is specified", func() {
+						BeforeEach(func() { filters = []options.EventFilter{options.EventFilterCreate} })
+						It("should enqueue no elements", bodyEmpty())
+					})
+					When("the other filters are specified", func() {
+						BeforeEach(func() { filters = []options.EventFilter{options.EventFilterUpdate, options.EventFilterDelete} })
+						It("should return the correct namespaced name", body())
+					})
 				})
 				When("the UpdateFunc is executed", func() {
 					JustBeforeEach(func() { handlers.OnUpdate(&obj, &obj) })
-					It("should return the correct namespaced name", body())
+
+					When("no event filter is specified", func() {
+						It("should return the correct namespaced name", body())
+					})
+					When("the Update filter is specified", func() {
+						BeforeEach(func() { filters = []options.EventFilter{options.EventFilterUpdate} })
+						It("should enqueue no elements", bodyEmpty())
+					})
+					When("the other filters are specified", func() {
+						BeforeEach(func() { filters = []options.EventFilter{options.EventFilterCreate, options.EventFilterDelete} })
+						It("should return the correct namespaced name", body())
+					})
 				})
 				When("the DeleteFunc is executed", func() {
 					JustBeforeEach(func() { handlers.OnDelete(&obj) })
-					It("should return the correct namespaced name", body())
+
+					When("no event filter is specified", func() {
+						It("should return the correct namespaced name", body())
+					})
+					When("the Delete filter is specified", func() {
+						BeforeEach(func() { filters = []options.EventFilter{options.EventFilterDelete} })
+						It("should enqueue no elements", bodyEmpty())
+					})
+					When("the other filters are specified", func() {
+						BeforeEach(func() { filters = []options.EventFilter{options.EventFilterCreate, options.EventFilterUpdate} })
+						It("should return the correct namespaced name", body())
+					})
 				})
 			})
 		})

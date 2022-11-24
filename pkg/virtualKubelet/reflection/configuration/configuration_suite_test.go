@@ -86,7 +86,7 @@ var _ = AfterSuite(func() {
 	Expect(testEnv.Stop()).To(Succeed())
 })
 
-var FakeEventHandler = func(options.Keyer) cache.ResourceEventHandler {
+var FakeEventHandler = func(options.Keyer, ...options.EventFilter) cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc:    func(_ interface{}) {},
 		UpdateFunc: func(_, obj interface{}) {},

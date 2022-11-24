@@ -17,6 +17,7 @@ package options
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/informers"
 	corev1informers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -30,13 +31,16 @@ import (
 // Keyer retrieves a set of NamespacedNames referring to the reconciliation targets from the object metadata.
 type Keyer func(metadata metav1.Object) []types.NamespacedName
 
+// EventFilter filters out the events matching a given type.
+type EventFilter func(watch.EventType) bool
+
 // ReflectorOpts is a structure grouping the parameters to start a Reflector.
 type ReflectorOpts struct {
 	LocalClient      kubernetes.Interface
 	LocalPodInformer corev1informers.PodInformer
 	EventBroadcaster record.EventBroadcaster
 
-	HandlerFactory func(Keyer) cache.ResourceEventHandler
+	HandlerFactory func(Keyer, ...EventFilter) cache.ResourceEventHandler
 
 	Ready func() bool
 }
@@ -47,7 +51,7 @@ func New(client kubernetes.Interface, podInformer corev1informers.PodInformer) *
 }
 
 // WithHandlerFactory configures the handler factory of the ReflectorOpts.
-func (ro *ReflectorOpts) WithHandlerFactory(handler func(Keyer) cache.ResourceEventHandler) *ReflectorOpts {
+func (ro *ReflectorOpts) WithHandlerFactory(handler func(Keyer, ...EventFilter) cache.ResourceEventHandler) *ReflectorOpts {
 	ro.HandlerFactory = handler
 	return ro
 }
@@ -82,7 +86,7 @@ type NamespacedOpts struct {
 	EventBroadcaster record.EventBroadcaster
 
 	Ready          func() bool
-	HandlerFactory func(Keyer) cache.ResourceEventHandler
+	HandlerFactory func(Keyer, ...EventFilter) cache.ResourceEventHandler
 }
 
 // NewNamespaced returns a new NamespacedOpts object.
@@ -121,7 +125,7 @@ func (ro *NamespacedOpts) WithLiqoRemote(client liqoclient.Interface, factory li
 }
 
 // WithHandlerFactory configures the handler factory of the NamespacedOpts.
-func (ro *NamespacedOpts) WithHandlerFactory(handler func(Keyer) cache.ResourceEventHandler) *NamespacedOpts {
+func (ro *NamespacedOpts) WithHandlerFactory(handler func(Keyer, ...EventFilter) cache.ResourceEventHandler) *NamespacedOpts {
 	ro.HandlerFactory = handler
 	return ro
 }
@@ -137,3 +141,12 @@ func (ro *NamespacedOpts) WithEventBroadcaster(broadcaster record.EventBroadcast
 	ro.EventBroadcaster = broadcaster
 	return ro
 }
+
+// EventFilterCreate ignores events of type create.
+func EventFilterCreate(et watch.EventType) bool { return et == watch.Added }
+
+// EventFilterUpdate ignores events of type update.
+func EventFilterUpdate(et watch.EventType) bool { return et == watch.Modified }
+
+// EventFilterDelete ignores events of type delete.
+func EventFilterDelete(et watch.EventType) bool { return et == watch.Deleted }

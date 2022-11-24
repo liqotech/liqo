@@ -33,7 +33,9 @@ import (
 )
 
 var _ = Describe("Options", func() {
-	hf := func(options.Keyer) cache.ResourceEventHandler { return cache.ResourceEventHandlerFuncs{} }
+	hf := func(options.Keyer, ...options.EventFilter) cache.ResourceEventHandler {
+		return cache.ResourceEventHandlerFuncs{}
+	}
 
 	Describe("The New function", func() {
 		var (
