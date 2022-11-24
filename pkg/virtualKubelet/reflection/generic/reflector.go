@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -235,21 +236,30 @@ func (gr *reflector) handle(ctx context.Context, key types.NamespacedName) error
 }
 
 // handle dispatches the items to be reconciled based on the resource type and namespace.
-func (gr *reflector) handlers(keyer options.Keyer) cache.ResourceEventHandler {
-	eh := func(obj interface{}) {
+func (gr *reflector) handlers(keyer options.Keyer, filters ...options.EventFilter) cache.ResourceEventHandler {
+	eh := func(ev watch.EventType, obj interface{}) {
 		metadata, err := meta.Accessor(obj)
 		utilruntime.Must(err)
 
+		for _, filter := range filters {
+			if filter(ev) {
+				klog.V(5).Infof("Skipping reconciliation of object %q through the %v reflector, as event %q is filtered out",
+					klog.KRef(metadata.GetNamespace(), metadata.GetName()), gr.name, ev)
+				return
+			}
+		}
+
 		for _, key := range keyer(metadata) {
-			klog.V(5).Infof("Enqueuing %v %q for reconciliation", gr.name, klog.KRef(metadata.GetNamespace(), metadata.GetName()))
+			klog.V(5).Infof("Enqueuing %q for reconciliation with key %q through the %v reflector",
+				klog.KRef(metadata.GetNamespace(), metadata.GetName()), key, gr.name)
 			gr.workqueue.Add(key)
 		}
 	}
 
 	return cache.ResourceEventHandlerFuncs{
-		AddFunc:    eh,
-		UpdateFunc: func(_, obj interface{}) { eh(obj) },
-		DeleteFunc: eh,
+		AddFunc:    func(obj interface{}) { eh(watch.Added, obj) },
+		UpdateFunc: func(_, obj interface{}) { eh(watch.Modified, obj) },
+		DeleteFunc: func(obj interface{}) { eh(watch.Deleted, obj) },
 	}
 }
 
