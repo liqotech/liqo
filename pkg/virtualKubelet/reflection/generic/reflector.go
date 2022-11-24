@@ -16,6 +16,7 @@ package generic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -189,6 +190,13 @@ func (gr *reflector) processNextWorkItem() bool {
 
 	// Run the handler, passing it the item to be processed as parameter.
 	if err := gr.handle(context.Background(), key.(types.NamespacedName)); err != nil {
+		var eae enqueueAfterError
+		if errors.As(err, &eae) {
+			// Put the item back on the workqueue after the given duration elapsed.
+			gr.workqueue.AddAfter(key, eae.duration)
+			return true
+		}
+
 		// Put the item back on the workqueue to handle any transient errors.
 		gr.workqueue.AddRateLimited(key)
 		return true
@@ -300,4 +308,19 @@ func (dr *dummyreflector) StartNamespace(opts *options.NamespacedOpts) {
 func (dr *dummyreflector) StopNamespace(local, remote string) {
 	klog.Infof("Skipping stopping the %v reflection between local namespace %q and remote namespace %q, as no workers are configured",
 		dr.name, local, remote)
+}
+
+// EnqueueAfter returns an error to convey that the current key should be reenqueued after a given duration.
+func EnqueueAfter(interval time.Duration) error {
+	return enqueueAfterError{duration: interval}
+}
+
+// enqueueAfterError is an error used to convey that the current key should be reenqueued after a given duration.
+type enqueueAfterError struct {
+	duration time.Duration
+}
+
+// Error implements the Error interface.
+func (e enqueueAfterError) Error() string {
+	return fmt.Sprintf("requested to enqueue element for reconciliation after %v", e.duration)
 }
