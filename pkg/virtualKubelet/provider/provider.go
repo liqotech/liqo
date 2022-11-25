@@ -75,6 +75,7 @@ type InitConfig struct {
 	EnableStorage              bool
 	VirtualStorageClassName    string
 	RemoteRealStorageClassName string
+	EnableMetrics              bool
 
 	HomeAPIServerHost string
 	HomeAPIServerPort string

@@ -335,6 +335,15 @@ func (o *Options) values() map[string]interface{} {
 			},
 		},
 
+		"virtualKubelet": map[string]interface{}{
+			"metrics": map[string]interface{}{
+				"enabled": o.EnableMetrics,
+				"podMonitor": map[string]interface{}{
+					"enabled": o.EnableMetrics,
+				},
+			},
+		},
+
 		"telemetry": map[string]interface{}{
 			"enable": !o.DisableTelemetry,
 		},

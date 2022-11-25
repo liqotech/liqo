@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/utils/trace"
 
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -199,8 +201,26 @@ func (gr *reflector) processNextWorkItem() bool {
 
 		// Put the item back on the workqueue to handle any transient errors.
 		gr.workqueue.AddRateLimited(key)
+
+		// Increase the error counter metric.
+		metrics.ErrorsCounter.With(prometheus.Labels{"namespace": key.(types.NamespacedName).Namespace,
+			"reflector_resource": gr.name}).Inc()
+
+		if errors.As(err, &eae) {
+			// Put the item back on the workqueue after the given duration elapsed.
+			gr.workqueue.AddAfter(key, eae.duration)
+			return true
+		}
+
+		// Put the item back on the workqueue to handle any transient errors.
+		gr.workqueue.AddRateLimited(key)
+
 		return true
 	}
+
+	// Increase the item counter metric.
+	metrics.ItemsCounter.With(prometheus.Labels{"namespace": key.(types.NamespacedName).Namespace,
+		"reflector_resource": gr.name}).Inc()
 
 	// Finally, if no error occurs we Forget this item so it does not
 	// get queued again until another change happens.

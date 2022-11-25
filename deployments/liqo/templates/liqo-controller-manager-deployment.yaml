@@ -26,6 +26,9 @@
 {{- $vkargs = append $vkargs "--certificate-type=aws" }}
 {{- end }}
 {{- end }}
+{{- if not (or (has "--enable-metrics" $vkargs ) (has "--enable-metrics=true" $vkargs ) (has "--enable-metrics=false" $vkargs )) }}
+{{- $vkargs = append $vkargs "--enable-metrics=true" }}
+{{- end}}
 
 apiVersion: apps/v1
 kind: Deployment
