@@ -134,6 +134,11 @@
 | virtualKubelet.extra.labels | object | `{}` | virtual kubelet pod extra labels |
 | virtualKubelet.extra.resources | object | `{"limits":{},"requests":{}}` | virtual kubelet pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
 | virtualKubelet.imageName | string | `"ghcr.io/liqotech/virtual-kubelet"` | virtual kubelet image repository |
+| virtualKubelet.metrics.enabled | bool | `false` | expose metrics about virtual kubelet resources. |
+| virtualKubelet.metrics.podMonitor.enabled | bool | `false` |  |
+| virtualKubelet.metrics.podMonitor.interval | string | `""` |  |
+| virtualKubelet.metrics.podMonitor.scrapeTimeout | string | `""` |  |
+| virtualKubelet.metrics.port | int | `9090` | port used to expose metrics. |
 | virtualKubelet.virtualNode.extra.annotations | object | `{}` | virtual node extra annotations |
 | virtualKubelet.virtualNode.extra.labels | object | `{}` | virtual node extra labels |
 | webhook.failurePolicy | string | `"Fail"` | the webhook failure policy, among Ignore and Fail |

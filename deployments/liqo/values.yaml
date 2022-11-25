@@ -315,6 +315,20 @@ virtualKubelet:
       annotations: {}
       # -- virtual node extra labels
       labels: {}
+  metrics:
+    # -- expose metrics about virtual kubelet resources.
+    enabled: false
+    # -- port used to expose metrics.
+    port: 9090
+    podMonitor:
+      # # -- create a prometheus podmonitor.
+      enabled: false
+      # # -- setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval.
+      # # ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint
+      interval: ""
+      # # -- setup pod monitor scrape timeout. If empty, Prometheus uses the global scrape timeout.
+      # # ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint
+      scrapeTimeout: ""
 
 uninstaller:
   pod:

@@ -85,6 +85,13 @@ func forgeVKContainers(
 					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}},
 				},
 			},
+			Ports: []v1.ContainerPort{
+				{
+					Name:          "metrics",
+					ContainerPort: 9090,
+					Protocol:      v1.ProtocolTCP,
+				},
+			},
 		},
 	}
 }

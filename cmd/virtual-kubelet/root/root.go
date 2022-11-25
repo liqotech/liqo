@@ -36,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
+	metrics "github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 )
 
@@ -110,6 +111,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		EnableStorage:              c.EnableStorage,
 		VirtualStorageClassName:    c.VirtualStorageClassName,
 		RemoteRealStorageClassName: c.RemoteRealStorageClassName,
+		EnableMetrics:              c.EnableMetrics,
 
 		HomeAPIServerHost: c.HomeAPIServerHost,
 		HomeAPIServerPort: c.HomeAPIServerPort,
@@ -192,6 +194,10 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, remoteConfig, c)
 	if err != nil {
 		return errors.Wrap(err, "error while setting up HTTPS server")
+	}
+
+	if c.EnableMetrics {
+		metrics.SetupMetricHandler()
 	}
 
 	go func() {
