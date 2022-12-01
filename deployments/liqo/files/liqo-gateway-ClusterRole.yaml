@@ -18,6 +18,7 @@ rules:
   verbs:
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -26,6 +27,7 @@ rules:
   - services
   verbs:
   - list
+  - patch
   - update
   - watch
 - apiGroups:

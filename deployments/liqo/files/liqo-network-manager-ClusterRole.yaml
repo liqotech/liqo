@@ -38,6 +38,7 @@ rules:
   - list
   - patch
   - update
+  - watch
 - apiGroups:
   - net.liqo.io
   resources:

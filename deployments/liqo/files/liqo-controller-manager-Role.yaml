@@ -8,6 +8,7 @@ rules:
   - delete
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -19,6 +20,7 @@ rules:
   - delete
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -29,6 +31,8 @@ rules:
   - create
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ""
@@ -45,6 +49,10 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -52,4 +60,7 @@ rules:
   verbs:
   - create
   - get
+  - list
+  - patch
   - update
+  - watch

@@ -43,7 +43,9 @@ rules:
   resources:
   - nodes
   verbs:
+  - get
   - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -71,3 +73,5 @@ rules:
   - delete
   - deletecollection
   - get
+  - patch
+  - update

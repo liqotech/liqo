@@ -69,10 +69,10 @@ type Controller struct {
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get
 // role
-// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list;watch
 
 // identity management
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
