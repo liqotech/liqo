@@ -81,6 +81,11 @@ var _ = Describe("Validation", func() {
 				apiServerAddress: "https://127.0.0.1",
 				expectedOutput:   HaveOccurred(),
 			}),
+
+			Entry("invalid 0.0.0.0 address", apiServerValidatorTestcase{
+				apiServerAddress: "https://0.0.0.0",
+				expectedOutput:   HaveOccurred(),
+			}),
 		)
 
 		type checkEndpointTestcase struct {

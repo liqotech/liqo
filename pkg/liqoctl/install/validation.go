@@ -82,6 +82,7 @@ func (o *Options) validateAPIServer() error {
 	var localhostValues = []string{
 		"localhost",
 		"127.0.0.1",
+		"0.0.0.0", // Configured by k3d
 	}
 
 	// In case the API server URL is not set, fallback to the one specified in the REST config.
