@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.92
 	github.com/containernetworking/plugins v1.1.1
 	github.com/coreos/go-iptables v0.6.0
-	github.com/go-git/go-git/v5 v5.4.2
+	github.com/go-git/go-git/v5 v5.5.0
 	github.com/google/uuid v1.3.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/grandcat/zeroconf v1.0.0
@@ -62,6 +62,11 @@ require (
 )
 
 require (
+	github.com/pjbgf/sha1cd v0.2.0 // indirect
+	github.com/skeema/knownhosts v1.1.0 // indirect
+)
+
+require (
 	atomicgo.dev/cursor v0.1.1 // indirect
 	atomicgo.dev/keyboard v0.2.8 // indirect
 	cloud.google.com/go/compute v1.9.0 // indirect
@@ -81,7 +86,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2 // indirect
 	github.com/Masterminds/squirrel v1.5.3 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
-	github.com/ProtonMail/go-crypto v0.0.0-20220824120805-4b6e5c587895 // indirect
+	github.com/ProtonMail/go-crypto v0.0.0-20221026131551-cf6655e29de4 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/avast/retry-go/v4 v4.3.1 // indirect
