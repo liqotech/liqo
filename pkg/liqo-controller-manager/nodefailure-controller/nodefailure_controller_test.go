@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nodefailurectrl_test
+package nodefailurectrl
 
 import (
 	"bytes"
@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/liqotech/liqo/pkg/consts"
-	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
 )
 
 var _ = Describe("NodeFailureController", func() {
@@ -44,11 +43,12 @@ var _ = Describe("NodeFailureController", func() {
 	)
 
 	var (
-		ctx        context.Context
-		err        error
-		buffer     *bytes.Buffer
-		fakeClient client.WithWatch
-		timestamp  metav1.Time
+		ctx               context.Context
+		err               error
+		buffer            *bytes.Buffer
+		fakeClientBuilder *fake.ClientBuilder
+		fakeClient        client.WithWatch
+		timestamp         metav1.Time
 
 		reqNode = ctrl.Request{NamespacedName: types.NamespacedName{Name: nodeName}}
 		reqPod  = ctrl.Request{
@@ -132,10 +132,14 @@ var _ = Describe("NodeFailureController", func() {
 		buffer = &bytes.Buffer{}
 		klog.SetOutput(buffer)
 		timestamp = metav1.Now()
+
+		fakeClientBuilder = fake.NewClientBuilder().
+			WithScheme(scheme.Scheme).
+			WithIndex(&corev1.Pod{}, nodeNameField, extractNodeNameFromPod)
 	})
 
 	JustBeforeEach(func() {
-		r := &nodefailurectrl.NodeFailureReconciler{
+		r := &NodeFailureReconciler{
 			Client: fakeClient,
 			Scheme: scheme.Scheme,
 		}
@@ -146,8 +150,7 @@ var _ = Describe("NodeFailureController", func() {
 
 	When("node ready, pod running", func() {
 		BeforeEach(func() {
-			fakeClient = fake.NewClientBuilder().
-				WithScheme(scheme.Scheme).
+			fakeClient = fakeClientBuilder.
 				WithObjects(newNode(true), newRemotePod(false), newPod(false)).
 				Build()
 		})
@@ -161,8 +164,7 @@ var _ = Describe("NodeFailureController", func() {
 
 	When("node ready, pod terminating", func() {
 		BeforeEach(func() {
-			fakeClient = fake.NewClientBuilder().
-				WithScheme(scheme.Scheme).
+			fakeClient = fakeClientBuilder.
 				WithObjects(newNode(true), newRemotePod(true), newPod(true)).
 				Build()
 		})
@@ -176,8 +178,7 @@ var _ = Describe("NodeFailureController", func() {
 
 	When("node not ready, pod terminating", func() {
 		BeforeEach(func() {
-			fakeClient = fake.NewClientBuilder().
-				WithScheme(scheme.Scheme).
+			fakeClient = fakeClientBuilder.
 				WithObjects(newNode(false), newRemotePod(true), newPod(true)).
 				Build()
 		})
