@@ -126,13 +126,27 @@ func (o *Options) Run(ctx context.Context) error {
 
 	// Creating foreign cluster in cluster1 for cluster 2.
 	if err := cluster1.EnforceForeignCluster(ctx, cluster2.GetClusterID(), cluster2.GetAuthToken(),
-		cluster2.GetAuthURL(), cluster2.GetProxyURL(), true); err != nil {
+		cluster2.GetAuthURL(), cluster2.GetProxyURL()); err != nil {
 		return err
 	}
 
 	// Creating foreign cluster in cluster2 for cluster 1.
 	if err := cluster2.EnforceForeignCluster(ctx, cluster1.GetClusterID(), cluster1.GetAuthToken(),
-		cluster1.GetAuthURL(), cluster1.GetProxyURL(), o.Bidirectional); err != nil {
+		cluster1.GetAuthURL(), cluster1.GetProxyURL()); err != nil {
+		return err
+	}
+
+	// Setting the foreign cluster outgoing flag in cluster 1 for cluster 2
+	// This operation is performed after that both foreign clusters have already been successfully created, to prevent a
+	// possible race condition in which the resource request originated by the local foreign cluster is replicated to and
+	// reconciled in the remote cluster before we create the corresponding foreign cluster. This would cause an incorrect
+	// foreign cluster (i.e., of type OutOfBand) to be automatically created, leading to a broken peering.
+	if err := cluster1.EnforceOutgoingPeeringFlag(ctx, cluster2.GetClusterID(), true); err != nil {
+		return err
+	}
+
+	// Setting the foreign cluster outgoing flag in cluster 2 for cluster 1
+	if err := cluster2.EnforceOutgoingPeeringFlag(ctx, cluster1.GetClusterID(), o.Bidirectional); err != nil {
 		return err
 	}
 

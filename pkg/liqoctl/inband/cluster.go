@@ -757,11 +757,10 @@ func (c *Cluster) CheckForeignCluster(ctx context.Context, remoteIdentity *disco
 // The newly created foreigncluster has the following fields set to:
 //   - ForeignAuthURL -> the remapped ip address for the local cluster of the auth service living in the remote cluster;
 //   - ForeignProxyURL -> the remapped ip address for the local cluster of the proxy service living in the remote cluster;
-//   - OutgoingPeeringEnabled -> Yes
 //   - NetworkingEnabled -> No, we do not want the networking to be handled by the peering process. Networking is
 //     handled manually by the licoctl connect/disconnect commands.
 func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity,
-	token, authURL, proxyURL string, outgoing bool) error {
+	token, authURL, proxyURL string) error {
 	remID := remoteClusterID.ClusterID
 	remName := remoteClusterID.ClusterName
 
@@ -778,17 +777,17 @@ func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *di
 		c.foreignCluster.Spec.ForeignAuthURL = authURL
 		c.foreignCluster.Spec.ForeignProxyURL = proxyURL
 
-		if outgoing {
-			c.foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
-		} else {
+		if c.foreignCluster.Spec.OutgoingPeeringEnabled == "" {
+			// If outgoing peering is currently not set, then it is set to No, to prevent possible race conditions while
+			// waiting for the other foreign cluster to be created. Then, this flag will be appropriately set by the
+			// EnforceOutgoingPeeringFlag function.
 			c.foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
 		}
-
 		if c.foreignCluster.Spec.IncomingPeeringEnabled == "" {
 			c.foreignCluster.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto
 		}
 		if c.foreignCluster.Spec.InsecureSkipTLSVerify == nil {
-			c.foreignCluster.Spec.InsecureSkipTLSVerify = pointer.BoolPtr(true)
+			c.foreignCluster.Spec.InsecureSkipTLSVerify = pointer.Bool(true)
 		}
 		return nil
 	}); err != nil {
@@ -796,6 +795,24 @@ func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *di
 		return err
 	}
 	s.Success(fmt.Sprintf("foreign cluster for remote cluster %q correctly configured", remName))
+	return nil
+}
+
+// EnforceOutgoingPeeringFlag sets the outgoing peering flag for a given foreign cluster.
+func (c *Cluster) EnforceOutgoingPeeringFlag(ctx context.Context, remoteID *discoveryv1alpha1.ClusterIdentity, enabled bool) error {
+	s := c.local.Printer.StartSpinner(fmt.Sprintf("configuring the outgoing peering flag for the remote cluster %q", remoteID.ClusterName))
+	if _, err := controllerutil.CreateOrUpdate(ctx, c.local.CRClient, c.foreignCluster, func() error {
+		if enabled {
+			c.foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+		} else {
+			c.foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
+		}
+		return nil
+	}); err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while configuring the outgoing peering flag for remote cluster %q: %v", remoteID.ClusterName, err))
+		return err
+	}
+	s.Success(fmt.Sprintf("outgoing peering flag for remote cluster %q correctly configured", remoteID.ClusterName))
 	return nil
 }
 
