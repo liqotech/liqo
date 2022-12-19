@@ -200,7 +200,7 @@ func (o *Options) checkPolicy(iamSvc *iam.IAM) (string, error) {
 	}
 
 	if tmp != policyDocument {
-		return "", fmt.Errorf("the %v IAM policy has not the permission required by Liqo",
+		return "", fmt.Errorf("the %v IAM policy has not the permission required by Liqo, try deleting or updating it",
 			o.iamUser.policyName)
 	}
 

@@ -23,6 +23,13 @@ const (
 )
 
 const (
+	localClusterIDTagKey  = "liqo.io/local-cluster-id"
+	remoteClusterIDTagKey = "liqo.io/remote-cluster-id"
+	managedByTagKey       = "liqo.io/managed-by"
+	managedByTagValue     = "liqo"
+)
+
+const (
 	certificateExpireTimeAnnotation = "discovery.liqo.io/certificate-expire-time"
 )
 
