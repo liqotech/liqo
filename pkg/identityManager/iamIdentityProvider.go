@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
@@ -77,11 +78,16 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster disco
 
 	iamSvc := iam.New(sess)
 
-	// the IAM username has to have <= 64 charaters, we have to take only a prefix from the local clusterID.
-	prefix := identityProvider.localClusterID[:25]
-	username := fmt.Sprintf("%v-%v", prefix, cluster.ClusterID)
+	// the IAM username has to have <= 64 characters
+	prefix := identityProvider.localClusterID[:15]
+	username := fmt.Sprintf("liqo-%s-%s", prefix, cluster.ClusterID)
+	tags := map[string]string{
+		localClusterIDTagKey:  identityProvider.localClusterID,
+		remoteClusterIDTagKey: cluster.ClusterID,
+		managedByTagKey:       managedByTagValue,
+	}
 
-	userArn, err := identityProvider.ensureIamUser(iamSvc, username)
+	userArn, err := identityProvider.ensureIamUser(iamSvc, username, tags)
 	if err != nil {
 		klog.Error(err)
 		return response, err
@@ -115,20 +121,58 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster disco
 	}, nil
 }
 
-func (identityProvider *iamIdentityProvider) ensureIamUser(iamSvc *iam.IAM, username string) (string, error) {
+func (identityProvider *iamIdentityProvider) ensureIamUser(iamSvc *iam.IAM, username string, tags map[string]string) (string, error) {
+	iamTags := make([]*iam.Tag, len(tags))
+	i := 0
+	for k, v := range tags {
+		iamTags[i] = &iam.Tag{
+			Key:   aws.String(k),
+			Value: aws.String(v),
+		}
+		i++
+	}
+
 	createUser := &iam.CreateUserInput{
 		UserName: aws.String(username),
+		Tags:     iamTags,
 	}
 
 	createUserResult, err := iamSvc.CreateUser(createUser)
 	if err != nil {
-		// if the IAM user already exists, we cannot create another access key, since the previous creation
-		// can be made from another cluster. We have to validate a secret from the remote cluster before to continue
+		// ignore already exists error
+		if aerr, ok := err.(awserr.Error); ok { //nolint:errorlint // aws does not export a specific error type
+			if aerr.Code() == iam.ErrCodeEntityAlreadyExistsException {
+				klog.Warningf("IAM user %v already exists, Liqo will crate a new access key for it", username)
+
+				user, err := identityProvider.getUser(iamSvc, username)
+				if err != nil {
+					klog.Error(err)
+					return "", err
+				}
+
+				return *user.Arn, nil
+			}
+		}
+
 		klog.Error(err)
 		return "", err
 	}
 
 	return *createUserResult.User.Arn, nil
+}
+
+func (identityProvider *iamIdentityProvider) getUser(iamSvc *iam.IAM, username string) (*iam.User, error) {
+	getUserInput := &iam.GetUserInput{
+		UserName: aws.String(username),
+	}
+
+	getUserOutput, err := iamSvc.GetUser(getUserInput)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
+	return getUserOutput.User, nil
 }
 
 func (identityProvider *iamIdentityProvider) ensureIamAccessKey(iamSvc *iam.IAM, username string) (*iam.AccessKey, error) {

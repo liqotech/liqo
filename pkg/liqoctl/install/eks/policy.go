@@ -43,6 +43,14 @@ var policy = PolicyDocument{
 		{
 			Effect: "Allow",
 			Action: []string{
+				"iam:GetUser",
+				"iam:TagUser",
+			},
+			Resource: "arn:aws:iam::*:user/liqo-*",
+		},
+		{
+			Effect: "Allow",
+			Action: []string{
 				"eks:DescribeCluster",
 			},
 			Resource: "*",
