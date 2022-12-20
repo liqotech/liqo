@@ -120,6 +120,21 @@ cd examples/{example_name}\n\
 ./setup.sh\n\
 ```\n"
 
+# generate_clone_example_tf generates the clone and checkout code for the given example.
+def generate_clone_example_tf(example_name: str) -> str:
+    version = html_context['github_version']
+    if 'current_version' in html_context and html_context['current_version'] == 'stable':
+        x = requests.get('https://api.github.com/repos/liqotech/liqo/releases/latest')
+        version = x.json()['tag_name']
+    return f"```bash\n\
+git clone https://github.com/liqotech/liqo.git\n\
+cd liqo\n\
+git checkout {version}\n\
+cd examples/{example_name}\n\
+terraform init\n\
+terraform apply\n\
+```\n"
+
 # generate_liqoctl_install generates the liqoctl installation instruction for the given platform and architecture.
 def generate_liqoctl_install(platform: str, arch: str) -> str:
     if platform == 'windows':
@@ -154,6 +169,7 @@ The following instructions will guide you through the installation of the **late
 
 html_context = {
     'generate_clone_example': generate_clone_example,
+    'generate_clone_example_tf': generate_clone_example_tf,
     'generate_liqoctl_install': generate_liqoctl_install,
     'generate_liqoctl_version_warning': generate_liqoctl_version_warning,
     'github_repo': 'liqo',

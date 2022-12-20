@@ -139,7 +139,8 @@ Discover how to **offload** (a subset of) your workloads, **access services** pr
 [](examples/offloading-with-policies.md) ·
 [](examples/service-offloading.md) ·
 [](examples/stateful-applications.md) ·
-[](examples/global-ingress.md)
+[](examples/global-ingress.md) ·
+[](examples/provision-with-terraform.md)
 ```
 
 ```{grid-item-card}

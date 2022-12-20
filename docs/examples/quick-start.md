@@ -115,14 +115,12 @@ NAME                                       READY   STATUS    RESTARTS   AGE
 liqo-auth-74c795d84c-x2p6h                 1/1     Running   0          2m8s
 liqo-controller-manager-6c688c777f-4lv9d   1/1     Running   0          2m8s
 liqo-crd-replicator-6c64df5457-bq4tv       1/1     Running   0          2m8s
-liqo-discovery-546fd594dc-kg6db            1/1     Running   0          2m8s
 liqo-gateway-78cf7bb86b-pkdpt              1/1     Running   0          2m8s
 liqo-metric-agent-5667b979c7-snmdg         1/1     Running   0          2m8s
 liqo-network-manager-5b5cdcfcf7-scvd9      1/1     Running   0          2m8s
 liqo-proxy-6674dd7bbd-kr2ls                1/1     Running   0          2m8s
 liqo-route-7wsrx                           1/1     Running   0          2m8s
 liqo-route-sz75m                           1/1     Running   0          2m8s
-liqo-webhook-7bb6dbf88d-2hvwx              1/1     Running   0          2m8s
 ```
 
 In addition, you can check the installation status, and the main Liqo configuration parameters, using:
@@ -185,6 +183,8 @@ liqoctl status peer milan
 ## Leverage remote resources
 
 Now, you can deploy a standard Kubernetes application in a multi-cluster environment as you would do in a single cluster scenario (i.e. no modification is required).
+
+(ExamplesStartHelloWorldApplication)=
 
 ### Start a hello world application
 
