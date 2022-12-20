@@ -7,3 +7,4 @@ In this folder, you can find examples of how to use Liqo in several use-cases an
 * [Offloading a Service](https://docs.liqo.io/en/stable/examples/service-offloading.html): learn how to create a multi-cluster service, and how to consume it from each connected cluster.
 * [Stateful Applications](https://docs.liqo.io/en/stable/examples/stateful-applications.html): find out how to deploy a database across a multi-cluster environment, leveraging the Liqo storage fabric.
 * [Global Ingress](https://docs.liqo.io/en/stable/examples/global-ingress.html): discover how route external traffic to multi-cluster applications through a global ingress and automatic DNS configurations.
+* [Provision with Terraform](https://docs.liqo.io/en/stable/examples/provision-with-terraform.html): explore Liqo Terraform provider capabilities.
