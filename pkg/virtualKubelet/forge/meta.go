@@ -46,11 +46,11 @@ func IsReflected(obj metav1.Object) bool {
 	return ReflectedLabelSelector().Matches(labels.Set(obj.GetLabels()))
 }
 
-// RemoteObjectMeta merges the remote and local ObjectMeta for a reflected object.
+// RemoteObjectMeta forges the local ObjectMeta for a reflected object.
 func RemoteObjectMeta(local, remote *metav1.ObjectMeta) metav1.ObjectMeta {
 	output := remote.DeepCopy()
-	output.SetLabels(labels.Merge(remote.GetLabels(), labels.Merge(local.GetLabels(), ReflectionLabels())))
-	output.SetAnnotations(labels.Merge(remote.GetAnnotations(), local.GetAnnotations()))
+	output.SetLabels(labels.Merge(local.GetLabels(), ReflectionLabels()))
+	output.SetAnnotations(local.GetAnnotations())
 	return *output
 }
 

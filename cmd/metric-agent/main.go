@@ -33,7 +33,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/remotemetrics"
-	cachedclient "github.com/liqotech/liqo/pkg/utils/cachedClient"
+	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -81,7 +81,7 @@ func main() {
 		klog.Fatalf("error creating cache: %s", err)
 	}
 
-	cl, err := cachedclient.GetCachedClientWithConfig(ctx, scheme, config, clientCache)
+	cl, err := clientutils.GetCachedClientWithConfig(ctx, scheme, config, clientCache)
 	if err != nil {
 		klog.Fatal(err)
 	}

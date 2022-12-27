@@ -104,14 +104,14 @@ var _ = Describe("Meta forging", func() {
 			// Check whether the local labels are present (higher precedence if a remote label matches)
 			Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
 			// Check whether the remote labels are present
-			Expect(output.Labels).To(HaveKeyWithValue("bar", "baz"))
+			Expect(output.Labels).NotTo(HaveKeyWithValue("bar", "baz"))
 		})
 
 		It("should correctly set the annotations", func() {
 			// Check whether the local annotations are present (higher precedence if a remote annotation matches)
 			Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
 			// Check whether the remote annotations are present
-			Expect(output.Annotations).To(HaveKeyWithValue("baz", "foo"))
+			Expect(output.Annotations).NotTo(HaveKeyWithValue("baz", "foo"))
 		})
 
 		It("should not mutate the local object", func() { Expect(local).To(Equal(original)) })
