@@ -208,7 +208,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 						Expect(shadowAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 						Expect(shadowAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
 						Expect(shadowAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
-						Expect(shadowAfter.Annotations).To(HaveKeyWithValue("existing", "existing"))
+						Expect(shadowAfter.Annotations).NotTo(HaveKeyWithValue("existing", "existing"))
 					})
 					It("the spec should not have been replicated to the remote object, to prevent possible issues", func() {
 						shadowAfter := GetShadowPod(liqoClient, RemoteNamespace, PodName)
@@ -220,7 +220,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				When("the remote object already exists and is correct", func() {
 					BeforeEach(func() {
 						shadow.SetLabels(labels.Merge(map[string]string{"foo": "bar"}, forge.ReflectionLabels()))
-						shadow.SetAnnotations(map[string]string{"bar": "baz", "existing": "existing"})
+						shadow.SetAnnotations(map[string]string{"bar": "baz"})
 						shadow.Spec.Pod.Containers = []corev1.Container{{Name: "bar", Image: "foo"}}
 
 						// Here, we create a modified fake client which returns an error when trying to perform an update operation.
