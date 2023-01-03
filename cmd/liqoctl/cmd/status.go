@@ -1,4 +1,4 @@
-// Copyright 2019-2022 The Liqo Authors
+// Copyright 2019-2023 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ Liqoctl provides a set of commands to verify the status of the Liqo control
 plane, its configuration, as well as the characteristics of the currently
 active peerings, and reports the outcome in a human-readable format.
 
-This command shows information about the local cluster and checks the presence 
+This command shows information about the local cluster and checks the presence
 and the sanity of the liqo namespace and the liqo pods.
 
 Examples:
