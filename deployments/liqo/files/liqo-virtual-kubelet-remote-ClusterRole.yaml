@@ -36,6 +36,12 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - pods/attach
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
   - pods/exec
   verbs:
   - create

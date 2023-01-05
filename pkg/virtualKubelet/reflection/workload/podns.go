@@ -60,6 +60,8 @@ var _ NamespacedPodHandler = (*NamespacedPodReflector)(nil)
 type NamespacedPodHandler interface {
 	// Exec executes a command in a container of a reflected pod.
 	Exec(ctx context.Context, pod, container string, cmd []string, attach api.AttachIO) error
+	// Attach attaches to a process that is already running inside an existing container of a reflected pod.
+	Attach(ctx context.Context, pod, container string, attach api.AttachIO) error
 	// Logs retrieves the logs of a container of a reflected pod.
 	Logs(ctx context.Context, pod, container string, opts api.ContainerLogOpts) (io.ReadCloser, error)
 	// Stats retrieves the stats of the reflected pods.
@@ -418,7 +420,7 @@ func (npr *NamespacedPodReflector) Exec(ctx context.Context, po, container strin
 		return fmt.Errorf("failed to execute command: %w", err)
 	}
 
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  attach.Stdin(),
 		Stdout: attach.Stdout(),
 		Stderr: attach.Stderr(),
@@ -426,6 +428,49 @@ func (npr *NamespacedPodReflector) Exec(ctx context.Context, po, container strin
 	})
 	if err != nil {
 		klog.Errorf("Failed to exec command in container %q of local pod %q (remote %q): %v", container, npr.LocalRef(po), npr.RemoteRef(po), err)
+		return fmt.Errorf("failed to execute command: %w", err)
+	}
+
+	klog.Infof("Command in container %q in local pod %q (remote %q) successfully executed", container, npr.LocalRef(po), npr.RemoteRef(po))
+	return nil
+}
+
+// Attach attaches to a process that is already running inside an existing container of a reflected pod.
+func (npr *NamespacedPodReflector) Attach(ctx context.Context, po, container string, attach api.AttachIO) error {
+	klog.V(4).Infof("Requested to attach to container %q of local pod %q (remote %q)", container, npr.LocalRef(po), npr.RemoteRef(po))
+
+	request := npr.remoteRESTClient.Post().
+		Resource(corev1.ResourcePods.String()).
+		Namespace(npr.RemoteNamespace()).
+		Name(po).
+		SubResource("attach").
+		VersionedParams(&corev1.PodAttachOptions{
+			Container: container,
+			Stdin:     attach.Stdin() != nil,
+			Stdout:    attach.Stdout() != nil,
+			Stderr:    attach.Stderr() != nil,
+			TTY:       attach.TTY(),
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(npr.remoteRESTConfig, http.MethodPost, request.URL())
+	if err != nil {
+		klog.Errorf("Failed attaching to container %q of local pod %q (remote %q): %v", container, npr.LocalRef(po), npr.RemoteRef(po), err)
+		return fmt.Errorf("failed to execute command: %w", err)
+	}
+
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdin:  attach.Stdin(),
+		Stdout: attach.Stdout(),
+		Stderr: attach.Stderr(),
+		Tty:    attach.TTY(),
+	})
+
+	if err != nil {
+		if ctx.Done() != nil {
+			klog.Infof("Attach operation canceled in container %q of local pod %q (remote %q).", container, npr.LocalRef(po), npr.RemoteRef(po))
+			return nil
+		}
+		klog.Errorf("Failed to attach command in container %q of local pod %q (remote %q): %v", container, npr.LocalRef(po), npr.RemoteRef(po), err)
 		return fmt.Errorf("failed to execute command: %w", err)
 	}
 
