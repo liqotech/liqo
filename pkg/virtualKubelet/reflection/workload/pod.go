@@ -64,6 +64,8 @@ type PodHandler interface {
 	List(context.Context) ([]*corev1.Pod, error)
 	// Exec executes a command in a container of a reflected pod.
 	Exec(ctx context.Context, namespace, pod, container string, cmd []string, attach api.AttachIO) error
+	// Attach attaches to a process that is already running inside an existing container of a reflected pod.
+	Attach(ctx context.Context, namespace, pod, container string, attach api.AttachIO) error
 	// Logs retrieves the logs of a container of a reflected pod.
 	Logs(ctx context.Context, namespace, pod, container string, opts api.ContainerLogOpts) (io.ReadCloser, error)
 	// Stats retrieves the stats of the reflected pods.
@@ -178,6 +180,14 @@ func (pr *PodReflector) List(_ context.Context) ([]*corev1.Pod, error) {
 func (pr *PodReflector) Exec(ctx context.Context, namespace, pod, container string, cmd []string, attach api.AttachIO) error {
 	if handler, found := pr.handlers.Load(namespace); found {
 		return handler.(NamespacedPodHandler).Exec(ctx, pod, container, cmd, attach)
+	}
+	return kerrors.NewNotFound(corev1.Resource(corev1.ResourcePods.String()), klog.KRef(namespace, pod).String())
+}
+
+// Attach attaches to a process that is already running inside an existing container of a reflected pod.
+func (pr *PodReflector) Attach(ctx context.Context, namespace, pod, container string, attach api.AttachIO) error {
+	if handler, found := pr.handlers.Load(namespace); found {
+		return handler.(NamespacedPodHandler).Attach(ctx, pod, container, attach)
 	}
 	return kerrors.NewNotFound(corev1.Resource(corev1.ResourcePods.String()), klog.KRef(namespace, pod).String())
 }
