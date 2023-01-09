@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.92
 	github.com/containernetworking/plugins v1.1.1
 	github.com/coreos/go-iptables v0.6.0
-	github.com/go-git/go-git/v5 v5.5.1
+	github.com/go-git/go-git/v5 v5.5.2
 	github.com/google/uuid v1.3.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/grandcat/zeroconf v1.0.0
@@ -125,7 +125,7 @@ require (
 	github.com/fvbommel/sortorder v1.0.2 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
-	github.com/go-git/go-billy/v5 v5.3.1 // indirect
+	github.com/go-git/go-billy/v5 v5.4.0 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.2 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
