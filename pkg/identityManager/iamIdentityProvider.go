@@ -118,6 +118,12 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster disco
 func (identityProvider *iamIdentityProvider) ensureIamUser(iamSvc *iam.IAM, username string) (string, error) {
 	createUser := &iam.CreateUserInput{
 		UserName: aws.String(username),
+		Tags: []*iam.Tag{
+			{
+				Key:   aws.String("Type"),
+				Value: aws.String("AppID"),
+			},
+		},
 	}
 
 	createUserResult, err := iamSvc.CreateUser(createUser)
