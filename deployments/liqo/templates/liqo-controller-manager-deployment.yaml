@@ -76,6 +76,9 @@ spec:
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
           {{- end }}
+          {{- if .Values.controllerManager.config.enableNodeFailureController }}
+          - --enable-node-failure-controller
+          {{- end }}
           {{- if .Values.virtualKubelet.extra.annotations }}
           {{- $d := dict "commandName" "--kubelet-extra-annotations" "dictionary" .Values.virtualKubelet.extra.annotations }}
           {{- include "liqo.concatenateMap" $d | nindent 10 }}

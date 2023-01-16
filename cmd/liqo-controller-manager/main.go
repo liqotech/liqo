@@ -53,6 +53,7 @@ import (
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
+	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
@@ -151,6 +152,9 @@ func main() {
 	virtualStorageClassName := flag.String("virtual-storage-class-name", "liqo", "Name of the virtual storage class")
 	realStorageClassName := flag.String("real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
 	storageNamespace := flag.String("storage-namespace", "liqo-storage", "Namespace where the liqo storage-related resources are stored")
+
+	// Node failure controller parameter
+	enableNodeFailureController := flag.Bool("enable-node-failure-controller", false, "Enable the node failure controller")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -371,6 +375,17 @@ func main() {
 			Ctrl: provisionController,
 		}); err != nil {
 			klog.Fatal(err)
+		}
+	}
+
+	if *enableNodeFailureController {
+		nodeFailureReconciler := &nodefailurectrl.NodeFailureReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}
+		if err = nodeFailureReconciler.SetupWithManager(ctx, mgr); err != nil {
+			klog.Errorf("Unable to start the nodeFailureReconciler", err)
+			os.Exit(1)
 		}
 	}
 

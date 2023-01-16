@@ -39,6 +39,10 @@ controllerManager:
     # This feature is suggested to be enabled when consumer-side enforcement is not sufficient.
     # It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set).
     enableResourceEnforcement: false
+    # -- Ensure offloaded pods running on a failed node are evicted and rescheduled on a healthy node, preventing them to remain in a terminating state indefinitely.
+    # This feature can be useful in case of remote node failure to guarantee better service continuity and to have the expected pods workload on the remote cluster.
+    # However, enabling this feature could produce zombies in the worker node, in case the node returns Ready again without a restart
+    enableNodeFailureController: false
 
 route:
   pod:
