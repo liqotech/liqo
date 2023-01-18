@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/Azure/azure-sdk-for-go v67.3.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.28
-	github.com/Azure/go-autorest/autorest/azure/auth v0.5.11
+	github.com/Azure/go-autorest/autorest/azure/auth v0.5.12
 	github.com/aws/aws-sdk-go v1.44.92
 	github.com/containernetworking/plugins v1.2.0
 	github.com/coreos/go-iptables v0.6.0
