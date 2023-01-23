@@ -23,6 +23,7 @@ subtrees:
       - file: examples/service-offloading.md
       - file: examples/stateful-applications.md
       - file: examples/global-ingress.md
+      - file: examples/replicated-deployments.md
       - file: examples/provision-with-terraform.md
 
   - caption: Usage
