@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: liqo-demo-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: liqo-demo-app
+  template:
+    metadata:
+      labels:
+        app: liqo-demo-app
+    spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname 
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: liqo-demo-app
+      containers:
+      - name: nginx
+        image: nginxdemos/hello
+        ports:
+        - containerPort: 80

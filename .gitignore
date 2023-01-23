@@ -37,5 +37,8 @@ token
 # test generated files
 coverage.txt
 
+# example kubeconfig generates by examples
+liqo_kubeconf*
+
 hack/code-generator
 docs/_build

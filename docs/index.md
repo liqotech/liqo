@@ -140,6 +140,7 @@ Discover how to **offload** (a subset of) your workloads, **access services** pr
 [](examples/service-offloading.md) ·
 [](examples/stateful-applications.md) ·
 [](examples/global-ingress.md) ·
+[](examples/replicated-deployments.md) ·
 [](examples/provision-with-terraform.md)
 ```
 

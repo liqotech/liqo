@@ -374,6 +374,8 @@ Open the [http://localhost:8080](http://localhost:8080) page in your browser and
 
 ## Tear down the playground
 
+Our example is finished; now we can remove all the created resources and tear down the playground.
+
 ### Unoffload namespaces
 
 Before starting the uninstallation process, make sure that all namespaces are unoffloaded:
