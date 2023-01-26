@@ -3,7 +3,7 @@ module github.com/liqotech/liqo
 go 1.19
 
 require (
-	github.com/Azure/azure-sdk-for-go v67.3.0+incompatible
+	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.28
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.12
 	github.com/aws/aws-sdk-go v1.44.92
