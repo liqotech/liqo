@@ -73,8 +73,15 @@ func (o *Options) ensureUser(iamSvc *iam.IAM) error {
 		UserName: aws.String(o.iamUser.userName),
 	}
 
-	_, err := iamSvc.CreateUser(createUserRequest)
-	if err != nil {
+	if _, err := iamSvc.CreateUser(createUserRequest); err != nil {
+		if aerr, ok := err.(awserr.Error); ok { //nolint:errorlint // we need to access methods of the aws error interface
+			switch aerr.Code() {
+			case iam.ErrCodeEntityAlreadyExistsException:
+				return fmt.Errorf("IAM user %v already exists, use --user-name flag to override it", o.iamUser.userName)
+			default:
+				return err
+			}
+		}
 		return err
 	}
 
