@@ -85,9 +85,9 @@ kubectl get node --selector=liqo.io/type=virtual-node --show-labels
 ```
 
 ```text
-NAME            STATUS   ROLES   AGE     VERSION   LABELS
-liqo-florence   Ready    agent   2m30s   v1.23.6   liqo.io/remote-cluster-id=4858caa2-7848-4aab-a6b4-6984389bac56,liqo.io/type=virtual-node,topology.liqo.io/region=center
-liqo-naples     Ready    agent   2m29s   v1.23.6   liqo.io/remote-cluster-id=53d11339-fc85-4741-a912-a3eda781a69e,liqo.io/type=virtual-node,topology.liqo.io/region=south
+NAME            STATUS   ROLES   AGE   VERSION   LABELS
+liqo-florence   Ready    agent   19s   v1.25.0   liqo.io/remote-cluster-id=5f3b5abd-cccb-4f75-931b-d6b1ca95fa7d,liqo.io/type=virtual-node,topology.liqo.io/region=center
+liqo-naples     Ready    agent   14s   v1.25.0   liqo.io/remote-cluster-id=edc8c24a-4c11-48b8-8b0e-2a95cf7464af,liqo.io/type=virtual-node,topology.liqo.io/region=south
 ```
 
 ```{admonition} Note
@@ -134,24 +134,25 @@ kubectl get namespaceoffloadings offloading -n liqo-demo -o yaml
 ```yaml
 ...
 status:
+  observedGeneration: 1
   offloadingPhase: Ready
   remoteNamespaceName: liqo-demo
   remoteNamespacesConditions:
-    florence-539f8b:
-    - lastTransitionTime: "2022-05-05T15:08:33Z"
-      message: You have not selected this cluster through ClusterSelector fields
+    florence-7ab115:
+    - lastTransitionTime: "2023-01-30T09:50:05Z"
+      message: The remote cluster has not been selected through the ClusterSelector field
       reason: ClusterNotSelected
       status: "False"
       type: OffloadingRequired
-    naples-7881be:
-    - lastTransitionTime: "2022-05-05T15:08:43Z"
+    naples-5eada1:
+    - lastTransitionTime: "2023-01-30T09:50:05Z"
       message: The remote cluster has been selected through the ClusterSelector field
       reason: ClusterSelected
       status: "True"
       type: OffloadingRequired
-    - lastTransitionTime: "2022-05-05T15:08:43Z"
-      message: Namespace correctly offloaded on this cluster
-      reason: RemoteNamespaceCreated
+    - lastTransitionTime: "2023-01-30T09:50:05Z"
+      message: Namespace correctly offloaded to the remote cluster
+      reason: NamespaceCreated
       status: "True"
       type: Ready
 ```
@@ -195,9 +196,9 @@ kubectl get pod -n liqo-demo -o wide
 ```
 
 ```text
-NAME                          READY   STATUS    RESTARTS   AGE     IP            NODE          NOMINATED NODE   READINESS GATES
-app-center-6f6bd7547b-dh4m4   0/1     Pending   0          2m30s   <none>        <none>        <none>           <none>
-app-south-85b9b99c4d-stwhw    1/1     Running   0          2m30s   10.204.0.12   liqo-naples   <none>           <none>
+NAME                          READY   STATUS    RESTARTS   AGE   IP            NODE          NOMINATED NODE   READINESS GATES
+app-center-58d8ff79c9-xf6pz   0/1     Pending   0          27s   <none>        <none>        <none>           <none>
+app-south-545766885-zn4nx     1/1     Running   0          27s   10.204.0.13   liqo-naples   <none>           <none>
 ```
 
 ```{admonition} Note

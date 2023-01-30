@@ -1,7 +1,7 @@
 apiVersion: k3d.io/v1alpha3
 kind: Simple
 name: gslb-us
-image: docker.io/rancher/k3s:v1.22.6-k3s1
+image: docker.io/rancher/k3s:v1.25.0-k3s1
 agents: 1
 network: k3d-action-bridge-network
 ports:
@@ -25,7 +25,7 @@ options:
     disableLoadbalancer: true
   k3s:
     extraArgs:
-      - arg: --no-deploy=traefik,servicelb,metrics-server,local-storage
+      - arg: --disable=traefik,servicelb,metrics-server,local-storage
         nodeFilters:
           - server:*
       - arg: --cluster-cidr=10.40.0.0/16

@@ -54,7 +54,7 @@ provider "liqo" {
 resource "kind_cluster" "rome" {
 
   name           = "rome"
-  node_image     = "kindest/node:v1.23.6"
+  node_image     = "kindest/node:v1.25.0"
   wait_for_ready = true
 
   kind_config {
@@ -77,7 +77,7 @@ resource "kind_cluster" "rome" {
 resource "kind_cluster" "milan" {
 
   name           = "milan"
-  node_image     = "kindest/node:v1.23.6"
+  node_image     = "kindest/node:v1.25.0"
   wait_for_ready = true
 
   kind_config {

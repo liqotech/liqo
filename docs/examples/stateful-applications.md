@@ -114,7 +114,7 @@ kubectl run db-mariadb-galera-client --rm --tty -i \
     --restart='Never' --namespace default \
     --image docker.io/bitnami/mariadb-galera:10.6.7-debian-10-r56 \
     --command \
-      -- mysql -h db-mariadb-galera.liqo-demo -uuser -ppassword my_database
+    -- mysql -h db-mariadb-galera.liqo-demo -uuser -ppassword my_database
 ```
 
 And then create an example table and insert some data:
