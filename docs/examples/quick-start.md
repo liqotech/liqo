@@ -168,10 +168,10 @@ kubectl get nodes
 ```
 
 ```text
-NAME                 STATUS   ROLES                  AGE     VERSION
-liqo-milan           Ready    agent                  14s     v1.23.6
-rome-control-plane   Ready    control-plane,master   7m56s   v1.23.6
-rome-worker          Ready    <none>                 7m25s   v1.23.6
+NAME                 STATUS   ROLES           AGE     VERSION
+liqo-milan           Ready    agent           27s     v1.25.0
+rome-control-plane   Ready    control-plane   7m6s    v1.25.0
+rome-worker          Ready    <none>          6m33s   v1.25.0
 ```
 
 In addition, you can check the peering status, and retrieve more advanced information, using:
@@ -233,8 +233,8 @@ And the output should look like this:
 
 ```text
 NAME           READY   STATUS    RESTARTS   AGE   IP            NODE          NOMINATED NODE   READINESS GATES
-nginx-local    1/1     Running   0          94s   10.200.1.10   rome-worker   <none>           <none>
-nginx-remote   1/1     Running   0          94s   10.202.1.9    liqo-milan    <none>           <none>
+nginx-local    1/1     Running   0          10s   10.200.1.11   rome-worker   <none>           <none>
+nginx-remote   1/1     Running   0          9s    10.202.1.10   liqo-milan    <none>           <none>
 ```
 
 #### Check the pod connectivity
@@ -280,13 +280,16 @@ Selector:          app=liqo-demo
 Type:              ClusterIP
 IP Family Policy:  SingleStack
 IP Families:       IPv4
-IP:                10.93.84.150
-IPs:               10.93.84.150
+IP:                10.94.41.143
+IPs:               10.94.41.143
 Port:              web  80/TCP
 TargetPort:        web/TCP
-Endpoints:         10.200.1.10:80,10.202.1.9:80
+Endpoints:         10.200.1.11:80,10.202.1.10:80
 Session Affinity:  None
-Events:            <none>
+Events:
+  Type    Reason                Age                From                     Message
+  ----    ------                ----               ----                     -------
+  Normal  SuccessfulReflection  51s (x2 over 51s)  liqo-service-reflection  Successfully reflected object to cluster "milan"
 ```
 
 #### Check the Service connectivity
@@ -338,20 +341,21 @@ At steady-state, you should see an output similar to the following.
 Different pods may be hosted by either the local nodes (*rome-worker* in the example below) or remote cluster (*liqo-milan* in the example below), depending on the scheduling decisions.
 
 ```text
-NAME                                     READY   STATUS    RESTARTS   AGE     IP            NODE          NOMINATED NODE   READINESS GATES
-adservice-66f6b5c6fd-w95th               1/1     Running   0          2m23s   10.202.1.19   liqo-milan    <none>           <none>
-cartservice-76dc758684-wd5px             1/1     Running   0          2m23s   10.202.1.15   liqo-milan    <none>           <none>
-checkoutservice-85b74f746f-lm7gh         1/1     Running   0          2m24s   10.202.1.11   liqo-milan    <none>           <none>
-currencyservice-64775746dd-k85z6         1/1     Running   0          2m23s   10.202.1.16   liqo-milan    <none>           <none>
-emailservice-58f8b4f854-9mx7g            1/1     Running   0          2m24s   10.202.1.10   liqo-milan    <none>           <none>
-frontend-7b648dcb8f-gfbh2                1/1     Running   0          2m23s   10.200.1.15   rome-worker   <none>           <none>
-nginx-local                              1/1     Running   0          6m5s    10.200.1.10   rome-worker   <none>           <none>
-nginx-remote                             1/1     Running   0          6m5s    10.202.1.9    liqo-milan    <none>           <none>
-paymentservice-5dd7bb5855-ssbhf          1/1     Running   0          2m23s   10.202.1.14   liqo-milan    <none>           <none>
-productcatalogservice-587c8dbf7d-nmw77   1/1     Running   0          2m23s   10.202.1.13   liqo-milan    <none>           <none>
-recommendationservice-6cd468f4d4-h8k2t   1/1     Running   0          2m24s   10.202.1.12   liqo-milan    <none>           <none>
-redis-cart-78746d49dc-rkqrn              1/1     Running   0          2m23s   10.202.1.18   liqo-milan    <none>           <none>
-shippingservice-59c7b7458d-sqb9x         1/1     Running   0          2m23s   10.202.1.17   liqo-milan    <none>           <none>
+NAME                                     READY   STATUS    RESTARTS        AGE     IP            NODE          NOMINATED NODE   READINESS GATES
+adservice-84cdf76d7d-6s8pq               1/1     Running   0               5m1s    10.202.1.11   liqo-milan    <none>           <none>
+cartservice-5c9c9c7b4-w49gr              1/1     Running   0               5m1s    10.202.1.12   liqo-milan    <none>           <none>
+checkoutservice-6cb9bb8cd8-5w2ht         1/1     Running   0               5m1s    10.202.1.13   liqo-milan    <none>           <none>
+currencyservice-7d4bd86676-5b5rq         1/1     Running   0               5m1s    10.202.1.14   liqo-milan    <none>           <none>
+emailservice-c9b45cdb-6zjrk              1/1     Running   0               5m1s    10.202.1.15   liqo-milan    <none>           <none>
+frontend-58b9b98d84-hg4xz                1/1     Running   0               5m1s    10.200.1.13   rome-worker   <none>           <none>
+loadgenerator-5f8cd58cd4-wvqqq           1/1     Running   0               5m1s    10.202.1.16   liqo-milan    <none>           <none>
+nginx-local                              1/1     Running   0               7m35s   10.200.1.11   rome-worker   <none>           <none>
+nginx-remote                             1/1     Running   0               7m34s   10.202.1.10   liqo-milan    <none>           <none>
+paymentservice-69558cf7bb-v4zjw          1/1     Running   0               5m      10.202.1.17   liqo-milan    <none>           <none>
+productcatalogservice-55c58b57cb-k8mfq   1/1     Running   0               5m      10.202.1.18   liqo-milan    <none>           <none>
+recommendationservice-55cd66cf64-6fz9w   1/1     Running   0               5m      10.202.1.19   liqo-milan    <none>           <none>
+redis-cart-5d45978b94-wjd97              1/1     Running   0               5m      10.202.1.20   liqo-milan    <none>           <none>
+shippingservice-5df47fc86-f867j          1/1     Running   0               4m59s   10.202.1.21   liqo-milan    <none>           <none>
 ```
 
 ### Access the demo application

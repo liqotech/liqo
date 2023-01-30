@@ -159,9 +159,9 @@ kubectl get nodes
 
 ```text
 NAME                 STATUS   ROLES                  AGE     VERSION
-liqo-milan           Ready    agent                  14s     v1.23.6
-rome-control-plane   Ready    control-plane,master   7m56s   v1.23.6
-rome-worker          Ready    <none>                 7m25s   v1.23.6
+liqo-milan           Ready    agent                  14s     v1.25.0
+rome-control-plane   Ready    control-plane,master   7m56s   v1.25.0
+rome-worker          Ready    <none>                 7m25s   v1.25.0
 ```
 
 ### Offload a namespace

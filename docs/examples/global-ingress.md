@@ -85,7 +85,7 @@ The output should be similar to:
 
 ```text
 NAME           STATUS   ROLES   AGE   VERSION
-liqo-gslb-us   Ready    agent   17s   v1.22.6+k3s1
+liqo-gslb-us   Ready    agent   14s   v1.25.0+k3s1
 ```
 
 ## Deploy an application
