@@ -73,7 +73,7 @@ jobs:
           ${{ runner.os }}-${{ matrix.component }}-buildx-
 
     - name: Build (and Publish) liqo-test image
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         context: .
         platforms: linux/amd64
