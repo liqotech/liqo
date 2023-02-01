@@ -45,43 +45,24 @@ var _ = Describe("LocalInfo", func() {
 	)
 
 	var (
-		clientBuilder fake.ClientBuilder
-		lic           *LocalInfoChecker
-		ctx           context.Context
-		text          string
-		options       status.Options
-		baseObjects   []client.Object
+		clientBuilder     fake.ClientBuilder
+		lic               *LocalInfoChecker
+		ctx               context.Context
+		text              string
+		options           status.Options
+		baseObjects       []client.Object
+		argsClusterLabels []string
 	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
 		clientBuilder = *fake.NewClientBuilder().WithScheme(scheme.Scheme)
-		var argsClusterLabels []string
 		for k, v := range testutil.ClusterLabels {
 			argsClusterLabels = append(argsClusterLabels, fmt.Sprintf("%s=%s", k, v))
 		}
 		baseObjects = []client.Object{
 			testutil.FakeClusterIDConfigMap(namespace, clusterID, clusterName),
 			testutil.FakeIPAM(namespace),
-			&appv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "liqo-controller-manager",
-					Namespace: namespace,
-					Labels: map[string]string{
-						liqoconsts.K8sAppNameKey:      "controller-manager",
-						liqoconsts.K8sAppComponentKey: "controller-manager",
-					},
-				},
-				Spec: appv1.DeploymentSpec{
-					Template: corev1.PodTemplateSpec{
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{Args: []string{"--cluster-labels=" + strings.Join(argsClusterLabels, ",")}},
-							},
-						},
-					},
-				},
-			},
 		}
 		options = status.Options{Factory: factory.NewForLocal()}
 		options.Printer = output.NewFakePrinter(GinkgoWriter)
@@ -110,82 +91,79 @@ var _ = Describe("LocalInfo", func() {
 			Expect(lic.localInfoSection).To(Equal(output.NewRootSection()))
 		})
 	})
-	Context("Collecting and Formatting LocalInfoChecker", func() {
-		When("Standard case", func() {
-			BeforeEach(func() {
-				clientBuilder.WithObjects(
-					append(
-						baseObjects,
-						forgeLiqoAuth(namespace, ""),
-					)...,
-				)
-				options.CRClient = clientBuilder.Build()
-				lic = NewLocalInfoChecker(&options)
-				lic.Collect(ctx)
-			})
-			JustBeforeEach(func() {
-				text = lic.Format()
-				text = pterm.RemoveColorFromString(text)
-				text = testutil.SqueezeWhitespaces(text)
-			})
-			It("should not return errors", func() {
-				Expect(lic.HasSucceeded()).To(BeTrue())
-			})
-			It("should format a valid text", func() {
-				Expect(text).To(ContainSubstring(
-					pterm.Sprintf("Cluster ID: %s", clusterID),
-				))
-				Expect(text).To(ContainSubstring(
-					pterm.Sprintf("Cluster Name: %s", clusterName),
-				))
-				for _, v := range testutil.ClusterLabels {
-					Expect(text).To(ContainSubstring(v))
-				}
-				Expect(text).To(ContainSubstring(
-					pterm.Sprintf("Pod CIDR: %s", testutil.PodCIDR),
-				))
-				Expect(text).To(ContainSubstring(
-					pterm.Sprintf("Service CIDR: %s", testutil.ServiceCIDR),
-				))
-				Expect(text).To(ContainSubstring(
-					pterm.Sprintf("External CIDR: %s", testutil.ExternalCIDR),
-				))
-				Expect(text).To(ContainSubstring(
-					pterm.Sprintf("Address: %s", fmt.Sprintf("https://%v:6443", testutil.APIAddress)),
-				))
-				for _, v := range testutil.ReservedSubnets {
-					Expect(text).To(ContainSubstring(v))
-				}
 
-			})
-		})
-		When("API server is overrided", func() {
-			BeforeEach(func() {
-				clientBuilder.WithObjects(
-					append(
-						baseObjects,
-						forgeLiqoAuth(namespace, testutil.OverrideAPIAddress),
-					)...,
-				)
-				options.CRClient = clientBuilder.Build()
-				lic = NewLocalInfoChecker(&options)
-				lic.Collect(ctx)
-			})
-			JustBeforeEach(func() {
-				text = lic.Format()
-				text = pterm.RemoveColorFromString(text)
-				text = testutil.SqueezeWhitespaces(text)
-			})
-			It("should format a valid text", func() {
-				Expect(text).To(ContainSubstring(
-					pterm.Sprintf("Address: %s", fmt.Sprintf("https://%v", testutil.OverrideAPIAddress)),
-				))
-			})
-		})
-	})
+	type TestArgs struct {
+		clusterLabels, apiServerOverride bool
+	}
+
+	DescribeTable("Collecting and Formatting LocalInfoChecker", func(args TestArgs) {
+		objects := append([]client.Object{}, baseObjects...)
+		if args.clusterLabels {
+			objects = append(objects, forgeControllerManager(namespace, argsClusterLabels))
+		} else {
+			objects = append(objects, forgeControllerManager(namespace, nil))
+		}
+		if args.apiServerOverride {
+			objects = append(objects, forgeLiqoAuth(namespace, testutil.OverrideAPIAddress))
+		} else {
+			objects = append(objects, forgeLiqoAuth(namespace, ""))
+		}
+
+		clientBuilder.WithObjects(objects...)
+		options.CRClient = clientBuilder.Build()
+		lic = NewLocalInfoChecker(&options)
+		lic.Collect(ctx)
+
+		text = lic.Format()
+		text = pterm.RemoveColorFromString(text)
+		text = testutil.SqueezeWhitespaces(text)
+
+		Expect(lic.HasSucceeded()).To(BeTrue())
+		Expect(text).To(ContainSubstring(
+			pterm.Sprintf("Cluster ID: %s", clusterID),
+		))
+		Expect(text).To(ContainSubstring(
+			pterm.Sprintf("Cluster Name: %s", clusterName),
+		))
+		if args.clusterLabels {
+			for _, v := range testutil.ClusterLabels {
+				Expect(text).To(ContainSubstring(v))
+			}
+		}
+		Expect(text).To(ContainSubstring(
+			pterm.Sprintf("Pod CIDR: %s", testutil.PodCIDR),
+		))
+		Expect(text).To(ContainSubstring(
+			pterm.Sprintf("Service CIDR: %s", testutil.ServiceCIDR),
+		))
+		Expect(text).To(ContainSubstring(
+			pterm.Sprintf("External CIDR: %s", testutil.ExternalCIDR),
+		))
+		for _, v := range testutil.ReservedSubnets {
+			Expect(text).To(ContainSubstring(v))
+		}
+		if args.apiServerOverride {
+			Expect(text).To(ContainSubstring(
+				pterm.Sprintf("Address: %s", fmt.Sprintf("https://%v", testutil.OverrideAPIAddress)),
+			))
+		} else {
+			Expect(text).To(ContainSubstring(
+				pterm.Sprintf("Address: %s", fmt.Sprintf("https://%v:6443", testutil.APIAddress)),
+			))
+		}
+	},
+		Entry("Standard case", TestArgs{false, false}),
+		Entry("Cluster Labels", TestArgs{true, false}),
+		Entry("API Server Override", TestArgs{false, true}),
+		Entry("Cluster Labels and API Server Override", TestArgs{true, true}),
+	)
 })
 
 func forgeLiqoAuth(namespace, addressOverride string) *appv1.Deployment {
+	containerArgs := []string{}
+	if addressOverride != "" {
+		containerArgs = append(containerArgs, "--advertise-api-server-address="+addressOverride)
+	}
 	return &appv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "liqo-auth",
@@ -198,7 +176,33 @@ func forgeLiqoAuth(namespace, addressOverride string) *appv1.Deployment {
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						{Args: []string{"--advertise-api-server-address=" + addressOverride}},
+						{Args: containerArgs},
+					},
+				},
+			},
+		},
+	}
+}
+
+func forgeControllerManager(namespace string, argsClusterLabels []string) *appv1.Deployment {
+	containerArgs := []string{}
+	if len(argsClusterLabels) != 0 {
+		containerArgs = append(containerArgs, "--cluster-labels="+strings.Join(argsClusterLabels, ","))
+	}
+	return &appv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "liqo-controller-manager",
+			Namespace: namespace,
+			Labels: map[string]string{
+				liqoconsts.K8sAppNameKey:      "controller-manager",
+				liqoconsts.K8sAppComponentKey: "controller-manager",
+			},
+		},
+		Spec: appv1.DeploymentSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Args: containerArgs},
 					},
 				},
 			},
