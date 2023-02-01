@@ -70,9 +70,7 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 		lic.addCollectionError(fmt.Errorf("unable to get Liqo Controller Manager Deployment Args: %w", err))
 	} else {
 		clusterLabelsArg, err := liqoctlutils.ExtractValueFromArgumentList("--cluster-labels", ctrlargs)
-		if err != nil {
-			lic.addCollectionError(fmt.Errorf("unable to get --cluster-labels arg from Liqo Controller Manager Deployment args: %w", err))
-		} else {
+		if err == nil { // error is not returned because --cluster-labels is an optional argument.
 			clusterLabels, err := liqoctlutils.ParseArgsMultipleValues(clusterLabelsArg, ",")
 			if err != nil {
 				lic.addCollectionError(fmt.Errorf("unable to get cluster labels: %w", err))
