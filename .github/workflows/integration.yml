@@ -124,7 +124,7 @@ jobs:
             echo "path=build/common/Dockerfile") >> $GITHUB_OUTPUT
 
       - name: Build (and Publish) ${{ matrix.component }} image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           platforms: ${{ needs.configure.outputs.architectures }}
