@@ -53,6 +53,30 @@ func init() {
 	tunnel.AddDriver(liqoconst.DriverName, NewDriver)
 }
 
+var (
+	// WgUserImpl is the metric that reports if wireguard is running in userspace mode.
+	WgUserImpl = prometheus.NewDesc(
+		"liqo_wireguard_implementation",
+		"Wireguard used implementation",
+		[]string{metrics.MetricsLabels[0], implLabel},
+		nil,
+	)
+)
+
+const (
+	envImplementation = "WIREGUARD_IMPLEMENTATION"
+	implLabel         = "implementation"
+)
+
+type implementation string
+
+const (
+	// Userspace implementation of wireguard.
+	Userspace implementation = "userspace"
+	// Kernel    implementation of wireguard.
+	Kernel implementation = "kernel"
+)
+
 type wgConfig struct {
 	// listening port.
 	port int
@@ -80,6 +104,7 @@ type Wireguard struct {
 	link                       netlink.Link
 	conf                       wgConfig
 	Connchecker                *conncheck.ConnChecker
+	Implementation             implementation
 }
 
 // NewDriver creates a new WireGuard driver.
@@ -92,6 +117,9 @@ func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) 
 			port:     config.ListeningPort,
 			iFaceMTU: config.MTU,
 		},
+	}
+	if w.Implementation = implementation(os.Getenv(envImplementation)); w.Implementation != Userspace {
+		w.Implementation = Kernel
 	}
 	err = w.setKeys(k8sClient, namespace)
 	if err != nil {
@@ -345,10 +373,13 @@ func (w *Wireguard) setWGLink() error {
 	if err = netlink.LinkAdd(link); err != nil && !errors.Is(err, unix.EOPNOTSUPP) {
 		return fmt.Errorf("failed to add wireguard device %q: %w", liqoconst.DeviceName, err)
 	}
-	if errors.Is(err, unix.EOPNOTSUPP) {
+	if errors.Is(err, unix.EOPNOTSUPP) || w.Implementation == Userspace {
 		klog.Warningf("wireguard kernel module not present, falling back to the userspace implementation")
 
-		cmd := exec.Command("/usr/bin/boringtun", liqoconst.DeviceName, "--disable-drop-privileges", "true") //nolint:gosec //we leave it as it is
+		// Enforce the userspace implementation to show it in metrics.
+		w.Implementation = Userspace
+
+		cmd := exec.Command("/usr/bin/boringtun-cli", liqoconst.DeviceName, "--disable-drop-privileges") //nolint:gosec //we leave it as it is
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
@@ -510,6 +541,12 @@ func (w *Wireguard) SetNewClient() error {
 	return nil
 }
 
+// Describe implements prometheus.Collector.
+func (w *Wireguard) Describe(ch chan<- *prometheus.Desc) {
+	w.Metrics.Describe(ch)
+	ch <- WgUserImpl
+}
+
 // Collect implements prometheus.Collector.
 func (w *Wireguard) Collect(ch chan<- prometheus.Metric) {
 	device, err := w.client.Device(liqoconst.DeviceName)
@@ -517,6 +554,13 @@ func (w *Wireguard) Collect(ch chan<- prometheus.Metric) {
 		w.MetricsErrorHandler(fmt.Errorf("error collecting wireguard metrics: %w", err), ch)
 		return
 	}
+
+	ch <- prometheus.MustNewConstMetric(
+		WgUserImpl,
+		prometheus.GaugeValue,
+		1,
+		[]string{liqoconst.DriverName, string(w.Implementation)}...,
+	)
 
 	for i := range device.Peers {
 		publicKey := device.Peers[i].PublicKey
