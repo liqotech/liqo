@@ -90,6 +90,8 @@ gateway:
     portOverride: ""
     # -- port used by the vpn tunnel.
     listeningPort: 5871
+    # -- implementation used by wireguard. Possible values are "userspace" and "kernel". Do not use "userspace" unless strictly necessary.
+    wireguardImplementation: "kernel"
   metrics:
     # -- expose metrics about network traffic towards cluster peers.
     enabled: false

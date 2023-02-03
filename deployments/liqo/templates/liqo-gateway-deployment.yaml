@@ -68,4 +68,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: WIREGUARD_IMPLEMENTATION
+              value: {{ .Values.gateway.config.wireguardImplementation }}
       hostNetwork: true

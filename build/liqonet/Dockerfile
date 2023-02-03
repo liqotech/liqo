@@ -1,8 +1,8 @@
 FROM ekidd/rust-musl-builder as rustBuilder
 
-ARG VERSION=0.4.0
+ARG VERSION=0.5.2
 
-RUN cargo install --version $VERSION boringtun
+RUN cargo install --version $VERSION boringtun-cli
 
 
 FROM golang:1.19 as goBuilder
@@ -23,6 +23,6 @@ RUN apk update && \
     rm -rf /var/cache/apk/*
 
 COPY --from=goBuilder /tmp/builder/liqonet /usr/bin/liqonet
-COPY --from=rustBuilder /home/rust/.cargo/bin/boringtun /usr/bin/boringtun
+COPY --from=rustBuilder /home/rust/.cargo/bin/boringtun-cli /usr/bin/boringtun-cli
 
 ENTRYPOINT [ "/usr/bin/liqonet" ]

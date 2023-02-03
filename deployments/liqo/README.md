@@ -57,6 +57,7 @@
 | gateway.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
 | gateway.config.listeningPort | int | `5871` | port used by the vpn tunnel. |
 | gateway.config.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT and is different from the listening port. |
+| gateway.config.wireguardImplementation | string | `"kernel"` | implementation used by wireguard. Possible values are "userspace" and "kernel". Do not use "userspace" unless strictly necessary. |
 | gateway.imageName | string | `"ghcr.io/liqotech/liqonet"` | gateway image repository |
 | gateway.metrics.enabled | bool | `false` | expose metrics about network traffic towards cluster peers. |
 | gateway.metrics.port | int | `5872` | port used to expose metrics. |

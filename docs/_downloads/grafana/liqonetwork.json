@@ -95,7 +95,7 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 4,
+        "w": 3,
         "x": 0,
         "y": 1
       },
@@ -132,6 +132,71 @@
       ],
       "title": "Connected clusters",
       "transformations": [],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "description": "Describe which wireguard implementation Liqo is using, between \"kernel\" and \"userspace\".",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 3,
+        "x": 3,
+        "y": 1
+      },
+      "id": 41,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^implementation$/",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.4",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "liqo_wireguard_implementation{driver=\"wireguard\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Wireguard implementation",
       "type": "stat"
     },
     {
@@ -192,8 +257,8 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 10,
-        "x": 4,
+        "w": 9,
+        "x": 6,
         "y": 1
       },
       "id": 4,
@@ -279,8 +344,8 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 10,
-        "x": 14,
+        "w": 9,
+        "x": 15,
         "y": 1
       },
       "id": 39,
@@ -343,7 +408,7 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 4,
+        "w": 3,
         "x": 0,
         "y": 4
       },
@@ -448,9 +513,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
-          "fields": "",
+          "fields": "/^Value$/",
           "values": false
         },
         "textMode": "auto"
@@ -463,7 +528,11 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "editorMode": "builder",
-          "expr": "label_replace(liqo_peer_is_connected{cluster_id=\"$clusterid\"}, \"pod\", \"\", \"\", \"\")",
+          "exemplar": false,
+          "expr": "liqo_peer_is_connected{cluster_id=\"$clusterid\"}",
+          "format": "table",
+          "instant": false,
+          "interval": "",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
