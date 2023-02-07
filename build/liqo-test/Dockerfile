@@ -19,5 +19,8 @@ RUN tar -C /usr/local/kubebuilder/ --strip-components=1 -zvxf envtest-bins.tar.g
 # Install iptables
 RUN apt-get update && apt-get install iptables iproute2 -y
 
+# Fix for go version 1.19.5
+ENV GOFLAGS=-buildvcs=false
+
 ENTRYPOINT [ "go-acc" ]
 CMD [ "./...", "--ignore", "liqo/test/e2e", "--", "-vet=off" ]
