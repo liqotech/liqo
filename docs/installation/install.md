@@ -25,7 +25,7 @@ Ensure you selected the correct target cluster before issuing *liqoctl* commands
 
 **Supported CNIs**
 
-Liqo supports Kubernetes clusters using the following CNIs: [Flannel](https://github.com/coreos/flannel), [Calico](https://www.projectcalico.org/), [Canal](https://docs.projectcalico.org/getting-started/kubernetes/flannel/flannel), [Weave](https://github.com/weaveworks/weave).
+Liqo supports Kubernetes clusters using the following CNIs: [Flannel](https://github.com/flannel-io/flannel), [Calico](https://www.tigera.io/project-calico/), [Canal](https://github.com/projectcalico/canal), [Weave](https://github.com/weaveworks/weave).
 Additionally, partial support is provided for [Cilium](https://cilium.io/), although with the limitations listed below.
 
 ```{warning}
@@ -71,7 +71,7 @@ Alternatively, you can manually specify a desired name with the `--cluster-name`
 
 **Supported CNIs**
 
-Liqo supports AKS clusters using the following CNIs: [Azure AKS - Kubenet](https://docs.microsoft.com/en-us/azure/aks/configure-kubenet) and [Azure AKS - Azure CNI](https://docs.microsoft.com/en-us/azure/aks/configure-azure-cni).
+Liqo supports AKS clusters using the following CNIs: [Azure AKS - Kubenet](https://learn.microsoft.com/en-us/azure/aks/configure-kubenet) and [Azure AKS - Azure CNI](https://learn.microsoft.com/en-us/azure/aks/configure-azure-cni).
 
 **Configuration**
 
@@ -110,7 +110,7 @@ By default, the cluster is assigned the same name as that specified through the 
 Alternatively, you can manually specify a different name with the `--cluster-name` *liqoctl* flag.
 
 ```{admonition} Note
-If you are running an [AKS private cluster](https://docs.microsoft.com/en-us/azure/aks/private-clusters), you may need to set the `--disable-api-server-sanity-check` *liqoctl* flag, since the API Server in your kubeconfig may be different from the one retrieved from the Azure APIs.
+If you are running an [AKS private cluster](https://learn.microsoft.com/en-us/azure/aks/private-clusters), you may need to set the `--disable-api-server-sanity-check` *liqoctl* flag, since the API Server in your kubeconfig may be different from the one retrieved from the Azure APIs.
 
 Additionally, since your API Server is not accessible from the public Internet, you shall leverage the [in-band peering approach](FeaturesPeeringInBandControlPlane) towards the clusters not attached to the same Azure Virtual Network.
 ```

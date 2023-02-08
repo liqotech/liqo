@@ -1,9 +1,9 @@
 ---
 myst:
     substitutions:
-        github_badge: "[![GitHub stars](https://img.shields.io/github/stars/liqotech/liqo.svg?logo=github)](https://GitHub.com/liqotech/liqo/stargazers/)"
+        github_badge: "[![GitHub stars](https://img.shields.io/github/stars/liqotech/liqo.svg?logo=github)](https://github.com/liqotech/liqo/stargazers/)"
         license_badge: "[![GitHub license](https://img.shields.io/github/license/liqotech/liqo.svg)](https://github.com/liqotech/liqo/blob/master/LICENSE)"
-        slack_badge: "[![Join slack](https://img.shields.io/badge/slack-liqo.io-blueviolet?logo=slack)](https://join.slack.com/t/liqo-io/shared_invite/zt-h20212gg-g24YvN6MKiD9bacFeqZttQ)"
+        slack_badge: "[![Join slack](https://img.shields.io/badge/slack-liqo.io-blueviolet?logo=slack)](https://liqo-io.slack.com/join/shared_invite/zt-h20212gg-g24YvN6MKiD9bacFeqZttQ)"
         twitter_badge: "[![Twitter follow](https://img.shields.io/twitter/follow/liqo_io?style=flat&color=ff69b4&logo=twitter)](https://twitter.com/liqo_io)"
         documentation_badge: "[![Documentation status](https://readthedocs.org/projects/liqo/badge)](https://doc.liqo.io)"
 
