@@ -62,7 +62,7 @@ function check_requirements() {
 
     if ! command -v kubectl &> /dev/null;
     then
-        error "Kubectl could not be found on your system. Please install kubectl to continue: https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+        error "Kubectl could not be found on your system. Please install kubectl to continue: https://kubernetes.io/docs/tasks/tools/#kubectl"
         exit 1
     fi
 
