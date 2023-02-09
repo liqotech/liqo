@@ -53,6 +53,13 @@ rules:
   - get
   - list
 - apiGroups:
+  - ""
+  resources:
+  - pods/portforward
+  verbs:
+  - create
+  - get
+- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices

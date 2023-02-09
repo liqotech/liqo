@@ -19,7 +19,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/signal"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
@@ -37,6 +40,7 @@ import (
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/transport/spdy"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
@@ -49,6 +53,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/portforwarder"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 )
@@ -62,6 +67,8 @@ type NamespacedPodHandler interface {
 	Exec(ctx context.Context, pod, container string, cmd []string, attach api.AttachIO) error
 	// Attach attaches to a process that is already running inside an existing container of a reflected pod.
 	Attach(ctx context.Context, pod, container string, attach api.AttachIO) error
+	// PortForward forwards a connection from local to the ports of a reflected pod.
+	PortForward(ctx context.Context, name string, port int32, stream io.ReadWriteCloser) error
 	// Logs retrieves the logs of a container of a reflected pod.
 	Logs(ctx context.Context, pod, container string, opts api.ContainerLogOpts) (io.ReadCloser, error)
 	// Stats retrieves the stats of the reflected pods.
@@ -475,6 +482,60 @@ func (npr *NamespacedPodReflector) Attach(ctx context.Context, po, container str
 	}
 
 	klog.Infof("Command in container %q in local pod %q (remote %q) successfully executed", container, npr.LocalRef(po), npr.RemoteRef(po))
+	return nil
+}
+
+// PortForward forwards a connection from local to the ports of a reflected pod.
+func (npr *NamespacedPodReflector) PortForward(ctx context.Context, name string, port int32, stream io.ReadWriteCloser) error {
+	klog.V(4).Infof("Requested to port forward to pod %q (remote %q) on ports %d", npr.LocalRef(name), npr.RemoteRef(name), port)
+
+	request := npr.remoteRESTClient.Post().
+		Resource(corev1.ResourcePods.String()).
+		Namespace(npr.RemoteNamespace()).
+		Name(name).
+		SubResource("portforward").
+		VersionedParams(&corev1.PodPortForwardOptions{
+			Ports: []int32{port},
+		}, scheme.ParameterCodec)
+
+	transport, upgrader, err := spdy.RoundTripperFor(npr.remoteRESTConfig)
+
+	if err != nil {
+		klog.Errorf("Failed to setup RountTripper for Namespace pod reflector")
+		return fmt.Errorf("failed to port forward: %w", err)
+	}
+
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, request.URL())
+
+	stopChannel := make(chan struct{}, 1)
+	readyChannel := make(chan struct{})
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt)
+	defer signal.Stop(signals)
+
+	go func() {
+		<-signals
+		if stopChannel != nil {
+			close(stopChannel)
+		}
+	}()
+
+	portString := strconv.FormatInt(int64(port), 10)
+	newPortforwarder, err := portforwarder.New(dialer, []string{portString}, stopChannel, readyChannel, os.Stdout, nil, stream)
+
+	if err != nil {
+		klog.Errorf("Failed to create PortForwarder for Namespace Pod Reflector")
+		return fmt.Errorf("failed to port forward: %w", err)
+	}
+
+	klog.Infof("Forwarding ports %q to pod %q (remote %q).", portString, npr.LocalRef(name), npr.RemoteRef(name))
+
+	if err := newPortforwarder.ForwardPorts(); err != nil {
+		klog.Errorf("Port Forwarding to pod %q (remote %q) was terminated with error: %v", npr.LocalRef(name), npr.RemoteRef(name), err)
+		return fmt.Errorf("port forward failed with: %w", err)
+	}
+
 	return nil
 }
 
