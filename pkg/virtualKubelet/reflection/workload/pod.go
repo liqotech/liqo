@@ -66,6 +66,8 @@ type PodHandler interface {
 	Exec(ctx context.Context, namespace, pod, container string, cmd []string, attach api.AttachIO) error
 	// Attach attaches to a process that is already running inside an existing container of a reflected pod.
 	Attach(ctx context.Context, namespace, pod, container string, attach api.AttachIO) error
+	// PortForward forwards a connection from local to the ports of a reflected pod.
+	PortForward(ctx context.Context, namespace, pod string, port int32, stream io.ReadWriteCloser) error
 	// Logs retrieves the logs of a container of a reflected pod.
 	Logs(ctx context.Context, namespace, pod, container string, opts api.ContainerLogOpts) (io.ReadCloser, error)
 	// Stats retrieves the stats of the reflected pods.
@@ -188,6 +190,14 @@ func (pr *PodReflector) Exec(ctx context.Context, namespace, pod, container stri
 func (pr *PodReflector) Attach(ctx context.Context, namespace, pod, container string, attach api.AttachIO) error {
 	if handler, found := pr.handlers.Load(namespace); found {
 		return handler.(NamespacedPodHandler).Attach(ctx, pod, container, attach)
+	}
+	return kerrors.NewNotFound(corev1.Resource(corev1.ResourcePods.String()), klog.KRef(namespace, pod).String())
+}
+
+// PortForward forwards a connection from local to the ports of a reflected pod.
+func (pr *PodReflector) PortForward(ctx context.Context, namespace, pod string, port int32, stream io.ReadWriteCloser) error {
+	if handler, found := pr.handlers.Load(namespace); found {
+		return handler.(NamespacedPodHandler).PortForward(ctx, pod, port, stream)
 	}
 	return kerrors.NewNotFound(corev1.Resource(corev1.ResourcePods.String()), klog.KRef(namespace, pod).String())
 }
