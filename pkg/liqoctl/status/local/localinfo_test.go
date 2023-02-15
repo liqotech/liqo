@@ -17,12 +17,10 @@ package statuslocal
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pterm/pterm"
-	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -41,7 +39,6 @@ var _ = Describe("LocalInfo", func() {
 	const (
 		clusterID   = "fake"
 		clusterName = "fake"
-		namespace   = "liqo"
 	)
 
 	var (
@@ -50,8 +47,12 @@ var _ = Describe("LocalInfo", func() {
 		ctx               context.Context
 		text              string
 		options           status.Options
-		baseObjects       []client.Object
 		argsClusterLabels []string
+		baseObjects       = []client.Object{
+			testutil.FakeNode(),
+			testutil.FakeClusterIDConfigMap(liqoconsts.DefaultLiqoNamespace, clusterID, clusterName),
+			testutil.FakeIPAM(liqoconsts.DefaultLiqoNamespace),
+		}
 	)
 
 	BeforeEach(func() {
@@ -60,26 +61,11 @@ var _ = Describe("LocalInfo", func() {
 		for k, v := range testutil.ClusterLabels {
 			argsClusterLabels = append(argsClusterLabels, fmt.Sprintf("%s=%s", k, v))
 		}
-		baseObjects = []client.Object{
-			testutil.FakeClusterIDConfigMap(namespace, clusterID, clusterName),
-			testutil.FakeIPAM(namespace),
-		}
+
 		options = status.Options{Factory: factory.NewForLocal()}
 		options.Printer = output.NewFakePrinter(GinkgoWriter)
 		options.KubeClient = k8sfake.NewSimpleClientset()
-		_, err := options.KubeClient.CoreV1().Nodes().Create(ctx, &corev1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "fake-node",
-				Labels: map[string]string{
-					"node-role.kubernetes.io/control-plane": "",
-				},
-			},
-			Status: corev1.NodeStatus{
-				Addresses: []corev1.NodeAddress{
-					{Type: corev1.NodeInternalIP, Address: testutil.APIAddress},
-				},
-			},
-		}, metav1.CreateOptions{})
+		_, err := options.KubeClient.CoreV1().Nodes().Create(ctx, baseObjects[0].(*corev1.Node), metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -94,23 +80,29 @@ var _ = Describe("LocalInfo", func() {
 
 	type TestArgs struct {
 		clusterLabels, apiServerOverride bool
+		endpointServiceType              corev1.ServiceType
 	}
 
 	DescribeTable("Collecting and Formatting LocalInfoChecker", func(args TestArgs) {
 		objects := append([]client.Object{}, baseObjects...)
 		if args.clusterLabels {
-			objects = append(objects, forgeControllerManager(namespace, argsClusterLabels))
+			objects = append(objects, testutil.FakeControllerManagerDeployment(argsClusterLabels))
 		} else {
-			objects = append(objects, forgeControllerManager(namespace, nil))
+			objects = append(objects, testutil.FakeControllerManagerDeployment(nil))
 		}
 		if args.apiServerOverride {
-			objects = append(objects, forgeLiqoAuth(namespace, testutil.OverrideAPIAddress))
+			objects = append(objects, testutil.FakeLiqoAuthDeployment(testutil.OverrideAPIAddress))
 		} else {
-			objects = append(objects, forgeLiqoAuth(namespace, ""))
+			objects = append(objects, testutil.FakeLiqoAuthDeployment(""))
 		}
+		objects = append(objects,
+			testutil.FakeLiqoAuthService(args.endpointServiceType),
+			testutil.FakeLiqoGatewayService(args.endpointServiceType),
+		)
 
 		clientBuilder.WithObjects(objects...)
 		options.CRClient = clientBuilder.Build()
+		options.LiqoNamespace = liqoconsts.DefaultLiqoNamespace
 		lic = NewLocalInfoChecker(&options)
 		lic.Collect(ctx)
 
@@ -142,70 +134,39 @@ var _ = Describe("LocalInfo", func() {
 		for _, v := range testutil.ReservedSubnets {
 			Expect(text).To(ContainSubstring(v))
 		}
+
+		Expect(text).To(ContainSubstring(
+			pterm.Sprintf("VPN Gateway: udp://%s:%d", testutil.EndpointIP, testutil.VPNGatewayPort),
+		))
+		Expect(text).To(ContainSubstring(
+			pterm.Sprintf("Authentication: https://%s:%d", testutil.EndpointIP, testutil.AuthenticationPort),
+		))
 		if args.apiServerOverride {
 			Expect(text).To(ContainSubstring(
-				pterm.Sprintf("Address: %s", fmt.Sprintf("https://%v", testutil.OverrideAPIAddress)),
+				pterm.Sprintf("Kubernetes API Server: %s", fmt.Sprintf("https://%v", testutil.OverrideAPIAddress)),
 			))
 		} else {
 			Expect(text).To(ContainSubstring(
-				pterm.Sprintf("Address: %s", fmt.Sprintf("https://%v:6443", testutil.APIAddress)),
+				pterm.Sprintf("Kubernetes API Server: %s", fmt.Sprintf("https://%v:6443", testutil.EndpointIP)),
 			))
 		}
+
 	},
-		Entry("Standard case", TestArgs{false, false}),
-		Entry("Cluster Labels", TestArgs{true, false}),
-		Entry("API Server Override", TestArgs{false, true}),
-		Entry("Cluster Labels and API Server Override", TestArgs{true, true}),
+		Entry("Standard case with NodePort",
+			TestArgs{false, false, corev1.ServiceTypeNodePort}),
+		Entry("Standard case with LoadBalancer",
+			TestArgs{false, false, corev1.ServiceTypeLoadBalancer}),
+		Entry("Cluster Labels with NodePort",
+			TestArgs{true, false, corev1.ServiceTypeNodePort}),
+		Entry("Cluster Labels with LoadBalancer",
+			TestArgs{true, false, corev1.ServiceTypeLoadBalancer}),
+		Entry("API Server Override with NodePort",
+			TestArgs{false, true, corev1.ServiceTypeNodePort}),
+		Entry("API Server Override with LoadBalancer",
+			TestArgs{false, true, corev1.ServiceTypeLoadBalancer}),
+		Entry("Cluster Labels and API Server Override with NodePort",
+			TestArgs{true, true, corev1.ServiceTypeNodePort}),
+		Entry("Cluster Labels and API Server Override with LoadBalancer",
+			TestArgs{true, true, corev1.ServiceTypeLoadBalancer}),
 	)
 })
-
-func forgeLiqoAuth(namespace, addressOverride string) *appv1.Deployment {
-	containerArgs := []string{}
-	if addressOverride != "" {
-		containerArgs = append(containerArgs, "--advertise-api-server-address="+addressOverride)
-	}
-	return &appv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "liqo-auth",
-			Namespace: namespace,
-			Labels: map[string]string{
-				liqoconsts.K8sAppNameKey: liqoconsts.AuthAppName,
-			},
-		},
-		Spec: appv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Args: containerArgs},
-					},
-				},
-			},
-		},
-	}
-}
-
-func forgeControllerManager(namespace string, argsClusterLabels []string) *appv1.Deployment {
-	containerArgs := []string{}
-	if len(argsClusterLabels) != 0 {
-		containerArgs = append(containerArgs, "--cluster-labels="+strings.Join(argsClusterLabels, ","))
-	}
-	return &appv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "liqo-controller-manager",
-			Namespace: namespace,
-			Labels: map[string]string{
-				liqoconsts.K8sAppNameKey:      "controller-manager",
-				liqoconsts.K8sAppComponentKey: "controller-manager",
-			},
-		},
-		Spec: appv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Args: containerArgs},
-					},
-				},
-			},
-		},
-	}
-}

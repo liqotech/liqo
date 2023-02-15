@@ -20,7 +20,7 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
+	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 )
 
 // FakeClusterIDConfigMap returns a fake ClusterID ConfigMap.
@@ -28,11 +28,11 @@ func FakeClusterIDConfigMap(namespace, clusterID, clusterName string) *corev1.Co
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace, Name: "whatever",
-			Labels: map[string]string{consts.K8sAppNameKey: consts.ClusterIDConfigMapNameLabelValue},
+			Labels: map[string]string{liqoconsts.K8sAppNameKey: liqoconsts.ClusterIDConfigMapNameLabelValue},
 		},
 		Data: map[string]string{
-			consts.ClusterIDConfigMapKey:   clusterID,
-			consts.ClusterNameConfigMapKey: clusterName,
+			liqoconsts.ClusterIDConfigMapKey:   clusterID,
+			liqoconsts.ClusterNameConfigMapKey: clusterName,
 		},
 	}
 }
@@ -93,19 +93,84 @@ func FakeSecret(namespace, name string, data map[string]string) *corev1.Secret {
 	return res
 }
 
-// FakeService returns a service with the specified namespace and name and service info.
-func FakeService(namespace, name, clusterIP, protocol string, port int32) *corev1.Service {
+// FakeServiceClusterIP returns a ClusterIP service with the specified namespace, name and service info.
+func FakeServiceClusterIP(namespace, name, clusterIP string, protocol corev1.Protocol, port int32) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
 		},
 		Spec: corev1.ServiceSpec{
+			ClusterIP: clusterIP,
 			Ports: []corev1.ServicePort{{
-				Protocol: corev1.Protocol(protocol),
+				Protocol: protocol,
 				Port:     port,
 			}},
-			ClusterIP: clusterIP,
+			Type: corev1.ServiceTypeClusterIP,
+		},
+	}
+}
+
+// FakeServiceNodePort returns a NodePort service with the specified namespace, name and service info.
+func FakeServiceNodePort(namespace, name string, labels map[string]string, annotations map[string]string,
+	protocol corev1.Protocol, port int32, portName string, nodePort int32) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   namespace,
+			Name:        name,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{{
+				Name:     portName,
+				Protocol: protocol,
+				Port:     port,
+				NodePort: nodePort,
+			}},
+			Type: corev1.ServiceTypeNodePort,
+		},
+	}
+}
+
+// FakeServiceLoadBalancer returns a LoadBalancer service with the specified namespace, name and service info.
+func FakeServiceLoadBalancer(namespace, name, externalIP string, labels map[string]string, annotations map[string]string,
+	protocol corev1.Protocol, port int32, portName string) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   namespace,
+			Name:        name,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Spec: corev1.ServiceSpec{
+			ExternalIPs: []string{externalIP},
+			Ports: []corev1.ServicePort{{
+				Name:     portName,
+				Protocol: protocol,
+				Port:     port,
+			}},
+			Type: corev1.ServiceTypeLoadBalancer,
+		},
+		Status: corev1.ServiceStatus{
+			LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress{{IP: externalIP}}},
+		},
+	}
+}
+
+// FakeNode returns a node.
+func FakeNode() *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "fake-node",
+			Labels: map[string]string{
+				"node-role.kubernetes.io/control-plane": "",
+			},
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{Type: corev1.NodeInternalIP, Address: EndpointIP},
+			},
 		},
 	}
 }

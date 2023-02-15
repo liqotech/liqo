@@ -19,14 +19,18 @@ import (
 	"fmt"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
+	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/status"
 	liqoctlutils "github.com/liqotech/liqo/pkg/liqoctl/util"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/apiserver"
-	"github.com/liqotech/liqo/pkg/utils/getters"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // LocalInfoChecker implements the Check interface.
@@ -83,7 +87,7 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 	}
 
 	networkSection := lic.localInfoSection.AddSection("Network")
-	ipamStorage, err := getters.GetIPAMStorageByLabel(ctx, lic.options.CRClient, labels.NewSelector())
+	ipamStorage, err := liqogetters.GetIPAMStorageByLabel(ctx, lic.options.CRClient, labels.NewSelector())
 	if err != nil {
 		lic.addCollectionError(fmt.Errorf("unable to get ipam storage: %w", err))
 	} else {
@@ -95,19 +99,10 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 		}
 	}
 
-	var apiServerAddressArg string
-	authargs, err := liqoctlutils.RetrieveLiqoAuthDeploymentArgs(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
+	err = lic.addEndpointsSection(ctx)
 	if err != nil {
-		lic.addCollectionError(fmt.Errorf("unable to get Liqo Auth Deployment Args: %w", err))
-	} else {
-		// ExtractvalueFromArgumentList errors are not handled because GetURL is able to handle void values.
-		apiServerAddressArg, _ = liqoctlutils.ExtractValueFromArgumentList("--advertise-api-server-address", authargs)
+		lic.addCollectionError(fmt.Errorf("unable to get endpoints: %w", err))
 	}
-	apiServerAddress, err := apiserver.GetURL(apiServerAddressArg, lic.options.KubeClient)
-	if err != nil {
-		lic.addCollectionError(fmt.Errorf("unable to get api server address: %w", err))
-	}
-	lic.localInfoSection.AddSection("Kubernetes API Server").AddEntry("Address", apiServerAddress)
 }
 
 // GetTitle implements the getTitle method of the Checker interface.
@@ -141,4 +136,51 @@ func (lic *LocalInfoChecker) HasSucceeded() bool {
 // collecting the status of a Liqo component.
 func (lic *LocalInfoChecker) addCollectionError(err error) {
 	lic.collectionErrors = append(lic.collectionErrors, err)
+}
+
+func (lic *LocalInfoChecker) getVpnEndpointLocalAddress(ctx context.Context) (address string, err error) {
+	gwSvcSelector, err := metav1.LabelSelectorAsSelector(&liqolabels.GatewayServiceLabelSelector)
+	if err != nil {
+		return "", err
+	}
+	gwSvc, err := liqogetters.GetServiceByLabel(ctx, lic.options.CRClient, lic.options.LiqoNamespace, gwSvcSelector)
+	if err != nil {
+		return "", err
+	}
+	vpnEndpointLocalIP, vpnEndpointLocalPort, err := liqogetters.RetrieveWGEPFromService(
+		gwSvc, liqoconsts.GatewayServiceAnnotationKey, liqoconsts.DriverName)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("udp://%s:%s", vpnEndpointLocalIP, vpnEndpointLocalPort), nil
+}
+
+func (lic *LocalInfoChecker) addEndpointsSection(ctx context.Context) error {
+	var err error
+	endpointsSection := lic.localInfoSection.AddSection("Endpoints")
+
+	var ep string
+	if ep, err = lic.getVpnEndpointLocalAddress(ctx); err != nil {
+		return fmt.Errorf("unable to get vpn endpoint local address: %w", err)
+	}
+	endpointsSection.AddEntry("VPN Gateway", ep)
+
+	var aurl string
+	if aurl, err = foreigncluster.GetHomeAuthURL(ctx, lic.options.CRClient, lic.options.LiqoNamespace); err != nil {
+		return fmt.Errorf("unable to get home auth url: %w", err)
+	}
+	endpointsSection.AddEntry("Authentication", aurl)
+
+	authargs, err := liqoctlutils.RetrieveLiqoAuthDeploymentArgs(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
+	if err != nil {
+		return fmt.Errorf("unable to get Liqo Auth Deployment Args: %w", err)
+	}
+	// ExtractvalueFromArgumentList errors are not handled because GetURL is able to handle void values.
+	apiServerAddressArg, _ := liqoctlutils.ExtractValueFromArgumentList("--advertise-api-server-address", authargs)
+	apiServerAddress, err := apiserver.GetURL(apiServerAddressArg, lic.options.KubeClient)
+	if err != nil {
+		return fmt.Errorf("unable to get api server address: %w", err)
+	}
+	endpointsSection.AddEntry("Kubernetes API Server", apiServerAddress)
+	return nil
 }
