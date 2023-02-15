@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
@@ -70,13 +71,13 @@ func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"auth": map[string]interface{}{
 			"service": map[string]interface{}{
-				"type": "NodePort",
+				"type": string(corev1.ServiceTypeNodePort),
 			},
 		},
 
 		"gateway": map[string]interface{}{
 			"service": map[string]interface{}{
-				"type": "NodePort",
+				"type": string(corev1.ServiceTypeNodePort),
 			},
 		},
 	}
