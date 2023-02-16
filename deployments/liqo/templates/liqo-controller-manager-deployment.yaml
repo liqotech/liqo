@@ -1,6 +1,7 @@
 ---
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
+{{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
 
 {{- $vkargs := .Values.virtualKubelet.extra.args }}
 {{- /* Enable the API support if not overridden by the user */ -}}
@@ -65,6 +66,7 @@ spec:
           - --enable-incoming-peering={{ .Values.discovery.config.incomingPeeringEnabled }}
           - --resource-sharing-percentage={{ .Values.controllerManager.config.resourceSharingPercentage }}
           - --kubelet-image={{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+          - --kubelet-ipam-server={{ include "liqo.prefixedName" $netManagerConfig }}.{{ .Release.Namespace }}:6000
           - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
           - --enable-storage={{ .Values.storage.enable }}
           - --webhook-port={{ .Values.webhook.port }}

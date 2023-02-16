@@ -21,7 +21,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
@@ -52,8 +51,10 @@ func forgeVKContainers(
 		stringifyArgument("--tenant-namespace", vkNamespace),
 		stringifyArgument("--home-cluster-id", homeCluster.ClusterID),
 		stringifyArgument("--home-cluster-name", homeCluster.ClusterName),
-		stringifyArgument("--ipam-server",
-			fmt.Sprintf("%v.%v:%v", liqoconst.NetworkManagerServiceName, liqoNamespace, liqoconst.NetworkManagerIpamPort)),
+	}
+
+	if opts.IpamEndpoint != "" {
+		args = append(args, stringifyArgument("--ipam-server", opts.IpamEndpoint))
 	}
 
 	if len(resourceOffer.Spec.StorageClasses) > 0 {

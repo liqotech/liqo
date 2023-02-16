@@ -353,9 +353,17 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 
 	// Wrap the address translation logic, so that we do not have to handle errors in the forge logic.
 	var terr error
-	translator := func(original string) (translation string) {
-		translation, terr = npr.MapPodIP(ctx, info, original)
-		return translation
+	var translator func(string) string
+	switch npr.ipamclient.(type) {
+	case nil:
+		translator = func(original string) string {
+			return original
+		}
+	default:
+		translator = func(original string) (translation string) {
+			translation, terr = npr.MapPodIP(ctx, info, original)
+			return translation
+		}
 	}
 
 	// Increase the restart count in case the remote pod changed.
