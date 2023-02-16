@@ -28,6 +28,7 @@ import (
 type VirtualkubeletV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	NamespaceMapsGetter
+	ShadowEndpointSlicesGetter
 	ShadowPodsGetter
 }
 
@@ -38,6 +39,10 @@ type VirtualkubeletV1alpha1Client struct {
 
 func (c *VirtualkubeletV1alpha1Client) NamespaceMaps(namespace string) NamespaceMapInterface {
 	return newNamespaceMaps(c, namespace)
+}
+
+func (c *VirtualkubeletV1alpha1Client) ShadowEndpointSlices(namespace string) ShadowEndpointSliceInterface {
+	return newShadowEndpointSlices(c, namespace)
 }
 
 func (c *VirtualkubeletV1alpha1Client) ShadowPods(namespace string) ShadowPodInterface {

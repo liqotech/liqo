@@ -24,6 +24,8 @@ import (
 type Interface interface {
 	// NamespaceMaps returns a NamespaceMapInformer.
 	NamespaceMaps() NamespaceMapInformer
+	// ShadowEndpointSlices returns a ShadowEndpointSliceInformer.
+	ShadowEndpointSlices() ShadowEndpointSliceInformer
 	// ShadowPods returns a ShadowPodInformer.
 	ShadowPods() ShadowPodInformer
 }
@@ -42,6 +44,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // NamespaceMaps returns a NamespaceMapInformer.
 func (v *version) NamespaceMaps() NamespaceMapInformer {
 	return &namespaceMapInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ShadowEndpointSlices returns a ShadowEndpointSliceInformer.
+func (v *version) ShadowEndpointSlices() ShadowEndpointSliceInformer {
+	return &shadowEndpointSliceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ShadowPods returns a ShadowPodInformer.

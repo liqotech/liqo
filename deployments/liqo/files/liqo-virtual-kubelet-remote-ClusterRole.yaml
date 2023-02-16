@@ -60,18 +60,6 @@ rules:
   - create
   - get
 - apiGroups:
-  - discovery.k8s.io
-  resources:
-  - endpointslices
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - metrics.k8s.io
   resources:
   - pods
@@ -83,6 +71,18 @@ rules:
   - networking.k8s.io
   resources:
   - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - shadowendpointslices
   verbs:
   - create
   - delete

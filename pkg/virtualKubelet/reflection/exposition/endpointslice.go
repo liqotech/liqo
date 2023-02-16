@@ -17,6 +17,7 @@ package exposition
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -27,13 +28,15 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	discoveryv1clients "k8s.io/client-go/kubernetes/typed/discovery/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	discoveryv1listers "k8s.io/client-go/listers/discovery/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
+	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -52,10 +55,10 @@ const (
 type NamespacedEndpointSliceReflector struct {
 	generic.NamespacedReflector
 
-	localServices              corev1listers.ServiceNamespaceLister
-	localEndpointSlices        discoveryv1listers.EndpointSliceNamespaceLister
-	remoteEndpointSlices       discoveryv1listers.EndpointSliceNamespaceLister
-	remoteEndpointSlicesClient discoveryv1clients.EndpointSliceInterface
+	localServices                    corev1listers.ServiceNamespaceLister
+	localEndpointSlices              discoveryv1listers.EndpointSliceNamespaceLister
+	remoteShadowEndpointSlices       vkv1alpha1listers.ShadowEndpointSliceNamespaceLister
+	remoteShadowEndpointSlicesClient vkv1alpha1clients.ShadowEndpointSliceInterface
 
 	ipamclient   ipam.IpamClient
 	translations sync.Map
@@ -69,20 +72,21 @@ func NewEndpointSliceReflector(ipamclient ipam.IpamClient, workers uint) manager
 // NewNamespacedEndpointSliceReflector returns a function generating NamespacedEndpointSliceReflector instances.
 func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*options.NamespacedOpts) manager.NamespacedReflector {
 	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
-		local := opts.LocalFactory.Discovery().V1().EndpointSlices()
-		remote := opts.RemoteFactory.Discovery().V1().EndpointSlices()
 		localServices := opts.LocalFactory.Core().V1().Services()
+		local := opts.LocalFactory.Discovery().V1().EndpointSlices()
+		remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowEndpointSlices()
 
 		local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
-		remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		_, err := remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		utilruntime.Must(err)
 
 		ner := &NamespacedEndpointSliceReflector{
-			NamespacedReflector:        generic.NewNamespacedReflector(opts, EndpointSliceReflectorName),
-			localServices:              localServices.Lister().Services(opts.LocalNamespace),
-			localEndpointSlices:        local.Lister().EndpointSlices(opts.LocalNamespace),
-			remoteEndpointSlices:       remote.Lister().EndpointSlices(opts.RemoteNamespace),
-			remoteEndpointSlicesClient: opts.RemoteClient.DiscoveryV1().EndpointSlices(opts.RemoteNamespace),
-			ipamclient:                 ipamclient,
+			NamespacedReflector:              generic.NewNamespacedReflector(opts, EndpointSliceReflectorName),
+			localServices:                    localServices.Lister().Services(opts.LocalNamespace),
+			localEndpointSlices:              local.Lister().EndpointSlices(opts.LocalNamespace),
+			remoteShadowEndpointSlices:       remoteShadow.Lister().ShadowEndpointSlices(opts.RemoteNamespace),
+			remoteShadowEndpointSlicesClient: opts.RemoteLiqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(opts.RemoteNamespace),
+			ipamclient:                       ipamclient,
 		}
 
 		// Enqueue all existing remote EndpointSlices in case the local Service has the "skip-reflection" annotation, to ensure they are also deleted.
@@ -104,17 +108,22 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 
 	// Retrieve the local and remote objects (only not found errors can occur).
 	klog.V(4).Infof("Handling reflection of local EndpointSlice %q (remote: %q)", ner.LocalRef(name), ner.RemoteRef(name))
+
 	local, lerr := ner.localEndpointSlices.Get(name)
 	utilruntime.Must(client.IgnoreNotFound(lerr))
-	remote, rerr := ner.remoteEndpointSlices.Get(name)
+	localExists := !kerrors.IsNotFound(lerr)
+
+	remote, rerr := ner.remoteShadowEndpointSlices.Get(name)
 	utilruntime.Must(client.IgnoreNotFound(rerr))
+	remoteExists := !kerrors.IsNotFound(rerr)
+
 	tracer.Step("Retrieved the local and remote objects")
 
 	// Abort the reflection if the remote object is not managed by us, as we do not want to mutate others' objects.
-	if rerr == nil && (!forge.IsReflected(remote) || !forge.IsEndpointSliceManagedByReflection(remote)) {
+	if remoteExists && (!forge.IsReflected(remote) || !forge.IsEndpointSliceManagedByReflection(remote)) {
 		// Prevent misleading warnings triggered by remote non-reflected endpointslices, since they inherit
 		// the labels from the service. Hence, vanilla remote endpointslices do also trigger the Handle function.
-		if lerr == nil {
+		if localExists {
 			klog.Infof("Skipping reflection of local EndpointSlice %q as remote already exists and is not managed by us", ner.LocalRef(name))
 			ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionAlreadyExistsMsg())
 		}
@@ -122,30 +131,30 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 	}
 
 	// Abort the reflection if the local object has the "skip-reflection" annotation.
-	if !kerrors.IsNotFound(lerr) && ner.ShouldSkipReflection(local) {
+	if localExists && ner.ShouldSkipReflection(local) {
 		klog.Infof("Skipping reflection of local EndpointSlice %q as marked with the skip annotation", ner.LocalRef(name))
 		ner.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg())
-		if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
+		if !remoteExists { // The shadow object does not already exist, hence no further action is required.
 			return nil
 		}
 
 		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
-		lerr = kerrors.NewNotFound(discoveryv1.Resource("endpointslice"), local.GetName())
+		localExists = false
 	}
 
 	tracer.Step("Performed the sanity checks")
 
 	// The local endpointslice does no longer exist. Ensure it is also absent from the remote cluster.
-	if kerrors.IsNotFound(lerr) {
+	if !localExists {
 		// Release the address translations
 		if err := ner.UnmapEndpointIPs(ctx, name); err != nil {
 			return err
 		}
 
 		defer tracer.Step("Ensured the absence of the remote object")
-		if !kerrors.IsNotFound(rerr) {
-			klog.V(4).Infof("Deleting remote EndpointSlice %q, since local %q does no longer exist", ner.RemoteRef(name), ner.LocalRef(name))
-			return ner.DeleteRemote(ctx, ner.remoteEndpointSlicesClient, EndpointSliceReflectorName, name, remote.GetUID())
+		if remoteExists {
+			klog.V(4).Infof("Deleting remote shadowendpointslice %q, since local %q does no longer exist", ner.RemoteRef(name), ner.LocalRef(name))
+			return ner.DeleteRemote(ctx, ner.remoteShadowEndpointSlicesClient, "ShadowEndpointSlice", name, remote.GetUID())
 		}
 
 		klog.V(4).Infof("Local EndpointSlice %q and remote EndpointSlice %q both vanished", ner.LocalRef(name), ner.RemoteRef(name))
@@ -165,27 +174,66 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		return translations
 	}
 
-	// Forge the mutation to be applied to the remote cluster.
-	mutation := forge.RemoteEndpointSlice(local, ner.RemoteNamespace(), translator)
+	target := forge.RemoteShadowEndpointSlice(local, remote, ner.RemoteNamespace(), translator)
 	if terr != nil {
 		klog.Errorf("Reflection of local EndpointSlice %q to %q failed: %v", ner.LocalRef(name), ner.RemoteRef(name), terr)
 		ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(terr))
 		return terr
 	}
-	tracer.Step("Remote mutation created")
+	tracer.Step("Forged the remote shadowendpointslice")
 
-	// Apply the mutation.
-	defer tracer.Step("Enforced the correctness of the remote object")
-	if _, err := ner.remoteEndpointSlicesClient.Apply(ctx, mutation, forge.ApplyOptions()); err != nil {
-		klog.Errorf("Failed to enforce remote EndpointSlice %q (local: %q): %v", ner.RemoteRef(name), ner.LocalRef(name), err)
-		ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
-		return err
+	// If the remote shadowendpointslice does not exist, then create it.
+	if !remoteExists {
+		defer tracer.Step("Ensured the presence of the remote object")
+		_, err := ner.remoteShadowEndpointSlicesClient.Create(ctx, target, metav1.CreateOptions{FieldManager: forge.ReflectionFieldManager})
+		if err != nil {
+			if kerrors.IsAlreadyExists(err) {
+				klog.Infof("Remote shadowendpointslice %q already exists (local endpointslice: %q)", ner.RemoteRef(name), ner.LocalRef(name))
+				return nil
+			}
+			klog.Errorf("Failed to create remote shadowendpointslice %q (local endpointslice: %q): %v", ner.RemoteRef(name), ner.LocalRef(name), err)
+			if !kerrors.IsConflict(err) {
+				ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
+			}
+			return err
+		}
+
+		klog.Infof("Remote shadowendpointslice %q successfully created (local: %q)", ner.RemoteRef(name), ner.LocalRef(name))
+		ner.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
+		tracer.Step("Created the remote shadowendpointslice")
+		return nil
 	}
 
-	klog.Infof("Remote EndpointSlice %q successfully enforced (local: %q)", ner.RemoteRef(name), ner.LocalRef(name))
-	ner.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
+	// If so, perform the actual update operation if needed.
+	if ner.ShouldUpdateShadowEndpointSlice(ctx, remote, target) {
+		_, err := ner.remoteShadowEndpointSlicesClient.Update(ctx, target, metav1.UpdateOptions{FieldManager: forge.ReflectionFieldManager})
+		if err != nil {
+			klog.Errorf("Failed to update remote shadowendpointslice %q (local endpointslice: %q): %v", ner.RemoteRef(name), ner.LocalRef(name), err)
+			if !kerrors.IsConflict(err) {
+				ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(err))
+			}
+			return err
+		}
+
+		klog.Infof("Remote shadowendpointslice %q successfully updated (local endpointslice: %q)", ner.RemoteRef(name), ner.LocalRef(name))
+		ner.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
+		tracer.Step("Updated the remote shadowendpointslice")
+	} else {
+		klog.V(4).Infof("Skipping remote shadowendpointslice %q update, as already synced", ner.RemoteRef(name))
+	}
 
 	return nil
+}
+
+// ShouldUpdateShadowEndpointSlice checks whether it is necessary to update the remote shadowendpointslice, based on the forged one.
+func (ner *NamespacedEndpointSliceReflector) ShouldUpdateShadowEndpointSlice(ctx context.Context,
+	remote, target *vkv1alpha1.ShadowEndpointSlice) bool {
+	defer trace.FromContext(ctx).Step("Checked whether a shadowendpointslice update was needed")
+	return !labels.Equals(remote.GetLabels(), target.GetLabels()) ||
+		!labels.Equals(remote.GetAnnotations(), target.GetAnnotations()) ||
+		!reflect.DeepEqual(remote.Spec.Template.AddressType, target.Spec.Template.AddressType) ||
+		!reflect.DeepEqual(remote.Spec.Template.Endpoints, target.Spec.Template.Endpoints) ||
+		!reflect.DeepEqual(remote.Spec.Template.Ports, target.Spec.Template.Ports)
 }
 
 // MapEndpointIPs maps the local set of addresses to the corresponding remote ones.

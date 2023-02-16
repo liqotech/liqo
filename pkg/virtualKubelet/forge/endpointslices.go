@@ -15,11 +15,13 @@
 package forge
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	discoveryv1apply "k8s.io/client-go/applyconfigurations/discovery/v1"
 	"k8s.io/utils/pointer"
+
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 // EndpointSliceManagedBy -> The manager associated with the reflected EndpointSlices.
@@ -43,21 +45,38 @@ func EndpointToBeReflected(endpoint *discoveryv1.Endpoint) bool {
 	return !pointer.StringEqual(endpoint.NodeName, &LiqoNodeName)
 }
 
-// RemoteEndpointSlice forges the apply patch for the reflected endpointslice, given the local one.
-func RemoteEndpointSlice(local *discoveryv1.EndpointSlice, targetNamespace string,
-	translator EndpointTranslator) *discoveryv1apply.EndpointSliceApplyConfiguration {
-	return discoveryv1apply.EndpointSlice(local.GetName(), targetNamespace).
-		WithLabels(local.GetLabels()).WithLabels(ReflectionLabels()).
-		WithLabels(EndpointSliceLabels()).WithAnnotations(local.GetAnnotations()).
-		WithAddressType(local.AddressType).
-		WithEndpoints(RemoteEndpointSliceEndpoints(local.Endpoints, translator)...).
-		WithPorts(RemoteEndpointSlicePorts(local.Ports)...)
+// RemoteShadowEndpointSlice forges the remote shadowendpointslice, given the local endpointslice.
+func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *vkv1alpha1.ShadowEndpointSlice, targetNamespace string,
+	translator EndpointTranslator) *vkv1alpha1.ShadowEndpointSlice {
+	if remote == nil {
+		// The remote is nil if not already created.
+		remote = &vkv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
+	}
+
+	return &vkv1alpha1.ShadowEndpointSlice{
+		ObjectMeta: RemoteEndpointSliceObjectMeta(&local.ObjectMeta, &remote.ObjectMeta),
+		Spec: vkv1alpha1.ShadowEndpointSliceSpec{
+			Template: vkv1alpha1.EndpointSliceTemplate{
+				AddressType: local.AddressType,
+				Endpoints:   RemoteEndpointSliceEndpoints(local.Endpoints, translator),
+				Ports:       RemoteEndpointSlicePorts(local.Ports),
+			},
+		},
+	}
 }
 
-// RemoteEndpointSliceEndpoints forges the apply patch for the endpoints of the reflected endpointslice, given the local ones.
+// RemoteEndpointSliceObjectMeta forges the objectMeta of the reflected endpointslice, given the local one.
+func RemoteEndpointSliceObjectMeta(local, remote *metav1.ObjectMeta) metav1.ObjectMeta {
+	objectMeta := RemoteObjectMeta(local, remote)
+	objectMeta.SetLabels(labels.Merge(objectMeta.Labels, EndpointSliceLabels()))
+
+	return objectMeta
+}
+
+// RemoteEndpointSliceEndpoints forges the endpoints of the reflected endpointslice, given the local ones.
 func RemoteEndpointSliceEndpoints(locals []discoveryv1.Endpoint,
-	translator EndpointTranslator) []*discoveryv1apply.EndpointApplyConfiguration {
-	var remotes []*discoveryv1apply.EndpointApplyConfiguration
+	translator EndpointTranslator) []discoveryv1.Endpoint {
+	var remotes []discoveryv1.Endpoint
 
 	for i := range locals {
 		if !EndpointToBeReflected(&locals[i]) {
@@ -66,14 +85,17 @@ func RemoteEndpointSliceEndpoints(locals []discoveryv1.Endpoint,
 		}
 
 		local := locals[i].DeepCopy()
-		conditions := &discoveryv1apply.EndpointConditionsApplyConfiguration{Ready: local.Conditions.Ready}
+		conditions := discoveryv1.EndpointConditions{Ready: local.Conditions.Ready}
 
-		remote := discoveryv1apply.Endpoint().
-			WithAddresses(translator(local.Addresses)...).WithConditions(conditions).
-			WithNodeName(LocalCluster.ClusterName).WithHints(RemoteEndpointHints(local.Hints)).
-			WithTargetRef(RemoteObjectReference(local.TargetRef))
-		remote.Hostname = local.Hostname
-		remote.Zone = local.Zone
+		remote := discoveryv1.Endpoint{
+			Addresses:  translator(local.Addresses),
+			Conditions: conditions,
+			Hostname:   local.Hostname,
+			TargetRef:  RemoteEndpointTargetRef(local.TargetRef),
+			NodeName:   pointer.String(LocalCluster.ClusterName),
+			Zone:       local.Zone,
+			Hints:      local.Hints,
+		}
 
 		remotes = append(remotes, remote)
 	}
@@ -81,30 +103,22 @@ func RemoteEndpointSliceEndpoints(locals []discoveryv1.Endpoint,
 	return remotes
 }
 
-// RemoteEndpointSlicePorts forges the apply patch for the ports of the reflected endpointslice, given the local ones.
-func RemoteEndpointSlicePorts(locals []discoveryv1.EndpointPort) []*discoveryv1apply.EndpointPortApplyConfiguration {
-	var remotes []*discoveryv1apply.EndpointPortApplyConfiguration
+// RemoteEndpointTargetRef forges the ObjectReference of the reflected endpoint, given the local one.
+func RemoteEndpointTargetRef(ref *corev1.ObjectReference) *corev1.ObjectReference {
+	if ref == nil {
+		return nil
+	}
+	ref.Kind = RemoteKind(ref.Kind)
+	return ref
+}
 
+// RemoteEndpointSlicePorts forges the ports of the reflected endpointslice, given the local ones.
+func RemoteEndpointSlicePorts(locals []discoveryv1.EndpointPort) []discoveryv1.EndpointPort {
+	var remotes []discoveryv1.EndpointPort
 	for i := range locals {
 		// DeepCopy the local object, to avoid mutating the cache.
 		local := locals[i].DeepCopy()
-		remotes = append(remotes, &discoveryv1apply.EndpointPortApplyConfiguration{
-			Name: local.Name, Port: local.Port, Protocol: local.Protocol, AppProtocol: local.AppProtocol,
-		})
+		remotes = append(remotes, *local)
 	}
-
 	return remotes
-}
-
-// RemoteEndpointHints forges the apply patch for the endpoint hints of the reflected endpointslice, given the local ones.
-func RemoteEndpointHints(local *discoveryv1.EndpointHints) *discoveryv1apply.EndpointHintsApplyConfiguration {
-	if local == nil {
-		return nil
-	}
-
-	hints := discoveryv1apply.EndpointHints()
-	for _, zone := range local.ForZones {
-		hints.WithForZones(discoveryv1apply.ForZone().WithName(zone.Name))
-	}
-	return hints
 }

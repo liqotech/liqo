@@ -167,6 +167,18 @@ rules:
   - update
   - watch
 - apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - discovery.liqo.io
   resources:
   - foreignclusters
@@ -412,6 +424,18 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - shadowendpointslices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - virtualkubelet.liqo.io
   resources:

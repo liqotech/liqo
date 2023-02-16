@@ -30,6 +30,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
+	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
+	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	"github.com/liqotech/liqo/pkg/consts"
 	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -51,21 +55,30 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		const ServiceName = "service"
 
 		var (
-			reflector manager.NamespacedReflector
-			ipam      *fakeipam.IPAMClient
+			err        error
+			reflector  manager.NamespacedReflector
+			ipam       *fakeipam.IPAMClient
+			liqoClient liqoclient.Interface
 
-			local, remote discoveryv1.EndpointSlice
-			err           error
+			local  discoveryv1.EndpointSlice
+			remote vkv1alpha1.ShadowEndpointSlice
 		)
 
-		GetEndpointSlice := func(namespace string) *discoveryv1.EndpointSlice {
-			epslice, errepslice := client.DiscoveryV1().EndpointSlices(namespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
+		CreateEndpointSlice := func(epslice *discoveryv1.EndpointSlice) *discoveryv1.EndpointSlice {
+			epslice, errepslice := client.DiscoveryV1().EndpointSlices(epslice.GetNamespace()).Create(ctx, epslice, metav1.CreateOptions{})
 			Expect(errepslice).ToNot(HaveOccurred())
 			return epslice
 		}
 
-		CreateEndpointSlice := func(epslice *discoveryv1.EndpointSlice) *discoveryv1.EndpointSlice {
-			epslice, errepslice := client.DiscoveryV1().EndpointSlices(epslice.GetNamespace()).Create(ctx, epslice, metav1.CreateOptions{})
+		GetShadowEndpointSlice := func(namespace string) *vkv1alpha1.ShadowEndpointSlice {
+			epslice, errepslice := liqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(namespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
+			Expect(errepslice).ToNot(HaveOccurred())
+			return epslice
+		}
+
+		CreateShadowEndpointSlice := func(epslice *vkv1alpha1.ShadowEndpointSlice) *vkv1alpha1.ShadowEndpointSlice {
+			epslice, errepslice := liqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(epslice.GetNamespace()).
+				Create(ctx, epslice, metav1.CreateOptions{})
 			Expect(errepslice).ToNot(HaveOccurred())
 			return epslice
 		}
@@ -81,29 +94,30 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				BeforeEach(func() {
 					if createRemote {
 						remote.SetLabels(labels.Merge(forge.ReflectionLabels(), forge.EndpointSliceLabels()))
-						remote.AddressType = discoveryv1.AddressTypeIPv4
-						CreateEndpointSlice(&remote)
+						remote.Spec.Template.AddressType = discoveryv1.AddressTypeIPv4
+						CreateShadowEndpointSlice(&remote)
 					}
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("the remote object should not be present", func() {
-					_, err = client.DiscoveryV1().EndpointSlices(RemoteNamespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
+					_, err = liqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(RemoteNamespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
 					Expect(err).To(BeNotFound())
 				})
 			}
 		}
 
 		BeforeEach(func() {
+			liqoClient = liqoclientfake.NewSimpleClientset()
 			local = discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: LocalNamespace}}
-			remote = discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
+			remote = vkv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
 		})
 
 		AfterEach(func() {
 			Expect(client.DiscoveryV1().EndpointSlices(LocalNamespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
-			Expect(client.DiscoveryV1().EndpointSlices(RemoteNamespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(
-				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
+			Expect(liqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(RemoteNamespace).
+				DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
 			Expect(client.CoreV1().Services(LocalNamespace).Delete(ctx, ServiceName, metav1.DeleteOptions{})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
 		})
@@ -111,14 +125,18 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		JustBeforeEach(func() {
 			ipam = fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
+			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
 			reflector = exposition.NewNamespacedEndpointSliceReflector(ipam)(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
+				WithLiqoRemote(liqoClient, liqoFactory).
 				WithHandlerFactory(FakeEventHandler).
 				WithEventBroadcaster(record.NewBroadcaster()))
 
 			factory.Start(ctx.Done())
+			liqoFactory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())
+			liqoFactory.WaitForCacheSync(ctx.Done())
 		})
 
 		Context("object reflection", func() {
@@ -143,7 +161,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				When("the remote object does not exist", func() {
 					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 					It("the metadata should have been correctly replicated to the remote object", func() {
-						remoteAfter := GetEndpointSlice(RemoteNamespace)
+						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue(discoveryv1.LabelManagedBy, forge.EndpointSliceManagedBy))
@@ -151,52 +169,54 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 						Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
 					})
 					It("the spec should have been correctly replicated to the remote object", func() {
-						remoteAfter := GetEndpointSlice(RemoteNamespace)
+						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
 						// Here, we assert only a few fields, as already tested in the forge package.
-						Expect(remoteAfter.AddressType).To(Equal(discoveryv1.AddressTypeIPv4))
-						Expect(remoteAfter.Endpoints).To(HaveLen(1))
-						Expect(remoteAfter.Endpoints[0].Addresses).To(ConsistOf("192.168.200.25", "192.168.200.43"))
+						Expect(remoteAfter.Spec.Template.AddressType).To(Equal(discoveryv1.AddressTypeIPv4))
+						Expect(remoteAfter.Spec.Template.Endpoints).To(HaveLen(1))
+						Expect(remoteAfter.Spec.Template.Endpoints[0].Addresses).To(ConsistOf("192.168.200.25", "192.168.200.43"))
 					})
 				})
 
 				When("the remote object already exists", func() {
 					BeforeEach(func() {
 						remote.SetLabels(labels.Merge(forge.ReflectionLabels(), forge.EndpointSliceLabels()))
+						remote.SetLabels(labels.Merge(remote.GetLabels(), map[string]string{"foo": "previous", "existing": "existing"}))
 						remote.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing"})
-						remote.AddressType = discoveryv1.AddressTypeIPv4
-						CreateEndpointSlice(&remote)
+						remote.Spec.Template.AddressType = discoveryv1.AddressTypeIPv4
+						CreateShadowEndpointSlice(&remote)
 					})
 
 					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 					It("the metadata should have been correctly replicated to the remote object", func() {
-						remoteAfter := GetEndpointSlice(RemoteNamespace)
+						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue(discoveryv1.LabelManagedBy, forge.EndpointSliceManagedBy))
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+						Expect(remoteAfter.Labels).ToNot(HaveKey("existing"))
 						Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
-						Expect(remoteAfter.Annotations).To(HaveKeyWithValue("existing", "existing"))
+						Expect(remoteAfter.Annotations).ToNot(HaveKey("existing"))
 					})
 					It("the spec should have been correctly replicated to the remote object", func() {
-						remoteAfter := GetEndpointSlice(RemoteNamespace)
+						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
 						// Here, we assert only a few fields, as already tested in the forge package.
-						Expect(remoteAfter.AddressType).To(Equal(discoveryv1.AddressTypeIPv4))
-						Expect(remoteAfter.Endpoints).To(HaveLen(1))
-						Expect(remoteAfter.Endpoints[0].Addresses).To(ConsistOf("192.168.200.25", "192.168.200.43"))
+						Expect(remoteAfter.Spec.Template.AddressType).To(Equal(discoveryv1.AddressTypeIPv4))
+						Expect(remoteAfter.Spec.Template.Endpoints).To(HaveLen(1))
+						Expect(remoteAfter.Spec.Template.Endpoints[0].Addresses).To(ConsistOf("192.168.200.25", "192.168.200.43"))
 					})
 				})
 
 				When("the remote object already exists, but is not managed by the reflection", func() {
-					var remoteBefore *discoveryv1.EndpointSlice
+					var remoteBefore *vkv1alpha1.ShadowEndpointSlice
 
 					BeforeEach(func() {
-						remote.AddressType = discoveryv1.AddressTypeIPv4
-						remoteBefore = CreateEndpointSlice(&remote)
+						remote.Spec.Template.AddressType = discoveryv1.AddressTypeIPv4
+						remoteBefore = CreateShadowEndpointSlice(&remote)
 					})
 
 					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 					It("the remote object should be unmodified", func() {
-						remoteAfter := GetEndpointSlice(RemoteNamespace)
+						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
 						Expect(remoteAfter).To(Equal(remoteBefore))
 					})
 				})

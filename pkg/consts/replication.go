@@ -44,6 +44,8 @@ const (
 	ManagedByLabelKey = "liqo.io/managed-by"
 	// ManagedByShadowPodValue it the label value used to indicate that a given resource is managed by a ShadowPod.
 	ManagedByShadowPodValue = "shadowpod"
+	// ManagedByShadowEndpointSliceValue it the label value used to indicate that a given resource is managed by a ShadowEndpointSlice.
+	ManagedByShadowEndpointSliceValue = "shadowendpointslice"
 
 	// LocalResourceOwnership label key added to a resource when it is owned by a local component.
 	// Ex. Local networkconfigs are owned by the component that creates them. If the resource is replicated in
