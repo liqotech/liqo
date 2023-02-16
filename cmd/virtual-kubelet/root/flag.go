@@ -34,7 +34,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.StringVar(&o.HomeCluster.ClusterName, "home-cluster-name", o.HomeCluster.ClusterName, "The name of the home cluster")
 	flags.StringVar(&o.ForeignCluster.ClusterID, "foreign-cluster-id", o.ForeignCluster.ClusterID, "The ID of the foreign cluster")
 	flags.StringVar(&o.ForeignCluster.ClusterName, "foreign-cluster-name", o.ForeignCluster.ClusterName, "The name of the foreign cluster")
-	flags.StringVar(&o.LiqoIpamServer, "ipam-server", o.LiqoIpamServer, "The address to contact the IPAM module")
+	flags.StringVar(&o.LiqoIpamServer, "ipam-server", o.LiqoIpamServer,
+		"The address to contact the IPAM module (leave it empty to disable the IPAM module)")
 
 	flags.StringVar(&o.NodeIP, "node-ip", o.NodeIP, "The IP address of the virtual kubelet pod, and assigned to the virtual node as internal address")
 	flags.Var(o.CertificateType, "certificate-type", "The type of virtual kubelet server certificate to generate, among kubelet, aws, self-signed")

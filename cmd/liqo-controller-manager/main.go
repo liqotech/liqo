@@ -146,6 +146,8 @@ func main() {
 	flag.Var(&kubeletRAMLimits, "kubelet-ram-limits", "RAM limits assigned to the Virtual Kubelet Pod")
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
+	kubeletIpamServer := flag.String("kubelet-ipam-server", "",
+		"The address of the IPAM server to use for the virtual kubelet (set to empty string to disable IPAM)")
 
 	// Storage Provisioner parameters
 	enableStorage := flag.Bool("enable-storage", false, "enable the liqo virtual storage class")
@@ -296,6 +298,7 @@ func main() {
 		RequestsRAM:          kubeletRAMRequests.Quantity,
 		LimitsCPU:            kubeletCPULimits.Quantity,
 		LimitsRAM:            kubeletRAMLimits.Quantity,
+		IpamEndpoint:         *kubeletIpamServer,
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(

@@ -16,6 +16,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -91,14 +92,17 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	remoteLiqoClient := liqoclient.NewForConfigOrDie(cfg.RemoteConfig)
 	remoteMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig).MetricsV1beta1().PodMetricses
 
-	dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer,
-		grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-	cancel()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to establish a connection to the IPAM")
+	var ipamClient ipam.IpamClient
+	if cfg.LiqoIpamServer != "" {
+		dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer,
+			grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		cancel()
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("failed to establish a connection to the IPAM %q", cfg.LiqoIpamServer))
+		}
+		ipamClient = ipam.NewIpamClient(connection)
 	}
-	ipamClient := ipam.NewIpamClient(connection)
 
 	apiServerSupport := forge.APIServerSupportDisabled
 	if cfg.EnableAPIServerSupport {

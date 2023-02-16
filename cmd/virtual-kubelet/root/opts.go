@@ -15,7 +15,6 @@
 package root
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -23,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
@@ -104,8 +102,6 @@ func NewOpts() *Opts {
 		NodeName:             DefaultNodeName,
 		TenantNamespace:      corev1.NamespaceDefault,
 		InformerResyncPeriod: DefaultInformerResyncPeriod,
-
-		LiqoIpamServer: fmt.Sprintf("%v:%v", consts.NetworkManagerServiceName, consts.NetworkManagerIpamPort),
 
 		CertificateType: argsutils.NewEnum([]string{CertificateTypeKubelet, CertificateTypeAWS, CertificateTypeSelfSigned}, CertificateTypeKubelet),
 		ListenPort:      DefaultListenPort,

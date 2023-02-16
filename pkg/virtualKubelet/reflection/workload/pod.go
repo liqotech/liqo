@@ -247,14 +247,20 @@ func (pr *PodReflector) KubernetesServiceIPGetter() func(ctx context.Context) (s
 			return "", errors.New("failed to retrieve the kubernetes.default IP from KUBERNETES_SERVICE_HOST")
 		}
 
-		// Otherwise we need to interact with the IPAM to retrieve the correct mapping.
-		response, err := pr.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{
-			ClusterID: forge.RemoteCluster.ClusterID, Ip: kubernetesService})
-		if err != nil {
-			return "", err
-		}
+		switch pr.ipamclient.(type) {
+		case nil:
+			// If the IPAM is not enabled, then the kubernetes.default IP is the one retrieved from the environment variable.
+			address = kubernetesService
+		default:
+			// Otherwise we need to interact with the IPAM to retrieve the correct mapping.
+			response, err := pr.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{
+				ClusterID: forge.RemoteCluster.ClusterID, Ip: kubernetesService})
+			if err != nil {
+				return "", err
+			}
 
-		address = response.Ip
+			address = response.Ip
+		}
 		return address, nil
 	}
 }
