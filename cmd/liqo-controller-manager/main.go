@@ -115,11 +115,15 @@ func main() {
 	clusterIdentityFlags := argsutils.NewClusterIdentityFlags(true, nil)
 	liqoNamespace := flag.String("liqo-namespace", consts.DefaultLiqoNamespace,
 		"Name of the namespace where the liqo components are running")
-	foreignClusterWorkers := flag.Uint("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
+	foreignClusterWorkers := flag.Int("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
 	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
 	shadowEndpointSliceWorkers := flag.Int("shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
 	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
+	foreignClusterPingInterval := flag.Duration("foreign-cluster-ping-interval", 15*time.Second,
+		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
+	foreignClusterPingTimeout := flag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
+		"The timeout of the ForeignCluster API server readiness check")
 
 	// Discovery parameters
 	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
@@ -257,6 +261,8 @@ func main() {
 		InsecureTransport: insecureTransport,
 
 		ForeignClusters: sync.Map{},
+
+		APIServerCheckers: foreignclusteroperator.NewAPIServerCheckers(*foreignClusterPingInterval, *foreignClusterPingTimeout),
 	}
 	if err = foreignClusterReconciler.SetupWithManager(mgr, *foreignClusterWorkers); err != nil {
 		klog.Fatal(err)

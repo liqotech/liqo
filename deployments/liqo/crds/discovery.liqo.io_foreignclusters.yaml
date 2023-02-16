@@ -38,6 +38,10 @@ spec:
     - jsonPath: .status.peeringConditions[?(@.type == 'NetworkStatus')].status
       name: Networking
       type: string
+    - jsonPath: .status.peeringConditions[?(@.type == 'APIServerStatus')].status
+      name: API Server
+      priority: 1
+      type: string
     - jsonPath: .status.peeringConditions[?(@.type == 'AuthenticationStatus')].status
       name: Authentication
       type: string
@@ -168,6 +172,7 @@ spec:
                       - OutgoingPeering
                       - IncomingPeering
                       - NetworkStatus
+                      - APIServerStatus
                       - AuthenticationStatus
                       - ProcessForeignClusterStatus
                       type: string
