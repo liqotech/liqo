@@ -24,6 +24,14 @@ type NamespaceMapListerExpansion interface{}
 // NamespaceMapNamespaceLister.
 type NamespaceMapNamespaceListerExpansion interface{}
 
+// ShadowEndpointSliceListerExpansion allows custom methods to be added to
+// ShadowEndpointSliceLister.
+type ShadowEndpointSliceListerExpansion interface{}
+
+// ShadowEndpointSliceNamespaceListerExpansion allows custom methods to be added to
+// ShadowEndpointSliceNamespaceLister.
+type ShadowEndpointSliceNamespaceListerExpansion interface{}
+
 // ShadowPodListerExpansion allows custom methods to be added to
 // ShadowPodLister.
 type ShadowPodListerExpansion interface{}

@@ -31,6 +31,10 @@ func (c *FakeVirtualkubeletV1alpha1) NamespaceMaps(namespace string) v1alpha1.Na
 	return &FakeNamespaceMaps{c, namespace}
 }
 
+func (c *FakeVirtualkubeletV1alpha1) ShadowEndpointSlices(namespace string) v1alpha1.ShadowEndpointSliceInterface {
+	return &FakeShadowEndpointSlices{c, namespace}
+}
+
 func (c *FakeVirtualkubeletV1alpha1) ShadowPods(namespace string) v1alpha1.ShadowPodInterface {
 	return &FakeShadowPods{c, namespace}
 }

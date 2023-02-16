@@ -54,6 +54,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=virtualkubelet.liqo.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("namespacemaps"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().NamespaceMaps().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("shadowendpointslices"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().ShadowEndpointSlices().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("shadowpods"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().ShadowPods().Informer()}, nil
 

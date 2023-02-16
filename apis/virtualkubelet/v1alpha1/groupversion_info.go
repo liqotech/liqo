@@ -41,6 +41,15 @@ var (
 	// ShadowPodGroupVersionResource is groupResourceVersion used to register these objects.
 	ShadowPodGroupVersionResource = SchemeGroupVersion.WithResource(ShadowPodResource)
 
+	// ShadowEndpointSliceResource is the resource name used to register the ShadowEndpointSlice CRD.
+	ShadowEndpointSliceResource = "shadowendpointslices"
+
+	// ShadowEndpointSliceGroupResource is group resource used to register these objects.
+	ShadowEndpointSliceGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: ShadowEndpointSliceResource}
+
+	// ShadowEndpointSliceGroupVersionResource is groupResourceVersion used to register these objects.
+	ShadowEndpointSliceGroupVersionResource = SchemeGroupVersion.WithResource(ShadowEndpointSliceResource)
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 

@@ -21,9 +21,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	discoveryv1apply "k8s.io/client-go/applyconfigurations/discovery/v1"
 	"k8s.io/utils/pointer"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -38,7 +38,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 	Describe("the RemoteEndpointSlice function", func() {
 		var (
 			input  *discoveryv1.EndpointSlice
-			output *discoveryv1apply.EndpointSliceApplyConfiguration
+			output *vkv1alpha1.ShadowEndpointSlice
 		)
 
 		BeforeEach(func() {
@@ -53,7 +53,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Ports:       []discoveryv1.EndpointPort{{Name: pointer.String("HTTPS")}},
 			}
 
-			JustBeforeEach(func() { output = forge.RemoteEndpointSlice(input, "reflected", Translator) })
+			JustBeforeEach(func() { output = forge.RemoteShadowEndpointSlice(input, output, "reflected", Translator) })
 
 			It("should correctly set the name and namespace", func() {
 				Expect(output.Name).To(PointTo(Equal("name")))
@@ -70,15 +70,15 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
 			})
 			It("should correctly set the address type", func() {
-				Expect(output.AddressType).To(PointTo(Equal(discoveryv1.AddressTypeFQDN)))
+				Expect(output.Spec.Template.AddressType).To(PointTo(Equal(discoveryv1.AddressTypeFQDN)))
 			})
 			It("should correctly translate the endpoints", func() {
-				Expect(output.Endpoints).To(HaveLen(1))
-				Expect(output.Endpoints[0].Hostname).To(PointTo(Equal("Test")))
+				Expect(output.Spec.Template.Endpoints).To(HaveLen(1))
+				Expect(output.Spec.Template.Endpoints[0].Hostname).To(PointTo(Equal("Test")))
 			})
 			It("should correctly translate the ports", func() {
-				Expect(output.Ports).To(HaveLen(1))
-				Expect(output.Ports[0].Name).To(PointTo(Equal("HTTPS")))
+				Expect(output.Spec.Template.Ports).To(HaveLen(1))
+				Expect(output.Spec.Template.Ports[0].Name).To(PointTo(Equal("HTTPS")))
 			})
 		})
 	})
@@ -87,7 +87,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 		var (
 			endpoint discoveryv1.Endpoint
 			input    []discoveryv1.Endpoint
-			output   []*discoveryv1apply.EndpointApplyConfiguration
+			output   []discoveryv1.Endpoint
 		)
 
 		BeforeEach(func() {
@@ -126,10 +126,10 @@ var _ = Describe("EndpointSlices Forging", func() {
 			It("should correctly replicate the secondary fields", func() {
 				Expect(output[0].Hostname).To(PointTo(Equal("foo.bar.com")))
 				Expect(output[0].TargetRef).ToNot(BeNil())
-				Expect(output[0].TargetRef.Kind).To(PointTo(Equal("RemotePod")))
+				Expect(output[0].TargetRef.Kind).To(Equal("RemotePod"))
 				Expect(output[0].Hints).ToNot(BeNil())
 				Expect(output[0].Hints.ForZones).To(HaveLen(1))
-				Expect(output[0].Hints.ForZones[0].Name).To(PointTo(Equal("zone")))
+				Expect(output[0].Hints.ForZones[0].Name).To(Equal("zone"))
 			})
 		})
 
@@ -150,7 +150,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 	Describe("the RemoteEndpointSlicePorts function", func() {
 		var (
 			input  discoveryv1.EndpointPort
-			output []*discoveryv1apply.EndpointPortApplyConfiguration
+			output []discoveryv1.EndpointPort
 		)
 
 		BeforeEach(func() { input = discoveryv1.EndpointPort{} })
