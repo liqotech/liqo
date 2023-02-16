@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package v1alpha1 contains API Schema definitions for the discovery v1alpha1 API group
+//
+//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 package v1alpha1
 
 import (
@@ -155,16 +158,18 @@ const (
 	IncomingPeeringCondition PeeringConditionType = "IncomingPeering"
 	// NetworkStatusCondition informs users about the network status.
 	NetworkStatusCondition PeeringConditionType = "NetworkStatus"
+	// APIServerStatusCondition informs users about the foreign API server status.
+	APIServerStatusCondition PeeringConditionType = "APIServerStatus"
 	// AuthenticationStatusCondition informs users about the Authentication status.
 	AuthenticationStatusCondition PeeringConditionType = "AuthenticationStatus"
-	// ProcessableForeignCluster informs users about the Authentication status.
+	// ProcessForeignClusterStatusCondition informs users whether the Foreign Cluster is processable.
 	ProcessForeignClusterStatusCondition PeeringConditionType = "ProcessForeignClusterStatus"
 )
 
 // PeeringCondition contains details about state of the peering.
 type PeeringCondition struct {
 	// Type of the peering condition.
-	// +kubebuilder:validation:Enum="OutgoingPeering";"IncomingPeering";"NetworkStatus";"AuthenticationStatus";"ProcessForeignClusterStatus"
+	// +kubebuilder:validation:Enum="OutgoingPeering";"IncomingPeering";"NetworkStatus";"APIServerStatus";"AuthenticationStatus";"ProcessForeignClusterStatus"
 	Type PeeringConditionType `json:"type"`
 	// Status of the condition.
 	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting";"Denied";"EmptyDenied";"Error";"Success";"External"
@@ -198,6 +203,7 @@ type TenantNamespaceType struct {
 // +kubebuilder:printcolumn:name="Outgoing peering",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'OutgoingPeering')].status`
 // +kubebuilder:printcolumn:name="Incoming peering",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'IncomingPeering')].status`
 // +kubebuilder:printcolumn:name="Networking",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'NetworkStatus')].status`
+// +kubebuilder:printcolumn:name="API Server",type=string,priority=1,JSONPath=`.status.peeringConditions[?(@.type == 'APIServerStatus')].status`
 // +kubebuilder:printcolumn:name="Authentication",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'AuthenticationStatus')].status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type ForeignCluster struct {

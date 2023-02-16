@@ -81,6 +81,12 @@ const (
 	externalNetworkMessage = "The remote cluster network connection is not managed by Liqo"
 
 	tunnelEndpointErrorReason = "TunnelEndpointError"
+
+	apiServerReadyReason  = "APIServerReady"
+	apiServerReadyMessage = "The remote cluster API Server is ready"
+
+	apiServerNotReadyReason  = "APIServerNotReady"
+	apiServerNotReadyMessage = "The remote cluster API Server is not ready"
 )
 
 // ForeignClusterReconciler reconciles a ForeignCluster object.
@@ -102,8 +108,12 @@ type ForeignClusterReconciler struct {
 
 	InsecureTransport *http.Transport
 	SecureTransport   *http.Transport
+
 	// The map associates the local tenant namespaces (keys) to the related foreignclusters (values).
 	ForeignClusters sync.Map
+
+	// Handle concurrent access to the map containing the cancel context functions of the API server checkers.
+	APIServerCheckers
 }
 
 // clusterRole
@@ -155,11 +165,16 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Retrieved the foreign cluster")
 
+	// This flag allows to disable the status update function in case it is deferred, but the foreign cluster
+	// have already been updated, hence preventing an unnecessary and failing API call.
+	updateNeeded := true
 	updateStatus := func() {
-		defer tracer.Step("ForeignCluster status update")
-		if newErr := r.Client.Status().Update(ctx, &foreignCluster); newErr != nil {
-			klog.Error(newErr)
-			err = newErr
+		if updateNeeded {
+			defer tracer.Step("ForeignCluster status update")
+			if newErr := r.Client.Status().Update(ctx, &foreignCluster); newErr != nil {
+				klog.Error(newErr)
+				err = newErr
+			}
 		}
 	}
 
@@ -217,7 +232,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Add the foreigncluster to the map once the local tenant namespace has been created.
 	r.ForeignClusters.Store(foreignCluster.Status.TenantNamespace.Local, foreignCluster.GetName())
 
-	// ensure the existence of an identity to operate in the remote cluster remote cluster
+	// ensure the existence of an identity to operate in the remote cluster
 	if err = r.ensureRemoteIdentity(ctx, &foreignCluster); err != nil {
 		klog.Errorf("Failed to ensure identity for remote cluster %q: %v", foreignCluster.Spec.ClusterIdentity, err)
 		return ctrl.Result{}, err
@@ -231,7 +246,19 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Fetched the remote tenant namespace name")
 
-	// ------ (3) peering/unpeering logic ------
+	// ------ (3) activate/deactivate API server checker logic ------
+	cont, res, err = r.handleAPIServerChecker(ctx, &foreignCluster)
+	if !cont || err != nil {
+		// Prevent the deferred updateStatus() function to do an update since the FC has already been updated
+		// or an error have occurred
+		updateNeeded = false
+
+		tracer.Step("Handled the API server checker", trace.Field{Key: "requeuing", Value: true})
+		return res, err
+	}
+	tracer.Step("Handled the API server checker", trace.Field{Key: "requeuing", Value: false})
+
+	// ------ (4) peering/unpeering logic ------
 
 	// read the ForeignCluster status and ensure the peering state
 	phase := r.getDesiredOutgoingPeeringState(ctx, &foreignCluster)
@@ -255,7 +282,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	// ------ (4) update peering conditions ------
+	// ------ (5) update peering conditions ------
 	// check if peering request really exists on foreign cluster
 	if err = r.checkIncomingPeeringStatus(ctx, &foreignCluster); err != nil {
 		klog.Errorf("[%s] %s", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
@@ -263,7 +290,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Checked the incoming peering status")
 
-	// ------ (5) ensuring permission ------
+	// ------ (6) ensuring permission ------
 
 	// ensure the permission for the current peering phase
 	if err = r.ensurePermission(ctx, &foreignCluster); err != nil {
@@ -272,7 +299,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Ensured the necessary permissions are present")
 
-	// ------ (6) garbage collection ------
+	// ------ (7) garbage collection ------
 
 	// check if this ForeignCluster needs to be deleted. It could happen, for example, if it has been discovered
 	// thanks to incoming resourceRequest and it has no active connections
@@ -382,7 +409,7 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 }
 
 // SetupWithManager assigns the operator to a manager.
-func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers uint) error {
+func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 	// Prevent triggering a reconciliation in case of status modifications only.
 	foreignClusterPredicate := predicate.Or(predicate.GenerationChangedPredicate{}, predicate.LabelChangedPredicate{})
 
@@ -393,7 +420,7 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers ui
 			builder.WithPredicates(getAuthTokenSecretPredicate())).
 		Watches(&source.Kind{Type: &netv1alpha1.TunnelEndpoint{}}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		Watches(&source.Kind{Type: &sharingv1alpha1.ResourceOffer{}}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
-		WithOptions(controller.Options{MaxConcurrentReconciles: int(workers)}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
 }
 
