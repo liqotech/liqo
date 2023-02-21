@@ -66,6 +66,9 @@ type PodIPTranslator func(string) string
 // RemotePodSpecMutator defines the function type to mutate the remote pod specifications and implement additional capabilities.
 type RemotePodSpecMutator func(remote *corev1.PodSpec)
 
+// RemotePodStatusMutator defines the function type to mutate the remote pod status and implement additional capabilities.
+type RemotePodStatusMutator func(remote *corev1.PodStatus)
+
 // SASecretRetriever defines the function to retrieve the secret associated with a given service account.
 type SASecretRetriever func(string) string
 
@@ -73,10 +76,10 @@ type SASecretRetriever func(string) string
 type KubernetesServiceIPGetter func() string
 
 // LocalPod forges the object meta and status of the local pod, given the remote one.
-func LocalPod(local, remote *corev1.Pod, translator PodIPTranslator, restarts int32) *corev1.Pod {
+func LocalPod(local, remote *corev1.Pod, translator PodIPTranslator, restarts int32, mutators ...RemotePodStatusMutator) *corev1.Pod {
 	return &corev1.Pod{
 		ObjectMeta: *local.ObjectMeta.DeepCopy(),
-		Status:     LocalPodStatus(remote.Status.DeepCopy(), translator, restarts),
+		Status:     LocalPodStatus(remote.Status.DeepCopy(), translator, restarts, mutators...),
 	}
 }
 
@@ -91,7 +94,7 @@ func LocalPodOffloadedLabel(local *corev1.Pod) (*corev1apply.PodApplyConfigurati
 }
 
 // LocalPodStatus forges the status of the local pod, given the remote one.
-func LocalPodStatus(remote *corev1.PodStatus, translator PodIPTranslator, restarts int32) corev1.PodStatus {
+func LocalPodStatus(remote *corev1.PodStatus, translator PodIPTranslator, restarts int32, mutators ...RemotePodStatusMutator) corev1.PodStatus {
 	// Translate the relevant IPs
 	if remote.PodIP != "" {
 		remote.PodIP = translator(remote.PodIP)
@@ -102,6 +105,11 @@ func LocalPodStatus(remote *corev1.PodStatus, translator PodIPTranslator, restar
 	// Increase the restart count if necessary
 	for idx := range remote.ContainerStatuses {
 		remote.ContainerStatuses[idx].RestartCount += restarts
+	}
+
+	// Apply the mutators
+	for _, mutator := range mutators {
+		mutator(remote)
 	}
 
 	return *remote
@@ -236,6 +244,14 @@ func APIServerSupportMutator(apiServerSupport APIServerSupportType, saName strin
 
 		// Add a custom host alias to reach "kubernetes.default" through the remapped IP address.
 		remote.HostAliases = RemoteHostAliasesAPIServerSupport(remote.HostAliases, kubernetesServiceIPRetriever)
+	}
+}
+
+// OpaqueIPTranslationMutator is a mutator which implements the support to hide the IP address of the offloaded pods.
+func OpaqueIPTranslationMutator() RemotePodStatusMutator {
+	return func(remote *corev1.PodStatus) {
+		remote.PodIP = ""
+		remote.PodIPs = []corev1.PodIP{}
 	}
 }
 
