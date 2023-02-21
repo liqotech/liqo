@@ -63,9 +63,10 @@ type Opts struct {
 	TenantNamespace      string
 	InformerResyncPeriod time.Duration
 
-	HomeCluster    discoveryv1alpha1.ClusterIdentity
-	ForeignCluster discoveryv1alpha1.ClusterIdentity
-	LiqoIpamServer string
+	HomeCluster         discoveryv1alpha1.ClusterIdentity
+	ForeignCluster      discoveryv1alpha1.ClusterIdentity
+	LiqoIpamServer      string
+	DisableIPReflection bool
 
 	// Sets the addresses to listen for requests from the Kubernetes API server
 	NodeIP          string
@@ -104,6 +105,8 @@ func NewOpts() *Opts {
 		NodeName:             DefaultNodeName,
 		TenantNamespace:      corev1.NamespaceDefault,
 		InformerResyncPeriod: DefaultInformerResyncPeriod,
+
+		DisableIPReflection: false,
 
 		CertificateType: argsutils.NewEnum([]string{CertificateTypeKubelet, CertificateTypeAWS, CertificateTypeSelfSigned}, CertificateTypeKubelet),
 		ListenPort:      DefaultListenPort,

@@ -59,6 +59,7 @@ type InitConfig struct {
 	NodeName             string
 	NodeIP               string
 	LiqoIpamServer       string
+	DisableIPReflection  bool
 	InformerResyncPeriod time.Duration
 
 	PodWorkers                  uint
@@ -93,7 +94,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	remoteMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig).MetricsV1beta1().PodMetricses
 
 	var ipamClient ipam.IpamClient
-	if cfg.LiqoIpamServer != "" {
+	if cfg.LiqoIpamServer != "" && !cfg.DisableIPReflection {
 		dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer,
 			grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
@@ -118,12 +119,16 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		klog.V(4).Infof("Enabled support for local API server interactions (%v mode)", apiServerSupport)
 	}
 
+	podReflectorConfig := workload.PodReflectorConfig{
+		APIServerSupport:    apiServerSupport,
+		DisableIPReflection: cfg.DisableIPReflection,
+	}
+
 	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb)
-	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, apiServerSupport, cfg.PodWorkers)
+	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, &podReflectorConfig, cfg.PodWorkers)
 	namespaceMapHandler := namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod)
 	reflectionManager.
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
-		With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers)).
 		With(exposition.NewIngressReflector(cfg.IngressWorkers)).
 		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
 		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, cfg.SecretWorkers)).
@@ -132,6 +137,10 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
 			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage)).
 		WithNamespaceHandler(namespaceMapHandler)
+
+	if !cfg.DisableIPReflection {
+		reflectionManager.With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers))
+	}
 
 	reflectionManager.Start(ctx)
 

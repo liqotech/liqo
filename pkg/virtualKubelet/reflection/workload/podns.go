@@ -92,8 +92,8 @@ type NamespacedPodReflector struct {
 	remoteRESTConfig *rest.Config
 	remoteMetrics    metricsv1beta1.PodMetricsInterface
 
-	ipamclient       ipam.IpamClient
-	apiServerSupport forge.APIServerSupportType
+	ipamclient ipam.IpamClient
+	config     *PodReflectorConfig
 
 	kubernetesServiceIPGetter func(context.Context) (string, error)
 	pods                      sync.Map /* implicit signature: map[string]*PodInfo */
@@ -296,7 +296,7 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 
 	// Wrap the secret name retrieval from the service account, so that we do not have to handle errors in the forge logic.
 	var saSecretRetriever func(string) string
-	switch npr.apiServerSupport {
+	switch npr.config.APIServerSupport {
 	case forge.APIServerSupportLegacy:
 		saSecretRetriever = func(saName string) (secretName string) {
 			secretName, saerr = npr.RetrieveLegacyServiceAccountSecretName(info, saName)
@@ -319,7 +319,7 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 
 	// Forge the target shadowpod object.
 	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(),
-		forge.APIServerSupportMutator(npr.apiServerSupport, pod.ServiceAccountName(local), saSecretRetriever, ipGetter))
+		forge.APIServerSupportMutator(npr.config.APIServerSupport, pod.ServiceAccountName(local), saSecretRetriever, ipGetter))
 
 	// Check whether an error occurred during secret name retrieval.
 	if saerr != nil {
@@ -376,8 +376,14 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 		info.RemoteUID = remote.GetUID()
 	}
 
+	mutators := []forge.RemotePodStatusMutator{}
+	if npr.config.DisableIPReflection {
+		// If the IP reflection is disabled, we need to not reflect the IP address of the remote pod.
+		mutators = append(mutators, forge.OpaqueIPTranslationMutator())
+	}
+
 	// Forge the local pod object to update its status.
-	po := forge.LocalPod(local, remote, translator, info.Restarts)
+	po := forge.LocalPod(local, remote, translator, info.Restarts, mutators...)
 	tracer.Step("Forged the local pod status")
 
 	// Check whether an error occurred during address translation.

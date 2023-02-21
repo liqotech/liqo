@@ -94,6 +94,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		NodeIP:    c.NodeIP,
 
 		LiqoIpamServer:       c.LiqoIpamServer,
+		DisableIPReflection:  c.DisableIPReflection,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 
 		PodWorkers:                  c.PodWorkers,
