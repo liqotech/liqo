@@ -1,6 +1,6 @@
 module github.com/liqotech/liqo
 
-go 1.19
+go 1.20
 
 require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
@@ -33,6 +33,8 @@ require (
 	github.com/virtual-kubelet/virtual-kubelet v1.6.1-0.20220831210300-d2523fe808a2
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
+	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
+	golang.org/x/exp v0.0.0-20221114191408-850992195362
 	golang.org/x/mod v0.8.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.5.0
@@ -44,7 +46,6 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.11.1
-	inet.af/netaddr v0.0.0-20220811202034-502d2d690317
 	k8s.io/api v0.26.1
 	k8s.io/apiextensions-apiserver v0.26.1
 	k8s.io/apimachinery v0.26.1
@@ -228,11 +229,7 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	go4.org/intern v0.0.0-20220617035311-6925f38cc365 // indirect
-	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab // indirect
-	go4.org/unsafe/assume-no-moving-gc v0.0.0-20220617031537-928513b29760 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
-	golang.org/x/exp v0.0.0-20221114191408-850992195362
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
