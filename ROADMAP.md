@@ -1,7 +1,7 @@
 # Roadmap
 
-Planned features for the next release (v0.6, expected Oct 2022) include the following:
+Planned features for the next release (v0.8, expected Apr 2023) include the following:
 
-* Extend the support to offload applications that need to contact the local API Server (e.g. operators and some DB applications).
-* Improve the observability and the robustness of the network fabric.
-* Provide the possibility to better schedule and orchestrate workloads using policies.
+* Support for external network providers (e.g. Cilium, Submariner, etc.). Or no network provider at all.
+* Improved resilience and availability in cluster disconnection scenarios.
+* Basic support for inter-cluster networking constraints.
