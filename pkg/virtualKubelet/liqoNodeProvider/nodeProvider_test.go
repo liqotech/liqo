@@ -92,6 +92,8 @@ var _ = Describe("NodeProvider", func() {
 			RemoteClusterID: foreignClusterID,
 
 			PodProviderStopper: podStopper,
+
+			CheckNetworkStatus: true,
 		})
 
 		_, err = client.CoreV1().Nodes().Create(ctx, nodeProvider.GetNode(), metav1.CreateOptions{})
@@ -440,7 +442,7 @@ var _ = Describe("NodeProvider", func() {
 					// delete the evicted pods to make the drain function to terminate,
 					// we have to do it manually since no API server is running
 					Expect(client.CoreV1().Pods(v1.NamespaceDefault).Delete(ctx, podList.Items[i].Name, metav1.DeleteOptions{
-						GracePeriodSeconds: pointer.Int64Ptr(0),
+						GracePeriodSeconds: pointer.Int64(0),
 					})).ToNot(HaveOccurred())
 				}
 				return false

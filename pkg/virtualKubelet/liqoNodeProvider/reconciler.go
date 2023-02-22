@@ -220,12 +220,15 @@ func (p *LiqoNodeProvider) updateFromTep(tep *netv1alpha1.TunnelEndpoint) error 
 
 func (p *LiqoNodeProvider) updateNode() error {
 	resourcesReady := areResourcesReady(p.node.Status.Allocatable)
+	networkReady := p.networkReady || !p.checkNetworkStatus
 
-	UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && p.networkReady))
+	UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && networkReady))
 	UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
 	UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
 	UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
-	UpdateNodeCondition(p.node, v1.NodeNetworkUnavailable, nodeNetworkUnavailableStatus(!p.networkReady))
+	if p.checkNetworkStatus {
+		UpdateNodeCondition(p.node, v1.NodeNetworkUnavailable, nodeNetworkUnavailableStatus(!networkReady))
+	}
 
 	p.onNodeChangeCallback(p.node.DeepCopy())
 	return nil

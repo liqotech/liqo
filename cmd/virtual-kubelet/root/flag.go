@@ -59,6 +59,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 		"The interval the reachability of the remote API server is verified to assess node readiness, 0 to disable")
 	flags.DurationVar(&o.NodePingTimeout, "node-ping-timeout", o.NodePingTimeout,
 		"The timeout of the remote API server reachability check")
+	flags.BoolVar(&o.NodeCheckNetwork, "node-check-network", o.NodeCheckNetwork,
+		"Check the network connectivity to set the node status to Ready")
 
 	flags.Var(&o.NodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flags.Var(&o.NodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
