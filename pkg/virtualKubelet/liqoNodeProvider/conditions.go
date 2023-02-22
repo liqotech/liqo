@@ -25,14 +25,17 @@ const (
 )
 
 // UnknownNodeConditions returns an array of node conditions with all unknown status.
-func UnknownNodeConditions() []corev1.NodeCondition {
-	return []corev1.NodeCondition{
+func UnknownNodeConditions(cfg *InitConfig) []corev1.NodeCondition {
+	conditions := []corev1.NodeCondition{
 		*unknownCondition(corev1.NodeReady),
 		*unknownCondition(corev1.NodeMemoryPressure),
 		*unknownCondition(corev1.NodeDiskPressure),
 		*unknownCondition(corev1.NodePIDPressure),
-		*unknownCondition(corev1.NodeNetworkUnavailable),
 	}
+	if cfg.CheckNetworkStatus {
+		conditions = append(conditions, *unknownCondition(corev1.NodeNetworkUnavailable))
+	}
+	return conditions
 }
 
 // UpdateNodeCondition updates the specified node condition, depending on the outcome of the specified function.

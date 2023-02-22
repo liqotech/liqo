@@ -36,7 +36,7 @@ var _ = Describe("Liqo node conditions generation", func() {
 				}
 			}
 
-			JustBeforeEach(func() { conditions = UnknownNodeConditions() })
+			JustBeforeEach(func() { conditions = UnknownNodeConditions(&InitConfig{CheckNetworkStatus: true}) })
 			Describe("The NodeReady condition", DescribeBody(corev1.NodeReady))
 			Describe("The NodeMemoryPressure condition", DescribeBody(corev1.NodeMemoryPressure))
 			Describe("The NodeDiskPressure condition", DescribeBody(corev1.NodeDiskPressure))

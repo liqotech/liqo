@@ -136,6 +136,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 		InformerResyncPeriod: c.InformerResyncPeriod,
 		PingDisabled:         c.NodePingInterval == 0,
+		CheckNetworkStatus:   c.NodeCheckNetwork,
 	}
 
 	nodeProvider := nodeprovider.NewLiqoNodeProvider(&nodecfg)

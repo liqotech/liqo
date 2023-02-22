@@ -49,7 +49,8 @@ const (
 	DefaultServiceAccountWorkers       = 3
 	DefaultPersistenVolumeClaimWorkers = 3
 
-	DefaultNodePingTimeout = 1 * time.Second
+	DefaultNodePingTimeout  = 1 * time.Second
+	DefaultNodeCheckNetwork = true
 )
 
 // Opts stores all the options for configuring the root virtual-kubelet command.
@@ -85,6 +86,7 @@ type Opts struct {
 	NodeLeaseDuration time.Duration
 	NodePingInterval  time.Duration
 	NodePingTimeout   time.Duration
+	NodeCheckNetwork  bool
 
 	NodeExtraAnnotations argsutils.StringMap
 	NodeExtraLabels      argsutils.StringMap
@@ -119,5 +121,6 @@ func NewOpts() *Opts {
 		NodeLeaseDuration: node.DefaultLeaseDuration * time.Second,
 		NodePingInterval:  node.DefaultPingInterval,
 		NodePingTimeout:   DefaultNodePingTimeout,
+		NodeCheckNetwork:  DefaultNodeCheckNetwork,
 	}
 }

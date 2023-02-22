@@ -57,6 +57,7 @@ type InitConfig struct {
 	PodProviderStopper   chan struct{}
 	InformerResyncPeriod time.Duration
 	PingDisabled         bool
+	CheckNetworkStatus   bool
 }
 
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
@@ -70,9 +71,10 @@ func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 		terminating:       false,
 		lastAppliedLabels: map[string]string{},
 
-		networkReady: false,
-		resyncPeriod: cfg.InformerResyncPeriod,
-		pingDisabled: cfg.PingDisabled,
+		networkReady:       false,
+		resyncPeriod:       cfg.InformerResyncPeriod,
+		pingDisabled:       cfg.PingDisabled,
+		checkNetworkStatus: cfg.CheckNetworkStatus,
 
 		nodeName:         cfg.NodeName,
 		foreignClusterID: cfg.RemoteClusterID,
@@ -118,7 +120,7 @@ func node(cfg *InitConfig) *corev1.Node {
 			DaemonEndpoints: corev1.NodeDaemonEndpoints{KubeletEndpoint: corev1.DaemonEndpoint{Port: int32(cfg.DaemonPort)}},
 			Capacity:        corev1.ResourceList{},
 			Allocatable:     corev1.ResourceList{},
-			Conditions:      UnknownNodeConditions(),
+			Conditions:      UnknownNodeConditions(cfg),
 		},
 	}
 }

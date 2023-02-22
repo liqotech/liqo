@@ -19,6 +19,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
@@ -42,19 +43,26 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 			opt.LabelSelector = consts.ReplicationOriginLabel + "=" + p.foreignClusterID
 		})
 	sharingInformer := sharingInformerFactory.ForResource(sharingv1alpha1.GroupVersion.WithResource(resource)).Informer()
-	sharingInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromResourceOffer))
+	_, err := sharingInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromResourceOffer))
+	runtime.Must(err)
 
-	tepInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
-		opt.LabelSelector = consts.ClusterIDLabelName + "=" + p.foreignClusterID
-	})
-	tepInformer := tepInformerFactory.ForResource(netv1alpha1.TunnelEndpointGroupVersionResource).Informer()
-	tepInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromTep))
+	var tepInformerFactory dynamicinformer.DynamicSharedInformerFactory
+	if p.checkNetworkStatus {
+		tepInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
+			opt.LabelSelector = consts.ClusterIDLabelName + "=" + p.foreignClusterID
+		})
+		tepInformer := tepInformerFactory.ForResource(netv1alpha1.TunnelEndpointGroupVersionResource).Informer()
+		_, err = tepInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromTep))
+		runtime.Must(err)
+	}
 
 	ready = make(chan struct{}, 1)
 	go func() {
 		<-ready
 		go sharingInformerFactory.Start(ctx.Done())
-		go tepInformerFactory.Start(ctx.Done())
+		if p.checkNetworkStatus {
+			go tepInformerFactory.Start(ctx.Done())
+		}
 		klog.Info("Liqo informers started")
 	}()
 

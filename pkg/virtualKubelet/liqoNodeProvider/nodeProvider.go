@@ -36,11 +36,12 @@ type LiqoNodeProvider struct {
 	terminating       bool
 	lastAppliedLabels map[string]string
 
-	nodeName         string
-	foreignClusterID string
-	tenantNamespace  string
-	resyncPeriod     time.Duration
-	pingDisabled     bool
+	nodeName           string
+	foreignClusterID   string
+	tenantNamespace    string
+	resyncPeriod       time.Duration
+	pingDisabled       bool
+	checkNetworkStatus bool
 
 	networkReady bool
 
