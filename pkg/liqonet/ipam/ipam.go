@@ -19,12 +19,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 
 	goipam "github.com/metal-stack/go-ipam"
+	"go4.org/netipx"
 	grpc "google.golang.org/grpc"
-	"inet.af/netaddr"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
@@ -329,24 +330,24 @@ func (liqoIPAM *IPAM) isAcquired(network string) bool {
 
 // Function that receives a network as parameter and returns the pool to which this network belongs to.
 func (liqoIPAM *IPAM) getPoolFromNetwork(network string) (networkPool string, success bool, err error) {
-	var poolIPset netaddr.IPSetBuilder
-	var c netaddr.IPPrefix
+	var poolIPset netipx.IPSetBuilder
+	var c netip.Prefix
 	// Get resource
 	pools := liqoIPAM.ipamStorage.getPools()
 	// Build IPSet for new network
-	ipprefix, err := netaddr.ParseIPPrefix(network)
+	ipprefix, err := netip.ParsePrefix(network)
 	if err != nil {
 		return
 	}
 	for _, pool := range pools {
 		// Build IPSet for pool
-		c, err = netaddr.ParseIPPrefix(pool)
+		c, err = netip.ParsePrefix(pool)
 		if err != nil {
 			return
 		}
 		poolIPset.AddPrefix(c)
 		// Check if the pool contains network
-		var ipSet *netaddr.IPSet
+		var ipSet *netipx.IPSet
 		ipSet, err = poolIPset.IPSet()
 		if err != nil {
 			return
@@ -979,11 +980,11 @@ func (liqoIPAM *IPAM) GetExternalCIDR(mask uint8) (string, error) {
 // the IP address does belong to the network.
 func ipBelongsToNetwork(ip, network string) (bool, error) {
 	// Parse network
-	p, err := netaddr.ParseIPPrefix(network)
+	p, err := netip.ParsePrefix(network)
 	if err != nil {
 		return false, fmt.Errorf("cannot parse network: %w", err)
 	}
-	return p.Contains(netaddr.MustParseIP(ip)), nil
+	return p.Contains(netip.MustParseAddr(ip)), nil
 }
 
 func (liqoIPAM *IPAM) belongsToPodCIDRInternal(ip string) (bool, error) {

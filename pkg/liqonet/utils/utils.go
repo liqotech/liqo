@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"inet.af/netaddr"
+	"go4.org/netipx"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -116,12 +116,12 @@ func SetMask(network string, mask uint8) string {
 
 // Next used to get the second half of a given network.
 func Next(network string) string {
-	prefix, err := netaddr.ParseIPPrefix(network)
+	prefix, err := netip.ParsePrefix(network)
 	utilruntime.Must(err)
 	// Step 1: Get last IP address of network
 	// Step 2: Get next IP address
-	firstIP := prefix.Range().To().Next()
-	prefix = netaddr.IPPrefixFrom(firstIP, prefix.Bits())
+	firstIP := netipx.RangeOfPrefix(prefix).To().Next()
+	prefix = netip.PrefixFrom(firstIP, prefix.Bits())
 	return prefix.String()
 }
 
