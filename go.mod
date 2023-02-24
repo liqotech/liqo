@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.28
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.12
-	github.com/aws/aws-sdk-go v1.44.92
+	github.com/aws/aws-sdk-go v1.44.145
 	github.com/containernetworking/plugins v1.2.0
 	github.com/coreos/go-iptables v0.6.0
 	github.com/go-git/go-git/v5 v5.5.2
@@ -57,7 +57,7 @@ require (
 	k8s.io/kubectl v0.26.1
 	k8s.io/metrics v0.26.1
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448
-	sigs.k8s.io/aws-iam-authenticator v0.5.8-0.20220803211948-538f7f4314ef
+	sigs.k8s.io/aws-iam-authenticator v0.6.4
 	sigs.k8s.io/controller-runtime v0.14.4
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
 )
