@@ -41,6 +41,7 @@ type Options struct {
 	subscriptionID    string
 	resourceGroupName string
 	resourceName      string
+	fqdn              string
 
 	authorizer *autorest.Authorizer
 }
@@ -71,6 +72,7 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.resourceGroupName, "resource-group-name", "",
 		"The Azure ResourceGroup name of the cluster")
 	cmd.Flags().StringVar(&o.resourceName, "resource-name", "", "The Azure Name of the cluster")
+	cmd.Flags().StringVar(&o.fqdn, "fqdn", "", "The private AKS cluster fqdn")
 
 	utilruntime.Must(cmd.MarkFlagRequired("resource-group-name"))
 	utilruntime.Must(cmd.MarkFlagRequired("resource-name"))
@@ -148,10 +150,14 @@ func (o *Options) parseClusterOutput(ctx context.Context, cluster *containerserv
 		return fmt.Errorf("unknown AKS network plugin %v", cluster.NetworkProfile.NetworkPlugin)
 	}
 
-	if cluster.Fqdn == nil {
+	switch {
+	case cluster.Fqdn != nil:
+		o.APIServer = *cluster.Fqdn
+	case len(o.fqdn) > 0:
+		o.APIServer = o.fqdn
+	default:
 		return fmt.Errorf("failed to retrieve cluster APIServer FQDN, is the cluster running?")
 	}
-	o.APIServer = *cluster.Fqdn
 
 	if cluster.Location != nil {
 		o.ClusterLabels[consts.TopologyRegionClusterLabel] = *cluster.Location
