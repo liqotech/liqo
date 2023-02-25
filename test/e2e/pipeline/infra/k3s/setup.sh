@@ -26,31 +26,8 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-# shellcheck disable=SC1091
-# shellcheck source=./helm-utils.sh
-source "${SCRIPT_DIR}/helm-utils.sh"
-
-download_helm
-
-function get_cluster_labels() {
-  case $1 in
-  1)
-  echo "provider=Azure,region=A"
-  ;;
-  2)
-  echo "provider=AWS,region=B"
-  ;;
-  3)
-  echo "provider=GKE,region=C"
-  ;;
-  4)
-  echo "provider=GKE,region=D"
-  ;;
-  esac
-}
-
-LIQO_VERSION="${LIQO_VERSION:-$(git rev-parse HEAD)}"
+CLUSTER_NAME=cluster
+K3D="${BINDIR}/k3d"
 
 export SERVICE_CIDR=10.100.0.0/16
 export POD_CIDR=10.200.0.0/16
@@ -58,23 +35,21 @@ export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
-  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  CLUSTER_LABELS="$(get_cluster_labels "${i}")"
-  if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
+	if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
 		# this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
-  COMMON_ARGS=(--cluster-name "liqo-${i}" --local-chart-path ./deployments/liqo
-    --version "${LIQO_VERSION}" --set controllerManager.config.enableResourceEnforcement=true)
-  if [[ "${CLUSTER_LABELS}" != "" ]]; then
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}" --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
-  fi
-
-  if [ "${i}" == "1" ]; then
-    # Install Liqo with Helm, to check that values generation works correctly.
-    "${LIQOCTL}" install "${INFRA}" "${COMMON_ARGS[@]}" --only-output-values --dump-values-path "${TMPDIR}/values.yaml"
-    "${HELM}" install -n "${NAMESPACE}" --create-namespace liqo ./deployments/liqo -f "${TMPDIR}/values.yaml"
-  else
-    "${LIQOCTL}" install "${INFRA}" "${COMMON_ARGS[@]}"
-  fi
-done;
+	echo "Creating cluster ${CLUSTER_NAME}${i}"
+  ${K3D} cluster create "${CLUSTER_NAME}${i}" \
+    --k3s-arg "--cluster-cidr=${POD_CIDR}@server:*" \
+    --k3s-arg "--service-cidr=${SERVICE_CIDR}@server:*" \
+    --no-lb \
+    --network k3d \
+    --verbose
+  ${K3D} node create "${CLUSTER_NAME}${i}-agent" \
+    --cluster "${CLUSTER_NAME}${i}" \
+    --role agent \
+    --verbose
+  ${K3D} kubeconfig write "${CLUSTER_NAME}${i}" \
+    --output "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+done
