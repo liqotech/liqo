@@ -26,7 +26,7 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-KIND_VERSION="v0.17.0"
+K3D_VERSION="v5.4.7"
 
 function setup_arch_and_os(){
   ARCH=$(uname -m)
@@ -48,11 +48,11 @@ function setup_arch_and_os(){
     "mingw"*) OS='windows'; return ;;
   esac
 
-  # list is available for kind at https://github.com/kubernetes-sigs/kind/releases
-  # kubectl supported architecture list is a superset of the Kind one. No need to further compatibility check.
-  local supported="darwin-amd64\n\nlinux-amd64\nlinux-arm64\nlinux-ppc64le\nwindows-amd64"
+  # list is available for k3d at https://github.com/k3d-io/k3d/releases
+  # kubectl supported architecture list is a superset of the K3D one. No need to further compatibility check.
+  local supported="darwin-amd64\n\nlinux-amd64\nlinux-arm64\nwindows-amd64"
   if ! echo "${supported}" | grep -q "${OS}-${ARCH}"; then
-    echo "Error: No version of kind for '${OS}-${ARCH}'"
+    echo "Error: No version of k3d for '${OS}-${ARCH}'"
     return 1
   fi
 
@@ -62,7 +62,7 @@ setup_arch_and_os
 
 
 
-echo "Downloading Kind ${KIND_VERSION}"
+echo "Downloading K3D ${K3D_VERSION}"
 
 if ! command -v docker &> /dev/null;
 then
@@ -81,8 +81,8 @@ then
     export PATH=${PATH}:${BINDIR}
 fi
 
-if [[ ! -f "${BINDIR}/kind" ]]; then
-    echo "kind could not be found. Downloading https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-${OS}-${ARCH} ..."
-	curl -Lo "${BINDIR}"/kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-${OS}-${ARCH}
-	chmod +x "${BINDIR}"/kind
+if [[ ! -f "${BINDIR}/k3d" ]]; then
+    echo "k3d could not be found. Downloading https://k3d.sigs.k8s.io/dl/${K3D_VERSION}/k3d-${OS}-${ARCH} ..."
+	curl -Lo "${BINDIR}"/k3d https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-${OS}-${ARCH}
+	chmod +x "${BINDIR}"/k3d
 fi

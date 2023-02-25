@@ -28,4 +28,6 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
 # Cleaning all remaining clusters
 
-kind delete clusters --all
+KIND="${BINDIR}/kind"
+
+${KIND} delete clusters --all
