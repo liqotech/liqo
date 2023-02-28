@@ -84,11 +84,15 @@
 | networkManager.config.podCIDR | string | `""` | The subnet used by the cluster for the pods, in CIDR notation |
 | networkManager.config.reservedSubnets | list | `[]` | Usually the IPs used for the pods in k8s clusters belong to private subnets. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
 | networkManager.config.serviceCIDR | string | `""` | The subnet used by the cluster for the services, in CIDR notation |
+| networkManager.externalIPAM.enabled | bool | `false` | Use an external IPAM to allocate the IP addresses for the pods |
+| networkManager.externalIPAM.url | string | `""` | The url of the external IPAM |
 | networkManager.imageName | string | `"ghcr.io/liqotech/liqonet"` | networkManager image repository |
 | networkManager.pod.annotations | object | `{}` | networkManager pod annotations |
 | networkManager.pod.extraArgs | list | `[]` | networkManager pod extra arguments |
 | networkManager.pod.labels | object | `{}` | networkManager pod labels |
 | networkManager.pod.resources | object | `{"limits":{},"requests":{}}` | networkManager pod containers' resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) |
+| networking.internal | bool | `true` | Use the default Liqo network manager |
+| networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters |
 | openshiftConfig.enable | bool | `false` | enable the OpenShift support |
 | openshiftConfig.virtualKubeletSCCs | list | `["anyuid"]` | the security context configurations granted to the virtual kubelet in the local cluster. The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments. Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when attempting to offload pods not managed by higher-level abstractions (e.g., Deployments), and not associated with a properly privileged service account. Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators. Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded. |
 | proxy.config.listeningPort | int | `8118` | port used by envoy proxy |

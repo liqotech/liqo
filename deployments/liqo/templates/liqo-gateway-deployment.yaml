@@ -1,6 +1,8 @@
 ---
 {{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking") .) -}}
 
+{{- if .Values.networking.internal }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -71,3 +73,5 @@ spec:
             - name: WIREGUARD_IMPLEMENTATION
               value: {{ .Values.gateway.config.wireguardImplementation }}
       hostNetwork: true
+
+{{- end }}

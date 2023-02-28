@@ -1,6 +1,8 @@
 ---
 {{- $routeConfig := (merge (dict "name" "route" "module" "networking") .) -}}
 
+{{- if .Values.networking.internal }}
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -62,4 +64,6 @@ metadata:
   - securitycontextconstraints
   verbs:
   - use
+{{- end }}
+
 {{- end }}

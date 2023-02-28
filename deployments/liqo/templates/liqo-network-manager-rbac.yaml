@@ -1,6 +1,8 @@
 ---
 {{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
 
+{{- if .Values.networking.internal }}
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -53,3 +55,5 @@ metadata:
   labels:
   {{- include "liqo.labels" $netManagerConfig | nindent 4 }}
 {{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $netManagerConfig))) }}
+
+{{- end }}

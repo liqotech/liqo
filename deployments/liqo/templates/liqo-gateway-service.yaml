@@ -1,6 +1,8 @@
 ---
 {{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking") .) -}}
 
+{{- if .Values.networking.internal }}
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -46,3 +48,5 @@ spec:
       port: {{ .Values.gateway.metrics.port }}
       targetPort: metrics
 {{- end}}
+
+{{- end }}

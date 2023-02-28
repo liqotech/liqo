@@ -1,3 +1,5 @@
+{{- if .Values.networking.internal }}
+
 ---
 {{- $gatewayMetricsConfig := (merge (dict "name" "gateway-metrics" "module" "networking") .) -}}
 {{- if .Values.gateway.metrics.serviceMonitor.enabled }}
@@ -17,3 +19,4 @@ spec:
     scrapeTimeout: {{ .Values.gateway.metrics.serviceMonitor.scrapeTimeout }}
 {{- end }}
 
+{{- end }}
