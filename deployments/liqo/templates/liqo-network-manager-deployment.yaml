@@ -1,6 +1,8 @@
 ---
 {{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
 
+{{- if .Values.networking.internal }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -57,3 +59,5 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
           resources: {{- toYaml .Values.networkManager.pod.resources | nindent 12 }}
+
+{{- end }}

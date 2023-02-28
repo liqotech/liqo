@@ -12,6 +12,12 @@ apiServer:
   # -- Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority
   trustedCA: false
 
+networking:
+  # -- Use the default Liqo network manager
+  internal: true
+  # -- Reflect pod IPs and EnpointSlices to the remote clusters
+  reflectIPs: true
+
 controllerManager:
   # -- The number of controller-manager instances to run, which can be increased for active/passive high availability.
   replicas: 1
@@ -108,6 +114,11 @@ gateway:
       scrapeTimeout: ""
 
 networkManager:
+  externalIPAM:
+    # -- Use an external IPAM to allocate the IP addresses for the pods
+    enabled: false
+    # -- The url of the external IPAM
+    url: ""
   pod:
     # -- networkManager pod annotations
     annotations: {}

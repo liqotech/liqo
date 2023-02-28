@@ -1,6 +1,8 @@
 ---
 {{- $routeConfig := (merge (dict "name" "route" "module" "networking") .) -}}
 
+{{- if .Values.networking.internal }}
+
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -71,3 +73,5 @@ spec:
             path: /run/xtables.lock
             type: FileOrCreate
           name: xtables-lock
+
+{{- end }}
