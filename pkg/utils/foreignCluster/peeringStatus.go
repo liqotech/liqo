@@ -71,3 +71,14 @@ func IsNetworkingEstablished(foreignCluster *discoveryv1alpha1.ForeignCluster) b
 	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.NetworkStatusCondition)
 	return curPhase == discoveryv1alpha1.PeeringConditionStatusEstablished
 }
+
+// IsNetworkingExternal checks if the external network plugin is enabled.
+func IsNetworkingExternal(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.NetworkStatusCondition)
+	return curPhase == discoveryv1alpha1.PeeringConditionStatusExternal
+}
+
+// IsNetworkingEstablishedOrExternal checks if the networking has be established or if the external network plugin is enabled.
+func IsNetworkingEstablishedOrExternal(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	return IsNetworkingEstablished(foreignCluster) || IsNetworkingExternal(foreignCluster)
+}

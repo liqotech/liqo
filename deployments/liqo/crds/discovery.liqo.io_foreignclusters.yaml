@@ -160,6 +160,7 @@ spec:
                       - EmptyDenied
                       - Error
                       - Success
+                      - External
                       type: string
                     type:
                       description: Type of the peering condition.

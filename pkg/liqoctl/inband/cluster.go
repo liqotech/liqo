@@ -41,6 +41,7 @@ import (
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/util"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -131,6 +132,16 @@ func (c *Cluster) Init(ctx context.Context) error {
 
 	// Get network configuration.
 	s = c.local.Printer.StartSpinner("retrieving network configuration")
+	clusterArgs, err := util.RetrieveLiqoControllerManagerDeploymentArgs(ctx, c.local.CRClient, c.local.LiqoNamespace)
+	if err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while retrieving Liqo controller manager deployment args: %v", output.PrettyErr(err)))
+		return err
+	}
+	if hasExternalNetworkFlag(clusterArgs) {
+		err = fmt.Errorf("cluster network is not managed by Liqo, cannot perform in-band peering")
+		s.Fail(err)
+		return err
+	}
 	selector, err = metav1.LabelSelectorAsSelector(&liqolabels.IPAMStorageLabelSelector)
 	if err != nil {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
@@ -893,4 +904,13 @@ func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discovery
 	s.Success(fmt.Sprintf("peering correctly disabled for remote cluster %q", remName))
 
 	return nil
+}
+
+func hasExternalNetworkFlag(flags []string) bool {
+	for _, flag := range flags {
+		if flag == "--disable-internal-network" || flag == "--disable-internal-network=true" {
+			return true
+		}
+	}
+	return false
 }
