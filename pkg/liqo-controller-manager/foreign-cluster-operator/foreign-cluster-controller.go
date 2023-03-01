@@ -77,6 +77,9 @@ const (
 	tunnelEndpointConnectingReason  = "TunnelEndpointConnecting"
 	tunnelEndpointConnectingMessage = "The TunnelEndpoint has been successfully found in the Tenant Namespace %v, but it is not connected yet"
 
+	externalNetworkReason  = "ExternalNetwork"
+	externalNetworkMessage = "The remote cluster network connection is not managed by Liqo"
+
 	tunnelEndpointErrorReason = "TunnelEndpointError"
 )
 
@@ -87,9 +90,10 @@ type ForeignClusterReconciler struct {
 
 	LiqoNamespace string
 
-	ResyncPeriod time.Duration
-	HomeCluster  discoveryv1alpha1.ClusterIdentity
-	AutoJoin     bool
+	ResyncPeriod           time.Duration
+	HomeCluster            discoveryv1alpha1.ClusterIdentity
+	AutoJoin               bool
+	DisableInternalNetwork bool
 
 	NamespaceManager tenantnamespace.Manager
 	IdentityManager  identitymanager.IdentityManager
@@ -483,6 +487,13 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 
 func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
+	if r.DisableInternalNetwork {
+		peeringconditionsutils.EnsureStatus(foreignCluster,
+			discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusExternal,
+			externalNetworkReason, externalNetworkMessage)
+		return nil
+	}
+
 	var tepList netv1alpha1.TunnelEndpointList
 	if err := r.Client.List(ctx, &tepList, client.MatchingLabels{
 		liqoconst.ClusterIDLabelName: foreignCluster.Spec.ClusterIdentity.ClusterID,

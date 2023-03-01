@@ -116,6 +116,7 @@ func main() {
 		"Name of the namespace where the liqo components are running")
 	foreignClusterWorkers := flag.Uint("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
 	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
+	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
 
 	// Discovery parameters
 	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
@@ -240,9 +241,10 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		LiqoNamespace: *liqoNamespace,
 
-		ResyncPeriod: *resyncPeriod,
-		HomeCluster:  clusterIdentity,
-		AutoJoin:     *autoJoin,
+		ResyncPeriod:           *resyncPeriod,
+		HomeCluster:            clusterIdentity,
+		AutoJoin:               *autoJoin,
+		DisableInternalNetwork: *disableInternalNetwork,
 
 		NamespaceManager:  namespaceManager,
 		IdentityManager:   idManager,
