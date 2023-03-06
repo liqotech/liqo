@@ -67,7 +67,10 @@ do
   COMMON_ARGS=(--cluster-name "liqo-${i}" --local-chart-path ./deployments/liqo
     --version "${LIQO_VERSION}" --set controllerManager.config.enableResourceEnforcement=true)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}" --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
+  fi
+  if [[ "${INFRA}" == "k3s" ]]; then
+    COMMON_ARGS=("${COMMON_ARGS[@]}"  --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
   fi
 
   if [ "${i}" == "1" ]; then
