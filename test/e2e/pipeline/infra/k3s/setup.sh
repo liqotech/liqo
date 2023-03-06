@@ -27,7 +27,6 @@ error() {
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
 CLUSTER_NAME=cluster
-K3D="${BINDIR}/k3d"
 
 export SERVICE_CIDR=10.100.0.0/16
 export POD_CIDR=10.200.0.0/16

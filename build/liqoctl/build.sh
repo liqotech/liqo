@@ -13,8 +13,8 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
 GO_VERSION="1.19"
 
-docker run -v "$PWD:/liqo" -w /liqo --rm "golang:${GO_VERSION}" \
+docker run -v "$PWD:/liqo" -w /liqo -e="CGO_ENABLED=${CGO_ENABLED}" --rm "golang:${GO_VERSION}" \
    go build -o "./liqoctl-${GOOS}-${GOARCH}" \
-   -e="CGO_ENABLED=${CGO_ENABLED}" \
-   -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=aaaa'" \
+   -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=${LIQOCTLVERSION}'" \
+   -buildvcs=false \
    ./cmd/liqoctl

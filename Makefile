@@ -29,9 +29,10 @@ unit: test-container
 
 BINDIR?=.
 TARGET?=kind
+CGO_ENABLED?=0
 ctl:
 	$(eval GIT_COMMIT=$(shell git rev-parse HEAD 2>/dev/null || echo "unknown"))
-	go build -o ${BINDIR} -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=$(GIT_COMMIT)'" ./cmd/liqoctl
+	go build -o ${BINDIR} -buildvcs=false -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=$(GIT_COMMIT)'" ./cmd/liqoctl
 
 # Install LIQO into a cluster
 install: manifests ctl
@@ -209,7 +210,7 @@ E2E_TARGETS = e2e-dir \
 # Export these variables before to run the e2e tests
 
 # export CLUSTER_NUMBER=2
-# export K8S_VERSION=v1.21.1
+# export K8S_VERSION=v1.25.0
 # export CNI=kindnet
 # export TMPDIR=$(mktemp -d)
 # export BINDIR=${TMPDIR}/bin
