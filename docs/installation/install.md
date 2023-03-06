@@ -217,7 +217,7 @@ gcloud projects add-iam-policy-binding ${GKE_PROJECT_ID} \
     --role="roles/compute.networkViewer"
 ```
 
-Fourth, you should create and download a set of valid service accounts keys, as presented by the [official documentation](https://cloud.google.com/iam/docs/creating-managing-service-account-keys#creating_service_account_keys).
+Fourth, you should create and download a set of valid service accounts keys, as presented by the [official documentation](https://cloud.google.com/iam/docs/keys-create-delete?hl=it#creating).
 The keys will be used by liqoctl to authenticate to GCP:
 
 ```bash
