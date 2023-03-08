@@ -152,7 +152,11 @@ func (m *LocalResourceMonitor) onNodeDelete(obj interface{}) {
 
 func (m *LocalResourceMonitor) onPodAdd(obj interface{}) {
 	// Thanks to the filters at the informer level, add events are received only when pods running on physical nodes turn running.
-	podAdded := obj.(*corev1.Pod)
+	podAdded, ok := obj.(*corev1.Pod)
+	if !ok {
+		klog.Error("OnPodAdd: Failed to cast to *corev1.Pod type")
+		return
+	}
 	klog.V(5).Infof("OnPodAdd: Add for pod %s:%s", podAdded.Namespace, podAdded.Name)
 
 	podResources := extractPodResources(podAdded)
@@ -173,7 +177,11 @@ func (m *LocalResourceMonitor) onPodAdd(obj interface{}) {
 func (m *LocalResourceMonitor) onPodDelete(obj interface{}) {
 	// Thanks to the filters at the informer level, delete events are received only when
 	// pods previously running on a physical node are no longer running.
-	podDeleted := obj.(*corev1.Pod)
+	podDeleted, ok := obj.(*corev1.Pod)
+	if !ok {
+		klog.Errorf("OnPodDelete: Failed to cast to *corev1.Pod type")
+		return
+	}
 	klog.V(5).Infof("OnPodDelete: Delete for pod %s:%s", podDeleted.Namespace, podDeleted.Name)
 
 	podResources := extractPodResources(podDeleted)
