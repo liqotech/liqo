@@ -5,7 +5,7 @@ ARG VERSION=0.5.2
 RUN cargo install --version $VERSION boringtun-cli
 
 
-FROM golang:1.20 as goBuilder
+FROM golang:1.19 as goBuilder
 WORKDIR /tmp/builder
 
 COPY go.mod ./go.mod
