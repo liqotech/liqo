@@ -21,6 +21,7 @@ import (
 	"github.com/pterm/pterm"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/util"
 )
 
 // Options encapsulates the arguments of the status command.
@@ -28,10 +29,15 @@ type Options struct {
 	Verbose  bool
 	Checkers []Checker
 	*factory.Factory
+	InternalNetworkEnabled bool
 }
 
 // Run implements the logic of the status command.
 func (o *Options) Run(ctx context.Context) error {
+	if err := o.SetInternalNetworkEnabled(ctx); err != nil {
+		return err
+	}
+
 	for i, checker := range o.Checkers {
 		checker.Collect(ctx)
 		text := checker.Format()
@@ -48,6 +54,22 @@ func (o *Options) Run(ctx context.Context) error {
 		if i != len(o.Checkers)-1 && !checker.Silent() {
 			pterm.Println()
 		}
+	}
+	return nil
+}
+
+// SetInternalNetworkEnabled sets the internal network enabled flag.
+func (o *Options) SetInternalNetworkEnabled(ctx context.Context) error {
+	var ctrlargs []string
+	ctrlargs, err := liqoctlutil.RetrieveLiqoControllerManagerDeploymentArgs(ctx, o.CRClient, o.LiqoNamespace)
+	if err != nil {
+		return err
+	}
+	_, err = liqoctlutil.ExtractValuesFromArgumentList("--disable-internal-network", ctrlargs)
+	if err != nil {
+		o.InternalNetworkEnabled = true
+	} else {
+		o.InternalNetworkEnabled = false
 	}
 	return nil
 }

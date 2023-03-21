@@ -94,8 +94,8 @@ var _ = Describe("Liqo E2E", func() {
 				args, err := liqoctlutil.RetrieveLiqoControllerManagerDeploymentArgs(ctx, cluster.ControllerClient, "liqo")
 				Expect(err).ToNot(HaveOccurred())
 
-				val, err := liqoctlutil.ExtractValueFromArgumentList("--cluster-labels", args)
-				Expect(err).ToNot(HaveOccurred())
+				val, ok := liqoctlutil.ExtractValuesFromArgumentList("--cluster-labels", args)
+				Expect(ok).To(BeTrue())
 
 				labels := argsutils.StringMap{}
 				Expect(labels.Set(val)).To(Succeed())

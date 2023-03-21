@@ -170,6 +170,7 @@ var _ = Describe("Pods", func() {
 		BeforeEach(func() {
 			options.LiqoNamespace = namespace
 			options.Printer = printer
+			options.InternalNetworkEnabled = true
 			pod = &v1.Pod{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Pod",
@@ -226,14 +227,22 @@ var _ = Describe("Pods", func() {
 			}
 		})
 
-		Describe("creating a new podChecker", func() {
-			It("should hold the passed parameters during the creation", func() {
-				pc := NewPodChecker(options)
-				Expect(pc.daemonSets).To(Equal(liqoDaemonSets))
+		DescribeTable("creating a new podChecker", func(internalNetworkEnabled bool) {
+			options.InternalNetworkEnabled = internalNetworkEnabled
+			pc := NewPodChecker(options)
+			if internalNetworkEnabled {
+				Expect(pc.daemonSets).To(Equal(liqoDaemonSetsNetwork))
+			}
+			if internalNetworkEnabled {
+				Expect(pc.deployments).To(Equal(append(liqoDeployments, liqoDeploymentsNetwork...)))
+			} else {
 				Expect(pc.deployments).To(Equal(liqoDeployments))
-				Expect(pc.errors).To(BeFalse())
-			})
-		})
+			}
+			Expect(pc.errors).To(BeFalse())
+		},
+			Entry("Internal Network enabled", true),
+			Entry("Internal Network disabled", false),
+		)
 
 		Describe("Collect() function", func() {
 			Context("collecting deployment apps", func() {

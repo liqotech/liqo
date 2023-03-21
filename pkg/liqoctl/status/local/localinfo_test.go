@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pterm/pterm"
+	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -28,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -51,7 +53,6 @@ var _ = Describe("LocalInfo", func() {
 		baseObjects       = []client.Object{
 			testutil.FakeNode(),
 			testutil.FakeClusterIDConfigMap(liqoconsts.DefaultLiqoNamespace, clusterID, clusterName),
-			testutil.FakeIPAM(liqoconsts.DefaultLiqoNamespace),
 		}
 	)
 
@@ -78,29 +79,43 @@ var _ = Describe("LocalInfo", func() {
 		})
 	})
 
+	type TestArgsNet struct {
+		InternalNetworkEnabled, apiServerOverride bool
+		endpointServiceType                       corev1.ServiceType
+	}
+
 	type TestArgs struct {
-		clusterLabels, apiServerOverride bool
-		endpointServiceType              corev1.ServiceType
+		clusterLabels bool
+		net           TestArgsNet
 	}
 
 	DescribeTable("Collecting and Formatting LocalInfoChecker", func(args TestArgs) {
 		objects := append([]client.Object{}, baseObjects...)
+
+		var fakectrlman *appv1.Deployment
 		if args.clusterLabels {
-			objects = append(objects, testutil.FakeControllerManagerDeployment(argsClusterLabels))
+			fakectrlman = testutil.FakeControllerManagerDeployment(argsClusterLabels, args.net.InternalNetworkEnabled)
 		} else {
-			objects = append(objects, testutil.FakeControllerManagerDeployment(nil))
+			fakectrlman = testutil.FakeControllerManagerDeployment(nil, args.net.InternalNetworkEnabled)
 		}
-		if args.apiServerOverride {
+		objects = append(objects, fakectrlman)
+
+		if args.net.apiServerOverride {
 			objects = append(objects, testutil.FakeLiqoAuthDeployment(testutil.OverrideAPIAddress))
 		} else {
 			objects = append(objects, testutil.FakeLiqoAuthDeployment(""))
 		}
 		objects = append(objects,
-			testutil.FakeLiqoAuthService(args.endpointServiceType),
-			testutil.FakeLiqoGatewayService(args.endpointServiceType),
+			testutil.FakeLiqoAuthService(args.net.endpointServiceType),
 		)
+		if args.net.InternalNetworkEnabled {
+			objects = append(objects,
+				testutil.FakeLiqoGatewayService(args.net.endpointServiceType),
+				testutil.FakeIPAM(liqoconsts.DefaultLiqoNamespace))
+		}
 
 		clientBuilder.WithObjects(objects...)
+		options.InternalNetworkEnabled = args.net.InternalNetworkEnabled
 		options.CRClient = clientBuilder.Build()
 		options.LiqoNamespace = liqoconsts.DefaultLiqoNamespace
 		lic = NewLocalInfoChecker(&options)
@@ -122,26 +137,29 @@ var _ = Describe("LocalInfo", func() {
 				Expect(text).To(ContainSubstring(v))
 			}
 		}
-		Expect(text).To(ContainSubstring(
-			pterm.Sprintf("Pod CIDR: %s", testutil.PodCIDR),
-		))
-		Expect(text).To(ContainSubstring(
-			pterm.Sprintf("Service CIDR: %s", testutil.ServiceCIDR),
-		))
-		Expect(text).To(ContainSubstring(
-			pterm.Sprintf("External CIDR: %s", testutil.ExternalCIDR),
-		))
-		for _, v := range testutil.ReservedSubnets {
-			Expect(text).To(ContainSubstring(v))
+		if args.net.InternalNetworkEnabled {
+			Expect(text).To(ContainSubstring(
+				pterm.Sprintf("Pod CIDR: %s", testutil.PodCIDR),
+			))
+			Expect(text).To(ContainSubstring(
+				pterm.Sprintf("Service CIDR: %s", testutil.ServiceCIDR),
+			))
+			Expect(text).To(ContainSubstring(
+				pterm.Sprintf("External CIDR: %s", testutil.ExternalCIDR),
+			))
+			for _, v := range testutil.ReservedSubnets {
+				Expect(text).To(ContainSubstring(v))
+			}
+			Expect(text).To(ContainSubstring(
+				pterm.Sprintf("VPN Gateway: udp://%s:%d", testutil.EndpointIP, testutil.VPNGatewayPort),
+			))
+		} else {
+			Expect(text).To(ContainSubstring(pterm.Sprintf("Status: %s", discoveryv1alpha1.PeeringConditionStatusExternal)))
 		}
-
-		Expect(text).To(ContainSubstring(
-			pterm.Sprintf("VPN Gateway: udp://%s:%d", testutil.EndpointIP, testutil.VPNGatewayPort),
-		))
 		Expect(text).To(ContainSubstring(
 			pterm.Sprintf("Authentication: https://%s:%d", testutil.EndpointIP, testutil.AuthenticationPort),
 		))
-		if args.apiServerOverride {
+		if args.net.apiServerOverride {
 			Expect(text).To(ContainSubstring(
 				pterm.Sprintf("Kubernetes API Server: %s", fmt.Sprintf("https://%v", testutil.OverrideAPIAddress)),
 			))
@@ -153,20 +171,102 @@ var _ = Describe("LocalInfo", func() {
 
 	},
 		Entry("Standard case with NodePort",
-			TestArgs{false, false, corev1.ServiceTypeNodePort}),
+			TestArgs{false, TestArgsNet{
+				InternalNetworkEnabled: true,
+				apiServerOverride:      false,
+				endpointServiceType:    corev1.ServiceTypeNodePort,
+			}}),
 		Entry("Standard case with LoadBalancer",
-			TestArgs{false, false, corev1.ServiceTypeLoadBalancer}),
+			TestArgs{false, TestArgsNet{
+				InternalNetworkEnabled: true,
+				apiServerOverride:      false,
+				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+			}}),
 		Entry("Cluster Labels with NodePort",
-			TestArgs{true, false, corev1.ServiceTypeNodePort}),
+			TestArgs{true, TestArgsNet{
+				InternalNetworkEnabled: true,
+				apiServerOverride:      false,
+				endpointServiceType:    corev1.ServiceTypeNodePort,
+			}}),
+
 		Entry("Cluster Labels with LoadBalancer",
-			TestArgs{true, false, corev1.ServiceTypeLoadBalancer}),
+			TestArgs{true, TestArgsNet{
+				InternalNetworkEnabled: true,
+				apiServerOverride:      false,
+				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+			}}),
 		Entry("API Server Override with NodePort",
-			TestArgs{false, true, corev1.ServiceTypeNodePort}),
+			TestArgs{false, TestArgsNet{
+				InternalNetworkEnabled: true,
+				apiServerOverride:      true,
+				endpointServiceType:    corev1.ServiceTypeNodePort,
+			}}),
 		Entry("API Server Override with LoadBalancer",
-			TestArgs{false, true, corev1.ServiceTypeLoadBalancer}),
+			TestArgs{false, TestArgsNet{
+				InternalNetworkEnabled: true,
+				apiServerOverride:      true,
+				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+			}}),
 		Entry("Cluster Labels and API Server Override with NodePort",
-			TestArgs{true, true, corev1.ServiceTypeNodePort}),
+			TestArgs{true, TestArgsNet{
+				InternalNetworkEnabled: true,
+				apiServerOverride:      true,
+				endpointServiceType:    corev1.ServiceTypeNodePort,
+			}}),
 		Entry("Cluster Labels and API Server Override with LoadBalancer",
-			TestArgs{true, true, corev1.ServiceTypeLoadBalancer}),
+			TestArgs{true, TestArgsNet{
+				InternalNetworkEnabled: true,
+				apiServerOverride:      true,
+				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+			}}),
+		Entry("Standard case with NodePort (Internal network Disabled)",
+			TestArgs{false, TestArgsNet{
+				InternalNetworkEnabled: false,
+				apiServerOverride:      false,
+				endpointServiceType:    corev1.ServiceTypeNodePort,
+			}}),
+		Entry("Standard case with LoadBalancer (Internal network Disabled)",
+			TestArgs{false, TestArgsNet{
+				InternalNetworkEnabled: false,
+				apiServerOverride:      false,
+				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+			}}),
+		Entry("Cluster Labels with NodePort (Internal network Disabled)",
+			TestArgs{true, TestArgsNet{
+				InternalNetworkEnabled: false,
+				apiServerOverride:      false,
+				endpointServiceType:    corev1.ServiceTypeNodePort,
+			}}),
+
+		Entry("Cluster Labels with LoadBalancer (Internal network Disabled)",
+			TestArgs{true, TestArgsNet{
+				InternalNetworkEnabled: false,
+				apiServerOverride:      false,
+				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+			}}),
+		Entry("API Server Override with NodePort (Internal network Disabled)",
+			TestArgs{false, TestArgsNet{
+				InternalNetworkEnabled: false,
+				apiServerOverride:      true,
+				endpointServiceType:    corev1.ServiceTypeNodePort,
+			}}),
+		Entry("API Server Override with LoadBalancer (Internal network Disabled)",
+			TestArgs{false, TestArgsNet{
+				InternalNetworkEnabled: false,
+				apiServerOverride:      true,
+				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+			}}),
+		Entry("Cluster Labels and API Server Override with NodePort (Internal network Disabled)",
+			TestArgs{true, TestArgsNet{
+				InternalNetworkEnabled: false,
+				apiServerOverride:      true,
+				endpointServiceType:    corev1.ServiceTypeNodePort,
+			}}),
+		Entry("Cluster Labels and API Server Override with LoadBalancer (Internal network Disabled)",
+			TestArgs{true, TestArgsNet{
+				InternalNetworkEnabled: false,
+				apiServerOverride:      true,
+				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+			}}),
 	)
 })

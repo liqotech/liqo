@@ -67,20 +67,25 @@ func RetrieveLiqoAuthDeploymentArgs(ctx context.Context, cl client.Client, names
 	return containers[0].Args, nil
 }
 
-// ExtractValueFromArgumentList extracts the argument value from an argument list.
-func ExtractValueFromArgumentList(key string, argumentList []string) (string, error) {
+// ExtractValuesFromArgumentList extracts the argument value from an argument list.
+// When the argument is found, ok is true and the value is returned.
+// When the argument is found but no value is provided, ok is true and an empty string is returned.
+// When the argument is not found, ok is false and the value is an empty string.
+func ExtractValuesFromArgumentList(key string, argumentList []string) (values string, err error) {
 	prefix := key + "="
 	for _, argument := range argumentList {
 		if strings.HasPrefix(argument, prefix) {
 			return strings.Join(strings.Split(argument, "=")[1:], "="), nil
+		} else if key == argument {
+			return "", nil
 		}
 	}
-	return "", fmt.Errorf("argument not found")
+	return "", fmt.Errorf("argument %s not found", key)
 }
 
 // ExtractValuesFromArgumentListOrDefault extracts the argument value from an argument list or returns a default value.
 func ExtractValuesFromArgumentListOrDefault(key string, argumentList []string, defaultValue string) string {
-	value, err := ExtractValueFromArgumentList(key, argumentList)
+	value, err := ExtractValuesFromArgumentList(key, argumentList)
 	if err != nil {
 		return defaultValue
 	}
