@@ -86,12 +86,6 @@ func (pic *PeerInfoChecker) Collect(ctx context.Context) {
 		return
 	}
 
-	vpnLocalEndpointAddress, err := pic.getVpnEndpointLocalAddress(ctx)
-	if err != nil {
-		pic.addCollectionError(fmt.Errorf("unable to get local VPN endpoint address: %w", err))
-		return
-	}
-
 	for i := range foreignClusterListSelected.Items {
 		fc := &foreignClusterListSelected.Items[i]
 		remoteClusterName := fc.Spec.ClusterIdentity.ClusterName
@@ -111,7 +105,7 @@ func (pic *PeerInfoChecker) Collect(ctx context.Context) {
 
 		pic.addAuthSection(clusterSection, fc)
 
-		err = pic.addNetworkSection(ctx, clusterSection, fc, localClusterName, vpnLocalEndpointAddress)
+		err = pic.addNetworkSection(ctx, clusterSection, fc, localClusterName)
 		if err != nil {
 			pic.addCollectionError(fmt.Errorf("unable to get network info for cluster %q: %w", remoteClusterName, err))
 		}
@@ -172,10 +166,13 @@ func (pic *PeerInfoChecker) addAuthSection(rootSection output.Section, foreignCl
 
 // addNetworkSection adds a section about the network configuration.
 func (pic *PeerInfoChecker) addNetworkSection(ctx context.Context, rootSection output.Section,
-	foreignCluster *discoveryv1alpha1.ForeignCluster, localClusterName, vpnLocalEndpointAddress string) error {
+	foreignCluster *discoveryv1alpha1.ForeignCluster, localClusterName string) error {
 	networkSection := rootSection.AddSection("Network")
 	networkStatus := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.NetworkStatusCondition)
 	networkSection.AddEntry("Status", string(networkStatus))
+	if !pic.options.InternalNetworkEnabled {
+		return nil
+	}
 	var localFound, remoteFound bool
 	if pic.options.Verbose {
 		networkConfigs, err := liqogetters.ListNetworkConfigsByLabel(ctx, pic.options.CRClient,
@@ -228,10 +225,10 @@ func (pic *PeerInfoChecker) addNetworkSection(ctx context.Context, rootSection o
 		}
 	}
 	return pic.addVpnSection(ctx, networkSection, foreignCluster.Spec.ClusterIdentity,
-		foreignCluster.Status.TenantNamespace.Local, vpnLocalEndpointAddress)
+		foreignCluster.Status.TenantNamespace.Local)
 }
 
-func (pic *PeerInfoChecker) getVpnEndpointLocalAddress(ctx context.Context) (address string, err error) {
+func (pic *PeerInfoChecker) getVpnEndpointFromService(ctx context.Context) (address string, err error) {
 	gwSvcSelector, err := metav1.LabelSelectorAsSelector(&liqolabels.GatewayServiceLabelSelector)
 	if err != nil {
 		return "", err
@@ -250,26 +247,29 @@ func (pic *PeerInfoChecker) getVpnEndpointLocalAddress(ctx context.Context) (add
 
 // addVpnSection adds a section about the VPN configuration.
 func (pic *PeerInfoChecker) addVpnSection(ctx context.Context, rootSection output.Section,
-	remoteClusterIdentity discoveryv1alpha1.ClusterIdentity, tenantNamespace, vpnEndpointLocalEnpointAddress string) error {
+	remoteClusterIdentity discoveryv1alpha1.ClusterIdentity, tenantNamespace string) error {
+	var err error
+	vpnEndpointFromService, err := pic.getVpnEndpointFromService(ctx)
+	if err != nil {
+		pic.addCollectionError(fmt.Errorf("unable to get local network endpoint address: %w", err))
+		return err
+	}
 	te, err := liqogetters.GetTunnelEndpoint(ctx, pic.options.CRClient, &remoteClusterIdentity, tenantNamespace)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			rootSection.AddSectionWithDetail("VPN Connection", TunnelEndpointNotFoundMsg)
+			rootSection.AddSectionWithDetail("Network Connection", TunnelEndpointNotFoundMsg)
 			return nil
 		}
 		return err
 	}
-	tunnelEndpointSection := rootSection.AddSection("VPN Connection")
+	tunnelEndpointSection := rootSection.AddSection("Network Connection")
 	vpnEndpointSection := tunnelEndpointSection.AddSection("Gateway IPs")
-	vpnEndpointSection.AddEntry("Local", vpnEndpointLocalEnpointAddress)
+	vpnEndpointSection.AddEntry("Local", vpnEndpointFromService)
 	vpnEndpointSection.AddEntry("Remote", fmt.Sprintf("%s:%s",
 		te.Status.Connection.PeerConfiguration[liqoconsts.WgEndpointIP],
 		te.Status.Connection.PeerConfiguration[liqoconsts.ListeningPort],
 	))
-	tunnelEndpointSection.AddEntry("Status", fmt.Sprintf("%s - %s",
-		string(te.Status.Connection.Status),
-		te.Status.Connection.StatusMessage),
-	)
+	tunnelEndpointSection.AddEntry("Status", string(te.Status.Connection.Status))
 	tunnelEndpointSection.AddEntry("Latency", te.Status.Connection.Latency.Value)
 	return nil
 }
