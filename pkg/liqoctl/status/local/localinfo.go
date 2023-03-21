@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/status"
@@ -73,8 +74,8 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 	if err != nil {
 		lic.addCollectionError(fmt.Errorf("unable to get Liqo Controller Manager Deployment Args: %w", err))
 	} else {
-		clusterLabelsArg, err := liqoctlutils.ExtractValueFromArgumentList("--cluster-labels", ctrlargs)
-		if err == nil { // error is not returned because --cluster-labels is an optional argument.
+		clusterLabelsArg, err := liqoctlutils.ExtractValuesFromArgumentList("--cluster-labels", ctrlargs)
+		if err == nil {
 			clusterLabels, err := liqoctlutils.ParseArgsMultipleValues(clusterLabelsArg, ",")
 			if err != nil {
 				lic.addCollectionError(fmt.Errorf("unable to get cluster labels: %w", err))
@@ -87,15 +88,20 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 	}
 
 	networkSection := lic.localInfoSection.AddSection("Network")
-	ipamStorage, err := liqogetters.GetIPAMStorageByLabel(ctx, lic.options.CRClient, labels.NewSelector())
-	if err != nil {
-		lic.addCollectionError(fmt.Errorf("unable to get ipam storage: %w", err))
+
+	if !lic.options.InternalNetworkEnabled {
+		networkSection.AddEntry("Status", string(discoveryv1alpha1.PeeringConditionStatusExternal))
 	} else {
-		networkSection.AddEntry("Pod CIDR", ipamStorage.Spec.PodCIDR)
-		networkSection.AddEntry("Service CIDR", ipamStorage.Spec.ServiceCIDR)
-		networkSection.AddEntry("External CIDR", ipamStorage.Spec.ExternalCIDR)
-		if len(ipamStorage.Spec.ReservedSubnets) != 0 {
-			networkSection.AddEntry("Reserved Subnets", ipamStorage.Spec.ReservedSubnets...)
+		ipamStorage, err := liqogetters.GetIPAMStorageByLabel(ctx, lic.options.CRClient, labels.NewSelector())
+		if err != nil {
+			lic.addCollectionError(fmt.Errorf("unable to get ipam storage: %w", err))
+		} else {
+			networkSection.AddEntry("Pod CIDR", ipamStorage.Spec.PodCIDR)
+			networkSection.AddEntry("Service CIDR", ipamStorage.Spec.ServiceCIDR)
+			networkSection.AddEntry("External CIDR", ipamStorage.Spec.ExternalCIDR)
+			if len(ipamStorage.Spec.ReservedSubnets) != 0 {
+				networkSection.AddEntry("Reserved Subnets", ipamStorage.Spec.ReservedSubnets...)
+			}
 		}
 	}
 
@@ -159,11 +165,13 @@ func (lic *LocalInfoChecker) addEndpointsSection(ctx context.Context) error {
 	var err error
 	endpointsSection := lic.localInfoSection.AddSection("Endpoints")
 
-	var ep string
-	if ep, err = lic.getVpnEndpointLocalAddress(ctx); err != nil {
-		return fmt.Errorf("unable to get vpn endpoint local address: %w", err)
+	if lic.options.InternalNetworkEnabled {
+		var ep string
+		if ep, err = lic.getVpnEndpointLocalAddress(ctx); err != nil {
+			return fmt.Errorf("unable to get vpn endpoint local address: %w", err)
+		}
+		endpointsSection.AddEntry("VPN Gateway", ep)
 	}
-	endpointsSection.AddEntry("VPN Gateway", ep)
 
 	var aurl string
 	if aurl, err = foreigncluster.GetHomeAuthURL(ctx, lic.options.CRClient, lic.options.LiqoNamespace); err != nil {
@@ -176,7 +184,7 @@ func (lic *LocalInfoChecker) addEndpointsSection(ctx context.Context) error {
 		return fmt.Errorf("unable to get Liqo Auth Deployment Args: %w", err)
 	}
 	// ExtractvalueFromArgumentList errors are not handled because GetURL is able to handle void values.
-	apiServerAddressArg, _ := liqoctlutils.ExtractValueFromArgumentList("--advertise-api-server-address", authargs)
+	apiServerAddressArg, _ := liqoctlutils.ExtractValuesFromArgumentList("--advertise-api-server-address", authargs)
 	apiServerAddress, err := apiserver.GetURL(apiServerAddressArg, lic.options.KubeClient)
 	if err != nil {
 		return fmt.Errorf("unable to get api server address: %w", err)

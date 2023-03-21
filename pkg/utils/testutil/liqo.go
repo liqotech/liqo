@@ -62,10 +62,13 @@ func FakeLiqoGatewayService(serviceType corev1.ServiceType) *corev1.Service {
 }
 
 // FakeControllerManagerDeployment returns a fake liqo-controller-manager deployment.
-func FakeControllerManagerDeployment(argsClusterLabels []string) *appv1.Deployment {
+func FakeControllerManagerDeployment(argsClusterLabels []string, networkEnabled bool) *appv1.Deployment {
 	containerArgs := []string{}
 	if len(argsClusterLabels) != 0 {
 		containerArgs = append(containerArgs, "--cluster-labels="+strings.Join(argsClusterLabels, ","))
+	}
+	if !networkEnabled {
+		containerArgs = append(containerArgs, "--disable-internal-network")
 	}
 	return &appv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

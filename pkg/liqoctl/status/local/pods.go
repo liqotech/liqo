@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/utils/strings/slices"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/status"
@@ -36,14 +37,16 @@ const (
 var (
 	liqoDeployments = []string{
 		"liqo-controller-manager",
-		"liqo-network-manager",
 		"liqo-crd-replicator",
 		"liqo-metric-agent",
-		"liqo-gateway",
 		"liqo-auth",
 		"liqo-proxy",
 	}
-	liqoDaemonSets = []string{
+	liqoDeploymentsNetwork = []string{
+		"liqo-network-manager",
+		"liqo-gateway",
+	}
+	liqoDaemonSetsNetwork = []string{
 		"liqo-route",
 	}
 )
@@ -181,10 +184,17 @@ type PodChecker struct {
 
 // NewPodChecker return a new pod checker.
 func NewPodChecker(options *status.Options) *PodChecker {
+	var deployments, daemonSets []string
+	deployments = slices.Clone(liqoDeployments)
+	if options.InternalNetworkEnabled {
+		deployments = append(deployments, liqoDeploymentsNetwork...)
+		daemonSets = append(daemonSets, liqoDaemonSetsNetwork...)
+	}
+
 	return &PodChecker{
 		options:     options,
-		deployments: liqoDeployments,
-		daemonSets:  liqoDaemonSets,
+		deployments: deployments,
+		daemonSets:  daemonSets,
 		podsState:   make(podStateMap, 6),
 		errors:      false,
 	}
