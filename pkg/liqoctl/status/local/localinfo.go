@@ -170,7 +170,7 @@ func (lic *LocalInfoChecker) addEndpointsSection(ctx context.Context) error {
 		if ep, err = lic.getVpnEndpointLocalAddress(ctx); err != nil {
 			return fmt.Errorf("unable to get vpn endpoint local address: %w", err)
 		}
-		endpointsSection.AddEntry("VPN Gateway", ep)
+		endpointsSection.AddEntry("Network Gateway", ep)
 	}
 
 	var aurl string

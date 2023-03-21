@@ -37,6 +37,16 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
+type TestArgsNet struct {
+	InternalNetworkEnabled, apiServerOverride bool
+	endpointServiceType                       corev1.ServiceType
+}
+
+type TestArgs struct {
+	clusterLabels bool
+	net           TestArgsNet
+}
+
 var _ = Describe("LocalInfo", func() {
 	const (
 		clusterID   = "fake"
@@ -78,16 +88,6 @@ var _ = Describe("LocalInfo", func() {
 			Expect(lic.localInfoSection).To(Equal(output.NewRootSection()))
 		})
 	})
-
-	type TestArgsNet struct {
-		InternalNetworkEnabled, apiServerOverride bool
-		endpointServiceType                       corev1.ServiceType
-	}
-
-	type TestArgs struct {
-		clusterLabels bool
-		net           TestArgsNet
-	}
 
 	DescribeTable("Collecting and Formatting LocalInfoChecker", func(args TestArgs) {
 		objects := append([]client.Object{}, baseObjects...)
@@ -151,7 +151,7 @@ var _ = Describe("LocalInfo", func() {
 				Expect(text).To(ContainSubstring(v))
 			}
 			Expect(text).To(ContainSubstring(
-				pterm.Sprintf("VPN Gateway: udp://%s:%d", testutil.EndpointIP, testutil.VPNGatewayPort),
+				pterm.Sprintf("Network Gateway: udp://%s:%d", testutil.EndpointIP, testutil.VPNGatewayPort),
 			))
 		} else {
 			Expect(text).To(ContainSubstring(pterm.Sprintf("Status: %s", discoveryv1alpha1.PeeringConditionStatusExternal)))

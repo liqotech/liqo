@@ -25,6 +25,10 @@ const (
 	ExternalCIDR = "fake external CIDR"
 	// OverrideAPIAddress is the overrided address of the API server used for testing.
 	OverrideAPIAddress = "1.0.0.2:6443"
+	// ForeignAuthURL is the URL of the foreign cluster used for testing.
+	ForeignAuthURL = "https://fake-auth-url:32407"
+	// ForeignProxyURL is the URL of the foreign cluster used for testing.
+	ForeignProxyURL = "https://fake-proxy-url:32408"
 	// VPNGatewayPort is the port of the liqo-gateway service used for testing.
 	VPNGatewayPort = 32406
 	// AuthenticationPort is the port of the liqo-auth service used for testing.
