@@ -1593,8 +1593,8 @@ k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7/go.mod h1:wXW5VT87nVfh/iL
 k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e/go.mod h1:vHXdDvt9+2spS2Rx9ql3I8tycm3H9FDfdUoIuKCefvw=
 k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 h1:+70TFaan3hfJzs+7VK2o+OGxg8HsuBr/5f6tVAjDu6E=
 k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280/go.mod h1:+Axhij7bCpeqhklhUTe3xmOn6bWxolyZEeyaFpjGtl4=
-k8s.io/kubectl v0.26.2 h1:SMPB4j48eVFxsYluBq3VLyqXtE6b72YnszkbTAtFye4=
-k8s.io/kubectl v0.26.2/go.mod h1:KYWOXSwp2BrDn3kPeoU/uKzKtdqvhK1dgZGd0+no4cM=
+k8s.io/kubectl v0.26.3 h1:bZ5SgFyeEXw6XTc1Qji0iNdtqAC76lmeIIQULg2wNXM=
+k8s.io/kubectl v0.26.3/go.mod h1:02+gv7Qn4dupzN3fi/9OvqqdW+uG/4Zi56vc4Zmsp1g=
 k8s.io/metrics v0.26.3 h1:pHI8XtmBbGGdh7bL0s2C3v93fJfxyktHPAFsnRYnDTo=
 k8s.io/metrics v0.26.3/go.mod h1:NNnWARAAz+ZJTs75Z66fJTV7jHcVb3GtrlDszSIr3fE=
 k8s.io/sample-controller v0.22.1/go.mod h1:184Fa29md4PuQSEozdEw6n+AAmoodWOy9iCtyfCvAWY=
