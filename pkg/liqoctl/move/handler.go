@@ -165,7 +165,7 @@ func getResticRepositoryURL(ctx context.Context, cl client.Client, isLocal bool)
 		}
 	}
 
-	return fmt.Sprintf("rest:http://%s.%s.svc.cluster.local:%d/", resticRegistry, namespace, resticPort), nil
+	return fmt.Sprintf("rest:http://%s.%s.svc:%d/", resticRegistry, namespace, resticPort), nil
 }
 
 func (o *Options) forgeContainerResources() corev1.ResourceRequirements {
