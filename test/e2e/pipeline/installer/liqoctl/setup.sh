@@ -70,14 +70,20 @@ do
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi
   if [[ "${INFRA}" == "k3s" ]]; then
-    COMMON_ARGS=("${COMMON_ARGS[@]}"  --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
+  fi
+  if [[ "${INFRA}" == "cluster-api" ]]; then
+    LIQO_PROVIDER="kubeadm"
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --set auth.service.type=NodePort --set gateway.service.type=NodePort)
+  else
+    LIQO_PROVIDER="${INFRA}"
   fi
 
   if [ "${i}" == "1" ]; then
     # Install Liqo with Helm, to check that values generation works correctly.
-    "${LIQOCTL}" install "${INFRA}" "${COMMON_ARGS[@]}" --only-output-values --dump-values-path "${TMPDIR}/values.yaml"
+    "${LIQOCTL}" install "${LIQO_PROVIDER}" "${COMMON_ARGS[@]}" --only-output-values --dump-values-path "${TMPDIR}/values.yaml"
     "${HELM}" install -n "${NAMESPACE}" --create-namespace liqo ./deployments/liqo -f "${TMPDIR}/values.yaml"
   else
-    "${LIQOCTL}" install "${INFRA}" "${COMMON_ARGS[@]}"
+    "${LIQOCTL}" install "${LIQO_PROVIDER}" "${COMMON_ARGS[@]}"
   fi
 done;

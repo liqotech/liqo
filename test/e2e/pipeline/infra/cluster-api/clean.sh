@@ -26,28 +26,12 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
+CLUSTER_NAME=cluster
+RUNNER_NAME=${RUNNER_NAME:-"test"}
+CAPI_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}"
+
+# Cleaning all remaining clusters
 for i in $(seq 1 "${CLUSTER_NUMBER}")
 do
-  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  ADD_COMMAND=$(${LIQOCTL} generate peer-command --only-command)
-
-  for j in $(seq 1 "${CLUSTER_NUMBER}");
-  do
-    if [[ $i -ne $j ]]
-    then
-      export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${j}"
-      set +e
-      retries=0
-      until eval "${ADD_COMMAND}" || [ $retries -eq 5 ]; do
-        echo "Failed to add cluster ${j} to cluster ${i}. Retrying in 5 seconds..."
-        sleep 5
-        retries=$((retries + 1))
-      done
-      set -e
-    fi
-  done
-
-  # Sleep a bit, to avoid generating a race condition with the
-  # authentication process triggered by the incoming peering.
-  sleep 1
+  kubectl delete clusters.cluster.x-k8s.io --namespace=liqo-ci "${CAPI_CLUSTER_NAME}${i}" --ignore-not-found
 done
