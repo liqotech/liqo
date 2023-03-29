@@ -33,6 +33,7 @@ subtrees:
       - file: usage/reflection.md
       - file: usage/stateful-applications.md
       - file: usage/prometheus-metrics.md
+      - file: usage/external-network.md
 
   - caption: Contributing
     entries:
