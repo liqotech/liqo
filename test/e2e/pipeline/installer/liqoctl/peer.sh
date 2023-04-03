@@ -44,6 +44,7 @@ do
         retries=$((retries + 1))
       done
       set -e
+      "${LIQOCTL}" status peer "liqo-${i}" --verbose
     fi
   done
 

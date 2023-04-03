@@ -12,6 +12,7 @@
 # LIQO_VERSION          -> the liqo version to test
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
+# KUBECTL               -> the path where kubectl is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -32,15 +33,20 @@ do
    export KUBECONFIG=${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}
    echo "Pods created in the cluster"
    echo "|------------------------------------------------------------|"
-   kubectl get po -A -o wide
+   ${KUBECTL} get po -A -o wide
    echo "Core resources in Liqo namespace"
    echo "|------------------------------------------------------------|"
-   kubectl get all -n liqo -o wide
+   ${KUBECTL} get all -n liqo -o wide
    echo "Installed CRDs"
    echo "|------------------------------------------------------------|"
-   kubectl get crd -A
+   ${KUBECTL} get crd -A
    echo "Available Nodes"
    echo "|------------------------------------------------------------|"
-   kubectl get no -o wide --show-labels
+   ${KUBECTL} get no -o wide --show-labels
+   echo "Liqo local status"
    echo "|------------------------------------------------------------|"
+   ${LIQOCTL} status --verbose
+   echo "Liqo peerings statuses"
+   echo "|------------------------------------------------------------|"
+   ${LIQOCTL} status peer --verbose
 done;

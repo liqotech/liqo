@@ -12,6 +12,7 @@
 # LIQO_VERSION          -> the liqo version to test
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
+# KUBECTL               -> the path where kubectl is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -87,3 +88,11 @@ do
     "${LIQOCTL}" install "${LIQO_PROVIDER}" "${COMMON_ARGS[@]}"
   fi
 done;
+
+for i in $(seq 1 "${CLUSTER_NUMBER}");
+do
+  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  "${KUBECTL}" wait --for=condition=Ready pods --all -n liqo
+  "${LIQOCTL}" status --verbose
+done;
+

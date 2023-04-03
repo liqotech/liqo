@@ -12,6 +12,7 @@
 # LIQO_VERSION          -> the liqo version to test
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
+# KUBECTL               -> the path where kubectl is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -59,7 +60,7 @@ do
     --control-plane-machine-count 1 \
     --worker-machine-count 2 \
     --target-namespace "$TARGET_NAMESPACE" \
-    --infrastructure kubevirt | sed "s/10.243.0.0\/16/$POD_CIDR_ESC/g" | kubectl apply -f -
+    --infrastructure kubevirt | sed "s/10.243.0.0\/16/$POD_CIDR_ESC/g" | ${KUBECTL} apply -f -
 done
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
@@ -69,7 +70,7 @@ do
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
   echo "Waiting for cluster ${CLUSTER_NAME}${i} to be ready"
-  kubectl wait --for condition=Ready=true -n "$TARGET_NAMESPACE" "clusters.cluster.x-k8s.io/${CAPI_CLUSTER_NAME}${i}" --timeout=-1s
+  "${KUBECTL}" wait --for condition=Ready=true -n "$TARGET_NAMESPACE" "clusters.cluster.x-k8s.io/${CAPI_CLUSTER_NAME}${i}" --timeout=-1s
 
   echo "Getting kubeconfig for cluster ${CLUSTER_NAME}${i}"
   mkdir -p "${TMPDIR}/kubeconfigs"
@@ -83,9 +84,9 @@ do
 '/- name: CALICO_IPV4POOL_IPIP/{ n; s/value: "Always"/value: "Never"/ };'\
 '/- name: CALICO_IPV4POOL_VXLAN/{ n; s/value: "Never"/value: "Always"/};'\
 '/# Set Felix endpoint to host default action to ACCEPT./a\            - name: FELIX_VXLANPORT\n              value: "6789"' \
-    | kubectl apply -f - --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+    | "${KUBECTL}" apply -f - --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
   # install local-path storage class
-  kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.24/deploy/local-path-storage.yaml --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  kubectl annotate storageclass local-path storageclass.kubernetes.io/is-default-class=true --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  "${KUBECTL}" apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.24/deploy/local-path-storage.yaml --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  "${KUBECTL}" annotate storageclass local-path storageclass.kubernetes.io/is-default-class=true --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done
