@@ -12,6 +12,7 @@
 # LIQO_VERSION          -> the liqo version to test
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
+# KUBECTL               -> the path where kubectl is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -30,7 +31,7 @@ for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
-  for foreignCluster in $(kubectl get foreignclusters.discovery.liqo.io --no-headers -o custom-columns=":metadata.name");
+  for foreignCluster in $(${KUBECTL} get foreignclusters.discovery.liqo.io --no-headers -o custom-columns=":metadata.name");
   do
     "${LIQOCTL}" unpeer out-of-band "${foreignCluster}"
   done;

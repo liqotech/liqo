@@ -12,6 +12,7 @@
 # LIQO_VERSION          -> the liqo version to test
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
+# KUBECTL               -> the path where kubectl is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -30,7 +31,7 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 wait_for_crds() {
   cnt=0
   while [[ $cnt -lt 300 ]]; do
-    if [[ $(kubectl get crds | grep -c liqo) -eq 0 ]]; then
+    if [[ $(${KUBECTL} get crds | grep -c liqo) -eq 0 ]]; then
       return
     fi
     sleep 1

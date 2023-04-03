@@ -12,6 +12,7 @@
 # LIQO_VERSION          -> the liqo version to test
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
+# KUBECTL               -> the path where kubectl is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -73,12 +74,12 @@ fi
 if ! command -v kubectl &> /dev/null
 then
     echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
-    if ! curl --fail -Lo "${BINDIR}"/kubectl "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/${OS}/${ARCH}/kubectl"; then
+    if ! curl --fail -Lo "${KUBECTL}" "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/${OS}/${ARCH}/kubectl"; then
         echo "Error: Unable to download kubectl for '${OS}-${ARCH}'"
         return 1
     fi
-    chmod +x "${BINDIR}"/kubectl
-    export PATH=${PATH}:${BINDIR}
+    chmod +x "${KUBECTL}"
+    "${KUBECTL}" version --client
 fi
 
 if [[ ! -f "${BINDIR}/k3d" ]]; then
