@@ -72,5 +72,16 @@ spec:
       volumes:
         - name: certs
           emptyDir: {}
-
+      {{- if ((.Values.common).nodeSelector) }}
+      nodeSelector:
+      {{- toYaml .Values.common.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if ((.Values.common).tolerations) }}
+      tolerations:
+      {{- toYaml .Values.common.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if ((.Values.common).affinity) }}
+      affinity:
+      {{- toYaml .Values.common.affinity | nindent 8 }}
+      {{- end }}
 {{- end }}

@@ -403,3 +403,11 @@ networkConfig:
   # The default value is configured to ensure correct functioning regardless of the combination of the underlying environments
   # (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops.
   mtu: 1340
+
+common:
+  # -- nodeSelector for all liqo services, excluding virtual kubelet deployment
+  nodeSelector: {}
+  # -- tolerations for all liqo services, excluding virtual kubelet deployment
+  tolerations: []
+  # affinity for all liqo services, excluding virtual kubelet deployment
+  affinity: {}
