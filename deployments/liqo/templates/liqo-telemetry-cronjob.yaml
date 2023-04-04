@@ -50,5 +50,16 @@ spec:
               {{- include "liqo.concatenateMap" $d | nindent 14 }}
               {{- end }}
             resources: {{- toYaml .Values.telemetry.pod.resources | nindent 14 }}
-
+          {{- if ((.Values.common).nodeSelector) }}
+          nodeSelector:
+          {{- toYaml .Values.common.nodeSelector | nindent 12 }}
+          {{- end }}
+          {{- if ((.Values.common).tolerations) }}
+          tolerations:
+          {{- toYaml .Values.common.tolerations | nindent 12 }}
+          {{- end }}
+          {{- if ((.Values.common).affinity) }}
+          affinity:
+          {{- toYaml .Values.common.affinity | nindent 12 }}
+          {{- end }}
 {{- end }}
