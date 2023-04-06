@@ -34,7 +34,7 @@ jobs:
           echo "master=false" >> $GITHUB_OUTPUT
           echo "architectures=linux/amd64" >> $GITHUB_OUTPUT
           echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-          echo "pr-number=${{ github.event.client_payload.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "pr-number=${{ github.event.client_payload.github.payload.issue.number }}" >> $GITHUB_OUTPUT
         elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
           echo "master=false" >> $GITHUB_OUTPUT
           echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
@@ -186,7 +186,7 @@ jobs:
                "commit": "${{ needs.configure.outputs.commit-ref }}",
                "repo-name": "${{ needs.configure.outputs.repo-name }}",
                "base-repo": "${{ github.repository }}",
-               "run-id": "${{ github.run_id }}"
+               "run-id": "${{ github.run_id }}",
                "pr-number" : "${{ needs.configure.outputs.pr-number }}"
              }
 
