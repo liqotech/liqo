@@ -135,6 +135,43 @@ In a nutshell, after having installed the CLI, you have to set up your identity:
 aws configure
 ```
 
+You can install Liqo even if you are not an EKS administrator.
+The minimum **IAM** permissions required by a user to install Liqo are the following:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "eks:DescribeCluster",
+                "iam:CreateUser",
+                "iam:CreateAccessKey",
+                "ec2:DescribeVpcs"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "iam:CreatePolicy",
+                "iam:GetPolicyVersion",
+                "iam:GetPolicy",
+                "iam:AttachUserPolicy",
+                "iam:GetUser",
+                "iam:TagUser",
+                "iam:ListAccessKeys"
+            ],
+            "Resource": [
+                "arn:aws:iam::*:user/liqo-*",
+                "arn:aws:iam::*:policy/liqo-*"
+            ]
+        }
+    ]
+}
+```
+
 Before continuing, you should export a few variables about the properties of your cluster:
 
 ```bash
