@@ -65,10 +65,15 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		testEps       *discoveryv1.EndpointSlice
 		testFc        *discoveryv1alpha1.ForeignCluster
 
-		newFc = func(networkReady bool) *discoveryv1alpha1.ForeignCluster {
+		newFc = func(networkReady, apiServerReady bool) *discoveryv1alpha1.ForeignCluster {
 			networkStatus := discoveryv1alpha1.PeeringConditionStatusEstablished
 			if !networkReady {
 				networkStatus = discoveryv1alpha1.PeeringConditionStatusError
+			}
+
+			apiServerStatus := discoveryv1alpha1.PeeringConditionStatusEstablished
+			if !apiServerReady {
+				apiServerStatus = discoveryv1alpha1.PeeringConditionStatusError
 			}
 
 			return &discoveryv1alpha1.ForeignCluster{
@@ -89,6 +94,10 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 						{
 							Type:   discoveryv1alpha1.NetworkStatusCondition,
 							Status: networkStatus,
+						},
+						{
+							Type:   discoveryv1alpha1.APIServerStatusCondition,
+							Status: apiServerStatus,
 						},
 					},
 				},
@@ -188,7 +197,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		BeforeEach(func() {
 			testShadowEps = newShadowEps(true)
 			testEps = newEps()
-			testFc = newFc(true)
+			testFc = newFc(true, true)
 			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testEps, testFc).Build()
 		})
 
@@ -240,7 +249,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 	When("endpointslice not already created", func() {
 		BeforeEach(func() {
 			testShadowEps = newShadowEps(true)
-			testFc = newFc(true)
+			testFc = newFc(true, true)
 			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc).Build()
 		})
 
@@ -282,14 +291,46 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		})
 	})
 
-	When("foreign cluster not ready and endpoints ready", func() {
+	When("foreign cluster network not ready and endpoints ready", func() {
 		BeforeEach(func() {
 			testShadowEps = newShadowEps(true)
-			testFc = newFc(false)
+			testFc = newFc(false, true)
 			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc).Build()
 		})
 
-		It("endpoints should be not ready", func() {
+		It("should set remote endpoints to not ready", func() {
+			eps := discoveryv1.EndpointSlice{}
+			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+			for i := range eps.Endpoints {
+				Expect(eps.Endpoints[i].Conditions.Ready).To(PointTo(BeFalse()))
+			}
+		})
+	})
+
+	When("foreign cluster API server not ready and endpoints ready", func() {
+		BeforeEach(func() {
+			testShadowEps = newShadowEps(true)
+			testFc = newFc(true, false)
+			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc).Build()
+		})
+
+		It("should set remote endpoints to not ready", func() {
+			eps := discoveryv1.EndpointSlice{}
+			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+			for i := range eps.Endpoints {
+				Expect(eps.Endpoints[i].Conditions.Ready).To(PointTo(BeFalse()))
+			}
+		})
+	})
+
+	When("foreign cluster network and API server are not ready and endpoints ready", func() {
+		BeforeEach(func() {
+			testShadowEps = newShadowEps(true)
+			testFc = newFc(false, false)
+			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc).Build()
+		})
+
+		It("should set remote endpoints to not ready", func() {
 			eps := discoveryv1.EndpointSlice{}
 			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
 			for i := range eps.Endpoints {
