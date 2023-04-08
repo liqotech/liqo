@@ -93,6 +93,8 @@ type PodReflector struct {
 type PodReflectorConfig struct {
 	APIServerSupport    forge.APIServerSupportType
 	DisableIPReflection bool
+	HomeAPIServerHost   string
+	HomeAPIServerPort   string
 }
 
 // FallbackPodReflector handles the "orphan" pods outside the managed namespaces.

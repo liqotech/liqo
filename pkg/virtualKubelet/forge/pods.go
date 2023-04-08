@@ -228,7 +228,7 @@ func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...Rem
 
 // APIServerSupportMutator is a mutator which implements the support to enable offloaded pods to interact back with the local Kubernetes API server.
 func APIServerSupportMutator(apiServerSupport APIServerSupportType, saName string, saSecretRetriever SASecretRetriever,
-	kubernetesServiceIPRetriever KubernetesServiceIPGetter) RemotePodSpecMutator {
+	kubernetesServiceIPRetriever KubernetesServiceIPGetter, homeAPIServerHost string, homeAPIServerPort string) RemotePodSpecMutator {
 	return func(remote *corev1.PodSpec) {
 		// The mutation of the service account related volume needs to be performed regardless of whether this feature is enabled.
 		remote.Volumes = RemoteVolumes(remote.Volumes, apiServerSupport, func() string { return saSecretRetriever(saName) })
@@ -239,11 +239,13 @@ func APIServerSupportMutator(apiServerSupport APIServerSupportType, saName strin
 		}
 
 		// Mutate the environment variables of the containers concerning the target API server hostname, and the service account name.
-		remote.Containers = RemoteContainersAPIServerSupport(remote.Containers, saName)
-		remote.InitContainers = RemoteContainersAPIServerSupport(remote.InitContainers, saName)
+		remote.Containers = RemoteContainersAPIServerSupport(remote.Containers, saName, homeAPIServerHost, homeAPIServerPort)
+		remote.InitContainers = RemoteContainersAPIServerSupport(remote.InitContainers, saName, homeAPIServerHost, homeAPIServerPort)
 
 		// Add a custom host alias to reach "kubernetes.default" through the remapped IP address.
-		remote.HostAliases = RemoteHostAliasesAPIServerSupport(remote.HostAliases, kubernetesServiceIPRetriever)
+		if homeAPIServerHost == "" && homeAPIServerPort == "" {
+			remote.HostAliases = RemoteHostAliasesAPIServerSupport(remote.HostAliases, kubernetesServiceIPRetriever)
+		}
 	}
 }
 
@@ -303,9 +305,9 @@ func FilterAntiAffinityLabels(labels map[string]string, whitelist string) map[st
 
 // RemoteContainersAPIServerSupport forges the containers for a reflected pod, appropriately adding the environment variables
 // to enable the offloaded containers to contact back the local API server, instead of the remote one.
-func RemoteContainersAPIServerSupport(containers []corev1.Container, saName string) []corev1.Container {
+func RemoteContainersAPIServerSupport(containers []corev1.Container, saName, homeAPIServerHost, homeAPIServerPort string) []corev1.Container {
 	for i := range containers {
-		containers[i].Env = RemoteContainerEnvVariablesAPIServerSupport(containers[i].Env, saName)
+		containers[i].Env = RemoteContainerEnvVariablesAPIServerSupport(containers[i].Env, saName, homeAPIServerHost, homeAPIServerPort)
 	}
 
 	return containers
@@ -314,7 +316,7 @@ func RemoteContainersAPIServerSupport(containers []corev1.Container, saName stri
 // RemoteContainerEnvVariablesAPIServerSupport forges the environment variables to enable offloaded containers to
 // contact back the local API server, instead of the remote one. In addition, it also hardcodes the
 // service account name in case it was retrieved from the pod spec, as it is not reflected remotely.
-func RemoteContainerEnvVariablesAPIServerSupport(envs []corev1.EnvVar, saName string) []corev1.EnvVar {
+func RemoteContainerEnvVariablesAPIServerSupport(envs []corev1.EnvVar, saName, homeAPIServerHost, homeAPIServerPort string) []corev1.EnvVar {
 	for i := range envs {
 		if envs[i].ValueFrom != nil && envs[i].ValueFrom.FieldRef != nil &&
 			envs[i].ValueFrom.FieldRef.FieldPath == "spec.serviceAccountName" {
@@ -323,19 +325,24 @@ func RemoteContainerEnvVariablesAPIServerSupport(envs []corev1.EnvVar, saName st
 			envs[i].ValueFrom = nil
 		}
 	}
-
-	hostport := "tcp://" + net.JoinHostPort(kubernetesAPIService, KubernetesServicePort)
+	actualKubernetesAPIService := kubernetesAPIService
+	actualKubernetesAPIServicePort := KubernetesServicePort
+	if homeAPIServerHost != "" && homeAPIServerPort != "" {
+		actualKubernetesAPIService = homeAPIServerHost
+		actualKubernetesAPIServicePort = homeAPIServerPort
+	}
+	hostport := "tcp://" + net.JoinHostPort(actualKubernetesAPIService, actualKubernetesAPIServicePort)
 	return append(envs,
 		// We replace the correct IP address with the kubernetes.default hostname (which is associated with the remapped
 		// IP through an appropriate host alias), since directly using the remapped IP address would lead to TLS errors
 		// as it is not included in the certificate.
-		corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: kubernetesAPIService},
-		corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: KubernetesServicePort},
+		corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: actualKubernetesAPIService},
+		corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: actualKubernetesAPIServicePort},
 		corev1.EnvVar{Name: "KUBERNETES_PORT", Value: hostport},
-		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP", KubernetesServicePort), Value: hostport},
-		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_PROTO", KubernetesServicePort), Value: "tcp"},
-		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_ADDR", KubernetesServicePort), Value: kubernetesAPIService},
-		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_PORT", KubernetesServicePort), Value: KubernetesServicePort},
+		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP", actualKubernetesAPIServicePort), Value: hostport},
+		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_PROTO", actualKubernetesAPIServicePort), Value: "tcp"},
+		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_ADDR", actualKubernetesAPIServicePort), Value: actualKubernetesAPIService},
+		corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_PORT", actualKubernetesAPIServicePort), Value: actualKubernetesAPIServicePort},
 	)
 }
 

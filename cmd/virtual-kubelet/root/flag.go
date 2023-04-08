@@ -72,6 +72,10 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.BoolVar(&o.EnableStorage, "enable-storage", false, "Enable the Liqo storage reflection")
 	flags.StringVar(&o.VirtualStorageClassName, "virtual-storage-class-name", "liqo", "Name of the virtual storage class")
 	flags.StringVar(&o.RemoteRealStorageClassName, "remote-real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
+	flags.StringVar(&o.HomeAPIServerHost, "home-api-server-host", "",
+		"Home cluster API server HOST, this parameter is optional and required only to override the default values")
+	flags.StringVar(&o.HomeAPIServerPort, "home-api-server-port", "",
+		"Home cluster API server PORT, this parameter is optional and required only to override the default values")
 
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)

@@ -110,6 +110,9 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		EnableStorage:              c.EnableStorage,
 		VirtualStorageClassName:    c.VirtualStorageClassName,
 		RemoteRealStorageClassName: c.RemoteRealStorageClassName,
+
+		HomeAPIServerHost: c.HomeAPIServerHost,
+		HomeAPIServerPort: c.HomeAPIServerPort,
 	}
 
 	eb := record.NewBroadcaster()

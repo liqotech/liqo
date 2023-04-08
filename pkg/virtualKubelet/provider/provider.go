@@ -75,6 +75,9 @@ type InitConfig struct {
 	EnableStorage              bool
 	VirtualStorageClassName    string
 	RemoteRealStorageClassName string
+
+	HomeAPIServerHost string
+	HomeAPIServerPort string
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -122,6 +125,8 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	podReflectorConfig := workload.PodReflectorConfig{
 		APIServerSupport:    apiServerSupport,
 		DisableIPReflection: cfg.DisableIPReflection,
+		HomeAPIServerHost:   cfg.HomeAPIServerHost,
+		HomeAPIServerPort:   cfg.HomeAPIServerPort,
 	}
 
 	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb)

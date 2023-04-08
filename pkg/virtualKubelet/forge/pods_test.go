@@ -15,6 +15,7 @@
 package forge_test
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -200,8 +201,9 @@ var _ = Describe("Pod forging", func() {
 		const saName = "service-account"
 
 		var (
-			apiServerSupport forge.APIServerSupportType
-			remote, original *corev1.PodSpec
+			apiServerSupport                     forge.APIServerSupportType
+			remote, original                     *corev1.PodSpec
+			homeAPIServerHost, homeAPIServerPort string
 		)
 
 		BeforeEach(func() {
@@ -217,7 +219,7 @@ var _ = Describe("Pod forging", func() {
 
 		JustBeforeEach(func() {
 			original = remote.DeepCopy()
-			forge.APIServerSupportMutator(apiServerSupport, saName, SASecretRetriever, KubernetesServiceIPGetter)(remote)
+			forge.APIServerSupportMutator(apiServerSupport, saName, SASecretRetriever, KubernetesServiceIPGetter, homeAPIServerHost, homeAPIServerPort)(remote)
 		})
 
 		When("API server support is enabled", func() {
@@ -228,11 +230,12 @@ var _ = Describe("Pod forging", func() {
 				})
 
 				It("should appropriately mutate the remote containers", func() {
-					Expect(remote.Containers).To(Equal(forge.RemoteContainersAPIServerSupport(original.Containers, saName)))
+					Expect(remote.Containers).To(Equal(forge.RemoteContainersAPIServerSupport(original.Containers, saName, homeAPIServerHost, homeAPIServerPort)))
 				})
 
 				It("should appropriately mutate the remote init containers", func() {
-					Expect(remote.InitContainers).To(Equal(forge.RemoteContainersAPIServerSupport(original.InitContainers, saName)))
+					Expect(remote.InitContainers).To(Equal(forge.RemoteContainersAPIServerSupport(original.InitContainers, saName,
+						homeAPIServerHost, homeAPIServerPort)))
 				})
 
 				It("should appropriately mutate host aliases", func() {
@@ -241,12 +244,57 @@ var _ = Describe("Pod forging", func() {
 			}
 
 			When("legacy mode is set", func() {
-				BeforeEach(func() { apiServerSupport = forge.APIServerSupportLegacy })
+				BeforeEach(func() {
+					apiServerSupport = forge.APIServerSupportLegacy
+					homeAPIServerHost = ""
+					homeAPIServerPort = ""
+				})
 				WhenBody()
 			})
 
 			When("token API mode is set", func() {
-				BeforeEach(func() { apiServerSupport = forge.APIServerSupportTokenAPI })
+				BeforeEach(func() {
+					apiServerSupport = forge.APIServerSupportTokenAPI
+					homeAPIServerHost = ""
+					homeAPIServerPort = ""
+				})
+				WhenBody()
+			})
+		})
+
+		When("API server support is enabled with custom host API server Host & Port", func() {
+
+			WhenBody := func() {
+				It("should correctly mutate the volumes", func() {
+					Expect(remote.Volumes).To(Equal(forge.RemoteVolumes(original.Volumes, apiServerSupport,
+						func() string { return SASecretRetriever(saName) })))
+				})
+
+				It("should appropriately mutate the remote containers", func() {
+					Expect(remote.Containers).To(Equal(forge.RemoteContainersAPIServerSupport(original.Containers, saName, homeAPIServerHost, homeAPIServerPort)))
+				})
+
+				It("should appropriately mutate the remote init containers", func() {
+					Expect(remote.InitContainers).To(Equal(forge.RemoteContainersAPIServerSupport(original.InitContainers, saName,
+						homeAPIServerHost, homeAPIServerPort)))
+				})
+			}
+
+			When("legacy mode is set with custom host API server Host & Port", func() {
+				BeforeEach(func() {
+					apiServerSupport = forge.APIServerSupportLegacy
+					homeAPIServerHost = "custom.apiserver.com"
+					homeAPIServerPort = "6443"
+				})
+				WhenBody()
+			})
+
+			When("token API mode is set with custom host API server Host & Port", func() {
+				BeforeEach(func() {
+					apiServerSupport = forge.APIServerSupportTokenAPI
+					homeAPIServerHost = "custom1.apiserver.com"
+					homeAPIServerPort = "6443"
+				})
 				WhenBody()
 			})
 		})
@@ -392,6 +440,7 @@ var _ = Describe("Pod forging", func() {
 	Describe("the RemoteContainersAPIServerSupport function", func() {
 		var container corev1.Container
 		var output []corev1.Container
+		var homeAPIServerHost, homeAPIServerPort = "", ""
 
 		BeforeEach(func() {
 			container = corev1.Container{
@@ -410,7 +459,7 @@ var _ = Describe("Pod forging", func() {
 		})
 
 		JustBeforeEach(func() {
-			output = forge.RemoteContainersAPIServerSupport([]corev1.Container{container}, "service-account-name")
+			output = forge.RemoteContainersAPIServerSupport([]corev1.Container{container}, "service-account-name", homeAPIServerHost, homeAPIServerPort)
 		})
 
 		It("should propagate all container values", func() {
@@ -439,6 +488,62 @@ var _ = Describe("Pod forging", func() {
 				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PROTO", Value: "tcp"},
 				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_PORT", Value: "8443"},
 				corev1.EnvVar{Name: "KUBERNETES_PORT_8443_TCP_ADDR", Value: "kubernetes.default"},
+			))
+		})
+	})
+
+	Describe("the RemoteContainersAPIServerSupport function with custom host API server Host & Port", func() {
+		var container corev1.Container
+		var output []corev1.Container
+		var homeAPIServerHost, homeAPIServerPort = "custom.apiserver.com", "6443"
+
+		BeforeEach(func() {
+			container = corev1.Container{
+				Name:  "foo",
+				Image: "foo/bar:v0.1-alpha3",
+				Args:  []string{"--first", "--second"},
+				Ports: []corev1.ContainerPort{{Name: "foo-port", ContainerPort: 8080}},
+				Env: []corev1.EnvVar{
+					{Name: "ENV_1", Value: "VALUE_1"},
+					{Name: "ENV_2", Value: "VALUE_2"},
+					{Name: "ENV_3", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{Key: "foo"}}},
+					{Name: "ENV_4", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+					{Name: "ENV_5", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.serviceAccountName"}}},
+				},
+			}
+		})
+
+		JustBeforeEach(func() {
+			output = forge.RemoteContainersAPIServerSupport([]corev1.Container{container}, "service-account-name", homeAPIServerHost, homeAPIServerPort)
+		})
+
+		It("should propagate all container values", func() {
+			// Remove the environment variables from the containers, as checked in the test below.
+			envcleaner := func(c corev1.Container) corev1.Container {
+				c.Env = nil
+				return c
+			}
+
+			Expect(output).To(HaveLen(1))
+			Expect(envcleaner(output[0])).To(Equal(envcleaner(container)))
+		})
+
+		It("should configure the appropriate environment variables", func() {
+			Expect(output).To(HaveLen(1))
+			Expect(output[0].Env).To(ConsistOf(
+				corev1.EnvVar{Name: "ENV_1", Value: "VALUE_1"},
+				corev1.EnvVar{Name: "ENV_2", Value: "VALUE_2"},
+				corev1.EnvVar{Name: "ENV_3", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{Key: "foo"}}},
+				corev1.EnvVar{Name: "ENV_4", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+				corev1.EnvVar{Name: "ENV_5", Value: "service-account-name"},
+				corev1.EnvVar{Name: "KUBERNETES_SERVICE_PORT", Value: homeAPIServerPort},
+				corev1.EnvVar{Name: "KUBERNETES_SERVICE_HOST", Value: homeAPIServerHost},
+				corev1.EnvVar{Name: "KUBERNETES_PORT", Value: fmt.Sprintf("tcp://%s:%s", homeAPIServerHost, homeAPIServerPort)},
+				corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP", homeAPIServerPort),
+					Value: fmt.Sprintf("tcp://%s:%s", homeAPIServerHost, homeAPIServerPort)},
+				corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_PROTO", homeAPIServerPort), Value: "tcp"},
+				corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_PORT", homeAPIServerPort), Value: homeAPIServerPort},
+				corev1.EnvVar{Name: fmt.Sprintf("KUBERNETES_PORT_%s_TCP_ADDR", homeAPIServerPort), Value: homeAPIServerHost},
 			))
 		})
 	})
