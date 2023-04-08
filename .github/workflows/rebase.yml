@@ -41,6 +41,9 @@ jobs:
                "payload": {
                      "repository": {
                         "full_name": "${{ github.repository }}"
+                      },
+                      "issue": {
+                        "number": "${{ github.event.client_payload.github.payload.issue.number }}"
                       }
                }
             },
