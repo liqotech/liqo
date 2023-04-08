@@ -96,6 +96,9 @@ type Opts struct {
 	EnableStorage              bool
 	VirtualStorageClassName    string
 	RemoteRealStorageClassName string
+
+	HomeAPIServerHost string
+	HomeAPIServerPort string
 }
 
 // NewOpts returns an Opts struct with the default values set.
