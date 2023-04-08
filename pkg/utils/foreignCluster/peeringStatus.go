@@ -82,3 +82,9 @@ func IsNetworkingExternal(foreignCluster *discoveryv1alpha1.ForeignCluster) bool
 func IsNetworkingEstablishedOrExternal(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	return IsNetworkingEstablished(foreignCluster) || IsNetworkingExternal(foreignCluster)
 }
+
+// IsAPIServerReady checks if the api server is ready.
+func IsAPIServerReady(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.APIServerStatusCondition)
+	return curPhase == discoveryv1alpha1.PeeringConditionStatusEstablished
+}

@@ -90,7 +90,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Check network status of the foreigncluster
-	networkStatus := foreigncluster.IsNetworkingEstablishedOrExternal(fc)
+	networkReady := foreigncluster.IsNetworkingEstablishedOrExternal(fc)
+
+	// Check foreign API server status
+	apiServerReady := foreigncluster.IsAPIServerReady(fc)
 
 	// Forge the endpointslice given the shadowendpointslice
 	newEps := discoveryv1.EndpointSlice{
@@ -106,14 +109,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		Ports:       shadowEps.Spec.Template.Ports,
 	}
 
-	// Based on the current network status to the foreign cluster, we update all endpoints' "Ready" condition
+	// Depending on the current status of the foreign cluster, we update all endpoints' "Ready" conditions.
+	// Endpoints are ready only if both the tunnel endpoint and the API server of the foreign cluster are ready.
 	// Note: An endpoint is updated only if the shadowendpointslice endpoint has the condition "Ready" set
 	// to True or nil. i.e: if the foreigncluster sets the endpoint condition "Ready" to False, also the local
-	// endpoint condition is set to False regardless of the current network status
+	// endpoint condition is set to False regardless of the current status of the foreign cluster.
+	endpointsReady := networkReady && apiServerReady
 	for i := range newEps.Endpoints {
 		endpoint := &newEps.Endpoints[i]
 		if endpoint.Conditions.Ready == nil || *endpoint.Conditions.Ready {
-			endpoint.Conditions.Ready = &networkStatus
+			endpoint.Conditions.Ready = &endpointsReady
 		}
 	}
 
@@ -210,7 +215,11 @@ func (r *Reconciler) endpointsShouldBeUpdated(newObj, oldObj client.Object) bool
 	oldFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrExternal(oldForeignCluster)
 	newFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrExternal(newForeignCluster)
 
-	return oldFcNetworkReady != newFcNetworkReady
+	oldFcAPIServerReady := foreigncluster.IsAPIServerReady(oldForeignCluster)
+	newFcAPIServerReady := foreigncluster.IsAPIServerReady(newForeignCluster)
+
+	// Reconcile if the network status or the API server status changed
+	return oldFcNetworkReady != newFcNetworkReady || oldFcAPIServerReady != newFcAPIServerReady
 }
 
 // SetupWithManager monitors updates on ShadowEndpointSlices.
