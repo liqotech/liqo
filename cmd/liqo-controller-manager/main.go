@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package main contains the main function for the Liqo controller manager.
 package main
 
 import (
@@ -72,6 +73,7 @@ import (
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
@@ -96,6 +98,8 @@ func main() {
 	var nodeExtraAnnotations, nodeExtraLabels argsutils.StringMap
 	var kubeletCPURequests, kubeletCPULimits argsutils.Quantity
 	var kubeletRAMRequests, kubeletRAMLimits argsutils.Quantity
+	var kubeletMetricsAddress string
+	var kubeletMetricsEnabled bool
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -152,6 +156,8 @@ func main() {
 	flag.Var(&kubeletCPULimits, "kubelet-cpu-limits", "CPU limits assigned to the Virtual Kubelet Pod")
 	flag.Var(&kubeletRAMRequests, "kubelet-ram-requests", "RAM requests assigned to the Virtual Kubelet Pod")
 	flag.Var(&kubeletRAMLimits, "kubelet-ram-limits", "RAM limits assigned to the Virtual Kubelet Pod")
+	flag.StringVar(&kubeletMetricsAddress, "kubelet-metrics-address", vkMachinery.MetricsAddress, "The address the kubelet metrics endpoint binds to")
+	flag.BoolVar(&kubeletMetricsEnabled, "kubelet-metrics-enabled", false, "Enable the kubelet metrics endpoint")
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
 	kubeletIpamServer := flag.String("kubelet-ipam-server", "",
@@ -310,6 +316,8 @@ func main() {
 		LimitsCPU:            kubeletCPULimits.Quantity,
 		LimitsRAM:            kubeletRAMLimits.Quantity,
 		IpamEndpoint:         *kubeletIpamServer,
+		MetricsAddress:       kubeletMetricsAddress,
+		MetricsEnabled:       kubeletMetricsEnabled,
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(

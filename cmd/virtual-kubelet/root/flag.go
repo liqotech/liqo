@@ -72,7 +72,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.BoolVar(&o.EnableStorage, "enable-storage", false, "Enable the Liqo storage reflection")
 	flags.StringVar(&o.VirtualStorageClassName, "virtual-storage-class-name", "liqo", "Name of the virtual storage class")
 	flags.StringVar(&o.RemoteRealStorageClassName, "remote-real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
-	flags.BoolVar(&o.EnableMetrics, "enable-metrics", false, "Enable the metrics server")
+	flags.BoolVar(&o.EnableMetrics, "metrics-enabled", false, "Enable the metrics server")
+	flags.StringVar(&o.MetricsAddress, "metrics-address", ":8080", "The address to listen to for metrics requests")
 	flags.StringVar(&o.HomeAPIServerHost, "home-api-server-host", "",
 		"Home cluster API server HOST, this parameter is optional and required only to override the default values")
 	flags.StringVar(&o.HomeAPIServerPort, "home-api-server-port", "",

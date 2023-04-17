@@ -34,4 +34,6 @@ type VirtualKubeletOpts struct {
 	RequestsRAM          resource.Quantity
 	LimitsRAM            resource.Quantity
 	IpamEndpoint         string
+	MetricsEnabled       bool
+	MetricsAddress       string
 }

@@ -197,7 +197,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	}
 
 	if c.EnableMetrics {
-		metrics.SetupMetricHandler()
+		metrics.SetupMetricHandler(c.MetricsAddress)
 	}
 
 	go func() {

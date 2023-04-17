@@ -138,7 +138,7 @@
 | virtualKubelet.metrics.podMonitor.enabled | bool | `false` |  |
 | virtualKubelet.metrics.podMonitor.interval | string | `""` |  |
 | virtualKubelet.metrics.podMonitor.scrapeTimeout | string | `""` |  |
-| virtualKubelet.metrics.port | int | `9090` | port used to expose metrics. |
+| virtualKubelet.metrics.port | int | `5872` | port used to expose metrics. |
 | virtualKubelet.virtualNode.extra.annotations | object | `{}` | virtual node extra annotations |
 | virtualKubelet.virtualNode.extra.labels | object | `{}` | virtual node extra labels |
 | webhook.failurePolicy | string | `"Fail"` | the webhook failure policy, among Ignore and Fail |
