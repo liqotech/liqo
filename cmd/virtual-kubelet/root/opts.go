@@ -97,6 +97,7 @@ type Opts struct {
 	VirtualStorageClassName    string
 	RemoteRealStorageClassName string
 	EnableMetrics              bool
+	MetricsAddress             string
 
 	HomeAPIServerHost string
 	HomeAPIServerPort string

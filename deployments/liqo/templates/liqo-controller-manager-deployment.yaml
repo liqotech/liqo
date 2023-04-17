@@ -26,9 +26,6 @@
 {{- $vkargs = append $vkargs "--certificate-type=aws" }}
 {{- end }}
 {{- end }}
-{{- if not (or (has "--enable-metrics" $vkargs ) (has "--enable-metrics=true" $vkargs ) (has "--enable-metrics=false" $vkargs )) }}
-{{- $vkargs = append $vkargs "--enable-metrics=true" }}
-{{- end}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -81,6 +78,11 @@ spec:
           - --enable-incoming-peering={{ .Values.discovery.config.incomingPeeringEnabled }}
           - --resource-sharing-percentage={{ .Values.controllerManager.config.resourceSharingPercentage }}
           - --kubelet-image={{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+          {{- if .Values.virtualKubelet.metrics.enabled }}
+          - --kubelet-metrics-address=:{{ .Values.virtualKubelet.metrics.port }}
+          - --kubelet-metrics-enabled={{ .Values.virtualKubelet.metrics.enabled }}
+          {{- else }}
+          {{- end }}
           {{- if .Values.networkManager.externalIPAM.enabled }}
           - --kubelet-ipam-server={{ .Values.networkManager.externalIPAM.url }}
           {{- else if not .Values.networking.internal }}

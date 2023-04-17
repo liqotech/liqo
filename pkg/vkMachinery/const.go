@@ -39,3 +39,6 @@ var KubeletBaseLabels = map[string]string{
 var ClusterRoleBindingLabels = map[string]string{
 	"app.kubernetes.io/managed-by": "advertisementoperator",
 }
+
+// MetricsAddress is the default address used to expose metrics.
+const MetricsAddress = ":8080"

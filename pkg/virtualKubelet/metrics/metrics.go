@@ -24,11 +24,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	// MetricsPort is the metrics port constant.
-	MetricsPort = ":9090"
-)
-
 var (
 	// ErrorsCounter is the counter of the errors occurred during the reflection.
 	ErrorsCounter *prometheus.CounterVec
@@ -59,7 +54,7 @@ func init() {
 }
 
 // SetupMetricHandler sets up the metric handler.
-func SetupMetricHandler() {
+func SetupMetricHandler(metricsAddress string) {
 	// Register the metrics to the prometheus registry.
 	prometheus.MustRegister(ErrorsCounter)
 	// Register the metrics to the prometheus registry.
@@ -68,10 +63,10 @@ func SetupMetricHandler() {
 	http.Handle("/metrics", promhttp.Handler())
 
 	go func() {
-		klog.Infof("Starting the virtual kubelet Metric Handler listening on %q", MetricsPort)
+		klog.Infof("Starting the virtual kubelet Metric Handler listening on %q", metricsAddress)
 
 		server := &http.Server{
-			Addr:              ":1234",
+			Addr:              metricsAddress,
 			ReadHeaderTimeout: 10 * time.Second,
 		}
 

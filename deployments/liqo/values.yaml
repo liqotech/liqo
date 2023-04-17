@@ -319,7 +319,7 @@ virtualKubelet:
     # -- expose metrics about virtual kubelet resources.
     enabled: false
     # -- port used to expose metrics.
-    port: 9090
+    port: 5872
     podMonitor:
       # # -- create a prometheus podmonitor.
       enabled: false

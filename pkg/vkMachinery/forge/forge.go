@@ -16,6 +16,8 @@ package forge
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -37,7 +39,7 @@ func getDefaultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharin
 
 func forgeVKContainers(
 	vkImage string, homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity,
-	nodeName, vkNamespace, liqoNamespace string, opts *VirtualKubeletOpts,
+	nodeName, vkNamespace string, opts *VirtualKubeletOpts,
 	resourceOffer *sharingv1alpha1.ResourceOffer) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -72,6 +74,24 @@ func forgeVKContainers(
 
 	args = append(args, opts.ExtraArgs...)
 
+	containerPorts := []v1.ContainerPort{}
+	args = append(args, stringifyArgument("--metrics-enabled", strconv.FormatBool(opts.MetricsEnabled)))
+	if opts.MetricsEnabled {
+		args = append(args, stringifyArgument("--metrics-address", opts.MetricsAddress))
+		metrAddrSplit := strings.Split(opts.MetricsAddress, ":")
+		metricsPort, err := strconv.ParseInt(metrAddrSplit[len(metrAddrSplit)-1], 10, 32)
+		if err != nil {
+			metrAddrSplit := strings.Split(vk.MetricsAddress, ":")
+			// if the metrics address is not valid, use the default one
+			metricsPort, _ = strconv.ParseInt(metrAddrSplit[len(metrAddrSplit)-1], 10, 32)
+		}
+		containerPorts = append(containerPorts, v1.ContainerPort{
+			Name:          "metrics",
+			ContainerPort: int32(metricsPort),
+			Protocol:      v1.ProtocolTCP,
+		})
+	}
+
 	return []v1.Container{
 		{
 			Name:      "virtual-kubelet",
@@ -85,25 +105,19 @@ func forgeVKContainers(
 					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}},
 				},
 			},
-			Ports: []v1.ContainerPort{
-				{
-					Name:          "metrics",
-					ContainerPort: 9090,
-					Protocol:      v1.ProtocolTCP,
-				},
-			},
+			Ports: containerPorts,
 		},
 	}
 }
 
 func forgeVKPodSpec(
-	vkNamespace, liqoNamespace string,
+	vkNamespace string,
 	homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity, opts *VirtualKubeletOpts,
 	resourceOffer *sharingv1alpha1.ResourceOffer) v1.PodSpec {
 	nodeName := virtualKubelet.VirtualNodeName(remoteCluster)
 	return v1.PodSpec{
 		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, remoteCluster,
-			nodeName, vkNamespace, liqoNamespace, opts, resourceOffer),
+			nodeName, vkNamespace, opts, resourceOffer),
 		ServiceAccountName: vk.ServiceAccountName,
 	}
 }
