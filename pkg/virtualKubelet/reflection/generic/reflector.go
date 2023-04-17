@@ -193,14 +193,6 @@ func (gr *reflector) processNextWorkItem() bool {
 	// Run the handler, passing it the item to be processed as parameter.
 	if err := gr.handle(context.Background(), key.(types.NamespacedName)); err != nil {
 		var eae enqueueAfterError
-		if errors.As(err, &eae) {
-			// Put the item back on the workqueue after the given duration elapsed.
-			gr.workqueue.AddAfter(key, eae.duration)
-			return true
-		}
-
-		// Put the item back on the workqueue to handle any transient errors.
-		gr.workqueue.AddRateLimited(key)
 
 		// Increase the error counter metric.
 		metrics.ErrorsCounter.With(prometheus.Labels{"namespace": key.(types.NamespacedName).Namespace,
