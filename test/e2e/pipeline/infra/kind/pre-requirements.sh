@@ -80,6 +80,6 @@ chmod +x "${KUBECTL}"
 
 if [[ ! -f "${BINDIR}/kind" ]]; then
     echo "kind could not be found. Downloading https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-${OS}-${ARCH} ..."
-	curl -Lo "${BINDIR}"/kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-${OS}-${ARCH}
+	curl -Lo "${BINDIR}"/kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-${OS}-${ARCH}"
 	chmod +x "${BINDIR}"/kind
 fi

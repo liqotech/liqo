@@ -84,6 +84,6 @@ fi
 
 if [[ ! -f "${BINDIR}/k3d" ]]; then
     echo "k3d could not be found. Downloading https://k3d.sigs.k8s.io/dl/${K3D_VERSION}/k3d-${OS}-${ARCH} ..."
-	curl -Lo "${BINDIR}"/k3d https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-${OS}-${ARCH}
+	curl -Lo "${BINDIR}"/k3d "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-${OS}-${ARCH}"
 	chmod +x "${BINDIR}"/k3d
 fi
