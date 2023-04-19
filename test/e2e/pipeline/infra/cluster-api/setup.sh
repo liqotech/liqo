@@ -1,4 +1,5 @@
 #!/bin/bash
+#shellcheck disable=SC1091
 
 # This scripts expects the following variables to be set:
 # CLUSTER_NUMBER        -> the number of liqo clusters
@@ -15,6 +16,7 @@
 # KUBECTL               -> the path where kubectl is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
+# CNI                   -> the CNI plugin used
 
 set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
@@ -26,6 +28,12 @@ error() {
    echo "An error occurred at $sourcefile:$lineno."
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
+
+FILEPATH=$(realpath "$0")
+WORKDIR=$(dirname "$FILEPATH")
+
+# shellcheck source=./cni.sh 
+source "$WORKDIR/cni.sh"
 
 CLUSTER_NAME=cluster
 
@@ -76,15 +84,8 @@ do
   mkdir -p "${TMPDIR}/kubeconfigs"
   clusterctl get kubeconfig -n "$TARGET_NAMESPACE" "${CAPI_CLUSTER_NAME}${i}" > "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
-  # install calico
-  curl https://raw.githubusercontent.com/projectcalico/calico/v3.24.4/manifests/calico.yaml \
-    | sed -E 's|^( +)# (- name: CALICO_IPV4POOL_CIDR)$|\1\2|g;'\
-"s|^( +)# (  value: )\"192.168.0.0/16\"|\1\2\"$POD_CIDR\"|g;"\
-'/- name: CLUSTER_TYPE/{ n; s/( +value: ").+/\1k8s"/g };'\
-'/- name: CALICO_IPV4POOL_IPIP/{ n; s/value: "Always"/value: "Never"/ };'\
-'/- name: CALICO_IPV4POOL_VXLAN/{ n; s/value: "Never"/value: "Always"/};'\
-'/# Set Felix endpoint to host default action to ACCEPT./a\            - name: FELIX_VXLANPORT\n              value: "6789"' \
-    | "${KUBECTL}" apply -f - --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  echo "Installing ${CNI} for cluster ${CLUSTER_NAME}${i}"
+  "install_${CNI}" "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
   # install local-path storage class
   "${KUBECTL}" apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.24/deploy/local-path-storage.yaml --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
