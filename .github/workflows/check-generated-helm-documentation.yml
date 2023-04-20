@@ -19,7 +19,7 @@ jobs:
 
       - name: Setup helm-docs
         run: |
-          version=1.5.0
+          version=1.11.0
           arch=x86_64
           curl -LO https://github.com/norwoodj/helm-docs/releases/download/v${version}/helm-docs_${version}_linux_${arch}.tar.gz
           tar -zxvf helm-docs_${version}_linux_${arch}.tar.gz
