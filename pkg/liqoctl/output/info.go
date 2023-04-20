@@ -23,8 +23,12 @@ import (
 // Section is a section of the output.
 type Section interface {
 	AddSection(title string) Section
+	AddSectionSuccess(title string) Section
+	AddSectionFailure(title string) Section
+	AddSectionInfo(title string) Section
 	AddSectionWithDetail(title, detail string) Section
 	AddEntry(key string, values ...string) Section
+	AddEntryWithoutStyle(key, value string) Section
 	SprintForBox(printer *Printer) string
 }
 
@@ -32,13 +36,23 @@ type Section interface {
 type entry struct {
 	key    string
 	values []string
+	style  *pterm.Style
 }
+
+type sectionVariant string
+
+const (
+	success sectionVariant = "success"
+	failure sectionVariant = "failure"
+	info    sectionVariant = "info"
+)
 
 // section is a section of the output.
 type section struct {
 	title, detail string
 	sections      []*section
 	entries       []*entry
+	variant       sectionVariant
 }
 
 // NewRootSection create a new Section.
@@ -51,6 +65,27 @@ func (s *section) AddSection(title string) Section {
 	return s.AddSectionWithDetail(title, "")
 }
 
+// AddSectionSuccess add a new Success Section.
+func (s *section) AddSectionSuccess(title string) Section {
+	section := &section{title: title, detail: "", variant: success}
+	s.sections = append(s.sections, section)
+	return section
+}
+
+// AddSectionFailure add a new Failure Section.
+func (s *section) AddSectionFailure(title string) Section {
+	section := &section{title: title, detail: "", variant: failure}
+	s.sections = append(s.sections, section)
+	return section
+}
+
+// AddSectionInfo add a new Info Section.
+func (s *section) AddSectionInfo(title string) Section {
+	section := &section{title: title, detail: "", variant: info}
+	s.sections = append(s.sections, section)
+	return section
+}
+
 // AddSectionWithDetail add a new Section.
 func (s *section) AddSectionWithDetail(title, detail string) Section {
 	section := &section{title: title, detail: detail}
@@ -60,7 +95,13 @@ func (s *section) AddSectionWithDetail(title, detail string) Section {
 
 // AddEntry add a new entry.
 func (s *section) AddEntry(key string, values ...string) Section {
-	s.entries = append(s.entries, &entry{key: key, values: values})
+	s.entries = append(s.entries, &entry{key: key, values: values, style: StatusDataStyle})
+	return s
+}
+
+// AddEntryWithoutStyle add a new entry without style.
+func (s *section) AddEntryWithoutStyle(key, value string) Section {
+	s.entries = append(s.entries, &entry{key: key, values: []string{value}, style: pterm.NewStyle(pterm.FgDefault)})
 	return s
 }
 
@@ -72,14 +113,24 @@ func (s *section) SprintForBox(printer *Printer) string {
 
 // String return the string representation of the section.
 func (s *section) String() string {
+	sectionStyle := StatusSectionStyle
+	switch s.variant {
+	case success:
+		sectionStyle = StatusSectionSuccessStyle
+	case failure:
+		sectionStyle = StatusSectionFailureStyle
+	case info:
+		sectionStyle = StatusSectionInfoStyle
+	}
+
 	if s.detail != "" {
 		return pterm.Sprintf(
 			"%s - %s",
-			StatusSectionStyle.Sprint(s.title),
+			sectionStyle.Sprint(s.title),
 			StatusInfoStyle.Sprint(s.detail),
 		)
 	}
-	return StatusSectionStyle.Sprint(s.title)
+	return sectionStyle.Sprint(s.title)
 }
 
 // print print the section.
@@ -110,25 +161,25 @@ func longestEntryKey(entries []*entry) int {
 func (e *entry) print(level int, printer *Printer, longestKey int) {
 	switch len(e.values) {
 	case 0:
-		printer.BulletListAddItemWithoutBullet(pterm.Sprintf("%s", e.key),
+		printer.BulletListAddItemWithoutBullet(pterm.Bold.Sprint(e.key),
 			level,
 		)
 	case 1:
 		printer.BulletListAddItemWithoutBullet(pterm.Sprintf("%s: %s%s",
-			e.key,
+			pterm.Bold.Sprint(e.key),
 			strings.Repeat(" ", longestKey-len(e.key)),
-			StatusDataStyle.Sprint(e.values[0]),
+			e.style.Sprint(e.values[0]),
 		),
 			level,
 		)
 	default:
 		printer.BulletListAddItemWithoutBullet(
-			pterm.Sprintf("%s:", pterm.Sprint(e.key)),
+			pterm.Bold.Sprint(e.key),
 			level,
 		)
 		for _, v := range e.values {
 			printer.BulletListAddItemWithBullet(
-				StatusDataStyle.Sprint(v),
+				e.style.Sprint(v),
 				level,
 			)
 		}

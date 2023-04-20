@@ -130,7 +130,7 @@ var _ = Describe("LocalInfo", func() {
 			pterm.Sprintf("Cluster ID: %s", clusterID),
 		))
 		Expect(text).To(ContainSubstring(
-			pterm.Sprintf("Cluster Name: %s", clusterName),
+			pterm.Sprintf("Cluster name: %s", clusterName),
 		))
 		if args.clusterLabels {
 			for _, v := range testutil.ClusterLabels {
@@ -151,7 +151,7 @@ var _ = Describe("LocalInfo", func() {
 				Expect(text).To(ContainSubstring(v))
 			}
 			Expect(text).To(ContainSubstring(
-				pterm.Sprintf("Network Gateway: udp://%s:%d", testutil.EndpointIP, testutil.VPNGatewayPort),
+				pterm.Sprintf("Network gateway: udp://%s:%d", testutil.EndpointIP, testutil.VPNGatewayPort),
 			))
 		} else {
 			Expect(text).To(ContainSubstring(pterm.Sprintf("Status: %s", discoveryv1alpha1.PeeringConditionStatusExternal)))
@@ -161,11 +161,11 @@ var _ = Describe("LocalInfo", func() {
 		))
 		if args.net.apiServerOverride {
 			Expect(text).To(ContainSubstring(
-				pterm.Sprintf("Kubernetes API Server: %s", fmt.Sprintf("https://%v", testutil.OverrideAPIAddress)),
+				pterm.Sprintf("Kubernetes API server: %s", fmt.Sprintf("https://%v", testutil.OverrideAPIAddress)),
 			))
 		} else {
 			Expect(text).To(ContainSubstring(
-				pterm.Sprintf("Kubernetes API Server: %s", fmt.Sprintf("https://%v:6443", testutil.EndpointIP)),
+				pterm.Sprintf("Kubernetes API server: %s", fmt.Sprintf("https://%v:6443", testutil.EndpointIP)),
 			))
 		}
 

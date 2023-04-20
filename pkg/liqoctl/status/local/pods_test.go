@@ -38,7 +38,7 @@ var _ = Describe("Pods", func() {
 	pterm.DisableStyling()
 	Describe("ComponentState", func() {
 		var (
-			deploymentType = "Deployment"
+			deploymentType = deployment
 			image          = "liqo:testImage"
 			podS           componentState
 		)
@@ -134,14 +134,6 @@ var _ = Describe("Pods", func() {
 				})
 
 			})
-
-			When("not all pods are ready", func() {
-				It("output should contain unavailable pods", func() {
-					podS.desired = 2
-					podS.unavailable = 1
-					Expect(podS.format()).To(ContainSubstring(fmt.Sprintf(" Unavailable: " + pterm.FgRed.Sprint("1/2"))))
-				})
-			})
 		})
 	})
 
@@ -218,40 +210,44 @@ var _ = Describe("Pods", func() {
 		})
 		JustBeforeEach(func() {
 			podC = PodChecker{
-				deployments:      deployments,
-				daemonSets:       daemonSets,
-				podsState:        make(podStateMap, 2),
-				errors:           false,
-				collectionErrors: nil,
-				options:          options,
+				deployments:       deployments,
+				daemonSets:        daemonSets,
+				podsState:         make(podStateMap, 2),
+				errors:            false,
+				collectionErrors:  nil,
+				options:           options,
+				podCheckerSection: output.NewRootSection(),
 			}
 		})
 
-		DescribeTable("creating a new podChecker", func(internalNetworkEnabled bool) {
-			options.InternalNetworkEnabled = internalNetworkEnabled
-			pc := NewPodChecker(options)
-			if internalNetworkEnabled {
-				Expect(pc.daemonSets).To(Equal(liqoDaemonSetsNetwork))
-			}
-			if internalNetworkEnabled {
-				Expect(pc.deployments).To(Equal(append(liqoDeployments, liqoDeploymentsNetwork...)))
-			} else {
-				Expect(pc.deployments).To(Equal(liqoDeployments))
-			}
-			Expect(pc.errors).To(BeFalse())
-		},
-			Entry("Internal Network enabled", true),
-			Entry("Internal Network disabled", false),
-		)
-
 		Describe("Collect() function", func() {
 			Context("collecting deployment apps", func() {
+				DescribeTable("Validating deployments and daemonsets to check are initialized correctly", func(internalNetworkEnabled bool) {
+					podC.options.KubeClient = fake.NewSimpleClientset()
+					podC.options.InternalNetworkEnabled = internalNetworkEnabled
+					podC.Collect(ctx)
+					if internalNetworkEnabled {
+						Expect(podC.daemonSets[1:]).To(Equal(liqoDaemonSetsNetwork))
+					}
+					if internalNetworkEnabled {
+						Expect(podC.deployments).To(Equal(append(liqoDeployments, liqoDeploymentsNetwork...)))
+					} else {
+						Expect(podC.deployments).To(Equal(liqoDeployments))
+					}
+					for _, v := range podC.collectionErrors {
+						fmt.Fprintln(GinkgoWriter, v.Error())
+					}
+				},
+					Entry("Internal Network enabled", true),
+					Entry("Internal Network disabled", false),
+				)
+
 				When("fails to get the deployment", func() {
 					It("should add an error to the collectionErrors", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset()
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(2))
+						Expect(podC.collectionErrors).To(HaveLen(9))
 					})
 				})
 
@@ -260,7 +256,7 @@ var _ = Describe("Pods", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset(deployment)
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(2))
+						Expect(podC.collectionErrors).To(HaveLen(9))
 					})
 				})
 
@@ -270,7 +266,9 @@ var _ = Describe("Pods", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset(deployment, pod)
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(1))
+						fmt.Fprintln(GinkgoWriter, len(podC.collectionErrors))
+						Expect(podC.collectionErrors).To(HaveLen(9))
+
 					})
 				})
 			})
@@ -281,7 +279,8 @@ var _ = Describe("Pods", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset()
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(2))
+						fmt.Fprintln(GinkgoWriter, len(podC.collectionErrors))
+						Expect(podC.collectionErrors).To(HaveLen(9))
 					})
 				})
 
@@ -290,7 +289,7 @@ var _ = Describe("Pods", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset(daemonSet)
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(2))
+						Expect(podC.collectionErrors).To(HaveLen(9))
 					})
 				})
 
@@ -300,7 +299,7 @@ var _ = Describe("Pods", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset(daemonSet, pod)
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(1))
+						Expect(podC.collectionErrors).To(HaveLen(8))
 					})
 				})
 			})
@@ -350,25 +349,6 @@ var _ = Describe("Pods", func() {
 					pod.SetLabels(dsLabels)
 					podC.options.KubeClient = fake.NewSimpleClientset(daemonSet, pod)
 					Expect(podC.daemonSetStatus(ctx, daemonSetApp)).NotTo(HaveOccurred())
-				})
-			})
-		})
-
-		Describe("Format() function", func() {
-			When("status is not ok", func() {
-				It("should state that the status is not OK", func() {
-					podC.errors = true
-					podC.options.Printer = printer
-					msg := podC.Format()
-					Expect(msg).To(ContainSubstring(fmt.Sprintf("%s liqo control plane is not OK", output.Cross)))
-				})
-			})
-
-			When("status is ok", func() {
-				It("should state that the status is OK", func() {
-					podC.options.Printer = printer
-					msg := podC.Format()
-					Expect(msg).To(ContainSubstring(fmt.Sprintf("%s control plane pods are up and running", output.CheckMark)))
 				})
 			})
 		})

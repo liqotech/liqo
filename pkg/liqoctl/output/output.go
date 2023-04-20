@@ -56,6 +56,12 @@ const (
 var (
 	// StatusSectionStyle is the style of the status section.
 	StatusSectionStyle = pterm.NewStyle(pterm.FgMagenta, pterm.Bold)
+	// StatusSectionSuccessStyle is the style of the success status section.
+	StatusSectionSuccessStyle = pterm.NewStyle(pterm.FgGreen, pterm.Bold)
+	// StatusSectionFailureStyle is the style of the failure status section.
+	StatusSectionFailureStyle = pterm.NewStyle(pterm.FgRed, pterm.Bold)
+	// StatusSectionInfoStyle is the style of the info status section.
+	StatusSectionInfoStyle = pterm.NewStyle(pterm.FgDefault, pterm.Bold)
 	// StatusDataStyle is the style of the status data.
 	StatusDataStyle = pterm.NewStyle(pterm.FgLightYellow, pterm.Bold)
 	// StatusInfoStyle is the style of the status info.
@@ -104,6 +110,8 @@ func (p *Printer) BoxSetTitle(title string) {
 func (p *Printer) BulletListSprintForBox() string {
 	// Srender function never throws an error.
 	text, err := p.BulletList.Srender()
+	// Flush Items to avoid printing the same list twice.
+	p.BulletList.Items = []pterm.BulletListItem{}
 	p.CheckErr(err)
 	text = strings.TrimRight(text, "\n")
 	return text

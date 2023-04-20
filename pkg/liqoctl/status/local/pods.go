@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	ctrlPlaneCheckerName = "Liqo control plane check"
+	ctrlPlaneCheckerName = "Control plane check"
 )
 
 var (
@@ -61,13 +61,20 @@ type errorCount struct {
 // value -> errorCount for the given pod.
 type errorCountMap map[string]*errorCount
 
+type controllerType string
+
+const (
+	deployment controllerType = "Deployment"
+	daemonSet  controllerType = "DaemonSet"
+)
+
 // componentState counts the number of pods in a particular state for a given deployment.
 type componentState struct {
 	// errorFlag set to true if errors are present.
 	errorFlag bool
 
-	// controllerType is the type of deployment ("Deployment", "DaemonSet", ...).
-	controllerType string
+	// controllerType is the type of deployment.
+	controllerType controllerType
 
 	// desired is the number of desired pods to be scheduled.
 	desired int
@@ -93,7 +100,7 @@ type componentState struct {
 // value -> componentState.
 type podStateMap map[string]componentState
 
-func newComponentState(dType string) componentState {
+func newComponentState(dType controllerType) componentState {
 	return componentState{
 		controllerType: dType,
 		errors:         errorCountMap{},
@@ -144,59 +151,41 @@ func (ps *componentState) addErrorForPod(pod string, err error) {
 func (ps *componentState) format() string {
 	var outputTokens []string
 
-	if ps.desired > 0 {
-		outputTokens = append(outputTokens, pterm.Sprintf("Desired: %d", ps.desired))
+	outputTokens = append(outputTokens, pterm.Sprintf("Desired: %s", pterm.Bold.Sprint(ps.desired)))
+	outputColor := pterm.FgGreen
+	if ps.ready < ps.desired {
+		outputColor = pterm.FgRed
 	}
-	if ps.ready > 0 {
-		outputColor := pterm.FgGreen
-		if ps.ready < ps.desired {
-			outputColor = pterm.FgYellow
-		}
-		outputTokens = append(outputTokens, pterm.Sprintf("Ready: %s",
-			outputColor.Sprintf("%d/%d", ps.ready, ps.desired)))
+	outputTokens = append(outputTokens, pterm.Sprintf("Ready: %s",
+		pterm.NewStyle(outputColor, pterm.Bold).Sprintf("%d/%d", ps.ready, ps.desired)))
+	outputColor = pterm.FgGreen
+	if ps.available < ps.desired {
+		outputColor = pterm.FgRed
 	}
-	if ps.available > 0 {
-		outputColor := pterm.FgGreen
-		if ps.available < ps.desired {
-			outputColor = pterm.FgYellow
-		}
-		outputTokens = append(outputTokens, pterm.Sprintf("available: %s",
-			outputColor.Sprintf("%d/%d", ps.available, ps.desired)))
-	}
-	if ps.unavailable > 0 {
-		outputTokens = append(outputTokens, pterm.Sprintf(" Unavailable: %s",
-			pterm.FgRed.Sprintf("%d/%d", ps.unavailable, ps.desired)))
-	}
-	outputTokens = append(outputTokens, pterm.Sprintf("Image version: %s", strings.Join(ps.getImages(), ", ")))
+	outputTokens = append(outputTokens, pterm.Sprintf("Available: %s",
+		pterm.NewStyle(outputColor, pterm.Bold).Sprintf("%d/%d", ps.available, ps.desired)))
 	return strings.Join(outputTokens, ", ")
 }
 
 // PodChecker implements the Check interface.
 // holds the information about the control plane pods of Liqo.
 type PodChecker struct {
-	options          *status.Options
-	deployments      []string
-	daemonSets       []string
-	podsState        podStateMap
-	errors           bool
-	collectionErrors []error
+	options           *status.Options
+	deployments       []string
+	daemonSets        []string
+	podsState         podStateMap
+	errors            bool
+	collectionErrors  []error
+	podCheckerSection output.Section
 }
 
 // NewPodChecker return a new pod checker.
 func NewPodChecker(options *status.Options) *PodChecker {
-	var deployments, daemonSets []string
-	deployments = slices.Clone(liqoDeployments)
-	if options.InternalNetworkEnabled {
-		deployments = append(deployments, liqoDeploymentsNetwork...)
-		daemonSets = append(daemonSets, liqoDaemonSetsNetwork...)
-	}
-
 	return &PodChecker{
-		options:     options,
-		deployments: deployments,
-		daemonSets:  daemonSets,
-		podsState:   make(podStateMap, 6),
-		errors:      false,
+		options:           options,
+		podsState:         make(podStateMap, 6),
+		errors:            false,
+		podCheckerSection: output.NewRootSection(),
 	}
 }
 
@@ -209,13 +198,17 @@ func (pc *PodChecker) Silent() bool {
 // it collects the status of the components of Liqo. The status is
 // collected at the pod level.
 func (pc *PodChecker) Collect(ctx context.Context) {
+	pc.deployments = slices.Clone(liqoDeployments)
+	if pc.options.InternalNetworkEnabled {
+		pc.deployments = append(pc.deployments, liqoDeploymentsNetwork...)
+		pc.daemonSets = append(pc.daemonSets, liqoDaemonSetsNetwork...)
+	}
+
 	for _, dName := range pc.deployments {
 		err := pc.deploymentStatus(ctx, dName)
 		if err != nil {
 			pc.addCollectionError(fmt.Errorf("unable to collect status for deployment %s in namespace %s: %w",
-				pc.options.Printer.Error.Prefix.Style.Sprint(dName),
-				pc.options.Printer.Error.Prefix.Style.Sprint(pc.options.LiqoNamespace),
-				err,
+				dName, pc.options.LiqoNamespace, err,
 			))
 			pc.errors = true
 		}
@@ -225,9 +218,7 @@ func (pc *PodChecker) Collect(ctx context.Context) {
 		err := pc.daemonSetStatus(ctx, dName)
 		if err != nil {
 			pc.addCollectionError(fmt.Errorf("unable to collect status for daemonSet %s in namespace %s: %w",
-				pc.options.Printer.Error.Prefix.Style.Sprint(dName),
-				pc.options.Printer.Error.Prefix.Style.Sprint(pc.options.LiqoNamespace),
-				err,
+				dName, pc.options.LiqoNamespace, err,
 			))
 			pc.errors = true
 		}
@@ -249,28 +240,81 @@ func (pc *PodChecker) GetTitle() string {
 // printed out.
 func (pc *PodChecker) Format() string {
 	var text string
+
+	dpmaxl := len(slice.LongestString(pc.deployments))
+	dsmaxl := len(slice.LongestString(pc.daemonSets))
+	var indent string
+
+	dpAddSection := pc.podCheckerSection.AddSectionSuccess
+	dsAddSection := pc.podCheckerSection.AddSectionSuccess
+	var imgssec output.Section
 	if pc.errors {
-		text += pc.options.Printer.Error.Sprintfln("%s liqo control plane is not OK", pterm.Red(output.Cross))
-		for deployment, podState := range pc.podsState {
+		for _, ps := range pc.podsState {
+			if ps.errorFlag {
+				switch ps.controllerType {
+				case deployment:
+					dpAddSection = pc.podCheckerSection.AddSectionFailure
+				case daemonSet:
+					dsAddSection = pc.podCheckerSection.AddSectionFailure
+				}
+			}
+		}
+	}
+	dpsec := dpAddSection(string(deployment))
+	var dssec output.Section
+	if len(pc.daemonSets) != 0 {
+		dssec = dsAddSection(string(daemonSet))
+	}
+	if pc.options.Verbose {
+		imgssec = pc.podCheckerSection.AddSection("Images")
+	}
+
+	for name, dp := range pc.podsState {
+		indent = ""
+		switch dp.controllerType {
+		case deployment:
+			if dpmaxl < dsmaxl {
+				indent = strings.Repeat(" ", dsmaxl-len(name))
+			}
+			dpsec.AddEntryWithoutStyle(name, indent+dp.format())
+		case daemonSet:
+			if dsmaxl < dpmaxl {
+				indent = strings.Repeat(" ", dpmaxl-len(name))
+			}
+			dssec.AddEntryWithoutStyle(name, indent+dp.format())
+		}
+
+		if pc.options.Verbose {
+			imgsec := imgssec.AddSection(name)
+			for _, img := range dp.getImages() {
+				imgsec.AddSectionInfo(img)
+			}
+		}
+	}
+	text = pc.podCheckerSection.SprintForBox(pc.options.Printer)
+
+	if pc.errors {
+		text += "\n\n"
+		for name, podState := range pc.podsState {
 			if podState.errorFlag {
-				text = pc.options.Printer.Error.Sprintln(
-					pc.options.Printer.Paragraph.Sprintf("%s\t%s\t%s", podState.controllerType, deployment, podState.format()))
 				for pod, errorCol := range podState.errors {
 					for _, err := range errorCol.errors {
 						text += pc.options.Printer.Error.Sprintln(
-							pc.options.Printer.Paragraph.Sprintf("%s\t%s\tPod\t%s\t%s", podState.controllerType, deployment, pod, err))
+							pc.options.Printer.Paragraph.Sprintf(
+								"%s: %s, Pod: %s, Msg: %s",
+								podState.controllerType, name, pod, err,
+							))
 					}
 				}
 			}
 		}
 		for _, err := range pc.collectionErrors {
-			text += pc.options.Printer.Error.Sprintln(pc.options.Printer.Paragraph.Sprintf("%s", err))
+			text += pc.options.Printer.Error.Sprintln(
+				pc.options.Printer.Paragraph.Sprint(err.Error()),
+			)
 		}
 		text = strings.TrimRight(text, "\n")
-		return text
 	}
-	text += pc.options.Printer.Success.Sprint(pterm.Sprintf("%s control plane pods are up and running",
-		pterm.FgGreen.Sprint(output.CheckMark)))
 	return text
 }
 
@@ -287,7 +331,7 @@ func (pc *PodChecker) deploymentStatus(ctx context.Context, deploymentName strin
 		return fmt.Errorf("deployment %s seems to be unavailable", deploymentName)
 	}
 
-	dState := newComponentState("Deployment")
+	dState := newComponentState(deployment)
 	dState.desired = int(d.Status.Replicas)
 	dState.ready = int(d.Status.ReadyReplicas)
 	dState.unavailable = int(d.Status.UnavailableReplicas)
@@ -300,14 +344,15 @@ func (pc *PodChecker) deploymentStatus(ctx context.Context, deploymentName strin
 	if err != nil {
 		return err
 	}
-	if len(pods.Items) == 0 {
-		return fmt.Errorf("no pods found for deployment %s", deploymentName)
-	}
 
 	if errors = checkPodsStatus(pods.Items, &dState); errors {
 		pc.errors = errors
 	}
 	pc.podsState[deploymentName] = dState
+
+	if len(pods.Items) == 0 {
+		return fmt.Errorf("no pods found for deployment %s", deploymentName)
+	}
 
 	return nil
 }
@@ -324,7 +369,7 @@ func (pc *PodChecker) daemonSetStatus(ctx context.Context, daemonSetName string)
 		return fmt.Errorf("daemonSet %s seems to be unavailable", daemonSetName)
 	}
 
-	dState := newComponentState("DaemonSet")
+	dState := newComponentState(daemonSet)
 	dState.desired = int(d.Status.DesiredNumberScheduled)
 	dState.ready = int(d.Status.NumberReady)
 	dState.unavailable = int(d.Status.NumberUnavailable)

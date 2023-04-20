@@ -43,7 +43,7 @@ type LocalInfoChecker struct {
 }
 
 const (
-	localInfoCheckerName = "Local Cluster Information"
+	localInfoCheckerName = "Local cluster information"
 )
 
 // NewLocalInfoChecker returns a new LocalInfoChecker.
@@ -66,9 +66,9 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 	if err != nil {
 		lic.addCollectionError(fmt.Errorf("unable to get cluster identity: %w", err))
 	}
-	clusterIdentitySection := lic.localInfoSection.AddSection("Cluster Identity")
+	clusterIdentitySection := lic.localInfoSection.AddSection("Cluster identity")
 	clusterIdentitySection.AddEntry("Cluster ID", clusterIdentity.ClusterID)
-	clusterIdentitySection.AddEntry("Cluster Name", clusterIdentity.ClusterName)
+	clusterIdentitySection.AddEntry("Cluster name", clusterIdentity.ClusterName)
 
 	ctrlargs, err := liqoctlutils.RetrieveLiqoControllerManagerDeploymentArgs(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
 	if err != nil {
@@ -80,7 +80,7 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 			if err != nil {
 				lic.addCollectionError(fmt.Errorf("unable to get cluster labels: %w", err))
 			}
-			clusterLabelsSection := clusterIdentitySection.AddSection("Cluster Labels")
+			clusterLabelsSection := clusterIdentitySection.AddSection("Cluster labels")
 			for k, v := range clusterLabels {
 				clusterLabelsSection.AddEntry(k, v)
 			}
@@ -170,7 +170,7 @@ func (lic *LocalInfoChecker) addEndpointsSection(ctx context.Context) error {
 		if ep, err = lic.getVpnEndpointLocalAddress(ctx); err != nil {
 			return fmt.Errorf("unable to get vpn endpoint local address: %w", err)
 		}
-		endpointsSection.AddEntry("Network Gateway", ep)
+		endpointsSection.AddEntry("Network gateway", ep)
 	}
 
 	var aurl string
@@ -189,6 +189,6 @@ func (lic *LocalInfoChecker) addEndpointsSection(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to get api server address: %w", err)
 	}
-	endpointsSection.AddEntry("Kubernetes API Server", apiServerAddress)
+	endpointsSection.AddEntry("Kubernetes API server", apiServerAddress)
 	return nil
 }
