@@ -36,3 +36,14 @@ func RemoveString(slice []string, s string) []string {
 	}
 	return newSlice
 }
+
+// LongestString returns the longest string in a slice of strings.
+func LongestString(slice []string) string {
+	var longest string
+	for _, s := range slice {
+		if len(s) > len(longest) {
+			longest = s
+		}
+	}
+	return longest
+}

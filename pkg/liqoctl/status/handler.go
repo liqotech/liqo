@@ -40,7 +40,8 @@ func (o *Options) Run(ctx context.Context) error {
 
 	for i, checker := range o.Checkers {
 		checker.Collect(ctx)
-		text := checker.Format()
+		text := ""
+		text = checker.Format()
 
 		if !checker.Silent() || !checker.HasSucceeded() {
 			o.Printer.BoxSetTitle(checker.GetTitle())

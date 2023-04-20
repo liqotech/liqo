@@ -257,12 +257,12 @@ func (pic *PeerInfoChecker) addVpnSection(ctx context.Context, rootSection outpu
 	te, err := liqogetters.GetTunnelEndpoint(ctx, pic.options.CRClient, &remoteClusterIdentity, tenantNamespace)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			rootSection.AddSectionWithDetail("Network Connection", TunnelEndpointNotFoundMsg)
+			rootSection.AddSectionWithDetail("Network connection", TunnelEndpointNotFoundMsg)
 			return nil
 		}
 		return err
 	}
-	tunnelEndpointSection := rootSection.AddSection("Network Connection")
+	tunnelEndpointSection := rootSection.AddSection("Network connection")
 	vpnEndpointSection := tunnelEndpointSection.AddSection("Gateway IPs")
 	vpnEndpointSection.AddEntry("Local", vpnEndpointFromService)
 	vpnEndpointSection.AddEntry("Remote", fmt.Sprintf("%s:%s",
