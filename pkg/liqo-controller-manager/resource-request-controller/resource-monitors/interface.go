@@ -16,8 +16,6 @@ package resourcemonitors
 
 import (
 	"context"
-
-	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -34,7 +32,7 @@ type ResourceUpdateNotifier interface {
 // ResourceReader represents an interface to read the available resources in this cluster.
 type ResourceReader interface {
 	// ReadResources returns the resources available for usage by the given cluster.
-	ReadResources(ctx context.Context, clusterID string) (corev1.ResourceList, error)
+	ReadResources(ctx context.Context, clusterID string) ([]*ResourceList, error)
 	// Register sets the component that will be notified of changes.
 	Register(context.Context, ResourceUpdateNotifier)
 	// RemoveClusterID removes the given clusterID from all internal structures.

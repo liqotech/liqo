@@ -58,7 +58,7 @@ var _ = Describe("Resource Phase", func() {
 						ForeignAuthURL:         "https://example.com",
 						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 						IncomingPeeringEnabled: c.incomingPeeringEnabled,
-						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+						InsecureSkipTLSVerify:  pointer.Bool(true),
 					},
 				}
 

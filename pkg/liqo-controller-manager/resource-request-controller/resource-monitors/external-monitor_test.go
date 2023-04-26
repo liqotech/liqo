@@ -31,6 +31,8 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
+var _ ResourceReaderServer = &FakeGRPCServer{}
+
 type FakeGRPCServer struct {
 	Ready sync.WaitGroup // Gets unlocked when the server is ready
 
@@ -56,16 +58,17 @@ func (b *FakeGRPCServer) Start(ctx context.Context) error {
 	return b.Server.Serve(lis)
 }
 
-func (b *FakeGRPCServer) ReadResources(context.Context, *ClusterIdentity) (*ResourceList, error) {
+func (b *FakeGRPCServer) ReadResources(context.Context, *ClusterIdentity) (*PoolResourceList, error) {
 	resources := corev1.ResourceList{}
 	resources[corev1.ResourceCPU] = resource.MustParse("1000")
 	resources[corev1.ResourceMemory] = resource.MustParse("200e6")
-	protobufResponse := &ResourceList{Resources: map[string]*resource.Quantity{}}
+	protobufResponse := &ResourceList{Resources: map[string]*resource.Quantity{}, PoolName: "test"}
 	for name := range resources {
 		value := resources[name]
 		protobufResponse.Resources[name.String()] = &value
 	}
-	return protobufResponse, nil
+	resp := &PoolResourceList{ResourceLists: []*ResourceList{protobufResponse}}
+	return resp, nil
 }
 
 // Subscribe pushes one update then closes the subscription.
@@ -108,8 +111,8 @@ var _ = Describe("ResourceMonitors Suite", func() {
 			if err != nil {
 				klog.Errorln("error while reading resources quota from grpc server: %s", err)
 			}
-			Expect(resources.Cpu().Equal(resource.MustParse("1000"))).To(BeTrue())
-			Expect(resources.Memory().Equal(resource.MustParse("200e6"))).To(BeTrue())
+			Expect(resources[0].Resources["cpu"].Equal(resource.MustParse("1000"))).To(BeTrue())
+			Expect(resources[0].Resources["memory"].Equal(resource.MustParse("200e6"))).To(BeTrue())
 		})
 		It("Receives update notifications", func() {
 			fakeServer.Ready.Wait()

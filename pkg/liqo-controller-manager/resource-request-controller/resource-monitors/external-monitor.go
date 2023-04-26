@@ -21,10 +21,10 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 )
+
+var _ ResourceReader = &ExternalResourceMonitor{}
 
 // ExternalResourceMonitor is an object that keeps track of the cluster's resources.
 type ExternalResourceMonitor struct {
@@ -81,20 +81,24 @@ func (m *ExternalResourceMonitor) Register(ctx context.Context, notifier Resourc
 }
 
 // ReadResources reads the resources from the upstream API.
-func (m *ExternalResourceMonitor) ReadResources(ctx context.Context, clusterID string) (corev1.ResourceList, error) {
+func (m *ExternalResourceMonitor) ReadResources(ctx context.Context, clusterID string) ([]*ResourceList, error) {
 	response, err := m.ResourceReaderClient.ReadResources(ctx, &ClusterIdentity{ClusterID: clusterID})
 	if err != nil {
 		return nil, err
 	}
-	ret := corev1.ResourceList{}
-	for key, value := range response.Resources {
-		if value != nil {
-			ret[corev1.ResourceName(key)] = *value
-		} else {
-			ret[corev1.ResourceName(key)] = resource.MustParse("0")
+	/*for i, resourceList := range response.ResourceLists {
+		for key, value := range resourceList.Resources {
+			if ret[i] == nil {
+				ret[i] = make(corev1.ResourceList)
+			}
+			if value != nil {
+				ret[i][corev1.ResourceName(key)] = *value
+			} else {
+				ret[i][corev1.ResourceName(key)] = resource.MustParse("0")
+			}
 		}
-	}
-	return ret, nil
+	}*/
+	return response.ResourceLists, nil
 }
 
 // RemoveClusterID calls the method on the upstream API.

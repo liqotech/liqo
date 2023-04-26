@@ -21,7 +21,6 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,6 +30,7 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // ensureForeignCluster ensures the ForeignCluster existence, if not exists we have to add a new one
@@ -95,7 +95,7 @@ func (r *ResourceRequestReconciler) createForeignCluster(ctx context.Context,
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			ForeignAuthURL:         authURL,
-			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+			InsecureSkipTLSVerify:  pointer.Bool(true),
 		},
 	}
 
@@ -109,27 +109,49 @@ func (r *ResourceRequestReconciler) createForeignCluster(ctx context.Context,
 	return foreignCluster, nil
 }
 
-func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context, request *discoveryv1alpha1.ResourceRequest) error {
-	var offer sharingv1alpha1.ResourceOffer
-	err := r.Client.Get(ctx, types.NamespacedName{
-		Namespace: request.GetNamespace(),
-		Name:      getOfferName(r.HomeCluster),
-	}, &offer)
-	if apierrors.IsNotFound(err) {
-		// ignore not found errors
-		return nil
-	}
-	if err != nil {
+func (r *ResourceRequestReconciler) invalidateResourceOffers(ctx context.Context, request *discoveryv1alpha1.ResourceRequest) error {
+	resourceOfferList := sharingv1alpha1.ResourceOfferList{}
+	if err := r.Client.List(ctx, &resourceOfferList,
+		client.MatchingLabelsSelector{Selector: liqolabels.LocalLabelSelectorForCluster(request.Spec.ClusterIdentity.ClusterID)},
+		client.InNamespace(metav1.NamespaceAll)); err != nil {
 		return err
 	}
 
+	aggregatedStatus := sharingv1alpha1.VirtualKubeletStatusUnknown
+	for i := range resourceOfferList.Items {
+		offer := &resourceOfferList.Items[i]
+		err := r.invalidateResourceOffer(ctx, offer)
+		if err != nil {
+			return err
+		}
+		aggregatedStatus = aggregateStatus(aggregatedStatus, offer.Status.VirtualKubeletStatus)
+	}
+
+	if aggregatedStatus == sharingv1alpha1.VirtualKubeletStatusNone || aggregatedStatus == sharingv1alpha1.VirtualKubeletStatusUnknown {
+		now := metav1.Now()
+		request.Status.OfferWithdrawalTimestamp = &now
+	}
+	return nil
+}
+
+func aggregateStatus(oldStatus, newStatus sharingv1alpha1.VirtualKubeletStatus) sharingv1alpha1.VirtualKubeletStatus {
+	if newStatus == sharingv1alpha1.VirtualKubeletStatusDeleting || newStatus == sharingv1alpha1.VirtualKubeletStatusCreated {
+		return newStatus
+	}
+	if oldStatus == sharingv1alpha1.VirtualKubeletStatusUnknown {
+		return newStatus
+	}
+	return oldStatus
+}
+
+func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context, offer *sharingv1alpha1.ResourceOffer) error {
 	switch offer.Status.VirtualKubeletStatus {
 	case sharingv1alpha1.VirtualKubeletStatusDeleting, sharingv1alpha1.VirtualKubeletStatusCreated:
 		if offer.Spec.WithdrawalTimestamp.IsZero() {
 			now := metav1.Now()
 			offer.Spec.WithdrawalTimestamp = &now
 		}
-		err = client.IgnoreNotFound(r.Client.Update(ctx, &offer))
+		err := client.IgnoreNotFound(r.Client.Update(ctx, offer))
 		if err != nil {
 			return err
 		}
@@ -138,13 +160,9 @@ func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context,
 	case sharingv1alpha1.VirtualKubeletStatusNone, sharingv1alpha1.VirtualKubeletStatusUnknown:
 		// The unknown status might occur in case we never succeeded in reflecting the resource offer
 		// to the remote cluster, e.g., due to an authentication issue.
-		err = client.IgnoreNotFound(r.Client.Delete(ctx, &offer))
+		err := client.IgnoreNotFound(r.Client.Delete(ctx, offer))
 		if err != nil {
 			return err
-		}
-		if request.Status.OfferWithdrawalTimestamp.IsZero() {
-			now := metav1.Now()
-			request.Status.OfferWithdrawalTimestamp = &now
 		}
 		klog.Infof("%s -> Deleted Offer: %s/%s", r.HomeCluster.ClusterName, offer.Namespace, offer.Name)
 		return nil

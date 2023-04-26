@@ -48,7 +48,9 @@ type OfferUpdater struct {
 	enableStorage             bool
 	// currentResources maps the clusters that we intend to offer resources to, to the resource list that we last used
 	// when issuing them a ResourceOffer.
-	currentResources map[string]corev1.ResourceList
+	// key: clusterID
+	// value: list of resource list
+	currentResources map[string][]*resourcemonitors.ResourceList
 	// updateThresholdPercentage is the change in resources that triggers an update of ResourceOffers.
 	updateThresholdPercentage uint
 
@@ -67,7 +69,7 @@ func NewOfferUpdater(ctx context.Context, k8sClient client.Client, homeCluster d
 		scheme:                    k8sClient.Scheme(),
 		localRealStorageClassName: localRealStorageClassName,
 		enableStorage:             enableStorage,
-		currentResources:          map[string]corev1.ResourceList{},
+		currentResources:          map[string][]*resourcemonitors.ResourceList{},
 		updateThresholdPercentage: updateThresholdPercentage,
 		clusterIdentityCache:      map[string]discoveryv1alpha1.ClusterIdentity{},
 	}
@@ -81,7 +83,7 @@ func (u *OfferUpdater) Start(ctx context.Context) error {
 	return u.OfferQueue.Start(ctx)
 }
 
-// CreateOrUpdateOffer creates an offer into the given cluster, reading resources from the ResourceReader.
+// CreateOrUpdateOffer creates one or more offers for the given cluster, reading resources from the ResourceReader.
 func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIdentity) (requeue bool, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -103,43 +105,53 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 	if err != nil {
 		return true, fmt.Errorf("error while reading resources from external resource monitor: %w", err)
 	}
-	u.currentResources[cluster.ClusterID] = resources.DeepCopy()
+	u.currentResources[cluster.ClusterID] = resources
 	u.clusterIdentityCache[cluster.ClusterID] = cluster
-	offer := &sharingv1alpha1.ResourceOffer{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: request.GetNamespace(),
-			Name:      getOfferName(u.homeCluster),
-		},
-	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, u.client, offer, func() error {
-		if offer.Labels != nil {
-			offer.Labels[discovery.ClusterIDLabel] = request.Spec.ClusterIdentity.ClusterID
-			offer.Labels[consts.ReplicationRequestedLabel] = "true"
-			offer.Labels[consts.ReplicationDestinationLabel] = request.Spec.ClusterIdentity.ClusterID
-		} else {
-			offer.Labels = map[string]string{
-				discovery.ClusterIDLabel:           request.Spec.ClusterIdentity.ClusterID,
-				consts.ReplicationRequestedLabel:   "true",
-				consts.ReplicationDestinationLabel: request.Spec.ClusterIdentity.ClusterID,
+	for i := range resources {
+		offer := &sharingv1alpha1.ResourceOffer{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: request.GetNamespace(),
+				Name:      getOfferName(u.homeCluster, resources[i]),
+			},
+		}
+
+		op, err := controllerutil.CreateOrUpdate(ctx, u.client, offer, func() error {
+			if offer.Labels != nil {
+				offer.Labels[discovery.ClusterIDLabel] = request.Spec.ClusterIdentity.ClusterID
+				offer.Labels[consts.ReplicationRequestedLabel] = "true"
+				offer.Labels[consts.ReplicationDestinationLabel] = request.Spec.ClusterIdentity.ClusterID
+			} else {
+				offer.Labels = map[string]string{
+					discovery.ClusterIDLabel:           request.Spec.ClusterIdentity.ClusterID,
+					consts.ReplicationRequestedLabel:   "true",
+					consts.ReplicationDestinationLabel: request.Spec.ClusterIdentity.ClusterID,
+				}
 			}
-		}
-		offer.Spec.ClusterID = u.homeCluster.ClusterID
-		offer.Spec.ResourceQuota.Hard = resources.DeepCopy()
-		offer.Spec.Labels = u.clusterLabels
+			offer.Spec.ClusterID = u.homeCluster.ClusterID
+			offer.Spec.Labels = u.clusterLabels
+			offer.Spec.NodeName = resources[i].PoolName
+			offer.Spec.NodeNamePrefix = resources[i].PoolPrefix
 
-		offer.Spec.StorageClasses, err = u.getStorageClasses(ctx)
+			resourceList := corev1.ResourceList{}
+			for k, v := range resources[i].Resources {
+				resourceList[corev1.ResourceName(k)] = *v
+			}
+			offer.Spec.ResourceQuota.Hard = resourceList
+
+			offer.Spec.StorageClasses, err = u.getStorageClasses(ctx)
+			if err != nil {
+				return err
+			}
+
+			return controllerutil.SetControllerReference(request, offer, u.scheme)
+		})
+
 		if err != nil {
-			return err
+			return true, err
 		}
-
-		return controllerutil.SetControllerReference(request, offer, u.scheme)
-	})
-
-	if err != nil {
-		return true, err
+		klog.Infof("%s -> %s Offer: %s/%s", u.homeCluster.ClusterName, op, offer.Namespace, offer.Name)
 	}
-	klog.Infof("%s -> %s Offer: %s/%s", u.homeCluster.ClusterName, op, offer.Namespace, offer.Name)
 	return false, nil
 }
 
@@ -202,30 +214,36 @@ func (u *OfferUpdater) shouldUpdate(clusterID string) bool {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	oldResources := u.currentResources[clusterID]
-	newResources, err := u.ResourceReader.ReadResources(ctx, clusterID)
-	if err != nil {
-		klog.Errorf("Error while reading resources from external monitor: %w", err)
-		// returns true when an error occurs in order to enqueue again the offer update, otherwise the update will be lost.
-		return true
-	}
-	// Check for any resources removed
-	for oldResourceName := range oldResources {
-		if _, exists := newResources[oldResourceName]; !exists {
+
+	for i := range u.currentResources[clusterID] {
+		oldResources := u.currentResources[clusterID][i]
+		newResources, err := u.ResourceReader.ReadResources(ctx, clusterID)
+		if err != nil {
+			klog.Errorf("Error while reading resources from external monitor: %w", err)
+			// returns true when an error occurs in order to enqueue again the offer update, otherwise the update will be lost.
 			return true
 		}
-	}
-	// Check for any resources added
-	for newResourceName := range newResources {
-		if _, exists := oldResources[newResourceName]; !exists {
-			return true
-		}
-	}
-	for resourceName, newValue := range newResources {
-		oldValue := oldResources[resourceName]
-		absDiff := math.Abs(float64(newValue.Value() - oldValue.Value()))
-		if int64(absDiff) > oldValue.Value()*int64(u.updateThresholdPercentage)/100 {
-			return true
+
+		for j := range newResources {
+			// Check for any resources removed
+			for oldResourceName := range oldResources.Resources {
+				if _, exists := newResources[j].Resources[oldResourceName]; !exists {
+					return true
+				}
+			}
+			// Check for any resources added
+			for newResourceName := range newResources[j].Resources {
+				if _, exists := oldResources.Resources[newResourceName]; !exists {
+					return true
+				}
+			}
+			for resourceName, newValue := range newResources[j].Resources {
+				oldValue := oldResources.Resources[resourceName]
+				absDiff := math.Abs(float64(newValue.Value() - oldValue.Value()))
+				if int64(absDiff) > oldValue.Value()*int64(u.updateThresholdPercentage)/100 {
+					return true
+				}
+			}
 		}
 	}
 
