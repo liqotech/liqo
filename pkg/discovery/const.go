@@ -20,6 +20,8 @@ const (
 
 	// ClusterIDLabel used as key to indicate which cluster a resource is referenced to.
 	ClusterIDLabel = "discovery.liqo.io/cluster-id"
+	// VirtualNodeLabel used to mark the virtual nodes.
+	VirtualNodeLabel = "discovery.liqo.io/virtual-node"
 	// AuthTokenLabel used to mark secrets containing an auth token.
 	AuthTokenLabel = "discovery.liqo.io/auth-token"
 	// DiscoveryTypeLabel used to mark the discovery type.

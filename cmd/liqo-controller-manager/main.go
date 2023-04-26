@@ -65,11 +65,12 @@ import (
 	shadowepsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowendpointslice-controller"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
-	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
+	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnode-controller"
 	fcwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/foreigncluster"
 	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
 	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
 	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
+	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -184,6 +185,23 @@ func main() {
 
 	log.SetLogger(klog.NewKlogr())
 
+	// Options for the virtual kubelet.
+	virtualKubeletOpts := &forge.VirtualKubeletOpts{
+		ContainerImage:       "localhost:5001/virtual-kubelet",
+		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
+		ExtraLabels:          kubeletExtraLabels.StringMap,
+		ExtraArgs:            kubeletExtraArgs.StringList,
+		NodeExtraAnnotations: nodeExtraAnnotations,
+		NodeExtraLabels:      nodeExtraLabels,
+		RequestsCPU:          kubeletCPURequests.Quantity,
+		RequestsRAM:          kubeletRAMRequests.Quantity,
+		LimitsCPU:            kubeletCPULimits.Quantity,
+		LimitsRAM:            kubeletRAMLimits.Quantity,
+		IpamEndpoint:         *kubeletIpamServer,
+		MetricsAddress:       kubeletMetricsAddress,
+		MetricsEnabled:       kubeletMetricsEnabled,
+	}
+
 	clusterIdentity := clusterIdentityFlags.ReadOrDie()
 
 	ctx := ctrl.SetupSignalHandler()
@@ -267,6 +285,7 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient()))
+	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), &clusterIdentity, virtualKubeletOpts))
 
 	if err := indexer.IndexField(ctx, mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
 		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
@@ -375,9 +394,12 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	virtualNodeReconciler := &virtualNodectrl.VirtualNodeReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+	virtualNodeReconciler := &virtualnodectrl.VirtualNodeReconciler{
+		Client:                mgr.GetClient(),
+		Scheme:                mgr.GetScheme(),
+		EventsRecorder:        mgr.GetEventRecorderFor("virtualnode-controller"),
+		HomeClusterIdentity:   &clusterIdentity,
+		VirtualKubeletOptions: virtualKubeletOpts,
 	}
 
 	if err = virtualNodeReconciler.SetupWithManager(mgr); err != nil {

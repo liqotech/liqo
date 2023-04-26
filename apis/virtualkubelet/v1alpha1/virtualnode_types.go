@@ -30,15 +30,20 @@ type Affinity struct {
 
 // OffloadingPatch contains the information to patch the virtual node.
 type OffloadingPatch struct {
-	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
-	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
-	Affinities   *Affinity           `json:"affinities,omitempty"`
+	// NodeSelector contains the node selector to target the remote cluster.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// Tolerations contains the tolerations to target the remote cluster.
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// Affinity contains the affinity and anti-affinity rules to target the remote cluster.
+	Affinities *Affinity `json:"affinities,omitempty"`
 }
 
 // DeploymentTemplate contains the deployment template of the virtual node.
 type DeploymentTemplate struct {
+	// Metadata contains the metadata of the virtual node.
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              appsv1.DeploymentSpec `json:"spec,omitempty"`
+	// Spec contains the deployment spec of the virtual node.
+	Spec appsv1.DeploymentSpec `json:"spec,omitempty"`
 }
 
 // VirtualNodeSpec defines the desired state of VirtualNode.
@@ -47,7 +52,7 @@ type VirtualNodeSpec struct {
 	ClusterIdentity *discoveryv1alpha1.ClusterIdentity `json:"clusterIdentity,omitempty"`
 	// Template contains the deployment of the created virtualKubelet.
 	// +optional
-	Template *appsv1.Deployment `json:"template,omitempty"`
+	Template *DeploymentTemplate `json:"template,omitempty"`
 	// OffloadingPatch contains the information to target a groups of node on the remote cluster.
 	OffloadingPatch *OffloadingPatch `json:"offloadingPatch,omitempty"`
 	// CreateNode indicates if a node to target the remote cluster (and schedule on it) has to be created.
@@ -84,6 +89,8 @@ const (
 	RunningConditionStatusType VirtualNodeConditionStatusType = "Running"
 	// CreatingConditionStatusType represents the condition is in creating state.
 	CreatingConditionStatusType VirtualNodeConditionStatusType = "Creating"
+	// DrainingConditionStatusType represents the condition is in draining state.
+	DrainingConditionStatusType VirtualNodeConditionStatusType = "Draining"
 	// DeletingConditionStatusType represents the condition is in deleting state.
 	DeletingConditionStatusType VirtualNodeConditionStatusType = "Deleting"
 )

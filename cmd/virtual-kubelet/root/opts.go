@@ -57,7 +57,8 @@ const (
 // Opts stores all the options for configuring the root virtual-kubelet command.
 // It is used for setting flag values.
 type Opts struct {
-	HomeKubeconfig string
+	HomeKubeconfig             string
+	RemoteKubeconfigSecretName string
 
 	// Node name to use when creating a node in Kubernetes
 	NodeName             string

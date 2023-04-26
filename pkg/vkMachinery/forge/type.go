@@ -17,6 +17,7 @@ package forge
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
@@ -27,6 +28,7 @@ type VirtualKubeletOpts struct {
 	ExtraAnnotations     map[string]string
 	ExtraLabels          map[string]string
 	ExtraArgs            []string
+	NodeName             string
 	NodeExtraAnnotations argsutils.StringMap
 	NodeExtraLabels      argsutils.StringMap
 	RequestsCPU          resource.Quantity
@@ -36,4 +38,41 @@ type VirtualKubeletOpts struct {
 	IpamEndpoint         string
 	MetricsEnabled       bool
 	MetricsAddress       string
+	StorageClasses       []sharingv1alpha1.StorageType
 }
+
+// VirtualKubeletOptsFlag defines the custom options flags associated with the virtual kubelet deployment forging.
+type VirtualKubeletOptsFlag string
+
+const (
+	// ForeignClusterID is the flag used to specify the foreign cluster ID.
+	ForeignClusterID VirtualKubeletOptsFlag = "--foreign-cluster-id"
+	// ForeignClusterName is the flag used to specify the foreign cluster name.
+	ForeignClusterName VirtualKubeletOptsFlag = "--foreign-cluster-name"
+	// ForeignClusterKubeconfigSecretName is the flag used to specify the foreign cluster kubeconfig secret name.
+	ForeignClusterKubeconfigSecretName VirtualKubeletOptsFlag = "--foreign-kubeconfig-secret-name"
+	// NodeName is the flag used to specify the node name.
+	NodeName VirtualKubeletOptsFlag = "--nodename"
+	// NodeIP is the flag used to specify the node IP.
+	NodeIP VirtualKubeletOptsFlag = "--node-ip"
+	// TenantNamespace is the flag used to specify the tenant namespace.
+	TenantNamespace VirtualKubeletOptsFlag = "--tenant-namespace"
+	// HomeClusterID is the flag used to specify the home cluster ID.
+	HomeClusterID VirtualKubeletOptsFlag = "--home-cluster-id"
+	// HomeClusterName is the flag used to specify the home cluster name.
+	HomeClusterName VirtualKubeletOptsFlag = "--home-cluster-name"
+	// IpamEndpoint is the flag used to specify the IPAM endpoint.
+	IpamEndpoint VirtualKubeletOptsFlag = "--ipam-server"
+	// EnableStorage is the flag used to enable the storage.
+	EnableStorage VirtualKubeletOptsFlag = "--enable-storage"
+	// RemoteRealStorageClassName is the flag used to specify the remote real storage class name.
+	RemoteRealStorageClassName VirtualKubeletOptsFlag = "--remote-real-storage-class-name"
+	// NodeExtraAnnotations is the flag used to specify the node extra annotations.
+	NodeExtraAnnotations VirtualKubeletOptsFlag = "--node-extra-annotations"
+	// NodeExtraLabels is the flag used to specify the node extra labels.
+	NodeExtraLabels VirtualKubeletOptsFlag = "--node-extra-labels"
+	// MetricsEnabled is the flag used to enable the metrics.
+	MetricsEnabled VirtualKubeletOptsFlag = "--metrics-enabled"
+	// MetricsAddress is the flag used to specify the metrics address.
+	MetricsAddress VirtualKubeletOptsFlag = "--metrics-address"
+)

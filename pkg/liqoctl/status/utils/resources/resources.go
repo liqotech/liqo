@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	"github.com/liqotech/liqo/pkg/utils/slice"
@@ -77,18 +78,60 @@ func Others(r corev1.ResourceList) map[string]string {
 
 // GetAcquiredTotal returns the total acquired resources for a given cluster.
 func GetAcquiredTotal(ctx context.Context, cl client.Client, clusterID string) (corev1.ResourceList, error) {
-	r, err := getters.GetResourceOfferByLabel(ctx, cl, metav1.NamespaceAll, liqolabels.RemoteLabelSelectorForCluster(clusterID))
+	rl, err := getters.ListResourceOfferByLabel(ctx, cl, metav1.NamespaceAll, liqolabels.RemoteLabelSelectorForCluster(clusterID))
 	if err != nil {
 		return corev1.ResourceList{}, err
 	}
-	return r.Spec.ResourceQuota.Hard, nil
+	return SumResourceOffers(rl), nil
 }
 
 // GetSharedTotal returns the total shared resources for a given cluster.
 func GetSharedTotal(ctx context.Context, cl client.Client, clusterID string) (corev1.ResourceList, error) {
-	r, err := getters.GetResourceOfferByLabel(ctx, cl, metav1.NamespaceAll, liqolabels.LocalLabelSelectorForCluster(clusterID))
+	rl, err := getters.ListResourceOfferByLabel(ctx, cl, metav1.NamespaceAll, liqolabels.LocalLabelSelectorForCluster(clusterID))
 	if err != nil {
 		return corev1.ResourceList{}, err
 	}
-	return r.Spec.ResourceQuota.Hard, nil
+	return SumResourceOffers(rl), nil
+}
+
+// SumResourceOffers sums the resources of a list of resource offers.
+func SumResourceOffers(resourceoffers *sharingv1alpha1.ResourceOfferList) corev1.ResourceList {
+	tot := corev1.ResourceList{}
+	for i := range resourceoffers.Items {
+		h := resourceoffers.Items[i].Spec.ResourceQuota.Hard
+		if t, ok := tot[corev1.ResourceCPU]; !ok {
+			tot[corev1.ResourceCPU] = *resource.NewQuantity(h.Cpu().Value(), h.Cpu().Format)
+		} else {
+			tot[corev1.ResourceCPU] = *resource.NewQuantity(t.Value()+h.Cpu().Value(), h.Cpu().Format)
+		}
+
+		if t, ok := tot[corev1.ResourceMemory]; !ok {
+			tot[corev1.ResourceMemory] = *resource.NewQuantity(h.Memory().Value(), h.Cpu().Format)
+		} else {
+			tot[corev1.ResourceMemory] = *resource.NewQuantity(t.Value()+h.Memory().Value(), h.Memory().Format)
+		}
+
+		if t, ok := tot[corev1.ResourceEphemeralStorage]; !ok {
+			tot[corev1.ResourceEphemeralStorage] = *resource.NewQuantity(h.StorageEphemeral().Value(), h.StorageEphemeral().Format)
+		} else {
+			tot[corev1.ResourceEphemeralStorage] = *resource.NewQuantity(t.Value()+h.StorageEphemeral().Value(), h.StorageEphemeral().Format)
+		}
+
+		if t, ok := tot[corev1.ResourcePods]; !ok {
+			tot[corev1.ResourcePods] = *resource.NewQuantity(h.Pods().Value(), h.Pods().Format)
+		} else {
+			tot[corev1.ResourcePods] = *resource.NewQuantity(t.Value()+h.Pods().Value(), h.Pods().Format)
+		}
+
+		for k := range Others(h) {
+			fmt.Println(k)
+			q := h[corev1.ResourceName(k)]
+			if t, ok := tot[corev1.ResourceName(k)]; !ok {
+				tot[corev1.ResourceName(k)] = *resource.NewQuantity(q.Value(), q.Format)
+			} else {
+				tot[corev1.ResourceName(k)] = *resource.NewQuantity(t.Value()+q.Value(), q.Format)
+			}
+		}
+	}
+	return tot
 }

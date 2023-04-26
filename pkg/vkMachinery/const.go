@@ -20,9 +20,6 @@ const LocalClusterRoleName = "liqo-virtual-kubelet-local"
 // ServiceAccountName -> the name of the service account leveraged by the virtual kubelet.
 const ServiceAccountName = "virtual-kubelet"
 
-// DeploymentName -> the name of the virtual kubelet deployment.
-const DeploymentName = "virtual-kubelet"
-
 // CRBPrefix -> the prefix used to create the virtual kubelet cluster role binding name.
 const CRBPrefix = "liqo-virtual-kubelet-"
 

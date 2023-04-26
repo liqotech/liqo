@@ -108,7 +108,7 @@ func forgeTesterPod(image, namespace string, opts *TesterOpts) *v1.Pod {
 	if opts.Offloaded {
 		NodeAffinityOperator = v1.NodeSelectorOpIn
 		nodeSelector = map[string]string{
-			"kubernetes.io/hostname": virtualKubelet.VirtualNodeName(&opts.Cluster),
+			"kubernetes.io/hostname": virtualKubelet.VirtualNodesGroupName(&opts.Cluster),
 		}
 	}
 

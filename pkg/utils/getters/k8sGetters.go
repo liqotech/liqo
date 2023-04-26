@@ -30,6 +30,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
@@ -95,6 +96,35 @@ func GetResourceOfferByLabel(ctx context.Context, cl client.Client, ns string, l
 	default:
 		return nil, fmt.Errorf("multiple resources of type %q found for label selector %q,"+
 			" when only one was expected", sharingv1alpha1.ResourceOfferGroupResource.String(), lSelector.String())
+	}
+}
+
+// ListResourceOfferByLabel returns the ResourceOfferList with the given labels.
+func ListResourceOfferByLabel(ctx context.Context, cl client.Client,
+	ns string, lSelector labels.Selector) (*sharingv1alpha1.ResourceOfferList, error) {
+	list := new(sharingv1alpha1.ResourceOfferList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// GetNamespaceMapByLabel returns the NamespaceMapping with the given labels.
+func GetNamespaceMapByLabel(ctx context.Context, cl client.Client,
+	ns string, lSelector labels.Selector) (*virtualkubeletv1alpha1.NamespaceMap, error) {
+	var namespaceMapList virtualkubeletv1alpha1.NamespaceMapList
+	if err := cl.List(ctx, &namespaceMapList, client.MatchingLabelsSelector{Selector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+
+	switch len(namespaceMapList.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(virtualkubeletv1alpha1.NamespaceMapGroupResource, virtualkubeletv1alpha1.NamespaceMapResource)
+	case 1:
+		return &namespaceMapList.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type %q found for label selector %q,"+
+			" when only one was expected", virtualkubeletv1alpha1.NamespaceMapGroupResource.String(), lSelector.String())
 	}
 }
 
@@ -181,8 +211,8 @@ func GetPodByLabel(ctx context.Context, cl client.Client, ns string, lSelector l
 	}
 }
 
-// GetNodeByClusterID returns the node instance that matches the given cluster id.
-func GetNodeByClusterID(ctx context.Context, cl client.Client, clusterID *discoveryv1alpha1.ClusterIdentity) (*corev1.Node, error) {
+// GetNodesByClusterID returns the node list that matches the given cluster id.
+func GetNodesByClusterID(ctx context.Context, cl client.Client, clusterID *discoveryv1alpha1.ClusterIdentity) (*corev1.NodeList, error) {
 	list := new(corev1.NodeList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -197,12 +227,9 @@ func GetNodeByClusterID(ctx context.Context, cl client.Client, clusterID *discov
 
 	switch len(list.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(nodeGR, virtualKubelet.VirtualNodeName(clusterID))
-	case 1:
-		return &list.Items[0], nil
+		return nil, kerrors.NewNotFound(nodeGR, virtualKubelet.VirtualNodesGroupName(clusterID))
 	default:
-		return nil, fmt.Errorf("multiple resources of type {%s} found for clusterID {%s},"+
-			" when only one was expected", nodeRN, clusterID.ClusterID)
+		return list, nil
 	}
 }
 
@@ -227,13 +254,28 @@ func ListOffloadedPods(ctx context.Context, cl client.Client, namespace string) 
 	return offloadedPods, err
 }
 
-// ListVirtualNodes returns the list of virtual nodes.
-func ListVirtualNodes(ctx context.Context, cl client.Client) (corev1.NodeList, error) {
-	var virtualNodes corev1.NodeList
-	err := cl.List(ctx, &virtualNodes, client.MatchingLabels{
-		consts.TypeLabel: consts.TypeNode,
-	})
-	return virtualNodes, err
+// ListVirtualNodesByLabels returns the list of virtual nodes.
+func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector labels.Selector) (*virtualkubeletv1alpha1.VirtualNodeList, error) {
+	var virtualNodes virtualkubeletv1alpha1.VirtualNodeList
+	err := cl.List(ctx, &virtualNodes, &client.ListOptions{LabelSelector: lSelector})
+	return &virtualNodes, err
+}
+
+// GetNodeFromVirtualNode returns the node object from the given virtual node name.
+func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode) (*corev1.Node, error) {
+	nodename := virtualKubelet.VirtualNodeName(virtualNode)
+	nodes, err := GetNodesByClusterID(ctx, cl, virtualNode.Spec.ClusterIdentity)
+	if err != nil {
+		return nil, err
+	}
+	for i := range nodes.Items {
+		if nodes.Items[i].Name == nodename {
+			return &nodes.Items[i], nil
+		}
+	}
+	podRN := string(corev1.ResourcePods)
+	podGR := corev1.Resource(podRN)
+	return nil, kerrors.NewNotFound(podGR, nodename)
 }
 
 // GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster.

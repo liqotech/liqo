@@ -22,7 +22,6 @@ package v1alpha1
 import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/discovery/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -495,7 +494,7 @@ func (in *VirtualNodeSpec) DeepCopyInto(out *VirtualNodeSpec) {
 	}
 	if in.Template != nil {
 		in, out := &in.Template, &out.Template
-		*out = new(appsv1.Deployment)
+		*out = new(DeploymentTemplate)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.OffloadingPatch != nil {

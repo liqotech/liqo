@@ -33,7 +33,7 @@ var (
 	NamespaceMapGroupVersionResource = SchemeGroupVersion.WithResource(NamespaceMapResource)
 
 	// VirtualNodeResource is the resource name used to register the VirtualNode CRD.
-	VirtualNodeResource = "VirtualNodes"
+	VirtualNodeResource = "virtualnodes"
 
 	// VirtualNodeGroupResource is group resource used to register these objects.
 	VirtualNodeGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: VirtualNodeResource}

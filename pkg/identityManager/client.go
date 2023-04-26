@@ -18,7 +18,7 @@ import (
 	"net/http"
 	"net/url"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,7 +32,7 @@ import (
 // This rest config con be used to create a client to the remote cluster.
 func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.ClusterIdentity,
 	namespace string) (*rest.Config, error) {
-	var secret *v1.Secret
+	var secret *corev1.Secret
 	var err error
 
 	if namespace == "" {
@@ -53,7 +53,7 @@ func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.Cl
 
 func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity,
 	namespace string) (types.NamespacedName, error) {
-	var secret *v1.Secret
+	var secret *corev1.Secret
 	var err error
 
 	if namespace == "" {
@@ -71,11 +71,20 @@ func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discov
 	}, nil
 }
 
+// GetConfigFromSecret gets a rest config from a secret.
+func (certManager *identityManager) GetConfigFromSecret(secret *corev1.Secret) (*rest.Config, error) {
+	if certManager.isAwsIdentity(secret) {
+		return certManager.getIAMConfig(secret, discoveryv1alpha1.ClusterIdentity{})
+	}
+
+	return buildConfigFromSecret(secret, discoveryv1alpha1.ClusterIdentity{})
+}
+
 // GetRemoteTenantNamespace returns the tenant namespace that
 // the remote cluster assigned to this peering.
 func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity,
 	localTenantNamespaceName string) (string, error) {
-	var secret *v1.Secret
+	var secret *corev1.Secret
 	var err error
 
 	if localTenantNamespaceName == "" {
@@ -101,11 +110,11 @@ func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster disco
 }
 
 func (certManager *identityManager) getIAMConfig(
-	secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*rest.Config, error) {
+	secret *corev1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*rest.Config, error) {
 	return certManager.iamTokenManager.getConfig(secret, remoteCluster)
 }
 
-func buildConfigFromSecret(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*rest.Config, error) {
+func buildConfigFromSecret(secret *corev1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*rest.Config, error) {
 	var err error
 	// retrieve the data required to build the rest config
 	keyData, ok := secret.Data[privateKeySecretKey]

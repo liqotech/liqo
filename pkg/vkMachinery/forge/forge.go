@@ -23,6 +23,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
@@ -39,45 +40,44 @@ func getDefaultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharin
 
 func forgeVKContainers(
 	vkImage string, homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity,
-	nodeName, vkNamespace string, opts *VirtualKubeletOpts,
-	resourceOffer *sharingv1alpha1.ResourceOffer) []v1.Container {
+	nodeName, vkNamespace string, opts *VirtualKubeletOpts) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
 
 	args := []string{
-		stringifyArgument("--foreign-cluster-id", remoteCluster.ClusterID),
-		stringifyArgument("--foreign-cluster-name", remoteCluster.ClusterName),
-		stringifyArgument("--nodename", nodeName),
-		stringifyArgument("--node-ip", "$(POD_IP)"),
-		stringifyArgument("--tenant-namespace", vkNamespace),
-		stringifyArgument("--home-cluster-id", homeCluster.ClusterID),
-		stringifyArgument("--home-cluster-name", homeCluster.ClusterName),
+		stringifyArgument(string(ForeignClusterID), remoteCluster.ClusterID),
+		stringifyArgument(string(ForeignClusterName), remoteCluster.ClusterName),
+		stringifyArgument(string(NodeName), nodeName),
+		stringifyArgument(string(NodeIP), "$(POD_IP)"),
+		stringifyArgument(string(TenantNamespace), vkNamespace),
+		stringifyArgument(string(HomeClusterID), homeCluster.ClusterID),
+		stringifyArgument(string(HomeClusterName), homeCluster.ClusterName),
 	}
 
 	if opts.IpamEndpoint != "" {
-		args = append(args, stringifyArgument("--ipam-server", opts.IpamEndpoint))
+		args = append(args, stringifyArgument(string(IpamEndpoint), opts.IpamEndpoint))
 	}
 
-	if len(resourceOffer.Spec.StorageClasses) > 0 {
-		args = append(args, "--enable-storage",
-			stringifyArgument("--remote-real-storage-class-name",
-				getDefaultStorageClass(resourceOffer.Spec.StorageClasses).StorageClassName))
+	if len(opts.StorageClasses) > 0 {
+		args = append(args, string(EnableStorage),
+			stringifyArgument(string(RemoteRealStorageClassName),
+				getDefaultStorageClass(opts.StorageClasses).StorageClassName))
 	}
 
 	if extraAnnotations := opts.NodeExtraAnnotations.StringMap; len(extraAnnotations) != 0 {
-		args = append(args, stringifyArgument("--node-extra-annotations", opts.NodeExtraAnnotations.String()))
+		args = append(args, stringifyArgument(string(NodeExtraAnnotations), opts.NodeExtraAnnotations.String()))
 	}
 	if extraLabels := opts.NodeExtraLabels.StringMap; len(extraLabels) != 0 {
-		args = append(args, stringifyArgument("--node-extra-labels", opts.NodeExtraLabels.String()))
+		args = append(args, stringifyArgument(string(NodeExtraLabels), opts.NodeExtraLabels.String()))
 	}
 
 	args = append(args, opts.ExtraArgs...)
 
 	containerPorts := []v1.ContainerPort{}
-	args = append(args, stringifyArgument("--metrics-enabled", strconv.FormatBool(opts.MetricsEnabled)))
+	args = append(args, stringifyArgument(string(MetricsEnabled), strconv.FormatBool(opts.MetricsEnabled)))
 	if opts.MetricsEnabled {
-		args = append(args, stringifyArgument("--metrics-address", opts.MetricsAddress))
+		args = append(args, stringifyArgument(string(MetricsAddress), opts.MetricsAddress))
 		metrAddrSplit := strings.Split(opts.MetricsAddress, ":")
 		metricsPort, err := strconv.ParseInt(metrAddrSplit[len(metrAddrSplit)-1], 10, 32)
 		if err != nil {
@@ -112,12 +112,16 @@ func forgeVKContainers(
 
 func forgeVKPodSpec(
 	vkNamespace string,
-	homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity, opts *VirtualKubeletOpts,
-	resourceOffer *sharingv1alpha1.ResourceOffer) v1.PodSpec {
-	nodeName := virtualKubelet.VirtualNodeName(remoteCluster)
+	homeCluster *discoveryv1alpha1.ClusterIdentity, virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) v1.PodSpec {
+	var nodeName string
+	if opts.NodeName != "" {
+		nodeName = opts.NodeName
+	} else {
+		nodeName = virtualKubelet.VirtualNodeName(virtualNode)
+	}
 	return v1.PodSpec{
-		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, remoteCluster,
-			nodeName, vkNamespace, opts, resourceOffer),
+		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, virtualNode.Spec.ClusterIdentity,
+			nodeName, vkNamespace, opts),
 		ServiceAccountName: vk.ServiceAccountName,
 	}
 }

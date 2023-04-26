@@ -22,21 +22,26 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
+// VirtualKubeletName returns the name of the virtual-kubelet.
+func VirtualKubeletName(virtualNode *virtualkubeletv1alpha1.VirtualNode) string {
+	return "virtual-kubelet-" + virtualNode.Name + "-" + virtualNode.Spec.ClusterIdentity.ClusterID
+}
+
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity, vkNamespace string,
-	opts *VirtualKubeletOpts, resourceOffer *sharingv1alpha1.ResourceOffer) (*appsv1.Deployment, error) {
-	vkLabels := VirtualKubeletLabels(remoteCluster.ClusterID, opts)
+func VirtualKubeletDeployment(homeCluster *discoveryv1alpha1.ClusterIdentity, virtualNode *virtualkubeletv1alpha1.VirtualNode,
+	opts *VirtualKubeletOpts) *appsv1.Deployment {
+	vkLabels := VirtualKubeletLabels(virtualNode, opts)
 	annotations := opts.ExtraAnnotations
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        vkMachinery.DeploymentName,
-			Namespace:   vkNamespace,
+			Name:        VirtualKubeletName(virtualNode),
+			Namespace:   virtualNode.Namespace,
 			Labels:      vkLabels,
 			Annotations: annotations,
 		},
@@ -49,16 +54,17 @@ func VirtualKubeletDeployment(homeCluster, remoteCluster *discoveryv1alpha1.Clus
 					Labels:      vkLabels,
 					Annotations: annotations,
 				},
-				Spec: forgeVKPodSpec(vkNamespace, homeCluster, remoteCluster, opts, resourceOffer),
+				Spec: forgeVKPodSpec(virtualNode.Namespace, homeCluster, virtualNode, opts),
 			},
 		},
-	}, nil
+	}
 }
 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
-func VirtualKubeletLabels(remoteClusterID string, opts *VirtualKubeletOpts) map[string]string {
+func VirtualKubeletLabels(virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) map[string]string {
 	return labels.Merge(labels.Merge(opts.ExtraLabels, vkMachinery.KubeletBaseLabels), map[string]string{
-		discovery.ClusterIDLabel: remoteClusterID,
+		discovery.ClusterIDLabel:   virtualNode.Spec.ClusterIdentity.ClusterID,
+		discovery.VirtualNodeLabel: virtualNode.Name,
 	})
 }
 
