@@ -36,15 +36,17 @@ func (s *ResourceScaler) Register(ctx context.Context, notifier ResourceUpdateNo
 }
 
 // ReadResources returns the provider's resources scaled by the given amount.
-func (s *ResourceScaler) ReadResources(ctx context.Context, clusterID string) (corev1.ResourceList, error) {
+func (s *ResourceScaler) ReadResources(ctx context.Context, clusterID string) ([]*ResourceList, error) {
 	resources, err := s.Provider.ReadResources(ctx, clusterID)
 	if err != nil {
 		return nil, err
 	}
-	for resourceName, quantity := range resources {
-		scaled := quantity
-		ScaleResources(resourceName, &scaled, s.Factor)
-		resources[resourceName] = scaled
+	for i := range resources {
+		for resourceName, quantity := range resources[i].Resources {
+			scaled := quantity
+			ScaleResources(corev1.ResourceName(resourceName), scaled, s.Factor)
+			resources[i].Resources[resourceName] = scaled
+		}
 	}
 	return resources, nil
 }

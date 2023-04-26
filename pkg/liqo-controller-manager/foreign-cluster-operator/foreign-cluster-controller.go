@@ -45,7 +45,6 @@ import (
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -340,13 +339,13 @@ func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 		return err
 	}
 
-	resourceOffer, err := r.getOutgoingResourceOffer(ctx, foreignCluster)
+	resourceOffers, err := r.getOutgoingResourceOffers(ctx, foreignCluster)
 	if err != nil {
 		return fmt.Errorf("reading resource offers: %w", err)
 	}
 
 	// Update the peering status based on the ResourceRequest status
-	status, reason, message, err := getPeeringPhase(foreignCluster, resourceRequest, resourceOffer)
+	status, reason, message, err := getPeeringPhase(foreignCluster, resourceRequest, resourceOffers)
 	if err != nil {
 		err = fmt.Errorf("[%v] %w", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
 		klog.Error(err)
@@ -433,12 +432,12 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 		return fmt.Errorf("reading resource requests: %w", err)
 	}
 
-	resourceOffer, err := r.getIncomingResourceOffer(ctx, foreignCluster)
+	resourceOffers, err := r.getIncomingResourceOffers(ctx, foreignCluster)
 	if err != nil {
 		return fmt.Errorf("reading resource offers: %w", err)
 	}
 
-	status, reason, message, err := getPeeringPhase(foreignCluster, incomingResourceRequest, resourceOffer)
+	status, reason, message, err := getPeeringPhase(foreignCluster, incomingResourceRequest, resourceOffers)
 	if err != nil {
 		return fmt.Errorf("reading peering phase from namespace %s: %w", localNamespace, err)
 	}
@@ -447,27 +446,35 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 	return nil
 }
 
-// getIncomingResourceOffer returns the ResourceOffer created for the given remote cluster in an incoming peering, or a
-// nil pointer if there is none.
-func (r *ForeignClusterReconciler) getIncomingResourceOffer(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) (*sharingv1alpha1.ResourceOffer, error) {
-	offer, err := liqogetters.GetResourceOfferByLabel(ctx, r.Client, metav1.NamespaceAll,
-		liqolabels.LocalLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID))
-	return offer, client.IgnoreNotFound(err)
+// getIncomingResourceOffers returns the ResourceOffers created for the given remote cluster in an incoming peering, or an
+// empty list if there is none.
+func (r *ForeignClusterReconciler) getIncomingResourceOffers(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) ([]sharingv1alpha1.ResourceOffer, error) {
+	resourceOfferList := sharingv1alpha1.ResourceOfferList{}
+	if err := r.Client.List(ctx, &resourceOfferList,
+		client.MatchingLabelsSelector{Selector: liqolabels.LocalLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID)},
+		client.InNamespace(metav1.NamespaceAll)); err != nil {
+		return nil, err
+	}
+	return resourceOfferList.Items, nil
 }
 
-// getOutgoingResourceOffer returns the ResourceOffer created by the given remote cluster in an outgoing peering, or a
-// nil pointer if there is none.
-func (r *ForeignClusterReconciler) getOutgoingResourceOffer(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) (*sharingv1alpha1.ResourceOffer, error) {
-	offer, err := liqogetters.GetResourceOfferByLabel(ctx, r.Client, metav1.NamespaceAll,
-		liqolabels.RemoteLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID))
-	return offer, client.IgnoreNotFound(err)
+// getOutgoingResourceOffers returns the ResourceOffers created by the given remote cluster in an outgoing peering, or an
+// empty list if there is none.
+func (r *ForeignClusterReconciler) getOutgoingResourceOffers(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) ([]sharingv1alpha1.ResourceOffer, error) {
+	resourceOfferList := sharingv1alpha1.ResourceOfferList{}
+	if err := r.Client.List(ctx, &resourceOfferList,
+		client.MatchingLabelsSelector{Selector: liqolabels.RemoteLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID)},
+		client.InNamespace(metav1.NamespaceAll)); err != nil {
+		return nil, err
+	}
+	return resourceOfferList.Items, nil
 }
 
 func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	resourceRequest *discoveryv1alpha1.ResourceRequest,
-	resourceOffer *sharingv1alpha1.ResourceOffer) (status discoveryv1alpha1.PeeringConditionStatusType,
+	resourceOffers []sharingv1alpha1.ResourceOffer) (status discoveryv1alpha1.PeeringConditionStatusType,
 	reason, message string, err error) {
 	if resourceRequest == nil {
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
@@ -491,13 +498,15 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 				fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local), nil
 		}
 		// Return "pending" if we sent the ResourceRequest but the foreign cluster did not yet create the ResourceOffer
-		if resourceOffer == nil {
+		if len(resourceOffers) == 0 {
 			return discoveryv1alpha1.PeeringConditionStatusPending, resourceRequestPendingReason,
 				fmt.Sprintf(resourceRequestPendingMessage, foreignCluster.Status.TenantNamespace.Local), nil
 		}
-		if resourceOffer.Status.VirtualKubeletStatus != sharingv1alpha1.VirtualKubeletStatusCreated {
-			return discoveryv1alpha1.PeeringConditionStatusPending, virtualKubeletPendingReason,
-				virtualKubeletPendingMessage, nil
+		for i := range resourceOffers {
+			if resourceOffers[i].Status.VirtualKubeletStatus != sharingv1alpha1.VirtualKubeletStatusCreated {
+				return discoveryv1alpha1.PeeringConditionStatusPending, virtualKubeletPendingReason,
+					virtualKubeletPendingMessage, nil
+			}
 		}
 		return discoveryv1alpha1.PeeringConditionStatusEstablished, resourceRequestAcceptedReason,
 			fmt.Sprintf(resourceRequestAcceptedMessage, foreignCluster.Status.TenantNamespace.Local), nil

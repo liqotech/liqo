@@ -137,7 +137,7 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		resourceRequest.Status.OfferWithdrawalTimestamp = nil
 	case denyResourceRequestPhase, deletingResourceRequestPhase:
 		// ensure to invalidate any resource offered to the remote cluster
-		err = r.invalidateResourceOffer(ctx, &resourceRequest)
+		err = r.invalidateResourceOffers(ctx, &resourceRequest)
 		if err != nil {
 			klog.Errorf("%s -> Error invalidating resourceOffer: %s", remoteCluster.ClusterName, err)
 			return ctrl.Result{}, err

@@ -368,7 +368,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Eventually(func() bool {
 				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
 				Expect(err).NotTo(HaveOccurred())
-				for resourceName, quantity := range resourcesRead {
+				for resourceNameString, quantity := range resourcesRead[0].Resources {
+					resourceName := corev1.ResourceName(resourceNameString)
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
 					resourcemonitors.ScaleResources(resourceName, &toCheck, DefaultScaleFactor)
@@ -406,7 +407,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Eventually(func() bool {
 				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
 				Expect(err).ToNot(HaveOccurred())
-				for resourceName, quantity := range resourcesRead {
+				for resourceNameString, quantity := range resourcesRead[0].Resources {
+					resourceName := corev1.ResourceName(resourceNameString)
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
@@ -429,7 +431,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Eventually(func() bool {
 				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
 				Expect(err).ToNot(HaveOccurred())
-				for resourceName, quantity := range resourcesRead {
+				for resourceNameString, quantity := range resourcesRead[0].Resources {
+					resourceName := corev1.ResourceName(resourceNameString)
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
@@ -450,7 +453,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Eventually(func() bool {
 				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
 				Expect(err).ToNot(HaveOccurred())
-				for resourceName, quantity := range resourcesRead {
+				for resourceNameString, quantity := range resourcesRead[0].Resources {
+					resourceName := corev1.ResourceName(resourceNameString)
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
@@ -472,7 +476,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Eventually(func() bool {
 				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
 				Expect(err).NotTo(HaveOccurred())
-				for resourceName, quantity := range resourcesRead {
+				for resourceNameString, quantity := range resourcesRead[0].Resources {
+					resourceName := corev1.ResourceName(resourceNameString)
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
@@ -501,7 +506,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Eventually(func() bool {
 				resourcesRead, err := scaledMonitor.ReadResources(context.Background(), cluster1.ClusterID)
 				Expect(err).NotTo(HaveOccurred())
-				for resourceName, quantity := range resourcesRead {
+				for resourceNameString, quantity := range resourcesRead[0].Resources {
+					resourceName := corev1.ResourceName(resourceNameString)
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
 					resourcemonitors.ScaleResources(resourceName, &toCheck, DefaultScaleFactor)

@@ -6,7 +6,7 @@ option go_package = "./resourcemonitors";
 
 // This interface is a gRPC translation of the ResourceReader Go interface.
 service resource_reader {
-  rpc ReadResources (ClusterIdentity) returns (ResourceList);
+  rpc ReadResources (ClusterIdentity) returns (PoolResourceList);
   rpc RemoveCluster (ClusterIdentity) returns (Empty);
   rpc Subscribe (Empty) returns (stream ClusterIdentity);
 }
@@ -17,9 +17,15 @@ message ClusterIdentity {
   string clusterID = 1;
 }
 
+message PoolResourceList {
+  repeated ResourceList resource_lists = 1;
+}
+
 // A response representing a Kubernetes ResourceList. Quantities are represented as string values (eg. "ram": "1Gi").
 message ResourceList {
   map<string, k8s.io.apimachinery.pkg.api.resource.Quantity> resources = 1;
+  string pool_name = 2;
+  string pool_prefix = 3;
 }
 
 // An empty response

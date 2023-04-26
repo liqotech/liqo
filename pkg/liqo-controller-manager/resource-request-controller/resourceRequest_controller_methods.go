@@ -28,6 +28,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 )
 
 func (r *ResourceRequestReconciler) ensureClusterRole(ctx context.Context,
@@ -111,7 +112,7 @@ func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) error {
 	var resourceOffer sharingv1alpha1.ResourceOffer
 	err := r.Client.Get(ctx, types.NamespacedName{
-		Name:      getOfferName(r.HomeCluster),
+		Name:      getOfferName(r.HomeCluster, nil),
 		Namespace: resourceRequest.GetNamespace(),
 	}, &resourceOffer)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -129,8 +130,15 @@ func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,
 }
 
 // getOfferName returns the name of the ResourceOffer coming from the given cluster.
-func getOfferName(cluster discoveryv1alpha1.ClusterIdentity) string {
-	return cluster.ClusterName
+func getOfferName(cluster discoveryv1alpha1.ClusterIdentity, resource *resourcemonitors.ResourceList) string {
+	switch {
+	case resource != nil && resource.PoolName != "":
+		return resource.PoolName
+	case resource != nil && resource.PoolPrefix != "":
+		return fmt.Sprintf("%s-%s", resource.PoolPrefix, cluster.ClusterName)
+	default:
+		return cluster.ClusterName
+	}
 }
 
 // GetTenantName returns the name of the Tenant for the given cluster.

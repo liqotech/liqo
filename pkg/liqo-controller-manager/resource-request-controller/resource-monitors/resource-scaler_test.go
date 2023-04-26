@@ -23,6 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+var _ ResourceReader = &FakeResourceReader{}
+
 type FakeResourceReader struct {
 	corev1.ResourceList
 }
@@ -30,8 +32,16 @@ type FakeResourceReader struct {
 func (r FakeResourceReader) Register(context.Context, ResourceUpdateNotifier) {
 }
 
-func (r FakeResourceReader) ReadResources(context.Context, string) (corev1.ResourceList, error) {
-	return r.ResourceList.DeepCopy(), nil
+func (r FakeResourceReader) ReadResources(context.Context, string) ([]*ResourceList, error) {
+	resources := make([]*ResourceList, 1)
+	resources[0] = &ResourceList{}
+	resources[0].Resources = make(map[string]*resource.Quantity)
+	resources[0].PoolName = "fake"
+	for k, v := range r.ResourceList {
+		vCopy := v.DeepCopy()
+		resources[0].Resources[k.String()] = &vCopy
+	}
+	return resources, nil
 }
 
 func (r FakeResourceReader) RemoveClusterID(context.Context, string) error {
@@ -50,8 +60,10 @@ var _ = Describe("ResourceMonitors Suite", func() {
 				Factor:   .5,
 			}
 			scaled, _ := scaler.ReadResources(context.Background(), "")
-			Expect(scaled.Cpu().Equal(resource.MustParse("500m"))).To(BeTrue())
-			Expect(scaled.Memory().Equal(resource.MustParse("4G"))).To(BeTrue())
+			Expect(scaled).To(HaveLen(1))
+			Expect(scaled[0].Resources).To(HaveLen(2))
+			Expect(scaled[0].Resources["cpu"].Equal(resource.MustParse("500m"))).To(BeTrue())
+			Expect(scaled[0].Resources["memory"].Equal(resource.MustParse("4G"))).To(BeTrue())
 		})
 	})
 })
