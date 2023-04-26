@@ -30,6 +30,7 @@ type VirtualkubeletV1alpha1Interface interface {
 	NamespaceMapsGetter
 	ShadowEndpointSlicesGetter
 	ShadowPodsGetter
+	VirtualNodesGetter
 }
 
 // VirtualkubeletV1alpha1Client is used to interact with features provided by the virtualkubelet.liqo.io group.
@@ -47,6 +48,10 @@ func (c *VirtualkubeletV1alpha1Client) ShadowEndpointSlices(namespace string) Sh
 
 func (c *VirtualkubeletV1alpha1Client) ShadowPods(namespace string) ShadowPodInterface {
 	return newShadowPods(c, namespace)
+}
+
+func (c *VirtualkubeletV1alpha1Client) VirtualNodes(namespace string) VirtualNodeInterface {
+	return newVirtualNodes(c, namespace)
 }
 
 // NewForConfig creates a new VirtualkubeletV1alpha1Client for the given config.

@@ -49,7 +49,7 @@ purge: manifests ctl
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	rm -f deployments/liqo/crds/*
-	$(CONTROLLER_GEN) crd paths="./apis/..." output:crd:artifacts:config=deployments/liqo/crds
+	$(CONTROLLER_GEN) crd paths="./apis/..." crd:generateEmbeddedObjectMeta=true output:crd:artifacts:config=deployments/liqo/crds
 
 #Generate RBAC for each controller
 rbacs: controller-gen

@@ -21,3 +21,5 @@ type NamespaceMapExpansion interface{}
 type ShadowEndpointSliceExpansion interface{}
 
 type ShadowPodExpansion interface{}
+
+type VirtualNodeExpansion interface{}

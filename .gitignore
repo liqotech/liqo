@@ -42,3 +42,6 @@ liqo_kubeconf*
 
 hack/code-generator
 docs/_build
+
+# kubebuilder generated files
+/config
