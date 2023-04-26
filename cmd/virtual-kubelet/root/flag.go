@@ -26,6 +26,8 @@ import (
 // InstallFlags configures the virtual kubelet flags.
 func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.StringVar(&o.HomeKubeconfig, "home-kubeconfig", o.HomeKubeconfig, "kube config file to use for connecting to the Kubernetes API server")
+	flags.StringVar(&o.RemoteKubeconfigSecretName, "foreign-kubeconfig-secret-name", o.RemoteKubeconfigSecretName,
+		"Secret name to use for connecting to the remote Kubernetes API server")
 	flags.StringVar(&o.NodeName, "nodename", o.NodeName, "The name of the node registered by the virtual kubelet")
 	flags.StringVar(&o.TenantNamespace, "tenant-namespace", o.TenantNamespace, "The tenant namespace associated with the remote cluster")
 	flags.DurationVar(&o.InformerResyncPeriod, "resync-period", o.InformerResyncPeriod, "The resync period for the informers")

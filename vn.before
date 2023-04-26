@@ -1,0 +1,47 @@
+apiVersion: virtualkubelet.liqo.io/v1alpha1
+kind: VirtualNode
+metadata:
+  name: liqo-winter-fog
+spec:
+  clusterIdentity:
+    clusterID: 395b2d83-5455-4d6d-b980-283bac92d3c2
+    clusterName: winter-fog
+  createNode: true
+  kubeconfigSecretRef:
+    name: todo
+  labels:
+    liqo.io/provider: kubeadm
+  resourceQuota:
+    hard:
+      cpu: 2146m
+      ephemeral-storage: "15253486592"
+      hugepages-1Gi: "0"
+      hugepages-2Mi: "0"
+      memory: 6305M
+      pods: "178"
+  storageClasses:
+  - storageClassName: liqo
+---
+apiVersion: virtualkubelet.liqo.io/v1alpha1
+kind: VirtualNode
+metadata:
+  name: second-pool
+spec:
+  clusterIdentity:
+    clusterID: 395b2d83-5455-4d6d-b980-283bac92d3c2
+    clusterName: winter-fog
+  createNode: true
+  kubeconfigSecretRef:
+    name: todo
+  labels:
+    liqo.io/provider: kubeadm
+  resourceQuota:
+    hard:
+      cpu: 2146m
+      ephemeral-storage: "15253486592"
+      hugepages-1Gi: "0"
+      hugepages-2Mi: "0"
+      memory: 6305M
+      pods: "178"
+  storageClasses:
+  - storageClassName: liqo

@@ -60,18 +60,14 @@ func (c *Builder) getNamespacesInfo(ctx context.Context) []NamespaceInfo {
 	err := c.Client.List(ctx, &namespaceOffloadings)
 	runtime.Must(err)
 
-	virtualNodes, err := liqogetters.ListVirtualNodes(ctx, c.Client)
+	virtualNodes, err := liqogetters.ListVirtualNodesByLabels(ctx, c.Client, labels.Everything())
 	runtime.Must(err)
 
 	nodeNameClusterIDMap := map[string]string{}
 	for i := range virtualNodes.Items {
-		node := &virtualNodes.Items[i]
-		clusterID, err := liqogetters.RetrieveClusterIDFromVirtualNode(node)
-		if err != nil {
-			klog.Errorf("unable to get cluster id from node %s: %v", node.Name, err)
-			continue
-		}
-		nodeNameClusterIDMap[node.Name] = clusterID
+		virtualNode := &virtualNodes.Items[i]
+		clusterID := virtualNode.Spec.ClusterIdentity.ClusterID
+		nodeNameClusterIDMap[virtualNode.Name] = clusterID
 	}
 
 	namespaceInfoSlice := make([]NamespaceInfo, len(namespaceOffloadings.Items))

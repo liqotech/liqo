@@ -17,6 +17,7 @@ package root
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -76,7 +77,17 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	tenantNamespaceManager := tenantnamespace.NewManager(localClient) // Do not use the cached version, as leveraged only once.
 	identityManager := identitymanager.NewCertificateIdentityReader(localClient, c.HomeCluster, tenantNamespaceManager)
 
-	remoteConfig, err := identityManager.GetConfig(c.ForeignCluster, c.TenantNamespace)
+	if c.RemoteKubeconfigSecretName == "" {
+		return errors.New("remote kubeconfig secret name is mandatory")
+	}
+	secret, err := localClient.CoreV1().Secrets(c.TenantNamespace).Get(ctx, c.RemoteKubeconfigSecretName, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return fmt.Errorf("remote kubeconfig secret not found: %w", err)
+		}
+		return err
+	}
+	remoteConfig, err := identityManager.GetConfigFromSecret(secret)
 	if err != nil {
 		return err
 	}

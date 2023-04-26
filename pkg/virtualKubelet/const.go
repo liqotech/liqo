@@ -14,14 +14,22 @@
 
 package virtualKubelet
 
-import discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+import (
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+)
 
 const (
 	// VirtualNodePrefix -> the prefix used to generate the virtual node name.
 	VirtualNodePrefix = "liqo-"
 )
 
-// VirtualNodeName generates the virtual node name based on the cluster ID.
-func VirtualNodeName(cluster *discoveryv1alpha1.ClusterIdentity) string {
+// VirtualNodeGroupName generate the group name for the virtual nodes referring a specific clusterID.
+func VirtualNodesGroupName(cluster *discoveryv1alpha1.ClusterIdentity) string {
 	return VirtualNodePrefix + cluster.ClusterName
+}
+
+// VirtualNodeName generate the name for a virtual node.
+func VirtualNodeName(vn *virtualkubeletv1alpha1.VirtualNode) string {
+	return VirtualNodePrefix + vn.Spec.ClusterIdentity.ClusterName + "-" + vn.Name
 }

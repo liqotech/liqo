@@ -19,12 +19,14 @@ import (
 	"fmt"
 	"strconv"
 
+	"golang.org/x/exp/maps"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -54,14 +56,6 @@ func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (*discoveryv1alpha1.Cl
 		ClusterID:   id,
 		ClusterName: name,
 	}, nil
-}
-
-// RetrieveClusterIDFromVirtualNode retrieves the cluster id from the given node labels.
-func RetrieveClusterIDFromVirtualNode(node *corev1.Node) (string, error) {
-	if v, ok := node.Labels[liqoconsts.RemoteClusterID]; ok {
-		return v, nil
-	}
-	return "", fmt.Errorf("no %s label found in node %q", liqoconsts.RemoteClusterID, node.Name)
 }
 
 // RetrieveEndpointFromService retrieves an ip address and port from a given service object
@@ -240,4 +234,13 @@ func RetrieveNetworkConfiguration(ipamS *netv1alpha1.IpamStorage) (*NetworkConfi
 		ExternalCIDR:    ipamS.Spec.ExternalCIDR,
 		ReservedSubnets: ipamS.Spec.ReservedSubnets,
 	}, nil
+}
+
+// RetrieveClusterIDsFromVirtualNodes returns the remote cluster IDs in a list of VirtualNodes avoiding duplicates.
+func RetrieveClusterIDsFromVirtualNodes(virtualNodes *virtualkubeletv1alpha1.VirtualNodeList) []string {
+	clusterIDs := make(map[string]interface{})
+	for _, vn := range virtualNodes.Items {
+		clusterIDs[vn.Spec.ClusterIdentity.ClusterID] = nil
+	}
+	return maps.Keys(clusterIDs)
 }

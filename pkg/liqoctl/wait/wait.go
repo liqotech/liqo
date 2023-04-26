@@ -122,12 +122,15 @@ func (w *Waiter) ForNode(ctx context.Context, remoteClusterID *discoveryv1alpha1
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for node to be created for the remote cluster %q", remName))
 
 	err := wait.PollImmediateUntilWithContext(ctx, 1*time.Second, func(ctx context.Context) (done bool, err error) {
-		node, err := getters.GetNodeByClusterID(ctx, w.CRClient, remoteClusterID)
+		nodes, err := getters.GetNodesByClusterID(ctx, w.CRClient, remoteClusterID)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
-
-		return utils.IsNodeReady(node), nil
+		ready := true
+		for i := range nodes.Items {
+			ready = utils.IsNodeReady(&nodes.Items[i])
+		}
+		return ready, nil
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("Failed waiting for node to be created for remote cluster %q: %s", remName, output.PrettyErr(err)))

@@ -37,6 +37,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/pterm/pterm"
 )
 
 var _ ResourceReader = &LocalResourceMonitor{}
@@ -240,6 +241,7 @@ func (m *LocalResourceMonitor) ReadResources(_ context.Context, clusterID string
 	// TODO: support multiple offers
 	resources := make([]*ResourceList, 1)
 	for k, v := range toRead {
+		pterm.FgGreen.Println("Resource: ", k.String(), " - ", v.String())
 		vCopy := v.DeepCopy()
 		if resources[0] == nil {
 			resources[0] = &ResourceList{}

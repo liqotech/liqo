@@ -17,6 +17,7 @@ package fake
 import (
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 
@@ -70,6 +71,11 @@ func (i *IdentityReader) GetSecretNamespacedName(remoteCluster discoveryv1alpha1
 		return types.NamespacedName{}, fmt.Errorf("secret name for remote cluster ID %v not found", remoteCluster.ClusterID)
 	}
 	return types.NamespacedName{}, fmt.Errorf("remote cluster ID %v not found", remoteCluster.ClusterID)
+}
+
+// GetConfigFromSecret retrieves the rest config associated with a remote cluster.
+func (i *IdentityReader) GetConfigFromSecret(_ *corev1.Secret) (*rest.Config, error) {
+	panic("implement me")
 }
 
 // GetRemoteTenantNamespace retrieves the tenant namespace associated with a remote cluster.

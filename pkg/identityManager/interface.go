@@ -17,6 +17,7 @@ package identitymanager
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 
@@ -28,6 +29,7 @@ import (
 // IdentityReader provides the interface to retrieve the identities for the remote clusters.
 type IdentityReader interface {
 	GetConfig(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (*rest.Config, error)
+	GetConfigFromSecret(secret *corev1.Secret) (*rest.Config, error)
 	GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (string, error)
 	GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (types.NamespacedName, error)
 }
