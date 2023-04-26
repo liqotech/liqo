@@ -28,6 +28,8 @@ type Interface interface {
 	ShadowEndpointSlices() ShadowEndpointSliceInformer
 	// ShadowPods returns a ShadowPodInformer.
 	ShadowPods() ShadowPodInformer
+	// VirtualNodes returns a VirtualNodeInformer.
+	VirtualNodes() VirtualNodeInformer
 }
 
 type version struct {
@@ -54,4 +56,9 @@ func (v *version) ShadowEndpointSlices() ShadowEndpointSliceInformer {
 // ShadowPods returns a ShadowPodInformer.
 func (v *version) ShadowPods() ShadowPodInformer {
 	return &shadowPodInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// VirtualNodes returns a VirtualNodeInformer.
+func (v *version) VirtualNodes() VirtualNodeInformer {
+	return &virtualNodeInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

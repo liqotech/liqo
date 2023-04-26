@@ -39,6 +39,10 @@ func (c *FakeVirtualkubeletV1alpha1) ShadowPods(namespace string) v1alpha1.Shado
 	return &FakeShadowPods{c, namespace}
 }
 
+func (c *FakeVirtualkubeletV1alpha1) VirtualNodes(namespace string) v1alpha1.VirtualNodeInterface {
+	return &FakeVirtualNodes{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeVirtualkubeletV1alpha1) RESTClient() rest.Interface {
