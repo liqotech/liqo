@@ -81,6 +81,14 @@ spec:
                 description: Labels contains the label to be added to the virtual
                   node.
                 type: object
+              nodeName:
+                description: NodeName is the exact name that the virtual node will
+                  have. One and only one of NodeName and NodeNamePrefix must be set.
+                type: string
+              nodeNamePrefix:
+                description: NodeNamePrefix is the prefix that the virtual node will
+                  have. One and only one of NodeName and NodeNamePrefix must be set.
+                type: string
               prices:
                 additionalProperties:
                   anyOf:

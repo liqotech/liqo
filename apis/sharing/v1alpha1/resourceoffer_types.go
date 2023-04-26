@@ -35,6 +35,12 @@ type ResourceOfferSpec struct {
 	// ClusterID is the identifier of the cluster that is sending this ResourceOffer.
 	// It is the uid of the first master node in you cluster.
 	ClusterID string `json:"clusterId"`
+	// NodeName is the exact name that the virtual node will have.
+	// One and only one of NodeName and NodeNamePrefix must be set.
+	NodeName string `json:"nodeName,omitempty"`
+	// NodeNamePrefix is the prefix that the virtual node will have.
+	// One and only one of NodeName and NodeNamePrefix must be set.
+	NodeNamePrefix string `json:"nodeNamePrefix,omitempty"`
 	// Images is the list of the images already stored in the cluster.
 	Images []corev1.ContainerImage `json:"images,omitempty"`
 	// ResourceQuota contains the quantity of resources made available by the cluster.
