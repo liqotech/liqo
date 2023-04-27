@@ -29,6 +29,8 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/csr"
 )
 
+var _ IdentityManager = &identityManager{}
+
 type identityManager struct {
 	IdentityProvider
 

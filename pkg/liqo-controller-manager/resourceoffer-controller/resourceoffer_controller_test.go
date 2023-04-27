@@ -24,30 +24,27 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/apps/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/identityManager/fake"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
-	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 const (
 	timeout  = time.Second * 30
 	interval = time.Millisecond * 250
 
-	testNamespace = "default"
-
-	virtualKubeletImage = "vk-image"
+	testNamespace        = "default"
+	kubeconfigSecretName = "kubeconfig-secret"
 )
 
 var (
@@ -82,11 +79,20 @@ func createForeignCluster() {
 			ForeignAuthURL:         "https://127.0.0.1:8080",
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+			InsecureSkipTLSVerify:  pointer.Bool(true),
 		},
 	}
-
 	if err := controller.Client.Create(ctx, foreignCluster); err != nil {
+		By(err.Error())
+		os.Exit(1)
+	}
+
+	foreignCluster.Status = discoveryv1alpha1.ForeignClusterStatus{
+		TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
+			Local: testNamespace,
+		},
+	}
+	if err := controller.Client.Status().Update(ctx, foreignCluster); err != nil {
 		By(err.Error())
 		os.Exit(1)
 	}
@@ -106,12 +112,10 @@ var _ = Describe("ResourceOffer Controller", func() {
 			os.Exit(1)
 		}
 
-		kubeletOpts := &forge.VirtualKubeletOpts{
-			ContainerImage: virtualKubeletImage,
-		}
+		identityReader := fake.NewIdentityReader().Add(remoteClusterIdentity.ClusterID,
+			testNamespace, kubeconfigSecretName, cluster.GetCfg())
 
-		controller = NewResourceOfferController(mgr, remoteClusterIdentity,
-			10*time.Second, testNamespace, kubeletOpts, true)
+		controller = NewResourceOfferController(mgr, identityReader, 10*time.Second, true)
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)
@@ -189,9 +193,9 @@ var _ = Describe("ResourceOffer Controller", func() {
 		}),
 	)
 
-	Describe("ResourceOffer virtual-kubelet", func() {
+	Describe("ResourceOffer VirtualNode", func() {
 
-		It("test virtual kubelet creation", func() {
+		It("test VirtualNode creation", func() {
 			resourceOffer := &sharingv1alpha1.ResourceOffer{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "resource-offer",
@@ -237,63 +241,64 @@ var _ = Describe("ResourceOffer Controller", func() {
 				return resourceOffer.Status.VirtualKubeletStatus
 			}, timeout, interval).Should(Equal(sharingv1alpha1.VirtualKubeletStatusCreated))
 
-			// check the creation of the deployment
+			// check the creation of the virtual node
 			Eventually(func() bool {
-				var deploymentList v1.DeploymentList
-				err := controller.Client.List(ctx, &deploymentList)
-				if err != nil || len(deploymentList.Items) != 1 {
+				var virtualNodeList virtualkubeletv1alpha1.VirtualNodeList
+				err := controller.Client.List(ctx, &virtualNodeList)
+				if err != nil || len(virtualNodeList.Items) != 1 {
 					return false
 				}
 
-				vkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
-				if err != nil || vkDeploy == nil {
+				vnStatus, err := controller.getVirtualNodeStatus(ctx, resourceOffer)
+				if err != nil || vnStatus == nil {
 					return false
 				}
-				return reflect.DeepEqual(deploymentList.Items[0], *vkDeploy)
+				return reflect.DeepEqual(virtualNodeList.Items[0].Status, *vnStatus)
 			}, timeout, interval).Should(BeTrue())
 
-			// check that the deployment has the controller reference annotation
+			// check that the VirtualNode has the controller reference annotation
 			Eventually(func() string {
-				vkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
-				if err != nil || vkDeploy == nil {
+				var virtualNodeList virtualkubeletv1alpha1.VirtualNodeList
+				err := controller.Client.List(ctx, &virtualNodeList)
+				if err != nil || len(virtualNodeList.Items) != 1 {
 					return ""
 				}
-				return vkDeploy.Annotations[resourceOfferAnnotation]
+
+				if len(virtualNodeList.Items[0].OwnerReferences) != 1 {
+					return ""
+				}
+				return virtualNodeList.Items[0].OwnerReferences[0].Name
 			}, timeout, interval).Should(Equal(resourceOffer.Name))
 
-			// check the existence of the ClusterRoleBinding
-			Eventually(func() int {
-				labels := forge.ClusterRoleLabels(remoteClusterIdentity.ClusterID)
-				var clusterRoleBindingList rbacv1.ClusterRoleBindingList
-				err := controller.Client.List(ctx, &clusterRoleBindingList, client.MatchingLabels(labels))
-				if err != nil {
-					return -1
-				}
-				return len(clusterRoleBindingList.Items)
-			}, timeout, interval).Should(BeNumerically("==", 1))
-
-			// get the vk deployment and delete it
-			vkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
+			// get the VirtualNode and delete it
+			var virtualNodeList virtualkubeletv1alpha1.VirtualNodeList
+			err = controller.Client.List(ctx, &virtualNodeList)
 			Expect(err).To(BeNil())
-			err = controller.Client.Delete(ctx, vkDeploy)
+			Expect(len(virtualNodeList.Items)).To(Equal(1))
+			err = controller.Client.Delete(ctx, &virtualNodeList.Items[0])
 			Expect(err).To(BeNil())
+			virtualNode := virtualNodeList.Items[0]
 
-			// check the deployment recreation
+			// check the VirtualNode recreation
 			Eventually(func() types.UID {
-				newVkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
-				if err != nil || newVkDeploy == nil {
-					return vkDeploy.UID // this will cause the eventually statement to not terminate
+				var virtualNodeList virtualkubeletv1alpha1.VirtualNodeList
+				err = controller.Client.List(ctx, &virtualNodeList)
+				if err != nil || len(virtualNodeList.Items) != 1 {
+					return virtualNode.UID // this will cause the eventually statement to not terminate
 				}
-				return newVkDeploy.UID
-			}, timeout, interval).ShouldNot(Equal(vkDeploy.UID))
+				return virtualNodeList.Items[0].UID
+			}, timeout, interval).ShouldNot(Equal(virtualNode.UID))
 
-			err = controller.Client.Get(ctx, client.ObjectKeyFromObject(resourceOffer), resourceOffer)
-			Expect(err).To(BeNil())
+			Eventually(func() error {
+				err = controller.Client.Get(ctx, client.ObjectKeyFromObject(resourceOffer), resourceOffer)
+				if err != nil {
+					return err
+				}
 
-			// refuse the offer to delete the virtual-kubelet
-			resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferRefused
-			err = controller.Client.Status().Update(ctx, resourceOffer)
-			Expect(err).To(BeNil())
+				// refuse the offer to delete the virtual node
+				resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferRefused
+				return controller.Client.Status().Update(ctx, resourceOffer)
+			}, timeout, interval).Should(Succeed())
 
 			// check that the vk status is set correctly
 			Eventually(func() sharingv1alpha1.VirtualKubeletStatus {
@@ -303,25 +308,14 @@ var _ = Describe("ResourceOffer Controller", func() {
 				return resourceOffer.Status.VirtualKubeletStatus
 			}, timeout, interval).Should(Equal(sharingv1alpha1.VirtualKubeletStatusNone))
 
-			// check the deletion of the deployment
+			// check the deletion of the virtual node
 			Eventually(func() int {
-				var deploymentList v1.DeploymentList
-				err := controller.Client.List(ctx, &deploymentList)
+				var virtualNodeList virtualkubeletv1alpha1.VirtualNodeList
+				err := controller.Client.List(ctx, &virtualNodeList)
 				if err != nil {
 					return -1
 				}
-				return len(deploymentList.Items)
-			}, timeout, interval).Should(BeNumerically("==", 0))
-
-			// check the deletion of the ClusterRoleBinding
-			Eventually(func() int {
-				labels := forge.ClusterRoleLabels(remoteClusterIdentity.ClusterID)
-				var clusterRoleBindingList rbacv1.ClusterRoleBindingList
-				err := controller.Client.List(ctx, &clusterRoleBindingList, client.MatchingLabels(labels))
-				if err != nil {
-					return -1
-				}
-				return len(clusterRoleBindingList.Items)
+				return len(virtualNodeList.Items)
 			}, timeout, interval).Should(BeNumerically("==", 0))
 
 			err = controller.Client.Delete(ctx, resourceOffer)
@@ -458,60 +452,4 @@ var _ = Describe("ResourceOffer Operator util functions", func() {
 		)
 
 	})
-
-	Context("getRequestFromObject", func() {
-
-		type getRequestFromObjectTestcase struct {
-			resourceOffer     *sharingv1alpha1.ResourceOffer
-			expectedErr       OmegaMatcher
-			expectedErrString OmegaMatcher
-			expectedResult    OmegaMatcher
-		}
-
-		DescribeTable("getRequestFromObject table",
-
-			func(c getRequestFromObjectTestcase) {
-				res, err := getReconcileRequestFromObject(c.resourceOffer)
-				Expect(err).To(c.expectedErr)
-				if err != nil {
-					Expect(err.Error()).To(c.expectedErrString)
-				}
-				Expect(res).To(c.expectedResult)
-			},
-
-			Entry("Object with no annotation", getRequestFromObjectTestcase{
-				resourceOffer: &sharingv1alpha1.ResourceOffer{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "name",
-						Namespace:   "namespace",
-						Annotations: map[string]string{},
-					},
-				},
-				expectedErr:       HaveOccurred(),
-				expectedErrString: ContainSubstring("%v annotation not found in object %v/%v", resourceOfferAnnotation, "namespace", "name"),
-				expectedResult:    Equal(reconcile.Request{}),
-			}),
-
-			Entry("Object with annotation", getRequestFromObjectTestcase{
-				resourceOffer: &sharingv1alpha1.ResourceOffer{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "name",
-						Namespace: "namespace",
-						Annotations: map[string]string{
-							resourceOfferAnnotation: "name",
-						},
-					},
-				},
-				expectedErr: Not(HaveOccurred()),
-				expectedResult: Equal(reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      "name",
-						Namespace: "namespace",
-					},
-				}),
-			}),
-		)
-
-	})
-
 })

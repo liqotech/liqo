@@ -17,6 +17,7 @@ package identitymanager
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -28,6 +29,7 @@ import (
 type IdentityReader interface {
 	GetConfig(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (*rest.Config, error)
 	GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (string, error)
+	GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (types.NamespacedName, error)
 }
 
 // IdentityManager interface provides the methods to manage identities for the remote clusters.

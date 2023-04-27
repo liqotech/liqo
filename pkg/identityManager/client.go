@@ -21,6 +21,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
@@ -48,6 +49,26 @@ func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.Cl
 	}
 
 	return buildConfigFromSecret(secret, remoteCluster)
+}
+
+func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity,
+	namespace string) (types.NamespacedName, error) {
+	var secret *v1.Secret
+	var err error
+
+	if namespace == "" {
+		secret, err = certManager.getSecret(remoteCluster)
+	} else {
+		secret, err = certManager.getSecretInNamespace(remoteCluster, namespace)
+	}
+	if err != nil {
+		return types.NamespacedName{}, err
+	}
+
+	return types.NamespacedName{
+		Namespace: secret.Namespace,
+		Name:      secret.Name,
+	}, nil
 }
 
 // GetRemoteTenantNamespace returns the tenant namespace that

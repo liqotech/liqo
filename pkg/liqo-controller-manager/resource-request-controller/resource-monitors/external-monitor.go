@@ -86,18 +86,6 @@ func (m *ExternalResourceMonitor) ReadResources(ctx context.Context, clusterID s
 	if err != nil {
 		return nil, err
 	}
-	/*for i, resourceList := range response.ResourceLists {
-		for key, value := range resourceList.Resources {
-			if ret[i] == nil {
-				ret[i] = make(corev1.ResourceList)
-			}
-			if value != nil {
-				ret[i][corev1.ResourceName(key)] = *value
-			} else {
-				ret[i][corev1.ResourceName(key)] = resource.MustParse("0")
-			}
-		}
-	}*/
 	return response.ResourceLists, nil
 }
 

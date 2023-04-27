@@ -466,3 +466,15 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - virtualnodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

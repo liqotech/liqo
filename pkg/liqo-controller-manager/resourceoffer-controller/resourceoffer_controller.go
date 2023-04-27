@@ -20,51 +20,38 @@ import (
 	"reflect"
 	"time"
 
-	v1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
-	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 )
-
-const resourceOfferAnnotation = "liqo.io/resourceoffer"
 
 // ResourceOfferReconciler reconciles a ResourceOffer object.
 type ResourceOfferReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	eventsRecorder record.EventRecorder
-	cluster        discoveryv1alpha1.ClusterIdentity
-
-	liqoNamespace string
-
-	virtualKubeletOpts *forge.VirtualKubeletOpts
-	disableAutoAccept  bool
-
-	resyncPeriod time.Duration
+	identityReader    identitymanager.IdentityReader
+	eventsRecorder    record.EventRecorder
+	disableAutoAccept bool
+	resyncPeriod      time.Duration
 }
 
 //+kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers/finalizers,verbs=get;update;patch
 //+kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests/finalizers,verbs=get;update;patch
+//+kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete;deletecollection
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;update;patch
@@ -128,25 +115,17 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// filter resource offers and create a virtual-kubelet only for the good ones
 	r.setResourceOfferPhase(&resourceOffer)
 
-	// check the virtual kubelet deployment
-	if err = r.checkVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
+	// check the virtual node status
+	if err = r.checkVirtualNode(ctx, &resourceOffer); err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, err
-	}
-
-	// delete the ClusterRoleBinding if the VirtualKubelet Deployment is not up
-	if resourceOffer.Status.VirtualKubeletStatus == sharingv1alpha1.VirtualKubeletStatusNone {
-		if err = r.deleteClusterRoleBinding(ctx, &resourceOffer); err != nil {
-			klog.Error(err)
-			return ctrl.Result{}, err
-		}
 	}
 
 	deletingPhase := getDeleteVirtualKubeletPhase(&resourceOffer)
 	switch deletingPhase {
 	case kubeletDeletePhaseNodeDeleted:
-		// delete virtual kubelet deployment
-		if err = r.deleteVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
+		// delete the virtual node
+		if err = r.deleteVirtualNode(ctx, &resourceOffer); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
@@ -157,8 +136,8 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusDeleting
 		return result, nil
 	case kubeletDeletePhaseNone:
-		// create the virtual kubelet deployment
-		if err = r.createVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
+		// create the virtual node
+		if err = r.createVirtualNode(ctx, &resourceOffer); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
@@ -179,67 +158,8 @@ func (r *ResourceOfferReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	// select virtual kubelet deployments only
-	deployPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchLabels: vkMachinery.KubeletBaseLabels,
-	})
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&sharingv1alpha1.ResourceOffer{}, builder.WithPredicates(p)).
-		Watches(&v1.Deployment{},
-			getVirtualKubeletEventHandler(), builder.WithPredicates(deployPredicate)).
+		Owns(&virtualkubeletv1alpha1.VirtualNode{}).
 		Complete(r)
-}
-
-// getVirtualKubeletEventHandler creates and returns an event handle with the same behavior of the
-// owner reference event handler, but using an annotation. This allows us to have a graceful deletion
-// of the owned object, impossible using a standard owner reference, keeping the possibility to be
-// triggered on children updates and to enforce their status.
-func getVirtualKubeletEventHandler() handler.EventHandler {
-	return &handler.Funcs{
-		CreateFunc: func(_ context.Context, ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
-			if req, err := getReconcileRequestFromObject(ce.Object); err == nil {
-				rli.Add(req)
-			}
-		},
-		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
-			if req, err := getReconcileRequestFromObject(ue.ObjectOld); err == nil {
-				rli.Add(req)
-			}
-			if req, err := getReconcileRequestFromObject(ue.ObjectNew); err == nil {
-				rli.Add(req)
-			}
-		},
-		DeleteFunc: func(_ context.Context, de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
-			if req, err := getReconcileRequestFromObject(de.Object); err == nil {
-				rli.Add(req)
-			}
-		},
-		GenericFunc: func(_ context.Context, ge event.GenericEvent, rli workqueue.RateLimitingInterface) {
-			if req, err := getReconcileRequestFromObject(ge.Object); err == nil {
-				rli.Add(req)
-			}
-		},
-	}
-}
-
-// getReconcileRequestFromObject reads an annotation in the object and returns the reconcile request
-// to be enqueued for the reconciliation.
-func getReconcileRequestFromObject(obj client.Object) (reconcile.Request, error) {
-	resourceOfferName, ok := obj.GetAnnotations()[resourceOfferAnnotation]
-	if !ok {
-		return reconcile.Request{}, fmt.Errorf("%v annotation not found in object %v/%v",
-			resourceOfferAnnotation, obj.GetNamespace(), obj.GetName())
-	}
-
-	return reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      resourceOfferName,
-			Namespace: obj.GetNamespace(),
-		},
-	}, nil
 }

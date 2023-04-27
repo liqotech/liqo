@@ -18,16 +18,18 @@ import (
 	"context"
 	"fmt"
 
-	appsv1 "k8s.io/api/apps/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/discovery"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 // setControllerReference sets owner reference to the related ForeignCluster.
@@ -63,151 +65,129 @@ func (r *ResourceOfferReconciler) setResourceOfferPhase(resourceOffer *sharingv1
 	}
 }
 
-// checkVirtualKubeletDeployment checks the existence of the VirtualKubelet Deployment
+// checkVirtualNode checks the existence of the VirtualNode related to the ResourceOffer
 // and sets its status in the ResourceOffer accordingly.
-func (r *ResourceOfferReconciler) checkVirtualKubeletDeployment(
+func (r *ResourceOfferReconciler) checkVirtualNode(
 	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
-	virtualKubeletDeployment, err := r.getVirtualKubeletDeployment(ctx, resourceOffer)
+	virtualNodeStatus, err := r.getVirtualNodeStatus(ctx, resourceOffer)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	if virtualKubeletDeployment == nil {
+	if virtualNodeStatus == nil {
 		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusNone
 	} else if resourceOffer.Status.VirtualKubeletStatus != sharingv1alpha1.VirtualKubeletStatusDeleting {
-		// there is a virtual kubelet deployment and the phase is not deleting
+		// there is a virtual node and the phase is not deleting
 		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
 	}
 	return nil
 }
 
-// createVirtualKubeletDeployment creates the VirtualKubelet Deployment.
-func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
+func getVirtualNodeName(fc *discoveryv1alpha1.ForeignCluster,
+	resourceOffer *sharingv1alpha1.ResourceOffer) string {
+	switch {
+	case resourceOffer.Spec.NodeName != "":
+		return resourceOffer.Spec.NodeName
+	case resourceOffer.Spec.NodeNamePrefix != "":
+		return fmt.Sprintf("%s-%s", resourceOffer.Spec.NodeNamePrefix, fc.Spec.ClusterIdentity.ClusterName)
+	default:
+		return fmt.Sprintf("liqo-%s", fc.Spec.ClusterIdentity.ClusterName)
+	}
+}
+
+func (r *ResourceOfferReconciler) getVirtualNodeMutator(fc *discoveryv1alpha1.ForeignCluster,
+	resourceOffer *sharingv1alpha1.ResourceOffer,
+	virtualNode *virtualkubeletv1alpha1.VirtualNode) controllerutil.MutateFn {
+	remoteClusterIdentity := fc.Spec.ClusterIdentity
+	return func() error {
+		if virtualNode.ObjectMeta.Labels == nil {
+			virtualNode.ObjectMeta.Labels = map[string]string{}
+		}
+		virtualNode.ObjectMeta.Labels[discovery.ClusterIDLabel] = resourceOffer.Spec.ClusterID
+		virtualNode.ObjectMeta.Labels[consts.ResourceOfferNameLabel] = resourceOffer.Name
+
+		kubeconfigSecretNamespacedName, err := r.identityReader.GetSecretNamespacedName(fc.Spec.ClusterIdentity, fc.Status.TenantNamespace.Local)
+		if err != nil {
+			return err
+		}
+
+		virtualNode.Spec.ClusterIdentity = &remoteClusterIdentity
+		virtualNode.Spec.CreateNode = true
+		virtualNode.Spec.KubeconfigSecretRef = &corev1.LocalObjectReference{
+			Name: kubeconfigSecretNamespacedName.Name,
+			// TODO: set the namespace (?) or copy the secret in the local namespace (?)
+		}
+		virtualNode.Spec.Images = resourceOffer.Spec.Images
+		virtualNode.Spec.ResourceQuota = resourceOffer.Spec.ResourceQuota
+		virtualNode.Spec.Labels = resourceOffer.Spec.Labels
+		virtualNode.Spec.StorageClasses = resourceOffer.Spec.StorageClasses
+		return controllerutil.SetControllerReference(resourceOffer, virtualNode, r.Scheme)
+	}
+}
+
+func (r *ResourceOfferReconciler) createVirtualNode(ctx context.Context,
+	resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	namespace := resourceOffer.Namespace
 	remoteCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceOffer.Spec.ClusterID)
 	if err != nil {
 		return err
 	}
-	remoteClusterIdentity := remoteCluster.Spec.ClusterIdentity
 
-	// create the base resources
-	vkServiceAccount := forge.VirtualKubeletServiceAccount(namespace)
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, vkServiceAccount, func() error {
-		return nil
-	})
-	if err != nil {
-		klog.Error(err)
-		return err
+	virtualNode := virtualkubeletv1alpha1.VirtualNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      getVirtualNodeName(remoteCluster, resourceOffer),
+			Namespace: namespace,
+		},
 	}
-	klog.V(5).Infof("[%v] ServiceAccount %s/%s reconciled: %s",
-		remoteClusterIdentity.ClusterName, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
-
-	vkClusterRoleBinding := forge.VirtualKubeletClusterRoleBinding(namespace, &remoteClusterIdentity)
-	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding, func() error {
-		return nil
-	})
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	klog.V(5).Infof("[%v] ClusterRoleBinding %s reconciled: %s",
-		remoteClusterIdentity.ClusterName, vkClusterRoleBinding.Name, op)
-
-	// forge the virtual Kubelet
-	vkDeployment, err := forge.VirtualKubeletDeployment(
-		&r.cluster, &remoteClusterIdentity, namespace,
-		r.virtualKubeletOpts, resourceOffer)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkDeployment, func() error {
-		// set the "owner" object name in the annotation to be able to reconcile deployment changes
-		if vkDeployment.Annotations == nil {
-			vkDeployment.Annotations = map[string]string{}
-		}
-		vkDeployment.Annotations[resourceOfferAnnotation] = resourceOffer.GetName()
-		return nil
-	})
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-	klog.V(5).Infof("[%v] Deployment %s/%s reconciled: %s",
-		remoteClusterIdentity.ClusterName, vkDeployment.Namespace, vkDeployment.Name, op)
-
-	if op == controllerutil.OperationResultCreated {
-		msg := fmt.Sprintf("[%v] Launching virtual-kubelet in namespace %v",
-			remoteClusterIdentity.ClusterName, namespace)
-		klog.Info(msg)
-		r.eventsRecorder.Event(resourceOffer, "Normal", "VkCreated", msg)
-	}
-
-	controllerutil.AddFinalizer(resourceOffer, consts.VirtualKubeletFinalizer)
-	resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
-	return nil
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client,
+		&virtualNode, r.getVirtualNodeMutator(remoteCluster, resourceOffer, &virtualNode))
+	return err
 }
 
-// deleteVirtualKubeletDeployment deletes the VirtualKubelet Deployment.
-func (r *ResourceOfferReconciler) deleteVirtualKubeletDeployment(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
-	virtualKubeletDeployment, err := r.getVirtualKubeletDeployment(ctx, resourceOffer)
+func (r *ResourceOfferReconciler) deleteVirtualNode(ctx context.Context,
+	resourceOffer *sharingv1alpha1.ResourceOffer) error {
+	namespace := resourceOffer.Namespace
+	remoteCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceOffer.Spec.ClusterID)
 	if err != nil {
-		klog.Error(err)
-		return err
-	}
-	if virtualKubeletDeployment == nil || !virtualKubeletDeployment.DeletionTimestamp.IsZero() {
-		return nil
-	}
-
-	if err := r.Client.Delete(ctx, virtualKubeletDeployment); err != nil {
-		klog.Error(err)
 		return err
 	}
 
-	controllerutil.RemoveFinalizer(resourceOffer, consts.VirtualKubeletFinalizer)
-	msg := fmt.Sprintf("[%v] Deleting virtual-kubelet in namespace %v", resourceOffer.Spec.ClusterID, resourceOffer.Namespace)
-	klog.Info(msg)
-	r.eventsRecorder.Event(resourceOffer, "Normal", "VkDeleted", msg)
-	return nil
+	virtualNode := virtualkubeletv1alpha1.VirtualNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      getVirtualNodeName(remoteCluster, resourceOffer),
+			Namespace: namespace,
+		},
+	}
+	return client.IgnoreNotFound(r.Client.Delete(ctx, &virtualNode))
 }
 
-// deleteClusterRoleBinding deletes the ClusterRoleBinding related to a VirtualKubelet if the deployment does not exist.
-func (r *ResourceOfferReconciler) deleteClusterRoleBinding(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
-	labels := forge.ClusterRoleLabels(resourceOffer.Spec.ClusterID)
-
-	if err := r.Client.DeleteAllOf(ctx, &rbacv1.ClusterRoleBinding{}, client.MatchingLabels(labels)); err != nil {
-		klog.Error(err)
-		return err
+// getVirtualNodeStatus returns the VirtualNode status given a ResourceOffer.
+func (r *ResourceOfferReconciler) getVirtualNodeStatus(
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*virtualkubeletv1alpha1.VirtualNodeStatus, error) {
+	var virtualNodeList virtualkubeletv1alpha1.VirtualNodeList
+	labels := map[string]string{
+		discovery.ClusterIDLabel:      resourceOffer.Spec.ClusterID,
+		consts.ResourceOfferNameLabel: resourceOffer.Name,
 	}
-	return nil
-}
-
-// getVirtualKubeletDeployment returns the VirtualKubelet Deployment given a ResourceOffer.
-func (r *ResourceOfferReconciler) getVirtualKubeletDeployment(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*appsv1.Deployment, error) {
-	var deployList appsv1.DeploymentList
-	labels := forge.VirtualKubeletLabels(resourceOffer.Spec.ClusterID, r.virtualKubeletOpts)
-	if err := r.Client.List(ctx, &deployList, client.MatchingLabels(labels)); err != nil {
+	if err := r.Client.List(ctx, &virtualNodeList, client.MatchingLabels(labels)); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
-	if len(deployList.Items) == 0 {
-		klog.V(4).Infof("[%v] no VirtualKubelet deployment found", resourceOffer.Spec.ClusterID)
+	switch len(virtualNodeList.Items) {
+	case 1:
+		return &virtualNodeList.Items[0].Status, nil
+	case 0:
+		klog.V(4).Infof("[%v] no VirtualNode found for ResourceOffer %s",
+			resourceOffer.Spec.ClusterID, resourceOffer.Name)
 		return nil, nil
-	} else if len(deployList.Items) > 1 {
-		err := fmt.Errorf("[%v] more than one VirtualKubelet deployment found", resourceOffer.Spec.ClusterID)
+	default:
+		err := fmt.Errorf("[%v] more than one VirtualNode found for ResourceOffer %s",
+			resourceOffer.Spec.ClusterID, resourceOffer.Name)
 		klog.Error(err)
 		return nil, err
 	}
-
-	return &deployList.Items[0], nil
 }
 
 type kubeletDeletePhase string

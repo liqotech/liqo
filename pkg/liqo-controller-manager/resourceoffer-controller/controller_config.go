@@ -19,28 +19,21 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 )
 
 // NewResourceOfferController creates and returns a new reconciler for the ResourceOffers.
 func NewResourceOfferController(
-	mgr manager.Manager, cluster discoveryv1alpha1.ClusterIdentity,
-	resyncPeriod time.Duration, liqoNamespace string,
-	virtualKubeletOpts *forge.VirtualKubeletOpts,
-	disableAutoAccept bool) *ResourceOfferReconciler {
+	mgr manager.Manager,
+	identityReader identitymanager.IdentityReader,
+	resyncPeriod time.Duration, disableAutoAccept bool) *ResourceOfferReconciler {
 	return &ResourceOfferReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
-		eventsRecorder: mgr.GetEventRecorderFor("ResourceOffer"),
-		cluster:        cluster,
-
-		liqoNamespace: liqoNamespace,
-
-		virtualKubeletOpts: virtualKubeletOpts,
-		disableAutoAccept:  disableAutoAccept,
-
-		resyncPeriod: resyncPeriod,
+		identityReader:    identityReader,
+		eventsRecorder:    mgr.GetEventRecorderFor("ResourceOffer"),
+		disableAutoAccept: disableAutoAccept,
+		resyncPeriod:      resyncPeriod,
 	}
 }
