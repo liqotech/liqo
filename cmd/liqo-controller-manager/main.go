@@ -351,7 +351,9 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	virtualKubeletOpts := &forge.VirtualKubeletOpts{
+	// this is a temporary solution to avoid deleting all those flags
+	// and recreate them when the VirtualNode operator will be added.
+	_ = &forge.VirtualKubeletOpts{
 		ContainerImage:       *kubeletImage,
 		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
 		ExtraLabels:          kubeletExtraLabels.StringMap,
@@ -368,7 +370,7 @@ func main() {
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
-		mgr, clusterIdentity, *resyncPeriod, *liqoNamespace, virtualKubeletOpts, *offerDisableAutoAccept)
+		mgr, idManager, *resyncPeriod, *offerDisableAutoAccept)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}

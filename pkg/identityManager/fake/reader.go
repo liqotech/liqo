@@ -17,29 +17,36 @@ package fake
 import (
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 )
+
+var _ identitymanager.IdentityReader = &IdentityReader{}
 
 // IdentityReader is a struct implementing an IdentityReader mock for testing purposes.
 type IdentityReader struct {
-	configs    map[string]*rest.Config
-	namespaces map[string]string
+	configs     map[string]*rest.Config
+	namespaces  map[string]string
+	secretNames map[string]string
 }
 
 // NewIdentityReader creates a new identityReader instance.
 func NewIdentityReader() *IdentityReader {
 	return &IdentityReader{
-		configs:    make(map[string]*rest.Config),
-		namespaces: make(map[string]string),
+		configs:     make(map[string]*rest.Config),
+		namespaces:  make(map[string]string),
+		secretNames: make(map[string]string),
 	}
 }
 
 // Add adds the associations about a remote cluster to the identityReader.
-func (i *IdentityReader) Add(clusterID, namespace string, restcfg *rest.Config) *IdentityReader {
+func (i *IdentityReader) Add(clusterID, namespace, secretName string, restcfg *rest.Config) *IdentityReader {
 	i.configs[clusterID] = restcfg
 	i.namespaces[clusterID] = namespace
+	i.secretNames[clusterID] = secretName
 	return i
 }
 
@@ -49,6 +56,20 @@ func (i *IdentityReader) GetConfig(remoteCluster discoveryv1alpha1.ClusterIdenti
 		return restcfg, nil
 	}
 	return nil, fmt.Errorf("remote cluster ID %v not found", remoteCluster.ClusterID)
+}
+
+func (i *IdentityReader) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity,
+	_ string) (types.NamespacedName, error) {
+	if ns, found := i.namespaces[remoteCluster.ClusterID]; found {
+		if secretName, found := i.secretNames[remoteCluster.ClusterID]; found {
+			return types.NamespacedName{
+				Namespace: ns,
+				Name:      secretName,
+			}, nil
+		}
+		return types.NamespacedName{}, fmt.Errorf("secret name for remote cluster ID %v not found", remoteCluster.ClusterID)
+	}
+	return types.NamespacedName{}, fmt.Errorf("remote cluster ID %v not found", remoteCluster.ClusterID)
 }
 
 // GetRemoteTenantNamespace retrieves the tenant namespace associated with a remote cluster.

@@ -44,6 +44,8 @@ func TestCrdReplicator(t *testing.T) {
 const (
 	localNamespace  = "local-namespace"
 	remoteNamespace = "remote-namespace"
+
+	kubeconfigSecretName = "kubeconfig-secret"
 )
 
 var (
@@ -106,7 +108,8 @@ var _ = BeforeSuite(func() {
 		ReflectionManager:   reflectionManager,
 		Reflectors:          make(map[string]*reflection.Reflector),
 
-		IdentityReader: fake.NewIdentityReader().Add(remoteCluster.ClusterID, remoteNamespace, cluster.GetCfg()),
+		IdentityReader: fake.NewIdentityReader().Add(remoteCluster.ClusterID,
+			remoteNamespace, kubeconfigSecretName, cluster.GetCfg()),
 	}
 	Expect(err).ToNot(HaveOccurred())
 	Expect(controller.SetupWithManager(mgr)).To(Succeed())
