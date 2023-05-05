@@ -34,6 +34,7 @@ import (
 	"k8s.io/utils/trace"
 
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -195,8 +196,13 @@ func (gr *reflector) processNextWorkItem() bool {
 		var eae enqueueAfterError
 
 		// Increase the error counter metric.
-		metrics.ErrorsCounter.With(prometheus.Labels{"namespace": key.(types.NamespacedName).Namespace,
-			"reflector_resource": gr.name}).Inc()
+		metrics.ErrorsCounter.With(prometheus.Labels{
+			"namespace":          key.(types.NamespacedName).Namespace,
+			"reflector_resource": gr.name,
+			"cluster_id":         forge.RemoteCluster.ClusterID,
+			"cluster_name":       forge.RemoteCluster.ClusterName,
+			"node_name":          forge.LiqoNodeName,
+		}).Inc()
 
 		if errors.As(err, &eae) {
 			// Put the item back on the workqueue after the given duration elapsed.
@@ -211,8 +217,13 @@ func (gr *reflector) processNextWorkItem() bool {
 	}
 
 	// Increase the item counter metric.
-	metrics.ItemsCounter.With(prometheus.Labels{"namespace": key.(types.NamespacedName).Namespace,
-		"reflector_resource": gr.name}).Inc()
+	metrics.ItemsCounter.With(prometheus.Labels{
+		"namespace":          key.(types.NamespacedName).Namespace,
+		"reflector_resource": gr.name,
+		"cluster_id":         forge.RemoteCluster.ClusterID,
+		"cluster_name":       forge.RemoteCluster.ClusterName,
+		"node_name":          forge.LiqoNodeName,
+	}).Inc()
 
 	// Finally, if no error occurs we Forget this item so it does not
 	// get queued again until another change happens.
