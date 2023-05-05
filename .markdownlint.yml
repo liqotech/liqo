@@ -1,3 +1,5 @@
 default: true
 line-length: false
 no-inline-html: false
+no-duplicate-header:
+  siblings_only: true
