@@ -709,7 +709,7 @@
           "refId": "Average Latency"
         }
       ],
-      "title": "Average latency",
+      "title": "Average latency (RTT)",
       "type": "stat"
     },
     {
@@ -800,7 +800,7 @@
           "refId": "Latency"
         }
       ],
-      "title": "Latency",
+      "title": "Latency (RTT)",
       "type": "timeseries"
     }
   ],

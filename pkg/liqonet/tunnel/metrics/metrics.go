@@ -52,14 +52,14 @@ func init() {
 
 	PeerLatency = prometheus.NewDesc(
 		"liqo_peer_latency_us",
-		"Latency of a given peer in microseconds.",
+		"Round-trip latency of a given peer in microseconds.",
 		MetricsLabels,
 		nil,
 	)
 
 	PeerIsConnected = prometheus.NewDesc(
 		"liqo_peer_is_connected",
-		"Checks if connection is working.",
+		"Status of the connectivity to a given peer (true = Liqo tunnel is up and gateways are pinging each other).",
 		MetricsLabels,
 		nil,
 	)
