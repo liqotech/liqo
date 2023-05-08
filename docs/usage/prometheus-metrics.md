@@ -1,17 +1,16 @@
 # Prometheus Metrics
 
-This section presents the metrics exposed by Liqo components, using the [Prometheus](https://prometheus.io/) format.
+This section presents the metrics exposed by Liqo, using the [Prometheus](https://prometheus.io/) format.
 
 ## Scraping metrics
 
-How metrics are scraped will depend on how you are operating your **Prometheus server(s)**.
-Liqo presumes that the [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) is being used to run Prometheus, providing a **ServiceMonitor** resource for each component.
+Metrics are scraped depending on how your **Prometheus server(s)** has been configured.
+Liqo assumes that you leverage the [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) to run Prometheus, hence providing a **ServiceMonitor** resource for each component.
 
-Metrics are **disabled** by default.
-In order to allow Prometheus to scrape metrics from the Liqo components, you should set the `--enable-metrics` *liqoctl* flag during installation (cf. [installation customization options](InstallCustomization)).
-This flag enables the metrics exposition and the **ServiceMonitor** resources creation.
+Gathering of Liqo metrics is **disabled** by default.
+To allow Prometheus to scrape metrics from Liqo, you should set the `--enable-metrics` *liqoctl* flag during installation (cf. [installation customization options](InstallCustomization)), which enables Liqo to expose metrics, and it creates the proper **ServiceMonitor** and **PodMonitor** resources.
 
-Alternatively, it is possible to customize these settings using **Helm** (refer to the [Install with Helm](InstallationHelm) section for further details).
+Alternatively, you can customize these settings using **Helm** (refer to the [Install with Helm](InstallationHelm) section for further details).
 
 ## Cross-cluster network metrics
 
@@ -19,8 +18,8 @@ These metrics are available for each peered remote cluster, providing statistics
 
 - **liqo_peer_receive_bytes_total**: the total number of bytes received from a remote cluster.
 - **liqo_peer_transmit_bytes_total**: the total number of bytes transmitted to a remote cluster.
-- **liqo_peer_latency_us**: the latency between the local cluster and a remote cluster.
-- **liqo_peer_is_connected**: whether the network interconnection is established and works properly.
+- **liqo_peer_latency_us**: the round-trip (RTT) latency between the local cluster and a remote cluster, in micro seconds, measured by a periodic UDP `ping` between the two Liqo gateways and sent within the Liqo tunnel itself.
+- **liqo_peer_is_connected**: boolean keeping the status of the network interconnection between clusters, i.e., whether the peering is established and works properly, derived from the `ping` measurement above.
 
 ### Grafana dashboard
 
