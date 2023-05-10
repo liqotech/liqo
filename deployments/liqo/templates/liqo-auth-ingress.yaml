@@ -12,11 +12,11 @@ metadata:
   {{- if .Values.auth.ingress.annotations }}
     {{- toYaml .Values.auth.ingress.annotations | nindent 4}}
   {{- end }}
-  {{- if .Values.auth.ingress.class }}
-    kubernetes.io/ingress.class: {{ .Values.auth.ingress.class }}
-  {{- end }}
   {{- end}}
 spec:
+  {{- if .Values.auth.ingress.class }}
+  ingressClassName: {{ .Values.auth.ingress.class }}
+  {{- end }}
   rules:
     - http:
         paths:
