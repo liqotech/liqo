@@ -14,7 +14,7 @@ While the exact numbers depend on the **number of established peerings**, **numb
 
 However, to be on the safe side, we suggest installing Liqo on a cluster that has **at least 2 CPUs and 2 GB of RAM**, which takes into account also the resources used by standard Kubernetes components.
 
-Liqo is compatible with **Kubernetes versions 1.22+**.
+Liqo is compatible with **Kubernetes versions >= 1.22**.
 
 An accurate analysis of the Liqo performance compared to vanilla Kubernetes, including the characterization of the resources consumed by Liqo, is presented in a [dedicated blog post](https://medium.com/the-liqo-blog/benchmarking-liqo-kubernetes-multi-cluster-performance-d77942d7f67c).
 
