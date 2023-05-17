@@ -16,6 +16,7 @@ package liqonodeprovider
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -24,6 +25,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // LiqoNodeProvider is a node provider that manages the Liqo resources.
@@ -49,7 +52,7 @@ type LiqoNodeProvider struct {
 	updateMutex          sync.Mutex
 }
 
-// Ping checks if the the node is still active.
+// Ping checks if the node is still active.
 func (p *LiqoNodeProvider) Ping(ctx context.Context) error {
 	if p.pingDisabled {
 		return nil
@@ -58,13 +61,20 @@ func (p *LiqoNodeProvider) Ping(ctx context.Context) error {
 	start := time.Now()
 	klog.V(4).Infof("Checking whether the remote API server is ready")
 
-	_, err := p.remoteDiscoveryClient.RESTClient().Get().AbsPath("/livez").DoRaw(ctx)
+	// Get the foreigncluster using the given clusterID
+	fc, err := foreignclusterutils.GetForeignClusterByIDWithDynamicClient(ctx, p.dynClient, p.foreignClusterID)
 	if err != nil {
-		klog.Errorf("API server readiness check failed: %v", err)
+		klog.Error(err)
 		return err
 	}
 
-	klog.V(4).Infof("Readiness check completed successfully in %v", time.Since(start))
+	// Check the foreign API server status
+	if !foreignclusterutils.IsAPIServerReady(fc) {
+		return fmt.Errorf("[%s] API server readiness check failed", fc.Spec.ClusterIdentity.ClusterName)
+	}
+
+	klog.V(4).Infof("[%s] API server readiness check completed successfully in %v",
+		fc.Spec.ClusterIdentity.ClusterName, time.Since(start))
 	return nil
 }
 
