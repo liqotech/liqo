@@ -74,19 +74,19 @@ func (p *LiqoNodeProvider) reconcileNodeFromResourceOffer(event watch.Event) err
 		p.node.Status.Capacity = v1.ResourceList{}
 		p.onNodeChangeCallback(p.node.DeepCopy())
 
-		if err := p.handleResourceOfferDelete(&resourceOffer); err != nil {
+		/* if err := p.handleResourceOfferDelete(&resourceOffer); err != nil {
 			klog.Errorf("something went wrong during resourceOffer deletion - %v", err)
 			return err
-		}
+		} */
 		return nil
 	}
 
-	if err := p.ensureFinalizer(&resourceOffer, func() bool {
+	/*if err := p.ensureFinalizer(&resourceOffer, func() bool {
 		return !controllerutil.ContainsFinalizer(&resourceOffer, consts.NodeFinalizer)
 	}, controllerutil.AddFinalizer); err != nil {
 		klog.Error(err)
 		return err
-	}
+	}*/
 
 	if err := p.updateFromResourceOffer(&resourceOffer); err != nil {
 		klog.Errorf("node update from resourceOffer %v failed for reason %v; retry...", resourceOffer.Name, err)

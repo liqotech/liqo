@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/log/klogv2"
@@ -32,6 +33,7 @@ import (
 )
 
 func main() {
+	pterm.BgGreen.Println("Liqo Virtual Kubelet dev")
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-ctx.Done()

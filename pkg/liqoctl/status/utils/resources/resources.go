@@ -129,7 +129,7 @@ func SumResourceOffers(resourceoffers *sharingv1alpha1.ResourceOfferList) corev1
 			if t, ok := tot[corev1.ResourceName(k)]; !ok {
 				tot[corev1.ResourceName(k)] = *resource.NewQuantity(q.Value(), q.Format)
 			} else {
-				tot[corev1.ResourceName(k)] = *resource.NewQuantity(t.Value()+q.Value(), q.Format)
+				t.Add(q)
 			}
 		}
 	}

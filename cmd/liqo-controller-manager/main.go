@@ -187,7 +187,7 @@ func main() {
 
 	// Options for the virtual kubelet.
 	virtualKubeletOpts := &forge.VirtualKubeletOpts{
-		ContainerImage:       "localhost:5001/virtual-kubelet",
+		ContainerImage:       *kubeletImage,
 		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
 		ExtraLabels:          kubeletExtraLabels.StringMap,
 		ExtraArgs:            kubeletExtraArgs.StringList,
@@ -373,7 +373,7 @@ func main() {
 	// this is a temporary solution to avoid deleting all those flags
 	// and recreate them when the VirtualNode operator will be added.
 	_ = &forge.VirtualKubeletOpts{
-		ContainerImage:       *kubeletImage,
+		ContainerImage:       "localhost:5001/virtual-kubelet",
 		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
 		ExtraLabels:          kubeletExtraLabels.StringMap,
 		ExtraArgs:            kubeletExtraArgs.StringList,
@@ -402,7 +402,7 @@ func main() {
 		VirtualKubeletOptions: virtualKubeletOpts,
 	}
 
-	if err = virtualNodeReconciler.SetupWithManager(mgr); err != nil {
+	if err = virtualNodeReconciler.SetupWithManager(ctx, mgr); err != nil {
 		klog.Fatal(err)
 	}
 
@@ -501,6 +501,7 @@ func main() {
 		}
 	}
 
+	klog.Info("DEVELOPMENT VERSION")
 	klog.Info("starting manager as controller manager")
 	if err := mgr.Start(ctx); err != nil {
 		klog.Error(err)

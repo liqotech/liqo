@@ -16,7 +16,6 @@ package virtualnodectrl
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -71,6 +70,15 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, vn *virtualkubeletv1alpha1.VirtualNode) error {
 	// The deletion timestamp is automatically set on the NamespaceMaps associated with the virtual-node,
 	// it's only necessary to wait until the NamespaceMaps are deleted.
+	virtualNodesList, err := getters.ListVirtualNodesByLabels(ctx, r.Client, labels.Everything())
+	if err != nil {
+		klog.Errorf("%s -> Unable to List VirtualNodes", err)
+		return err
+	}
+	if len(virtualNodesList.Items) != 1 {
+		return nil
+	}
+
 	namespaceMapList := &virtualkubeletv1alpha1.NamespaceMapList{}
 	virtualNodeRemoteClusterID := vn.Spec.ClusterIdentity.ClusterID
 	if err := r.List(ctx, namespaceMapList, client.InNamespace(vn.Namespace),
@@ -87,7 +95,5 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, v
 		}
 	}
 
-	err := fmt.Errorf("waiting for deletion of NamespaceMaps associated with virtual node %q", vn.Name)
-	klog.Info(err)
-	return err
+	return nil
 }
