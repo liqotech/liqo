@@ -21,7 +21,7 @@ require (
 	github.com/metal-stack/go-ipam v1.11.3
 	github.com/miekg/dns v1.1.50
 	github.com/mittwald/go-helm-client v0.12.1
-	github.com/onsi/ginkgo/v2 v2.9.4
+	github.com/onsi/ginkgo/v2 v2.9.5
 	github.com/onsi/gomega v1.27.6
 	github.com/openshift/api v0.0.0-20210521075222-e273a339932a
 	github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142
@@ -36,7 +36,7 @@ require (
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
 	golang.org/x/exp v0.0.0-20221114191408-850992195362
 	golang.org/x/mod v0.10.0
-	golang.org/x/sync v0.1.0
+	golang.org/x/sync v0.2.0
 	golang.org/x/sys v0.8.0
 	golang.org/x/text v0.9.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20220504211119-3d4a969bb56b
@@ -236,11 +236,11 @@ require (
 	go.uber.org/multierr v1.9.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect
-	golang.org/x/term v0.7.0 // indirect
+	golang.org/x/term v0.8.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.8.0 // indirect
+	golang.org/x/tools v0.9.1 // indirect
 	golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
