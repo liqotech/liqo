@@ -21,6 +21,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/aks"
@@ -91,8 +92,8 @@ information and examples concerning its behavior and the common flags.
 `
 
 func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
-	options := install.Options{Factory: f, CommandName: liqoctl}
-	base := generic.New(&options)
+	options := install.NewOptions(f, liqoctl)
+	base := generic.New(options)
 	clusterLabels := args.StringMap{StringMap: map[string]string{}}
 	sharingPercentage := args.Percentage{Val: 90}
 	reservedSubnets := args.CIDRList{}
@@ -166,16 +167,19 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&options.EnableMetrics, "enable-metrics", false, "Enable metrics exposition through prometheus (default false)")
 	cmd.PersistentFlags().BoolVar(&options.DisableTelemetry, "disable-telemetry", false,
 		"Disable the anonymous and aggregated Liqo telemetry collection (default false)")
+	cmd.PersistentFlags().Var(options.ExtServiceType, "service-type", "Override the used service type for liqo-auth and liqo-gateway")
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("service-type", completion.Enumeration(options.ExtServiceType.Allowed)))
+
 	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
 	base.RegisterFlags(cmd)
-	cmd.AddCommand(newInstallProviderCommand(ctx, &options, aks.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, &options, eks.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, &options, gke.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, &options, k3s.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, &options, kind.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, &options, kubeadm.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, &options, openshift.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options, aks.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options, eks.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options, gke.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options, k3s.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options, kind.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options, kubeadm.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options, openshift.New))
 
 	return cmd
 }

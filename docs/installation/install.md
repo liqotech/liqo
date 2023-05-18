@@ -47,6 +47,11 @@ liqoctl install kubeadm
 
 By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+
+```{admonition} Service Type
+By default, the **kubeadm** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
+To change this behavior, check the [network flags](NetworkFlags).
+```
 ````
 
 ````{tab-item} OpenShift
@@ -65,6 +70,11 @@ liqoctl install openshift
 
 By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+
+```{admonition} Service Type
+By default, the **openshift** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
+To change this behavior, check the [network flags](NetworkFlags).
+```
 ````
 
 ````{tab-item} AKS
@@ -113,6 +123,11 @@ Alternatively, you can manually specify a different name with the `--cluster-nam
 If you are running an [AKS private cluster](https://learn.microsoft.com/en-us/azure/aks/private-clusters), you may need to set the `--disable-api-server-sanity-check` *liqoctl* flag, since the API Server in your kubeconfig may be different from the one retrieved from the Azure APIs.
 
 Additionally, since your API Server is not accessible from the public Internet, you shall leverage the [in-band peering approach](FeaturesPeeringInBandControlPlane) towards the clusters not attached to the same Azure Virtual Network.
+```
+
+```{admonition} Service Type
+By default, the **AKS** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
+To change this behavior, check the [network flags](NetworkFlags).
 ```
 ````
 
@@ -199,6 +214,11 @@ liqoctl install eks --eks-cluster-region=${EKS_CLUSTER_REGION} \
 
 By default, the cluster is assigned the same name as that specified through the `--eks-cluster-name` parameter.
 Alternatively, you can manually specify a different name with the `--cluster-name` *liqoctl* flag.
+
+```{admonition} Service Type
+By default, the **EKS** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
+To change this behavior, check the [network flags](NetworkFlags).
+```
 ````
 
 ````{tab-item} GKE
@@ -301,6 +321,11 @@ liqoctl install gke --project-id ${GKE_PROJECT_ID} \
 
 By default, the cluster is assigned the same name as that assigned in GCP.
 Alternatively, you can manually specify a different name with the `--cluster-name` *liqoctl* flag.
+
+```{admonition} Service Type
+By default, the **GKE** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
+To change this behavior, check the [network flags](NetworkFlags).
+```
 ````
 
 ````{tab-item} K3s
@@ -323,6 +348,11 @@ This operation is necessary in case the default address (`https://<control-plane
 
 By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+
+```{admonition} Service Type
+By default, the **k3s** provider exposes *liqo-auth* and *liqo-gateway* with **NodePort** services.
+To change this behavior, check the [network flags](NetworkFlags).
+```
 ````
 
 ````{tab-item} KinD
@@ -337,6 +367,10 @@ liqoctl install kind
 
 By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+```{admonition} Service Type
+By default, the **kind** provider exposes *liqo-auth* and *liqo-gateway* with **NodePort** services.
+To change this behavior, check the [network flags](NetworkFlags).
+```
 ````
 
 ````{tab-item} Other
@@ -360,6 +394,11 @@ liqoctl install --api-server-url=<API-SERVER-URL> \
 
 By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+
+```{admonition} Service Type
+By default, liqoctl exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
+To change this behavior, check the [network flags](NetworkFlags).
+```
 ````
 `````
 
@@ -396,12 +435,15 @@ These labels can be used later to **restrict workload offloading to a subset of 
 * `--sharing-percentage`: the maximum percentage of available **cluster resources** that could be shared with remote clusters. This is the Liqo's default behavior, which can be changed by deploying a custom [resource plugin](https://github.com/liqotech/liqo-resource-plugins).
 **Note**: the `--sharing-percentage` can be updated (e.g., via helm) dynamically, without reinstalling Liqo.
 
+(NetworkFlags)=
+
 ### Networking
 
 The main networking flags include:
 
 * `--reserved-subnets`: the list of **private CIDRs to be excluded** from the ones used by Liqo to remap remote clusters in case of address conflicts, as already in use (e.g., the subnet of the cluster nodes).
 The Pod CIDR and the Service CIDR shall not be manually specified, as automatically included in the reserved list.
+* `--service-type`: overrides the service type used by **liqo-gateway** and **liqo-auth** services. Possible values are: `LoadBalancer`, `NodePort`, and `ClusterIP`. By default, the service type is the one specified by the selected provider (check the provider's specific installation) or `LoadBalancer`.
 
 (InstallationHelm)=
 

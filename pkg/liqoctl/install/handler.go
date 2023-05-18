@@ -30,6 +30,7 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/strvals"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
@@ -37,6 +38,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/install/util"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Provider defines the interface for an install provider.
@@ -87,9 +89,23 @@ type Options struct {
 	ServiceCIDR     string
 	ReservedSubnets []string
 
+	ExtServiceType *args.StringEnum
+
 	DisableAPIServerSanityChecks bool
 	DisableAPIServerDefaulting   bool
 	SkipValidation               bool
+}
+
+// NewOptions returns a new Options struct.
+func NewOptions(f *factory.Factory, commandName string) *Options {
+	return &Options{
+		CommandName: commandName,
+		Factory:     f,
+		ExtServiceType: args.NewEnumWithVoidDefault([]string{
+			string(corev1.ServiceTypeClusterIP),
+			string(corev1.ServiceTypeNodePort),
+			string(corev1.ServiceTypeLoadBalancer)}),
+	}
 }
 
 // Run implements the install command.
@@ -295,7 +311,7 @@ func (o *Options) values() map[string]interface{} {
 		replicas = 2
 	}
 
-	return map[string]interface{}{
+	values := map[string]interface{}{
 		"tag": o.Version,
 
 		"apiServer": map[string]interface{}{
@@ -348,6 +364,22 @@ func (o *Options) values() map[string]interface{} {
 			"enable": !o.DisableTelemetry,
 		},
 	}
+
+	if o.ExtServiceType.Value != "" {
+		values["gateway"] = map[string]interface{}{
+			"service": map[string]interface{}{
+				"type": o.ExtServiceType.Value,
+			},
+		}
+
+		values["auth"] = map[string]interface{}{
+			"service": map[string]interface{}{
+				"type": o.ExtServiceType.Value,
+			},
+		}
+	}
+
+	return values
 }
 
 func (o *Options) cleanup() error {

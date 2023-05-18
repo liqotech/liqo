@@ -33,6 +33,14 @@ func NewEnum(allowed []string, d string) *StringEnum {
 	}
 }
 
+// NewEnumWithVoidDefault give a list of allowed flag parameters, where the default is a void string.
+func NewEnumWithVoidDefault(allowed []string) *StringEnum {
+	return &StringEnum{
+		Allowed: allowed,
+		Value:   "",
+	}
+}
+
 // String returns the stringified value.
 func (a StringEnum) String() string {
 	return a.Value
