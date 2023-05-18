@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pterm/pterm"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +38,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/pterm/pterm"
 )
 
 var _ ResourceReader = &LocalResourceMonitor{}

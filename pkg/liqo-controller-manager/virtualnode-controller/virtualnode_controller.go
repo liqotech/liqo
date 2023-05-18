@@ -19,6 +19,7 @@ import (
 
 	"github.com/pterm/pterm"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,6 +46,7 @@ import (
 
 const (
 	virtualNodeControllerFinalizer = "virtualnode-controller.liqo.io/finalizer"
+	nodeNameField                  = "spec.nodeName"
 )
 
 // VirtualNodeReconciler manage NamespaceMap lifecycle.
@@ -54,20 +56,27 @@ type VirtualNodeReconciler struct {
 	HomeClusterIdentity   *discoveryv1alpha1.ClusterIdentity
 	VirtualKubeletOptions *vkforge.VirtualKubeletOpts
 	EventsRecorder        record.EventRecorder
+	dr                    *DeletionRoutine
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;patch;update
-// +kubebuilder:rbac:groups="",resources=nodes/finalizers,verbs=get;update;patch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes/finalizers,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
 
 // Reconcile manage NamespaceMaps associated with the virtual-node.
 func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	if !deletionRoutineRunning {
+		var err error
+		r.dr, err = RunDeletionRoutine(r)
+		if err != nil {
+			klog.Errorf("Unable to run the deletion routine: %s", err)
+			return ctrl.Result{}, err
+		}
+		deletionRoutineRunning = true
+	}
 	pterm.FgLightYellow.Println("Reconciling", req.NamespacedName)
 	virtualNode := &virtualkubeletv1alpha1.VirtualNode{}
 	if err := r.Get(ctx, req.NamespacedName, virtualNode); err != nil {
@@ -76,22 +85,6 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, nil
 		}
 		klog.Errorf(" %s --> Unable to get the virtual-node '%s'", err, req.Name)
-		return ctrl.Result{}, err
-	}
-
-	// It is necessary to have a finalizer on the virtual-node.
-	if err := r.ensureVirtualNodeFinalizerPresence(ctx, virtualNode); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// It creates the virtual-kubelet deployment.
-	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, virtualNode); err != nil {
-		klog.Errorf(" %s --> Unable to create the virtual-kubelet deployment", err)
-		return ctrl.Result{}, err
-	}
-
-	// If there is no NamespaceMap associated with this virtual-node, it creates a new one.
-	if err := r.ensureNamespaceMapPresence(ctx, virtualNode); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -105,23 +98,38 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if ctrlutil.ContainsFinalizer(virtualNode, virtualNodeControllerFinalizer) {
 			pterm.FgYellow.Printfln("Deleting the virtual-node '%s' in '%s'", req.Name, req.Namespace)
 			if err := r.ensureVirtualKubeletDeploymentAbsence(ctx, virtualNode); err != nil {
+				pterm.FgMagenta.Println("Unable to delete the virtual-kubelet deployment")
 				return ctrl.Result{}, err
 			}
 			if err := r.ensureNamespaceMapAbsence(ctx, virtualNode); err != nil {
+				pterm.FgMagenta.Println("Unable to delete the namespace-map")
 				return ctrl.Result{}, err
 			}
-			if err := r.removeVirtualNodeFinalizer(ctx, virtualNode); err != nil {
-				return ctrl.Result{}, err
-			}
-
+			r.dr.DeleteVirtualNode(virtualNode)
 			return ctrl.Result{}, nil
 		}
 	}
+
+	// It creates the virtual-kubelet deployment.
+	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, virtualNode); err != nil {
+		klog.Errorf(" %s --> Unable to create the virtual-kubelet deployment", err)
+		return ctrl.Result{}, err
+	}
+
+	// If there is no NamespaceMap associated with this virtual-node, it creates a new one.
+	if err := r.ensureNamespaceMapPresence(ctx, virtualNode); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager register the VirtualNodeReconciler to the manager.
-func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VirtualNodeReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
+	// Add field containing node Name to the Field Indexer
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.Pod{}, nodeNameField, extractNodeNameFromPod); err != nil {
+		return err
+	}
 	// select virtual kubelet deployments only
 	deployPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
 		MatchLabels: vkMachinery.KubeletBaseLabels,
@@ -155,4 +163,12 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 		builder.WithPredicates(deployPredicate),
 	).Complete(r)
+}
+
+func extractNodeNameFromPod(rawObj client.Object) []string {
+	pod, ok := rawObj.(*corev1.Pod)
+	if !ok {
+		return []string{}
+	}
+	return []string{pod.Spec.NodeName}
 }
