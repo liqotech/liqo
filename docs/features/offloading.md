@@ -5,6 +5,8 @@
 This solution enables the **transparent extension** of the local cluster, with the new node (and its capabilities) seamlessly taken into account by the vanilla Kubernetes scheduler when selecting the best place for the workloads execution.
 At the same time, this approach is fully compliant with the **standard Kubernetes APIs**, hence allowing to interact with and inspect offloaded pods just as if they were executed locally.
 
+(FeatureOffloadingAssignedResources)=
+
 ## Assigned resources
 
 By default, the virtual node is assigned with 90% of the resources available in the remote cluster. For example:
@@ -14,7 +16,7 @@ By default, the virtual node is assigned with 90% of the resources available in 
 * If the remote cluster has some autoscaling mechanism that, at some point, double the size of the cluster, which reaches 200 vCPUs (all of them unused by any pod), the virtual node will be resized with 180 vCPUs.
 
 This mechanism applies to all the physical resources available in the remote cluster, e.g., CPUs, RAM, GPUs and more.
-The percentage of sharing can be customized also at run-time using the `--sharing-percentage` option, as documented in the proper [section](https://docs.liqo.io/en/latest/installation/install.html#control-plane) of the Liqo installation.
+The percentage of sharing can be customized also at run-time using the `--sharing-percentage` option, as documented in the proper [section](InstallControlPlaneFlags) of the Liqo installation.
 
 ```{warning}
 Pay attention to _math rounding_. For instance, if your remote cluster has 1 GPU, with default settings the virtual node will be set with 0.9 GPUs. Since numbers must be integers, you may end up with a virtual node with _zero_ GPUs.
@@ -74,7 +76,7 @@ The extension of a namespace, forcing at the same time all pods to be scheduled 
 ## Pod offloading
 
 Once a **pod is scheduled onto a virtual node**, the corresponding Liqo virtual kubelet (indirectly) creates a **twin pod object** in the remote cluster for actual execution.
-Liqo supports the offloading of both **stateless** and **stateful** pods, the latter either relying on the provided [**storage fabric**](/features/storage-fabric.md) or leveraging externally managed solutions (e.g., persistent volumes provided by the cloud provider infrastructure).
+Liqo supports the offloading of both **stateless** and **stateful** pods, the latter either relying on the provided [**storage fabric**](/features/storage-fabric) or leveraging externally managed solutions (e.g., persistent volumes provided by the cloud provider infrastructure).
 
 **Remote pod resiliency** (hence, service continuity), even in case of temporary connectivity loss between the two control planes, is ensured through a **custom resource** (i.e., *ShadowPod*) wrapping the pod definition, and triggering a Liqo enforcement logic running in the remote cluster.
 This guarantees that the desired pod is always present, without requiring the intervention of the originating cluster.

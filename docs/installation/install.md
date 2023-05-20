@@ -1,22 +1,20 @@
 # Install
 
-The deployment of all the Liqo components is managed through a **Helm chart**.
+Liqo can be easily installed with *liqoctl*, which automatically handles all the customized settings required to set up the software on  the multiple provider/distribution supported (e.g., AWS, EKS, GKE, Kubeadm, etc.).
+Under the hood, *liqoctl* uses [Helm 3](https://helm.sh/) to configure and install all the Liqo components, using the Helm chart available in the official repository.
 
-We strongly recommend **installing Liqo using *liqoctl***, as it automatically handles the required customizations for each supported provider/distribution (e.g., AWS, EKS, GKE, Kubeadm, etc.).
-Under the hood, *liqoctl* uses [Helm 3](https://helm.sh/) to configure and install the Liqo Helm chart available on the official repository.
-
-Alternatively, *liqoctl* can also be configured to output a **pre-configured values file**, which can be further customized and used for a manual installation with Helm.
+Alternatively, *liqoctl* can also be configured to generate a local file with **pre-configured values**, which can be further customized and used for a manual installation with Helm.
 
 ## Install with liqoctl
 
 Below, you can find the basic information to install and configure Liqo, depending on the selected **Kubernetes distribution** and/or **cloud provider**.
-By default, *liqoctl install* installs the latest stable version of Liqo, although it can be tuned through the `--version` flag.
+By default, *liqoctl install* installs the latest *stable* version of Liqo, although this can be changed with the `--version` flag.
 
-The reminder of this page, then, presents **additional customization options** which apply to all setups, as well as advanced options.
+The rest of this page presents **additional customization options** that apply to all setups, as well as advanced options that are cloud/distribution-specific.
 
 ```{admonition} Note
-*liqoctl* displays a *kubectl* compatible behavior concerning Kubernetes API access, hence supporting the `KUBECONFIG` environment variable, as well as all the standard flags, including `--kubeconfig` and `--context`.
-Ensure you selected the correct target cluster before issuing *liqoctl* commands (as you would do with *kubectl*).
+*liqoctl* implements a *kubectl* compatible behavior with respect to Kubernetes API access, hence supporting the `KUBECONFIG` environment variable, as well as all the standard flags, including `--kubeconfig` and `--context`.
+Hence, make sure you selected the correct target cluster before issuing *liqoctl* commands (as you would do with *kubectl*).
 ```
 
 `````{tab-set}
@@ -39,13 +37,13 @@ Additionally, known limitations concern the impossibility of accessing the backe
 
 **Installation**
 
-Liqo can be installed on a Kubeadm cluster through:
+Liqo can be installed on a Kubeadm cluster with the following command:
 
 ```bash
 liqoctl install kubeadm
 ```
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
+The name of the cluster is automatically generated, then used during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 
 ```{admonition} Service Type
@@ -58,17 +56,17 @@ To change this behavior, check the [network flags](NetworkFlags).
 
 **Supported versions**
 
-Liqo was tested running on OpenShift Container Platform (OCP) 4.8.
+Liqo was tested on OpenShift Container Platform (OCP) 4.8.
 
 **Installation**
 
-Liqo can be installed on an OpenShift Container Platform (OCP) cluster through:
+Liqo can be installed on an OpenShift Container Platform (OCP) cluster with the following command:
 
 ```bash
 liqoctl install openshift
 ```
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
+The name of the cluster is automatically generated, then used during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 
 ```{admonition} Service Type
@@ -91,7 +89,7 @@ To install Liqo on AKS, you should first log in using the `az` CLI (if not alrea
 az login
 ```
 
-Before continuing, you should export a few variables about the properties of your cluster:
+Before continuing, you should export the following variables with some information about your cluster:
 
 ```bash
 # The resource group where the cluster is created
@@ -108,7 +106,7 @@ During the installation process, you need read-only permissions on the AKS clust
 
 **Installation**
 
-Liqo can be installed on an AKS cluster through:
+Liqo can be installed on an AKS cluster with the following command:
 
 ```bash
 liqoctl install aks --resource-group-name "${AKS_RESOURCE_GROUP}" \
@@ -116,8 +114,8 @@ liqoctl install aks --resource-group-name "${AKS_RESOURCE_GROUP}" \
         --subscription-name "${AKS_SUBSCRIPTION_ID}"
 ```
 
-By default, the cluster is assigned the same name as that specified through the `--resource-name` parameter.
-Alternatively, you can manually specify a different name with the `--cluster-name` *liqoctl* flag.
+The name of the cluster will be equal to the one specified in the `--resource-name` parameter.
+Alternatively, you can manually set a different name with the `--cluster-name` *liqoctl* flag.
 
 ```{admonition} Note
 If you are running an [AKS private cluster](https://learn.microsoft.com/en-us/azure/aks/private-clusters), you may need to set the `--disable-api-server-sanity-check` *liqoctl* flag, since the API Server in your kubeconfig may be different from the one retrieved from the Azure APIs.
@@ -187,7 +185,7 @@ The minimum **IAM** permissions required by a user to install Liqo are the follo
 }
 ```
 
-Before continuing, you should export a few variables about the properties of your cluster:
+Before continuing, you should export the following variables with some information about your cluster:
 
 ```bash
 # The name of the target cluster
@@ -196,8 +194,7 @@ export EKS_CLUSTER_NAME=cluster-name
 export EKS_CLUSTER_REGION=cluster-region
 ```
 
-Then, you should retrieve the cluster's kubeconfig, if you have not already.
-You may use the following CLI command:
+Then, you should retrieve the cluster's kubeconfig (if you have not done it already) with the following CLI command:
 
 ```bash
 aws eks --region ${EKS_CLUSTER_REGION} update-kubeconfig --name ${EKS_CLUSTER_NAME}
@@ -205,15 +202,15 @@ aws eks --region ${EKS_CLUSTER_REGION} update-kubeconfig --name ${EKS_CLUSTER_NA
 
 **Installation**
 
-Liqo can be installed on an EKS cluster through:
+Liqo can be installed on an EKS cluster with the following command:
 
 ```bash
 liqoctl install eks --eks-cluster-region=${EKS_CLUSTER_REGION} \
         --eks-cluster-name=${EKS_CLUSTER_NAME}
 ```
 
-By default, the cluster is assigned the same name as that specified through the `--eks-cluster-name` parameter.
-Alternatively, you can manually specify a different name with the `--cluster-name` *liqoctl* flag.
+The name of the cluster will be equal to the one specified in the `--eks-cluster-name` parameter.
+Alternatively, you can manually set a different name with the `--cluster-name` *liqoctl* flag.
 
 ```{admonition} Service Type
 By default, the **EKS** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
@@ -235,7 +232,7 @@ Liqo does not support GKE Autopilot Clusters.
 
 To install Liqo on GKE, you should create a service account for *liqoctl*, granting the read rights for the GKE clusters (you may reduce the scope to a specific cluster if you prefer).
 
-First, let's start exporting a few variables about the properties of your cluster and the service account to create:
+First, you should export the following variables with some information about your cluster and the service account to create:
 ```bash
 # The name of the service account used by liqoctl to interact with GCP
 export GKE_SERVICE_ACCOUNT_ID=liqoctl
@@ -282,15 +279,14 @@ gcloud iam service-accounts keys create ${GKE_SERVICE_ACCOUNT_PATH} \
     --iam-account=${GKE_SERVICE_ACCOUNT_ID}@${GKE_PROJECT_ID}.iam.gserviceaccount.com
 ```
 
-Finally, you should retrieve the cluster’s kubeconfig, if you have not already.
-You may use the following CLI command, in case of zonal GKE clusters:
+Finally, you should retrieve the cluster’s kubeconfig (if you have not done it already) with the following CLI command in case of **zonal** GKE clusters:
 
 ```bash
 gcloud container clusters get-credentials ${GKE_CLUSTER_ID} \
         --zone ${GKE_CLUSTER_ZONE} --project ${GKE_PROJECT_ID}
 ```
 
-or, in case of regional GKE clusters:
+or, in case of **regional** GKE clusters:
 
 ```bash
 gcloud container clusters get-credentials ${GKE_CLUSTER_ID} \
@@ -301,7 +297,7 @@ The retrieved kubeconfig will be added to the currently selected file (i.e., bas
 
 **Installation**
 
-Liqo can be installed on a zonal GKE cluster through:
+Liqo can be installed on a zonal GKE cluster with the following command:
 
 ```bash
 liqoctl install gke --project-id ${GKE_PROJECT_ID} \
@@ -319,8 +315,8 @@ liqoctl install gke --project-id ${GKE_PROJECT_ID} \
     --credentials-path ${GKE_SERVICE_ACCOUNT_PATH}
 ```
 
-By default, the cluster is assigned the same name as that assigned in GCP.
-Alternatively, you can manually specify a different name with the `--cluster-name` *liqoctl* flag.
+The name of the cluster will be equal to the one defined in GCP.
+Alternatively, you can manually set a different name with the `--cluster-name` *liqoctl* flag.
 
 ```{admonition} Service Type
 By default, the **GKE** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
@@ -337,7 +333,7 @@ Make sure to properly refer to it when using *liqoctl* (e.g., setting the `KUBEC
 
 **Installation**
 
-Liqo can be installed on a K3s cluster through:
+Liqo can be installed on a K3s cluster with the following command:
 
 ```bash
 liqoctl install k3s
@@ -346,7 +342,7 @@ liqoctl install k3s
 You may additionally set the `--api-server-url` flag to override the Kubernetes API Server address used by remote clusters to contact the local one.
 This operation is necessary in case the default address (`https://<control-plane-node-ip>:6443`) is unsuitable (e.g., the node IP is externally remapped).
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
+The name of the cluster is automatically generated, then used during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 
 ```{admonition} Service Type
@@ -359,13 +355,13 @@ To change this behavior, check the [network flags](NetworkFlags).
 
 **Installation**
 
-Liqo can be installed on a KinD cluster through:
+Liqo can be installed on a KinD cluster with the following command:
 
 ```bash
 liqoctl install kind
 ```
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
+The name of the cluster is automatically generated, then used during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 ```{admonition} Service Type
 By default, the **kind** provider exposes *liqo-auth* and *liqo-gateway* with **NodePort** services.
@@ -377,7 +373,7 @@ To change this behavior, check the [network flags](NetworkFlags).
 
 **Configuration**
 
-To install Liqo on alternative Kubernetes distributions, it is necessary to manually retrieve three main configuration parameters:
+To install Liqo on alternative Kubernetes distributions, you should manually retrieve three main configuration parameters:
 
 * **API Server URL**: the Kubernetes API Server URL (defaults to the one specified in the kubeconfig).
 * **Pod CIDR**: the range of IP addresses used by the cluster for the pod network.
@@ -385,14 +381,14 @@ To install Liqo on alternative Kubernetes distributions, it is necessary to manu
 
 **Installation**
 
-Once retrieved the above parameters, Liqo can be installed on a generic cluster through:
+Once retrieved the above parameters, Liqo can be installed on a generic cluster with the following command:
 
 ```bash
 liqoctl install --api-server-url=<API-SERVER-URL> \
       --pod-cidr=<POD-CIDR> --service-cidr=<SERVICE-CIDR>
 ```
 
-By default, the cluster is assigned an automatically generated name, then leveraged during the peering and offloading processes.
+The name of the cluster is automatically generated, then used during the peering and offloading processes.
 Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
 
 ```{admonition} Service Type
@@ -424,15 +420,18 @@ The main global flags, besides those concerning the installation of [development
   Once expired, the process is aborted and Liqo is rolled back to the previous version.
 * `--verbose`: enables verbose logs, providing additional information concerning the installation/upgrade process (e.g., for troubleshooting).
 
+(InstallControlPlaneFlags)=
+
 ### Control plane
 
 The main control plane flags include:
 
 * `--cluster-name`: configures a **name identifying the cluster** in Liqo.
-This name is propagated to remote clusters during the peering process, and used to identify the corresponding virtual nodes and the technical resources leveraged for the negotiation process. Additionally, it is leveraged as part of the suffix to ensure namespace names uniqueness during the offloading process. In case a cluster name is not specified, it is defaulted to that of the cluster in the cloud provider, if any, or it is automatically generated.
+This name is propagated to remote clusters during the peering process, and used to identify the corresponding virtual nodes and the Liqo resources used in the peering process. Additionally, the cluster name is used as part of the suffix to ensure namespace names uniqueness during the offloading process. In case a cluster name is not specified, it is defaulted to that of the cluster in the cloud provider, if any, or it is automatically generated.
 * `--cluster-labels`: a set of **labels** (i.e., key/value pairs) **identifying the cluster in Liqo** (e.g., geographical region, Kubernetes distribution, cloud provider, ...) and automatically propagated during the peering process to the corresponding virtual nodes.
 These labels can be used later to **restrict workload offloading to a subset of clusters**, as detailed in the [namespace offloading usage section](/usage/namespace-offloading).
 * `--sharing-percentage`: the maximum percentage of available **cluster resources** that could be shared with remote clusters. This is the Liqo's default behavior, which can be changed by deploying a custom [resource plugin](https://github.com/liqotech/liqo-resource-plugins).
+More details about the amount of resources shared by a cluster is available in the [Resource Offloading](FeatureOffloadingAssignedResources) page.
 **Note**: the `--sharing-percentage` can be updated (e.g., via helm) dynamically, without reinstalling Liqo.
 
 (NetworkFlags)=
