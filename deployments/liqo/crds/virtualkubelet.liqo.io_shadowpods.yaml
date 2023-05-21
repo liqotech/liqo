@@ -15,7 +15,14 @@ spec:
     singular: shadowpod
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ShadowPod is the Schema for the Shadowpods API.
@@ -7119,6 +7126,26 @@ spec:
                 - containers
                 type: object
             type: object
+          status:
+            description: ShadowPodStatus defines the observed state of ShadowPod.
+            properties:
+              phase:
+                default: Unknown
+                description: Phase is the status of this ShadowPod. When the pod is
+                  created it is checked by the operator, which sets this field same
+                  as pod status.
+                enum:
+                - Pending
+                - Running
+                - Succeeded
+                - Failed
+                - Unknown
+                type: string
+            required:
+            - phase
+            type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}

@@ -455,3 +455,11 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - shadowpods/status
+  verbs:
+  - get
+  - patch
+  - update
