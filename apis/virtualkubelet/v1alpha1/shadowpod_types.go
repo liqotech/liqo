@@ -24,15 +24,28 @@ type ShadowPodSpec struct {
 	Pod corev1.PodSpec `json:"pod,omitempty"`
 }
 
+// ShadowPodStatus defines the observed state of ShadowPod.
+type ShadowPodStatus struct {
+	// Phase is the status of this ShadowPod.
+	// When the pod is created it is checked by the operator, which sets this field same as pod status.
+	// +kubebuilder:validation:Enum="Pending";"Running";"Succeeded";"Failed";"Unknown"
+	// +kubebuilder:default="Unknown"
+	Phase corev1.PodPhase `json:"phase"`
+}
+
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +genclient
 
 // ShadowPod is the Schema for the Shadowpods API.
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type ShadowPod struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec ShadowPodSpec `json:"spec,omitempty"`
+	Spec   ShadowPodSpec   `json:"spec,omitempty"`
+	Status ShadowPodStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -53,8 +53,9 @@ var _ = Describe("Reconcile", func() {
 		err    error
 		buffer *bytes.Buffer
 
-		testShadowPod vkv1alpha1.ShadowPod
-		testPod       corev1.Pod
+		testShadowPod        vkv1alpha1.ShadowPod
+		testShadowPodSuccess vkv1alpha1.ShadowPod
+		testPod              corev1.Pod
 	)
 
 	BeforeEach(func() {
@@ -83,6 +84,34 @@ var _ = Describe("Reconcile", func() {
 					},
 				}},
 			},
+			Status: vkv1alpha1.ShadowPodStatus{
+				Phase: corev1.PodUnknown,
+			},
+		}
+		testShadowPodSuccess = vkv1alpha1.ShadowPod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      shadowPodName,
+				Namespace: shadowPodNamespace,
+				Labels: map[string]string{
+					"label1-key": "label1-value",
+					"label2-key": "label2-value",
+				},
+				Annotations: map[string]string{
+					"annotation1-key": "annotation1-value",
+					"annotation2-key": "annotation2-value",
+				},
+			},
+			Spec: vkv1alpha1.ShadowPodSpec{
+				Pod: corev1.PodSpec{Containers: []corev1.Container{
+					{
+						Name:  "nginx",
+						Image: "nginx",
+					},
+				}},
+			},
+			Status: vkv1alpha1.ShadowPodStatus{
+				Phase: corev1.PodSucceeded,
+			},
 		}
 
 		testPod = corev1.Pod{
@@ -91,6 +120,9 @@ var _ = Describe("Reconcile", func() {
 				Namespace: testShadowPod.Namespace,
 			},
 			Spec: testShadowPod.Spec.Pod,
+			Status: corev1.PodStatus{
+				Phase: corev1.PodRunning,
+			},
 		}
 	})
 
@@ -125,7 +157,7 @@ var _ = Describe("Reconcile", func() {
 		It("should align pod and shadowpod", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(res).To(BeZero())
-			Expect(buffer.String()).To(ContainSubstring(fmt.Sprintf("pod %q found running, will update it with", klog.KObj(&testPod))))
+			Expect(buffer.String()).To(ContainSubstring(fmt.Sprintf("pod %q found in cluster, will update it with", klog.KObj(&testPod))))
 		})
 
 		It("should update pod metadata to shadowpod metadata", func() {
@@ -185,6 +217,17 @@ var _ = Describe("Reconcile", func() {
 			shadowPodContainer := testShadowPod.Spec.Pod.Containers[0]
 			Expect(podContainer.Name).To(Equal(shadowPodContainer.Name))
 			Expect(podContainer.Image).To(Equal(shadowPodContainer.Image))
+		})
+	})
+
+	When("pod is already completed or failed, shouldn't recreate pod", func() {
+		BeforeEach(func() {
+			Expect(k8sClient.Create(ctx, &testShadowPodSuccess)).To(Succeed())
+		})
+
+		It("should not create pod because shadowpod status is success", func() {
+			pod := corev1.Pod{}
+			Expect(k8sClient.Get(ctx, req.NamespacedName, &pod)).To(BeNil())
 		})
 	})
 })

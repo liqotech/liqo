@@ -43,16 +43,10 @@ type Reconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func podShouldBeUpdated(newObj, oldObj client.Object) bool {
-	changesInLabels := !labels.Equals(newObj.GetLabels(), oldObj.GetLabels())
-	changesInAnnots := !labels.Equals(newObj.GetAnnotations(), oldObj.GetAnnotations())
-
-	return changesInLabels || changesInAnnots
-}
-
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowpods,verbs=get;list;watch;update;patch;delete
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowpods/finalizers,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowpods/status,verbs=get;update;patch
 
 // Reconcile ShadowPods objects.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -67,6 +61,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
+	if shadowPod.Spec.Pod.RestartPolicy == corev1.RestartPolicyNever &&
+		(shadowPod.Status.Phase == corev1.PodSucceeded || shadowPod.Status.Phase == corev1.PodFailed) {
+		klog.V(4).Infof("skip: shadowpod %s already succeeded or failed and restart policy set to Never", shadowPod.GetName())
+		return ctrl.Result{}, nil
+	} else if shadowPod.Spec.Pod.RestartPolicy == corev1.RestartPolicyOnFailure && shadowPod.Status.Phase == corev1.PodSucceeded {
+		klog.V(4).Infof("skip: shadowpod %s already succeeded and restart policy set to OnFailure", shadowPod.GetName())
+		return ctrl.Result{}, nil
+	}
+
 	// update shadowpod labels to include the "managed-by"
 	shadowPod.SetLabels(labels.Merge(shadowPod.Labels, labels.Set{consts.ManagedByLabelKey: consts.ManagedByShadowPodValue}))
 
@@ -77,7 +80,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	} else if err == nil {
 		// Update Labels and Annotations
-		klog.V(4).Infof("pod %q found running, will update it with labels: %v and annotations: %v",
+		klog.V(4).Infof("pod %q found in cluster, will update it with labels: %v and annotations: %v",
 			klog.KObj(&existingPod), existingPod.Labels, existingPod.Annotations)
 
 		// Create Apply object for Existing Pod
@@ -88,6 +91,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.Patch(ctx, &existingPod, clientutils.Patch(apply), client.ForceOwnership, client.FieldOwner("shadow-pod")); err != nil {
 			klog.Errorf("unable to update pod %q: %v", klog.KObj(&existingPod), err)
 			return ctrl.Result{}, err
+		}
+
+		// Update ShadowPod status same as Pod status
+		shadowPod.Status.Phase = existingPod.Status.DeepCopy().Phase
+		if newErr := r.Client.Status().Update(ctx, &shadowPod); newErr != nil {
+			klog.Error(newErr)
+			return ctrl.Result{}, newErr
 		}
 
 		klog.Infof("updated pod %q with success", klog.KObj(&existingPod))
@@ -124,7 +134,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 	reconciledPredicates := predicate.Funcs{
 		DeleteFunc:  func(e event.DeleteEvent) bool { return true },
 		CreateFunc:  func(e event.CreateEvent) bool { return false },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return podShouldBeUpdated(e.ObjectNew, e.ObjectOld) },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return true },
 		GenericFunc: func(e event.GenericEvent) bool { return false },
 	}
 	return ctrl.NewControllerManagedBy(mgr).

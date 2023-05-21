@@ -101,6 +101,18 @@ func (c *FakeShadowPods) Update(ctx context.Context, shadowPod *v1alpha1.ShadowP
 	return obj.(*v1alpha1.ShadowPod), err
 }
 
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (c *FakeShadowPods) UpdateStatus(ctx context.Context, shadowPod *v1alpha1.ShadowPod, opts v1.UpdateOptions) (*v1alpha1.ShadowPod, error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateSubresourceAction(shadowpodsResource, "status", c.ns, shadowPod), &v1alpha1.ShadowPod{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*v1alpha1.ShadowPod), err
+}
+
 // Delete takes name of the shadowPod and deletes it. Returns an error if one occurs.
 func (c *FakeShadowPods) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
