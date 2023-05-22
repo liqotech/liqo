@@ -117,7 +117,7 @@
 | storage.storageNamespace | string | `"liqo-storage"` | Namespace where liqo will deploy specific PVCs. Internal parameter, do not change. |
 | storage.virtualStorageClassName | string | `"liqo"` | Name to assign to the liqo virtual storage class. |
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
-| telemetry.config.schedule | string | `""` | Set the schedule of the telemetry collector CronJob |
+| telemetry.config.schedule | string | `""` | Set the schedule of the telemetry collector CronJob. Consider setting this value on ArgoCD deployments to avoid randomization. |
 | telemetry.enable | bool | `true` | Enable/Disable the telemetry collector. |
 | telemetry.imageName | string | `"ghcr.io/liqotech/telemetry"` | Image repository for the telemetry pod. |
 | telemetry.pod.annotations | object | `{}` | Annotations for the telemetry pod. |

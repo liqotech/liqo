@@ -292,7 +292,7 @@ telemetry:
   # -- Image repository for the telemetry pod.
   imageName: "ghcr.io/liqotech/telemetry"
   config:
-    # -- Set the schedule of the telemetry collector CronJob
+    # -- Set the schedule of the telemetry collector CronJob. Consider setting this value on ArgoCD deployments to avoid randomization.
     schedule: ""
     # schedule: "0 */12 * * *"
 
