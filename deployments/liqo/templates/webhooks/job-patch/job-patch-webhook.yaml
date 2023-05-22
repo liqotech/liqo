@@ -12,7 +12,7 @@ metadata:
   labels:
     {{- include "liqo.labels" $cfg | nindent 4 }}
 spec:
-  ttlSecondsAfterFinished: 0
+  ttlSecondsAfterFinished: 150
   template:
     metadata:
       name:  {{ include "liqo.prefixedName" $cfg }}
