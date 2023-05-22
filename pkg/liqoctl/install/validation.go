@@ -71,7 +71,8 @@ func (o *Options) validateClusterName() (err error) {
 
 	errs := validation.IsDNS1123Label(o.ClusterName)
 	if len(errs) != 0 {
-		return fmt.Errorf("the cluster name may only contain lowercase letters, numbers and hyphens, and must not be no longer than 63 characters. Try using 'liqoctl --cluster-name' to overcome this error")
+		return fmt.Errorf(`the cluster name must be DNS-compatible (e.g., lowercase letters, numbers and hyphens) and
+		must be <= 63 characters. Try using 'liqoctl --cluster-name' to set another name and overcome this error`)
 	}
 
 	return nil
