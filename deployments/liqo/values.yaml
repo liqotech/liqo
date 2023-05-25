@@ -109,7 +109,8 @@ gateway:
     # -- Port used to expose metrics.
     port: 5872
     serviceMonitor:
-      # -- Enable/Disable a Prometheus servicemonitor.
+      # -- Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator
+      # runs in your cluster; otherwise simply export the port above as an external endpoint.
       enabled: false
       # -- Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval
       # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
@@ -256,7 +257,9 @@ auth:
     portOverride: ""
 
 metricAgent:
-  # -- Enable/Disable the metric agent.
+  # -- Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics
+  # (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting 
+  # the resulting values as a property of the virtual kubelet running on the remote cluster.
   enable: true
   pod:
     # -- Annotations for the metricAgent pod.
@@ -332,7 +335,8 @@ virtualKubelet:
     # -- Port used to expose metrics.
     port: 5872
     podMonitor:
-      # -- Enable/Disable the creation of a Prometheus podmonitor.
+      # -- Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator
+      # runs in your cluster; otherwise simply export the port above as an external endpoint.
       enabled: false
       # -- Setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval
       # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
