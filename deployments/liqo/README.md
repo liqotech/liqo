@@ -64,7 +64,7 @@
 | gateway.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the network gateway pod. |
 | gateway.metrics.enabled | bool | `false` | Expose metrics about network traffic towards cluster peers. |
 | gateway.metrics.port | int | `5872` | Port used to expose metrics. |
-| gateway.metrics.serviceMonitor.enabled | bool | `false` | Enable/Disable a Prometheus servicemonitor. |
+| gateway.metrics.serviceMonitor.enabled | bool | `false` | Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator runs in your cluster; otherwise simply export the port above as an external endpoint. |
 | gateway.metrics.serviceMonitor.interval | string | `""` | Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | gateway.metrics.serviceMonitor.scrapeTimeout | string | `""` | Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | gateway.pod.annotations | object | `{}` | Annotations for the network gateway pod. |
@@ -74,7 +74,7 @@
 | gateway.replicas | int | `1` | The number of gateway instances to run. The gateway component supports active/passive high availability. Make sure that there are enough nodes to accommodate the replicas, because such pod has to run in the host network, hence no more than one replica can be scheduled on a given node. |
 | gateway.service.annotations | object | `{}` |  |
 | gateway.service.type | string | `"LoadBalancer"` | Kubernetes service to be used to expose the network gateway pod. If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer". Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort". |
-| metricAgent.enable | bool | `true` | Enable/Disable the metric agent. |
+| metricAgent.enable | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting  the resulting values as a property of the virtual kubelet running on the remote cluster. |
 | metricAgent.imageName | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |
 | metricAgent.initContainer.imageName | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the authentication init container for the metricAgent pod. |
 | metricAgent.pod.annotations | object | `{}` | Annotations for the metricAgent pod. |
@@ -135,7 +135,7 @@
 | virtualKubelet.extra.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the virtual kubelet pod. |
 | virtualKubelet.imageName | string | `"ghcr.io/liqotech/virtual-kubelet"` | Image repository for the virtual kubelet. |
 | virtualKubelet.metrics.enabled | bool | `false` | Enable/Disable to expose metrics about virtual kubelet resources. |
-| virtualKubelet.metrics.podMonitor.enabled | bool | `false` | Enable/Disable the creation of a Prometheus podmonitor. |
+| virtualKubelet.metrics.podMonitor.enabled | bool | `false` | Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator runs in your cluster; otherwise simply export the port above as an external endpoint. |
 | virtualKubelet.metrics.podMonitor.interval | string | `""` | Setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | virtualKubelet.metrics.podMonitor.scrapeTimeout | string | `""` | Setup pod monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | virtualKubelet.metrics.port | int | `5872` | Port used to expose metrics. |

@@ -1,16 +1,18 @@
 # Prometheus Metrics
 
 This section presents the metrics exposed by Liqo, using the [Prometheus](https://prometheus.io/) format.
+Although in this page we suppose Prometeus is running in your cluster, please note that this is not strictly required: metrics can be scraped also by an external Prometheus server, with Liqo metrics exposed through a dedicated endpoint.
 
 ## Scraping metrics
 
-Metrics are scraped depending on how your **Prometheus server(s)** has been configured.
-Liqo assumes that you leverage the [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) to run Prometheus, hence providing a **ServiceMonitor** resource for each component and a **PodMonitor** resource for the Virtual kubelet.
-
 Gathering of Liqo metrics is **disabled** by default.
-To allow Prometheus to scrape metrics from Liqo, you should set the `--enable-metrics` *liqoctl* flag during installation (cf. [installation customization options](InstallCustomization)), which configures Liqo to expose metrics, and it creates the proper **ServiceMonitor** and **PodMonitor** resources.
+To enable the scraping of Liqo metrics, you should set the `--enable-metrics` *liqoctl* flag during installation (cf. [installation customization options](InstallCustomization)).
+In this case, Liqo assumes that you leverage the [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) to run Prometheus, hence it creates also the proper **ServiceMonitor** and **PodMonitor** resources that are automatically associated to the components that export metrics (e.g., network gateway, virtual kubelet).
+Finally, metrics are scraped depending on how your **Prometheus server(s)** has been configured.
 
-Alternatively, you can customize these settings using **Helm** (refer to the [Install with Helm](InstallationHelm) section for further details).
+If you need to finely tune the above settings, you should use **Helm**.
+For example, this can be useful if your Prometheus server is external to your cluster, hence you want simply to export the Liqo metrics to a public endpoint and scrape them from there.
+Refer to the [Install with Helm](InstallationHelm) section for further details.
 
 ## Cross-cluster network metrics
 
