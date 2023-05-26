@@ -20,14 +20,13 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrl "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
@@ -51,7 +50,6 @@ func drainNode(ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1
 		return err
 	}
 
-	klog.Infof("node %v successfully drained", virtualKubelet.VirtualNodeName(vn))
 	return nil
 }
 
@@ -59,12 +57,16 @@ func drainNode(ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1
 func getPodsForDeletion(ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1.VirtualNode) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
 	err := cl.List(ctx, podList, &client.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fields.Set{
-			"spec.nodeName": virtualKubelet.VirtualNodeName(vn),
-		}),
+		FieldSelector: client.MatchingFieldsSelector{
+			Selector: fields.OneTermEqualSelector(nodeNameField, virtualKubelet.VirtualNodeName(vn)),
+		},
 	})
+	klog.Infof("Drain node %s -> %d pods found", virtualKubelet.VirtualNodeName(vn), len(podList.Items))
 	if err != nil {
 		return nil, err
+	}
+	for _, v := range podList.Items {
+		klog.Infof("Drain node %s -> pod %v/%v found", v.Spec.NodeName, v.Namespace, v.Name)
 	}
 	return podList, nil
 }
@@ -96,7 +98,7 @@ func evictPods(ctx context.Context, cl client.Client, podList *corev1.PodList) e
 func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod, wg *sync.WaitGroup, errors chan error) {
 	defer wg.Done()
 
-	eviction := &policyv1beta1.Eviction{
+	eviction := &policyv1.Eviction{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.Name,
 			Namespace: pod.Namespace,
@@ -104,15 +106,14 @@ func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod, wg *sync.W
 		DeleteOptions: &metav1.DeleteOptions{},
 	}
 
-	_, err := ctrl.CreateOrUpdate(ctx, cl, eviction, func() error { return nil })
-	if err != nil {
-		klog.Error(err)
+	if err := cl.SubResource("eviction").Create(ctx, pod, eviction); err != nil {
 		errors <- err
 		return
 	}
 
+	klog.Infof("Drain node %s -> pod %v/%v successfully evicted", pod.Spec.NodeName, pod.Namespace, pod.Name)
+
 	if err := waitForDelete(ctx, cl, pod); err != nil {
-		klog.Error(err)
 		errors <- err
 		return
 	}
@@ -124,7 +125,8 @@ func waitForDelete(ctx context.Context, cl client.Client, pod *corev1.Pod) error
 		updatedPod := &corev1.Pod{}
 		err := cl.Get(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: pod.Name}, updatedPod)
 		if kerrors.IsNotFound(err) || (updatedPod != nil &&
-			updatedPod.ObjectMeta.UID != updatedPod.ObjectMeta.UID) {
+			pod.ObjectMeta.UID != updatedPod.ObjectMeta.UID) {
+			klog.Infof("Drain node %s -> pod %v/%v successfully deleted", pod.Spec.NodeName, pod.Namespace, pod.Name)
 			return true, nil
 		}
 		if err != nil {

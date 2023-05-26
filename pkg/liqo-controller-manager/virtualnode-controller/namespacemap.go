@@ -72,7 +72,7 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, v
 	// it's only necessary to wait until the NamespaceMaps are deleted.
 	virtualNodesList, err := getters.ListVirtualNodesByLabels(ctx, r.Client, labels.Everything())
 	if err != nil {
-		klog.Errorf("%s -> Unable to List VirtualNodes", err)
+		klog.Errorf("%s --> Unable to List VirtualNodes", err)
 		return err
 	}
 	if len(virtualNodesList.Items) != 1 {
@@ -83,7 +83,7 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, v
 	virtualNodeRemoteClusterID := vn.Spec.ClusterIdentity.ClusterID
 	if err := r.List(ctx, namespaceMapList, client.InNamespace(vn.Namespace),
 		client.MatchingLabels{liqoconst.ReplicationDestinationLabel: virtualNodeRemoteClusterID}); err != nil {
-		klog.Errorf("%s -> Unable to List NamespaceMaps of virtual node %q", err, vn.Name)
+		klog.Errorf("%s --> Unable to List NamespaceMaps of virtual node %q", err, vn.Name)
 		return err
 	}
 

@@ -75,4 +75,6 @@ const (
 	MetricsEnabled VirtualKubeletOptsFlag = "--metrics-enabled"
 	// MetricsAddress is the flag used to specify the metrics address.
 	MetricsAddress VirtualKubeletOptsFlag = "--metrics-address"
+	// CreateNode is the flag used to specify if the node must be created.
+	CreateNode VirtualKubeletOptsFlag = "--create-node"
 )

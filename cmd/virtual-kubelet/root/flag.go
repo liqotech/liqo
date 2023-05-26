@@ -81,6 +81,7 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 		"Home cluster API server HOST, this parameter is optional and required only to override the default values")
 	flags.StringVar(&o.HomeAPIServerPort, "home-api-server-port", "",
 		"Home cluster API server PORT, this parameter is optional and required only to override the default values")
+	flags.BoolVar(&o.CreateNode, "create-node", true, "Create the virtual node in the home cluster")
 
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)

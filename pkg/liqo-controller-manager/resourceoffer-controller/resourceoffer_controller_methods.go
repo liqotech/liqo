@@ -113,7 +113,7 @@ func (r *ResourceOfferReconciler) getVirtualNodeMutator(fc *discoveryv1alpha1.Fo
 		}
 
 		virtualNode.Spec.ClusterIdentity = &remoteClusterIdentity
-		virtualNode.Spec.CreateNode = true
+		//virtualNode.Spec.CreateNode = true
 		virtualNode.Spec.KubeconfigSecretRef = &corev1.LocalObjectReference{
 			Name: kubeconfigSecretNamespacedName.Name,
 			// TODO: set the namespace (?) or copy the secret in the local namespace (?)
