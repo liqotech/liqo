@@ -12,12 +12,15 @@
 | auth.ingress.class | string | `""` | Set your ingress class. |
 | auth.ingress.enable | bool | `false` | Enable/disable the creation of the Ingress resource. |
 | auth.ingress.host | string | `""` | Set the hostname for your ingress. |
+| auth.ingress.port | int | `443` | Set port for your ingress. |
 | auth.initContainer.imageName | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the auth pod. |
 | auth.pod.annotations | object | `{}` | Annotations for the auth pod. |
 | auth.pod.extraArgs | list | `[]` | Extra arguments for the auth pod. |
 | auth.pod.labels | object | `{}` | Labels for the auth pod. |
 | auth.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the auth pod. |
 | auth.service.annotations | object | `{}` | Annotations for the auth service. |
+| auth.service.labels | object | `{}` | Labels for the auth service. |
+| auth.service.port | int | `443` | Port used by the Authentication Service. |
 | auth.service.type | string | `"LoadBalancer"` | Kubernetes service used to expose the Authentication Service. If you are exposing this service with an Ingress, you can change it to ClusterIP; if your cluster does not support LoadBalancer services, consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress, consider to disable it or add the appropriate annotations to the Ingress resource. |
 | awsConfig.accessKeyId | string | `""` | AccessKeyID for the Liqo user. |
@@ -64,15 +67,20 @@
 | gateway.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the network gateway pod. |
 | gateway.metrics.enabled | bool | `false` | Expose metrics about network traffic towards cluster peers. |
 | gateway.metrics.port | int | `5872` | Port used to expose metrics. |
+| gateway.metrics.service | object | `{"annotations":{},"labels":{}}` | Service used to expose metrics. |
+| gateway.metrics.service.annotations | object | `{}` | Annotations for the metrics service. |
+| gateway.metrics.service.labels | object | `{}` | Labels for the metrics service. |
 | gateway.metrics.serviceMonitor.enabled | bool | `false` | Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator runs in your cluster; otherwise simply export the port above as an external endpoint. |
 | gateway.metrics.serviceMonitor.interval | string | `""` | Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
+| gateway.metrics.serviceMonitor.labels | object | `{}` | Labels for the gateway servicemonitor. |
 | gateway.metrics.serviceMonitor.scrapeTimeout | string | `""` | Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | gateway.pod.annotations | object | `{}` | Annotations for the network gateway pod. |
 | gateway.pod.extraArgs | list | `[]` | Extra arguments for the network gateway pod. |
 | gateway.pod.labels | object | `{}` | Labels for the network gateway pod. |
 | gateway.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the network gateway pod. |
 | gateway.replicas | int | `1` | The number of gateway instances to run. The gateway component supports active/passive high availability. Make sure that there are enough nodes to accommodate the replicas, because such pod has to run in the host network, hence no more than one replica can be scheduled on a given node. |
-| gateway.service.annotations | object | `{}` |  |
+| gateway.service.annotations | object | `{}` | Annotations for the network gateway service. |
+| gateway.service.labels | object | `{}` | Labels for the network gateway service. |
 | gateway.service.type | string | `"LoadBalancer"` | Kubernetes service to be used to expose the network gateway pod. If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer". Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort". |
 | metricAgent.enable | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting  the resulting values as a property of the virtual kubelet running on the remote cluster. |
 | metricAgent.imageName | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |
@@ -137,6 +145,7 @@
 | virtualKubelet.metrics.enabled | bool | `false` | Enable/Disable to expose metrics about virtual kubelet resources. |
 | virtualKubelet.metrics.podMonitor.enabled | bool | `false` | Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator runs in your cluster; otherwise simply export the port above as an external endpoint. |
 | virtualKubelet.metrics.podMonitor.interval | string | `""` | Setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
+| virtualKubelet.metrics.podMonitor.labels | object | `{}` | Labels for the virtualkubelet podmonitor. |
 | virtualKubelet.metrics.podMonitor.scrapeTimeout | string | `""` | Setup pod monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | virtualKubelet.metrics.port | int | `5872` | Port used to expose metrics. |
 | virtualKubelet.virtualNode.extra.annotations | object | `{}` | Extra annotations for the virtual node. |

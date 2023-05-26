@@ -89,7 +89,10 @@ gateway:
     # If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer".
     # Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort".
     type: "LoadBalancer"
+    # -- Annotations for the network gateway service.
     annotations: {}
+    # -- Labels for the network gateway service.
+    labels: {}
   config:
     # -- Override the default address where your network gateway service is available.
     # You should configure it if the network gateway is behind a reverse proxy or NAT.
@@ -108,6 +111,12 @@ gateway:
     enabled: false
     # -- Port used to expose metrics.
     port: 5872
+    # -- Service used to expose metrics.
+    service:
+      # -- Labels for the metrics service.
+      labels: {}
+      # -- Annotations for the metrics service.
+      annotations: {}
     serviceMonitor:
       # -- Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator
       # runs in your cluster; otherwise simply export the port above as an external endpoint.
@@ -118,6 +127,8 @@ gateway:
       # -- Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout
       # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
       scrapeTimeout: ""
+      # -- Labels for the gateway servicemonitor.
+      labels: {}
 
 networkManager:
   externalIPAM:
@@ -233,8 +244,12 @@ auth:
     # if your cluster does not support LoadBalancer services, consider to switch it to NodePort.
     # See https://doc.liqo.io/installation/ for more details.
     type: "LoadBalancer"
+    # -- Labels for the auth service.
+    labels: {}
     # -- Annotations for the auth service.
     annotations: {}
+    # -- Port used by the Authentication Service.
+    port: 443
   # -- Enable TLS for the Authentication Service Pod (using a self-signed certificate).
   # If you are exposing this service with an Ingress, consider to disable it or add the appropriate annotations to the Ingress resource.
   tls: true
@@ -247,6 +262,8 @@ auth:
     host: ""
     # -- Set your ingress class.
     class: ""
+    # -- Set port for your ingress.
+    port: 443
   config:
     # -- Set to false to disable the authentication of discovered clusters.
     # Note: use it only for testing installations.
@@ -344,6 +361,8 @@ virtualKubelet:
       # -- Setup pod monitor scrape timeout. If empty, Prometheus uses the global scrape timeout
       # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
       scrapeTimeout: ""
+      # -- Labels for the virtualkubelet podmonitor.
+      labels: {}
 
 uninstaller:
   pod:
