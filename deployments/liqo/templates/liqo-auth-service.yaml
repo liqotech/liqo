@@ -8,9 +8,12 @@ metadata:
   labels:
     {{- include "liqo.labels" $authConfig | nindent 4 }}
     {{- include "liqo.authServiceLabels" . | nindent 4 }}
+    {{- if .Values.auth.service.labels }}
+      {{- toYaml .Values.auth.service.labels | nindent 4}}
+    {{- end }}
   annotations:
     {{- if .Values.auth.service.annotations }}
-    {{- toYaml .Values.auth.service.annotations | nindent 4}}
+      {{- toYaml .Values.auth.service.annotations | nindent 4}}
     {{- end }}
     {{- if .Values.auth.config.addressOverride }}
     liqo.io/override-address: {{ .Values.auth.config.addressOverride | quote }}
@@ -20,7 +23,7 @@ metadata:
     {{- if .Values.auth.config.portOverride }}
     liqo.io/override-port: {{ .Values.auth.config.portOverride | quote }}
     {{- else if .Values.auth.ingress.enable }}
-    liqo.io/override-port: "443"
+    liqo.io/override-port: {{ .Values.auth.ingress.port | quote }}
     {{- end }}
 spec:
   type: {{ .Values.auth.service.type }}
@@ -34,6 +37,6 @@ spec:
       port: 5000
       targetPort: 5000
       {{- else }}
-      port: 443
+      port: {{ .Values.auth.service.port }}
       targetPort: 8443
       {{- end }}

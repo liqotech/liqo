@@ -20,6 +20,9 @@ metadata:
   labels:
     {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
     {{- include "liqo.gatewayServiceLabels" $gatewayConfig | nindent 4 }}
+    {{- if .Values.gateway.service.labels }}
+      {{- toYaml .Values.gateway.service.labels | nindent 4 }}
+    {{- end}}
 spec:
   type: {{ .Values.gateway.service.type }}
   ports:
@@ -38,8 +41,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "liqo.prefixedName" $gatewayMetricsConfig }}
+  annotations:
+    {{- if .Values.gateway.metrics.service.annotations }}
+      {{- toYaml .Values.gateway.metrics.service.annotations | nindent 4 }}
+    {{- end}}
   labels:
     {{- include "liqo.labels" $gatewayMetricsConfig | nindent 4 }}
+    {{- if .Values.gateway.metrics.service.labels }}
+      {{- toYaml .Values.gateway.metrics.service.labels | nindent 4 }}
+    {{- end}}
 spec:
   selector:
     {{- include "liqo.gatewaySelector" $gatewayMetricsConfig | nindent 4 }}

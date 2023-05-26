@@ -7,6 +7,9 @@ metadata:
   name: {{ include "liqo.prefixedName" $kubeletMetricsConfig }}
   labels:
     {{- include "liqo.labels" $kubeletMetricsConfig | nindent 4 }}
+    {{- if .Values.virtualKubelet.metrics.podMonitor.labels }}
+      {{- toYaml .Values.virtualKubelet.metrics.podMonitor.labels | nindent 4 }}
+    {{- end }}
 spec:
   namespaceSelector:
     any: true

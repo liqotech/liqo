@@ -9,6 +9,9 @@ metadata:
   name: {{ include "liqo.prefixedName" $gatewayMetricsConfig }}
   labels:
     {{- include "liqo.labels" $gatewayMetricsConfig | nindent 4 }}
+    {{- if .Values.gateway.metrics.serviceMonitor.labels }}
+      {{- toYaml .Values.gateway.metrics.serviceMonitor.labels | nindent 4 }}
+    {{- end }}
 spec:
   selector:
     matchLabels:
