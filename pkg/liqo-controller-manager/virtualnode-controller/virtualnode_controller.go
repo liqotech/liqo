@@ -17,7 +17,6 @@ package virtualnodectrl
 import (
 	"context"
 
-	"github.com/pterm/pterm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -77,7 +76,6 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		deletionRoutineRunning = true
 	}
-	pterm.FgLightYellow.Println("Reconciling", req.NamespacedName)
 	virtualNode := &virtualkubeletv1alpha1.VirtualNode{}
 	if err := r.Get(ctx, req.NamespacedName, virtualNode); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -96,24 +94,23 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	} else {
 		if ctrlutil.ContainsFinalizer(virtualNode, virtualNodeControllerFinalizer) {
-			pterm.FgYellow.Printfln("Deleting the virtual-node '%s' in '%s'", req.Name, req.Namespace)
 			if err := r.ensureVirtualKubeletDeploymentAbsence(ctx, virtualNode); err != nil {
-				pterm.FgMagenta.Println("Unable to delete the virtual-kubelet deployment")
 				return ctrl.Result{}, err
 			}
 			if err := r.ensureNamespaceMapAbsence(ctx, virtualNode); err != nil {
-				pterm.FgMagenta.Println("Unable to delete the namespace-map")
 				return ctrl.Result{}, err
 			}
-			r.dr.DeleteVirtualNode(virtualNode)
+			r.dr.EnsureNodeAbsence(virtualNode)
 			return ctrl.Result{}, nil
 		}
 	}
 
-	// It creates the virtual-kubelet deployment.
 	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, virtualNode); err != nil {
 		klog.Errorf(" %s --> Unable to create the virtual-kubelet deployment", err)
 		return ctrl.Result{}, err
+	}
+	if !*virtualNode.Spec.CreateNode {
+		r.dr.EnsureNodeAbsence(virtualNode)
 	}
 
 	// If there is no NamespaceMap associated with this virtual-node, it creates a new one.

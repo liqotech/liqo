@@ -502,6 +502,11 @@ func (in *VirtualNodeSpec) DeepCopyInto(out *VirtualNodeSpec) {
 		*out = new(OffloadingPatch)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.CreateNode != nil {
+		in, out := &in.CreateNode, &out.CreateNode
+		*out = new(bool)
+		**out = **in
+	}
 	if in.KubeconfigSecretRef != nil {
 		in, out := &in.KubeconfigSecretRef, &out.KubeconfigSecretRef
 		*out = new(corev1.LocalObjectReference)

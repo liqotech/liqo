@@ -56,7 +56,8 @@ type VirtualNodeSpec struct {
 	// OffloadingPatch contains the information to target a groups of node on the remote cluster.
 	OffloadingPatch *OffloadingPatch `json:"offloadingPatch,omitempty"`
 	// CreateNode indicates if a node to target the remote cluster (and schedule on it) has to be created.
-	CreateNode bool `json:"createNode,omitempty"`
+	// +kubebuilder:default:=true
+	CreateNode *bool `json:"createNode,omitempty"`
 	// KubeconfigSecretRef contains the reference to the secret containing the kubeconfig to access the remote cluster.
 	KubeconfigSecretRef *corev1.LocalObjectReference `json:"kubeconfigSecretRef,omitempty"`
 	// Images is the list of the images already stored in the cluster.

@@ -16,6 +16,7 @@ package virtualnode
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -23,7 +24,6 @@ import (
 
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/utils/slice"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
@@ -134,15 +134,45 @@ func customizeVKOptions(opts *vkforge.VirtualKubeletOpts, vn *virtualkubeletv1al
 }
 
 func enforceSpecInTemplate(vn *virtualkubeletv1alpha1.VirtualNode) {
-	// enforce the foreigncluster kubeconfig secret name in the virtual kubelet deployment
+	enforceSecretArg(vn)
+	enforceNodeCreate(vn)
+}
+
+// enforceSecretArg enforce the foreigncluster kubeconfig secret name in the virtual kubelet deployment
+func enforceSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
 	ksref := vn.Spec.KubeconfigSecretRef
 	if ksref == nil {
 		return
 	}
-	arg := fmt.Sprintf("%s=%s", vkforge.ForeignClusterKubeconfigSecretName, ksref.Name)
+	argSecret := fmt.Sprintf("%s=%s", vkforge.ForeignClusterKubeconfigSecretName, ksref.Name)
 	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
-	if slice.ContainsString(container.Args, arg) {
-		return
+
+	for i, arg := range container.Args {
+		if strings.HasPrefix(arg, string(vkforge.ForeignClusterKubeconfigSecretName)) {
+			if arg == argSecret {
+				return
+			}
+			container.Args[i] = argSecret
+			return
+		}
 	}
-	container.Args = append(container.Args, arg)
+
+	container.Args = append(container.Args, argSecret)
+}
+
+// enforceNodeCreate enforce the creation of the remote cluster node
+func enforceNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
+	argCreateNode := fmt.Sprintf("%s=%s", vkforge.CreateNode, strconv.FormatBool(*vn.Spec.CreateNode))
+	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
+	for i, arg := range container.Args {
+		if strings.HasPrefix(arg, string(vkforge.CreateNode)) {
+			if arg == argCreateNode {
+				return
+			}
+			container.Args[i] = argCreateNode
+			return
+		}
+	}
+
+	container.Args = append(container.Args, argCreateNode)
 }

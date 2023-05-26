@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pterm/pterm"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -56,51 +55,59 @@ func RunDeletionRoutine(r *VirtualNodeReconciler) (*DeletionRoutine, error) {
 }
 
 func (dr *DeletionRoutine) run() {
-	pterm.FgGreen.Print("Starting deletion routine")
 	ctx := context.TODO()
 	wait.Forever(func() {
 		vni, _ := dr.wq.Get()
 		vn := vni.(*virtualkubeletv1alpha1.VirtualNode)
-		pterm.FgGreen.Printfln("Deleting virtual node: %s", vn.Name)
-		node, err := getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn)
-		if err != nil {
-			klog.Errorf("error getting node from virtual node: %v", err)
-			return
+		if node, err := getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn); err == nil {
+			if err != nil {
+				klog.Errorf("error getting node from virtual node: %v", err)
+				dr.wq.Add(vn)
+				return
+			}
+
+			if err := client.IgnoreNotFound(cordonNode(ctx, dr.vnr.Client, node)); err != nil {
+				klog.Errorf("error cordoning node: %v", err)
+				dr.wq.Add(vn)
+				return
+			}
+
+			klog.Infof("Node %s cordoned", node.Name)
+
+			if err := client.IgnoreNotFound(drainNode(ctx, dr.vnr.Client, vn)); err != nil {
+				klog.Errorf("error draining node: %v", err)
+				dr.wq.Add(vn)
+				return
+			}
+
+			klog.Infof("Node %s drained", node.Name)
+
+			if err := client.IgnoreNotFound(dr.vnr.Client.Delete(ctx, node, &client.DeleteOptions{})); err != nil {
+				klog.Errorf("error deleting node: %v", err)
+				dr.wq.Add(vn)
+				return
+			}
+
+			klog.Infof("Node %s deleted", node.Name)
 		}
 
-		if err := client.IgnoreNotFound(cordonNode(ctx, dr.vnr.Client, node)); err != nil {
-			klog.Errorf("error cordoning node: %v", err)
-			return
-		}
-
-		if err := client.IgnoreNotFound(drainNode(ctx, dr.vnr.Client, vn)); err != nil {
-			klog.Errorf("error draining node: %v", err)
-			return
-		}
-
-		if err := client.IgnoreNotFound(dr.vnr.Client.Delete(ctx, node, &client.DeleteOptions{})); err != nil {
-			klog.Errorf("error deleting node: %v", err)
-			return
-		}
-
-		err = dr.vnr.removeVirtualNodeFinalizer(ctx, vn)
-		if err != nil {
-			klog.Errorf(" %s --> Unable to remove the finalizer to the virtual-node %s in namespace %s", err, vn.Name, vn.Namespace)
+		if !vn.DeletionTimestamp.IsZero() {
+			err := dr.vnr.removeVirtualNodeFinalizer(ctx, vn)
+			if err != nil {
+				klog.Errorf(" %s --> Unable to remove the finalizer to the virtual-node %s in namespace %s", err, vn.Name, vn.Namespace)
+				dr.wq.Add(vn)
+			}
 		}
 
 		delete(dr.virtualNodesDeleting, vn.Name)
-
-		return
 	}, time.Second)
 }
 
-// DeleteVirtualNode adds a virtual node to the deletion queue.
-func (dr *DeletionRoutine) DeleteVirtualNode(vn *virtualkubeletv1alpha1.VirtualNode) {
-	pterm.FgBlue.Println("Deleting virtual node")
+// EnsureNodeAbsence adds a virtual node to the deletion queue.
+func (dr *DeletionRoutine) EnsureNodeAbsence(vn *virtualkubeletv1alpha1.VirtualNode) {
 	if _, ok := dr.virtualNodesDeleting[vn.Name]; ok {
 		return
 	}
 	dr.virtualNodesDeleting[vn.Name] = struct{}{}
-	pterm.FgRed.Println("Adding virtual node to deletion queue")
 	dr.wq.Add(vn)
 }

@@ -157,50 +157,55 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		CheckNetworkStatus:   c.NodeCheckNetwork,
 	}
 
-	nodeProvider := nodeprovider.NewLiqoNodeProvider(&nodecfg)
-	nodeReady := nodeProvider.StartProvider(ctx)
+	var nodeReady chan struct{}
+	var nodeRunner *node.NodeController
 
-	nodeRunner, err := node.NewNodeController(
-		nodeProvider, nodeProvider.GetNode(),
-		localClient.CoreV1().Nodes(),
-		node.WithNodeEnableLeaseV1(localClient.CoordinationV1().Leases(corev1.NamespaceNodeLease), int32(c.NodeLeaseDuration.Seconds())),
-		node.WithNodePingInterval(c.NodePingInterval), node.WithNodePingTimeout(c.NodePingTimeout),
-		node.WithNodeStatusUpdateErrorHandler(
-			func(ctx context.Context, err error) error {
-				klog.Info("node setting up")
-				newNode := nodeProvider.GetNode().DeepCopy()
-				newNode.ResourceVersion = ""
+	if c.CreateNode {
+		nodeProvider := nodeprovider.NewLiqoNodeProvider(&nodecfg)
+		nodeReady = nodeProvider.StartProvider(ctx)
 
-				if nodeProvider.IsTerminating() {
-					// this avoids the re-creation of terminated nodes
-					klog.V(4).Info("skipping: node is in terminating phase")
-					return nil
-				}
+		nodeRunner, err = node.NewNodeController(
+			nodeProvider, nodeProvider.GetNode(),
+			localClient.CoreV1().Nodes(),
+			node.WithNodeEnableLeaseV1(localClient.CoordinationV1().Leases(corev1.NamespaceNodeLease), int32(c.NodeLeaseDuration.Seconds())),
+			node.WithNodePingInterval(c.NodePingInterval), node.WithNodePingTimeout(c.NodePingTimeout),
+			node.WithNodeStatusUpdateErrorHandler(
+				func(ctx context.Context, err error) error {
+					klog.Info("node setting up")
+					newNode := nodeProvider.GetNode().DeepCopy()
+					newNode.ResourceVersion = ""
 
-				oldNode, newErr := localClient.CoreV1().Nodes().Get(ctx, newNode.Name, metav1.GetOptions{})
-				if newErr != nil {
-					if !k8serrors.IsNotFound(newErr) {
-						klog.Error(newErr, "node error")
+					if nodeProvider.IsTerminating() {
+						// this avoids the re-creation of terminated nodes
+						klog.V(4).Info("skipping: node is in terminating phase")
+						return nil
+					}
+
+					oldNode, newErr := localClient.CoreV1().Nodes().Get(ctx, newNode.Name, metav1.GetOptions{})
+					if newErr != nil {
+						if !k8serrors.IsNotFound(newErr) {
+							klog.Error(newErr, "node error")
+							return newErr
+						}
+						_, newErr = localClient.CoreV1().Nodes().Create(ctx, newNode, metav1.CreateOptions{})
+						klog.Info("new node created")
+					} else {
+						oldNode.Status = newNode.Status
+						_, newErr = localClient.CoreV1().Nodes().UpdateStatus(ctx, oldNode, metav1.UpdateOptions{})
+						if newErr != nil {
+							klog.Info("node updated")
+						}
+					}
+
+					if newErr != nil {
 						return newErr
 					}
-					_, newErr = localClient.CoreV1().Nodes().Create(ctx, newNode, metav1.CreateOptions{})
-					klog.Info("new node created")
-				} else {
-					oldNode.Status = newNode.Status
-					_, newErr = localClient.CoreV1().Nodes().UpdateStatus(ctx, oldNode, metav1.UpdateOptions{})
-					if newErr != nil {
-						klog.Info("node updated")
-					}
-				}
-
-				if newErr != nil {
-					return newErr
-				}
-				return nil
-			}),
-	)
-	if err != nil {
-		return err
+					return nil
+				}),
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, remoteConfig, c)
@@ -212,14 +217,17 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		metrics.SetupMetricHandler(c.MetricsAddress)
 	}
 
-	go func() {
-		if err := nodeRunner.Run(ctx); err != nil {
-			klog.Error(err, "error in pod controller running")
-			panic(nil)
-		}
-	}()
+	if c.CreateNode {
+		go func() {
+			if err := nodeRunner.Run(ctx); err != nil {
+				klog.Error(err, "error in pod controller running")
+				panic(nil)
+			}
+		}()
 
-	<-nodeRunner.Ready()
+		<-nodeRunner.Ready()
+
+	}
 
 	klog.Info("Setup ended")
 	close(nodeReady)

@@ -104,6 +104,8 @@ type Opts struct {
 
 	HomeAPIServerHost string
 	HomeAPIServerPort string
+
+	CreateNode bool
 }
 
 // NewOpts returns an Opts struct with the default values set.

@@ -57,6 +57,7 @@ spec:
                 - clusterName
                 type: object
               createNode:
+                default: true
                 description: CreateNode indicates if a node to target the remote cluster
                   (and schedule on it) has to be created.
                 type: boolean
