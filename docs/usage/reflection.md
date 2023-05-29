@@ -105,6 +105,10 @@ During the propagation process, endpoint addresses are appropriately **remapped*
 Thanks to this approach, **multiple replicas** of the same microservice spread across different clusters, and backed by the same service, are handled transparently.
 Each pod, no matter where it is located, contributes with a distinct *EndpointSlice* entry, either by the standard control plane or through resource reflection, hence becoming eligible during the **Service load-balancing process**.
 
+```{admonition} Note
+Even in a scenario where a single cluster is peered with multiple remote ones, the **EndpointSlice reflection** logic ensures that a **pod** scheduled **remotely** is reachable from every cluster through its **service**.
+```
+
 ### Ingresses
 
 The propagation of **Ingress** resources enables the configuration of multiple points of entrance for **external traffic**.
