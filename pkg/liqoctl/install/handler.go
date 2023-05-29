@@ -144,13 +144,19 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 
 	s = o.Printer.StartSpinner("Generating installation parameters")
 
-	values, err := util.MergeMaps(o.chartValues, o.values())
+	values, err := util.MergeMaps(o.chartValues, o.preProviderValues())
 	if err != nil {
 		s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
 		return err
 	}
 
 	values, err = util.MergeMaps(values, provider.Values())
+	if err != nil {
+		s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
+		return err
+	}
+
+	values, err = util.MergeMaps(values, o.postProviderValues())
 	if err != nil {
 		s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
 		return err
@@ -305,13 +311,13 @@ func (o *Options) isRelease() bool {
 	return o.Version == "" || semver.IsValid(o.Version)
 }
 
-func (o *Options) values() map[string]interface{} {
+func (o *Options) preProviderValues() map[string]interface{} {
 	replicas := 1
 	if o.EnableHA {
 		replicas = 2
 	}
 
-	values := map[string]interface{}{
+	return map[string]interface{}{
 		"tag": o.Version,
 
 		"apiServer": map[string]interface{}{
@@ -364,22 +370,21 @@ func (o *Options) values() map[string]interface{} {
 			"enable": !o.DisableTelemetry,
 		},
 	}
+}
 
-	if o.ExtServiceType.Value != "" {
-		values["gateway"] = map[string]interface{}{
+func (o *Options) postProviderValues() map[string]interface{} {
+	return map[string]interface{}{
+		"gateway": map[string]interface{}{
 			"service": map[string]interface{}{
 				"type": o.ExtServiceType.Value,
 			},
-		}
-
-		values["auth"] = map[string]interface{}{
+		},
+		"auth": map[string]interface{}{
 			"service": map[string]interface{}{
 				"type": o.ExtServiceType.Value,
 			},
-		}
+		},
 	}
-
-	return values
 }
 
 func (o *Options) cleanup() error {
