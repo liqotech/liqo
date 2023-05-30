@@ -90,6 +90,18 @@ func (gnr *NamespacedReflector) DeleteRemote(ctx context.Context, deleter Resour
 	return nil
 }
 
+// DeleteLocal deletes the given local resource from the cluster.
+func (gnr *NamespacedReflector) DeleteLocal(ctx context.Context, deleter ResourceDeleter, resource, name string, uid types.UID) error {
+	err := deleter.Delete(ctx, name, *metav1.NewPreconditionDeleteOptions(string(uid)))
+	if err != nil && !kerrors.IsNotFound(err) {
+		klog.Errorf("Failed to delete local %v %q: %v", resource, gnr.LocalRef(name), err)
+		return err
+	}
+
+	klog.Infof("Local %v %q successfully deleted", resource, gnr.LocalRef(name))
+	return nil
+}
+
 // ShouldSkipReflection returns whether the reflection of the given object should be skipped.
 func (gnr *NamespacedReflector) ShouldSkipReflection(obj metav1.Object) bool {
 	_, ok := obj.GetAnnotations()[consts.SkipReflectionAnnotationKey]

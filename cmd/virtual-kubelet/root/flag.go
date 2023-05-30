@@ -55,6 +55,7 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 		"The number of service account reflection workers (applies only if API server support is enabled in token API mode)")
 	flags.UintVar(&o.PersistentVolumeClaimWorkers, "persistentvolumeclaim-reflection-workers", o.PersistentVolumeClaimWorkers,
 		"The number of persistentvolumeclaim reflection workers")
+	flags.UintVar(&o.EventWorkers, "event-reflection-workers", o.EventWorkers, "The number of event reflection workers")
 
 	flags.DurationVar(&o.NodeLeaseDuration, "node-lease-duration", o.NodeLeaseDuration, "The duration of the node leases")
 	flags.DurationVar(&o.NodePingInterval, "node-ping-interval", o.NodePingInterval,

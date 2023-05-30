@@ -22,6 +22,7 @@ package remote
 // +kubebuilder:rbac:groups=core,resources=pods/attach,verbs=create
 // +kubebuilder:rbac:groups=core,resources=pods/portforward,verbs=get;create
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;delete;update;patch
+// +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metrics.k8s.io,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 

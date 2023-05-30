@@ -48,6 +48,7 @@ const (
 	DefaultSecretWorkers               = 3
 	DefaultServiceAccountWorkers       = 3
 	DefaultPersistenVolumeClaimWorkers = 3
+	DefaultEventWorkers                = 3
 
 	DefaultNodePingTimeout  = 1 * time.Second
 	DefaultNodeCheckNetwork = true
@@ -83,6 +84,7 @@ type Opts struct {
 	SecretWorkers                uint
 	ServiceAccountWorkers        uint
 	PersistentVolumeClaimWorkers uint
+	EventWorkers                 uint
 
 	NodeLeaseDuration time.Duration
 	NodePingInterval  time.Duration
@@ -125,6 +127,7 @@ func NewOpts() *Opts {
 		SecretWorkers:                DefaultSecretWorkers,
 		ServiceAccountWorkers:        DefaultServiceAccountWorkers,
 		PersistentVolumeClaimWorkers: DefaultPersistenVolumeClaimWorkers,
+		EventWorkers:                 DefaultEventWorkers,
 
 		NodeLeaseDuration: node.DefaultLeaseDuration * time.Second,
 		NodePingInterval:  node.DefaultPingInterval,
