@@ -37,6 +37,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/namespacemap"
@@ -70,6 +71,7 @@ type InitConfig struct {
 	ConfigMapWorkers            uint
 	SecretWorkers               uint
 	ServiceAccountWorkers       uint
+	EventWorkers                uint
 
 	EnableAPIServerSupport     bool
 	EnableStorage              bool
@@ -142,6 +144,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		With(podreflector).
 		With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
 			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage)).
+		With(event.NewEventReflector(cfg.EventWorkers)).
 		WithNamespaceHandler(namespaceMapHandler)
 
 	if !cfg.DisableIPReflection {
