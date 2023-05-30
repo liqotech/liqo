@@ -359,6 +359,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 					Status: corev1.PodStatus{
 						Phase: corev1.PodRunning, PodIP: "192.168.0.25",
 						ContainerStatuses: []corev1.ContainerStatus{{RestartCount: 1}},
+						Conditions:        []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
 					},
 				}
 				podInfo = workload.PodInfo{}
@@ -368,6 +369,28 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				CreatePod(client, local)
 				err = reflector.(*workload.NamespacedPodReflector).HandleStatus(
 					trace.ContextWithTrace(ctx, trace.New("Pod")), local, remote, &podInfo)
+			})
+
+			When("the local pod has remote unavailable label", func() {
+				BeforeEach(func() {
+					local.SetLabels(map[string]string{consts.RemoteUnavailableKey: consts.RemoteUnavailableValue})
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("should update the Ready condition of the local pod to False", func() {
+					localAfter := GetPod(client, LocalNamespace, PodName)
+					Expect(localAfter.Status.Conditions[0].Type).To(BeIdenticalTo(corev1.PodReady))
+					Expect(localAfter.Status.Conditions[0].Status).To(BeIdenticalTo(corev1.ConditionFalse))
+				})
+			})
+
+			When("the local pod does not have remote unavailable label", func() {
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("should keep the Ready condition equal to the one on the remote pod", func() {
+					localAfter := GetPod(client, LocalNamespace, PodName)
+					Expect(localAfter.Status.Conditions[0].Type).To(BeIdenticalTo(corev1.PodReady))
+					Expect(localAfter.Status.Conditions[0].Status).To(BeIdenticalTo(corev1.ConditionTrue))
+				})
 			})
 
 			When("the local status is not up to date", func() {
@@ -389,6 +412,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 					local.Status.PodIPs = []corev1.PodIP{{IP: "192.168.201.25"}}
 					local.Status.HostIP = LiqoNodeIP
 					local.Status.ContainerStatuses = []corev1.ContainerStatus{{RestartCount: 1}}
+					local.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
 
 					// Here, we create a modified fake client which returns an error when trying to perform an update operation.
 					client.PrependReactor("update", "*", func(action testing.Action) (handled bool, _ runtime.Object, err error) {

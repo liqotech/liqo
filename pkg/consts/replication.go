@@ -73,4 +73,10 @@ const (
 
 	// PodAntiAffinityLabelsKey is the annotation key used to specify a subset of the pod label keys for the anti-affinity constraints.
 	PodAntiAffinityLabelsKey = "liqo.io/anti-affinity-labels"
+
+	// RemoteUnavailableKey is the annotation key indicating that the remote cluster hosting the local offloaded pod is currently not available.
+	RemoteUnavailableKey = "liqo.io/remote-unavailable"
+	// RemoteUnavailableValue is the annotation value of the label indicating that the remote cluster hosting the local offloaded pod is currently
+	// not available.
+	RemoteUnavailableValue = "true"
 )

@@ -34,6 +34,19 @@ func IsPodReady(pod *corev1.Pod) (ready bool, reason string) {
 	return false, "no conditions in pod status"
 }
 
+// GetPodCondition extracts the provided condition from the given status and returns that.
+func GetPodCondition(status *corev1.PodStatus, conditionType corev1.PodConditionType) *corev1.PodCondition {
+	if status == nil {
+		return nil
+	}
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == conditionType {
+			return &status.Conditions[i]
+		}
+	}
+	return nil
+}
+
 // IsPodSpecEqual returns whether two pod specs are equal according to the fields that
 // can be modified after start-up time. Refer to the following link for more information:
 // https://kubernetes.io/docs/concepts/workloads/pods/#pod-update-and-replacement

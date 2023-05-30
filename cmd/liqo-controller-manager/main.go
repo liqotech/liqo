@@ -55,6 +55,7 @@ import (
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
+	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
@@ -238,6 +239,8 @@ func main() {
 		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
 		os.Exit(1)
 	}
+
+	localPodsClient := auxmgr.GetClient()
 
 	// Register the healthiness probes.
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -444,6 +447,16 @@ func main() {
 		}); err != nil {
 			klog.Fatal(err)
 		}
+	}
+
+	podStatusReconciler := &podstatusctrl.PodStatusReconciler{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		LocalPodsClient: localPodsClient,
+	}
+	if err = podStatusReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to start the podstatus reconciler", err)
+		os.Exit(1)
 	}
 
 	if *enableNodeFailureController {
