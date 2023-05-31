@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/indexer"
 )
 
 var _ = Describe("NodeFailureController", func() {
@@ -135,7 +136,7 @@ var _ = Describe("NodeFailureController", func() {
 
 		fakeClientBuilder = fake.NewClientBuilder().
 			WithScheme(scheme.Scheme).
-			WithIndex(&corev1.Pod{}, nodeNameField, extractNodeNameFromPod)
+			WithIndex(&corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName)
 	})
 
 	JustBeforeEach(func() {
