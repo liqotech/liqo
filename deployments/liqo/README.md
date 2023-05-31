@@ -120,6 +120,7 @@
 | route.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
 | route.pod.labels | object | `{}` | Labels for the route pod. |
 | route.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the route pod. |
+| route.tolerations | list | `[]` | Extra tolerations for the route daemonset. |
 | storage.enable | bool | `true` | Enable/Disable the liqo virtual storage class on the local cluster. You will be able to offload your persistent volumes, while other clusters will be able to schedule their persistent workloads on the current cluster. |
 | storage.realStorageClassName | string | `""` | Name of the real storage class to use in the local cluster. |
 | storage.storageNamespace | string | `"liqo-storage"` | Namespace where liqo will deploy specific PVCs. Internal parameter, do not change. |

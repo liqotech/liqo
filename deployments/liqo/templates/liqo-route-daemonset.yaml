@@ -32,6 +32,9 @@ spec:
           key: node-role.kubernetes.io/master
         - effect: NoSchedule
           key: node-role.kubernetes.io/control-plane
+        {{- if .Values.route.tolerations }}
+        {{- toYaml .Values.route.tolerations | nindent 8 }}
+        {{- end }}
       serviceAccountName: {{ include "liqo.prefixedName" $routeConfig }}
       containers:
         - image: {{ .Values.route.imageName }}{{ include "liqo.suffix" $routeConfig }}:{{ include "liqo.version" $routeConfig }}

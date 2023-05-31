@@ -64,6 +64,8 @@ route:
       requests: {}
   # -- Image repository for the route pod.
   imageName: "ghcr.io/liqotech/liqonet"
+  # -- Extra tolerations for the route daemonset.
+  tolerations: []
 
 gateway:
   # -- The number of gateway instances to run.
