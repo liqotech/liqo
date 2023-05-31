@@ -16,7 +16,6 @@ package virtualnodectrl
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -29,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
@@ -58,46 +58,38 @@ func getPodsForDeletion(ctx context.Context, cl client.Client, vn *virtualkubele
 	podList := &corev1.PodList{}
 	err := cl.List(ctx, podList, &client.ListOptions{
 		FieldSelector: client.MatchingFieldsSelector{
-			Selector: fields.OneTermEqualSelector(nodeNameField, virtualKubelet.VirtualNodeName(vn)),
+			Selector: fields.OneTermEqualSelector(indexer.FieldNodeNameFromPod, virtualKubelet.VirtualNodeName(vn)),
 		},
 	})
 	klog.Infof("Drain node %s -> %d pods found", virtualKubelet.VirtualNodeName(vn), len(podList.Items))
 	if err != nil {
 		return nil, err
 	}
-	for _, v := range podList.Items {
-		klog.Infof("Drain node %s -> pod %v/%v found", v.Spec.NodeName, v.Namespace, v.Name)
+	for i := range podList.Items {
+		klog.Infof("Drain node %s -> pod %v/%v found", podList.Items[i].Spec.NodeName, podList.Items[i].Namespace, podList.Items[i].Name)
 	}
 	return podList, nil
 }
 
 // evictPods performs the eviction of the provided list of pods in parallel, waiting for their deletion.
 func evictPods(ctx context.Context, cl client.Client, podList *corev1.PodList) error {
-	var wg sync.WaitGroup
-	errors := make(chan error, len(podList.Items))
-	defer close(errors)
+	for i := range podList.Items {
+		if err := evictPod(ctx, cl, &podList.Items[i]); err != nil {
+			return err
+		}
+	}
 
 	for i := range podList.Items {
-		wg.Add(1)
-		go evictPod(ctx, cl, &podList.Items[i], &wg, errors)
+		if err := waitPodForDelete(ctx, cl, &podList.Items[i]); err != nil {
+			return err
+		}
 	}
 
-	wg.Wait()
-
-	// if some of the evictions returned an error print it
-	select {
-	case err := <-errors:
-		klog.Error(err)
-		return err
-	default:
-		return nil
-	}
+	return nil
 }
 
 // evictPod evicts the provided pod and waits for its deletion.
-func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod, wg *sync.WaitGroup, errors chan error) {
-	defer wg.Done()
-
+func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
 	eviction := &policyv1.Eviction{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.Name,
@@ -107,20 +99,16 @@ func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod, wg *sync.W
 	}
 
 	if err := cl.SubResource("eviction").Create(ctx, pod, eviction); err != nil {
-		errors <- err
-		return
+		return err
 	}
 
 	klog.Infof("Drain node %s -> pod %v/%v successfully evicted", pod.Spec.NodeName, pod.Namespace, pod.Name)
 
-	if err := waitForDelete(ctx, cl, pod); err != nil {
-		errors <- err
-		return
-	}
+	return nil
 }
 
 // waitForDelete waits for the pod deletion.
-func waitForDelete(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
+func waitPodForDelete(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
 	return wait.PollImmediateInfinite(waitForPodTerminationCheckPeriod, func() (bool, error) {
 		updatedPod := &corev1.Pod{}
 		err := cl.Get(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: pod.Name}, updatedPod)

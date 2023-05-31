@@ -34,12 +34,14 @@ var (
 	deletionRoutineRunning = false
 )
 
+// DeletionRoutine is responsible for deleting a virtual node.
 type DeletionRoutine struct {
 	vnr                  *VirtualNodeReconciler
 	wq                   workqueue.DelayingInterface
 	virtualNodesDeleting map[string]interface{}
 }
 
+// RunDeletionRoutine starts the deletion routine.
 func RunDeletionRoutine(r *VirtualNodeReconciler) (*DeletionRoutine, error) {
 	if deletionRoutineRunning {
 		return nil, fmt.Errorf("deletion routine already running")
@@ -56,36 +58,52 @@ func RunDeletionRoutine(r *VirtualNodeReconciler) (*DeletionRoutine, error) {
 
 func (dr *DeletionRoutine) run() {
 	ctx := context.TODO()
-	wait.Forever(func() {
+	err := wait.PollInfinite(time.Second, func() (bool, error) {
 		vni, _ := dr.wq.Get()
 		vn := vni.(*virtualkubeletv1alpha1.VirtualNode)
+		klog.Infof("Deletion routine started for virtual node %s", vn.Name)
 		if node, err := getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn); err == nil {
 			if err != nil {
 				klog.Errorf("error getting node from virtual node: %v", err)
-				dr.wq.Add(vn)
-				return
+				dr.wq.Done(vn)
+				dr.wq.AddAfter(vn, 5*time.Second)
+				return false, nil
 			}
 
 			if err := client.IgnoreNotFound(cordonNode(ctx, dr.vnr.Client, node)); err != nil {
 				klog.Errorf("error cordoning node: %v", err)
-				dr.wq.Add(vn)
-				return
+				dr.wq.Done(vn)
+				dr.wq.AddAfter(vn, 5*time.Second)
+				return false, nil
 			}
 
 			klog.Infof("Node %s cordoned", node.Name)
 
-			if err := client.IgnoreNotFound(drainNode(ctx, dr.vnr.Client, vn)); err != nil {
+			if err := client.IgnoreNotFound(drainNode(ctx, dr.vnr.ClientLocal, vn)); err != nil {
 				klog.Errorf("error draining node: %v", err)
-				dr.wq.Add(vn)
-				return
+				dr.wq.Done(vn)
+				dr.wq.AddAfter(vn, 5*time.Second)
+				return false, nil
 			}
 
 			klog.Infof("Node %s drained", node.Name)
 
+			if !vn.DeletionTimestamp.IsZero() {
+				if err := dr.vnr.ensureVirtualKubeletDeploymentAbsence(ctx, vn); err != nil {
+					klog.Errorf("error deleting virtual kubelet deployment: %v", err)
+					dr.wq.Done(vn)
+					dr.wq.AddAfter(vn, 5*time.Second)
+					return false, nil
+				}
+			}
+
+			klog.Infof("VirtualKubelet deployment %s deleted", vn.Name)
+
 			if err := client.IgnoreNotFound(dr.vnr.Client.Delete(ctx, node, &client.DeleteOptions{})); err != nil {
 				klog.Errorf("error deleting node: %v", err)
-				dr.wq.Add(vn)
-				return
+				dr.wq.Done(vn)
+				dr.wq.AddAfter(vn, 5*time.Second)
+				return false, nil
 			}
 
 			klog.Infof("Node %s deleted", node.Name)
@@ -95,12 +113,20 @@ func (dr *DeletionRoutine) run() {
 			err := dr.vnr.removeVirtualNodeFinalizer(ctx, vn)
 			if err != nil {
 				klog.Errorf(" %s --> Unable to remove the finalizer to the virtual-node %s in namespace %s", err, vn.Name, vn.Namespace)
-				dr.wq.Add(vn)
+				dr.wq.Done(vn)
+				dr.wq.AddAfter(vn, 5*time.Second)
+				return false, nil
 			}
 		}
 
 		delete(dr.virtualNodesDeleting, vn.Name)
-	}, time.Second)
+		klog.Infof("Deletion routine completed for virtual node %s", vn.Name)
+		dr.wq.Done(vn)
+		return false, nil
+	})
+	if err != nil {
+		klog.Errorf("error in deletion routine: %v", err)
+	}
 }
 
 // EnsureNodeAbsence adds a virtual node to the deletion queue.
