@@ -34,9 +34,8 @@ import (
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/indexer"
 )
-
-var nodeNameField = "spec.nodeName"
 
 // NodeFailureReconciler reconciles a Node object.
 type NodeFailureReconciler struct {
@@ -68,7 +67,7 @@ func (r *NodeFailureReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Node NotReady: delete all terminating pods that are managed by shadowpods
 	var pods corev1.PodList
 	offloadedPodSelector := client.MatchingLabelsSelector{Selector: labels.Set{consts.ManagedByLabelKey: consts.ManagedByShadowPodValue}.AsSelector()}
-	nodePodSelector := client.MatchingFieldsSelector{Selector: fields.OneTermEqualSelector(nodeNameField, node.Name)}
+	nodePodSelector := client.MatchingFieldsSelector{Selector: fields.OneTermEqualSelector(indexer.FieldNodeNameFromPod, node.Name)}
 	if err := r.List(ctx, &pods, offloadedPodSelector, nodePodSelector); err != nil {
 		klog.Errorf("unable to list pods: %v", err)
 		return ctrl.Result{}, err
@@ -110,21 +109,8 @@ func getPodTerminatingEventHandler() handler.EventHandler {
 		}}
 }
 
-func extractNodeNameFromPod(rawObj client.Object) []string {
-	pod, ok := rawObj.(*corev1.Pod)
-	if !ok {
-		return []string{}
-	}
-	return []string{pod.Spec.NodeName}
-}
-
 // SetupWithManager monitors updates on nodes and watch for pods that are terminating and managed by a ShadowPod.
-func (r *NodeFailureReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
-	// Add field containing node Name to the Field Indexer
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.Pod{}, nodeNameField, extractNodeNameFromPod); err != nil {
-		return err
-	}
-
+func (r *NodeFailureReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
 		Watches(&source.Kind{Type: &corev1.Pod{}}, getPodTerminatingEventHandler()).

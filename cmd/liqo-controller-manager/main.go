@@ -71,6 +71,7 @@ import (
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/csr"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
+	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
@@ -230,6 +231,11 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient()))
+
+	if err := indexer.IndexField(ctx, mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
+		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
+		os.Exit(1)
+	}
 
 	clientset := kubernetes.NewForConfigOrDie(config)
 
@@ -414,7 +420,7 @@ func main() {
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
 		}
-		if err = nodeFailureReconciler.SetupWithManager(ctx, mgr); err != nil {
+		if err = nodeFailureReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the nodeFailureReconciler", err)
 			os.Exit(1)
 		}
