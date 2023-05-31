@@ -226,11 +226,10 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		}()
 
 		<-nodeRunner.Ready()
-
+		close(nodeReady)
 	}
 
 	klog.Info("Setup ended")
-	close(nodeReady)
 	<-ctx.Done()
 	return nil
 }

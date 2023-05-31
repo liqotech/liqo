@@ -35,16 +35,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -58,7 +54,6 @@ import (
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
-	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
@@ -66,11 +61,7 @@ import (
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnode-controller"
-	fcwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/foreigncluster"
-	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
-	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
 	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
-	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -183,8 +174,6 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	log.SetLogger(klog.NewKlogr())
-
 	// Options for the virtual kubelet.
 	virtualKubeletOpts := &forge.VirtualKubeletOpts{
 		ContainerImage:       *kubeletImage,
@@ -208,9 +197,9 @@ func main() {
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
-	// Create a label selector to filter only the events for pods managed by a ShadowPod (i.e., remote offloaded pods),
+	// Create a label selector to filter out the events for pods not managed by a ShadowPod,
 	// as those are the only ones we are interested in to implement the resiliency mechanism.
-	reqRemoteLiqoPods, err := labels.NewRequirement(consts.ManagedByLabelKey, selection.Equals, []string{consts.ManagedByShadowPodValue})
+	podsLabelRequirement, err := labels.NewRequirement(consts.ManagedByLabelKey, selection.Equals, []string{consts.ManagedByShadowPodValue})
 	utilruntime.Must(err)
 
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
@@ -224,49 +213,18 @@ func main() {
 		LeaderElectionReleaseOnCancel: true,
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
 		Port:                          int(*webhookPort),
-		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
-			opts.ByObject = map[client.Object]cache.ByObject{
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			SelectorsByObject: cache.SelectorsByObject{
 				&corev1.Pod{}: {
-					Label: labels.NewSelector().Add(*reqRemoteLiqoPods),
+					Label: labels.NewSelector().Add(*podsLabelRequirement),
 				},
-			}
-			return cache.New(config, opts)
-		},
+			},
+		}),
 	})
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
-
-	// Create a label selector to filter only the events for local offloaded pods
-	reqLocalLiqoPods, err := labels.NewRequirement(consts.LocalPodLabelKey, selection.Equals, []string{consts.LocalPodLabelValue})
-	utilruntime.Must(err)
-
-	// Create an accessory manager that cache only local offloaded pods.
-	auxmgr, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:     mapper.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
-		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
-			opts.ByObject = map[client.Object]cache.ByObject{
-				&corev1.Pod{}: {
-					Label: labels.NewSelector().Add(*reqLocalLiqoPods),
-				},
-			}
-			return cache.New(config, opts)
-		},
-	})
-
-	if err != nil {
-		klog.Errorf("Unable to create auxiliary manager: %w", err)
-		os.Exit(1)
-	}
-	if err := mgr.Add(auxmgr); err != nil {
-		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
-		os.Exit(1)
-	}
-
-	localPodsClient := auxmgr.GetClient()
 
 	// Register the healthiness probes.
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -280,21 +238,8 @@ func main() {
 
 	spv := shadowpodswh.NewValidator(mgr.GetClient(), *enableResourceValidation)
 
-	// Register the webhooks.
-	mgr.GetWebhookServer().Register("/validate/foreign-cluster", fcwh.NewValidator())
-	mgr.GetWebhookServer().Register("/mutate/foreign-cluster", fcwh.NewMutator())
-	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
-	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
-	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient()))
-	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), &clusterIdentity, virtualKubeletOpts))
-
 	if err := indexer.IndexField(ctx, mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
-		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
-		os.Exit(1)
-	}
-
-	if err := indexer.IndexField(ctx, auxmgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
-		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
+		klog.Error(err)
 		os.Exit(1)
 	}
 
@@ -309,7 +254,7 @@ func main() {
 		klog.Fatalf("Unable to populate peering permission: %v", err)
 	}
 
-	// Configure the transports used for the interaction with the remote authentication service.
+	// Configure the tranports used for the intaction with the remote authentication service.
 	// Using the same transport allows to reuse the underlying TCP/TLS connections when contacting the same destinations,
 	// and reduce the overall handshake overhead, especially with high-latency links.
 	secureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute}
@@ -395,19 +340,15 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	virtualNodeReconciler, err := virtualnodectrl.NewVirtualNodeReconciler(
-		mgr.GetClient(),
-		auxmgr.GetClient(),
-		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("virtualnode-controller"),
-		&clusterIdentity,
-		virtualKubeletOpts,
-	)
-	if err != nil {
-		klog.Fatal(err)
+	virtualNodeReconciler := &virtualnodectrl.VirtualNodeReconciler{
+		Client:                mgr.GetClient(),
+		Scheme:                mgr.GetScheme(),
+		EventsRecorder:        mgr.GetEventRecorderFor("virtualnode-controller"),
+		HomeClusterIdentity:   &clusterIdentity,
+		VirtualKubeletOptions: virtualKubeletOpts,
 	}
 
-	if err = virtualNodeReconciler.SetupWithManager(mgr); err != nil {
+	if err = virtualNodeReconciler.SetupWithManager(ctx, mgr); err != nil {
 		klog.Fatal(err)
 	}
 
@@ -485,22 +426,12 @@ func main() {
 		}
 	}
 
-	podStatusReconciler := &podstatusctrl.PodStatusReconciler{
-		Client:          mgr.GetClient(),
-		Scheme:          mgr.GetScheme(),
-		LocalPodsClient: localPodsClient,
-	}
-	if err = podStatusReconciler.SetupWithManager(mgr); err != nil {
-		klog.Errorf("Unable to start the podstatus reconciler", err)
-		os.Exit(1)
-	}
-
 	if *enableNodeFailureController {
 		nodeFailureReconciler := &nodefailurectrl.NodeFailureReconciler{
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
 		}
-		if err = nodeFailureReconciler.SetupWithManager(mgr); err != nil {
+		if err = nodeFailureReconciler.SetupWithManager(ctx, mgr); err != nil {
 			klog.Errorf("Unable to start the nodeFailureReconciler", err)
 			os.Exit(1)
 		}
