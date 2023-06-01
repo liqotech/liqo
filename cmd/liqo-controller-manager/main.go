@@ -184,9 +184,9 @@ func main() {
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
-	// Create a label selector to filter out the events for pods not managed by a ShadowPod,
+	// Create a label selector to filter only the events for pods managed by a ShadowPod (i.e., remote offloaded pods),
 	// as those are the only ones we are interested in to implement the resiliency mechanism.
-	podsLabelRequirement, err := labels.NewRequirement(consts.ManagedByLabelKey, selection.Equals, []string{consts.ManagedByShadowPodValue})
+	reqRemoteLiqoPods, err := labels.NewRequirement(consts.ManagedByLabelKey, selection.Equals, []string{consts.ManagedByShadowPodValue})
 	utilruntime.Must(err)
 
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
@@ -203,13 +203,39 @@ func main() {
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			SelectorsByObject: cache.SelectorsByObject{
 				&corev1.Pod{}: {
-					Label: labels.NewSelector().Add(*podsLabelRequirement),
+					Label: labels.NewSelector().Add(*reqRemoteLiqoPods),
 				},
 			},
 		}),
 	})
 	if err != nil {
 		klog.Error(err)
+		os.Exit(1)
+	}
+
+	// Create a label selector to filter only the events for local offloaded pods
+	reqLocalLiqoPods, err := labels.NewRequirement(consts.LocalPodLabelKey, selection.Equals, []string{consts.LocalPodLabelValue})
+	utilruntime.Must(err)
+
+	// Create an accessory manager that cache only local offloaded pods.
+	auxmgr, err := ctrl.NewManager(config, ctrl.Options{
+		MapperProvider:     mapper.LiqoMapperProvider(scheme),
+		Scheme:             scheme,
+		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			SelectorsByObject: cache.SelectorsByObject{
+				&corev1.Pod{}: {
+					Label: labels.NewSelector().Add(*reqLocalLiqoPods),
+				},
+			},
+		}),
+	})
+	if err != nil {
+		klog.Errorf("Unable to create auxiliary manager: %w", err)
+		os.Exit(1)
+	}
+	if err := mgr.Add(auxmgr); err != nil {
+		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
 		os.Exit(1)
 	}
 
@@ -237,6 +263,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := indexer.IndexField(ctx, auxmgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
+		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
+		os.Exit(1)
+	}
+
 	clientset := kubernetes.NewForConfigOrDie(config)
 
 	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
@@ -248,7 +279,7 @@ func main() {
 		klog.Fatalf("Unable to populate peering permission: %v", err)
 	}
 
-	// Configure the tranports used for the intaction with the remote authentication service.
+	// Configure the transports used for the interaction with the remote authentication service.
 	// Using the same transport allows to reuse the underlying TCP/TLS connections when contacting the same destinations,
 	// and reduce the overall handshake overhead, especially with high-latency links.
 	secureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute}
