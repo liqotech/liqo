@@ -55,6 +55,8 @@ type Factory struct {
 
 	// Printer is the object used to output messages in the appropriate format.
 	Printer *output.Printer
+	// SkipConfirm determines whether to skip confirmations.
+	SkipConfirm bool
 	// Whether to add a scope to the printer (i.e., local/remote).
 	ScopedPrinter bool
 

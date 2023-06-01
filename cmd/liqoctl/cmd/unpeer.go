@@ -118,6 +118,10 @@ func newUnpeerOutOfBandCommand(ctx context.Context, options *unpeeroob.Options) 
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ForeignClusters(ctx, options.Factory, 1),
 
+		PreRun: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.Printer.AskConfirm("unpeer", options.SkipConfirm))
+		},
+
 		Run: func(cmd *cobra.Command, args []string) {
 			options.ClusterName = args[0]
 			options.UnpeerOOBMode = true
@@ -142,6 +146,10 @@ func newUnpeerInBandCommand(ctx context.Context, unpeerOptions *unpeeroob.Option
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			twoClustersPersistentPreRun(cmd, local, remote, factory.WithScopedPrinter)
+		},
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(local.Printer.AskConfirm("unpeer", local.SkipConfirm))
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {

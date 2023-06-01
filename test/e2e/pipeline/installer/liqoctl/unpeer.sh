@@ -33,6 +33,6 @@ do
 
   for foreignCluster in $(${KUBECTL} get foreignclusters.discovery.liqo.io --no-headers -o custom-columns=":metadata.name");
   do
-    "${LIQOCTL}" unpeer out-of-band "${foreignCluster}"
+    "${LIQOCTL}" unpeer out-of-band "${foreignCluster}" --skip-confirm
   done;
 done;

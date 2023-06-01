@@ -104,6 +104,7 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 
 	// Add the flags regarding Kubernetes access options.
 	f.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
+	cmd.PersistentFlags().BoolVar(&f.SkipConfirm, "skip-confirm", false, "Skip the confirmation prompt (suggested for automation)")
 
 	cmd.AddCommand(newInstallCommand(ctx, f))
 	cmd.AddCommand(newUninstallCommand(ctx, f))
