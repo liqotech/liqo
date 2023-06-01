@@ -93,5 +93,5 @@ func OffloadNamespace(kubeconfig, namespace string, args ...string) error {
 
 // UnoffloadNamespace unoffloads a namespace using liqoctl.
 func UnoffloadNamespace(kubeconfig, namespace string) error {
-	return ExecLiqoctl(kubeconfig, []string{"unoffload", "namespace", namespace}, ginkgo.GinkgoWriter)
+	return ExecLiqoctl(kubeconfig, []string{"unoffload", "namespace", "--skip-confirm", namespace}, ginkgo.GinkgoWriter)
 }

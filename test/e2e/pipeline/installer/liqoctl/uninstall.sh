@@ -56,6 +56,6 @@ sleep 3
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  "${LIQOCTL}" uninstall --purge
+  "${LIQOCTL}" uninstall --purge --skip-confirm
   wait_for_crds
 done;

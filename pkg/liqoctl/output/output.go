@@ -72,6 +72,17 @@ var (
 
 var spinnerCharset = []string{"⠈⠁", "⠈⠑", "⠈⠱", "⠈⡱", "⢀⡱", "⢄⡱", "⢄⡱", "⢆⡱", "⢎⡱", "⢎⡰", "⢎⡠", "⢎⡀", "⢎⠁", "⠎⠁", "⠊⠁"}
 
+var confirm = &pterm.InteractiveConfirmPrinter{
+	DefaultValue: false,
+	DefaultText:  "Are you sure you want to continue?",
+	TextStyle:    pterm.NewStyle(pterm.FgYellow, pterm.Bold),
+	ConfirmText:  "yes",
+	ConfirmStyle: pterm.NewStyle(pterm.FgDefault),
+	RejectText:   "no",
+	RejectStyle:  pterm.NewStyle(pterm.FgDefault),
+	SuffixStyle:  pterm.NewStyle(pterm.FgDefault, pterm.Bold),
+}
+
 // Printer manages all kinds of outputs.
 type Printer struct {
 	Info    *pterm.PrefixPrinter
@@ -85,6 +96,19 @@ type Printer struct {
 	Section    *pterm.SectionPrinter
 	Paragraph  *pterm.ParagraphPrinter
 	verbose    bool
+}
+
+// AskConfirm asks the user to confirm an action.
+func (p *Printer) AskConfirm(cmdName string, skip bool) error {
+	if skip {
+		return nil
+	}
+	pterm.NewStyle(pterm.FgYellow, pterm.Bold).Printfln("%s is a potentially destructive command.", cmdName)
+	r, e := confirm.Show()
+	if e != nil || !r {
+		return errors.New("action aborted")
+	}
+	return nil
 }
 
 // BoxPrintln prints a message through the box printer.
