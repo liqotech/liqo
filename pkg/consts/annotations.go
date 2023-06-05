@@ -23,4 +23,16 @@ const (
 	OverrideAddressAnnotation = "liqo.io/override-address"
 	// OverridePortAnnotation is the annotation used to override the port of a service.
 	OverridePortAnnotation = "liqo.io/override-port"
+
+	// APIServerSupportAnnotation is the annotation used to enable the API server support for a pod.
+	APIServerSupportAnnotation = "liqo.io/api-server-support"
+	// APIServerSupportAnnotationValueRemote is the value of the annotation used to enable the API server support for a pod.
+	APIServerSupportAnnotationValueRemote = "remote"
+	// APIServerSupportAnnotationValueDisabled is the value of the annotation used to disable the API server support for a pod.
+	APIServerSupportAnnotationValueDisabled = "disabled"
+
+	// RemoteServiceAccountNameAnnotation is the annotation used to set the name of the service account used by a pod
+	// in the remote cluster. This annotation requires the API server support to be "remote" for the pod and the
+	// remote service account to be created.
+	RemoteServiceAccountNameAnnotation = "liqo.io/remote-service-account-name"
 )
