@@ -1,8 +1,12 @@
-FROM ekidd/rust-musl-builder as rustBuilder
+FROM rust:1.70.0 as rustBuilder
 
 ARG VERSION=0.5.2
 
-RUN cargo install --version $VERSION boringtun-cli
+RUN git clone https://github.com/cloudflare/boringtun.git
+
+WORKDIR /boringtun
+
+RUN cargo build --bin boringtun-cli --release
 
 
 FROM golang:1.19 as goBuilder
@@ -16,13 +20,15 @@ COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" ./cmd/liqonet
 
 
-FROM alpine:3.15
+FROM debian:11.7-slim
 
-RUN apk update && \
-    apk add iptables bash wireguard-tools tcpdump conntrack-tools curl && \
-    rm -rf /var/cache/apk/*
+RUN apt-get update && \
+    apt-get install -y iproute2 iptables bash wireguard-tools tcpdump conntrack curl && \
+    apt-get clean autoclean && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=goBuilder /tmp/builder/liqonet /usr/bin/liqonet
-COPY --from=rustBuilder /home/rust/.cargo/bin/boringtun-cli /usr/bin/boringtun-cli
+COPY --from=rustBuilder /boringtun/target/release/boringtun-cli /usr/bin/boringtun-cli
 
 ENTRYPOINT [ "/usr/bin/liqonet" ]
