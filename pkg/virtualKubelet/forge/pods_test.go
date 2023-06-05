@@ -204,6 +204,7 @@ var _ = Describe("Pod forging", func() {
 			apiServerSupport                     forge.APIServerSupportType
 			remote, original                     *corev1.PodSpec
 			homeAPIServerHost, homeAPIServerPort string
+			localAnnotations                     map[string]string
 		)
 
 		BeforeEach(func() {
@@ -215,11 +216,13 @@ var _ = Describe("Pod forging", func() {
 						{ServiceAccountToken: &corev1.ServiceAccountTokenProjection{Path: "other", Audience: "custom"}},
 					}}}}},
 			}
+			localAnnotations = map[string]string{}
 		})
 
 		JustBeforeEach(func() {
 			original = remote.DeepCopy()
-			forge.APIServerSupportMutator(apiServerSupport, saName, SASecretRetriever, KubernetesServiceIPGetter, homeAPIServerHost, homeAPIServerPort)(remote)
+			forge.APIServerSupportMutator(apiServerSupport, localAnnotations, saName, SASecretRetriever,
+				KubernetesServiceIPGetter, homeAPIServerHost, homeAPIServerPort)(remote)
 		})
 
 		When("API server support is enabled", func() {

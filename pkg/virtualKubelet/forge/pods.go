@@ -58,6 +58,8 @@ const (
 	APIServerSupportLegacy APIServerSupportType = "Legacy"
 	// APIServerSupportTokenAPI -> API Server support is enabled, leveraging the newer TokenRequest API to retrieve the tokens.
 	APIServerSupportTokenAPI APIServerSupportType = "TokenAPI"
+	// APIServerSupportRemote -> the remote pods are allowed to contact the local API server directly.
+	APIServerSupportRemote APIServerSupportType = "Remote"
 )
 
 // PodIPTranslator defines the function to translate between remote and local IP addresses.
@@ -203,6 +205,7 @@ func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...Rem
 	remote.ReadinessGates = local.ReadinessGates
 	remote.RestartPolicy = local.RestartPolicy
 	remote.SecurityContext = local.SecurityContext
+	remote.ServiceAccountName = local.ServiceAccountName
 	remote.SetHostnameAsFQDN = local.SetHostnameAsFQDN
 	remote.ShareProcessNamespace = local.ShareProcessNamespace
 	remote.Subdomain = local.Subdomain
@@ -227,14 +230,20 @@ func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...Rem
 }
 
 // APIServerSupportMutator is a mutator which implements the support to enable offloaded pods to interact back with the local Kubernetes API server.
-func APIServerSupportMutator(apiServerSupport APIServerSupportType, saName string, saSecretRetriever SASecretRetriever,
-	kubernetesServiceIPRetriever KubernetesServiceIPGetter, homeAPIServerHost string, homeAPIServerPort string) RemotePodSpecMutator {
+func APIServerSupportMutator(apiServerSupport APIServerSupportType, localAnnotations map[string]string,
+	saName string, saSecretRetriever SASecretRetriever, kubernetesServiceIPRetriever KubernetesServiceIPGetter,
+	homeAPIServerHost, homeAPIServerPort string) RemotePodSpecMutator {
 	return func(remote *corev1.PodSpec) {
-		// The mutation of the service account related volume needs to be performed regardless of whether this feature is enabled.
-		remote.Volumes = RemoteVolumes(remote.Volumes, apiServerSupport, func() string { return saSecretRetriever(saName) })
+		apiServerSupport = getAPIServerSupport(apiServerSupport, localAnnotations)
 
-		// No additional operations need to be performed if the API server support is disabled.
-		if apiServerSupport == APIServerSupportDisabled {
+		// If we need to contact the remote API server, we need to let the remote cluster do all the operations.
+		if apiServerSupport != APIServerSupportRemote {
+			// The mutation of the service account related volume needs to be performed regardless of whether this feature is enabled.
+			remote.Volumes = RemoteVolumes(remote.Volumes, apiServerSupport, func() string { return saSecretRetriever(saName) })
+		}
+
+		// No additional operations need to be performed if the API server support is disabled or remote.
+		if apiServerSupport == APIServerSupportDisabled || apiServerSupport == APIServerSupportRemote {
 			return
 		}
 
@@ -247,6 +256,46 @@ func APIServerSupportMutator(apiServerSupport APIServerSupportType, saName strin
 			remote.HostAliases = RemoteHostAliasesAPIServerSupport(remote.HostAliases, kubernetesServiceIPRetriever)
 		}
 	}
+}
+
+// ServiceAccountMutator is a mutator which implements the support to propagate the service account name to the remote cluster.
+func ServiceAccountMutator(apiServerSupport APIServerSupportType, localAnnotations map[string]string) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		apiServerSupport = getAPIServerSupport(apiServerSupport, localAnnotations)
+
+		switch apiServerSupport {
+		case APIServerSupportRemote:
+			remoteServiceAccountName, ok := localAnnotations[liqoconst.RemoteServiceAccountNameAnnotation]
+			// If the annotation is not present, keep the original value.
+			if !ok {
+				remoteServiceAccountName = remote.ServiceAccountName
+			}
+
+			remote.ServiceAccountName = remoteServiceAccountName
+			remote.AutomountServiceAccountToken = pointer.Bool(true)
+		default:
+			// Remove the service account name.
+			remote.ServiceAccountName = ""
+		}
+	}
+}
+
+// getAPIServerSupport overrides the default API server support value, if the corresponding annotation is present.
+func getAPIServerSupport(apiServerSupport APIServerSupportType, localAnnotations map[string]string) APIServerSupportType {
+	overrideAPIServerSupportAnnotationString, ok := localAnnotations[liqoconst.APIServerSupportAnnotation]
+	switch {
+	default:
+		// Do nothing.
+	case !ok:
+		// If the annotation is not present, keep the default value.
+	case overrideAPIServerSupportAnnotationString == liqoconst.APIServerSupportAnnotationValueDisabled:
+		// If the annotation is present and set to disabled, disable the API server support.
+		apiServerSupport = APIServerSupportDisabled
+	case overrideAPIServerSupportAnnotationString == liqoconst.APIServerSupportAnnotationValueRemote:
+		// If the annotation is present and set to remote, enable the API server support.
+		apiServerSupport = APIServerSupportRemote
+	}
+	return apiServerSupport
 }
 
 // OpaqueIPTranslationMutator is a mutator which implements the support to hide the IP address of the offloaded pods.
