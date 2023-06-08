@@ -56,8 +56,6 @@ var _ = Describe("ShadowPod Description", func() {
 		peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
 
 		spNamespacedName = types.NamespacedName{Name: testShadowPodName, Namespace: testNamespace}
-
-		Expect(spValidator.InjectDecoder(decoder)).To(Succeed())
 	})
 
 	Describe("Get or Create a ShadowPod Description", func() {

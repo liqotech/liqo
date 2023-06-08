@@ -85,11 +85,11 @@ func (sw *SecretWatcher) WaitForConfigured(ctx context.Context) bool {
 // Handlers returns the set of handlers used for the Watch configuration.
 func (sw *SecretWatcher) Handlers() handler.EventHandler {
 	return handler.Funcs{
-		CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
+		CreateFunc: func(_ context.Context, ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
 			secret := ce.Object.(*corev1.Secret)
 			sw.handle(secret, rli)
 		},
-		UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
 			secret := ue.ObjectNew.(*corev1.Secret)
 			sw.handle(secret, rli)
 		},

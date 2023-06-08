@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	authservice "github.com/liqotech/liqo/internal/auth-service"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -58,6 +59,8 @@ func main() {
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 	flag.Parse()
+
+	log.SetLogger(klog.NewKlogr())
 
 	klog.Info("Namespace: ", *namespace)
 

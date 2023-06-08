@@ -24,9 +24,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	routeoperator "github.com/liqotech/liqo/internal/liqonet/route-operator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
@@ -97,14 +99,15 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 		MapperProvider:     mapper.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: commonFlags.metricsAddr,
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			SelectorsByObject: cache.SelectorsByObject{
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Field: smcFieldSelector,
 					Label: smcLabelSelector,
 				},
-			},
-		}),
+			}
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		klog.Errorf("unable to get manager: %s", err)
@@ -122,13 +125,14 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 		Scheme:             scheme,
 		MetricsBindAddress: ":0",
 		Namespace:          podNamespace,
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			SelectorsByObject: cache.SelectorsByObject{
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Label: ovcLabelSelector,
 				},
-			},
-		}),
+			}
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		klog.Errorf("unable to get manager: %s", err)

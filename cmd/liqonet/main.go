@@ -22,6 +22,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -63,6 +64,8 @@ func main() {
 	addNetworkManagerFlags(managerFlags)
 
 	flag.Parse()
+
+	log.SetLogger(klog.NewKlogr())
 
 	switch commonFlags.runAs {
 	case liqoconst.LiqoRouteOperatorName:

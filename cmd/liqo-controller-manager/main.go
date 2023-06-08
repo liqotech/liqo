@@ -35,11 +35,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
@@ -179,6 +182,8 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
+	log.SetLogger(klog.NewKlogr())
+
 	clusterIdentity := clusterIdentityFlags.ReadOrDie()
 
 	ctx := ctrl.SetupSignalHandler()
@@ -201,13 +206,14 @@ func main() {
 		LeaderElectionReleaseOnCancel: true,
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
 		Port:                          int(*webhookPort),
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			SelectorsByObject: cache.SelectorsByObject{
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Label: labels.NewSelector().Add(*reqRemoteLiqoPods),
 				},
-			},
-		}),
+			}
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		klog.Error(err)
@@ -223,13 +229,14 @@ func main() {
 		MapperProvider:     mapper.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			SelectorsByObject: cache.SelectorsByObject{
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Label: labels.NewSelector().Add(*reqLocalLiqoPods),
 				},
-			},
-		}),
+			}
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		klog.Errorf("Unable to create auxiliary manager: %w", err)

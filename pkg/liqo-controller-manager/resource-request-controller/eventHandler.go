@@ -33,10 +33,8 @@ import (
 // of the related ResourceRequest.
 func getForeignClusterEventHandler(c client.Client) handler.EventHandler {
 	return &handler.Funcs{
-		CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {},
-		UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
-			ctx := context.Background()
-
+		CreateFunc: func(_ context.Context, ce event.CreateEvent, rli workqueue.RateLimitingInterface) {},
+		UpdateFunc: func(ctx context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
 			oldForeignCluster, ok := ue.ObjectOld.(*discoveryv1alpha1.ForeignCluster)
 			if !ok {
 				klog.Errorf("object %v is not a ForeignCluster", ue.ObjectOld)
@@ -69,7 +67,7 @@ func getForeignClusterEventHandler(c client.Client) handler.EventHandler {
 				return
 			}
 		},
-		DeleteFunc:  func(de event.DeleteEvent, rli workqueue.RateLimitingInterface) {},
-		GenericFunc: func(ge event.GenericEvent, rli workqueue.RateLimitingInterface) {},
+		DeleteFunc:  func(_ context.Context, de event.DeleteEvent, rli workqueue.RateLimitingInterface) {},
+		GenericFunc: func(_ context.Context, ge event.GenericEvent, rli workqueue.RateLimitingInterface) {},
 	}
 }

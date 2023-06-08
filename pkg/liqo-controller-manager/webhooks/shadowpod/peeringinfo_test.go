@@ -58,8 +58,6 @@ var _ = Describe("Peering Info", func() {
 		containers = []containerResource{{cpu: int64(resourceCPU), memory: int64(resourceMemory)}}
 
 		shadowPod = forgeShadowPodWithResourceLimits(containers, nil)
-
-		Expect(spValidator.InjectDecoder(decoder)).To(Succeed())
 	})
 
 	Describe("Get or Create a PeeringInfo", func() {

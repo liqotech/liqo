@@ -21,9 +21,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/netcfgcreator"
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/tunnelendpointcreator"
@@ -63,12 +65,17 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 		MapperProvider:     mapper.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: commonFlags.metricsAddr,
-		NewCache: cache.BuilderWithOptions(cache.Options{
-			SelectorsByObject: cache.SelectorsByObject{
-				&corev1.Secret{}:  {Field: fields.OneTermEqualSelector("metadata.namespace", podNamespace)},
-				&corev1.Service{}: {Field: fields.OneTermEqualSelector("metadata.namespace", podNamespace)},
-			},
-		}),
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
+				&corev1.Secret{}: {
+					Field: fields.OneTermEqualSelector("metadata.namespace", podNamespace),
+				},
+				&corev1.Service{}: {
+					Field: fields.OneTermEqualSelector("metadata.namespace", podNamespace),
+				},
+			}
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		klog.Errorf("unable to get manager: %s", err)

@@ -23,7 +23,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -166,7 +165,7 @@ func (r *ResourceRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ResourceRequest{}, builder.WithPredicates(p)).
 		Owns(&sharingv1alpha1.ResourceOffer{}).
-		Watches(&source.Kind{Type: &discoveryv1alpha1.ForeignCluster{}}, getForeignClusterEventHandler(
+		Watches(&discoveryv1alpha1.ForeignCluster{}, getForeignClusterEventHandler(
 			r.Client,
 		)).
 		Complete(r)

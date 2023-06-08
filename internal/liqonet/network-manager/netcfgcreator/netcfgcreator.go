@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -126,7 +125,7 @@ func (ncc *NetworkConfigCreator) SetupWithManager(mgr ctrl.Manager) error {
 		For(&discoveryv1alpha1.ForeignCluster{}).
 		Owns(&netv1alpha1.NetworkConfig{}, builder.WithPredicates(
 			predicate.Or(predicate.GenerationChangedPredicate{}, predicate.LabelChangedPredicate{}), localNetcfg)).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, ncc.secretWatcher.Handlers(), builder.WithPredicates(ncc.secretWatcher.Predicates())).
-		Watches(&source.Kind{Type: &corev1.Service{}}, ncc.serviceWatcher.Handlers(), builder.WithPredicates(ncc.serviceWatcher.Predicates())).
+		Watches(&corev1.Secret{}, ncc.secretWatcher.Handlers(), builder.WithPredicates(ncc.secretWatcher.Predicates())).
+		Watches(&corev1.Service{}, ncc.serviceWatcher.Handlers(), builder.WithPredicates(ncc.serviceWatcher.Predicates())).
 		Complete(ncc)
 }

@@ -24,6 +24,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -72,6 +73,8 @@ func main() {
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 	flag.Parse()
+
+	log.SetLogger(klog.NewKlogr())
 
 	clusterIdentity := clusterFlags.ReadOrDie()
 

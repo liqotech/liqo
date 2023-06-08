@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
@@ -94,7 +93,7 @@ func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	filter, err := predicate.LabelSelectorPredicate(reflection.ReplicatedResourcesLabelSelector())
 	utilruntime.Must(err)
 
-	enqueuer := func(obj client.Object) []reconcile.Request {
+	enqueuer := func(_ context.Context, obj client.Object) []reconcile.Request {
 		nm, found := obj.GetAnnotations()[liqoconst.RemoteNamespaceManagedByAnnotationKey]
 		if !found {
 			return nil
@@ -114,7 +113,7 @@ func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// It is not possible to use Owns, since a namespaced object cannot own a non-namespaced one,
 		// and cross namespace owners are disallowed by design.
 		// https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/.
-		Watches(&source.Kind{Type: &corev1.Namespace{}}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
-		Watches(&source.Kind{Type: &rbacv1.RoleBinding{}}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
+		Watches(&corev1.Namespace{}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
+		Watches(&rbacv1.RoleBinding{}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
 		Complete(r)
 }

@@ -55,6 +55,7 @@ func NewValidator(c client.Client, enableResourceValidation bool) *Validator {
 		client:                   c,
 		PeeringCache:             &peeringCache{ready: false},
 		enableResourceValidation: enableResourceValidation,
+		decoder:                  admission.NewDecoder(runtime.NewScheme()),
 	}
 }
 
@@ -252,10 +253,4 @@ func (spv *Validator) getShadowPodListByClusterID(ctx context.Context,
 		LabelSelector: labels.SelectorFromSet(map[string]string{forge.LiqoOriginClusterIDKey: clusterID}),
 	})
 	return
-}
-
-// InjectDecoder injects the decoder.
-func (spv *Validator) InjectDecoder(d *admission.Decoder) error {
-	spv.decoder = d
-	return nil
 }

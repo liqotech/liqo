@@ -18,7 +18,6 @@ package clients
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -47,37 +46,32 @@ func GetCachedClient(ctx context.Context, scheme *runtime.Scheme) (client.Client
 // GetCachedClientWithConfig returns a controller runtime client with the cache initialized only for the resources added to
 // the scheme. The necessary rest.Config is passed as third parameter, it must not be nil.
 func GetCachedClientWithConfig(ctx context.Context,
-	scheme *runtime.Scheme, conf *rest.Config, clientCache cache.Cache) (client.Client, error) {
+	scheme *runtime.Scheme, conf *rest.Config, cacheOptions *cache.Options) (client.Client, error) {
 	if conf == nil {
 		err := fmt.Errorf("the rest.Config parameter is nil")
 		klog.Error(err)
 		return nil, err
 	}
 
-	liqoMapper, err := (mapper.LiqoMapperProvider(scheme))(conf)
+	liqoMapper, err := (mapper.LiqoMapperProvider(scheme))(conf, nil)
 	if err != nil {
 		klog.Errorf("mapper: %s", err)
 		return nil, err
 	}
 
-	if clientCache == nil || reflect.ValueOf(clientCache).IsNil() {
-		clientCache, err = cache.New(conf, cache.Options{Scheme: scheme, Mapper: liqoMapper})
-		if err != nil {
-			klog.Errorf("cache: %s", err)
-			return nil, err
+	c, err := cluster.New(conf, func(o *cluster.Options) {
+		o.Client = client.Options{Scheme: scheme, Mapper: liqoMapper}
+		if cacheOptions != nil {
+			o.Cache = *cacheOptions
+		} else {
+			o.Cache = cache.Options{Scheme: scheme, Mapper: liqoMapper}
 		}
-	}
-
-	go func() {
-		if err = clientCache.Start(ctx); err != nil {
-			klog.Errorf("unable to start cache: %s", err)
-		}
-	}()
-
-	newClient, err := cluster.DefaultNewClient(clientCache, conf, client.Options{Scheme: scheme, Mapper: liqoMapper})
+	})
 	if err != nil {
 		klog.Errorf("unable to create the client: %s", err)
 		return nil, err
 	}
+
+	newClient := c.GetClient()
 	return newClient, nil
 }

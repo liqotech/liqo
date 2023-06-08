@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -133,7 +132,7 @@ func (r *NamespaceOffloadingReconciler) SetupWithManager(mgr ctrl.Manager) error
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&offv1alpha1.NamespaceOffloading{}, builder.WithPredicates(filter)).
-		Watches(&source.Kind{Type: &mapsv1alpha1.NamespaceMap{}}, r.namespaceMapHandlers()).
+		Watches(&mapsv1alpha1.NamespaceMap{}, r.namespaceMapHandlers()).
 		Complete(r)
 }
 
@@ -146,11 +145,11 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 	}
 
 	return handler.Funcs{
-		CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
+		CreateFunc: func(_ context.Context, ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
 			// Enqueue an event for all known NamespaceOffloadings.
 			r.namespaces.ForEach(func(namespace string) { enqueue(rli, namespace) })
 		},
-		UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
 			oldMappings := ue.ObjectOld.(*mapsv1alpha1.NamespaceMap).Status.CurrentMapping
 			newMappings := ue.ObjectNew.(*mapsv1alpha1.NamespaceMap).Status.CurrentMapping
 
@@ -168,7 +167,7 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 				}
 			}
 		},
-		DeleteFunc: func(de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+		DeleteFunc: func(_ context.Context, de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
 			// Enqueue an event for all known NamespaceOffloadings.
 			r.namespaces.ForEach(func(namespace string) { enqueue(rli, namespace) })
 		},

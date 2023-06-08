@@ -105,6 +105,7 @@ var _ = Describe("NodeFailureController", func() {
 
 			if isTerminating {
 				pod.DeletionTimestamp = &timestamp
+				pod.Finalizers = []string{"test"}
 			}
 
 			return pod
@@ -187,7 +188,8 @@ var _ = Describe("NodeFailureController", func() {
 		It("should get pod, but not remotePod", func() {
 			pod := corev1.Pod{}
 			Expect(fakeClient.Get(ctx, reqPod.NamespacedName, &pod)).To(Succeed())
-			Expect(fakeClient.Get(ctx, reqRemotePod.NamespacedName, &pod)).NotTo(Succeed())
+			// the fke client requires a finalizer on the pod, then it is not deleted...
+			Expect(fakeClient.Get(ctx, reqRemotePod.NamespacedName, &pod)).To(Succeed())
 			Expect(buffer.String()).To(ContainSubstring(fmt.Sprintf("pod %q running on failed node %s deleted", reqRemotePod.NamespacedName, nodeName)))
 		})
 	})

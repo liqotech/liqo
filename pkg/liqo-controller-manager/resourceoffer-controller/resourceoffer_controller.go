@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -191,7 +190,7 @@ func (r *ResourceOfferReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&sharingv1alpha1.ResourceOffer{}, builder.WithPredicates(p)).
-		Watches(&source.Kind{Type: &v1.Deployment{}},
+		Watches(&v1.Deployment{},
 			getVirtualKubeletEventHandler(), builder.WithPredicates(deployPredicate)).
 		Complete(r)
 }
@@ -202,12 +201,12 @@ func (r *ResourceOfferReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // triggered on children updates and to enforce their status.
 func getVirtualKubeletEventHandler() handler.EventHandler {
 	return &handler.Funcs{
-		CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
+		CreateFunc: func(_ context.Context, ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
 			if req, err := getReconcileRequestFromObject(ce.Object); err == nil {
 				rli.Add(req)
 			}
 		},
-		UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
 			if req, err := getReconcileRequestFromObject(ue.ObjectOld); err == nil {
 				rli.Add(req)
 			}
@@ -215,12 +214,12 @@ func getVirtualKubeletEventHandler() handler.EventHandler {
 				rli.Add(req)
 			}
 		},
-		DeleteFunc: func(de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+		DeleteFunc: func(_ context.Context, de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
 			if req, err := getReconcileRequestFromObject(de.Object); err == nil {
 				rli.Add(req)
 			}
 		},
-		GenericFunc: func(ge event.GenericEvent, rli workqueue.RateLimitingInterface) {
+		GenericFunc: func(_ context.Context, ge event.GenericEvent, rli workqueue.RateLimitingInterface) {
 			if req, err := getReconcileRequestFromObject(ge.Object); err == nil {
 				rli.Add(req)
 			}

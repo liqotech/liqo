@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -416,10 +415,10 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers in
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ForeignCluster{}, builder.WithPredicates(foreignClusterPredicate)).
 		Owns(&discoveryv1alpha1.ResourceRequest{}).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer),
+		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer),
 			builder.WithPredicates(getAuthTokenSecretPredicate())).
-		Watches(&source.Kind{Type: &netv1alpha1.TunnelEndpoint{}}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
-		Watches(&source.Kind{Type: &sharingv1alpha1.ResourceOffer{}}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
+		Watches(&netv1alpha1.TunnelEndpoint{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
+		Watches(&sharingv1alpha1.ResourceOffer{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
 }
@@ -553,7 +552,7 @@ func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
 	return nil
 }
 
-func (r *ForeignClusterReconciler) foreignclusterEnqueuer(obj client.Object) []ctrl.Request {
+func (r *ForeignClusterReconciler) foreignclusterEnqueuer(_ context.Context, obj client.Object) []ctrl.Request {
 	gvks, _, err := r.Scheme.ObjectKinds(obj)
 	// Should never happen, but if it happens we panic.
 	utilruntime.Must(err)
