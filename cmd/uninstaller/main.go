@@ -23,6 +23,7 @@ import (
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/liqotech/liqo/pkg/uninstaller"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -38,6 +39,8 @@ import (
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update;delete;deletecollection;
 
 func main() {
+	log.SetLogger(klog.NewKlogr())
+
 	ctx, cancel := context.WithCancel(context.Background())
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

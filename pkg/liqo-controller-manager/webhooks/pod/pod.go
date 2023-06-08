@@ -42,13 +42,10 @@ type podwh struct {
 
 // New returns a new PodWebhook instance.
 func New(cl client.Client) *webhook.Admission {
-	return &webhook.Admission{Handler: &podwh{client: cl}}
-}
-
-// InjectDecoder injects the decoder - this method is used by controller runtime.
-func (w *podwh) InjectDecoder(decoder *admission.Decoder) error {
-	w.decoder = decoder
-	return nil
+	return &webhook.Admission{Handler: &podwh{
+		client:  cl,
+		decoder: admission.NewDecoder(runtime.NewScheme()),
+	}}
 }
 
 // DecodePod decodes the pod from the incoming request.

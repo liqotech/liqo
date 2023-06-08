@@ -42,18 +42,20 @@ type fcwhv struct {
 
 // NewMutator returns a new ForeignCluster mutating webhook.
 func NewMutator() *webhook.Admission {
-	return &webhook.Admission{Handler: &fcwhm{}}
+	return &webhook.Admission{Handler: &fcwhm{
+		fcwh: fcwh{
+			decoder: admission.NewDecoder(runtime.NewScheme()),
+		},
+	}}
 }
 
 // NewValidator returns a new ForeignCluster validating webhook.
 func NewValidator() *webhook.Admission {
-	return &webhook.Admission{Handler: &fcwhv{}}
-}
-
-// InjectDecoder injects the decoder - this method is used by controller runtime.
-func (w *fcwh) InjectDecoder(decoder *admission.Decoder) error {
-	w.decoder = decoder
-	return nil
+	return &webhook.Admission{Handler: &fcwhv{
+		fcwh: fcwh{
+			decoder: admission.NewDecoder(runtime.NewScheme()),
+		},
+	}}
 }
 
 // DecodeForeignCluster decodes the ForeignCluster from the incoming request.

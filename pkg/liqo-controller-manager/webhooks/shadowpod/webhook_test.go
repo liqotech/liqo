@@ -22,13 +22,14 @@ import (
 	. "github.com/onsi/gomega"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -52,7 +53,13 @@ var _ = Describe("Validating webhook", func() {
 
 		fakeNamespace = forgeNamespaceWithClusterID(clusterID)
 
-		fakeClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(fakeNamespace, foreignCluster, resourceOffer).Build()
+		fakeClient = fake.NewClientBuilder().WithScheme(scheme).
+			WithObjects(fakeNamespace, foreignCluster, resourceOffer).
+			WithStatusSubresource(
+				&discoveryv1alpha1.ForeignCluster{},
+				&sharingv1alpha1.ResourceOffer{},
+				&vkv1alpha1.ShadowPod{}).
+			Build()
 
 		spValidator = webhook.Admission{Handler: NewValidator(fakeClient, false)}.Handler.(*Validator)
 
@@ -61,8 +68,6 @@ var _ = Describe("Validating webhook", func() {
 		spValidatorWithResources.PeeringCache = &peeringCache{
 			ready: true,
 		}
-		Expect(spValidator.InjectDecoder(decoder)).To(Succeed())
-		Expect(spValidatorWithResources.InjectDecoder(decoder)).To(Succeed())
 
 		spvClient = spValidatorWithResources.client
 	})
@@ -182,7 +187,7 @@ var _ = Describe("Validating webhook", func() {
 			})
 			It("request is allowed with error (Cache Problem)", func() {
 				Expect(response.Allowed).To(BeTrue())
-				Expect(response.Result.Reason).To(Equal((metav1.StatusReason("ShadowPod " + testShadowPodName + " not found (Maybe Cache problem)"))))
+				Expect(response.Result.Message).To(Equal("ShadowPod " + testShadowPodName + " not found (Maybe Cache problem)"))
 			})
 		})
 		When("The PeeringInfo does not exist", func() {
@@ -194,7 +199,7 @@ var _ = Describe("Validating webhook", func() {
 			})
 			It("request is allowed with error (PeeringInfo not found)", func() {
 				Expect(response.Allowed).To(BeTrue())
-				Expect(response.Result.Reason).To(Equal((metav1.StatusReason(fmt.Sprintf("Peering not found in cache for cluster %q", clusterName)))))
+				Expect(response.Result.Message).To(Equal(fmt.Sprintf("Peering not found in cache for cluster %q", clusterName)))
 			})
 		})
 	})

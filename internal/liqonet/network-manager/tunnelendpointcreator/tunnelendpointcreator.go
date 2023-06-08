@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -167,8 +166,8 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 func (tec *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&netv1alpha1.NetworkConfig{}).
-		Watches(&source.Kind{Type: &netv1alpha1.TunnelEndpoint{}},
-			&handler.EnqueueRequestForOwner{OwnerType: &netv1alpha1.NetworkConfig{}, IsController: false}).
+		Watches(&netv1alpha1.TunnelEndpoint{},
+			handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &netv1alpha1.NetworkConfig{})).
 		Complete(tec)
 }
 

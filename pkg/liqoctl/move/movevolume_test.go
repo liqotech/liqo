@@ -497,7 +497,10 @@ var _ = Context("Move Volumes", func() {
 			Expect(corev1.AddToScheme(scheme)).To(Succeed())
 			Expect(offv1alpha1.AddToScheme(scheme)).To(Succeed())
 
-			cl = fake.NewClientBuilder().WithScheme(scheme).Build()
+			cl = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithStatusSubresource(&offv1alpha1.NamespaceOffloading{}).
+				Build()
 		})
 
 		Context("setup", func() {

@@ -15,6 +15,8 @@
 package mapper
 
 import (
+	"net/http"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -34,13 +36,14 @@ import (
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
-type LiqoMapper func(c *rest.Config) (meta.RESTMapper, error)
+// LiqoMapper is a function that returns a RESTMapper for the resources used by Liqo.
+type LiqoMapper func(c *rest.Config, httpClient *http.Client) (meta.RESTMapper, error)
 
 // LiqoMapperProvider returns the default liqo mapper.
 func LiqoMapperProvider(scheme *runtime.Scheme, additionalGroupVersions ...schema.GroupVersion) LiqoMapper {
 	mapper := meta.NewDefaultRESTMapper(scheme.PrioritizedVersionsAllGroups())
 
-	return func(c *rest.Config) (meta.RESTMapper, error) {
+	return func(c *rest.Config, _ *http.Client) (meta.RESTMapper, error) {
 		dClient, err := discovery.NewDiscoveryClientForConfig(c)
 		if err != nil {
 			klog.Error(err)

@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
@@ -166,7 +165,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 // In particular, it reacts on changes on the NetworkStatus condition.
 func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.EventHandler {
 	return &handler.Funcs{
-		UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
 			newForeignCluster, ok := ue.ObjectNew.(*discoveryv1alpha1.ForeignCluster)
 			if !ok {
 				klog.Errorf("object %v is not a ForeignCluster", ue.ObjectNew)
@@ -235,7 +234,7 @@ func (r *Reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, wor
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&vkv1alpha1.ShadowEndpointSlice{}).
 		Owns(&discoveryv1.EndpointSlice{}).
-		Watches(&source.Kind{Type: &discoveryv1alpha1.ForeignCluster{}},
+		Watches(&discoveryv1alpha1.ForeignCluster{},
 			r.getForeignClusterEventHandler(ctx), builder.WithPredicates(fcPredicates)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)

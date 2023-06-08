@@ -30,6 +30,8 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/remotemetrics"
@@ -53,13 +55,15 @@ func main() {
 	restcfg.InitFlags(nil)
 	flag.Parse()
 
+	log.SetLogger(klog.NewKlogr())
+
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 	kcl := kubernetes.NewForConfigOrDie(config)
 
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	liqoMapper, err := (mapper.LiqoMapperProvider(scheme))(config)
+	liqoMapper, err := (mapper.LiqoMapperProvider(scheme))(config, nil)
 	if err != nil {
 		klog.Fatalf("mapper: %s", err)
 	}
@@ -68,20 +72,20 @@ func main() {
 		selection.Equals, []string{consts.ManagedByShadowPodValue})
 	utilruntime.Must(err)
 
-	clientCache, err := cache.New(config, cache.Options{
+	cacheOptions := &cache.Options{
 		Scheme: scheme,
 		Mapper: liqoMapper,
-		SelectorsByObject: cache.SelectorsByObject{
+		ByObject: map[client.Object]cache.ByObject{
 			&corev1.Pod{}: {
 				Label: labels.NewSelector().Add(*podsLabelRequirement),
 			},
 		},
-	})
+	}
 	if err != nil {
 		klog.Fatalf("error creating cache: %s", err)
 	}
 
-	cl, err := clientutils.GetCachedClientWithConfig(ctx, scheme, config, clientCache)
+	cl, err := clientutils.GetCachedClientWithConfig(ctx, scheme, config, cacheOptions)
 	if err != nil {
 		klog.Fatal(err)
 	}

@@ -27,6 +27,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -69,10 +70,12 @@ func main() {
 
 	flag.Parse()
 
+	log.SetLogger(klog.NewKlogr())
+
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
-	restMapper, err := mapper.LiqoMapperProvider(scheme)(config)
+	restMapper, err := mapper.LiqoMapperProvider(scheme)(config, nil)
 	if err != nil {
 		klog.Errorf("unable to create mapper: %v", err)
 		os.Exit(1)

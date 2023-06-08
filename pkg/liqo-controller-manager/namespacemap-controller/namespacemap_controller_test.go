@@ -55,7 +55,9 @@ var _ = Describe("Enforcement logic", func() {
 	})
 
 	JustBeforeEach(func() {
-		reconciler = namespacemapctrl.NamespaceMapReconciler{Client: clientBuilder.WithObjects(&nm).Build()}
+		reconciler = namespacemapctrl.NamespaceMapReconciler{Client: clientBuilder.WithObjects(&nm).
+			WithStatusSubresource(&vkv1alpha1.NamespaceMap{}).
+			Build()}
 		_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: client.ObjectKeyFromObject(&nm)})
 	})
 

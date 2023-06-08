@@ -269,7 +269,7 @@ var _ = Describe("Reflector tests", func() {
 				JustBeforeEach(func() { handlers = rfl.(*reflector).handlers(keyer, filters...) })
 
 				When("the AddFunc is executed", func() {
-					JustBeforeEach(func() { handlers.OnAdd(&obj) })
+					JustBeforeEach(func() { handlers.OnAdd(&obj, false) })
 
 					When("no event filter is specified", func() {
 						It("should return the correct namespaced name", body())

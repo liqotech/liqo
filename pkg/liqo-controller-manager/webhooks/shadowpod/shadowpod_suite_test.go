@@ -40,9 +40,8 @@ import (
 )
 
 var (
-	scheme  *runtime.Scheme
-	decoder *admission.Decoder
-	ctx     = context.Background()
+	scheme *runtime.Scheme
+	ctx    = context.Background()
 
 	tenantNamespace                   = "tenant-namespace"
 	tenantNamespace2                  = "tenant-namespace-2"
@@ -98,9 +97,6 @@ var _ = BeforeSuite(func() {
 	Expect(corev1.AddToScheme(scheme)).To(Succeed())
 	Expect(sharingv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(discoveryv1alpha1.AddToScheme(scheme)).To(Succeed())
-	var err error
-	decoder, err = admission.NewDecoder(scheme)
-	Expect(err).ToNot(HaveOccurred())
 })
 
 func TestShadowpod(t *testing.T) {

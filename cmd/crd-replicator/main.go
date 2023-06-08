@@ -25,6 +25,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
@@ -54,6 +55,8 @@ func main() {
 	klog.InitFlags(nil)
 
 	flag.Parse()
+
+	log.SetLogger(klog.NewKlogr())
 
 	ctx := ctrl.SetupSignalHandler()
 	clusterIdentity := clusterFlags.ReadOrDie()

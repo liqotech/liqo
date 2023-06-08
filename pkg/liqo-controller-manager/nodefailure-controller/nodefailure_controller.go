@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -92,7 +91,7 @@ func (r *NodeFailureReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // triggering the reconciliation of the related node hosting the pod.
 func getPodTerminatingEventHandler() handler.EventHandler {
 	return &handler.Funcs{
-		UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
 			ownedByShadowPod := ue.ObjectNew.GetLabels()[consts.ManagedByLabelKey] == consts.ManagedByShadowPodValue
 			isTerminating := !ue.ObjectNew.GetDeletionTimestamp().IsZero()
 			if ownedByShadowPod && isTerminating {
@@ -113,6 +112,6 @@ func getPodTerminatingEventHandler() handler.EventHandler {
 func (r *NodeFailureReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
-		Watches(&source.Kind{Type: &corev1.Pod{}}, getPodTerminatingEventHandler()).
+		Watches(&corev1.Pod{}, getPodTerminatingEventHandler()).
 		Complete(r)
 }

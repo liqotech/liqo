@@ -34,13 +34,9 @@ type nsoffwh struct {
 
 // New returns a new NamespaceOffloadingWebhook instance.
 func New() *webhook.Admission {
-	return &webhook.Admission{Handler: &nsoffwh{}}
-}
-
-// InjectDecoder injects the decoder - this method is used by controller runtime.
-func (w *nsoffwh) InjectDecoder(decoder *admission.Decoder) error {
-	w.decoder = decoder
-	return nil
+	return &webhook.Admission{Handler: &nsoffwh{
+		decoder: admission.NewDecoder(runtime.NewScheme()),
+	}}
 }
 
 // DecodeNamespaceOffloading decodes the NamespaceOffloading from the incoming request.
