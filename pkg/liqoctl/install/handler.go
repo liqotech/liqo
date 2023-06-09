@@ -373,18 +373,20 @@ func (o *Options) preProviderValues() map[string]interface{} {
 }
 
 func (o *Options) postProviderValues() map[string]interface{} {
-	return map[string]interface{}{
-		"gateway": map[string]interface{}{
+	values := map[string]interface{}{}
+	if o.ExtServiceType.Value != "" {
+		values["gateway"] = map[string]interface{}{
 			"service": map[string]interface{}{
 				"type": o.ExtServiceType.Value,
 			},
-		},
-		"auth": map[string]interface{}{
+		}
+		values["auth"] = map[string]interface{}{
 			"service": map[string]interface{}{
 				"type": o.ExtServiceType.Value,
 			},
-		},
+		}
 	}
+	return values
 }
 
 func (o *Options) cleanup() error {
