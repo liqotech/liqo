@@ -20,7 +20,7 @@ jobs:
           go-version: '1.19'
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3.5.0
+        uses: golangci/golangci-lint-action@v3.6.0
         with:
           only-new-issues: true
           version: v1.52.0
