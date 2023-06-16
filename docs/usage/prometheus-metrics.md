@@ -1,7 +1,7 @@
 # Prometheus Metrics
 
 This section presents the metrics exposed by Liqo, using the [Prometheus](https://prometheus.io/) format.
-Although in this page we suppose Prometeus is running in your cluster, please note that this is not strictly required: metrics can be scraped also by an external Prometheus server, with Liqo metrics exposed through a dedicated endpoint.
+Although in this page we suppose Prometheus is running in your cluster, please note that this is not strictly required: metrics can be scraped also by an external Prometheus server, with Liqo metrics exposed through a dedicated endpoint.
 
 ## Scraping metrics
 
