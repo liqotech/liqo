@@ -63,7 +63,7 @@ In other words, live migration is currently not supported.
 A given *PVC* can be moved to a target node (either physical, i.e., local, or virtual, i.e., remote) through the following command:
 
 ```bash
-liqoctl move volume $PVC_NAME --namespace $NAMESPACE_NAME --node $TARGET_NODE_NAME
+liqoctl move volume $PVC_NAME --namespace $NAMESPACE_NAME --target-node $TARGET_NODE_NAME
 ```
 
 Where:
