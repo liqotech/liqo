@@ -163,5 +163,6 @@ Explore the details about which and how native resources are **reflected** to re
 [](usage/stateful-applications.md)
 [](usage/prometheus-metrics.md)
 [](usage/external-network.md)
+[](usage/service-continuity)
 ```
 ````

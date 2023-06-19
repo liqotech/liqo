@@ -111,7 +111,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Depending on the current status of the foreign cluster, we update all endpoints' "Ready" conditions.
 	// Endpoints are ready only if both the tunnel endpoint and the API server of the foreign cluster are ready.
 	// Note: An endpoint is updated only if the shadowendpointslice endpoint has the condition "Ready" set
-	// to True or nil. i.e: if the foreigncluster sets the endpoint condition "Ready" to False, also the local
+	// to True or nil. i.e: if the foreign cluster sets the endpoint condition "Ready" to False, also the local
 	// endpoint condition is set to False regardless of the current status of the foreign cluster.
 	endpointsReady := networkReady && apiServerReady
 	for i := range newEps.Endpoints {
