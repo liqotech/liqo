@@ -158,6 +158,7 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod,
 	// Remove the label which identifies offloaded pods, as meaningful only locally.
 	localMetaFiltered := local.ObjectMeta.DeepCopy()
 	delete(localMetaFiltered.GetLabels(), liqoconst.LocalPodLabelKey)
+	localMetaFiltered.GetLabels()[LiqoOriginClusterNodeName] = LiqoNodeName
 
 	// Initialize the appropriate anti-affinity mutator if the corresponding annotation is present.
 	switch local.Annotations[liqoconst.PodAntiAffinityPresetKey] {

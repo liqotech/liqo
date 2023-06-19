@@ -104,6 +104,10 @@ func forgeVKContainers(
 					Name:      "POD_IP",
 					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}},
 				},
+				{
+					Name:      "POD_NAME",
+					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}},
+				},
 			},
 			Ports: containerPorts,
 		},

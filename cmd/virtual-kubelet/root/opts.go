@@ -61,7 +61,9 @@ type Opts struct {
 	RemoteKubeconfigSecretName string
 
 	// Node name to use when creating a node in Kubernetes
-	NodeName             string
+	NodeName string
+	// PodName to use when holding the virtual-kubelet lease
+	PodName              string
 	TenantNamespace      string
 	InformerResyncPeriod time.Duration
 
@@ -113,6 +115,7 @@ func NewOpts() *Opts {
 	return &Opts{
 		HomeKubeconfig:       os.Getenv("KUBECONFIG"),
 		NodeName:             DefaultNodeName,
+		PodName:              os.Getenv("POD_NAME"),
 		TenantNamespace:      corev1.NamespaceDefault,
 		InformerResyncPeriod: DefaultInformerResyncPeriod,
 

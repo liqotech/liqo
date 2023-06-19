@@ -16,6 +16,7 @@ package storageprovisioner
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,6 +26,7 @@ import (
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/maps"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -36,6 +38,15 @@ func ProvisionRemotePVC(ctx context.Context,
 	remotePvcLister corev1listers.PersistentVolumeClaimNamespaceLister,
 	remotePvcClient corev1clients.PersistentVolumeClaimInterface) (*corev1.PersistentVolume, controller.ProvisioningState, error) {
 	virtualPvc := options.PVC
+
+	labels := options.SelectedNode.GetLabels()
+	if labels == nil {
+		return nil, controller.ProvisioningInBackground, fmt.Errorf("no labels found for node %s", options.SelectedNode.GetName())
+	}
+	remoteClusterID, ok := labels[consts.RemoteClusterID]
+	if !ok {
+		return nil, controller.ProvisioningInBackground, fmt.Errorf("no remote cluster ID found for node %s", options.SelectedNode.GetName())
+	}
 
 	// get the storage class for the remote PVC,
 	// use its class if denied, otherwise use the default one
@@ -78,9 +89,9 @@ func ProvisionRemotePVC(ctx context.Context,
 						{
 							MatchExpressions: []corev1.NodeSelectorRequirement{
 								{
-									Key:      corev1.LabelHostname,
+									Key:      consts.RemoteClusterID,
 									Operator: corev1.NodeSelectorOpIn,
-									Values:   []string{options.SelectedNode.Name},
+									Values:   []string{remoteClusterID},
 								},
 							},
 						},

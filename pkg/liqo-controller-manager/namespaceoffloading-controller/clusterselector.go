@@ -43,7 +43,8 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 
 	// If the number of virtual nodes does not match that of namespacemaps, there is something wrong in the cluster.
 	if len(clusterIDs) != len(clusterIDMap) {
-		return fmt.Errorf("the number of virtual nodes (%v) does not match that of NamespaceMaps (%v)", len(virtualNodes.Items), len(clusterIDMap))
+		return fmt.Errorf("number of VirtualNodes (%d) does not match that of NamespaceMaps (%d)",
+			len(clusterIDs), len(clusterIDMap))
 	}
 
 	var returnErr error
@@ -59,14 +60,12 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 			if err = addDesiredMapping(ctx, r.Client, nsoff.Namespace, r.remoteNamespaceName(nsoff),
 				clusterIDMap[virtualNodes.Items[i].Spec.ClusterIdentity.ClusterID]); err != nil {
 				returnErr = fmt.Errorf("failed to configure all desired mappings")
-				continue
 			}
 		} else {
 			// Ensure old mappings are removed in case the cluster selector is updated.
 			if err = removeDesiredMapping(ctx, r.Client, nsoff.Namespace,
-				clusterIDMap[virtualNodes.Items[i].Labels[liqoconst.RemoteClusterID]]); err != nil {
+				clusterIDMap[virtualNodes.Items[i].Spec.ClusterIdentity.ClusterID]); err != nil {
 				returnErr = fmt.Errorf("failed to configure all desired mappings")
-				continue
 			}
 		}
 	}
@@ -97,7 +96,8 @@ func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (ma
 	return clusterIDMap, nil
 }
 
-func matchVirtualNodeSelectorTerms(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode, selector *corev1.NodeSelector) (bool, error) {
+func matchVirtualNodeSelectorTerms(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode,
+	selector *corev1.NodeSelector) (bool, error) {
 	// Shortcircuit the matching logic, to always return a positive outcome in case no selector is specified.
 	if len(selector.NodeSelectorTerms) == 0 {
 		return true, nil
@@ -108,5 +108,4 @@ func matchVirtualNodeSelectorTerms(ctx context.Context, cl client.Client, virtua
 		return false, fmt.Errorf("failed to retrieve node %s from VirtualNode %s: %w", n.Name, virtualNode.Name, err)
 	}
 	return k8shelper.MatchNodeSelectorTerms(n, selector)
-
 }

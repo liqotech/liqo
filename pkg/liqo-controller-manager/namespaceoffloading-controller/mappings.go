@@ -26,6 +26,10 @@ import (
 
 // Removes right entry from one NamespaceMap, if present.
 func removeDesiredMapping(ctx context.Context, c client.Client, localName string, nm *mapsv1alpha1.NamespaceMap) error {
+	if nm.Spec.DesiredMapping == nil {
+		klog.V(4).Infof("NamespaceMap %q does not contain any entry", nm.GetName())
+		return nil
+	}
 	if _, ok := nm.Spec.DesiredMapping[localName]; ok {
 		original := nm.DeepCopy()
 		delete(nm.Spec.DesiredMapping, localName)

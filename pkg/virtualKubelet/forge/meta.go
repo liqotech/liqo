@@ -26,6 +26,8 @@ const (
 	LiqoOriginClusterIDKey = "virtualkubelet.liqo.io/origin"
 	// LiqoDestinationClusterIDKey is the key of a label identifying the destination cluster of a reflected resource.
 	LiqoDestinationClusterIDKey = "virtualkubelet.liqo.io/destination"
+	// LiqoOriginClusterNodeName is the name of the node on the origin cluster referenced by the virtual-kubelet.
+	LiqoOriginClusterNodeName = "virtualkubelet.liqo.io/nodename"
 )
 
 // ReflectionLabels returns the labels assigned to the objects reflected from the local to the remote cluster.

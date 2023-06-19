@@ -159,7 +159,7 @@ var _ = Describe("Service accounts management", func() {
 	Describe("the RemoteServiceAccountSecret function", func() {
 		var output *corev1apply.SecretApplyConfiguration
 
-		JustBeforeEach(func() { output = forge.RemoteServiceAccountSecret(&tokens, "name", "namespace") })
+		JustBeforeEach(func() { output = forge.RemoteServiceAccountSecret(&tokens, "name", "namespace", "fakenode") })
 
 		It("should correctly set the name and namespace", func() {
 			Expect(output.Name).To(PointTo(Equal("name")))

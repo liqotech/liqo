@@ -80,17 +80,22 @@ func NewServiceAccountReflector(enableSAReflection bool, workers uint) manager.R
 	}
 
 	reflector := &ServiceAccountReflector{}
-	genericReflector := generic.NewReflector(ServiceAccountReflectorName, reflector.NewNamespaced, reflector.NewFallback, workers)
+	genericReflector := generic.NewReflector(ServiceAccountReflectorName, reflector.NewNamespaced, reflector.NewFallback, workers, generic.ConcurrencyModeAll)
 	reflector.Reflector = genericReflector
 	return reflector
 }
 
 // RemoteSASecretNamespacedKeyer returns a keyer associated with the given namespace,
 // which accounts for enqueuing only the secrets associated with a service account (enqueuing the owner pod name).
-func RemoteSASecretNamespacedKeyer(namespace string) func(metadata metav1.Object) []types.NamespacedName {
+func RemoteSASecretNamespacedKeyer(namespace, nodename string) func(metadata metav1.Object) []types.NamespacedName {
 	return func(metadata metav1.Object) []types.NamespacedName {
 		if !forge.IsServiceAccountSecret(metadata) {
 			return nil
+		}
+
+		label, ok := metadata.GetLabels()[forge.LiqoOriginClusterNodeName]
+		if !ok || label != nodename {
+			return []types.NamespacedName{}
 		}
 
 		// The label is certainly present, since it matched the selector.
@@ -104,7 +109,7 @@ func (sar *ServiceAccountReflector) NewNamespaced(opts *options.NamespacedOpts) 
 	remoteSecrets := opts.RemoteFactory.Core().V1().Secrets()
 
 	// Regardless of the type of the event, we always enqueue the key corresponding to the pod.
-	remoteSecrets.Informer().AddEventHandler(opts.HandlerFactory(RemoteSASecretNamespacedKeyer(opts.LocalNamespace)))
+	remoteSecrets.Informer().AddEventHandler(opts.HandlerFactory(RemoteSASecretNamespacedKeyer(opts.LocalNamespace, forge.LiqoNodeName)))
 
 	return &NamespacedServiceAccountReflector{
 		NamespacedReflector: generic.NewNamespacedReflector(opts, ServiceAccountReflectorName),
@@ -195,7 +200,7 @@ func (nsar *NamespacedServiceAccountReflector) Handle(ctx context.Context, name 
 		}
 	}
 
-	mutation := forge.RemoteServiceAccountSecret(tokens, rname, nsar.RemoteNamespace())
+	mutation := forge.RemoteServiceAccountSecret(tokens, rname, nsar.RemoteNamespace(), local.Spec.NodeName)
 	tracer.Step("Remote mutation created")
 
 	defer tracer.Step("Enforced the correctness of the remote object")

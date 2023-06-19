@@ -132,20 +132,18 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		HomeAPIServerPort:   cfg.HomeAPIServerPort,
 	}
 
-	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb)
 	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, &podReflectorConfig, cfg.PodWorkers)
-	namespaceMapHandler := namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod)
-	reflectionManager.
+	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb).
+		With(podreflector).
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewIngressReflector(cfg.IngressWorkers)).
 		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
 		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, cfg.SecretWorkers)).
 		With(configuration.NewServiceAccountReflector(apiServerSupport == forge.APIServerSupportTokenAPI, cfg.ServiceAccountWorkers)).
-		With(podreflector).
 		With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
 			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage)).
 		With(event.NewEventReflector(cfg.EventWorkers)).
-		WithNamespaceHandler(namespaceMapHandler)
+		WithNamespaceHandler(namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod))
 
 	if !cfg.DisableIPReflection {
 		reflectionManager.With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers))

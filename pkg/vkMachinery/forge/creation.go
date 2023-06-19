@@ -30,7 +30,7 @@ import (
 
 // VirtualKubeletName returns the name of the virtual-kubelet.
 func VirtualKubeletName(virtualNode *virtualkubeletv1alpha1.VirtualNode) string {
-	return "virtual-kubelet-" + virtualNode.Name + "-" + virtualNode.Spec.ClusterIdentity.ClusterID
+	return "virtual-kubelet-" + virtualNode.Name
 }
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.

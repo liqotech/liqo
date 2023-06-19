@@ -348,7 +348,7 @@ func main() {
 		VirtualKubeletOptions: virtualKubeletOpts,
 	}
 
-	if err = virtualNodeReconciler.SetupWithManager(ctx, mgr); err != nil {
+	if err = virtualNodeReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
 
@@ -431,7 +431,7 @@ func main() {
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
 		}
-		if err = nodeFailureReconciler.SetupWithManager(ctx, mgr); err != nil {
+		if err = nodeFailureReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the nodeFailureReconciler", err)
 			os.Exit(1)
 		}

@@ -109,7 +109,7 @@ var _ = Describe("Manager tests", func() {
 				reflector *reflectionfake.Reflector
 			)
 
-			BeforeEach(func() { reflector = reflectionfake.NewReflector() })
+			BeforeEach(func() { reflector = reflectionfake.NewReflector(false) })
 			JustBeforeEach(func() { returned = mgr.With(reflector) })
 
 			It("should return the receiver manager", func() { Expect(mgr).To(BeIdenticalTo(returned)) })

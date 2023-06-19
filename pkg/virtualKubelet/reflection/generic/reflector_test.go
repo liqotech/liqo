@@ -64,7 +64,7 @@ var _ = Describe("Reflector tests", func() {
 
 		Context("a new reflector is created", func() {
 			JustBeforeEach(func() {
-				rfl = NewReflector(reflectorName, NewFakeNamespacedReflector, NewFakeFallbackReflector, workers)
+				rfl = NewReflector(reflectorName, NewFakeNamespacedReflector, NewFakeFallbackReflector, workers, ConcurrencyModeAll)
 			})
 
 			When("no workers are specified", func() {
@@ -82,7 +82,7 @@ var _ = Describe("Reflector tests", func() {
 			BeforeEach(func() { workers = 10 })
 			JustBeforeEach(func() {
 				// Here, we use the internal function, to retrieve the real reflector also in case no workers are set.
-				rfl = newReflector(reflectorName, NewFakeNamespacedReflector, NewFakeFallbackReflector, workers)
+				rfl = newReflector(reflectorName, NewFakeNamespacedReflector, NewFakeFallbackReflector, workers, ConcurrencyModeAll)
 			})
 			It("should return a non nil reflector", func() { Expect(rfl).ToNot(BeNil()) })
 			It("should correctly populate the reflector fields", func() {

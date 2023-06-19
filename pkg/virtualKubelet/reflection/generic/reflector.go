@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/pterm/pterm"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,6 +36,7 @@ import (
 
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/leaderelection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -63,20 +65,31 @@ type reflector struct {
 
 	namespacedFactory NamespacedReflectorFactoryFunc
 	fallbackFactory   FallbackReflectorFactoryFunc
+
+	concurrencyMode ConcurrencyMode
 }
 
+type ConcurrencyMode string
+
+const (
+	// ConcurrencyModeLeader is the concurrency mode that allows to run the reflector only on the leader node.
+	ConcurrencyModeLeader ConcurrencyMode = "leader"
+	// ConcurrencyModeAll is the concurrency mode that allows to run the reflector on all the nodes.
+	ConcurrencyModeAll ConcurrencyMode = "all"
+)
+
 // NewReflector returns a new reflector to implement the reflection towards a remote clusters, of a dummy one if no workers are specified.
-func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc, workers uint) manager.Reflector {
+func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc, workers uint, concurrencyMode ConcurrencyMode) manager.Reflector {
 	if workers == 0 {
 		// Return a dummy reflector in case no workers are specified, to avoid starting the working queue and registering the infromers.
 		return &dummyreflector{name: name}
 	}
 
-	return newReflector(name, namespaced, fallback, workers)
+	return newReflector(name, namespaced, fallback, workers, concurrencyMode)
 }
 
 // newReflector returns a new reflector to implement the reflection towards a remote clusters.
-func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc, workers uint) manager.Reflector {
+func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc, workers uint, concurrencyMode ConcurrencyMode) manager.Reflector {
 	return &reflector{
 		name:    name,
 		workers: workers,
@@ -87,6 +100,8 @@ func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallba
 
 		namespacedFactory: namespaced,
 		fallbackFactory:   fallback,
+
+		concurrencyMode: concurrencyMode,
 	}
 }
 
@@ -190,6 +205,11 @@ func (gr *reflector) processNextWorkItem() bool {
 	// put back on the workqueue and attempted again after a back-off
 	// period.
 	defer gr.workqueue.Done(key)
+
+	if gr.concurrencyMode == ConcurrencyModeLeader && !leaderelection.IsLeader() {
+		pterm.BgLightYellow.Printfln("Not leader, skipping a %s", gr.name)
+		return true
+	}
 
 	// Run the handler, passing it the item to be processed as parameter.
 	if err := gr.handle(context.Background(), key.(types.NamespacedName)); err != nil {
@@ -331,6 +351,12 @@ func (dr *dummyreflector) StartNamespace(opts *options.NamespacedOpts) {
 func (dr *dummyreflector) StopNamespace(local, remote string) {
 	klog.Infof("Skipping stopping the %v reflection between local namespace %q and remote namespace %q, as no workers are configured",
 		dr.name, local, remote)
+}
+
+// IsLeaderRestricted returns if the reflection has to be performed only by the leader (check pkg/virtualKubelet/leaderelection).
+func (dr *dummyreflector) IsLeaderRestricted() bool {
+	klog.Infof("Skipping getting IsLeaderElection value, as no workers are configured")
+	return false
 }
 
 // EnqueueAfter returns an error to convey that the current key should be reenqueued after a given duration.

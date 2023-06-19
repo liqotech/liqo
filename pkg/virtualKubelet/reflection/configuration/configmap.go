@@ -50,7 +50,7 @@ type NamespacedConfigMapReflector struct {
 
 // NewConfigMapReflector builds a ConfigMapReflector.
 func NewConfigMapReflector(workers uint) manager.Reflector {
-	return generic.NewReflector(ConfigMapReflectorName, NewNamespacedConfigMapReflector, generic.WithoutFallback(), workers)
+	return generic.NewReflector(ConfigMapReflectorName, NewNamespacedConfigMapReflector, generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
 }
 
 // RemoteConfigMapNamespacedKeyer returns a keyer associated with the given namespace,

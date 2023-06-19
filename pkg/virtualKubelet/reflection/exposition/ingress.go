@@ -51,7 +51,7 @@ type NamespacedIngressReflector struct {
 
 // NewIngressReflector returns a new IngressReflector instance.
 func NewIngressReflector(workers uint) manager.Reflector {
-	return generic.NewReflector(IngressReflectorName, NewNamespacedIngressReflector, generic.WithoutFallback(), workers)
+	return generic.NewReflector(IngressReflectorName, NewNamespacedIngressReflector, generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedIngressReflector returns a new NamespacedIngressReflector instance.
