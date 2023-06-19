@@ -53,7 +53,7 @@ type NamespacedServiceReflector struct {
 
 // NewServiceReflector returns a new ServiceReflector instance.
 func NewServiceReflector(workers uint) manager.Reflector {
-	return generic.NewReflector(ServiceReflectorName, NewNamespacedServiceReflector, generic.WithoutFallback(), workers)
+	return generic.NewReflector(ServiceReflectorName, NewNamespacedServiceReflector, generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedServiceReflector returns a new NamespacedServiceReflector instance.

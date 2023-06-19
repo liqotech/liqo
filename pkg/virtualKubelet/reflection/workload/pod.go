@@ -119,17 +119,20 @@ func NewPodReflector(
 		config:               config,
 	}
 
-	genericReflector := generic.NewReflector(PodReflectorName, reflector.NewNamespaced, reflector.NewFallback, workers)
+	genericReflector := generic.NewReflector(PodReflectorName, reflector.NewNamespaced, reflector.NewFallback, workers, generic.ConcurrencyModeAll)
 	reflector.Reflector = genericReflector
 	return reflector
 }
 
 // NewNamespaced returns a new NamespacedPodReflector instance.
 func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.NamespacedReflector {
+	var err error
 	remote := opts.RemoteFactory.Core().V1().Pods()
-	remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	_, err = remote.Informer().AddEventHandler(opts.HandlerFactory(RemoteShadowNamespacedKeyer(opts.LocalNamespace, forge.LiqoNodeName)))
+	utilruntime.Must(err)
 	remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowPods()
-	remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	_, err = remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(RemoteShadowNamespacedKeyer(opts.LocalNamespace, forge.LiqoNodeName)))
+	utilruntime.Must(err)
 	remoteSecrets := opts.RemoteFactory.Core().V1().Secrets()
 
 	reflector := &NamespacedPodReflector{

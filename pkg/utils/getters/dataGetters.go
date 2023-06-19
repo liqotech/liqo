@@ -38,6 +38,20 @@ type NetworkConfig struct {
 	ReservedSubnets []string
 }
 
+// RetrieveRemoteCLusterIDFromNode retrieves the remote cluster ID from a given node object.
+// If the node has no RemoteCLusterID label, it returns a void string without error.
+func RetrieveRemoteCLusterIDFromNode(node *corev1.Node) (string, error) {
+	nodeLabels := node.GetLabels()
+	if nodeLabels == nil {
+		return "", errors.New("node has no labels")
+	}
+	remoteClusterID, ok := nodeLabels[liqoconsts.RemoteClusterID]
+	if !ok {
+		return "", nil
+	}
+	return remoteClusterID, nil
+}
+
 // RetrieveClusterIDFromConfigMap retrieves ClusterIdentity from a given configmap.
 func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (*discoveryv1alpha1.ClusterIdentity, error) {
 	id, found := cm.Data[liqoconsts.ClusterIDConfigMapKey]

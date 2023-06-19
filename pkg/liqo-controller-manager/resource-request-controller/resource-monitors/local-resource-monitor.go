@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pterm/pterm"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -241,7 +240,6 @@ func (m *LocalResourceMonitor) ReadResources(_ context.Context, clusterID string
 	// TODO: support multiple offers
 	resources := make([]*ResourceList, 1)
 	for k, v := range toRead {
-		pterm.FgGreen.Println("Resource: ", k.String(), " - ", v.String())
 		vCopy := v.DeepCopy()
 		if resources[0] == nil {
 			resources[0] = &ResourceList{}

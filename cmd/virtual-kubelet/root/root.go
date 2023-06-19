@@ -36,6 +36,7 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/leaderelection"
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	metrics "github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
@@ -132,9 +133,22 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	eb := record.NewBroadcaster()
 	eb.StartRecordingToSink(&corev1clients.EventSinkImpl{Interface: localClient.CoreV1().Events(corev1.NamespaceAll)})
 
+	if err := leaderelection.InitAndRun(c.TenantNamespace, localConfig, c.PodName, eb); err != nil {
+		return err
+	}
+
 	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg, eb)
 	if err != nil {
 		return err
+	}
+
+	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, remoteConfig, c)
+	if err != nil {
+		return errors.Wrap(err, "error while setting up HTTPS server")
+	}
+
+	if c.EnableMetrics {
+		metrics.SetupMetricHandler(c.MetricsAddress)
 	}
 
 	// Initialize the node provider
@@ -206,18 +220,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		if err != nil {
 			return err
 		}
-	}
 
-	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, remoteConfig, c)
-	if err != nil {
-		return errors.Wrap(err, "error while setting up HTTPS server")
-	}
-
-	if c.EnableMetrics {
-		metrics.SetupMetricHandler(c.MetricsAddress)
-	}
-
-	if c.CreateNode {
 		go func() {
 			if err := nodeRunner.Run(ctx); err != nil {
 				klog.Error(err, "error in pod controller running")

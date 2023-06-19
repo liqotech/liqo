@@ -22,18 +22,20 @@ import (
 
 // Reflector implements a fake Reflector for testing purposes.
 type Reflector struct {
-	Started          bool
-	Opts             *options.ReflectorOpts
-	NamespaceStarted map[string]*options.NamespacedOpts
-	NamespaceStopped map[string]string
-	NamespaceReady   map[string]func() bool
+	Started            bool
+	Opts               *options.ReflectorOpts
+	NamespaceStarted   map[string]*options.NamespacedOpts
+	NamespaceStopped   map[string]string
+	NamespaceReady     map[string]func() bool
+	isLeaderRestricted bool
 }
 
 // NewReflector returns a new fake Reflector.
-func NewReflector() *Reflector {
+func NewReflector(isLeaderRestricted bool) *Reflector {
 	return &Reflector{
-		NamespaceStarted: make(map[string]*options.NamespacedOpts),
-		NamespaceStopped: make(map[string]string),
+		NamespaceStarted:   make(map[string]*options.NamespacedOpts),
+		NamespaceStopped:   make(map[string]string),
+		isLeaderRestricted: isLeaderRestricted,
 	}
 }
 
@@ -51,4 +53,9 @@ func (r *Reflector) StartNamespace(opts *options.NamespacedOpts) {
 // StopNamespace marks the given namespace as stopped, and stores the remote namespace name.
 func (r *Reflector) StopNamespace(local, remote string) {
 	r.NamespaceStopped[local] = remote
+}
+
+// IsLeaderRestricted returns whether the reflector is restricted to the leader.
+func (r *Reflector) IsLeaderRestricted() bool {
+	return r.isLeaderRestricted
 }

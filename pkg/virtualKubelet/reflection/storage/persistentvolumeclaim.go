@@ -71,7 +71,7 @@ func NewPersistentVolumeClaimReflector(workers uint,
 	virtualStorageClassName, remoteRealStorageClassName string, storageEnabled bool) manager.Reflector {
 	return generic.NewReflector(PersistentVolumeClaimReflectorName,
 		NewNamespacedPersistentVolumeClaimReflector(virtualStorageClassName, remoteRealStorageClassName, storageEnabled),
-		generic.WithoutFallback(), workers)
+		generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedPersistentVolumeClaimReflector returns a function generating NamespacedPersistentVolumeClaimReflector instances.

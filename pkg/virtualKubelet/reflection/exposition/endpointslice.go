@@ -55,6 +55,7 @@ const (
 type NamespacedEndpointSliceReflector struct {
 	generic.NamespacedReflector
 
+	localNodeClient                  corev1listers.NodeLister
 	localServices                    corev1listers.ServiceNamespaceLister
 	localEndpointSlices              discoveryv1listers.EndpointSliceNamespaceLister
 	remoteShadowEndpointSlices       vkv1alpha1listers.ShadowEndpointSliceNamespaceLister
@@ -66,24 +67,26 @@ type NamespacedEndpointSliceReflector struct {
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
 func NewEndpointSliceReflector(ipamclient ipam.IpamClient, workers uint) manager.Reflector {
-	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient), generic.WithoutFallback(), workers)
+	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient), generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedEndpointSliceReflector returns a function generating NamespacedEndpointSliceReflector instances.
 func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*options.NamespacedOpts) manager.NamespacedReflector {
 	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
+		localNode := opts.LocalFactory.Core().V1().Nodes()
 		localServices := opts.LocalFactory.Core().V1().Services()
-		local := opts.LocalFactory.Discovery().V1().EndpointSlices()
+		localEndpointSlices := opts.LocalFactory.Discovery().V1().EndpointSlices()
 		remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowEndpointSlices()
 
-		local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		localEndpointSlices.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		_, err := remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		utilruntime.Must(err)
 
 		ner := &NamespacedEndpointSliceReflector{
 			NamespacedReflector:              generic.NewNamespacedReflector(opts, EndpointSliceReflectorName),
+			localNodeClient:                  localNode.Lister(),
 			localServices:                    localServices.Lister().Services(opts.LocalNamespace),
-			localEndpointSlices:              local.Lister().EndpointSlices(opts.LocalNamespace),
+			localEndpointSlices:              localEndpointSlices.Lister().EndpointSlices(opts.LocalNamespace),
 			remoteShadowEndpointSlices:       remoteShadow.Lister().ShadowEndpointSlices(opts.RemoteNamespace),
 			remoteShadowEndpointSlicesClient: opts.RemoteLiqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(opts.RemoteNamespace),
 			ipamclient:                       ipamclient,
@@ -174,7 +177,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		return translations
 	}
 
-	target := forge.RemoteShadowEndpointSlice(local, remote, ner.RemoteNamespace(), translator)
+	target := forge.RemoteShadowEndpointSlice(local, remote, ner.localNodeClient, ner.RemoteNamespace(), translator)
 	if terr != nil {
 		klog.Errorf("Reflection of local EndpointSlice %q to %q failed: %v", ner.LocalRef(name), ner.RemoteRef(name), terr)
 		ner.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(terr))

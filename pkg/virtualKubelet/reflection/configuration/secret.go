@@ -50,7 +50,7 @@ type NamespacedSecretReflector struct {
 
 // NewSecretReflector builds a SecretReflector.
 func NewSecretReflector(enableSAReflection bool, workers uint) manager.Reflector {
-	return generic.NewReflector(SecretReflectorName, NewNamespacedSecretReflector(enableSAReflection), generic.WithoutFallback(), workers)
+	return generic.NewReflector(SecretReflectorName, NewNamespacedSecretReflector(enableSAReflection), generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedSecretReflector returns a function generating NamespacedSecretReflector instances.

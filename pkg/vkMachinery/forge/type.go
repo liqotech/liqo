@@ -49,6 +49,7 @@ const (
 	ForeignClusterID VirtualKubeletOptsFlag = "--foreign-cluster-id"
 	// ForeignClusterName is the flag used to specify the foreign cluster name.
 	ForeignClusterName VirtualKubeletOptsFlag = "--foreign-cluster-name"
+	//nolint:gosec // we are not using this flag to store sensitive data
 	// ForeignClusterKubeconfigSecretName is the flag used to specify the foreign cluster kubeconfig secret name.
 	ForeignClusterKubeconfigSecretName VirtualKubeletOptsFlag = "--foreign-kubeconfig-secret-name"
 	// NodeName is the flag used to specify the node name.

@@ -44,7 +44,7 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 		klog.Errorf("%s -> unable to retrieve NamespaceMap %q", err, nm.Name)
 		return err
 	} else if err == nil {
-		klog.Infof("NamespaceMap %q already exists in namespace %s", nm.Name, nm.Namespace)
+		klog.V(4).Infof("NamespaceMap %q already exists in namespace %s", nm.Name, nm.Namespace)
 		return nil
 	}
 

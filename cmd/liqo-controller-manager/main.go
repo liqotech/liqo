@@ -506,7 +506,6 @@ func main() {
 		}
 	}
 
-	klog.Info("DEVELOPMENT VERSION")
 	klog.Info("starting manager as controller manager")
 	if err := mgr.Start(ctx); err != nil {
 		klog.Error(err)

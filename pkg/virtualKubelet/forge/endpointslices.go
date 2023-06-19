@@ -19,9 +19,12 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	corev1listers "k8s.io/client-go/listers/core/v1"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // EndpointSliceManagedBy -> The manager associated with the reflected EndpointSlices.
@@ -41,12 +44,32 @@ func IsEndpointSliceManagedByReflection(obj metav1.Object) bool {
 }
 
 // EndpointToBeReflected filters out the endpoints targeting pods already running on the remote cluster.
-func EndpointToBeReflected(endpoint *discoveryv1.Endpoint) bool {
-	return !pointer.StringEqual(endpoint.NodeName, &LiqoNodeName)
+func EndpointToBeReflected(endpoint *discoveryv1.Endpoint, localNodeClient corev1listers.NodeLister) bool {
+	epNode, err := localNodeClient.Get(*endpoint.NodeName)
+	if err != nil {
+		klog.Errorf("Unable to retrieve node %s: %s", *endpoint.NodeName, err.Error())
+		return false
+	}
+	vkNode, err := localNodeClient.Get(LiqoNodeName)
+	if err != nil {
+		klog.Errorf("Unable to retrieve node %s: %s", LiqoNodeName, err.Error())
+		return false
+	}
+	vkRemoteClusterID, err := getters.RetrieveRemoteCLusterIDFromNode(epNode)
+	if err != nil {
+		klog.Errorf("Unable to retrieve remote cluster ID from node %s: %s", epNode.GetName(), err.Error())
+		return false
+	}
+	nodeRemoteClusterID, err := getters.RetrieveRemoteCLusterIDFromNode(vkNode)
+	if err != nil {
+		klog.Errorf("Unable to retrieve remote cluster ID from node %s: %s", vkNode.GetName(), err.Error())
+		return false
+	}
+	return !pointer.StringEqual(&nodeRemoteClusterID, &vkRemoteClusterID)
 }
 
 // RemoteShadowEndpointSlice forges the remote shadowendpointslice, given the local endpointslice.
-func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *vkv1alpha1.ShadowEndpointSlice, targetNamespace string,
+func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *vkv1alpha1.ShadowEndpointSlice, localNodeClient corev1listers.NodeLister, targetNamespace string,
 	translator EndpointTranslator) *vkv1alpha1.ShadowEndpointSlice {
 	if remote == nil {
 		// The remote is nil if not already created.
@@ -58,7 +81,7 @@ func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *vkv1alp
 		Spec: vkv1alpha1.ShadowEndpointSliceSpec{
 			Template: vkv1alpha1.EndpointSliceTemplate{
 				AddressType: local.AddressType,
-				Endpoints:   RemoteEndpointSliceEndpoints(local.Endpoints, translator),
+				Endpoints:   RemoteEndpointSliceEndpoints(local.Endpoints, localNodeClient, translator),
 				Ports:       RemoteEndpointSlicePorts(local.Ports),
 			},
 		},
@@ -74,12 +97,12 @@ func RemoteEndpointSliceObjectMeta(local, remote *metav1.ObjectMeta) metav1.Obje
 }
 
 // RemoteEndpointSliceEndpoints forges the endpoints of the reflected endpointslice, given the local ones.
-func RemoteEndpointSliceEndpoints(locals []discoveryv1.Endpoint,
+func RemoteEndpointSliceEndpoints(locals []discoveryv1.Endpoint, localNodeClient corev1listers.NodeLister,
 	translator EndpointTranslator) []discoveryv1.Endpoint {
 	var remotes []discoveryv1.Endpoint
 
 	for i := range locals {
-		if !EndpointToBeReflected(&locals[i]) {
+		if !EndpointToBeReflected(&locals[i], localNodeClient) {
 			// Skip the endpoints referring to the target node (as natively present).
 			continue
 		}

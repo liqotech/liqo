@@ -84,9 +84,10 @@ func RemoteSecret(local *corev1.Secret, targetNamespace string) *corev1apply.Sec
 }
 
 // RemoteServiceAccountSecret forges the apply patch for the secret containing the service account token, given the token request.
-func RemoteServiceAccountSecret(tokens *ServiceAccountPodTokens, targetName, targetNamespace string) *corev1apply.SecretApplyConfiguration {
+func RemoteServiceAccountSecret(tokens *ServiceAccountPodTokens, targetName, targetNamespace, nodename string) *corev1apply.SecretApplyConfiguration {
 	return corev1apply.Secret(targetName, targetNamespace).
 		WithLabels(ReflectionLabels()).WithLabels(RemoteServiceAccountSecretLabels(tokens)).
+		WithLabels(map[string]string{LiqoOriginClusterNodeName: nodename}).
 		WithAnnotations(RemoteServiceAccountSecretAnnotations(tokens)).
 		WithStringData(tokens.TokensForSecret()).
 		WithType(corev1.SecretTypeOpaque).
