@@ -154,9 +154,13 @@ var _ = BeforeEach(func() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      localPvcName,
 			Namespace: LocalNamespace,
+			Labels: map[string]string{
+				testutil.FakeNotReflectedLabelKey: "true",
+			},
 			Annotations: map[string]string{
-				annStorageProvisioner: consts.StorageProvisionerName,
-				annSelectedNode:       RealNodeName,
+				annStorageProvisioner:             consts.StorageProvisionerName,
+				annSelectedNode:                   RealNodeName,
+				testutil.FakeNotReflectedAnnotKey: "true",
 			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
@@ -218,7 +222,8 @@ var _ = JustBeforeEach(func() {
 	options := options.NewNamespaced().
 		WithLocal(LocalNamespace, k8sClient, factory).
 		WithRemote(RemoteNamespace, k8sClient, factory).
-		WithHandlerFactory(FakeEventHandler).WithEventBroadcaster(record.NewBroadcaster())
+		WithHandlerFactory(FakeEventHandler).WithEventBroadcaster(record.NewBroadcaster()).
+		WithForgingOpts(testutil.FakeForgingOpts())
 
 	reflector = reflectorBuilder(options).(*NamespacedPersistentVolumeClaimReflector)
 	Expect(reflector).ToNot(BeNil())

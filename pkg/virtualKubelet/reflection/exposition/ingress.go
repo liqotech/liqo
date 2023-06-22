@@ -121,7 +121,7 @@ func (nir *NamespacedIngressReflector) Handle(ctx context.Context, name string) 
 	}
 
 	// Forge the mutation to be applied to the remote cluster.
-	mutation := forge.RemoteIngress(local, nir.RemoteNamespace())
+	mutation := forge.RemoteIngress(local, nir.RemoteNamespace(), nir.ForgingOpts)
 	tracer.Step("Remote mutation created")
 
 	defer tracer.Step("Enforced the correctness of the remote object")

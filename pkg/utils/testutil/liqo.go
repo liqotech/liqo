@@ -27,6 +27,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 // FakeLiqoAuthService returns a fake liqo-auth service.
@@ -246,5 +247,13 @@ func FakeNetworkConfig(local bool, clusterName, tenantNamespace,
 			PodCIDRNAT:      podCIDRNAT,
 			ExternalCIDRNAT: extCIDRNAT,
 		},
+	}
+}
+
+// FakeForgingOpts returns a fake ForgingOpts.
+func FakeForgingOpts() *forge.ForgingOpts {
+	return &forge.ForgingOpts{
+		LabelsNotReflected:      []string{FakeNotReflectedLabelKey},
+		AnnotationsNotReflected: []string{FakeNotReflectedAnnotKey},
 	}
 }

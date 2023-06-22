@@ -115,6 +115,8 @@
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods. |
+| reflection.skip.annotations | list | `["metallb.universe.tf/ip-allocated-from-pool","metallb.universe.tf/loadBalancerIPs","metallb.universe.tf/address-pool"]` | List of annotations that must not be reflected on remote clusters. |
+| reflection.skip.labels | list | `[]` | List of labels that must not be reflected on remote clusters. |
 | route.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the route pod. |
 | route.pod.annotations | object | `{}` | Annotations for the route pod. |
 | route.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |

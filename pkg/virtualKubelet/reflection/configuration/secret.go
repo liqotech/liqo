@@ -137,7 +137,7 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 	}
 
 	// Forge the mutation to be applied to the remote cluster.
-	mutation := forge.RemoteSecret(local, nsr.RemoteNamespace())
+	mutation := forge.RemoteSecret(local, nsr.RemoteNamespace(), nsr.ForgingOpts)
 	tracer.Step("Remote mutation created")
 
 	defer tracer.Step("Enforced the correctness of the remote object")

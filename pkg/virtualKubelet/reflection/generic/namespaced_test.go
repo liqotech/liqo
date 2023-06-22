@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
 
@@ -40,15 +41,21 @@ var _ = Describe("NamespacedReflector tests", func() {
 
 	Context("the NewNamespacedReflector function", func() {
 		var (
-			nsrfl NamespacedReflector
-			ready bool
+			nsrfl       NamespacedReflector
+			ready       bool
+			forgingOpts *forge.ForgingOpts
 		)
 
-		BeforeEach(func() { ready = false })
+		BeforeEach(func() {
+			ready = false
+			forgingOpts = &forge.ForgingOpts{}
+		})
+
 		JustBeforeEach(func() {
 			opts := options.NamespacedOpts{
 				LocalNamespace: localNamespace, RemoteNamespace: remoteNamespace,
 				Ready: func() bool { return ready }, EventBroadcaster: record.NewBroadcaster(),
+				ForgingOpts: forgingOpts,
 			}
 			nsrfl = NewNamespacedReflector(&opts, name)
 		})
@@ -58,6 +65,7 @@ var _ = Describe("NamespacedReflector tests", func() {
 			Expect(nsrfl.local).To(BeIdenticalTo(localNamespace))
 			Expect(nsrfl.remote).To(BeIdenticalTo(remoteNamespace))
 			Expect(nsrfl.ready).ToNot(BeNil())
+			Expect(nsrfl.ForgingOpts).To(BeIdenticalTo(forgingOpts))
 		})
 
 		Context("the readiness property", func() {

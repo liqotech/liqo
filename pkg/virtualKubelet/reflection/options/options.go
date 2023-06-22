@@ -26,6 +26,7 @@ import (
 
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 // Keyer retrieves a set of NamespacedNames referring to the reconciliation targets from the object metadata.
@@ -87,6 +88,8 @@ type NamespacedOpts struct {
 
 	Ready          func() bool
 	HandlerFactory func(Keyer, ...EventFilter) cache.ResourceEventHandler
+
+	ForgingOpts *forge.ForgingOpts
 }
 
 // NewNamespaced returns a new NamespacedOpts object.
@@ -139,6 +142,12 @@ func (ro *NamespacedOpts) WithReadinessFunc(ready func() bool) *NamespacedOpts {
 // WithEventBroadcaster configures the event broadcaster of the NamespacedOpts.
 func (ro *NamespacedOpts) WithEventBroadcaster(broadcaster record.EventBroadcaster) *NamespacedOpts {
 	ro.EventBroadcaster = broadcaster
+	return ro
+}
+
+// WithForgingOpts configures the reflection options of the NamespacedOpts.
+func (ro *NamespacedOpts) WithForgingOpts(opts *forge.ForgingOpts) *NamespacedOpts {
+	ro.ForgingOpts = opts
 	return ro
 }
 

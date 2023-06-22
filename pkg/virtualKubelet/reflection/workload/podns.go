@@ -217,7 +217,7 @@ func (npr *NamespacedPodReflector) Handle(ctx context.Context, name string) erro
 	info.PreventCreationUntilSeen = false
 
 	// The local pod is currently running, and it is necessary to enforce its presence in the remote cluster.
-	target, terr := npr.ForgeShadowPod(ctx, local, shadow, info)
+	target, terr := npr.ForgeShadowPod(ctx, local, shadow, info, npr.ForgingOpts)
 	if terr != nil {
 		klog.Errorf("Reflection of local pod %q to %q failed: %v", npr.LocalRef(local.GetName()), npr.RemoteRef(local.GetName()), terr)
 		npr.Event(local, corev1.EventTypeWarning, forge.EventFailedReflection, forge.EventFailedReflectionMsg(terr))
@@ -298,7 +298,7 @@ func (npr *NamespacedPodReflector) HandleLabels(ctx context.Context, local *core
 
 // ForgeShadowPod forges the ShadowPod object to be enforced by the reflection process.
 func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *corev1.Pod,
-	shadow *vkv1alpha1.ShadowPod, info *PodInfo) (*vkv1alpha1.ShadowPod, error) {
+	shadow *vkv1alpha1.ShadowPod, info *PodInfo, forgingOpts *forge.ForgingOpts) (*vkv1alpha1.ShadowPod, error) {
 	var saerr, kserr error
 
 	// Wrap the secret name retrieval from the service account, so that we do not have to handle errors in the forge logic.
@@ -325,7 +325,7 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 	}
 
 	// Forge the target shadowpod object.
-	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(),
+	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(), forgingOpts,
 		forge.APIServerSupportMutator(npr.config.APIServerSupport, local.Annotations, pod.ServiceAccountName(local),
 			saSecretRetriever, ipGetter, npr.config.HomeAPIServerHost, npr.config.HomeAPIServerPort),
 		forge.ServiceAccountMutator(npr.config.APIServerSupport, local.Annotations))

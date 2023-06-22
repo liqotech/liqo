@@ -23,6 +23,7 @@ import (
 	netv1apply "k8s.io/client-go/applyconfigurations/networking/v1"
 	"k8s.io/utils/pointer"
 
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -74,8 +75,9 @@ var _ = Describe("Ingresses Forging", func() {
 
 	Describe("the RemoteIngress function", func() {
 		var (
-			input  *netv1.Ingress
-			output *netv1apply.IngressApplyConfiguration
+			input       *netv1.Ingress
+			output      *netv1apply.IngressApplyConfiguration
+			forgingOpts *forge.ForgingOpts
 		)
 
 		BeforeEach(func() {
@@ -86,10 +88,11 @@ var _ = Describe("Ingresses Forging", func() {
 					Annotations: map[string]string{"bar": "baz", "kubernetes.io/ingress.class": "nginx"},
 				},
 			}
+			forgingOpts = testutil.FakeForgingOpts()
 			ForgeIngressSpec(input)
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteIngress(input, "reflected") })
+		JustBeforeEach(func() { output = forge.RemoteIngress(input, "reflected", forgingOpts) })
 
 		It("should correctly set the name and namespace", func() {
 			Expect(output.Name).To(PointTo(Equal("name")))
@@ -100,10 +103,12 @@ var _ = Describe("Ingresses Forging", func() {
 			Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
 			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+			Expect(output.Labels).ToNot(HaveKey(testutil.FakeNotReflectedLabelKey))
 		})
 		It("should correctly set the annotations", func() {
 			Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
 			Expect(output.Annotations).ToNot(HaveKey("kubernetes.io/ingress.class"))
+			Expect(output.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
 		})
 		It("should correctly set the spec", func() {
 			Expect(output.Spec.DefaultBackend).To(PointTo(Equal(netv1apply.IngressBackendApplyConfiguration{

@@ -67,3 +67,17 @@ func ApplyOptions() metav1.ApplyOptions {
 		FieldManager: ReflectionFieldManager,
 	}
 }
+
+// ForgingOpts contains options to forge the reflected resources.
+type ForgingOpts struct {
+	LabelsNotReflected      []string
+	AnnotationsNotReflected []string
+}
+
+// NewForgingOpts returns a new ForgingOpts instance.
+func NewForgingOpts(labelsNotReflected, annotationsNotReflected []string) ForgingOpts {
+	return ForgingOpts{
+		LabelsNotReflected:      labelsNotReflected,
+		AnnotationsNotReflected: annotationsNotReflected,
+	}
+}

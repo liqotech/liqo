@@ -27,30 +27,34 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/utils/pointer"
 
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 var _ = Describe("Secrets Forging", func() {
 	Describe("the RemoteSecret function", func() {
 		var (
-			input  *corev1.Secret
-			output *corev1apply.SecretApplyConfiguration
+			input       *corev1.Secret
+			output      *corev1apply.SecretApplyConfiguration
+			forgingOpts *forge.ForgingOpts
 		)
 
 		BeforeEach(func() {
 			input = &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "name", Namespace: "original",
-					Labels:      map[string]string{"foo": "bar"},
-					Annotations: map[string]string{"bar": "baz"},
+					Labels:      map[string]string{"foo": "bar", testutil.FakeNotReflectedLabelKey: "true"},
+					Annotations: map[string]string{"bar": "baz", testutil.FakeNotReflectedAnnotKey: "true"},
 				},
 				Data:      map[string][]byte{"data-key": []byte("ABC")},
 				Type:      corev1.SecretTypeBasicAuth,
 				Immutable: pointer.Bool(true),
 			}
+
+			forgingOpts = testutil.FakeForgingOpts()
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteSecret(input, "reflected") })
+		JustBeforeEach(func() { output = forge.RemoteSecret(input, "reflected", forgingOpts) })
 
 		It("should correctly set the name and namespace", func() {
 			Expect(output.Name).To(PointTo(Equal("name")))
@@ -61,10 +65,12 @@ var _ = Describe("Secrets Forging", func() {
 			Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
 			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+			Expect(output.Labels).ToNot(HaveKey(testutil.FakeNotReflectedLabelKey))
 		})
 
 		It("should correctly set the annotations", func() {
 			Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
+			Expect(output.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
 		})
 
 		It("should correctly set the data", func() {

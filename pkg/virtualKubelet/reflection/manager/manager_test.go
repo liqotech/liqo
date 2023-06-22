@@ -36,12 +36,14 @@ var _ = Describe("Manager tests", func() {
 	)
 
 	var (
-		mgr              Manager
-		localClient      kubernetes.Interface
-		remoteClient     kubernetes.Interface
-		localLiqoClient  liqoclient.Interface
-		remoteLiqoClient liqoclient.Interface
-		broadcaster      record.EventBroadcaster
+		mgr                     Manager
+		localClient             kubernetes.Interface
+		remoteClient            kubernetes.Interface
+		localLiqoClient         liqoclient.Interface
+		remoteLiqoClient        liqoclient.Interface
+		broadcaster             record.EventBroadcaster
+		labelsNotReflected      []string
+		annotationsNotReflected []string
 
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -58,7 +60,7 @@ var _ = Describe("Manager tests", func() {
 	AfterEach(func() { cancel() })
 
 	JustBeforeEach(func() {
-		mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour, broadcaster)
+		mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour, broadcaster, labelsNotReflected, annotationsNotReflected)
 	})
 
 	Context("a new manager is created", func() {
@@ -78,6 +80,8 @@ var _ = Describe("Manager tests", func() {
 
 			Expect(mgr.(*manager).started).To(BeFalse())
 			Expect(mgr.(*manager).stop).ToNot(BeNil())
+
+			Expect(mgr.(*manager).forgingOpts).ToNot(BeNil())
 		})
 
 		Context("a NamespaceMapEventHandler is registered", func() {
@@ -153,6 +157,7 @@ var _ = Describe("Manager tests", func() {
 						Expect(opts.EventBroadcaster).To(Equal(broadcaster))
 						Expect(opts.Ready).ToNot(BeNil())
 						Expect(opts.HandlerFactory).To(BeNil())
+						Expect(opts.ForgingOpts).ToNot(BeNil())
 					})
 					It("should eventually mark the namespace as ready", func() {
 						Eventually(reflector.NamespaceStarted[localNamespace].Ready).Should(BeTrue())

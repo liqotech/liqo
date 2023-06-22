@@ -64,6 +64,14 @@ func forgeVKContainers(
 				getDefaultStorageClass(storageClasses).StorageClassName))
 	}
 
+	if len(opts.LabelsNotReflected) > 0 {
+		args = append(args, stringifyArgument(string(LabelsNotReflected), strings.Join(opts.LabelsNotReflected, ",")))
+	}
+
+	if len(opts.AnnotationsNotReflected) > 0 {
+		args = append(args, stringifyArgument(string(AnnotationsNotReflected), strings.Join(opts.AnnotationsNotReflected, ",")))
+	}
+
 	if extraAnnotations := opts.NodeExtraAnnotations.StringMap; len(extraAnnotations) != 0 {
 		args = append(args, stringifyArgument(string(NodeExtraAnnotations), opts.NodeExtraAnnotations.String()))
 	}

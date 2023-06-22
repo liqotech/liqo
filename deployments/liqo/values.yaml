@@ -18,6 +18,17 @@ networking:
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
 
+reflection:
+  skip:
+    # -- List of labels that must not be reflected on remote clusters.
+    labels: []
+    # -- List of annotations that must not be reflected on remote clusters.
+    annotations: [
+      metallb.universe.tf/ip-allocated-from-pool,
+      metallb.universe.tf/loadBalancerIPs,
+      metallb.universe.tf/address-pool,
+    ]
+
 controllerManager:
   # -- The number of controller-manager instances to run, which can be increased for active/passive high availability.
   replicas: 1

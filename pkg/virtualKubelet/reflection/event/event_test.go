@@ -166,7 +166,8 @@ var _ = Describe("Event Reflection Tests", func() {
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
-				WithEventBroadcaster(record.NewBroadcaster()))
+				WithEventBroadcaster(record.NewBroadcaster()).
+				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())
@@ -181,8 +182,8 @@ var _ = Describe("Event Reflection Tests", func() {
 
 		When("the remote object does exist", func() {
 			BeforeEach(func() {
-				remote.SetLabels(map[string]string{"foo": "bar"})
-				remote.SetAnnotations(map[string]string{"bar": "baz"})
+				remote.SetLabels(map[string]string{"foo": "bar", FakeNotReflectedLabelKey: "true"})
+				remote.SetAnnotations(map[string]string{"bar": "baz", FakeNotReflectedAnnotKey: "true"})
 				ForgeEvent(&remote, true)
 				CreateEvent(&remote)
 			})
@@ -194,7 +195,9 @@ var _ = Describe("Event Reflection Tests", func() {
 					Expect(localAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 					Expect(localAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 					Expect(localAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+					Expect(localAfter.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
 					Expect(localAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
+					Expect(localAfter.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
 				})
 				It("the spec should have been correctly replicated to the local object", func() {
 					localAfter := GetEvent(LocalNamespace)

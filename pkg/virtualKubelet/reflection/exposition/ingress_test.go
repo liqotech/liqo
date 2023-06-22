@@ -22,6 +22,7 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
@@ -112,7 +113,8 @@ var _ = Describe("Ingress Reflection Tests", func() {
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
-				WithEventBroadcaster(record.NewBroadcaster()))
+				WithEventBroadcaster(record.NewBroadcaster()).
+				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())
@@ -127,8 +129,8 @@ var _ = Describe("Ingress Reflection Tests", func() {
 
 		When("the local object does exist", func() {
 			BeforeEach(func() {
-				local.SetLabels(map[string]string{"foo": "bar"})
-				local.SetAnnotations(map[string]string{"bar": "baz"})
+				local.SetLabels(map[string]string{"foo": "bar", FakeNotReflectedLabelKey: "true"})
+				local.SetAnnotations(map[string]string{"bar": "baz", FakeNotReflectedAnnotKey: "true"})
 				ForgeIngressSpec(&local)
 				CreateIngress(&local)
 			})
@@ -140,7 +142,9 @@ var _ = Describe("Ingress Reflection Tests", func() {
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+					Expect(remoteAfter.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
+					Expect(remoteAfter.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
 				})
 				It("the spec should have been correctly replicated to the remote object", func() {
 					remoteAfter := GetIngress(RemoteNamespace)
@@ -151,8 +155,8 @@ var _ = Describe("Ingress Reflection Tests", func() {
 
 			When("the remote object already exists", func() {
 				BeforeEach(func() {
-					remote.SetLabels(forge.ReflectionLabels())
-					remote.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing"})
+					remote.SetLabels(labels.Merge(forge.ReflectionLabels(), map[string]string{FakeNotReflectedLabelKey: "true"}))
+					remote.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing", FakeNotReflectedAnnotKey: "true"})
 					ForgeIngressSpec(&remote)
 					CreateIngress(&remote)
 				})
@@ -163,8 +167,10 @@ var _ = Describe("Ingress Reflection Tests", func() {
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+					Expect(remoteAfter.Labels).To(HaveKey(FakeNotReflectedLabelKey))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("existing", "existing"))
+					Expect(remoteAfter.Annotations).To(HaveKey(FakeNotReflectedAnnotKey))
 				})
 				It("the spec should have been correctly replicated to the remote object", func() {
 					remoteAfter := GetIngress(RemoteNamespace)

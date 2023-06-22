@@ -27,6 +27,7 @@ import (
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -63,24 +64,27 @@ var _ = Describe("EndpointSlices Forging", func() {
 
 	Describe("the RemoteEndpointSlice function", func() {
 		var (
-			input  *discoveryv1.EndpointSlice
-			output *vkv1alpha1.ShadowEndpointSlice
+			input       *discoveryv1.EndpointSlice
+			output      *vkv1alpha1.ShadowEndpointSlice
+			forgingOpts *forge.ForgingOpts
 		)
 
 		BeforeEach(func() {
 			input = &discoveryv1.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "name", Namespace: "original",
-					Labels:      map[string]string{"foo": "bar"},
-					Annotations: map[string]string{"bar": "baz"},
+					Labels:      map[string]string{"foo": "bar", testutil.FakeNotReflectedLabelKey: "true"},
+					Annotations: map[string]string{"bar": "baz", testutil.FakeNotReflectedAnnotKey: "true"},
 				},
 				AddressType: discoveryv1.AddressTypeFQDN,
 				Endpoints:   []discoveryv1.Endpoint{{Hostname: pointer.String("Test")}},
 				Ports:       []discoveryv1.EndpointPort{{Name: pointer.String("HTTPS")}},
 			}
 
+			forgingOpts = testutil.FakeForgingOpts()
+
 			JustBeforeEach(func() {
-				output = forge.RemoteShadowEndpointSlice(input, output, &FakeNodeLister{}, "reflected", Translator)
+				output = forge.RemoteShadowEndpointSlice(input, output, &FakeNodeLister{}, "reflected", Translator, forgingOpts)
 			})
 
 			It("should correctly set the name and namespace", func() {
@@ -93,9 +97,11 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 				Expect(output.Labels).To(HaveKeyWithValue(discoveryv1.LabelManagedBy, forge.EndpointSliceManagedBy))
+				Expect(output.Labels).ToNot(HaveKey(testutil.FakeNotReflectedLabelKey))
 			})
 			It("should correctly set the annotations", func() {
 				Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
+				Expect(output.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
 			})
 			It("should correctly set the address type", func() {
 				Expect(output.Spec.Template.AddressType).To(PointTo(Equal(discoveryv1.AddressTypeFQDN)))

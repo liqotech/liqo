@@ -55,11 +55,13 @@ type manager struct {
 
 	started bool
 	stop    map[string]context.CancelFunc
+
+	forgingOpts forge.ForgingOpts
 }
 
 // New returns a new manager to start the reflection towards a remote cluster.
 func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.Interface, resync time.Duration,
-	eb record.EventBroadcaster) Manager {
+	eb record.EventBroadcaster, labelsNotReflected, annotationsNotReflected []string) Manager {
 	// Configure the field selector to retrieve only the pods scheduled on the current virtual node.
 	localPodTweakListOptions := func(opts *metav1.ListOptions) {
 		opts.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", forge.LiqoNodeName).String()
@@ -79,6 +81,8 @@ func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.In
 
 		started: false,
 		stop:    make(map[string]context.CancelFunc),
+
+		forgingOpts: forge.NewForgingOpts(labelsNotReflected, annotationsNotReflected),
 	}
 }
 
@@ -172,7 +176,8 @@ func (m *manager) StartNamespace(local, remote string) {
 		opts := options.NewNamespaced().
 			WithLocal(local, m.local, localFactory).WithLiqoLocal(m.localLiqo, localLiqoFactory).
 			WithRemote(remote, m.remote, remoteFactory).WithLiqoRemote(m.remoteLiqo, remoteLiqoFactory).
-			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster)
+			WithReadinessFunc(func() bool { return ready }).WithEventBroadcaster(m.eventBroadcaster).
+			WithForgingOpts(&m.forgingOpts)
 		reflector.StartNamespace(opts)
 	}
 

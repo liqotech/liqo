@@ -31,6 +31,7 @@ import (
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -139,32 +140,45 @@ var _ = Describe("Pod forging", func() {
 		var (
 			local          *corev1.Pod
 			remote, output *vkv1alpha1.ShadowPod
+			forgingOpts    *forge.ForgingOpts
 		)
 
 		Mutator := func(remote *corev1.PodSpec) {
-			remote.ActiveDeadlineSeconds = pointer.Int64Ptr(99)
+			remote.ActiveDeadlineSeconds = pointer.Int64(99)
 		}
 
 		BeforeEach(func() {
 			local = &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "local-name", Namespace: "local-namespace",
-					Labels: map[string]string{"foo": "bar", consts.LocalPodLabelKey: consts.LocalPodLabelValue}},
+					Labels: map[string]string{
+						"foo":                             "bar",
+						consts.LocalPodLabelKey:           consts.LocalPodLabelValue,
+						testutil.FakeNotReflectedLabelKey: "true",
+					},
+					Annotations: map[string]string{
+						testutil.FakeNotReflectedAnnotKey: "true",
+					},
+				},
 				Spec: corev1.PodSpec{TerminationGracePeriodSeconds: pointer.Int64(15)},
 			}
+
+			forgingOpts = testutil.FakeForgingOpts()
 		})
 
 		JustBeforeEach(func() {
-			output = forge.RemoteShadowPod(local, remote, "remote-namespace", Mutator)
+			output = forge.RemoteShadowPod(local, remote, "remote-namespace", forgingOpts, Mutator)
 		})
 
 		Context("the remote pod does not exist", func() {
 			It("should correctly forge the object meta", func() {
 				Expect(output.GetName()).To(Equal("local-name"))
 				Expect(output.GetNamespace()).To(Equal("remote-namespace"))
-				Expect(output.GetLabels()).To(HaveKeyWithValue("foo", "bar"))
-				Expect(output.GetLabels()).ToNot(HaveKeyWithValue(consts.LocalPodLabelKey, consts.LocalPodLabelValue))
+				Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
+				Expect(output.Labels).ToNot(HaveKeyWithValue(consts.LocalPodLabelKey, consts.LocalPodLabelValue))
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+				Expect(output.Labels).ToNot(HaveKey(testutil.FakeNotReflectedLabelKey))
+				Expect(output.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
 			})
 
 			It("should correctly reflect the pod spec", func() {
@@ -187,8 +201,10 @@ var _ = Describe("Pod forging", func() {
 				Expect(output.GetName()).To(Equal("remote-name"))
 				Expect(output.GetNamespace()).To(Equal("remote-namespace"))
 				Expect(output.UID).To(BeEquivalentTo("remote-uid"))
-				Expect(output.GetLabels()).To(HaveKeyWithValue("foo", "bar"))
-				Expect(output.GetLabels()).ToNot(HaveKeyWithValue(consts.LocalPodLabelKey, consts.LocalPodLabelValue))
+				Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
+				Expect(output.Labels).ToNot(HaveKeyWithValue(consts.LocalPodLabelKey, consts.LocalPodLabelValue))
+				Expect(output.Labels).ToNot(HaveKey(testutil.FakeNotReflectedLabelKey))
+				Expect(output.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
 			})
 
 			It("should not update the pod spec", func() {

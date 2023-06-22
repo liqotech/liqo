@@ -38,6 +38,8 @@ import (
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 const (
@@ -269,6 +271,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 			var (
 				remotePersistentVolumeClaims        corev1listers.PersistentVolumeClaimNamespaceLister
 				remotePersistentVolumesClaimsClient corev1clients.PersistentVolumeClaimInterface
+				forgingOpts                         *forge.ForgingOpts
 			)
 
 			BeforeEach(func() {
@@ -280,6 +283,8 @@ var _ = Describe("Test Storage Provisioner", func() {
 				if err != nil && !apierrors.IsAlreadyExists(err) {
 					Expect(err).ToNot(HaveOccurred())
 				}
+
+				forgingOpts = testutil.FakeForgingOpts()
 
 				factory := informers.NewSharedInformerFactory(testEnvClient, 10*time.Hour)
 				remote := factory.Core().V1().PersistentVolumeClaims()
@@ -330,7 +335,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 								return &policy
 							}(),
 						},
-					}, RemoteNamespace, storageClass, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient)
+					}, RemoteNamespace, storageClass, remotePersistentVolumeClaims, remotePersistentVolumesClaimsClient, forgingOpts)
 
 					if err != nil {
 						return err
@@ -364,6 +369,8 @@ var _ = Describe("Test Storage Provisioner", func() {
 				realPvc, err := testEnvClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(realPvc.Spec.StorageClassName).To(PointTo(Equal(realStorageClassName)))
+				Expect(realPvc.Labels).ToNot(HaveKey(testutil.FakeNotReflectedLabelKey))
+				Expect(realPvc.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
 			})
 
 		})

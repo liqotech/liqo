@@ -23,10 +23,10 @@ import (
 const RootCAConfigMapName = "kube-root-ca.crt"
 
 // RemoteConfigMap forges the apply patch for the reflected configmap, given the local one.
-func RemoteConfigMap(local *corev1.ConfigMap, targetNamespace string) *corev1apply.ConfigMapApplyConfiguration {
+func RemoteConfigMap(local *corev1.ConfigMap, targetNamespace string, forgingOpts *ForgingOpts) *corev1apply.ConfigMapApplyConfiguration {
 	applyConfig := corev1apply.ConfigMap(RemoteConfigMapName(local.GetName()), targetNamespace).
-		WithLabels(local.GetLabels()).WithLabels(ReflectionLabels()).
-		WithAnnotations(local.GetAnnotations()).
+		WithLabels(FilterNotReflected(local.GetLabels(), forgingOpts.LabelsNotReflected)).WithLabels(ReflectionLabels()).
+		WithAnnotations(FilterNotReflected(local.GetAnnotations(), forgingOpts.AnnotationsNotReflected)).
 		WithBinaryData(local.BinaryData).
 		WithData(local.Data)
 

@@ -83,6 +83,9 @@ var _ = Describe("reflector methods", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(offloadedPvc).ToNot(BeNil())
 
+					Expect(offloadedPvc.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
+					Expect(offloadedPvc.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
+
 					Expect(offloadedPvc.Spec.StorageClassName).To(PointTo(Equal(RealRemoteStorageClassName)))
 				})
 

@@ -19,6 +19,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+
+	"github.com/liqotech/liqo/pkg/utils/maps"
 )
 
 const (
@@ -90,4 +92,10 @@ func RemoteTypedLocalObjectReference(local *corev1.TypedLocalObjectReference) *c
 // RemoteKind prepends "Remote" to a kind name, to identify remote objects.
 func RemoteKind(kind string) string {
 	return "Remote" + kind
+}
+
+// FilterNotReflected returns a map filtering out entries that match the given keys.
+func FilterNotReflected(m map[string]string, blackListedKeys []string) map[string]string {
+	filter := maps.FilterBlacklist(blackListedKeys...)
+	return maps.Filter(m, filter)
 }

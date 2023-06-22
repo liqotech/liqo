@@ -35,6 +35,10 @@ const (
 	VPNGatewayPort = 32406
 	// AuthenticationPort is the port of the liqo-auth service used for testing.
 	AuthenticationPort = 32407
+	// FakeNotReflectedLabelKey is the key of the fake not reflected label used for testing.
+	FakeNotReflectedLabelKey = "not-reflected-label"
+	// FakeNotReflectedAnnotKey is the key of the fake not reflected annotation used for testing.
+	FakeNotReflectedAnnotKey = "not-reflected-annot"
 )
 
 var (
