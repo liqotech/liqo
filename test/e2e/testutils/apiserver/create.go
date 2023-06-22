@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -35,10 +36,21 @@ const (
 	JobName = "kubectl"
 
 	containerName      = "kubectl"
-	image              = "bitnami/kubectl"
 	serviceAccountName = "kubectl"
 	clusterRoleName    = "admin"
 )
+
+var (
+	image = "bitnami/kubectl"
+)
+
+func init() {
+	// get the DOCKER_PROXY variable from the environment, if set.
+	dockerProxy, ok := os.LookupEnv("DOCKER_PROXY")
+	if ok {
+		image = dockerProxy + "/" + image
+	}
+}
 
 // CreateKubectlJob creates the offloaded kubectl job to perform a request on the remote API server.
 func CreateKubectlJob(ctx context.Context, cl client.Client, namespace string, v *version.Info) error {

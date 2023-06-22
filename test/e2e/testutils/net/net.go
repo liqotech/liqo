@@ -17,6 +17,7 @@ package net
 import (
 	"context"
 	"fmt"
+	"os"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +39,14 @@ var (
 	labelSelectorNodes = fmt.Sprintf("%v!=%v", liqoconst.TypeLabel, liqoconst.TypeNode)
 	command            = "timeout 15 curl --retry 60 --fail --max-time 2 -s -o /dev/null -w '%{http_code}' "
 )
+
+func init() {
+	// get the DOCKER_PROXY variable from the environment, if set.
+	dockerProxy, ok := os.LookupEnv("DOCKER_PROXY")
+	if ok {
+		image = dockerProxy + "/" + image
+	}
+}
 
 // ConnectivityCheckNodeToPod creates a NodePort Service and check its availability.
 func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID, remotePodName string) error {

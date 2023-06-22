@@ -17,6 +17,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/gruntwork-io/terratest/modules/k8s"
@@ -41,6 +42,18 @@ const (
 	// StatefulSetName is the name of the test StatefulSet.
 	StatefulSetName = "liqo-storage"
 )
+
+var (
+	image = "nginx"
+)
+
+func init() {
+	// get the DOCKER_PROXY variable from the environment, if set.
+	dockerProxy, ok := os.LookupEnv("DOCKER_PROXY")
+	if ok {
+		image = dockerProxy + "/" + image
+	}
+}
 
 // DeployApp creates the namespace and deploys the applications. It returns an error in case of failures.
 func DeployApp(ctx context.Context, cluster *tester.ClusterContext, namespace string, replicas int32) error {
@@ -78,7 +91,7 @@ func DeployApp(ctx context.Context, cluster *tester.ClusterContext, namespace st
 					Containers: []corev1.Container{
 						{
 							Name:      "tester",
-							Image:     "nginx",
+							Image:     image,
 							Resources: testutils.ResourceRequirements(),
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -132,7 +145,7 @@ func DeployApp(ctx context.Context, cluster *tester.ClusterContext, namespace st
 								corev1.ResourceStorage: resource.MustParse("25Mi"),
 							},
 						},
-						StorageClassName: pointer.StringPtr("liqo"),
+						StorageClassName: pointer.String("liqo"),
 					},
 				},
 			},
