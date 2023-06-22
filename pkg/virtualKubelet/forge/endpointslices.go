@@ -74,15 +74,15 @@ func EndpointToBeReflected(endpoint *discoveryv1.Endpoint, localNodeClient corev
 
 // RemoteShadowEndpointSlice forges the remote shadowendpointslice, given the local endpointslice.
 func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *vkv1alpha1.ShadowEndpointSlice,
-	localNodeClient corev1listers.NodeLister, targetNamespace string,
-	translator EndpointTranslator) *vkv1alpha1.ShadowEndpointSlice {
+	localNodeClient corev1listers.NodeLister, targetNamespace string, translator EndpointTranslator,
+	forgingOpts *ForgingOpts) *vkv1alpha1.ShadowEndpointSlice {
 	if remote == nil {
 		// The remote is nil if not already created.
 		remote = &vkv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
 	}
 
 	return &vkv1alpha1.ShadowEndpointSlice{
-		ObjectMeta: RemoteEndpointSliceObjectMeta(&local.ObjectMeta, &remote.ObjectMeta),
+		ObjectMeta: RemoteEndpointSliceObjectMeta(&local.ObjectMeta, &remote.ObjectMeta, forgingOpts),
 		Spec: vkv1alpha1.ShadowEndpointSliceSpec{
 			Template: vkv1alpha1.EndpointSliceTemplate{
 				AddressType: local.AddressType,
@@ -94,9 +94,11 @@ func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *vkv1alp
 }
 
 // RemoteEndpointSliceObjectMeta forges the objectMeta of the reflected endpointslice, given the local one.
-func RemoteEndpointSliceObjectMeta(local, remote *metav1.ObjectMeta) metav1.ObjectMeta {
+func RemoteEndpointSliceObjectMeta(local, remote *metav1.ObjectMeta, forgingOpts *ForgingOpts) metav1.ObjectMeta {
 	objectMeta := RemoteObjectMeta(local, remote)
 	objectMeta.SetLabels(labels.Merge(objectMeta.Labels, EndpointSliceLabels()))
+	objectMeta.SetLabels(FilterNotReflected(objectMeta.Labels, forgingOpts.LabelsNotReflected))
+	objectMeta.SetAnnotations(FilterNotReflected(objectMeta.Annotations, forgingOpts.AnnotationsNotReflected))
 
 	return objectMeta
 }

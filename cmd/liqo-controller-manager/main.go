@@ -106,6 +106,8 @@ func main() {
 	var kubeletRAMRequests, kubeletRAMLimits argsutils.Quantity
 	var kubeletMetricsAddress string
 	var kubeletMetricsEnabled bool
+	var labelsNotReflected argsutils.StringList
+	var annotationsNotReflected argsutils.StringList
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -166,6 +168,8 @@ func main() {
 	flag.BoolVar(&kubeletMetricsEnabled, "kubelet-metrics-enabled", false, "Enable the kubelet metrics endpoint")
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
+	flag.Var(&labelsNotReflected, "labels-not-reflected", "List of labels (key) that must not be reflected")
+	flag.Var(&annotationsNotReflected, "annotations-not-reflected", "List of annotations (key) that must not be reflected")
 	kubeletIpamServer := flag.String("kubelet-ipam-server", "",
 		"The address of the IPAM server to use for the virtual kubelet (set to empty string to disable IPAM)")
 
@@ -187,19 +191,21 @@ func main() {
 
 	// Options for the virtual kubelet.
 	virtualKubeletOpts := &forge.VirtualKubeletOpts{
-		ContainerImage:       *kubeletImage,
-		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
-		ExtraLabels:          kubeletExtraLabels.StringMap,
-		ExtraArgs:            kubeletExtraArgs.StringList,
-		NodeExtraAnnotations: nodeExtraAnnotations,
-		NodeExtraLabels:      nodeExtraLabels,
-		RequestsCPU:          kubeletCPURequests.Quantity,
-		RequestsRAM:          kubeletRAMRequests.Quantity,
-		LimitsCPU:            kubeletCPULimits.Quantity,
-		LimitsRAM:            kubeletRAMLimits.Quantity,
-		IpamEndpoint:         *kubeletIpamServer,
-		MetricsAddress:       kubeletMetricsAddress,
-		MetricsEnabled:       kubeletMetricsEnabled,
+		ContainerImage:          *kubeletImage,
+		ExtraAnnotations:        kubeletExtraAnnotations.StringMap,
+		ExtraLabels:             kubeletExtraLabels.StringMap,
+		ExtraArgs:               kubeletExtraArgs.StringList,
+		NodeExtraAnnotations:    nodeExtraAnnotations,
+		NodeExtraLabels:         nodeExtraLabels,
+		RequestsCPU:             kubeletCPURequests.Quantity,
+		RequestsRAM:             kubeletRAMRequests.Quantity,
+		LimitsCPU:               kubeletCPULimits.Quantity,
+		LimitsRAM:               kubeletRAMLimits.Quantity,
+		IpamEndpoint:            *kubeletIpamServer,
+		MetricsAddress:          kubeletMetricsAddress,
+		MetricsEnabled:          kubeletMetricsEnabled,
+		LabelsNotReflected:      labelsNotReflected.StringList,
+		AnnotationsNotReflected: annotationsNotReflected.StringList,
 	}
 
 	clusterIdentity := clusterIdentityFlags.ReadOrDie()

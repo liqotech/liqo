@@ -77,7 +77,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			reflector = rfl.NewNamespaced(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).WithLiqoLocal(liqoClient, liqoFactory).
 				WithRemote(RemoteNamespace, client, factory).WithLiqoRemote(liqoClient, liqoFactory).
-				WithHandlerFactory(FakeEventHandler).WithEventBroadcaster(broadcaster))
+				WithHandlerFactory(FakeEventHandler).WithEventBroadcaster(broadcaster).WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
 			liqoFactory.Start(ctx.Done())
@@ -148,8 +148,8 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 				BeforeEach(func() {
 					shouldDenyPodPatches = false
-					local.SetLabels(map[string]string{"foo": "bar"})
-					local.SetAnnotations(map[string]string{"bar": "baz"})
+					local.SetLabels(map[string]string{"foo": "bar", FakeNotReflectedLabelKey: "true"})
+					local.SetAnnotations(map[string]string{"bar": "baz", FakeNotReflectedAnnotKey: "true"})
 					local.Spec.Containers = []corev1.Container{{Name: "bar", Image: "foo"}}
 					CreatePod(client, &local)
 
@@ -183,7 +183,9 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 						Expect(shadowAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 						Expect(shadowAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 						Expect(shadowAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+						Expect(shadowAfter.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
 						Expect(shadowAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
+						Expect(shadowAfter.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
 					})
 					It("the spec should have been correctly replicated to the remote object", func() {
 						shadowAfter := GetShadowPod(liqoClient, RemoteNamespace, PodName)
@@ -196,8 +198,8 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 				When("the remote object already exists and needs to be updated", func() {
 					BeforeEach(func() {
-						shadow.SetLabels(forge.ReflectionLabels())
-						shadow.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing"})
+						shadow.SetLabels(labels.Merge(forge.ReflectionLabels(), map[string]string{FakeNotReflectedLabelKey: "true"}))
+						shadow.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing", FakeNotReflectedAnnotKey: "true"})
 						CreateShadowPod(liqoClient, &shadow)
 					})
 
@@ -207,8 +209,10 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 						Expect(shadowAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 						Expect(shadowAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 						Expect(shadowAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+						Expect(shadowAfter.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
 						Expect(shadowAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
 						Expect(shadowAfter.Annotations).NotTo(HaveKeyWithValue("existing", "existing"))
+						Expect(shadowAfter.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
 					})
 					It("the spec should not have been replicated to the remote object, to prevent possible issues", func() {
 						shadowAfter := GetShadowPod(liqoClient, RemoteNamespace, PodName)

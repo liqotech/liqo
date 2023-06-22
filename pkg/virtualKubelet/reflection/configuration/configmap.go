@@ -134,7 +134,7 @@ func (ncr *NamespacedConfigMapReflector) Handle(ctx context.Context, name string
 	}
 
 	// Forge the mutation to be applied to the remote cluster.
-	mutation := forge.RemoteConfigMap(local, ncr.RemoteNamespace())
+	mutation := forge.RemoteConfigMap(local, ncr.RemoteNamespace(), ncr.ForgingOpts)
 	tracer.Step("Remote mutation created")
 
 	defer tracer.Step("Enforced the correctness of the remote object")

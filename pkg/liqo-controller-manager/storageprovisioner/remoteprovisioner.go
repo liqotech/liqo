@@ -36,7 +36,8 @@ func ProvisionRemotePVC(ctx context.Context,
 	options controller.ProvisionOptions,
 	remoteNamespace, remoteRealStorageClass string,
 	remotePvcLister corev1listers.PersistentVolumeClaimNamespaceLister,
-	remotePvcClient corev1clients.PersistentVolumeClaimInterface) (*corev1.PersistentVolume, controller.ProvisioningState, error) {
+	remotePvcClient corev1clients.PersistentVolumeClaimInterface,
+	forgingOpts *forge.ForgingOpts) (*corev1.PersistentVolume, controller.ProvisioningState, error) {
 	virtualPvc := options.PVC
 
 	labels := options.SelectedNode.GetLabels()
@@ -62,7 +63,7 @@ func ProvisionRemotePVC(ctx context.Context,
 	default:
 	}
 
-	mutation := remotePersistentVolumeClaim(virtualPvc, remoteStorageClass, remoteNamespace)
+	mutation := remotePersistentVolumeClaim(virtualPvc, remoteStorageClass, remoteNamespace, forgingOpts)
 	_, err = remotePvcClient.Apply(ctx, mutation, forge.ApplyOptions())
 	if err != nil {
 		return nil, controller.ProvisioningInBackground, err
@@ -110,11 +111,11 @@ func ProvisionRemotePVC(ctx context.Context,
 
 // remotePersistentVolumeClaim forges the apply patch for the reflected PersistentVolumeClaim, given the local one.
 func remotePersistentVolumeClaim(virtualPvc *corev1.PersistentVolumeClaim,
-	storageClass, namespace string) *v1apply.PersistentVolumeClaimApplyConfiguration {
+	storageClass, namespace string, forgingOpts *forge.ForgingOpts) *v1apply.PersistentVolumeClaimApplyConfiguration {
 	return v1apply.PersistentVolumeClaim(virtualPvc.Name, namespace).
-		WithLabels(virtualPvc.GetLabels()).
+		WithLabels(forge.FilterNotReflected(virtualPvc.GetLabels(), forgingOpts.LabelsNotReflected)).
 		WithLabels(forge.ReflectionLabels()).
-		WithAnnotations(filterAnnotations(virtualPvc.GetAnnotations())).
+		WithAnnotations(forge.FilterNotReflected(filterAnnotations(virtualPvc.GetAnnotations()), forgingOpts.AnnotationsNotReflected)).
 		WithSpec(remotePersistentVolumeClaimSpec(virtualPvc, storageClass))
 }
 

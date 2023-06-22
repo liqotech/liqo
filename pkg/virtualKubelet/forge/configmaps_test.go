@@ -23,30 +23,34 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/utils/pointer"
 
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 var _ = Describe("ConfigMaps Forging", func() {
 	Describe("the RemoteConfigMap function", func() {
 		var (
-			input  *corev1.ConfigMap
-			output *corev1apply.ConfigMapApplyConfiguration
+			input       *corev1.ConfigMap
+			output      *corev1apply.ConfigMapApplyConfiguration
+			forgingOpts *forge.ForgingOpts
 		)
 
 		BeforeEach(func() {
 			input = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "name", Namespace: "original",
-					Labels:      map[string]string{"foo": "bar"},
-					Annotations: map[string]string{"bar": "baz"},
+					Labels:      map[string]string{"foo": "bar", testutil.FakeNotReflectedLabelKey: "true"},
+					Annotations: map[string]string{"bar": "baz", testutil.FakeNotReflectedAnnotKey: "true"},
 				},
 				Data:       map[string]string{"data-key": "data value"},
 				BinaryData: map[string][]byte{"binary-data-key": []byte("ABC")},
 				Immutable:  pointer.Bool(true),
 			}
+
+			forgingOpts = testutil.FakeForgingOpts()
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteConfigMap(input, "reflected") })
+		JustBeforeEach(func() { output = forge.RemoteConfigMap(input, "reflected", forgingOpts) })
 
 		It("should correctly set the name and namespace", func() {
 			Expect(output.Name).To(PointTo(Equal("name")))
@@ -57,10 +61,12 @@ var _ = Describe("ConfigMaps Forging", func() {
 			Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
 			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+			Expect(output.Labels).ToNot(HaveKey(testutil.FakeNotReflectedLabelKey))
 		})
 
 		It("should correctly set the annotations", func() {
 			Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
+			Expect(output.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
 		})
 
 		It("should correctly set the data", func() {

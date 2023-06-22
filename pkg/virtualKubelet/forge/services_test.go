@@ -24,27 +24,31 @@ import (
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/utils/pointer"
 
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 var _ = Describe("Services Forging", func() {
 	Describe("the RemoteService function", func() {
 		var (
-			input  *corev1.Service
-			output *corev1apply.ServiceApplyConfiguration
+			input       *corev1.Service
+			output      *corev1apply.ServiceApplyConfiguration
+			forgingOpts *forge.ForgingOpts
 		)
 
 		BeforeEach(func() {
 			input = &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "name", Namespace: "original",
-					Labels:      map[string]string{"foo": "bar"},
-					Annotations: map[string]string{"bar": "baz"},
+					Labels:      map[string]string{"foo": "bar", testutil.FakeNotReflectedLabelKey: "true"},
+					Annotations: map[string]string{"bar": "baz", testutil.FakeNotReflectedAnnotKey: "true"},
 				},
 				Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeNodePort},
 			}
 
-			JustBeforeEach(func() { output = forge.RemoteService(input, "reflected") })
+			forgingOpts = testutil.FakeForgingOpts()
+
+			JustBeforeEach(func() { output = forge.RemoteService(input, "reflected", forgingOpts) })
 
 			It("should correctly set the name and namespace", func() {
 				Expect(output.Name).To(PointTo(Equal("name")))
@@ -55,9 +59,11 @@ var _ = Describe("Services Forging", func() {
 				Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 				Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+				Expect(output.Labels).ToNot(HaveKey(testutil.FakeNotReflectedLabelKey))
 			})
 			It("should correctly set the annotations", func() {
 				Expect(output.Annotations).To(HaveKeyWithValue("bar", "baz"))
+				Expect(output.Annotations).ToNot(HaveKey(testutil.FakeNotReflectedAnnotKey))
 			})
 			It("should correctly set the spec", func() {
 				Expect(output.Spec.Type).To(PointTo(Equal(corev1.ServiceTypeNodePort)))

@@ -89,6 +89,9 @@ type Opts struct {
 	PersistentVolumeClaimWorkers uint
 	EventWorkers                 uint
 
+	LabelsNotReflected      argsutils.StringList
+	AnnotationsNotReflected argsutils.StringList
+
 	NodeLeaseDuration time.Duration
 	NodePingInterval  time.Duration
 	NodePingTimeout   time.Duration
@@ -139,6 +142,9 @@ func NewOpts() *Opts {
 		ServiceAccountWorkers:        DefaultServiceAccountWorkers,
 		PersistentVolumeClaimWorkers: DefaultPersistenVolumeClaimWorkers,
 		EventWorkers:                 DefaultEventWorkers,
+
+		LabelsNotReflected:      argsutils.StringList{},
+		AnnotationsNotReflected: argsutils.StringList{},
 
 		NodeLeaseDuration: node.DefaultLeaseDuration * time.Second,
 		NodePingInterval:  node.DefaultPingInterval,

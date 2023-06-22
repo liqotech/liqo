@@ -103,7 +103,8 @@ var _ = Describe("Secret Reflection", func() {
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
-				WithEventBroadcaster(record.NewBroadcaster()))
+				WithEventBroadcaster(record.NewBroadcaster()).
+				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())
@@ -118,8 +119,8 @@ var _ = Describe("Secret Reflection", func() {
 
 		When("the local object does exists", func() {
 			BeforeEach(func() {
-				local.SetLabels(map[string]string{"foo": "bar"})
-				local.SetAnnotations(map[string]string{"bar": "baz"})
+				local.SetLabels(map[string]string{"foo": "bar", FakeNotReflectedLabelKey: "true"})
+				local.SetAnnotations(map[string]string{"bar": "baz", FakeNotReflectedAnnotKey: "true"})
 				local.Data = map[string][]byte{"data-key": []byte("some secret data")}
 				CreateSecret(&local)
 			})
@@ -132,7 +133,9 @@ var _ = Describe("Secret Reflection", func() {
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+					Expect(remoteAfter.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
+					Expect(remoteAfter.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
 				})
 
 				It("the spec should have been correctly replicated to the remote object", func() {
@@ -144,8 +147,8 @@ var _ = Describe("Secret Reflection", func() {
 
 			When("the remote object already exists", func() {
 				BeforeEach(func() {
-					remote.SetLabels(forge.ReflectionLabels())
-					remote.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing"})
+					remote.SetLabels(labels.Merge(forge.ReflectionLabels(), map[string]string{FakeNotReflectedLabelKey: "true"}))
+					remote.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing", FakeNotReflectedAnnotKey: "true"})
 					remote.Data = map[string][]byte{"data-key": []byte("some secret data")}
 					CreateSecret(&remote)
 				})
@@ -157,8 +160,10 @@ var _ = Describe("Secret Reflection", func() {
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+					Expect(remoteAfter.Labels).To(HaveKey(FakeNotReflectedLabelKey))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("existing", "existing"))
+					Expect(remoteAfter.Annotations).To(HaveKey(FakeNotReflectedAnnotKey))
 				})
 
 				It("the spec should have been correctly replicated to the remote object", func() {

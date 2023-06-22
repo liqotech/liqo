@@ -26,10 +26,10 @@ import (
 const nodePortUnset = 0
 
 // RemoteService forges the apply patch for the reflected service, given the local one.
-func RemoteService(local *corev1.Service, targetNamespace string) *corev1apply.ServiceApplyConfiguration {
+func RemoteService(local *corev1.Service, targetNamespace string, forgingOpts *ForgingOpts) *corev1apply.ServiceApplyConfiguration {
 	return corev1apply.Service(local.GetName(), targetNamespace).
-		WithLabels(local.GetLabels()).WithLabels(ReflectionLabels()).
-		WithAnnotations(local.GetAnnotations()).
+		WithLabels(FilterNotReflected(local.GetLabels(), forgingOpts.LabelsNotReflected)).WithLabels(ReflectionLabels()).
+		WithAnnotations(FilterNotReflected(local.GetAnnotations(), forgingOpts.AnnotationsNotReflected)).
 		WithSpec(RemoteServiceSpec(local.Spec.DeepCopy(), getForceRemoteNodePort(local)))
 }
 

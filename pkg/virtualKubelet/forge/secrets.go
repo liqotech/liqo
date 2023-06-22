@@ -61,10 +61,10 @@ func IsServiceAccountSecret(obj metav1.Object) bool {
 }
 
 // RemoteSecret forges the apply patch for the reflected secret, given the local one.
-func RemoteSecret(local *corev1.Secret, targetNamespace string) *corev1apply.SecretApplyConfiguration {
+func RemoteSecret(local *corev1.Secret, targetNamespace string, forgingOpts *ForgingOpts) *corev1apply.SecretApplyConfiguration {
 	applyConfig := corev1apply.Secret(local.GetName(), targetNamespace).
-		WithLabels(local.GetLabels()).WithLabels(ReflectionLabels()).
-		WithAnnotations(local.GetAnnotations()).
+		WithLabels(FilterNotReflected(local.GetLabels(), forgingOpts.LabelsNotReflected)).WithLabels(ReflectionLabels()).
+		WithAnnotations(FilterNotReflected(local.GetAnnotations(), forgingOpts.AnnotationsNotReflected)).
 		WithData(local.Data).
 		WithType(local.Type)
 

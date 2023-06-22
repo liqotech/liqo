@@ -22,10 +22,10 @@ import (
 )
 
 // RemoteIngress forges the apply patch for the reflected ingress, given the local one.
-func RemoteIngress(local *netv1.Ingress, targetNamespace string) *netv1apply.IngressApplyConfiguration {
+func RemoteIngress(local *netv1.Ingress, targetNamespace string, forgingOpts *ForgingOpts) *netv1apply.IngressApplyConfiguration {
 	return netv1apply.Ingress(local.GetName(), targetNamespace).
-		WithLabels(local.GetLabels()).WithLabels(ReflectionLabels()).
-		WithAnnotations(FilterIngressAnnotations(local.GetAnnotations())).
+		WithLabels(FilterNotReflected(local.GetLabels(), forgingOpts.LabelsNotReflected)).WithLabels(ReflectionLabels()).
+		WithAnnotations(FilterNotReflected(FilterIngressAnnotations(local.GetAnnotations()), forgingOpts.AnnotationsNotReflected)).
 		WithSpec(RemoteIngressSpec(local.Spec.DeepCopy()))
 }
 

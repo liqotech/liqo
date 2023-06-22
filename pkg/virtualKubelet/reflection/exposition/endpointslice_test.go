@@ -132,7 +132,8 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				WithRemote(RemoteNamespace, client, factory).
 				WithLiqoRemote(liqoClient, liqoFactory).
 				WithHandlerFactory(FakeEventHandler).
-				WithEventBroadcaster(record.NewBroadcaster()))
+				WithEventBroadcaster(record.NewBroadcaster()).
+				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
 			liqoFactory.Start(ctx.Done())
@@ -152,8 +153,8 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 			When("the local object does exist", func() {
 				BeforeEach(func() {
-					local.SetLabels(map[string]string{"foo": "bar"})
-					local.SetAnnotations(map[string]string{"bar": "baz"})
+					local.SetLabels(map[string]string{"foo": "bar", FakeNotReflectedLabelKey: "true"})
+					local.SetAnnotations(map[string]string{"bar": "baz", FakeNotReflectedAnnotKey: "true"})
 					local.AddressType = discoveryv1.AddressTypeIPv4
 					local.Endpoints = []discoveryv1.Endpoint{{
 						NodeName:  pointer.String(LocalClusterNodeName),
@@ -170,7 +171,9 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue(discoveryv1.LabelManagedBy, forge.EndpointSliceManagedBy))
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+						Expect(remoteAfter.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
 						Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
+						Expect(remoteAfter.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
 					})
 					It("the spec should have been correctly replicated to the remote object", func() {
 						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
@@ -185,7 +188,8 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					BeforeEach(func() {
 						remote.SetLabels(labels.Merge(forge.ReflectionLabels(), forge.EndpointSliceLabels()))
 						remote.SetLabels(labels.Merge(remote.GetLabels(), map[string]string{"foo": "previous", "existing": "existing"}))
-						remote.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing"})
+						remote.SetLabels(labels.Merge(remote.GetLabels(), map[string]string{FakeNotReflectedLabelKey: "true"}))
+						remote.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing", FakeNotReflectedAnnotKey: "true"})
 						remote.Spec.Template.AddressType = discoveryv1.AddressTypeIPv4
 						CreateShadowEndpointSlice(&remote)
 					})
@@ -198,8 +202,10 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue(discoveryv1.LabelManagedBy, forge.EndpointSliceManagedBy))
 						Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
 						Expect(remoteAfter.Labels).ToNot(HaveKey("existing"))
+						Expect(remoteAfter.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
 						Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
 						Expect(remoteAfter.Annotations).ToNot(HaveKey("existing"))
+						Expect(remoteAfter.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
 					})
 					It("the spec should have been correctly replicated to the remote object", func() {
 						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)

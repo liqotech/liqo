@@ -147,7 +147,7 @@ func LocalRejectedPodStatus(local *corev1.PodStatus, phase corev1.PodPhase, reas
 
 // RemoteShadowPod forges the reflected shadowpod, given the local one.
 func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod,
-	targetNamespace string, mutators ...RemotePodSpecMutator) *vkv1alpha1.ShadowPod {
+	targetNamespace string, forgingOpts *ForgingOpts, mutators ...RemotePodSpecMutator) *vkv1alpha1.ShadowPod {
 	var creation bool
 	if remote == nil {
 		// The remote is nil if not already created.
@@ -159,6 +159,10 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod,
 	localMetaFiltered := local.ObjectMeta.DeepCopy()
 	delete(localMetaFiltered.GetLabels(), liqoconst.LocalPodLabelKey)
 	localMetaFiltered.GetLabels()[LiqoOriginClusterNodeName] = LiqoNodeName
+
+	// Filter out the labels and annotations not to be reflected.
+	localMetaFiltered.SetLabels(FilterNotReflected(localMetaFiltered.GetLabels(), forgingOpts.LabelsNotReflected))
+	localMetaFiltered.SetAnnotations(FilterNotReflected(localMetaFiltered.GetAnnotations(), forgingOpts.AnnotationsNotReflected))
 
 	// Initialize the appropriate anti-affinity mutator if the corresponding annotation is present.
 	switch local.Annotations[liqoconst.PodAntiAffinityPresetKey] {

@@ -81,6 +81,9 @@ type InitConfig struct {
 
 	HomeAPIServerHost string
 	HomeAPIServerPort string
+
+	LabelsNotReflected      []string
+	AnnotationsNotReflected []string
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -133,7 +136,8 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	}
 
 	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, &podReflectorConfig, cfg.PodWorkers)
-	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb).
+	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient,
+		cfg.InformerResyncPeriod, eb, cfg.LabelsNotReflected, cfg.AnnotationsNotReflected).
 		With(podreflector).
 		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
 		With(exposition.NewIngressReflector(cfg.IngressWorkers)).

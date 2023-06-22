@@ -181,7 +181,8 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 
 			pv, state, err := liqostorageprovisioner.ProvisionRemotePVC(ctx,
 				options, npvcr.RemoteNamespace(), npvcr.remoteRealStorageClassName,
-				npvcr.remotePersistentVolumeClaims, npvcr.remotePersistentVolumesClaimsClient)
+				npvcr.remotePersistentVolumeClaims, npvcr.remotePersistentVolumesClaimsClient,
+				npvcr.ForgingOpts)
 			if err == nil && state == controller.ProvisioningFinished {
 				local.Spec.VolumeName = options.PVName
 			}

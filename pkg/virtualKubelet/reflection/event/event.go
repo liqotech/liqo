@@ -170,8 +170,8 @@ func (ner *NamespacedEventReflector) Handle(ctx context.Context, name string) er
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        remote.Name,
 				Namespace:   ner.LocalNamespace(),
-				Labels:      labels.Merge(remote.GetLabels(), forge.ReflectionLabels()),
-				Annotations: remote.GetAnnotations(),
+				Labels:      labels.Merge(forge.FilterNotReflected(remote.GetLabels(), ner.ForgingOpts.LabelsNotReflected), forge.ReflectionLabels()),
+				Annotations: forge.FilterNotReflected(remote.GetAnnotations(), ner.ForgingOpts.AnnotationsNotReflected),
 			},
 			InvolvedObject: corev1.ObjectReference{
 				APIVersion: remote.InvolvedObject.APIVersion,

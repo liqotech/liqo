@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/record"
@@ -100,7 +101,8 @@ var _ = Describe("Service Reflection Tests", func() {
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
-				WithEventBroadcaster(record.NewBroadcaster()))
+				WithEventBroadcaster(record.NewBroadcaster()).
+				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
 			factory.WaitForCacheSync(ctx.Done())
@@ -115,8 +117,8 @@ var _ = Describe("Service Reflection Tests", func() {
 
 		When("the local object does exist", func() {
 			BeforeEach(func() {
-				local.SetLabels(map[string]string{"foo": "bar"})
-				local.SetAnnotations(map[string]string{"bar": "baz"})
+				local.SetLabels(map[string]string{"foo": "bar", FakeNotReflectedLabelKey: "true"})
+				local.SetAnnotations(map[string]string{"bar": "baz", FakeNotReflectedAnnotKey: "true"})
 				local.Spec = corev1.ServiceSpec{
 					Type:  corev1.ServiceTypeLoadBalancer,
 					Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}},
@@ -131,7 +133,9 @@ var _ = Describe("Service Reflection Tests", func() {
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+					Expect(remoteAfter.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
+					Expect(remoteAfter.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
 				})
 				It("the spec should have been correctly replicated to the remote object", func() {
 					remoteAfter := GetService(RemoteNamespace)
@@ -142,8 +146,8 @@ var _ = Describe("Service Reflection Tests", func() {
 
 			When("the remote object already exists", func() {
 				BeforeEach(func() {
-					remote.SetLabels(forge.ReflectionLabels())
-					remote.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing"})
+					remote.SetLabels(labels.Merge(forge.ReflectionLabels(), map[string]string{FakeNotReflectedLabelKey: "true"}))
+					remote.SetAnnotations(map[string]string{"bar": "previous", "existing": "existing", FakeNotReflectedAnnotKey: "true"})
 					remote.Spec.Ports = []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}
 					CreateService(&remote)
 				})
@@ -154,8 +158,10 @@ var _ = Describe("Service Reflection Tests", func() {
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
 					Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))
+					Expect(remoteAfter.Labels).To(HaveKey(FakeNotReflectedLabelKey))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("existing", "existing"))
+					Expect(remoteAfter.Annotations).To(HaveKey(FakeNotReflectedAnnotKey))
 				})
 				It("the spec should have been correctly replicated to the remote object", func() {
 					remoteAfter := GetService(RemoteNamespace)

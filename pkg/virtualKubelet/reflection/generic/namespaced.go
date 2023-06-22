@@ -27,6 +27,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
 
@@ -38,6 +39,8 @@ type NamespacedReflector struct {
 
 	local  string
 	remote string
+
+	ForgingOpts *forge.ForgingOpts
 }
 
 // ResourceDeleter know how to delete a Kubernetes object with the given name.
@@ -49,7 +52,7 @@ type ResourceDeleter interface {
 func NewNamespacedReflector(opts *options.NamespacedOpts, name string) NamespacedReflector {
 	return NamespacedReflector{
 		EventRecorder: opts.EventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "liqo-" + strings.ToLower(name) + "-reflection"}),
-		local:         opts.LocalNamespace, remote: opts.RemoteNamespace, ready: opts.Ready,
+		local:         opts.LocalNamespace, remote: opts.RemoteNamespace, ready: opts.Ready, ForgingOpts: opts.ForgingOpts,
 	}
 }
 
