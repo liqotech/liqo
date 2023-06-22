@@ -19,9 +19,7 @@ import (
 	"fmt"
 
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -29,6 +27,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 func (r *ResourceRequestReconciler) ensureClusterRole(ctx context.Context,
@@ -110,23 +109,23 @@ func (r *ResourceRequestReconciler) deleteClusterRoleBinding(ctx context.Context
 
 func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) error {
-	var resourceOffer sharingv1alpha1.ResourceOffer
-	err := r.Client.Get(ctx, types.NamespacedName{
-		Name:      getOfferName(r.HomeCluster, nil),
-		Namespace: resourceRequest.GetNamespace(),
-	}, &resourceOffer)
-	if err != nil && !apierrors.IsNotFound(err) {
+	var resourceOfferList sharingv1alpha1.ResourceOfferList
+	err := r.Client.List(ctx, &resourceOfferList,
+		client.MatchingLabelsSelector{Selector: liqolabels.LocalLabelSelectorForCluster(resourceRequest.Spec.ClusterIdentity.ClusterID)},
+		client.InNamespace(metav1.NamespaceAll))
+	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	if apierrors.IsNotFound(err) {
+	switch len(resourceOfferList.Items) {
+	case 0:
 		resourceRequest.Status.OfferState = discoveryv1alpha1.OfferStateNone
-	} else {
+		return nil
+	default:
 		resourceRequest.Status.OfferState = discoveryv1alpha1.OfferStateCreated
+		return nil
 	}
-
-	return nil
 }
 
 // getOfferName returns the name of the ResourceOffer coming from the given cluster.
