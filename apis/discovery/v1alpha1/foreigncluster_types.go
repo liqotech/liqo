@@ -145,6 +145,10 @@ type ForeignClusterStatus struct {
 	// PeeringConditions contains the conditions about the peering related to this
 	// ForeignCluster.
 	PeeringConditions []PeeringCondition `json:"peeringConditions,omitempty"`
+
+	// URL of the forign cluster's API server.
+	// +kubebuilder:validation:Optional
+	APIServerURL string `json:"apiServerUrl,omitempty"`
 }
 
 // PeeringConditionType represents different conditions that a peering could assume.

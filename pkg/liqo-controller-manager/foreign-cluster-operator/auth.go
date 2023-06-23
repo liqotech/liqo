@@ -75,7 +75,7 @@ func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
 		peeringconditionsutils.EnsureStatus(foreignCluster, discoveryv1alpha1.AuthenticationStatusCondition, status, reason, message)
 	}()
 
-	_, err = r.IdentityManager.GetConfig(foreignCluster.Spec.ClusterIdentity, foreignCluster.Status.TenantNamespace.Local)
+	config, err := r.IdentityManager.GetConfig(foreignCluster.Spec.ClusterIdentity, foreignCluster.Status.TenantNamespace.Local)
 	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
@@ -98,6 +98,8 @@ func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
 	status = discoveryv1alpha1.PeeringConditionStatusEstablished
 	reason = identityAcceptedReason
 	message = identityAcceptedMessage
+
+	foreignCluster.Status.APIServerURL = config.Host
 
 	return nil
 }
