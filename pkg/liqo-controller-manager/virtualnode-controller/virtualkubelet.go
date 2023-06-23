@@ -63,6 +63,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 	// forge the virtual Kubelet Deployment
 	vkDeployment := &appsv1.Deployment{}
 	vkDeployment.ObjectMeta = *virtualNode.Spec.Template.ObjectMeta.DeepCopy()
+
 	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkDeployment, func() error {
 		vkDeployment.Spec = *virtualNode.Spec.Template.Spec.DeepCopy()
 		return nil

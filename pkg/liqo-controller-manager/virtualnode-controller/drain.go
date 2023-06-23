@@ -29,7 +29,6 @@ import (
 
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
 const waitForPodTerminationCheckPeriod = 10 * time.Second
@@ -58,10 +57,10 @@ func getPodsForDeletion(ctx context.Context, cl client.Client, vn *virtualkubele
 	podList := &corev1.PodList{}
 	err := cl.List(ctx, podList, &client.ListOptions{
 		FieldSelector: client.MatchingFieldsSelector{
-			Selector: fields.OneTermEqualSelector(indexer.FieldNodeNameFromPod, virtualKubelet.VirtualNodeName(vn)),
+			Selector: fields.OneTermEqualSelector(indexer.FieldNodeNameFromPod, vn.Name),
 		},
 	})
-	klog.Infof("Drain node %s -> %d pods found", virtualKubelet.VirtualNodeName(vn), len(podList.Items))
+	klog.Infof("Drain node %s -> %d pods found", vn.Name, len(podList.Items))
 	if err != nil {
 		return nil, err
 	}

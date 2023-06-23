@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/pterm/pterm"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -207,7 +206,7 @@ func (gr *reflector) processNextWorkItem() bool {
 	defer gr.workqueue.Done(key)
 
 	if gr.concurrencyMode == ConcurrencyModeLeader && !leaderelection.IsLeader() {
-		pterm.BgLightYellow.Printfln("Not leader, skipping a %s", gr.name)
+		klog.V(4).Infof("Skipping %v reflector item %v because the node is not the leader", gr.name, key)
 		return true
 	}
 

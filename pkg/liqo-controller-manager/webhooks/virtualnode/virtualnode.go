@@ -17,9 +17,12 @@ package virtualnode
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	admissionv1 "k8s.io/api/admission/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -86,6 +89,11 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 	}
 
 	if req.Operation == admissionv1.Create {
+		err := checkNodeDubplicate(ctx, w, virtualnode)
+		if err != nil {
+			klog.Errorf("Failed checking node duplicate: %v", err)
+			return admission.Denied(err.Error())
+		}
 		customizeVKOptions(w.virtualKubeletOptions, virtualnode)
 		w.initVirtualNode(virtualnode)
 	}
@@ -99,4 +107,17 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledVn)
+}
+
+// checkNodeDubplicate checks if the node already exists in the cluster.
+func checkNodeDubplicate(ctx context.Context, w *vnwh, virtualnode *virtualkubeletv1alpha1.VirtualNode) error {
+	node := &corev1.Node{}
+	err := w.client.Get(ctx, client.ObjectKey{Name: virtualnode.Name}, node)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	return fmt.Errorf("node %s already exists", virtualnode.Name)
 }
