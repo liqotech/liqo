@@ -99,6 +99,10 @@ func newMoveVolumeCommand(ctx context.Context, f *factory.Factory) *cobra.Comman
 	cmd.Flags().Var(&containersCPULimits, "containers-cpu-limits", "The CPU limits for the Restic containers")
 	cmd.Flags().Var(&containersRAMRequests, "containers-ram-requests", "The RAM requests for the Restic containers")
 	cmd.Flags().Var(&containersRAMLimits, "containers-ram-limits", "The RAM limits for the Restic containers")
+	cmd.Flags().StringVar(&options.ResticServerImage, "restic-server-image", move.DefaultResticServerImage,
+		"The Restic server image to use")
+	cmd.Flags().StringVar(&options.ResticImage, "restic-image", move.DefaultResticImage,
+		"The Restic image to use")
 
 	f.Printer.CheckErr(cmd.MarkFlagRequired("target-node"))
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("target-node", completion.Nodes(ctx, f, completion.NoLimit)))

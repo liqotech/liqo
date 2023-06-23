@@ -232,7 +232,8 @@ var _ = Context("Move Volumes", func() {
 
 				cl = fake.NewClientBuilder().WithObjects(pv, pvc).Build()
 				o = Options{Factory: &factory.Factory{CRClient: cl}, ResticPassword: resticPassword,
-					ContainersCPURequests: resource.MustParse("100m"), ContainersRAMLimits: resource.MustParse("100M")}
+					ContainersCPURequests: resource.MustParse("100m"), ContainersRAMLimits: resource.MustParse("100M"),
+					ResticImage: DefaultResticImage, ResticServerImage: DefaultResticServerImage}
 			})
 
 			When("creates a snapshotter job", func() {
@@ -261,7 +262,7 @@ var _ = Context("Move Volumes", func() {
 
 				It("should populate the initContainers", func() {
 					Expect(podSpec.InitContainers).To(HaveLen(1))
-					Expect(podSpec.InitContainers[0].Image).To(Equal(resticImage))
+					Expect(podSpec.InitContainers[0].Image).To(Equal(DefaultResticImage))
 					Expect(podSpec.InitContainers[0].Args).To(Equal([]string{
 						"-r",
 						fmt.Sprintf("%s%s", resticRepositoryURL, pvc.GetUID()),
@@ -277,7 +278,7 @@ var _ = Context("Move Volumes", func() {
 
 				It("should populate the containers", func() {
 					Expect(podSpec.Containers).To(HaveLen(1))
-					Expect(podSpec.Containers[0].Image).To(Equal(resticImage))
+					Expect(podSpec.Containers[0].Image).To(Equal(DefaultResticImage))
 					Expect(podSpec.Containers[0].Args).To(Equal([]string{
 						"-r",
 						fmt.Sprintf("%s%s", resticRepositoryURL, pvc.GetUID()),
@@ -328,7 +329,8 @@ var _ = Context("Move Volumes", func() {
 
 				cl = fake.NewClientBuilder().WithObjects(oPvc, nPvc).Build()
 				o = Options{Factory: &factory.Factory{CRClient: cl}, ResticPassword: resticPassword, TargetNode: "node1",
-					ContainersCPURequests: resource.MustParse("100m"), ContainersRAMLimits: resource.MustParse("100M")}
+					ContainersCPURequests: resource.MustParse("100m"), ContainersRAMLimits: resource.MustParse("100M"),
+					ResticImage: DefaultResticImage, ResticServerImage: DefaultResticServerImage}
 			})
 
 			When("creates a restorer job", func() {
@@ -357,7 +359,7 @@ var _ = Context("Move Volumes", func() {
 
 				It("should populate the containers", func() {
 					Expect(podSpec.Containers).To(HaveLen(1))
-					Expect(podSpec.Containers[0].Image).To(Equal(resticImage))
+					Expect(podSpec.Containers[0].Image).To(Equal(DefaultResticImage))
 					Expect(podSpec.Containers[0].Args).To(Equal([]string{
 						"-r",
 						fmt.Sprintf("%s%s", resticRepositoryURL, oPvc.GetUID()),
@@ -430,7 +432,8 @@ var _ = Context("Move Volumes", func() {
 
 			BeforeEach(func() {
 				cl = fake.NewClientBuilder().Build()
-				o = Options{Factory: &factory.Factory{CRClient: cl}}
+				o = Options{Factory: &factory.Factory{CRClient: cl},
+					ResticServerImage: DefaultResticServerImage, ResticPassword: resticPassword}
 
 				targetPvc = newPvc("pvc1")
 				targetPvc.Spec.Resources = corev1.ResourceRequirements{

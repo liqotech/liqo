@@ -80,7 +80,7 @@ func (o *Options) ensureResticRepository(ctx context.Context, targetPvc *corev1.
 					Containers: []corev1.Container{
 						{
 							Name:  resticRegistry,
-							Image: resticServerImage,
+							Image: o.ResticServerImage,
 							Env: []corev1.EnvVar{
 								{
 									Name:  "DISABLE_AUTHENTICATION",
