@@ -54,7 +54,7 @@ func (o *Options) createSnapshotterJob(ctx context.Context, pvc *corev1.Persiste
 					InitContainers: []corev1.Container{
 						{
 							Name:            "restic-init",
-							Image:           resticImage,
+							Image:           o.ResticImage,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Args: []string{
 								"-r",
@@ -73,7 +73,7 @@ func (o *Options) createSnapshotterJob(ctx context.Context, pvc *corev1.Persiste
 					Containers: []corev1.Container{
 						{
 							Name:            "restic",
-							Image:           resticImage,
+							Image:           o.ResticImage,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Args: []string{
 								"-r",

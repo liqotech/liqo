@@ -39,6 +39,9 @@ type Options struct {
 	ContainersRAMRequests, ContainersRAMLimits resource.Quantity
 
 	ResticPassword string
+
+	ResticServerImage string
+	ResticImage       string
 }
 
 // Run implements the move volume command.

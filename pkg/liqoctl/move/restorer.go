@@ -66,7 +66,7 @@ func (o *Options) createRestorerJob(ctx context.Context,
 					Containers: []corev1.Container{
 						{
 							Name:            "restic",
-							Image:           resticImage,
+							Image:           o.ResticImage,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Args: []string{
 								"-r",

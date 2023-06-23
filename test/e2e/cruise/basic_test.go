@@ -17,6 +17,7 @@ package cruise
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	liqoctlmove "github.com/liqotech/liqo/pkg/liqoctl/move"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/apiserver"
@@ -340,9 +342,14 @@ var _ = Describe("Liqo E2E", func() {
 				Expect(len(virtualNodesList.Items)).To(BeNumerically(">=", 1))
 
 				By("Moving the statefulset to the virtual node")
-				Expect(util.ExecLiqoctl(testContext.Clusters[0].KubeconfigPath,
-					[]string{"move", "volume", originPvc.Name, "-n", namespace, "--target-node", virtualNodesList.Items[0].Name,
-						"--containers-cpu-limits", "500m", "--containers-ram-limits", "500Mi"}, GinkgoWriter)).To(Succeed())
+				args := []string{"move", "volume", originPvc.Name, "-n", namespace, "--target-node", virtualNodesList.Items[0].Name,
+					"--containers-cpu-limits", "500m", "--containers-ram-limits", "500Mi"}
+				dockerProxy, ok := os.LookupEnv("DOCKER_PROXY")
+				if ok {
+					args = append(args, "--restic-server-image", dockerProxy+"/"+liqoctlmove.DefaultResticServerImage)
+					args = append(args, "--restic-image", dockerProxy+"/"+liqoctlmove.DefaultResticImage)
+				}
+				Expect(util.ExecLiqoctl(testContext.Clusters[0].KubeconfigPath, args, GinkgoWriter)).To(Succeed())
 
 				By("Scaling the statefulset to one replica")
 				Expect(storage.ScaleStatefulSet(ctx, GinkgoT(), options, testContext.Clusters[0].NativeClient, namespace, 1)).To(Succeed())
