@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
@@ -89,11 +88,6 @@ func customizeVKOptionsFlags(opts *vkforge.VirtualKubeletOpts, container *corev1
 		if found := strings.HasPrefix(arg, string(vkforge.IpamEndpoint)); found {
 			value := strings.TrimPrefix(arg, string(vkforge.IpamEndpoint))
 			opts.IpamEndpoint = strings.TrimLeft(value, " ")
-		} else if found := strings.HasPrefix(arg, string(vkforge.RemoteRealStorageClassName)); found {
-			value := strings.TrimPrefix(arg, string(vkforge.RemoteRealStorageClassName))
-			opts.StorageClasses = []sharingv1alpha1.StorageType{{
-				Default:          true,
-				StorageClassName: strings.TrimLeft(value, " ")}}
 		} else if found := strings.HasPrefix(arg, string(vkforge.NodeExtraAnnotations)); found {
 			value := strings.TrimPrefix(arg, string(vkforge.NodeExtraAnnotations))
 			annotations := strings.TrimLeft(value, " ")

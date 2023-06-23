@@ -263,7 +263,7 @@ func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector l
 
 // GetNodeFromVirtualNode returns the node object from the given virtual node name.
 func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode) (*corev1.Node, error) {
-	nodename := virtualKubelet.VirtualNodeName(virtualNode)
+	nodename := virtualNode.Name
 	nodes, err := GetNodesByClusterID(ctx, cl, virtualNode.Spec.ClusterIdentity)
 	if err != nil {
 		return nil, err

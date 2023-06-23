@@ -17,7 +17,6 @@ package forge
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
@@ -38,7 +37,6 @@ type VirtualKubeletOpts struct {
 	IpamEndpoint         string
 	MetricsEnabled       bool
 	MetricsAddress       string
-	StorageClasses       []sharingv1alpha1.StorageType
 }
 
 // VirtualKubeletOptsFlag defines the custom options flags associated with the virtual kubelet deployment forging.

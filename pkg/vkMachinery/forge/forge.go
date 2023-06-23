@@ -25,7 +25,6 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/pod"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
@@ -40,7 +39,7 @@ func getDefaultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharin
 
 func forgeVKContainers(
 	vkImage string, homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity,
-	nodeName, vkNamespace string, opts *VirtualKubeletOpts) []v1.Container {
+	nodeName, vkNamespace string, storageClasses []sharingv1alpha1.StorageType, opts *VirtualKubeletOpts) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
@@ -59,10 +58,10 @@ func forgeVKContainers(
 		args = append(args, stringifyArgument(string(IpamEndpoint), opts.IpamEndpoint))
 	}
 
-	if len(opts.StorageClasses) > 0 {
+	if len(storageClasses) > 0 {
 		args = append(args, string(EnableStorage),
 			stringifyArgument(string(RemoteRealStorageClassName),
-				getDefaultStorageClass(opts.StorageClasses).StorageClassName))
+				getDefaultStorageClass(storageClasses).StorageClassName))
 	}
 
 	if extraAnnotations := opts.NodeExtraAnnotations.StringMap; len(extraAnnotations) != 0 {
@@ -121,11 +120,11 @@ func forgeVKPodSpec(
 	if opts.NodeName != "" {
 		nodeName = opts.NodeName
 	} else {
-		nodeName = virtualKubelet.VirtualNodeName(virtualNode)
+		nodeName = virtualNode.Name
 	}
 	return v1.PodSpec{
 		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, virtualNode.Spec.ClusterIdentity,
-			nodeName, vkNamespace, opts),
+			nodeName, vkNamespace, virtualNode.Spec.StorageClasses, opts),
 		ServiceAccountName: vk.ServiceAccountName,
 	}
 }
