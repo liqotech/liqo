@@ -110,6 +110,8 @@ func (pic *PeerInfoChecker) Collect(ctx context.Context) {
 			pic.addCollectionError(fmt.Errorf("unable to get network info for cluster %q: %w", remoteClusterName, err))
 		}
 
+		pic.addAPIServerSection(clusterSection, fc)
+
 		err = pic.addResourceSection(ctx, clusterSection, fc, remoteClusterID, localClusterName, remoteClusterName)
 		if err != nil {
 			pic.addCollectionError(fmt.Errorf("unable to get resource info for cluster %q: %w", remoteClusterName, err))
@@ -158,9 +160,6 @@ func (pic *PeerInfoChecker) addAuthSection(rootSection output.Section, foreignCl
 	authSection.AddEntry("Status", string(authStatus))
 	if pic.options.Verbose {
 		authSection.AddEntry("Auth URL", foreignCluster.Spec.ForeignAuthURL)
-		if foreignCluster.Spec.ForeignProxyURL != "" {
-			authSection.AddEntry("Auth Proxy URL", foreignCluster.Spec.ForeignProxyURL)
-		}
 	}
 }
 
@@ -272,6 +271,19 @@ func (pic *PeerInfoChecker) addVpnSection(ctx context.Context, rootSection outpu
 	tunnelEndpointSection.AddEntry("Status", string(te.Status.Connection.Status))
 	tunnelEndpointSection.AddEntry("Latency", te.Status.Connection.Latency.Value)
 	return nil
+}
+
+// addAPIServerSection adds a section about the foreign API server status.
+func (pic *PeerInfoChecker) addAPIServerSection(rootSection output.Section, foreignCluster *discoveryv1alpha1.ForeignCluster) {
+	apiServerSection := rootSection.AddSection("API Server")
+	apiServerStatus := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.APIServerStatusCondition)
+	apiServerSection.AddEntry("Status", string(apiServerStatus))
+	if pic.options.Verbose {
+		apiServerSection.AddEntry("API Server URL", foreignCluster.Status.APIServerURL)
+		if foreignCluster.Spec.ForeignProxyURL != "" {
+			apiServerSection.AddEntry("API Server Proxy URL", foreignCluster.Spec.ForeignProxyURL)
+		}
+	}
 }
 
 // addResourceSection adds a section about the resource usage.

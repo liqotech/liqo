@@ -27,6 +27,8 @@ const (
 	OverrideAPIAddress = "1.0.0.2:6443"
 	// ForeignAuthURL is the URL of the foreign cluster used for testing.
 	ForeignAuthURL = "https://fake-auth-url:32407"
+	// ForeignAPIServerURL is the URL of the foreign cluster used for testing.
+	ForeignAPIServerURL = "https://fake-apiserver-url:6443"
 	// ForeignProxyURL is the URL of the foreign cluster used for testing.
 	ForeignProxyURL = "https://fake-proxy-url:32408"
 	// VPNGatewayPort is the port of the liqo-gateway service used for testing.

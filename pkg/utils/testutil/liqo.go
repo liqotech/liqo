@@ -159,7 +159,12 @@ func FakeForeignCluster(clusterIdentity discoveryv1alpha1.ClusterIdentity, tenan
 					Type:   discoveryv1alpha1.NetworkStatusCondition,
 					Status: networkConditionStatus,
 				},
+				{
+					Type:   discoveryv1alpha1.APIServerStatusCondition,
+					Status: discoveryv1alpha1.PeeringConditionStatusEstablished,
+				},
 			},
+			APIServerURL: ForeignAPIServerURL,
 		},
 	}
 }

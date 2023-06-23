@@ -230,6 +230,19 @@ var _ = Describe("PeerInfo", func() {
 				))
 			}
 
+			// API Server
+			Expect(text).To(ContainSubstring(
+				pterm.Sprintf("API Server Status: %s", discoveryv1alpha1.PeeringConditionStatusEstablished),
+			))
+			if args.verbose {
+				Expect(text).To(ContainSubstring(
+					pterm.Sprintf("API Server URL: %s", testutil.ForeignAPIServerURL),
+				))
+				Expect(text).To(ContainSubstring(
+					pterm.Sprintf("API Server Proxy URL: %s", testutil.ForeignProxyURL),
+				))
+			}
+
 			// Resources
 			if args.peer.outgoingPeeringEnabled {
 				Expect(text).To(ContainSubstring(

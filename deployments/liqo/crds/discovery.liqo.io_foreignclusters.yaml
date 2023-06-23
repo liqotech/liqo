@@ -132,6 +132,9 @@ spec:
           status:
             description: ForeignClusterStatus defines the observed state of ForeignCluster.
             properties:
+              apiServerUrl:
+                description: URL of the forign cluster's API server.
+                type: string
               peeringConditions:
                 description: PeeringConditions contains the conditions about the peering
                   related to this ForeignCluster.
