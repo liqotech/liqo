@@ -110,6 +110,9 @@ func (dr *DeletionRoutine) run() {
 		}
 
 		if !vn.DeletionTimestamp.IsZero() {
+			if err := dr.vnr.ensureNamespaceMapAbsence(ctx, vn); err != nil {
+				return dr.reEnqueueVirtualNode(vn, fmt.Errorf("error deleting namespace map: %w", err))
+			}
 			err := dr.vnr.removeVirtualNodeFinalizer(ctx, vn)
 			if err != nil {
 				klog.Errorf(" %s --> Unable to remove the finalizer to the virtual-node %s in namespace %s", err, vn.Name, vn.Namespace)

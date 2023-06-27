@@ -28,6 +28,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -146,4 +147,17 @@ func (ncr *NamespacedConfigMapReflector) Handle(ctx context.Context, name string
 	ncr.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 
 	return nil
+}
+
+// List returns the list of objects.
+func (ncr *NamespacedConfigMapReflector) List() ([]interface{}, error) {
+	listers := map[string]virtualkubelet.Lister[*corev1.ConfigMap]{
+		"local":  ncr.localConfigMaps,
+		"remote": ncr.remoteConfigMaps,
+	}
+	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.ConfigMap], *corev1.ConfigMap](listers)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }

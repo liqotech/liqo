@@ -27,6 +27,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -132,4 +133,17 @@ func (nir *NamespacedIngressReflector) Handle(ctx context.Context, name string) 
 	nir.Event(local, corev1.EventTypeNormal, forge.EventSuccessfulReflection, forge.EventSuccessfulReflectionMsg())
 
 	return nil
+}
+
+// List returns the list of ingress objects to be reflected.
+func (nir *NamespacedIngressReflector) List() ([]interface{}, error) {
+	listers := map[string]virtualkubelet.Lister[*netv1.Ingress]{
+		"local":  nir.localIngresses,
+		"remote": nir.remoteIngresses,
+	}
+	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*netv1.Ingress], *netv1.Ingress](listers)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }

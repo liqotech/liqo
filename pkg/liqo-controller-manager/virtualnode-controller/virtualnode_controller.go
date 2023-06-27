@@ -43,6 +43,7 @@ import (
 )
 
 const (
+	// virtualNodeControllerFinalizer is the finalizer added to virtual-node to allow the controller to clean up.
 	virtualNodeControllerFinalizer = "virtualnode-controller.liqo.io/finalizer"
 )
 
@@ -108,12 +109,10 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	} else {
 		if ctrlutil.ContainsFinalizer(virtualNode, virtualNodeControllerFinalizer) {
-			if err := r.ensureNamespaceMapAbsence(ctx, virtualNode); err != nil {
-				return ctrl.Result{}, err
-			}
 			r.dr.EnsureNodeAbsence(virtualNode)
 			return ctrl.Result{}, nil
 		}
+		return ctrl.Result{}, nil
 	}
 
 	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, virtualNode); err != nil {

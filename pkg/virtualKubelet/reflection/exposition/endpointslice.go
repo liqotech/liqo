@@ -38,6 +38,7 @@ import (
 	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
 	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
+	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -344,4 +345,23 @@ func (ner *NamespacedEndpointSliceReflector) ServiceToEndpointSlicesKeyer(metada
 	}
 
 	return keys
+}
+
+// List returns the list of EndpointSlices managed by informers.
+func (ner *NamespacedEndpointSliceReflector) List() ([]interface{}, error) {
+	listersEps := map[string]virtualkubelet.Lister[*discoveryv1.EndpointSlice]{
+		"local": ner.localEndpointSlices,
+	}
+	listEps, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*discoveryv1.EndpointSlice], *discoveryv1.EndpointSlice](listersEps)
+	if err != nil {
+		return nil, err
+	}
+	listersSeps := map[string]virtualkubelet.Lister[*vkv1alpha1.ShadowEndpointSlice]{
+		"remote": ner.remoteShadowEndpointSlices,
+	}
+	listSeps, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*vkv1alpha1.ShadowEndpointSlice], *vkv1alpha1.ShadowEndpointSlice](listersSeps)
+	if err != nil {
+		return nil, err
+	}
+	return append(listEps, listSeps...), nil
 }

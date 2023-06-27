@@ -124,6 +124,8 @@ type VirtualNodeStatus struct {
 // +genclient
 
 // VirtualNode is the Schema for the VirtualNodes API.
+// +kubebuilder:printcolumn:name="Cluster Name",type=string,JSONPath=`.spec.clusterIdentity.clusterName`
+// +kubebuilder:printcolumn:name="Create Node",type=boolean,JSONPath=`.spec.createNode`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type VirtualNode struct {
 	metav1.TypeMeta   `json:",inline"`

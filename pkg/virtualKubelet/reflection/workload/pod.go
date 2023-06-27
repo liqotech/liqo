@@ -105,6 +105,11 @@ type FallbackPodReflector struct {
 	recorder        record.EventRecorder
 }
 
+// String returns the name of the PodReflector.
+func (pr *PodReflector) String() string {
+	return PodReflectorName
+}
+
 // NewPodReflector returns a new PodReflector instance.
 func NewPodReflector(
 	remoteRESTConfig *rest.Config, /* required to establish the connection to implement `kubectl exec` */

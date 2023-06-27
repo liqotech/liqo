@@ -53,8 +53,7 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 
 	result, err := ctrlutils.CreateOrUpdate(ctx, r.Client, nm, func() error {
 		nm.Labels = labels.Merge(nm.Labels, l)
-
-		return ctrlutils.SetControllerReference(vn, nm, r.Scheme)
+		return nil
 	})
 
 	if err != nil {
@@ -93,6 +92,7 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, v
 				klog.Errorf("%s -> unable to delete the NamespaceMap %q", err, namespaceMapList.Items[i].Name)
 			}
 		}
+		klog.Infof("NamespaceMap %q successfully deleted", namespaceMapList.Items[i].Name)
 	}
 
 	return nil

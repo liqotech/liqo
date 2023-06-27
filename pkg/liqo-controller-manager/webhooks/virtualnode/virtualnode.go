@@ -48,15 +48,10 @@ func New(cl client.Client, clusterIdentity *discoveryv1alpha1.ClusterIdentity,
 	virtualKubeletOptions *vkforge.VirtualKubeletOpts) *admission.Webhook {
 	return &admission.Webhook{Handler: &vnwh{
 		client:                cl,
+		decoder:               admission.NewDecoder(runtime.NewScheme()),
 		clusterIdentity:       clusterIdentity,
 		virtualKubeletOptions: virtualKubeletOptions,
 	}}
-}
-
-// InjectDecoder injects the decoder - this method is used by controller runtime.
-func (w *vnwh) InjectDecoder(decoder *admission.Decoder) error {
-	w.decoder = decoder
-	return nil
 }
 
 // DecodeVirtualNode decodes the pod from the incoming request.

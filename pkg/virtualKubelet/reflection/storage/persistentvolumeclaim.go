@@ -32,6 +32,8 @@ import (
 
 	"github.com/liqotech/liqo/pkg/consts"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
+	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
+
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -210,4 +212,17 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 	default:
 		return fmt.Errorf("unknown state %v", state)
 	}
+}
+
+// List lists all PersistentVolumeClaims in the local cluster.
+func (npvcr *NamespacedPersistentVolumeClaimReflector) List() ([]interface{}, error) {
+	listers := map[string]virtualkubelet.Lister[*corev1.PersistentVolumeClaim]{
+		"local":  npvcr.localPersistentVolumeClaims,
+		"remote": npvcr.remotePersistentVolumeClaims,
+	}
+	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.PersistentVolumeClaim], *corev1.PersistentVolumeClaim](listers)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }
