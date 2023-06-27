@@ -176,3 +176,8 @@ func isSATokenAPISupport(localClient kubernetes.Interface) (bool, error) {
 
 	return false, nil
 }
+
+// Resync force the resync of all informers contained in the reflection manager.
+func (p *LiqoProvider) Resync() error {
+	return p.reflectionManager.Resync()
+}

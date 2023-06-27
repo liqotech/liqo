@@ -68,6 +68,11 @@ type reflector struct {
 	concurrencyMode ConcurrencyMode
 }
 
+// String returns the name of the reflector.
+func (gr *reflector) String() string {
+	return gr.name
+}
+
 type ConcurrencyMode string
 
 const (
@@ -210,6 +215,7 @@ func (gr *reflector) processNextWorkItem() bool {
 		return true
 	}
 
+	klog.V(5).Infof("Reflector %v processing item %v", gr.name, key)
 	// Run the handler, passing it the item to be processed as parameter.
 	if err := gr.handle(context.Background(), key.(types.NamespacedName)); err != nil {
 		var eae enqueueAfterError
@@ -313,6 +319,21 @@ func (gr *reflector) handlers(keyer options.Keyer, filters ...options.EventFilte
 	}
 }
 
+// Resync trigger a resync of the informer.
+func (gr *reflector) Resync() error {
+	for k, v := range gr.reflectors {
+		objs, err := v.List()
+		if err != nil {
+			return err
+		}
+		klog.Infof("Resynced %v reflector for local namespace %q", gr.name, k)
+		for i := range objs {
+			gr.workqueue.Add(objs[i])
+		}
+	}
+	return nil
+}
+
 // BasicKeyer returns a keyer retrieving the name and namespace from the object metadata.
 func BasicKeyer() func(metadata metav1.Object) []types.NamespacedName {
 	return func(metadata metav1.Object) []types.NamespacedName {
@@ -335,6 +356,9 @@ func WithoutFallback() FallbackReflectorFactoryFunc {
 
 type dummyreflector struct{ name string }
 
+// String returns the name of the dummy reflector.
+func (dr *dummyreflector) String() string { return dr.name }
+
 // Start starts the dummy reflector (no-op).
 func (dr *dummyreflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
 	klog.Infof("Skipping starting the %v reflector, as no workers are configured", dr.name)
@@ -356,6 +380,12 @@ func (dr *dummyreflector) StopNamespace(local, remote string) {
 func (dr *dummyreflector) IsLeaderRestricted() bool {
 	klog.Infof("Skipping getting IsLeaderElection value, as no workers are configured")
 	return false
+}
+
+// Resync trigger the resync of the informer.
+func (dr *dummyreflector) Resync() error {
+	klog.Infof("Skipping getting resync period, as no workers are configured")
+	return nil
 }
 
 // EnqueueAfter returns an error to convey that the current key should be reenqueued after a given duration.

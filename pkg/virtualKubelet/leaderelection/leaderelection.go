@@ -16,6 +16,7 @@ package leaderelection
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection"
@@ -33,65 +35,73 @@ import (
 
 var (
 	lock    sync.RWMutex
-	wait    sync.WaitGroup
 	leading = false
 )
 
+type Opts struct {
+	PodName         string
+	TenantNamespace string
+	LeaseDuration   time.Duration
+	RenewDeadline   time.Duration
+	RetryPeriod     time.Duration
+}
+
 // InitAndRun initializes and runs the leader election mechanism.
-func InitAndRun(ns string, rc *rest.Config, id string, eb record.EventBroadcaster) error {
+func InitAndRun(ctx context.Context, opts Opts, rc *rest.Config,
+	eb record.EventBroadcaster, initCallback func()) error {
 	scheme := runtime.NewScheme()
-	// TODO controllo quale schema va aggiunto.
 	err := cv1.AddToScheme(scheme)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	wait.Add(1)
 	leaderelector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
 		Lock: &resourcelock.LeaseLock{
 			LeaseMeta: metav1.ObjectMeta{
 				Name:      LeaderElectorName,
-				Namespace: ns,
+				Namespace: opts.TenantNamespace,
 			},
 			Client: coordinationv1.NewForConfigOrDie(rc),
 			LockConfig: resourcelock.ResourceLockConfig{
-				Identity:      id,
-				EventRecorder: eb.NewRecorder(scheme, corev1.EventSource{Component: id}),
+				Identity:      opts.PodName,
+				EventRecorder: eb.NewRecorder(scheme, corev1.EventSource{Component: opts.PodName}),
 			},
 		},
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
 				lock.Lock()
-				klog.Infof("Leader election: this pod is the leader", id)
+				klog.Infof("Leader election: this pod is the leader")
 				leading = true
+				initCallback()
 				lock.Unlock()
 			},
 			OnStoppedLeading: func() {
 				lock.Lock()
-				klog.Infof("Leader election: this pod is not the leader anymore", id)
+				klog.Infof("Leader election: this pod is not the leader anymore")
 				leading = false
 				lock.Unlock()
 			},
 			OnNewLeader: func(identity string) {
 				klog.Infof("Leader election: %s is the current leader", identity)
-				if identity == id {
-					lock.Lock()
-					leading = true
-					lock.Unlock()
-				}
-				wait.Done()
 			},
 		},
-		LeaseDuration: 15 * time.Second,
-		RenewDeadline: 10 * time.Second,
-		RetryPeriod:   2 * time.Second,
-		Name:          LeaderElectorName,
+		LeaseDuration:   opts.LeaseDuration,
+		RenewDeadline:   opts.RenewDeadline,
+		RetryPeriod:     opts.RetryPeriod,
+		Name:            LeaderElectorName,
+		ReleaseOnCancel: true,
 	})
 	if err != nil {
 		return err
 	}
-	go leaderelector.Run(context.Background())
-	wait.Wait()
+	go func() {
+		klog.Info("Leader election: starting leader election")
+		leaderelector.Run(ctx)
+		// If the context is not canceled, the leader election terminated unexpectedly.
+		if ctx.Err() == nil {
+			utilruntime.Must(fmt.Errorf("leader election terminated"))
+		}
+	}()
 	return nil
 }
 

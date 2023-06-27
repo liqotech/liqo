@@ -133,12 +133,26 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	eb := record.NewBroadcaster()
 	eb.StartRecordingToSink(&corev1clients.EventSinkImpl{Interface: localClient.CoreV1().Events(corev1.NamespaceAll)})
 
-	if err := leaderelection.InitAndRun(c.TenantNamespace, localConfig, c.PodName, eb); err != nil {
+	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg, eb)
+	if err != nil {
 		return err
 	}
 
-	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg, eb)
-	if err != nil {
+	leaderelectionOpts := leaderelection.Opts{
+		PodName:         c.PodName,
+		TenantNamespace: c.TenantNamespace,
+		LeaseDuration:   c.VirtualKubeletLeaseLeaseDuration,
+		RenewDeadline:   c.VirtualKubeletLeaseRenewDeadline,
+		RetryPeriod:     c.VirtualKubeletLeaseRetryPeriod,
+	}
+	if err := leaderelection.InitAndRun(ctx, leaderelectionOpts, localConfig, eb, func() {
+		klog.Infof("Starting informer resync")
+		if err := podProvider.Resync(); err != nil {
+			klog.Errorf("Error during resync for pod provider: %s", err)
+			return
+		}
+		klog.Infof("Resync informer completed")
+	}); err != nil {
 		return err
 	}
 

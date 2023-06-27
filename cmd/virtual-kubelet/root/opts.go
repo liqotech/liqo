@@ -108,6 +108,11 @@ type Opts struct {
 	HomeAPIServerPort string
 
 	CreateNode bool
+
+	VirtualKubeletLeaseEnabled       bool
+	VirtualKubeletLeaseLeaseDuration time.Duration
+	VirtualKubeletLeaseRenewDeadline time.Duration
+	VirtualKubeletLeaseRetryPeriod   time.Duration
 }
 
 // NewOpts returns an Opts struct with the default values set.
@@ -139,5 +144,10 @@ func NewOpts() *Opts {
 		NodePingInterval:  node.DefaultPingInterval,
 		NodePingTimeout:   DefaultNodePingTimeout,
 		NodeCheckNetwork:  DefaultNodeCheckNetwork,
+
+		VirtualKubeletLeaseEnabled:       true,
+		VirtualKubeletLeaseLeaseDuration: 15 * time.Second,
+		VirtualKubeletLeaseRenewDeadline: 10 * time.Second,
+		VirtualKubeletLeaseRetryPeriod:   5 * time.Second,
 	}
 }

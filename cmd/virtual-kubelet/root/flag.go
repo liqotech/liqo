@@ -16,6 +16,7 @@ package root
 
 import (
 	"flag"
+	"time"
 
 	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"
@@ -82,6 +83,14 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.StringVar(&o.HomeAPIServerPort, "home-api-server-port", "",
 		"Home cluster API server PORT, this parameter is optional and required only to override the default values")
 	flags.BoolVar(&o.CreateNode, "create-node", true, "Create the virtual node in the home cluster")
+
+	flags.BoolVar(&o.VirtualKubeletLeaseEnabled, "vk-lease-enabled", true, "Enable the virtual kubelet lease")
+	flags.DurationVar(&o.VirtualKubeletLeaseLeaseDuration, "vk-lease-duration", 15*time.Second,
+		" The duration that non-leader candidates will wait to force acquire leadership.")
+	flags.DurationVar(&o.VirtualKubeletLeaseRenewDeadline, "vk-lease-renew-interval", 10*time.Second,
+		"The duration that the acting master will retry refreshing leadership before giving up.")
+	flags.DurationVar(&o.VirtualKubeletLeaseRetryPeriod, "vk-lease-retry-period", 5*time.Second,
+		"the duration the LeaderElector clients should wait between tries of actions.")
 
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)

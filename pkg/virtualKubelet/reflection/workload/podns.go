@@ -53,6 +53,7 @@ import (
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/utils/pod"
+	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/portforwarder"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -718,4 +719,17 @@ func (npr *NamespacedPodReflector) InferAdditionalRestarts(local, remote *corev1
 
 	// This should never occur, since the containers should match
 	return 0
+}
+
+// List retrieves the list of reflected pods.
+func (npr *NamespacedPodReflector) List() ([]interface{}, error) {
+	listers := map[string]virtualkubelet.Lister[*corev1.Pod]{
+		"local":  npr.localPods,
+		"remote": npr.remotePods,
+	}
+	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.Pod], *corev1.Pod](listers)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }

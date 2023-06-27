@@ -30,6 +30,8 @@ type Manager interface {
 	WithNamespaceHandler(handler NamespaceHandler) Manager
 	// Start starts the reflection manager. It panics if executed twice.
 	Start(ctx context.Context)
+	// Resync triggers a resync of the reflectors.
+	Resync() error
 
 	NamespaceStartStopper
 }
@@ -44,12 +46,16 @@ type NamespaceStartStopper interface {
 
 // Reflector implements the reflection between the local and the remote cluster.
 type Reflector interface {
+	// String returns the name of the reflector.
+	String() string
 	// Start starts the reflector.
 	Start(ctx context.Context, opts *options.ReflectorOpts)
 	// StartNamespace starts the reflection for the given namespace.
 	StartNamespace(opts *options.NamespacedOpts)
 	// StopNamespace stops the reflection for a given namespace.
 	StopNamespace(local, remote string)
+	// Resync triggers a resync of the reflector.
+	Resync() error
 }
 
 // NamespacedReflector implements the reflection between a local and a remote namespace.
@@ -58,6 +64,8 @@ type NamespacedReflector interface {
 	Handle(ctx context.Context, name string) error
 	// Ready returns whether the NamespacedReflector is completely initialized.
 	Ready() bool
+	// List returns the list of objects to be reflected.
+	List() ([]interface{}, error)
 }
 
 // FallbackReflector implements fallback reflection for "orphan" local objects not managed by namespaced reflectors.

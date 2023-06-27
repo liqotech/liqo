@@ -226,3 +226,13 @@ func (m *manager) StopNamespace(local, remote string) {
 	}
 	klog.Infof("Reflection between local namespace %q and remote namespace %q correctly stopped", local, remote)
 }
+
+// Resync forces the resync of all the informers.
+func (m *manager) Resync() error {
+	for i := range m.reflectors {
+		if err := m.reflectors[i].Resync(); err != nil {
+			klog.Errorf("Error while resyncing the %s reflector: %s", m.reflectors[i], err)
+		}
+	}
+	return nil
+}
