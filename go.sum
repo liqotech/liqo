@@ -1566,8 +1566,8 @@ rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8
 rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
-sigs.k8s.io/aws-iam-authenticator v0.6.9 h1:0wRJlkCtSF1lXKFZYK4z7Rfs95aY9ZaIcVHVr6+m11s=
-sigs.k8s.io/aws-iam-authenticator v0.6.9/go.mod h1:LZ5NbdpOTOTfu2RrX3sJfpfOABHrPRyQnfQTh+p01SA=
+sigs.k8s.io/aws-iam-authenticator v0.6.10 h1:ld4g1kQUAG9jgUUc0e4cRPhRXTvzp0/uw5M6iSYskpY=
+sigs.k8s.io/aws-iam-authenticator v0.6.10/go.mod h1:uh/d/yhtzJXBdevntKgTKRaabgD2T/JI/YdV+9IaycE=
 sigs.k8s.io/controller-runtime v0.15.0 h1:ML+5Adt3qZnMSYxZ7gAverBLNPSMQEibtzAgp0UPojU=
 sigs.k8s.io/controller-runtime v0.15.0/go.mod h1:7ngYvp1MLT+9GeZ+6lH3LOlcHkp/+tzA/fmHa4iq9kk=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=

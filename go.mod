@@ -57,7 +57,7 @@ require (
 	k8s.io/kubectl v0.27.2
 	k8s.io/metrics v0.27.2
 	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5
-	sigs.k8s.io/aws-iam-authenticator v0.6.9
+	sigs.k8s.io/aws-iam-authenticator v0.6.10
 	sigs.k8s.io/controller-runtime v0.15.0
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
 )
