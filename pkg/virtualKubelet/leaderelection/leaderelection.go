@@ -39,6 +39,7 @@ var (
 )
 
 type Opts struct {
+	Enabled         bool
 	PodName         string
 	TenantNamespace string
 	LeaseDuration   time.Duration
@@ -49,6 +50,9 @@ type Opts struct {
 // InitAndRun initializes and runs the leader election mechanism.
 func InitAndRun(ctx context.Context, opts Opts, rc *rest.Config,
 	eb record.EventBroadcaster, initCallback func()) error {
+	if !opts.Enabled {
+		return nil
+	}
 	scheme := runtime.NewScheme()
 	err := cv1.AddToScheme(scheme)
 	if err != nil {

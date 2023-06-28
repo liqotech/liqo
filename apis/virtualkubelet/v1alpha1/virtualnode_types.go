@@ -102,7 +102,7 @@ type VirtualNodeCondition struct {
 	// +kubebuilder:validation:Enum="VirtualKubelet";"Node"
 	Type VirtualNodeConditionType `json:"type"`
 	// Status of the condition.
-	// +kubebuilder:validation:Enum="None";"Running";"Creating";"Deleting"
+	// +kubebuilder:validation:Enum="None";"Running";"Creating";"Draining";"Deleting"
 	// +kubebuilder:default="None"
 	Status VirtualNodeConditionStatusType `json:"status"`
 	// LastTransitionTime -> timestamp for when the condition last transitioned from one status to another.
@@ -126,6 +126,8 @@ type VirtualNodeStatus struct {
 // VirtualNode is the Schema for the VirtualNodes API.
 // +kubebuilder:printcolumn:name="Cluster Name",type=string,JSONPath=`.spec.clusterIdentity.clusterName`
 // +kubebuilder:printcolumn:name="Create Node",type=boolean,JSONPath=`.spec.createNode`
+// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=`.status.conditions[?(@.type=="Node")].status`,priority=1
+// +kubebuilder:printcolumn:name="VirtualKubelet",type=string,JSONPath=`.status.conditions[?(@.type=="VirtualKubelet")].status`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type VirtualNode struct {
 	metav1.TypeMeta   `json:",inline"`

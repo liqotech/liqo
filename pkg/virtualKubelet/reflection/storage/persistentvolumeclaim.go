@@ -32,9 +32,8 @@ import (
 
 	"github.com/liqotech/liqo/pkg/consts"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
-	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
-
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"

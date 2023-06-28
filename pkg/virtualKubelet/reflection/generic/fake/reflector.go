@@ -30,6 +30,8 @@ type Reflector struct {
 	isLeaderRestricted bool
 }
 
+func (r *Reflector) String() string { return "fakeReflector" }
+
 // NewReflector returns a new fake Reflector.
 func NewReflector(isLeaderRestricted bool) *Reflector {
 	return &Reflector{
@@ -40,7 +42,7 @@ func NewReflector(isLeaderRestricted bool) *Reflector {
 }
 
 // Start marks the reflector as started.
-func (r *Reflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
+func (r *Reflector) Start(_ context.Context, opts *options.ReflectorOpts) {
 	r.Started = true
 	r.Opts = opts
 }
@@ -58,4 +60,9 @@ func (r *Reflector) StopNamespace(local, remote string) {
 // IsLeaderRestricted returns whether the reflector is restricted to the leader.
 func (r *Reflector) IsLeaderRestricted() bool {
 	return r.isLeaderRestricted
+}
+
+// Resync triggers a resync of the reflector.
+func (r *Reflector) Resync() error {
+	return nil
 }
