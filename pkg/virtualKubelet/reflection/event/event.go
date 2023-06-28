@@ -67,7 +67,7 @@ type NamespacedEventReflector struct {
 
 // NewEventReflector returns a new EventReflector instance.
 func NewEventReflector(workers uint) manager.Reflector {
-	return generic.NewReflector(EventReflectorName, NewNamespacedEventReflector, generic.WithoutFallback(), workers)
+	return generic.NewReflector(EventReflectorName, NewNamespacedEventReflector, generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedEventReflector returns a new NamespacedEventReflector instance.
