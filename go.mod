@@ -35,7 +35,7 @@ require (
 	github.com/vishvananda/netns v0.0.4
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
 	golang.org/x/exp v0.0.0-20221114191408-850992195362
-	golang.org/x/mod v0.10.0
+	golang.org/x/mod v0.11.0
 	golang.org/x/sync v0.3.0
 	golang.org/x/sys v0.9.0
 	golang.org/x/text v0.9.0
