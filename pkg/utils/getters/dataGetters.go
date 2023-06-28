@@ -253,8 +253,8 @@ func RetrieveNetworkConfiguration(ipamS *netv1alpha1.IpamStorage) (*NetworkConfi
 // RetrieveClusterIDsFromVirtualNodes returns the remote cluster IDs in a list of VirtualNodes avoiding duplicates.
 func RetrieveClusterIDsFromVirtualNodes(virtualNodes *virtualkubeletv1alpha1.VirtualNodeList) []string {
 	clusterIDs := make(map[string]interface{})
-	for _, vn := range virtualNodes.Items {
-		clusterIDs[vn.Spec.ClusterIdentity.ClusterID] = nil
+	for i := range virtualNodes.Items {
+		clusterIDs[virtualNodes.Items[i].Spec.ClusterIdentity.ClusterID] = nil
 	}
 	return maps.Keys(clusterIDs)
 }

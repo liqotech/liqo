@@ -59,6 +59,7 @@ func (i *IdentityReader) GetConfig(remoteCluster discoveryv1alpha1.ClusterIdenti
 	return nil, fmt.Errorf("remote cluster ID %v not found", remoteCluster.ClusterID)
 }
 
+// GetSecretNamespacedName retrieves the secret namespaced name associated with a remote cluster.
 func (i *IdentityReader) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity,
 	_ string) (types.NamespacedName, error) {
 	if ns, found := i.namespaces[remoteCluster.ClusterID]; found {

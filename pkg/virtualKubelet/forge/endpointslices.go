@@ -69,7 +69,8 @@ func EndpointToBeReflected(endpoint *discoveryv1.Endpoint, localNodeClient corev
 }
 
 // RemoteShadowEndpointSlice forges the remote shadowendpointslice, given the local endpointslice.
-func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *vkv1alpha1.ShadowEndpointSlice, localNodeClient corev1listers.NodeLister, targetNamespace string,
+func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *vkv1alpha1.ShadowEndpointSlice,
+	localNodeClient corev1listers.NodeLister, targetNamespace string,
 	translator EndpointTranslator) *vkv1alpha1.ShadowEndpointSlice {
 	if remote == nil {
 		// The remote is nil if not already created.

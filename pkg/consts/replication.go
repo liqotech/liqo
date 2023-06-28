@@ -28,6 +28,8 @@ const (
 
 	// ReplicationRequestedLabel is the key of a label indicating whether the given resource should be replicated remotely.
 	ReplicationRequestedLabel = "liqo.io/replication"
+	// ReplicationRequestedLabelValue is the value of a label indicating that the given resource should be replicated remotely.
+	ReplicationRequestedLabelValue = "true"
 	// ReplicationOriginLabel is the key of a label indicating the origin cluster of a replicated resource.
 	ReplicationOriginLabel = "liqo.io/originID"
 	// ReplicationDestinationLabel is the key of a label indicating the destination cluster of a replicated resource.

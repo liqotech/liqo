@@ -60,8 +60,10 @@ func NewNamespacedIngressReflector(opts *options.NamespacedOpts) manager.Namespa
 	local := opts.LocalFactory.Networking().V1().Ingresses()
 	remote := opts.RemoteFactory.Networking().V1().Ingresses()
 
-	local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
-	remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	_, err := local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	utilruntime.Must(err)
+	_, err = remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	utilruntime.Must(err)
 
 	return &NamespacedIngressReflector{
 		NamespacedReflector:   generic.NewNamespacedReflector(opts, IngressReflectorName),

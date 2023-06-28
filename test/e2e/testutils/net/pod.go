@@ -26,9 +26,9 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -108,7 +108,7 @@ func forgeTesterPod(image, namespace string, opts *TesterOpts) *v1.Pod {
 	if opts.Offloaded {
 		NodeAffinityOperator = v1.NodeSelectorOpIn
 		nodeSelector = map[string]string{
-			"kubernetes.io/hostname": virtualKubelet.VirtualNodesGroupName(&opts.Cluster),
+			consts.RemoteClusterID: opts.Cluster.ClusterID,
 		}
 	}
 

@@ -16,6 +16,7 @@ package resourcemonitors
 
 import corev1 "k8s.io/api/core/v1"
 
+// ResourceListInfo contains the list of resources to monitor and the name of the pool they belong to.
 type ResourceListInfo struct {
 	Resources  []corev1.ResourceList
 	PoolName   string

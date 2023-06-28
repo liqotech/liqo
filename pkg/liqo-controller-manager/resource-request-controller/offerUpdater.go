@@ -119,12 +119,12 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 		op, err := controllerutil.CreateOrUpdate(ctx, u.client, offer, func() error {
 			if offer.Labels != nil {
 				offer.Labels[discovery.ClusterIDLabel] = request.Spec.ClusterIdentity.ClusterID
-				offer.Labels[consts.ReplicationRequestedLabel] = "true"
+				offer.Labels[consts.ReplicationRequestedLabel] = consts.ReplicationRequestedLabelValue
 				offer.Labels[consts.ReplicationDestinationLabel] = request.Spec.ClusterIdentity.ClusterID
 			} else {
 				offer.Labels = map[string]string{
 					discovery.ClusterIDLabel:           request.Spec.ClusterIdentity.ClusterID,
-					consts.ReplicationRequestedLabel:   "true",
+					consts.ReplicationRequestedLabel:   consts.ReplicationRequestedLabelValue,
 					consts.ReplicationDestinationLabel: request.Spec.ClusterIdentity.ClusterID,
 				}
 			}

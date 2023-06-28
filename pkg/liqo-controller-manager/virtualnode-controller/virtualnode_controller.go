@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
@@ -130,6 +129,28 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
+func enqueFromDeployment(dep *appsv1.Deployment, rli workqueue.RateLimitingInterface) {
+	rli.Add(
+		reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      dep.Labels[discovery.VirtualNodeLabel],
+				Namespace: dep.Namespace,
+			},
+		},
+	)
+}
+
+var deploymentHandler = &handler.Funcs{
+	DeleteFunc: func(_ context.Context, de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+		dep := de.Object.(*appsv1.Deployment)
+		enqueFromDeployment(dep, rli)
+	},
+	UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+		dep := ue.ObjectNew.(*appsv1.Deployment)
+		enqueFromDeployment(dep, rli)
+	},
+}
+
 // SetupWithManager register the VirtualNodeReconciler to the manager.
 func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// select virtual kubelet deployments only
@@ -140,29 +161,10 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		klog.Error(err)
 		return err
 	}
-	reconcileFromDeployment := func(dep *appsv1.Deployment, rli workqueue.RateLimitingInterface) {
-		rli.Add(
-			reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      dep.Labels[discovery.VirtualNodeLabel],
-					Namespace: dep.Namespace,
-				},
-			},
-		)
-	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&virtualkubeletv1alpha1.VirtualNode{}).Watches(
-		&source.Kind{Type: &appsv1.Deployment{}},
-		&handler.Funcs{
-			DeleteFunc: func(de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
-				dep := de.Object.(*appsv1.Deployment)
-				reconcileFromDeployment(dep, rli)
-			},
-			UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
-				dep := ue.ObjectNew.(*appsv1.Deployment)
-				reconcileFromDeployment(dep, rli)
-			},
-		},
+		&appsv1.Deployment{},
+		deploymentHandler,
 		builder.WithPredicates(deployPredicate),
 	).Complete(r)
 }

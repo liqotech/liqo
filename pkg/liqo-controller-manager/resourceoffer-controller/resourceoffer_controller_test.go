@@ -43,7 +43,8 @@ const (
 	timeout  = time.Second * 30
 	interval = time.Millisecond * 250
 
-	testNamespace        = "default"
+	testNamespace = "default"
+	//nolint:gosec // it doesn't contain sensitive information
 	kubeconfigSecretName = "kubeconfig-secret"
 )
 

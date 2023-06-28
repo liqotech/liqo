@@ -12,18 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package virtualKubelet
-
-import (
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-)
-
-const (
-	// VirtualNodePrefix -> the prefix used to generate the virtual node name.
-	VirtualNodePrefix = "liqo-"
-)
-
-// VirtualNodeGroupName generate the group name for the virtual nodes referring a specific clusterID.
-func VirtualNodeGroupName(cluster *discoveryv1alpha1.ClusterIdentity) string {
-	return VirtualNodePrefix + cluster.ClusterName
-}
+// Package virtualkubelet contains utility functions to deal with virtual kubelet.
+package virtualkubelet
