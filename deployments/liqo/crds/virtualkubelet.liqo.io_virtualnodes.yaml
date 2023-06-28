@@ -18,6 +18,20 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.clusterIdentity.clusterName
+      name: Cluster Name
+      type: string
+    - jsonPath: .spec.createNode
+      name: Create Node
+      type: boolean
+    - jsonPath: .status.conditions[?(@.type=="Node")].status
+      name: Node
+      priority: 1
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="VirtualKubelet")].status
+      name: VirtualKubelet
+      priority: 1
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -8883,6 +8897,7 @@ spec:
                       - None
                       - Running
                       - Creating
+                      - Draining
                       - Deleting
                       type: string
                     type:

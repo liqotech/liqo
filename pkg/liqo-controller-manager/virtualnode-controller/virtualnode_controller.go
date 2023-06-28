@@ -58,7 +58,7 @@ type VirtualNodeReconciler struct {
 	dr                    *DeletionRoutine
 }
 
-// NewVIrtualNodeReconciler creates a new VirtualNodeReconciler.
+// NewVirtualNodeReconciler returns a new VirtualNodeReconciler.
 func NewVirtualNodeReconciler(
 	cl client.Client, cll client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
@@ -83,13 +83,13 @@ func NewVirtualNodeReconciler(
 
 // cluster-role
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes/status,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes/finalizers,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
 
 // Reconcile manage NamespaceMaps associated with the virtual-node.
-
 func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	virtualNode := &virtualkubeletv1alpha1.VirtualNode{}
 	if err := r.Get(ctx, req.NamespacedName, virtualNode); err != nil {
@@ -110,12 +110,12 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	} else {
 		if ctrlutil.ContainsFinalizer(virtualNode, virtualNodeControllerFinalizer) {
 			r.dr.EnsureNodeAbsence(virtualNode)
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: true}, nil
 		}
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, virtualNode); err != nil {
+	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, r.Client, virtualNode); err != nil {
 		klog.Errorf(" %s --> Unable to create the virtual-kubelet deployment", err)
 		return ctrl.Result{}, err
 	}
@@ -127,7 +127,6 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err := r.ensureNamespaceMapPresence(ctx, virtualNode); err != nil {
 		return ctrl.Result{}, err
 	}
-
 	return ctrl.Result{}, nil
 }
 

@@ -139,6 +139,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	}
 
 	leaderelectionOpts := leaderelection.Opts{
+		Enabled:         c.VirtualKubeletLeaseEnabled,
 		PodName:         c.PodName,
 		TenantNamespace: c.TenantNamespace,
 		LeaseDuration:   c.VirtualKubeletLeaseLeaseDuration,

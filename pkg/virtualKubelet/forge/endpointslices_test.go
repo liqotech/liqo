@@ -15,16 +15,24 @@
 package forge_test
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
+	fake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/pointer"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+)
+
+var (
+	fakeclient = fake.NewSimpleClientset()
 )
 
 var _ = Describe("EndpointSlices Forging", func() {
@@ -53,7 +61,10 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Ports:       []discoveryv1.EndpointPort{{Name: pointer.String("HTTPS")}},
 			}
 
-			JustBeforeEach(func() { output = forge.RemoteShadowEndpointSlice(input, output, "reflected", Translator) })
+			informerFactory := informers.NewSharedInformerFactory(fakeclient, time.Second)
+			JustBeforeEach(func() {
+				output = forge.RemoteShadowEndpointSlice(input, output, informerFactory.Core().V1().Nodes().Lister(), "reflected", Translator)
+			})
 
 			It("should correctly set the name and namespace", func() {
 				Expect(output.Name).To(PointTo(Equal("name")))
@@ -104,7 +115,10 @@ var _ = Describe("EndpointSlices Forging", func() {
 			}
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteEndpointSliceEndpoints(input, Translator) })
+		JustBeforeEach(func() {
+			factoryInformers := informers.NewSharedInformerFactory(fakeclient, time.Second)
+			output = forge.RemoteEndpointSliceEndpoints(input, factoryInformers.Core().V1().Nodes().Lister(), Translator)
+		})
 
 		When("translating a single endpoint", func() {
 			BeforeEach(func() { input = []discoveryv1.Endpoint{endpoint} })

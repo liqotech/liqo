@@ -35,7 +35,7 @@ func NewFallbackReflector(opts *options.ReflectorOpts) *FallbackReflector {
 }
 
 // Handle increments the Handled counter.
-func (r *FallbackReflector) Handle(ctx context.Context, key types.NamespacedName) error {
+func (r *FallbackReflector) Handle(_ context.Context, _ types.NamespacedName) error {
 	r.Handled++
 	return nil
 }

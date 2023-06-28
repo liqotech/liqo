@@ -33,7 +33,7 @@ func NewNamespacedReflector(opts *options.NamespacedOpts) *NamespacedReflector {
 }
 
 // Handle increments the Handled counter.
-func (r *NamespacedReflector) Handle(ctx context.Context, name string) error {
+func (r *NamespacedReflector) Handle(_ context.Context, _ string) error {
 	r.Handled++
 	return nil
 }
@@ -43,3 +43,6 @@ func (r *NamespacedReflector) Ready() bool { return r.ready }
 
 // SetReady marks the NamespacedReflector as completely initialized.
 func (r *NamespacedReflector) SetReady() { r.ready = true }
+
+// List returns the list of handled namespaces.
+func (r *NamespacedReflector) List() ([]interface{}, error) { return []interface{}{}, nil }
