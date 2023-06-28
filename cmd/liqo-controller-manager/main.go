@@ -371,24 +371,6 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	// this is a temporary solution to avoid deleting all those flags
-	// and recreate them when the VirtualNode operator will be added.
-	_ = &forge.VirtualKubeletOpts{
-		ContainerImage:       "localhost:5001/virtual-kubelet",
-		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
-		ExtraLabels:          kubeletExtraLabels.StringMap,
-		ExtraArgs:            kubeletExtraArgs.StringList,
-		NodeExtraAnnotations: nodeExtraAnnotations,
-		NodeExtraLabels:      nodeExtraLabels,
-		RequestsCPU:          kubeletCPURequests.Quantity,
-		RequestsRAM:          kubeletRAMRequests.Quantity,
-		LimitsCPU:            kubeletCPULimits.Quantity,
-		LimitsRAM:            kubeletRAMLimits.Quantity,
-		IpamEndpoint:         *kubeletIpamServer,
-		MetricsAddress:       kubeletMetricsAddress,
-		MetricsEnabled:       kubeletMetricsEnabled,
-	}
-
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
 		mgr, idManager, *resyncPeriod, *offerDisableAutoAccept)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {

@@ -68,7 +68,8 @@ type NamespacedEndpointSliceReflector struct {
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
 func NewEndpointSliceReflector(ipamclient ipam.IpamClient, workers uint) manager.Reflector {
-	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient), generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
+	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient),
+		generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedEndpointSliceReflector returns a function generating NamespacedEndpointSliceReflector instances.
@@ -79,8 +80,9 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 		localEndpointSlices := opts.LocalFactory.Discovery().V1().EndpointSlices()
 		remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowEndpointSlices()
 
-		localEndpointSlices.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
-		_, err := remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		_, err := localEndpointSlices.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		utilruntime.Must(err)
+		_, err = remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		utilruntime.Must(err)
 
 		ner := &NamespacedEndpointSliceReflector{
@@ -94,7 +96,8 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 		}
 
 		// Enqueue all existing remote EndpointSlices in case the local Service has the "skip-reflection" annotation, to ensure they are also deleted.
-		localServices.Informer().AddEventHandler(opts.HandlerFactory(ner.ServiceToEndpointSlicesKeyer))
+		_, err = localServices.Informer().AddEventHandler(opts.HandlerFactory(ner.ServiceToEndpointSlicesKeyer))
+		utilruntime.Must(err)
 
 		return ner
 	}

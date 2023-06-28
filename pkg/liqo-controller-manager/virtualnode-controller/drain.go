@@ -108,6 +108,7 @@ func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
 
 // waitForDelete waits for the pod deletion.
 func waitPodForDelete(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
+	//nolint:staticcheck // Waiting for PollWithContextCancel implementation.
 	return wait.PollImmediateInfinite(waitForPodTerminationCheckPeriod, func() (bool, error) {
 		updatedPod := &corev1.Pod{}
 		err := cl.Get(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: pod.Name}, updatedPod)

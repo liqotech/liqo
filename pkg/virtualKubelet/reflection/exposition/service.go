@@ -62,8 +62,10 @@ func NewNamespacedServiceReflector(opts *options.NamespacedOpts) manager.Namespa
 	local := opts.LocalFactory.Core().V1().Services()
 	remote := opts.RemoteFactory.Core().V1().Services()
 
-	local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
-	remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	_, err := local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	utilruntime.Must(err)
+	_, err = remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+	utilruntime.Must(err)
 
 	return &NamespacedServiceReflector{
 		NamespacedReflector:  generic.NewNamespacedReflector(opts, ServiceReflectorName),

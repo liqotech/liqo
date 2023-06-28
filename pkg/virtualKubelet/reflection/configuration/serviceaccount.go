@@ -81,7 +81,8 @@ func NewServiceAccountReflector(enableSAReflection bool, workers uint) manager.R
 	}
 
 	reflector := &ServiceAccountReflector{}
-	genericReflector := generic.NewReflector(ServiceAccountReflectorName, reflector.NewNamespaced, reflector.NewFallback, workers, generic.ConcurrencyModeAll)
+	genericReflector := generic.NewReflector(ServiceAccountReflectorName, reflector.NewNamespaced,
+		reflector.NewFallback, workers, generic.ConcurrencyModeAll)
 	reflector.Reflector = genericReflector
 	return reflector
 }
@@ -110,7 +111,8 @@ func (sar *ServiceAccountReflector) NewNamespaced(opts *options.NamespacedOpts) 
 	remoteSecrets := opts.RemoteFactory.Core().V1().Secrets()
 
 	// Regardless of the type of the event, we always enqueue the key corresponding to the pod.
-	remoteSecrets.Informer().AddEventHandler(opts.HandlerFactory(RemoteSASecretNamespacedKeyer(opts.LocalNamespace, forge.LiqoNodeName)))
+	_, err := remoteSecrets.Informer().AddEventHandler(opts.HandlerFactory(RemoteSASecretNamespacedKeyer(opts.LocalNamespace, forge.LiqoNodeName)))
+	utilruntime.Must(err)
 
 	return &NamespacedServiceAccountReflector{
 		NamespacedReflector: generic.NewNamespacedReflector(opts, ServiceAccountReflectorName),

@@ -45,6 +45,7 @@ const (
 	localNamespace  = "local-namespace"
 	remoteNamespace = "remote-namespace"
 
+	//nolint:gosec // it doesn't contain sensitive information
 	kubeconfigSecretName = "kubeconfig-secret"
 )
 

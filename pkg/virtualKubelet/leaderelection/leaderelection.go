@@ -38,6 +38,7 @@ var (
 	leading = false
 )
 
+// Opts contains the options to configure the leader election mechanism.
 type Opts struct {
 	Enabled         bool
 	PodName         string

@@ -80,9 +80,18 @@ var (
 	homeClusterEnv *envtest.Environment
 
 	// Resources.
-	virtualNode1 *corev1.Node
-	virtualNode2 *corev1.Node
-	virtualNode3 *corev1.Node
+
+	tenantNamespace1 *corev1.Namespace
+	tenantNamespace2 *corev1.Namespace
+	tenantNamespace3 *corev1.Namespace
+
+	virtualNode1 *vkv1alpha1.VirtualNode
+	virtualNode2 *vkv1alpha1.VirtualNode
+	virtualNode3 *vkv1alpha1.VirtualNode
+
+	node1 *corev1.Node
+	node2 *corev1.Node
+	node3 *corev1.Node
 
 	nm1 *vkv1alpha1.NamespaceMap
 	nm2 *vkv1alpha1.NamespaceMap
@@ -162,8 +171,67 @@ var _ = BeforeSuite(func() {
 		Expect(err).ToNot(HaveOccurred())
 	}()
 
-	// Necessary resources in HomeCluster
-	virtualNode1 = &corev1.Node{
+	// Necessary resources in HomeCluster.
+
+	tenantNamespace1 = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "tenant-namespace-1"}}
+	tenantNamespace2 = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "tenant-namespace-2"}}
+	tenantNamespace3 = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "tenant-namespace-3"}}
+
+	virtualNode1 = &vkv1alpha1.VirtualNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      virtualNode1Name,
+			Namespace: tenantNamespace1.Name,
+			Labels: map[string]string{
+				liqoconst.TypeLabel:                  liqoconst.TypeNode,
+				liqoconst.RemoteClusterID:            remoteCluster1.ClusterID,
+				liqoconst.TopologyRegionClusterLabel: regionA,
+				liqoconst.ProviderClusterLabel:       providerAWS,
+			},
+		},
+		Spec: vkv1alpha1.VirtualNodeSpec{
+			ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
+				ClusterID: remoteCluster1.ClusterID,
+			},
+		},
+	}
+
+	virtualNode2 = &vkv1alpha1.VirtualNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      virtualNode2Name,
+			Namespace: tenantNamespace2.Name,
+			Labels: map[string]string{
+				liqoconst.TypeLabel:                  liqoconst.TypeNode,
+				liqoconst.RemoteClusterID:            remoteCluster2.ClusterID,
+				liqoconst.TopologyRegionClusterLabel: regionB,
+				liqoconst.ProviderClusterLabel:       providerGKE,
+			},
+		},
+		Spec: vkv1alpha1.VirtualNodeSpec{
+			ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
+				ClusterID: remoteCluster2.ClusterID,
+			},
+		},
+	}
+
+	virtualNode3 = &vkv1alpha1.VirtualNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      virtualNode3Name,
+			Namespace: tenantNamespace3.Name,
+			Labels: map[string]string{
+				liqoconst.TypeLabel:                  liqoconst.TypeNode,
+				liqoconst.RemoteClusterID:            remoteCluster3.ClusterID,
+				liqoconst.TopologyRegionClusterLabel: regionA,
+				liqoconst.ProviderClusterLabel:       providerGKE,
+			},
+		},
+		Spec: vkv1alpha1.VirtualNodeSpec{
+			ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
+				ClusterID: remoteCluster3.ClusterID,
+			},
+		},
+	}
+
+	node1 = &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: virtualNode1Name,
 			Labels: map[string]string{
@@ -175,7 +243,7 @@ var _ = BeforeSuite(func() {
 		},
 	}
 
-	virtualNode2 = &corev1.Node{
+	node2 = &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: virtualNode2Name,
 			Labels: map[string]string{
@@ -187,7 +255,7 @@ var _ = BeforeSuite(func() {
 		},
 	}
 
-	virtualNode3 = &corev1.Node{
+	node3 = &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: virtualNode3Name,
 			Labels: map[string]string{
@@ -203,9 +271,17 @@ var _ = BeforeSuite(func() {
 	nm2 = ForgeNamespaceMap(remoteCluster2)
 	nm3 = ForgeNamespaceMap(remoteCluster3)
 
+	Expect(cl.Create(ctx, tenantNamespace1)).Should(Succeed())
+	Expect(cl.Create(ctx, tenantNamespace2)).Should(Succeed())
+	Expect(cl.Create(ctx, tenantNamespace3)).Should(Succeed())
+
 	Expect(cl.Create(ctx, virtualNode1)).Should(Succeed())
 	Expect(cl.Create(ctx, virtualNode2)).Should(Succeed())
 	Expect(cl.Create(ctx, virtualNode3)).Should(Succeed())
+
+	Expect(cl.Create(ctx, node1)).Should(Succeed())
+	Expect(cl.Create(ctx, node2)).Should(Succeed())
+	Expect(cl.Create(ctx, node3)).Should(Succeed())
 
 	Expect(cl.Create(ctx, nm1)).Should(Succeed())
 	Expect(cl.Create(ctx, nm2)).Should(Succeed())

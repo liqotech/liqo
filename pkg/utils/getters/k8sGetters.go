@@ -80,7 +80,6 @@ func ListNetworkConfigsByLabel(ctx context.Context, cl client.Client, ns string,
 	return list, nil
 }
 
-// TODO: check usages
 // GetResourceOfferByLabel returns the ResourceOffer with the given labels.
 func GetResourceOfferByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*sharingv1alpha1.ResourceOffer, error) {
 	var resourceOfferList sharingv1alpha1.ResourceOfferList
@@ -227,7 +226,7 @@ func GetNodesByClusterID(ctx context.Context, cl client.Client, clusterID *disco
 
 	switch len(list.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(nodeGR, virtualKubelet.VirtualNodesGroupName(clusterID))
+		return nil, kerrors.NewNotFound(nodeGR, virtualKubelet.VirtualNodeGroupName(clusterID))
 	default:
 		return list, nil
 	}

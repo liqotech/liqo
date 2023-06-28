@@ -73,6 +73,7 @@ func (gr *reflector) String() string {
 	return gr.name
 }
 
+// ConcurrencyMode returns the concurrency mode of the reflector.
 type ConcurrencyMode string
 
 const (
@@ -83,7 +84,8 @@ const (
 )
 
 // NewReflector returns a new reflector to implement the reflection towards a remote clusters, of a dummy one if no workers are specified.
-func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc, workers uint, concurrencyMode ConcurrencyMode) manager.Reflector {
+func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
+	workers uint, concurrencyMode ConcurrencyMode) manager.Reflector {
 	if workers == 0 {
 		// Return a dummy reflector in case no workers are specified, to avoid starting the working queue and registering the infromers.
 		return &dummyreflector{name: name}
@@ -93,7 +95,8 @@ func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallba
 }
 
 // newReflector returns a new reflector to implement the reflection towards a remote clusters.
-func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc, workers uint, concurrencyMode ConcurrencyMode) manager.Reflector {
+func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
+	workers uint, concurrencyMode ConcurrencyMode) manager.Reflector {
 	return &reflector{
 		name:    name,
 		workers: workers,
@@ -188,7 +191,10 @@ func (gr *reflector) namespace(namespace string) (manager.NamespacedReflector, b
 // processNextWorkItem function in order to read and process a message on the
 // workqueue.
 func (gr *reflector) runWorker() {
-	for gr.processNextWorkItem() {
+	for {
+		if !gr.processNextWorkItem() {
+			return
+		}
 	}
 }
 
@@ -360,7 +366,7 @@ type dummyreflector struct{ name string }
 func (dr *dummyreflector) String() string { return dr.name }
 
 // Start starts the dummy reflector (no-op).
-func (dr *dummyreflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
+func (dr *dummyreflector) Start(_ context.Context, _ *options.ReflectorOpts) {
 	klog.Infof("Skipping starting the %v reflector, as no workers are configured", dr.name)
 }
 

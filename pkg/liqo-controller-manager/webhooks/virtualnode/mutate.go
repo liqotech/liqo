@@ -132,7 +132,7 @@ func enforceSpecInTemplate(vn *virtualkubeletv1alpha1.VirtualNode) {
 	enforceNodeCreate(vn)
 }
 
-// enforceSecretArg enforce the foreigncluster kubeconfig secret name in the virtual kubelet deployment
+// enforceSecretArg enforce the foreigncluster kubeconfig secret name in the virtual kubelet deployment.
 func enforceSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
 	ksref := vn.Spec.KubeconfigSecretRef
 	if ksref == nil {
@@ -154,7 +154,7 @@ func enforceSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
 	container.Args = append(container.Args, argSecret)
 }
 
-// enforceNodeCreate enforce the creation of the remote cluster node
+// enforceNodeCreate enforce the creation of the remote cluster node.
 func enforceNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
 	argCreateNode := fmt.Sprintf("%s=%s", vkforge.CreateNode, strconv.FormatBool(*vn.Spec.CreateNode))
 	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]

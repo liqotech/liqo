@@ -58,6 +58,7 @@ func RunDeletionRoutine(r *VirtualNodeReconciler) (*DeletionRoutine, error) {
 
 func (dr *DeletionRoutine) run() {
 	ctx := context.Background()
+	//nolint:staticcheck // Waiting for PollWithContextCancel implementation.
 	err := wait.PollInfinite(time.Second, func() (bool, error) {
 		vni, _ := dr.wq.Get()
 		vn := vni.(*virtualkubeletv1alpha1.VirtualNode)
