@@ -116,22 +116,23 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	r.setResourceOfferPhase(&resourceOffer)
 
 	// check the virtual node status
-	if err = r.checkVirtualNode(ctx, &resourceOffer); err != nil {
+	var virtualNode *virtualkubeletv1alpha1.VirtualNode
+	if virtualNode, err = r.checkVirtualNode(ctx, &resourceOffer); err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
 
-	deletingPhase := getDeleteVirtualKubeletPhase(&resourceOffer)
+	deletingPhase := getDeleteVirtualKubeletPhase(&resourceOffer, virtualNode)
 	switch deletingPhase {
 	case kubeletDeletePhaseNodeDeleted:
+		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusNone
+		return result, nil
+	case kubeletDeletePhaseDrainingNode:
 		// delete the virtual node
 		if err = r.deleteVirtualNode(ctx, &resourceOffer); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
-		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusNone
-		return result, nil
-	case kubeletDeletePhaseDrainingNode:
 		// set virtual kubelet in deleting phase
 		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusDeleting
 		return result, nil

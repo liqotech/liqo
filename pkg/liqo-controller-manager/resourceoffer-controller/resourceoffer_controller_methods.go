@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,6 +30,7 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnode-controller"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
@@ -67,21 +69,22 @@ func (r *ResourceOfferReconciler) setResourceOfferPhase(resourceOffer *sharingv1
 
 // checkVirtualNode checks the existence of the VirtualNode related to the ResourceOffer
 // and sets its status in the ResourceOffer accordingly.
+// It returns the VirtualNode if it exists, nil otherwise.
 func (r *ResourceOfferReconciler) checkVirtualNode(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
-	virtualNodeStatus, err := r.getVirtualNodeStatus(ctx, resourceOffer)
-	if err != nil {
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*virtualkubeletv1alpha1.VirtualNode, error) {
+	virtualNode, err := r.getVirtualNode(ctx, resourceOffer)
+	if client.IgnoreNotFound(err) != nil {
 		klog.Error(err)
-		return err
+		return nil, err
 	}
 
-	if virtualNodeStatus == nil {
+	if virtualNode == nil {
 		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusNone
 	} else if resourceOffer.Status.VirtualKubeletStatus != sharingv1alpha1.VirtualKubeletStatusDeleting {
 		// there is a virtual node and the phase is not deleting
 		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
 	}
-	return nil
+	return virtualNode, nil
 }
 
 func getVirtualNodeName(fc *discoveryv1alpha1.ForeignCluster,
@@ -161,9 +164,9 @@ func (r *ResourceOfferReconciler) deleteVirtualNode(ctx context.Context,
 	return client.IgnoreNotFound(r.Client.Delete(ctx, &virtualNode))
 }
 
-// getVirtualNodeStatus returns the VirtualNode status given a ResourceOffer.
-func (r *ResourceOfferReconciler) getVirtualNodeStatus(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*virtualkubeletv1alpha1.VirtualNodeStatus, error) {
+// getVirtualNode returns the VirtualNode given a ResourceOffer.
+func (r *ResourceOfferReconciler) getVirtualNode(
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*virtualkubeletv1alpha1.VirtualNode, error) {
 	var virtualNodeList virtualkubeletv1alpha1.VirtualNodeList
 	labels := map[string]string{
 		discovery.ClusterIDLabel:      resourceOffer.Spec.ClusterID,
@@ -176,11 +179,13 @@ func (r *ResourceOfferReconciler) getVirtualNodeStatus(
 
 	switch len(virtualNodeList.Items) {
 	case 1:
-		return &virtualNodeList.Items[0].Status, nil
+		return &virtualNodeList.Items[0], nil
 	case 0:
 		klog.V(4).Infof("[%v] no VirtualNode found for ResourceOffer %s",
 			resourceOffer.Spec.ClusterID, resourceOffer.Name)
-		return nil, nil
+		err := kerrors.NewNotFound(virtualkubeletv1alpha1.VirtualNodeGroupResource,
+			fmt.Sprintf("clusterID: %s", resourceOffer.Spec.ClusterID))
+		return nil, err
 	default:
 		err := fmt.Errorf("[%v] more than one VirtualNode found for ResourceOffer %s",
 			resourceOffer.Spec.ClusterID, resourceOffer.Name)
@@ -199,11 +204,13 @@ const (
 
 // getDeleteVirtualKubeletPhase returns the delete phase for the VirtualKubelet created basing on the
 // given ResourceOffer.
-func getDeleteVirtualKubeletPhase(resourceOffer *sharingv1alpha1.ResourceOffer) kubeletDeletePhase {
+func getDeleteVirtualKubeletPhase(resourceOffer *sharingv1alpha1.ResourceOffer,
+	virtualNode *virtualkubeletv1alpha1.VirtualNode) kubeletDeletePhase {
 	notAccepted := !isAccepted(resourceOffer)
 	deleting := !resourceOffer.DeletionTimestamp.IsZero()
 	desiredDelete := !resourceOffer.Spec.WithdrawalTimestamp.IsZero()
-	nodeDrained := !controllerutil.ContainsFinalizer(resourceOffer, consts.NodeFinalizer)
+	nodeCondition := virtualnodectrl.GetCondition(virtualNode, virtualkubeletv1alpha1.NodeConditionType)
+	nodeDrained := virtualNode == nil || (nodeCondition != nil && nodeCondition.Status == virtualkubeletv1alpha1.DeletingConditionStatusType)
 
 	// if the ResourceRequest has not been accepted by the local cluster,
 	// or it has a DeletionTimestamp not equal to zero (the resource has been deleted),
