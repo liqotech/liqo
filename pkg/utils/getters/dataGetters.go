@@ -40,10 +40,10 @@ type NetworkConfig struct {
 
 // RetrieveRemoteCLusterIDFromNode retrieves the remote cluster ID from a given node object.
 // If the node has no RemoteCLusterID label, it returns a void string without error.
-func RetrieveRemoteCLusterIDFromNode(node *corev1.Node) (string, error) {
+func RetrieveRemoteClusterIDFromNode(node *corev1.Node) (string, error) {
 	nodeLabels := node.GetLabels()
 	if nodeLabels == nil {
-		return "", errors.New("node has no labels")
+		return "", fmt.Errorf("node has no labels")
 	}
 	remoteClusterID, ok := nodeLabels[liqoconsts.RemoteClusterID]
 	if !ok {

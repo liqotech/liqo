@@ -147,13 +147,8 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 
 // List returns the list of services to be reflected.
 func (nsr *NamespacedServiceReflector) List() ([]interface{}, error) {
-	listers := map[string]virtualkubelet.Lister[*corev1.Service]{
-		"local":  nsr.localServices,
-		"remote": nsr.remoteServices,
-	}
-	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.Service], *corev1.Service](listers)
-	if err != nil {
-		return nil, err
-	}
-	return list, nil
+	return virtualkubelet.List[virtualkubelet.Lister[*corev1.Service], *corev1.Service](
+		nsr.localServices,
+		nsr.remoteServices,
+	)
 }

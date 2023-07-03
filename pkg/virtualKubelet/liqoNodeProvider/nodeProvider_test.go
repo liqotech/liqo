@@ -16,7 +16,6 @@ package liqonodeprovider
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -29,14 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
@@ -45,10 +43,9 @@ const (
 	timeout  = time.Second * 30
 	interval = time.Millisecond * 250
 
-	nodeName            = "node-name"
-	resourceRequestName = "resource-request-name"
-	foreignClusterID    = "foreign-id"
-	kubeletNamespace    = "default"
+	nodeName         = "node-name"
+	foreignClusterID = "foreign-id"
+	kubeletNamespace = "default"
 )
 
 func TestNodeProvider(t *testing.T) {
@@ -119,7 +116,7 @@ var _ = Describe("NodeProvider", func() {
 	})
 
 	type nodeProviderTestcase struct {
-		resourceOffer      *sharingv1alpha1.ResourceOffer
+		virtualNode        *virtualkubeletv1alpha1.VirtualNode
 		tunnelEndpoint     *netv1alpha1.TunnelEndpoint
 		expectedConditions []types.GomegaMatcher
 	}
@@ -135,12 +132,12 @@ var _ = Describe("NodeProvider", func() {
 		func(c nodeProviderTestcase) {
 			dynClient := dynamic.NewForConfigOrDie(cluster.GetCfg())
 
-			if c.resourceOffer != nil {
-				unstructResourceOffer, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.resourceOffer)
+			if c.virtualNode != nil {
+				unstructVirtualNode, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.virtualNode)
 				Expect(err).To(BeNil())
-				_, err = dynClient.Resource(sharingv1alpha1.ResourceOfferGroupVersionResource).
+				_, err = dynClient.Resource(virtualkubeletv1alpha1.VirtualNodeGroupVersionResource).
 					Namespace(kubeletNamespace).Create(ctx, &unstructured.Unstructured{
-					Object: unstructResourceOffer,
+					Object: unstructVirtualNode,
 				}, metav1.CreateOptions{})
 				Expect(err).To(BeNil())
 			}
@@ -174,21 +171,20 @@ var _ = Describe("NodeProvider", func() {
 			}, timeout, interval).Should(ContainElements(c.expectedConditions))
 		},
 
-		Entry("update from ResourceOffer", nodeProviderTestcase{
-			resourceOffer: &sharingv1alpha1.ResourceOffer{
+		Entry("update from VirtualNode", nodeProviderTestcase{
+			virtualNode: &virtualkubeletv1alpha1.VirtualNode{
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "ResourceOffer",
-					APIVersion: sharingv1alpha1.GroupVersion.String(),
+					Kind:       "VirtualNode",
+					APIVersion: virtualkubeletv1alpha1.VirtualNodeGroupVersionResource.GroupVersion().String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      resourceRequestName,
+					Name:      nodeName,
 					Namespace: kubeletNamespace,
-					Labels: map[string]string{
-						consts.ReplicationOriginLabel: foreignClusterID,
-					},
 				},
-				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterID: "remote-id",
+				Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
+					ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
+						ClusterID: "remote-id",
+					},
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
@@ -208,7 +204,7 @@ var _ = Describe("NodeProvider", func() {
 		}),
 
 		Entry("update from TunnelEndpoint", nodeProviderTestcase{
-			resourceOffer: nil,
+			virtualNode: nil,
 			tunnelEndpoint: &netv1alpha1.TunnelEndpoint{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "TunnelEndpoint",
@@ -237,20 +233,19 @@ var _ = Describe("NodeProvider", func() {
 		}),
 
 		Entry("update from both", nodeProviderTestcase{
-			resourceOffer: &sharingv1alpha1.ResourceOffer{
+			virtualNode: &virtualkubeletv1alpha1.VirtualNode{
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "ResourceOffer",
-					APIVersion: sharingv1alpha1.GroupVersion.String(),
+					Kind:       "VirtualNode",
+					APIVersion: virtualkubeletv1alpha1.VirtualNodeGroupVersionResource.GroupVersion().String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      resourceRequestName,
+					Name:      nodeName,
 					Namespace: kubeletNamespace,
-					Labels: map[string]string{
-						consts.ReplicationOriginLabel: foreignClusterID,
-					},
 				},
-				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterID: "remote-id",
+				Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
+					ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
+						ClusterID: "remote-id",
+					},
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
@@ -296,7 +291,7 @@ var _ = Describe("NodeProvider", func() {
 			"test2": "value2",
 		}
 
-		err := nodeProvider.patchLabels(labels)
+		err := nodeProvider.patchLabels(ctx, labels)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(nodeProvider.lastAppliedLabels).To(Equal(labels))
 
@@ -319,7 +314,7 @@ var _ = Describe("NodeProvider", func() {
 			"test2": "value4",
 		}
 
-		err = nodeProvider.patchLabels(labels)
+		err = nodeProvider.patchLabels(ctx, labels)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(nodeProvider.lastAppliedLabels).To(Equal(labels))
 
@@ -340,7 +335,7 @@ var _ = Describe("NodeProvider", func() {
 			"test1": "value3",
 		}
 
-		err = nodeProvider.patchLabels(labels)
+		err = nodeProvider.patchLabels(ctx, labels)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(nodeProvider.lastAppliedLabels).To(Equal(labels))
 
@@ -353,118 +348,6 @@ var _ = Describe("NodeProvider", func() {
 		Expect(v).To(Equal("value3"))
 		_, ok = nodeLabels["test2"]
 		Expect(ok).To(BeFalse())
-	})
-
-	Context("Node Cleanup", func() {
-
-		It("Cordon Node", func() {
-
-			err = nodeProvider.cordonNode(ctx)
-			Expect(err).ToNot(HaveOccurred())
-
-			client := kubernetes.NewForConfigOrDie(cluster.GetCfg())
-			Eventually(func() bool {
-				node, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-				return node.Spec.Unschedulable
-			}, timeout, interval).Should(BeTrue())
-
-		})
-
-		It("Drain Node", func() {
-
-			client := kubernetes.NewForConfigOrDie(cluster.GetCfg())
-
-			By("creating pods on our virtual node")
-
-			nPods := 10
-			for i := 0; i < nPods; i++ {
-				// put some pods to our node, some other in other nodes
-				var nodeName string
-				if i%2 == 0 {
-					nodeName = nodeProvider.nodeName
-				} else {
-					nodeName = "other-node"
-				}
-
-				pod := &v1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      fmt.Sprintf("pod-%v", i),
-						Namespace: v1.NamespaceDefault,
-					},
-					Spec: v1.PodSpec{
-						NodeName: nodeName,
-						Containers: []v1.Container{
-							{
-								Name:  "nginx",
-								Image: "nginx",
-							},
-						},
-					},
-				}
-				_, err = client.CoreV1().Pods(v1.NamespaceDefault).Create(ctx, pod, metav1.CreateOptions{})
-				Expect(err).ToNot(HaveOccurred())
-			}
-
-			By("Draining node")
-
-			// set a deadline for the draining
-			drainCtx, cancel := context.WithDeadline(ctx, time.Now().Add(10*time.Second))
-			defer cancel()
-
-			// the drain function needs to be launched in a different goroutine since
-			// it is blocking until the pods deletion
-			completed := false
-			go func() {
-				err := nodeProvider.drainNode(drainCtx)
-				if err == nil {
-					completed = true
-				}
-			}()
-
-			Eventually(func() bool {
-				podList, err := client.CoreV1().Pods(v1.NamespaceDefault).List(ctx, metav1.ListOptions{
-					FieldSelector: fields.SelectorFromSet(fields.Set{
-						"spec.nodeName": nodeProvider.nodeName,
-					}).String(),
-				})
-				if err != nil {
-					return true
-				}
-
-				// check if every pod has a deletion timestamp set, if it is, the eviction has been created
-				for i := range podList.Items {
-					if podList.Items[i].GetDeletionTimestamp().IsZero() {
-						return true
-					}
-					// delete the evicted pods to make the drain function to terminate,
-					// we have to do it manually since no API server is running
-					Expect(client.CoreV1().Pods(v1.NamespaceDefault).Delete(ctx, podList.Items[i].Name, metav1.DeleteOptions{
-						GracePeriodSeconds: pointer.Int64(0),
-					})).ToNot(HaveOccurred())
-				}
-				return false
-			}, timeout, interval).Should(BeFalse())
-
-			// the drain function has completed successfully
-			Eventually(func() bool {
-				return completed
-			}, timeout, interval).Should(BeTrue())
-
-			By("Checking that the pods on other nodes are still alive")
-
-			podList, err := client.CoreV1().Pods(v1.NamespaceDefault).List(ctx, metav1.ListOptions{})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(len(podList.Items)).To(BeNumerically("==", nPods/2))
-			for _, pod := range podList.Items {
-				Expect(pod.Spec.NodeName).ToNot(Equal(nodeProvider.nodeName))
-				Expect(pod.GetDeletionTimestamp().IsZero()).To(BeTrue())
-			}
-
-		})
-
 	})
 
 })

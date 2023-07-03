@@ -236,13 +236,8 @@ func (ner *NamespacedEventReflector) getLocalObject(kind, apiVersion, name strin
 
 // List returns the list of objects.
 func (ner *NamespacedEventReflector) List() ([]interface{}, error) {
-	listers := map[string]virtualkubelet.Lister[*corev1.Event]{
-		"local":  ner.localEvents,
-		"remote": ner.remoteEvents,
-	}
-	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.Event], *corev1.Event](listers)
-	if err != nil {
-		return nil, err
-	}
-	return list, nil
+	return virtualkubelet.List[virtualkubelet.Lister[*corev1.Event], *corev1.Event](
+		ner.localEvents,
+		ner.remoteEvents,
+	)
 }

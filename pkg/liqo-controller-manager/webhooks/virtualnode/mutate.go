@@ -27,10 +27,10 @@ import (
 )
 
 func (w *vnwh) initVirtualNode(virtualNode *virtualkubeletv1alpha1.VirtualNode) {
-	w.enforceVirtualNodeSpecTemplate(virtualNode)
+	w.mutateVirtualNodeSpecTemplate(virtualNode)
 }
 
-func (w *vnwh) enforceVirtualNodeSpecTemplate(virtualNode *virtualkubeletv1alpha1.VirtualNode) {
+func (w *vnwh) mutateVirtualNodeSpecTemplate(virtualNode *virtualkubeletv1alpha1.VirtualNode) {
 	if virtualNode.Spec.Template == nil {
 		virtualNode.Spec.Template = &virtualkubeletv1alpha1.DeploymentTemplate{}
 	}
@@ -39,7 +39,7 @@ func (w *vnwh) enforceVirtualNodeSpecTemplate(virtualNode *virtualkubeletv1alpha
 	virtualNode.Spec.Template.ObjectMeta = *vkdep.ObjectMeta.DeepCopy()
 }
 
-func customizeVKOptionsResources(opts *vkforge.VirtualKubeletOpts, res *corev1.ResourceRequirements) {
+func mutateVKOptionsResources(opts *vkforge.VirtualKubeletOpts, res *corev1.ResourceRequirements) {
 	if res == nil {
 		return
 	}
@@ -61,7 +61,7 @@ func customizeVKOptionsResources(opts *vkforge.VirtualKubeletOpts, res *corev1.R
 	}
 }
 
-func customizeVKOptionsMetadata(opts *vkforge.VirtualKubeletOpts, meta *metav1.ObjectMeta) {
+func mutateVKOptionsMetadata(opts *vkforge.VirtualKubeletOpts, meta *metav1.ObjectMeta) {
 	if meta == nil {
 		return
 	}
@@ -83,7 +83,7 @@ func customizeVKOptionsMetadata(opts *vkforge.VirtualKubeletOpts, meta *metav1.O
 	}
 }
 
-func customizeVKOptionsFlags(opts *vkforge.VirtualKubeletOpts, container *corev1.Container) {
+func mutateVKOptionsFlags(opts *vkforge.VirtualKubeletOpts, container *corev1.Container) {
 	for _, arg := range container.Args {
 		if found := strings.HasPrefix(arg, string(vkforge.IpamEndpoint)); found {
 			value := strings.TrimPrefix(arg, string(vkforge.IpamEndpoint))
@@ -107,33 +107,30 @@ func customizeVKOptionsFlags(opts *vkforge.VirtualKubeletOpts, container *corev1
 		} else if found := strings.HasPrefix(arg, string(vkforge.MetricsAddress)); found {
 			value := strings.TrimPrefix(arg, string(vkforge.MetricsAddress))
 			opts.MetricsAddress = strings.TrimLeft(value, " ")
-		} else if found := strings.HasPrefix(arg, string(vkforge.NodeName)); found {
-			value := strings.TrimPrefix(arg, string(vkforge.NodeName))
-			opts.NodeName = strings.TrimLeft(value, " ")
 		}
 	}
 }
 
-func customizeVKOptions(opts *vkforge.VirtualKubeletOpts, vn *virtualkubeletv1alpha1.VirtualNode) {
+func mutateVKOptions(opts *vkforge.VirtualKubeletOpts, vn *virtualkubeletv1alpha1.VirtualNode) {
 	if vn.Spec.Template == nil {
 		return
 	}
-	customizeVKOptionsMetadata(opts, &vn.Spec.Template.ObjectMeta)
+	mutateVKOptionsMetadata(opts, &vn.Spec.Template.ObjectMeta)
 	if len(vn.Spec.Template.Spec.Template.Spec.Containers) == 1 {
 		container := vn.Spec.Template.Spec.Template.Spec.Containers[0]
 		opts.ContainerImage = container.Image
-		customizeVKOptionsResources(opts, &container.Resources)
-		customizeVKOptionsFlags(opts, &container)
+		mutateVKOptionsResources(opts, &container.Resources)
+		mutateVKOptionsFlags(opts, &container)
 	}
 }
 
-func enforceSpecInTemplate(vn *virtualkubeletv1alpha1.VirtualNode) {
-	enforceSecretArg(vn)
-	enforceNodeCreate(vn)
+func mutateSpecInTemplate(vn *virtualkubeletv1alpha1.VirtualNode) {
+	mutateSecretArg(vn)
+	mutateNodeCreate(vn)
 }
 
-// enforceSecretArg enforce the foreigncluster kubeconfig secret name in the virtual kubelet deployment.
-func enforceSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
+// mutateSecretArg mutate the foreigncluster kubeconfig secret name in the virtual kubelet deployment.
+func mutateSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
 	ksref := vn.Spec.KubeconfigSecretRef
 	if ksref == nil {
 		return
@@ -154,8 +151,8 @@ func enforceSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
 	container.Args = append(container.Args, argSecret)
 }
 
-// enforceNodeCreate enforce the creation of the remote cluster node.
-func enforceNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
+// mutateNodeCreate mutate the creation of the remote cluster node.
+func mutateNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
 	argCreateNode := fmt.Sprintf("%s=%s", vkforge.CreateNode, strconv.FormatBool(*vn.Spec.CreateNode))
 	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
 	for i, arg := range container.Args {

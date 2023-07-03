@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,25 +27,29 @@ import (
 
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
+	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 // createVirtualKubeletDeployment creates the VirtualKubelet Deployment.
 func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 	ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
 	if err := UpdateCondition(ctx, cl, virtualNode,
-		virtualkubeletv1alpha1.VirtualKubeletConditionType, virtualkubeletv1alpha1.CreatingConditionStatusType); err != nil {
-		return err
-	}
-	if err := UpdateCondition(ctx, cl, virtualNode,
-		virtualkubeletv1alpha1.NodeConditionType, virtualkubeletv1alpha1.CreatingConditionStatusType); err != nil {
+		VkConditionMap{
+			virtualkubeletv1alpha1.VirtualKubeletConditionType: VkCondition{
+				Status: virtualkubeletv1alpha1.CreatingConditionStatusType,
+			},
+			virtualkubeletv1alpha1.NodeConditionType: VkCondition{
+				Status: virtualkubeletv1alpha1.CreatingConditionStatusType,
+			},
+		},
+	); err != nil {
 		return err
 	}
 
 	namespace := virtualNode.Namespace
 	remoteClusterIdentity := virtualNode.Spec.ClusterIdentity
 	// create the base resources
-	vkServiceAccount := forge.VirtualKubeletServiceAccount(namespace)
+	vkServiceAccount := vkforge.VirtualKubeletServiceAccount(namespace)
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, vkServiceAccount, func() error {
 		return nil
 	})
@@ -55,7 +60,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 	klog.V(5).Infof("[%v] ServiceAccount %s/%s reconciled: %s",
 		remoteClusterIdentity.ClusterName, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
 
-	vkClusterRoleBinding := forge.VirtualKubeletClusterRoleBinding(namespace, remoteClusterIdentity)
+	vkClusterRoleBinding := vkforge.VirtualKubeletClusterRoleBinding(namespace, remoteClusterIdentity)
 	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding, func() error {
 		return nil
 	})
@@ -90,58 +95,66 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 	}
 
 	if err := UpdateCondition(ctx, cl, virtualNode,
-		virtualkubeletv1alpha1.VirtualKubeletConditionType, virtualkubeletv1alpha1.RunningConditionStatusType); err != nil {
+		VkConditionMap{
+			virtualkubeletv1alpha1.VirtualKubeletConditionType: VkCondition{
+				Status: virtualkubeletv1alpha1.RunningConditionStatusType,
+			},
+		}); err != nil {
 		return err
 	}
 	return UpdateCondition(ctx, cl, virtualNode,
-		virtualkubeletv1alpha1.NodeConditionType, virtualkubeletv1alpha1.RunningConditionStatusType)
+		VkConditionMap{
+			virtualkubeletv1alpha1.NodeConditionType: VkCondition{
+				Status: virtualkubeletv1alpha1.RunningConditionStatusType,
+			},
+		})
 }
 
 // ensureVirtualKubeletDeploymentAbsence deletes the VirtualKubelet Deployment.
 func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
-	ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
+	ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) (reEnque bool, err error) {
 	virtualKubeletDeployment, err := r.getVirtualKubeletDeployment(ctx, virtualNode)
 	if err != nil {
 		klog.Error(err)
-		return err
+		return true, err
 	}
 	if virtualKubeletDeployment == nil {
-		return nil
-	}
-
-	if err := r.Client.Delete(ctx, virtualKubeletDeployment); err != nil {
-		klog.Error(err)
-		return err
+		return false, nil
 	}
 
 	msg := fmt.Sprintf("[%v] Deleting virtual-kubelet in namespace %v", virtualNode.Spec.ClusterIdentity.ClusterID, virtualNode.Namespace)
 	klog.Info(msg)
 	r.EventsRecorder.Event(virtualNode, "Normal", "VkDeleted", msg)
 
-	crlabels := forge.ClusterRoleLabels(virtualNode.Spec.ClusterIdentity.ClusterID)
+	if err := r.Client.Delete(ctx, virtualKubeletDeployment); err != nil {
+		klog.Error(err)
+		return true, err
+	}
+
+	if ok, err := checkVirtualKubeletPodAbsence(ctx, r.Client, virtualNode, r.VirtualKubeletOptions); err != nil || !ok {
+		return true, err
+	}
+
+	crlabels := vkforge.ClusterRoleLabels(virtualNode.Spec.ClusterIdentity.ClusterID)
 
 	virtualnodes := &virtualkubeletv1alpha1.VirtualNodeList{}
 	if err := r.Client.List(ctx, virtualnodes, client.MatchingLabels{discovery.ClusterIDLabel: virtualNode.Spec.ClusterIdentity.ClusterID}); err != nil {
 		klog.Error(err)
-		return err
-	}
-
-	if len(virtualnodes.Items) > 1 {
-		return nil
+		return true, err
 	}
 
 	if err := r.Client.DeleteAllOf(ctx, &rbacv1.ClusterRoleBinding{}, client.MatchingLabels(crlabels)); err != nil {
 		klog.Error(err)
-		return err
+		return true, err
 	}
-	return nil
+	return false, nil
 }
 
-// getVirtualKubeletDeployment returns the VirtualKubelet Deployment given a ResourceOffer.
+// getVirtualKubeletDeployment returns the VirtualKubelet Deployment given a VirtualNode.
 func (r *VirtualNodeReconciler) getVirtualKubeletDeployment(
 	ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) (*appsv1.Deployment, error) {
 	var deployList appsv1.DeploymentList
-	labels := forge.VirtualKubeletLabels(virtualNode, r.VirtualKubeletOptions)
+	labels := vkforge.VirtualKubeletLabels(virtualNode, r.VirtualKubeletOptions)
 	if err := r.Client.List(ctx, &deployList, client.MatchingLabels(labels)); err != nil {
 		klog.Error(err)
 		return nil, err
@@ -157,4 +170,17 @@ func (r *VirtualNodeReconciler) getVirtualKubeletDeployment(
 	}
 
 	return &deployList.Items[0], nil
+}
+
+func checkVirtualKubeletPodAbsence(ctx context.Context, cl client.Client,
+	vn *virtualkubeletv1alpha1.VirtualNode, vkopt *vkforge.VirtualKubeletOpts) (bool, error) {
+	klog.Warningf("[%v] checking virtual-kubelet pod absence", vn.Spec.ClusterIdentity.ClusterID)
+	list := &corev1.PodList{}
+	labels := vkforge.VirtualKubeletLabels(vn, vkopt)
+	err := cl.List(ctx, list, client.MatchingLabels(labels))
+	if err != nil {
+		klog.Error(err)
+		return false, nil
+	}
+	return len(list.Items) == 0, err
 }

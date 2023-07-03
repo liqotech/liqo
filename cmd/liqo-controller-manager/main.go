@@ -378,6 +378,7 @@ func main() {
 	}
 
 	virtualNodeReconciler, err := virtualnodectrl.NewVirtualNodeReconciler(
+		ctx,
 		mgr.GetClient(),
 		auxmgr.GetClient(),
 		mgr.GetScheme(),

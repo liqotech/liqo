@@ -352,17 +352,15 @@ func (ner *NamespacedEndpointSliceReflector) ServiceToEndpointSlicesKeyer(metada
 
 // List returns the list of EndpointSlices managed by informers.
 func (ner *NamespacedEndpointSliceReflector) List() ([]interface{}, error) {
-	listersEps := map[string]virtualkubelet.Lister[*discoveryv1.EndpointSlice]{
-		"local": ner.localEndpointSlices,
-	}
-	listEps, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*discoveryv1.EndpointSlice], *discoveryv1.EndpointSlice](listersEps)
+	listEps, err := virtualkubelet.List[virtualkubelet.Lister[*discoveryv1.EndpointSlice], *discoveryv1.EndpointSlice](
+		ner.localEndpointSlices,
+	)
 	if err != nil {
 		return nil, err
 	}
-	listersSeps := map[string]virtualkubelet.Lister[*vkv1alpha1.ShadowEndpointSlice]{
-		"remote": ner.remoteShadowEndpointSlices,
-	}
-	listSeps, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*vkv1alpha1.ShadowEndpointSlice], *vkv1alpha1.ShadowEndpointSlice](listersSeps)
+	listSeps, err := virtualkubelet.List[virtualkubelet.Lister[*vkv1alpha1.ShadowEndpointSlice], *vkv1alpha1.ShadowEndpointSlice](
+		ner.remoteShadowEndpointSlices,
+	)
 	if err != nil {
 		return nil, err
 	}

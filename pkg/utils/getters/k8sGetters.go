@@ -32,7 +32,6 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
 // GetIPAMStorageByLabel it returns a IPAMStorage instance that matches the given label selector.
@@ -210,8 +209,8 @@ func GetPodByLabel(ctx context.Context, cl client.Client, ns string, lSelector l
 	}
 }
 
-// GetNodesByClusterID returns the node list that matches the given cluster id.
-func GetNodesByClusterID(ctx context.Context, cl client.Client, clusterID *discoveryv1alpha1.ClusterIdentity) (*corev1.NodeList, error) {
+// ListNodesByClusterID returns the node list that matches the given cluster id.
+func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID *discoveryv1alpha1.ClusterIdentity) (*corev1.NodeList, error) {
 	list := new(corev1.NodeList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -226,7 +225,7 @@ func GetNodesByClusterID(ctx context.Context, cl client.Client, clusterID *disco
 
 	switch len(list.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(nodeGR, virtualKubelet.VirtualNodeGroupName(clusterID))
+		return nil, kerrors.NewNotFound(nodeGR, clusterID.ClusterID)
 	default:
 		return list, nil
 	}
@@ -263,7 +262,7 @@ func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector l
 // GetNodeFromVirtualNode returns the node object from the given virtual node name.
 func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode) (*corev1.Node, error) {
 	nodename := virtualNode.Name
-	nodes, err := GetNodesByClusterID(ctx, cl, virtualNode.Spec.ClusterIdentity)
+	nodes, err := ListNodesByClusterID(ctx, cl, virtualNode.Spec.ClusterIdentity)
 	if err != nil {
 		return nil, err
 	}

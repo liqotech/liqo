@@ -24,6 +24,9 @@ import (
 
 // cordonNode cordons the controlled node setting it in the unschedulable state.
 func cordonNode(ctx context.Context, cl client.Client, node *corev1.Node) error {
+	if node == nil {
+		return nil
+	}
 	node.Spec.Unschedulable = true
 	if err := cl.Update(ctx, node); err != nil {
 		klog.Error(err)

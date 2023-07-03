@@ -291,14 +291,9 @@ func (nsar *NamespacedServiceAccountReflector) buildTokensInfo(po *corev1.Pod, s
 
 // List returns a list of all service account tokens managed by the reflector.
 func (nsar *NamespacedServiceAccountReflector) List() ([]interface{}, error) {
-	listers := map[string]virtualkubelet.Lister[*corev1.Secret]{
-		"remote": nsar.remoteSecrets,
-	}
-	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.Secret], *corev1.Secret](listers)
-	if err != nil {
-		return nil, err
-	}
-	return list, nil
+	return virtualkubelet.List[virtualkubelet.Lister[*corev1.Secret], *corev1.Secret](
+		nsar.remoteSecrets,
+	)
 }
 
 // Handle operates as fallback to reconcile pod objects not managed by namespaced handlers.

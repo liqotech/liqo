@@ -152,13 +152,8 @@ func (ncr *NamespacedConfigMapReflector) Handle(ctx context.Context, name string
 
 // List returns the list of objects.
 func (ncr *NamespacedConfigMapReflector) List() ([]interface{}, error) {
-	listers := map[string]virtualkubelet.Lister[*corev1.ConfigMap]{
-		"local":  ncr.localConfigMaps,
-		"remote": ncr.remoteConfigMaps,
-	}
-	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.ConfigMap], *corev1.ConfigMap](listers)
-	if err != nil {
-		return nil, err
-	}
-	return list, nil
+	return virtualkubelet.List[virtualkubelet.Lister[*corev1.ConfigMap], *corev1.ConfigMap](
+		ncr.localConfigMaps,
+		ncr.remoteConfigMaps,
+	)
 }

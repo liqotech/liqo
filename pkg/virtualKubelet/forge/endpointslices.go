@@ -55,12 +55,12 @@ func EndpointToBeReflected(endpoint *discoveryv1.Endpoint, localNodeClient corev
 		klog.Errorf("Unable to retrieve node %s: %s", LiqoNodeName, err.Error())
 		return false
 	}
-	vkRemoteClusterID, err := getters.RetrieveRemoteCLusterIDFromNode(epNode)
+	vkRemoteClusterID, err := getters.RetrieveRemoteClusterIDFromNode(epNode)
 	if err != nil {
 		klog.Errorf("Unable to retrieve remote cluster ID from node %s: %s", epNode.GetName(), err.Error())
 		return false
 	}
-	nodeRemoteClusterID, err := getters.RetrieveRemoteCLusterIDFromNode(vkNode)
+	nodeRemoteClusterID, err := getters.RetrieveRemoteClusterIDFromNode(vkNode)
 	if err != nil {
 		klog.Errorf("Unable to retrieve remote cluster ID from node %s: %s", vkNode.GetName(), err.Error())
 		return false

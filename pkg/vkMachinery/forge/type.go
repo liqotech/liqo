@@ -27,7 +27,6 @@ type VirtualKubeletOpts struct {
 	ExtraAnnotations     map[string]string
 	ExtraLabels          map[string]string
 	ExtraArgs            []string
-	NodeName             string
 	NodeExtraAnnotations argsutils.StringMap
 	NodeExtraLabels      argsutils.StringMap
 	RequestsCPU          resource.Quantity

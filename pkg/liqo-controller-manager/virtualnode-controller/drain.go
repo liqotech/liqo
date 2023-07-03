@@ -65,7 +65,7 @@ func getPodsForDeletion(ctx context.Context, cl client.Client, vn *virtualkubele
 		return nil, err
 	}
 	for i := range podList.Items {
-		klog.Infof("Drain node %s -> pod %v/%v found", podList.Items[i].Spec.NodeName, podList.Items[i].Namespace, podList.Items[i].Name)
+		klog.V(4).Infof("Drain node %s -> pod %v/%v found", podList.Items[i].Spec.NodeName, podList.Items[i].Namespace, podList.Items[i].Name)
 	}
 	return podList, nil
 }
@@ -101,7 +101,7 @@ func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
 		return err
 	}
 
-	klog.Infof("Drain node %s -> pod %v/%v successfully evicted", pod.Spec.NodeName, pod.Namespace, pod.Name)
+	klog.V(4).Infof("Drain node %s -> pod %v/%v eviction started", pod.Spec.NodeName, pod.Namespace, pod.Name)
 
 	return nil
 }
@@ -110,6 +110,7 @@ func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
 func waitPodForDelete(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
 	//nolint:staticcheck // Waiting for PollWithContextCancel implementation.
 	return wait.PollImmediateInfinite(waitForPodTerminationCheckPeriod, func() (bool, error) {
+		klog.Infof("Drain node %s -> pod %v/%v waiting for deletion", pod.Spec.NodeName, pod.Namespace, pod.Name)
 		updatedPod := &corev1.Pod{}
 		err := cl.Get(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: pod.Name}, updatedPod)
 		if kerrors.IsNotFound(err) || (updatedPod != nil &&

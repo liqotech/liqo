@@ -121,16 +121,18 @@ func (w *Waiter) ForNode(ctx context.Context, remoteClusterID *discoveryv1alpha1
 	remName := remoteClusterID.ClusterName
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for node to be created for the remote cluster %q", remName))
 
-	err := wait.PollImmediateUntilWithContext(ctx, 1*time.Second, func(ctx context.Context) (done bool, err error) {
-		nodes, err := getters.GetNodesByClusterID(ctx, w.CRClient, remoteClusterID)
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		nodes, err := getters.ListNodesByClusterID(ctx, w.CRClient, remoteClusterID)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
-		ready := true
+
 		for i := range nodes.Items {
-			ready = utils.IsNodeReady(&nodes.Items[i])
+			if !utils.IsNodeReady(&nodes.Items[i]) {
+				return false, nil
+			}
 		}
-		return ready, nil
+		return true, nil
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("Failed waiting for node to be created for remote cluster %q: %s", remName, output.PrettyErr(err)))
@@ -146,7 +148,7 @@ func (w *Waiter) ForOffloading(ctx context.Context, namespace string) error {
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for offloading of namespace %q to complete", namespace))
 	noClusterSelected := false
 	var offload *offloadingv1alpha1.NamespaceOffloading
-	err := wait.PollImmediateUntilWithContext(ctx, 100*time.Millisecond, func(ctx context.Context) (done bool, err error) {
+	err := wait.PollUntilContextCancel(ctx, 100*time.Millisecond, true, func(ctx context.Context) (done bool, err error) {
 		offload, err = getters.GetOffloadingByNamespace(ctx, w.CRClient, namespace)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
@@ -184,7 +186,7 @@ func (w *Waiter) ForOffloading(ctx context.Context, namespace string) error {
 // successfully removed or the timeout expires.
 func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for unoffloading of namespace %q to complete", namespace))
-	err := wait.PollImmediateUntilWithContext(ctx, 1*time.Second, func(ctx context.Context) (done bool, err error) {
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		_, err = getters.GetOffloadingByNamespace(ctx, w.CRClient, namespace)
 		return apierrors.IsNotFound(err), client.IgnoreNotFound(err)
 	})
