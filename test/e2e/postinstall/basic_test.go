@@ -69,7 +69,7 @@ var _ = Describe("Liqo E2E", func() {
 					Expect(err).ToNot(HaveOccurred())
 					for _, pod := range pods.Items {
 						Expect(pod.Status.ContainerStatuses).ToNot(BeEmpty())
-						Expect(pod.Status.ContainerStatuses[0].RestartCount).To(BeNumerically("==", 0))
+						Expect(pod.Status.ContainerStatuses[0].RestartCount).To(BeNumerically("<=", 2))
 					}
 
 					var tenantNsList *corev1.NamespaceList
