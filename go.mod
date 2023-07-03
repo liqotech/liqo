@@ -14,7 +14,7 @@ require (
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.2
-	github.com/gruntwork-io/terratest v0.41.18
+	github.com/gruntwork-io/terratest v0.43.6
 	github.com/jinzhu/copier v0.3.5
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mattn/go-isatty v0.0.18
@@ -43,7 +43,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.3.0
 	google.golang.org/api v0.114.0
 	google.golang.org/grpc v1.56.0-dev
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.12.1
 	k8s.io/api v0.27.3
