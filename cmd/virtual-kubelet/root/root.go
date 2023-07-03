@@ -79,7 +79,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	identityManager := identitymanager.NewCertificateIdentityReader(localClient, c.HomeCluster, tenantNamespaceManager)
 
 	if c.RemoteKubeconfigSecretName == "" {
-		return errors.New("remote kubeconfig secret name is mandatory")
+		return fmt.Errorf("remote kubeconfig secret name is mandatory")
 	}
 	secret, err := localClient.CoreV1().Secrets(c.TenantNamespace).Get(ctx, c.RemoteKubeconfigSecretName, metav1.GetOptions{})
 	if err != nil {
@@ -159,7 +159,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, remoteConfig, c)
 	if err != nil {
-		return errors.Wrap(err, "error while setting up HTTPS server")
+		return fmt.Errorf("error while setting up HTTPS server: %w", err)
 	}
 
 	if c.EnableMetrics {

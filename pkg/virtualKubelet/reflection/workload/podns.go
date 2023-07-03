@@ -723,13 +723,18 @@ func (npr *NamespacedPodReflector) InferAdditionalRestarts(local, remote *corev1
 
 // List retrieves the list of reflected pods.
 func (npr *NamespacedPodReflector) List() ([]interface{}, error) {
-	listers := map[string]virtualkubelet.Lister[*corev1.Pod]{
-		"local":  npr.localPods,
-		"remote": npr.remotePods,
-	}
-	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.Pod], *corev1.Pod](listers)
+	listShPod, err := virtualkubelet.List[virtualkubelet.Lister[*vkv1alpha1.ShadowPod], *vkv1alpha1.ShadowPod](
+		npr.remoteShadowPods,
+	)
 	if err != nil {
 		return nil, err
 	}
-	return list, nil
+	listPod, err := virtualkubelet.List[virtualkubelet.Lister[*corev1.Pod], *corev1.Pod](
+		npr.localPods,
+		npr.remotePods,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return append(listShPod, listPod...), nil
 }

@@ -84,16 +84,18 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 	}
 
 	if req.Operation == admissionv1.Create {
+		// VirtualNode name and the created Node have the same name.
+		// This checks if the Node already exists in the cluster to avoid duplicates.
 		err := checkNodeDubplicate(ctx, w, virtualnode)
 		if err != nil {
 			klog.Errorf("Failed checking node duplicate: %v", err)
 			return admission.Denied(err.Error())
 		}
-		customizeVKOptions(w.virtualKubeletOptions, virtualnode)
+		mutateVKOptions(w.virtualKubeletOptions, virtualnode)
 		w.initVirtualNode(virtualnode)
 	}
 
-	enforceSpecInTemplate(virtualnode)
+	mutateSpecInTemplate(virtualnode)
 
 	marshaledVn, err := json.Marshal(virtualnode)
 	if err != nil {

@@ -155,13 +155,8 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 
 // List returns the list of objects to be reflected.
 func (nsr *NamespacedSecretReflector) List() ([]interface{}, error) {
-	listers := map[string]virtualkubelet.Lister[*corev1.Secret]{
-		"local":  nsr.localSecrets,
-		"remote": nsr.remoteSecrets,
-	}
-	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.Secret], *corev1.Secret](listers)
-	if err != nil {
-		return nil, err
-	}
-	return list, nil
+	return virtualkubelet.List[virtualkubelet.Lister[*corev1.Secret], *corev1.Secret](
+		nsr.localSecrets,
+		nsr.remoteSecrets,
+	)
 }

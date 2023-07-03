@@ -59,6 +59,7 @@ type VirtualNodeReconciler struct {
 
 // NewVirtualNodeReconciler returns a new VirtualNodeReconciler.
 func NewVirtualNodeReconciler(
+	ctx context.Context,
 	cl client.Client, cll client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
 	hci *discoveryv1alpha1.ClusterIdentity, vko *vkforge.VirtualKubeletOpts,
@@ -72,7 +73,7 @@ func NewVirtualNodeReconciler(
 		EventsRecorder:        er,
 	}
 	var err error
-	vnr.dr, err = RunDeletionRoutine(vnr)
+	vnr.dr, err = RunDeletionRoutine(ctx, vnr)
 	if err != nil {
 		klog.Errorf("Unable to run the deletion routine: %s", err)
 		return nil, err

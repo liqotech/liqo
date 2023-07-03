@@ -23,69 +23,57 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
-// ForgeConditionWithMessage sets the condition of the virtual node with a message.
-func ForgeConditionWithMessage(
-	virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	condition virtualkubeletv1alpha1.VirtualNodeConditionType,
-	status virtualkubeletv1alpha1.VirtualNodeConditionStatusType,
-	msg string) (update bool) {
-	for i := range virtualNode.Status.Conditions {
-		if virtualNode.Status.Conditions[i].Type != condition {
-			continue
-		}
-		if virtualNode.Status.Conditions[i].Status == status {
-			return false
-		}
-		if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.RunningConditionStatusType) &&
-			(status == virtualkubeletv1alpha1.CreatingConditionStatusType) {
-			return false
-		}
-		if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.DeletingConditionStatusType) &&
-			status == virtualkubeletv1alpha1.DrainingConditionStatusType {
-			return false
-		}
-		virtualNode.Status.Conditions[i].Status = status
-		virtualNode.Status.Conditions[i].LastTransitionTime = metav1.Now()
-		virtualNode.Status.Conditions[i].Message = msg
-		return true
-	}
-	virtualNode.Status.Conditions = append(virtualNode.Status.Conditions,
-		virtualkubeletv1alpha1.VirtualNodeCondition{
-			Type:               condition,
-			Status:             status,
-			LastTransitionTime: metav1.Now(),
-			Message:            msg,
-		})
-	return true
+// VkConditionMap is a map of virtual node conditions.
+type VkConditionMap map[virtualkubeletv1alpha1.VirtualNodeConditionType]VkCondition
+
+// VkCondition is a virtual node condition.
+type VkCondition struct {
+	Status  virtualkubeletv1alpha1.VirtualNodeConditionStatusType
+	Message string
 }
 
-// ForgeCondition sets the condition of the virtual node.
-func ForgeCondition(virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	condition virtualkubeletv1alpha1.VirtualNodeConditionType,
-	status virtualkubeletv1alpha1.VirtualNodeConditionStatusType) (update bool) {
-	return ForgeConditionWithMessage(virtualNode, condition, status, "")
+// ForgeCondition forges a virtual node condition.
+func ForgeCondition(
+	virtualNode *virtualkubeletv1alpha1.VirtualNode,
+	vkConditions VkConditionMap) (update bool) {
+	for nameCondition, vkCondition := range vkConditions {
+		for i := range virtualNode.Status.Conditions {
+			if virtualNode.Status.Conditions[i].Type != nameCondition {
+				continue
+			}
+			if virtualNode.Status.Conditions[i].Status == vkCondition.Status {
+				return false
+			}
+			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.RunningConditionStatusType) &&
+				(vkCondition.Status == virtualkubeletv1alpha1.CreatingConditionStatusType) {
+				return false
+			}
+			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.DeletingConditionStatusType) &&
+				vkCondition.Status == virtualkubeletv1alpha1.DrainingConditionStatusType {
+				return false
+			}
+			virtualNode.Status.Conditions[i].Status = vkCondition.Status
+			virtualNode.Status.Conditions[i].LastTransitionTime = metav1.Now()
+			virtualNode.Status.Conditions[i].Message = vkCondition.Message
+			return true
+		}
+		virtualNode.Status.Conditions = append(virtualNode.Status.Conditions,
+			virtualkubeletv1alpha1.VirtualNodeCondition{
+				Type:               nameCondition,
+				Status:             vkCondition.Status,
+				LastTransitionTime: metav1.Now(),
+				Message:            vkCondition.Message,
+			})
+	}
+	return true
 }
 
 // UpdateCondition updates the condition of the virtual node.
 func UpdateCondition(ctx context.Context, cl client.Client,
 	virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	condition virtualkubeletv1alpha1.VirtualNodeConditionType,
-	status virtualkubeletv1alpha1.VirtualNodeConditionStatusType) error {
-	if ForgeCondition(virtualNode, condition, status) {
-		if err := cl.Status().Update(ctx, virtualNode); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// UpdateConditionWithMessage updates the condition of the virtual node with a message.
-func UpdateConditionWithMessage(ctx context.Context, cl client.Client,
-	virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	condition virtualkubeletv1alpha1.VirtualNodeConditionType,
-	status virtualkubeletv1alpha1.VirtualNodeConditionStatusType,
-	msg string) error {
-	if ForgeConditionWithMessage(virtualNode, condition, status, msg) {
+	vkConditions VkConditionMap,
+) error {
+	if ForgeCondition(virtualNode, vkConditions) {
 		if err := cl.Status().Update(ctx, virtualNode); err != nil {
 			return err
 		}

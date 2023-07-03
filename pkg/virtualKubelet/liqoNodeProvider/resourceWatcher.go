@@ -27,7 +27,7 @@ import (
 	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -35,15 +35,14 @@ import (
 // These informers on sharing and network resources will be used to accordingly
 // update the virtual node.
 func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct{}) {
-	resource := "resourceoffers"
 	namespace := p.tenantNamespace
 
-	sharingInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+	virtualNodeInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
-			opt.LabelSelector = consts.ReplicationOriginLabel + "=" + p.foreignClusterID
+			opt.FieldSelector = "metadata.name=" + p.nodeName
 		})
-	sharingInformer := sharingInformerFactory.ForResource(sharingv1alpha1.GroupVersion.WithResource(resource)).Informer()
-	_, err := sharingInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromResourceOffer))
+	virtualNodeInformer := virtualNodeInformerFactory.ForResource(virtualkubeletv1alpha1.VirtualNodeGroupVersionResource).Informer()
+	_, err := virtualNodeInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromVirtualNode))
 	runtime.Must(err)
 
 	var tepInformerFactory dynamicinformer.DynamicSharedInformerFactory
@@ -52,14 +51,14 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 			opt.LabelSelector = consts.ClusterIDLabelName + "=" + p.foreignClusterID
 		})
 		tepInformer := tepInformerFactory.ForResource(netv1alpha1.TunnelEndpointGroupVersionResource).Informer()
-		_, err = tepInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromTep))
+		_, err := tepInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromTep))
 		runtime.Must(err)
 	}
 
 	ready = make(chan struct{}, 1)
 	go func() {
 		<-ready
-		go sharingInformerFactory.Start(ctx.Done())
+		go virtualNodeInformerFactory.Start(ctx.Done())
 		if p.checkNetworkStatus {
 			go tepInformerFactory.Start(ctx.Done())
 		}

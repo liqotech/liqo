@@ -158,17 +158,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - sharing.liqo.io
-  resources:
-  - resourceoffers
-  verbs:
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - storage.k8s.io
   resources:
   - storageclasses
@@ -180,6 +169,7 @@ rules:
   - virtualkubelet.liqo.io
   resources:
   - namespacemaps
+  - virtualnodes
   verbs:
   - get
   - list

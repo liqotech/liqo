@@ -215,13 +215,8 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 
 // List lists all PersistentVolumeClaims in the local cluster.
 func (npvcr *NamespacedPersistentVolumeClaimReflector) List() ([]interface{}, error) {
-	listers := map[string]virtualkubelet.Lister[*corev1.PersistentVolumeClaim]{
-		"local":  npvcr.localPersistentVolumeClaims,
-		"remote": npvcr.remotePersistentVolumeClaims,
-	}
-	list, err := virtualkubelet.ImplementList[virtualkubelet.Lister[*corev1.PersistentVolumeClaim], *corev1.PersistentVolumeClaim](listers)
-	if err != nil {
-		return nil, err
-	}
-	return list, nil
+	return virtualkubelet.List[virtualkubelet.Lister[*corev1.PersistentVolumeClaim], *corev1.PersistentVolumeClaim](
+		npvcr.localPersistentVolumeClaims,
+		npvcr.remotePersistentVolumeClaims,
+	)
 }

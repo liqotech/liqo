@@ -116,15 +116,9 @@ func forgeVKContainers(
 func forgeVKPodSpec(
 	vkNamespace string,
 	homeCluster *discoveryv1alpha1.ClusterIdentity, virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) v1.PodSpec {
-	var nodeName string
-	if opts.NodeName != "" {
-		nodeName = opts.NodeName
-	} else {
-		nodeName = virtualNode.Name
-	}
 	return v1.PodSpec{
 		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, virtualNode.Spec.ClusterIdentity,
-			nodeName, vkNamespace, virtualNode.Spec.StorageClasses, opts),
+			virtualNode.Name, vkNamespace, virtualNode.Spec.StorageClasses, opts),
 		ServiceAccountName: vk.ServiceAccountName,
 	}
 }

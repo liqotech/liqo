@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	cv1 "k8s.io/api/coordination/v1"
+	coordv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -55,7 +55,7 @@ func InitAndRun(ctx context.Context, opts Opts, rc *rest.Config,
 		return nil
 	}
 	scheme := runtime.NewScheme()
-	err := cv1.AddToScheme(scheme)
+	err := coordv1.AddToScheme(scheme)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -75,16 +75,16 @@ func InitAndRun(ctx context.Context, opts Opts, rc *rest.Config,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
 				lock.Lock()
+				defer lock.Unlock()
 				klog.Infof("Leader election: this pod is the leader")
 				leading = true
 				initCallback()
-				lock.Unlock()
 			},
 			OnStoppedLeading: func() {
 				lock.Lock()
+				defer lock.Unlock()
 				klog.Infof("Leader election: this pod is not the leader anymore")
 				leading = false
-				lock.Unlock()
 			},
 			OnNewLeader: func(identity string) {
 				klog.Infof("Leader election: %s is the current leader", identity)

@@ -26,7 +26,7 @@ import (
 )
 
 // patchNode patches the controlled node applying the provided function.
-func (p *LiqoNodeProvider) patchNode(changeFunc func(node *v1.Node) error) error {
+func (p *LiqoNodeProvider) patchNode(ctx context.Context, changeFunc func(node *v1.Node) error) error {
 	original, err := json.Marshal(p.node)
 	if err != nil {
 		klog.Error(err)
@@ -64,7 +64,7 @@ func (p *LiqoNodeProvider) patchNode(changeFunc func(node *v1.Node) error) error
 		return err
 	}
 
-	p.node, err = p.localClient.CoreV1().Nodes().Patch(context.TODO(),
+	p.node, err = p.localClient.CoreV1().Nodes().Patch(ctx,
 		p.node.Name, types.JSONPatchType, bytes, metav1.PatchOptions{})
 	if err != nil {
 		klog.Error(err)
