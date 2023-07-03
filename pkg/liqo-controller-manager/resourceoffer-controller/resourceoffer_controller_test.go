@@ -250,11 +250,11 @@ var _ = Describe("ResourceOffer Controller", func() {
 					return false
 				}
 
-				vnStatus, err := controller.getVirtualNodeStatus(ctx, resourceOffer)
-				if err != nil || vnStatus == nil {
+				vn, err := controller.getVirtualNode(ctx, resourceOffer)
+				if err != nil || vn == nil {
 					return false
 				}
-				return reflect.DeepEqual(virtualNodeList.Items[0].Status, *vnStatus)
+				return reflect.DeepEqual(virtualNodeList.Items[0].Status, vn.Status)
 			}, timeout, interval).Should(BeTrue())
 
 			// check that the VirtualNode has the controller reference annotation
@@ -333,13 +333,14 @@ var _ = Describe("ResourceOffer Operator util functions", func() {
 
 		type getDeleteVirtualKubeletPhaseTestcase struct {
 			resourceOffer *sharingv1alpha1.ResourceOffer
+			virtualNode   *virtualkubeletv1alpha1.VirtualNode
 			expected      OmegaMatcher
 		}
 
 		DescribeTable("getDeleteVirtualKubeletPhase table",
 
 			func(c getDeleteVirtualKubeletPhaseTestcase) {
-				Expect(getDeleteVirtualKubeletPhase(c.resourceOffer)).To(c.expected)
+				Expect(getDeleteVirtualKubeletPhase(c.resourceOffer, c.virtualNode)).To(c.expected)
 			},
 
 			Entry("refused ResourceOffer", getDeleteVirtualKubeletPhaseTestcase{
@@ -386,34 +387,46 @@ var _ = Describe("ResourceOffer Operator util functions", func() {
 				expected: Equal(kubeletDeletePhaseNodeDeleted),
 			}),
 
-			Entry("refused ResourceOffer with finalizer", getDeleteVirtualKubeletPhaseTestcase{
+			Entry("refused ResourceOffer with created VirtualNode", getDeleteVirtualKubeletPhaseTestcase{
 				resourceOffer: &sharingv1alpha1.ResourceOffer{
-					ObjectMeta: metav1.ObjectMeta{
-						Finalizers: []string{
-							consts.NodeFinalizer,
-						},
-					},
 					Spec: sharingv1alpha1.ResourceOfferSpec{},
 					Status: sharingv1alpha1.ResourceOfferStatus{
 						Phase: sharingv1alpha1.ResourceOfferRefused,
 					},
 				},
+				virtualNode: &virtualkubeletv1alpha1.VirtualNode{
+					Status: virtualkubeletv1alpha1.VirtualNodeStatus{
+						Conditions: []virtualkubeletv1alpha1.VirtualNodeCondition{
+							{
+								Type:   virtualkubeletv1alpha1.NodeConditionType,
+								Status: virtualkubeletv1alpha1.RunningConditionStatusType,
+							},
+						},
+					},
+				},
 				expected: Equal(kubeletDeletePhaseDrainingNode),
 			}),
 
-			Entry("accepted ResourceOffer with deletion timestamp and finalizer", getDeleteVirtualKubeletPhaseTestcase{
+			Entry("accepted ResourceOffer with deletion timestamp and created VirtualNode", getDeleteVirtualKubeletPhaseTestcase{
 				resourceOffer: &sharingv1alpha1.ResourceOffer{
 					ObjectMeta: metav1.ObjectMeta{
 						DeletionTimestamp: &metav1.Time{
 							Time: time.Now(),
 						},
-						Finalizers: []string{
-							consts.NodeFinalizer,
-						},
 					},
 					Spec: sharingv1alpha1.ResourceOfferSpec{},
 					Status: sharingv1alpha1.ResourceOfferStatus{
 						Phase: sharingv1alpha1.ResourceOfferAccepted,
+					},
+				},
+				virtualNode: &virtualkubeletv1alpha1.VirtualNode{
+					Status: virtualkubeletv1alpha1.VirtualNodeStatus{
+						Conditions: []virtualkubeletv1alpha1.VirtualNodeCondition{
+							{
+								Type:   virtualkubeletv1alpha1.NodeConditionType,
+								Status: virtualkubeletv1alpha1.RunningConditionStatusType,
+							},
+						},
 					},
 				},
 				expected: Equal(kubeletDeletePhaseDrainingNode),
@@ -421,26 +434,28 @@ var _ = Describe("ResourceOffer Operator util functions", func() {
 
 			Entry("desired deletion of ResourceOffer", getDeleteVirtualKubeletPhaseTestcase{
 				resourceOffer: &sharingv1alpha1.ResourceOffer{
-					ObjectMeta: metav1.ObjectMeta{
-						Finalizers: []string{
-							consts.NodeFinalizer,
-						},
-					},
 					Spec: sharingv1alpha1.ResourceOfferSpec{
 						WithdrawalTimestamp: &now,
 					},
 					Status: sharingv1alpha1.ResourceOfferStatus{
 						Phase: sharingv1alpha1.ResourceOfferAccepted,
+					},
+				},
+				virtualNode: &virtualkubeletv1alpha1.VirtualNode{
+					Status: virtualkubeletv1alpha1.VirtualNodeStatus{
+						Conditions: []virtualkubeletv1alpha1.VirtualNodeCondition{
+							{
+								Type:   virtualkubeletv1alpha1.NodeConditionType,
+								Status: virtualkubeletv1alpha1.RunningConditionStatusType,
+							},
+						},
 					},
 				},
 				expected: Equal(kubeletDeletePhaseDrainingNode),
 			}),
 
-			Entry("desired deletion of ResourceOffer without finalizer", getDeleteVirtualKubeletPhaseTestcase{
+			Entry("desired deletion of ResourceOffer without VirtualNode", getDeleteVirtualKubeletPhaseTestcase{
 				resourceOffer: &sharingv1alpha1.ResourceOffer{
-					ObjectMeta: metav1.ObjectMeta{
-						Finalizers: []string{},
-					},
 					Spec: sharingv1alpha1.ResourceOfferSpec{
 						WithdrawalTimestamp: &now,
 					},
@@ -448,7 +463,8 @@ var _ = Describe("ResourceOffer Operator util functions", func() {
 						Phase: sharingv1alpha1.ResourceOfferAccepted,
 					},
 				},
-				expected: Equal(kubeletDeletePhaseNodeDeleted),
+				virtualNode: nil,
+				expected:    Equal(kubeletDeletePhaseNodeDeleted),
 			}),
 		)
 

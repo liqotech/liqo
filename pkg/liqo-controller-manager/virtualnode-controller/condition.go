@@ -92,3 +92,17 @@ func UpdateConditionWithMessage(ctx context.Context, cl client.Client,
 	}
 	return nil
 }
+
+// GetCondition returns the condition of the virtual node.
+func GetCondition(virtualNode *virtualkubeletv1alpha1.VirtualNode,
+	condition virtualkubeletv1alpha1.VirtualNodeConditionType) *virtualkubeletv1alpha1.VirtualNodeCondition {
+	if virtualNode == nil {
+		return nil
+	}
+	for i := range virtualNode.Status.Conditions {
+		if virtualNode.Status.Conditions[i].Type == condition {
+			return &virtualNode.Status.Conditions[i]
+		}
+	}
+	return nil
+}
