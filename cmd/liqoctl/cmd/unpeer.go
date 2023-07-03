@@ -95,6 +95,10 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ForeignClusters(ctx, f, 1),
 
+		PreRun: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.Printer.AskConfirm("unpeer", options.SkipConfirm))
+		},
+
 		Run: func(cmd *cobra.Command, args []string) {
 			options.ClusterName = args[0]
 			output.ExitOnErr(options.Run(ctx))
