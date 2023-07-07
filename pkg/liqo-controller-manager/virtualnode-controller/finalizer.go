@@ -33,10 +33,6 @@ func (r *VirtualNodeReconciler) ensureVirtualNodeFinalizerPresence(ctx context.C
 }
 
 func (r *VirtualNodeReconciler) removeVirtualNodeFinalizer(ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
-	var err error
 	ctrlutil.RemoveFinalizer(virtualNode, virtualNodeControllerFinalizer)
-	if err = r.Client.Update(ctx, virtualNode); err != nil {
-		return err
-	}
-	return err
+	return r.Client.Update(ctx, virtualNode)
 }
