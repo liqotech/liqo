@@ -19,7 +19,6 @@ package virtualnodectrl
 import (
 	"context"
 	"fmt"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/workqueue"
@@ -106,7 +105,7 @@ func (dr *DeletionRoutine) reEnqueueVirtualNode(vn *virtualkubeletv1alpha1.Virtu
 		klog.Error(err)
 	}
 	dr.wq.Done(vn)
-	dr.wq.AddAfter(vn, 5*time.Second)
+	dr.wq.AddRateLimited(vn)
 }
 
 // EnsureNodeAbsence adds a virtual node to the deletion queue.

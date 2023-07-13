@@ -15,16 +15,18 @@
 package forge
 
 import (
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/utils/strings"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
@@ -76,14 +78,15 @@ func ClusterRoleLabels(remoteClusterID string) map[string]string {
 }
 
 // VirtualKubeletClusterRoleBinding forges a ClusterRoleBinding for a VirtualKubelet.
-func VirtualKubeletClusterRoleBinding(kubeletNamespace string, remoteCluster *discoveryv1alpha1.ClusterIdentity) *rbacv1.ClusterRoleBinding {
+func VirtualKubeletClusterRoleBinding(kubeletNamespace, kubeletName string,
+	remoteCluster *discoveryv1alpha1.ClusterIdentity) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   vkMachinery.CRBPrefix + foreignclusterutils.UniqueName(remoteCluster),
+			Name:   strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, kubeletName), 253),
 			Labels: ClusterRoleLabels(remoteCluster.ClusterID),
 		},
 		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", APIGroup: "", Name: vkMachinery.ServiceAccountName, Namespace: kubeletNamespace},
+			{Kind: "ServiceAccount", APIGroup: "", Name: kubeletName, Namespace: kubeletNamespace},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
@@ -94,10 +97,10 @@ func VirtualKubeletClusterRoleBinding(kubeletNamespace string, remoteCluster *di
 }
 
 // VirtualKubeletServiceAccount forges a ServiceAccount for a VirtualKubelet.
-func VirtualKubeletServiceAccount(namespace string) *v1.ServiceAccount {
+func VirtualKubeletServiceAccount(namespace, name string) *v1.ServiceAccount {
 	return &v1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      vkMachinery.ServiceAccountName,
+			Name:      name,
 			Namespace: namespace,
 		},
 	}

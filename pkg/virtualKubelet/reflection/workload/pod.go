@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
+	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -357,4 +358,11 @@ func (fpr *FallbackPodReflector) Keys(local, _ string) []types.NamespacedName {
 // Ready returns whether the FallbackReflector is completely initialized.
 func (fpr *FallbackPodReflector) Ready() bool {
 	return fpr.ready()
+}
+
+// List returns the list of pods managed by the FallbackReflector.
+func (fpr *FallbackPodReflector) List() ([]interface{}, error) {
+	return virtualkubelet.List[virtualkubelet.Lister[*corev1.Pod], *corev1.Pod](
+		fpr.localPods,
+	)
 }
