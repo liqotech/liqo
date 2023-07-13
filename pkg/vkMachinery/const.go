@@ -21,7 +21,7 @@ const LocalClusterRoleName = "liqo-virtual-kubelet-local"
 const ServiceAccountName = "virtual-kubelet"
 
 // CRBPrefix -> the prefix used to create the virtual kubelet cluster role binding name.
-const CRBPrefix = "liqo-virtual-kubelet-"
+const CRBPrefix = "liqo-node-"
 
 // KubeletBaseLabels are the static labels that are set on every VirtualKubelet.
 var KubeletBaseLabels = map[string]string{

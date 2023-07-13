@@ -76,6 +76,8 @@ type FallbackReflector interface {
 	Keys(local, remote string) []types.NamespacedName
 	// Ready returns whether the FallbackReflector is completely initialized.
 	Ready() bool
+	// List returns the list of objects to be reflected.
+	List() ([]interface{}, error)
 }
 
 // NamespaceHandler  is responsible to call StartNamespace and StopNamespace

@@ -119,7 +119,7 @@ func forgeVKPodSpec(
 	return v1.PodSpec{
 		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, virtualNode.Spec.ClusterIdentity,
 			virtualNode.Name, vkNamespace, virtualNode.Spec.StorageClasses, opts),
-		ServiceAccountName: vk.ServiceAccountName,
+		ServiceAccountName: virtualNode.Name,
 	}
 }
 

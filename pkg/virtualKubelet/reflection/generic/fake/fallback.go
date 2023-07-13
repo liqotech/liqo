@@ -50,3 +50,8 @@ func (r *FallbackReflector) SetReady() { r.ready = true }
 func (r *FallbackReflector) Keys(local, remote string) []types.NamespacedName {
 	return []types.NamespacedName{{Namespace: local, Name: remote}}
 }
+
+// List returns an empty list.
+func (r *FallbackReflector) List() ([]interface{}, error) {
+	return nil, nil
+}

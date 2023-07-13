@@ -34,7 +34,7 @@ import (
 )
 
 // cluster-role
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnode,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;update;patch
 
 type vnwh struct {
 	clusterIdentity       *discoveryv1alpha1.ClusterIdentity

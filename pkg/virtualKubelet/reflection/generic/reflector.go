@@ -327,6 +327,7 @@ func (gr *reflector) handlers(keyer options.Keyer, filters ...options.EventFilte
 
 // Resync trigger a resync of the informer.
 func (gr *reflector) Resync() error {
+	// Trigger a resync of the namespace reflectors.
 	for k, v := range gr.reflectors {
 		objs, err := v.List()
 		if err != nil {
@@ -336,6 +337,19 @@ func (gr *reflector) Resync() error {
 		for i := range objs {
 			gr.workqueue.Add(objs[i])
 		}
+	}
+
+	// Trigger a resync of the fallback reflector if the reflector supports it.
+	if gr.fallback == nil {
+		return nil
+	}
+	objs, err := gr.fallback.List()
+	if err != nil {
+		return err
+	}
+	klog.Infof("Resynced %v fallback reflector", gr.name)
+	for i := range objs {
+		gr.workqueue.Add(objs[i])
 	}
 	return nil
 }

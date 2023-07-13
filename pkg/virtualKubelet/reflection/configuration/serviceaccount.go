@@ -320,3 +320,10 @@ func (fsar *FallbackServiceAccountReflector) Keys(local, _ string) []types.Names
 func (fsar *FallbackServiceAccountReflector) Ready() bool {
 	return fsar.ready()
 }
+
+// List returns a list of all service account tokens managed by the reflector.
+func (fsar *FallbackServiceAccountReflector) List() ([]interface{}, error) {
+	return virtualkubelet.List[virtualkubelet.Lister[*corev1.Pod], *corev1.Pod](
+		fsar.localPods,
+	)
+}

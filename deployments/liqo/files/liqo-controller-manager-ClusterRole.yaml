@@ -463,16 +463,6 @@ rules:
 - apiGroups:
   - virtualkubelet.liqo.io
   resources:
-  - virtualnode
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
   - virtualnodes
   verbs:
   - create

@@ -38,7 +38,7 @@ type NetworkConfig struct {
 	ReservedSubnets []string
 }
 
-// RetrieveRemoteCLusterIDFromNode retrieves the remote cluster ID from a given node object.
+// RetrieveRemoteClusterIDFromNode retrieves the remote cluster ID from a given node object.
 // If the node has no RemoteCLusterID label, it returns a void string without error.
 func RetrieveRemoteClusterIDFromNode(node *corev1.Node) (string, error) {
 	nodeLabels := node.GetLabels()

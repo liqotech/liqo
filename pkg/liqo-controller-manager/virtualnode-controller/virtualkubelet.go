@@ -21,12 +21,14 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/strings"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
@@ -47,9 +49,10 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 	}
 
 	namespace := virtualNode.Namespace
+	name := virtualNode.Name
 	remoteClusterIdentity := virtualNode.Spec.ClusterIdentity
 	// create the base resources
-	vkServiceAccount := vkforge.VirtualKubeletServiceAccount(namespace)
+	vkServiceAccount := vkforge.VirtualKubeletServiceAccount(namespace, name)
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, vkServiceAccount, func() error {
 		return nil
 	})
@@ -60,7 +63,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 	klog.V(5).Infof("[%v] ServiceAccount %s/%s reconciled: %s",
 		remoteClusterIdentity.ClusterName, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
 
-	vkClusterRoleBinding := vkforge.VirtualKubeletClusterRoleBinding(namespace, remoteClusterIdentity)
+	vkClusterRoleBinding := vkforge.VirtualKubeletClusterRoleBinding(namespace, name, remoteClusterIdentity)
 	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding, func() error {
 		return nil
 	})
@@ -135,18 +138,20 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 		return true, err
 	}
 
-	crlabels := vkforge.ClusterRoleLabels(virtualNode.Spec.ClusterIdentity.ClusterID)
-
-	virtualnodes := &virtualkubeletv1alpha1.VirtualNodeList{}
-	if err := r.Client.List(ctx, virtualnodes, client.MatchingLabels{discovery.ClusterIDLabel: virtualNode.Spec.ClusterIdentity.ClusterID}); err != nil {
+	if err := r.Client.Delete(ctx, &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{
+		Name: strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, virtualNode.Name), 253),
+	}}); err != nil {
 		klog.Error(err)
 		return true, err
 	}
 
-	if err := r.Client.DeleteAllOf(ctx, &rbacv1.ClusterRoleBinding{}, client.MatchingLabels(crlabels)); err != nil {
+	if err := r.Client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{
+		Name: virtualNode.Name, Namespace: virtualNode.Namespace,
+	}}); err != nil {
 		klog.Error(err)
 		return true, err
 	}
+
 	return false, nil
 }
 
