@@ -27,7 +27,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0
-	github.com/pterm/pterm v0.12.62
+	github.com/pterm/pterm v0.12.63
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/virtual-kubelet/virtual-kubelet v1.10.0
@@ -63,7 +63,7 @@ require (
 )
 
 require (
-	atomicgo.dev/cursor v0.1.1 // indirect
+	atomicgo.dev/cursor v0.1.3 // indirect
 	atomicgo.dev/keyboard v0.2.9 // indirect
 	atomicgo.dev/schedule v0.0.2 // indirect
 	cloud.google.com/go/compute v1.19.1 // indirect
@@ -241,7 +241,7 @@ require (
 	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
-	golang.org/x/term v0.8.0 // indirect
+	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.9.3 // indirect
 	golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0 // indirect
