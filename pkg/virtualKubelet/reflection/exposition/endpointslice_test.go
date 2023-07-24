@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 	"k8s.io/utils/trace"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
@@ -154,7 +155,10 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					local.SetLabels(map[string]string{"foo": "bar"})
 					local.SetAnnotations(map[string]string{"bar": "baz"})
 					local.AddressType = discoveryv1.AddressTypeIPv4
-					local.Endpoints = []discoveryv1.Endpoint{{Addresses: []string{"192.168.0.25", "192.168.0.43"}}}
+					local.Endpoints = []discoveryv1.Endpoint{{
+						NodeName:  pointer.String(LocalClusterNodeName),
+						Addresses: []string{"192.168.0.25", "192.168.0.43"},
+					}}
 					CreateEndpointSlice(&local)
 				})
 

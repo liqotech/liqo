@@ -38,6 +38,13 @@ func ReflectionLabels() labels.Set {
 	}
 }
 
+// ReflectionLabelsWithNodeName returns the labels assigned to the objects reflected from the local to the remote cluster with the given node name.
+func ReflectionLabelsWithNodeName(nodeName string) labels.Set {
+	l := ReflectionLabels()
+	l[LiqoOriginClusterNodeName] = nodeName
+	return l
+}
+
 // ReflectedLabelSelector returns a label selector matching the objects reflected from the local to the remote cluster.
 func ReflectedLabelSelector() labels.Selector {
 	return ReflectionLabels().AsSelectorPreValidated()

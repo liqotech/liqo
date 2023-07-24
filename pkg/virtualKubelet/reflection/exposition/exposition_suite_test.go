@@ -30,6 +30,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -39,10 +40,11 @@ const (
 	LocalNamespace  = "local-namespace"
 	RemoteNamespace = "remote-namespace"
 
-	LocalClusterID    = "local-cluster-id"
-	LocalClusterName  = "local-cluster-name"
-	RemoteClusterID   = "remote-cluster-id"
-	RemoteClusterName = "remote-cluster-name"
+	LocalClusterID       = "local-cluster-id"
+	LocalClusterName     = "local-cluster-name"
+	LocalClusterNodeName = "local-cluster-node-name"
+	RemoteClusterID      = "remote-cluster-id"
+	RemoteClusterName    = "remote-cluster-name"
 
 	LiqoNodeName = "local-node"
 	LiqoNodeIP   = "1.1.1.1"
@@ -74,6 +76,14 @@ var _ = BeforeSuite(func() {
 
 	// Need to use a real client, as server side apply seems not to be currently supported by the fake one.
 	client = kubernetes.NewForConfigOrDie(cfg)
+	_, err = client.CoreV1().Nodes().Create(ctx, testutil.FakeNodeWithNameAndLabels(LocalClusterNodeName, map[string]string{
+		"hostname": LocalClusterNodeName,
+	}), metav1.CreateOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	_, err = client.CoreV1().Nodes().Create(ctx, testutil.FakeNodeWithNameAndLabels(LiqoNodeName, map[string]string{
+		consts.RemoteClusterID: RemoteClusterID,
+	}), metav1.CreateOptions{})
+	Expect(err).ToNot(HaveOccurred())
 	_, err = client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: LocalNamespace}}, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	_, err = client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: RemoteNamespace}}, metav1.CreateOptions{})

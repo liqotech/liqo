@@ -15,25 +15,43 @@
 package forge_test
 
 import (
-	"time"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/informers"
-	fake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/apimachinery/pkg/labels"
+	listerscorev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/utils/pointer"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
-var (
-	fakeclient = fake.NewSimpleClientset()
-)
+// FakeNodeLister implements the NodeLister interface.
+var _ listerscorev1.NodeLister = &FakeNodeLister{}
+
+type FakeNodeLister struct{}
+
+// List lists all Nodes in the indexer.
+func (fnl *FakeNodeLister) List(_ labels.Selector) (ret []*corev1.Node, err error) {
+	return []*corev1.Node{}, nil
+}
+
+// Get retrieves the Node from the index for a given name.
+func (fnl *FakeNodeLister) Get(name string) (*corev1.Node, error) {
+	n := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: map[string]string{},
+		}}
+	if name != LiqoNodeName {
+		n.Labels[consts.RemoteClusterID] = RemoteClusterID
+	}
+	return n, nil
+}
 
 var _ = Describe("EndpointSlices Forging", func() {
 	Translator := func(inputs []string) (outputs []string) {
@@ -61,9 +79,8 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Ports:       []discoveryv1.EndpointPort{{Name: pointer.String("HTTPS")}},
 			}
 
-			informerFactory := informers.NewSharedInformerFactory(fakeclient, time.Second)
 			JustBeforeEach(func() {
-				output = forge.RemoteShadowEndpointSlice(input, output, informerFactory.Core().V1().Nodes().Lister(), "reflected", Translator)
+				output = forge.RemoteShadowEndpointSlice(input, output, &FakeNodeLister{}, "reflected", Translator)
 			})
 
 			It("should correctly set the name and namespace", func() {
@@ -116,8 +133,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 		})
 
 		JustBeforeEach(func() {
-			factoryInformers := informers.NewSharedInformerFactory(fakeclient, time.Second)
-			output = forge.RemoteEndpointSliceEndpoints(input, factoryInformers.Core().V1().Nodes().Lister(), Translator)
+			output = forge.RemoteEndpointSliceEndpoints(input, &FakeNodeLister{}, Translator)
 		})
 
 		When("translating a single endpoint", func() {

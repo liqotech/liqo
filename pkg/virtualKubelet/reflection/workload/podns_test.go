@@ -219,7 +219,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 				When("the remote object already exists and is correct", func() {
 					BeforeEach(func() {
-						shadow.SetLabels(labels.Merge(map[string]string{"foo": "bar"}, forge.ReflectionLabels()))
+						shadow.SetLabels(labels.Merge(map[string]string{"foo": "bar"}, forge.ReflectionLabelsWithNodeName(LiqoNodeName)))
 						shadow.SetAnnotations(map[string]string{"bar": "baz"})
 						shadow.Spec.Pod.Containers = []corev1.Container{{Name: "bar", Image: "foo"}}
 

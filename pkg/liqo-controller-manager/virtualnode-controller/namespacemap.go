@@ -53,7 +53,7 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 
 	result, err := ctrlutils.CreateOrUpdate(ctx, r.Client, nm, func() error {
 		nm.Labels = labels.Merge(nm.Labels, l)
-		return nil
+		return ctrlutils.SetControllerReference(vn, nm, r.Scheme)
 	})
 
 	if err != nil {

@@ -152,6 +152,28 @@ var deploymentHandler = &handler.Funcs{
 	},
 }
 
+var namespaceMapHandler = handler.EnqueueRequestsFromMapFunc(
+	func(ctx context.Context, o client.Object) []reconcile.Request {
+		nm, ok := o.(*virtualkubeletv1alpha1.NamespaceMap)
+		if !ok {
+			return []reconcile.Request{}
+		}
+		requests := []reconcile.Request{}
+		for _, ns := range nm.ObjectMeta.OwnerReferences {
+			if ns.Kind != virtualkubeletv1alpha1.VirtualNodeKind {
+				continue
+			}
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      ns.Name,
+					Namespace: nm.Namespace,
+				},
+			})
+		}
+		return requests
+	},
+)
+
 // SetupWithManager register the VirtualNodeReconciler to the manager.
 func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// select virtual kubelet deployments only
@@ -167,5 +189,8 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		&appsv1.Deployment{},
 		deploymentHandler,
 		builder.WithPredicates(deployPredicate),
+	).Watches(
+		&virtualkubeletv1alpha1.NamespaceMap{},
+		namespaceMapHandler,
 	).Complete(r)
 }

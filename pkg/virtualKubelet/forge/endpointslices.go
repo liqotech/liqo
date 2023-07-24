@@ -45,6 +45,10 @@ func IsEndpointSliceManagedByReflection(obj metav1.Object) bool {
 
 // EndpointToBeReflected filters out the endpoints targeting pods already running on the remote cluster.
 func EndpointToBeReflected(endpoint *discoveryv1.Endpoint, localNodeClient corev1listers.NodeLister) bool {
+	if endpoint.NodeName == nil {
+		klog.Warning("Endpoint without nodeName")
+		return false
+	}
 	epNode, err := localNodeClient.Get(*endpoint.NodeName)
 	if err != nil {
 		klog.Errorf("Unable to retrieve node %s: %s", *endpoint.NodeName, err.Error())

@@ -160,12 +160,17 @@ func FakeServiceLoadBalancer(namespace, name, externalIP string, labels map[stri
 
 // FakeNode returns a node.
 func FakeNode() *corev1.Node {
+	return FakeNodeWithNameAndLabels("fake-node", map[string]string{
+		"node-role.kubernetes.io/control-plane": "",
+	})
+}
+
+// FakeNodeWithNameAndLabels returns a node with the specified name and labels.
+func FakeNodeWithNameAndLabels(name string, labels map[string]string) *corev1.Node {
 	return &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "fake-node",
-			Labels: map[string]string{
-				"node-role.kubernetes.io/control-plane": "",
-			},
+			Name:   name,
+			Labels: labels,
 		},
 		Status: corev1.NodeStatus{
 			Addresses: []corev1.NodeAddress{
