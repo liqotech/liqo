@@ -99,37 +99,42 @@ func SumResourceOffers(resourceoffers *sharingv1alpha1.ResourceOfferList) corev1
 	tot := corev1.ResourceList{}
 	for i := range resourceoffers.Items {
 		h := resourceoffers.Items[i].Spec.ResourceQuota.Hard
-		if t, ok := tot[corev1.ResourceCPU]; !ok {
-			tot[corev1.ResourceCPU] = *resource.NewQuantity(h.Cpu().Value(), h.Cpu().Format)
+		if cpu, ok := tot[corev1.ResourceCPU]; !ok {
+			tot[corev1.ResourceCPU] = h.Cpu().DeepCopy()
 		} else {
-			tot[corev1.ResourceCPU] = *resource.NewQuantity(t.Value()+h.Cpu().Value(), h.Cpu().Format)
+			cpu.Add(h.Cpu().DeepCopy())
+			tot[corev1.ResourceCPU] = cpu.DeepCopy()
 		}
 
-		if t, ok := tot[corev1.ResourceMemory]; !ok {
-			tot[corev1.ResourceMemory] = *resource.NewQuantity(h.Memory().Value(), h.Cpu().Format)
+		if mem, ok := tot[corev1.ResourceMemory]; !ok {
+			tot[corev1.ResourceMemory] = h.Memory().DeepCopy()
 		} else {
-			tot[corev1.ResourceMemory] = *resource.NewQuantity(t.Value()+h.Memory().Value(), h.Memory().Format)
+			mem.Add(h.Memory().DeepCopy())
+			tot[corev1.ResourceMemory] = mem.DeepCopy()
 		}
 
-		if t, ok := tot[corev1.ResourceEphemeralStorage]; !ok {
-			tot[corev1.ResourceEphemeralStorage] = *resource.NewQuantity(h.StorageEphemeral().Value(), h.StorageEphemeral().Format)
+		if storage, ok := tot[corev1.ResourceEphemeralStorage]; !ok {
+			tot[corev1.ResourceEphemeralStorage] = h.StorageEphemeral().DeepCopy()
 		} else {
-			tot[corev1.ResourceEphemeralStorage] = *resource.NewQuantity(t.Value()+h.StorageEphemeral().Value(), h.StorageEphemeral().Format)
+			storage.Add(h.StorageEphemeral().DeepCopy())
+			tot[corev1.ResourceEphemeralStorage] = storage.DeepCopy()
 		}
 
-		if t, ok := tot[corev1.ResourcePods]; !ok {
-			tot[corev1.ResourcePods] = *resource.NewQuantity(h.Pods().Value(), h.Pods().Format)
+		if pods, ok := tot[corev1.ResourcePods]; !ok {
+			tot[corev1.ResourcePods] = h.Pods().DeepCopy()
 		} else {
-			tot[corev1.ResourcePods] = *resource.NewQuantity(t.Value()+h.Pods().Value(), h.Pods().Format)
+			pods.Add(h.Pods().DeepCopy())
+			tot[corev1.ResourcePods] = pods.DeepCopy()
 		}
 
 		for k := range Others(h) {
 			fmt.Println(k)
 			q := h[corev1.ResourceName(k)]
 			if t, ok := tot[corev1.ResourceName(k)]; !ok {
-				tot[corev1.ResourceName(k)] = *resource.NewQuantity(q.Value(), q.Format)
+				tot[corev1.ResourceName(k)] = q.DeepCopy()
 			} else {
-				t.Add(q)
+				t.Add(q.DeepCopy())
+				tot[corev1.ResourceName(k)] = t.DeepCopy()
 			}
 		}
 	}

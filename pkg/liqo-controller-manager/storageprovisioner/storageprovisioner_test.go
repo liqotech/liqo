@@ -337,9 +337,9 @@ var _ = Describe("Test Storage Provisioner", func() {
 					}
 					Expect(state).To(Equal(controller.ProvisioningFinished))
 					Expect(pv).ToNot(BeNil())
-					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key).To(Equal(corev1.LabelHostname))
+					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key).To(Equal(liqoconst.RemoteClusterID))
 					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Operator).To(Equal(corev1.NodeSelectorOpIn))
-					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values).To(ContainElement(virtualNodeName))
+					Expect(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values).To(ContainElement(remoteClusterID))
 					Expect(pv.Spec.StorageClassName).To(Equal(virtualStorageClassName))
 
 					_, err = testEnvClient.CoreV1().PersistentVolumeClaims(RemoteNamespace).Get(ctx, pvcName, metav1.GetOptions{})

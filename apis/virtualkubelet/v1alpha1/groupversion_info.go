@@ -32,6 +32,9 @@ var (
 	// NamespaceMapGroupVersionResource is groupResourceVersion used to register these objects.
 	NamespaceMapGroupVersionResource = SchemeGroupVersion.WithResource(NamespaceMapResource)
 
+	// VirtualNodeKind is the kind name used to register the VirtualNode CRD.
+	VirtualNodeKind = "VirtualNode"
+
 	// VirtualNodeResource is the resource name used to register the VirtualNode CRD.
 	VirtualNodeResource = "virtualnodes"
 

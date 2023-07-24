@@ -26,8 +26,7 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
@@ -108,7 +107,7 @@ func forgeTesterPod(image, namespace string, opts *TesterOpts) *v1.Pod {
 	if opts.Offloaded {
 		NodeAffinityOperator = v1.NodeSelectorOpIn
 		nodeSelector = map[string]string{
-			consts.RemoteClusterID: opts.Cluster.ClusterID,
+			liqoconsts.RemoteClusterID: opts.Cluster.ClusterID,
 		}
 	}
 
@@ -136,9 +135,9 @@ func forgeTesterPod(image, namespace string, opts *TesterOpts) *v1.Pod {
 				NodeAffinity: &v1.NodeAffinity{
 					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{
 						MatchExpressions: []v1.NodeSelectorRequirement{{
-							Key:      liqoconst.TypeLabel,
+							Key:      liqoconsts.TypeLabel,
 							Operator: NodeAffinityOperator,
-							Values:   []string{liqoconst.TypeNode},
+							Values:   []string{liqoconsts.TypeNode},
 						}},
 						MatchFields: nil,
 					}}},

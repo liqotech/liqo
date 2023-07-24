@@ -76,11 +76,8 @@ func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
 	}()
 
 	config, err := r.IdentityManager.GetConfig(foreignCluster.Spec.ClusterIdentity, foreignCluster.Status.TenantNamespace.Local)
-	if err != nil && !kerrors.IsNotFound(err) {
-		return err
-	}
-
-	if err != nil {
+	switch {
+	case kerrors.IsNotFound(err):
 		if err = r.validateIdentity(ctx, foreignCluster); err != nil {
 			if errors.Is(err, identityEmptyDeniedError{}) {
 				status = discoveryv1alpha1.PeeringConditionStatusEmptyDenied
@@ -93,6 +90,12 @@ func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
 			}
 			return err
 		}
+		if config, err = r.IdentityManager.GetConfig(foreignCluster.Spec.ClusterIdentity, foreignCluster.Status.TenantNamespace.Local); err != nil {
+			return err
+		}
+	// If the error is not NotFound this case is matched.
+	case err != nil:
+		return err
 	}
 
 	status = discoveryv1alpha1.PeeringConditionStatusEstablished

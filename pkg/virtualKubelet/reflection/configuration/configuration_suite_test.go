@@ -73,6 +73,13 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 	_, err = client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: RemoteNamespace}}, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
+	_, err = client.CoreV1().Nodes().Create(ctx, &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   LiqoNodeName,
+			Labels: map[string]string{corev1.LabelHostname: LiqoNodeName},
+		},
+	}, metav1.CreateOptions{})
+	Expect(err).ToNot(HaveOccurred())
 
 	local := discoveryv1alpha1.ClusterIdentity{ClusterID: LocalClusterID, ClusterName: LocalClusterName}
 	remote := discoveryv1alpha1.ClusterIdentity{ClusterID: RemoteClusterID, ClusterName: RemoteClusterName}

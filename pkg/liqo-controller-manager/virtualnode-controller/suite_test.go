@@ -37,6 +37,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
+	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -51,7 +52,9 @@ const (
 	nameVirtualNode2          = "virtual-node-2"
 	nameSimpleNode            = "simple-node"
 	remoteClusterID1          = "6a0e9f-b52-4ed0"
+	remoteClusterName1        = "remote-1"
 	remoteClusterID2          = "899890-dsd-323"
+	remoteClusterName2        = "remote-2"
 	remoteClusterIDSimpleNode = "909030-sd-3231"
 	tenantNamespaceNameID1    = "liqo-tenant-namespace-1"
 	tenantNamespaceNameID2    = "liqo-tenant-namespace-2"
@@ -65,9 +68,15 @@ var (
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	nms              *mapsv1alpha1.NamespaceMapList
-	virtualNode1     *corev1.Node
-	virtualNode2     *corev1.Node
+	localIdentity = discoveryv1alpha1.ClusterIdentity{
+		ClusterID:   "local-ID",
+		ClusterName: "local-name",
+	}
+
+	nms *mapsv1alpha1.NamespaceMapList
+
+	virtualNode1     *mapsv1alpha1.VirtualNode
+	virtualNode2     *mapsv1alpha1.VirtualNode
 	simpleNode       *corev1.Node
 	tenantNamespace1 *corev1.Namespace
 	tenantNamespace2 *corev1.Namespace
@@ -110,19 +119,26 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&VirtualNodeReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
-	}).SetupWithManager(k8sManager)
+	k8sClient = k8sManager.GetClient()
+	Expect(k8sClient).ToNot(BeNil())
+
+	vnr, err := NewVirtualNodeReconciler(ctx,
+		k8sClient,
+		k8sClient,
+		scheme.Scheme,
+		k8sManager.GetEventRecorderFor("virtualnode-controller"),
+		&localIdentity,
+		&forge.VirtualKubeletOpts{},
+	)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (vnr).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
 		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
-
-	k8sClient = k8sManager.GetClient()
-	Expect(k8sClient).ToNot(BeNil())
 
 	nms = &mapsv1alpha1.NamespaceMapList{}
 

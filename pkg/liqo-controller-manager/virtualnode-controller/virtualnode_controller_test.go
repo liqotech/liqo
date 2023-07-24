@@ -16,43 +16,80 @@ package virtualnodectrl
 
 import (
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/pterm/pterm"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
+
+func ForgeFakeVirtualNode(nameVirtualNode, tenantNamespaceName, remoteClusterID string) *virtualkubeletv1alpha1.VirtualNode {
+	return &virtualkubeletv1alpha1.VirtualNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nameVirtualNode,
+			Namespace: tenantNamespaceName,
+		},
+		Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
+			ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
+				ClusterID:   remoteClusterID,
+				ClusterName: remoteClusterName1,
+			},
+			Template: &virtualkubeletv1alpha1.DeploymentTemplate{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      nameVirtualNode,
+					Namespace: tenantNamespaceName,
+					Labels: map[string]string{
+						"virtual-node": nameVirtualNode,
+					},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"virtual-node": nameVirtualNode,
+						},
+					},
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"virtual-node": nameVirtualNode,
+							},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "virtual-kubelet",
+									Image: "virtual-kubelet-image",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
 
 var _ = Describe("VirtualNode controller", func() {
 
 	Context("Check if resources VirtualNodes and NamespaceMaps are correctly initialized", func() {
 
 		BeforeEach(func() {
-			virtualNode1 = &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: nameVirtualNode1,
-					Labels: map[string]string{
-						liqoconst.TypeLabel:       liqoconst.TypeNode,
-						liqoconst.RemoteClusterID: remoteClusterID1,
-					},
-				},
-			}
-			virtualNode2 = &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: nameVirtualNode2,
-					Labels: map[string]string{
-						liqoconst.TypeLabel:       liqoconst.TypeNode,
-						liqoconst.RemoteClusterID: remoteClusterID2,
-					},
-				},
-			}
+			virtualNode1 = ForgeFakeVirtualNode(nameVirtualNode1, tenantNamespaceNameID1, remoteClusterID1)
+
+			virtualNode2 = ForgeFakeVirtualNode(nameVirtualNode2, tenantNamespaceNameID2, remoteClusterID2)
+
+			time.Sleep(2 * time.Second)
 			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode1))
 			Expect(k8sClient.Create(ctx, virtualNode1)).Should(Succeed())
 			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode2))
@@ -60,16 +97,19 @@ var _ = Describe("VirtualNode controller", func() {
 		})
 
 		AfterEach(func() {
+			vn := &virtualkubeletv1alpha1.VirtualNode{}
 			By(fmt.Sprintf("Delete the virtual-node '%s'", nameVirtualNode1))
-			Expect(k8sClient.Delete(ctx, virtualNode1)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1, Namespace: tenantNamespace1.Name}, vn)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, vn)).Should(Succeed())
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1, Namespace: tenantNamespace1.Name}, virtualNode1)
 				return apierrors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 			By(fmt.Sprintf("Delete the virtual-node '%s'", nameVirtualNode2))
-			Expect(k8sClient.Delete(ctx, virtualNode2)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2, Namespace: tenantNamespace2.Name}, vn)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, vn)).Should(Succeed())
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2, Namespace: tenantNamespace2.Name}, virtualNode2)
 				return apierrors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 		})
@@ -91,16 +131,18 @@ var _ = Describe("VirtualNode controller", func() {
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return false
 				}
+				pterm.BgYellow.Printfln("nms: %v", nms)
+				pterm.BgYellow.Printfln("nms len: %v", len(nms.Items))
 				return len(nms.Items) == 1
 			}, timeout, interval).Should(BeTrue())
 
 		})
 
-		It(fmt.Sprintf("Check if finalizers and ownerReference are correctly created for %s", nameVirtualNode1), func() {
+		It(fmt.Sprintf("Check if finalizers are correctly created for %s", nameVirtualNode1), func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode1))
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1, Namespace: tenantNamespace1.Name}, virtualNode1)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
@@ -113,21 +155,9 @@ var _ = Describe("VirtualNode controller", func() {
 				return len(nms.Items) == 1
 			}, timeout, interval).Should(BeTrue())
 
-			expectedOwnerReference := metav1.OwnerReference{
-				APIVersion:         "v1",
-				BlockOwnerDeletion: pointer.BoolPtr(true),
-				Kind:               "Node",
-				Name:               virtualNode1.GetName(),
-				UID:                virtualNode1.GetUID(),
-				Controller:         pointer.BoolPtr(true),
-			}
-
-			By(fmt.Sprintf("Try to check the ownership of the NamespaceMap: %s", nms.Items[0].GetName()))
-			Expect(nms.Items[0].GetOwnerReferences()).To(ContainElement(expectedOwnerReference))
-
 			By(fmt.Sprintf("Try to check presence of finalizer on the virtual-Node: %s", virtualNode1.GetName()))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1},
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1, Namespace: tenantNamespace1.Name},
 					virtualNode1); err != nil {
 					return false
 				}
@@ -136,11 +166,11 @@ var _ = Describe("VirtualNode controller", func() {
 
 		})
 
-		It(fmt.Sprintf("Check if finalizers and ownerReference are correctly created for %s", nameVirtualNode2), func() {
+		It(fmt.Sprintf("Check if finalizers are correctly created for %s", nameVirtualNode2), func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode2))
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2, Namespace: tenantNamespace2.Name}, virtualNode2)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
@@ -153,22 +183,9 @@ var _ = Describe("VirtualNode controller", func() {
 				return len(nms.Items) == 1
 			}, timeout, interval).Should(BeTrue())
 
-			expectedOwnerReference := metav1.OwnerReference{
-				APIVersion:         "v1",
-				BlockOwnerDeletion: pointer.BoolPtr(true),
-				Kind:               "Node",
-				Name:               virtualNode2.GetName(),
-				UID:                virtualNode2.GetUID(),
-				Controller:         pointer.BoolPtr(true),
-			}
-
-			By(fmt.Sprintf("Try to check ownership of NamespaceMap: %s", nms.Items[0].GetName()))
-			Expect(nms.Items[0].GetOwnerReferences()).To(ContainElement(expectedOwnerReference))
-
-			By(fmt.Sprintf("Try to check presence of finalizer in VirtualNode: %s", virtualNode2.GetName()))
-			// i have to update my node instance, because finalizer could be updated after my first get
+			By(fmt.Sprintf("Try to check presence of finalizer on the virtual-Node: %s", virtualNode2.GetName()))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2},
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2, Namespace: tenantNamespace2.Name},
 					virtualNode2); err != nil {
 					return false
 				}
@@ -222,15 +239,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 		It(fmt.Sprintf("Check regeneration of NamespaceMap associated to %s", remoteClusterID1), func() {
 
-			virtualNode1 = &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: nameVirtualNode1,
-					Labels: map[string]string{
-						liqoconst.TypeLabel:       liqoconst.TypeNode,
-						liqoconst.RemoteClusterID: remoteClusterID1,
-					},
-				},
-			}
+			virtualNode1 = ForgeFakeVirtualNode(nameVirtualNode1, tenantNamespaceNameID1, remoteClusterID1)
 			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode1))
 			Expect(k8sClient.Create(ctx, virtualNode1)).Should(Succeed())
 

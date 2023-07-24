@@ -69,6 +69,7 @@ var _ = Describe("ServiceAccount Reflection", func() {
 		)
 
 		CreatePod := func(pod *corev1.Pod) *corev1.Pod {
+			pod.Spec.NodeName = LiqoNodeName
 			pod, errpod := client.CoreV1().Pods(pod.GetNamespace()).Create(ctx, pod, metav1.CreateOptions{})
 			ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
 			return pod
@@ -97,7 +98,9 @@ var _ = Describe("ServiceAccount Reflection", func() {
 				BeforeEach(func() {
 					if createRemote {
 						tokens := forge.ServiceAccountPodTokens{PodName: PodName, ServiceAccountName: ServiceAccountName}
-						remote.SetLabels(labels.Merge(forge.ReflectionLabels(), forge.RemoteServiceAccountSecretLabels(&tokens)))
+						l := labels.Merge(forge.ReflectionLabels(), forge.RemoteServiceAccountSecretLabels(&tokens))
+						l = labels.Merge(l, map[string]string{forge.LiqoOriginClusterNodeName: LiqoNodeName})
+						remote.SetLabels(l)
 						CreateSecret(remote)
 					}
 				})
@@ -118,7 +121,9 @@ var _ = Describe("ServiceAccount Reflection", func() {
 		})
 
 		AfterEach(func() {
-			Expect(client.CoreV1().Pods(LocalNamespace).Delete(ctx, PodName, metav1.DeleteOptions{})).To(
+			Expect(client.CoreV1().Pods(LocalNamespace).Delete(ctx, PodName, metav1.DeleteOptions{
+				GracePeriodSeconds: pointer.Int64(0),
+			})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
 			Expect(client.CoreV1().ServiceAccounts(LocalNamespace).Delete(ctx, ServiceAccountName, metav1.DeleteOptions{})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
@@ -250,7 +255,9 @@ var _ = Describe("ServiceAccount Reflection", func() {
 						PodName: PodName, ServiceAccountName: ServiceAccountName, PodUID: uid,
 						Tokens: []*forge.ServiceAccountPodToken{{ActualExpiration: expiration}},
 					}
-					remote.SetLabels(labels.Merge(forge.ReflectionLabels(), forge.RemoteServiceAccountSecretLabels(&tokens)))
+					l := labels.Merge(forge.ReflectionLabels(), forge.RemoteServiceAccountSecretLabels(&tokens))
+					l = labels.Merge(l, map[string]string{forge.LiqoOriginClusterNodeName: LiqoNodeName})
+					remote.SetLabels(l)
 					remote.SetAnnotations(forge.RemoteServiceAccountSecretAnnotations(&tokens))
 					remote.Data = map[string][]byte{forge.ServiceAccountTokenKey("token", "path"): []byte("tkn")}
 					CreateSecret(remote)
