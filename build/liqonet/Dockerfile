@@ -9,7 +9,7 @@ WORKDIR /boringtun
 RUN cargo build --bin boringtun-cli --release
 
 
-FROM golang:1.19 as goBuilder
+FROM golang:1.20 as goBuilder
 WORKDIR /tmp/builder
 
 COPY go.mod ./go.mod
