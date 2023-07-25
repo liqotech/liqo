@@ -18,12 +18,12 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.19'
-
+          cache: false
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.6.0
         with:
           only-new-issues: true
-          version: v1.52.0
+          version: v1.53.3
           args: --timeout=900s
 
   gomodtidy:
