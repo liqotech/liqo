@@ -28,7 +28,7 @@ serve: install html
 	docker run --rm -it -v $(PWD)/_build/html:/usr/share/nginx/html -p 8080:80 nginx
 
 autoserve: install
-	@$(SPHINXAUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXAUTOOPTS) $(O)
+	@$(SPHINXAUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXAUTOOPTS) --port 8081 $(O)
 
 lint:
 	markdownlint lint -c ../.markdownlint.yml **/*.md

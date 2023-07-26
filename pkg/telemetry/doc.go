@@ -13,4 +13,25 @@
 // limitations under the License.
 
 // Package telemetry builds and sends telemetry data to the Liqo telemetry server.
+// The telemetry data contains information about the cluster and the Liqo installation.
+// The telemetry server aggregates the collected data and provides it to the Liqo maintainers.
+// All the transmitted data is anonymous and does not contain any sensitive information.
+// In particular the following data is sent:
+//   - Cluster ID
+//   - Liqo version
+//   - Kubernetes version
+//   - Provider (e.g. GKE, EKS, AKS, ...)
+//   - Peering info
+//     -- RemoteClusterID
+//     -- PeeringType (OutOfBand/InBand)
+//     -- DiscoveryType (LAN/Manual/IncomingPeering)
+//     -- Latency
+//     -- Incoming (enabled, resources)
+//     -- Outgoing (enabled, resources)
+//   - Namespaces info
+//     -- UID
+//     -- MappingStrategy (EnforceSameName/DefaultName)
+//     -- OffloadingStrategy (Local/Remote/LocalAndRemote)
+//     -- HasClusterSelector (true/false)
+//     -- NumOffloadedPods (map of clusterID -> number of offloaded pods)
 package telemetry

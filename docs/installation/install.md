@@ -419,6 +419,9 @@ The main global flags, besides those concerning the installation of [development
 * `--timeout`: configures the timeout for the completion of the installation/upgrade process.
   Once expired, the process is aborted and Liqo is rolled back to the previous version.
 * `--verbose`: enables verbose logs, providing additional information concerning the installation/upgrade process (e.g., for troubleshooting).
+* `--disable-telemetry`: disables the collection of telemetry data, which is enabled by default.
+  The telemetry is used to collect anonymous usage statistics, which are used to improve Liqo.
+  Additional details are provided {{ env.config.html_context.generate_telemetry_link('here') }}.
 
 (InstallControlPlaneFlags)=
 
