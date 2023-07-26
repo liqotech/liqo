@@ -105,13 +105,23 @@ def __get_download_url(file: str) -> str:
         return f"https://github.com/liqotech/liqo/releases/latest/download/{file}"
     else:
         return f"https://github.com/liqotech/liqo/releases/download/{html_context['current_version']}/{file}"
-
-# generate_clone_example generates the clone and checkout code for the given example.
-def generate_clone_example(example_name: str) -> str:
+    
+# generate_version generates the version string for the current page.
+def generate_version() -> str:
     version = html_context['github_version']
     if 'current_version' in html_context and html_context['current_version'] == 'stable':
         x = requests.get('https://api.github.com/repos/liqotech/liqo/releases/latest')
         version = x.json()['tag_name']
+    return version
+
+# generate_telemetry_link generates the link to the telemetry page for the current page.
+def generate_telemetry_link(text: str) -> str:
+    version = generate_version()
+    return f"[{text}](https://github.com/liqotech/liqo/blob/{version}/pkg/telemetry/doc.go)"
+
+# generate_clone_example generates the clone and checkout code for the given example.
+def generate_clone_example(example_name: str) -> str:
+    version =generate_version()
     return f"```bash\n\
 git clone https://github.com/liqotech/liqo.git\n\
 cd liqo\n\
@@ -122,10 +132,7 @@ cd examples/{example_name}\n\
 
 # generate_clone_example_tf generates the clone and checkout code for the given example.
 def generate_clone_example_tf(example_name: str) -> str:
-    version = html_context['github_version']
-    if 'current_version' in html_context and html_context['current_version'] == 'stable':
-        x = requests.get('https://api.github.com/repos/liqotech/liqo/releases/latest')
-        version = x.json()['tag_name']
+    version =generate_version()
     return f"```bash\n\
 git clone https://github.com/liqotech/liqo.git\n\
 cd liqo\n\
@@ -172,6 +179,7 @@ html_context = {
     'generate_clone_example_tf': generate_clone_example_tf,
     'generate_liqoctl_install': generate_liqoctl_install,
     'generate_liqoctl_version_warning': generate_liqoctl_version_warning,
+    'generate_telemetry_link': generate_telemetry_link,
     'github_repo': 'liqo',
     'github_version': 'master',
     'display_github': True,
