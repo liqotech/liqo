@@ -6,3 +6,4 @@ sphinx-design==0.2.0
 sphinx_external_toc==0.3.0
 semver==2.13.0
 urllib3==1.26.15
+sphinx-autobuild==2021.3.14

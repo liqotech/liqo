@@ -3,8 +3,10 @@
 
 # You can set these variables from the command line, and also
 # from the environment for the first two.
-SPHINXOPTS    ?= -W --keep-going -n
+SPHINXOPTS    ?= -W -n --keep-going
+SPHINXAUTOOPTS    ?= -W -n
 SPHINXBUILD   ?= sphinx-build
+SPHINXAUTOBUILD ?= sphinx-autobuild
 SOURCEDIR     = .
 BUILDDIR      = _build
 
@@ -24,6 +26,9 @@ install:
 
 serve: install html
 	docker run --rm -it -v $(PWD)/_build/html:/usr/share/nginx/html -p 8080:80 nginx
+
+autoserve: install
+	@$(SPHINXAUTOBUILD) "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXAUTOOPTS) $(O)
 
 lint:
 	markdownlint lint -c ../.markdownlint.yml **/*.md
