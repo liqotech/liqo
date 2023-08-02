@@ -98,6 +98,20 @@ type Printer struct {
 	verbose    bool
 }
 
+// SpinnerRunningWarning prints a warning message while a spinner is running.
+// It returns a new spinner printer which must be used instead of the one passed in the arguments.
+func (p *Printer) SpinnerRunningWarning(spinner *pterm.SpinnerPrinter, message ...interface{}) *pterm.SpinnerPrinter {
+	spinner.Warning(message...)
+	return p.StartSpinner(spinner.Text)
+}
+
+// SpinnerRunningSuccess prints a success message while a spinner is running.
+// It returns a new spinner printer which must be used instead of the one passed in the arguments.
+func (p *Printer) SpinnerRunningSuccess(spinner *pterm.SpinnerPrinter, message ...interface{}) *pterm.SpinnerPrinter {
+	spinner.Success(message...)
+	return p.StartSpinner(spinner.Text)
+}
+
 // AskConfirm asks the user to confirm an action.
 func (p *Printer) AskConfirm(cmdName string, skip bool) error {
 	if skip {
