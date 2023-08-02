@@ -170,6 +170,15 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 		}
 	}
 
+	warnings, err := ValuesWarning(values)
+	if err != nil {
+		s.Fail("Error generating installation warnings: ", output.PrettyErr(err))
+		return err
+	}
+	for _, warning := range warnings {
+		s = o.Printer.SpinnerRunningWarning(s, warning)
+	}
+
 	rawValues, err := yaml.Marshal(values)
 	if err != nil {
 		s.Fail("Error generating values file: ", output.PrettyErr(err))
