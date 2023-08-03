@@ -95,4 +95,3 @@ do
   "${KUBECTL}" wait --for=condition=Ready pods --all -n liqo
   "${LIQOCTL}" status --verbose
 done;
-
