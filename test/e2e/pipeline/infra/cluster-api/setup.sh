@@ -37,11 +37,13 @@ source "$WORKDIR/cni.sh"
 
 CLUSTER_NAME=cluster
 
-export K8S_VERSION=${K8S_VERSION:-"1.25.5"}
+export K8S_VERSION=${K8S_VERSION:-"1.27.4"}
 K8S_VERSION=$(echo -n "$K8S_VERSION" | sed 's/v//g') # remove the leading v
 
+OS_IMAGE=${OS_IMAGE:-"ubuntu-2004"}
+
 export CRI_PATH="/var/run/containerd/containerd.sock"
-export NODE_VM_IMAGE_TEMPLATE="quay.io/capk/ubuntu-2004-container-disk:v${K8S_VERSION}"
+export NODE_VM_IMAGE_TEMPLATE="harbor.crownlabs.polito.it/capk/${OS_IMAGE}-container-disk:v${K8S_VERSION}"
 export IMAGE_REPO=k8s.gcr.io
 
 export SERVICE_CIDR=10.100.0.0/16
@@ -90,4 +92,10 @@ do
   # install local-path storage class
   "${KUBECTL}" apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.24/deploy/local-path-storage.yaml --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
   "${KUBECTL}" annotate storageclass local-path storageclass.kubernetes.io/is-default-class=true --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+done
+
+for i in $(seq 1 "${CLUSTER_NUMBER}");
+do
+  echo "Waiting for cluster ${CLUSTER_NAME}${i} CNI to be ready"
+  "wait_${CNI}" "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done
