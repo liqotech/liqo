@@ -157,6 +157,9 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod,
 
 	// Remove the label which identifies offloaded pods, as meaningful only locally.
 	localMetaFiltered := local.ObjectMeta.DeepCopy()
+	if localMetaFiltered.GetLabels() == nil {
+		localMetaFiltered.Labels = map[string]string{}
+	}
 	delete(localMetaFiltered.GetLabels(), liqoconst.LocalPodLabelKey)
 	localMetaFiltered.GetLabels()[LiqoOriginClusterNodeName] = LiqoNodeName
 
