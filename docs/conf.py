@@ -104,11 +104,11 @@ def __get_download_url(file: str) -> str:
     if 'current_version' not in html_context or not __is_sem_version(html_context['current_version']):
         return f"https://github.com/liqotech/liqo/releases/latest/download/{file}"
     else:
-        return f"https://github.com/liqotech/liqo/releases/download/{html_context['current_version']}/{file}"
+        return f"https://github.com/liqotech/liqo/releases/download/master/{file}"
     
 # generate_version generates the version string for the current page.
 def generate_version() -> str:
-    version = html_context['github_version']
+    version = html_context['github_version'] if 'github_version' in html_context else 'master'
     if 'current_version' in html_context and html_context['current_version'] == 'stable':
         x = requests.get('https://api.github.com/repos/liqotech/liqo/releases/latest')
         version = x.json()['tag_name']
@@ -121,7 +121,7 @@ def generate_telemetry_link(text: str) -> str:
 
 # generate_clone_example generates the clone and checkout code for the given example.
 def generate_clone_example(example_name: str) -> str:
-    version =generate_version()
+    version = generate_version()
     return f"```bash\n\
 git clone https://github.com/liqotech/liqo.git\n\
 cd liqo\n\
@@ -132,7 +132,7 @@ cd examples/{example_name}\n\
 
 # generate_clone_example_tf generates the clone and checkout code for the given example.
 def generate_clone_example_tf(example_name: str) -> str:
-    version =generate_version()
+    version = generate_version()
     return f"```bash\n\
 git clone https://github.com/liqotech/liqo.git\n\
 cd liqo\n\
@@ -181,7 +181,5 @@ html_context = {
     'generate_liqoctl_version_warning': generate_liqoctl_version_warning,
     'generate_telemetry_link': generate_telemetry_link,
     'github_repo': 'liqo',
-    'github_version': 'master',
     'display_github': True,
-    'commit': 'abcdefgh',
 }
