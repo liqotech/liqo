@@ -2,6 +2,16 @@ apiVersion: v1
 entries:
   liqo:
   - apiVersion: v2
+    appVersion: v0.9.0
+    created: "2023-08-04T07:54:37.626272954Z"
+    description: A Helm chart for Liqo
+    digest: 97f6941a3706ec2bb5595fa1b1b80888c84c1ed191707dbe0a0971fbc73190cd
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.9.0/liqo-v0.9.0.tgz
+    version: v0.9.0
+  - apiVersion: v2
     appVersion: v0.8.3
     created: "2023-05-30T10:39:58.54285461Z"
     description: A Helm chart for Liqo
@@ -256,4 +266,4 @@ entries:
     urls:
     - https://github.com/liqotech/liqo/releases/download/v0.2/liqo-v0.2.tgz
     version: v0.2
-generated: "2023-05-30T10:39:58.54320933Z"
+generated: "2023-08-04T07:54:37.626502757Z"
