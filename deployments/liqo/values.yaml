@@ -24,9 +24,16 @@ reflection:
     labels: []
     # -- List of annotations that must not be reflected on remote clusters.
     annotations: [
+      cloud.google.com/neg,
+      cloud.google.com/neg-status,
+      kubernetes.digitalocean.com/load-balancer-id,
+      ingress.kubernetes.io/backends,
+      ingress.kubernetes.io/forwarding-rule,
+      ingress.kubernetes.io/target-proxy,
+      ingress.kubernetes.io/url-map,
+      metallb.universe.tf/address-pool,
       metallb.universe.tf/ip-allocated-from-pool,
       metallb.universe.tf/loadBalancerIPs,
-      metallb.universe.tf/address-pool,
     ]
 
 controllerManager:
