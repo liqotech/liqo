@@ -106,7 +106,7 @@ var _ = Describe("IdentityManager", func() {
 		commonSecretChecks := func(secret *v1.Secret) {
 			Expect(secret.Namespace).To(Equal(namespace.Name))
 			Expect(secret.GetLabels()).To(HaveKeyWithValue(localIdentitySecretLabel, "true"))
-			Expect(secret.GetLabels()).To(HaveKeyWithValue(certificateAvailableLabel, "true"))
+			Expect(secret.GetLabels()).To(HaveKeyWithValue(CertificateAvailableLabel, "true"))
 			Expect(secret.GetLabels()).To(HaveKeyWithValue(discovery.ClusterIDLabel, remoteCluster.ClusterID))
 			Expect(secret.GetAnnotations()).To(HaveKey(certificateExpireTimeAnnotation))
 			Expect(secret.Data[privateKeySecretKey]).To(Equal(key))

@@ -24,6 +24,8 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
@@ -123,6 +125,24 @@ func Nodes(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	return common(ctx, f, argsLimit, retriever)
 }
 
+// VirtualNodes returns a function to autocomplete virtual node names.
+func VirtualNodes(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var virtualNodes virtualkubeletv1alpha1.VirtualNodeList
+		if err := f.CRClient.List(ctx, &virtualNodes, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range virtualNodes.Items {
+			names = append(names, virtualNodes.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
 // ForeignClusters returns a function to autocomplete ForeignCluster names.
 func ForeignClusters(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
@@ -134,6 +154,64 @@ func ForeignClusters(ctx context.Context, f *factory.Factory, argsLimit int) FnT
 		var names []string
 		for i := range foreignClusters.Items {
 			names = append(names, foreignClusters.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// ClusterIDs returns a function to autocomplete ForeignCluster cluster IDs.
+func ClusterIDs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var foreignClusters discoveryv1alpha1.ForeignClusterList
+		if err := f.CRClient.List(ctx, &foreignClusters); err != nil {
+			return nil, err
+		}
+
+		var ids []string
+		for i := range foreignClusters.Items {
+			ids = append(ids, foreignClusters.Items[i].Spec.ClusterIdentity.ClusterID)
+		}
+		return ids, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// ClusterNames returns a function to autocomplete ForeignCluster cluster names.
+func ClusterNames(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var foreignClusters discoveryv1alpha1.ForeignClusterList
+		if err := f.CRClient.List(ctx, &foreignClusters); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range foreignClusters.Items {
+			names = append(names, foreignClusters.Items[i].Spec.ClusterIdentity.ClusterName)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// KubeconfigSecretNames returns a function to autocomplete kubeconfig secret names.
+func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		matchingLabels := client.MatchingLabels{
+			identitymanager.CertificateAvailableLabel: "true",
+		}
+
+		var secrets corev1.SecretList
+		if err := f.CRClient.List(ctx, &secrets, client.InNamespace(f.Namespace), matchingLabels); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range secrets.Items {
+			names = append(names, secrets.Items[i].Name)
 		}
 		return names, nil
 	}

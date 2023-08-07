@@ -44,7 +44,7 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 			Labels: map[string]string{
 				localIdentitySecretLabel:  "true",
 				discovery.ClusterIDLabel:  remoteCluster.ClusterID,
-				certificateAvailableLabel: "true",
+				CertificateAvailableLabel: "true",
 			},
 			Annotations: map[string]string{
 				// one year starting from now

@@ -28,6 +28,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqocmd "github.com/liqotech/liqo/cmd/liqoctl/cmd"
 )
 
@@ -36,6 +37,7 @@ func init() {
 	utilruntime.Must(netv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(sharingv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(virtualkubeletv1alpha1.AddToScheme(scheme.Scheme))
 }
 
 func main() {

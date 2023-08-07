@@ -17,9 +17,10 @@ package identitymanager
 const defaultOrganization = "liqo.io"
 
 const (
-	localIdentitySecretLabel  = "discovery.liqo.io/local-identity"
-	remoteTenantCSRLabel      = "discovery.liqo.io/remote-tenant-csr"
-	certificateAvailableLabel = "discovery.liqo.io/certificate-available"
+	localIdentitySecretLabel = "discovery.liqo.io/local-identity"
+	remoteTenantCSRLabel     = "discovery.liqo.io/remote-tenant-csr"
+	// CertificateAvailableLabel is the label used to identify the secrets containing a certificate.
+	CertificateAvailableLabel = "discovery.liqo.io/certificate-available"
 )
 
 const (
