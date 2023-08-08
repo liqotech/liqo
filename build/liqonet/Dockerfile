@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" .
 FROM debian:11.7-slim
 
 RUN apt-get update && \
-    apt-get install -y iproute2 iptables bash wireguard-tools tcpdump conntrack curl && \
+    apt-get install -y iproute2 iptables bash wireguard-tools tcpdump conntrack curl iputils-ping && \
     apt-get clean autoclean && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
