@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/signal"
 	"reflect"
 	"strings"
 	"sync"
@@ -50,6 +49,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetsignals "github.com/liqotech/liqo/pkg/liqonet/utils/signals"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
@@ -419,7 +419,7 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Context {
 	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, liqonetutils.ShutdownSignals...)
+	liqonetsignals.NotifyPosix(c, liqonetsignals.ShutdownSignals...)
 	go func(tc *TunnelController) {
 		sig := <-c
 		klog.Infof("the operator received signal {%s}: cleaning up", sig.String())

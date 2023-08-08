@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"sync"
@@ -35,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetsignals "github.com/liqotech/liqo/pkg/liqonet/utils/signals"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -53,6 +55,7 @@ func addRouteOperatorFlags(liqonet *routeOperatorFlags) {
 }
 
 func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperatorFlags) {
+	ctx, _ := liqonetsignals.NotifyContextPosix(context.Background(), liqonetsignals.ShutdownSignals...)
 	vxlanConfig := &overlay.VxlanDeviceAttrs{
 		Vni:      routeFlags.vni,
 		Name:     liqoconst.VxlanDeviceName,
@@ -139,11 +142,18 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 		os.Exit(1)
 	}
 	vxlanConfig.VtepAddr = podIP
+	if vxlanConfig.MAC, err = overlay.GenerateVxlanMac(nodeName); err != nil {
+		klog.Errorf("unable to generate vxlan mac: %s", err)
+		os.Exit(1)
+	}
+	klog.Infof("vxlan mac address: %s", vxlanConfig.MAC.String())
 	vxlanDevice, err := overlay.NewVxlanDevice(vxlanConfig)
 	if err != nil {
 		klog.Errorf("an error occurred while creating vxlan device : %v", err)
 		os.Exit(1)
 	}
+	go overlay.CheckVxlanDevice(ctx, vxlanDevice.Link)
+
 	vxlanRoutingManager, err := liqorouting.NewVxlanRoutingManager(liqoconst.RoutingTableID,
 		podIP.String(), liqoconst.OverlayNetPrefix, vxlanDevice)
 	if err != nil {
@@ -183,7 +193,7 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 		klog.Errorf("unable to add the overlay manager to the main manager: %s", err)
 		os.Exit(1)
 	}
-	if err := mainMgr.Start(routeController.SetupSignalHandlerForRouteOperator()); err != nil {
+	if err := mainMgr.Start(routeController.SetupSignalHandlerForRouteOperator(ctx)); err != nil {
 		klog.Errorf("unable to start controller: %s", err)
 		os.Exit(1)
 	}

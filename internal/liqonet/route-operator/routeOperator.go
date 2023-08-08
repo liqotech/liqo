@@ -16,8 +16,6 @@ package routeoperator
 
 import (
 	"context"
-	"os"
-	"os/signal"
 	"time"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -260,15 +258,15 @@ func (rc *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 
 // SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT. Interrupt. A stop context is returned
 // which is closed on one of these signals.
-func (rc *RouteController) SetupSignalHandlerForRouteOperator() context.Context {
-	ctx, done := context.WithCancel(context.Background())
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, liqonetutils.ShutdownSignals...)
+func (rc *RouteController) SetupSignalHandlerForRouteOperator(ctx context.Context) context.Context {
+	opctx, done := context.WithCancel(context.Background())
 	go func(r *RouteController) {
-		sig := <-c
-		klog.Infof("the operator received signal {%s}: cleaning up", sig.String())
+		<-ctx.Done()
+		// The received signal is SIGTERM, SIGINT, SIGKILL: we should stop
+		// Since we are using a context to handle the signal, it's not possible to get the signal type.
+		klog.Info("the operator received a shutdown signal: cleaning up")
 		r.cleanUp()
 		done()
 	}(rc)
-	return ctx
+	return opctx
 }

@@ -15,16 +15,22 @@
 package overlay
 
 import (
+	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net"
 	"os"
-	"reflect"
 	"syscall"
+	"time"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
+
+	liqonetsignals "github.com/liqotech/liqo/pkg/liqonet/utils/signals"
 )
 
 // VxlanDeviceAttrs configuration for a new vxlan device.
@@ -34,6 +40,7 @@ type VxlanDeviceAttrs struct {
 	VtepPort int
 	VtepAddr net.IP
 	MTU      int
+	MAC      net.HardwareAddr
 }
 
 // VxlanDevice struct that holds a vxlan link.
@@ -51,9 +58,10 @@ type Neighbor struct {
 func NewVxlanDevice(devAttrs *VxlanDeviceAttrs) (*VxlanDevice, error) {
 	link := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
-			Name:  devAttrs.Name,
-			MTU:   devAttrs.MTU,
-			Flags: net.FlagUp,
+			HardwareAddr: devAttrs.MAC,
+			Name:         devAttrs.Name,
+			MTU:          devAttrs.MTU,
+			Flags:        net.FlagUp,
 		},
 		VxlanId:  devAttrs.Vni,
 		SrcAddr:  devAttrs.VtepAddr,
@@ -114,11 +122,16 @@ func isVxlanConfigTheSame(newLink, current netlink.Link) bool {
 	newNetlinkVxlan := newLink.(*netlink.Vxlan)
 	currentNetlinkVxlan := current.(*netlink.Vxlan)
 
+	if newNetlinkVxlan.HardwareAddr.String() != currentNetlinkVxlan.HardwareAddr.String() {
+		klog.Infof("different MAC Addresses for the interfaces: newLink -> %s, current -> %s",
+			newNetlinkVxlan.HardwareAddr, currentNetlinkVxlan.HardwareAddr)
+		return false
+	}
 	if newNetlinkVxlan.VxlanId != currentNetlinkVxlan.VxlanId {
 		klog.V(4).Infof("different vxlan ID for the interfaces: newLink -> %d, current -> %d", newNetlinkVxlan.VxlanId, currentNetlinkVxlan.VxlanId)
 		return false
 	}
-	if !reflect.DeepEqual(newNetlinkVxlan.SrcAddr, currentNetlinkVxlan.SrcAddr) {
+	if newNetlinkVxlan.SrcAddr.String() != currentNetlinkVxlan.SrcAddr.String() {
 		klog.V(4).Infof("different Source Addresses for the interfaces: newLink -> %s, current -> %s", newNetlinkVxlan.SrcAddr, currentNetlinkVxlan.SrcAddr)
 		return false
 	}
@@ -219,4 +232,34 @@ func (vxlan *VxlanDevice) enableRPFilter() error {
 		return err
 	}
 	return nil
+}
+
+// GenerateVxlanMac generate VXLAN MAC address.
+func GenerateVxlanMac(nodename string) (net.HardwareAddr, error) {
+	hasher := sha256.New()
+	_, err := hasher.Write([]byte("liqo-" + nodename))
+	if err != nil {
+		return nil, err
+	}
+	sha := hasher.Sum(nil)
+	return net.HardwareAddr(append([]byte("f"), sha[0:5]...)), nil
+}
+
+// CheckVxlanDevice checks if the vxlan device is correctly configured.
+func CheckVxlanDevice(ctx context.Context, expected *netlink.Vxlan) {
+	err := wait.PollUntilContextCancel(ctx, 10*time.Second, false, func(ctx context.Context) (bool, error) {
+		current, err := netlink.LinkByName(expected.Name)
+		if err != nil || current == nil {
+			klog.Errorf("unable to get vxlan device %s: %v", expected.Name, err)
+			return false, err
+		}
+		if !isVxlanConfigTheSame(expected, current) {
+			return false, fmt.Errorf("device %s is not correctly configured", expected.Name)
+		}
+		return false, nil
+	})
+	if err != nil && ctx.Err() == nil {
+		klog.Errorf("vxlan device check failed: %s", err)
+	}
+	utilruntime.Must(liqonetsignals.Shutdown())
 }

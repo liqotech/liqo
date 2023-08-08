@@ -21,7 +21,6 @@ import (
 	"net/netip"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	"go4.org/netipx"
@@ -31,11 +30,6 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
-)
-
-var (
-	// ShutdownSignals signals used to terminate the programs.
-	ShutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGKILL}
 )
 
 // MapIPToNetwork creates a new IP address obtained by means of the old IP address and the new network.

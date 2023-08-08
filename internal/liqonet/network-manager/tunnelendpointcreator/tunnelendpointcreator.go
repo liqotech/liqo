@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
 	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,7 +37,7 @@ import (
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/netcfgcreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
-	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	liqonetsignals "github.com/liqotech/liqo/pkg/liqonet/utils/signals"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -177,7 +176,7 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() context.C
 	klog.Infof("starting signal handler for tunnelEndpointCreator-operator")
 	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, liqonetutils.ShutdownSignals...)
+	liqonetsignals.NotifyPosix(c, liqonetsignals.ShutdownSignals...)
 	go func() {
 		sig := <-c
 		klog.Infof("received signal: %s", sig.String())
