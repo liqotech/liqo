@@ -225,7 +225,11 @@ To change this behavior, check the [network flags](NetworkFlags).
 Liqo supports GKE clusters using the default CNI: [Google GKE - VPC-Native](https://cloud.google.com/kubernetes-engine/docs/how-to/alias-ips).
 
 ```{warning}
-Liqo does not support GKE Autopilot Clusters.
+Liqo does NOT support:
+
+* GKE Autopilot Clusters
+* Container-Optimized OS with containerd (*cos_containerd*) as image type. Use Ubuntu with containerd (*ubuntu_containerd*) instead
+* Intranode visibility: make sure this option is disabled or use the `--no-enable-intra-node-visibility` flag. 
 ```
 
 **Configuration**
