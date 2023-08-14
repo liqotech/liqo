@@ -1,13 +1,12 @@
-FROM rust:1.70.0 as rustBuilder
+FROM golang:1.20 as goBuilder-wg
 
-ARG VERSION=0.5.2
+ARG VERSION=0.0.20230223
 
-RUN git clone https://github.com/cloudflare/boringtun.git
-
-WORKDIR /boringtun
-
-RUN cargo build --bin boringtun-cli --release
-
+# change with "go install git.zx2c4.com/wireguard-go"
+# waiting for https://github.com/WireGuard/wireguard-go/pull/87 to be merged
+RUN git clone -b ${VERSION} https://git.zx2c4.com/wireguard-go
+WORKDIR /go/wireguard-go
+RUN CGO_ENABLED=0 make
 
 FROM golang:1.20 as goBuilder
 WORKDIR /tmp/builder
@@ -20,15 +19,13 @@ COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" ./cmd/liqonet
 
 
-FROM debian:11.7-slim
+FROM alpine:3.15
 
-RUN apt-get update && \
-    apt-get install -y iproute2 iptables bash wireguard-tools tcpdump conntrack curl iputils-ping && \
-    apt-get clean autoclean && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk update && \
+    apk add iptables bash wireguard-tools tcpdump conntrack-tools curl && \
+    rm -rf /var/cache/apk/*
 
 COPY --from=goBuilder /tmp/builder/liqonet /usr/bin/liqonet
-COPY --from=rustBuilder /boringtun/target/release/boringtun-cli /usr/bin/boringtun-cli
+COPY --from=goBuilder-wg /go/wireguard-go/wireguard-go /usr/bin/wireguard-go
 
 ENTRYPOINT [ "/usr/bin/liqonet" ]
