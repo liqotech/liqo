@@ -35,6 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
@@ -46,6 +47,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/metrics"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/resolver"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	"github.com/liqotech/liqo/pkg/liqonet/utils/signals"
 )
 
 // Registering the driver as available.
@@ -109,6 +111,7 @@ type Wireguard struct {
 
 // NewDriver creates a new WireGuard driver.
 func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) (tunnel.Driver, error) {
+	ctx, _ := signals.NotifyContextPosix(context.Background(), signals.ShutdownSignals...)
 	var err error
 	w := Wireguard{
 		connections:                make(map[string]*netv1alpha1.Connection),
@@ -125,9 +128,10 @@ func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) 
 	if err != nil {
 		return nil, err
 	}
-	if err = w.setWGLink(); err != nil {
+	if err = w.setWGLink(ctx); err != nil {
 		return nil, fmt.Errorf("failed to setup %s link: %w", liqoconst.DriverName, err)
 	}
+	klog.Infof("Wireguard driver initialized with %s implementation", w.Implementation)
 	// create controller.
 	if w.client, err = wgctrl.New(); err != nil {
 		if os.IsNotExist(err) {
@@ -351,8 +355,22 @@ func (w *Wireguard) Close() error {
 	return fmt.Errorf("failed to delete existng WireGuard device: %w", err)
 }
 
+// runWgUserCmd runs the wg command with the given arguments.
+func runWgUserCmd(cmd *exec.Cmd) {
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if err != nil {
+			outStr, errStr := stdout.String(), stderr.String()
+			fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
+			klog.Fatalf("failed to run '%s': %w", cmd.String(), err)
+		}
+	}
+}
+
 // Create new wg link.
-func (w *Wireguard) setWGLink() error {
+func (w *Wireguard) setWGLink(ctx context.Context) error {
 	var err error
 	// delete existing wg device if needed.
 	if link, err := netlink.LinkByName(liqoconst.DeviceName); err == nil {
@@ -370,8 +388,10 @@ func (w *Wireguard) setWGLink() error {
 		LinkType:  "wireguard",
 	}
 
-	if err = netlink.LinkAdd(link); err != nil && !errors.Is(err, unix.EOPNOTSUPP) {
-		return fmt.Errorf("failed to add wireguard device %q: %w", liqoconst.DeviceName, err)
+	if w.Implementation == Kernel {
+		if err = netlink.LinkAdd(link); err != nil && !errors.Is(err, unix.EOPNOTSUPP) {
+			return fmt.Errorf("failed to add wireguard device %q: %w", liqoconst.DeviceName, err)
+		}
 	}
 	if errors.Is(err, unix.EOPNOTSUPP) || w.Implementation == Userspace {
 		klog.Warningf("wireguard kernel module not present, falling back to the userspace implementation")
@@ -379,18 +399,18 @@ func (w *Wireguard) setWGLink() error {
 		// Enforce the userspace implementation to show it in metrics.
 		w.Implementation = Userspace
 
-		cmd := exec.Command("/usr/bin/boringtun-cli", liqoconst.DeviceName, "--disable-drop-privileges") //nolint:gosec //we leave it as it is
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		err = cmd.Run()
-		if err != nil {
-			outStr, errStr := stdout.String(), stderr.String()
-			fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
-			return fmt.Errorf("failed to add wireguard devices '%s': %w", liqoconst.DeviceName, err)
-		}
-		if w.link, err = netlink.LinkByName(liqoconst.DeviceName); err != nil {
-			return fmt.Errorf("failed to get wireguard device '%s': %w", liqoconst.DeviceName, err)
+		cmd := exec.Command("/usr/bin/wireguard-go", "-f", liqoconst.DeviceName) //nolint:gosec //we leave it as it is
+		go runWgUserCmd(cmd)
+
+		if err := wait.PollUntilContextTimeout(ctx, time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
+			klog.Info("Waiting for wireguard device to be created")
+			if w.link, err = netlink.LinkByName(liqoconst.DeviceName); err != nil {
+				klog.Errorf("failed to get wireguard device '%s': %s", liqoconst.DeviceName, err)
+				return false, nil
+			}
+			return true, nil
+		}); err != nil {
+			return fmt.Errorf("failed to create wireguard device %q: %w", liqoconst.DeviceName, err)
 		}
 	}
 	w.link = link
