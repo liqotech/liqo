@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,12 +31,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/telemetry"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/utils/json"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -48,6 +51,7 @@ func init() {
 	_ = offloadingv1alpha1.AddToScheme(scheme)
 	_ = sharingv1alpha1.AddToScheme(scheme)
 	_ = netv1alpha1.AddToScheme(scheme)
+	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
 }
 
 // cluster-role
@@ -65,6 +69,7 @@ func main() {
 	namespace := flag.String("namespace", "liqo", "the namespace where liqo is deployed")
 	liqoVersion := flag.String("liqo-version", "", "the liqo version")
 	kubernetesVersion := flag.String("kubernetes-version", "", "the kubernetes version")
+	dryRun := flag.Bool("dry-run", false, "if true, do not send the telemetry item and print it on stdout")
 	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
 
@@ -104,6 +109,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *dryRun {
+		klog.Infof("dry-run enabled, telemetry item:")
+		fmt.Println(json.Pretty(telemetryItem))
+		return
+	}
 	err = telemetry.Send(ctx, *telemetryEndpoint, telemetryItem, *timeout)
 	if err != nil {
 		klog.Errorf("failed to send telemetry item: %v", err)
