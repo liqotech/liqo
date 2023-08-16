@@ -200,6 +200,7 @@ E2E_TARGETS = e2e-dir \
 	ctl \
 	e2e-infra \
 	installer/liqoctl/setup \
+	telemetry \
 	installer/liqoctl/peer \
 	e2e/postinstall \
 	e2e/cruise \
@@ -238,6 +239,9 @@ e2e-infra:
 
 installer/%:
 	${PWD}/test/e2e/pipeline/$@.sh
+
+telemetry:
+	${PWD}/test/e2e/pipeline/telemetry/telemetry.sh
 
 e2e/%:
 	go test ${PWD}/test/$@/... -count=1 -timeout=20m
