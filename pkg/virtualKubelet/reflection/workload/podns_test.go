@@ -34,6 +34,7 @@ import (
 	"k8s.io/utils/trace"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
@@ -41,6 +42,7 @@ import (
 	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
@@ -72,7 +74,12 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 			broadcaster := record.NewBroadcaster()
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			rfl := workload.NewPodReflector(nil, metricsFactory, ipam, &workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", ""}, 0)
+			reflectorConfig := generic.ReflectorConfig{
+				NumWorkers: 0,
+				Type:       root.DefaultReflectorsTypes[generic.Pod],
+			}
+			rfl := workload.NewPodReflector(nil, metricsFactory, ipam,
+				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", ""}, &reflectorConfig)
 			rfl.Start(ctx, options.New(client, factory.Core().V1().Pods()).WithEventBroadcaster(broadcaster))
 			reflector = rfl.NewNamespaced(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).WithLiqoLocal(liqoClient, liqoFactory).

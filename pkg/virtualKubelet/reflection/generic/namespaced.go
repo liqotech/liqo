@@ -16,6 +16,7 @@ package generic
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +41,8 @@ type NamespacedReflector struct {
 	local  string
 	remote string
 
+	reflectionType consts.ReflectionType
+
 	ForgingOpts *forge.ForgingOpts
 }
 
@@ -52,7 +55,8 @@ type ResourceDeleter interface {
 func NewNamespacedReflector(opts *options.NamespacedOpts, name string) NamespacedReflector {
 	return NamespacedReflector{
 		EventRecorder: opts.EventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "liqo-" + strings.ToLower(name) + "-reflection"}),
-		local:         opts.LocalNamespace, remote: opts.RemoteNamespace, ready: opts.Ready, ForgingOpts: opts.ForgingOpts,
+		local:         opts.LocalNamespace, remote: opts.RemoteNamespace, ready: opts.Ready,
+		reflectionType: opts.ReflectionType, ForgingOpts: opts.ForgingOpts,
 	}
 }
 
@@ -106,7 +110,26 @@ func (gnr *NamespacedReflector) DeleteLocal(ctx context.Context, deleter Resourc
 }
 
 // ShouldSkipReflection returns whether the reflection of the given object should be skipped.
-func (gnr *NamespacedReflector) ShouldSkipReflection(obj metav1.Object) bool {
-	_, ok := obj.GetAnnotations()[consts.SkipReflectionAnnotationKey]
-	return ok
+func (gnr *NamespacedReflector) ShouldSkipReflection(obj metav1.Object) (bool, error) {
+	switch gnr.reflectionType {
+	case consts.AllowList:
+		value, ok := obj.GetAnnotations()[consts.AllowReflectionAnnotationKey]
+		if ok && strings.EqualFold(value, "false") {
+			return true, nil
+		}
+		return !ok, nil
+	case consts.DenyList:
+		value, ok := obj.GetAnnotations()[consts.SkipReflectionAnnotationKey]
+		if ok && strings.EqualFold(value, "false") {
+			return false, nil
+		}
+		return ok, nil
+	default:
+		return true, fmt.Errorf("ReflectionType value %q not supported", gnr.reflectionType)
+	}
+}
+
+// GetReflectionType returns the reflection type of the reflector.
+func (gnr *NamespacedReflector) GetReflectionType() consts.ReflectionType {
+	return gnr.reflectionType
 }

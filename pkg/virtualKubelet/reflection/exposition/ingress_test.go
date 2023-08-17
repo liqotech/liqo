@@ -27,10 +27,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -38,7 +40,11 @@ import (
 var _ = Describe("Ingress Reflection Tests", func() {
 	Describe("the NewIngressReflector function", func() {
 		It("should not return a nil reflector", func() {
-			Expect(exposition.NewIngressReflector(1)).ToNot(BeNil())
+			reflectorConfig := generic.ReflectorConfig{
+				NumWorkers: 1,
+				Type:       root.DefaultReflectorsTypes[generic.Ingress],
+			}
+			Expect(exposition.NewIngressReflector(&reflectorConfig)).ToNot(BeNil())
 		})
 	})
 
@@ -46,7 +52,8 @@ var _ = Describe("Ingress Reflection Tests", func() {
 		const IngressName = "name"
 
 		var (
-			reflector manager.NamespacedReflector
+			reflector      manager.NamespacedReflector
+			reflectionType consts.ReflectionType
 
 			local, remote netv1.Ingress
 			err           error
@@ -98,6 +105,7 @@ var _ = Describe("Ingress Reflection Tests", func() {
 		BeforeEach(func() {
 			local = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: LocalNamespace}}
 			remote = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: RemoteNamespace}}
+			reflectionType = root.DefaultReflectorsTypes[generic.Ingress]
 		})
 
 		AfterEach(func() {
@@ -114,6 +122,7 @@ var _ = Describe("Ingress Reflection Tests", func() {
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
 				WithEventBroadcaster(record.NewBroadcaster()).
+				WithReflectionType(reflectionType).
 				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
@@ -204,6 +213,36 @@ var _ = Describe("Ingress Reflection Tests", func() {
 
 			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
 			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+		})
+
+		When("the reflection type is AllowList", func() {
+			BeforeEach(func() {
+				reflectionType = consts.AllowList
+			})
+
+			When("the local object does exist, but does not have the allow annotation", func() {
+				BeforeEach(func() {
+					ForgeIngressSpec(&local)
+					CreateIngress(&local)
+				})
+
+				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+			})
+
+			When("the local object does exist, and does have the allow annotation", func() {
+				BeforeEach(func() {
+					local.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
+					ForgeIngressSpec(&local)
+					CreateIngress(&local)
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should be present", func() {
+					remoteAfter := GetIngress(RemoteNamespace)
+					Expect(remoteAfter).ToNot(BeNil())
+				})
+			})
 		})
 	})
 })

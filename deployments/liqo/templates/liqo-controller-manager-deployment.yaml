@@ -77,6 +77,21 @@ spec:
           - --liqo-namespace=$(POD_NAMESPACE)
           - --enable-incoming-peering={{ .Values.discovery.config.incomingPeeringEnabled }}
           - --resource-sharing-percentage={{ .Values.controllerManager.config.resourceSharingPercentage }}
+          - --pod-reflection-workers={{ .Values.reflection.pod.workers }}
+          - --service-reflection-workers={{ .Values.reflection.service.workers }}
+          - --endpointslice-reflection-workers={{ .Values.reflection.endpointslice.workers }}
+          - --ingress-reflection-workers={{ .Values.reflection.ingress.workers }}
+          - --configmap-reflection-workers={{ .Values.reflection.configmap.workers }}
+          - --secret-reflection-workers={{ .Values.reflection.secret.workers }}
+          - --serviceaccount-reflection-workers={{ .Values.reflection.serviceaccount.workers }}
+          - --persistentvolumeclaim-reflection-workers={{ .Values.reflection.persistentvolumeclaim.workers }}
+          - --event-reflection-workers={{ .Values.reflection.event.workers }}
+          - --service-reflection-type={{ .Values.reflection.service.type }}
+          - --endpointslice-reflection-type={{ .Values.reflection.endpointslice.type }}
+          - --ingress-reflection-type={{ .Values.reflection.ingress.type }}
+          - --configmap-reflection-type={{ .Values.reflection.configmap.type }}
+          - --secret-reflection-type={{ .Values.reflection.secret.type }}
+          - --event-reflection-type={{ .Values.reflection.event.type }}
           {{- if .Values.reflection.skip.labels }}
           {{- $d := dict "commandName" "--labels-not-reflected" "list" .Values.reflection.skip.labels }}
           {{- include "liqo.concatenateList" $d | nindent 10 }}

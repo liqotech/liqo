@@ -39,6 +39,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/namespacemap"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/storage"
@@ -63,15 +64,7 @@ type InitConfig struct {
 	DisableIPReflection  bool
 	InformerResyncPeriod time.Duration
 
-	PodWorkers                  uint
-	ServiceWorkers              uint
-	EndpointSliceWorkers        uint
-	IngressWorkers              uint
-	PersistenVolumeClaimWorkers uint
-	ConfigMapWorkers            uint
-	SecretWorkers               uint
-	ServiceAccountWorkers       uint
-	EventWorkers                uint
+	ReflectorsConfigs map[generic.ResourceReflected]*generic.ReflectorConfig
 
 	EnableAPIServerSupport     bool
 	EnableStorage              bool
@@ -135,22 +128,22 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		HomeAPIServerPort:   cfg.HomeAPIServerPort,
 	}
 
-	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, &podReflectorConfig, cfg.PodWorkers)
+	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, &podReflectorConfig, cfg.ReflectorsConfigs[generic.Pod])
 	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient,
 		cfg.InformerResyncPeriod, eb, cfg.LabelsNotReflected, cfg.AnnotationsNotReflected).
 		With(podreflector).
-		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
-		With(exposition.NewIngressReflector(cfg.IngressWorkers)).
-		With(configuration.NewConfigMapReflector(cfg.ConfigMapWorkers)).
-		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, cfg.SecretWorkers)).
-		With(configuration.NewServiceAccountReflector(apiServerSupport == forge.APIServerSupportTokenAPI, cfg.ServiceAccountWorkers)).
-		With(storage.NewPersistentVolumeClaimReflector(cfg.PersistenVolumeClaimWorkers,
-			cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName, cfg.EnableStorage)).
-		With(event.NewEventReflector(cfg.EventWorkers)).
+		With(exposition.NewServiceReflector(cfg.ReflectorsConfigs[generic.Service])).
+		With(exposition.NewIngressReflector(cfg.ReflectorsConfigs[generic.Ingress])).
+		With(configuration.NewConfigMapReflector(cfg.ReflectorsConfigs[generic.ConfigMap])).
+		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, cfg.ReflectorsConfigs[generic.Secret])).
+		With(configuration.NewServiceAccountReflector(apiServerSupport == forge.APIServerSupportTokenAPI, cfg.ReflectorsConfigs[generic.ServiceAccount])).
+		With(storage.NewPersistentVolumeClaimReflector(cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName,
+			cfg.EnableStorage, cfg.ReflectorsConfigs[generic.PersistentVolumeClaim])).
+		With(event.NewEventReflector(cfg.ReflectorsConfigs[generic.Event])).
 		WithNamespaceHandler(namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod))
 
 	if !cfg.DisableIPReflection {
-		reflectionManager.With(exposition.NewEndpointSliceReflector(ipamClient, cfg.EndpointSliceWorkers))
+		reflectionManager.With(exposition.NewEndpointSliceReflector(ipamClient, cfg.ReflectorsConfigs[generic.EndpointSlice]))
 	}
 
 	reflectionManager.Start(ctx)

@@ -20,9 +20,12 @@ import (
 
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/pointer"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 )
 
 const (
@@ -39,20 +42,35 @@ const (
 	DefaultNodeName             = "virtual-kubelet"
 	DefaultInformerResyncPeriod = 10 * time.Hour
 	DefaultListenPort           = 10250
-
-	DefaultPodWorkers                  = 10
-	DefaultServiceWorkers              = 3
-	DefaultEndpointSliceWorkers        = 10
-	DefaultIngressWorkers              = 3
-	DefaultConfigMapWorkers            = 3
-	DefaultSecretWorkers               = 3
-	DefaultServiceAccountWorkers       = 3
-	DefaultPersistenVolumeClaimWorkers = 3
-	DefaultEventWorkers                = 3
-
-	DefaultNodePingTimeout  = 1 * time.Second
-	DefaultNodeCheckNetwork = true
+	DefaultNodePingTimeout      = 1 * time.Second
+	DefaultNodeCheckNetwork     = true
 )
+
+// DefaultReflectorsWorkers contains the default number of workers for each reflected resource.
+var DefaultReflectorsWorkers = map[generic.ResourceReflected]uint{
+	generic.Pod:                   10,
+	generic.Service:               3,
+	generic.EndpointSlice:         10,
+	generic.Ingress:               3,
+	generic.ConfigMap:             3,
+	generic.Secret:                3,
+	generic.ServiceAccount:        3,
+	generic.PersistentVolumeClaim: 3,
+	generic.Event:                 3,
+}
+
+// DefaultReflectorsTypes contains the default type of reflection for each reflected resource.
+var DefaultReflectorsTypes = map[generic.ResourceReflected]consts.ReflectionType{
+	generic.Pod:                   consts.CustomLiqo,
+	generic.Service:               consts.DenyList,
+	generic.EndpointSlice:         consts.DenyList,
+	generic.Ingress:               consts.DenyList,
+	generic.ConfigMap:             consts.DenyList,
+	generic.Secret:                consts.DenyList,
+	generic.ServiceAccount:        consts.CustomLiqo,
+	generic.PersistentVolumeClaim: consts.CustomLiqo,
+	generic.Event:                 consts.DenyList,
+}
 
 // Opts stores all the options for configuring the root virtual-kubelet command.
 // It is used for setting flag values.
@@ -78,16 +96,11 @@ type Opts struct {
 	CertificateType *argsutils.StringEnum
 	EnableProfiling bool
 
-	// Number of workers to use to handle pod notifications and resource reflection
-	PodWorkers                   uint
-	ServiceWorkers               uint
-	EndpointSliceWorkers         uint
-	IngressWorkers               uint
-	ConfigMapWorkers             uint
-	SecretWorkers                uint
-	ServiceAccountWorkers        uint
-	PersistentVolumeClaimWorkers uint
-	EventWorkers                 uint
+	// Number of workers to use for each refleted resource
+	ReflectorsWorkers map[string]*uint
+
+	// Type of reflection to use for each reflected resource
+	ReflectorsType map[string]*string
 
 	LabelsNotReflected      argsutils.StringList
 	AnnotationsNotReflected argsutils.StringList
@@ -133,15 +146,8 @@ func NewOpts() *Opts {
 		ListenPort:      DefaultListenPort,
 		EnableProfiling: false,
 
-		PodWorkers:                   DefaultPodWorkers,
-		ServiceWorkers:               DefaultServiceWorkers,
-		EndpointSliceWorkers:         DefaultEndpointSliceWorkers,
-		IngressWorkers:               DefaultIngressWorkers,
-		ConfigMapWorkers:             DefaultConfigMapWorkers,
-		SecretWorkers:                DefaultSecretWorkers,
-		ServiceAccountWorkers:        DefaultServiceAccountWorkers,
-		PersistentVolumeClaimWorkers: DefaultPersistenVolumeClaimWorkers,
-		EventWorkers:                 DefaultEventWorkers,
+		ReflectorsWorkers: initReflectionWorkers(),
+		ReflectorsType:    initReflectionType(),
 
 		LabelsNotReflected:      argsutils.StringList{},
 		AnnotationsNotReflected: argsutils.StringList{},
@@ -156,4 +162,22 @@ func NewOpts() *Opts {
 		VirtualKubeletLeaseRenewDeadline: 10 * time.Second,
 		VirtualKubeletLeaseRetryPeriod:   5 * time.Second,
 	}
+}
+
+func initReflectionWorkers() map[string]*uint {
+	reflectionWorkers := make(map[string]*uint, len(generic.Reflectors))
+	for i := range generic.Reflectors {
+		resource := &generic.Reflectors[i]
+		reflectionWorkers[string(*resource)] = pointer.Uint(DefaultReflectorsWorkers[*resource])
+	}
+	return reflectionWorkers
+}
+
+func initReflectionType() map[string]*string {
+	reflectionType := make(map[string]*string, len(generic.ReflectorsCustomizableType))
+	for i := range generic.ReflectorsCustomizableType {
+		resource := &generic.ReflectorsCustomizableType[i]
+		reflectionType[string(*resource)] = pointer.String(string(DefaultReflectorsTypes[*resource]))
+	}
+	return reflectionType
 }

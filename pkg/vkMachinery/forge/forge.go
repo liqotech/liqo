@@ -64,6 +64,9 @@ func forgeVKContainers(
 				getDefaultStorageClass(storageClasses).StorageClassName))
 	}
 
+	args = appendArgsReflectorsWorkers(args, opts.ReflectorsWorkers)
+	args = appendArgsReflectorsType(args, opts.ReflectorsType)
+
 	if len(opts.LabelsNotReflected) > 0 {
 		args = append(args, stringifyArgument(string(LabelsNotReflected), strings.Join(opts.LabelsNotReflected, ",")))
 	}
@@ -133,4 +136,20 @@ func forgeVKPodSpec(
 
 func stringifyArgument(key, value string) string {
 	return fmt.Sprintf("%s=%s", key, value)
+}
+
+func appendArgsReflectorsWorkers(args []string, reflectorsWorkers map[string]*uint) []string {
+	for resource, value := range reflectorsWorkers {
+		key := fmt.Sprintf("--%s-reflection-workers", resource)
+		args = append(args, stringifyArgument(key, strconv.Itoa(int(*value))))
+	}
+	return args
+}
+
+func appendArgsReflectorsType(args []string, reflectorsType map[string]*string) []string {
+	for resource, value := range reflectorsType {
+		key := fmt.Sprintf("--%s-reflection-type", resource)
+		args = append(args, stringifyArgument(key, *value))
+	}
+	return args
 }

@@ -27,10 +27,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -38,7 +40,11 @@ import (
 var _ = Describe("ConfigMap Reflection", func() {
 	Describe("NewConfigMapReflector", func() {
 		It("should create a non-nil reflector", func() {
-			Expect(configuration.NewConfigMapReflector(1)).NotTo(BeNil())
+			reflectorConfig := generic.ReflectorConfig{
+				NumWorkers: 1,
+				Type:       root.DefaultReflectorsTypes[generic.ConfigMap],
+			}
+			Expect(configuration.NewConfigMapReflector(&reflectorConfig)).NotTo(BeNil())
 		})
 	})
 
@@ -46,7 +52,8 @@ var _ = Describe("ConfigMap Reflection", func() {
 		const ConfigMapName = "name"
 
 		var (
-			reflector manager.NamespacedReflector
+			reflector      manager.NamespacedReflector
+			reflectionType consts.ReflectionType
 
 			name          string
 			local, remote corev1.ConfigMap
@@ -86,6 +93,7 @@ var _ = Describe("ConfigMap Reflection", func() {
 			name = ConfigMapName
 			local = corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: LocalNamespace}}
 			remote = corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: RemoteNamespace}}
+			reflectionType = root.DefaultReflectorsTypes[generic.ConfigMap]
 		})
 
 		AfterEach(func() {
@@ -102,6 +110,7 @@ var _ = Describe("ConfigMap Reflection", func() {
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
 				WithEventBroadcaster(record.NewBroadcaster()).
+				WithReflectionType(reflectionType).
 				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
@@ -134,7 +143,6 @@ var _ = Describe("ConfigMap Reflection", func() {
 					Expect(remoteAfter.Labels).ToNot(HaveKey(FakeNotReflectedLabelKey))
 					Expect(remoteAfter.Annotations).To(HaveKeyWithValue("bar", "baz"))
 					Expect(remoteAfter.Annotations).ToNot(HaveKey(FakeNotReflectedAnnotKey))
-
 				})
 
 				It("the spec should have been correctly replicated to the remote object", func() {
@@ -195,6 +203,34 @@ var _ = Describe("ConfigMap Reflection", func() {
 
 			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
 			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+		})
+
+		When("the reflection type is AllowList", func() {
+			BeforeEach(func() {
+				reflectionType = consts.AllowList
+			})
+
+			When("the local object does exist, but does not have the allow annotation", func() {
+				BeforeEach(func() {
+					CreateConfigMap(&local)
+				})
+
+				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+			})
+
+			When("the local object does exist, and does have the allow annotation", func() {
+				BeforeEach(func() {
+					local.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
+					CreateConfigMap(&local)
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should be present", func() {
+					remoteAfter := GetConfigMap(RemoteNamespace)
+					Expect(remoteAfter).ToNot(BeNil())
+				})
+			})
 		})
 
 		When("handling the root CA configmap", func() {

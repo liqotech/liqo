@@ -7,15 +7,34 @@ Briefly, the set of supported resources includes (by category):
 * [**Workload**](UsageReflectionPods): *Pods*
 * [**Exposition**](UsageReflectionExposition): *Services*, *EndpointSlices*, *Ingresses*
 * [**Storage**](UsageReflectionStorage): *PersistentVolumeClaims*, *PresistentVolumes*
-* [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*
+* [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*, *ServiceAccounts*
+* [**Event**](UsageReflectionEvent): *Events*
 
-````{admonition} Note
-The reflection of a given object belonging to the *Exposition* or *Configuration* categories, and living in a namespace enabled for offloading, can be manually disabled adding the `liqo.io/skip-reflection` annotation to the object itself.
+## Reflection policies
 
-Additionally, the reflection of a given type of resources (e.g., *Secrets*) towards remote clusters can be completely disabled setting the corresponding `--<resource>-reflection-workers=0` virtual kubelet flag at install time:
+Liqo implements two different reflection policies:
+
+* ***DenyList***: reflects all the resources available in the liqo-enabled namespaces, excluding the ones with the `liqo.io/skip-reflection` annotation.
+* ***AllowList***: do not reflect any resource in the liqo-enabled namespaces, but the ones with the `liqo.io/allow-reflection` annotation.
+
+You can configure the preferred reflection policy for each resource type through the Helm value `reflection.<resource>.type`:
 
 ```bash
-liqoctl install ... --set "virtualKubelet.extra.args={--secret-reflection-workers=0}"
+liqoctl install ... --set "reflection.secret.type=AllowList"
+```
+
+````{warning}
+***DenyList*** is the **default** reflection policy for all resources.
+
+Only the *Pods*, *PVCs*, and *ServiceAccounts* reflectors follow a **custom** Liqo logic and can't be customized.
+````
+
+````{admonition} Note
+The number of workers to use for the reflection of a given type of resource is customizable through the Helm value `reflection.<resource>.workers`.
+Additionally, you can set the number of workers to 0 to **completely disable the reflection** of a given type of resource (e.g., *Secrets*) towards remote clusters:
+
+```bash
+liqoctl install ... --set "reflection.secret.workers=0"
 ```
 ````
 
@@ -143,3 +162,15 @@ If this is a security concern in your scenario (e.g., the clusters are under the
 liqoctl install ... --set "virtualKubelet.extra.args={--enable-apiserver-support=false}"
 ```
 ````
+
+(UsageReflectionEvent)=
+
+## Events
+
+Remote events are reflected to the local cluster to improve debuggability and visibility.
+More specifically, an event is propagated if it belongs to an offloaded namespace and its associated resource is one of the following: *pods*, *services*, *endpointslices*, *ingresses*, *configmaps*, *secrets*, *PVCs*.
+
+```{admonition} Note
+The event reflector is the only one that propagates a resource from the remote cluster to the local cluster.
+Local events are not reflected to the remote cluster.  
+```

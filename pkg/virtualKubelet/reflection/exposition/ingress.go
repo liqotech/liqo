@@ -27,6 +27,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -51,8 +52,9 @@ type NamespacedIngressReflector struct {
 }
 
 // NewIngressReflector returns a new IngressReflector instance.
-func NewIngressReflector(workers uint) manager.Reflector {
-	return generic.NewReflector(IngressReflectorName, NewNamespacedIngressReflector, generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
+func NewIngressReflector(reflectorConfig *generic.ReflectorConfig) manager.Reflector {
+	return generic.NewReflector(IngressReflectorName, NewNamespacedIngressReflector, generic.WithoutFallback(),
+		reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedIngressReflector returns a new NamespacedIngressReflector instance.
@@ -95,15 +97,26 @@ func (nir *NamespacedIngressReflector) Handle(ctx context.Context, name string) 
 	}
 
 	// Abort the reflection if the local object has the "skip-reflection" annotation.
-	if !kerrors.IsNotFound(lerr) && nir.ShouldSkipReflection(local) {
-		klog.Infof("Skipping reflection of local Ingress %q as marked with the skip annotation", nir.LocalRef(name))
-		nir.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg())
-		if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
-			return nil
+	if !kerrors.IsNotFound(lerr) {
+		skipReflection, err := nir.ShouldSkipReflection(local)
+		if err != nil {
+			klog.Errorf("Failed to check whether local Ingress %q should be reflected: %v", nir.LocalRef(name), err)
+			return err
 		}
+		if skipReflection {
+			if nir.GetReflectionType() == consts.DenyList {
+				klog.Infof("Skipping reflection of local Ingress %q as marked with the skip annotation", nir.LocalRef(name))
+			} else { // AllowList
+				klog.Infof("Skipping reflection of local Ingress %q as not marked with the allow annotation", nir.LocalRef(name))
+			}
+			nir.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg(nir.GetReflectionType()))
+			if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
+				return nil
+			}
 
-		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
-		lerr = kerrors.NewNotFound(netv1.Resource("ingress"), local.GetName())
+			// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
+			lerr = kerrors.NewNotFound(netv1.Resource("ingress"), local.GetName())
+		}
 	}
 
 	tracer.Step("Performed the sanity checks")

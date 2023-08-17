@@ -39,6 +39,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -116,16 +117,17 @@ func NewPodReflector(
 	remoteRESTConfig *rest.Config, /* required to establish the connection to implement `kubectl exec` */
 	remoteMetricsFactory MetricsFactory, /* required to retrieve the pod metrics from the remote cluster */
 	ipamclient ipam.IpamClient, /* required to translate the remote IP addresses to the corresponding local ones */
-	config *PodReflectorConfig,
-	workers uint) *PodReflector {
+	podReflectorconfig *PodReflectorConfig,
+	reflectorConfig *generic.ReflectorConfig) *PodReflector {
 	reflector := &PodReflector{
 		remoteRESTConfig:     remoteRESTConfig,
 		remoteMetricsFactory: remoteMetricsFactory,
 		ipamclient:           ipamclient,
-		config:               config,
+		config:               podReflectorconfig,
 	}
 
-	genericReflector := generic.NewReflector(PodReflectorName, reflector.NewNamespaced, reflector.NewFallback, workers, generic.ConcurrencyModeAll)
+	genericReflector := generic.NewReflector(PodReflectorName, reflector.NewNamespaced, reflector.NewFallback,
+		reflectorConfig.NumWorkers, consts.CustomLiqo, generic.ConcurrencyModeAll)
 	reflector.Reflector = genericReflector
 	return reflector
 }

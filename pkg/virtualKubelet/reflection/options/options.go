@@ -26,6 +26,7 @@ import (
 
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -89,7 +90,8 @@ type NamespacedOpts struct {
 	Ready          func() bool
 	HandlerFactory func(Keyer, ...EventFilter) cache.ResourceEventHandler
 
-	ForgingOpts *forge.ForgingOpts
+	ForgingOpts    *forge.ForgingOpts
+	ReflectionType consts.ReflectionType
 }
 
 // NewNamespaced returns a new NamespacedOpts object.
@@ -148,6 +150,12 @@ func (ro *NamespacedOpts) WithEventBroadcaster(broadcaster record.EventBroadcast
 // WithForgingOpts configures the reflection options of the NamespacedOpts.
 func (ro *NamespacedOpts) WithForgingOpts(opts *forge.ForgingOpts) *NamespacedOpts {
 	ro.ForgingOpts = opts
+	return ro
+}
+
+// WithReflectionType configures the reflection type of the NamespacedOpts.
+func (ro *NamespacedOpts) WithReflectionType(reflectionType consts.ReflectionType) *NamespacedOpts {
+	ro.ReflectionType = reflectionType
 	return ro
 }
 

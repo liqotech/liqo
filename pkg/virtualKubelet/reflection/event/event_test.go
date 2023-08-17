@@ -29,10 +29,12 @@ import (
 	"k8s.io/utils/trace"
 	ctrclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -40,7 +42,11 @@ import (
 var _ = Describe("Event Reflection Tests", func() {
 	Describe("the NewEventReflector function", func() {
 		It("should not return a nil reflector", func() {
-			Expect(event.NewEventReflector(1)).ToNot(BeNil())
+			reflectorConfig := generic.ReflectorConfig{
+				NumWorkers: 1,
+				Type:       root.DefaultReflectorsTypes[generic.Event],
+			}
+			Expect(event.NewEventReflector(&reflectorConfig)).ToNot(BeNil())
 		})
 	})
 
@@ -48,7 +54,8 @@ var _ = Describe("Event Reflection Tests", func() {
 		const EventName = "name"
 
 		var (
-			reflector manager.NamespacedReflector
+			reflector      manager.NamespacedReflector
+			reflectionType consts.ReflectionType
 
 			local, remote                             corev1.Event
 			involvedObjectLocal, involvedObjectRemote ctrclient.Object
@@ -138,6 +145,7 @@ var _ = Describe("Event Reflection Tests", func() {
 		BeforeEach(func() {
 			local = corev1.Event{ObjectMeta: metav1.ObjectMeta{Name: EventName, Namespace: LocalNamespace}}
 			remote = corev1.Event{ObjectMeta: metav1.ObjectMeta{Name: EventName, Namespace: RemoteNamespace}}
+			reflectionType = root.DefaultReflectorsTypes[generic.Event]
 		})
 
 		AfterEach(func() {
@@ -167,6 +175,7 @@ var _ = Describe("Event Reflection Tests", func() {
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
 				WithEventBroadcaster(record.NewBroadcaster()).
+				WithReflectionType(reflectionType).
 				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
@@ -243,5 +252,36 @@ var _ = Describe("Event Reflection Tests", func() {
 			When("the local object does not exist", WhenBodyLocalShouldNotExist(false, true))
 			When("the local object does exist", WhenBodyLocalShouldNotExist(true, true))
 		})
+
+		When("the reflection type is AllowList", func() {
+			BeforeEach(func() {
+				reflectionType = consts.AllowList
+			})
+
+			When("the remote object does exist, but does not have the allow annotation", func() {
+				BeforeEach(func() {
+					ForgeEvent(&remote, true)
+					CreateEvent(&remote)
+				})
+
+				When("the local object does not exist", WhenBodyLocalShouldNotExist(false, true))
+				When("the local object does exist", WhenBodyLocalShouldNotExist(true, true))
+			})
+
+			When("the remote object does exist, and does have the allow annotation", func() {
+				BeforeEach(func() {
+					remote.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
+					ForgeEvent(&remote, true)
+					CreateEvent(&remote)
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the local object should be present", func() {
+					localAfter := GetEvent(LocalNamespace)
+					Expect(localAfter).ToNot(BeNil())
+				})
+			})
+		})
+
 	})
 })

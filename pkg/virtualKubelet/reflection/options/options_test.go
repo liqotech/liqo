@@ -29,6 +29,7 @@ import (
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -116,6 +117,7 @@ var _ = Describe("Options", func() {
 			Expect(opts.EventBroadcaster).To(BeNil())
 			Expect(opts.HandlerFactory).To(BeNil())
 			Expect(opts.Ready).To(BeNil())
+			Expect(opts.ReflectionType).To(BeEmpty())
 			Expect(opts.ForgingOpts).To(BeNil())
 		})
 	})
@@ -126,12 +128,13 @@ var _ = Describe("Options", func() {
 		var (
 			original, opts *options.NamespacedOpts
 
-			client      kubernetes.Interface
-			liqoClient  liqoclient.Interface
-			factory     informers.SharedInformerFactory
-			liqoFactory liqoinformers.SharedInformerFactory
-			broadcaster record.EventBroadcaster
-			forgingOpts *forge.ForgingOpts
+			client         kubernetes.Interface
+			liqoClient     liqoclient.Interface
+			factory        informers.SharedInformerFactory
+			liqoFactory    liqoinformers.SharedInformerFactory
+			broadcaster    record.EventBroadcaster
+			reflectionType consts.ReflectionType
+			forgingOpts    *forge.ForgingOpts
 		)
 
 		BeforeEach(func() {
@@ -140,6 +143,7 @@ var _ = Describe("Options", func() {
 			factory = informers.NewSharedInformerFactory(client, 10*time.Hour)
 			liqoFactory = liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
 			broadcaster = record.NewBroadcaster()
+			reflectionType = consts.CustomLiqo
 			forgingOpts = &forge.ForgingOpts{}
 		})
 
@@ -164,6 +168,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
+				Expect(opts.ReflectionType).To(BeEmpty())
 				Expect(opts.ForgingOpts).To(BeNil())
 			})
 		})
@@ -187,6 +192,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
+				Expect(opts.ReflectionType).To(BeEmpty())
 				Expect(opts.ForgingOpts).To(BeNil())
 			})
 		})
@@ -210,6 +216,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
+				Expect(opts.ReflectionType).To(BeEmpty())
 				Expect(opts.ForgingOpts).To(BeNil())
 			})
 		})
@@ -233,6 +240,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
+				Expect(opts.ReflectionType).To(BeEmpty())
 				Expect(opts.ForgingOpts).To(BeNil())
 			})
 		})
@@ -259,6 +267,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.RemoteLiqoFactory).To(BeNil())
 				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
+				Expect(opts.ReflectionType).To(BeEmpty())
 				Expect(opts.ForgingOpts).To(BeNil())
 			})
 		})
@@ -284,6 +293,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.RemoteLiqoFactory).To(BeNil())
 				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
+				Expect(opts.ReflectionType).To(BeEmpty())
 				Expect(opts.ForgingOpts).To(BeNil())
 			})
 		})
@@ -305,6 +315,31 @@ var _ = Describe("Options", func() {
 				Expect(opts.RemoteLiqoClient).To(BeNil())
 				Expect(opts.RemoteFactory).To(BeNil())
 				Expect(opts.RemoteLiqoFactory).To(BeNil())
+				Expect(opts.HandlerFactory).To(BeNil())
+				Expect(opts.Ready).To(BeNil())
+				Expect(opts.ReflectionType).To(BeEmpty())
+				Expect(opts.ForgingOpts).To(BeNil())
+			})
+		})
+
+		Describe("The WithReflectionType function", func() {
+			JustBeforeEach(func() { opts = original.WithReflectionType(reflectionType) })
+
+			It("should return a non-nil pointer", func() { Expect(opts).ToNot(BeNil()) })
+			It("should return the same pointer of the receiver", func() { Expect(opts).To(BeIdenticalTo(original)) })
+			It("should correctly set the reflection type value", func() { Expect(opts.ReflectionType).To(Equal(reflectionType)) })
+			It("should leave the other fields unset", func() {
+				Expect(opts.LocalNamespace).To(BeEmpty())
+				Expect(opts.RemoteNamespace).To(BeEmpty())
+				Expect(opts.LocalClient).To(BeNil())
+				Expect(opts.LocalFactory).To(BeNil())
+				Expect(opts.LocalLiqoClient).To(BeNil())
+				Expect(opts.LocalFactory).To(BeNil())
+				Expect(opts.RemoteClient).To(BeNil())
+				Expect(opts.RemoteLiqoClient).To(BeNil())
+				Expect(opts.RemoteFactory).To(BeNil())
+				Expect(opts.RemoteLiqoFactory).To(BeNil())
+				Expect(opts.EventBroadcaster).To(BeNil())
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
 				Expect(opts.ForgingOpts).To(BeNil())
@@ -331,6 +366,7 @@ var _ = Describe("Options", func() {
 				Expect(opts.HandlerFactory).To(BeNil())
 				Expect(opts.Ready).To(BeNil())
 				Expect(opts.EventBroadcaster).To(BeNil())
+				Expect(opts.ReflectionType).To(BeEmpty())
 			})
 		})
 	})

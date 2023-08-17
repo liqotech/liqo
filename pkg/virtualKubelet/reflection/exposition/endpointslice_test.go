@@ -32,6 +32,7 @@ import (
 	"k8s.io/utils/trace"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
@@ -40,6 +41,7 @@ import (
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -47,7 +49,11 @@ import (
 var _ = Describe("EndpointSlice Reflection Tests", func() {
 	Describe("the NewEndpointSliceReflector function", func() {
 		It("should not return a nil reflector", func() {
-			Expect(exposition.NewEndpointSliceReflector(nil, 1)).ToNot(BeNil())
+			reflectorConfig := generic.ReflectorConfig{
+				NumWorkers: 1,
+				Type:       root.DefaultReflectorsTypes[generic.EndpointSlice],
+			}
+			Expect(exposition.NewEndpointSliceReflector(nil, &reflectorConfig)).ToNot(BeNil())
 		})
 	})
 
@@ -56,10 +62,11 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		const ServiceName = "service"
 
 		var (
-			err        error
-			reflector  manager.NamespacedReflector
-			ipam       *fakeipam.IPAMClient
-			liqoClient liqoclient.Interface
+			err            error
+			reflector      manager.NamespacedReflector
+			reflectionType consts.ReflectionType
+			ipam           *fakeipam.IPAMClient
+			liqoClient     liqoclient.Interface
 
 			local  discoveryv1.EndpointSlice
 			remote vkv1alpha1.ShadowEndpointSlice
@@ -112,6 +119,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			liqoClient = liqoclientfake.NewSimpleClientset()
 			local = discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: LocalNamespace}}
 			remote = vkv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
+			reflectionType = root.DefaultReflectorsTypes[generic.EndpointSlice]
 		})
 
 		AfterEach(func() {
@@ -133,6 +141,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				WithLiqoRemote(liqoClient, liqoFactory).
 				WithHandlerFactory(FakeEventHandler).
 				WithEventBroadcaster(record.NewBroadcaster()).
+				WithReflectionType(reflectionType).
 				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
@@ -260,6 +269,36 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
 				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+			})
+
+			When("the reflection type is AllowList", func() {
+				BeforeEach(func() {
+					reflectionType = consts.AllowList
+				})
+
+				When("the local object does exist, but does not have the allow annotation", func() {
+					BeforeEach(func() {
+						local.AddressType = discoveryv1.AddressTypeIPv4
+						CreateEndpointSlice(&local)
+					})
+
+					When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+					When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+				})
+
+				When("the local object does exist, and does have the allow annotation", func() {
+					BeforeEach(func() {
+						local.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
+						local.AddressType = discoveryv1.AddressTypeIPv4
+						CreateEndpointSlice(&local)
+					})
+
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+					It("the remote object should be present", func() {
+						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
+						Expect(remoteAfter).ToNot(BeNil())
+					})
+				})
 			})
 		})
 
