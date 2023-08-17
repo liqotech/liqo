@@ -27,10 +27,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -38,7 +40,11 @@ import (
 var _ = Describe("Secret Reflection", func() {
 	Describe("NewSecretReflector", func() {
 		It("should create a non-nil reflector", func() {
-			Expect(configuration.NewSecretReflector(false, 1)).NotTo(BeNil())
+			reflectorConfig := generic.ReflectorConfig{
+				NumWorkers: 1,
+				Type:       root.DefaultReflectorsTypes[generic.Secret],
+			}
+			Expect(configuration.NewSecretReflector(false, &reflectorConfig)).NotTo(BeNil())
 		})
 	})
 
@@ -47,6 +53,7 @@ var _ = Describe("Secret Reflection", func() {
 
 		var (
 			reflector          manager.NamespacedReflector
+			reflectionType     consts.ReflectionType
 			enableSAReflection bool
 
 			name          string
@@ -88,6 +95,7 @@ var _ = Describe("Secret Reflection", func() {
 			name = SecretName
 			local = corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: LocalNamespace}}
 			remote = corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: RemoteNamespace}}
+			reflectionType = root.DefaultReflectorsTypes[generic.Secret]
 		})
 
 		AfterEach(func() {
@@ -104,6 +112,7 @@ var _ = Describe("Secret Reflection", func() {
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
 				WithEventBroadcaster(record.NewBroadcaster()).
+				WithReflectionType(reflectionType).
 				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
@@ -208,6 +217,34 @@ var _ = Describe("Secret Reflection", func() {
 
 			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
 			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+		})
+
+		When("the reflection type is AllowList", func() {
+			BeforeEach(func() {
+				reflectionType = consts.AllowList
+			})
+
+			When("the local object does exist, but does not have the allow annotation", func() {
+				BeforeEach(func() {
+					CreateSecret(&local)
+				})
+
+				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+			})
+
+			When("the local object does exist, and does have the allow annotation", func() {
+				BeforeEach(func() {
+					local.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
+					CreateSecret(&local)
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should be present", func() {
+					remoteAfter := GetSecret(RemoteNamespace)
+					Expect(remoteAfter).ToNot(BeNil())
+				})
+			})
 		})
 
 		When("handling secrets of type kubernetes.io/service-account-token", func() {

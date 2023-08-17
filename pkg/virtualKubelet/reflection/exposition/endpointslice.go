@@ -37,6 +37,7 @@ import (
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
 	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -67,9 +68,9 @@ type NamespacedEndpointSliceReflector struct {
 }
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
-func NewEndpointSliceReflector(ipamclient ipam.IpamClient, workers uint) manager.Reflector {
+func NewEndpointSliceReflector(ipamclient ipam.IpamClient, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
 	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient),
-		generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
+		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedEndpointSliceReflector returns a function generating NamespacedEndpointSliceReflector instances.
@@ -138,15 +139,26 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 	}
 
 	// Abort the reflection if the local object has the "skip-reflection" annotation.
-	if localExists && ner.ShouldSkipReflection(local) {
-		klog.Infof("Skipping reflection of local EndpointSlice %q as marked with the skip annotation", ner.LocalRef(name))
-		ner.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg())
-		if !remoteExists { // The shadow object does not already exist, hence no further action is required.
-			return nil
+	if localExists {
+		skipReflection, err := ner.ShouldSkipReflection(local)
+		if err != nil {
+			klog.Errorf("Failed to check whether local Endpointslice %q should be reflected: %v", ner.LocalRef(name), err)
+			return err
 		}
+		if skipReflection {
+			if ner.GetReflectionType() == consts.DenyList {
+				klog.Infof("Skipping reflection of local EndpointSlice %q as marked with the skip annotation", ner.LocalRef(name))
+			} else { // AllowList
+				klog.Infof("Skipping reflection of local EndpointSlice %q as not marked with the allow annotation", ner.LocalRef(name))
+			}
+			ner.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg(ner.GetReflectionType()))
+			if !remoteExists { // The shadow object does not already exist, hence no further action is required.
+				return nil
+			}
 
-		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
-		localExists = false
+			// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
+			localExists = false
+		}
 	}
 
 	tracer.Step("Performed the sanity checks")
@@ -316,22 +328,30 @@ func (ner *NamespacedEndpointSliceReflector) UnmapEndpointIPs(ctx context.Contex
 }
 
 // ShouldSkipReflection returns whether the reflection of the given object should be skipped.
-func (ner *NamespacedEndpointSliceReflector) ShouldSkipReflection(obj metav1.Object) bool {
-	if ner.NamespacedReflector.ShouldSkipReflection(obj) {
-		return true
+func (ner *NamespacedEndpointSliceReflector) ShouldSkipReflection(obj metav1.Object) (bool, error) {
+	// Check if the endpointslice is marked to be skipped.
+	skipReflection, err := ner.NamespacedReflector.ShouldSkipReflection(obj)
+	if err != nil {
+		return true, err
+	}
+	if skipReflection {
+		return true, nil
 	}
 
 	// Check if a service is associated to the EndpointSlice, and whether it is marked to be skipped.
 	svcname, ok := obj.GetLabels()[discoveryv1.LabelServiceName]
 	if !ok {
-		return false
+		return false, nil
 	}
 
 	svc, err := ner.localServices.Get(svcname)
 	// Continue with the reflection in case the service is not found, as this is likely due to a race conditions
 	// (i.e., the service has not yet been cached). If necessary, the informer will trigger a re-enqueue,
 	// thus performing once more this check.
-	return err == nil && ner.NamespacedReflector.ShouldSkipReflection(svc)
+	if err != nil {
+		return false, nil
+	}
+	return ner.NamespacedReflector.ShouldSkipReflection(svc)
 }
 
 // ServiceToEndpointSlicesKeyer returns the NamespacedName of all local EndpointSlices associated with the given local Service.

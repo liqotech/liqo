@@ -68,11 +68,11 @@ type NamespacedPersistentVolumeClaimReflector struct {
 }
 
 // NewPersistentVolumeClaimReflector returns a new PersistentVolumeClaimReflector instance.
-func NewPersistentVolumeClaimReflector(workers uint,
-	virtualStorageClassName, remoteRealStorageClassName string, storageEnabled bool) manager.Reflector {
+func NewPersistentVolumeClaimReflector(virtualStorageClassName, remoteRealStorageClassName string,
+	storageEnabled bool, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
 	return generic.NewReflector(PersistentVolumeClaimReflectorName,
 		NewNamespacedPersistentVolumeClaimReflector(virtualStorageClassName, remoteRealStorageClassName, storageEnabled),
-		generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
+		generic.WithoutFallback(), reflectorConfig.NumWorkers, consts.CustomLiqo, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedPersistentVolumeClaimReflector returns a function generating NamespacedPersistentVolumeClaimReflector instances.

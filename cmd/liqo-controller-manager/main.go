@@ -52,6 +52,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
@@ -79,6 +80,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
@@ -168,6 +170,10 @@ func main() {
 	flag.BoolVar(&kubeletMetricsEnabled, "kubelet-metrics-enabled", false, "Enable the kubelet metrics endpoint")
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
+
+	reflectorsWorkers := setReflectorsWorkers()
+	reflectorsType := setReflectorsType()
+
 	flag.Var(&labelsNotReflected, "labels-not-reflected", "List of labels (key) that must not be reflected")
 	flag.Var(&annotationsNotReflected, "annotations-not-reflected", "List of annotations (key) that must not be reflected")
 	kubeletIpamServer := flag.String("kubelet-ipam-server", "",
@@ -204,6 +210,8 @@ func main() {
 		IpamEndpoint:            *kubeletIpamServer,
 		MetricsAddress:          kubeletMetricsAddress,
 		MetricsEnabled:          kubeletMetricsEnabled,
+		ReflectorsWorkers:       reflectorsWorkers,
+		ReflectorsType:          reflectorsType,
 		LabelsNotReflected:      labelsNotReflected.StringList,
 		AnnotationsNotReflected: annotationsNotReflected.StringList,
 	}
@@ -500,4 +508,30 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
+}
+
+// setReflectorsWorkers sets the flags for the number of workers used by the reflectors.
+func setReflectorsWorkers() map[string]*uint {
+	reflectorsWorkers := make(map[string]*uint, len(generic.Reflectors))
+	for i := range generic.Reflectors {
+		resource := &generic.Reflectors[i]
+		stringFlag := fmt.Sprintf("%s-reflection-workers", *resource)
+		defaultValue := root.DefaultReflectorsWorkers[*resource]
+		usage := fmt.Sprintf("The number of workers used for the %s reflector", *resource)
+		reflectorsWorkers[string(*resource)] = flag.Uint(stringFlag, defaultValue, usage)
+	}
+	return reflectorsWorkers
+}
+
+// setReflectorsType sets the flags for the type of reflection used by the reflectors.
+func setReflectorsType() map[string]*string {
+	reflectorsType := make(map[string]*string, len(generic.ReflectorsCustomizableType))
+	for i := range generic.ReflectorsCustomizableType {
+		resource := &generic.ReflectorsCustomizableType[i]
+		stringFlag := fmt.Sprintf("%s-reflection-type", *resource)
+		defaultValue := string(root.DefaultReflectorsTypes[*resource])
+		usage := fmt.Sprintf("The type of reflection used for the %s reflector", *resource)
+		reflectorsType[string(*resource)] = flag.String(stringFlag, defaultValue, usage)
+	}
+	return reflectorsType
 }

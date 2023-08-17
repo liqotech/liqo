@@ -26,6 +26,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -50,9 +51,9 @@ type NamespacedSecretReflector struct {
 }
 
 // NewSecretReflector builds a SecretReflector.
-func NewSecretReflector(enableSAReflection bool, workers uint) manager.Reflector {
+func NewSecretReflector(enableSAReflection bool, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
 	return generic.NewReflector(SecretReflectorName, NewNamespacedSecretReflector(enableSAReflection),
-		generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
+		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedSecretReflector returns a function generating NamespacedSecretReflector instances.
@@ -112,15 +113,26 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 	}
 
 	// Abort the reflection if the local object has the "skip-reflection" annotation.
-	if !kerrors.IsNotFound(lerr) && nsr.ShouldSkipReflection(local) {
-		klog.Infof("Skipping reflection of local Secret %q as marked with the skip annotation", nsr.LocalRef(name))
-		nsr.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg())
-		if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
-			return nil
+	if !kerrors.IsNotFound(lerr) {
+		skipReflection, err := nsr.ShouldSkipReflection(local)
+		if err != nil {
+			klog.Errorf("Failed to check whether local Secret %q should be reflected: %v", nsr.LocalRef(name), err)
+			return err
 		}
+		if skipReflection {
+			if nsr.GetReflectionType() == consts.DenyList {
+				klog.Infof("Skipping reflection of local Secret %q as marked with the skip annotation", nsr.LocalRef(name))
+			} else { // AllowList
+				klog.Infof("Skipping reflection of local Secret %q as not marked with the allow annotation", nsr.LocalRef(name))
+			}
+			nsr.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg(nsr.GetReflectionType()))
+			if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
+				return nil
+			}
 
-		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
-		lerr = kerrors.NewNotFound(corev1.Resource("secret"), local.GetName())
+			// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
+			lerr = kerrors.NewNotFound(corev1.Resource("secret"), local.GetName())
+		}
 	}
 
 	tracer.Step("Performed the sanity checks")

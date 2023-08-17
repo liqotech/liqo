@@ -14,7 +14,11 @@
 
 package forge
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/liqotech/liqo/pkg/consts"
+)
 
 const (
 	// EventSuccessfulReflection -> the reason for the event when the reflection completes successfully.
@@ -83,8 +87,8 @@ func EventReflectionDisabledErrorMsg(namespace string, err error) string {
 }
 
 // EventObjectReflectionDisabledMsg returns the message for the event when reflection is disabled for a given resource.
-func EventObjectReflectionDisabledMsg() string {
-	return fmt.Sprintf("Reflection to cluster %q disabled for the current object", RemoteCluster.ClusterName)
+func EventObjectReflectionDisabledMsg(reflectionType consts.ReflectionType) string {
+	return fmt.Sprintf("Reflection to cluster %q disabled for the current object (policy: %q)", RemoteCluster.ClusterName, reflectionType)
 }
 
 // EventSAReflectionDisabledMsg returns the message for the event when service account reflection is disabled.

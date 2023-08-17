@@ -34,6 +34,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -66,8 +67,9 @@ type NamespacedEventReflector struct {
 }
 
 // NewEventReflector returns a new EventReflector instance.
-func NewEventReflector(workers uint) manager.Reflector {
-	return generic.NewReflector(EventReflectorName, NewNamespacedEventReflector, generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
+func NewEventReflector(reflectorConfig *generic.ReflectorConfig) manager.Reflector {
+	return generic.NewReflector(EventReflectorName, NewNamespacedEventReflector, generic.WithoutFallback(),
+		reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedEventReflector returns a new NamespacedEventReflector instance.
@@ -125,14 +127,25 @@ func (ner *NamespacedEventReflector) Handle(ctx context.Context, name string) er
 	}
 
 	// Abort the reflection if the remote object has the "skip-reflection" annotation.
-	if !kerrors.IsNotFound(rerr) && ner.ShouldSkipReflection(remote) {
-		klog.Infof("Skipping reflection of remote Event %q as marked with the skip annotation", ner.RemoteRef(name))
-		if kerrors.IsNotFound(lerr) { // The remote object does not already exist, hence no further action is required.
-			return nil
+	if !kerrors.IsNotFound(rerr) {
+		skipReflection, err := ner.ShouldSkipReflection(remote)
+		if err != nil {
+			klog.Errorf("Failed to check whether remote event %q should be reflected: %v", ner.RemoteRef(name), err)
+			return err
 		}
+		if skipReflection {
+			if ner.GetReflectionType() == consts.DenyList {
+				klog.Infof("Skipping reflection of remote Event %q as marked with the skip annotation", ner.RemoteRef(name))
+			} else { // AllowList
+				klog.Infof("Skipping reflection of remote Event %q as not marked with the allow annotation", ner.RemoteRef(name))
+			}
+			if kerrors.IsNotFound(lerr) { // The remote object does not already exist, hence no further action is required.
+				return nil
+			}
 
-		// Otherwise, let pretend the remote object does not exist, so that the local one gets deleted.
-		rerr = kerrors.NewNotFound(corev1.Resource("Event"), local.GetName())
+			// Otherwise, let pretend the remote object does not exist, so that the local one gets deleted.
+			rerr = kerrors.NewNotFound(corev1.Resource("Event"), local.GetName())
+		}
 	}
 
 	tracer.Step("Performed the sanity checks")

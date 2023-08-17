@@ -28,10 +28,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
@@ -39,7 +41,11 @@ import (
 var _ = Describe("Service Reflection Tests", func() {
 	Describe("the NewServiceReflector function", func() {
 		It("should not return a nil reflector", func() {
-			Expect(exposition.NewServiceReflector(1)).ToNot(BeNil())
+			reflectorConfig := generic.ReflectorConfig{
+				NumWorkers: 1,
+				Type:       root.DefaultReflectorsTypes[generic.Service],
+			}
+			Expect(exposition.NewServiceReflector(&reflectorConfig)).ToNot(BeNil())
 		})
 	})
 
@@ -47,7 +53,8 @@ var _ = Describe("Service Reflection Tests", func() {
 		const ServiceName = "name"
 
 		var (
-			reflector manager.NamespacedReflector
+			reflector      manager.NamespacedReflector
+			reflectionType consts.ReflectionType
 
 			local, remote corev1.Service
 			err           error
@@ -86,6 +93,7 @@ var _ = Describe("Service Reflection Tests", func() {
 		BeforeEach(func() {
 			local = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: LocalNamespace}}
 			remote = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: RemoteNamespace}}
+			reflectionType = root.DefaultReflectorsTypes[generic.Service]
 		})
 
 		AfterEach(func() {
@@ -102,6 +110,7 @@ var _ = Describe("Service Reflection Tests", func() {
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
 				WithEventBroadcaster(record.NewBroadcaster()).
+				WithReflectionType(reflectionType).
 				WithForgingOpts(FakeForgingOpts()))
 
 			factory.Start(ctx.Done())
@@ -195,6 +204,36 @@ var _ = Describe("Service Reflection Tests", func() {
 
 			When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
 			When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+		})
+
+		When("the reflection type is AllowList", func() {
+			BeforeEach(func() {
+				reflectionType = consts.AllowList
+			})
+
+			When("the local object does exist, but does not have the allow annotation", func() {
+				BeforeEach(func() {
+					local.Spec = corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}}
+					CreateService(&local)
+				})
+
+				When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+				When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
+			})
+
+			When("the local object does exist, and does have the allow annotation", func() {
+				BeforeEach(func() {
+					local.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
+					local.Spec = corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}}
+					CreateService(&local)
+				})
+
+				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+				It("the remote object should be present", func() {
+					remoteAfter := GetService(RemoteNamespace)
+					Expect(remoteAfter).ToNot(BeNil())
+				})
+			})
 		})
 	})
 })

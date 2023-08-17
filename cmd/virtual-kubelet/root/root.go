@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -40,6 +41,7 @@ import (
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	metrics "github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 )
 
 const defaultVersion = "v1.25.0" // This should follow the version of k8s.io/kubernetes we are importing
@@ -93,6 +95,11 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
+	reflectorsConfigs, err := getReflectorsConfigs(c)
+	if err != nil {
+		return err
+	}
+
 	restcfg.SetRateLimiter(remoteConfig)
 
 	// Initialize the pod provider
@@ -110,15 +117,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		DisableIPReflection:  c.DisableIPReflection,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 
-		PodWorkers:                  c.PodWorkers,
-		ServiceWorkers:              c.ServiceWorkers,
-		EndpointSliceWorkers:        c.EndpointSliceWorkers,
-		IngressWorkers:              c.IngressWorkers,
-		ConfigMapWorkers:            c.ConfigMapWorkers,
-		SecretWorkers:               c.SecretWorkers,
-		ServiceAccountWorkers:       c.ServiceAccountWorkers,
-		PersistenVolumeClaimWorkers: c.PersistentVolumeClaimWorkers,
-		EventWorkers:                c.EventWorkers,
+		ReflectorsConfigs: reflectorsConfigs,
 
 		EnableAPIServerSupport:     c.EnableAPIServerSupport,
 		EnableStorage:              c.EnableStorage,
@@ -269,4 +268,28 @@ func getVersion(config *rest.Config) string {
 	}
 
 	return version.GitVersion
+}
+
+func isReflectionTypeNotCustomizable(resource generic.ResourceReflected) bool {
+	return resource == generic.Pod || resource == generic.ServiceAccount || resource == generic.PersistentVolumeClaim
+}
+
+func getReflectorsConfigs(c *Opts) (map[generic.ResourceReflected]*generic.ReflectorConfig, error) {
+	reflectorsConfigs := make(map[generic.ResourceReflected]*generic.ReflectorConfig)
+	for i := range generic.Reflectors {
+		resource := &generic.Reflectors[i]
+		numWorkers := *c.ReflectorsWorkers[string(*resource)]
+		var reflectionType consts.ReflectionType
+		if isReflectionTypeNotCustomizable(*resource) {
+			reflectionType = DefaultReflectorsTypes[*resource]
+		} else {
+			reflectionType = consts.ReflectionType(*c.ReflectorsType[string(*resource)])
+			if reflectionType != consts.DenyList && reflectionType != consts.AllowList {
+				return nil, fmt.Errorf("reflection type %q is not valid for resource %s. Ammitted values: %q, %q",
+					reflectionType, *resource, consts.DenyList, consts.AllowList)
+			}
+		}
+		reflectorsConfigs[*resource] = &generic.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
+	}
+	return reflectorsConfigs, nil
 }

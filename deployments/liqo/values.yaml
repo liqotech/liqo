@@ -53,6 +53,45 @@ reflection:
       metallb.universe.tf/ip-allocated-from-pool,
       metallb.universe.tf/loadBalancerIPs,
     ]
+  pod:
+    # -- The number of workers used for the pods reflector. Set 0 to disable the reflection of pods.
+    workers: 10
+  service:
+    # -- The number of workers used for the services reflector. Set 0 to disable the reflection of services.
+    workers: 3
+    # -- The type of reflection used for the services reflector. Ammitted values: "DenyList", "AllowList".
+    type: DenyList
+  endpointslice:
+    # -- The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices.
+    workers: 10
+    # -- The type of reflection used for the endpointslices reflector Ammitted values: "DenyList", "AllowList".
+    type: DenyList
+  ingress:
+    # -- The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses.
+    workers: 3
+    # -- The type of reflection used for the ingresses reflector. Ammitted values: "DenyList", "AllowList".
+    type: DenyList
+  configmap:
+    # -- The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps.
+    workers: 3
+    # -- The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList".
+    type: DenyList
+  secret:
+    # -- The number of workers used for the secrets reflector. Set 0 to disable the reflection of secrets.
+    workers: 3
+    # -- The type of reflection used for the secrets reflector. Ammitted values: "DenyList", "AllowList".
+    type: DenyList
+  serviceaccount:
+    # -- The number of workers used for the serviceaccounts reflector. Set 0 to disable the reflection of serviceaccounts.
+    workers: 3
+  persistentvolumeclaim:
+    # -- The number of workers used for the persistentvolumeclaims reflector. Set 0 to disable the reflection of persistentvolumeclaims.
+    workers: 3
+  event:
+    # -- The number of workers used for the events reflector. Set 0 to disable the reflection of events.
+    workers: 3
+    # -- The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList".
+    type: DenyList
 
 controllerManager:
   # -- The number of controller-manager instances to run, which can be increased for active/passive high availability.

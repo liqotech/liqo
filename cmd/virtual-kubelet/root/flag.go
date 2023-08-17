@@ -16,12 +16,14 @@ package root
 
 import (
 	"flag"
+	"fmt"
 	"time"
 
 	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 )
 
 // InstallFlags configures the virtual kubelet flags.
@@ -47,18 +49,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.Uint16Var(&o.ListenPort, "listen-port", o.ListenPort, "The port to listen to for requests from the Kubernetes API server")
 	flags.BoolVar(&o.EnableProfiling, "enable-profiling", o.EnableProfiling, "Enable pprof profiling")
 
-	flags.UintVar(&o.PodWorkers, "pod-reflection-workers", o.PodWorkers, "The number of pod reflection workers")
-	flags.UintVar(&o.ServiceWorkers, "service-reflection-workers", o.ServiceWorkers, "The number of service reflection workers")
-	flags.UintVar(&o.EndpointSliceWorkers, "endpointslice-reflection-workers", o.EndpointSliceWorkers,
-		"The number of endpointslice reflection workers")
-	flags.UintVar(&o.IngressWorkers, "ingress-reflection-workers", o.IngressWorkers, "The number of ingress reflection workers")
-	flags.UintVar(&o.ConfigMapWorkers, "configmap-reflection-workers", o.ConfigMapWorkers, "The number of configmap reflection workers")
-	flags.UintVar(&o.SecretWorkers, "secret-reflection-workers", o.SecretWorkers, "The number of secret reflection workers")
-	flags.UintVar(&o.ServiceAccountWorkers, "service-account-reflection-workers", o.ServiceAccountWorkers,
-		"The number of service account reflection workers (applies only if API server support is enabled in token API mode)")
-	flags.UintVar(&o.PersistentVolumeClaimWorkers, "persistentvolumeclaim-reflection-workers", o.PersistentVolumeClaimWorkers,
-		"The number of persistentvolumeclaim reflection workers")
-	flags.UintVar(&o.EventWorkers, "event-reflection-workers", o.EventWorkers, "The number of event reflection workers")
+	setReflectorsWorkers(flags, o)
+	setReflectorsType(flags, o)
 
 	flags.DurationVar(&o.NodeLeaseDuration, "node-lease-duration", o.NodeLeaseDuration, "The duration of the node leases")
 	flags.DurationVar(&o.NodePingInterval, "node-ping-interval", o.NodePingInterval,
@@ -105,4 +97,26 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flagset = flag.NewFlagSet("restcfg", flag.PanicOnError)
 	restcfg.InitFlags(flagset)
 	flags.AddGoFlagSet(flagset)
+}
+
+// setReflectorsWorkers sets the flags for the number of workers used by the reflectors.
+func setReflectorsWorkers(flags *pflag.FlagSet, o *Opts) {
+	for i := range generic.Reflectors {
+		resource := &generic.Reflectors[i]
+		stringFlag := fmt.Sprintf("%s-reflection-workers", *resource)
+		defaultValue := *o.ReflectorsWorkers[string(*resource)]
+		usage := fmt.Sprintf("The number of workers used for the %s reflector", *resource)
+		flags.UintVar(o.ReflectorsWorkers[string(*resource)], stringFlag, defaultValue, usage)
+	}
+}
+
+// setReflectorsType sets the flags for the type of reflection used by the reflectors.
+func setReflectorsType(flags *pflag.FlagSet, o *Opts) {
+	for i := range generic.ReflectorsCustomizableType {
+		resource := &generic.ReflectorsCustomizableType[i]
+		stringFlag := fmt.Sprintf("%s-reflection-type", *resource)
+		defaultValue := *o.ReflectorsType[string(*resource)]
+		usage := fmt.Sprintf("The type of reflection used for the %s reflector", *resource)
+		flags.StringVar(o.ReflectorsType[string(*resource)], stringFlag, defaultValue, usage)
+	}
 }

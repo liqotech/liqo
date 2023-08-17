@@ -28,6 +28,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -50,9 +51,9 @@ type NamespacedConfigMapReflector struct {
 }
 
 // NewConfigMapReflector builds a ConfigMapReflector.
-func NewConfigMapReflector(workers uint) manager.Reflector {
+func NewConfigMapReflector(reflectorConfig *generic.ReflectorConfig) manager.Reflector {
 	return generic.NewReflector(ConfigMapReflectorName, NewNamespacedConfigMapReflector,
-		generic.WithoutFallback(), workers, generic.ConcurrencyModeLeader)
+		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // RemoteConfigMapNamespacedKeyer returns a keyer associated with the given namespace,
@@ -109,15 +110,26 @@ func (ncr *NamespacedConfigMapReflector) Handle(ctx context.Context, name string
 	}
 
 	// Abort the reflection if the local object has the "skip-reflection" annotation.
-	if !kerrors.IsNotFound(lerr) && ncr.ShouldSkipReflection(local) {
-		klog.Infof("Skipping reflection of local ConfigMap %q as marked with the skip annotation", ncr.LocalRef(name))
-		ncr.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg())
-		if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
-			return nil
+	if !kerrors.IsNotFound(lerr) {
+		skipReflection, err := ncr.ShouldSkipReflection(local)
+		if err != nil {
+			klog.Errorf("Failed to check whether local ConfigMap %q should be reflected: %v", ncr.LocalRef(name), err)
+			return err
 		}
+		if skipReflection {
+			if ncr.GetReflectionType() == consts.DenyList {
+				klog.Infof("Skipping reflection of local ConfigMap %q as marked with the skip annotation", ncr.LocalRef(name))
+			} else { // AllowList
+				klog.Infof("Skipping reflection of local ConfigMap %q as not marked with the allow annotation", ncr.LocalRef(name))
+			}
+			ncr.Event(local, corev1.EventTypeNormal, forge.EventReflectionDisabled, forge.EventObjectReflectionDisabledMsg(ncr.GetReflectionType()))
+			if kerrors.IsNotFound(rerr) { // The remote object does not already exist, hence no further action is required.
+				return nil
+			}
 
-		// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
-		lerr = kerrors.NewNotFound(corev1.Resource("configmap"), local.GetName())
+			// Otherwise, let pretend the local object does not exist, so that the remote one gets deleted.
+			lerr = kerrors.NewNotFound(corev1.Resource("configmap"), local.GetName())
+		}
 	}
 
 	tracer.Step("Performed the sanity checks")

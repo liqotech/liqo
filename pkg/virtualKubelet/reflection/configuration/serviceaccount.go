@@ -33,6 +33,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
@@ -75,14 +76,14 @@ type FallbackServiceAccountReflector struct {
 }
 
 // NewServiceAccountReflector builds a ServiceAccountReflector.
-func NewServiceAccountReflector(enableSAReflection bool, workers uint) manager.Reflector {
+func NewServiceAccountReflector(enableSAReflection bool, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
 	if !enableSAReflection {
-		workers = 0
+		reflectorConfig.NumWorkers = 0
 	}
 
 	reflector := &ServiceAccountReflector{}
 	genericReflector := generic.NewReflector(ServiceAccountReflectorName, reflector.NewNamespaced,
-		reflector.NewFallback, workers, generic.ConcurrencyModeAll)
+		reflector.NewFallback, reflectorConfig.NumWorkers, consts.CustomLiqo, generic.ConcurrencyModeAll)
 	reflector.Reflector = genericReflector
 	return reflector
 }

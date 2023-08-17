@@ -36,6 +36,8 @@ type VirtualKubeletOpts struct {
 	IpamEndpoint            string
 	MetricsEnabled          bool
 	MetricsAddress          string
+	ReflectorsWorkers       map[string]*uint
+	ReflectorsType          map[string]*string
 	LabelsNotReflected      []string
 	AnnotationsNotReflected []string
 }

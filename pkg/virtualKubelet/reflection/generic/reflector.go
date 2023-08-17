@@ -33,6 +33,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/leaderelection"
@@ -66,6 +67,7 @@ type reflector struct {
 	fallbackFactory   FallbackReflectorFactoryFunc
 
 	concurrencyMode ConcurrencyMode
+	reflectionType  consts.ReflectionType
 }
 
 // String returns the name of the reflector.
@@ -83,20 +85,50 @@ const (
 	ConcurrencyModeAll ConcurrencyMode = "all"
 )
 
+// ResourceReflected represents a resource that can be reflected.
+type ResourceReflected string
+
+// List of all resources that can be reflected.
+const (
+	Pod                   ResourceReflected = "pod"
+	Service               ResourceReflected = "service"
+	EndpointSlice         ResourceReflected = "endpointslice"
+	Ingress               ResourceReflected = "ingress"
+	ConfigMap             ResourceReflected = "configmap"
+	Secret                ResourceReflected = "secret"
+	ServiceAccount        ResourceReflected = "serviceaccount"
+	PersistentVolumeClaim ResourceReflected = "persistentvolumeclaim"
+	Event                 ResourceReflected = "event"
+)
+
+// Reflectors is the list of all resources that can be reflected.
+var Reflectors = []ResourceReflected{Pod, Service, EndpointSlice, Ingress, ConfigMap, Secret, ServiceAccount, PersistentVolumeClaim, Event}
+
+// ReflectorsCustomizableType is the list of resources for which the reflection type can be customized.
+var ReflectorsCustomizableType = []ResourceReflected{Service, EndpointSlice, Ingress, ConfigMap, Secret, Event}
+
+// ReflectorConfig contains configuration parameters of the reflector.
+type ReflectorConfig struct {
+	// Number of workers for the reflector.
+	NumWorkers uint
+	// Type of reflection.
+	Type consts.ReflectionType
+}
+
 // NewReflector returns a new reflector to implement the reflection towards a remote clusters, of a dummy one if no workers are specified.
 func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
-	workers uint, concurrencyMode ConcurrencyMode) manager.Reflector {
+	workers uint, reflectionType consts.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
 	if workers == 0 {
 		// Return a dummy reflector in case no workers are specified, to avoid starting the working queue and registering the infromers.
 		return &dummyreflector{name: name}
 	}
 
-	return newReflector(name, namespaced, fallback, workers, concurrencyMode)
+	return newReflector(name, namespaced, fallback, workers, reflectionType, concurrencyMode)
 }
 
 // newReflector returns a new reflector to implement the reflection towards a remote clusters.
 func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
-	workers uint, concurrencyMode ConcurrencyMode) manager.Reflector {
+	workers uint, reflectionType consts.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
 	return &reflector{
 		name:    name,
 		workers: workers,
@@ -109,12 +141,13 @@ func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallba
 		fallbackFactory:   fallback,
 
 		concurrencyMode: concurrencyMode,
+		reflectionType:  reflectionType,
 	}
 }
 
 // Start starts the reflector.
 func (gr *reflector) Start(ctx context.Context, opts *options.ReflectorOpts) {
-	klog.Infof("Starting the %v reflector with %v workers", gr.name, gr.workers)
+	klog.Infof("Starting the %v reflector with %v workers (policy: %v)", gr.name, gr.workers, gr.reflectionType)
 	gr.fallback = gr.fallbackFactory(opts.WithHandlerFactory(gr.handlers))
 
 	for i := uint(0); i < gr.workers; i++ {
@@ -141,7 +174,9 @@ func (gr *reflector) StartNamespace(opts *options.NamespacedOpts) {
 		return
 	}
 
-	gr.reflectors[opts.LocalNamespace] = gr.namespacedFactory(opts.WithHandlerFactory(gr.handlers))
+	gr.reflectors[opts.LocalNamespace] = gr.namespacedFactory(opts.
+		WithHandlerFactory(gr.handlers).
+		WithReflectionType(gr.reflectionType))
 
 	// In case a fallback reflector exists, re-enqueue all the elements returned for the given namespace.
 	if gr.fallback != nil {
