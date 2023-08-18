@@ -77,8 +77,8 @@ func WaitDemoApp(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions) {
 }
 
 // CheckApplicationIsWorking performs HTTP requests to the micro-service application to assess its functionality and availability.
-func CheckApplicationIsWorking(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions) error {
-	service := k8s.GetService(t, options, "frontend-external")
+func CheckApplicationIsWorking(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions, serviceName string) error {
+	service := k8s.GetService(t, options, serviceName)
 	if len(service.Spec.Ports) == 0 {
 		return fmt.Errorf("frontend service not found")
 	}

@@ -239,7 +239,70 @@ var _ = Describe("Liqo E2E", func() {
 				}, timeout, interval).Should(BeTrue())
 
 				By("Verify Online Boutique Connectivity")
-				err = microservices.CheckApplicationIsWorking(GinkgoT(), options)
+				err = microservices.CheckApplicationIsWorking(GinkgoT(), options, "frontend-external")
+				Expect(err).ShouldNot(HaveOccurred())
+
+				// cleanup the namespace
+				Expect(testContext.Clusters[0].NativeClient.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})).To(Succeed())
+			}, generateTableEntries()...)...)
+		})
+
+		Context("E2E Testing with Emojivoto", func() {
+
+			var (
+				manifestBasePath = "./test/e2e/manifests/emojivoto/"
+			)
+
+			type manifest struct {
+				fileName    string
+				minNCluster int
+			}
+
+			var (
+				manifests = []manifest{
+					{
+						fileName:    "manifest.yaml",
+						minNCluster: 2,
+					},
+				}
+
+				generateTableEntries = func() []TableEntry {
+					var entries []TableEntry
+					for i := range manifests {
+						if testContext.ClustersNumber < manifests[i].minNCluster {
+							continue
+						}
+
+						// check if the basePath dir exists
+						if _, err := os.Stat(manifestBasePath); os.IsNotExist(err) {
+							// trim ./ prefix
+							manifestBasePath = strings.TrimPrefix(manifestBasePath, "./")
+							// append new prefix
+							manifestBasePath = fmt.Sprintf("/runner/_work/liqops/liqops/liqo/%v", manifestBasePath)
+						}
+
+						entries = append(entries, Entry(
+							fmt.Sprintf("Deploying the Emojivoto app with manifest %v", manifests[i].fileName),
+							fmt.Sprintf("%v%v", manifestBasePath, manifests[i].fileName),
+							fmt.Sprintf("%v-%v", microservices.TestNamespaceName, i),
+						))
+					}
+					return entries
+				}
+			)
+
+			DescribeTable("Testing Emojivoto", util.DescribeTableArgs(func(manifest, namespace string) {
+				By("Deploying the Emojivoto app")
+				options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespace)
+				defer GinkgoRecover()
+				err := microservices.DeployApp(GinkgoT(), testContext.Clusters[0].KubeconfigPath, manifest, namespace)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				By("Waiting until each service of the application has ready endpoints")
+				microservices.WaitDemoApp(GinkgoT(), options)
+
+				By("Verify Emojivoto Connectivity")
+				err = microservices.CheckApplicationIsWorking(GinkgoT(), options, "web-svc")
 				Expect(err).ShouldNot(HaveOccurred())
 
 				// cleanup the namespace
