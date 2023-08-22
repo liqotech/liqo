@@ -13,6 +13,7 @@
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
 # KUBECTL               -> the path where kubectl is stored
+# HELM                  -> the path where helm is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -60,9 +61,30 @@ function setup_arch_and_os(){
 
 setup_arch_and_os
 
-if ! curl --fail -Lo "${KUBECTL}" "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/${OS}/${ARCH}/kubectl"; then
-    echo "Error: Unable to download kubectl for '${OS}-${ARCH}'"
-    return 1
+if ! command -v "${KUBECTL}" &> /dev/null
+then
+    echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
+    if ! curl --fail -Lo "${KUBECTL}" "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/${OS}/${ARCH}/kubectl"; then
+        echo "Error: Unable to download kubectl for '${OS}-${ARCH}'"
+        return 1
+    fi
 fi
 chmod +x "${KUBECTL}"
+echo "kubectl version:"
 "${KUBECTL}" version --client
+
+if ! command -v "${HELM}" &> /dev/null
+then
+    echo "WARNING: helm could not be found. Downloading and installing it locally..."
+    if ! curl --fail -Lo "./helm-v3.12.3-${OS}-${ARCH}.tar.gz" "https://get.helm.sh/helm-v3.12.3-${OS}-${ARCH}.tar.gz"; then
+        echo "Error: Unable to download helm for '${OS}-${ARCH}'"
+        return 1
+    fi
+    tar -zxvf "helm-v3.12.3-${OS}-${ARCH}.tar.gz"
+    mv "${OS}-${ARCH}/helm" "${HELM}"
+    rm -rf "${OS}-${ARCH}"
+fi
+
+chmod +x "${HELM}"
+echo "helm version:"
+"${BINDIR}/helm" version

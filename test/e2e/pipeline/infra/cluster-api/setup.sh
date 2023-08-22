@@ -14,6 +14,7 @@
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
 # KUBECTL               -> the path where kubectl is stored
+# HELM                  -> the path where helm is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 # CNI                   -> the CNI plugin used

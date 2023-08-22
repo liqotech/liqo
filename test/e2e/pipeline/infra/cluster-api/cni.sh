@@ -79,13 +79,23 @@ function install_cilium() {
         rm "cilium-${OS}-${ARCH}.tar.gz.sha256sum"
     fi
 
-    export KUBECONFIG="$kubeconfig"
-    "${BINDIR}/cilium" install --helm-set ipam.operator.clusterPoolIPv4PodCIDRList="${POD_CIDR}"
-    "${BINDIR}/cilium" status --wait
-    unset KUBECONFIG
+    KUBECONFIG="$kubeconfig" "${BINDIR}/cilium" install --helm-set ipam.operator.clusterPoolIPv4PodCIDRList="${POD_CIDR}"
 }
 
 function wait_cilium() {
-    # empty, cilium status --wait already waits for cilium pods to be ready
-    true
+    local kubeconfig=$1
+    KUBECONFIG="$kubeconfig" "${BINDIR}/cilium" status --wait
+}
+
+function install_flannel() {
+    local kubeconfig=$1
+    "${KUBECTL}" create ns kube-flannel --kubeconfig "$kubeconfig"
+    "${KUBECTL}" label --overwrite ns kube-flannel pod-security.kubernetes.io/enforce=privileged --kubeconfig "$kubeconfig"
+    "${HELM}" repo add flannel https://flannel-io.github.io/flannel/
+    "${HELM}" install flannel --set podCidr="${POD_CIDR}" --namespace kube-flannel flannel/flannel --kubeconfig "$kubeconfig"
+}
+
+function wait_flannel() {
+    local kubeconfig=$1
+    "${KUBECTL}" wait --for condition=Ready=true -n kube-flannel pod --all --timeout=-1s --kubeconfig "$kubeconfig"
 }
