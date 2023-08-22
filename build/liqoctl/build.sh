@@ -11,7 +11,7 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-GO_VERSION="1.20"
+GO_VERSION="1.21"
 
 docker run -v "$PWD:/liqo" -w /liqo -e="CGO_ENABLED=${CGO_ENABLED}" --rm "golang:${GO_VERSION}" \
    go mod tidy && go build -o "./liqoctl-${GOOS}-${GOARCH}" \
