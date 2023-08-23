@@ -127,6 +127,12 @@ Additionally, since your API Server is not accessible from the public Internet, 
 By default, the **AKS** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
 To change this behavior, check the [network flags](NetworkFlags).
 ```
+
+```{admonition} Virtual Network Resource Group
+By default, it is assumed the Virtual Network Resource for the AKS Subnet is located in the same Resource Group
+as the AKS Resource. If that is not the case, you will need to use the `--vnet-resource-group-name` flag to provide the 
+correct Resource Group name where the Virtual Network Resource is located.
+```
 ````
 
 ````{tab-item} EKS

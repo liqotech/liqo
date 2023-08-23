@@ -37,11 +37,12 @@ var _ install.Provider = (*Options)(nil)
 type Options struct {
 	*install.Options
 
-	subscriptionName  string
-	subscriptionID    string
-	resourceGroupName string
-	resourceName      string
-	fqdn              string
+	subscriptionName      string
+	subscriptionID        string
+	resourceGroupName     string
+	resourceName          string
+	vnetResourceGroupName string
+	fqdn                  string
 
 	authorizer *autorest.Authorizer
 }
@@ -72,6 +73,8 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.resourceGroupName, "resource-group-name", "",
 		"The Azure ResourceGroup name of the cluster")
 	cmd.Flags().StringVar(&o.resourceName, "resource-name", "", "The Azure Name of the cluster")
+	cmd.Flags().StringVar(&o.vnetResourceGroupName, "vnet-resource-group-name", "",
+		"The Azure ResourceGroup name of the Virtual Network (defaults to --resource-group-name if not provided)")
 	cmd.Flags().StringVar(&o.fqdn, "fqdn", "", "The private AKS cluster fqdn")
 
 	utilruntime.Must(cmd.MarkFlagRequired("resource-group-name"))
@@ -83,11 +86,16 @@ func (o *Options) Initialize(ctx context.Context) error {
 	if o.subscriptionID == "" && o.subscriptionName == "" {
 		return fmt.Errorf("neither --subscription-id nor --subscription-name specified")
 	}
+	if o.vnetResourceGroupName == "" {
+		// use AKS resource group if vnet resource group not provided
+		o.vnetResourceGroupName = o.resourceGroupName
+	}
 
 	o.Printer.Verbosef("AKS SubscriptionID: %q", o.subscriptionID)
 	o.Printer.Verbosef("AKS SubscriptionName: %q", o.subscriptionName)
 	o.Printer.Verbosef("AKS ResourceGroupName: %q", o.resourceGroupName)
 	o.Printer.Verbosef("AKS ResourceName: %q", o.resourceName)
+	o.Printer.Verbosef("VNET ResourceGroupName: %q", o.vnetResourceGroupName)
 
 	// if the cluster name has not been provided, we default it to the cloud provider resource name.
 	if o.ClusterName == "" {
@@ -189,7 +197,7 @@ func (o *Options) setupKubenet(ctx context.Context, cluster *containerservice.Ma
 			return err
 		}
 
-		vnet, err := networkClient.Get(ctx, o.resourceGroupName, vnetName, subnetName, "")
+		vnet, err := networkClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, "")
 		if err != nil {
 			return err
 		}
@@ -212,7 +220,7 @@ func (o *Options) setupAzureCNI(ctx context.Context, cluster *containerservice.M
 		return err
 	}
 
-	vnet, err := networkClient.Get(ctx, o.resourceGroupName, vnetName, subnetName, "")
+	vnet, err := networkClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, "")
 	if err != nil {
 		return err
 	}
