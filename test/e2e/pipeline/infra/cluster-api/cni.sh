@@ -97,5 +97,6 @@ function install_flannel() {
 
 function wait_flannel() {
     local kubeconfig=$1
+    sleep 5
     "${KUBECTL}" wait --for condition=Ready=true -n kube-flannel pod --all --timeout=-1s --kubeconfig "$kubeconfig"
 }
