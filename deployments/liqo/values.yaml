@@ -6,6 +6,15 @@
 tag: ""
 # -- The pullPolicy for liqo pods.
 pullPolicy: "IfNotPresent"
+
+common:
+  # -- NodeSelector for all liqo services, excluding virtual kubelet deployment.
+  nodeSelector: {}
+  # -- Tolerations for all liqo services, excluding virtual kubelet deployment.
+  tolerations: []
+  # -- Affinity for all liqo services, excluding virtual kubelet deployment.
+  affinity: {}
+
 apiServer:
   # -- The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP).
   address: ""
@@ -17,6 +26,15 @@ networking:
   internal: true
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
+  # -- Iptables configuration tuning.
+  iptables:
+    # -- Select the iptables mode to use. Possible values are "legacy" and "nf_tables".
+    mode: "nf_tables"
+  # -- Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces.
+  # The value is used by the gateway and route operators.
+  # The default value is configured to ensure correct behavior regardless of the combination of the underlying environments
+  # (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops.
+  mtu: 1340
 
 reflection:
   skip:
@@ -465,18 +483,4 @@ openshiftConfig:
   virtualKubeletSCCs:
   - anyuid
 
-# Configuration for liqo networking.
-networkConfig:
-  # -- Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces.
-  # The value is used by the gateway and route operators.
-  # The default value is configured to ensure correct behavior regardless of the combination of the underlying environments
-  # (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops.
-  mtu: 1340
 
-common:
-  # -- NodeSelector for all liqo services, excluding virtual kubelet deployment.
-  nodeSelector: {}
-  # -- Tolerations for all liqo services, excluding virtual kubelet deployment.
-  tolerations: []
-  # -- Affinity for all liqo services, excluding virtual kubelet deployment.
-  affinity: {}

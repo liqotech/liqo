@@ -17,6 +17,7 @@ package iptables
 import (
 	"encoding/csv"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -95,10 +96,19 @@ type IPTHandler struct {
 
 // NewIPTHandler return the iptables handler used to configure the iptables rules.
 func NewIPTHandler() (IPTHandler, error) {
-	ipt, err := iptables.New()
+	selectedmode := os.Getenv("IPTABLES_MODE")
+	var ipt *iptables.IPTables
+	var err error
+	if iptables.ModeType(selectedmode) == iptables.ModeTypeNFTables || iptables.ModeType(selectedmode) == iptables.ModeTypeLegacy {
+		ipt, err = iptables.New(iptables.Mode(iptables.ModeType(selectedmode)))
+	} else {
+		ipt, err = iptables.New()
+	}
 	if err != nil {
 		return IPTHandler{}, err
 	}
+	v1, v2, v3, mode := ipt.GetIptablesVersion()
+	klog.Infof("Iptables version: %d.%d.%d, mode: %s", v1, v2, v3, mode)
 	return IPTHandler{
 		ipt: *ipt,
 	}, err
