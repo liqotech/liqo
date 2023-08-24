@@ -47,7 +47,7 @@ liqoctl install ${YOUR_PROVIDER} --cluster-name ${YOUR_CLUSTER_NAME} --mtu 1400
 The `liqoctl install` command is idempotent and can be executed multiple times to enforce the desired configuration.
 {{% /notice %}}
 
-If you are installing Liqo using the provided helm chart than the MTU size can be configured by setting the `networkConfig.mtu` variable in the [values.yaml file](../../../installation/chart_values/#values).
+If you are installing Liqo using the provided helm chart than the MTU size can be configured by setting the `networking.mtu` variable in the [values.yaml file](../../../installation/chart_values/#values).
 
 
 

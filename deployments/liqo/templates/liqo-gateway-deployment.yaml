@@ -46,7 +46,7 @@ spec:
           args:
           - --run-as=liqo-gateway
           - --gateway.leader-elect=true
-          - --gateway.mtu={{ .Values.networkConfig.mtu }}
+          - --gateway.mtu={{ .Values.networking.mtu }}
           - --gateway.listening-port={{ .Values.gateway.config.listeningPort }}
           {{- if .Values.gateway.metrics.enabled }}
           - --metrics-bind-addr=:{{ .Values.gateway.metrics.port }}
@@ -72,6 +72,8 @@ spec:
                   fieldPath: status.podIP
             - name: WIREGUARD_IMPLEMENTATION
               value: {{ .Values.gateway.config.wireguardImplementation }}
+            - name: IPTABLES_MODE
+              value: {{ .Values.networking.iptables.mode }}
       hostNetwork: true
       {{- if ((.Values.common).nodeSelector) }}
       nodeSelector:

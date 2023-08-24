@@ -264,3 +264,6 @@ require (
 )
 
 replace github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
+
+// Waitin for PR https://github.com/coreos/go-iptables/pull/110 to be merged
+replace github.com/coreos/go-iptables => github.com/cheina97/go-iptables v0.0.0-20230824102241-61fc692e7548

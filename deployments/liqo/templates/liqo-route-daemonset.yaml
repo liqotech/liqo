@@ -43,7 +43,7 @@ spec:
           command: ["/usr/bin/liqonet"]
           args:
           - --run-as=liqo-route
-          - --route.vxlan-mtu={{ .Values.networkConfig.mtu }}
+          - --route.vxlan-mtu={{ .Values.networking.mtu }}
           {{- if .Values.route.pod.extraArgs }}
           {{- toYaml .Values.route.pod.extraArgs | nindent 10 }}
           {{- end }}
@@ -67,6 +67,8 @@ spec:
               valueFrom:
                fieldRef:
                  fieldPath: spec.nodeName
+            - name: IPTABLES_MODE
+              value: {{ .Values.networking.iptables.mode }}
           volumeMounts:
             - mountPath: /run/xtables.lock
               name: xtables-lock
