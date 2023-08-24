@@ -107,7 +107,8 @@ const emptyCIDR = ""
 func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, listeningPort int) error {
 	var err error
 	// Set up storage
-	liqoIPAM.ipamStorage, err = NewIPAMStorage(dynClient)
+	n, err := NewIPAMStorage(dynClient)
+	liqoIPAM.ipamStorage = n
 	if err != nil {
 		return fmt.Errorf("cannot set up storage for ipam: %w", err)
 	}

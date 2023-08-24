@@ -263,3 +263,7 @@ require (
 )
 
 replace github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
+
+// This solves a dependency problem.
+// ../../go/pkg/mod/oras.land/oras-go@v1.2.3/pkg/auth/docker/login.go:86:39: cannot use remote (variable of type *"github.com/docker/docker/registry".Service) as "github.com/docker/docker/registry".Service value in argument to c.loginWithTLS
+replace github.com/docker/docker => github.com/docker/docker v23.0.6+incompatible
