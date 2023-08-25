@@ -72,6 +72,8 @@ type IpamStorage interface {
 	goipam.Storage
 }
 
+var _ IpamStorage = &IPAMStorage{}
+
 // IPAMStorage is an implementation of IpamStorage that takes advantage of the CRD IpamStorage.
 type IPAMStorage struct {
 	m sync.RWMutex
@@ -113,7 +115,7 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 func (ipamStorage *IPAMStorage) Name() string { return "liqo" }
 
 // CreatePrefix creates a new Prefix in ipamStorage resource.
-func (ipamStorage *IPAMStorage) CreatePrefix(_ context.Context, prefix goipam.Prefix) (goipam.Prefix, error) {
+func (ipamStorage *IPAMStorage) CreatePrefix(_ context.Context, prefix goipam.Prefix, _ string) (goipam.Prefix, error) {
 	ipam := ipamStorage.getConfig()
 	if _, ok := ipam.Spec.Prefixes[prefix.Cidr]; ok {
 		return goipam.Prefix{}, fmt.Errorf("prefix already created:%v", prefix)
@@ -131,7 +133,7 @@ func (ipamStorage *IPAMStorage) CreatePrefix(_ context.Context, prefix goipam.Pr
 }
 
 // ReadPrefix retrieves a specific Prefix from ipamStorage resource.
-func (ipamStorage *IPAMStorage) ReadPrefix(_ context.Context, prefix string) (goipam.Prefix, error) {
+func (ipamStorage *IPAMStorage) ReadPrefix(_ context.Context, prefix string, _ string) (goipam.Prefix, error) {
 	var p goipam.Prefix
 	ipam := ipamStorage.getConfig()
 	if _, ok := ipam.Spec.Prefixes[prefix]; !ok {
@@ -145,7 +147,7 @@ func (ipamStorage *IPAMStorage) ReadPrefix(_ context.Context, prefix string) (go
 }
 
 // ReadAllPrefixes retrieves all prefixes from ipamStorage resource.
-func (ipamStorage *IPAMStorage) ReadAllPrefixes(_ context.Context) (goipam.Prefixes, error) {
+func (ipamStorage *IPAMStorage) ReadAllPrefixes(_ context.Context, _ string) (goipam.Prefixes, error) {
 	ipam := ipamStorage.getConfig()
 	list := make(goipam.Prefixes, 0, len(ipam.Spec.Prefixes))
 	for _, value := range ipam.Spec.Prefixes {
@@ -160,7 +162,7 @@ func (ipamStorage *IPAMStorage) ReadAllPrefixes(_ context.Context) (goipam.Prefi
 }
 
 // ReadAllPrefixCidrs retrieves all prefix CIDR from ipamStorage resource.
-func (ipamStorage *IPAMStorage) ReadAllPrefixCidrs(_ context.Context) ([]string, error) {
+func (ipamStorage *IPAMStorage) ReadAllPrefixCidrs(_ context.Context, _ string) ([]string, error) {
 	list := make([]string, 0)
 	ipam := ipamStorage.getConfig()
 	for _, value := range ipam.Spec.Prefixes {
@@ -175,7 +177,7 @@ func (ipamStorage *IPAMStorage) ReadAllPrefixCidrs(_ context.Context) ([]string,
 }
 
 // UpdatePrefix updates a Prefix in ipamStorage resource.
-func (ipamStorage *IPAMStorage) UpdatePrefix(_ context.Context, prefix goipam.Prefix) (goipam.Prefix, error) {
+func (ipamStorage *IPAMStorage) UpdatePrefix(_ context.Context, prefix goipam.Prefix, _ string) (goipam.Prefix, error) {
 	if prefix.Cidr == "" {
 		return goipam.Prefix{}, fmt.Errorf("prefix not present:%v", prefix)
 	}
@@ -196,7 +198,7 @@ func (ipamStorage *IPAMStorage) UpdatePrefix(_ context.Context, prefix goipam.Pr
 }
 
 // DeletePrefix deletes a Prefix from ipamStorage resource.
-func (ipamStorage *IPAMStorage) DeletePrefix(_ context.Context, prefix goipam.Prefix) (goipam.Prefix, error) {
+func (ipamStorage *IPAMStorage) DeletePrefix(_ context.Context, prefix goipam.Prefix, _ string) (goipam.Prefix, error) {
 	if prefix.Cidr == "" {
 		return goipam.Prefix{}, fmt.Errorf("prefix not present:%v", prefix)
 	}
@@ -213,7 +215,7 @@ func (ipamStorage *IPAMStorage) DeletePrefix(_ context.Context, prefix goipam.Pr
 }
 
 // DeleteAllPrefixes deletes all prefixes from ipamStorage resource.
-func (ipamStorage *IPAMStorage) DeleteAllPrefixes(_ context.Context) error {
+func (ipamStorage *IPAMStorage) DeleteAllPrefixes(_ context.Context, _ string) error {
 	ipam := ipamStorage.getConfig()
 	ipam.Spec.Prefixes = make(map[string][]byte)
 
@@ -406,4 +408,14 @@ func (ipamStorage *IPAMStorage) createConfig() (*netv1alpha1.IpamStorage, error)
 	utilruntime.Must(err)
 
 	return &storage, nil
+}
+
+func (ipamStorage *IPAMStorage) CreateNamespace(ctx context.Context, namespace string) error {
+	return nil
+}
+func (ipamStorage *IPAMStorage) ListNamespaces(ctx context.Context) ([]string, error) {
+	return nil, nil
+}
+func (ipamStorage *IPAMStorage) DeleteNamespace(ctx context.Context, namespace string) error {
+	return nil
 }
