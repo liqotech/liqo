@@ -101,12 +101,16 @@ external_toc_exclude_missing = True
 
 # __get_download_url returns the download URL for the given file, for the latest or the given GitHub release.
 def __get_download_url(file: str) -> str:
-    if 'current_version' not in html_context or not __is_sem_version(html_context['current_version']):
-        return f"https://github.com/liqotech/liqo/releases/latest/download/{file}"
-    else:
-        return f"https://github.com/liqotech/liqo/releases/download/master/{file}"
-    
+    version = generate_version()
+    if version == 'master':
+        x = requests.get('https://api.github.com/repos/liqotech/liqo/releases/latest')
+        version = x.json()['tag_name'] 
+    return f"https://github.com/liqotech/liqo/releases/download/{version}/{file}"
+
 # generate_version generates the version string for the current page.
+# latest: return master
+# stable: return the latest release (get the last release tag from GitHub API)
+# tag: return the tag specified in the html_context[github_version]
 def generate_version() -> str:
     version = html_context['github_version'] if 'github_version' in html_context else 'master'
     if 'current_version' in html_context and html_context['current_version'] == 'stable':
