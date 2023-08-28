@@ -40,7 +40,7 @@ const liqoctlInstallLongHelp = `Install/upgrade Liqo in the selected cluster.
 
 This command wraps the Helm command to install/upgrade Liqo in the selected
 cluster, appropriately configuring it based on the provided flags. Additional
-default values can be overridden through the --set flag.
+default values can be overridden through the --values and or --set flag.
 Alternatively, it can be configured to only output a pre-configured values file,
 which can be further customized and used for a manual installation with Helm.
 
@@ -160,6 +160,8 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	// Using StringArray rather than StringSlice: splitting is left to the Helm library, which takes care of special cases (e.g., lists).
 	cmd.PersistentFlags().StringArrayVar(&options.OverrideValues, "set", []string{},
 		"Set additional values on the command line (can specify multiple times or separate values with commas: key1=val1,key2=val2)")
+	cmd.PersistentFlags().StringArrayVar(&options.OverrideValuesFiles, "values", []string{},
+		"Specify values in a YAML file or a URL (can specify multiple)")
 	cmd.PersistentFlags().BoolVar(&options.DisableAPIServerSanityChecks, "disable-api-server-sanity-check", false,
 		"Disable the sanity checks concerning the retrieved Kubernetes API server URL (default false)")
 	cmd.PersistentFlags().BoolVar(&options.SkipValidation, "skip-validation", false, "Skip the validation of the arguments "+
