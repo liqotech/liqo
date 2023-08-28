@@ -18,7 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,6 +31,8 @@ import (
 	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
@@ -66,9 +71,10 @@ type Options struct {
 	RepoURL   string
 	ChartPath string
 
-	OverrideValues []string
-	chartValues    map[string]interface{}
-	tmpDir         string
+	OverrideValues      []string
+	OverrideValuesFiles []string
+	chartValues         map[string]interface{}
+	tmpDir              string
 
 	DryRun           bool
 	OnlyOutputValues bool
@@ -157,6 +163,17 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 	}
 
 	values, err = util.MergeMaps(values, o.postProviderValues())
+	if err != nil {
+		s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
+		return err
+	}
+
+	valuesFiles, err := o.valuesFiles()
+	if err != nil {
+		s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
+		return err
+	}
+	values, err = util.MergeMaps(values, valuesFiles)
 	if err != nil {
 		s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
 		return err
@@ -396,6 +413,50 @@ func (o *Options) postProviderValues() map[string]interface{} {
 		}
 	}
 	return values
+}
+
+func (o *Options) valuesFiles() (map[string]interface{}, error) {
+	values := map[string]interface{}{}
+	// Near copy from Helm https://github.com/helm/helm/blob/eb4edc96c581c1978fe935197e20ced4071af5d5/pkg/cli/values/options.go#L48
+	for _, filePath := range o.OverrideValuesFiles {
+		currentMap := map[string]interface{}{}
+		bytes, err := readFile(filePath, getter.All(cli.New()))
+		if err != nil {
+			return nil, err
+		}
+
+		if err := yaml.Unmarshal(bytes, &currentMap); err != nil {
+			return nil, err
+		}
+		// Merge with the previous map
+		values, err = util.MergeMaps(currentMap, values)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return values, nil
+}
+
+// copy from Helm https://github.com/helm/helm/blob/eb4edc96c581c1978fe935197e20ced4071af5d5/pkg/cli/values/options.go#L128
+func readFile(filePath string, p getter.Providers) ([]byte, error) {
+	if strings.TrimSpace(filePath) == "-" {
+		return io.ReadAll(os.Stdin)
+	}
+	u, err := url.Parse(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// FIXME: maybe someone handle other protocols like ftp.
+	g, err := p.ByScheme(u.Scheme)
+	if err != nil {
+		return os.ReadFile(filepath.Clean(filePath))
+	}
+	data, err := g.Get(filePath, getter.WithURL(filePath))
+	if err != nil {
+		return nil, err
+	}
+	return data.Bytes(), err
 }
 
 func (o *Options) cleanup() error {

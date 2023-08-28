@@ -413,12 +413,12 @@ To change this behavior, check the [network flags](NetworkFlags).
 ## Customization options
 
 This section lists the main **customization parameters** supported by the *liqoctl install* command, along with a brief description.
-Additionally, **all parameters** available in the Helm *values* file (the full list is provided in the dedicated [repository page](https://github.com/liqotech/liqo/tree/master/deployments/liqo)) can be modified through the `liqoctl install --set` flag, which supports the standard Helm syntax.
+Additionally, **all parameters** available in the Helm *values* file (the full list is provided in the dedicated [repository page](https://github.com/liqotech/liqo/tree/master/deployments/liqo)) can be modified through the `liqoctl install --values` and or `liqoctl install --set` flags, which supports the standard Helm syntax.
 
 Finally, remember that:
 
 * You can type `liqoctl install --help` to get the list of available options.
-* Some of the above parameters can be changed after installation by simply updating their value and re-applying the Helm chart, or by re-issuing the proper `liqoctl install --set [param=value]` command. However, given that not all parameters can be updated at run-time, please check that the command triggered the desired effect; a precise list of commands that can be changed at run-time is left for our future work.
+* Some of the above parameters can be changed after installation by simply updating their value and re-applying the Helm chart, or by re-issuing the proper `liqoctl install --values [file] --set [param=value]` command. However, given that not all parameters can be updated at run-time, please check that the command triggered the desired effect; a precise list of commands that can be changed at run-time is left for our future work.
 
 ### Global
 
