@@ -57,6 +57,10 @@ func (o *Options) validate(ctx context.Context) error {
 	}
 	o.Printer.Verbosef("Service CIDR: %s\n", o.ServiceCIDR)
 
+	if err := o.validateOutputValues(); err != nil {
+		return fmt.Errorf("failed validating output values: %w", err)
+	}
+
 	return nil
 }
 
@@ -191,6 +195,17 @@ func (o *Options) validateServiceCIDR(ctx context.Context) error {
 		}
 	}
 
+	return nil
+}
+
+// validateOutputValues validates the flags related to values.
+func (o *Options) validateOutputValues() (err error) {
+	if o.ValuesPath != "" && !o.OnlyOutputValues {
+		return fmt.Errorf("--dump-values-path can only be used in conjunction with --only-output-values")
+	}
+	if o.ValuesPath == "" {
+		o.ValuesPath = DefaultDumpValuesPath
+	}
 	return nil
 }
 

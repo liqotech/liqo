@@ -21,4 +21,7 @@ const (
 
 	// LiqoReleaseName indicates the default release name when installing the Liqo chart.
 	LiqoReleaseName = "liqo"
+
+	// DefaultDumpValuesPath is the default path where the helm values file is written.
+	DefaultDumpValuesPath = "./values.yaml"
 )
