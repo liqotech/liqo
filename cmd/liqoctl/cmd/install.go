@@ -138,8 +138,9 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 	cmd.PersistentFlags().BoolVar(&options.OnlyOutputValues, "only-output-values", false,
 		"Generate the pre-configured values file for further customization, instead of installing Liqo (default false)")
-	cmd.PersistentFlags().StringVar(&options.ValuesPath, "dump-values-path", "./values.yaml",
-		"The path where the generated values file is saved (only in case --only-output-values is set)")
+	// the default value is set during the validation to check if the flag has been set or not
+	cmd.PersistentFlags().StringVar(&options.ValuesPath, "dump-values-path", "",
+		"The path where the generated values file is saved (only in case --only-output-values is set). Default: './values.yaml'")
 	cmd.PersistentFlags().BoolVar(&options.DryRun, "dry-run", false, "Simulate the installation process (default false)")
 
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 10*time.Minute,
