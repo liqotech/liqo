@@ -11,15 +11,15 @@ At the same time, this approach is fully compliant with the **standard Kubernete
 
 By default, the virtual node is assigned with 90% of the resources available in the remote cluster. For example:
 
-* If the remote cluster has 100 vCPUs available, the virtual node created with 90 vCPUs.
-* If now the remote cluster starts some applications that consume 50 vCPUs (i.e., pods _requesting_ resources), the virtual node is resized to 45 vCPUs (i.e., 90% of (100-50)).
-* If the remote cluster has some autoscaling mechanism that, at some point, double the size of the cluster, which reaches 200 vCPUs (all of them unused by any pod), the virtual node will be resized with 180 vCPUs.
+- If the remote cluster has 100 vCPUs available, the virtual node created with 90 vCPUs.
+- If now the remote cluster starts some applications that consume 50 vCPUs (i.e., pods *requesting* resources), the virtual node is resized to 45 vCPUs (i.e., 90% of (100-50)).
+- If the remote cluster has some autoscaling mechanism that, at some point, double the size of the cluster, which reaches 200 vCPUs (all of them unused by any pod), the virtual node will be resized with 180 vCPUs.
 
 This mechanism applies to all the physical resources available in the remote cluster, e.g., CPUs, RAM, GPUs and more.
 The percentage of sharing can be customized also at run-time using the `--sharing-percentage` option, as documented in the proper [section](InstallControlPlaneFlags) of the Liqo installation.
 
 ```{warning}
-Pay attention to _math rounding_. For instance, if your remote cluster has 1 GPU, with default settings the virtual node will be set with 0.9 GPUs. Since numbers must be integers, you may end up with a virtual node with _zero_ GPUs.
+Pay attention to *math rounding*. For instance, if your remote cluster has 1 GPU, with default settings the virtual node will be set with 0.9 GPUs. Since numbers must be integers, you may end up with a virtual node with *zero* GPUs.
 ```
 
 ```{admonition} More granular resource definitions with external Resource Plugins
@@ -66,10 +66,10 @@ Additionally, the resource reflection process propagated different resources exi
 
 The Liqo namespace extension process features a high degree of customization, mainly enabling to:
 
-* Select a **specific subset of the available remote clusters**, by means of standard selectors matching the label assigned to the virtual nodes.
-* Constraint whether pods should be scheduled onto **physical nodes only, virtual nodes only, or both**.
+- Select a **specific subset of the available remote clusters**, by means of standard selectors matching the label assigned to the virtual nodes.
+- Constraint whether pods should be scheduled onto **physical nodes only, virtual nodes only, or both**.
 The extension of a namespace, forcing at the same time all pods to be scheduled locally, enables the consumption of local services from the remote cluster, as shown in the [*service offloading* example](/examples/service-offloading).
-* Configure whether the **remote namespace name** should match the local one (although possibly incurring in conflicts), or be automatically generated, such as to be unique.
+- Configure whether the **remote namespace name** should match the local one (although possibly incurring in conflicts), or be automatically generated, such as to be unique.
 
 (FeaturePodOffloading)=
 

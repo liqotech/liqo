@@ -50,6 +50,7 @@ subtrees:
 
   - caption: More
     entries:
+      - file: faq/faq.md
       - url: https://github.com/liqotech/liqo
         title: GitHub Repository
       - url: https://medium.com/the-liqo-blog
