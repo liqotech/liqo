@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"sync"
@@ -37,6 +38,7 @@ import (
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/liqonet/utils/links"
+	liqonetsignals "github.com/liqotech/liqo/pkg/liqonet/utils/signals"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -73,6 +75,8 @@ func addGatewayOperatorFlags(liqonet *gatewayOperatorFlags) {
 }
 
 func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOperatorFlags) {
+	ctx, _ := liqonetsignals.NotifyContextPosix(context.Background(), liqonetsignals.ShutdownSignals...)
+	wg := sync.WaitGroup{}
 	metricsAddr := commonFlags.metricsAddr
 	enableLeaderElection := gatewayFlags.enableLeaderElection
 	leaseDuration := gatewayFlags.leaseDuration
@@ -152,7 +156,7 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 		klog.Errorf("unable to setup labeler controller: %s", err)
 		os.Exit(1)
 	}
-	tunnelController, err := tunneloperator.NewTunnelController(podIP.String(), podNamespace, eventRecorder,
+	tunnelController, err := tunneloperator.NewTunnelController(ctx, &wg, podIP.String(), podNamespace, eventRecorder,
 		clientset, main.GetClient(), &readyClustersMutex, readyClusters, gatewayNetns, hostNetns, int(MTU), int(port), updateStatusInterval)
 	// If something goes wrong while creating and configuring the tunnel controller
 	// then make sure that we remove all the resources created during the create process.
@@ -184,7 +188,7 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 	}
 
 	klog.Info("Starting manager as Tunnel-Operator")
-	if err := main.Start(tunnelController.SetupSignalHandlerForTunnelOperator()); err != nil {
+	if err := main.Start(tunnelController.SetupSignalHandlerForTunnelOperator(ctx, &wg)); err != nil {
 		klog.Errorf("unable to start tunnel controller: %s", err)
 		os.Exit(1)
 	}

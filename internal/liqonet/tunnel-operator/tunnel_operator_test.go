@@ -15,6 +15,8 @@
 package tunneloperator
 
 import (
+	"sync"
+
 	"github.com/containernetworking/plugins/pkg/ns"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,6 +24,8 @@ import (
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
+
+var wg *sync.WaitGroup
 
 var _ = Describe("TunnelOperator", func() {
 	Describe("setup gateway namespace", func() {
@@ -38,8 +42,11 @@ var _ = Describe("TunnelOperator", func() {
 					Expect(netlink.LinkDel(link)).ShouldNot(HaveOccurred())
 				}
 			})
+			BeforeEach(func() {
+				wg = &sync.WaitGroup{}
+			})
 			It("should return nil", func() {
-				err := tc.setUpGWNetns(liqoconst.HostVethName, liqoconst.GatewayVethName, 1420)
+				err := tc.setUpGWNetns(ctx, wg, liqoconst.HostVethName, liqoconst.GatewayVethName, 1420)
 				Expect(err).ShouldNot(HaveOccurred())
 				// Check that we have the veth interface in host namespace
 				err = tc.hostNetns.Do(func(ns ns.NetNS) error {
@@ -62,7 +69,7 @@ var _ = Describe("TunnelOperator", func() {
 			})
 
 			It("incorrect name for veth interface, should return error", func() {
-				err := tc.setUpGWNetns("", liqoconst.GatewayVethName, 1420)
+				err := tc.setUpGWNetns(ctx, wg, "", liqoconst.GatewayVethName, 1420)
 				Expect(err).Should(HaveOccurred())
 				Expect(err).Should(MatchError("an error occurred while creating veth pair between host and gateway namespace: " +
 					"failed to make veth pair: LinkAttrs.Name cannot be empty"))
