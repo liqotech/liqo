@@ -16,6 +16,7 @@ package completion
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -28,6 +29,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/utils/slice"
+	utilsvirtualnode "github.com/liqotech/liqo/pkg/utils/virtualnode"
 )
 
 // NoLimit is a constant to specify that autocompletion is not limited depending on the number of arguments.
@@ -141,6 +143,49 @@ func VirtualNodes(ctx context.Context, f *factory.Factory, argsLimit int) FnType
 	}
 
 	return common(ctx, f, argsLimit, retriever)
+}
+
+// LabelsSelector returns a function to autocomplete selector labels.
+func LabelsSelector(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		// labelsCounter contains a 'key=value' string as key and the number of times it appears as value.
+		labelsCounter := map[string]int{}
+		var virtualNodes virtualkubeletv1alpha1.VirtualNodeList
+		if err := f.CRClient.List(ctx, &virtualNodes); err != nil {
+			return nil, err
+		}
+		for i := range virtualNodes.Items {
+			labelSet, err := utilsvirtualnode.GetLabelSelectors(ctx, f.CRClient, &virtualNodes.Items[i])
+			if err != nil {
+				return nil, err
+			}
+			for k, v := range labelSet {
+				addLabelSelector(k, v, labelsCounter)
+			}
+		}
+		return parseLabelSelectors(labelsCounter, len(virtualNodes.Items)), nil
+	}
+	return common(ctx, f, argsLimit, retriever)
+}
+
+func addLabelSelector(key, value string, labelset map[string]int) {
+	entry := fmt.Sprintf("%s=%s", key, value)
+	if _, ok := labelset[entry]; ok {
+		labelset[entry]++
+		return
+	}
+	labelset[entry] = 1
+}
+
+func parseLabelSelectors(labelset map[string]int, max int) []string {
+	var output []string
+	for k, v := range labelset {
+		if v != max {
+			// this means that the label is not present in all virtualnodes or node, so can be used as selector
+			output = append(output, k)
+		}
+	}
+	return output
 }
 
 // ForeignClusters returns a function to autocomplete ForeignCluster names.

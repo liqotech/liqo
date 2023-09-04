@@ -31,6 +31,7 @@ import (
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	virtualnodeutils "github.com/liqotech/liqo/pkg/utils/virtualnode"
 )
 
 func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Context, nsoff *offv1alpha1.NamespaceOffloading,
@@ -102,10 +103,10 @@ func matchVirtualNodeSelectorTerms(ctx context.Context, cl client.Client, virtua
 	if len(selector.NodeSelectorTerms) == 0 {
 		return true, nil
 	}
-
-	n, err := getters.GetNodeFromVirtualNode(ctx, cl, virtualNode)
+	var n *corev1.Node
+	n, err := virtualnodeutils.ForgeFakeNodeFromVirtualNode(ctx, cl, virtualNode)
 	if err != nil {
-		return false, fmt.Errorf("failed to retrieve node %s from VirtualNode %s: %w", n.Name, virtualNode.Name, err)
+		return false, fmt.Errorf("failed to forge fake node from VirtualNode: %w", err)
 	}
 	return k8shelper.MatchNodeSelectorTerms(n, selector)
 }
