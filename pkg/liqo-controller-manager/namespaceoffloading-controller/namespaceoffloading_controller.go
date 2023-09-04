@@ -17,6 +17,7 @@ package nsoffctrl
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -56,6 +57,7 @@ const (
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings/finalizers,verbs=get;update;patch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnode, verbs=get;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
@@ -133,6 +135,8 @@ func (r *NamespaceOffloadingReconciler) SetupWithManager(mgr ctrl.Manager) error
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&offv1alpha1.NamespaceOffloading{}, builder.WithPredicates(filter)).
 		Watches(&mapsv1alpha1.NamespaceMap{}, r.namespaceMapHandlers()).
+		Watches(&mapsv1alpha1.VirtualNode{}, r.enqueueAll()).
+		Watches(&corev1.Node{}, r.enqueueAll()).
 		Complete(r)
 }
 
@@ -172,4 +176,23 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 			r.namespaces.ForEach(func(namespace string) { enqueue(rli, namespace) })
 		},
 	}
+}
+
+func (r *NamespaceOffloadingReconciler) enqueueAll() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+		var nsolist offv1alpha1.NamespaceOffloadingList
+		if err := r.Client.List(ctx, &nsolist); err != nil {
+			klog.Errorf("Failed to retrieve NamespaceOffloadingList: %v", err)
+			return nil
+		}
+		reqs := make([]reconcile.Request, len(nsolist.Items))
+		for i := range nsolist.Items {
+			reqs[i] = reconcile.Request{NamespacedName: types.NamespacedName{
+				Name:      nsolist.Items[i].Name,
+				Namespace: nsolist.Items[i].Namespace,
+			}}
+		}
+		return reqs
+	},
+	)
 }

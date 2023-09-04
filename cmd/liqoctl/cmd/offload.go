@@ -128,6 +128,7 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("pod-offloading-strategy", completion.Enumeration(podOffloadingStrategy.Allowed)))
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("namespace-mapping-strategy", completion.Enumeration(namespaceMappingStrategy.Allowed)))
+	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("selector", completion.LabelsSelector(ctx, f, completion.NoLimit)))
 	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 
 	return cmd

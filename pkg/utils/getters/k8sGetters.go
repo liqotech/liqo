@@ -271,9 +271,9 @@ func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *
 			return &nodes.Items[i], nil
 		}
 	}
-	podRN := string(corev1.ResourcePods)
-	podGR := corev1.Resource(podRN)
-	return nil, kerrors.NewNotFound(podGR, nodename)
+	nodeRN := "nodes"
+	nodeGR := corev1.Resource(nodeRN)
+	return nil, kerrors.NewNotFound(nodeGR, nodename)
 }
 
 // GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster.
