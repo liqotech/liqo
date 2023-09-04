@@ -18,7 +18,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/coreos/go-iptables/iptables"
 	"github.com/vishvananda/netlink"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/record"
@@ -31,6 +30,7 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqonet/iptables"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
@@ -156,11 +156,11 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 // ConfigureFirewall launches a long-running go routine that ensures the firewall configuration.
 func (rc *RouteController) ConfigureFirewall() error {
-	iptHandler, err := iptables.New()
+	ipt, err := iptables.NewIPTHandler()
 	if err != nil {
 		return err
 	}
-
+	iptHandler := &ipt.Ipt
 	rc.firewallChan = make(chan bool)
 	fwRules := generateRules(rc.vxlanDev.Link.Name)
 
