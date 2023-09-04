@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -49,7 +48,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
-	liqonetsignals "github.com/liqotech/liqo/pkg/liqonet/utils/signals"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
@@ -84,7 +82,8 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
 // NewTunnelController instantiates and initializes the tunnel controller.
-func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sClient k8s.Interface, cl client.Client,
+func NewTunnelController(ctx context.Context, wg *sync.WaitGroup,
+	podIP, namespace string, er record.EventRecorder, k8sClient k8s.Interface, cl client.Client,
 	readyClustersMutex *sync.Mutex, readyClusters map[string]struct{}, gatewayNetns, hostNetns ns.NetNS, mtu, port int,
 	updateStatusInterval time.Duration) (*TunnelController, error) {
 	tunnelEndpointFinalizer := liqoconst.LiqoGatewayOperatorName + "." + liqoconst.FinalizersSuffix
@@ -113,7 +112,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve tunnel iface from host netns: %w", err)
 	}
-	if err = tc.setUpGWNetns(liqoconst.HostVethName, liqoconst.GatewayVethName, mtu); err != nil {
+	if err = tc.setUpGWNetns(ctx, wg, liqoconst.HostVethName, liqoconst.GatewayVethName, mtu); err != nil {
 		return nil, fmt.Errorf("failed to setup gateway netns: %w", err)
 	}
 	// Move wireguard interface in the gateway network namespace.
@@ -416,18 +415,16 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 
 // SetupSignalHandlerForTunnelOperator registers for SIGTERM, SIGINT, SIGKILL. A context is returned
 // which is closed on one of these signals.
-func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Context {
-	ctx, done := context.WithCancel(context.Background())
-	c := make(chan os.Signal, 1)
-	liqonetsignals.NotifyPosix(c, liqonetsignals.ShutdownSignals...)
+func (tc *TunnelController) SetupSignalHandlerForTunnelOperator(ctx context.Context, wg *sync.WaitGroup) context.Context {
+	opctx, done := context.WithCancel(context.Background())
 	go func(tc *TunnelController) {
-		sig := <-c
-		klog.Infof("the operator received signal {%s}: cleaning up", sig.String())
-		// Here, the error is not checked, as at exit time is not possible to recover. Errors are just logged.
+		<-ctx.Done()
+		klog.Info("the operator received a shutdown signal: cleaning up")
+		wg.Wait()
 		tc.CleanUpConfiguration(liqoconst.GatewayNetnsName)
 		done()
 	}(tc)
-	return ctx
+	return opctx
 }
 
 // SetupWithManager configures the current controller to be managed by the given manager.
@@ -496,7 +493,7 @@ func (tc *TunnelController) SetUpRouteManager() error {
 	return nil
 }
 
-func (tc *TunnelController) setUpGWNetns(hostVethName, gatewayVethName string, vethMtu int) error {
+func (tc *TunnelController) setUpGWNetns(ctx context.Context, wg *sync.WaitGroup, hostVethName, gatewayVethName string, vethMtu int) error {
 	// Create veth pair to connect the two namespaces.
 	hostVeth, gatewayVeth, err := liqonetns.CreateVethPair(hostVethName, gatewayVethName, tc.hostNetns, tc.gatewayNetns, vethMtu)
 	if err != nil {
@@ -520,17 +517,16 @@ func (tc *TunnelController) setUpGWNetns(hostVethName, gatewayVethName string, v
 		return err
 	}
 
+	// Configure forwarding rule from hostveth to vxlan.
+	go enforceFirewallRules(ctx, wg, &tc.Ipt, hostVeth.Name)
+
 	// Configure the static neighbor entries, and subscribe to the events to perform updates in case the veth MAC address changes.
 	return liqonetns.RegisterOnVethHwAddrChangeHandler(tc.hostNetns, hostVethName, func(hwaddr net.HardwareAddr) error {
 		if err := liqonetns.ConfigureVethNeigh(&hostVeth, liqoconst.GatewayVethIPAddr, gatewayVeth.HardwareAddr, tc.hostNetns); err != nil {
 			return err
 		}
 
-		if err := liqonetns.ConfigureVethNeigh(&gatewayVeth, liqoconst.HostVethIPAddr, hwaddr, tc.gatewayNetns); err != nil {
-			return err
-		}
-
-		return nil
+		return liqonetns.ConfigureVethNeigh(&gatewayVeth, liqoconst.HostVethIPAddr, hwaddr, tc.gatewayNetns)
 	})
 }
 
@@ -588,6 +584,14 @@ func (tc *TunnelController) cleanupRouteFinalizers(ctx context.Context, tep *net
 // custom network namespace.
 func (tc *TunnelController) CleanUpConfiguration(netnsName string) {
 	klog.Infof("cleaning up...")
+
+	klog.V(4).Infof("deleting iptables rules for cluster {%s}", tc.namespace)
+	fwRules := generateForwardingRules(tc.hostVeth.Name)
+	for i := range fwRules {
+		if err := deleteRule(&tc.Ipt, &fwRules[i]); err != nil {
+			klog.Errorf("an error occurred while deleting iptables rule {%s}: %v", &fwRules[i], err)
+		}
+	}
 
 	klog.V(4).Infof("deleting neigh entry with mac {%s} and dst {%s} on device {%s}",
 		tc.gatewayVeth.HardwareAddr.String(), liqoconst.GatewayVethIPAddr, tc.hostVeth.Name)

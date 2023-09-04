@@ -205,10 +205,7 @@ func initIPTables() error {
 		if err := ipt.EnsureChainRulesPerCluster(tep1); err != nil {
 			return err
 		}
-		if err := ipt.EnsureChainRulesPerCluster(tep2); err != nil {
-			return err
-		}
-		return nil
+		return ipt.EnsureChainRulesPerCluster(tep2)
 	})
 	return err
 }
