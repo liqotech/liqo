@@ -425,9 +425,9 @@ var _ = Describe("iptables", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				// Check if Liqo chains do exist
-				natChains, err := h.ipt.ListChains(natTable)
+				natChains, err := h.Ipt.ListChains(natTable)
 				Expect(err).ToNot(HaveOccurred())
-				filterChains, err := h.ipt.ListChains(filterTable)
+				filterChains, err := h.Ipt.ListChains(filterTable)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(natChains).ToNot(ContainElements(getLiqoChains()))
@@ -460,9 +460,9 @@ var _ = Describe("iptables", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				// Check if Liqo chains do exist
-				natChains, err := h.ipt.ListChains(natTable)
+				natChains, err := h.Ipt.ListChains(natTable)
 				Expect(err).ToNot(HaveOccurred())
-				filterChains, err := h.ipt.ListChains(filterTable)
+				filterChains, err := h.Ipt.ListChains(filterTable)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(natChains).ToNot(ContainElements(getLiqoChains()))

@@ -91,7 +91,7 @@ func ParseRule(rule string) (IPTableRule, error) {
 
 // IPTHandler a handler that exposes all the functions needed to configure the iptables chains and rules.
 type IPTHandler struct {
-	ipt iptables.IPTables
+	Ipt iptables.IPTables
 }
 
 // NewIPTHandler return the iptables handler used to configure the iptables rules.
@@ -110,7 +110,7 @@ func NewIPTHandler() (IPTHandler, error) {
 	v1, v2, v3, mode := ipt.GetIptablesVersion()
 	klog.Infof("Iptables version: %d.%d.%d, mode: %s", v1, v2, v3, mode)
 	return IPTHandler{
-		ipt: *ipt,
+		Ipt: *ipt,
 	}, err
 }
 
@@ -198,7 +198,7 @@ func (h IPTHandler) removeLiqoRules() error {
 
 // Function that deletes Liqo chains from a specific table.
 func (h IPTHandler) deleteLiqoChainsFromTable(liqoChains map[string]string, table string) error {
-	existingChains, err := h.ipt.ListChains(table)
+	existingChains, err := h.Ipt.ListChains(table)
 	if err != nil {
 		return nil
 	}
@@ -257,10 +257,10 @@ func (h IPTHandler) deleteChainsInTable(table string, chains, chainsToBeRemoved 
 			continue
 		}
 		// Chain does exist, then delete it.
-		if err := h.ipt.ClearChain(table, chain); err != nil {
+		if err := h.Ipt.ClearChain(table, chain); err != nil {
 			return err
 		}
-		if err := h.ipt.DeleteChain(table, chain); err != nil {
+		if err := h.Ipt.DeleteChain(table, chain); err != nil {
 			return err
 		}
 		klog.Infof("Deleted chain %s (table %s)", chain, getTableFromChain(chain))
@@ -423,7 +423,7 @@ func (h IPTHandler) deleteRulesInChain(chain string, rules []IPTableRule) error 
 			continue
 		}
 		// Rule exists, then delete it
-		if err := h.ipt.Delete(table, chain, rule...); err != nil {
+		if err := h.Ipt.Delete(table, chain, rule...); err != nil {
 			return err
 		}
 		klog.Infof("Deleted rule %s in chain %s (table %s)", rule, chain, table)
@@ -434,12 +434,12 @@ func (h IPTHandler) deleteRulesInChain(chain string, rules []IPTableRule) error 
 // Function removes all the chains (and contained rules) related to a remote cluster.
 func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 	// Get existing NAT chains
-	existingChainsNAT, err := h.ipt.ListChains(natTable)
+	existingChainsNAT, err := h.Ipt.ListChains(natTable)
 	if err != nil {
 		return err
 	}
 	// Get existing Filter chains
-	existingChainsFilter, err := h.ipt.ListChains(filterTable)
+	existingChainsFilter, err := h.Ipt.ListChains(filterTable)
 	if err != nil {
 		return err
 	}
@@ -453,7 +453,7 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 			if !slice.ContainsString(existingChainsNAT, chain) {
 				continue
 			}
-			if err := h.ipt.ClearAndDeleteChain(natTable, chain); err != nil {
+			if err := h.Ipt.ClearAndDeleteChain(natTable, chain); err != nil {
 				return err
 			}
 			klog.Infof("Deleted chain %s in table %s", chain, getTableFromChain(chain))
@@ -463,10 +463,10 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 			if !slice.ContainsString(existingChainsFilter, chain) {
 				continue
 			}
-			if err := h.ipt.ClearChain(filterTable, chain); err != nil {
+			if err := h.Ipt.ClearChain(filterTable, chain); err != nil {
 				return err
 			}
-			if err := h.ipt.DeleteChain(filterTable, chain); err != nil {
+			if err := h.Ipt.DeleteChain(filterTable, chain); err != nil {
 				return err
 			}
 			klog.Infof("Deleted chain %s in table %s", chain, getTableFromChain(chain))
@@ -567,7 +567,7 @@ func getSliceContainingString(stringSlice []string, s string) (stringsThatContai
 
 // ListRulesInChain is used to adjust the result returned by List of go-iptables.
 func (h IPTHandler) ListRulesInChain(chain string) ([]string, error) {
-	existingRules, err := h.ipt.List(getTableFromChain(chain), chain)
+	existingRules, err := h.Ipt.List(getTableFromChain(chain), chain)
 	if err != nil {
 		return nil, err
 	}
@@ -585,7 +585,7 @@ func (h IPTHandler) ListRulesInChain(chain string) ([]string, error) {
 
 func (h IPTHandler) createIptablesChainIfNotExists(table, newChain string) error {
 	// get existing chains
-	chainsList, err := h.ipt.ListChains(table)
+	chainsList, err := h.Ipt.ListChains(table)
 	if err != nil {
 		return fmt.Errorf("cannot retrieve chains in table -> %s : %w", table, err)
 	}
@@ -596,7 +596,7 @@ func (h IPTHandler) createIptablesChainIfNotExists(table, newChain string) error
 		}
 	}
 	// if we come here the chain does not exist so we insert it
-	err = h.ipt.NewChain(table, newChain)
+	err = h.Ipt.NewChain(table, newChain)
 	if err != nil {
 		return fmt.Errorf("unable to create %s chain in %s table: %w", newChain, table, err)
 	}
@@ -607,7 +607,7 @@ func (h IPTHandler) createIptablesChainIfNotExists(table, newChain string) error
 func (h IPTHandler) insertLiqoRuleIfNotExists(chain string, rule IPTableRule) error {
 	table := getTableFromChain(chain)
 	// Get the list of rules for the specified chain
-	existingRules, err := h.ipt.List(table, chain)
+	existingRules, err := h.Ipt.List(table, chain)
 	if err != nil {
 		return fmt.Errorf("unable to get the rules in %s chain in %s table : %w", chain, table, err)
 	}
@@ -621,11 +621,11 @@ func (h IPTHandler) insertLiqoRuleIfNotExists(chain string, rule IPTableRule) er
 	// If the occurrences if greater then one, remove the rule
 	if numOccurrences > 1 {
 		for i := 0; i < numOccurrences; i++ {
-			if err = h.ipt.Delete(table, chain, rule...); err != nil {
+			if err = h.Ipt.Delete(table, chain, rule...); err != nil {
 				return fmt.Errorf("unable to delete iptable rule %q: %w", rule, err)
 			}
 		}
-		if err = h.ipt.Insert(table, chain, 1, rule...); err != nil {
+		if err = h.Ipt.Insert(table, chain, 1, rule...); err != nil {
 			return fmt.Errorf("unable to insert iptable rule %q: %w", rule, err)
 		}
 	}
@@ -634,17 +634,17 @@ func (h IPTHandler) insertLiqoRuleIfNotExists(chain string, rule IPTableRule) er
 		if strings.Contains(existingRules[0], rule.String()) {
 			return nil
 		}
-		if err = h.ipt.Delete(table, chain, rule...); err != nil {
+		if err = h.Ipt.Delete(table, chain, rule...); err != nil {
 			return fmt.Errorf("unable to delete iptable rule %q: %w", rule, err)
 		}
-		if err = h.ipt.Insert(table, chain, 1, rule...); err != nil {
+		if err = h.Ipt.Insert(table, chain, 1, rule...); err != nil {
 			return fmt.Errorf("unable to inserte iptable rule %q: %w", rule, err)
 		}
 		return nil
 	}
 	if numOccurrences == 0 {
 		// If the occurrence is zero then insert the rule in first position
-		if err = h.ipt.Insert(table, chain, 1, rule...); err != nil {
+		if err = h.Ipt.Insert(table, chain, 1, rule...); err != nil {
 			return fmt.Errorf("unable to insert iptable rule %q: %w", rule, err)
 		}
 		klog.Infof("Inserted rule '%s' in chain %s of table %s", rule, chain, table)
@@ -670,7 +670,7 @@ func (h IPTHandler) updateSpecificRulesPerChain(chain string, existingRules []st
 			}
 		}
 		if outdated {
-			if err := h.ipt.Delete(table, chain, existingRule...); err != nil {
+			if err := h.Ipt.Delete(table, chain, existingRule...); err != nil {
 				return fmt.Errorf("unable to delete outdated rule %s from chain %s (table %s): %w",
 					existingRule, chain, table, err)
 			}
@@ -695,13 +695,13 @@ func (h IPTHandler) updateRulesPerChain(chain string, newRules []IPTableRule) er
 
 func (h IPTHandler) insertRulesIfNotPresent(table, chain string, rules []IPTableRule) error {
 	for _, rule := range rules {
-		exists, err := h.ipt.Exists(table, chain, rule...)
+		exists, err := h.Ipt.Exists(table, chain, rule...)
 		if err != nil {
 			klog.Errorf("unable to check if rule '%s' exists in chain %s in table %s: %w", rule, chain, table, err)
 			return err
 		}
 		if !exists {
-			if err := h.ipt.AppendUnique(table, chain, rule...); err != nil {
+			if err := h.Ipt.AppendUnique(table, chain, rule...); err != nil {
 				return err
 			}
 			klog.Infof("Inserting rule '%s' in chain %s (table %s)", rule, chain, table)
