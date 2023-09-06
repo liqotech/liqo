@@ -4,6 +4,8 @@ option go_package = "./ipam";
 service ipam {
     rpc MapEndpointIP (MapRequest) returns (MapResponse);
     rpc UnmapEndpointIP (UnmapRequest) returns (UnmapResponse);
+    rpc MapNetworkCIDR (MapCIDRRequest) returns (MapCIDRResponse);
+    rpc UnmapNetworkCIDR (UnmapCIDRRequest) returns (UnmapCIDRResponse);
     rpc GetHomePodIP (GetHomePodIPRequest) returns (GetHomePodIPResponse);
     rpc BelongsToPodCIDR (BelongsRequest) returns (BelongsResponse);
 }
@@ -23,6 +25,20 @@ message UnmapRequest {
 }
 
 message UnmapResponse {}
+
+message MapCIDRRequest {
+    string cidr = 1;
+}
+
+message MapCIDRResponse {
+    string cidr = 1;
+}
+
+message UnmapCIDRRequest {
+    string cidr = 1;
+}
+
+message UnmapCIDRResponse {}
 
 message GetHomePodIPRequest {
     string clusterID = 1;
