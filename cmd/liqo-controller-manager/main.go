@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -25,6 +26,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	certificates "k8s.io/api/certificates/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -49,6 +52,7 @@ import (
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -57,8 +61,10 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
+	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
+	networkctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/network-controller"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
@@ -69,10 +75,13 @@ import (
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnode-controller"
 	fcwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/foreigncluster"
+	ipwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/ip"
 	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
+	nwwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/network"
 	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
 	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
 	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
+	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -98,6 +107,7 @@ func init() {
 	_ = discoveryv1alpha1.AddToScheme(scheme)
 	_ = offloadingv1alpha1.AddToScheme(scheme)
 	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
+	_ = ipamv1alpha1.AddToScheme(scheme)
 }
 
 func main() {
@@ -113,6 +123,7 @@ func main() {
 	var annotationsNotReflected argsutils.StringList
 	var ingressClasses argsutils.ClassNameList
 	var loadBalancerClasses argsutils.ClassNameList
+	var ipamClient ipam.IpamClient
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -136,6 +147,8 @@ func main() {
 	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
 	shadowEndpointSliceWorkers := flag.Int("shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
+	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
+	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
 	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
 	foreignClusterPingInterval := flag.Duration("foreign-cluster-ping-interval", 15*time.Second,
 		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
@@ -181,7 +194,9 @@ func main() {
 
 	flag.Var(&labelsNotReflected, "labels-not-reflected", "List of labels (key) that must not be reflected")
 	flag.Var(&annotationsNotReflected, "annotations-not-reflected", "List of annotations (key) that must not be reflected")
-	kubeletIpamServer := flag.String("kubelet-ipam-server", "",
+
+	// Ipam server endpoint
+	ipamServer := flag.String("ipam-server", "",
 		"The address of the IPAM server to use for the virtual kubelet (set to empty string to disable IPAM)")
 
 	// Storage Provisioner parameters
@@ -212,7 +227,7 @@ func main() {
 		RequestsRAM:             kubeletRAMRequests.Quantity,
 		LimitsCPU:               kubeletCPULimits.Quantity,
 		LimitsRAM:               kubeletRAMLimits.Quantity,
-		IpamEndpoint:            *kubeletIpamServer,
+		IpamEndpoint:            *ipamServer,
 		MetricsAddress:          kubeletMetricsAddress,
 		MetricsEnabled:          kubeletMetricsEnabled,
 		ReflectorsWorkers:       reflectorsWorkers,
@@ -345,6 +360,8 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), &clusterIdentity, virtualKubeletOpts))
+	mgr.GetWebhookServer().Register("/validate/networks", nwwh.NewValidator())
+	mgr.GetWebhookServer().Register("/validate/ips", ipwh.NewValidator())
 
 	if err := indexer.IndexField(ctx, mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
 		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
@@ -545,6 +562,42 @@ func main() {
 		}
 		if err = nodeFailureReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the nodeFailureReconciler", err)
+			os.Exit(1)
+		}
+	}
+
+	// Connect to the IPAM server if specified.
+	if *ipamServer != "" {
+		klog.Infof("connecting to the IPAM server %q", *ipamServer)
+		dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		connection, err := grpc.DialContext(dialctx, *ipamServer,
+			grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		cancel()
+		if err != nil {
+			klog.Errorf("failed to establish a connection to the IPAM %q", *ipamServer)
+			os.Exit(1)
+		}
+		ipamClient = ipam.NewIpamClient(connection)
+	}
+
+	if !*disableInternalNetwork {
+		networkReconciler := &networkctrl.NetworkReconciler{
+			Client:     mgr.GetClient(),
+			Scheme:     mgr.GetScheme(),
+			IpamClient: ipamClient,
+		}
+		if err = networkReconciler.SetupWithManager(mgr, *networkWorkers); err != nil {
+			klog.Errorf("Unable to start the networkReconciler", err)
+			os.Exit(1)
+		}
+
+		ipReconciler := &ipctrl.IPReconciler{
+			Client:     mgr.GetClient(),
+			Scheme:     mgr.GetScheme(),
+			IpamClient: ipamClient,
+		}
+		if err = ipReconciler.SetupWithManager(ctx, mgr, *ipWorkers); err != nil {
+			klog.Errorf("Unable to start the ipReconciler", err)
 			os.Exit(1)
 		}
 	}
