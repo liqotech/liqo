@@ -109,12 +109,12 @@ spec:
           {{- else }}
           {{- end }}
           {{- if .Values.networkManager.externalIPAM.enabled }}
-          - --kubelet-ipam-server={{ .Values.networkManager.externalIPAM.url }}
+          - --ipam-server={{ .Values.networkManager.externalIPAM.url }}
           {{- else if not .Values.networking.internal }}
-          - --kubelet-ipam-server=
+          - --ipam-server=
           - --disable-internal-network
           {{- else }}
-          - --kubelet-ipam-server={{ include "liqo.prefixedName" $netManagerConfig }}.{{ .Release.Namespace }}:6000
+          - --ipam-server={{ include "liqo.prefixedName" $netManagerConfig }}.{{ .Release.Namespace }}:6000
           {{- end }}
           - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
           - --enable-storage={{ .Values.storage.enable }}
