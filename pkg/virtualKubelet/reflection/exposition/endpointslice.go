@@ -65,6 +65,7 @@ type NamespacedEndpointSliceReflector struct {
 
 	ipamclient   ipam.IpamClient
 	translations sync.Map
+	epsSkipUnmap sync.Map
 }
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
@@ -165,9 +166,12 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 
 	// The local endpointslice does no longer exist. Ensure it is also absent from the remote cluster.
 	if !localExists {
-		// Release the address translations
-		if err := ner.UnmapEndpointIPs(ctx, name); err != nil {
-			return err
+		_, skipUnmap := ner.epsSkipUnmap.Load(name)
+		if !skipUnmap {
+			// Release the address translations
+			if err := ner.UnmapEndpointIPs(ctx, name); err != nil {
+				return err
+			}
 		}
 
 		defer tracer.Step("Ensured the absence of the remote object")
@@ -178,6 +182,20 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 
 		klog.V(4).Infof("Local EndpointSlice %q and remote EndpointSlice %q both vanished", ner.LocalRef(name), ner.RemoteRef(name))
 		return nil
+	}
+
+	// If the local endpointslice has the "skip unmap ip" annotation, then we do not have to unmap the addresses as already
+	// performed by other entities. We store in a cache if the endpointslice has the annotation or not, so that we have that
+	// information even when the local endpointslice is deleted (and therefore we can't check the existence of the annotation).
+	hasSkipUnmapAnnot := false
+	if local.GetAnnotations() != nil {
+		_, hasSkipUnmapAnnot = local.GetAnnotations()[consts.VKSkipUnmapIPAnnotationKey]
+	}
+	if hasSkipUnmapAnnot {
+		// the map contains only the keys of the endpoinstslices with the annotation, the values are not used.
+		ner.epsSkipUnmap.Store(name, nil)
+	} else {
+		ner.epsSkipUnmap.Delete(name)
 	}
 
 	// Wrap the address translation logic, so that we do not have to handle errors in the forge logic.
