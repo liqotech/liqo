@@ -59,3 +59,37 @@ webhooks:
         resources: ["shadowpods"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+  - name: network.validate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/validate/networks"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["ipam.liqo.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["networks"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
+  - name: ip.validate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/validate/ips"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["ipam.liqo.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["ips"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
