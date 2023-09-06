@@ -227,6 +227,8 @@ func main() {
 	reqRemoteLiqoPods, err := labels.NewRequirement(consts.ManagedByLabelKey, selection.Equals, []string{consts.ManagedByShadowPodValue})
 	utilruntime.Must(err)
 
+	// Create the main manager.
+	// This manager caches only the pods that are offloaded from a remote cluster and are scheduled on this.
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		MapperProvider:                mapper.LiqoMapperProvider(scheme),
 		Scheme:                        scheme,
@@ -257,7 +259,8 @@ func main() {
 	utilruntime.Must(err)
 
 	// Create an accessory manager that cache only local offloaded pods.
-	auxmgr, err := ctrl.NewManager(config, ctrl.Options{
+	// This manager caches only the pods that are offloaded and scheduled on a remote cluster.
+	auxmgrLocalPods, err := ctrl.NewManager(config, ctrl.Options{
 		MapperProvider:     mapper.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
@@ -275,12 +278,42 @@ func main() {
 		klog.Errorf("Unable to create auxiliary manager: %w", err)
 		os.Exit(1)
 	}
-	if err := mgr.Add(auxmgr); err != nil {
+
+	// Create a label selector to filter only the events for virtual kubelet pods
+	reqVirtualKubeletPods, err := labels.NewRequirement(consts.K8sAppComponentKey, selection.Equals,
+		[]string{vkMachinery.KubeletBaseLabels[consts.K8sAppComponentKey]})
+	utilruntime.Must(err)
+
+	// Create an accessory manager that cache only local offloaded pods.
+	// This manager caches only virtual kubelet pods.
+	auxmgrVirtualKubeletPods, err := ctrl.NewManager(config, ctrl.Options{
+		MapperProvider:     mapper.LiqoMapperProvider(scheme),
+		Scheme:             scheme,
+		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
+				&corev1.Pod{}: {
+					Label: labels.NewSelector().Add(*reqVirtualKubeletPods),
+				},
+			}
+			return cache.New(config, opts)
+		},
+	})
+
+	if err != nil {
+		klog.Errorf("Unable to create auxiliary manager: %w", err)
+		os.Exit(1)
+	}
+
+	if err := mgr.Add(auxmgrLocalPods); err != nil {
 		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
 		os.Exit(1)
 	}
 
-	localPodsClient := auxmgr.GetClient()
+	if err := mgr.Add(auxmgrVirtualKubeletPods); err != nil {
+		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
+		os.Exit(1)
+	}
 
 	// Register the healthiness probes.
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -307,7 +340,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := indexer.IndexField(ctx, auxmgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
+	if err := indexer.IndexField(ctx, auxmgrLocalPods, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
 		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
 		os.Exit(1)
 	}
@@ -394,7 +427,8 @@ func main() {
 	virtualNodeReconciler, err := virtualnodectrl.NewVirtualNodeReconciler(
 		ctx,
 		mgr.GetClient(),
-		auxmgr.GetClient(),
+		auxmgrLocalPods.GetClient(),
+		auxmgrVirtualKubeletPods.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("virtualnode-controller"),
 		&clusterIdentity,
@@ -485,7 +519,7 @@ func main() {
 	podStatusReconciler := &podstatusctrl.PodStatusReconciler{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
-		LocalPodsClient: localPodsClient,
+		LocalPodsClient: auxmgrLocalPods.GetClient(),
 	}
 	if err = podStatusReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the podstatus reconciler", err)

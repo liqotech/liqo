@@ -32,6 +32,7 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 // GetIPAMStorageByLabel it returns a IPAMStorage instance that matches the given label selector.
@@ -311,4 +312,16 @@ func MapForeignClustersByLabel(ctx context.Context, cl client.Client,
 		result[list.Items[i].Name] = list.Items[i]
 	}
 	return result, nil
+}
+
+// ListVirtualKubeletPodsFromVirtualNode returns the list of pods running a VirtualNode's VirtualKubelet.
+func ListVirtualKubeletPodsFromVirtualNode(ctx context.Context, cl client.Client,
+	vn *virtualkubeletv1alpha1.VirtualNode, vkopt *vkforge.VirtualKubeletOpts) (*corev1.PodList, error) {
+	list := &corev1.PodList{}
+	vklabels := vkforge.VirtualKubeletLabels(vn, vkopt)
+	err := cl.List(ctx, list, client.MatchingLabels(vklabels))
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }

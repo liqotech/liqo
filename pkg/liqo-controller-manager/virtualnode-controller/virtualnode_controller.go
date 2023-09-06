@@ -16,6 +16,7 @@ package virtualnodectrl
 
 import (
 	"context"
+	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,7 +50,10 @@ const (
 // VirtualNodeReconciler manage NamespaceMap lifecycle.
 type VirtualNodeReconciler struct {
 	client.Client
-	ClientLocal           client.Client
+	// Client used to list local pods
+	ClientLocal client.Client
+	// Client used to list virtual-kubelet pods
+	ClientVK              client.Client
 	Scheme                *runtime.Scheme
 	HomeClusterIdentity   *discoveryv1alpha1.ClusterIdentity
 	VirtualKubeletOptions *vkforge.VirtualKubeletOpts
@@ -60,13 +64,14 @@ type VirtualNodeReconciler struct {
 // NewVirtualNodeReconciler returns a new VirtualNodeReconciler.
 func NewVirtualNodeReconciler(
 	ctx context.Context,
-	cl client.Client, cll client.Client,
+	cl client.Client, cll client.Client, clvk client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
 	hci *discoveryv1alpha1.ClusterIdentity, vko *vkforge.VirtualKubeletOpts,
 ) (*VirtualNodeReconciler, error) {
 	vnr := &VirtualNodeReconciler{
 		Client:                cl,
 		ClientLocal:           cll,
+		ClientVK:              clvk,
 		Scheme:                s,
 		HomeClusterIdentity:   hci,
 		VirtualKubeletOptions: vko,
@@ -97,8 +102,7 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			klog.Infof("There is no a virtual-node called '%s' in '%s'", req.Name, req.Namespace)
 			return ctrl.Result{}, nil
 		}
-		klog.Errorf(" %s --> Unable to get the virtual-node '%s'", err, req.Name)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf(" %w --> Unable to get the virtual-node '%s'", err, req.Name)
 	}
 
 	if virtualNode.DeletionTimestamp.IsZero() {
@@ -109,18 +113,22 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	} else {
 		if ctrlutil.ContainsFinalizer(virtualNode, virtualNodeControllerFinalizer) {
-			r.dr.EnsureNodeAbsence(virtualNode)
-			return ctrl.Result{Requeue: true}, nil
+			// If the virtual-node is being deleted, it deletes the node and the virtual-node resource.
+			if err := r.dr.EnsureNodeAbsence(virtualNode); err != nil {
+				return ctrl.Result{}, fmt.Errorf(" %w --> Unable to delete the virtual-node", err)
+			}
 		}
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, r.Client, virtualNode); err != nil {
-		klog.Errorf(" %s --> Unable to create the virtual-kubelet deployment", err)
-		return ctrl.Result{}, err
+	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, virtualNode); err != nil {
+		return ctrl.Result{}, fmt.Errorf(" %w --> Unable to create the virtual-kubelet deployment", err)
 	}
 	if !*virtualNode.Spec.CreateNode {
-		r.dr.EnsureNodeAbsence(virtualNode)
+		// If the virtual-node is not enabled, it deletes the node but not the virtual-node resource.
+		if err := r.dr.EnsureNodeAbsence(virtualNode); err != nil {
+			return ctrl.Result{}, fmt.Errorf(" %w --> Unable to delete the node", err)
+		}
 	}
 
 	// If there is no NamespaceMap associated with this virtual-node, it creates a new one.

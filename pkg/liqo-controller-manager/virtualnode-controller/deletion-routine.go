@@ -19,18 +19,28 @@ package virtualnodectrl
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	vkMachineryForge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
+	vkutils "github.com/liqotech/liqo/pkg/vkMachinery/utils"
 )
 
 var (
 	deletionRoutineRunning = false
+	createNodeFalseFlag    = vkutils.Flag{
+		Name:  string(vkMachineryForge.CreateNode),
+		Value: strconv.FormatBool(false),
+	}
 )
 
 // DeletionRoutine is responsible for deleting a virtual node.
@@ -53,64 +63,129 @@ func RunDeletionRoutine(ctx context.Context, r *VirtualNodeReconciler) (*Deletio
 	return dr, nil
 }
 
-func (dr *DeletionRoutine) run(ctx context.Context) {
-	for {
-		vni, _ := dr.wq.Get()
-		vn := vni.(*virtualkubeletv1alpha1.VirtualNode)
-		klog.Infof("Deletion routine started for virtual node %s", vn.Name)
-		if err := UpdateCondition(ctx, dr.vnr.Client, vn,
-			VkConditionMap{
-				virtualkubeletv1alpha1.NodeConditionType: VkCondition{
-					Status: virtualkubeletv1alpha1.DrainingConditionStatusType,
-				},
-			}); err != nil {
-			dr.reEnqueueVirtualNode(vn, fmt.Errorf("error updating condition: %w", err))
-			continue
-		}
-
-		node, err := getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn)
-		if client.IgnoreNotFound(err) != nil {
-			dr.reEnqueueVirtualNode(vn, fmt.Errorf("error getting node: %w", err))
-			continue
-		}
-
-		if node != nil {
-			if err := dr.deleteNode(ctx, node, vn); err != nil {
-				dr.reEnqueueVirtualNode(vn, fmt.Errorf("error deleting node: %w", err))
-				continue
-			}
-		}
-
-		if !vn.DeletionTimestamp.IsZero() {
-			if err := dr.vnr.ensureNamespaceMapAbsence(ctx, vn); err != nil {
-				dr.reEnqueueVirtualNode(vn, fmt.Errorf("error deleting namespace map: %w", err))
-				continue
-			}
-			err := dr.vnr.removeVirtualNodeFinalizer(ctx, vn)
-			if err != nil {
-				dr.reEnqueueVirtualNode(vn, fmt.Errorf("error removing finalizer: %w", err))
-				continue
-			}
-		}
-
-		klog.Infof("Deletion routine completed for virtual node %s", vn.Name)
-		dr.wq.Forget(vn)
-		dr.wq.Done(vn)
-	}
-}
-
-// reEnqueueVirtualNode re-enqueues a virtual node in the deletion queue.
-func (dr *DeletionRoutine) reEnqueueVirtualNode(vn *virtualkubeletv1alpha1.VirtualNode, err error) {
-	if err != nil {
-		klog.Error(err)
-	}
-	dr.wq.Done(vn)
-	dr.wq.AddRateLimited(vn)
-}
-
 // EnsureNodeAbsence adds a virtual node to the deletion queue.
-func (dr *DeletionRoutine) EnsureNodeAbsence(vn *virtualkubeletv1alpha1.VirtualNode) {
-	dr.wq.AddRateLimited(vn)
+func (dr *DeletionRoutine) EnsureNodeAbsence(vn *virtualkubeletv1alpha1.VirtualNode) error {
+	key, err := cache.MetaNamespaceKeyFunc(vn)
+	if err != nil {
+		return fmt.Errorf("error getting key: %w", err)
+	}
+	dr.wq.AddRateLimited(key)
+	return nil
+}
+
+func (dr *DeletionRoutine) run(ctx context.Context) {
+	defer klog.Error("Deletion routine stopped")
+	for dr.processNextItem(ctx) {
+	}
+}
+
+func (dr *DeletionRoutine) processNextItem(ctx context.Context) bool {
+	var err error
+	key, quit := dr.wq.Get()
+	if quit {
+		return false
+	}
+	defer dr.wq.Done(key)
+
+	ref, ok := key.(string)
+	if !ok {
+		klog.Errorf("expected string in workqueue but got %#v", key)
+		return true
+	}
+
+	if err = dr.handle(ctx, ref); err == nil {
+		dr.wq.Forget(key)
+		return true
+	}
+
+	klog.Errorf("error processing %q (will retry): %v", key, err)
+	dr.wq.AddRateLimited(key)
+	return true
+}
+
+func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
+	var namespace, name string
+	namespace, name, err = cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		err = fmt.Errorf("error splitting key: %w", err)
+		return err
+	}
+	ref := types.NamespacedName{Namespace: namespace, Name: name}
+	vn := &virtualkubeletv1alpha1.VirtualNode{}
+	if err = dr.vnr.Client.Get(ctx, ref, vn); err != nil {
+		if k8serrors.IsNotFound(err) {
+			err = nil
+			return err
+		}
+		err = fmt.Errorf("error getting virtual node: %w", err)
+		return err
+	}
+
+	defer func() {
+		if interr := dr.vnr.Client.Status().Update(ctx, vn); interr != nil {
+			if err != nil {
+				klog.Error(err)
+			}
+			err = fmt.Errorf("error updating virtual node status: %w", interr)
+		}
+	}()
+
+	klog.Infof("Deletion routine started for virtual node %s", vn.Name)
+	ForgeCondition(vn,
+		VnConditionMap{
+			virtualkubeletv1alpha1.NodeConditionType: VnCondition{
+				Status: virtualkubeletv1alpha1.DrainingConditionStatusType,
+			}})
+
+	var node *corev1.Node
+	node, err = getters.GetNodeFromVirtualNode(ctx, dr.vnr.Client, vn)
+	if client.IgnoreNotFound(err) != nil {
+		err = fmt.Errorf("error getting node: %w", err)
+		return err
+	}
+
+	if node != nil {
+		if !*vn.Spec.CreateNode {
+			// We need to ensure that the current pods will no recreate the node after deleting it.
+			var found bool
+			if found, err = vkutils.CheckVirtualKubeletFlagsConsistence(
+				ctx, dr.vnr.ClientVK, vn, dr.vnr.VirtualKubeletOptions, createNodeFalseFlag); err != nil || !found {
+				if err == nil {
+					err = fmt.Errorf("virtual kubelet pods are still running with arg %s", createNodeFalseFlag.String())
+					return err
+				}
+				err = fmt.Errorf("error checking virtual kubelet pods: %w", err)
+				return err
+			}
+		}
+		if err = dr.deleteNode(ctx, node, vn); err != nil {
+			err = fmt.Errorf("error deleting node: %w", err)
+			return err
+		}
+	}
+
+	if !vn.DeletionTimestamp.IsZero() {
+		// VirtualNode resource is being deleted.
+		if err = dr.vnr.ensureNamespaceMapAbsence(ctx, vn); err != nil {
+			err = fmt.Errorf("error deleting namespace map: %w", err)
+			return err
+		}
+		err = dr.vnr.removeVirtualNodeFinalizer(ctx, vn)
+		if err != nil {
+			err = fmt.Errorf("error removing finalizer: %w", err)
+			return err
+		}
+	} else {
+		// Node is being deleted, but the VirtualNode resource is not.
+		// The VirtualNode .Spec.CreateNode field is set to false.
+		ForgeCondition(vn, VnConditionMap{
+			virtualkubeletv1alpha1.NodeConditionType: VnCondition{
+				Status: virtualkubeletv1alpha1.NoneConditionStatusType,
+			}})
+	}
+
+	klog.Infof("Deletion routine completed for virtual node %s", vn.Name)
+	return err
 }
 
 // deleteNode deletes the Node created by VirtualNode.
@@ -128,30 +203,25 @@ func (dr *DeletionRoutine) deleteNode(ctx context.Context, node *corev1.Node, vn
 	klog.Infof("Node %s drained", node.Name)
 
 	if !vn.DeletionTimestamp.IsZero() {
-		if err := UpdateCondition(ctx, dr.vnr.Client, vn,
-			VkConditionMap{
-				virtualkubeletv1alpha1.VirtualKubeletConditionType: VkCondition{
+		ForgeCondition(vn,
+			VnConditionMap{
+				virtualkubeletv1alpha1.VirtualKubeletConditionType: VnCondition{
 					Status: virtualkubeletv1alpha1.DeletingConditionStatusType,
 				},
 			},
-		); err != nil {
-			return fmt.Errorf("error updating condition: %w", err)
-		}
-		if reEnque, err := dr.vnr.ensureVirtualKubeletDeploymentAbsence(ctx, vn); reEnque {
+		)
+		if err := dr.vnr.ensureVirtualKubeletDeploymentAbsence(ctx, vn); err != nil {
 			return fmt.Errorf("error deleting virtual kubelet deployment: %w", err)
 		}
 	}
-
 	klog.Infof("VirtualKubelet deployment %s deleted", vn.Name)
 
-	if err := UpdateCondition(ctx, dr.vnr.Client, vn,
-		VkConditionMap{
-			virtualkubeletv1alpha1.NodeConditionType: VkCondition{
+	ForgeCondition(vn,
+		VnConditionMap{
+			virtualkubeletv1alpha1.NodeConditionType: VnCondition{
 				Status: virtualkubeletv1alpha1.DeletingConditionStatusType,
 			},
-		}); err != nil {
-		return fmt.Errorf("error updating condition: %w", err)
-	}
+		})
 	if err := client.IgnoreNotFound(dr.vnr.Client.Delete(ctx, node, &client.DeleteOptions{})); err != nil {
 		return fmt.Errorf("error deleting node: %w", err)
 	}
