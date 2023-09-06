@@ -375,6 +375,26 @@ func (liqoIPAM *IPAM) clusterSubnetEqualToPool(pool string) (string, error) {
 	return mappedNetwork, nil
 }
 
+// MapNetworkCIDR receives a network CIDR and a cluster identifier and,
+// return the network CIDR to use for the remote cluster, remapped if
+// necessary.
+func (liqoIPAM *IPAM) MapNetworkCIDR(_ context.Context, mapCIDRRequest *MapCIDRRequest) (*MapCIDRResponse, error) {
+	mappedCIDR, err := liqoIPAM.getOrRemapNetwork(mapCIDRRequest.GetCidr())
+	if err != nil {
+		return &MapCIDRResponse{}, fmt.Errorf("cannot map network CIDR %s: %w", mapCIDRRequest.GetCidr(), err)
+	}
+	return &MapCIDRResponse{Cidr: mappedCIDR}, nil
+}
+
+// UnmapNetworkCIDR set the network CIDR as unused for a specific cluster.
+func (liqoIPAM *IPAM) UnmapNetworkCIDR(_ context.Context, unmapCIDRRequest *UnmapCIDRRequest) (*UnmapCIDRResponse, error) {
+	err := liqoIPAM.FreeReservedSubnet(unmapCIDRRequest.GetCidr())
+	if err != nil {
+		return &UnmapCIDRResponse{}, fmt.Errorf("cannot unmap network CIDR %s: %w", unmapCIDRRequest.GetCidr(), err)
+	}
+	return &UnmapCIDRResponse{}, nil
+}
+
 // getOrRemapNetwork first tries to acquire the received network.
 // If conflicts are found, a new mapped network is returned.
 func (liqoIPAM *IPAM) getOrRemapNetwork(network string) (string, error) {
