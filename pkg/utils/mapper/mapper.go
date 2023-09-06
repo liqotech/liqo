@@ -30,6 +30,7 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -83,6 +84,9 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 		return err
 	}
 	if err = addGroup(dClient, offv1alpha1.GroupVersion, mapper); err != nil {
+		return err
+	}
+	if err = addGroup(dClient, ipamv1alpha1.GroupVersion, mapper); err != nil {
 		return err
 	}
 
