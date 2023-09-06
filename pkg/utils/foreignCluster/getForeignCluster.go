@@ -37,6 +37,19 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
+// CheckForeignClusterExistence checks if a ForeignCluster with the given clusterID exists.
+func CheckForeignClusterExistence(ctx context.Context, cl client.Client, clusterID string) (bool, error) {
+	_, err := GetForeignClusterByID(ctx, cl, clusterID)
+	if kerrors.IsNotFound(err) {
+		klog.Errorf("no ForeignCluster with clusterID %q found: %v", clusterID, err)
+		return false, err
+	} else if err != nil {
+		klog.Errorf("an error occurred when trying to retrieve ForeignClusters: %v", err)
+		return false, err
+	}
+	return true, nil
+}
+
 // GetForeignClusterByID returns a ForeignCluster CR retrieving it by its clusterID.
 func GetForeignClusterByID(ctx context.Context, cl client.Client, clusterID string) (*discoveryv1alpha1.ForeignCluster, error) {
 	lSelector := labels.SelectorFromSet(labels.Set{
