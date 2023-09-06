@@ -104,7 +104,7 @@ func forgeVKContainers(
 
 	return []v1.Container{
 		{
-			Name:      "virtual-kubelet",
+			Name:      vk.ContainerName,
 			Resources: pod.ForgeContainerResources(opts.RequestsCPU, opts.LimitsCPU, opts.RequestsRAM, opts.LimitsRAM),
 			Image:     vkImage,
 			Command:   command,

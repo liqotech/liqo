@@ -34,5 +34,6 @@ func (r *VirtualNodeReconciler) ensureVirtualNodeFinalizerPresence(ctx context.C
 
 func (r *VirtualNodeReconciler) removeVirtualNodeFinalizer(ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
 	ctrlutil.RemoveFinalizer(virtualNode, virtualNodeControllerFinalizer)
+	klog.Infof("Removing finalizer %s from virtual-node %s", virtualNodeControllerFinalizer, virtualNode.Name)
 	return r.Client.Update(ctx, virtualNode)
 }

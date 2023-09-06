@@ -15,19 +15,16 @@
 package virtualnodectrl
 
 import (
-	"context"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
-// VkConditionMap is a map of virtual node conditions.
-type VkConditionMap map[virtualkubeletv1alpha1.VirtualNodeConditionType]VkCondition
+// VnConditionMap is a map of virtual node conditions.
+type VnConditionMap map[virtualkubeletv1alpha1.VirtualNodeConditionType]VnCondition
 
-// VkCondition is a virtual node condition.
-type VkCondition struct {
+// VnCondition is a virtual node condition.
+type VnCondition struct {
 	Status  virtualkubeletv1alpha1.VirtualNodeConditionStatusType
 	Message string
 }
@@ -35,50 +32,43 @@ type VkCondition struct {
 // ForgeCondition forges a virtual node condition.
 func ForgeCondition(
 	virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	vkConditions VkConditionMap) (update bool) {
-	for nameCondition, vkCondition := range vkConditions {
+	vnConditions VnConditionMap) {
+	for nameCondition, vnCondition := range vnConditions {
 		for i := range virtualNode.Status.Conditions {
 			if virtualNode.Status.Conditions[i].Type != nameCondition {
 				continue
 			}
-			if virtualNode.Status.Conditions[i].Status == vkCondition.Status {
-				return false
+			if virtualNode.Status.Conditions[i].Status == vnCondition.Status {
+				return
 			}
 			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.RunningConditionStatusType) &&
-				(vkCondition.Status == virtualkubeletv1alpha1.CreatingConditionStatusType) {
-				return false
+				(vnCondition.Status == virtualkubeletv1alpha1.CreatingConditionStatusType) {
+				return
+			}
+			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.NoneConditionStatusType) &&
+				(vnCondition.Status == virtualkubeletv1alpha1.DrainingConditionStatusType) {
+				return
+			}
+			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.NoneConditionStatusType) &&
+				(vnCondition.Status == virtualkubeletv1alpha1.DeletingConditionStatusType) {
+				return
 			}
 			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.DeletingConditionStatusType) &&
-				vkCondition.Status == virtualkubeletv1alpha1.DrainingConditionStatusType {
-				return false
+				vnCondition.Status == virtualkubeletv1alpha1.DrainingConditionStatusType {
+				return
 			}
-			virtualNode.Status.Conditions[i].Status = vkCondition.Status
+			virtualNode.Status.Conditions[i].Status = vnCondition.Status
 			virtualNode.Status.Conditions[i].LastTransitionTime = metav1.Now()
-			virtualNode.Status.Conditions[i].Message = vkCondition.Message
-			return true
+			virtualNode.Status.Conditions[i].Message = vnCondition.Message
 		}
 		virtualNode.Status.Conditions = append(virtualNode.Status.Conditions,
 			virtualkubeletv1alpha1.VirtualNodeCondition{
 				Type:               nameCondition,
-				Status:             vkCondition.Status,
+				Status:             vnCondition.Status,
 				LastTransitionTime: metav1.Now(),
-				Message:            vkCondition.Message,
+				Message:            vnCondition.Message,
 			})
 	}
-	return true
-}
-
-// UpdateCondition updates the condition of the virtual node.
-func UpdateCondition(ctx context.Context, cl client.Client,
-	virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	vkConditions VkConditionMap,
-) error {
-	if ForgeCondition(virtualNode, vkConditions) {
-		if err := cl.Status().Update(ctx, virtualNode); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // GetCondition returns the condition of the virtual node.
