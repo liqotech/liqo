@@ -51,7 +51,6 @@ type NetworkReconciler struct {
 
 // Reconcile Network objects.
 func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.Infof("Reconcilg Network %q", req.NamespacedName) // TODO:: delete
 	var nw ipamv1alpha1.Network
 	var desiredCIDR, remappedCIDR string
 
