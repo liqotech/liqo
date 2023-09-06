@@ -18,6 +18,8 @@ import (
 	"context"
 	"slices"
 
+	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -51,10 +53,11 @@ type IPReconciler struct {
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips/finalizers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile Ip objects.
 func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.Infof("Reconcilg IP %q", req.NamespacedName) // TODO:: delete
 	var ip ipamv1alpha1.IP
 	var desiredIP string
 
@@ -107,6 +110,11 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 			}
 			klog.Infof("updated IP %q status", req.NamespacedName)
 		}
+
+		// Create service and associated endpointslice if the template is defined
+		if err := r.handleAssociatedService(ctx, &ip); err != nil {
+			return ctrl.Result{}, err
+		}
 	} else if controllerutil.ContainsFinalizer(&ip, ipamIPFinalizer) {
 		// the resource is being deleted, but the finalizer is present:
 		// - unmap the remapped IPs
@@ -121,6 +129,9 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 			return ctrl.Result{}, err
 		}
 		klog.Infof("finalizer %q correctly removed from IP %q", ipamIPFinalizer, req.NamespacedName)
+
+		// We do not have to delete possible service and endpointslice associated, as already deleted by
+		// the Kubernetes garbage collector (since they are owned by the IP resource).
 	}
 
 	return ctrl.Result{}, nil
@@ -145,6 +156,8 @@ func (r *IPReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, w
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ipamv1alpha1.IP{}).
+		Owns(&v1.Service{}).
+		Owns(&discoveryv1.EndpointSlice{}).
 		Watches(&v1alpha1.VirtualNode{}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
