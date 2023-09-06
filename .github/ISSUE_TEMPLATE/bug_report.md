@@ -15,8 +15,10 @@ labels: kind/bug
 
 #### Environment:
 - Liqo version:
+- Liqoctl version:
 - Kubernetes version (use `kubectl version`):
 - Cloud provider or hardware configuration:
+- Node image:
 - Network plugin and version:
 - Install tools:
 - Others:
