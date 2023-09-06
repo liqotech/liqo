@@ -15,6 +15,7 @@
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -33,10 +34,22 @@ var (
 	IPGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: IPResource}
 )
 
+// ServiceTemplate contains the template to create the associated service (and endpointslice) for the IP endopoint.
+type ServiceTemplate struct {
+	// Metadata of the Service.
+	Metadata metav1.ObjectMeta `json:"metadata,omitempty"`
+	// Template Spec of the Service.
+	Spec v1.ServiceSpec `json:"spec,omitempty"`
+}
+
 // IPSpec defines a local IP.
 type IPSpec struct {
 	// IP is the local IP.
 	IP string `json:"ip"`
+	// ServiceTemplate contains the template to create the associated service (and endpointslice) for the IP endopoint.
+	// If empty the creation of the service is disabled (default).
+	// +kubebuilder:validation:Optional
+	ServiceTemplate *ServiceTemplate `json:"serviceTemplate,omitempty"`
 }
 
 // IPStatus defines remapped IPs.
@@ -46,6 +59,7 @@ type IPStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Local IP",type=string,JSONPath=`.spec.ip`
 // +kubebuilder:printcolumn:name="Remapped IPs",type=string,JSONPath=`.status.ipMappings`,priority=1
