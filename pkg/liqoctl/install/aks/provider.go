@@ -42,6 +42,7 @@ type Options struct {
 	resourceGroupName     string
 	resourceName          string
 	vnetResourceGroupName string
+	privateLink           bool
 	fqdn                  string
 
 	authorizer *autorest.Authorizer
@@ -76,6 +77,7 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&o.vnetResourceGroupName, "vnet-resource-group-name", "",
 		"The Azure ResourceGroup name of the Virtual Network (defaults to --resource-group-name if not provided)")
 	cmd.Flags().StringVar(&o.fqdn, "fqdn", "", "The private AKS cluster fqdn")
+	cmd.Flags().BoolVar(&o.privateLink, "private-link", false, "Use the private FQDN for the API server")
 
 	utilruntime.Must(cmd.MarkFlagRequired("resource-group-name"))
 	utilruntime.Must(cmd.MarkFlagRequired("resource-name"))
@@ -159,6 +161,11 @@ func (o *Options) parseClusterOutput(ctx context.Context, cluster *containerserv
 	}
 
 	switch {
+	case o.privateLink:
+		if cluster.PrivateFQDN == nil {
+			return fmt.Errorf("private FQDN not found on cluster")
+		}
+		o.APIServer = *cluster.PrivateFQDN
 	case cluster.Fqdn != nil:
 		o.APIServer = *cluster.Fqdn
 	case len(o.fqdn) > 0:

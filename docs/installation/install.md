@@ -120,6 +120,8 @@ Alternatively, you can manually set a different name with the `--cluster-name` *
 ```{admonition} Note
 If you are running an [AKS private cluster](https://learn.microsoft.com/en-us/azure/aks/private-clusters), you may need to set the `--disable-api-server-sanity-check` *liqoctl* flag, since the API Server in your kubeconfig may be different from the one retrieved from the Azure APIs.
 
+If the private cluster uses private link, you can set the `--private-link` *liqoctl* flag to use the private FQDN for the API server.
+
 Additionally, since your API Server is not accessible from the public Internet, you shall leverage the [in-band peering approach](FeaturesPeeringInBandControlPlane) towards the clusters not attached to the same Azure Virtual Network.
 ```
 
