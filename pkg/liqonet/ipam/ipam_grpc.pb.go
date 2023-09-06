@@ -22,6 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	Ipam_MapEndpointIP_FullMethodName    = "/ipam/MapEndpointIP"
 	Ipam_UnmapEndpointIP_FullMethodName  = "/ipam/UnmapEndpointIP"
+	Ipam_MapNetworkCIDR_FullMethodName   = "/ipam/MapNetworkCIDR"
+	Ipam_UnmapNetworkCIDR_FullMethodName = "/ipam/UnmapNetworkCIDR"
 	Ipam_GetHomePodIP_FullMethodName     = "/ipam/GetHomePodIP"
 	Ipam_BelongsToPodCIDR_FullMethodName = "/ipam/BelongsToPodCIDR"
 )
@@ -32,6 +34,8 @@ const (
 type IpamClient interface {
 	MapEndpointIP(ctx context.Context, in *MapRequest, opts ...grpc.CallOption) (*MapResponse, error)
 	UnmapEndpointIP(ctx context.Context, in *UnmapRequest, opts ...grpc.CallOption) (*UnmapResponse, error)
+	MapNetworkCIDR(ctx context.Context, in *MapCIDRRequest, opts ...grpc.CallOption) (*MapCIDRResponse, error)
+	UnmapNetworkCIDR(ctx context.Context, in *UnmapCIDRRequest, opts ...grpc.CallOption) (*UnmapCIDRResponse, error)
 	GetHomePodIP(ctx context.Context, in *GetHomePodIPRequest, opts ...grpc.CallOption) (*GetHomePodIPResponse, error)
 	BelongsToPodCIDR(ctx context.Context, in *BelongsRequest, opts ...grpc.CallOption) (*BelongsResponse, error)
 }
@@ -62,6 +66,24 @@ func (c *ipamClient) UnmapEndpointIP(ctx context.Context, in *UnmapRequest, opts
 	return out, nil
 }
 
+func (c *ipamClient) MapNetworkCIDR(ctx context.Context, in *MapCIDRRequest, opts ...grpc.CallOption) (*MapCIDRResponse, error) {
+	out := new(MapCIDRResponse)
+	err := c.cc.Invoke(ctx, Ipam_MapNetworkCIDR_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ipamClient) UnmapNetworkCIDR(ctx context.Context, in *UnmapCIDRRequest, opts ...grpc.CallOption) (*UnmapCIDRResponse, error) {
+	out := new(UnmapCIDRResponse)
+	err := c.cc.Invoke(ctx, Ipam_UnmapNetworkCIDR_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ipamClient) GetHomePodIP(ctx context.Context, in *GetHomePodIPRequest, opts ...grpc.CallOption) (*GetHomePodIPResponse, error) {
 	out := new(GetHomePodIPResponse)
 	err := c.cc.Invoke(ctx, Ipam_GetHomePodIP_FullMethodName, in, out, opts...)
@@ -86,6 +108,8 @@ func (c *ipamClient) BelongsToPodCIDR(ctx context.Context, in *BelongsRequest, o
 type IpamServer interface {
 	MapEndpointIP(context.Context, *MapRequest) (*MapResponse, error)
 	UnmapEndpointIP(context.Context, *UnmapRequest) (*UnmapResponse, error)
+	MapNetworkCIDR(context.Context, *MapCIDRRequest) (*MapCIDRResponse, error)
+	UnmapNetworkCIDR(context.Context, *UnmapCIDRRequest) (*UnmapCIDRResponse, error)
 	GetHomePodIP(context.Context, *GetHomePodIPRequest) (*GetHomePodIPResponse, error)
 	BelongsToPodCIDR(context.Context, *BelongsRequest) (*BelongsResponse, error)
 	mustEmbedUnimplementedIpamServer()
@@ -100,6 +124,12 @@ func (UnimplementedIpamServer) MapEndpointIP(context.Context, *MapRequest) (*Map
 }
 func (UnimplementedIpamServer) UnmapEndpointIP(context.Context, *UnmapRequest) (*UnmapResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnmapEndpointIP not implemented")
+}
+func (UnimplementedIpamServer) MapNetworkCIDR(context.Context, *MapCIDRRequest) (*MapCIDRResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MapNetworkCIDR not implemented")
+}
+func (UnimplementedIpamServer) UnmapNetworkCIDR(context.Context, *UnmapCIDRRequest) (*UnmapCIDRResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnmapNetworkCIDR not implemented")
 }
 func (UnimplementedIpamServer) GetHomePodIP(context.Context, *GetHomePodIPRequest) (*GetHomePodIPResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetHomePodIP not implemented")
@@ -156,6 +186,42 @@ func _Ipam_UnmapEndpointIP_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Ipam_MapNetworkCIDR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MapCIDRRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpamServer).MapNetworkCIDR(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Ipam_MapNetworkCIDR_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpamServer).MapNetworkCIDR(ctx, req.(*MapCIDRRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Ipam_UnmapNetworkCIDR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnmapCIDRRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpamServer).UnmapNetworkCIDR(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Ipam_UnmapNetworkCIDR_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpamServer).UnmapNetworkCIDR(ctx, req.(*UnmapCIDRRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Ipam_GetHomePodIP_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetHomePodIPRequest)
 	if err := dec(in); err != nil {
@@ -206,6 +272,14 @@ var Ipam_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UnmapEndpointIP",
 			Handler:    _Ipam_UnmapEndpointIP_Handler,
+		},
+		{
+			MethodName: "MapNetworkCIDR",
+			Handler:    _Ipam_MapNetworkCIDR_Handler,
+		},
+		{
+			MethodName: "UnmapNetworkCIDR",
+			Handler:    _Ipam_UnmapNetworkCIDR_Handler,
 		},
 		{
 			MethodName: "GetHomePodIP",
