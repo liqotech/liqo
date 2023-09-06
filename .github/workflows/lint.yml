@@ -95,6 +95,7 @@ jobs:
       with:
         config: '.markdownlint.yml'
         args: '**/*.md'
+        ignore: .github/ISSUE_TEMPLATE/*.md
 
   doclint:
     name: Lint documentation files
