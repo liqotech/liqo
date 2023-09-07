@@ -41,10 +41,7 @@ func (sl *StringList) Set(str string) error {
 		return nil
 	}
 	chunks := strings.Split(str, ",")
-	for i := range chunks {
-		chunk := chunks[i]
-		sl.StringList = append(sl.StringList, chunk)
-	}
+	sl.StringList = append(sl.StringList, chunks...)
 	return nil
 }
 
