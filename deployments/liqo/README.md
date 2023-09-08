@@ -27,9 +27,10 @@
 | awsConfig.clusterName | string | `""` | Name of the EKS cluster. |
 | awsConfig.region | string | `""` | AWS region where the clsuter is runnnig. |
 | awsConfig.secretAccessKey | string | `""` | SecretAccessKey for the Liqo user. |
-| common.affinity | object | `{}` | Affinity for all liqo services, excluding virtual kubelet deployment. |
-| common.nodeSelector | object | `{}` | NodeSelector for all liqo services, excluding virtual kubelet deployment. |
-| common.tolerations | list | `[]` | Tolerations for all liqo services, excluding virtual kubelet deployment. |
+| common.affinity | object | `{}` | Affinity for all liqo pods, excluding virtual kubelet. |
+| common.extraArgs | list | `[]` | Extra arguments for all liqo pods, excluding virtual kubelet. |
+| common.nodeSelector | object | `{}` | NodeSelector for all liqo pods, excluding virtual kubelet. |
+| common.tolerations | list | `[]` | Tolerations for all liqo pods, excluding virtual kubelet. |
 | controllerManager.config.enableNodeFailureController | bool | `false` | Ensure offloaded pods running on a failed node are evicted and rescheduled on a healthy node, preventing them to remain in a terminating state indefinitely. This feature can be useful in case of remote node failure to guarantee better service continuity and to have the expected pods workload on the remote cluster. However, enabling this feature could produce zombies in the worker node, in case the node returns Ready again without a restart. |
 | controllerManager.config.enableResourceEnforcement | bool | `false` | It enforces offerer-side that offloaded pods do not exceed offered resources (based on container limits). This feature is suggested to be enabled when consumer-side enforcement is not sufficient. It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set). |
 | controllerManager.config.offerUpdateThresholdPercentage | string | `""` | Threshold (in percentage) of the variation of resources that triggers a ResourceOffer update. E.g., when the available resources grow/decrease by X, a new ResourceOffer is generated. |

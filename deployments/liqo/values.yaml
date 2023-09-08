@@ -8,12 +8,14 @@ tag: ""
 pullPolicy: "IfNotPresent"
 
 common:
-  # -- NodeSelector for all liqo services, excluding virtual kubelet deployment.
+  # -- NodeSelector for all liqo pods, excluding virtual kubelet.
   nodeSelector: {}
-  # -- Tolerations for all liqo services, excluding virtual kubelet deployment.
+  # -- Tolerations for all liqo pods, excluding virtual kubelet.
   tolerations: []
-  # -- Affinity for all liqo services, excluding virtual kubelet deployment.
+  # -- Affinity for all liqo pods, excluding virtual kubelet.
   affinity: {}
+  # -- Extra arguments for all liqo pods, excluding virtual kubelet.
+  extraArgs: []
 
 apiServer:
   # -- The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP).

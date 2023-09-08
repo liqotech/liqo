@@ -34,8 +34,9 @@ var _ = Describe("The rate limiting utility functions", func() {
 	)
 
 	const (
-		qps   = 67
-		burst = 89
+		timeout = 10
+		qps     = 67
+		burst   = 89
 	)
 
 	Describe("the SetRateLimiter function", func() {
@@ -69,9 +70,10 @@ var _ = Describe("The rate limiting utility functions", func() {
 
 	Describe("the SetRateLimiterWithCustomParameters function", func() {
 		Context("configuring the rate limiting parameters", func() {
-			JustBeforeEach(func() { output = restcfg.SetRateLimiterWithCustomParameters(&cfg, qps, burst) })
+			JustBeforeEach(func() { output = restcfg.SetRateLimiterWithCustomParameters(&cfg, timeout, qps, burst) })
 
 			It("should return a pointer to the original object", func() { Expect(output).To(BeIdenticalTo(&cfg)) })
+			It("should set the desired timeout value", func() { Expect(cfg.Timeout).To(BeNumerically("==", timeout)) })
 			It("should set the desired QPS value", func() { Expect(cfg.QPS).To(BeNumerically("==", qps)) })
 			It("should set the desired burst value", func() { Expect(cfg.Burst).To(BeNumerically("==", burst)) })
 		})
