@@ -51,6 +51,9 @@ spec:
           {{- if .Values.gateway.metrics.enabled }}
           - --metrics-bind-addr=:{{ .Values.gateway.metrics.port }}
           {{- end }}
+          {{- if .Values.common.extraArgs }}
+          {{- toYaml .Values.common.extraArgs | nindent 10 }}
+          {{- end }}
           {{- if .Values.gateway.pod.extraArgs }}
           {{- toYaml .Values.gateway.pod.extraArgs | nindent 10 }}
           {{- end }}

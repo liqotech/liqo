@@ -40,6 +40,9 @@ spec:
           - --mdns-enable-advertisement={{ .Values.discovery.config.enableAdvertisement }}
           - --mdns-enable-discovery={{ .Values.discovery.config.enableDiscovery }}
           - --mdns-ttl={{ .Values.discovery.config.ttl }}s
+          {{- if .Values.common.extraArgs }}
+          {{- toYaml .Values.common.extraArgs | nindent 10 }}
+          {{- end }}
           {{- if .Values.discovery.pod.extraArgs }}
           {{- toYaml .Values.discovery.pod.extraArgs | nindent 10 }}
           {{- end }}

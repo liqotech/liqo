@@ -32,9 +32,14 @@ spec:
         securityContext:
           {{- include "liqo.containerSecurityContext" . | nindent 10 }}
         command: ["/usr/bin/uninstaller"]
-        {{- if .Values.uninstaller.pod.extraArgs }}
+        {{- if or .Values.uninstaller.pod.extraArgs .Values.common.extraArgs }}
         args:
+          {{- if .Values.common.extraArgs }}
+          {{- toYaml .Values.common.extraArgs | nindent 10 }}
+          {{- end }}
+          {{- if .Values.uninstaller.pod.extraArgs }}
           {{- toYaml .Values.uninstaller.pod.extraArgs | nindent 10 }}
+          {{- end }}
         {{- end }}
         env:
           - name: POD_NAMESPACE

@@ -92,6 +92,9 @@ spec:
           {{- if .Values.awsConfig.clusterName }}
           - --aws-cluster-name={{ .Values.awsConfig.clusterName }}
           {{- end }}
+          {{- if .Values.common.extraArgs }}
+          {{- toYaml .Values.common.extraArgs | nindent 10 }}
+          {{- end }}
           {{- if .Values.auth.pod.extraArgs }}
           {{- toYaml .Values.auth.pod.extraArgs | nindent 10 }}
           {{- end }}

@@ -16,11 +16,14 @@ package restcfg
 
 import (
 	"flag"
+	"time"
 
 	"k8s.io/client-go/rest"
 )
 
 const (
+	// DefaultClientTimeout -> The default timeout value assigned to client-go clients.
+	DefaultClientTimeout = 10 * time.Second
 	// DefaultQPS -> The default QPS value assigned to client-go clients.
 	DefaultQPS = uint(100)
 	// DefaultBurst -> The default burst value assigned to client-go clients.
@@ -28,8 +31,9 @@ const (
 )
 
 var (
-	qps   = DefaultQPS
-	burst = DefaultBurst
+	timeout time.Duration
+	qps     uint
+	burst   uint
 )
 
 // InitFlags initializes the flags to configure the rate limiter parameters.
@@ -38,18 +42,21 @@ func InitFlags(flagset *flag.FlagSet) {
 		flagset = flag.CommandLine
 	}
 
-	flagset.UintVar(&qps, "client-qps", qps, "The maximum number of queries per second performed towards the API server.")
-	flagset.UintVar(&burst, "client-max-burst", qps, "The maximum burst of requests in excess of the rate limit towards the API server.")
+	flagset.DurationVar(&timeout, "client-timeout", DefaultClientTimeout,
+		"The maximum length of time to wait before giving up on a server request. A value of zero means no timeout.")
+	flagset.UintVar(&qps, "client-qps", DefaultQPS, "The maximum number of queries per second performed towards the API server.")
+	flagset.UintVar(&burst, "client-max-burst", DefaultBurst, "The maximum burst of requests in excess of the rate limit towards the API server.")
 }
 
 // SetRateLimiter configures the rate limiting parameters of the given rest configuration
 // to the values obtained from the command line parameters.
 func SetRateLimiter(cfg *rest.Config) *rest.Config {
-	return SetRateLimiterWithCustomParameters(cfg, float32(qps), int(burst))
+	return SetRateLimiterWithCustomParameters(cfg, timeout, float32(qps), int(burst))
 }
 
 // SetRateLimiterWithCustomParameters configures the rate limiting parameters of the given rest configuration.
-func SetRateLimiterWithCustomParameters(cfg *rest.Config, qps float32, burst int) *rest.Config {
+func SetRateLimiterWithCustomParameters(cfg *rest.Config, timeout time.Duration, qps float32, burst int) *rest.Config {
+	cfg.Timeout = timeout
 	cfg.QPS = qps
 	cfg.Burst = burst
 	return cfg

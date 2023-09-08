@@ -148,6 +148,9 @@ spec:
           {{- $d := dict "commandName" "--node-extra-labels" "dictionary" .Values.virtualKubelet.virtualNode.extra.labels }}
           {{- include "liqo.concatenateMap" $d | nindent 10 }}
           {{- end }}
+          {{- if .Values.common.extraArgs }}
+          {{- toYaml .Values.common.extraArgs | nindent 10 }}
+          {{- end }}
           {{- if .Values.controllerManager.pod.extraArgs }}
           {{- toYaml .Values.controllerManager.pod.extraArgs | nindent 10 }}
           {{- end }}
