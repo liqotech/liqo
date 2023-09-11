@@ -1,0 +1,107 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: firewallconfigurations.networking.liqo.io
+spec:
+  group: networking.liqo.io
+  names:
+    categories:
+    - liqo
+    kind: FirewallConfiguration
+    listKind: FirewallConfigurationList
+    plural: firewallconfigurations
+    singular: firewallconfiguration
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: FirewallConfiguration contains a rule to be applied to the firewall
+          in the gateway.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: FirewallConfigurationSpec defines the desired state of FirewallConfiguration.
+            properties:
+              command:
+                description: Command to add or remove rules.
+                properties:
+                  add:
+                    description: Add contains the commands to add rules.
+                    items:
+                      type: string
+                    type: array
+                  remove:
+                    description: Remove contains the commands to remove rules.
+                    items:
+                      type: string
+                    type: array
+                type: object
+              expectedRule:
+                description: ExpectedRule contains the expected rule.
+                type: string
+              table:
+                description: Table contains the table where the rule is applied.
+                type: string
+            type: object
+          status:
+            description: FirewallConfigurationStatus defines the observed state of
+              FirewallConfiguration.
+            properties:
+              conditions:
+                description: Conditions contains the conditions of the firewallconfiguration.
+                items:
+                  description: FirewallConfigurationCondition contains details about
+                    state of the firewallconfiguration.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime -> timestamp for when the condition
+                        last transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message -> Human-readable message indicating details
+                        about the last status transition.
+                      type: string
+                    reason:
+                      description: Reason -> Machine-readable, UpperCamelCase text
+                        indicating the reason for the condition's last transition.
+                      type: string
+                    status:
+                      default: Unknown
+                      description: Status of the condition.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: Type of the firewallconfiguration condition.
+                      enum:
+                      - Applied
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
