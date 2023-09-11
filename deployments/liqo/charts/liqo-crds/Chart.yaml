@@ -1,6 +1,6 @@
 apiVersion: v2
-name: liqo
-description: A Helm chart for Liqo
+name: liqo-crds
+description: A Helm chart for Liqo, contains the CRDs
 
 # A chart can be either an 'application' or a 'library' chart.
 #
