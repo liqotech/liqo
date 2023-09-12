@@ -19,8 +19,10 @@
 | auth.pod.extraArgs | list | `[]` | Extra arguments for the auth pod. |
 | auth.pod.labels | object | `{}` | Labels for the auth pod. |
 | auth.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the auth pod. |
+| auth.service.allocateLoadBalancerNodePorts | string | `""` | Set to false if you expose the auth service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature). |
 | auth.service.annotations | object | `{}` | Annotations for the auth service. |
 | auth.service.labels | object | `{}` | Labels for the auth service. |
+| auth.service.loadBalancerIP | string | `""` | Override the IP here if service type is LoadBalancer and you want to use a specific IP address, e.g., because you want a static LB. |
 | auth.service.port | int | `443` | Port used by the Authentication Service. |
 | auth.service.type | string | `"LoadBalancer"` | Kubernetes service used to expose the Authentication Service. If you are exposing this service with an Ingress, you can change it to ClusterIP; if your cluster does not support LoadBalancer services, consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress, consider to disable it or add the appropriate annotations to the Ingress resource. |
@@ -81,8 +83,10 @@
 | gateway.pod.labels | object | `{}` | Labels for the network gateway pod. |
 | gateway.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the network gateway pod. |
 | gateway.replicas | int | `1` | The number of gateway instances to run. The gateway component supports active/passive high availability. Make sure that there are enough nodes to accommodate the replicas, because such pod has to run in the host network, hence no more than one replica can be scheduled on a given node. |
+| gateway.service.allocateLoadBalancerNodePorts | string | `""` | Set to false if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature). |
 | gateway.service.annotations | object | `{}` | Annotations for the network gateway service. |
 | gateway.service.labels | object | `{}` | Labels for the network gateway service. |
+| gateway.service.loadBalancerIP | string | `""` | Override the IP here if service type is LoadBalancer and you want to use a specific IP address, e.g., because you want a static LB. |
 | gateway.service.type | string | `"LoadBalancer"` | Kubernetes service to be used to expose the network gateway pod. If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer". Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort". |
 | metricAgent.enable | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting  the resulting values as a property of the virtual kubelet running on the remote cluster. |
 | metricAgent.imageName | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |

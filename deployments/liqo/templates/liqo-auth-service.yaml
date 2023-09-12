@@ -40,3 +40,9 @@ spec:
       port: {{ .Values.auth.service.port }}
       targetPort: 8443
       {{- end }}
+  {{- if and (eq .Values.auth.service.type "LoadBalancer") (.Values.auth.service.loadBalancerIP) }}
+  loadBalancerIP: .Values.auth.service.loadBalancerIP
+  {{- end }}
+  {{- if and (eq .Values.auth.service.type "LoadBalancer") (.Values.auth.service.allocateLoadBalancerNodePorts) }}
+  allocateLoadBalancerNodePorts: .Values.auth.service.allocateLoadBalancerNodePorts
+  {{- end }}
