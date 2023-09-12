@@ -112,7 +112,7 @@ jobs:
             ${{ runner.os }}-${{ matrix.component }}-buildx-
 
       - name: Login to the Container registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
