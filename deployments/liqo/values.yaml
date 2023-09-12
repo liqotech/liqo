@@ -172,6 +172,10 @@ gateway:
     annotations: {}
     # -- Labels for the network gateway service.
     labels: {}
+    # -- Override the IP here if service type is LoadBalancer and you want to use a specific IP address, e.g., because you want a static LB.
+    loadBalancerIP: ""
+    # -- Set to false if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature).
+    allocateLoadBalancerNodePorts: ""
   config:
     # -- Override the default address where your network gateway service is available.
     # You should configure it if the network gateway is behind a reverse proxy or NAT.
@@ -329,6 +333,10 @@ auth:
     annotations: {}
     # -- Port used by the Authentication Service.
     port: 443
+    # -- Override the IP here if service type is LoadBalancer and you want to use a specific IP address, e.g., because you want a static LB.
+    loadBalancerIP: ""
+    # -- Set to false if you expose the auth service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature).
+    allocateLoadBalancerNodePorts: ""
   # -- Enable TLS for the Authentication Service Pod (using a self-signed certificate).
   # If you are exposing this service with an Ingress, consider to disable it or add the appropriate annotations to the Ingress resource.
   tls: true
