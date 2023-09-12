@@ -11,6 +11,21 @@ updates:
       interval: "daily"
 
   - package-ecosystem: "docker"
-    directory: "/build/*"
+    directory: "/build/cert-creator"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "docker"
+    directory: "/build/common"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "docker"
+    directory: "/build/liqo-test"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "docker"
+    directory: "/build/liqonet"
     schedule:
       interval: "daily"
