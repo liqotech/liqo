@@ -13,6 +13,7 @@
 | auth.ingress.enable | bool | `false` | Enable/disable the creation of the Ingress resource. |
 | auth.ingress.host | string | `""` | Set the hostname for your ingress. |
 | auth.ingress.port | int | `443` | Set port for your ingress. |
+| auth.ingress.tlsSecretName | string | `""` | Override default (ChartName-auth) tls secretName. |
 | auth.initContainer.imageName | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the auth pod. |
 | auth.pod.annotations | object | `{}` | Annotations for the auth pod. |
 | auth.pod.extraArgs | list | `[]` | Extra arguments for the auth pod. |

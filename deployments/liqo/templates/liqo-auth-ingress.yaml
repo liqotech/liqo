@@ -38,7 +38,11 @@ spec:
     {{- if .Values.auth.ingress.host }}
     - hosts:
       - {{ .Values.auth.ingress.host }}
+      {{- if .Values.auth.ingress.tlsSecretName }}
+      secretName: {{ .Values.auth.ingress.tlsSecretName }}
+      {{- else }}
       secretName: {{ include "liqo.prefixedName" $authConfig }}
+      {{- end}}
     {{- else }}
     - hosts: []
     {{- end }}
