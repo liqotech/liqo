@@ -343,6 +343,8 @@ auth:
     class: ""
     # -- Set port for your ingress.
     port: 443
+    # -- Override default (ChartName-auth) tls secretName.
+    tlsSecretName: ""
   config:
     # -- Set to false to disable the authentication of discovered clusters.
     # Note: use it only for testing installations.
