@@ -42,7 +42,7 @@ var (
 type OverlayController struct {
 	client.Client
 	vxlanDev   *overlay.VxlanDevice
-	podIP      string
+	podName    string
 	nodesLock  *sync.RWMutex
 	vxlanPeers map[string]*overlay.Neighbor
 	// For each nodeName contains its IP addr.
@@ -75,8 +75,14 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		return ctrl.Result{}, nil
 	}
+
+	// If the pod doesn't have an IP address yet, then we don't need to do anything.
+	if pod.Status.PodIP == "" {
+		return ctrl.Result{}, nil
+	}
+
 	// If it is our pod than add the mac address annotation.
-	if ovc.podIP == pod.Status.PodIP {
+	if ovc.podName == pod.Name {
 		if liqonetutils.AddAnnotationToObj(&pod, vxlanMACAddressKey, ovc.vxlanDev.Link.HardwareAddr.String()) {
 			if err := ovc.Update(ctx, &pod); err != nil {
 				klog.Errorf("an error occurred while adding mac address annotation to pod {%s}: %v", req.String(), err)
@@ -102,7 +108,7 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // NewOverlayController returns a new controller ready to be setup and started with the controller manager.
-func NewOverlayController(podIP string, vxlanDevice *overlay.VxlanDevice, nodesLock *sync.RWMutex,
+func NewOverlayController(podName string, vxlanDevice *overlay.VxlanDevice, nodesLock *sync.RWMutex,
 	vxlanNodes map[string]string, cl client.Client) (*OverlayController, error) {
 	if vxlanDevice == nil {
 		return nil, &liqoerrors.WrongParameter{
@@ -113,7 +119,7 @@ func NewOverlayController(podIP string, vxlanDevice *overlay.VxlanDevice, nodesL
 	return &OverlayController{
 		Client:     cl,
 		vxlanDev:   vxlanDevice,
-		podIP:      podIP,
+		podName:    podName,
 		nodesLock:  nodesLock,
 		vxlanPeers: map[string]*overlay.Neighbor{},
 		vxlanNodes: vxlanNodes,
@@ -217,7 +223,7 @@ func (ovc *OverlayController) podFilter(obj client.Object) bool {
 		return false
 	}
 	// If it is our pod then process it.
-	if ovc.podIP == p.Status.PodIP {
+	if ovc.podName == p.Name {
 		return true
 	}
 	// If it is not our pod then check if the vxlan mac address has been set.

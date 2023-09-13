@@ -72,6 +72,11 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 		klog.Errorf("unable to get podIP: %v", err)
 		os.Exit(1)
 	}
+	podName, err := liqonetutils.GetPodName()
+	if err != nil {
+		klog.Errorf("unable to get pod name: %v", err)
+		os.Exit(1)
+	}
 	nodeName, err := liqonetutils.GetNodeName()
 	if err != nil {
 		klog.Errorf("unable to get node name: %v", err)
@@ -170,7 +175,7 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 		klog.Errorf("unable to start go routine that configures firewall rules for the route controller: %v", err)
 		os.Exit(1)
 	}
-	overlayController, err := routeoperator.NewOverlayController(podIP.String(), vxlanDevice, mutex, nodeMap, overlayMgr.GetClient())
+	overlayController, err := routeoperator.NewOverlayController(podName, vxlanDevice, mutex, nodeMap, overlayMgr.GetClient())
 	if err != nil {
 		klog.Errorf("an error occurred while creating overlay controller: %v", err)
 		os.Exit(3)

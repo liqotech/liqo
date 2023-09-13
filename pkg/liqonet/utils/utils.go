@@ -64,6 +64,15 @@ func MapIPToNetwork(newNetwork, oldIP string) (newIP string, err error) {
 	return
 }
 
+// GetPodName returns the pod name.
+func GetPodName() (string, error) {
+	podName, isSet := os.LookupEnv("POD_NAME")
+	if !isSet || podName == "" {
+		return "", errors.New("pod name is not yet set")
+	}
+	return podName, nil
+}
+
 // GetPodIP returns the pod IP address.
 func GetPodIP() (net.IP, error) {
 	ipAddress, isSet := os.LookupEnv("POD_IP")

@@ -38,13 +38,14 @@ import (
 )
 
 var (
-	overlayPodIP     = "10.0.0.1"
-	overlayAnnKey    = vxlanMACAddressKey
-	overlayAnnValue  = "45:d0:ae:c9:d6:40"
-	overlayPeerIP    = "10.11.1.1"
-	overlayPeerMAC   = "4e:d0:ae:c9:d6:30"
-	overlayNamespace = "overlay-namespace"
-	overlayPodName   = "overlay-test-pod"
+	overlayPodIP        = "10.0.0.1"
+	overlayAnnKey       = vxlanMACAddressKey
+	overlayAnnValue     = "45:d0:ae:c9:d6:40"
+	overlayPeerIP       = "10.11.1.1"
+	overlayPeerMAC      = "4e:d0:ae:c9:d6:30"
+	overlayNamespace    = "overlay-namespace"
+	overlayPodName      = "overlay-test-pod"
+	overlayPodNameWrong = "overlay-test-pod-wrong"
 
 	overlayTestPod          *corev1.Pod
 	overlayReq              ctrl.Request
@@ -93,7 +94,7 @@ var _ = Describe("OverlayOperator", func() {
 		}
 		// Create dummy overlay operator.
 		ovc = &OverlayController{
-			podIP:      overlayPodIP,
+			podName:    overlayPodName,
 			vxlanPeers: make(map[string]*overlay.Neighbor),
 			vxlanDev:   vxlanDevice,
 			Client:     k8sClient,
@@ -339,20 +340,21 @@ var _ = Describe("OverlayOperator", func() {
 		})
 
 		Context("when object is a pod", func() {
-			It("and has same ip, should return true", func() {
+			It("and has same name, should return true", func() {
 				// Add ip address to the test pod.
-				overlayTestPod.Status.PodIP = overlayPodIP
 				ok := ovc.podFilter(overlayTestPod)
 				Expect(ok).Should(BeTrue())
 			})
 
-			It("has not the same ip and has not been annotated, should return false", func() {
+			It("has not the same name and has not been annotated, should return false", func() {
 				overlayTestPod.SetAnnotations(nil)
+				overlayTestPod.Name = overlayPodNameWrong
 				ok := ovc.podFilter(overlayTestPod)
 				Expect(ok).Should(BeFalse())
 			})
 
-			It("has not the same ip and has  been annotated, should return true", func() {
+			It("has not the same name and has  been annotated, should return true", func() {
+				overlayTestPod.Name = overlayPodNameWrong
 				ok := ovc.podFilter(overlayTestPod)
 				Expect(ok).Should(BeTrue())
 			})
