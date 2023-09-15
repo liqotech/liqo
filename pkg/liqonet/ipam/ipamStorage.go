@@ -78,14 +78,17 @@ type IPAMStorage struct {
 
 	dynClient dynamic.Interface
 	storage   *netv1alpha1.IpamStorage
+
+	namespace string
 }
 
 // NewIPAMStorage inits the storage of the IPAM module,
 // retrieving an existing ipamStorage resource or creating a new one.
-func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
+func NewIPAMStorage(dynClient dynamic.Interface, namespace string) (*IPAMStorage, error) {
 	klog.Infof("Init IPAM storage..")
 	ipamStorage := &IPAMStorage{}
 	ipamStorage.dynClient = dynClient
+	ipamStorage.namespace = namespace
 
 	klog.Infof("Looking for Ipam resource..")
 	ipam, err := ipamStorage.retrieveConfig()
@@ -282,7 +285,7 @@ func (ipamStorage *IPAMStorage) updateConfig(updateType string, data interface{}
 	b.Write(jsonData)
 	b.WriteString("}]")
 
-	unstr, err := ipamStorage.dynClient.Resource(netv1alpha1.IpamGroupVersionResource).Patch(context.Background(),
+	unstr, err := ipamStorage.dynClient.Resource(netv1alpha1.IpamGroupVersionResource).Namespace(ipamStorage.namespace).Patch(context.Background(),
 		ipamStorage.getConfigName(), types.JSONPatchType, b.Bytes(), metav1.PatchOptions{})
 	if err != nil {
 		klog.Error("Failed to patch the IPAM resource: %v", err)
@@ -348,7 +351,7 @@ func (ipamStorage *IPAMStorage) getConfigName() string {
 
 func (ipamStorage *IPAMStorage) retrieveConfig() (*netv1alpha1.IpamStorage, error) {
 	list, err := ipamStorage.dynClient.
-		Resource(netv1alpha1.IpamGroupVersionResource).
+		Resource(netv1alpha1.IpamGroupVersionResource).Namespace(ipamStorage.namespace).
 		List(context.Background(), metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s", consts.IpamStorageResourceLabelKey, consts.IpamStorageResourceLabelValue),
 		})
@@ -379,6 +382,7 @@ func (ipamStorage *IPAMStorage) createConfig() (*netv1alpha1.IpamStorage, error)
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: ipamNamePrefix,
+			Namespace:    ipamStorage.namespace,
 			Labels:       map[string]string{consts.IpamStorageResourceLabelKey: consts.IpamStorageResourceLabelValue},
 		},
 		Spec: netv1alpha1.IpamSpec{
@@ -394,7 +398,7 @@ func (ipamStorage *IPAMStorage) createConfig() (*netv1alpha1.IpamStorage, error)
 	unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ipam)
 	utilruntime.Must(err)
 
-	created, err := ipamStorage.dynClient.Resource(netv1alpha1.IpamGroupVersionResource).
+	created, err := ipamStorage.dynClient.Resource(netv1alpha1.IpamGroupVersionResource).Namespace(ipamStorage.namespace).
 		Create(context.Background(), &unstructured.Unstructured{Object: unstr}, metav1.CreateOptions{})
 	if err != nil {
 		klog.Errorf("cannot create ipam resource: %s", err.Error())
