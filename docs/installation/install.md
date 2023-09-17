@@ -3,7 +3,10 @@
 Liqo can be easily installed with *liqoctl*, which automatically handles all the customized settings required to set up the software on  the multiple provider/distribution supported (e.g., AWS, EKS, GKE, Kubeadm, etc.).
 Under the hood, *liqoctl* uses [Helm 3](https://helm.sh/) to configure and install all the Liqo components, using the Helm chart available in the official repository.
 
-Alternatively, *liqoctl* can also be configured to generate a local file with **pre-configured values**, which can be further customized and used for a manual installation with Helm.
+Alternatively, you can install Liqo manually with Helm.
+However, we suggest to use *liqoctl* also in this case. In fact, *liqoctl* can also generate a local file with **pre-configured values**, which can be further customized and used for your manual installation.
+
+You can refer to the previous section about [downloading and installing *liqoctl*](liqoctl.md).
 
 ## Install with liqoctl
 
