@@ -34,6 +34,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	tunneloperator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
@@ -117,9 +118,11 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
 	main, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:                mapper.LiqoMapperProvider(scheme),
-		Scheme:                        scheme,
-		MetricsBindAddress:            metricsAddr,
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
 		LeaderElection:                enableLeaderElection,
 		LeaderElectionID:              liqoconst.GatewayLeaderElectionID,
 		LeaderElectionNamespace:       podNamespace,
@@ -149,9 +152,9 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 	// Create an accessory manager that cache only pods managed by a ShadowPod (i.e., remote offloaded pods).
 	// This manager caches only the pods that are offloaded from a remote cluster and are scheduled on this.
 	auxmgrOffloadedPods, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:     mapper.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Metrics:        server.Options{BindAddress: "0"}, // Disable the metrics of the auxiliary manager to prevent conflicts.
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {

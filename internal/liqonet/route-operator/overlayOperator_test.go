@@ -32,6 +32,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
@@ -400,8 +401,8 @@ func setupOverlayTestEnv() error {
 		return err
 	}
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
-		Scheme:             overlayScheme,
-		MetricsBindAddress: "0",
+		Scheme:  overlayScheme,
+		Metrics: server.Options{BindAddress: "0"}, // this avoids port binding collision
 	})
 	go func() {
 		if err = mgr.Start(context.Background()); err != nil {
