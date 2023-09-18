@@ -31,6 +31,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -148,8 +149,8 @@ func initNatMappingController() error {
 		return err
 	}
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Scheme:             scheme.Scheme,
-		MetricsBindAddress: "0",
+		Scheme:  scheme.Scheme,
+		Metrics: server.Options{BindAddress: "0"}, // this avoids port binding collision
 	})
 	if err != nil {
 		return err

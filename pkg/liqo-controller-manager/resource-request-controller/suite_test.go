@@ -31,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -79,8 +80,8 @@ func createCluster() {
 
 	By("Starting a new manager")
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme.Scheme,
-		MetricsBindAddress: "0", // this avoids port binding collision
+		Scheme:  scheme.Scheme,
+		Metrics: server.Options{BindAddress: "0"}, // this avoids port binding collision
 	})
 	Expect(err).ToNot(HaveOccurred())
 	// Disabling panic on failure.

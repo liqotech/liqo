@@ -65,7 +65,6 @@ func main() {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
-		Port:           9443,
 		LeaderElection: false,
 	})
 	if err != nil {

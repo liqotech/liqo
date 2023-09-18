@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
@@ -230,16 +231,22 @@ func main() {
 	// Create the main manager.
 	// This manager caches only the pods that are offloaded from a remote cluster and are scheduled on this.
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:                mapper.LiqoMapperProvider(scheme),
-		Scheme:                        scheme,
-		MetricsBindAddress:            *metricsAddr,
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Metrics: server.Options{
+			BindAddress: *metricsAddr,
+		},
 		HealthProbeBindAddress:        *probeAddr,
 		LeaderElection:                *leaderElection,
 		LeaderElectionID:              "66cf253f.ctrlmgr.liqo.io",
 		LeaderElectionNamespace:       *liqoNamespace,
 		LeaderElectionReleaseOnCancel: true,
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
-		Port:                          int(*webhookPort),
+		WebhookServer: &webhook.DefaultServer{
+			Options: webhook.Options{
+				Port: int(*webhookPort),
+			},
+		},
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
@@ -261,9 +268,9 @@ func main() {
 	// Create an accessory manager that cache only local offloaded pods.
 	// This manager caches only the pods that are offloaded and scheduled on a remote cluster.
 	auxmgrLocalPods, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:     mapper.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Metrics:        server.Options{BindAddress: "0"}, // Disable the metrics of the auxiliary manager to prevent conflicts.
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
@@ -287,9 +294,9 @@ func main() {
 	// Create an accessory manager that cache only local offloaded pods.
 	// This manager caches only virtual kubelet pods.
 	auxmgrVirtualKubeletPods, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:     mapper.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Metrics:        server.Options{BindAddress: "0"}, // Disable the metrics of the auxiliary manager to prevent conflicts.
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {

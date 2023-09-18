@@ -23,8 +23,10 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -96,10 +98,16 @@ func main() {
 	// Create an accessory manager restricted to the given namespace only, to avoid introducing
 	// performance overhead and requiring excessively wide permissions when not necessary.
 	auxmgr, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:     mapper.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		Namespace:          *namespace,
-		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Metrics: server.Options{
+			BindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		},
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				*namespace: {},
+			},
+		},
 	})
 	if err != nil {
 		klog.Errorf("Unable to create auxiliary (namespaced) manager: %w", err)

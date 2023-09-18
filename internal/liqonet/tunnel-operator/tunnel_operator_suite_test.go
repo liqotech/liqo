@@ -29,6 +29,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -125,8 +126,8 @@ var _ = BeforeSuite(func() {
 	config, err := envTest.Start()
 	Expect(err).ShouldNot(HaveOccurred())
 	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
-		Scheme:             scheme.Scheme,
-		MetricsBindAddress: "0",
+		Scheme:  scheme.Scheme,
+		Metrics: server.Options{BindAddress: "0"}, // this avoids port binding collision
 	})
 	Expect(err).ShouldNot(HaveOccurred())
 	controller, err = NewNatMappingController(mgr.GetClient(), &readyClustersMutex, readyClusters, iptNetns)

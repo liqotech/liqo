@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	routeoperator "github.com/liqotech/liqo/internal/liqonet/route-operator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
@@ -104,9 +105,11 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 
 	smcLabelSelector := labels.NewSelector().Add(*smcLabelRequirement)
 	mainMgr, err := ctrl.NewManager(restcfg.SetRateLimiter(ctrl.GetConfigOrDie()), ctrl.Options{
-		MapperProvider:     mapper.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		MetricsBindAddress: commonFlags.metricsAddr,
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Metrics: server.Options{
+			BindAddress: commonFlags.metricsAddr,
+		},
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
@@ -129,17 +132,18 @@ func runRouteOperator(commonFlags *liqonetCommonFlags, routeFlags *routeOperator
 	// This manager is used by the overlay operator and it is limited to the pods running
 	// on the same namespace as the operator.
 	overlayMgr, err := ctrl.NewManager(mainMgr.GetConfig(), ctrl.Options{
-		MapperProvider:     mapper.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		MetricsBindAddress: ":0",
-		Namespace:          podNamespace,
-		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
-			opts.ByObject = map[client.Object]cache.ByObject{
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Metrics:        server.Options{BindAddress: "0"}, // Disable the metrics of the auxiliary manager to prevent conflicts.
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				podNamespace: {},
+			},
+			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
 					Label: ovcLabelSelector,
 				},
-			}
-			return cache.New(config, opts)
+			},
 		},
 	})
 	if err != nil {
