@@ -57,7 +57,7 @@ func (r *IPReconciler) handleAssociatedService(ctx context.Context, ip *ipamv1al
 		eps.AddressType = discoveryv1.AddressTypeIPv4
 		eps.Endpoints = []discoveryv1.Endpoint{
 			{
-				Addresses: []string{ip.Spec.IP},
+				Addresses: []string{ip.Spec.IP.String()},
 				Conditions: discoveryv1.EndpointConditions{
 					Ready: pointer.Bool(true),
 				},
