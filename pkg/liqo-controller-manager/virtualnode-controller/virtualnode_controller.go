@@ -102,7 +102,7 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			klog.Infof("There is no a virtual-node called '%s' in '%s'", req.Name, req.Namespace)
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf(" %w --> Unable to get the virtual-node '%s'", err, req.Name)
+		return ctrl.Result{}, fmt.Errorf("unable to get the virtual-node %q: %w", req.NamespacedName, err)
 	}
 
 	if virtualNode.DeletionTimestamp.IsZero() {
@@ -115,19 +115,19 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if ctrlutil.ContainsFinalizer(virtualNode, virtualNodeControllerFinalizer) {
 			// If the virtual-node is being deleted, it deletes the node and the virtual-node resource.
 			if err := r.dr.EnsureNodeAbsence(virtualNode); err != nil {
-				return ctrl.Result{}, fmt.Errorf(" %w --> Unable to delete the virtual-node", err)
+				return ctrl.Result{}, fmt.Errorf("unable to delete the virtual-node: %w", err)
 			}
 		}
 		return ctrl.Result{}, nil
 	}
 
 	if err := r.ensureVirtualKubeletDeploymentPresence(ctx, virtualNode); err != nil {
-		return ctrl.Result{}, fmt.Errorf(" %w --> Unable to create the virtual-kubelet deployment", err)
+		return ctrl.Result{}, fmt.Errorf("unable to create the virtual-kubelet deployment: %w", err)
 	}
 	if !*virtualNode.Spec.CreateNode {
 		// If the virtual-node is not enabled, it deletes the node but not the virtual-node resource.
 		if err := r.dr.EnsureNodeAbsence(virtualNode); err != nil {
-			return ctrl.Result{}, fmt.Errorf(" %w --> Unable to delete the node", err)
+			return ctrl.Result{}, fmt.Errorf("unable to delete the node: %w", err)
 		}
 	}
 
