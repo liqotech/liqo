@@ -89,7 +89,7 @@ func (w *nwwhv) HandleCreate(req *admission.Request) admission.Response {
 	}
 
 	// Check if the CIDR is a valid network
-	if _, _, err := net.ParseCIDR(nw.Spec.CIDR); err != nil {
+	if _, _, err := net.ParseCIDR(nw.Spec.CIDR.String()); err != nil {
 		return admission.Denied(fmt.Sprintf("Invalid CIDR: %v", err))
 	}
 

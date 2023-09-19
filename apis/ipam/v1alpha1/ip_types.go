@@ -18,6 +18,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 )
 
 var (
@@ -45,7 +47,7 @@ type ServiceTemplate struct {
 // IPSpec defines a local IP.
 type IPSpec struct {
 	// IP is the local IP.
-	IP string `json:"ip"`
+	IP networkingv1alpha1.IP `json:"ip"`
 	// ServiceTemplate contains the template to create the associated service (and endpointslice) for the IP endopoint.
 	// If empty the creation of the service is disabled (default).
 	// +kubebuilder:validation:Optional
@@ -55,7 +57,7 @@ type IPSpec struct {
 // IPStatus defines remapped IPs.
 type IPStatus struct {
 	// IPMappings contains the mapping of the local IP for each remote cluster.
-	IPMappings map[string]string `json:"ipMappings,omitempty"`
+	IPMappings map[string]networkingv1alpha1.IP `json:"ipMappings,omitempty"`
 }
 
 // +kubebuilder:object:root=true
