@@ -396,6 +396,110 @@ rules:
   - update
   - watch
 - apiGroups:
+  - networking.liqo.io
+  resources:
+  - gatewayclients
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - gatewayclients/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - gatewayservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - gatewayservers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayclients
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayclients/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayclienttemplates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayservers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayservertemplates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - offloading.liqo.io
   resources:
   - namespaceoffloadings
