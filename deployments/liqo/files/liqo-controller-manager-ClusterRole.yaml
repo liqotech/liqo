@@ -376,6 +376,26 @@ rules:
   - update
   - watch
 - apiGroups:
+  - networking.liqo.io
+  resources:
+  - configurations
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - configurations/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - offloading.liqo.io
   resources:
   - namespaceoffloadings

@@ -34,18 +34,18 @@ var ConfigurationGroupResource = schema.GroupResource{Group: GroupVersion.Group,
 // ConfigurationGroupVersionResource is groupResourceVersion used to register these objects.
 var ConfigurationGroupVersionResource = GroupVersion.WithResource(ConfigurationResource)
 
-// CIDR defines the CIDR of the cluster.
-type CIDR struct {
+// ClusterConfigCIDR defines the CIDR of the cluster.
+type ClusterConfigCIDR struct {
 	// Pod CIDR of the cluster.
-	Pod string `json:"pod,omitempty"`
+	Pod CIDR `json:"pod,omitempty"`
 	// External CIDR of the cluster.
-	External string `json:"external,omitempty"`
+	External CIDR `json:"external,omitempty"`
 }
 
 // ClusterConfig defines the configuration of a cluster.
 type ClusterConfig struct {
 	// CIDR of the cluster.
-	CIDR CIDR `json:"cidr,omitempty"`
+	CIDR ClusterConfigCIDR `json:"cidr,omitempty"`
 }
 
 // ConfigurationSpec defines the desired state of Configuration.
