@@ -187,6 +187,18 @@ Concatenates a values list into a string in the form "--commandName=val1;default
 - {{ trimSuffix "," $res }}
 {{- end -}}
 
+
+{{/*
+Concatenates a values list of groupVersionResources into a string in the form "--commandName=group1/version1/resource1,group2/version2/resource2"
+*/}}
+{{- define "liqo.concatenateGroupVersionResources" -}}
+{{- $res := print .commandName "=" -}}
+{{- range $val := .list -}}
+{{- $res = print $res $val.apiVersion "/" $val.resource "," -}}
+{{- end -}}
+- {{ trimSuffix "," $res }}
+{{- end -}}
+
 {{/*
 Get the liqo clusterID ConfigMap name
 */}}
