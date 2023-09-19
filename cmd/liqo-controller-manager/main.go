@@ -54,12 +54,14 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
@@ -108,6 +110,7 @@ func init() {
 	_ = offloadingv1alpha1.AddToScheme(scheme)
 	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
 	_ = ipamv1alpha1.AddToScheme(scheme)
+	_ = networkingv1alpha1.AddToScheme(scheme)
 }
 
 func main() {
@@ -601,6 +604,11 @@ func main() {
 		}
 		if err = ipReconciler.SetupWithManager(ctx, mgr, *ipWorkers); err != nil {
 			klog.Errorf("Unable to start the ipReconciler", err)
+			os.Exit(1)
+		}
+		cfgr := configurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("configuration-controller"))
+		if err = cfgr.SetupWithManager(mgr); err != nil {
+			klog.Errorf("unable to create controller ConfigurationReconciler: %s", err)
 			os.Exit(1)
 		}
 	}
