@@ -19,6 +19,7 @@
 package v1alpha1
 
 import (
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -106,7 +107,7 @@ func (in *IPStatus) DeepCopyInto(out *IPStatus) {
 	*out = *in
 	if in.IPMappings != nil {
 		in, out := &in.IPMappings, &out.IPMappings
-		*out = make(map[string]string, len(*in))
+		*out = make(map[string]networkingv1alpha1.IP, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
