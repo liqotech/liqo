@@ -39,6 +39,14 @@ networking:
   mtu: 1340
   # -- Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation" 
   securityMode: "FullPodToPod"
+  # -- Set the list of resources that implement the GatewayServer
+  serverResources:
+    - apiVersion: networking.liqo.io/v1alpha1
+      resource: wggatewayservers
+  # -- Set the list of resources that implement the GatewayClient
+  clientResources:
+    - apiVersion: networking.liqo.io/v1alpha1
+      resource: wggatewayclients
 
 reflection:
   skip:

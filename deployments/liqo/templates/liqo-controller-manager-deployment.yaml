@@ -94,6 +94,10 @@ spec:
           {{- if not .Values.offloading.runtimeClass.enable }}
           - --add-virtual-node-toleration-on-offloaded-pods
           {{- end }}
+          {{- $d := dict "commandName" "--gateway-server-resources" "list" .Values.networking.serverResources }}
+          {{- include "liqo.concatenateGroupVersionResources" $d | nindent 10 }}
+          {{- $d := dict "commandName" "--gateway-client-resources" "list" .Values.networking.clientResources }}
+          {{- include "liqo.concatenateGroupVersionResources" $d | nindent 10 }}
           {{- if .Values.reflection.skip.labels }}
           {{- $d := dict "commandName" "--labels-not-reflected" "list" .Values.reflection.skip.labels }}
           {{- include "liqo.concatenateList" $d | nindent 10 }}
