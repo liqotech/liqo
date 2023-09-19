@@ -132,12 +132,14 @@
 | networkManager.pod.labels | object | `{}` | Labels for the networkManager pod. |
 | networkManager.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the networkManager pod. |
 | networkManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the networkManager pod. |
+| networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
 | networking.internal | bool | `true` | Use the default Liqo network manager. |
 | networking.iptables | object | `{"mode":"nf_tables"}` | Iptables configuration tuning. |
 | networking.iptables.mode | string | `"nf_tables"` | Select the iptables mode to use. Possible values are "legacy" and "nf_tables". |
 | networking.mtu | int | `1340` | Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces. The value is used by the gateway and route operators. The default value is configured to ensure correct behavior regardless of the combination of the underlying environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.securityMode | string | `"FullPodToPod"` | Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation"  |
+| networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |
 | offloading.runtimeClass.annotations | object | `{}` | Annotations for the runtime class. |
 | offloading.runtimeClass.enable | bool | `false` |  |
 | offloading.runtimeClass.handler | string | `"liqo"` | Handler for the runtime class. |
