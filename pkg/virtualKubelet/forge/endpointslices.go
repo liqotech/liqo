@@ -46,30 +46,32 @@ func IsEndpointSliceManagedByReflection(obj metav1.Object) bool {
 // EndpointToBeReflected filters out the endpoints targeting pods already running on the remote cluster.
 func EndpointToBeReflected(endpoint *discoveryv1.Endpoint, localNodeClient corev1listers.NodeLister) bool {
 	if endpoint.NodeName == nil {
-		klog.Warning("Endpoint without nodeName")
-		return false
+		klog.Warning("Endpoint without nodeName. The endpoint is probably external to the cluster.")
+		// If the nodeName is not set, the endpoint is probably external to the cluster.
+		// We reflect it, as is it certainly not scheduled on the virtual node.
+		return true
 	}
+
+	// Get node associated with the endpoint.
 	epNode, err := localNodeClient.Get(*endpoint.NodeName)
 	if err != nil {
 		klog.Errorf("Unable to retrieve node %s: %s", *endpoint.NodeName, err.Error())
 		return false
 	}
-	vkNode, err := localNodeClient.Get(LiqoNodeName)
-	if err != nil {
-		klog.Errorf("Unable to retrieve node %s: %s", LiqoNodeName, err.Error())
-		return false
-	}
-	vkRemoteClusterID, err := getters.RetrieveRemoteClusterIDFromNode(epNode)
+	// Retrieve clusterIDs from the node labels.
+	epNodeClusterID, err := getters.RetrieveRemoteClusterIDFromNode(epNode)
 	if err != nil {
 		klog.Errorf("Unable to retrieve remote cluster ID from node %s: %s", epNode.GetName(), err.Error())
 		return false
 	}
-	nodeRemoteClusterID, err := getters.RetrieveRemoteClusterIDFromNode(vkNode)
-	if err != nil {
-		klog.Errorf("Unable to retrieve remote cluster ID from node %s: %s", vkNode.GetName(), err.Error())
-		return false
-	}
-	return !pointer.StringEqual(&nodeRemoteClusterID, &vkRemoteClusterID)
+
+	// We compare the clusterIDs to check whether the endpoint is scheduled on (any) virtual node
+	// associated to the same remote cluster managed by the current virtual kubelet (i.e. targeting pods
+	// already running on the remote cluster):
+	// - endpoints relative to the same remote cluster are not reflected, as the associated endpointslice is
+	//   already handled on the remote cluster by Kubernetes, due to the presence of the remote pod.
+	// - endpoints relative to (1) local cluster, (2) different remote clusters, or (3) external are reflected.
+	return !pointer.StringEqual(&epNodeClusterID, &RemoteCluster.ClusterID)
 }
 
 // RemoteShadowEndpointSlice forges the remote shadowendpointslice, given the local endpointslice.
