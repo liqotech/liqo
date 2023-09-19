@@ -49,7 +49,7 @@ purge: manifests ctl
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	rm -f deployments/liqo/crds/*
-	$(CONTROLLER_GEN) crd paths="./apis/..." crd:generateEmbeddedObjectMeta=true output:crd:artifacts:config=deployments/liqo/crds
+	$(CONTROLLER_GEN) paths="./apis/..." crd:generateEmbeddedObjectMeta=true output:crd:artifacts:config=deployments/liqo/crds
 
 #Generate RBAC for each controller
 rbacs: controller-gen
@@ -169,7 +169,7 @@ PROTOC=$(shell which protoc)
 # download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	@go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.2
+	@go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
