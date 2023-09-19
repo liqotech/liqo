@@ -45,7 +45,9 @@ spec:
           command: ["/usr/bin/liqonet"]
           args:
           - --run-as=liqo-gateway
+          {{- if gt .Values.gateway.replicas 1.0 }}
           - --gateway.leader-elect=true
+          {{- end }}
           - --gateway.mtu={{ .Values.networking.mtu }}
           - --gateway.listening-port={{ .Values.gateway.config.listeningPort }}
           {{- if .Values.gateway.metrics.enabled }}
