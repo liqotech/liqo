@@ -82,7 +82,7 @@ func (w *ipwhv) HandleCreate(req *admission.Request) admission.Response {
 	}
 
 	// Check if the IP provided is a valid IP
-	if ip := net.ParseIP(ip.Spec.IP); ip == nil {
+	if ip := net.ParseIP(ip.Spec.IP.String()); ip == nil {
 		return admission.Denied(fmt.Sprintf("Invalid IP: %v", err))
 	}
 

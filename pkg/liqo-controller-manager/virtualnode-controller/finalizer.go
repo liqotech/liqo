@@ -26,7 +26,7 @@ import (
 func (r *VirtualNodeReconciler) ensureVirtualNodeFinalizerPresence(ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
 	ctrlutil.AddFinalizer(virtualNode, virtualNodeControllerFinalizer)
 	if err := r.Client.Update(ctx, virtualNode); err != nil {
-		klog.Errorf(" %s --> Unable to add the finalizer to the virtual-node", err)
+		klog.Errorf("unable to add the finalizer to the virtual-node: %s", err)
 		return err
 	}
 	return nil
