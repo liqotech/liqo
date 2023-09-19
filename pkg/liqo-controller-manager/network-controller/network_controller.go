@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -52,7 +53,7 @@ type NetworkReconciler struct {
 // Reconcile Network objects.
 func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var nw ipamv1alpha1.Network
-	var desiredCIDR, remappedCIDR string
+	var desiredCIDR, remappedCIDR networkingv1alpha1.CIDR
 
 	// Fetch the Network instance
 	if err := r.Get(ctx, req.NamespacedName, &nw); err != nil {
@@ -116,13 +117,15 @@ func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		// The resource is being deleted and the finalizer is still present. Call the IPAM to unmap the network CIDR.
 		remappedCIDR = nw.Status.CIDR
 
-		if _, _, err := net.ParseCIDR(remappedCIDR); err != nil {
-			klog.Errorf("Unable to unmap CIDR %s of Network %q (inavlid format): %v", remappedCIDR, req.NamespacedName, err)
-			return ctrl.Result{}, err
-		}
+		if remappedCIDR != "" {
+			if _, _, err := net.ParseCIDR(remappedCIDR.String()); err != nil {
+				klog.Errorf("Unable to unmap CIDR %s of Network %q (inavlid format): %v", remappedCIDR, req.NamespacedName, err)
+				return ctrl.Result{}, err
+			}
 
-		if err := deleteRemappedCIDR(ctx, r.IpamClient, remappedCIDR); err != nil {
-			return ctrl.Result{}, err
+			if err := deleteRemappedCIDR(ctx, r.IpamClient, remappedCIDR); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 
 		// Remove status and finalizer, and update the object.
@@ -148,32 +151,32 @@ func (r *NetworkReconciler) SetupWithManager(mgr ctrl.Manager, workers int) erro
 }
 
 // getRemappedCIDR returns the remapped CIDR for the given CIDR and remote clusterID.
-func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR string) (string, error) {
+func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1alpha1.CIDR) (networkingv1alpha1.CIDR, error) {
 	switch ipamClient.(type) {
 	case nil:
 		// IPAM is not enabled, use original CIDR from spec
 		return desiredCIDR, nil
 	default:
 		// interact with the IPAM to retrieve the correct mapping.
-		response, err := ipamClient.MapNetworkCIDR(ctx, &ipam.MapCIDRRequest{Cidr: desiredCIDR})
+		response, err := ipamClient.MapNetworkCIDR(ctx, &ipam.MapCIDRRequest{Cidr: desiredCIDR.String()})
 		if err != nil {
 			klog.Errorf("IPAM: error while mapping network CIDR %s: %v", desiredCIDR, err)
 			return "", err
 		}
 		klog.Infof("IPAM: mapped network CIDR %s to %s", desiredCIDR, response.Cidr)
-		return response.Cidr, nil
+		return networkingv1alpha1.CIDR(response.Cidr), nil
 	}
 }
 
 // deleteRemappedCIDR unmaps the CIDR for the given remote clusterID.
-func deleteRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, remappedCIDR string) error {
+func deleteRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, remappedCIDR networkingv1alpha1.CIDR) error {
 	switch ipamClient.(type) {
 	case nil:
 		// If the IPAM is not enabled we do not need to free the network CIDR.
 		return nil
 	default:
 		// Interact with the IPAM to free the network CIDR.
-		_, err := ipamClient.UnmapNetworkCIDR(ctx, &ipam.UnmapCIDRRequest{Cidr: remappedCIDR})
+		_, err := ipamClient.UnmapNetworkCIDR(ctx, &ipam.UnmapCIDRRequest{Cidr: remappedCIDR.String()})
 		if err != nil {
 			klog.Errorf("IPAM: error while unmapping CIDR %s: %v", remappedCIDR, err)
 			return err
