@@ -35,6 +35,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -60,7 +62,9 @@ import (
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
 	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
+	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/server-operator"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
@@ -87,6 +91,7 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/csr"
+	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -124,6 +129,8 @@ func main() {
 	var labelsNotReflected argsutils.StringList
 	var annotationsNotReflected argsutils.StringList
 	var ipamClient ipam.IpamClient
+	var gatewayServerResources argsutils.StringList
+	var gatewayClientResources argsutils.StringList
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -206,6 +213,10 @@ func main() {
 	// Node failure controller parameter
 	enableNodeFailureController := flag.Bool("enable-node-failure-controller", false, "Enable the node failure controller")
 
+	// External network parameters
+	flag.Var(&gatewayServerResources, "gateway-server-resources", "The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
+	flag.Var(&gatewayClientResources, "gateway-client-resources", "The list of resource types that implements the gateway client. They must be in the form <group>/<version>/<resource>")
+
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
@@ -240,6 +251,11 @@ func main() {
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
+	dynClient := dynamic.NewForConfigOrDie(config)
+	factory := &dynamicutils.RunnableFactory{
+		DynamicSharedInformerFactory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, 0, corev1.NamespaceAll, nil),
+	}
+
 	// Create a label selector to filter only the events for pods managed by a ShadowPod (i.e., remote offloaded pods),
 	// as those are the only ones we are interested in to implement the resiliency mechanism.
 	reqRemoteLiqoPods, err := labels.NewRequirement(consts.ManagedByLabelKey, selection.Equals, []string{consts.ManagedByShadowPodValue})
@@ -268,6 +284,11 @@ func main() {
 		},
 	})
 	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(factory); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
@@ -496,6 +517,20 @@ func main() {
 
 	if err = shadowEpsReconciler.SetupWithManager(ctx, mgr, *shadowEndpointSliceWorkers); err != nil {
 		klog.Fatal(err)
+	}
+
+	serverReconciler := serveroperator.NewServerReconciler(mgr.GetClient(),
+		dynClient, factory, mgr.GetScheme(), gatewayServerResources.StringList)
+	if err := serverReconciler.SetupWithManager(mgr); err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
+	clientReconciler := clientoperator.NewClientReconciler(mgr.GetClient(),
+		dynClient, factory, mgr.GetScheme(), gatewayClientResources.StringList)
+	if err := clientReconciler.SetupWithManager(mgr); err != nil {
+		klog.Error(err)
+		os.Exit(1)
 	}
 
 	// Start the handler to approve the virtual kubelet certificate signing requests.
