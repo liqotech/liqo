@@ -48,7 +48,7 @@ func (fnl *FakeNodeLister) Get(name string) (*corev1.Node, error) {
 			Name:   name,
 			Labels: map[string]string{},
 		}}
-	if name != LiqoNodeName {
+	if name == LiqoNodeName {
 		n.Labels[consts.RemoteClusterID] = RemoteClusterID
 	}
 	return n, nil
@@ -175,6 +175,14 @@ var _ = Describe("EndpointSlices Forging", func() {
 				input = []discoveryv1.Endpoint{endpoint, endpoint, endpoint}
 			})
 			It("should return no endpoints", func() { Expect(output).To(HaveLen(0)) })
+		})
+
+		When("translating an endpoint with empty NodeName (e.g., external endpoint)", func() {
+			BeforeEach(func() {
+				endpoint.NodeName = nil
+				input = []discoveryv1.Endpoint{endpoint}
+			})
+			It("should return the translated endpoint", func() { Expect(output).To(HaveLen(1)) })
 		})
 
 		When("translating multiple endpoints", func() {
