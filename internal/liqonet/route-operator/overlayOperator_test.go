@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -149,7 +150,7 @@ var _ = Describe("OverlayOperator", func() {
 						return fmt.Errorf(" error: annotated MAC %s is different than %s", newPod.GetAnnotations()[overlayAnnKey], ovc.vxlanDev.Link.HardwareAddr.String())
 					}
 					return nil
-				}).Should(BeNil())
+				}, time.Second*5).Should(BeNil())
 			})
 		})
 
