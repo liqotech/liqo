@@ -30,11 +30,14 @@ spec:
       port: {{ .Values.gateway.config.listeningPort }}
       targetPort: wireguard
       protocol: UDP
-  {{- if and (eq .Values.gateway.service.type "LoadBalancer") (.Values.gateway.service.loadBalancerIP) }}
-  loadBalancerIP: .Values.gateway.service.loadBalancerIP
+      {{- if and (eq .Values.gateway.service.type "NodePort") (.Values.gateway.service.nodePort.port) }}
+      nodePort: {{ .Values.gateway.service.nodePort.port }}
+      {{- end }}
+  {{- if and (eq .Values.gateway.service.type "LoadBalancer") (.Values.gateway.service.loadBalancer.ip) }}
+  loadBalancerIP: .Values.gateway.service.loadBalancer.ip
   {{- end }}
-  {{- if and (eq .Values.gateway.service.type "LoadBalancer") (.Values.gateway.service.allocateLoadBalancerNodePorts) }}
-  allocateLoadBalancerNodePorts: .Values.gateway.service.allocateLoadBalancerNodePorts
+  {{- if and (eq .Values.gateway.service.type "LoadBalancer") (.Values.gateway.service.loadBalancer.allocateLoadBalancerNodePorts) }}
+  allocateLoadBalancerNodePorts: .Values.gateway.service.loadBalancer.allocateLoadBalancerNodePorts
   {{- end }}
   selector:
     {{- include "liqo.gatewaySelector" $gatewayConfig | nindent 4 }}
