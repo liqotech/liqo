@@ -409,7 +409,15 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 	// in sync the endpointslice Ready condition with the associated pod Ready condition).
 	if podstatusctrl.HasRemoteUnavailableLabel(local) {
 		cond := pod.GetPodCondition(&po.Status, corev1.PodReady)
-		cond.Status = corev1.ConditionFalse
+		if cond == nil {
+			po.Status.Conditions = append(po.Status.Conditions, corev1.PodCondition{
+				Type:               corev1.PodReady,
+				Status:             corev1.ConditionFalse,
+				LastTransitionTime: metav1.NewTime(time.Now()),
+			})
+		} else {
+			cond.Status = corev1.ConditionFalse
+		}
 	}
 
 	// Do not attempt to perform an update if not necessary.
