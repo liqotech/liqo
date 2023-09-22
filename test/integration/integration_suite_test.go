@@ -26,6 +26,8 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -55,6 +57,7 @@ const (
 	remoteEndpointIP2  = "12.0.5.4"
 	timeout            = time.Second * 10
 	interval           = time.Millisecond * 250
+	namespace          = "test-namespace"
 )
 
 var (
@@ -169,13 +172,26 @@ func initNatMappingController() error {
 	return controller.SetupWithManager(mgr)
 }
 
+func createIpamNamespace(ipamns string) error {
+	return k8sClient.Create(ctx, &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ipamns,
+		},
+	})
+}
+
 func initIpam() error {
 	ipam = liqonetIpam.NewIPAM()
 	n, err := rand.Int(rand.Reader, big.NewInt(2000))
 	if err != nil {
 		return err
 	}
-	err = ipam.Init(liqonetIpam.Pools, dynClient, 2000+int(n.Int64()))
+
+	if err := createIpamNamespace(namespace); err != nil {
+		return err
+	}
+
+	err = ipam.Init(liqonetIpam.Pools, dynClient, 2000+int(n.Int64()), namespace)
 	if err != nil {
 		return err
 	}
@@ -245,10 +261,7 @@ func initNATDriver() error {
 		if err := ipt.EnsureChainsPerCluster(clusterID2); err != nil {
 			return err
 		}
-		if err := ipt.EnsureChainRulesPerCluster(tep2); err != nil {
-			return err
-		}
-		return nil
+		return ipt.EnsureChainRulesPerCluster(tep2)
 	})
 	return err
 }

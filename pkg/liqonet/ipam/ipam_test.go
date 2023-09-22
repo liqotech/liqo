@@ -51,6 +51,7 @@ const (
 	externalEndpointIP   = "10.0.50.6"
 	endpointIP           = "20.0.0.1"
 	invalidValue         = "invalid value"
+	namespace            = "test-namespace"
 )
 
 var (
@@ -135,7 +136,7 @@ var _ = Describe("Ipam", func() {
 		Expect(err).To(BeNil())
 		n, err := rand.Int(rand.Reader, big.NewInt(10000))
 		Expect(err).To(BeNil())
-		err = ipam.Init(Pools, dynClient, 2000+int(n.Int64()))
+		err = ipam.Init(Pools, dynClient, 2000+int(n.Int64()), namespace)
 		Expect(err).To(BeNil())
 	})
 	AfterEach(func() {
@@ -621,7 +622,7 @@ var _ = Describe("Ipam", func() {
 			ipam = NewIPAM()
 			n, err := rand.Int(rand.Reader, big.NewInt(2000))
 			Expect(err).To(BeNil())
-			err = ipam.Init(Pools, dynClient, 2000+int(n.Int64()))
+			err = ipam.Init(Pools, dynClient, 2000+int(n.Int64()), namespace)
 			Expect(err).To(BeNil())
 
 			// Another cluster asks for the same networks
@@ -1517,7 +1518,7 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// Recreate the cached representation of the IPAM storage.
-				storage, err := NewIPAMStorage(dynClient)
+				storage, err := NewIPAMStorage(dynClient, namespace)
 				Expect(err).ToNot(HaveOccurred())
 				ipam.ipamStorage = storage
 
@@ -1762,7 +1763,7 @@ func getNatMappingResourcePerCluster(clusterID string) (*liqonetapi.NatMapping, 
 
 func getIpamStorageResource() (*liqonetapi.IpamStorage, error) {
 	ipamConfig := &liqonetapi.IpamStorage{}
-	list, err := dynClient.Resource(liqonetapi.IpamGroupVersionResource).List(
+	list, err := dynClient.Resource(liqonetapi.IpamGroupVersionResource).Namespace(namespace).List(
 		context.Background(),
 		v1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s",
@@ -1804,7 +1805,7 @@ func updateIpamStorageResource(ipamStorage *liqonetapi.IpamStorage) error {
 	if err != nil {
 		return err
 	}
-	_, err = dynClient.Resource(liqonetapi.IpamGroupVersionResource).Update(
+	_, err = dynClient.Resource(liqonetapi.IpamGroupVersionResource).Namespace(namespace).Update(
 		context.Background(),
 		&unstructured.Unstructured{Object: unstructuredResource},
 		v1.UpdateOptions{},

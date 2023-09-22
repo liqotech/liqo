@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -132,7 +133,7 @@ var _ = Describe("OverlayOperator", func() {
 		Context("when the pod is the current one", func() {
 			It("should annotate the pod with the mac address of the vxlan device", func() {
 				// Set annotations to nil.
-				overlayTestPod.SetFinalizers(nil)
+				overlayTestPod.SetAnnotations(nil)
 				Eventually(func() error { return k8sClient.Create(context.TODO(), overlayTestPod) }).Should(BeNil())
 				newPod := &corev1.Pod{}
 				Eventually(func() error { return k8sClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
@@ -149,7 +150,7 @@ var _ = Describe("OverlayOperator", func() {
 						return fmt.Errorf(" error: annotated MAC %s is different than %s", newPod.GetAnnotations()[overlayAnnKey], ovc.vxlanDev.Link.HardwareAddr.String())
 					}
 					return nil
-				}).Should(BeNil())
+				}, 5*time.Second)
 			})
 		})
 

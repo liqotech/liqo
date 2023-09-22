@@ -83,7 +83,7 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 	}
 	dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 
-	ipam, err := initializeIPAM(dynClient, managerFlags)
+	ipam, err := initializeIPAM(dynClient, podNamespace, managerFlags)
 	if err != nil {
 		klog.Errorf("Failed to initialize IPAM: %s", err)
 		os.Exit(1)
@@ -126,10 +126,10 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 	}
 }
 
-func initializeIPAM(client dynamic.Interface, managerFlags *networkManagerFlags) (*liqonetIpam.IPAM, error) {
+func initializeIPAM(cl dynamic.Interface, namespace string, managerFlags *networkManagerFlags) (*liqonetIpam.IPAM, error) {
 	ipam := liqonetIpam.NewIPAM()
 
-	if err := ipam.Init(liqonetIpam.Pools, client, liqoconst.NetworkManagerIpamPort); err != nil {
+	if err := ipam.Init(liqonetIpam.Pools, cl, liqoconst.NetworkManagerIpamPort, namespace); err != nil {
 		return nil, err
 	}
 
