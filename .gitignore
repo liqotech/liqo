@@ -45,3 +45,7 @@ docs/_build
 
 # kubebuilder generated files
 /config
+
+# development files
+/tmp
+
