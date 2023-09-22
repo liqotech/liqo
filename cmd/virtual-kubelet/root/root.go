@@ -283,7 +283,12 @@ func getReflectorsConfigs(c *Opts) (map[generic.ResourceReflected]*generic.Refle
 		if isReflectionTypeNotCustomizable(*resource) {
 			reflectionType = DefaultReflectorsTypes[*resource]
 		} else {
-			reflectionType = consts.ReflectionType(*c.ReflectorsType[string(*resource)])
+			if *resource == generic.EndpointSlice {
+				// the endpointslice reflector inherits the reflection type from the service reflector.
+				reflectionType = consts.ReflectionType(*c.ReflectorsType[string(generic.Service)])
+			} else {
+				reflectionType = consts.ReflectionType(*c.ReflectorsType[string(*resource)])
+			}
 			if reflectionType != consts.DenyList && reflectionType != consts.AllowList {
 				return nil, fmt.Errorf("reflection type %q is not valid for resource %s. Ammitted values: %q, %q",
 					reflectionType, *resource, consts.DenyList, consts.AllowList)

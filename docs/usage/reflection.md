@@ -24,9 +24,11 @@ liqoctl install ... --set "reflection.secret.type=AllowList"
 ```
 
 ````{warning}
-***DenyList*** is the **default** reflection policy for all resources.
-
-Only the *Pods*, *PVCs*, and *ServiceAccounts* reflectors follow a **custom** Liqo logic and can't be customized.
+* ***DenyList*** is the **default** reflection policy for all resources.
+* Only the *Pods*, *PVCs*, and *ServiceAccounts* reflectors follow a **custom** Liqo logic and can't be customized.
+* The *EndpointSlice* reflector inherits the reflection policy from the *Service* reflector, and follows the following policy:
+  * an endpointslice is (not) reflected if the associated service is (not) reflected
+  * you can bypass the above behavior if you explicitly annotate the endpointslice itself (i.e., reflect the endpointslice using `liqo.io/allow-reflection` annotation, do not reflect using `liqo.io/skip-reflection`)
 ````
 
 ````{admonition} Note

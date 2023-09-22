@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -31,6 +32,7 @@ import (
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	discoveryv1listers "k8s.io/client-go/listers/discovery/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -327,30 +329,68 @@ func (ner *NamespacedEndpointSliceReflector) UnmapEndpointIPs(ctx context.Contex
 	return nil
 }
 
+// forcedAllowOrSkip checks whether the given object is *explicitly* marked to be allowed or skipped
+// (i.e., it has the allow or the deny annotation), independently from the reflection policy.
+// If so, it returns whether the object should be skipped, or an error if unable to determine it.
+// Otherwise, it return a nil bool as it is undeterminated, since we are not considering the reflection
+// policy at this stage.
+func forcedAllowOrSkip(obj metav1.Object) (*bool, error) {
+	allowAnnot, skipAnnot := false, false
+
+	value, ok := obj.GetAnnotations()[consts.AllowReflectionAnnotationKey]
+	if ok && !strings.EqualFold(value, "false") {
+		allowAnnot = true
+	}
+	value, ok = obj.GetAnnotations()[consts.SkipReflectionAnnotationKey]
+	if ok && !strings.EqualFold(value, "false") {
+		skipAnnot = true
+	}
+
+	if allowAnnot && skipAnnot {
+		return nil, fmt.Errorf("endpointslice %q can't have both the allow and deny annotations set", klog.KObj(obj))
+	}
+
+	switch {
+	case allowAnnot:
+		return pointer.Bool(false), nil
+	case skipAnnot:
+		return pointer.Bool(true), nil
+	default:
+		return nil, nil
+	}
+}
+
 // ShouldSkipReflection returns whether the reflection of the given object should be skipped.
 func (ner *NamespacedEndpointSliceReflector) ShouldSkipReflection(obj metav1.Object) (bool, error) {
-	// Check if the endpointslice is marked to be skipped.
-	skipReflection, err := ner.NamespacedReflector.ShouldSkipReflection(obj)
+	// Check if the endpointslice is explicitly marked to be skipped or allowed.
+	// If so, we do not care about the reflection policy, as the annotation takes precedence.
+	shouldSkip, err := forcedAllowOrSkip(obj)
 	if err != nil {
 		return true, err
+	} else if shouldSkip != nil {
+		return *shouldSkip, nil
 	}
-	if skipReflection {
-		return true, nil
-	}
+
+	// If no annotation are set, we consider the the standard reflection policy.
+	// Note: it is inherited from the service reflector.
 
 	// Check if a service is associated to the EndpointSlice, and whether it is marked to be skipped.
 	svcname, ok := obj.GetLabels()[discoveryv1.LabelServiceName]
 	if !ok {
-		return false, nil
+		// If the endpointslice is not associated to a service, use standard logic to determine whetever or not
+		// to reflect the endpointslice.
+		return ner.NamespacedReflector.ShouldSkipReflection(obj)
 	}
 
 	svc, err := ner.localServices.Get(svcname)
-	// Continue with the reflection in case the service is not found, as this is likely due to a race conditions
+	// Continue with the standard logic in case the service is not found, as this is likely due to a race conditions
 	// (i.e., the service has not yet been cached). If necessary, the informer will trigger a re-enqueue,
 	// thus performing once more this check.
 	if err != nil {
-		return false, nil
+		return ner.NamespacedReflector.ShouldSkipReflection(obj)
 	}
+
+	// The associated service exists, hence check if it is marked to be skipped.
 	return ner.NamespacedReflector.ShouldSkipReflection(svc)
 }
 

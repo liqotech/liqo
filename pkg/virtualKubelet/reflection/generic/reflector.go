@@ -105,7 +105,7 @@ const (
 var Reflectors = []ResourceReflected{Pod, Service, EndpointSlice, Ingress, ConfigMap, Secret, ServiceAccount, PersistentVolumeClaim, Event}
 
 // ReflectorsCustomizableType is the list of resources for which the reflection type can be customized.
-var ReflectorsCustomizableType = []ResourceReflected{Service, EndpointSlice, Ingress, ConfigMap, Secret, Event}
+var ReflectorsCustomizableType = []ResourceReflected{Service, Ingress, ConfigMap, Secret, Event}
 
 // ReflectorConfig contains configuration parameters of the reflector.
 type ReflectorConfig struct {

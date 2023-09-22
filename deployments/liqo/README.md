@@ -131,7 +131,6 @@
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods. |
 | reflection.configmap.type | string | `"DenyList"` | The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList". |
 | reflection.configmap.workers | int | `3` | The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps. |
-| reflection.endpointslice.type | string | `"DenyList"` | The type of reflection used for the endpointslices reflector Ammitted values: "DenyList", "AllowList". |
 | reflection.endpointslice.workers | int | `10` | The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices. |
 | reflection.event.type | string | `"DenyList"` | The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList". |
 | reflection.event.workers | int | `3` | The number of workers used for the events reflector. Set 0 to disable the reflection of events. |

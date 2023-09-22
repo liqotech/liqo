@@ -63,7 +63,6 @@ var DefaultReflectorsWorkers = map[generic.ResourceReflected]uint{
 var DefaultReflectorsTypes = map[generic.ResourceReflected]consts.ReflectionType{
 	generic.Pod:                   consts.CustomLiqo,
 	generic.Service:               consts.DenyList,
-	generic.EndpointSlice:         consts.DenyList,
 	generic.Ingress:               consts.DenyList,
 	generic.ConfigMap:             consts.DenyList,
 	generic.Secret:                consts.DenyList,
