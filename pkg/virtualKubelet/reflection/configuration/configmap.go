@@ -162,6 +162,27 @@ func (ncr *NamespacedConfigMapReflector) Handle(ctx context.Context, name string
 	return nil
 }
 
+// ShouldSkipReflection returns whether the reflection of the given object should be skipped.
+func (ncr *NamespacedConfigMapReflector) ShouldSkipReflection(obj metav1.Object) (bool, error) {
+	// If the object is the root CA configmap, the object must always be reflected independently
+	// from the reflection policy, unless the object is specifically marked with the allow or
+	// deny annotations.
+	if obj.GetName() == forge.RootCAConfigMapName {
+		shouldSkip, err := ncr.ForcedAllowOrSkip(obj)
+		switch {
+		case err != nil:
+			return false, err
+		case shouldSkip != nil:
+			return *shouldSkip, nil
+		default:
+			return false, nil
+		}
+	}
+
+	// Otherwise, the standard reflection policy is applied.
+	return ncr.NamespacedReflector.ShouldSkipReflection(obj)
+}
+
 // List returns the list of objects.
 func (ncr *NamespacedConfigMapReflector) List() ([]interface{}, error) {
 	return virtualkubelet.List[virtualkubelet.Lister[*corev1.ConfigMap], *corev1.ConfigMap](

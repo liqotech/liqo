@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -132,4 +133,35 @@ func (gnr *NamespacedReflector) ShouldSkipReflection(obj metav1.Object) (bool, e
 // GetReflectionType returns the reflection type of the reflector.
 func (gnr *NamespacedReflector) GetReflectionType() consts.ReflectionType {
 	return gnr.reflectionType
+}
+
+// ForcedAllowOrSkip checks whether the given object is *explicitly* marked to be allowed or skipped
+// (i.e., it has the allow or the deny annotation), independently from the reflection policy.
+// If so, it returns whether the object should be skipped, or an error if unable to determine it.
+// Otherwise, it return a nil bool as it is undeterminated, since we are not considering the reflection
+// policy at this stage.
+func (gnr *NamespacedReflector) ForcedAllowOrSkip(obj metav1.Object) (*bool, error) {
+	allowAnnot, skipAnnot := false, false
+
+	value, ok := obj.GetAnnotations()[consts.AllowReflectionAnnotationKey]
+	if ok && !strings.EqualFold(value, "false") {
+		allowAnnot = true
+	}
+	value, ok = obj.GetAnnotations()[consts.SkipReflectionAnnotationKey]
+	if ok && !strings.EqualFold(value, "false") {
+		skipAnnot = true
+	}
+
+	if allowAnnot && skipAnnot {
+		return nil, fmt.Errorf("object %q can't have both the allow and deny annotations set", klog.KObj(obj))
+	}
+
+	switch {
+	case allowAnnot:
+		return pointer.Bool(false), nil
+	case skipAnnot:
+		return pointer.Bool(true), nil
+	default:
+		return nil, nil
+	}
 }
