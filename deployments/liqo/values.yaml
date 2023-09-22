@@ -66,8 +66,6 @@ reflection:
   endpointslice:
     # -- The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices.
     workers: 10
-    # -- The type of reflection used for the endpointslices reflector Ammitted values: "DenyList", "AllowList".
-    type: DenyList
   ingress:
     # -- The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses.
     workers: 3

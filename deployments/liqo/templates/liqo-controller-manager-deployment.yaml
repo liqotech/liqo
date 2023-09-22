@@ -87,7 +87,6 @@ spec:
           - --persistentvolumeclaim-reflection-workers={{ .Values.reflection.persistentvolumeclaim.workers }}
           - --event-reflection-workers={{ .Values.reflection.event.workers }}
           - --service-reflection-type={{ .Values.reflection.service.type }}
-          - --endpointslice-reflection-type={{ .Values.reflection.endpointslice.type }}
           - --ingress-reflection-type={{ .Values.reflection.ingress.type }}
           - --configmap-reflection-type={{ .Values.reflection.configmap.type }}
           - --secret-reflection-type={{ .Values.reflection.secret.type }}

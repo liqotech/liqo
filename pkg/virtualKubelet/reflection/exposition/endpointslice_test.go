@@ -119,7 +119,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			liqoClient = liqoclientfake.NewSimpleClientset()
 			local = discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: LocalNamespace}}
 			remote = vkv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
-			reflectionType = root.DefaultReflectorsTypes[generic.EndpointSlice]
+			reflectionType = root.DefaultReflectorsTypes[generic.Service] // reflection type inherited from the service reflector
 		})
 
 		AfterEach(func() {
@@ -276,6 +276,28 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					reflectionType = consts.AllowList
 				})
 
+				When("the local object does exist, and the associated service has the allow annotation", func() {
+					BeforeEach(func() {
+						local.Labels = map[string]string{discoveryv1.LabelServiceName: ServiceName}
+						local.AddressType = discoveryv1.AddressTypeIPv4
+						CreateEndpointSlice(&local)
+
+						CreateService(&corev1.Service{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: ServiceName, Namespace: LocalNamespace,
+								Annotations: map[string]string{consts.AllowReflectionAnnotationKey: "whatever"},
+							},
+							Spec: corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromInt(8080)}}},
+						})
+					})
+
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+					It("the remote object should be present", func() {
+						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
+						Expect(remoteAfter).ToNot(BeNil())
+					})
+				})
+
 				When("the local object does exist, but does not have the allow annotation", func() {
 					BeforeEach(func() {
 						local.AddressType = discoveryv1.AddressTypeIPv4
@@ -298,6 +320,35 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
 						Expect(remoteAfter).ToNot(BeNil())
 					})
+				})
+			})
+
+			When("the reflection is forced with the allow or skip annotation", func() {
+				When("the reflection is deny, but the object has the allow annotation", func() {
+					BeforeEach(func() {
+						reflectionType = consts.DenyList
+						local.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
+						local.AddressType = discoveryv1.AddressTypeIPv4
+						CreateEndpointSlice(&local)
+					})
+
+					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+					It("the remote object should be present", func() {
+						remoteAfter := GetShadowEndpointSlice(RemoteNamespace)
+						Expect(remoteAfter).ToNot(BeNil())
+					})
+				})
+
+				When("the reflection is allow, but the object has the skip annotation", func() {
+					BeforeEach(func() {
+						reflectionType = consts.AllowList
+						local.SetAnnotations(map[string]string{consts.SkipReflectionAnnotationKey: "whatever"})
+						local.AddressType = discoveryv1.AddressTypeIPv4
+						CreateEndpointSlice(&local)
+					})
+
+					When("the remote object does not exist", WhenBodyRemoteShouldNotExist(false))
+					When("the remote object does exist", WhenBodyRemoteShouldNotExist(true))
 				})
 			})
 		})
