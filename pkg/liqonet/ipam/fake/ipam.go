@@ -24,6 +24,8 @@ import (
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
+var _ ipam.IpamClient = &IPAMClient{}
+
 // IPAMClient provides a mock implementation of the IPAMClient interface for testing purposes.
 type IPAMClient struct {
 	localRemappedPodCIDR  string
@@ -102,4 +104,14 @@ func (mock *IPAMClient) GetHomePodIP(_ context.Context, req *ipam.GetHomePodIPRe
 func (mock *IPAMClient) BelongsToPodCIDR(context.Context, *ipam.BelongsRequest,
 	...grpc.CallOption) (*ipam.BelongsResponse, error) {
 	return &ipam.BelongsResponse{Belongs: true}, nil
+}
+
+// MapNetworkCIDR mocks the corresponding IPAMClient function.
+func (mock *IPAMClient) MapNetworkCIDR(_ context.Context, req *ipam.MapCIDRRequest, _ ...grpc.CallOption) (*ipam.MapCIDRResponse, error) {
+	return &ipam.MapCIDRResponse{Cidr: req.GetCidr()}, nil
+}
+
+// UnmapNetworkCIDR mocks the corresponding IPAMClient function.
+func (mock *IPAMClient) UnmapNetworkCIDR(_ context.Context, _ *ipam.UnmapCIDRRequest, _ ...grpc.CallOption) (*ipam.UnmapCIDRResponse, error) {
+	return &ipam.UnmapCIDRResponse{}, nil
 }
