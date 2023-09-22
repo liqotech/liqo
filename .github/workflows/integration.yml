@@ -86,6 +86,7 @@ jobs:
         - virtual-kubelet
         - metric-agent
         - telemetry
+        - proxy
     steps:
 
       - name: Set up QEMU
