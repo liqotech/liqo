@@ -115,7 +115,7 @@
 | openshiftConfig.enable | bool | `false` | Enable/Disable the OpenShift support, enabling Openshift-specific resources, and setting the pod security contexts in a way that is compatible with Openshift. |
 | openshiftConfig.virtualKubeletSCCs | list | `["anyuid"]` | Security context configurations granted to the virtual kubelet in the local cluster. The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments. Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when attempting to offload pods not managed by higher-level abstractions (e.g., Deployments), and not associated with a properly privileged service account. Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators. Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded. |
 | proxy.config.listeningPort | int | `8118` | Port used by the proxy pod. |
-| proxy.imageName | string | `"envoyproxy/envoy:v1.21.0"` | Image repository for the proxy pod. |
+| proxy.imageName | string | `"ghcr.io/liqotech/proxy"` | Image repository for the proxy pod. |
 | proxy.pod.annotations | object | `{}` | Annotations for the proxy pod. |
 | proxy.pod.extraArgs | list | `[]` | Extra arguments for the proxy pod. |
 | proxy.pod.labels | object | `{}` | Labels for the proxy pod. |

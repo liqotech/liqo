@@ -481,7 +481,7 @@ proxy:
       limits: {}
       requests: {}
   # -- Image repository for the proxy pod.
-  imageName: "envoyproxy/envoy:v1.21.0"
+  imageName: "ghcr.io/liqotech/proxy"
   service:
     type: "ClusterIP"
     annotations: {}
