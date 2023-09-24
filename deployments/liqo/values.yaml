@@ -494,6 +494,7 @@ proxy:
       requests: {}
   # -- Image repository for the proxy pod.
   imageName: "ghcr.io/liqotech/proxy"
+  imageTag: ""
   service:
     type: "ClusterIP"
     annotations: {}
