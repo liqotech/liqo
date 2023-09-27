@@ -142,7 +142,9 @@ func initNatMappingController() error {
 		return err
 	}
 	envTest = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deployments", "liqo", "crds")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+		},
 	}
 	config, err := envTest.Start()
 	if err != nil {
