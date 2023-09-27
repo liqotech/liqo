@@ -121,7 +121,9 @@ var _ = BeforeSuite(func() {
 	err = netv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).ShouldNot(HaveOccurred())
 	envTest = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+		},
 	}
 	config, err := envTest.Start()
 	Expect(err).ShouldNot(HaveOccurred())
