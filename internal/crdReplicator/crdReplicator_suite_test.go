@@ -80,7 +80,9 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// The same cluster is used both as local and remote, using different namespaces.
-	clsrt, mgr, err := testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+	clsrt, mgr, err := testutil.NewTestCluster([]string{
+		filepath.Join("..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+	})
 	Expect(err).ToNot(HaveOccurred())
 	cluster = clsrt
 
