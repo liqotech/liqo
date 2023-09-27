@@ -35,7 +35,9 @@ func TestForeignclusterwatcher(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
-	clstr, _, err := testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "..", "deployments", "liqo", "crds")})
+	clstr, _, err := testutil.NewTestCluster([]string{
+		filepath.Join("..", "..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+	})
 	Expect(err).ToNot(HaveOccurred())
 
 	testcluster = clstr

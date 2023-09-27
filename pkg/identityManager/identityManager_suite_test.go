@@ -90,7 +90,9 @@ var _ = BeforeSuite(func() {
 	}, remoteCluster.ClusterID)
 
 	var err error
-	cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+	cluster, _, err = testutil.NewTestCluster([]string{
+		filepath.Join("..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+	})
 	Expect(err).ToNot(HaveOccurred())
 
 	client = cluster.GetClient()
