@@ -72,7 +72,9 @@ var _ = Describe("NodeProvider", func() {
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
 
-		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testutil.NewTestCluster([]string{
+			filepath.Join("..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+		})
 		Expect(err).To(BeNil())
 
 		client := kubernetes.NewForConfigOrDie(cluster.GetCfg())
