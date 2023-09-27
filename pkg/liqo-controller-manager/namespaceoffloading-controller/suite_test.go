@@ -131,7 +131,9 @@ var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
 
 	homeClusterEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+		},
 	}
 
 	var err error
