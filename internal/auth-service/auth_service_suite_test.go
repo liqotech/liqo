@@ -60,7 +60,9 @@ var _ = BeforeSuite(func() {
 	_ = tMan.createToken()
 
 	var err error
-	cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+	cluster, _, err = testutil.NewTestCluster([]string{
+		filepath.Join("..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+	})
 	Expect(err).ToNot(HaveOccurred())
 
 	informerFactory := informers.NewSharedInformerFactoryWithOptions(cluster.GetClient(), 300*time.Second, informers.WithNamespace("default"))
