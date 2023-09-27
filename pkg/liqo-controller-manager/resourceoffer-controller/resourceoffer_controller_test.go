@@ -107,7 +107,9 @@ var _ = Describe("ResourceOffer Controller", func() {
 
 	BeforeEach(func() {
 		var err error
-		cluster, mgr, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
+		cluster, mgr, err = testutil.NewTestCluster([]string{
+			filepath.Join("..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+		})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
