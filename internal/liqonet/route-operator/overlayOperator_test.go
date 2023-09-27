@@ -393,7 +393,9 @@ func setupOverlayTestEnv() error {
 		return err
 	}
 	overlayEnvTest = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+		},
 	}
 	config, err := overlayEnvTest.Start()
 	if err != nil {
