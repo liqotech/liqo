@@ -37,8 +37,6 @@ var WgGatewayClientGroupVersionResource = GroupVersion.WithResource(WgGatewayCli
 
 // WgGatewayClientSpec defines the desired state of WgGatewayClient.
 type WgGatewayClientSpec struct {
-	// MTU specifies the MTU of the tunnel.
-	MTU int `json:"mtu"`
 	// Deployment specifies the deployment template for the client.
 	Deployment DeploymentTemplate `json:"deployment"`
 }
@@ -46,7 +44,7 @@ type WgGatewayClientSpec struct {
 // WgGatewayClientStatus defines the observed state of WgGatewayClient.
 type WgGatewayClientStatus struct {
 	// SecretRef specifies the reference to the secret.
-	SecretRef corev1.ObjectReference `json:"secretRef,omitempty"`
+	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 }
 
 // +kubebuilder:object:root=true
