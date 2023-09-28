@@ -39,3 +39,8 @@ updates:
     directory: "/build/proxy"
     schedule:
       interval: "daily"
+
+  - package-ecosystem: "docker"
+    directory: "/build/gateway/tunnel/wireguard"
+    schedule:
+      interval: "daily"
