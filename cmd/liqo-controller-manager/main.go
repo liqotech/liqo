@@ -66,6 +66,7 @@ import (
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
 	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/server-operator"
+	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/wireguard"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
@@ -355,13 +356,42 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := mgr.Add(auxmgrLocalPods); err != nil {
-		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
+	// Create a label selector to filter only events that are part of the Gateway
+	reqExtNetworkPods, err := labels.NewRequirement(consts.ExternalNetworkLabel, selection.Equals, []string{consts.ExternalNetworkLabelValue})
+	utilruntime.Must(err)
+
+	// Create an accessory manager that cache only local offloaded pods.
+	// This manager caches only the pods that are offloaded and scheduled on a remote cluster.
+	auxmgrExtNetworkPods, err := ctrl.NewManager(config, ctrl.Options{
+		MapperProvider:     mapper.LiqoMapperProvider(scheme),
+		Scheme:             scheme,
+		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
+				&corev1.Pod{}: {
+					Label: labels.NewSelector().Add(*reqExtNetworkPods),
+				},
+			}
+			return cache.New(config, opts)
+		},
+	})
+
+	if err != nil {
+		klog.Errorf("Unable to create auxiliary manager: %w", err)
 		os.Exit(1)
 	}
 
+	// Add all the auxiliary managers to the main one.
+	if err := mgr.Add(auxmgrLocalPods); err != nil {
+		klog.Errorf("Unable to add the LocalPods auxiliary manager to the main one: %w", err)
+		os.Exit(1)
+	}
 	if err := mgr.Add(auxmgrVirtualKubeletPods); err != nil {
-		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
+		klog.Errorf("Unable to add the VirtualKubeletPods auxiliary manager to the main one: %w", err)
+		os.Exit(1)
+	}
+	if err := mgr.Add(auxmgrExtNetworkPods); err != nil {
+		klog.Errorf("Unable to add the ExternalNetworkPods auxiliary manager to the main one: %w", err)
 		os.Exit(1)
 	}
 
@@ -638,9 +668,23 @@ func main() {
 			klog.Errorf("Unable to start the ipReconciler", err)
 			os.Exit(1)
 		}
+
 		cfgr := configurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("configuration-controller"))
 		if err = cfgr.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to create controller ConfigurationReconciler: %s", err)
+			os.Exit(1)
+		}
+
+		wgServerRec := wggatewaycontrollers.NewWgGatewayServerReconciler(
+			mgr.GetClient(), mgr.GetScheme(), auxmgrExtNetworkPods.GetClient())
+		if err = wgServerRec.SetupWithManager(mgr); err != nil {
+			klog.Errorf("Unable to start the WgGatewayServerReconciler", err)
+			os.Exit(1)
+		}
+
+		wgClientRec := wggatewaycontrollers.NewWgGatewayClientReconciler(mgr.GetClient(), mgr.GetScheme())
+		if err = wgClientRec.SetupWithManager(mgr); err != nil {
+			klog.Errorf("Unable to start the WgGatewayClientReconciler", err)
 			os.Exit(1)
 		}
 	}
