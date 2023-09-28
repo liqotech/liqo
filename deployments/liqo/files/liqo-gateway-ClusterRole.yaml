@@ -1,0 +1,21 @@
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - publickeys
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
