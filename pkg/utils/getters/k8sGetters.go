@@ -32,6 +32,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
@@ -359,6 +360,16 @@ func GetLiqoVersion(ctx context.Context, cl client.Client, liqoNamespace string)
 // ListNetworkByLabel returns the Network resource with the given labels.
 func ListNetworkByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*ipamv1alpha1.NetworkList, error) {
 	list := &ipamv1alpha1.NetworkList{}
+	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
+	if err != nil {
+		return nil, err
+	}
+	return list, err
+}
+
+// ListPublicKeysByLabel returns the PublicKey resource with the given labels.
+func ListPublicKeysByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*networkingv1alpha1.PublicKeyList, error) {
+	list := &networkingv1alpha1.PublicKeyList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
 	if err != nil {
 		return nil, err
