@@ -14,6 +14,17 @@
 
 package maps
 
+import (
+	"fmt"
+	"maps"
+	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/liqotech/liqo/pkg/consts"
+)
+
 // Merge merges two maps.
 func Merge[K comparable, V any](m1, m2 map[K]V) map[K]V {
 	if m1 == nil {
@@ -66,4 +77,114 @@ func FilterBlacklist[K comparable](blacklist ...K) FilterType[K] {
 	return func(check K) bool {
 		return !FilterWhitelist(blacklist...)(check)
 	}
+}
+
+// SmartMergeLabels merges labels from a template map in a map, and remember what labels were added in
+// the object from the template, storing them in a custom annotation. This allows the function to also
+// delete the labels that were added by the template previously, but that they are no longer present
+// in the template. This is useful to avoid to accumulate labels in the object that are not present
+// in the template anymore.
+func SmartMergeLabels(obj metav1.Object, templateLabels map[string]string) {
+	if templateLabels == nil {
+		templateLabels = make(map[string]string)
+	}
+
+	// Filter out the labels not present in the template but present in the cached template labels
+	filteredLabels := FilteredDeletedLabels(obj.GetAnnotations(), obj.GetLabels(), templateLabels)
+
+	// Merge with current template labels
+	obj.SetLabels(labels.Merge(filteredLabels, templateLabels))
+
+	// Update cache with latest template labels
+	obj.SetAnnotations(UpdateCache(obj.GetAnnotations(), templateLabels, consts.LabelsTemplateAnnotationKey))
+}
+
+// SmartMergeAnnotations merges annotations from a template map in a map, and remember what annotations were added in
+// the object from the template, storing them in a custom annotation. This allows the function to also
+// delete the annotations that were added by the template previously, but that they are no longer present
+// in the template. This is useful to avoid to accumulate annotations in the object that are not present
+// in the template anymore.
+func SmartMergeAnnotations(obj metav1.Object, templateAnnots map[string]string) {
+	if templateAnnots == nil {
+		templateAnnots = make(map[string]string)
+	}
+
+	// Filter out the annotations not present in the template but present in the cached template annotations
+	filteredAnnots := FilteredDeletedAnnotations(obj.GetAnnotations(), templateAnnots)
+
+	// Merge with current template annotations
+	obj.SetAnnotations(labels.Merge(filteredAnnots, templateAnnots))
+
+	// Update cache with latest template annotations
+	obj.SetAnnotations(UpdateCache(obj.GetAnnotations(), templateAnnots, consts.AnnotsTemplateAnnotationKey))
+}
+
+// FilteredDeletedLabels returns the labels of the object after deleting the labels not present
+// in the template but present in the cached template labels (e.g., the ones added by the template).
+func FilteredDeletedLabels(annots, labs, templateLabs map[string]string) map[string]string {
+	// Get cached labels of the template
+	var cachedTemplateLabelsKey []string
+	if annots != nil {
+		cache := annots[consts.LabelsTemplateAnnotationKey]
+		cachedTemplateLabelsKey = DeSerializeCache(cache)
+	}
+
+	// Delete from objet labels the entries not present in the template labels
+	return FilteredDeletedEntries(labs, templateLabs, cachedTemplateLabelsKey)
+}
+
+// FilteredDeletedAnnotations returns the annotations of the object after deleting the annotations not present
+// in the template but present in the cached template annotations (e.g., the ones added by the template).
+func FilteredDeletedAnnotations(annots, templateAnnots map[string]string) map[string]string {
+	// Get cached annotations of the template
+	var cachedTemplateAnnotsKeys []string
+	if annots != nil {
+		cache := annots[consts.AnnotsTemplateAnnotationKey]
+		cachedTemplateAnnotsKeys = DeSerializeCache(cache)
+	}
+
+	// Delete from objet annotations the entries not present in the template annotations
+	return FilteredDeletedEntries(annots, templateAnnots, cachedTemplateAnnotsKeys)
+}
+
+// FilteredDeletedEntries deletes entries of map m1 that are not present in map m2,
+// excluding the ones not stored in a cache of keys.
+func FilteredDeletedEntries(m1, m2 map[string]string, cache []string) map[string]string {
+	res := maps.Clone(m1)
+	if res == nil {
+		res = make(map[string]string)
+	}
+	if m2 == nil {
+		m2 = make(map[string]string)
+	}
+	for _, key := range cache {
+		if _, exists := m2[key]; !exists {
+			delete(res, key)
+		}
+	}
+	return res
+}
+
+// UpdateCache updates the cache with the latest entries from template.
+func UpdateCache(annots, template map[string]string, cacheKey string) map[string]string {
+	if annots == nil {
+		annots = make(map[string]string)
+	}
+	// Update cache with latest template labels
+	annots[cacheKey] = SerializeMap(template)
+	return annots
+}
+
+// SerializeMap convert a map in a string of concatenated keys seprated by commas.
+func SerializeMap(m map[string]string) string {
+	serialized := ""
+	for k := range m {
+		serialized += fmt.Sprintf("%s,", k)
+	}
+	return serialized
+}
+
+// DeSerializeCache splits a serialized map.
+func DeSerializeCache(s string) []string {
+	return strings.Split(s, ",")
 }
