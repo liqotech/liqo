@@ -1,7 +1,6 @@
 module github.com/liqotech/liqo
 
 go 1.21.0
-
 require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.29
@@ -14,7 +13,7 @@ require (
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.2
-	github.com/gruntwork-io/terratest v0.43.13
+	github.com/gruntwork-io/terratest v0.44.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mattn/go-isatty v0.0.19
