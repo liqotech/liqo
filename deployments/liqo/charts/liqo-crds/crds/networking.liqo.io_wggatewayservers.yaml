@@ -8585,9 +8585,6 @@ spec:
                     - template
                     type: object
                 type: object
-              mtu:
-                description: MTU specifies the MTU of the tunnel.
-                type: integer
               service:
                 description: Service specifies the service template for the server.
                 properties:
@@ -8954,7 +8951,6 @@ spec:
                 type: object
             required:
             - deployment
-            - mtu
             - service
             type: object
           status:
