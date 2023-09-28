@@ -54,8 +54,6 @@ type DeploymentTemplate struct {
 
 // WgGatewayServerSpec defines the desired state of WgGatewayServer.
 type WgGatewayServerSpec struct {
-	// MTU specifies the MTU of the tunnel.
-	MTU int `json:"mtu"`
 	// Service specifies the service template for the server.
 	Service ServiceTemplate `json:"service"`
 	// Deployment specifies the deployment template for the server.
@@ -65,9 +63,9 @@ type WgGatewayServerSpec struct {
 // WgGatewayServerStatus defines the observed state of WgGatewayServer.
 type WgGatewayServerStatus struct {
 	// SecretRef specifies the reference to the secret.
-	SecretRef corev1.ObjectReference `json:"secretRef,omitempty"`
+	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Endpoint specifies the endpoint of the server.
-	Endpoint EndpointStatus `json:"endpoint,omitempty"`
+	Endpoint *EndpointStatus `json:"endpoint,omitempty"`
 }
 
 // +kubebuilder:object:root=true
