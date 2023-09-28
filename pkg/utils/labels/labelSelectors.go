@@ -104,6 +104,26 @@ var (
 			},
 		},
 	}
+
+	// WgServerNameLabelSelector selector used to get a secret for a WireGuard gateway server.
+	WgServerNameLabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      liqoconst.WgServerNameLabel,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+		},
+	}
+
+	// WgClientNameLabelSelector selector used to get a secret for a WireGuard gateway client.
+	WgClientNameLabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      liqoconst.WgClientNameLabel,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+		},
+	}
 )
 
 // LocalLabelSelector returns a label selector to match local resources.
