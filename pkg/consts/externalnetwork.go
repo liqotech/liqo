@@ -30,6 +30,8 @@ const (
 	// GatewayTypeClient indicates a Gateway of type client.
 	GatewayTypeClient = "client"
 
+	// PrivateKeyField is the data field of the secrets containing private keys.
+	PrivateKeyField = "privateKey"
 	// PublicKeyField is the data field of the secrets containing public keys.
 	PublicKeyField = "publicKey"
 )
