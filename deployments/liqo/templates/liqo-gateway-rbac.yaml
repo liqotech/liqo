@@ -1,0 +1,14 @@
+---
+{{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking") .) -}}
+
+{{- if .Values.networking.internal }}
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
+  labels:
+    {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $gatewayConfig))) }}
+
+{{- end }}
