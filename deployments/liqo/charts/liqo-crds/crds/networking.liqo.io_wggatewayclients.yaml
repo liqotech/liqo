@@ -8585,12 +8585,8 @@ spec:
                     - template
                     type: object
                 type: object
-              mtu:
-                description: MTU specifies the MTU of the tunnel.
-                type: integer
             required:
             - deployment
-            - mtu
             type: object
           status:
             description: WgGatewayClientStatus defines the observed state of WgGatewayClient.
