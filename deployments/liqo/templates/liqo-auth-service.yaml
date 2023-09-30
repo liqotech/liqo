@@ -44,8 +44,8 @@ spec:
       nodePort: {{ .Values.auth.service.nodePort.port }}
       {{- end }}
   {{- if and (eq .Values.auth.service.type "LoadBalancer") (.Values.auth.service.loadBalancer.ip) }}
-  loadBalancerIP: .Values.auth.service.loadBalancer.ip
+  loadBalancerIP: {{ .Values.auth.service.loadBalancer.ip }}
   {{- end }}
   {{- if and (eq .Values.auth.service.type "LoadBalancer") (.Values.auth.service.loadBalancer.allocateLoadBalancerNodePorts) }}
-  allocateLoadBalancerNodePorts: .Values.auth.service.loadBalancer.allocateLoadBalancerNodePorts
+  allocateLoadBalancerNodePorts: {{ .Values.auth.service.loadBalancer.allocateLoadBalancerNodePorts }}
   {{- end }}
