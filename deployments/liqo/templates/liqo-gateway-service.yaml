@@ -34,10 +34,10 @@ spec:
       nodePort: {{ .Values.gateway.service.nodePort.port }}
       {{- end }}
   {{- if and (eq .Values.gateway.service.type "LoadBalancer") (.Values.gateway.service.loadBalancer.ip) }}
-  loadBalancerIP: .Values.gateway.service.loadBalancer.ip
+  loadBalancerIP: {{ .Values.gateway.service.loadBalancer.ip }}
   {{- end }}
   {{- if and (eq .Values.gateway.service.type "LoadBalancer") (.Values.gateway.service.loadBalancer.allocateLoadBalancerNodePorts) }}
-  allocateLoadBalancerNodePorts: .Values.gateway.service.loadBalancer.allocateLoadBalancerNodePorts
+  allocateLoadBalancerNodePorts: {{ .Values.gateway.service.loadBalancer.allocateLoadBalancerNodePorts }}
   {{- end }}
   selector:
     {{- include "liqo.gatewaySelector" $gatewayConfig | nindent 4 }}
