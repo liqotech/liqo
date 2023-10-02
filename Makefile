@@ -15,7 +15,7 @@ generate: generate-controller generate-groups rbacs manifests fmt
 
 #generate helm documentation
 docs: helm-docs
-	$(HELM_DOCS) -t deployments/liqo/README.gotmpl deployments/liqo
+	$(HELM_DOCS) -t deployments/liqo/README.gotmpl -i deployments/liqo/.helmdocsignore -c deployments/liqo
 
 #run all tests
 test: unit e2e
