@@ -27,6 +27,7 @@ import (
 
 // ConnChecker is a struct that holds the receiver and senders.
 type ConnChecker struct {
+	opts     *Options
 	receiver *Receiver
 	// key is the target cluster ID.
 	senders        map[string]*Sender
@@ -36,9 +37,9 @@ type ConnChecker struct {
 }
 
 // NewConnChecker creates a new ConnChecker.
-func NewConnChecker() (*ConnChecker, error) {
+func NewConnChecker(opts *Options) (*ConnChecker, error) {
 	addr := &net.UDPAddr{
-		Port: port,
+		Port: opts.PingPort,
 		IP:   net.ParseIP("0.0.0.0"),
 	}
 	conn, err := net.ListenUDP("udp", addr)
@@ -47,7 +48,8 @@ func NewConnChecker() (*ConnChecker, error) {
 	}
 	klog.V(4).Infof("conncheck socket: listening on %s", addr)
 	connChecker := ConnChecker{
-		receiver:       NewReceiver(conn),
+		opts:           opts,
+		receiver:       NewReceiver(conn, opts),
 		senders:        make(map[string]*Sender),
 		runningSenders: make(map[string]*Sender),
 		conn:           conn,
@@ -81,7 +83,7 @@ func (c *ConnChecker) AddSender(ctx context.Context, clusterID, ip string, updat
 	}
 
 	ctxSender, cancelSender := context.WithCancel(ctx)
-	c.senders[clusterID], err = NewSender(ctxSender, clusterID, cancelSender, c.conn, ip)
+	c.senders[clusterID], err = NewSender(ctxSender, c.opts, clusterID, cancelSender, c.conn, ip)
 	if err != nil {
 		return fmt.Errorf("failed to create sender: %w", err)
 	}
@@ -105,7 +107,7 @@ func (c *ConnChecker) RunSender(clusterID string) {
 
 	klog.Infof("conncheck sender %q starting against %q", clusterID, sender.raddr.IP.String())
 
-	if err := wait.PollUntilContextCancel(sender.Ctx, PingInterval, false, func(ctx context.Context) (done bool, err error) {
+	if err := wait.PollUntilContextCancel(sender.Ctx, c.opts.PingInterval, false, func(ctx context.Context) (done bool, err error) {
 		err = c.senders[clusterID].SendPing()
 		if err != nil {
 			klog.Warningf("failed to send ping: %s", err)
