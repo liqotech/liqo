@@ -34,7 +34,7 @@ type Sender struct {
 }
 
 // NewSender creates a new conncheck sender.
-func NewSender(ctx context.Context, clusterID string, cancel func(), conn *net.UDPConn, ip string) (*Sender, error) {
+func NewSender(ctx context.Context, opts *Options, clusterID string, cancel func(), conn *net.UDPConn, ip string) (*Sender, error) {
 	pip := net.ParseIP(ip)
 	if pip == nil {
 		return nil, fmt.Errorf("conncheck sender: invalid IP address %s", ip)
@@ -44,7 +44,7 @@ func NewSender(ctx context.Context, clusterID string, cancel func(), conn *net.U
 		clusterID: clusterID,
 		cancel:    cancel,
 		conn:      conn,
-		raddr:     net.UDPAddr{IP: pip, Port: port},
+		raddr:     net.UDPAddr{IP: pip, Port: opts.PingPort},
 	}, nil
 }
 
