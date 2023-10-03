@@ -41,14 +41,16 @@ type Receiver struct {
 	m     sync.RWMutex
 	buff  []byte
 	conn  *net.UDPConn
+	opts  *Options
 }
 
 // NewReceiver creates a new conncheck receiver.
-func NewReceiver(conn *net.UDPConn) *Receiver {
+func NewReceiver(conn *net.UDPConn, opts *Options) *Receiver {
 	return &Receiver{
 		peers: make(map[string]*Peer),
-		buff:  make([]byte, buffSize),
+		buff:  make([]byte, opts.PingBufferSize),
 		conn:  conn,
+		opts:  opts,
 	}
 }
 
@@ -141,12 +143,12 @@ func (r *Receiver) Run(ctx context.Context) {
 func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 	klog.Infof("conncheck receiver disconnect checker: started")
 	// Ignore errors because only caused by context cancellation.
-	err := wait.PollUntilContextCancel(ctx, time.Duration(PingLossThreshold)*PingInterval/10, true,
+	err := wait.PollUntilContextCancel(ctx, time.Duration(r.opts.PingLossThreshold)*r.opts.PingInterval/10, true,
 		func(ctx context.Context) (done bool, err error) {
 			r.m.Lock()
 			defer r.m.Unlock()
 			for id, peer := range r.peers {
-				if time.Since(peer.lastReceivedTimestamp.Add(peer.latency)) <= PingInterval*time.Duration(PingLossThreshold) {
+				if time.Since(peer.lastReceivedTimestamp.Add(peer.latency)) <= r.opts.PingInterval*time.Duration(r.opts.PingLossThreshold) {
 					continue
 				}
 				klog.V(8).Infof("conncheck receiver: %s unreachable", id)
