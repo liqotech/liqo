@@ -89,7 +89,7 @@ type TunnelController struct {
 func NewTunnelController(ctx context.Context, wg *sync.WaitGroup,
 	podIP, namespace string, er record.EventRecorder, k8sClient k8s.Interface, cl client.Client,
 	readyClustersMutex *sync.Mutex, readyClusters map[string]struct{}, gatewayNetns, hostNetns ns.NetNS, mtu, port int,
-	updateStatusInterval time.Duration, securityMode liqoconst.SecurityModeType) (*TunnelController, error) {
+	updateStatusInterval time.Duration, securityMode liqoconst.SecurityModeType, connCheckOpts *conncheck.Options) (*TunnelController, error) {
 	tunnelEndpointFinalizer := liqoconst.LiqoGatewayOperatorName + "." + liqoconst.FinalizersSuffix
 	tc := &TunnelController{
 		Client:               cl,
@@ -146,7 +146,7 @@ func NewTunnelController(ctx context.Context, wg *sync.WaitGroup,
 			return fmt.Errorf("unable to enforce tunnel IP: %w", err)
 		}
 
-		wg.Connchecker, err = conncheck.NewConnChecker()
+		wg.Connchecker, err = conncheck.NewConnChecker(connCheckOpts)
 		if err != nil {
 			return fmt.Errorf("failed to create connchecker: %w", err)
 		}
