@@ -16,16 +16,19 @@ package conncheck
 
 import "time"
 
-const (
-	port     = 12345
-	buffSize = 1024
-)
-
-var (
+// Options contains the options for the wireguard interface.
+type Options struct {
+	// PingPort is the port used for the ping check.
+	PingPort int
+	// PingBufferSize is the size of the buffer used for the ping check.
+	PingBufferSize uint
 	// PingLossThreshold is the number of lost packets after which the connection check is considered as failed.
 	PingLossThreshold uint
 	// PingInterval is the interval at which the ping is sent.
 	PingInterval time.Duration
-	// PingUpdateStatusInterval is the interval at which the status is updated.
-	PingUpdateStatusInterval time.Duration
-)
+}
+
+// NewOptions returns a new Options struct.
+func NewOptions() *Options {
+	return &Options{}
+}

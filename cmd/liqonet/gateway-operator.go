@@ -57,6 +57,10 @@ type gatewayOperatorFlags struct {
 	tunnelListeningPort  uint
 	updateStatusInterval time.Duration
 	securityMode         *argsutils.StringEnum
+	PingPort             int
+	PingBufferSize       uint
+	PingLossThreshold    uint
+	PingInterval         time.Duration
 }
 
 func addGatewayOperatorFlags(liqonet *gatewayOperatorFlags) {
@@ -77,9 +81,13 @@ func addGatewayOperatorFlags(liqonet *gatewayOperatorFlags) {
 		"listening-port is the port used by the vpn tunnel")
 	flag.DurationVar(&liqonet.updateStatusInterval, "gateway.ping-latency-update-interval", 30*time.Second,
 		"ping-latency-update-interval is the interval at which the gateway operator updates the latency value in the status of the tunnel-endpoint")
-	flag.UintVar(&conncheck.PingLossThreshold, "gateway.ping-loss-threshold", 5,
+	flag.IntVar(&liqonet.PingPort, "gateway.ping-port", 12345,
+		"ping-port is the port used by the vpn tunnel")
+	flag.UintVar(&liqonet.PingBufferSize, "gateway.ping-buffer-size", 1024,
+		"ping-buffer-size is the size of the buffer used for the ping check")
+	flag.UintVar(&liqonet.PingLossThreshold, "gateway.ping-loss-threshold", 5,
 		"ping-loss-threshold is the number of lost packets after which the connection check is considered as failed.")
-	flag.DurationVar(&conncheck.PingInterval, "gateway.ping-interval", 2*time.Second,
+	flag.DurationVar(&liqonet.PingInterval, "gateway.ping-interval", 2*time.Second,
 		"ping-interval is the interval between two connection checks")
 	flag.Var(liqonet.securityMode, "gateway.security-mode", "security-mode represents different security modes regarding connectivity among clusters")
 }
@@ -203,7 +211,13 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 		os.Exit(1)
 	}
 	tunnelController, err := tunneloperator.NewTunnelController(ctx, &wg, podIP.String(), podNamespace, eventRecorder,
-		clientset, main.GetClient(), &readyClustersMutex, readyClusters, gatewayNetns, hostNetns, int(MTU), int(port), updateStatusInterval, securityMode)
+		clientset, main.GetClient(), &readyClustersMutex, readyClusters, gatewayNetns, hostNetns, int(MTU), int(port), updateStatusInterval, securityMode,
+		&conncheck.Options{
+			PingPort:          gatewayFlags.PingPort,
+			PingBufferSize:    gatewayFlags.PingBufferSize,
+			PingLossThreshold: gatewayFlags.PingLossThreshold,
+			PingInterval:      gatewayFlags.PingInterval,
+		})
 	// If something goes wrong while creating and configuring the tunnel controller
 	// then make sure that we remove all the resources created during the create process.
 	if err != nil {
