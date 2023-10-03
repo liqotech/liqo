@@ -31,7 +31,6 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 const (
@@ -66,15 +65,10 @@ func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// Retrieve the remote cluster ID from the labels.
-	remoteclusterID, found := nw.Labels[consts.RemoteClusterID] // it should always be present thanks to validating webhook
+	_, found := nw.Labels[consts.RemoteClusterID] // it should always be present thanks to validating webhook
 	if !found {
 		err := fmt.Errorf("missing label %q on Network %q (webhook disabled or misconfigured)", consts.RemoteClusterID, req.NamespacedName)
 		klog.Error(err)
-		return ctrl.Result{}, err
-	}
-
-	_, err := foreignclusterutils.CheckForeignClusterExistence(ctx, r.Client, remoteclusterID)
-	if err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -100,6 +94,7 @@ func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		// The IPAM MapNetworkCIDR() function is not idempotent, so we avoid to call it
 		// multiple times by checking if the status is already set.
 		if nw.Status.CIDR == "" {
+			var err error
 			remappedCIDR, err = getRemappedCIDR(ctx, r.IpamClient, desiredCIDR)
 			if err != nil {
 				return ctrl.Result{}, err
