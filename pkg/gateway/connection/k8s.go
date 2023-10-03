@@ -24,15 +24,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	timeutils "github.com/liqotech/liqo/pkg/utils/time"
 )
 
 // UpdateConnectionStatus updates the status of a connection.
-func UpdateConnectionStatus(ctx context.Context, cl client.Client, connection *networkingv1alpha1.Connection,
+func UpdateConnectionStatus(ctx context.Context, cl client.Client, opts *Options, connection *networkingv1alpha1.Connection,
 	value networkingv1alpha1.ConnectionStatusValue, latency time.Duration, timestamp time.Time) error {
 	if connection.Status.Value != value ||
-		timestamp.Sub(connection.Status.Latency.Timestamp.Time) > conncheck.PingUpdateStatusInterval {
+		timestamp.Sub(connection.Status.Latency.Timestamp.Time) > opts.PingUpdateStatusInterval {
 		if connection.Status.Value != value {
 			klog.Infof("changing connection %q status to %q",
 				client.ObjectKeyFromObject(connection).String(), value)
