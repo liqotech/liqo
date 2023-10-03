@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package create
+package get
 
 import (
 	"context"
@@ -23,28 +23,27 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 )
 
-// NewCreateCommand returns the cobra command for the create subcommand.
-func NewCreateCommand(ctx context.Context, liqoResources []rest.APIProvider, f *factory.Factory) *cobra.Command {
-	options := &rest.CreateOptions{
+// NewGetCommand returns the cobra command for the get subcommand.
+func NewGetCommand(ctx context.Context, liqoResources []rest.APIProvider, f *factory.Factory) *cobra.Command {
+	options := &rest.GetOptions{
 		Factory: f,
 	}
 
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create Liqo resources",
-		Long:  "Create Liqo resources.",
+		Use:   "get",
+		Short: "Get Liqo resources",
+		Long:  "Get Liqo resources.",
 		Args:  cobra.NoArgs,
 	}
 
 	f.AddNamespaceFlag(cmd.PersistentFlags())
-	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
 	for _, r := range liqoResources {
 		api := r()
 
 		apiOptions := api.APIOptions()
-		if apiOptions.EnableCreate {
-			cmd.AddCommand(api.Create(ctx, options))
+		if apiOptions.EnableGet {
+			cmd.AddCommand(api.Get(ctx, options))
 		}
 	}
 
