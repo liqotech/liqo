@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -28,6 +29,7 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/events"
+	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // ConfigurationReconciler manage Configuration lifecycle.
@@ -35,6 +37,8 @@ type ConfigurationReconciler struct {
 	client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
+
+	localCIDR *networkingv1alpha1.ClusterConfigCIDR
 }
 
 // NewConfigurationReconciler returns a new ConfigurationReconciler.
@@ -43,6 +47,8 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.E
 		Client:         cl,
 		Scheme:         s,
 		EventsRecorder: er,
+
+		localCIDR: nil,
 	}
 }
 
@@ -51,6 +57,7 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.E
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=net.liqo.io,resources=ipamstorages,verbs=get;list;watch
 
 // Reconcile manage Configurations, remapping cidrs with Networks resources.
 func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -62,6 +69,14 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the configuration %q: %w", req.NamespacedName, err)
 	}
+
+	if configuration.Spec.Local == nil {
+		err := r.defaultLocalNetwork(ctx, configuration)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	events.Event(r.EventsRecorder, configuration, "Processing")
 
 	err := r.RemapConfiguration(ctx, configuration, r.EventsRecorder)
@@ -80,6 +95,25 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		err = SetConfigurationConfigured(ctx, r.Client, configuration)
 	}
 	return ctrl.Result{}, err
+}
+
+func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *networkingv1alpha1.Configuration) error {
+	if r.localCIDR == nil {
+		ipamStorage, err := liqogetters.GetIPAMStorageByLabel(ctx, r.Client, labels.NewSelector())
+		if err != nil {
+			return fmt.Errorf("unable to get IPAM storage: %w", err)
+		}
+
+		r.localCIDR = &networkingv1alpha1.ClusterConfigCIDR{
+			Pod:      networkingv1alpha1.CIDR(ipamStorage.Spec.PodCIDR),
+			External: networkingv1alpha1.CIDR(ipamStorage.Spec.ExternalCIDR),
+		}
+	}
+
+	cfg.Spec.Local = &networkingv1alpha1.ClusterConfig{
+		CIDR: *r.localCIDR,
+	}
+	return r.Client.Update(ctx, cfg)
 }
 
 // RemapConfiguration remap the configuration using ipamv1alpha1.Network.

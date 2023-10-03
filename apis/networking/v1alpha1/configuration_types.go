@@ -51,7 +51,7 @@ type ClusterConfig struct {
 // ConfigurationSpec defines the desired state of Configuration.
 type ConfigurationSpec struct {
 	// Local network configuration (the cluster where the resource is created).
-	Local ClusterConfig `json:"local,omitempty"`
+	Local *ClusterConfig `json:"local,omitempty"`
 	// Remote network configuration (the other cluster).
 	Remote ClusterConfig `json:"remote,omitempty"`
 }
