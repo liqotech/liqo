@@ -33,7 +33,9 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/create"
 	"github.com/liqotech/liqo/pkg/liqoctl/delete"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/get"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/virtualnode"
 )
 
@@ -41,6 +43,7 @@ var liqoctl string
 
 var liqoResources = []rest.APIProvider{
 	virtualnode.VirtualNode,
+	configuration.Configuration,
 }
 
 func init() {
@@ -125,6 +128,8 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(newMoveCommand(ctx, f))
 	cmd.AddCommand(newVersionCommand(ctx, f))
 	cmd.AddCommand(newDocsCommand(ctx))
+	cmd.AddCommand(newNetworkCommand(ctx, f))
+	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(create.NewCreateCommand(ctx, liqoResources, f))
 	cmd.AddCommand(delete.NewDeleteCommand(ctx, liqoResources, f))
 	return cmd

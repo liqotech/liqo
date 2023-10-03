@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -223,5 +224,29 @@ func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
 		return err
 	}
 	s.Success("Unoffloading completed successfully")
+	return nil
+}
+
+// ForConfiguration waits until the status on the Configuration resource states that the configuration has been
+// successfully applied.
+func (w *Waiter) ForConfiguration(ctx context.Context, conf *networkingv1alpha1.Configuration) error {
+	s := w.Printer.StartSpinner("Waiting for configuration to be applied")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		currentConf := &networkingv1alpha1.Configuration{}
+		err = w.CRClient.Get(ctx, client.ObjectKey{Name: conf.Name, Namespace: conf.Namespace}, currentConf)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+
+		return currentConf.Status.Remote != nil &&
+				currentConf.Status.Remote.CIDR.Pod.String() != "" &&
+				currentConf.Status.Remote.CIDR.External.String() != "",
+			nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for configuration to be applied: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Configuration applied successfully")
 	return nil
 }
