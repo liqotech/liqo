@@ -350,6 +350,14 @@ rules:
 - apiGroups:
   - net.liqo.io
   resources:
+  - ipamstorages
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - net.liqo.io
+  resources:
   - networkconfigs
   verbs:
   - '*'
