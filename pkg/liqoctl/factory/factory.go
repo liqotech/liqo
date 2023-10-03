@@ -38,6 +38,9 @@ var verbose bool
 // FlagNamespace -> the name of the namespace flag.
 const FlagNamespace = "namespace"
 
+// FlagLiqoNamespace -> the name of the Liqo namespace flag.
+const FlagLiqoNamespace = "liqo-namespace"
+
 type completionFuncRegisterer func(flagName string, f func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective)) error
 
 // Factory provides a set of clients and configurations to authenticate and
@@ -60,11 +63,11 @@ type Factory struct {
 	// Whether to add a scope to the printer (i.e., local/remote).
 	ScopedPrinter bool
 
-	// Namespace is the namespace that the user has requested with the "--namespace" / "-n" flag, if registered (alternative to LiqoNamespace).
+	// Namespace is the namespace that the user has requested with the "--namespace" / "-n" flag.
 	Namespace string
 
-	// LiqoNamespace is the namespace (where Liqo is installed) that the user has requested with the "--namespace" / "-n" flag,
-	// if registered (alternative to Namespace).
+	// LiqoNamespace is the namespace (where Liqo is installed) that the user has requested with the "--liqo-namespace" / "-l" flag,
+	// if registered.
 	LiqoNamespace string
 
 	// RESTConfig is a Kubernetes REST config that contains the user's authentication and access configuration.
@@ -132,7 +135,7 @@ func (f *Factory) AddFlags(flags *pflag.FlagSet, register completionFuncRegister
 	f.configFlags.AddFlags(tmp)
 
 	tmp.VisitAll(func(flag *pflag.Flag) {
-		if flag.Name == "namespace" {
+		if flag.Name == FlagNamespace {
 			// Exclude the flag concerning the namespace, as manually added only to the relevant subcommands.
 			flag.Usage = "The namespace scope for this request"
 			f.namespaceFlag = flag
@@ -159,14 +162,30 @@ func (f *Factory) AddFlags(flags *pflag.FlagSet, register completionFuncRegister
 
 // AddNamespaceFlag registers the flag to select the target namespace (alternative to AddLiqoNamespaceFlag).
 func (f *Factory) AddNamespaceFlag(flags *pflag.FlagSet) {
+	otherFlag := flags.Lookup(f.remotify(FlagNamespace))
+	if otherFlag != nil {
+		// The flag is already registered.
+		panic("the namespace flag is already registered, make sure to call AddNamespaceFlag before AddLiqoNamespaceFlag")
+	}
 	flags.AddFlag(f.remotifyFlag(f.namespaceFlag))
 }
 
 // AddLiqoNamespaceFlag registers the flag to select the Liqo namespace (alternative to AddNamespaceFlag).
 func (f *Factory) AddLiqoNamespaceFlag(flags *pflag.FlagSet) {
 	tmp := pflag.NewFlagSet("factory", pflag.PanicOnError)
-	tmp.StringVarP(&f.LiqoNamespace, FlagNamespace, "n", consts.DefaultLiqoNamespace, "The namespace where Liqo is installed in")
-	flags.AddFlag(f.remotifyFlag(tmp.Lookup(FlagNamespace)))
+	var flagName string
+	var short string
+	otherFlag := flags.Lookup(f.remotify(FlagNamespace))
+	if otherFlag == nil {
+		flagName = FlagNamespace
+		short = "n"
+	} else {
+		flagName = FlagLiqoNamespace
+		short = ""
+	}
+	tmp.StringVarP(&f.LiqoNamespace, flagName, short, consts.DefaultLiqoNamespace, "The namespace where Liqo is installed in")
+	fl := tmp.Lookup(flagName)
+	flags.AddFlag(f.remotifyFlag(fl))
 }
 
 type options struct{ scoped bool }
