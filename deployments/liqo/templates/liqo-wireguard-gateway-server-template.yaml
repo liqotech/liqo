@@ -55,9 +55,7 @@ spec:
                 - --mode=server
                 - --metrics-address=:8080
                 - --health-probe-bind-address=:8081
-                - --ping-loss-threshold=5
-                - --ping-interval=2s
-                - --ping-update-status-interval=10s
+                - --ping-enabled=true
                 - --ping-loss-threshold={{ .Values.networking.gateway.ping.lossThreshold }}
                 - --ping-interval={{ .Values.networking.gateway.ping.interval }}
                 - --ping-update-status-interval={{ .Values.networking.gateway.ping.updateStatusInterval }}
