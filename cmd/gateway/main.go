@@ -33,6 +33,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
+	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -42,7 +43,10 @@ var (
 	addToSchemeFunctions = []func(*runtime.Scheme) error{
 		networkingv1alpha1.AddToScheme,
 	}
-	options = gateway.NewOptions()
+	options = connection.NewOptions(
+		gateway.NewOptions(),
+		conncheck.NewOptions(),
+	)
 )
 
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete
@@ -59,17 +63,13 @@ func main() {
 	klog.InitFlags(legacyflags)
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
-	gateway.InitFlags(cmd.Flags(), options)
+	gateway.InitFlags(cmd.Flags(), options.GwOptions)
 	if err := gateway.MarkFlagsRequired(&cmd); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
 
-	connection.InitFlags(cmd.Flags())
-	if err := connection.MarkFlagsRequired(&cmd); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
+	connection.InitFlags(cmd.Flags(), options)
 
 	if err := cmd.Execute(); err != nil {
 		klog.Error(err)
@@ -101,44 +101,46 @@ func run(_ *cobra.Command, _ []string) error {
 		Scheme:         scheme,
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{
-				options.Namespace: {},
+				options.GwOptions.Namespace: {},
 			},
 		},
 		Metrics: server.Options{
 			BindAddress: "0", // Metrics are exposed by "connection" container.
 		},
-		HealthProbeBindAddress: options.ProbeAddr,
-		LeaderElection:         options.LeaderElection,
+		HealthProbeBindAddress: options.GwOptions.ProbeAddr,
+		LeaderElection:         options.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
 			"%s.%s.%s.connections.liqo.io",
-			options.Name, options.Namespace, options.Mode,
+			options.GwOptions.Name, options.GwOptions.Namespace, options.GwOptions.Mode,
 		),
-		LeaderElectionNamespace:       options.Namespace,
+		LeaderElectionNamespace:       options.GwOptions.Namespace,
 		LeaderElectionReleaseOnCancel: true,
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
-		LeaseDuration:                 &options.LeaderElectionLeaseDuration,
-		RenewDeadline:                 &options.LeaderElectionRenewDeadline,
-		RetryPeriod:                   &options.LeaderElectionRetryPeriod,
+		LeaseDuration:                 &options.GwOptions.LeaderElectionLeaseDuration,
+		RenewDeadline:                 &options.GwOptions.LeaderElectionRenewDeadline,
+		RetryPeriod:                   &options.GwOptions.LeaderElectionRetryPeriod,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
 	}
 
-	// Setup the controller.
-	connr, err := connection.NewConnectionsReconciler(
-		ctx,
-		mgr.GetClient(),
-		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("connections-controller"),
-		options,
-	)
-	if err != nil {
-		return fmt.Errorf("unable to create connectioons reconciler: %w", err)
-	}
+	if options.EnableConnectionController {
+		// Setup the controller.
+		connr, err := connection.NewConnectionsReconciler(
+			ctx,
+			mgr.GetClient(),
+			mgr.GetScheme(),
+			mgr.GetEventRecorderFor("connections-controller"),
+			options,
+		)
+		if err != nil {
+			return fmt.Errorf("unable to create connectioons reconciler: %w", err)
+		}
 
-	// Setup the controller.
-	if err = connr.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("unable to setup connections reconciler: %w", err)
+		// Setup the controller.
+		if err = connr.SetupWithManager(mgr); err != nil {
+			return fmt.Errorf("unable to setup connections reconciler: %w", err)
+		}
 	}
 
 	// Start the manager.
