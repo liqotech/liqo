@@ -48,6 +48,9 @@ type DeleteOptions struct {
 // GetOptions contains the options for the get API.
 type GetOptions struct {
 	*factory.Factory
+
+	OutputFormat string
+	Name         string
 }
 
 // UpdateOptions contains the options for the update API.
