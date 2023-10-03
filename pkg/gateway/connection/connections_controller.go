@@ -30,7 +30,6 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
 )
@@ -45,13 +44,13 @@ type ConnectionsReconciler struct {
 	Client         client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
-	Options        *gateway.Options
+	Options        *Options
 }
 
 // NewConnectionsReconciler returns a new PublicKeysReconciler.
 func NewConnectionsReconciler(ctx context.Context, cl client.Client,
-	s *runtime.Scheme, er record.EventRecorder, options *gateway.Options) (*ConnectionsReconciler, error) {
-	connchecker, err := conncheck.NewConnChecker()
+	s *runtime.Scheme, er record.EventRecorder, options *Options) (*ConnectionsReconciler, error) {
+	connchecker, err := conncheck.NewConnChecker(options.ConnCheckOptions)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the connection checker: %w", err)
 	}
@@ -76,23 +75,33 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the connection %q: %w", req.NamespacedName, err)
 	}
+	klog.Infof("Reconciling connection %q", req.NamespacedName)
 
-	remoteIP, err := common.GetRemoteInterfaceIP(r.Options.Mode)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to get the remote interface IP: %w", err)
-	}
+	updateConnection := ForgeUpdateConnectionCallback(ctx, r.Client, r.Options, req)
 
-	err = r.ConnChecker.AddSender(ctx, r.Options.RemoteClusterID, remoteIP, ForgeUpdateConnectionCallback(ctx, r.Client, req))
-	if err != nil {
-		switch err.(type) {
-		case *conncheck.DuplicateError:
-			return ctrl.Result{}, nil
-		default:
-			return ctrl.Result{}, fmt.Errorf("unable to add the sender: %w", err)
+	switch r.Options.PingEnabled {
+	case true:
+		remoteIP, err := common.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to get the remote interface IP: %w", err)
+		}
+
+		err = r.ConnChecker.AddSender(ctx, r.Options.GwOptions.RemoteClusterID, remoteIP, updateConnection)
+		if err != nil {
+			switch err.(type) {
+			case *conncheck.DuplicateError:
+				return ctrl.Result{}, nil
+			default:
+				return ctrl.Result{}, fmt.Errorf("unable to add the sender: %w", err)
+			}
+		}
+
+		go r.ConnChecker.RunSender(r.Options.GwOptions.RemoteClusterID)
+	case false:
+		if err := updateConnection(true, 0, time.Time{}); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to update the connection status: %w", err)
 		}
 	}
-
-	go r.ConnChecker.RunSender(r.Options.RemoteClusterID)
 
 	return ctrl.Result{}, nil
 }
@@ -115,12 +124,12 @@ func (r *ConnectionsReconciler) Predicates() builder.Predicates {
 			if connection.Labels == nil {
 				return false
 			}
-			return connection.Labels[string(consts.RemoteClusterID)] == r.Options.RemoteClusterID
+			return connection.Labels[string(consts.RemoteClusterID)] == r.Options.GwOptions.RemoteClusterID
 		}))
 }
 
 // ForgeUpdateConnectionCallback forges the UpdateConnectionStatus function.
-func ForgeUpdateConnectionCallback(ctx context.Context, cl client.Client, req ctrl.Request) conncheck.UpdateFunc {
+func ForgeUpdateConnectionCallback(ctx context.Context, cl client.Client, opts *Options, req ctrl.Request) conncheck.UpdateFunc {
 	return func(connected bool, latency time.Duration, timestamp time.Time) error {
 		connection := &networkingv1alpha1.Connection{}
 		if err := cl.Get(ctx, req.NamespacedName, connection); err != nil {
@@ -133,6 +142,6 @@ func ForgeUpdateConnectionCallback(ctx context.Context, cl client.Client, req ct
 		case false:
 			connStatusValue = networkingv1alpha1.ConnectionError
 		}
-		return UpdateConnectionStatus(ctx, cl, connection, connStatusValue, latency, timestamp)
+		return UpdateConnectionStatus(ctx, cl, opts, connection, connStatusValue, latency, timestamp)
 	}
 }
