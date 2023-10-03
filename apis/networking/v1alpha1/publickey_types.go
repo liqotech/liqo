@@ -23,7 +23,7 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // PublicKeyResource the name of the publickey resources.
-var PublicKeyResource = "publickeys"
+var PublicKeyResource = "publickeies"
 
 // PublicKeyKind is the kind name used to register the PublicKey CRD.
 var PublicKeyKind = "PublicKey"
@@ -40,8 +40,11 @@ type PublicKeySpec struct {
 	PublicKey []byte `json:"publicKey,omitempty"`
 }
 
+// publickeies is used for resource name pluralization because k8s api do not manage false friends.
+// Waiting for this fix https://github.com/kubernetes-sigs/kubebuilder/pull/3408
+
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,path=publickeies
 
 // PublicKey contains a public key data required by some interconnection technologies.
 type PublicKey struct {
