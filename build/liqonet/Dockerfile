@@ -1,4 +1,4 @@
-FROM golang:1.21 as goBuilder-wg
+FROM golang:1.21.2 as goBuilder-wg
 
 ARG VERSION=0.0.20230223
 
@@ -8,7 +8,7 @@ RUN git clone -b ${VERSION} https://git.zx2c4.com/wireguard-go
 WORKDIR /go/wireguard-go
 RUN CGO_ENABLED=0 make
 
-FROM golang:1.21 as goBuilder
+FROM golang:1.21.2 as goBuilder
 WORKDIR /tmp/builder
 
 COPY go.mod ./go.mod
