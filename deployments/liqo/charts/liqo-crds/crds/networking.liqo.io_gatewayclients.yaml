@@ -78,18 +78,21 @@ spec:
               endpoint:
                 description: Endpoint specifies the endpoint of the tunnel.
                 properties:
+                  addresses:
+                    description: Addresses specifies the addresses of the endpoint.
+                    items:
+                      type: string
+                    type: array
                   port:
                     description: Port specifies the port of the endpoint.
                     format: int32
                     type: integer
-                  serviceType:
-                    default: ClusterIP
-                    description: ServiceType specifies the type of the service.
+                  protocol:
+                    default: TCP
+                    description: Protocol specifies the protocol of the endpoint.
                     enum:
-                    - ClusterIP
-                    - NodePort
-                    - LoadBalancer
-                    - ExternalName
+                    - TCP
+                    - UDP
                     type: string
                 type: object
               mtu:
