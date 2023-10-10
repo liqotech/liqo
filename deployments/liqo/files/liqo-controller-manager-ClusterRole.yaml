@@ -348,6 +348,18 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - servicemonitors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - net.liqo.io
   resources:
   - ipamstorages

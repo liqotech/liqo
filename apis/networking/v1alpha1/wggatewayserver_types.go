@@ -15,6 +15,7 @@
 package v1alpha1
 
 import (
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,12 +53,32 @@ type DeploymentTemplate struct {
 	Spec appsv1.DeploymentSpec `json:"spec,omitempty"`
 }
 
+// ServiceMonitorTemplate defines the template of a service monitor.
+type ServiceMonitorTemplate struct {
+	// Metadata of the service monitor.
+	Metadata metav1.ObjectMeta `json:"metadata,omitempty"`
+	// Spec of the service monitor.
+	Spec monitoringv1.ServiceMonitorSpec `json:"spec,omitempty"`
+}
+
+// Metrics defines the metrics configuration.
+type Metrics struct {
+	// Enabled specifies whether the metrics are enabled.
+	Enabled bool `json:"enabled"`
+	// Service specifies the service template for the metrics.
+	Service *ServiceTemplate `json:"service,omitempty"`
+	// ServiceMonitor specifies the service monitor template for the metrics.
+	ServiceMonitor *ServiceMonitorTemplate `json:"serviceMonitor,omitempty"`
+}
+
 // WgGatewayServerSpec defines the desired state of WgGatewayServer.
 type WgGatewayServerSpec struct {
 	// Service specifies the service template for the server.
 	Service ServiceTemplate `json:"service"`
 	// Deployment specifies the deployment template for the server.
 	Deployment DeploymentTemplate `json:"deployment"`
+	// Metrics specifies the metrics configuration for the server.
+	Metrics *Metrics `json:"metrics,omitempty"`
 }
 
 // WgGatewayServerStatus defines the observed state of WgGatewayServer.
