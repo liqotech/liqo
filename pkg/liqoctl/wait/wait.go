@@ -250,3 +250,60 @@ func (w *Waiter) ForConfiguration(ctx context.Context, conf *networkingv1alpha1.
 	s.Success("Configuration applied successfully")
 	return nil
 }
+
+// ForGatewayServerStatusEndpoint waits until the service of a Gateway resource has been created
+// (i.e., until its endpoint status is not set).
+func (w *Waiter) ForGatewayServerStatusEndpoint(ctx context.Context, gwServer *networkingv1alpha1.GatewayServer) error {
+	s := w.Printer.StartSpinner("Waiting for gateway server Service to be created")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		err = w.CRClient.Get(ctx, client.ObjectKey{Name: gwServer.Name, Namespace: gwServer.Namespace}, gwServer)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+		return gwServer.Status.Endpoint != nil, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for gateway server Service to be created: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Gateway server Service created successfully")
+	return nil
+}
+
+// ForGatewayServerSecretRef waits until the secret containing the public key of a gateway server has been created
+// (i.e., until its secret reference status is not set).
+func (w *Waiter) ForGatewayServerSecretRef(ctx context.Context, gwServer *networkingv1alpha1.GatewayServer) error {
+	s := w.Printer.StartSpinner("Waiting for gateway server Secret to be created")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		err = w.CRClient.Get(ctx, client.ObjectKeyFromObject(gwServer), gwServer)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+		return gwServer.Status.SecretRef != nil, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for gateway server Secret to be created: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Gateway server Secret created successfully")
+	return nil
+}
+
+// ForGatewayClientSecretRef waits until the secret containing the public key of a gateway client has been created
+// (i.e., until its secret reference status is not set).
+func (w *Waiter) ForGatewayClientSecretRef(ctx context.Context, gwClient *networkingv1alpha1.GatewayClient) error {
+	s := w.Printer.StartSpinner("Waiting for gateway client Secret to be created")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		err = w.CRClient.Get(ctx, client.ObjectKeyFromObject(gwClient), gwClient)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+		return gwClient.Status.SecretRef != nil, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for gateway client Secret to be created: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Gateway client Secret created successfully")
+	return nil
+}
