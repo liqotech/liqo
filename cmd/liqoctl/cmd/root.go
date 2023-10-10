@@ -36,6 +36,9 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/get"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/virtualnode"
 )
 
@@ -44,6 +47,9 @@ var liqoctl string
 var liqoResources = []rest.APIProvider{
 	virtualnode.VirtualNode,
 	configuration.Configuration,
+	gatewayserver.GatewayServer,
+	gatewayclient.GatewayClient,
+	publickey.PublicKey,
 }
 
 func init() {
