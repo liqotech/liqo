@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -275,6 +276,32 @@ func PVCs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 		var names []string
 		for i := range pvcs.Items {
 			names = append(names, pvcs.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// Gateway returns a function to autocomplete Gateway (server or client) names.
+func Gateway(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var names []string
+
+		var gwServers networkingv1alpha1.GatewayServerList
+		if err := f.CRClient.List(ctx, &gwServers, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+		for i := range gwServers.Items {
+			names = append(names, gwServers.Items[i].Name)
+		}
+
+		var gwClients networkingv1alpha1.GatewayClientList
+		if err := f.CRClient.List(ctx, &gwClients, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+		for i := range gwClients.Items {
+			names = append(names, gwClients.Items[i].Name)
 		}
 		return names, nil
 	}
