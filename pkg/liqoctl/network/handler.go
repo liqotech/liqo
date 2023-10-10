@@ -18,7 +18,15 @@ import (
 	"context"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the network command.
@@ -28,6 +36,30 @@ type Options struct {
 
 	Timeout time.Duration
 	Wait    bool
+
+	ServerGatewayType       string
+	ServerTemplateName      string
+	ServerTemplateNamespace string
+	ServerServiceType       *argsutils.StringEnum
+	ServerPort              int32
+	ServerMTU               int
+
+	ClientGatewayType       string
+	ClientTemplateName      string
+	ClientTemplateNamespace string
+	ClientMTU               int
+
+	DisableSharingKeys bool
+	Proxy              bool
+}
+
+// NewOptions returns a new Options struct.
+func NewOptions(localFactory *factory.Factory) *Options {
+	return &Options{
+		LocalFactory: localFactory,
+		ServerServiceType: argsutils.NewEnum(
+			[]string{string(v1.ServiceTypeLoadBalancer), string(v1.ServiceTypeNodePort)}, string(gatewayserver.DefaultServiceType)),
+	}
 }
 
 // RunInit initializes the liqo networking between two clusters.
@@ -70,4 +102,105 @@ func (o *Options) RunInit(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// RunConnect connect two clusters using liqo networking.
+func (o *Options) RunConnect(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
+	// Create and initialize cluster 1.
+	cluster1 := NewCluster(o.LocalFactory, o.RemoteFactory)
+	if err := cluster1.SetClusterIdentity(ctx); err != nil {
+		return err
+	}
+
+	// Create and initialize cluster 2.
+	cluster2 := NewCluster(o.RemoteFactory, o.LocalFactory)
+	if err := cluster2.SetClusterIdentity(ctx); err != nil {
+		return err
+	}
+
+	// Create gateway server on cluster 1
+	gwServer, err := cluster1.EnsureGatewayServer(ctx,
+		cluster2.clusterIdentity.ClusterName,
+		o.newGatewayServerForgeOptions(o.LocalFactory.KubeClient, cluster2.clusterIdentity.ClusterID))
+	if err != nil {
+		return err
+	}
+
+	// Wait for the endpoint status of the gateway server to be set
+	if err := cluster1.Waiter.ForGatewayServerStatusEndpoint(ctx, gwServer); err != nil {
+		return err
+	}
+
+	// Create gateway client on cluster 2
+	gwClient, err := cluster2.EnsureGatewayClient(ctx,
+		cluster1.clusterIdentity.ClusterName,
+		o.newGatewayClientForgeOptions(o.RemoteFactory.KubeClient, cluster1.clusterIdentity.ClusterID, gwServer.Status.Endpoint))
+	if err != nil {
+		return err
+	}
+
+	// If sharing keys is disabled, return immediately
+	if o.DisableSharingKeys {
+		return nil
+	}
+
+	// Wait for gateway server to set secret reference (containing the server public key) in the status
+	err = cluster1.Waiter.ForGatewayServerSecretRef(ctx, gwServer)
+	if err != nil {
+		return err
+	}
+	keyServer, err := publickey.ExtractKeyFromSecretRef(ctx, cluster1.local.CRClient, gwServer.Status.SecretRef)
+	if err != nil {
+		return err
+	}
+
+	// Create PublicKey of gateway server on cluster 2
+	if err := cluster2.EnsurePublicKey(ctx, cluster1.clusterIdentity, keyServer); err != nil {
+		return err
+	}
+
+	// Wait for gateway client to set secret reference (containing the client public key) in the status
+	err = cluster2.Waiter.ForGatewayClientSecretRef(ctx, gwClient)
+	if err != nil {
+		return err
+	}
+	keyClient, err := publickey.ExtractKeyFromSecretRef(ctx, cluster2.local.CRClient, gwClient.Status.SecretRef)
+	if err != nil {
+		return err
+	}
+
+	// Create PublicKey of gateway client on cluster 1
+	return cluster1.EnsurePublicKey(ctx, cluster2.clusterIdentity, keyClient)
+}
+
+func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID string) *gatewayserver.ForgeOptions {
+	return &gatewayserver.ForgeOptions{
+		KubeClient:        kubeClient,
+		RemoteClusterID:   remoteClusterID,
+		GatewayType:       o.ServerGatewayType,
+		TemplateName:      o.ServerTemplateName,
+		TemplateNamespace: o.ServerTemplateNamespace,
+		ServiceType:       v1.ServiceType(o.ServerServiceType.Value),
+		MTU:               o.ServerMTU,
+		Port:              o.ServerPort,
+		Proxy:             o.Proxy,
+	}
+}
+
+func (o *Options) newGatewayClientForgeOptions(kubeClient kubernetes.Interface, remoteClusterID string,
+	serverEndpoint *networkingv1alpha1.EndpointStatus) *gatewayclient.ForgeOptions {
+	return &gatewayclient.ForgeOptions{
+		KubeClient:        kubeClient,
+		RemoteClusterID:   remoteClusterID,
+		GatewayType:       o.ClientGatewayType,
+		TemplateName:      o.ClientTemplateName,
+		TemplateNamespace: o.ClientTemplateNamespace,
+		MTU:               o.ClientMTU,
+		Addresses:         serverEndpoint.Addresses,
+		Port:              serverEndpoint.Port,
+		Protocol:          string(*serverEndpoint.Protocol),
+	}
 }
