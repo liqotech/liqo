@@ -20,14 +20,8 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
-)
-
-const (
-	// ServerInterfaceIP is the IP address of the Wireguard interface in server mode.
-	ServerInterfaceIP = "169.254.0.1/30"
-	// ClientInterfaceIP is the IP address of the Wireguard interface in client mode.
-	ClientInterfaceIP = "169.254.0.2/30"
 )
 
 // InitWireguardLink inits the Wireguard interface.
@@ -41,23 +35,12 @@ func InitWireguardLink(options *Options) error {
 		return err
 	}
 
-	klog.Infof("Setting up Wireguard interface %q with IP %q", options.InterfaceName, GetInterfaceIP(options.Mode))
-	if err := common.AddAddress(link, GetInterfaceIP(options.Mode)); err != nil {
+	klog.Infof("Setting up Wireguard interface %q with IP %q", options.InterfaceName, common.GetInterfaceIP(options.GwOptions.Mode))
+	if err := common.AddAddress(link, common.GetInterfaceIP(options.GwOptions.Mode)); err != nil {
 		return err
 	}
 
 	return netlink.LinkSetUp(link)
-}
-
-// GetInterfaceIP returns the IP address of the Wireguard interface.
-func GetInterfaceIP(mode common.Mode) string {
-	switch mode {
-	case common.ModeServer:
-		return ServerInterfaceIP
-	case common.ModeClient:
-		return ClientInterfaceIP
-	}
-	return ""
 }
 
 // CreateLink creates a new Wireguard interface.
@@ -74,7 +57,7 @@ func createLink(options *Options) error {
 		return err
 	}
 
-	if options.Mode == common.ModeServer {
+	if options.GwOptions.Mode == gateway.ModeServer {
 		wgcl, err := wgctrl.New()
 		if err != nil {
 			return err
