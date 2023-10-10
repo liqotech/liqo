@@ -38,21 +38,22 @@ var ConnectionGroupVersionResource = GroupVersion.WithResource(ConnectionResourc
 // ConnectionType represents the type of a connection.
 type ConnectionType string
 
+// ConnectionStatusValue represents the status of a connection.
+type ConnectionStatusValue string
+
 const (
 	// ConnectionTypeServer represents a server connection.
 	ConnectionTypeServer ConnectionType = "Server"
 	// ConnectionTypeClient represents a client connection.
 	ConnectionTypeClient ConnectionType = "Client"
-)
 
-// PingSpec defines the desired state of Ping.
-type PingSpec struct {
-	// Enabled specifies whether the ping is enabled or not.
-	// +kubebuilder:default=true
-	Enabled *bool `json:"enabled,omitempty"`
-	// Endpoint specifies the endpoint to ping.
-	Endpoint EndpointStatus `json:"endpoint,omitempty"`
-}
+	// Connected used when the connection is up and running.
+	Connected ConnectionStatusValue = "Connected"
+	// Connecting used as temporary status while waiting for the vpn tunnel to come up.
+	Connecting ConnectionStatusValue = "Connecting"
+	// ConnectionError used to se the status in case of errors.
+	ConnectionError ConnectionStatusValue = "Error"
+)
 
 // ConnectionSpec defines the desired state of Connection.
 type ConnectionSpec struct {
@@ -61,62 +62,31 @@ type ConnectionSpec struct {
 	Type ConnectionType `json:"type"`
 	// GatewayRef specifies the reference to the gateway.
 	GatewayRef corev1.ObjectReference `json:"gatewayRef"`
-	// Ping specifies the ping configuration.
-	Ping PingSpec `json:"ping,omitempty"`
 }
 
-// ConnectionConditionType represents different conditions that a connection could assume.
-type ConnectionConditionType string
-
-const (
-	// ConnectionConditionEstablished represents a connection that is established.
-	ConnectionConditionEstablished ConnectionConditionType = "Established"
-	// ConnectionConditionPending represents a connection that is pending.
-	ConnectionConditionPending ConnectionConditionType = "Pending"
-	// ConnectionConditionDenied represents a connection that is denied.
-	ConnectionConditionDenied ConnectionConditionType = "Denied"
-	// ConnectionConditionError represents a connection that is in error.
-	ConnectionConditionError ConnectionConditionType = "Error"
-)
-
-// ConnectionConditionStatusType represents the status of a connection condition.
-type ConnectionConditionStatusType string
-
-const (
-	// ConnectionConditionStatusTrue represents a connection condition that is true.
-	ConnectionConditionStatusTrue ConnectionConditionStatusType = "True"
-	// ConnectionConditionStatusFalse represents a connection condition that is false.
-	ConnectionConditionStatusFalse ConnectionConditionStatusType = "False"
-	// ConnectionConditionStatusUnknown represents a connection condition that is unknown.
-	ConnectionConditionStatusUnknown ConnectionConditionStatusType = "Unknown"
-)
-
-// ConnectionCondition contains details about state of the connection.
-type ConnectionCondition struct {
-	// Type of the connection condition.
-	// +kubebuilder:validation:Enum="Established"
-	Type ConnectionConditionType `json:"type"`
-	// Status of the condition.
-	// +kubebuilder:validation:Enum="True";"False";"Unknown"
-	// +kubebuilder:default="Unknown"
-	Status ConnectionConditionStatusType `json:"status"`
-	// LastTransitionTime -> timestamp for when the condition last transitioned from one status to another.
-	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
-	// Reason -> Machine-readable, UpperCamelCase text indicating the reason for the condition's last transition.
-	Reason string `json:"reason,omitempty"`
-	// Message -> Human-readable message indicating details about the last status transition.
-	Message string `json:"message,omitempty"`
+// ConnectionLatency represents the latency between two clusters.
+type ConnectionLatency struct {
+	// Value of the latency.
+	Value string `json:"value,omitempty"`
+	// Timestamp of the latency.
+	Timestamp metav1.Time `json:"timestamp,omitempty"`
 }
 
 // ConnectionStatus defines the observed state of Connection.
 type ConnectionStatus struct {
-	// Conditions contains the conditions of the connection.
-	Conditions []ConnectionCondition `json:"conditions,omitempty"`
+	// Value of the connection.
+	Value ConnectionStatusValue `json:"value,omitempty"`
+	// Latency of the connection.
+	Latency ConnectionLatency `json:"latency,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
+// +kubebuilder:printcolumn:name="Latency",type=string,JSONPath=`.status.latency.value`,priority=1
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.value`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Connection contains the status of a connection between two clusters (a client and a server).
 type Connection struct {
