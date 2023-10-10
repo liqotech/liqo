@@ -14,7 +14,20 @@
 
 package common
 
-import "github.com/vishvananda/netlink"
+import (
+	"fmt"
+
+	"github.com/vishvananda/netlink"
+
+	"github.com/liqotech/liqo/pkg/gateway"
+)
+
+const (
+	// ServerInterfaceIP is the IP address of the Wireguard interface in server mode.
+	ServerInterfaceIP = "169.254.0.1/30"
+	// ClientInterfaceIP is the IP address of the Wireguard interface in client mode.
+	ClientInterfaceIP = "169.254.0.2/30"
+)
 
 // AddAddress adds an IP address to the Wireguard interface.
 func AddAddress(link netlink.Link, ip string) error {
@@ -29,4 +42,28 @@ func AddAddress(link netlink.Link, ip string) error {
 // GetLink returns the Wireguard interface.
 func GetLink(name string) (netlink.Link, error) {
 	return netlink.LinkByName(name)
+}
+
+// GetInterfaceIP returns the IP address of the Wireguard interface.
+func GetInterfaceIP(mode gateway.Mode) string {
+	switch mode {
+	case gateway.ModeServer:
+		return ServerInterfaceIP
+	case gateway.ModeClient:
+		return ClientInterfaceIP
+	}
+	return ""
+}
+
+// GetRemoteInterfaceIP returns the IP address of the remote Wireguard interface.
+func GetRemoteInterfaceIP(mode gateway.Mode) (string, error) {
+	switch mode {
+	case gateway.ModeServer:
+		ip, err := netlink.ParseIPNet(ClientInterfaceIP)
+		return ip.IP.String(), err
+	case gateway.ModeClient:
+		ip, err := netlink.ParseIPNet(ServerInterfaceIP)
+		return ip.IP.String(), err
+	}
+	return "", fmt.Errorf("invalid mode %v", mode)
 }

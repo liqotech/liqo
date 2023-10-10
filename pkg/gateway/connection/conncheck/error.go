@@ -1,4 +1,4 @@
-// Copyright 2019-2024 The Liqo Authors
+// Copyright 2019-2023 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,20 @@
 
 package conncheck
 
-import "time"
+import "fmt"
 
-const (
-	port     = 12345
-	buffSize = 1024
-)
+// DuplicateError is an error type for ConnChecker.
+// It is returned when an already present sender is added.
+type DuplicateError struct {
+	Err error
+}
 
-var (
-	// PingLossThreshold is the number of lost packets after which the connection check is considered as failed.
-	PingLossThreshold uint
-	// PingInterval is the interval at which the ping is sent.
-	PingInterval time.Duration
-)
+// NewDuplicateError returns a new DuplicateError.
+func NewDuplicateError(clusterID string) *DuplicateError {
+	return &DuplicateError{Err: fmt.Errorf("sender %s already added", clusterID)}
+}
+
+// Error returns the error message.
+func (e DuplicateError) Error() string {
+	return e.Err.Error()
+}

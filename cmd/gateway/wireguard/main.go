@@ -34,7 +34,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
+	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/wireguard"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -47,7 +47,7 @@ var (
 		networkingv1alpha1.AddToScheme,
 		ipamv1alpha1.AddToScheme,
 	}
-	options = wireguard.NewOptions()
+	options = wireguard.NewOptions(gateway.NewOptions())
 )
 
 func main() {
@@ -61,6 +61,7 @@ func main() {
 	klog.InitFlags(legacyflags)
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
+	gateway.InitFlags(cmd.Flags(), options.GwOptions)
 	wireguard.InitFlags(cmd.Flags(), options)
 	if err := wireguard.MarkFlagsRequired(&cmd, options); err != nil {
 		klog.Error(err)
@@ -103,20 +104,20 @@ func run(cmd *cobra.Command, _ []string) error {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider:         mapper.LiqoMapperProvider(scheme),
 		Scheme:                 scheme,
-		Namespace:              options.Namespace,
-		MetricsBindAddress:     options.MetricsAddress,
-		HealthProbeBindAddress: options.ProbeAddr,
-		LeaderElection:         options.LeaderElection,
+		Namespace:              options.GwOptions.Namespace,
+		MetricsBindAddress:     options.GwOptions.MetricsAddress,
+		HealthProbeBindAddress: options.GwOptions.ProbeAddr,
+		LeaderElection:         options.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
 			"%s.%s.%s.wgtunnel.liqo.io",
-			wireguard.GenerateResourceName(options.Name), options.Namespace, options.Mode,
+			gateway.GenerateResourceName(options.GwOptions.Name), options.GwOptions.Namespace, options.GwOptions.Mode,
 		),
-		LeaderElectionNamespace:       options.Namespace,
+		LeaderElectionNamespace:       options.GwOptions.Namespace,
 		LeaderElectionReleaseOnCancel: true,
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
-		LeaseDuration:                 &options.LeaderElectionLeaseDuration,
-		RenewDeadline:                 &options.LeaderElectionRenewDeadline,
-		RetryPeriod:                   &options.LeaderElectionRetryPeriod,
+		LeaseDuration:                 &options.GwOptions.LeaderElectionLeaseDuration,
+		RenewDeadline:                 &options.GwOptions.LeaderElectionRenewDeadline,
+		RetryPeriod:                   &options.GwOptions.LeaderElectionRetryPeriod,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
@@ -134,7 +135,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	dnsChan := make(chan event.GenericEvent)
-	if options.Mode == common.ModeClient {
+	if options.GwOptions.Mode == gateway.ModeClient {
 		if wireguard.IsDNSRoutineRequired(options) {
 			go wireguard.StartDNSRoutine(cmd.Context(), dnsChan, options)
 			klog.Infof("Starting DNS routine: resolving the endpoint address every %s", options.DNSCheckInterval.String())
