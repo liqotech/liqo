@@ -14,7 +14,7 @@
 
 package wireguard
 
-import "github.com/liqotech/liqo/pkg/gateway/tunnel/common"
+import "github.com/liqotech/liqo/pkg/gateway"
 
 // Labels is the type used to identify the wireguard labels.
 type Labels string
@@ -29,7 +29,7 @@ const (
 
 const (
 	// LabelsModeServer is the label used to identify the wireguard mode server.
-	LabelsModeServer LabelsValue = LabelsValue(common.ModeServer)
+	LabelsModeServer LabelsValue = LabelsValue(gateway.ModeServer)
 	// LabelsModeClient is the label used to identify the wireguard mode client.
-	LabelsModeClient LabelsValue = LabelsValue(common.ModeClient)
+	LabelsModeClient LabelsValue = LabelsValue(gateway.ModeClient)
 )
