@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 )
@@ -42,6 +43,12 @@ type ServerReconciler struct {
 	DynClient       dynamic.Interface
 	Factory         *dynamicutils.RunnableFactory
 	ServerResources []string
+}
+
+type templateData struct {
+	Spec       networkingv1alpha1.GatewayServerSpec
+	GatewayUID string
+	ClusterID  string
 }
 
 // NewServerReconciler returns a new ServerReconciler.
@@ -97,6 +104,14 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 // EnsureGatewayServer ensures the GatewayServer is correctly configured.
 func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *networkingv1alpha1.GatewayServer) error {
+	if server.Labels == nil {
+		server.Labels = map[string]string{}
+	}
+	remoteClusterID, ok := server.Labels[consts.RemoteClusterID]
+	if !ok {
+		return fmt.Errorf("missing label %q on GatewayServer %q", consts.RemoteClusterID, server.Name)
+	}
+
 	templateGV, err := schema.ParseGroupVersion(server.Spec.ServerTemplateRef.APIVersion)
 	if err != nil {
 		return fmt.Errorf("unable to parse the server template group version: %w", err)
@@ -162,7 +177,11 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *netw
 				Controller: pointer.Bool(true),
 			},
 		})
-		spec, err := enutils.RenderTemplate(objectTemplateSpec, server.Spec)
+		spec, err := enutils.RenderTemplate(objectTemplateSpec, templateData{
+			Spec:       server.Spec,
+			GatewayUID: string(server.UID),
+			ClusterID:  remoteClusterID,
+		})
 		if err != nil {
 			return fmt.Errorf("unable to render the template: %w", err)
 		}

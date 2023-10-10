@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 )
@@ -42,6 +43,12 @@ type ClientReconciler struct {
 	DynClient       dynamic.Interface
 	Factory         *dynamicutils.RunnableFactory
 	ClientResources []string
+}
+
+type templateData struct {
+	Spec       networkingv1alpha1.GatewayClientSpec
+	GatewayUID string
+	ClusterID  string
 }
 
 // NewClientReconciler returns a new ClientReconciler.
@@ -97,6 +104,14 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 // EnsureGatewayClient ensures the GatewayClient is correctly configured.
 func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *networkingv1alpha1.GatewayClient) error {
+	if gwClient.Labels == nil {
+		gwClient.Labels = map[string]string{}
+	}
+	remoteClusterID, ok := gwClient.Labels[consts.RemoteClusterID]
+	if !ok {
+		return fmt.Errorf("missing label %q on GatewayClient %q", consts.RemoteClusterID, gwClient.Name)
+	}
+
 	templateGV, err := schema.ParseGroupVersion(gwClient.Spec.ClientTemplateRef.APIVersion)
 	if err != nil {
 		return fmt.Errorf("unable to parse the client template group version: %w", err)
@@ -162,7 +177,11 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 				Controller: pointer.Bool(true),
 			},
 		})
-		spec, err := enutils.RenderTemplate(objectTemplateSpec, gwClient.Spec)
+		spec, err := enutils.RenderTemplate(objectTemplateSpec, templateData{
+			Spec:       gwClient.Spec,
+			GatewayUID: string(gwClient.UID),
+			ClusterID:  remoteClusterID,
+		})
 		if err != nil {
 			return fmt.Errorf("unable to render the template: %w", err)
 		}
