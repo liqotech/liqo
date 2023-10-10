@@ -28,14 +28,22 @@ import (
 func ParseEndpoint(endpoint map[string]interface{}) *networkingv1alpha1.EndpointStatus {
 	res := &networkingv1alpha1.EndpointStatus{}
 	if value, ok := endpoint["addresses"]; ok {
-		res.Addresses = value.([]string)
+		res.Addresses = interfaceListToList[string](value.([]interface{}))
 	}
 	if value, ok := endpoint["port"]; ok {
-		res.Port = value.(int32)
+		res.Port = int32(value.(int64))
 	}
 	if value, ok := endpoint["protocol"]; ok {
-		tmp := value.(corev1.Protocol)
+		tmp := corev1.Protocol(value.(string))
 		res.Protocol = &tmp
+	}
+	return res
+}
+
+func interfaceListToList[T any](list []interface{}) []T {
+	res := make([]T, len(list))
+	for i, v := range list {
+		res[i] = v.(T)
 	}
 	return res
 }
