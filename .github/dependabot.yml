@@ -41,6 +41,11 @@ updates:
       interval: "daily"
 
   - package-ecosystem: "docker"
-    directory: "/build/gateway/tunnel/wireguard"
+    directory: "/build/gateway"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "docker"
+    directory: "/build/gateway/wireguard"
     schedule:
       interval: "daily"

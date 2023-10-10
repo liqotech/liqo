@@ -12,7 +12,6 @@ on:
     types:
       - test-command
       - build-command
-
 jobs:
   configure:
     name: Preliminary configuration
@@ -90,6 +89,7 @@ jobs:
         - metric-agent
         - telemetry
         - proxy
+        - gateway
         - gateway/wireguard
     steps:
       - name: Set up QEMU
