@@ -12,11 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package gateway
 
 import (
 	"fmt"
+	"time"
 )
+
+// Options contains the options for the wireguard interface.
+type Options struct {
+	Name            string
+	Namespace       string
+	RemoteClusterID string
+
+	Mode Mode
+
+	LeaderElection              bool
+	LeaderElectionLeaseDuration time.Duration
+	LeaderElectionRenewDeadline time.Duration
+	LeaderElectionRetryPeriod   time.Duration
+
+	MetricsAddress string
+	ProbeAddr      string
+}
+
+// NewOptions returns a new Options struct.
+func NewOptions() *Options {
+	return &Options{}
+}
 
 // Mode is the mode in which the wireguard interface is configured.
 type Mode string
@@ -48,4 +71,10 @@ func (m *Mode) Set(value string) error {
 // Type returns the type of the mode.
 func (m *Mode) Type() string {
 	return "string"
+}
+
+// GenerateResourceName generates the name used for the resources created by the gateway.
+// This will help if a suffix will be added to the name of the resources in future.
+func GenerateResourceName(name string) string {
+	return name
 }
