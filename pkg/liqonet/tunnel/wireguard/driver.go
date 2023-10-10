@@ -42,7 +42,7 @@ import (
 	discv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/conncheck"
+	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/metrics"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/resolver"
@@ -282,7 +282,11 @@ func (w *Wireguard) ConnectToEndpoint(ctx context.Context, tep *netv1alpha1.Tunn
 
 	klog.Infof("%s -> starting conncheck sender", tep.Spec.ClusterIdentity)
 
-	go w.Connchecker.AddAndRunSender(ctx, tep.Spec.ClusterIdentity.ClusterID, pingIP, updateStatus)
+	if err := w.Connchecker.AddSender(ctx, tep.Spec.ClusterIdentity.ClusterID, pingIP, updateStatus); err != nil {
+		return nil, fmt.Errorf("failed to add conncheck sender for cluster %s: %w", tep.Spec.ClusterIdentity, err)
+	}
+
+	go w.Connchecker.RunSender(tep.Spec.ClusterIdentity.ClusterID)
 
 	klog.V(4).Infof("Done connecting cluster peer %s@%s", tep.Spec.ClusterIdentity, endpoint.String())
 	return c, nil

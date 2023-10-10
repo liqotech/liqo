@@ -38,7 +38,7 @@ import (
 
 	tunneloperator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/conncheck"
+	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/liqonet/utils/links"

@@ -21,17 +21,15 @@ import (
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
-	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
+	"github.com/liqotech/liqo/pkg/gateway"
 )
 
 // Options contains the options for the wireguard interface.
 type Options struct {
-	Name            string
-	Namespace       string
-	RemoteClusterID string
-	GatewayUID      string
+	GwOptions *gateway.Options
 
-	Mode            common.Mode
+	GatewayUID string
+
 	MTU             int
 	PrivateKey      wgtypes.Key
 	InterfaceName   string
@@ -44,25 +42,12 @@ type Options struct {
 	EndpointIPMutex *sync.Mutex
 
 	DNSCheckInterval time.Duration
-
-	LeaderElection              bool
-	LeaderElectionLeaseDuration time.Duration
-	LeaderElectionRenewDeadline time.Duration
-	LeaderElectionRetryPeriod   time.Duration
-
-	MetricsAddress string
-	ProbeAddr      string
 }
 
 // NewOptions returns a new Options struct.
-func NewOptions() *Options {
+func NewOptions(options *gateway.Options) *Options {
 	return &Options{
+		GwOptions:       options,
 		EndpointIPMutex: &sync.Mutex{},
 	}
-}
-
-// GenerateResourceName generates the name used for the resources created by the gateway.
-// This will help if a suffix will be added to the name of the resources in future.
-func GenerateResourceName(name string) string {
-	return name
 }

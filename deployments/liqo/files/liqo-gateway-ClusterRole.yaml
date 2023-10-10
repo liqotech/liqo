@@ -12,10 +12,30 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
-  - publickeys
+  - connections
   verbs:
   - create
   - delete
   - get
   - list
   - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - connections/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - publickeies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
