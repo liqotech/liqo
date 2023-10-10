@@ -15,13 +15,16 @@
 package mapper
 
 import (
+	"errors"
 	"net/http"
 
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -57,7 +60,7 @@ func LiqoMapperProvider(scheme *runtime.Scheme, additionalGroupVersions ...schem
 		}
 
 		for _, gv := range additionalGroupVersions {
-			if err = addGroup(dClient, gv, mapper); err != nil {
+			if err = addGroup(dClient, gv, mapper, GroupRequired); err != nil {
 				klog.Error(err)
 				return nil, err
 			}
@@ -72,48 +75,66 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	var err error
 
 	// Liqo groups
-	if err = addGroup(dClient, discoveryv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, discoveryv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, netv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, netv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, sharingv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, sharingv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, virtualKubeletv1alpha1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, virtualKubeletv1alpha1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, offv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, offv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, ipamv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, ipamv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, networkingv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, networkingv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
 
 	// Kubernetes groups
-	if err = addGroup(dClient, corev1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, corev1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, appsv1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, appsv1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, rbacv1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, rbacv1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, discoveryv1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, discoveryv1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	return addGroup(dClient, storagev1.SchemeGroupVersion, mapper)
+	if err = addGroup(dClient, storagev1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
+		return err
+	}
+
+	// Prometheus operator group
+	return addGroup(dClient, monitoringv1.SchemeGroupVersion, mapper, GroupOptional)
 }
 
+const (
+	// GroupRequired is used to specify that a group is required by the mapper.
+	GroupRequired = true
+	// GroupOptional is used to specify that a group is optional for the mapper.
+	GroupOptional = false
+)
+
 // add all the resources in the specified groupVersion to the mapper.
-func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersion, mapper *meta.DefaultRESTMapper) error {
+func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersion,
+	mapper *meta.DefaultRESTMapper, required bool) error {
 	res, err := dClient.ServerResourcesForGroupVersion(groupVersion.String())
-	if err != nil {
+	var dErr *apierrors.StatusError
+	switch {
+	case errors.As(err, &dErr) && !required:
+		// ignore error, and do not add the group to the mapper, the CRD is not available.
+		return nil
+	case err != nil:
 		klog.Error(err)
 		return err
 	}
