@@ -16,7 +16,21 @@ spec:
     singular: connection
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    - jsonPath: .status.latency.value
+      name: Latency
+      priority: 1
+      type: string
+    - jsonPath: .status.value
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Connection contains the status of a connection between two clusters
@@ -74,35 +88,6 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
-              ping:
-                description: Ping specifies the ping configuration.
-                properties:
-                  enabled:
-                    default: true
-                    description: Enabled specifies whether the ping is enabled or
-                      not.
-                    type: boolean
-                  endpoint:
-                    description: Endpoint specifies the endpoint to ping.
-                    properties:
-                      addresses:
-                        description: Addresses specifies the addresses of the endpoint.
-                        items:
-                          type: string
-                        type: array
-                      port:
-                        description: Port specifies the port of the endpoint.
-                        format: int32
-                        type: integer
-                      protocol:
-                        default: TCP
-                        description: Protocol specifies the protocol of the endpoint.
-                        enum:
-                        - TCP
-                        - UDP
-                        type: string
-                    type: object
-                type: object
               type:
                 description: Type of the connection.
                 enum:
@@ -116,43 +101,20 @@ spec:
           status:
             description: ConnectionStatus defines the observed state of Connection.
             properties:
-              conditions:
-                description: Conditions contains the conditions of the connection.
-                items:
-                  description: ConnectionCondition contains details about state of
-                    the connection.
-                  properties:
-                    lastTransitionTime:
-                      description: LastTransitionTime -> timestamp for when the condition
-                        last transitioned from one status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: Message -> Human-readable message indicating details
-                        about the last status transition.
-                      type: string
-                    reason:
-                      description: Reason -> Machine-readable, UpperCamelCase text
-                        indicating the reason for the condition's last transition.
-                      type: string
-                    status:
-                      default: Unknown
-                      description: Status of the condition.
-                      enum:
-                      - "True"
-                      - "False"
-                      - Unknown
-                      type: string
-                    type:
-                      description: Type of the connection condition.
-                      enum:
-                      - Established
-                      type: string
-                  required:
-                  - status
-                  - type
-                  type: object
-                type: array
+              latency:
+                description: Latency of the connection.
+                properties:
+                  timestamp:
+                    description: Timestamp of the latency.
+                    format: date-time
+                    type: string
+                  value:
+                    description: Value of the latency.
+                    type: string
+                type: object
+              value:
+                description: Value of the connection.
+                type: string
             type: object
         type: object
     served: true
