@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 )
@@ -123,4 +124,20 @@ func TranslateMap(obj interface{}) map[string]string {
 func KindToResource(kind string) string {
 	// lowercased and pluralized
 	return strings.ToLower(kind) + "s"
+}
+
+// ResourceToKind returns the kind name for a given resource.
+func ResourceToKind(gvr schema.GroupVersionResource, kubeClient kubernetes.Interface) (string, error) {
+	res, err := kubeClient.Discovery().ServerResourcesForGroupVersion(gvr.GroupVersion().String())
+	if err != nil {
+		return "", err
+	}
+
+	for i := range res.APIResources {
+		if gvr.Resource == KindToResource(res.APIResources[i].Kind) {
+			return res.APIResources[i].Kind, nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to find Kind name associated to resources %q", gvr.Resource)
 }
