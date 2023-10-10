@@ -20,7 +20,7 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
-	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
+	"github.com/liqotech/liqo/pkg/gateway"
 )
 
 func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.Key) error {
@@ -36,10 +36,10 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 		ReplacePeers: true,
 	}
 
-	switch options.Mode {
-	case common.ModeServer:
+	switch options.GwOptions.Mode {
+	case gateway.ModeServer:
 		confdev.ListenPort = &options.ListenPort
-	case common.ModeClient:
+	case gateway.ModeClient:
 		confdev.Peers[0].Endpoint = &net.UDPAddr{
 			IP:   options.EndpointIP,
 			Port: options.EndpointPort,
