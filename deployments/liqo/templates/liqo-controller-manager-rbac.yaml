@@ -1,4 +1,5 @@
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
+{{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking") .) -}}
 {{- $virtualKubeletConfigLocal := (merge (dict "name" "virtual-kubelet-local" "module" "virtualkubelet") .) -}}
 {{- $virtualKubeletConfigRemote := (merge (dict "name" "virtual-kubelet-remote" "module" "virtualkubelet") .) -}}
 
@@ -23,6 +24,23 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+---
+# The controller-manager needs to be also granted the wireguard gateway permissions,
+# as it needs to create the necessary cluster role binding associated with the wireguard gateway.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}-grant-wg-gateway
+  labels:
+    {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
 ---
 # The controller-manager needs to be also granted the local virtual kubelet permissions,
 # as it needs to create the necessary cluster role binding associated with the virtual kubelet.

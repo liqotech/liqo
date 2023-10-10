@@ -39,6 +39,8 @@ var WgGatewayClientGroupVersionResource = GroupVersion.WithResource(WgGatewayCli
 type WgGatewayClientSpec struct {
 	// Deployment specifies the deployment template for the client.
 	Deployment DeploymentTemplate `json:"deployment"`
+	// Metrics specifies the metrics configuration for the client.
+	Metrics *Metrics `json:"metrics,omitempty"`
 }
 
 // WgGatewayClientStatus defines the observed state of WgGatewayClient.
