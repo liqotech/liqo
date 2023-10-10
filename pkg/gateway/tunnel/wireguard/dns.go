@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
+	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -88,7 +88,7 @@ func StartDNSRoutine(ctx context.Context, ch chan event.GenericEvent, opts *Opti
 // IsDNSRoutineRequired checks if the client endpoint is a DNS.
 // If it is a DNS the DNS routine is required.
 func IsDNSRoutineRequired(opts *Options) bool {
-	if opts.Mode != common.ModeClient {
+	if opts.GwOptions.Mode != gateway.ModeClient {
 		return false
 	}
 	return net.ParseIP(opts.EndpointAddress) == nil
@@ -106,10 +106,10 @@ func NewDNSEventHandler(cl client.Client, opts *Options) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			labelSet := labels.Set{
-				string(LabelsMode):             string(opts.Mode),
-				string(consts.RemoteClusterID): opts.RemoteClusterID,
+				string(LabelsMode):             string(opts.GwOptions.Mode),
+				string(consts.RemoteClusterID): opts.GwOptions.RemoteClusterID,
 			}
-			list, err := getters.ListPublicKeysByLabel(ctx, cl, opts.Namespace, labels.SelectorFromSet(labelSet))
+			list, err := getters.ListPublicKeysByLabel(ctx, cl, opts.GwOptions.Namespace, labels.SelectorFromSet(labelSet))
 			if err != nil {
 				klog.Error(err)
 			}
