@@ -29,9 +29,10 @@ import (
 type ConnChecker struct {
 	receiver *Receiver
 	// key is the target cluster ID.
-	senders map[string]*Sender
-	sm      sync.RWMutex
-	conn    *net.UDPConn
+	senders        map[string]*Sender
+	runningSenders map[string]*Sender
+	sm             sync.RWMutex
+	conn           *net.UDPConn
 }
 
 // NewConnChecker creates a new ConnChecker.
@@ -46,9 +47,10 @@ func NewConnChecker() (*ConnChecker, error) {
 	}
 	klog.V(4).Infof("conncheck socket: listening on %s", addr)
 	connChecker := ConnChecker{
-		receiver: NewReceiver(conn),
-		senders:  make(map[string]*Sender),
-		conn:     conn,
+		receiver:       NewReceiver(conn),
+		senders:        make(map[string]*Sender),
+		runningSenders: make(map[string]*Sender),
+		conn:           conn,
 	}
 	return &connChecker, nil
 }
@@ -63,42 +65,53 @@ func (c *ConnChecker) RunReceiverDisconnectObserver(ctx context.Context) {
 	c.receiver.RunDisconnectObserver(ctx)
 }
 
-// AddAndRunSender create a new sender and runs it.
-func (c *ConnChecker) AddAndRunSender(ctx context.Context, clusterID, ip string, updateCallback UpdateFunc) {
+// AddSender adds a sender.
+func (c *ConnChecker) AddSender(ctx context.Context, clusterID, ip string, updateCallback UpdateFunc) error {
 	var err error
+
+	if clusterID == "" {
+		return fmt.Errorf("clusterID cannot be empty")
+	}
+
 	c.sm.Lock()
+	defer c.sm.Unlock()
+
 	if _, ok := c.senders[clusterID]; ok {
-		c.sm.Unlock()
-		klog.Infof("sender %s already exists", clusterID)
-		return
+		return NewDuplicateError(clusterID)
 	}
 
 	ctxSender, cancelSender := context.WithCancel(ctx)
-	c.senders[clusterID], err = NewSender(clusterID, cancelSender, c.conn, ip)
-
+	c.senders[clusterID], err = NewSender(ctxSender, clusterID, cancelSender, c.conn, ip)
 	if err != nil {
-		c.sm.Unlock()
-		klog.Errorf("failed to create sender: %v", err)
-		return
+		return fmt.Errorf("failed to create sender: %w", err)
 	}
 
 	err = c.receiver.InitPeer(clusterID, updateCallback)
 	if err != nil {
-		c.sm.Unlock()
-		klog.Errorf("failed to add redirect chan: %v", err)
+		return fmt.Errorf("failed to init peer: %w", err)
 	}
 
-	klog.Infof("conncheck sender %q starting against %q", clusterID, ip)
-	pingCallback := func(ctx context.Context) (done bool, err error) {
+	klog.Infof("conncheck sender %q added %s", clusterID, ip)
+	return nil
+}
+
+// RunSender runs a sender.
+func (c *ConnChecker) RunSender(clusterID string) {
+	sender, err := c.setRunning(clusterID)
+	if err != nil {
+		klog.Errorf("conncheck sender %s doesn't start for an error: %s", clusterID, err)
+		return
+	}
+
+	klog.Infof("conncheck sender %q starting against %q", clusterID, sender.raddr.IP.String())
+
+	if err := wait.PollUntilContextCancel(sender.Ctx, PingInterval, false, func(ctx context.Context) (done bool, err error) {
 		err = c.senders[clusterID].SendPing()
 		if err != nil {
 			klog.Warningf("failed to send ping: %s", err)
 		}
 		return false, nil
-	}
-	c.sm.Unlock()
-
-	if err := wait.PollUntilContextCancel(ctxSender, PingInterval, false, pingCallback); err != nil {
+	}); err != nil {
 		klog.Errorf("conncheck sender %s stopped for an error: %s", clusterID, err)
 	}
 
@@ -117,6 +130,8 @@ func (c *ConnChecker) DelAndStopSender(clusterID string) {
 		c.senders[clusterID].cancel()
 		delete(c.senders, clusterID)
 	}
+
+	delete(c.runningSenders, clusterID)
 	delete(c.receiver.peers, clusterID)
 }
 
@@ -138,4 +153,19 @@ func (c *ConnChecker) GetConnected(clusterID string) (bool, error) {
 		return peer.connected, nil
 	}
 	return false, fmt.Errorf("sender %s not found", clusterID)
+}
+
+func (c *ConnChecker) setRunning(clusterID string) (*Sender, error) {
+	c.sm.Lock()
+	defer c.sm.Unlock()
+	sender, ok := c.senders[clusterID]
+	if !ok {
+		return nil, fmt.Errorf("sender %s not found", clusterID)
+	}
+
+	if _, ok := c.runningSenders[clusterID]; ok {
+		return nil, fmt.Errorf("sender %s already running", clusterID)
+	}
+	c.runningSenders[clusterID] = sender
+	return sender, nil
 }
