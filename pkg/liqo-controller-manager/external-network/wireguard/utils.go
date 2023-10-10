@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	tunnel "github.com/liqotech/liqo/pkg/gateway/tunnel/wireguard"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
@@ -51,15 +52,10 @@ func wireGuardSecretEnquerer(_ context.Context, obj client.Object) []ctrl.Reques
 		{
 			NamespacedName: types.NamespacedName{
 				Namespace: secret.Namespace,
-				Name:      mapSecretToWireGuardResource(secret.Name),
+				Name:      tunnel.GenerateResourceName(secret.Name),
 			},
 		},
 	}
-}
-
-// TODO:: use generic map function after merge.
-func mapSecretToWireGuardResource(secretName string) string {
-	return secretName
 }
 
 func getWireGuardSecret(ctx context.Context, cl client.Client, wgObj metav1.Object) (*corev1.Secret, error) {
