@@ -35,7 +35,7 @@ import (
 )
 
 // cluster-role
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=publickeys,verbs=get;list;create;delete;update
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=publickeies,verbs=get;list;create;delete;update;watch
 
 // PublicKeysReconciler updates the PublicKey resource used to establish the Wireguard connection.
 type PublicKeysReconciler struct {
@@ -95,13 +95,13 @@ func (r *PublicKeysReconciler) Predicates() builder.Predicates {
 			if !ok {
 				return false
 			}
-			if mode != string(r.Options.Mode) {
+			if mode != string(r.Options.GwOptions.Mode) {
 				return false
 			}
 			id, ok := object.GetLabels()[string(consts.RemoteClusterID)]
 			if !ok {
 				return false
 			}
-			return id == r.Options.RemoteClusterID
+			return id == r.Options.GwOptions.RemoteClusterID
 		}))
 }

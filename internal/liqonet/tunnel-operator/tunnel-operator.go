@@ -41,7 +41,7 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/conncheck"
+	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	"github.com/liqotech/liqo/pkg/liqonet/iptables"
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
