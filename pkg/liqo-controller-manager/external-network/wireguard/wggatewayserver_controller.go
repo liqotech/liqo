@@ -21,6 +21,7 @@ import (
 	"golang.org/x/exp/maps"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -38,6 +39,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
@@ -48,14 +50,17 @@ type WgGatewayServerReconciler struct {
 	client.Client
 	Scheme           *runtime.Scheme
 	extNetPodsClient client.Client
+	clusterRoleName  string
 }
 
 // NewWgGatewayServerReconciler returns a new WgGatewayServerReconciler.
-func NewWgGatewayServerReconciler(cl client.Client, s *runtime.Scheme, extNetPodsClient client.Client) *WgGatewayServerReconciler {
+func NewWgGatewayServerReconciler(cl client.Client, s *runtime.Scheme, extNetPodsClient client.Client,
+	clusterRoleName string) *WgGatewayServerReconciler {
 	return &WgGatewayServerReconciler{
 		Client:           cl,
 		Scheme:           s,
 		extNetPodsClient: extNetPodsClient,
+		clusterRoleName:  clusterRoleName,
 	}
 }
 
@@ -66,6 +71,9 @@ func NewWgGatewayServerReconciler(cl client.Client, s *runtime.Scheme, extNetPod
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;delete;create;update;patch
+// +kubectl:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
 
 // Reconcile manage GatewayServer lifecycle.
 func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
@@ -84,6 +92,12 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
+	// Ensure ServiceAccount and RoleBinding (create or update)
+	if err = enutils.EnsureServiceAccountAndRoleBinding(ctx, r.Client, r.Scheme, &wgServer.Spec.Deployment, wgServer,
+		r.clusterRoleName); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Ensure deployment (create or update)
 	deployNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: wgServer.Name}
 	deploy, err := r.ensureDeployment(ctx, wgServer, deployNsName)
@@ -94,6 +108,14 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// Ensure service (create or update)
 	svcNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: wgServer.Name}
 	_, err = r.ensureService(ctx, wgServer, svcNsName)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Ensure Metrics (if set)
+	err = enutils.EnsureMetrics(ctx,
+		r.Client, r.Scheme,
+		wgServer.Spec.Metrics, wgServer)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -127,6 +149,8 @@ func (r *WgGatewayServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&networkingv1alpha1.WgGatewayServer{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&rbacv1.RoleBinding{}).
 		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.secretEnquerer), builder.WithPredicates(r.filterSecretsPredicate())).
 		Complete(r)
 }
@@ -203,6 +227,11 @@ func (r *WgGatewayServerReconciler) mutateFnWgServerDeployment(deployment *appsv
 
 	// Forge spec
 	deployment.Spec = wgServer.Spec.Deployment.Spec
+
+	if deployment.Spec.Template.ObjectMeta.Labels == nil {
+		deployment.Spec.Template.ObjectMeta.Labels = map[string]string{}
+	}
+	deployment.Spec.Template.ObjectMeta.Labels[consts.ExternalNetworkLabel] = consts.ExternalNetworkLabelValue
 
 	// Set WireGuard server as owner of the deployment
 	return controllerutil.SetControllerReference(wgServer, deployment, r.Scheme)
