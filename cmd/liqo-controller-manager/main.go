@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	certificates "k8s.io/api/certificates/v1"
@@ -110,6 +111,8 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
+	_ = monitoringv1.AddToScheme(scheme)
+
 	_ = sharingv1alpha1.AddToScheme(scheme)
 	_ = netv1alpha1.AddToScheme(scheme)
 	_ = discoveryv1alpha1.AddToScheme(scheme)
@@ -135,6 +138,7 @@ func main() {
 	var ipamClient ipam.IpamClient
 	var gatewayServerResources argsutils.StringList
 	var gatewayClientResources argsutils.StringList
+	var wgGatewayServerClusterRoleName, wgGatewayClientClusterRoleName string
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -222,6 +226,10 @@ func main() {
 	// External network parameters
 	flag.Var(&gatewayServerResources, "gateway-server-resources", "The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
 	flag.Var(&gatewayClientResources, "gateway-client-resources", "The list of resource types that implements the gateway client. They must be in the form <group>/<version>/<resource>")
+	flag.StringVar(&wgGatewayServerClusterRoleName, "wg-gateway-server-cluster-role-name", "liqo-gateway",
+		"The name of the cluster role used by the wireguard gateway servers")
+	flag.StringVar(&wgGatewayClientClusterRoleName, "wg-gateway-client-cluster-role-name", "liqo-gateway",
+		"The name of the cluster role used by the wireguard gateway clients")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -676,13 +684,13 @@ func main() {
 		}
 
 		wgServerRec := wggatewaycontrollers.NewWgGatewayServerReconciler(
-			mgr.GetClient(), mgr.GetScheme(), auxmgrExtNetworkPods.GetClient())
+			mgr.GetClient(), mgr.GetScheme(), auxmgrExtNetworkPods.GetClient(), wgGatewayServerClusterRoleName)
 		if err = wgServerRec.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the WgGatewayServerReconciler", err)
 			os.Exit(1)
 		}
 
-		wgClientRec := wggatewaycontrollers.NewWgGatewayClientReconciler(mgr.GetClient(), mgr.GetScheme())
+		wgClientRec := wggatewaycontrollers.NewWgGatewayClientReconciler(mgr.GetClient(), mgr.GetScheme(), wgGatewayClientClusterRoleName)
 		if err = wgClientRec.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the WgGatewayClientReconciler", err)
 			os.Exit(1)

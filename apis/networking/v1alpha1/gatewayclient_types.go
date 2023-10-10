@@ -42,7 +42,7 @@ type GatewayClientSpec struct {
 	// MTU specifies the MTU of the tunnel.
 	MTU int `json:"mtu,omitempty"`
 	// Endpoint specifies the endpoint of the tunnel.
-	Endpoint Endpoint `json:"endpoint,omitempty"`
+	Endpoint EndpointStatus `json:"endpoint,omitempty"`
 }
 
 // GatewayClientStatus defines the observed state of GatewayClient.
