@@ -185,7 +185,8 @@ func (w *Wireguard) Init() error {
 
 // ConnectToEndpoint connects to a remote cluster described by the given tep.
 // updateStatusCallback is a function used by conncheck to update TunnelEndpoint connected status.
-func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint, updateStatus conncheck.UpdateFunc) (*netv1alpha1.Connection, error) {
+func (w *Wireguard) ConnectToEndpoint(ctx context.Context, tep *netv1alpha1.TunnelEndpoint,
+	updateStatus conncheck.UpdateFunc) (*netv1alpha1.Connection, error) {
 	// parse allowed IPs.
 	allowedIPs, stringAllowedIPs, err := getAllowedIPs(tep)
 	if err != nil {
@@ -281,7 +282,7 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint, updateSta
 
 	klog.Infof("%s -> starting conncheck sender", tep.Spec.ClusterIdentity)
 
-	go w.Connchecker.AddAndRunSender(tep.Spec.ClusterIdentity.ClusterID, pingIP, updateStatus)
+	go w.Connchecker.AddAndRunSender(ctx, tep.Spec.ClusterIdentity.ClusterID, pingIP, updateStatus)
 
 	klog.V(4).Infof("Done connecting cluster peer %s@%s", tep.Spec.ClusterIdentity, endpoint.String())
 	return c, nil

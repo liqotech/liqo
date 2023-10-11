@@ -104,19 +104,19 @@ func (r *Receiver) InitPeer(clusterID string, updateCallback UpdateFunc) error {
 }
 
 // Run starts the receiver.
-func (r *Receiver) Run() {
-	klog.V(8).Infof("conncheck receiver: starting")
-	for {
+func (r *Receiver) Run(ctx context.Context) {
+	klog.Infof("conncheck receiver: started")
+	err := wait.PollUntilContextCancel(ctx, time.Second, true, func(ctx context.Context) (done bool, err error) {
 		n, raddr, err := r.conn.ReadFromUDP(r.buff)
 		if err != nil {
 			klog.Errorf("conncheck receiver: failed to read from %s: %w", raddr.String(), err)
-			continue
+			return false, nil
 		}
 		msgr := &Msg{}
 		err = json.Unmarshal(r.buff[:n], msgr)
 		if err != nil {
 			klog.Errorf("conncheck receiver: failed to unmarshal msg: %w", err)
-			continue
+			return false, nil
 		}
 		klog.V(9).Infof("conncheck receiver: received a msg -> %s", msgr)
 		switch msgr.MsgType {
@@ -130,14 +130,18 @@ func (r *Receiver) Run() {
 		if err != nil {
 			klog.Errorf("conncheck receiver: %v", err)
 		}
+		return false, nil
+	})
+	if err != nil {
+		klog.Errorf("conncheck receiver: %v", err)
 	}
 }
 
 // RunDisconnectObserver starts the disconnect observer.
-func (r *Receiver) RunDisconnectObserver() {
-	klog.V(9).Infof("conncheck receiver disconnect checker: starting")
+func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
+	klog.Infof("conncheck receiver disconnect checker: started")
 	// Ignore errors because only caused by context cancellation.
-	_ = wait.PollImmediateInfiniteWithContext(context.Background(), time.Duration(PingLossThreshold)*PingInterval/10,
+	err := wait.PollUntilContextCancel(ctx, time.Duration(PingLossThreshold)*PingInterval/10, true,
 		func(ctx context.Context) (done bool, err error) {
 			r.m.Lock()
 			defer r.m.Unlock()
@@ -155,4 +159,7 @@ func (r *Receiver) RunDisconnectObserver() {
 			}
 			return false, nil
 		})
+	if err != nil {
+		klog.Errorf("conncheck disconnect observer: %v", err)
+	}
 }
