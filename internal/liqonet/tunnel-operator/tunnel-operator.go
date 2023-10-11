@@ -146,8 +146,8 @@ func NewTunnelController(ctx context.Context, wg *sync.WaitGroup,
 			return fmt.Errorf("failed to create connchecker: %w", err)
 		}
 
-		go wg.Connchecker.RunReceiver()
-		go wg.Connchecker.RunReceiverDisconnectObserver()
+		go wg.Connchecker.RunReceiver(ctx)
+		go wg.Connchecker.RunReceiverDisconnectObserver(ctx)
 
 		return nil
 	}
@@ -180,7 +180,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if err = tc.EnsureIPTablesRulesPerCluster(tep); err != nil {
 			return err
 		}
-		con, err = tc.connectToPeer(tep, tc.forgeConncheckUpdateStatus(ctx, req))
+		con, err = tc.connectToPeer(ctx, tep, tc.forgeConncheckUpdateStatus(ctx, req))
 		if err != nil {
 			return err
 		}
@@ -295,14 +295,15 @@ func EnforceIP(link netlink.Link, ip string) error {
 	return nil
 }
 
-func (tc *TunnelController) connectToPeer(ep *netv1alpha1.TunnelEndpoint, updateStatus conncheck.UpdateFunc) (*netv1alpha1.Connection, error) {
+func (tc *TunnelController) connectToPeer(ctx context.Context, ep *netv1alpha1.TunnelEndpoint,
+	updateStatus conncheck.UpdateFunc) (*netv1alpha1.Connection, error) {
 	// retrieve driver based on backend type
 	driver, ok := tc.drivers[ep.Spec.BackendType]
 	if !ok {
 		klog.Errorf("%s -> no registered driver of type %s found for resources %s", ep.Spec.ClusterIdentity, ep.Spec.BackendType, ep.Name)
 		return nil, fmt.Errorf("no registered driver of type %s found", ep.Spec.BackendType)
 	}
-	con, err := driver.ConnectToEndpoint(ep, updateStatus)
+	con, err := driver.ConnectToEndpoint(ctx, ep, updateStatus)
 	if err != nil {
 		tc.Eventf(ep, "Warning", "Processing", "unable to establish connection: %v", err)
 		klog.Errorf("%s -> an error occurred while establishing vpn connection: %v", ep.Spec.ClusterIdentity, err)

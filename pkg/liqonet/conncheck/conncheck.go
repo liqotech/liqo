@@ -54,17 +54,18 @@ func NewConnChecker() (*ConnChecker, error) {
 }
 
 // RunReceiver runs the receiver.
-func (c *ConnChecker) RunReceiver() {
-	c.receiver.Run()
+func (c *ConnChecker) RunReceiver(ctx context.Context) {
+	c.receiver.Run(ctx)
 }
 
 // RunReceiverDisconnectObserver runs the receiver disconnect observer.
-func (c *ConnChecker) RunReceiverDisconnectObserver() {
-	c.receiver.RunDisconnectObserver()
+func (c *ConnChecker) RunReceiverDisconnectObserver(ctx context.Context) {
+	c.receiver.RunDisconnectObserver(ctx)
 }
 
 // AddAndRunSender create a new sender and runs it.
-func (c *ConnChecker) AddAndRunSender(clusterID, ip string, updateCallback UpdateFunc) {
+func (c *ConnChecker) AddAndRunSender(ctx context.Context, clusterID, ip string, updateCallback UpdateFunc) {
+	var err error
 	c.sm.Lock()
 	if _, ok := c.senders[clusterID]; ok {
 		c.sm.Unlock()
@@ -72,18 +73,24 @@ func (c *ConnChecker) AddAndRunSender(clusterID, ip string, updateCallback Updat
 		return
 	}
 
-	ctxSender, cancelSender := context.WithCancel(context.Background())
-	c.senders[clusterID] = NewSender(ctxSender, clusterID, cancelSender, c.conn, ip)
+	ctxSender, cancelSender := context.WithCancel(ctx)
+	c.senders[clusterID], err = NewSender(clusterID, cancelSender, c.conn, ip)
 
-	err := c.receiver.InitPeer(clusterID, updateCallback)
+	if err != nil {
+		c.sm.Unlock()
+		klog.Errorf("failed to create sender: %w", err)
+		return
+	}
+
+	err = c.receiver.InitPeer(clusterID, updateCallback)
 	if err != nil {
 		c.sm.Unlock()
 		klog.Errorf("failed to add redirect chan: %w", err)
 	}
 
-	klog.Infof("conncheck sender %s starting", clusterID)
+	klog.Infof("conncheck sender %q starting against %q", clusterID, ip)
 	pingCallback := func(ctx context.Context) (done bool, err error) {
-		err = c.senders[clusterID].SendPing(ctx)
+		err = c.senders[clusterID].SendPing()
 		if err != nil {
 			klog.Warningf("failed to send ping: %s", err)
 		}
@@ -91,8 +98,9 @@ func (c *ConnChecker) AddAndRunSender(clusterID, ip string, updateCallback Updat
 	}
 	c.sm.Unlock()
 
-	// Ignore errors because only caused by context cancellation.
-	_ = wait.PollImmediateInfiniteWithContext(ctxSender, PingInterval, pingCallback)
+	if err := wait.PollUntilContextCancel(ctxSender, PingInterval, true, pingCallback); err != nil {
+		klog.Errorf("conncheck sender %s stopped for an error: %s", clusterID, err)
+	}
 
 	klog.Infof("conncheck sender %s stopped", clusterID)
 }

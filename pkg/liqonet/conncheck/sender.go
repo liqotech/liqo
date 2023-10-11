@@ -15,7 +15,6 @@
 package conncheck
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -33,17 +32,21 @@ type Sender struct {
 }
 
 // NewSender creates a new conncheck sender.
-func NewSender(ctx context.Context, clusterID string, cancel func(), conn *net.UDPConn, ip string) *Sender {
+func NewSender(clusterID string, cancel func(), conn *net.UDPConn, ip string) (*Sender, error) {
+	pip := net.ParseIP(ip)
+	if pip == nil {
+		return nil, fmt.Errorf("conncheck sender: invalid IP address %s", ip)
+	}
 	return &Sender{
 		clusterID: clusterID,
 		cancel:    cancel,
 		conn:      conn,
-		raddr:     net.UDPAddr{IP: net.ParseIP(ip), Port: port},
-	}
+		raddr:     net.UDPAddr{IP: pip, Port: port},
+	}, nil
 }
 
 // SendPing sends a PING message to the given address.
-func (s *Sender) SendPing(ctx context.Context) error {
+func (s *Sender) SendPing() error {
 	msgOut := Msg{ClusterID: s.clusterID, MsgType: PING, TimeStamp: time.Now()}
 	b, err := json.Marshal(msgOut)
 	if err != nil {

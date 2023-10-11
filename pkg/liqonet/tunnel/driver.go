@@ -15,6 +15,8 @@
 package tunnel
 
 import (
+	"context"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/vishvananda/netlink"
 	k8s "k8s.io/client-go/kubernetes"
@@ -49,7 +51,7 @@ type Config struct {
 type Driver interface {
 	Init() error
 
-	ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint, updateStatus conncheck.UpdateFunc) (*netv1alpha1.Connection, error)
+	ConnectToEndpoint(ctx context.Context, tep *netv1alpha1.TunnelEndpoint, updateStatus conncheck.UpdateFunc) (*netv1alpha1.Connection, error)
 
 	DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) error
 
