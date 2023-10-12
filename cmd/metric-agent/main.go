@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package main is the entrypoint of the metric-agent.
 package main
 
 import (
@@ -19,14 +20,13 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -49,6 +49,8 @@ func main() {
 
 	keyPath := flag.String("key-path", "server.key", "Path to the key file")
 	certPath := flag.String("cert-path", "server.crt", "Path to the certificate file")
+	readTimeout := flag.Duration("read-timeout", 0, "Read timeout")
+	writeTimeout := flag.Duration("write-timeout", 0, "Write timeout")
 	port := flag.Int("port", 8443, "Port to listen on")
 
 	klog.InitFlags(nil)
@@ -61,16 +63,23 @@ func main() {
 	kcl := kubernetes.NewForConfigOrDie(config)
 
 	scheme := runtime.NewScheme()
-	_ = clientgoscheme.AddToScheme(scheme)
+	if err := corev1.AddToScheme(scheme); err != nil {
+		klog.Errorf("error adding client-go scheme: %s", err)
+		os.Exit(1)
+	}
 
 	liqoMapper, err := (mapper.LiqoMapperProvider(scheme))(config, nil)
 	if err != nil {
-		klog.Fatalf("mapper: %s", err)
+		klog.Errorf("mapper: %s", err)
+		os.Exit(1)
 	}
 
 	podsLabelRequirement, err := labels.NewRequirement(consts.ManagedByLabelKey,
 		selection.Equals, []string{consts.ManagedByShadowPodValue})
-	utilruntime.Must(err)
+	if err != nil {
+		klog.Errorf("error creating label requirement: %s", err)
+		os.Exit(1)
+	}
 
 	cacheOptions := &cache.Options{
 		Scheme: scheme,
@@ -82,21 +91,32 @@ func main() {
 		},
 	}
 	if err != nil {
-		klog.Fatalf("error creating cache: %s", err)
+		klog.Errorf("error creating pod cache: %s", err)
+		os.Exit(1)
 	}
 
-	cl, err := clientutils.GetCachedClientWithConfig(ctx, scheme, config, cacheOptions)
+	cl, err := clientutils.GetCachedClientWithConfig(ctx, scheme, liqoMapper, config, cacheOptions)
 	if err != nil {
-		klog.Fatal(err)
+		klog.Errorf("error creating client: %s", err)
+		os.Exit(1)
 	}
 
 	router, err := remotemetrics.GetHTTPHandler(kcl.RESTClient(), cl)
 	if err != nil {
-		klog.Fatal(err)
+		klog.Errorf("error creating http handler: %s", err)
+		os.Exit(1)
 	}
 
-	err = http.ListenAndServeTLS(fmt.Sprintf(":%d", *port), *certPath, *keyPath, router)
-	if err != nil {
-		klog.Fatal("ListenAndServe: ", err)
+	server := http.Server{
+		Addr:         fmt.Sprintf(":%d", *port),
+		Handler:      router,
+		ReadTimeout:  *readTimeout,
+		WriteTimeout: *writeTimeout,
+	}
+
+	klog.Infof("starting server on port %d", *port)
+	if err := server.ListenAndServeTLS(*certPath, *keyPath); err != nil {
+		klog.Errorf("error starting server: %s", err)
+		os.Exit(1)
 	}
 }
