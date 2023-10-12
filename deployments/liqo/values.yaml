@@ -379,6 +379,11 @@ metricAgent:
   # (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting 
   # the resulting values as a property of the virtual kubelet running on the remote cluster.
   enable: true
+  config:
+    # -- Set the timeout for the metrics server.
+    timeout:
+      read: 30s
+      write: 30s
   pod:
     # -- Annotations for the metricAgent pod.
     annotations: {}
