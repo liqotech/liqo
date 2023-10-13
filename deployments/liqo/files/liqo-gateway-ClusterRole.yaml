@@ -108,3 +108,11 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - virtualnodes
+  verbs:
+  - get
+  - list
+  - watch

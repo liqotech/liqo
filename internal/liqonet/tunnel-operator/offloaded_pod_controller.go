@@ -21,6 +21,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	corev1 "k8s.io/api/core/v1"
+	apierror "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -75,14 +76,14 @@ func (r *OffloadedPodController) Reconcile(ctx context.Context, req ctrl.Request
 		return r.EnsureRulesForClustersForwarding(r.podsInfo, r.endpointslicesInfo, r.IPSHandler)
 	}
 	nsName := req.NamespacedName
-	klog.Infof("Reconcile Pod %q", nsName)
+	klog.V(3).Infof("Reconcile Pod %q", nsName)
 
 	pod := corev1.Pod{}
 	if err := r.Get(ctx, nsName, &pod); err != nil {
-		if client.IgnoreNotFound(err) == nil {
+		if apierror.IsNotFound(err) {
 			// Pod not found, podInfo object found: delete podInfo object
 			if value, ok := r.podsInfo.LoadAndDelete(nsName); ok {
-				klog.Infof("Pod %q not found: ensuring updated iptables rules", nsName)
+				klog.V(3).Infof("Pod %q not found: ensuring updated iptables rules", nsName)
 
 				// Soft delete object
 				podInfo := value.(liqoiptables.PodInfo)
@@ -96,7 +97,10 @@ func (r *OffloadedPodController) Reconcile(ctx context.Context, req ctrl.Request
 				// Hard delete object
 				r.podsInfo.Delete(nsName)
 			}
+
+			return ctrl.Result{}, nil
 		}
+
 		return ctrl.Result{}, err
 	}
 
@@ -109,14 +113,14 @@ func (r *OffloadedPodController) Reconcile(ctx context.Context, req ctrl.Request
 	// Check if the object is under deletion
 	if !pod.ObjectMeta.DeletionTimestamp.IsZero() {
 		// Pod under deletion: skip creation of iptables rules and return no error
-		klog.Infof("Pod %q under deletion: skipping iptables rules update", nsName)
+		klog.V(3).Infof("Pod %q under deletion: skipping iptables rules update", nsName)
 		return ctrl.Result{}, nil
 	}
 
 	// Check if the pod IP is set
 	if podInfo.PodIP == "" {
 		// Pod IP address not yet set: skip creation of iptables rules and return no error
-		klog.Infof("Pod %q IP address not yet set: skipping iptables rules update", nsName)
+		klog.V(3).Infof("Pod %q IP address not yet set: skipping iptables rules update", nsName)
 		return ctrl.Result{}, nil
 	}
 
@@ -124,7 +128,7 @@ func (r *OffloadedPodController) Reconcile(ctx context.Context, req ctrl.Request
 	r.podsInfo.Store(nsName, podInfo)
 
 	// Ensure iptables rules
-	klog.Infof("Ensuring updated iptables rules")
+	klog.V(3).Infof("Ensuring updated iptables rules")
 	if err := r.gatewayNetns.Do(ensureIptablesRules); err != nil {
 		klog.Errorf("Error while ensuring iptables rules: %w", err)
 		return ctrl.Result{}, err
