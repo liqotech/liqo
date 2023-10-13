@@ -20,6 +20,7 @@
 //   - Cluster ID
 //   - Liqo version
 //   - Kubernetes version
+//   - Security mode
 //   - Provider (e.g. GKE, EKS, AKS, ...)
 //   - Peering info
 //     -- RemoteClusterID

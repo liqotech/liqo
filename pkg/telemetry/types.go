@@ -55,6 +55,7 @@ type Telemetry struct {
 	ClusterID         string          `json:"clusterID"`
 	LiqoVersion       string          `json:"liqoVersion,omitempty"`
 	KubernetesVersion string          `json:"kubernetesVersion,omitempty"`
+	SecurityMode      string          `json:"securityMode,omitempty"`
 	Provider          string          `json:"provider,omitempty"`
 	PeeringInfo       []PeeringInfo   `json:"peeringInfo,omitempty"`
 	NamespacesInfo    []NamespaceInfo `json:"namespacesInfo,omitempty"`
@@ -67,4 +68,5 @@ type Builder struct {
 	LiqoVersion       string
 	KubernetesVersion string
 	ClusterLabels     map[string]string
+	SecurityMode      string
 }
