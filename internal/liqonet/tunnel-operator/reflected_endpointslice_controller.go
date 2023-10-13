@@ -21,6 +21,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	discoveryv1 "k8s.io/api/discovery/v1"
+	apierror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -67,6 +68,7 @@ type ReflectedEndpointsliceController struct {
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices/endpoints/addresses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch
 
 // NewReflectedEndpointsliceController instantiates and initializes the reflected endpointslice controller.
 func NewReflectedEndpointsliceController(
@@ -100,14 +102,14 @@ func (r *ReflectedEndpointsliceController) Reconcile(ctx context.Context, req ct
 		return r.EnsureRulesForClustersForwarding(r.podsInfo, r.endpointslicesInfo, r.IPSHandler)
 	}
 	nsName := req.NamespacedName
-	klog.Infof("Reconcile Endpointslice %q", nsName)
+	klog.V(3).Infof("Reconcile Endpointslice %q", nsName)
 
 	endpointslice := discoveryv1.EndpointSlice{}
 	if err := r.Get(ctx, nsName, &endpointslice); err != nil {
-		if client.IgnoreNotFound(err) == nil {
+		if apierror.IsNotFound(err) {
 			// Endpointslice not found, endpointsliceInfo object found: delete endpointInfo objects.
 			if value, ok := r.endpointslicesInfo.LoadAndDelete(nsName); ok {
-				klog.Infof("Endpointslice %q not found: ensuring updated iptables rules", nsName)
+				klog.V(3).Infof("Endpointslice %q not found: ensuring updated iptables rules", nsName)
 
 				// Soft delete object
 				endpointsInfo := value.(map[string]liqoiptables.EndpointInfo)
@@ -124,6 +126,8 @@ func (r *ReflectedEndpointsliceController) Reconcile(ctx context.Context, req ct
 				// Hard delete object
 				r.endpointslicesInfo.Delete(nsName)
 			}
+
+			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
@@ -131,28 +135,31 @@ func (r *ReflectedEndpointsliceController) Reconcile(ctx context.Context, req ct
 	// Check endpointslice's namespace offloading
 	nsOffloading, err := getters.GetOffloadingByNamespace(ctx, r.Client, endpointslice.Namespace)
 	if err != nil {
-		if client.IgnoreNotFound(err) == nil {
-			// Delete endpointInfo objects related to this endpointslice
-			if value, ok := r.endpointslicesInfo.LoadAndDelete(nsName); ok {
-				// Endpointslice not found, endpointsliceInfo object found: ensure iptables rules
-				klog.Infof("Endpointslice %q not found: ensuring updated iptables rules", nsName)
-
-				// Soft delete object
-				endpointsInfo := value.(map[string]liqoiptables.EndpointInfo)
-				for endpoint, endpointInfo := range endpointsInfo {
-					endpointInfo.Deleting = true
-					endpointsInfo[endpoint] = endpointInfo
-				}
-				r.endpointslicesInfo.Store(nsName, endpointsInfo)
-
-				if err := r.gatewayNetns.Do(ensureIptablesRules); err != nil {
-					return ctrl.Result{}, fmt.Errorf("error while ensuring iptables rules: %w", err)
-				}
-
-				// Hard delete object
-				r.endpointslicesInfo.Delete(nsName)
-			}
+		if apierror.IsNotFound(err) {
+			return ctrl.Result{}, nil
 		}
+
+		// Delete endpointInfo objects related to this endpointslice
+		if value, ok := r.endpointslicesInfo.LoadAndDelete(nsName); ok {
+			// Endpointslice not found, endpointsliceInfo object found: ensure iptables rules
+			klog.V(3).Infof("Endpointslice %q not found: ensuring updated iptables rules", nsName)
+
+			// Soft delete object
+			endpointsInfo := value.(map[string]liqoiptables.EndpointInfo)
+			for endpoint, endpointInfo := range endpointsInfo {
+				endpointInfo.Deleting = true
+				endpointsInfo[endpoint] = endpointInfo
+			}
+			r.endpointslicesInfo.Store(nsName, endpointsInfo)
+
+			if err := r.gatewayNetns.Do(ensureIptablesRules); err != nil {
+				return ctrl.Result{}, fmt.Errorf("error while ensuring iptables rules: %w", err)
+			}
+
+			// Hard delete object
+			r.endpointslicesInfo.Delete(nsName)
+		}
+
 		return ctrl.Result{}, err
 	}
 
@@ -160,7 +167,7 @@ func (r *ReflectedEndpointsliceController) Reconcile(ctx context.Context, req ct
 
 	nodes := virtualkubeletv1alpha1.VirtualNodeList{}
 	if err := r.List(ctx, &nodes); err != nil {
-		return ctrl.Result{}, fmt.Errorf("%w", err)
+		return ctrl.Result{}, err
 	}
 
 	// Build endpointInfo objects
@@ -175,7 +182,7 @@ func (r *ReflectedEndpointsliceController) Reconcile(ctx context.Context, req ct
 
 			matchClusterSelctor, err := nsoffctrl.MatchVirtualNodeSelectorTerms(ctx, r.Client, &nodes.Items[i], &clusterSelector)
 			if err != nil {
-				return ctrl.Result{}, fmt.Errorf("%w", err)
+				return ctrl.Result{}, err
 			}
 
 			if matchClusterSelctor {
@@ -218,7 +225,7 @@ func (r *ReflectedEndpointsliceController) Reconcile(ctx context.Context, req ct
 	r.endpointslicesInfo.Store(nsName, endpointsInfo)
 
 	// Ensure iptables rules
-	klog.Infof("Ensuring updated iptables rules")
+	klog.V(3).Infof("Ensuring updated iptables rules")
 	if err := r.gatewayNetns.Do(ensureIptablesRules); err != nil {
 		return ctrl.Result{}, fmt.Errorf("error while ensuring iptables rules: %w", err)
 	}
@@ -233,7 +240,7 @@ func (r *ReflectedEndpointsliceController) endpointsliceEnqueuer(ctx context.Con
 
 	// If gvk is found we log.
 	if len(gvks) != 0 {
-		klog.Infof("handling resource %q of type %q", klog.KObj(obj), gvks[0].String())
+		klog.V(4).Infof("handling resource %q of type %q", klog.KObj(obj), gvks[0].String())
 	}
 
 	endpointslices := discoveryv1.EndpointSliceList{}
@@ -243,7 +250,7 @@ func (r *ReflectedEndpointsliceController) endpointsliceEnqueuer(ctx context.Con
 	}
 
 	if len(endpointslices.Items) == 0 {
-		klog.Infof("no endpointslice found for resource %q", klog.KObj(obj))
+		klog.V(4).Infof("no endpointslice found for resource %q", klog.KObj(obj))
 		return []ctrl.Request{}
 	}
 
@@ -265,7 +272,7 @@ func (r *ReflectedEndpointsliceController) SetupWithManager(mgr ctrl.Manager) er
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).

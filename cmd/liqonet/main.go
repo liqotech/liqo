@@ -27,6 +27,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -49,6 +50,7 @@ func init() {
 	utilruntime.Must(discoveryv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(netv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(virtualkubeletv1alpha1.AddToScheme(scheme))
 }
 
 func main() {
