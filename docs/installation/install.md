@@ -418,12 +418,16 @@ To change this behavior, check the [network flags](NetworkFlags).
 ## Customization options
 
 This section lists the main **customization parameters** supported by the *liqoctl install* command, along with a brief description.
-Additionally, **all parameters** available in the Helm *values* file (the full list is provided in the dedicated [repository page](https://github.com/liqotech/liqo/tree/master/deployments/liqo)) can be modified through the `liqoctl install --values` and or `liqoctl install --set` flags, which supports the standard Helm syntax.
 
-Finally, remember that:
+Before listing all the parameters, we start here with some general considerations:
 
-* You can type `liqoctl install --help` to get the list of available options.
-* Some of the above parameters can be changed after installation by simply updating their value and re-applying the Helm chart, or by re-issuing the proper `liqoctl install --values [file] --set [param=value]` command. However, given that not all parameters can be updated at run-time, please check that the command triggered the desired effect; a precise list of commands that can be changed at run-time is left for our future work.
+* **Getting help**: You can type `liqoctl install --help` to get the list of available options.
+* **Changing arbitrary parameters**: all the parameters defined in the Helm *values* file (the full list is provided in the dedicated [repository page](https://github.com/liqotech/liqo/tree/master/deployments/liqo)) can be modified either at install time or, if supported by the parameter itself, also at run-time using one of the following methods:
+  * **`liqoctl install --values [file]`**: it accepts as input a file containing all the parameters that you want to set.
+  * **`liqoctl install --set [param=value]`**: it changes a single parameter, using the standard Helm syntax. Multiple parameters can be changed by issuing multiple `set` commands on the command line.
+
+For the parameters that are updated after the initial installation (either by updating their values and re-applying the Helm chart or by re-issuing the proper `liqoctl install [--values | --set]` command), please note that not all parameters can be changed at run-time; hence, please check that the command triggered the desired effect.
+A precise list of commands that can be changed at run-time is left for our future work.
 
 ### Global
 
