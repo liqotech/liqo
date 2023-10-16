@@ -20,6 +20,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 )
@@ -38,6 +39,37 @@ func ParseEndpoint(endpoint map[string]interface{}) *networkingv1alpha1.Endpoint
 		res.Protocol = &tmp
 	}
 	return res
+}
+
+// ParseRef parses an ObjectReference from a map.
+func ParseRef(ref map[string]interface{}) *corev1.ObjectReference {
+	res := &corev1.ObjectReference{}
+	if value, ok := ref["apiVersion"]; ok {
+		res.APIVersion = value.(string)
+	}
+	if value, ok := ref["kind"]; ok {
+		res.Kind = value.(string)
+	}
+	if value, ok := ref["name"]; ok {
+		res.Name = value.(string)
+	}
+	if value, ok := ref["namespace"]; ok {
+		res.Namespace = value.(string)
+	}
+	if value, ok := ref["uid"]; ok {
+		res.UID = value.(types.UID)
+	}
+	return res
+}
+
+// GetIfExists returns the value of a key in a map casting its type, or nil if the key is not present
+// or the type is wrong.
+func GetIfExists[T any](m map[string]interface{}, key string) (*T, bool) {
+	if value, ok := m[key]; ok {
+		v, ok := value.(T)
+		return &v, ok
+	}
+	return nil, false
 }
 
 func interfaceListToList[T any](list []interface{}) []T {
