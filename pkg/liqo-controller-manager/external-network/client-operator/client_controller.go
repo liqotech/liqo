@@ -200,6 +200,16 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 		UID:        unstructuredObject.GetUID(),
 	}
 
+	status, ok := unstructuredObject.Object["status"].(map[string]interface{})
+	if !ok {
+		// the object does not have a status
+		return nil
+	}
+	secretRef, ok := enutils.GetIfExists[map[string]interface{}](status, "secretRef")
+	if ok && secretRef != nil {
+		gwClient.Status.SecretRef = enutils.ParseRef(*secretRef)
+	}
+
 	return nil
 }
 
