@@ -91,13 +91,6 @@ func (r *PublicKeysReconciler) SetupWithManager(mgr ctrl.Manager, src <-chan eve
 func (r *PublicKeysReconciler) Predicates() builder.Predicates {
 	return builder.WithPredicates(
 		predicate.NewPredicateFuncs(func(object client.Object) bool {
-			mode, ok := object.GetLabels()[string(LabelsMode)]
-			if !ok {
-				return false
-			}
-			if mode != string(r.Options.GwOptions.Mode) {
-				return false
-			}
 			id, ok := object.GetLabels()[string(consts.RemoteClusterID)]
 			if !ok {
 				return false
