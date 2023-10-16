@@ -16,7 +16,33 @@ spec:
     singular: gatewayclient
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.clientTemplateRef.kind
+      name: Template Kind
+      priority: 1
+      type: string
+    - jsonPath: .spec.clientTemplateRef.name
+      name: Template Name
+      type: string
+    - jsonPath: .spec.clientTemplateRef.namespace
+      name: Template Namespace
+      priority: 1
+      type: string
+    - jsonPath: .spec.endpoint.addresses[*]
+      name: IP
+      type: string
+    - jsonPath: .spec.endpoint.port
+      name: Port
+      type: string
+    - jsonPath: .spec.endpoint.protocol
+      name: Protocol
+      priority: 1
+      type: string
+    - jsonPath: .spec.mtu
+      name: MTU
+      priority: 1
+      type: integer
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: GatewayClient defines a gateway client that needs to point to
