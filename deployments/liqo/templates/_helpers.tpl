@@ -77,6 +77,36 @@ app.kubernetes.io/part-of: {{ quote (include "liqo.name" .) }}
 {{- end }}
 
 {{/*
+Common metadata for Templates
+*/}}
+{{- define "liqo.metadataTemplate" -}}
+name: {{ quote "{{ .Name }}" }}
+namespace: {{ quote "{{ .Namespace }}" }}
+labels:
+{{ include "liqo.labelsTemplate" . | indent 2 }}
+{{- end }}
+
+{{/*
+Common Labels for Templates
+*/}}
+{{- define "liqo.labelsTemplate" -}}
+{{ include "liqo.selectorLabelsTemplate" . }}
+helm.sh/chart: {{ quote (include "liqo.chart" .) }}
+app.kubernetes.io/version: {{ quote (include "liqo.version" .) }}
+app.kubernetes.io/managed-by: {{ quote .Release.Service }}
+{{- end }}
+
+{{/*
+Selector labels template, it accepts a dict which contains fields "name" and "module"
+*/}}
+{{- define "liqo.selectorLabelsTemplate" -}}
+app.kubernetes.io/name: {{ quote "{{ .Name }}" }}
+app.kubernetes.io/instance: {{ quote (printf "%s-%s" .Release.Name "{{ .Name }}") }}
+app.kubernetes.io/component: {{ quote .module }}
+app.kubernetes.io/part-of: {{ quote (include "liqo.name" .) }}
+{{- end }}
+
+{{/*
 Create a name prefixed with the chart name, it accepts a dict which contains the field "name".
 */}}
 {{- define "liqo.prefixedName" -}}

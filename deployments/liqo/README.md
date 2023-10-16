@@ -134,6 +134,12 @@
 | networkManager.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the networkManager pod. |
 | networkManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the networkManager pod. |
 | networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
+| networking.gateway | object | `{"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1}` | Set the options for gateway templates |
+| networking.gateway.ping | object | `{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"}` | Set the options to configure the gateway ping used to check connection |
+| networking.gateway.ping.interval | string | `"2s"` | Set the interval between two consecutive pings |
+| networking.gateway.ping.lossThreshold | int | `5` | Set the number of consecutive pings that must fail to consider the connection as lost |
+| networking.gateway.ping.updateStatusInterval | string | `"10s"` | Set the interval at which the connection resource status is updated |
+| networking.gateway.replicas | int | `1` | Set the number of replicas for the gateway deployments |
 | networking.internal | bool | `true` | Use the default Liqo network manager. |
 | networking.iptables | object | `{"mode":"nf_tables"}` | Iptables configuration tuning. |
 | networking.iptables.mode | string | `"nf_tables"` | Select the iptables mode to use. Possible values are "legacy" and "nf_tables". |
