@@ -79,6 +79,13 @@ type GatewayServerStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Template Kind",type=string,JSONPath=`.spec.serverTemplateRef.kind`, priority=1
+// +kubebuilder:printcolumn:name="Template Name",type=string,JSONPath=`.spec.serverTemplateRef.name`
+// +kubebuilder:printcolumn:name="Template Namespace",type=string,JSONPath=`.spec.serverTemplateRef.namespace`, priority=1
+// +kubebuilder:printcolumn:name="IP",type=string,JSONPath=`.status.endpoint.addresses[*]`
+// +kubebuilder:printcolumn:name="Port",type=string,JSONPath=`.status.endpoint.port`
+// +kubebuilder:printcolumn:name="Protocol",type=string,JSONPath=`.status.endpoint.protocol`, priority=1
+// +kubebuilder:printcolumn:name="MTU",type=integer,JSONPath=`.spec.mtu`, priority=1
 
 // GatewayServer defines a gateway server that remote gateway clients need to point to.
 type GatewayServer struct {
