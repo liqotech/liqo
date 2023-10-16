@@ -91,7 +91,7 @@ func (c *ConnChecker) AddSender(ctx context.Context, clusterID, ip string, updat
 		return fmt.Errorf("failed to init peer: %w", err)
 	}
 
-	klog.Infof("conncheck sender %q added", clusterID, ip)
+	klog.Infof("conncheck sender %q added", clusterID)
 	return nil
 }
 

@@ -16,7 +16,33 @@ spec:
     singular: gatewayserver
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.serverTemplateRef.kind
+      name: Template Kind
+      priority: 1
+      type: string
+    - jsonPath: .spec.serverTemplateRef.name
+      name: Template Name
+      type: string
+    - jsonPath: .spec.serverTemplateRef.namespace
+      name: Template Namespace
+      priority: 1
+      type: string
+    - jsonPath: .status.endpoint.addresses[*]
+      name: IP
+      type: string
+    - jsonPath: .status.endpoint.port
+      name: Port
+      type: string
+    - jsonPath: .status.endpoint.protocol
+      name: Protocol
+      priority: 1
+      type: string
+    - jsonPath: .spec.mtu
+      name: MTU
+      priority: 1
+      type: integer
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: GatewayServer defines a gateway server that remote gateway clients

@@ -22,12 +22,12 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
+	labelsutils "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -148,15 +148,9 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 	if !ok {
 		return fmt.Errorf("unable to get the template of the client template")
 	}
-	objectTemplateMetadataInt, ok := objectTemplate["metadata"].(map[string]interface{})
+	objectTemplateMetadata, ok := objectTemplate["metadata"].(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("unable to get the metadata of the client template")
-	}
-	objectTemplateMetadata := metav1.ObjectMeta{
-		Name:        enutils.GetValueOrDefault(objectTemplateMetadataInt, "name", gwClient.Name),
-		Namespace:   enutils.GetValueOrDefault(objectTemplateMetadataInt, "namespace", gwClient.Namespace),
-		Labels:      enutils.TranslateMap(objectTemplateMetadataInt["labels"]),
-		Annotations: enutils.TranslateMap(objectTemplateMetadataInt["annotations"]),
 	}
 	objectTemplateSpec, ok := objectTemplate["spec"].(map[string]interface{})
 	if !ok {
@@ -165,32 +159,70 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 
 	unstructuredObject, err := dynamicutils.CreateOrPatch(ctx, r.DynClient.Resource(objectKind.GroupVersionKind().
 		GroupVersion().WithResource(enutils.KindToResource(objectKind.Kind))).
-		Namespace(gwClient.Namespace), gwClient.Name, func(obj *unstructured.Unstructured) error {
-		obj.SetGroupVersionKind(objectKind.GroupVersionKind())
-		obj.SetName(gwClient.Name)
-		obj.SetNamespace(gwClient.Namespace)
-		obj.SetLabels(labels.Merge(objectTemplateMetadata.Labels, labels.Set{consts.RemoteClusterID: remoteClusterID}))
-		obj.SetAnnotations(objectTemplateMetadata.Annotations)
-		obj.SetOwnerReferences([]metav1.OwnerReference{
-			{
-				APIVersion: gwClient.APIVersion,
-				Kind:       gwClient.Kind,
-				Name:       gwClient.Name,
-				UID:        gwClient.UID,
-				Controller: pointer.Bool(true),
-			},
-		})
-		spec, err := enutils.RenderTemplate(objectTemplateSpec, templateData{
+		Namespace(gwClient.Namespace), gwClient.Name, func(objChild *unstructured.Unstructured) error {
+		objChild.SetGroupVersionKind(objectKind.GroupVersionKind())
+
+		td := templateData{
 			Spec:       gwClient.Spec,
 			Name:       gwClient.Name,
 			Namespace:  gwClient.Namespace,
 			GatewayUID: string(gwClient.UID),
 			ClusterID:  remoteClusterID,
-		})
-		if err != nil {
-			return fmt.Errorf("unable to render the template: %w", err)
 		}
-		obj.Object["spec"] = spec
+
+		name, err := enutils.RenderTemplate(objectTemplateMetadata["name"], td)
+		if err != nil {
+			return fmt.Errorf("unable to render the template name: %w", err)
+		}
+		objChild.SetName(name.(string))
+
+		namespace, err := enutils.RenderTemplate(objectTemplateMetadata["namespace"], td)
+		if err != nil {
+			return fmt.Errorf("unable to render the template namespace: %w", err)
+		}
+		objChild.SetNamespace(namespace.(string))
+
+		var objChildMetadata map[string]interface{}
+		objChildMetadata, ok = objChild.Object["metadata"].(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unable to get the child object metadata")
+		}
+
+		var objectTemplateMetadataLabels interface{}
+		if objectTemplateMetadataLabels, ok = objectTemplateMetadata["labels"]; ok {
+			labels, err := enutils.RenderTemplate(objectTemplateMetadataLabels, td)
+			if err != nil {
+				return fmt.Errorf("unable to render the template labels: %w", err)
+			}
+			objChildMetadata["labels"] = labels
+		}
+
+		var objectTemplateMetadataAnnotations interface{}
+		if objectTemplateMetadataAnnotations, ok = objectTemplateMetadata["annotations"]; ok {
+			annotations, err := enutils.RenderTemplate(objectTemplateMetadataAnnotations, td)
+			if err != nil {
+				return fmt.Errorf("unable to render the template annotations: %w", err)
+			}
+			objChildMetadata["annotations"] = annotations
+		}
+
+		objChild.SetOwnerReferences([]metav1.OwnerReference{
+			{
+				APIVersion: gwClient.APIVersion,
+				Kind:       gwClient.Kind,
+				Name:       gwClient.Name,
+				UID:        gwClient.UID,
+				Controller: ptr.To(true),
+			},
+		})
+
+		objChild.SetLabels(labelsutils.Merge(objChild.GetLabels(), labelsutils.Set{consts.RemoteClusterID: remoteClusterID}))
+
+		spec, err := enutils.RenderTemplate(objectTemplateSpec, td)
+		if err != nil {
+			return fmt.Errorf("unable to render the template spec: %w", err)
+		}
+		objChild.Object["spec"] = spec
 		return nil
 	})
 	if err != nil {
