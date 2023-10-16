@@ -22,12 +22,12 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
+	labelsutils "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -76,8 +76,8 @@ func NewServerReconciler(cl client.Client, dynClient dynamic.Interface,
 
 // Reconcile manage GatewayServer lifecycle.
 func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
-	server := &networkingv1alpha1.GatewayServer{}
-	if err = r.Get(ctx, req.NamespacedName, server); err != nil {
+	gwServer := &networkingv1alpha1.GatewayServer{}
+	if err = r.Get(ctx, req.NamespacedName, gwServer); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("Gateway server %q not found", req.NamespacedName)
 			return ctrl.Result{}, nil
@@ -87,7 +87,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	}
 
 	defer func() {
-		newErr := r.Status().Update(ctx, server)
+		newErr := r.Status().Update(ctx, gwServer)
 		if newErr != nil {
 			if err != nil {
 				klog.Errorf("Error reconciling the gateway server %q: %s", req.NamespacedName, err)
@@ -97,7 +97,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		}
 	}()
 
-	if err = r.EnsureGatewayServer(ctx, server); err != nil {
+	if err = r.EnsureGatewayServer(ctx, gwServer); err != nil {
 		klog.Errorf("Unable to ensure the gateway server %q: %s", req.NamespacedName, err)
 		return ctrl.Result{}, err
 	}
@@ -106,16 +106,16 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 }
 
 // EnsureGatewayServer ensures the GatewayServer is correctly configured.
-func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *networkingv1alpha1.GatewayServer) error {
-	if server.Labels == nil {
-		server.Labels = map[string]string{}
+func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *networkingv1alpha1.GatewayServer) error {
+	if gwServer.Labels == nil {
+		gwServer.Labels = map[string]string{}
 	}
-	remoteClusterID, ok := server.Labels[consts.RemoteClusterID]
+	remoteClusterID, ok := gwServer.Labels[consts.RemoteClusterID]
 	if !ok {
-		return fmt.Errorf("missing label %q on GatewayServer %q", consts.RemoteClusterID, server.Name)
+		return fmt.Errorf("missing label %q on GatewayServer %q", consts.RemoteClusterID, gwServer.Name)
 	}
 
-	templateGV, err := schema.ParseGroupVersion(server.Spec.ServerTemplateRef.APIVersion)
+	templateGV, err := schema.ParseGroupVersion(gwServer.Spec.ServerTemplateRef.APIVersion)
 	if err != nil {
 		return fmt.Errorf("unable to parse the server template group version: %w", err)
 	}
@@ -123,11 +123,11 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *netw
 	templateGVR := schema.GroupVersionResource{
 		Group:    templateGV.Group,
 		Version:  templateGV.Version,
-		Resource: enutils.KindToResource(server.Spec.ServerTemplateRef.Kind),
+		Resource: enutils.KindToResource(gwServer.Spec.ServerTemplateRef.Kind),
 	}
 	template, err := r.DynClient.Resource(templateGVR).
-		Namespace(server.Spec.ServerTemplateRef.Namespace).
-		Get(ctx, server.Spec.ServerTemplateRef.Name, metav1.GetOptions{})
+		Namespace(gwServer.Spec.ServerTemplateRef.Namespace).
+		Get(ctx, gwServer.Spec.ServerTemplateRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to get the server template: %w", err)
 	}
@@ -148,15 +148,9 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *netw
 	if !ok {
 		return fmt.Errorf("unable to get the template of the server template")
 	}
-	objectTemplateMetadataInt, ok := objectTemplate["metadata"].(map[string]interface{})
+	objectTemplateMetadata, ok := objectTemplate["metadata"].(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("unable to get the metadata of the server template")
-	}
-	objectTemplateMetadata := metav1.ObjectMeta{
-		Name:        enutils.GetValueOrDefault(objectTemplateMetadataInt, "name", server.Name),
-		Namespace:   enutils.GetValueOrDefault(objectTemplateMetadataInt, "namespace", server.Namespace),
-		Labels:      enutils.TranslateMap(objectTemplateMetadataInt["labels"]),
-		Annotations: enutils.TranslateMap(objectTemplateMetadataInt["annotations"]),
 	}
 	objectTemplateSpec, ok := objectTemplate["spec"].(map[string]interface{})
 	if !ok {
@@ -165,39 +159,77 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *netw
 
 	unstructuredObject, err := dynamicutils.CreateOrPatch(ctx, r.DynClient.Resource(objectKind.GroupVersionKind().
 		GroupVersion().WithResource(enutils.KindToResource(objectKind.Kind))).
-		Namespace(server.Namespace), server.Name, func(obj *unstructured.Unstructured) error {
-		obj.SetGroupVersionKind(objectKind.GroupVersionKind())
-		obj.SetName(server.Name)
-		obj.SetNamespace(server.Namespace)
-		obj.SetLabels(labels.Merge(objectTemplateMetadata.Labels, labels.Set{consts.RemoteClusterID: remoteClusterID}))
-		obj.SetAnnotations(objectTemplateMetadata.Annotations)
-		obj.SetOwnerReferences([]metav1.OwnerReference{
+		Namespace(gwServer.Namespace), gwServer.Name, func(objChild *unstructured.Unstructured) error {
+		objChild.SetGroupVersionKind(objectKind.GroupVersionKind())
+
+		td := templateData{
+			Spec:       gwServer.Spec,
+			Name:       gwServer.Name,
+			Namespace:  gwServer.Namespace,
+			GatewayUID: string(gwServer.UID),
+			ClusterID:  remoteClusterID,
+		}
+
+		name, err := enutils.RenderTemplate(objectTemplateMetadata["name"], td)
+		if err != nil {
+			return fmt.Errorf("unable to render the template name: %w", err)
+		}
+		objChild.SetName(name.(string))
+
+		namespace, err := enutils.RenderTemplate(objectTemplateMetadata["namespace"], td)
+		if err != nil {
+			return fmt.Errorf("unable to render the template namespace: %w", err)
+		}
+		objChild.SetNamespace(namespace.(string))
+
+		var objChildMetadata map[string]interface{}
+		objChildMetadata, ok = objChild.Object["metadata"].(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unable to get the child object metadata")
+		}
+
+		var objectTemplateMetadataLabels interface{}
+		if objectTemplateMetadataLabels, ok = objectTemplateMetadata["labels"]; ok {
+			labels, err := enutils.RenderTemplate(objectTemplateMetadataLabels, td)
+			if err != nil {
+				return fmt.Errorf("unable to render the template labels: %w", err)
+			}
+			objChildMetadata["labels"] = labels
+		}
+
+		var objectTemplateMetadataAnnotations interface{}
+		if objectTemplateMetadataAnnotations, ok = objectTemplateMetadata["annotations"]; ok {
+			annotations, err := enutils.RenderTemplate(objectTemplateMetadataAnnotations, td)
+			if err != nil {
+				return fmt.Errorf("unable to render the template annotations: %w", err)
+			}
+			objChildMetadata["annotations"] = annotations
+		}
+
+		objChild.SetOwnerReferences([]metav1.OwnerReference{
 			{
-				APIVersion: server.APIVersion,
-				Kind:       server.Kind,
-				Name:       server.Name,
-				UID:        server.UID,
-				Controller: pointer.Bool(true),
+				APIVersion: gwServer.APIVersion,
+				Kind:       gwServer.Kind,
+				Name:       gwServer.Name,
+				UID:        gwServer.UID,
+				Controller: ptr.To(true),
 			},
 		})
-		spec, err := enutils.RenderTemplate(objectTemplateSpec, templateData{
-			Spec:       server.Spec,
-			Name:       server.Name,
-			Namespace:  server.Namespace,
-			GatewayUID: string(server.UID),
-			ClusterID:  remoteClusterID,
-		})
+
+		objChild.SetLabels(labelsutils.Merge(objChild.GetLabels(), labelsutils.Set{consts.RemoteClusterID: remoteClusterID}))
+
+		spec, err := enutils.RenderTemplate(objectTemplateSpec, td)
 		if err != nil {
-			return fmt.Errorf("unable to render the template: %w", err)
+			return fmt.Errorf("unable to render the template spec: %w", err)
 		}
-		obj.Object["spec"] = spec
+		objChild.Object["spec"] = spec
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("unable to update the server: %w", err)
 	}
 
-	server.Status.ServerRef = &corev1.ObjectReference{
+	gwServer.Status.ServerRef = &corev1.ObjectReference{
 		APIVersion: unstructuredObject.GetAPIVersion(),
 		Kind:       unstructuredObject.GetKind(),
 		Name:       unstructuredObject.GetName(),
@@ -212,11 +244,11 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *netw
 	}
 	endpoint, ok := enutils.GetIfExists[map[string]interface{}](status, "endpoint")
 	if ok && endpoint != nil {
-		server.Status.Endpoint = enutils.ParseEndpoint(*endpoint)
+		gwServer.Status.Endpoint = enutils.ParseEndpoint(*endpoint)
 	}
 	secretRef, ok := enutils.GetIfExists[map[string]interface{}](status, "secretRef")
 	if ok && secretRef != nil {
-		server.Status.SecretRef = enutils.ParseRef(*secretRef)
+		gwServer.Status.SecretRef = enutils.ParseRef(*secretRef)
 	}
 
 	return nil
