@@ -72,6 +72,8 @@ type GatewayServerStatus struct {
 	ServerRef corev1.ObjectReference `json:"serverRef,omitempty"`
 	// Endpoint specifies the endpoint of the tunnel.
 	Endpoint *EndpointStatus `json:"endpoint,omitempty"`
+	// SecretRef specifies the reference to the secret.
+	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 }
 
 // +kubebuilder:object:root=true
