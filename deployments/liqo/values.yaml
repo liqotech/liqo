@@ -47,6 +47,18 @@ networking:
   clientResources:
     - apiVersion: networking.liqo.io/v1alpha1
       resource: wggatewayclients
+  # -- Set the options for gateway templates
+  gateway:
+    # -- Set the number of replicas for the gateway deployments
+    replicas: 1
+    # -- Set the options to configure the gateway ping used to check connection
+    ping:
+      # -- Set the number of consecutive pings that must fail to consider the connection as lost
+      lossThreshold: 5
+      # -- Set the interval between two consecutive pings
+      interval: 2s
+      # -- Set the interval at which the connection resource status is updated
+      updateStatusInterval: 10s
 
 reflection:
   skip:
