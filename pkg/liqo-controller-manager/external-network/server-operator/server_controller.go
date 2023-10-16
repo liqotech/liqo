@@ -205,12 +205,14 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *netw
 		// the object does not have a status
 		return nil
 	}
-	endpoint, ok := status["endpoint"].(map[string]interface{})
-	if !ok {
-		// the object does not have an endpoint
-		return nil
+	endpoint, ok := enutils.GetIfExists[map[string]interface{}](status, "endpoint")
+	if ok && endpoint != nil {
+		server.Status.Endpoint = enutils.ParseEndpoint(*endpoint)
 	}
-	server.Status.Endpoint = enutils.ParseEndpoint(endpoint)
+	secretRef, ok := enutils.GetIfExists[map[string]interface{}](status, "secretRef")
+	if ok && secretRef != nil {
+		server.Status.SecretRef = enutils.ParseRef(*secretRef)
+	}
 
 	return nil
 }
