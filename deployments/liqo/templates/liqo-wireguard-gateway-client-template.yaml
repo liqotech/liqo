@@ -1,0 +1,69 @@
+{{- $templateConfig := (merge (dict "name" "wireguard-client" "module" "networking") .) -}}
+
+{{- if .Values.networking.internal }}
+
+apiVersion: networking.liqo.io/v1alpha1
+kind: WgGatewayClientTemplate
+metadata:
+  name: {{ $templateConfig.name  }}
+  labels:
+    {{- include "liqo.labels" $templateConfig | nindent 4 }}
+spec:
+  objectKind:
+    apiVersion: networking.liqo.io/v1alpha1
+    kind: WgGatewayClient
+  template:
+    metadata:
+      {{- include "liqo.metadataTemplate" $templateConfig | nindent 6 }}
+    spec:
+      deployment:
+        metadata:
+          {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
+        spec:
+          replicas: {{ .Values.networking.gateway.replicas }}
+          selector:
+            matchLabels:
+              {{- include "liqo.labelsTemplate" $templateConfig | nindent 14 }}
+          template:
+            metadata:
+              {{- include "liqo.metadataTemplate" $templateConfig | nindent 14 }}
+            spec:
+              serviceAccount: "{{"{{ .Name }}"}}"
+              serviceAccountName: "{{"{{ .Name }}"}}"
+              containers:
+              - name: gateway
+                image: ghcr.io/liqotech/gateway{{ include "liqo.suffix" $templateConfig }}:{{ include "liqo.version" $templateConfig }}
+                imagePullPolicy: Always
+                args:
+                - --name={{"{{ .Name }}"}}
+                - --namespace={{"{{ .Namespace }}"}}
+                - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --mode=client
+                - --metrics-address=:8080
+                - --health-probe-bind-address=:8081
+                - --ping-loss-threshold={{ .Values.networking.gateway.ping.lossThreshold }}
+                - --ping-interval={{ .Values.networking.gateway.ping.interval }}
+                - --ping-update-status-interval={{ .Values.networking.gateway.ping.updateStatusInterval }}
+                {{- if gt .Values.networking.gateway.replicas 1.0 }}
+                - --leader-election=true
+                {{- end }}
+              - name: wireguard
+                image: ghcr.io/liqotech/gateway/wireguard{{ include "liqo.suffix" $templateConfig }}:{{ include "liqo.version" $templateConfig }}
+                imagePullPolicy: Always
+                args:
+                - --name={{"{{ .Name }}"}}
+                - --namespace={{"{{ .Namespace }}"}}
+                - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
+                - --mode=client
+                - --mtu={{"{{ .Spec.MTU }}"}}
+                - --endpoint-address={{"{{ index .Spec.Endpoint.Addresses 0 }}"}}
+                - --endpoint-port={{"{{ .Spec.Endpoint.Port }}"}}
+                - --metrics-address=:8082
+                - --health-probe-bind-address=:8083
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+{{- end }}
