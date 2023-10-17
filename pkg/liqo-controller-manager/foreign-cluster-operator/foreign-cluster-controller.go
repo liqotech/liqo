@@ -355,6 +355,14 @@ func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 	peeringconditionsutils.EnsureStatus(foreignCluster,
 		discoveryv1alpha1.OutgoingPeeringCondition, status, reason, message)
 
+	// Ensure the ExternalNetwork presence
+	if !r.DisableInternalNetwork {
+		if err = r.ensureExternalNetwork(ctx, foreignCluster); err != nil {
+			klog.Error(err)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -392,6 +400,11 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 			discoveryv1alpha1.OutgoingPeeringCondition,
 			discoveryv1alpha1.PeeringConditionStatusDisconnecting,
 			resourceRequestDeletingReason, fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local))
+
+		if err = r.deleteExternalNetwork(ctx, foreignCluster); err != nil {
+			klog.Error(err)
+			return err
+		}
 	} else {
 		err = r.deleteResourceRequest(ctx, foreignCluster)
 		if err != nil && !errors.IsNotFound(err) {
