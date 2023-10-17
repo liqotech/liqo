@@ -26,6 +26,32 @@ rules:
   - update
   - watch
 - apiGroups:
+  - networking.liqo.io
+  resources:
+  - externalnetworks
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - externalnetworks/status
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - virtualkubelet.liqo.io
   resources:
   - namespacemaps

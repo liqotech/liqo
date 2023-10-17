@@ -1,0 +1,184 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: externalnetworks.networking.liqo.io
+spec:
+  group: networking.liqo.io
+  names:
+    categories:
+    - liqo
+    kind: ExternalNetwork
+    listKind: ExternalNetworkList
+    plural: externalnetworks
+    singular: externalnetwork
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ExternalNetwork is used to share information about the network
+          configuration of a peer of clusters. It is replicated by the CRD replicator.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ExternalNetworkSpec defines the desired state of ExternalNetworks.
+            properties:
+              clusterIdentity:
+                description: ClusterIdentity contains the identity of the originating
+                  cluster.
+                properties:
+                  clusterID:
+                    description: Foreign Cluster ID, this is a unique identifier of
+                      that cluster.
+                    type: string
+                  clusterName:
+                    description: Foreign Cluster Name to be shown in GUIs.
+                    type: string
+                required:
+                - clusterID
+                - clusterName
+                type: object
+              configuration:
+                description: Configuration contains the configuration for the originating
+                  cluster.
+                properties:
+                  local:
+                    description: Local network configuration (the cluster where the
+                      resource is created).
+                    properties:
+                      cidr:
+                        description: CIDR of the cluster.
+                        properties:
+                          external:
+                            description: External CIDR of the cluster.
+                            pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                            type: string
+                          pod:
+                            description: Pod CIDR of the cluster.
+                            pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                            type: string
+                        type: object
+                    type: object
+                  remote:
+                    description: Remote network configuration (the other cluster).
+                    properties:
+                      cidr:
+                        description: CIDR of the cluster.
+                        properties:
+                          external:
+                            description: External CIDR of the cluster.
+                            pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                            type: string
+                          pod:
+                            description: Pod CIDR of the cluster.
+                            pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                            type: string
+                        type: object
+                    type: object
+                type: object
+              publicKey:
+                description: PublicKey contains the public key of the originating
+                  cluster.
+                format: byte
+                type: string
+              serverEndpoint:
+                description: ServerEndpoint contains the endpoint of the originating
+                  cluster.
+                properties:
+                  addresses:
+                    description: Addresses specifies the addresses of the endpoint.
+                    items:
+                      type: string
+                    type: array
+                  port:
+                    description: Port specifies the port of the endpoint.
+                    format: int32
+                    type: integer
+                  protocol:
+                    default: TCP
+                    description: Protocol specifies the protocol of the endpoint.
+                    enum:
+                    - TCP
+                    - UDP
+                    type: string
+                type: object
+            type: object
+          status:
+            description: ExternalNetworkStatus defines the observed state of ExternalNetworks.
+            properties:
+              clusterIdentity:
+                description: ClusterIdentity contains the identity of the target cluster.
+                properties:
+                  clusterID:
+                    description: Foreign Cluster ID, this is a unique identifier of
+                      that cluster.
+                    type: string
+                  clusterName:
+                    description: Foreign Cluster Name to be shown in GUIs.
+                    type: string
+                required:
+                - clusterID
+                - clusterName
+                type: object
+              configuration:
+                description: Configuration contains the configuration for the target
+                  cluster.
+                properties:
+                  local:
+                    description: Local network configuration (the cluster where the
+                      resource is created).
+                    properties:
+                      cidr:
+                        description: CIDR of the cluster.
+                        properties:
+                          external:
+                            description: External CIDR of the cluster.
+                            pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                            type: string
+                          pod:
+                            description: Pod CIDR of the cluster.
+                            pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                            type: string
+                        type: object
+                    type: object
+                  remote:
+                    description: Remote network configuration (the other cluster).
+                    properties:
+                      cidr:
+                        description: CIDR of the cluster.
+                        properties:
+                          external:
+                            description: External CIDR of the cluster.
+                            pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                            type: string
+                          pod:
+                            description: Pod CIDR of the cluster.
+                            pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                            type: string
+                        type: object
+                    type: object
+                type: object
+              publicKey:
+                description: PublicKey contains the public key of the target cluster.
+                format: byte
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
