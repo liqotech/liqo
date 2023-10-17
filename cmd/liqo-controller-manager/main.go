@@ -66,6 +66,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
 	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
+	externalnetworkcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/externalnetwork-controller"
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/server-operator"
 	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/wireguard"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
@@ -89,6 +90,7 @@ import (
 	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
 	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
 	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -230,6 +232,12 @@ func main() {
 		"The name of the cluster role used by the wireguard gateway servers")
 	flag.StringVar(&wgGatewayClientClusterRoleName, "wg-gateway-client-cluster-role-name", "liqo-gateway",
 		"The name of the cluster role used by the wireguard gateway clients")
+
+	// Gateway parameters
+	gatewayServiceType := flag.String("gateway-service-type", string(gatewayserver.DefaultServiceType), "The type of the gateway service")
+	gatewayServicePort := flag.Int("gateway-service-port", gatewayserver.DefaultPort, "The port of the gateway service")
+	gatewayMTU := flag.Int("gateway-mtu", gatewayserver.DefaultMTU, "The MTU of the gateway interface")
+	gatewayProxy := flag.Bool("gateway-proxy", gatewayserver.DefaultProxy, "Enable the proxy on the gateway")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -581,6 +589,14 @@ func main() {
 	clientReconciler := clientoperator.NewClientReconciler(mgr.GetClient(),
 		dynClient, factory, mgr.GetScheme(), gatewayClientResources.StringList)
 	if err := clientReconciler.SetupWithManager(mgr); err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
+	externalNetworkReconciler := externalnetworkcontroller.NewExternalNetworkReconciler(
+		mgr.GetClient(), mgr.GetScheme(), clientset, *liqoNamespace, &clusterIdentity,
+		corev1.ServiceType(*gatewayServiceType), int32(*gatewayServicePort), *gatewayMTU, *gatewayProxy)
+	if err := externalNetworkReconciler.SetupWithManager(mgr); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
