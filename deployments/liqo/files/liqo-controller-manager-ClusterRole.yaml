@@ -400,6 +400,8 @@ rules:
   resources:
   - configurations
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch
@@ -415,6 +417,26 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - externalnetworks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - externalnetworks/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - networking.liqo.io
   resources:
@@ -455,6 +477,18 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - publickeies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - networking.liqo.io
   resources:
