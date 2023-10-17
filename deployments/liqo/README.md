@@ -130,6 +130,13 @@
 | networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |
 | openshiftConfig.enable | bool | `false` | Enable/Disable the OpenShift support, enabling Openshift-specific resources, and setting the pod security contexts in a way that is compatible with Openshift. |
 | openshiftConfig.virtualKubeletSCCs | list | `["anyuid"]` | Security context configurations granted to the virtual kubelet in the local cluster. The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments. Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when attempting to offload pods not managed by higher-level abstractions (e.g., Deployments), and not associated with a properly privileged service account. Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators. Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded. |
+| peering.networking | object | `{"gateway":{"mtu":1340,"server":{"service":{"port":51820,"type":"LoadBalancer"}}}}` | Set the default configuration for the networking resources created during the peering process |
+| peering.networking.gateway | object | `{"mtu":1340,"server":{"service":{"port":51820,"type":"LoadBalancer"}}}` | Set the options for gateways |
+| peering.networking.gateway.mtu | int | `1340` | Set the MTU |
+| peering.networking.gateway.server | object | `{"service":{"port":51820,"type":"LoadBalancer"}}` | Set the options to configure the gateway server |
+| peering.networking.gateway.server.service | object | `{"port":51820,"type":"LoadBalancer"}` | Set the options to configure the server service |
+| peering.networking.gateway.server.service.port | int | `51820` | Set the port of the service |
+| peering.networking.gateway.server.service.type | string | `"LoadBalancer"` | Set the type of the service |
 | proxy.config.listeningPort | int | `8118` | Port used by the proxy pod. |
 | proxy.imageName | string | `"ghcr.io/liqotech/proxy"` | Image repository for the proxy pod. |
 | proxy.pod.annotations | object | `{}` | Annotations for the proxy pod. |

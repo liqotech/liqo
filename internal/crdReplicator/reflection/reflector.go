@@ -252,3 +252,8 @@ func ReplicatedResourcesLabelSelector() metav1.LabelSelector {
 		},
 	}
 }
+
+// IsReplicated returns whether the given object is replicated by the CRD replicator.
+func IsReplicated(obj metav1.Object) bool {
+	return obj.GetLabels()[consts.ReplicationStatusLabel] == strconv.FormatBool(true)
+}
