@@ -21,5 +21,8 @@ package incoming
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;update;patch;list;watch;delete;create;deletecollection
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=get;update;patch;list;watch;delete;create;deletecollection
 
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=externalnetworks,verbs=get;update;patch;list;watch;delete;create;deletecollection
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=externalnetworks/status,verbs=get;update;patch;list;watch;delete;create;deletecollection
+
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;update;patch;list;watch;delete;create;deletecollection
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps/status,verbs=get;update;patch;list;watch;delete;create;deletecollection

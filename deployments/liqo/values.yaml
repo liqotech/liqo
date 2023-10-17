@@ -60,6 +60,22 @@ networking:
       # -- Set the interval at which the connection resource status is updated
       updateStatusInterval: 10s
 
+peering:
+  # -- Set the default configuration for the networking resources created during the peering process
+  networking:
+    # -- Set the options for gateways
+    gateway:
+      # -- Set the MTU
+      mtu: 1340
+      # -- Set the options to configure the gateway server
+      server:
+        # -- Set the options to configure the server service
+        service:
+          # -- Set the port of the service
+          port: 51820
+          # -- Set the type of the service
+          type: LoadBalancer
+
 reflection:
   skip:
     # -- List of labels that must not be reflected on remote clusters.
