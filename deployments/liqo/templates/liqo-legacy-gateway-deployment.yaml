@@ -1,5 +1,5 @@
 ---
-{{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking") .) -}}
+{{- $gatewayConfig := (merge (dict "name" "legacy-gateway" "module" "networking") .) -}}
 
 {{- if .Values.networking.internal }}
 
