@@ -44,7 +44,7 @@ var (
 	}
 	liqoDeploymentsNetwork = []string{
 		"liqo-network-manager",
-		"liqo-gateway",
+		"liqo-legacy-gateway",
 	}
 	liqoDaemonSetsNetwork = []string{
 		"liqo-route",

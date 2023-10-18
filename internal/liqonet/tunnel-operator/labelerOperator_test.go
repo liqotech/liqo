@@ -78,7 +78,7 @@ var _ = Describe("LabelerOperator", func() {
 				Name:      labelerSvcName,
 				Namespace: labelerReq.Namespace,
 				Labels: map[string]string{
-					consts.K8sAppNameKey:      "gateway",
+					consts.K8sAppNameKey:      "legacy-gateway",
 					consts.K8sAppComponentKey: "networking",
 				},
 			},
