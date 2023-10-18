@@ -1,7 +1,7 @@
 {{- if .Values.networking.internal }}
 
 ---
-{{- $gatewayMetricsConfig := (merge (dict "name" "gateway-metrics" "module" "networking") .) -}}
+{{- $gatewayMetricsConfig := (merge (dict "name" "legacy-gateway-metrics" "module" "networking") .) -}}
 {{- if .Values.gateway.metrics.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
