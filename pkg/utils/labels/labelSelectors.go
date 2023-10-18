@@ -182,7 +182,7 @@ func DiscoveryLabelSelector() labels.Selector {
 
 // GatewayLabelSelector returns the label selector associated with the gateway components.
 func GatewayLabelSelector() labels.Selector {
-	return ComponentLabelSelector("gateway", "networking")
+	return ComponentLabelSelector("legacy-gateway", "networking")
 }
 
 // RouteLabelSelector returns the label selector associated with the route components.
