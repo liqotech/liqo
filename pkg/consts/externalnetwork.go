@@ -15,12 +15,21 @@
 package consts
 
 const (
-	// WgServerNameLabel is the label used to indicate the name of the WireGuard server.
-	WgServerNameLabel = "liqo.io/wg-server-name"
-	// WgClientNameLabel is the label used to indicate the name of the WireGuard client.
-	WgClientNameLabel = "liqo.io/wg-client-name"
 	// ExternalNetworkLabel is the label added to all components that belong to the external network.
 	ExternalNetworkLabel = "liqo.io/external-network"
 	// ExternalNetworkLabelValue is the value of the label added to components that belong to the external network.
 	ExternalNetworkLabelValue = "true"
+
+	// GatewayResourceLabel is the label added to a gateway resource.
+	GatewayResourceLabel = "networking.liqo.io/gateway-resource"
+	// GatewayResourceLabelValue is the value of the label added to a gateway resource.
+	GatewayResourceLabelValue = "true"
+
+	// GatewayTypeServer indicates a Gateway of type server.
+	GatewayTypeServer = "server"
+	// GatewayTypeClient indicates a Gateway of type client.
+	GatewayTypeClient = "client"
+
+	// PublicKeyField is the data field of the secrets containing public keys.
+	PublicKeyField = "publicKey"
 )
