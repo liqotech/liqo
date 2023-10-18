@@ -27,21 +27,18 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
 	"github.com/liqotech/liqo/pkg/utils"
-	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
 )
 
@@ -151,35 +148,10 @@ func (r *WgGatewayServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.RoleBinding{}).
-		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.secretEnquerer), builder.WithPredicates(r.filterSecretsPredicate())).
+		Watches(&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(wireGuardSecretEnquerer),
+			builder.WithPredicates(filterWireGuardSecretsPredicate())).
 		Complete(r)
-}
-
-func (r *WgGatewayServerReconciler) filterSecretsPredicate() predicate.Predicate {
-	filterWgServerSecrets, err := predicate.LabelSelectorPredicate(liqolabels.WgServerNameLabelSelector)
-	utilruntime.Must(err)
-	return filterWgServerSecrets
-}
-
-func (r *WgGatewayServerReconciler) secretEnquerer(_ context.Context, obj client.Object) []ctrl.Request {
-	secret, ok := obj.(*corev1.Secret)
-	if !ok {
-		return nil
-	}
-
-	wgServerName, found := secret.GetLabels()[consts.WgServerNameLabel]
-	if !found {
-		return nil
-	}
-
-	return []ctrl.Request{
-		{
-			NamespacedName: types.NamespacedName{
-				Namespace: secret.Namespace,
-				Name:      wgServerName,
-			},
-		},
-	}
 }
 
 func (r *WgGatewayServerReconciler) ensureDeployment(ctx context.Context, wgServer *networkingv1alpha1.WgGatewayServer,
@@ -416,7 +388,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *cor
 }
 
 func (r *WgGatewayServerReconciler) handleSecretRefStatus(ctx context.Context, wgServer *networkingv1alpha1.WgGatewayServer) error {
-	secret, err := r.getWgServerKeysSecret(ctx, wgServer)
+	secret, err := getWireGuardSecret(ctx, r.Client, wgServer)
 	if err != nil {
 		return err
 	}
@@ -433,27 +405,4 @@ func (r *WgGatewayServerReconciler) handleSecretRefStatus(ctx context.Context, w
 	}
 
 	return nil
-}
-
-func (r *WgGatewayServerReconciler) getWgServerKeysSecret(ctx context.Context, wgServer *networkingv1alpha1.WgGatewayServer) (*corev1.Secret, error) {
-	wgServerSelector := client.MatchingLabels{
-		consts.WgServerNameLabel: wgServer.Name, // secret created by the WireGuard server with the given name
-	}
-
-	var secrets corev1.SecretList
-	err := r.List(ctx, &secrets, client.InNamespace(wgServer.Namespace), wgServerSelector)
-	if err != nil {
-		klog.Errorf("Unable to list secrets associated to WireGuard server %s/%s: %v", wgServer.Namespace, wgServer.Name, err)
-		return nil, err
-	}
-
-	switch len(secrets.Items) {
-	case 0:
-		klog.Warningf("Secret associated to WireGuard server %s/%s not found", wgServer.Namespace, wgServer.Name)
-		return nil, nil
-	case 1:
-		return &secrets.Items[0], nil
-	default:
-		return nil, fmt.Errorf("found multiple secrets associated to WireGuard server %s/%s", wgServer.Namespace, wgServer.Name)
-	}
 }
