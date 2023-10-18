@@ -48,7 +48,7 @@ type GatewayClientSpec struct {
 // GatewayClientStatus defines the observed state of GatewayClient.
 type GatewayClientStatus struct {
 	// ClientRef specifies the reference to the client.
-	ClientRef corev1.ObjectReference `json:"clientRef,omitempty"`
+	ClientRef *corev1.ObjectReference `json:"clientRef,omitempty"`
 	// SecretRef specifies the reference to the secret.
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 }

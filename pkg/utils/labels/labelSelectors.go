@@ -105,21 +105,22 @@ var (
 		},
 	}
 
-	// WgServerNameLabelSelector selector used to get a secret for a WireGuard gateway server.
-	WgServerNameLabelSelector = metav1.LabelSelector{
+	// GatewayResourceLabelSelector selector is used to get resources related to a gateway.
+	GatewayResourceLabelSelector = metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			{
-				Key:      liqoconst.WgServerNameLabel,
-				Operator: metav1.LabelSelectorOpExists,
+				Key:      liqoconst.GatewayResourceLabel,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{liqoconst.GatewayResourceLabelValue},
 			},
 		},
 	}
 
-	// WgClientNameLabelSelector selector used to get a secret for a WireGuard gateway client.
-	WgClientNameLabelSelector = metav1.LabelSelector{
+	// ResourceForRemoteClusterLabelSelector selector is used to get resources related to a remote cluster.
+	ResourceForRemoteClusterLabelSelector = metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			{
-				Key:      liqoconst.WgClientNameLabel,
+				Key:      liqoconst.RemoteClusterID,
 				Operator: metav1.LabelSelectorOpExists,
 			},
 		},
