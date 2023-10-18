@@ -22,6 +22,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -47,6 +48,8 @@ type ServerReconciler struct {
 
 type templateData struct {
 	Spec       networkingv1alpha1.GatewayServerSpec
+	Name       string
+	Namespace  string
 	GatewayUID string
 	ClusterID  string
 }
@@ -166,7 +169,7 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *netw
 		obj.SetGroupVersionKind(objectKind.GroupVersionKind())
 		obj.SetName(server.Name)
 		obj.SetNamespace(server.Namespace)
-		obj.SetLabels(objectTemplateMetadata.Labels)
+		obj.SetLabels(labels.Merge(objectTemplateMetadata.Labels, labels.Set{consts.RemoteClusterID: remoteClusterID}))
 		obj.SetAnnotations(objectTemplateMetadata.Annotations)
 		obj.SetOwnerReferences([]metav1.OwnerReference{
 			{
@@ -179,6 +182,8 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *netw
 		})
 		spec, err := enutils.RenderTemplate(objectTemplateSpec, templateData{
 			Spec:       server.Spec,
+			Name:       server.Name,
+			Namespace:  server.Namespace,
 			GatewayUID: string(server.UID),
 			ClusterID:  remoteClusterID,
 		})
@@ -192,7 +197,7 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, server *netw
 		return fmt.Errorf("unable to update the server: %w", err)
 	}
 
-	server.Status.ServerRef = corev1.ObjectReference{
+	server.Status.ServerRef = &corev1.ObjectReference{
 		APIVersion: unstructuredObject.GetAPIVersion(),
 		Kind:       unstructuredObject.GetKind(),
 		Name:       unstructuredObject.GetName(),
