@@ -23,7 +23,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
@@ -98,8 +98,8 @@ func (c *Cluster) SetupConfiguration(ctx context.Context,
 			conf.Labels = make(map[string]string)
 		}
 		if confCopy.Labels != nil {
-			if cID, ok := confCopy.Labels[discovery.ClusterIDLabel]; ok {
-				conf.Labels[discovery.ClusterIDLabel] = cID
+			if cID, ok := confCopy.Labels[consts.RemoteClusterID]; ok {
+				conf.Labels[consts.RemoteClusterID] = cID
 			}
 		}
 		conf.Spec.Remote = confCopy.Spec.Remote
