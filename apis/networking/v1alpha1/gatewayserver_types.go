@@ -69,7 +69,7 @@ type EndpointStatus struct {
 // GatewayServerStatus defines the observed state of GatewayServer.
 type GatewayServerStatus struct {
 	// ServerRef specifies the reference to the server.
-	ServerRef corev1.ObjectReference `json:"serverRef,omitempty"`
+	ServerRef *corev1.ObjectReference `json:"serverRef,omitempty"`
 	// Endpoint specifies the endpoint of the tunnel.
 	Endpoint *EndpointStatus `json:"endpoint,omitempty"`
 	// SecretRef specifies the reference to the secret.
