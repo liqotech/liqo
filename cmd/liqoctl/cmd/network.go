@@ -160,6 +160,10 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 		fmt.Sprintf("Service type of the Gateway Server. Default: %s", gatewayserver.DefaultServiceType))
 	cmd.Flags().Int32Var(&options.ServerPort, "server-port", gatewayserver.DefaultPort,
 		fmt.Sprintf("Port of the Gateway Server. Default: %d", gatewayserver.DefaultPort))
+	cmd.Flags().Int32Var(&options.ServerNodePort, "node-port", 0,
+		"Force the NodePort of the Gateway Server. Leave empty to let Kubernetes allocate a random NodePort")
+	cmd.Flags().StringVar(&options.ServerLoadBalancerIP, "load-balancer-ip", "",
+		"Force LoadBalancer IP of the Gateway Server. Leave empty to use the one provided by the LoadBalancer provider")
 
 	// Client flags
 	cmd.Flags().StringVar(&options.ClientGatewayType, "client-type", gatewayclient.DefaultGatewayType,
