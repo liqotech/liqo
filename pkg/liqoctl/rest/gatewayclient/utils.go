@@ -15,8 +15,9 @@
 package gatewayclient
 
 import (
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -48,6 +49,7 @@ func ForgeGatewayClient(name, namespace string, o *ForgeOptions) (*networkingv1a
 
 // MutateGatewayClient mutates a GatewayClient.
 func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *ForgeOptions) error {
+	// Metadata
 	gwClient.Kind = networkingv1alpha1.GatewayClientKind
 	gwClient.APIVersion = networkingv1alpha1.GroupVersion.String()
 
@@ -56,15 +58,17 @@ func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *ForgeOpt
 	}
 	gwClient.Labels[liqoconsts.RemoteClusterID] = o.RemoteClusterID
 
+	// MTU
 	gwClient.Spec.MTU = o.MTU
 
-	protocol := v1.Protocol(o.Protocol)
+	// Server Endpoint
 	gwClient.Spec.Endpoint = networkingv1alpha1.EndpointStatus{
 		Addresses: o.Addresses,
 		Port:      o.Port,
-		Protocol:  &protocol,
+		Protocol:  ptr.To(corev1.Protocol(o.Protocol)),
 	}
 
+	// Client Template Reference
 	gvr, err := enutils.ParseGroupVersionResource(o.GatewayType)
 	if err != nil {
 		return err
@@ -73,7 +77,7 @@ func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *ForgeOpt
 	if err != nil {
 		return err
 	}
-	gwClient.Spec.ClientTemplateRef = v1.ObjectReference{
+	gwClient.Spec.ClientTemplateRef = corev1.ObjectReference{
 		Name:       o.TemplateName,
 		Namespace:  o.TemplateNamespace,
 		Kind:       kind,
