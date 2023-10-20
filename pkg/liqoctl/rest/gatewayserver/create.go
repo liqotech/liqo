@@ -78,6 +78,10 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().Var(o.ServiceType, "service-type", fmt.Sprintf("Service type of Gateway Server. Default: %s", DefaultServiceType))
 	cmd.Flags().IntVar(&o.MTU, "mtu", DefaultMTU, "MTU of Gateway Server")
 	cmd.Flags().Int32Var(&o.Port, "port", DefaultPort, "Port of Gateway Server")
+	cmd.Flags().Int32Var(&o.NodePort, "node-port", 0,
+		"Force the NodePort of the Gateway Server. Leave empty to let Kubernetes allocate a random NodePort")
+	cmd.Flags().StringVar(&o.LoadBalancerIP, "load-balancer-ip", "",
+		"Force LoadBalancer IP of the Gateway Server. Leave empty to use the one provided by the LoadBalancer provider")
 	cmd.Flags().BoolVar(&o.Proxy, "proxy", DefaultProxy, "Enable proxy for the Gateway Server")
 	cmd.Flags().BoolVar(&o.Wait, "wait", DefaultWait, "Wait for the Gateway Server to be ready")
 
