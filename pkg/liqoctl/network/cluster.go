@@ -21,12 +21,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
@@ -211,6 +213,26 @@ func (c *Cluster) GetGatewayClient(ctx context.Context, name string) (*networkin
 	return gwClient, nil
 }
 
+func endpointHasChanged(endpoint *networkingv1alpha1.Endpoint, service *corev1.Service) bool {
+	if endpoint.ServiceType != service.Spec.Type {
+		return true
+	}
+	if len(service.Spec.Ports) > 0 {
+		if endpoint.Port != service.Spec.Ports[0].Port {
+			return true
+		}
+
+		if endpoint.NodePort != nil && *endpoint.NodePort != service.Spec.Ports[0].NodePort {
+			return true
+		}
+	}
+	if endpoint.LoadBalancerIP != nil && *endpoint.LoadBalancerIP != service.Spec.LoadBalancerIP ||
+		endpoint.LoadBalancerIP == nil && service.Spec.LoadBalancerIP != "" {
+		return true
+	}
+	return false
+}
+
 // EnsureGatewayServer create or updates a GatewayServer.
 func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *gatewayserver.ForgeOptions) (*networkingv1alpha1.GatewayServer, error) {
 	s := c.local.Printer.StartSpinner("Setting up gateway server")
@@ -219,6 +241,26 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *ga
 		s.Fail(fmt.Sprintf("An error occurred while forging gateway server: %v", output.PrettyErr(err)))
 		return nil, err
 	}
+
+	// If the forged server endpoint has different parameters from the existing server service (if present),
+	// we delete the existing gateway server so that the client can correctly connect to the new endpoint.
+	var service corev1.Service
+	svcNsName := types.NamespacedName{Namespace: gwServer.Namespace, Name: gateway.GenerateResourceName(gwServer.Name)}
+	err = c.local.CRClient.Get(ctx, svcNsName, &service)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("An error occurred while retrieving gateway server service: %v", output.PrettyErr(err)))
+		return nil, err
+	} else if err == nil {
+		// Server service already exists. Check if endpoint has changed parameters.
+		if endpointHasChanged(&gwServer.Spec.Endpoint, &service) {
+			if err := c.local.CRClient.Delete(ctx, gwServer); err != nil {
+				s.Fail(fmt.Sprintf("An error occurred while deleting gateway server: %v", output.PrettyErr(err)))
+				return nil, err
+			}
+			s.Success("Deleted existing gateway server")
+		}
+	}
+
 	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, gwServer, func() error {
 		return gatewayserver.MutateGatewayServer(gwServer, opts)
 	})

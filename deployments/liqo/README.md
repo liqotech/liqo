@@ -134,12 +134,15 @@
 | networkManager.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the networkManager pod. |
 | networkManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the networkManager pod. |
 | networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
-| networking.gateway | object | `{"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1}` | Set the options for gateway templates |
+| networking.gateway | object | `{"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1,"server":{"service":{"allocateLoadBalancerNodePorts":""}}}` | Set the options for gateway templates |
 | networking.gateway.ping | object | `{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"}` | Set the options to configure the gateway ping used to check connection |
 | networking.gateway.ping.interval | string | `"2s"` | Set the interval between two consecutive pings |
 | networking.gateway.ping.lossThreshold | int | `5` | Set the number of consecutive pings that must fail to consider the connection as lost |
 | networking.gateway.ping.updateStatusInterval | string | `"10s"` | Set the interval at which the connection resource status is updated |
 | networking.gateway.replicas | int | `1` | Set the number of replicas for the gateway deployments |
+| networking.gateway.server | object | `{"service":{"allocateLoadBalancerNodePorts":""}}` | Set the options to configure the gateway server |
+| networking.gateway.server.service | object | `{"allocateLoadBalancerNodePorts":""}` | Set the options to configure the server service |
+| networking.gateway.server.service.allocateLoadBalancerNodePorts | string | `""` | Set to "false" if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature). |
 | networking.internal | bool | `true` | Use the default Liqo network manager. |
 | networking.iptables | object | `{"mode":"nf_tables"}` | Iptables configuration tuning. |
 | networking.iptables.mode | string | `"nf_tables"` | Select the iptables mode to use. Possible values are "legacy" and "nf_tables". |
