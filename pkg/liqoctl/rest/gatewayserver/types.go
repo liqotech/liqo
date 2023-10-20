@@ -17,6 +17,7 @@ package gatewayserver
 import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -46,6 +47,8 @@ type Options struct {
 	ServiceType       *argsutils.StringEnum
 	MTU               int
 	Port              int32
+	NodePort          int32
+	LoadBalancerIP    string
 	Proxy             bool
 	Wait              bool
 }
@@ -78,6 +81,8 @@ type ForgeOptions struct {
 	ServiceType       corev1.ServiceType
 	MTU               int
 	Port              int32
+	NodePort          *int32
+	LoadBalancerIP    *string
 	Proxy             bool
 }
 
@@ -91,6 +96,8 @@ func (o *Options) getForgeOptions() *ForgeOptions {
 		ServiceType:       corev1.ServiceType(o.ServiceType.Value),
 		MTU:               o.MTU,
 		Port:              o.Port,
+		NodePort:          ptr.To(o.NodePort),
+		LoadBalancerIP:    ptr.To(o.LoadBalancerIP),
 		Proxy:             o.Proxy,
 	}
 }
