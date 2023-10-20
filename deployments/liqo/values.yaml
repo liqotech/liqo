@@ -59,6 +59,12 @@ networking:
       interval: 2s
       # -- Set the interval at which the connection resource status is updated
       updateStatusInterval: 10s
+    # -- Set the options to configure the gateway server
+    server:
+      # -- Set the options to configure the server service
+      service:
+        # -- Set to "false" if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature).
+        allocateLoadBalancerNodePorts: ""
 
 peering:
   # -- Set the default configuration for the networking resources created during the peering process
