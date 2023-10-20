@@ -20,6 +20,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -44,6 +45,8 @@ type Options struct {
 	ServerTemplateNamespace string
 	ServerServiceType       *argsutils.StringEnum
 	ServerPort              int32
+	ServerNodePort          int32
+	ServerLoadBalancerIP    string
 
 	ClientGatewayType       string
 	ClientTemplateName      string
@@ -304,6 +307,8 @@ func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, 
 		ServiceType:       v1.ServiceType(o.ServerServiceType.Value),
 		MTU:               o.MTU,
 		Port:              o.ServerPort,
+		NodePort:          ptr.To(o.ServerNodePort),
+		LoadBalancerIP:    ptr.To(o.ServerLoadBalancerIP),
 		Proxy:             o.Proxy,
 	}
 }
