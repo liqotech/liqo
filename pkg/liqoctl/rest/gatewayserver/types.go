@@ -28,7 +28,7 @@ const (
 	DefaultTemplateName      = "wireguard-server"
 	DefaultTemplateNamespace = "liqo"
 	DefaultServiceType       = corev1.ServiceTypeLoadBalancer
-	DefaultMTU               = 1450
+	DefaultMTU               = 1340
 	DefaultPort              = 51820
 	DefaultProxy             = false
 	DefaultWait              = false
