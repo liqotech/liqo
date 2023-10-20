@@ -33,6 +33,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
 )
@@ -86,7 +87,7 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	// Ensure deployment (create or update)
-	deployNsName := types.NamespacedName{Namespace: wgClient.Namespace, Name: wgClient.Name}
+	deployNsName := types.NamespacedName{Namespace: wgClient.Namespace, Name: gateway.GenerateResourceName(wgClient.Name)}
 	_, err = r.ensureDeployment(ctx, wgClient, deployNsName)
 	if err != nil {
 		return ctrl.Result{}, err

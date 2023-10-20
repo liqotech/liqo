@@ -48,6 +48,7 @@ func ForgeGatewayServer(name, namespace string, o *ForgeOptions) (*networkingv1a
 
 // MutateGatewayServer mutates a GatewayServer.
 func MutateGatewayServer(gwServer *networkingv1alpha1.GatewayServer, o *ForgeOptions) error {
+	// Metadata
 	gwServer.Kind = networkingv1alpha1.GatewayServerKind
 	gwServer.APIVersion = networkingv1alpha1.GroupVersion.String()
 
@@ -56,12 +57,22 @@ func MutateGatewayServer(gwServer *networkingv1alpha1.GatewayServer, o *ForgeOpt
 	}
 	gwServer.Labels[liqoconsts.RemoteClusterID] = o.RemoteClusterID
 
+	// MTU
 	gwServer.Spec.MTU = o.MTU
+
+	// Server Endpoint
 	gwServer.Spec.Endpoint = networkingv1alpha1.Endpoint{
 		Port:        o.Port,
 		ServiceType: o.ServiceType,
 	}
+	if o.NodePort != nil && *o.NodePort != 0 {
+		gwServer.Spec.Endpoint.NodePort = o.NodePort
+	}
+	if o.LoadBalancerIP != nil && *o.LoadBalancerIP != "" {
+		gwServer.Spec.Endpoint.LoadBalancerIP = o.LoadBalancerIP
+	}
 
+	// Server Template Reference
 	gvr, err := enutils.ParseGroupVersionResource(o.GatewayType)
 	if err != nil {
 		return err
