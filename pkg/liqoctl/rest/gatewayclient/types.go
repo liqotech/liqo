@@ -25,7 +25,7 @@ const (
 	DefaultGatewayType       = "networking.liqo.io/v1alpha1/wggatewayclienttemplates"
 	DefaultTemplateName      = "wireguard-client"
 	DefaultTemplateNamespace = "liqo"
-	DefaultMTU               = 1450
+	DefaultMTU               = 1340
 	DefaultProtocol          = "UDP"
 	DefaultWait              = false
 )
