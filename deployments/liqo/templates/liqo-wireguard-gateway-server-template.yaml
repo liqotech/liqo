@@ -27,6 +27,9 @@ spec:
           - port: "{{"{{ .Spec.Endpoint.Port }}"}}"
             protocol: UDP
             targetPort: "{{"{{ .Spec.Endpoint.Port }}"}}"
+          {{- if .Values.networking.gateway.server.service.allocateLoadBalancerNodePorts }}
+          allocateLoadBalancerNodePorts: {{ .Values.networking.gateway.server.service.allocateLoadBalancerNodePorts }}
+          {{- end }}
       deployment:
         metadata:
           {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
