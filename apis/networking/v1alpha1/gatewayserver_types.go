@@ -43,6 +43,13 @@ type Endpoint struct {
 	// +kubebuilder:default=ClusterIP
 	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer;ExternalName
 	ServiceType corev1.ServiceType `json:"serviceType,omitempty"`
+	// NodePort allocates a static port for the NodePort service.
+	// +optional
+	NodePort *int32 `json:"nodePort,omitempty"`
+	// LoadBalancerIP override the LoadBalancer IP to use a specific IP address (e.g., static LB). It is used only if service type is LoadBalancer.
+	// LoadBalancer provider must support this feature.
+	// +optional
+	LoadBalancerIP *string `json:"loadBalancerIP,omitempty"`
 }
 
 // GatewayServerSpec defines the desired state of GatewayServer.
