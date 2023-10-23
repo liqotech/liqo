@@ -41,7 +41,7 @@ const liqoctlCreateConfigurationLongHelp = `Create a Configuration.
 The Configuration resource is used to represent a remote cluster network configuration.
 
 Examples:
-  $ {{ .Executable }} create configuration my-cluster --cluster-id my-cluster-id \
+  $ {{ .Executable }} create configuration my-cluster --remote-cluster-id remote-cluster-id \
   --pod-cidr 10.0.0.0/16 --external-cidr 10.10.0.0/16`
 
 // Create creates a Configuration.
@@ -71,17 +71,17 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output format of the resulting Configuration resource. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.ClusterID, "cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
 	cmd.Flags().Var(&o.PodCIDR, "pod-cidr", "The pod CIDR of the remote cluster")
 	cmd.Flags().Var(&o.ExternalCIDR, "external-cidr", "The external CIDR of the remote cluster")
 	cmd.Flags().BoolVar(&o.Wait, "wait", false, "Wait for the Configuration to be ready")
 
-	runtime.Must(cmd.MarkFlagRequired("cluster-id"))
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 	runtime.Must(cmd.MarkFlagRequired("pod-cidr"))
 	runtime.Must(cmd.MarkFlagRequired("external-cidr"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("cluster-id", completion.ClusterIDs(ctx,
+	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
 
 	return cmd
@@ -91,7 +91,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
 	conf := forgeConfiguration(o.createOptions.Name, o.createOptions.Namespace,
-		o.ClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
+		o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
 
 	if opts.OutputFormat != "" {
 		opts.Printer.CheckErr(o.output(conf))
@@ -100,7 +100,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	s := opts.Printer.StartSpinner("Creating configuration")
 	_, err := controllerutil.CreateOrUpdate(ctx, opts.CRClient, conf, func() error {
-		mutateConfiguration(conf, o.ClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
+		mutateConfiguration(conf, o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
 		return nil
 	})
 	if err != nil {
@@ -133,7 +133,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	return nil
 }
 
-func forgeConfiguration(name, namespace, clusterID, podCIDR, externalCIDR string) *networkingv1alpha1.Configuration {
+func forgeConfiguration(name, namespace, remoteClusterID, podCIDR, externalCIDR string) *networkingv1alpha1.Configuration {
 	conf := &networkingv1alpha1.Configuration{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1alpha1.ConfigurationKind,
@@ -143,21 +143,21 @@ func forgeConfiguration(name, namespace, clusterID, podCIDR, externalCIDR string
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				liqoconsts.RemoteClusterID: clusterID,
+				liqoconsts.RemoteClusterID: remoteClusterID,
 			},
 		},
 	}
-	mutateConfiguration(conf, clusterID, podCIDR, externalCIDR)
+	mutateConfiguration(conf, remoteClusterID, podCIDR, externalCIDR)
 	return conf
 }
 
-func mutateConfiguration(conf *networkingv1alpha1.Configuration, clusterID, podCIDR, externalCIDR string) {
+func mutateConfiguration(conf *networkingv1alpha1.Configuration, remoteClusterID, podCIDR, externalCIDR string) {
 	conf.Kind = networkingv1alpha1.ConfigurationKind
 	conf.APIVersion = networkingv1alpha1.GroupVersion.String()
 	if conf.Labels == nil {
 		conf.Labels = make(map[string]string)
 	}
-	conf.Labels[liqoconsts.RemoteClusterID] = clusterID
+	conf.Labels[liqoconsts.RemoteClusterID] = remoteClusterID
 	conf.Spec.Remote.CIDR.Pod = networkingv1alpha1.CIDR(podCIDR)
 	conf.Spec.Remote.CIDR.External = networkingv1alpha1.CIDR(externalCIDR)
 }

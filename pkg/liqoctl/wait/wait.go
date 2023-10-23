@@ -20,12 +20,14 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -277,5 +279,53 @@ func (w *Waiter) ForGatewayClientSecretRef(ctx context.Context, gwClient *networ
 		return err
 	}
 	s.Success("Gateway client Secret created successfully")
+	return nil
+}
+
+// ForConnection waits until the Connection resource has been created.
+func (w *Waiter) ForConnection(ctx context.Context, namespace string,
+	remoteCluster *discoveryv1alpha1.ClusterIdentity) (*networkingv1alpha1.Connection, error) {
+	s := w.Printer.StartSpinner("Waiting for Connection to be created")
+	var conn *networkingv1alpha1.Connection
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: remoteCluster.ClusterID}.AsSelector()
+		connections, err := getters.ListConnectionsByLabel(ctx, w.CRClient, namespace, remoteClusterIDSelector)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+
+		switch len(connections.Items) {
+		case 0:
+			return false, nil
+		case 1:
+			conn = &connections.Items[0]
+			return true, nil
+		default:
+			return false, fmt.Errorf("more than one Connection resource found for remote cluster %q", remoteCluster.ClusterName)
+		}
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for Connection to be created: %s", output.PrettyErr(err)))
+		return nil, err
+	}
+	s.Success("Connection created successfully")
+	return conn, nil
+}
+
+// ForConnectionEstablished waits until the status of the Connection is established.
+func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv1alpha1.Connection) error {
+	s := w.Printer.StartSpinner("Waiting for Connection status to be established")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		err = w.CRClient.Get(ctx, client.ObjectKeyFromObject(conn), conn)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+		return conn.Status.Value == networkingv1alpha1.Connected, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for Connection status to be established: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Connection is established")
 	return nil
 }
