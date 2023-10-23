@@ -42,13 +42,12 @@ type Options struct {
 	ServerTemplateNamespace string
 	ServerServiceType       *argsutils.StringEnum
 	ServerPort              int32
-	ServerMTU               int
 
 	ClientGatewayType       string
 	ClientTemplateName      string
 	ClientTemplateNamespace string
-	ClientMTU               int
 
+	MTU                int
 	DisableSharingKeys bool
 	Proxy              bool
 }
@@ -79,24 +78,34 @@ func (o *Options) RunInit(ctx context.Context) error {
 		return err
 	}
 
+	// Forges the local Configuration of cluster 1 to be applied on remote clusters.
+	if err := cluster1.SetLocalConfiguration(ctx); err != nil {
+		return err
+	}
+
+	// Forges the local Configuration of cluster 2 to be applied on remote clusters.
+	if err := cluster2.SetLocalConfiguration(ctx); err != nil {
+		return err
+	}
+
 	// Setup Configurations in cluster 1.
-	if err := cluster1.SetupConfiguration(ctx, cluster2.NetworkConfiguration); err != nil {
+	if err := cluster1.SetupConfiguration(ctx, cluster2.networkConfiguration); err != nil {
 		return err
 	}
 
 	// Setup Configurations in cluster 2.
-	if err := cluster2.SetupConfiguration(ctx, cluster1.NetworkConfiguration); err != nil {
+	if err := cluster2.SetupConfiguration(ctx, cluster1.networkConfiguration); err != nil {
 		return err
 	}
 
 	if o.Wait {
 		// Wait for cluster 1 to be ready.
-		if err := cluster1.Waiter.ForConfiguration(ctx, cluster2.NetworkConfiguration); err != nil {
+		if err := cluster1.Waiter.ForConfiguration(ctx, cluster2.networkConfiguration); err != nil {
 			return err
 		}
 
 		// Wait for cluster 2 to be ready.
-		if err := cluster2.Waiter.ForConfiguration(ctx, cluster1.NetworkConfiguration); err != nil {
+		if err := cluster2.Waiter.ForConfiguration(ctx, cluster1.networkConfiguration); err != nil {
 			return err
 		}
 	}
@@ -111,13 +120,13 @@ func (o *Options) RunConnect(ctx context.Context) error {
 
 	// Create and initialize cluster 1.
 	cluster1 := NewCluster(o.LocalFactory, o.RemoteFactory)
-	if err := cluster1.SetClusterIdentity(ctx); err != nil {
+	if err := cluster1.Init(ctx); err != nil {
 		return err
 	}
 
 	// Create and initialize cluster 2.
 	cluster2 := NewCluster(o.RemoteFactory, o.LocalFactory)
-	if err := cluster2.SetClusterIdentity(ctx); err != nil {
+	if err := cluster2.Init(ctx); err != nil {
 		return err
 	}
 
@@ -158,7 +167,7 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Create PublicKey of gateway server on cluster 2
-	if err := cluster2.EnsurePublicKey(ctx, cluster1.clusterIdentity, keyServer); err != nil {
+	if err := cluster2.EnsurePublicKey(ctx, cluster1.clusterIdentity, keyServer, gwClient); err != nil {
 		return err
 	}
 
@@ -173,7 +182,31 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Create PublicKey of gateway client on cluster 1
-	return cluster1.EnsurePublicKey(ctx, cluster2.clusterIdentity, keyClient)
+	if err := cluster1.EnsurePublicKey(ctx, cluster2.clusterIdentity, keyClient, gwServer); err != nil {
+		return err
+	}
+
+	if o.Wait {
+		// Wait for Connections on both cluster to be created.
+		conn1, err := cluster1.Waiter.ForConnection(ctx, gwServer.Namespace, cluster2.clusterIdentity)
+		if err != nil {
+			return err
+		}
+		conn2, err := cluster2.Waiter.ForConnection(ctx, gwClient.Namespace, cluster1.clusterIdentity)
+		if err != nil {
+			return err
+		}
+
+		// Wait for Connections on both cluster cluster to be established
+		if err := cluster1.Waiter.ForConnectionEstablished(ctx, conn1); err != nil {
+			return err
+		}
+		if err := cluster2.Waiter.ForConnectionEstablished(ctx, conn2); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID string) *gatewayserver.ForgeOptions {
@@ -184,7 +217,7 @@ func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, 
 		TemplateName:      o.ServerTemplateName,
 		TemplateNamespace: o.ServerTemplateNamespace,
 		ServiceType:       v1.ServiceType(o.ServerServiceType.Value),
-		MTU:               o.ServerMTU,
+		MTU:               o.MTU,
 		Port:              o.ServerPort,
 		Proxy:             o.Proxy,
 	}
@@ -198,7 +231,7 @@ func (o *Options) newGatewayClientForgeOptions(kubeClient kubernetes.Interface, 
 		GatewayType:       o.ClientGatewayType,
 		TemplateName:      o.ClientTemplateName,
 		TemplateNamespace: o.ClientTemplateNamespace,
-		MTU:               o.ClientMTU,
+		MTU:               o.MTU,
 		Addresses:         serverEndpoint.Addresses,
 		Port:              serverEndpoint.Port,
 		Protocol:          string(*serverEndpoint.Protocol),
