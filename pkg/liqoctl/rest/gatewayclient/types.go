@@ -34,7 +34,7 @@ const (
 type Options struct {
 	createOptions *rest.CreateOptions
 
-	ClusterID         string
+	RemoteClusterID   string
 	GatewayType       string
 	TemplateName      string
 	TemplateNamespace string
@@ -75,7 +75,7 @@ type ForgeOptions struct {
 func (o *Options) getForgeOptions() *ForgeOptions {
 	return &ForgeOptions{
 		KubeClient:        o.createOptions.KubeClient,
-		RemoteClusterID:   o.ClusterID,
+		RemoteClusterID:   o.RemoteClusterID,
 		GatewayType:       o.GatewayType,
 		TemplateName:      o.TemplateName,
 		TemplateNamespace: o.TemplateNamespace,

@@ -40,7 +40,7 @@ The GatewayServer resource is used to define a Gateway Server for the external n
 
 Examples:
   $ {{ .Executable }} create gatewayserver my-gw-server \
-  --cluster-id my-cluster-id \
+  --remote-cluster-id remote-cluster-id \
   --type networking.liqo.io/v1alpha1/wggatewayservers --service-type LoadBalancer`
 
 // Create creates a GatewayServer.
@@ -70,7 +70,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting GatewayServer resource, instead of applying it. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.ClusterID, "cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
 	cmd.Flags().StringVar(&o.GatewayType, "type", DefaultGatewayType,
 		"Type of Gateway Server. Leave empty to use default Liqo implementation of WireGuard")
 	cmd.Flags().StringVar(&o.TemplateName, "template-name", DefaultTemplateName, "Name of the Gateway Server template")
@@ -81,10 +81,10 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().BoolVar(&o.Proxy, "proxy", DefaultProxy, "Enable proxy for the Gateway Server")
 	cmd.Flags().BoolVar(&o.Wait, "wait", DefaultWait, "Wait for the Gateway Server to be ready")
 
-	runtime.Must(cmd.MarkFlagRequired("cluster-id"))
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("cluster-id", completion.ClusterIDs(ctx,
+	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("service-type", completion.Enumeration(o.ServiceType.Allowed)))
 

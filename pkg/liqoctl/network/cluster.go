@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -31,27 +32,31 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
-	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
-	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	liqoutils "github.com/liqotech/liqo/pkg/utils"
 )
 
 // Cluster contains the information about a cluster.
 type Cluster struct {
-	local  *factory.Factory
-	remote *factory.Factory
-	Waiter *wait.Waiter
+	local                  *factory.Factory
+	remote                 *factory.Factory
+	localNamespaceManager  tenantnamespace.Manager
+	remoteNamespaceManager tenantnamespace.Manager
+	Waiter                 *wait.Waiter
 
 	clusterIdentity *discoveryv1alpha1.ClusterIdentity
 
-	NetworkConfiguration *networkingv1alpha1.Configuration
+	networkConfiguration *networkingv1alpha1.Configuration
 }
 
 // NewCluster returns a new Cluster struct.
 func NewCluster(local, remote *factory.Factory) *Cluster {
 	return &Cluster{
-		local:  local,
-		remote: remote,
-		Waiter: wait.NewWaiterFromFactory(local),
+		local:                  local,
+		remote:                 remote,
+		localNamespaceManager:  tenantnamespace.NewManager(local.KubeClient),
+		remoteNamespaceManager: tenantnamespace.NewManager(remote.KubeClient),
+		Waiter:                 wait.NewWaiterFromFactory(local),
 	}
 }
 
@@ -62,6 +67,58 @@ func (c *Cluster) Init(ctx context.Context) error {
 		return err
 	}
 
+	// Set local and remote namespaces.
+	return c.SetNamespaces(ctx)
+}
+
+// SetClusterIdentity set cluster identities of both local and remote clusters retrieving it from the Liqo configmaps.
+func (c *Cluster) SetClusterIdentity(ctx context.Context) error {
+	// Get cluster identity.
+	s := c.local.Printer.StartSpinner("Retrieving cluster identity")
+
+	clusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, c.local.CRClient, c.local.LiqoNamespace)
+	if err != nil {
+		s.Fail(fmt.Sprintf("An error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
+		return err
+	}
+	c.clusterIdentity = &clusterIdentity
+
+	s.Success("Cluster identity correctly retrieved")
+
+	return nil
+}
+
+// SetNamespaces sets the local and remote namespaces to the liqo-tenants namespaces (creating them if necessary),
+// unless the user has explicitly set custom namespaces with the `--namespace` and/or `--remote-namespace` flags.
+// All the external network resources will be created in these namespaces in their respective clusters.
+func (c *Cluster) SetNamespaces(ctx context.Context) error {
+	remoteClusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, c.remote.CRClient, c.remote.LiqoNamespace)
+	if err != nil {
+		return err
+	}
+	if c.local.Namespace == "" || c.local.Namespace == corev1.NamespaceDefault {
+		if _, err := c.localNamespaceManager.CreateNamespace(ctx, remoteClusterIdentity); err != nil {
+			return err
+		}
+		c.local.Namespace = tenantnamespace.GetNameForNamespace(remoteClusterIdentity)
+	}
+
+	localClusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, c.local.CRClient, c.local.LiqoNamespace)
+	if err != nil {
+		return err
+	}
+	if c.remote.Namespace == "" || c.remote.Namespace == corev1.NamespaceDefault {
+		if _, err := c.remoteNamespaceManager.CreateNamespace(ctx, localClusterIdentity); err != nil {
+			return err
+		}
+		c.remote.Namespace = tenantnamespace.GetNameForNamespace(localClusterIdentity)
+	}
+
+	return nil
+}
+
+// SetLocalConfiguration forges and set a local Configuration to be applied on remote clusters.
+func (c *Cluster) SetLocalConfiguration(ctx context.Context) error {
 	// Get network configuration.
 	s := c.local.Printer.StartSpinner("Retrieving network configuration")
 	conf, err := configuration.ForgeLocalConfiguration(ctx, c.local.CRClient, c.local.Namespace, c.local.LiqoNamespace)
@@ -69,39 +126,14 @@ func (c *Cluster) Init(ctx context.Context) error {
 		s.Fail(fmt.Sprintf("An error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
 		return err
 	}
-	c.NetworkConfiguration = conf
+	c.networkConfiguration = conf
 	s.Success("Network configuration correctly retrieved")
 
 	return nil
 }
 
-// SetClusterIdentity set cluster identity retrieving it from the Liqo configmap.
-func (c *Cluster) SetClusterIdentity(ctx context.Context) error {
-	// Get cluster identity.
-	s := c.local.Printer.StartSpinner("Retrieving cluster identity")
-	selector, err := metav1.LabelSelectorAsSelector(&liqolabels.ClusterIDConfigMapLabelSelector)
-	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
-		return err
-	}
-	cm, err := liqogetters.GetConfigMapByLabel(ctx, c.local.CRClient, c.local.LiqoNamespace, selector)
-	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
-		return err
-	}
-	clusterIdentity, err := liqogetters.RetrieveClusterIDFromConfigMap(cm)
-	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
-		return err
-	}
-	c.clusterIdentity = clusterIdentity
-	s.Success("Cluster identity correctly retrieved")
-	return nil
-}
-
 // SetupConfiguration sets up the network configuration.
-func (c *Cluster) SetupConfiguration(ctx context.Context,
-	conf *networkingv1alpha1.Configuration) error {
+func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1alpha1.Configuration) error {
 	s := c.local.Printer.StartSpinner("Setting up network configuration")
 	conf.Namespace = c.local.Namespace
 	confCopy := conf.DeepCopy()
@@ -167,7 +199,8 @@ func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *ga
 }
 
 // EnsurePublicKey create or updates a PublicKey.
-func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity, key []byte) error {
+func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity,
+	key []byte, ownerGateway metav1.Object) error {
 	s := c.local.Printer.StartSpinner("Creating PublicKey")
 	pubKey, err := publickey.ForgePublicKey(remoteClusterIdentity.ClusterName, c.local.Namespace, remoteClusterIdentity.ClusterID, key)
 	if err != nil {
@@ -175,7 +208,10 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterIdentity *di
 		return err
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, pubKey, func() error {
-		return publickey.MutatePublicKey(pubKey, remoteClusterIdentity.ClusterID, key)
+		if err := publickey.MutatePublicKey(pubKey, remoteClusterIdentity.ClusterID, key); err != nil {
+			return err
+		}
+		return controllerutil.SetOwnerReference(ownerGateway, pubKey, c.local.CRClient.Scheme())
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while creating publickey: %v", output.PrettyErr(err)))
