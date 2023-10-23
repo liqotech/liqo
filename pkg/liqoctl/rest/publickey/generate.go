@@ -73,7 +73,7 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 
 	pubKey, err := ForgePublicKeyForRemoteCluster(ctx, opts.CRClient, opts.LiqoNamespace, opts.Namespace, o.GatewayName, o.GatewayType.Value)
 	if err != nil {
-		opts.Printer.CheckErr(fmt.Errorf("unable to forge PublicKey for remote cluster %q: %w", o.ClusterID, err))
+		opts.Printer.CheckErr(fmt.Errorf("unable to forge PublicKey for remote cluster %q: %w", o.RemoteClusterID, err))
 		return err
 	}
 
