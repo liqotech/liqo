@@ -42,8 +42,8 @@ const liqoctlCreateVirtualNodeLongHelp = `Create a VirtualNode.
 The VirtualNode resource is used to represent a remote cluster in the local cluster.
 
 Examples:
-  $ {{ .Executable }} create virtualnode my-cluster --cluster-id my-cluster-id \
-  --cluster-name my-cluster-name --kubeconfig-secret-name my-cluster-kubeconfig --namespace my-cluster`
+  $ {{ .Executable }} create virtualnode my-cluster --remote-cluster-id remote-cluster-id \
+  --remote-cluster-name remote-cluster-name --remote-kubeconfig-secret-name remote-cluster-kubeconfig --namespace my-cluster`
 
 // Create creates a VirtualNode.
 func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobra.Command {
@@ -73,11 +73,11 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		"Output the resulting VirtualNode resource, instead of applying it. Supported formats: json, yaml")
 
 	// TODO: check validity of both cluster-id and cluster-name
-	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterID, "cluster-id", "", "The cluster ID of the remote cluster")
-	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterName, "cluster-name", "", "The cluster name of the remote cluster")
+	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterName, "remote-cluster-name", "", "The cluster name of the remote cluster")
 	cmd.Flags().BoolVar(&o.createNode, "create-node",
 		true, "Create a node to target the remote cluster (and schedule on it)")
-	cmd.Flags().StringVar(&o.kubeconfigSecretName, "kubeconfig-secret-name",
+	cmd.Flags().StringVar(&o.kubeconfigSecretName, "remote-kubeconfig-secret-name",
 		"", "The name of the secret containing the kubeconfig of the remote cluster")
 	cmd.Flags().StringVar(&o.cpu, "cpu", "2", "The amount of CPU available in the virtual node")
 	cmd.Flags().StringVar(&o.memory, "memory", "4Gi", "The amount of memory available in the virtual node")
@@ -86,16 +86,16 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		[]string{}, "The storage classes offered by the remote cluster. The first one will be used as default")
 	cmd.Flags().StringToStringVar(&o.labels, "labels", map[string]string{}, "The labels to be added to the virtual node")
 
-	runtime.Must(cmd.MarkFlagRequired("cluster-id"))
-	runtime.Must(cmd.MarkFlagRequired("cluster-name"))
-	runtime.Must(cmd.MarkFlagRequired("kubeconfig-secret-name"))
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-name"))
+	runtime.Must(cmd.MarkFlagRequired("remote-kubeconfig-secret-name"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("cluster-id", completion.ClusterIDs(ctx,
+	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("cluster-name", completion.ClusterNames(ctx,
+	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-name", completion.ClusterNames(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("kubeconfig-secret-name", completion.KubeconfigSecretNames(ctx,
+	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-kubeconfig-secret-name", completion.KubeconfigSecretNames(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
 
 	return cmd
