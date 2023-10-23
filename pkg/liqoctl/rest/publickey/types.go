@@ -25,10 +25,10 @@ type Options struct {
 	createOptions   *rest.CreateOptions
 	generateOptions *rest.GenerateOptions
 
-	ClusterID   string
-	GatewayName string
-	GatewayType *argsutils.StringEnum
-	PublicKey   []byte
+	RemoteClusterID string
+	GatewayName     string
+	GatewayType     *argsutils.StringEnum
+	PublicKey       []byte
 }
 
 var _ rest.API = &Options{}
