@@ -22,15 +22,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // GetClusterIdentityWithNativeClient returns cluster identity using a kubernetes.Interface client.
@@ -44,20 +44,34 @@ func GetClusterIdentityWithNativeClient(ctx context.Context,
 		return discoveryv1alpha1.ClusterIdentity{}, err
 	}
 
-	return getClusterIdentityFromConfigMapList(configMapList)
+	switch len(configMapList.Items) {
+	case 0:
+		return discoveryv1alpha1.ClusterIdentity{}, apierrors.NewNotFound(
+			corev1.Resource(corev1.ResourceConfigMaps.String()),
+			consts.ClusterIDConfigMapNameLabelValue)
+	case 1:
+		clusterIdentity, err := liqogetters.RetrieveClusterIDFromConfigMap(&configMapList.Items[0])
+		return *clusterIdentity, err
+	default:
+		return discoveryv1alpha1.ClusterIdentity{}, fmt.Errorf("multiple clusterID configmaps found")
+	}
 }
 
 // GetClusterIdentityWithControllerClient returns cluster identity using a client.Client client.
-func GetClusterIdentityWithControllerClient(ctx context.Context,
-	controllerClient client.Client, namespace string) (discoveryv1alpha1.ClusterIdentity, error) {
-	var configMapList corev1.ConfigMapList
-	if err := controllerClient.List(ctx, &configMapList,
-		client.MatchingLabelsSelector{Selector: consts.ClusterIDConfigMapSelector()},
-		client.InNamespace(namespace)); err != nil {
-		return discoveryv1alpha1.ClusterIdentity{}, fmt.Errorf("%w, unable to get the ClusterID ConfigMap in namespace '%s'", err, namespace)
+func GetClusterIdentityWithControllerClient(ctx context.Context, cl client.Client, namespace string) (discoveryv1alpha1.ClusterIdentity, error) {
+	selector, err := metav1.LabelSelectorAsSelector(&liqolabels.ClusterIDConfigMapLabelSelector)
+	if err != nil {
+		return discoveryv1alpha1.ClusterIdentity{}, err
 	}
-
-	return getClusterIdentityFromConfigMapList(&configMapList)
+	cm, err := liqogetters.GetConfigMapByLabel(ctx, cl, namespace, selector)
+	if err != nil {
+		return discoveryv1alpha1.ClusterIdentity{}, err
+	}
+	clusterIdentity, err := liqogetters.RetrieveClusterIDFromConfigMap(cm)
+	if err != nil {
+		return discoveryv1alpha1.ClusterIdentity{}, err
+	}
+	return *clusterIdentity, nil
 }
 
 // GetClusterName returns the local cluster name.
@@ -76,28 +90,6 @@ func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string
 		return "", err
 	}
 	return clusterIdentity.ClusterID, nil
-}
-
-func getClusterIdentityFromConfigMapList(configMapList *corev1.ConfigMapList) (discoveryv1alpha1.ClusterIdentity, error) {
-	switch len(configMapList.Items) {
-	case 0:
-		return discoveryv1alpha1.ClusterIdentity{}, apierrors.NewNotFound(schema.GroupResource{
-			Group:    "v1",
-			Resource: "configmaps",
-		}, "clusterid-configmap")
-	case 1:
-		cm := &configMapList.Items[0]
-		clusterID := cm.Data[consts.ClusterIDConfigMapKey]
-		klog.V(4).Infof("retrieved ClusterID '%s' from the ConfigMap %q", clusterID, klog.KObj(cm))
-		clusterName := cm.Data[consts.ClusterNameConfigMapKey]
-		klog.V(4).Infof("retrieved ClusterName '%s' from the ConfigMap %q", clusterName, klog.KObj(cm))
-		return discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   clusterID,
-			ClusterName: clusterName,
-		}, nil
-	default:
-		return discoveryv1alpha1.ClusterIdentity{}, fmt.Errorf("multiple clusterID configmaps found")
-	}
 }
 
 // GetRestConfig returns a rest.Config object to initialize a client to the target cluster.

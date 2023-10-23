@@ -24,10 +24,10 @@ type Options struct {
 	createOptions   *rest.CreateOptions
 	generateOptions *rest.GenerateOptions
 
-	ClusterID    string
-	PodCIDR      args.CIDR
-	ExternalCIDR args.CIDR
-	Wait         bool
+	RemoteClusterID string
+	PodCIDR         args.CIDR
+	ExternalCIDR    args.CIDR
+	Wait            bool
 }
 
 var _ rest.API = &Options{}

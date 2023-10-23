@@ -376,3 +376,13 @@ func ListPublicKeysByLabel(ctx context.Context, cl client.Client, ns string, lSe
 	}
 	return list, err
 }
+
+// ListConnectionsByLabel returns the Connection resource with the given labels.
+func ListConnectionsByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*networkingv1alpha1.ConnectionList, error) {
+	list := &networkingv1alpha1.ConnectionList{}
+	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
+	if err != nil {
+		return nil, err
+	}
+	return list, err
+}
