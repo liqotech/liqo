@@ -40,7 +40,7 @@ The GatewayClient resource is used to define a Gateway Client for the external n
 
 Examples:
   $ {{ .Executable }} create gatewayclient my-gw-client \
-  --cluster-id my-cluster-id \
+  --remote-cluster-id remote-cluster-id \
   --type networking.liqo.io/v1alpha1/wggatewayclients`
 
 // Create creates a GatewayClient.
@@ -70,7 +70,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting GatewayClient resource, instead of applying it. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.ClusterID, "cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
 	cmd.Flags().StringVar(&o.GatewayType, "type", DefaultGatewayType, "Type of Gateway Client. Default: wireguard")
 	cmd.Flags().StringVar(&o.TemplateName, "template-name", DefaultTemplateName, "Name of the Gateway Client template")
 	cmd.Flags().StringVar(&o.TemplateNamespace, "template-namespace", DefaultTemplateNamespace, "Namespace of the Gateway Client template")
@@ -80,12 +80,12 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringVar(&o.Protocol, "protocol", DefaultProtocol, "Gateway Protocol")
 	cmd.Flags().BoolVar(&o.Wait, "wait", DefaultWait, "Wait for the Gateway Client to be ready")
 
-	runtime.Must(cmd.MarkFlagRequired("cluster-id"))
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 	runtime.Must(cmd.MarkFlagRequired("addresses"))
 	runtime.Must(cmd.MarkFlagRequired("port"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("cluster-id", completion.ClusterIDs(ctx,
+	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
 
 	return cmd
