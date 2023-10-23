@@ -36,7 +36,7 @@ const liqoctlCreatePublicKeyLongHelp = `Create a PublicKey.
 The PublicKey resource is used to define a PublicKey for the external network.
 
 Examples:
-  $ {{ .Executable }} create publickey my-public-key --cluster-id my-cluster-id --type server --gateway-name my-gateway`
+  $ {{ .Executable }} create publickey my-public-key --remote-cluster-id remote-cluster-id --type server --gateway-name my-gateway`
 
 // Create creates a PublicKey.
 func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobra.Command {
@@ -65,14 +65,14 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting PublicKey resource, instead of applying it. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.ClusterID, "cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
 	cmd.Flags().BytesBase64Var(&o.PublicKey, "public-key", nil, "The public key to be used for the Gateway")
 
-	runtime.Must(cmd.MarkFlagRequired("cluster-id"))
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 	runtime.Must(cmd.MarkFlagRequired("public-key"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("cluster-id", completion.ClusterIDs(ctx,
+	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
 
 	return cmd
@@ -81,7 +81,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
-	pubKey, err := ForgePublicKey(opts.Name, opts.Namespace, o.ClusterID, o.PublicKey)
+	pubKey, err := ForgePublicKey(opts.Name, opts.Namespace, o.RemoteClusterID, o.PublicKey)
 	if err != nil {
 		opts.Printer.CheckErr(err)
 		return err
@@ -95,7 +95,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	s := opts.Printer.StartSpinner("Creating publickey")
 
 	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, pubKey, func() error {
-		return MutatePublicKey(pubKey, o.ClusterID, o.PublicKey)
+		return MutatePublicKey(pubKey, o.RemoteClusterID, o.PublicKey)
 	})
 	if err != nil {
 		s.Fail("Unable to create publickey: %v", output.PrettyErr(err))
