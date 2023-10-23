@@ -4,6 +4,7 @@ run:
     - "zz_generated.*.go"
   skip-dirs:
     - "pkg/client"
+    - "pkg/liqonet/ipset/kubernetes"
 
 linters-settings:
   exhaustive:

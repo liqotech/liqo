@@ -15,8 +15,9 @@
 package ipset
 
 import (
-	"k8s.io/kubernetes/pkg/util/ipset"
 	"k8s.io/utils/exec"
+
+	ipset "github.com/liqotech/liqo/pkg/liqonet/ipset/kubernetes"
 )
 
 // IPSHandler is a handler exposing functions to use the ipset utility.
