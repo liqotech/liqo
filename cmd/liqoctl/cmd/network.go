@@ -118,8 +118,6 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 		fmt.Sprintf("Service type of the Gateway Server. Default: %s", gatewayserver.DefaultServiceType))
 	cmd.Flags().Int32Var(&options.ServerPort, "server-port", gatewayserver.DefaultPort,
 		fmt.Sprintf("Port of the Gateway Server. Default: %d", gatewayserver.DefaultPort))
-	cmd.Flags().IntVar(&options.ServerMTU, "server-mtu", gatewayserver.DefaultMTU,
-		fmt.Sprintf("MTU of the Gateway Server. Default: %d", gatewayserver.DefaultMTU))
 
 	// Client flags
 	cmd.Flags().StringVar(&options.ClientGatewayType, "client-type", gatewayclient.DefaultGatewayType,
@@ -128,10 +126,10 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 		"Name of the Gateway Client template")
 	cmd.Flags().StringVar(&options.ClientTemplateNamespace, "client-template-namespace", gatewayclient.DefaultTemplateNamespace,
 		"Namespace of the Gateway Client template")
-	cmd.Flags().IntVar(&options.ClientMTU, "client-mtu", gatewayclient.DefaultMTU,
-		fmt.Sprintf("MTU of the Gateway Client. Default: %d", gatewayclient.DefaultMTU))
 
 	// Common flags
+	cmd.Flags().IntVar(&options.MTU, "mtu", gatewayserver.DefaultMTU,
+		fmt.Sprintf("MTU of the Gateway server and client. Default: %d", gatewayserver.DefaultMTU))
 	cmd.Flags().BoolVar(&options.DisableSharingKeys, "disable-sharing-keys", false, "Disable the sharing of public keys between the two clusters")
 	cmd.Flags().BoolVar(&options.Proxy, "proxy", gatewayserver.DefaultProxy, "Enable proxy for the Gateway Server")
 
