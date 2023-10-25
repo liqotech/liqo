@@ -24,6 +24,7 @@ import (
 type Options struct {
 	createOptions   *rest.CreateOptions
 	generateOptions *rest.GenerateOptions
+	deleteOptions   *rest.DeleteOptions
 
 	RemoteClusterID string
 	GatewayName     string
@@ -45,5 +46,6 @@ func (o *Options) APIOptions() *rest.APIOptions {
 	return &rest.APIOptions{
 		EnableCreate:   true,
 		EnableGenerate: true,
+		EnableDelete:   true,
 	}
 }
