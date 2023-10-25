@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
@@ -93,7 +94,7 @@ func ForgePublicKeyForRemoteCluster(ctx context.Context, cl client.Client,
 			APIVersion: networkingv1alpha1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterIdentity.ClusterName,
+			Name: DefaultPublicKeyName(&clusterIdentity),
 			Labels: map[string]string{
 				consts.RemoteClusterID:      clusterIdentity.ClusterID,
 				consts.GatewayResourceLabel: consts.GatewayResourceLabelValue,
@@ -139,4 +140,9 @@ func GetGatewaySecretReference(ctx context.Context, cl client.Client, namespace,
 	default:
 		return nil, fmt.Errorf("unable to forge PublicKey: invalid gateway type %q", gatewayType)
 	}
+}
+
+// DefaultPublicKeyName returns the default name of a PublicKey.
+func DefaultPublicKeyName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
+	return remoteClusterIdentity.ClusterName
 }
