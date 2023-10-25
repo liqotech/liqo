@@ -63,7 +63,7 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("gateway-type", completion.Enumeration(o.GatewayType.Allowed)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("gateway-name", completion.Gateway(ctx, o.generateOptions.Factory, completion.NoLimit)))
+	runtime.Must(cmd.RegisterFlagCompletionFunc("gateway-name", completion.Gateways(ctx, o.generateOptions.Factory, completion.NoLimit)))
 
 	return cmd
 }

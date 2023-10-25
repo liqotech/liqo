@@ -19,7 +19,9 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -121,7 +123,7 @@ func (c *Cluster) SetNamespaces(ctx context.Context) error {
 func (c *Cluster) SetLocalConfiguration(ctx context.Context) error {
 	// Get network configuration.
 	s := c.local.Printer.StartSpinner("Retrieving network configuration")
-	conf, err := configuration.ForgeLocalConfiguration(ctx, c.local.CRClient, c.local.Namespace, c.local.LiqoNamespace)
+	conf, err := configuration.ForgeConfigurationForRemoteCluster(ctx, c.local.CRClient, c.local.Namespace, c.local.LiqoNamespace)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
 		return err
@@ -158,53 +160,105 @@ func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1alph
 	return nil
 }
 
+// CheckNetworkInitialized checks if the network is initialized correctly.
+func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) error {
+	s := c.local.Printer.StartSpinner("Checking network is initialized correctly")
+
+	confReady, err := configuration.IsConfigurationStatusSet(ctx, c.local.CRClient,
+		configuration.DefaultConfigurationName(remoteClusterIdentity), c.local.Namespace)
+	switch {
+	case client.IgnoreNotFound(err) != nil:
+		s.Fail(fmt.Sprintf("An error occurred while checking network Configuration: %v", output.PrettyErr(err)))
+		return err
+	case apierrors.IsNotFound(err):
+		s.Fail(fmt.Sprintf("Network Configuration not found. Initialize the network first with `liqoctl network init`: %v", output.PrettyErr(err)))
+		return err
+	case !confReady:
+		err := fmt.Errorf("network Configuration status is not set yet. Retry later or initialize the network again with `liqoctl network init`")
+		s.Fail(err)
+		return err
+	}
+
+	s.Success("Network correctly initialized")
+	return nil
+}
+
+// GetGatewayServer retrieves a GatewayServer.
+func (c *Cluster) GetGatewayServer(ctx context.Context, name string) (*networkingv1alpha1.GatewayServer, error) {
+	gwServer := &networkingv1alpha1.GatewayServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.local.Namespace,
+		},
+	}
+	if err := c.local.CRClient.Get(ctx, client.ObjectKeyFromObject(gwServer), gwServer); err != nil {
+		return nil, err
+	}
+	return gwServer, nil
+}
+
+// GetGatewayClient retrieves a GatewayClient.
+func (c *Cluster) GetGatewayClient(ctx context.Context, name string) (*networkingv1alpha1.GatewayClient, error) {
+	gwClient := &networkingv1alpha1.GatewayClient{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.local.Namespace,
+		},
+	}
+	if err := c.local.CRClient.Get(ctx, client.ObjectKeyFromObject(gwClient), gwClient); err != nil {
+		return nil, err
+	}
+	return gwClient, nil
+}
+
 // EnsureGatewayServer create or updates a GatewayServer.
 func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *gatewayserver.ForgeOptions) (*networkingv1alpha1.GatewayServer, error) {
-	s := c.local.Printer.StartSpinner("Setting up Gateway Server")
+	s := c.local.Printer.StartSpinner("Setting up gateway server")
 	gwServer, err := gatewayserver.ForgeGatewayServer(name, c.local.Namespace, opts)
 	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while forging gatewayserver: %v", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("An error occurred while forging gateway server: %v", output.PrettyErr(err)))
 		return nil, err
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, gwServer, func() error {
 		return gatewayserver.MutateGatewayServer(gwServer, opts)
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while setting up gatewayserver: %v", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("An error occurred while setting up gateway server: %v", output.PrettyErr(err)))
 		return nil, err
 	}
 
-	s.Success("Gatewayserver correctly set up")
+	s.Success("Gateway server correctly set up")
 	return gwServer, nil
 }
 
 // EnsureGatewayClient create or updates a GatewayClient.
 func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *gatewayclient.ForgeOptions) (*networkingv1alpha1.GatewayClient, error) {
-	s := c.local.Printer.StartSpinner("Setting up Gateway Client")
+	s := c.local.Printer.StartSpinner("Setting up gateway client")
 	gwClient, err := gatewayclient.ForgeGatewayClient(name, c.local.Namespace, opts)
 	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while forging gatewayclient: %v", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("An error occurred while forging gateway client: %v", output.PrettyErr(err)))
 		return nil, err
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, gwClient, func() error {
 		return gatewayclient.MutateGatewayClient(gwClient, opts)
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while setting up gatewayclient: %v", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("An error occurred while setting up gateway client: %v", output.PrettyErr(err)))
 		return nil, err
 	}
 
-	s.Success("Gatewayclient correctly set up")
+	s.Success("Gateway client correctly set up")
 	return gwClient, nil
 }
 
 // EnsurePublicKey create or updates a PublicKey.
 func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity,
 	key []byte, ownerGateway metav1.Object) error {
-	s := c.local.Printer.StartSpinner("Creating PublicKey")
-	pubKey, err := publickey.ForgePublicKey(remoteClusterIdentity.ClusterName, c.local.Namespace, remoteClusterIdentity.ClusterID, key)
+	s := c.local.Printer.StartSpinner("Creating public key")
+	pubKey, err := publickey.ForgePublicKey(publickey.DefaultPublicKeyName(remoteClusterIdentity), c.local.Namespace,
+		remoteClusterIdentity.ClusterID, key)
 	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while forging publickey: %v", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("An error occurred while forging public key: %v", output.PrettyErr(err)))
 		return err
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, pubKey, func() error {
@@ -214,10 +268,70 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterIdentity *di
 		return controllerutil.SetOwnerReference(ownerGateway, pubKey, c.local.CRClient.Scheme())
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while creating publickey: %v", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("An error occurred while creating public key: %v", output.PrettyErr(err)))
 		return err
 	}
 
-	s.Success("PublicKey correctly created")
+	s.Success("Public key correctly created")
+	return nil
+}
+
+// DeleteConfiguration deletes a Configuration.
+func (c *Cluster) DeleteConfiguration(ctx context.Context, name string) error {
+	s := c.local.Printer.StartSpinner("Deleting network configuration")
+
+	conf := &networkingv1alpha1.Configuration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.local.Namespace,
+		},
+	}
+	err := c.local.CRClient.Delete(ctx, conf)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("An error occurred while deleting network configuration: %v", output.PrettyErr(err)))
+		return err
+	}
+
+	s.Success("Network configuration correctly deleted")
+	return nil
+}
+
+// DeleteGatewayServer deletes a GatewayServer.
+func (c *Cluster) DeleteGatewayServer(ctx context.Context, name string) error {
+	s := c.local.Printer.StartSpinner("Deleting gateway server")
+
+	gwServer := &networkingv1alpha1.GatewayServer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.local.Namespace,
+		},
+	}
+	err := c.local.CRClient.Delete(ctx, gwServer)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("An error occurred while deleting gateway server: %v", output.PrettyErr(err)))
+		return err
+	}
+
+	s.Success("Gateway server correctly deleted")
+	return nil
+}
+
+// DeleteGatewayClient deletes a GatewayClient.
+func (c *Cluster) DeleteGatewayClient(ctx context.Context, name string) error {
+	s := c.local.Printer.StartSpinner("Deleting gateway client")
+
+	gwClient := &networkingv1alpha1.GatewayClient{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.local.Namespace,
+		},
+	}
+	err := c.local.CRClient.Delete(ctx, gwClient)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("An error occurred while deleting gateway client: %v", output.PrettyErr(err)))
+		return err
+	}
+
+	s.Success("Gateway client correctly deleted")
 	return nil
 }
