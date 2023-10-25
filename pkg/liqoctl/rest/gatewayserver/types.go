@@ -18,7 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
-	liqorest "github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
@@ -36,7 +36,8 @@ const (
 
 // Options encapsulates the arguments of the gatewayserver command.
 type Options struct {
-	createOptions *liqorest.CreateOptions
+	createOptions *rest.CreateOptions
+	deleteOptions *rest.DeleteOptions
 
 	RemoteClusterID   string
 	GatewayType       string
@@ -49,10 +50,10 @@ type Options struct {
 	Wait              bool
 }
 
-var _ liqorest.API = &Options{}
+var _ rest.API = &Options{}
 
 // GatewayServer returns the rest API for the gatewayserver command.
-func GatewayServer() liqorest.API {
+func GatewayServer() rest.API {
 	return &Options{
 		ServiceType: argsutils.NewEnum(
 			[]string{string(corev1.ServiceTypeLoadBalancer), string(corev1.ServiceTypeNodePort)}, string(DefaultServiceType)),
@@ -60,9 +61,10 @@ func GatewayServer() liqorest.API {
 }
 
 // APIOptions returns the APIOptions for the gatewayserver API.
-func (o *Options) APIOptions() *liqorest.APIOptions {
-	return &liqorest.APIOptions{
+func (o *Options) APIOptions() *rest.APIOptions {
+	return &rest.APIOptions{
 		EnableCreate: true,
+		EnableDelete: true,
 	}
 }
 

@@ -20,9 +20,11 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
@@ -113,6 +115,53 @@ func (o *Options) RunInit(ctx context.Context) error {
 	return nil
 }
 
+// RunReset reset the liqo networking between two clusters.
+func (o *Options) RunReset(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
+	// Create and initialize cluster 1.
+	cluster1 := NewCluster(o.LocalFactory, o.RemoteFactory)
+	if err := cluster1.Init(ctx); err != nil {
+		return err
+	}
+
+	// Create and initialize cluster 2.
+	cluster2 := NewCluster(o.RemoteFactory, o.LocalFactory)
+	if err := cluster2.Init(ctx); err != nil {
+		return err
+	}
+
+	// If the clusters are still connected through the gateways, disconnect them before removing network Configurations.
+	gwServer, err := cluster1.GetGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster2.clusterIdentity))
+	switch {
+	case client.IgnoreNotFound(err) != nil:
+		return err
+	case err == nil:
+		if err := cluster1.DeleteGatewayServer(ctx, gwServer.Name); err != nil {
+			return err
+		}
+	}
+
+	gwClient, err := cluster2.GetGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster1.clusterIdentity))
+	switch {
+	case client.IgnoreNotFound(err) != nil:
+		return err
+	case err == nil:
+		if err := cluster2.DeleteGatewayClient(ctx, gwClient.Name); err != nil {
+			return err
+		}
+	}
+
+	// Delete Configuration on cluster 1
+	if err := cluster1.DeleteConfiguration(ctx, configuration.DefaultConfigurationName(cluster2.clusterIdentity)); err != nil {
+		return err
+	}
+
+	// Delete Configuration on cluster 2
+	return cluster2.DeleteConfiguration(ctx, configuration.DefaultConfigurationName(cluster1.clusterIdentity))
+}
+
 // RunConnect connect two clusters using liqo networking.
 func (o *Options) RunConnect(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
@@ -130,9 +179,19 @@ func (o *Options) RunConnect(ctx context.Context) error {
 		return err
 	}
 
+	// Check if the Networking is initialized on cluster 1
+	if err := cluster1.CheckNetworkInitialized(ctx, cluster2.clusterIdentity); err != nil {
+		return err
+	}
+
+	// Check if the Networking is initialized on cluster 2
+	if err := cluster2.CheckNetworkInitialized(ctx, cluster1.clusterIdentity); err != nil {
+		return err
+	}
+
 	// Create gateway server on cluster 1
 	gwServer, err := cluster1.EnsureGatewayServer(ctx,
-		cluster2.clusterIdentity.ClusterName,
+		gatewayserver.DefaultGatewayServerName(cluster2.clusterIdentity),
 		o.newGatewayServerForgeOptions(o.LocalFactory.KubeClient, cluster2.clusterIdentity.ClusterID))
 	if err != nil {
 		return err
@@ -145,7 +204,7 @@ func (o *Options) RunConnect(ctx context.Context) error {
 
 	// Create gateway client on cluster 2
 	gwClient, err := cluster2.EnsureGatewayClient(ctx,
-		cluster1.clusterIdentity.ClusterName,
+		gatewayclient.DefaultGatewayClientName(cluster1.clusterIdentity),
 		o.newGatewayClientForgeOptions(o.RemoteFactory.KubeClient, cluster1.clusterIdentity.ClusterID, gwServer.Status.Endpoint))
 	if err != nil {
 		return err
@@ -207,6 +266,32 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// RunDisconnect disconnects two clusters.
+func (o *Options) RunDisconnect(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
+	defer cancel()
+
+	// Create and initialize cluster 1.
+	cluster1 := NewCluster(o.LocalFactory, o.RemoteFactory)
+	if err := cluster1.Init(ctx); err != nil {
+		return err
+	}
+
+	// Create and initialize cluster 2.
+	cluster2 := NewCluster(o.RemoteFactory, o.LocalFactory)
+	if err := cluster2.Init(ctx); err != nil {
+		return err
+	}
+
+	// Delete gateway server on cluster 1
+	if err := cluster1.DeleteGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster2.clusterIdentity)); err != nil {
+		return err
+	}
+
+	// Delete gateway client on cluster 2
+	return cluster2.DeleteGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster1.clusterIdentity))
 }
 
 func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID string) *gatewayserver.ForgeOptions {

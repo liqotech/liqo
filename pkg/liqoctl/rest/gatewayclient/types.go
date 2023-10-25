@@ -33,6 +33,7 @@ const (
 // Options encapsulates the arguments of the gatewayclient command.
 type Options struct {
 	createOptions *rest.CreateOptions
+	deleteOptions *rest.DeleteOptions
 
 	RemoteClusterID   string
 	GatewayType       string
@@ -56,6 +57,7 @@ func GatewayClient() rest.API {
 func (o *Options) APIOptions() *rest.APIOptions {
 	return &rest.APIOptions{
 		EnableCreate: true,
+		EnableDelete: true,
 	}
 }
 
