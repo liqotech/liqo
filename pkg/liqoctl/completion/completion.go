@@ -283,8 +283,8 @@ func PVCs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	return common(ctx, f, argsLimit, retriever)
 }
 
-// Gateway returns a function to autocomplete Gateway (server or client) names.
-func Gateway(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+// Gateways returns a function to autocomplete Gateway (server or client) names.
+func Gateways(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
 		var names []string
 
@@ -302,6 +302,79 @@ func Gateway(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 		}
 		for i := range gwClients.Items {
 			names = append(names, gwClients.Items[i].Name)
+		}
+
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// GatewayServers returns a function to autocomplete GatewayServers names.
+func GatewayServers(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var gwServers networkingv1alpha1.GatewayServerList
+		if err := f.CRClient.List(ctx, &gwServers, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range gwServers.Items {
+			names = append(names, gwServers.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// GatewayClients returns a function to autocomplete GatewayClients names.
+func GatewayClients(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var gwClients networkingv1alpha1.GatewayClientList
+		if err := f.CRClient.List(ctx, &gwClients, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range gwClients.Items {
+			names = append(names, gwClients.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// PublicKeys returns a function to autocomplete PublicKeys names.
+func PublicKeys(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var publicKeys networkingv1alpha1.PublicKeyList
+		if err := f.CRClient.List(ctx, &publicKeys, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range publicKeys.Items {
+			names = append(names, publicKeys.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// Configurations returns a function to autocomplete Configurations names.
+func Configurations(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var configurations networkingv1alpha1.ConfigurationList
+		if err := f.CRClient.List(ctx, &configurations, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range configurations.Items {
+			names = append(names, configurations.Items[i].Name)
 		}
 		return names, nil
 	}

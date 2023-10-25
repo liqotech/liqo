@@ -30,6 +30,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	getters "github.com/liqotech/liqo/pkg/utils/getters"
@@ -206,16 +207,11 @@ func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
 func (w *Waiter) ForConfiguration(ctx context.Context, conf *networkingv1alpha1.Configuration) error {
 	s := w.Printer.StartSpinner("Waiting for configuration to be applied")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		currentConf := &networkingv1alpha1.Configuration{}
-		err = w.CRClient.Get(ctx, client.ObjectKey{Name: conf.Name, Namespace: conf.Namespace}, currentConf)
+		ok, err := configuration.IsConfigurationStatusSet(ctx, w.CRClient, conf.Name, conf.Namespace)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
-
-		return currentConf.Status.Remote != nil &&
-				currentConf.Status.Remote.CIDR.Pod.String() != "" &&
-				currentConf.Status.Remote.CIDR.External.String() != "",
-			nil
+		return ok, nil
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("Failed waiting for configuration to be applied: %s", output.PrettyErr(err)))
