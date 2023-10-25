@@ -16,13 +16,64 @@ package gatewayclient
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqoctl/completion"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 )
 
+const liqoctlDeleteGatewayClientLongHelp = `Delete a GatewayClient.
+
+Examples:
+  $ {{ .Executable }} delete gatewayclient my-gateway-client`
+
 // Delete deletes a GatewayClient.
-func (o *Options) Delete(_ context.Context, _ *rest.DeleteOptions) *cobra.Command {
-	panic("not implemented")
+func (o *Options) Delete(ctx context.Context, options *rest.DeleteOptions) *cobra.Command {
+	o.deleteOptions = options
+
+	cmd := &cobra.Command{
+		Use:     "gatewayclient",
+		Aliases: []string{"gatewayclients", "client", "clients", "gwc"},
+		Short:   "Delete a GatewayClient",
+		Long:    liqoctlDeleteGatewayClientLongHelp,
+
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completion.GatewayClients(ctx, o.deleteOptions.Factory, 1),
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			options.Name = args[0]
+			o.deleteOptions = options
+		},
+
+		Run: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(o.handleDelete(ctx))
+		},
+	}
+
+	return cmd
+}
+
+func (o *Options) handleDelete(ctx context.Context) error {
+	opts := o.deleteOptions
+	s := opts.Printer.StartSpinner("Deleting GatewayClient")
+
+	gatewayClient := &networkingv1alpha1.GatewayClient{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      opts.Name,
+			Namespace: opts.Namespace,
+		},
+	}
+	if err := o.deleteOptions.CRClient.Delete(ctx, gatewayClient); err != nil {
+		err = fmt.Errorf("unable to delete GatewayClient: %w", err)
+		s.Fail(err)
+		return err
+	}
+
+	s.Success("GatewayClient deleted")
+	return nil
 }
