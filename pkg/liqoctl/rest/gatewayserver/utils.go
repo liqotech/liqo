@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
@@ -77,4 +78,9 @@ func MutateGatewayServer(gwServer *networkingv1alpha1.GatewayServer, o *ForgeOpt
 	}
 
 	return nil
+}
+
+// DefaultGatewayServerName returns the default name for a GatewayServer.
+func DefaultGatewayServerName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
+	return remoteClusterIdentity.ClusterName
 }
