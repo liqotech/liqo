@@ -47,6 +47,7 @@ Considering two clusters (C1 and C2) in which the former has started a peering t
 ```{figure} /_static/images/usage/security-modes/security-modes-schema.drawio.svg
 ---
 align: center
+class: mb
 ---
 
 ```
@@ -54,6 +55,7 @@ align: center
 ```{figure} /_static/images/usage/security-modes/matrix-full-p2p.drawio.svg
 ---
 align: center
+class: mb
 ---
 
 ```
@@ -71,6 +73,7 @@ Using the same rules and conventions already presented for the previous case (_f
 ```{figure} /_static/images/usage/security-modes/security-modes-schema.drawio.svg
 ---
 align: center
+class: mb
 ---
 
 ```
@@ -78,8 +81,17 @@ align: center
 ```{figure} /_static/images/usage/security-modes/matrix-traffic-segregation.drawio.svg
 ---
 align: center
+class: mb
 ---
 
+```
+
+``` {warning} Warning
+Currently, when this feature is enabled, your offloaded pods will not be able to reach the local cluster's API Server.
+This is due to the fact that the API Server is not exposed as a service, but it is directly reachable through the remapped cluster's IP address.
+This limitation will be removed in future.
+
+For the same reason, the [in-band](FeaturesPeeringInBandControlPlane) peer will not work in this mode.
 ```
 
 ## Selection of the security mode
