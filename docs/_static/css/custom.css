@@ -9,3 +9,7 @@
     font-size: 0.85rem !important;
     line-height: unset !important;
 }
+
+.mb {
+    margin-bottom: 1.5rem !important;
+}
