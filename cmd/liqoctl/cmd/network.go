@@ -32,11 +32,22 @@ import (
 
 const liqoctlNetworkLongHelp = `Manage liqo networking.`
 
-const liqoctlNetworkInitLongHelp = `Initialize the liqo networking between two clusters.`
+const liqoctlNetworkInitLongHelp = `Initialize the liqo networking between two clusters.
+
+It generates all network configurations required to connect the two clusters.`
+
+const liqoctlNetworkResetLongHelp = `Tear down all liqo networking between two clusters.
+
+It disconnects the two clusters and remove network configurations generated with the *network init* command.`
 
 const liqoctlNetworConnectLongHelp = `Connect two clusters using liqo networking.
 
+This command creates the Gateways to connect the two clusters.
 Run this command after inizialiting the network using the *network init* command.`
+
+const liqoctlNetworkDisconnectLongHelp = `Disconnect two clusters.
+
+It deletes the Gateways, but keeps the network configurations generated with the *network init* command.`
 
 func newNetworkCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	options := network.NewOptions(f)
@@ -75,7 +86,9 @@ func newNetworkCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
 
 	cmd.AddCommand(newNetworkInitCommand(ctx, options))
+	cmd.AddCommand(newNetworkResetCommand(ctx, options))
 	cmd.AddCommand(newNetworkConnectCommand(ctx, options))
+	cmd.AddCommand(newNetworkDisconnectCommand(ctx, options))
 
 	return cmd
 }
@@ -88,7 +101,31 @@ func newNetworkInitCommand(ctx context.Context, options *network.Options) *cobra
 		Args:  cobra.NoArgs,
 
 		Run: func(cmd *cobra.Command, args []string) {
-			output.ExitOnErr(options.RunInit(ctx))
+			err := options.RunInit(ctx)
+			if err != nil {
+				options.LocalFactory.Printer.CheckErr(
+					fmt.Errorf("`network init` failed: issue `network reset` to cleanup the environment"))
+			}
+			output.ExitOnErr(err)
+		},
+	}
+
+	return cmd
+}
+
+func newNetworkResetCommand(ctx context.Context, options *network.Options) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "reset",
+		Short: "Tear down liqo networking between two clusters (disconnect and remove network configurations)",
+		Long:  WithTemplate(liqoctlNetworkResetLongHelp),
+		Args:  cobra.NoArgs,
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.LocalFactory.Printer.AskConfirm("reset", options.LocalFactory.SkipConfirm))
+		},
+
+		Run: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.RunReset(ctx))
 		},
 	}
 
@@ -103,7 +140,12 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 		Args:  cobra.NoArgs,
 
 		Run: func(cmd *cobra.Command, args []string) {
-			output.ExitOnErr(options.RunConnect(ctx))
+			err := options.RunConnect(ctx)
+			if err != nil {
+				options.LocalFactory.Printer.CheckErr(
+					fmt.Errorf("`network connect` failed: issue `network disconnect` to cleanup the environment"))
+			}
+			output.ExitOnErr(err)
 		},
 	}
 
@@ -134,6 +176,25 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 	cmd.Flags().BoolVar(&options.Proxy, "proxy", gatewayserver.DefaultProxy, "Enable proxy for the Gateway Server")
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("server-service-type", completion.Enumeration(options.ServerServiceType.Allowed)))
+
+	return cmd
+}
+
+func newNetworkDisconnectCommand(ctx context.Context, options *network.Options) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "disconnect",
+		Short: "Disconnect two clusters",
+		Long:  WithTemplate(liqoctlNetworkDisconnectLongHelp),
+		Args:  cobra.NoArgs,
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.LocalFactory.Printer.AskConfirm("disconnect", options.LocalFactory.SkipConfirm))
+		},
+
+		Run: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.RunDisconnect(ctx))
+		},
+	}
 
 	return cmd
 }
