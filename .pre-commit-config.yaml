@@ -1,0 +1,15 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+-   repo: https://github.com/golangci/golangci-lint
+    rev: v1.55.1
+    hooks:
+    - id: golangci-lint
+      name: golangci-lint
+      description: Fast linters runner for Go.
+      entry: golangci-lint run --new
+      types: [go]
+      language: golang
+      require_serial: true
+      pass_filenames: false
+      fail_fast: true

@@ -104,11 +104,16 @@ fmt: gci addlicense
 # Install golangci-lint if not available
 golangci-lint:
 ifeq (, $(shell which golangci-lint))
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.1
 GOLANGCILINT=$(GOBIN)/golangci-lint
 else
 GOLANGCILINT=$(shell which golangci-lint)
 endif
+
+# pre-commit install the pre-commit hook
+pre-commit:
+	pip3 install pre-commit
+	pre-commit install
 
 markdownlint:
 ifeq (, $(shell which markdownlint))
