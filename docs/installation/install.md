@@ -26,16 +26,10 @@ Hence, make sure you selected the correct target cluster before issuing *liqoctl
 
 **Supported CNIs**
 
-Liqo supports Kubernetes clusters using the following CNIs: [Flannel](https://github.com/flannel-io/flannel), [Calico](https://www.tigera.io/project-calico/), [Canal](https://github.com/projectcalico/canal), [Weave](https://github.com/weaveworks/weave).
-Additionally, partial support is provided for [Cilium](https://cilium.io/), although with the limitations listed below.
+Liqo supports Kubernetes clusters using the following CNIs: [Cilium](https://cilium.io/), [Flannel](https://github.com/flannel-io/flannel), [Calico](https://www.tigera.io/project-calico/), [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/install-for-flannel), [Weave](https://github.com/weaveworks/weave).
 
 ```{warning}
-If you are installing Liqo on a cluster using the **Calico** CNI, you MUST read the [dedicated configuration section](InstallationCalicoConfiguration) to avoid unwanted misconfigurations.
-```
-
-```{admonition} Liqo + Cilium limitations
-Currently, Liqo supports the Cilium CNI only when *kube-proxy* is enabled.
-Additionally, known limitations concern the impossibility of accessing the backends of *NodePort* and *LoadBalancer* services hosted on remote clusters, from a local cluster using Cilium as CNI.
+If you are installing Liqo on a cluster using the **Calico** or **Cilium** CNI, you MUST read the [dedicated configuration section](InstallationCNIConfiguration) to avoid unwanted misconfigurations.
 ```
 
 **Installation**
@@ -534,8 +528,6 @@ Alternatively, the Helm chart can be retrieved from a **local path**, as configu
 liqoctl install <provider> --version <commit-sha> --local-chart-path <path-to-local-chart>
 ```
 
-(InstallationCalicoConfiguration)=
-
 ## Check installation
 
 After the installation, you can check the status of the Liqo components.
@@ -545,7 +537,31 @@ In particular, the following command can be used to check the status of the Liqo
 liqoctl status
 ```
 
-## Liqo and Calico
+(InstallationCNIConfiguration)=
+
+## CNIs
+
+### Cilium
+
+Liqo creates a new node for each remote cluster, however we do not schedule daemonsets on these nodes.
+
+From version **1.14.2** cilum adds a taint to the nodes where the daemonset is not scheduled, so that pods are not scheduled on them.
+This taint prevents also Liqo pods to be scheduled on the remote nodes.
+
+To solve this issue we need to specify to cilium daemonsets to ignore the Liqo node.
+This can be done by adding the following helm values to cilium installation:
+
+```yaml
+affinity:
+  nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: liqo.io/type
+            operator: DoesNotExist
+```
+
+### Calico
 
 Liqo adds several interfaces to the cluster nodes to handle cross-cluster traffic routing.
 Those interfaces are intended to not interfere with the normal CNI job.
