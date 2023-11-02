@@ -98,7 +98,7 @@ func (c *ConnChecker) AddAndRunSender(ctx context.Context, clusterID, ip string,
 	}
 	c.sm.Unlock()
 
-	if err := wait.PollUntilContextCancel(ctxSender, PingInterval, true, pingCallback); err != nil {
+	if err := wait.PollUntilContextCancel(ctxSender, PingInterval, false, pingCallback); err != nil {
 		klog.Errorf("conncheck sender %s stopped for an error: %s", clusterID, err)
 	}
 
