@@ -371,9 +371,11 @@ func main() {
 	// Create an accessory manager that cache only local offloaded pods.
 	// This manager caches only the pods that are offloaded and scheduled on a remote cluster.
 	auxmgrExtNetworkPods, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider:     mapper.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Metrics: server.Options{
+			BindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+		},
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
