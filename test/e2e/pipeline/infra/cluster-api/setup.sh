@@ -93,6 +93,10 @@ do
   # install local-path storage class
   "${KUBECTL}" apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.24/deploy/local-path-storage.yaml --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
   "${KUBECTL}" annotate storageclass local-path storageclass.kubernetes.io/is-default-class=true --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+
+  # Install metrics-server
+  "${KUBECTL}" apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.6.4/components.yaml --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  "${KUBECTL}" -n kube-system patch deployment metrics-server --type json --patch '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]' --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
