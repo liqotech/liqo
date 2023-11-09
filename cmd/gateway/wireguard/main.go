@@ -27,10 +27,12 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -105,10 +107,16 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	// Create the manager.
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		MapperProvider:         mapper.LiqoMapperProvider(scheme),
-		Scheme:                 scheme,
-		Namespace:              options.GwOptions.Namespace,
-		MetricsBindAddress:     options.GwOptions.MetricsAddress,
+		MapperProvider: mapper.LiqoMapperProvider(scheme),
+		Scheme:         scheme,
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				options.GwOptions.Namespace: {},
+			},
+		},
+		Metrics: server.Options{
+			BindAddress: options.GwOptions.MetricsAddress,
+		},
 		HealthProbeBindAddress: options.GwOptions.ProbeAddr,
 		LeaderElection:         options.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
