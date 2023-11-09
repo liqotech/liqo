@@ -215,6 +215,7 @@ E2E_TARGETS = e2e-dir \
 	installer/liqoctl/peer \
 	e2e/postinstall \
 	e2e/cruise \
+	metrics \
 	installer/liqoctl/unpeer \
 	installer/liqoctl/uninstall \
 	e2e/postuninstall
@@ -253,6 +254,10 @@ installer/%:
 
 telemetry:
 	${PWD}/test/e2e/pipeline/telemetry/telemetry.sh
+
+metrics:
+	chmod +x ${PWD}/test/e2e/pipeline/metrics/metrics.sh
+	${PWD}/test/e2e/pipeline/metrics/metrics.sh
 
 e2e/%:
 	go test ${PWD}/test/$@/... -count=1 -timeout=20m
