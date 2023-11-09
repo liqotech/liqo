@@ -7,6 +7,9 @@ WORKDIR=$(dirname "$FILEPATH")
 # shellcheck source=./pre-requirements.sh
 source "$WORKDIR/pre-requirements.sh"
 
+# shellcheck source=../../utils.sh
+source "$WORKDIR/../../utils.sh"
+
 DOCKER_PROXY="${DOCKER_PROXY:-docker.io}"
 
 function install_calico() {
@@ -56,11 +59,17 @@ EOF
 
 function wait_calico() {
     local kubeconfig=$1
-    sleep 5
-    "${KUBECTL}" wait --for condition=Ready=true -n calico-system pod --all --kubeconfig "$kubeconfig" --timeout=-1s
-    sleep 10
+    if ! waitandretry 5s 12 "${KUBECTL} wait --for condition=Ready=true -n calico-system pod --all --kubeconfig $kubeconfig --timeout=-1s"
+    then
+      echo "Failed to wait for calico pods to be ready"
+      exit 1
+    fi
     # set felix to use different port for VXLAN
-    "${KUBECTL}" patch felixconfiguration default --type='merge' -p '{"spec":{"vxlanPort": 6789}}' --kubeconfig "$kubeconfig"
+    if ! waitandretry 5s 12 "${KUBECTL} patch felixconfiguration default --type='merge' -p '{\"spec\":{\"vxlanPort\": 6789}}' --kubeconfig $kubeconfig";
+    then
+      echo "Failed to patch felixconfiguration"
+      exit 1
+    fi
 }
 
 function install_cilium() {
@@ -112,6 +121,9 @@ function install_flannel() {
 
 function wait_flannel() {
     local kubeconfig=$1
-    sleep 15
-    "${KUBECTL}" wait --for condition=Ready=true -n kube-flannel pod --all --timeout=-1s --kubeconfig "$kubeconfig"
+    if ! waitandretry 5s 12 "${KUBECTL} wait --for condition=Ready=true -n kube-flannel pod --all --timeout=-1s --kubeconfig $kubeconfig";
+    then
+      echo "Failed to wait for flannel pods to be ready"
+      exit 1
+    fi
 }
