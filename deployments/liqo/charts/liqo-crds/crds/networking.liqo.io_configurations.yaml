@@ -16,7 +16,29 @@ spec:
     singular: configuration
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.labels.liqo\.io/remote-cluster-id
+      name: ClusterID
+      priority: 1
+      type: string
+    - jsonPath: .spec.remote.cidr.pod
+      name: 'Desired Pod CIDR '
+      type: string
+    - jsonPath: .status.remote.cidr.pod
+      name: Remapped Pod CIDR
+      type: string
+    - jsonPath: .spec.remote.cidr.external
+      name: Desired External CIDR
+      priority: 1
+      type: string
+    - jsonPath: .status.remote.cidr.external
+      name: Remapped External CIDR
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Configuration contains the network configuration of a pair of

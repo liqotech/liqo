@@ -65,6 +65,12 @@ type ConfigurationStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="ClusterID",type=string,priority=1,JSONPath=`.metadata.labels.liqo\.io/remote-cluster-id`
+// +kubebuilder:printcolumn:name="Desired Pod CIDR ",type=string,JSONPath=`.spec.remote.cidr.pod`
+// +kubebuilder:printcolumn:name="Remapped Pod CIDR",type=string,JSONPath=`.status.remote.cidr.pod`
+// +kubebuilder:printcolumn:name="Desired External CIDR",type=string,priority=1,JSONPath=`.spec.remote.cidr.external`
+// +kubebuilder:printcolumn:name="Remapped External CIDR",type=string,priority=1,JSONPath=`.status.remote.cidr.external`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Configuration contains the network configuration of a pair of clusters,
 // including the local and the remote pod and external CIDRs and how the where remapped.
