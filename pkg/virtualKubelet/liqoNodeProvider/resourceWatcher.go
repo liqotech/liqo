@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -45,13 +45,14 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 	_, err := virtualNodeInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromVirtualNode))
 	runtime.Must(err)
 
-	var tepInformerFactory dynamicinformer.DynamicSharedInformerFactory
+	var connInformerFactory dynamicinformer.DynamicSharedInformerFactory
 	if p.checkNetworkStatus {
-		tepInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
-			opt.LabelSelector = consts.ClusterIDLabelName + "=" + p.foreignClusterID
-		})
-		tepInformer := tepInformerFactory.ForResource(netv1alpha1.TunnelEndpointGroupVersionResource).Informer()
-		_, err := tepInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromTep))
+		connInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, namespace,
+			func(opt *metav1.ListOptions) {
+				opt.LabelSelector = consts.RemoteClusterID + "=" + p.foreignClusterID
+			})
+		connInformer := connInformerFactory.ForResource(networkingv1alpha1.ConnectionGroupVersionResource).Informer()
+		_, err := connInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromConnection))
 		runtime.Must(err)
 	}
 
@@ -60,7 +61,7 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 		<-ready
 		go virtualNodeInformerFactory.Start(ctx.Done())
 		if p.checkNetworkStatus {
-			go tepInformerFactory.Start(ctx.Done())
+			go connInformerFactory.Start(ctx.Done())
 		}
 		klog.Info("Liqo informers started")
 	}()
