@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package v1alpha1 contains API Schema definitions for the networking v1alpha1 API group.
-//
 //nolint:lll // ignore long lines given by Kubebuilder marker annotations.
 package v1alpha1
 
