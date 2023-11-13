@@ -420,6 +420,22 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - connections
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - connections/status
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - externalnetworks
   verbs:
   - create
