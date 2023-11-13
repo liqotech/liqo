@@ -37,68 +37,102 @@ spec:
           spec:
             description: FirewallConfigurationSpec defines the desired state of FirewallConfiguration.
             properties:
-              command:
-                description: Command to add or remove rules.
-                properties:
-                  add:
-                    description: Add contains the commands to add rules.
-                    items:
-                      type: string
-                    type: array
-                  remove:
-                    description: Remove contains the commands to remove rules.
-                    items:
-                      type: string
-                    type: array
-                type: object
-              expectedRule:
-                description: ExpectedRule contains the expected rule.
-                type: string
               table:
-                description: Table contains the table where the rule is applied.
-                type: string
+                description: Table contains the rules to be applied to the firewall.
+                properties:
+                  chains:
+                    description: Chains is a list of chains to be applied to the table.
+                    items:
+                      description: Chain is a chain of rules to be applied to a table.
+                      properties:
+                        hook:
+                          description: Hook specifies at which step in packet processing
+                            the Chain should be executed.
+                          enum:
+                          - prerouting
+                          - input
+                          - forward
+                          - output
+                          - postrouting
+                          - ingress
+                          type: string
+                        name:
+                          description: Name is the name of the chain.
+                          type: string
+                        policy:
+                          description: Policy defines what this chain default policy
+                            will be.
+                          enum:
+                          - drop
+                          - accept
+                          type: string
+                        priority:
+                          default: 0
+                          description: Priority orders the chain relative to Netfilter
+                            internal operations.
+                          format: int32
+                          type: integer
+                        rules:
+                          description: Rules is a list of rules to be applied to the
+                            chain.
+                          properties:
+                            filterRules:
+                              description: FilterRules is a list of rules to be applied
+                                to the chain.
+                              items:
+                                description: FilterRule is a rule to be applied to
+                                  a filter chain.
+                                type: object
+                              type: array
+                            natRules:
+                              description: NatRules is a list of rules to be applied
+                                to the chain.
+                              items:
+                                description: NatRule is a rule to be applied to a
+                                  NAT chain.
+                                type: object
+                              type: array
+                            routeRules:
+                              description: RouteRules is a list of rules to be applied
+                                to the chain.
+                              items:
+                                description: RouteRule is a rule to be applied to
+                                  a route chain.
+                                type: object
+                              type: array
+                          type: object
+                        type:
+                          description: Type defines what this chain will be used for.
+                          enum:
+                          - filter
+                          - route
+                          - nat
+                          type: string
+                      type: object
+                    type: array
+                  family:
+                    description: Family is the family of the table.
+                    enum:
+                    - INET
+                    - IPV4
+                    - IPV6
+                    - ARP
+                    - NETDEV
+                    - BRIDGE
+                    type: string
+                  name:
+                    description: Name is the name of the table.
+                    type: string
+                type: object
             type: object
           status:
             description: FirewallConfigurationStatus defines the observed state of
               FirewallConfiguration.
             properties:
-              conditions:
-                description: Conditions contains the conditions of the firewallconfiguration.
-                items:
-                  description: FirewallConfigurationCondition contains details about
-                    state of the firewallconfiguration.
-                  properties:
-                    lastTransitionTime:
-                      description: LastTransitionTime -> timestamp for when the condition
-                        last transitioned from one status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: Message -> Human-readable message indicating details
-                        about the last status transition.
-                      type: string
-                    reason:
-                      description: Reason -> Machine-readable, UpperCamelCase text
-                        indicating the reason for the condition's last transition.
-                      type: string
-                    status:
-                      default: Unknown
-                      description: Status of the condition.
-                      enum:
-                      - "True"
-                      - "False"
-                      - Unknown
-                      type: string
-                    type:
-                      description: Type of the firewallconfiguration condition.
-                      enum:
-                      - Applied
-                      type: string
-                  required:
-                  - status
-                  - type
-                  type: object
-                type: array
+              condition:
+                description: Applied is true if the configuration has been applied
+                  to the firewall.
+                type: string
             type: object
         type: object
     served: true
