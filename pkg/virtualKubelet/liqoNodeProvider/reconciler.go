@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/maps"
@@ -51,20 +51,21 @@ func (p *LiqoNodeProvider) reconcileNodeFromVirtualNode(event watch.Event) error
 	return nil
 }
 
-func (p *LiqoNodeProvider) reconcileNodeFromTep(event watch.Event) error {
-	var tep netv1alpha1.TunnelEndpoint
+func (p *LiqoNodeProvider) reconcileNodeFromConnection(event watch.Event) error {
+	var connection networkingv1alpha1.Connection
 	unstruct, ok := event.Object.(*unstructured.Unstructured)
 	if !ok {
-		return errors.New("error in casting tunnel endpoint: recreate watcher")
+		return errors.New("error in casting Connection")
 	}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, &tep); err != nil {
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, &connection); err != nil {
 		klog.Error(err)
 		return err
 	}
+
 	if event.Type == watch.Deleted {
 		p.updateMutex.Lock()
 		defer p.updateMutex.Unlock()
-		klog.Infof("tunnelEndpoint %v deleted", tep.Name)
+		klog.Infof("connection %v deleted", connection.Name)
 		p.networkReady = false
 		err := p.updateNode()
 		if err != nil {
@@ -73,11 +74,10 @@ func (p *LiqoNodeProvider) reconcileNodeFromTep(event watch.Event) error {
 		return err
 	}
 
-	if err := p.updateFromTep(&tep); err != nil {
-		klog.Errorf("node update from tunnelEndpoint %v failed for reason %v; retry...", tep.Name, err)
+	if err := p.updateFromConnection(&connection); err != nil {
+		klog.Errorf("node update from connection %v failed for reason %v; retry...", connection.Name, err)
 		return err
 	}
-	klog.Info("correctly set pod CIDR from tunnel endpoint")
 	return nil
 }
 
@@ -119,16 +119,11 @@ func (p *LiqoNodeProvider) updateFromVirtualNode(ctx context.Context,
 	return p.updateNode()
 }
 
-func (p *LiqoNodeProvider) updateFromTep(tep *netv1alpha1.TunnelEndpoint) error {
+func (p *LiqoNodeProvider) updateFromConnection(connection *networkingv1alpha1.Connection) error {
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	// if tep is not connected yet, return
-	if tep.Status.Connection.Status != netv1alpha1.Connected {
-		p.networkReady = false
-		return p.updateNode()
-	}
-	p.networkReady = true
+	p.networkReady = connection.Status.Value == networkingv1alpha1.Connected
 	return p.updateNode()
 }
 
