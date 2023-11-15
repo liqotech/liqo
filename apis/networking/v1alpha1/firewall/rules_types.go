@@ -33,9 +33,12 @@ type RouteRule struct {
 // +kubebuilder:object:generate=true
 type RulesSet struct {
 	// NatRules is a list of rules to be applied to the chain.
-	NatRules []NatRule `json:"natRules,omitempty"`
+	// +kubebuilder:validation:Optional
+	NatRules []NatRule `json:"natRules"`
 	// FilterRules is a list of rules to be applied to the chain.
-	FilterRules []FilterRule `json:"filterRules,omitempty"`
+	// +kubebuilder:validation:Optional
+	FilterRules []FilterRule `json:"filterRules"`
 	// RouteRules is a list of rules to be applied to the chain.
-	RouteRules []RouteRule `json:"routeRules,omitempty"`
+	// +kubebuilder:validation:Optional
+	RouteRules []RouteRule `json:"routeRules"`
 }
