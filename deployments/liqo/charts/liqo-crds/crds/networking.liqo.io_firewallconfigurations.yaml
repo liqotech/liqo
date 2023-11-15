@@ -16,7 +16,14 @@ spec:
     singular: firewallconfiguration
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.condition
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: FirewallConfiguration contains a rule to be applied to the firewall
@@ -111,6 +118,7 @@ spec:
                       required:
                       - hook
                       - name
+                      - policy
                       - priority
                       - rules
                       - type
