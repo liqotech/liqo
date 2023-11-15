@@ -108,6 +108,12 @@ spec:
                           - route
                           - nat
                           type: string
+                      required:
+                      - hook
+                      - name
+                      - priority
+                      - rules
+                      - type
                       type: object
                     type: array
                   family:
@@ -123,7 +129,12 @@ spec:
                   name:
                     description: Name is the name of the table.
                     type: string
+                required:
+                - family
+                - name
                 type: object
+            required:
+            - table
             type: object
           status:
             description: FirewallConfigurationStatus defines the observed state of

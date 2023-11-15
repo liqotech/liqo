@@ -26,7 +26,7 @@ import (
 // FirewallConfigurationSpec defines the desired state of FirewallConfiguration.
 type FirewallConfigurationSpec struct {
 	// Table contains the rules to be applied to the firewall.
-	Table firewallapi.Table `json:"table,omitempty"`
+	Table firewallapi.Table `json:"table"`
 }
 
 // FirewallConfigurationStatusCondition defines the observed state of FirewallConfiguration.
