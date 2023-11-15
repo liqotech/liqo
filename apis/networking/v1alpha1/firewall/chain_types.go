@@ -86,7 +86,7 @@ type Chain struct {
 	Type *ChainType `json:"type"`
 	// Policy defines what this chain default policy will be.
 	// +kubebuilder:validation:Enum="drop";"accept"
-	Policy *ChainPolicy `json:"policy,omitempty"`
+	Policy *ChainPolicy `json:"policy"`
 	// Hook specifies at which step in packet processing the Chain should be executed.
 	// +kubebuilder:validation:Enum="prerouting";"input";"forward";"output";"postrouting";"ingress"
 	Hook *ChainHook `json:"hook"`
