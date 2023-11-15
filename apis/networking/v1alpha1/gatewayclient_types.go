@@ -63,6 +63,7 @@ type GatewayClientStatus struct {
 // +kubebuilder:printcolumn:name="Port",type=string,JSONPath=`.spec.endpoint.port`
 // +kubebuilder:printcolumn:name="Protocol",type=string,JSONPath=`.spec.endpoint.protocol`, priority=1
 // +kubebuilder:printcolumn:name="MTU",type=integer,JSONPath=`.spec.mtu`, priority=1
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // GatewayClient defines a gateway client that needs to point to a remote gateway server.
 type GatewayClient struct {
