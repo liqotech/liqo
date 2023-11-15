@@ -34,7 +34,8 @@ type Table struct {
 	// Name is the name of the table.
 	Name *string `json:"name"`
 	// Chains is a list of chains to be applied to the table.
-	Chains []Chain `json:"chains,omitempty"`
+	// +kubebuilder:validation:Optional
+	Chains []Chain `json:"chains"`
 	// Family is the family of the table.
 	// +kubebuilder:validation:Enum="INET";"IPV4";"IPV6";"ARP";"NETDEV";"BRIDGE"
 	Family *TableFamily `json:"family"`
