@@ -78,19 +78,19 @@ var (
 // +kubebuilder:object:generate=true
 type Chain struct {
 	// Name is the name of the chain.
-	Name string `json:"name,omitempty"`
+	Name *string `json:"name"`
 	// Rules is a list of rules to be applied to the chain.
-	Rules RulesSet `json:"rules,omitempty"`
+	Rules RulesSet `json:"rules"`
 	// Type defines what this chain will be used for.
 	// +kubebuilder:validation:Enum="filter";"route";"nat"
-	Type ChainType `json:"type,omitempty"`
+	Type *ChainType `json:"type"`
 	// Policy defines what this chain default policy will be.
 	// +kubebuilder:validation:Enum="drop";"accept"
-	Policy ChainPolicy `json:"policy,omitempty"`
+	Policy *ChainPolicy `json:"policy,omitempty"`
 	// Hook specifies at which step in packet processing the Chain should be executed.
 	// +kubebuilder:validation:Enum="prerouting";"input";"forward";"output";"postrouting";"ingress"
-	Hook ChainHook `json:"hook,omitempty"`
+	Hook *ChainHook `json:"hook"`
 	// Priority orders the chain relative to Netfilter internal operations.
 	// +kubebuilder:default=0
-	Priority ChainPriority `json:"priority,omitempty"`
+	Priority *ChainPriority `json:"priority"`
 }
