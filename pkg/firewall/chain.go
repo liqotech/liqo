@@ -16,17 +16,34 @@ package firewall
 
 import (
 	"github.com/google/nftables"
+	"k8s.io/klog/v2"
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 )
 
-func addChain(nftconn *nftables.Conn, chain *firewallapi.Chain, table *nftables.Table) error {
+func addChains(nftConn *nftables.Conn, chains []firewallapi.Chain, table *nftables.Table) error {
+	var err error
+	for i := range chains {
+		var nftchain *nftables.Chain
+		if nftchain, err = addChain(nftConn, &chains[i], table); err != nil {
+			return err
+		}
+		if err = addRules(nftConn, &chains[i], nftchain); err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+func addChain(nftconn *nftables.Conn, chain *firewallapi.Chain, table *nftables.Table) (*nftables.Chain, error) {
 	nftChain, err := getChain(nftconn, table, chain)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	// if the chain is already present do not add it again.
+	// if the chain has been modified, it has been deleted previously.
 	if nftChain != nil {
-		return nil
+		return nftChain, nil
 	}
 
 	nftChain = &nftables.Chain{Table: table}
@@ -44,7 +61,7 @@ func addChain(nftconn *nftables.Conn, chain *firewallapi.Chain, table *nftables.
 		setPolicy(nftChain, *chain.Policy)
 	}
 	nftconn.AddChain(nftChain)
-	return nil
+	return nftChain, nil
 }
 
 func getChain(nftConn *nftables.Conn, table *nftables.Table,
@@ -157,8 +174,9 @@ func getPolicy(policy nftables.ChainPolicy) firewallapi.ChainPolicy {
 // isChainOutdated checks if the chain has to be deleted.
 // A chain must be deleted when it's properties change
 // or when it is not contained in the FirewallConfiguration CRD.
+// The returned index is the index of the chain in the FirewallConfiguration CRD.
 
-func isChainOutdated(nftChain *nftables.Chain, chains []firewallapi.Chain) bool {
+func isChainOutdated(nftChain *nftables.Chain, chains []firewallapi.Chain) (outdated bool, index int) {
 	for i := range chains {
 		// if chain names are not equal, continue till the end of the list
 		// if the chain is not present, delete it
@@ -168,12 +186,12 @@ func isChainOutdated(nftChain *nftables.Chain, chains []firewallapi.Chain) bool 
 		// if chain names are equal, check if the chain has been modified
 		if isChainModified(nftChain, &chains[i]) {
 			// if the chain has been modified, delete it
-			return true
+			return true, i
 		}
 		// if the chain has not been modified, do not delete it
-		return false
+		return false, i
 	}
-	return true
+	return true, -1
 }
 
 // isChainModified checks if the chain has been modified.
@@ -192,4 +210,51 @@ func isChainModified(nftChain *nftables.Chain, chain *firewallapi.Chain) bool {
 		return true
 	}
 	return false
+}
+
+// FromChainToRulesArray converts a chain to an array of rules.
+func FromChainToRulesArray(chain *firewallapi.Chain) (rules []firewallapi.Rule) {
+	switch *chain.Type {
+	case firewallapi.ChainTypeFilter:
+		rules = make([]firewallapi.Rule, len(chain.Rules.FilterRules))
+		for i := range chain.Rules.FilterRules {
+			rules[i] = &chain.Rules.FilterRules[i]
+		}
+		return rules
+	case firewallapi.ChainTypeNAT:
+		rules = make([]firewallapi.Rule, len(chain.Rules.NatRules))
+		for i := range chain.Rules.NatRules {
+			rules[i] = &chain.Rules.NatRules[i]
+		}
+	case firewallapi.ChainTypeRoute:
+		rules = make([]firewallapi.Rule, len(chain.Rules.RouteRules))
+		for i := range chain.Rules.RouteRules {
+			rules[i] = &chain.Rules.RouteRules[i]
+		}
+	default:
+		klog.Warningf("unknown chain type %v", chain.Type)
+		rules = []firewallapi.Rule{}
+	}
+	// It is not necessary, but linter complains
+	return rules
+}
+
+// cleanChain removes all the rules that are not present in the firewall configuration or that have been modified.
+func cleanChain(nftconn *nftables.Conn, chain *firewallapi.Chain, nftChain *nftables.Chain) error {
+	nftRules, err := nftconn.GetRules(nftChain.Table, nftChain)
+	if err != nil {
+		return err
+	}
+	rules := FromChainToRulesArray(chain)
+	for i := range nftRules {
+		// If the rule is outdated, delete it.
+		outdated, ruleName := isRuleOutdated(nftRules[i], rules)
+		if outdated {
+			klog.V(2).Infof("deleting rule %s from chain %s", ruleName, nftChain.Name)
+			if err := nftconn.DelRule(nftRules[i]); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
