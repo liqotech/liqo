@@ -32,10 +32,10 @@ const (
 // +kubebuilder:object:generate=true
 type Table struct {
 	// Name is the name of the table.
-	Name string `json:"name,omitempty"`
+	Name *string `json:"name"`
 	// Chains is a list of chains to be applied to the table.
 	Chains []Chain `json:"chains,omitempty"`
 	// Family is the family of the table.
 	// +kubebuilder:validation:Enum="INET";"IPV4";"IPV6";"ARP";"NETDEV";"BRIDGE"
-	Family TableFamily `json:"family,omitempty"`
+	Family *TableFamily `json:"family"`
 }
