@@ -93,6 +93,7 @@ type GatewayServerStatus struct {
 // +kubebuilder:printcolumn:name="Port",type=string,JSONPath=`.status.endpoint.port`
 // +kubebuilder:printcolumn:name="Protocol",type=string,JSONPath=`.status.endpoint.protocol`, priority=1
 // +kubebuilder:printcolumn:name="MTU",type=integer,JSONPath=`.spec.mtu`, priority=1
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // GatewayServer defines a gateway server that remote gateway clients need to point to.
 type GatewayServer struct {
