@@ -11,6 +11,7 @@ require (
 	github.com/coreos/go-iptables v0.7.0
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/google/uuid v1.5.0
+	github.com/google/nftables v0.1.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.2
@@ -57,7 +58,7 @@ require (
 	k8s.io/klog/v2 v2.100.1
 	k8s.io/kubectl v0.28.4
 	k8s.io/metrics v0.28.4
-	k8s.io/utils v0.0.0-20230406110748-d93618cff8a2
+	k8s.io/utils v0.0.0-20231127182322-b307cd553661
 	sigs.k8s.io/aws-iam-authenticator v0.6.16
 	sigs.k8s.io/controller-runtime v0.16.3
 	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
