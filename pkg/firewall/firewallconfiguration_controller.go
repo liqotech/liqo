@@ -16,6 +16,7 @@ package firewall
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/nftables"
@@ -31,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/utils/json"
 )
 
 // FirewallConfigurationReconciler manage Configuration lifecycle.
@@ -65,8 +65,9 @@ func NewFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme, er 
 
 // Reconcile manage FirewallConfigurations, applying nftables configuration.
 func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var err error
 	fwcfg := &networkingv1alpha1.FirewallConfiguration{}
-	if err := r.Get(ctx, req.NamespacedName, fwcfg); err != nil {
+	if err = r.Get(ctx, req.NamespacedName, fwcfg); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no firewallconfiguration %s", req.String())
 			return ctrl.Result{}, nil
@@ -76,16 +77,14 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 
 	klog.V(4).Infof("Reconciling firewallconfiguration %s", req.String())
 
-	s, err := json.Pretty(fwcfg.Spec)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	fmt.Println(s)
+	defer func() {
+		err = r.UpdateStatus(ctx, r.EventsRecorder, fwcfg, err)
+	}()
 
 	// Manage Finalizers and Table deletion.
 	if fwcfg.DeletionTimestamp.IsZero() {
 		if !ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
-			if err := r.ensureFirewallConfigurationFinalizerPresence(ctx, fwcfg); err != nil {
+			if err = r.ensureFirewallConfigurationFinalizerPresence(ctx, fwcfg); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
@@ -93,20 +92,43 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	} else {
 		if ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
 			delTable(r.NftConnection, &fwcfg.Spec.Table)
-			if err := r.NftConnection.Flush(); err != nil {
+			if err = r.NftConnection.Flush(); err != nil {
 				return ctrl.Result{}, err
 			}
-			if err := r.ensureFirewallConfigurationFinalizerAbsence(ctx, fwcfg); err != nil {
+			if err = r.ensureFirewallConfigurationFinalizerAbsence(ctx, fwcfg); err != nil {
 				return ctrl.Result{}, err
 			}
+			klog.V(2).Infof("FirewallConfiguration %s deleted", req.String())
 		}
 		return ctrl.Result{}, nil
 	}
 
-	// Manage table creation and update.
-	addTable(r.NftConnection, &fwcfg.Spec.Table)
+	// If table exists, it delete chains which are not contained anymore in table.
+	if err = cleanTable(r.NftConnection, &fwcfg.Spec.Table); err != nil {
+		return ctrl.Result{}, err
+	}
 
-	return ctrl.Result{}, r.NftConnection.Flush()
+	// We need to flush the updates to allow the recreation of updated chains/rules.
+	if err = r.NftConnection.Flush(); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	klog.V(2).Infof("Applying firewallconfiguration %s", req.String())
+
+	// Enforce table existence and apply chains.
+	table := addTable(r.NftConnection, &fwcfg.Spec.Table)
+
+	for i := range fwcfg.Spec.Table.Chains {
+		if err = addChain(r.NftConnection, &fwcfg.Spec.Table.Chains[i], table); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	if err = r.NftConnection.Flush(); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager register the FirewallConfigurationReconciler to the manager.
@@ -118,4 +140,19 @@ func (r *FirewallConfigurationReconciler) SetupWithManager(mgr ctrl.Manager, lab
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1alpha1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
+}
+
+// UpdateStatus updates the status of the given FirewallConfiguration.
+func (r *FirewallConfigurationReconciler) UpdateStatus(ctx context.Context, er record.EventRecorder,
+	fwcfg *networkingv1alpha1.FirewallConfiguration, err error) error {
+	if err == nil {
+		fwcfg.Status.Condition = networkingv1alpha1.FirewallConfigurationStatusConditionApplied
+	} else {
+		fwcfg.Status.Condition = networkingv1alpha1.FirewallConfigurationStatusConditionError
+	}
+	er.Eventf(fwcfg, "Normal", "FirewallConfigurationUpdate", "FirewallConfiguration: %s", fwcfg.Status.Condition)
+	if clerr := r.Client.Status().Update(ctx, fwcfg); clerr != nil {
+		err = errors.Join(err, clerr)
+	}
+	return err
 }

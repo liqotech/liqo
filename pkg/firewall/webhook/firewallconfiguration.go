@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package webhooks
+package webhook
 
 import (
 	"context"
@@ -69,13 +69,23 @@ func (w *fwcfgwh) Handle(_ context.Context, req admission.Request) admission.Res
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
+	family := firewallConfiguration.Spec.Table.Family
 	chains := firewallConfiguration.Spec.Table.Chains
 
 	for i := range chains {
 		chaintype := chains[i].Type
 		rules := chains[i].Rules
+		hook := chains[i].Hook
 
 		total := totalDefinedRulesSets(rules)
+
+		if !allowedTableFamilyChainTypeHook(*family, *chaintype, *hook) {
+			return admission.Denied(
+				fmt.Sprintf("In chain %s, the combination of family %s, chain type %s and hook %s is not allowed. ",
+					*chains[i].Name, *family, *chaintype, *hook) +
+					"Please refer to https://wiki.nftables.org/wiki-nftables/index.php/Netfilter_hooks",
+			)
+		}
 
 		if total > 1 {
 			return admission.Denied(
