@@ -89,6 +89,9 @@ spec:
                               items:
                                 description: FilterRule is a rule to be applied to
                                   a filter chain.
+                                properties:
+                                  name:
+                                    type: string
                                 type: object
                               type: array
                             natRules:
@@ -97,6 +100,9 @@ spec:
                               items:
                                 description: NatRule is a rule to be applied to a
                                   NAT chain.
+                                properties:
+                                  name:
+                                    type: string
                                 type: object
                               type: array
                             routeRules:
@@ -105,6 +111,9 @@ spec:
                               items:
                                 description: RouteRule is a rule to be applied to
                                   a route chain.
+                                properties:
+                                  name:
+                                    type: string
                                 type: object
                               type: array
                           type: object

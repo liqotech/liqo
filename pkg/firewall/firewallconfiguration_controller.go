@@ -82,6 +82,7 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	}()
 
 	// Manage Finalizers and Table deletion.
+	// In nftables, table deletion automatically delete contained chains and rules.
 	if fwcfg.DeletionTimestamp.IsZero() {
 		if !ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
 			if err = r.ensureFirewallConfigurationFinalizerPresence(ctx, fwcfg); err != nil {
@@ -103,7 +104,8 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, nil
 	}
 
-	// If table exists, it delete chains which are not contained anymore in table.
+	// If table exists, it delete chains and rules which are not contained anymore in firewallconfiguration resource.
+	// It also deletes chains and rules which has been updated and need to be recreated.
 	if err = cleanTable(r.NftConnection, &fwcfg.Spec.Table); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -113,15 +115,13 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
-	klog.V(2).Infof("Applying firewallconfiguration %s", req.String())
+	klog.V(4).Infof("Applying firewallconfiguration %s", req.String())
 
-	// Enforce table existence and apply chains.
+	// Enforce table existence.
 	table := addTable(r.NftConnection, &fwcfg.Spec.Table)
 
-	for i := range fwcfg.Spec.Table.Chains {
-		if err = addChain(r.NftConnection, &fwcfg.Spec.Table.Chains[i], table); err != nil {
-			return ctrl.Result{}, err
-		}
+	if err = addChains(r.NftConnection, fwcfg.Spec.Table.Chains, table); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if err = r.NftConnection.Flush(); err != nil {
