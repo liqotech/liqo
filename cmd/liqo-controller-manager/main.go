@@ -63,6 +63,7 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
+	firewall "github.com/liqotech/liqo/pkg/firewall/webhooks"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
 	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
@@ -434,6 +435,7 @@ func main() {
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), &clusterIdentity, virtualKubeletOpts))
 	mgr.GetWebhookServer().Register("/validate/networks", nwwh.NewValidator())
 	mgr.GetWebhookServer().Register("/validate/ips", ipwh.NewValidator())
+	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", firewall.NewValidator())
 
 	if err := indexer.IndexField(ctx, mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
 		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
