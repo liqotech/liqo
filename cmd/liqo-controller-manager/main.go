@@ -63,7 +63,7 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
-	firewall "github.com/liqotech/liqo/pkg/firewall/webhooks"
+	firewall "github.com/liqotech/liqo/pkg/firewall/webhook"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
 	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
