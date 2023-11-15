@@ -48,6 +48,8 @@ type FirewallConfigurationStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.condition`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // FirewallConfiguration contains a rule to be applied to the firewall in the gateway.
 type FirewallConfiguration struct {
