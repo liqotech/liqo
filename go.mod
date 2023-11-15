@@ -186,8 +186,8 @@ require (
 	github.com/mattn/go-zglob v0.0.3 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/mdlayher/genetlink v1.2.0 // indirect
-	github.com/mdlayher/netlink v1.6.0 // indirect
-	github.com/mdlayher/socket v0.2.3 // indirect
+	github.com/mdlayher/netlink v1.7.1 // indirect
+	github.com/mdlayher/socket v0.4.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -275,5 +275,6 @@ require (
 replace (
 	// Waitin for PR https://github.com/coreos/go-iptables/pull/110 to be merged
 	github.com/coreos/go-iptables => github.com/cheina97/go-iptables v0.0.0-20230824102241-61fc692e7548
+	github.com/google/nftables => github.com/google/nftables v0.1.1-0.20231024065723-32bfbb662717
 	github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
 )

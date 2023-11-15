@@ -456,6 +456,16 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - firewallconfigurations
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - gatewayclients
   verbs:
   - create
