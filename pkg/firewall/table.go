@@ -54,20 +54,28 @@ func getTableFamily(family firewallapi.TableFamily) nftables.TableFamily {
 	}
 }
 
-// cleanTable removes all the chains that are not present in the firewall configuration or that have been modified.
-// Policy field is not considered since it can be modified without deleting the chain.
+// cleanTable removes all the chains and rules that are not present in the firewall configuration or that have been modified.
 func cleanTable(nftconn *nftables.Conn, table *firewallapi.Table) error {
-	chains, err := nftconn.ListChainsOfTableFamily(getTableFamily(*table.Family))
+	nftChains, err := nftconn.ListChainsOfTableFamily(getTableFamily(*table.Family))
 	if err != nil {
 		return err
 	}
-	for i := range chains {
-		if chains[i].Table.Name != *table.Name {
+	// Cycle on chains that are applied on nftable.
+	for i := range nftChains {
+		// We need to filter the chains which are contained in the table.
+		if nftChains[i].Table.Name != *table.Name {
 			continue
 		}
-		if isChainOutdated(chains[i], table.Chains) {
-			klog.V(2).Infof("deleting chain %s", chains[i].Name)
-			nftconn.DelChain(chains[i])
+		// If the chain is outdated we need to delete it. Otherwise we get the index of the chain and check the rules inside it.
+		outdated, chainIndex := isChainOutdated(nftChains[i], table.Chains)
+		if outdated {
+			klog.V(2).Infof("deleting chain %s", nftChains[i].Name)
+			nftconn.DelChain(nftChains[i])
+			continue
+		}
+		// If the chain is not outdated we need to check the rules inside it.
+		if err := cleanChain(nftconn, &table.Chains[chainIndex], nftChains[i]); err != nil {
+			return err
 		}
 	}
 	return nil
