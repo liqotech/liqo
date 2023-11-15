@@ -16,21 +16,61 @@ package firewall
 
 import (
 	"github.com/google/nftables"
+	"k8s.io/klog/v2"
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 )
 
-func addTable(nftconn *nftables.Conn, table *firewallapi.Table) {
+func addTable(nftconn *nftables.Conn, table *firewallapi.Table) *nftables.Table {
 	nftTable := &nftables.Table{}
 	setTableName(nftTable, *table.Name)
 	setTableFamily(nftTable, *table.Family)
 	nftconn.AddTable(nftTable)
+	return nftTable
 }
 
 func delTable(nftconn *nftables.Conn, table *firewallapi.Table) {
 	nftTable := &nftables.Table{}
 	setTableName(nftTable, *table.Name)
 	nftconn.DelTable(nftTable)
+}
+
+func getTableFamily(family firewallapi.TableFamily) nftables.TableFamily {
+	switch family {
+	case firewallapi.TableFamilyIPv4:
+		return nftables.TableFamilyIPv4
+	case firewallapi.TableFamilyIPv6:
+		return nftables.TableFamilyIPv6
+	case firewallapi.TableFamilyINet:
+		return nftables.TableFamilyINet
+	case firewallapi.TableFamilyARP:
+		return nftables.TableFamilyARP
+	case firewallapi.TableFamilyBridge:
+		return nftables.TableFamilyBridge
+	case firewallapi.TableFamilyNetdev:
+		return nftables.TableFamilyNetdev
+	default:
+		return nftables.TableFamily(0)
+	}
+}
+
+// cleanTable removes all the chains that are not present in the firewall configuration or that have been modified.
+// Policy field is not considered since it can be modified without deleting the chain.
+func cleanTable(nftconn *nftables.Conn, table *firewallapi.Table) error {
+	chains, err := nftconn.ListChainsOfTableFamily(getTableFamily(*table.Family))
+	if err != nil {
+		return err
+	}
+	for i := range chains {
+		if chains[i].Table.Name != *table.Name {
+			continue
+		}
+		if isChainOutdated(chains[i], table.Chains) {
+			klog.V(2).Infof("deleting chain %s", chains[i].Name)
+			nftconn.DelChain(chains[i])
+		}
+	}
+	return nil
 }
 
 func setTableName(table *nftables.Table, name string) {
