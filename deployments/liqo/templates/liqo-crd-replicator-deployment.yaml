@@ -1,4 +1,4 @@
-{{- $crdReplicatorConfig := (merge (dict "name" "crd-replicator" "module" "dispatcher") .) -}}
+{{- $crdReplicatorConfig := (merge (dict "name" "crd-replicator" "module" "dispatcher" "version" .Values.crdReplicator.image.version) .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -27,7 +27,7 @@ spec:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
       containers:
-        - image: {{ .Values.crdReplicator.imageName }}{{ include "liqo.suffix" $crdReplicatorConfig }}:{{ include "liqo.version" $crdReplicatorConfig }}
+        - image: {{ .Values.crdReplicator.image.name }}{{ include "liqo.suffix" $crdReplicatorConfig }}:{{ include "liqo.version" $crdReplicatorConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
             {{- include "liqo.containerSecurityContext" . | nindent 12 }}
