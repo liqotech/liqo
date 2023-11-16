@@ -1,5 +1,6 @@
 ---
-{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
+{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager" "version" .Values.controllerManager.image.version) .) -}}
+{{- $kubeletConfig :=  (merge (dict "name" "virtual-kubelet" "module" "virtualkubelet" "version" .Values.virtualKubelet.image.version) .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 {{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
 {{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
@@ -66,7 +67,7 @@ spec:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
       containers:
-      - image: {{ .Values.controllerManager.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+      - image: {{ .Values.controllerManager.image.name }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
         imagePullPolicy: {{ .Values.pullPolicy }}
         securityContext:
           {{- include "liqo.containerSecurityContext" . | nindent 10 }}
@@ -110,7 +111,7 @@ spec:
           {{- $d := dict "commandName" "--annotations-not-reflected" "list" .Values.reflection.skip.annotations }}
           {{- include "liqo.concatenateList" $d | nindent 10 }}
           {{- end }}
-          - --kubelet-image={{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+          - --kubelet-image={{ .Values.virtualKubelet.image.name }}{{ include "liqo.suffix" $kubeletConfig }}:{{ include "liqo.version" $kubeletConfig }}
           {{- if .Values.virtualKubelet.metrics.enabled }}
           - --kubelet-metrics-address=:{{ .Values.virtualKubelet.metrics.port }}
           - --kubelet-metrics-enabled={{ .Values.virtualKubelet.metrics.enabled }}

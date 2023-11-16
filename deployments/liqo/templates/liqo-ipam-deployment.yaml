@@ -1,5 +1,5 @@
 ---
-{{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
+{{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam" "version" .Values.ipam.internal.image.version) .) -}}
 
 {{- if and (.Values.networking.internal) (not .Values.ipam.external.enabled) (not .Values.ipam.legacy ) }}
 
@@ -30,7 +30,7 @@ spec:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $ipamConfig }}
       containers:
-        - image: {{ .Values.ipam.internal.imageName }}{{ include "liqo.suffix" $ipamConfig }}:{{ include "liqo.version" $ipamConfig }}
+        - image: {{ .Values.ipam.internal.image.name }}{{ include "liqo.suffix" $ipamConfig }}:{{ include "liqo.version" $ipamConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
             {{- include "liqo.containerSecurityContext" . | nindent 12 }}
