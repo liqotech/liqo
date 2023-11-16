@@ -1,5 +1,6 @@
 ---
-{{- $metricConfig := (merge (dict "name" "metric-agent" "module" "metrics" "containerName" "metric-agent") .) -}}
+{{- $metricConfig := (merge (dict "name" "metric-agent" "module" "metrics" "version" .Values.metricAgent.image.version) .) -}}
+{{- $certConfig := (merge (dict "name" "cert-creator" "module" "metrics" "version" .Values.metricAgent.initContainer.image.version) .) -}}
 
 {{- if .Values.metricAgent.enable }}
 
@@ -31,11 +32,11 @@ spec:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $metricConfig }}
       initContainers:
-        - name: cert-creator
+        - name: {{ $certConfig.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
             {{- include "liqo.containerSecurityContext" . | nindent 12 }}
-          image: {{ .Values.metricAgent.initContainer.imageName }}{{ include "liqo.suffix" $metricConfig }}:{{ include "liqo.version" $metricConfig }}
+          image: {{ .Values.metricAgent.initContainer.image.name }}{{ include "liqo.suffix" $certConfig }}:{{ include "liqo.version" $certConfig }}
           volumeMounts:
             - mountPath: '/certs'
               name: certs
@@ -58,7 +59,7 @@ spec:
             - subjectAltName = DNS:{{ include "liqo.prefixedName" $metricConfig }}.{{ .Release.Namespace }}.svc
           resources: {{- toYaml .Values.metricAgent.pod.resources | nindent 12 }}
       containers:
-        - image: {{ .Values.metricAgent.imageName }}{{ include "liqo.suffix" $metricConfig }}:{{ include "liqo.version" $metricConfig }}
+        - image: {{ .Values.metricAgent.image.name }}{{ include "liqo.suffix" $metricConfig }}:{{ include "liqo.version" $metricConfig }}
           securityContext:
             {{- include "liqo.containerSecurityContext" . | nindent 12 }}
           name: {{ $metricConfig.name }}
