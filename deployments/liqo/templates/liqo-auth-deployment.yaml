@@ -1,4 +1,5 @@
-{{- $authConfig := (merge (dict "name" "auth" "module" "discovery" "containerName" "cert-creator") .) -}}
+{{- $authConfig := (merge (dict "name" "auth" "module" "discovery" "version" .Values.auth.image.version) .) -}}
+{{- $certConfig := (merge (dict "name" "cert-creator" "module" "discovery" "version" .Values.auth.initContainer.image.version) .) -}}
 {{- $awsConfig := (merge (dict "name" "aws-config" "module" "aws-config") .) -}}
 
 apiVersion: apps/v1
@@ -30,11 +31,11 @@ spec:
       serviceAccountName: {{ include "liqo.prefixedName" $authConfig }}
       {{- if .Values.auth.tls }}
       initContainers:
-        - name: {{ $authConfig.containerName }}
+        - name: {{ $certConfig.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
             {{- include "liqo.containerSecurityContext" . | nindent 12 }}
-          image: {{ .Values.auth.initContainer.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
+          image: {{ .Values.auth.initContainer.image.name }}{{ include "liqo.suffix" $certConfig }}:{{ include "liqo.version" $certConfig }}
           volumeMounts:
             - mountPath: '/certs'
               name: certs
@@ -56,7 +57,7 @@ spec:
           resources: {{- toYaml .Values.auth.pod.resources | nindent 12 }}
       {{- end }}
       containers:
-        - image: {{ .Values.auth.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
+        - image: {{ .Values.auth.image.name }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
           securityContext:
             {{- include "liqo.containerSecurityContext" . | nindent 12 }}
           name: {{ $authConfig.name }}
