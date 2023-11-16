@@ -34,7 +34,9 @@ Create chart name and version as used by the chart label.
 Create version used to select the liqo version to be installed .
 */}}
 {{- define "liqo.version" -}}
-{{- if .Values.tag }}
+{{- if .version }}
+{{- .version }}
+{{- else if .Values.tag }}
 {{- .Values.tag }}
 {{- else if .Chart.AppVersion }}
 {{- .Chart.AppVersion }}
@@ -49,7 +51,7 @@ The suffix added to the Liqo images, to identify CI builds.
 {{- define "liqo.suffix" -}}
 {{/* https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string */}}
 {{- $semverregex := "^v(?P<major>0|[1-9]\\d*)\\.(?P<minor>0|[1-9]\\d*)\\.(?P<patch>0|[1-9]\\d*)(?:-(?P<prerelease>(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$" }}
-{{- if or (eq .Values.tag "") (mustRegexMatch $semverregex .Values.tag) }}
+{{- if or (eq .Values.tag "") (mustRegexMatch $semverregex .Values.tag) (.version) }}
 {{- print "" }}
 {{- else }}
 {{- print "-ci" }}

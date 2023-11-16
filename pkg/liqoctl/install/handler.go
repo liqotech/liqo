@@ -71,10 +71,11 @@ type Options struct {
 	RepoURL   string
 	ChartPath string
 
-	OverrideValues      []string
-	OverrideValuesFiles []string
-	chartValues         map[string]interface{}
-	tmpDir              string
+	OverrideValues       []string
+	OverrideStringValues []string
+	OverrideValuesFiles  []string
+	chartValues          map[string]interface{}
+	tmpDir               string
 
 	DryRun           bool
 	OnlyOutputValues bool
@@ -182,6 +183,14 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 	for _, value := range o.OverrideValues {
 		if err := strvals.ParseInto(value, values); err != nil {
 			err := fmt.Errorf("failed parsing --set data: %w", err)
+			s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
+			return err
+		}
+	}
+
+	for _, value := range o.OverrideStringValues {
+		if err := strvals.ParseIntoString(value, values); err != nil {
+			err := fmt.Errorf("failed parsing --set-string data: %w", err)
 			s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
 			return err
 		}

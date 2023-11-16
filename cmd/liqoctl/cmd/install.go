@@ -160,6 +160,8 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	// Using StringArray rather than StringSlice: splitting is left to the Helm library, which takes care of special cases (e.g., lists).
 	cmd.PersistentFlags().StringArrayVar(&options.OverrideValues, "set", []string{},
 		"Set additional values on the command line (can specify multiple times or separate values with commas: key1=val1,key2=val2)")
+	cmd.PersistentFlags().StringArrayVar(&options.OverrideStringValues, "set-string", []string{},
+		"Set additional string values on the command line (can specify multiple times or separate values with commas: key1=val1,key2=val2)")
 	cmd.PersistentFlags().StringArrayVar(&options.OverrideValuesFiles, "values", []string{},
 		"Specify values in a YAML file or a URL (can specify multiple)")
 	cmd.PersistentFlags().BoolVar(&options.DisableAPIServerSanityChecks, "disable-api-server-sanity-check", false,
