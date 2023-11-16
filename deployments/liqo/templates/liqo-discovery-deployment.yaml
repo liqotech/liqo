@@ -1,7 +1,7 @@
 {{- if or .Values.discovery.config.enableAdvertisement .Values.discovery.config.enableDiscovery }}
 
 ---
-{{- $discoveryConfig := (merge (dict "name" "discovery" "module" "discovery") .) -}}
+{{- $discoveryConfig := (merge (dict "name" "discovery" "module" "discovery"  "version" .Values.discovery.image.version) .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -29,7 +29,7 @@ spec:
     spec:
       serviceAccountName: {{ include "liqo.prefixedName" $discoveryConfig}}
       containers:
-        - image: {{ .Values.discovery.imageName }}{{ include "liqo.suffix" $discoveryConfig }}:{{ include "liqo.version" $discoveryConfig }}
+        - image: {{ .Values.discovery.image.name }}{{ include "liqo.suffix" $discoveryConfig }}:{{ include "liqo.version" $discoveryConfig }}
           name: {{ $discoveryConfig.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/discovery"]
