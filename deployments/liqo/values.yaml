@@ -167,8 +167,11 @@ controllerManager:
       requests: {}
     # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the controller-manager pod.
     priorityClassName: ""
-  # -- Image repository for the controller-manager pod.
-  imageName: "ghcr.io/liqotech/liqo-controller-manager"
+  image:
+    # -- Image repository for the controller-manager pod.
+    name: "ghcr.io/liqotech/liqo-controller-manager"
+    # -- Custom version for the controller-manager image. If not specified, the global tag is used.
+    version: ""
   config:
     # -- Percentage of available cluster resources that you are willing to share with foreign clusters.
     resourceSharingPercentage: 30
@@ -214,8 +217,11 @@ ipam:
   internal:
     # -- Use the default Liqo IPAM.
     enabled: true
-    # -- Image repository for the IPAM pod.
-    imageName: "ghcr.io/liqotech/ipam"
+    image:
+      # -- Image repository for the IPAM pod.
+      name: "ghcr.io/liqotech/ipam"
+      # -- Custom version for the IPAM image. If not specified, the global tag is used.
+      version: ""
     # -- The number of IPAM instances to run, which can be increased for active/passive high availability.
     replicas: 1
     pod:
@@ -371,8 +377,6 @@ crdReplicator:
       requests: {}
     # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the crdReplicator pod.
     priorityClassName: ""
-  # -- Image repository for the crdReplicator pod.
-  imageName: "ghcr.io/liqotech/crd-replicator"
   metrics:
     podMonitor:
       # -- Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator
@@ -386,6 +390,11 @@ crdReplicator:
       scrapeTimeout: ""
       # -- Labels for the crdReplicator podmonitor.
       labels: {}
+  image:
+    # -- Image repository for the crdReplicator pod.
+    name: "ghcr.io/liqotech/crd-replicator"
+    # -- Custom version for the crdReplicator image. If not specified, the global tag is used.
+    version: ""
 
 discovery:
   pod:
@@ -401,8 +410,11 @@ discovery:
       requests: {}
     # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the discovery pod.
     priorityClassName: ""
-  # -- Image repository for the discovery pod.
-  imageName: "ghcr.io/liqotech/discovery"
+  image:
+    # -- Image repository for the discovery pod.
+    name: "ghcr.io/liqotech/discovery"
+    # -- Custom version for the discovery image. If not specified, the global tag is used.
+    version: ""
   config:
     # -- Specify an unique ID (must be a valid uuidv4) for your cluster, instead of letting helm generate it automatically at install time.
     # You can generate it using the command: `uuidgen`
@@ -444,11 +456,17 @@ auth:
       requests: {}
     # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the auth pod.
     priorityClassName: ""
-  # -- Image repository for the auth pod.
-  imageName: "ghcr.io/liqotech/auth-service"
+  image:
+    # -- Image repository for the auth pod.
+    name: "ghcr.io/liqotech/auth-service"
+    # -- Custom version for the auth image. If not specified, the global tag is used.
+    version: ""
   initContainer:
-    # -- Image repository for the init container of the auth pod.
-    imageName: "ghcr.io/liqotech/cert-creator"
+    image:
+      # -- Image repository for the init container of the auth pod.
+      name: "ghcr.io/liqotech/cert-creator"
+      # -- Custom version for the init container image of the auth pod. If not specified, the global tag is used.
+      version: ""
   service:
     # -- Kubernetes service used to expose the Authentication Service.
     # If you are exposing this service with an Ingress, you can change it to ClusterIP;
@@ -519,11 +537,17 @@ metricAgent:
       requests: {}
     # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the metricAgent pod.
     priorityClassName: ""
-  # -- Image repository for the metricAgent pod.
-  imageName: "ghcr.io/liqotech/metric-agent"
+  image:
+    # -- Image repository for the metricAgent pod.
+    name: "ghcr.io/liqotech/metric-agent"
+    # -- Custom version for the metricAgent image. If not specified, the global tag is used.
+    version: ""
   initContainer:
-    # --Image repository for the authentication init container for the metricAgent pod.
-    imageName: "ghcr.io/liqotech/cert-creator"
+    image:
+      # --Image repository for the init container of the metricAgent pod.
+      name: "ghcr.io/liqotech/cert-creator"
+      # -- Custom version for the init container image of the metricAgent pod. If not specified, the global tag is used.
+      version: ""
 
 telemetry:
   # -- Enable/Disable the telemetry collector.
@@ -539,8 +563,11 @@ telemetry:
     resources:
       limits: {}
       requests: {}
-  # -- Image repository for the telemetry pod.
-  imageName: "ghcr.io/liqotech/telemetry"
+  image:
+    # -- Image repository for the telemetry pod.
+    name: "ghcr.io/liqotech/telemetry"
+    # -- Custom version for the telemetry image. If not specified, the global tag is used.
+    version: ""
   config:
     # -- Set the schedule of the telemetry collector CronJob. Consider setting this value on ArgoCD deployments to avoid randomization.
     schedule: ""
@@ -556,8 +583,11 @@ webhook:
     image: k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1
 
 virtualKubelet:
-  # -- Image repository for the virtual kubelet.
-  imageName: "ghcr.io/liqotech/virtual-kubelet"
+  image:
+    # -- Image repository for the virtual kubelet pod.
+    name: "ghcr.io/liqotech/virtual-kubelet"
+    # -- Custom version for the virtual kubelet image. If not specified, the global tag is used.
+    version: ""
   # Additional values that are added to virtual kubelet deployments and pods.
   extra:
     # -- Annotations for the virtual kubelet pod.
@@ -606,8 +636,11 @@ uninstaller:
     resources:
       limits: {}
       requests: {}
-  # -- Image repository for the uninstaller pod.
-  imageName: "ghcr.io/liqotech/uninstaller"
+  image:
+    # -- Image repository for the uninstaller pod.
+    name: "ghcr.io/liqotech/uninstaller"
+    # -- Custom version for the uninstaller image. If not specified, the global tag is used.
+    version: ""
 
 proxy:
   pod:
@@ -623,8 +656,11 @@ proxy:
       requests: {}
     # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the proxy pod.
     priorityClassName: ""
-  # -- Image repository for the proxy pod.
-  imageName: "ghcr.io/liqotech/proxy"
+  image:
+    # -- Image repository for the proxy pod.
+    name: "ghcr.io/liqotech/proxy"
+    # -- Custom version for the proxy image. If not specified, the global tag is used.
+    version: ""
   service:
     type: "ClusterIP"
     annotations: {}
