@@ -7,14 +7,16 @@
 | auth.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
 | auth.config.enableAuthentication | bool | `true` | Set to false to disable the authentication of discovered clusters. Note: use it only for testing installations. |
 | auth.config.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT or using an Ingress with a port different from 443. |
-| auth.imageName | string | `"ghcr.io/liqotech/auth-service"` | Image repository for the auth pod. |
+| auth.image.name | string | `"ghcr.io/liqotech/auth-service"` | Image repository for the auth pod. |
+| auth.image.version | string | `""` | Custom version for the auth image. If not specified, the global tag is used. |
 | auth.ingress.annotations | object | `{}` | Annotations for the Auth ingress. |
 | auth.ingress.class | string | `""` | Set your ingress class. |
 | auth.ingress.enable | bool | `false` | Enable/disable the creation of the Ingress resource. |
 | auth.ingress.host | string | `""` | Set the hostname for your ingress. |
 | auth.ingress.port | int | `443` | Set port for your ingress. |
 | auth.ingress.tlsSecretName | string | `""` | Override default (ChartName-auth) tls secretName. |
-| auth.initContainer.imageName | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the auth pod. |
+| auth.initContainer.image.name | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the auth pod. |
+| auth.initContainer.image.version | string | `""` | Custom version for the init container image of the auth pod. If not specified, the global tag is used. |
 | auth.pod.annotations | object | `{}` | Annotations for the auth pod. |
 | auth.pod.extraArgs | list | `[]` | Extra arguments for the auth pod. |
 | auth.pod.labels | object | `{}` | Labels for the auth pod. |
@@ -42,13 +44,15 @@
 | controllerManager.config.offerUpdateThresholdPercentage | string | `""` | Threshold (in percentage) of the variation of resources that triggers a ResourceOffer update. E.g., when the available resources grow/decrease by X, a new ResourceOffer is generated. |
 | controllerManager.config.resourcePluginAddress | string | `""` | The address of an external resource plugin service (see https://github.com/liqotech/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor. |
 | controllerManager.config.resourceSharingPercentage | int | `30` | Percentage of available cluster resources that you are willing to share with foreign clusters. |
-| controllerManager.imageName | string | `"ghcr.io/liqotech/liqo-controller-manager"` | Image repository for the controller-manager pod. |
+| controllerManager.image.name | string | `"ghcr.io/liqotech/liqo-controller-manager"` | Image repository for the controller-manager pod. |
+| controllerManager.image.version | string | `""` | Custom version for the controller-manager image. If not specified, the global tag is used. |
 | controllerManager.pod.annotations | object | `{}` | Annotations for the controller-manager pod. |
 | controllerManager.pod.extraArgs | list | `[]` | Extra arguments for the controller-manager pod. |
 | controllerManager.pod.labels | object | `{}` | Labels for the controller-manager pod. |
 | controllerManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the controller-manager pod. |
 | controllerManager.replicas | int | `1` | The number of controller-manager instances to run, which can be increased for active/passive high availability. |
-| crdReplicator.imageName | string | `"ghcr.io/liqotech/crd-replicator"` | Image repository for the crdReplicator pod. |
+| crdReplicator.image.name | string | `"ghcr.io/liqotech/crd-replicator"` | Image repository for the crdReplicator pod. |
+| crdReplicator.image.version | string | `""` | Custom version for the crdReplicator image. If not specified, the global tag is used. |
 | crdReplicator.pod.annotations | object | `{}` | Annotations for the crdReplicator pod. |
 | crdReplicator.pod.extraArgs | list | `[]` | Extra arguments for the crdReplicator pod. |
 | crdReplicator.pod.labels | object | `{}` | Labels for the crdReplicator pod. |
@@ -61,7 +65,8 @@
 | discovery.config.enableDiscovery | bool | `false` | Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN. Usually this feature should be active when you have multiple (tiny) clusters on the same LAN (e.g., multiple K3s running on individual devices); if your clusters operate on the big Internet, this feature is not needed and it can be turned off. |
 | discovery.config.incomingPeeringEnabled | bool | `true` | Allow (by default) the remote clusters to establish a peering with our cluster. |
 | discovery.config.ttl | int | `90` | Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds). |
-| discovery.imageName | string | `"ghcr.io/liqotech/discovery"` | Image repository for the discovery pod. |
+| discovery.image.name | string | `"ghcr.io/liqotech/discovery"` | Image repository for the discovery pod. |
+| discovery.image.version | string | `""` | Custom version for the discovery image. If not specified, the global tag is used. |
 | discovery.pod.annotations | object | `{}` | Annotation for the discovery pod. |
 | discovery.pod.extraArgs | list | `[]` | Extra arguments for the discovery pod. |
 | discovery.pod.labels | object | `{}` | Labels for the discovery pod. |
@@ -98,7 +103,8 @@
 | ipam.external.enabled | bool | `false` | Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM. |
 | ipam.external.url | string | `""` | The URL of the external IPAM. |
 | ipam.internal.enabled | bool | `true` | Use the default Liqo IPAM. |
-| ipam.internal.imageName | string | `"ghcr.io/liqotech/ipam"` | Image repository for the IPAM pod. |
+| ipam.internal.image.name | string | `"ghcr.io/liqotech/ipam"` | Image repository for the IPAM pod. |
+| ipam.internal.image.version | string | `""` | Custom version for the IPAM image. If not specified, the global tag is used. |
 | ipam.internal.pod.annotations | object | `{}` | Annotations for the IPAM pod. |
 | ipam.internal.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
 | ipam.internal.pod.labels | object | `{}` | Labels for the IPAM pod. |
@@ -110,8 +116,10 @@
 | ipam.serviceCIDR | string | `""` | The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16). |
 | metricAgent.config.timeout | object | `{"read":"30s","write":"30s"}` | Set the timeout for the metrics server. |
 | metricAgent.enable | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting  the resulting values as a property of the virtual kubelet running on the remote cluster. |
-| metricAgent.imageName | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |
-| metricAgent.initContainer.imageName | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the authentication init container for the metricAgent pod. |
+| metricAgent.image.name | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |
+| metricAgent.image.version | string | `""` | Custom version for the metricAgent image. If not specified, the global tag is used. |
+| metricAgent.initContainer.image.name | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the metricAgent pod. |
+| metricAgent.initContainer.image.version | string | `""` | Custom version for the init container image of the metricAgent pod. If not specified, the global tag is used. |
 | metricAgent.pod.annotations | object | `{}` | Annotations for the metricAgent pod. |
 | metricAgent.pod.extraArgs | list | `[]` | Extra arguments for the metricAgent pod. |
 | metricAgent.pod.labels | object | `{}` | Labels for the metricAgent pod. |
@@ -158,7 +166,8 @@
 | peering.networking.gateway.server.service.port | int | `51820` | Set the port of the service |
 | peering.networking.gateway.server.service.type | string | `"LoadBalancer"` | Set the type of the service |
 | proxy.config.listeningPort | int | `8118` | Port used by the proxy pod. |
-| proxy.imageName | string | `"ghcr.io/liqotech/proxy"` | Image repository for the proxy pod. |
+| proxy.image.name | string | `"ghcr.io/liqotech/proxy"` | Image repository for the proxy pod. |
+| proxy.image.version | string | `""` | Custom version for the proxy image. If not specified, the global tag is used. |
 | proxy.pod.annotations | object | `{}` | Annotations for the proxy pod. |
 | proxy.pod.extraArgs | list | `[]` | Extra arguments for the proxy pod. |
 | proxy.pod.labels | object | `{}` | Labels for the proxy pod. |
@@ -197,12 +206,14 @@
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
 | telemetry.config.schedule | string | `""` | Set the schedule of the telemetry collector CronJob. Consider setting this value on ArgoCD deployments to avoid randomization. |
 | telemetry.enable | bool | `true` | Enable/Disable the telemetry collector. |
-| telemetry.imageName | string | `"ghcr.io/liqotech/telemetry"` | Image repository for the telemetry pod. |
+| telemetry.image.name | string | `"ghcr.io/liqotech/telemetry"` | Image repository for the telemetry pod. |
+| telemetry.image.version | string | `""` | Custom version for the telemetry image. If not specified, the global tag is used. |
 | telemetry.pod.annotations | object | `{}` | Annotations for the telemetry pod. |
 | telemetry.pod.extraArgs | list | `[]` | Extra arguments for the telemetry pod. |
 | telemetry.pod.labels | object | `{}` | Labels for the telemetry pod. |
 | telemetry.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the telemetry pod. |
-| uninstaller.imageName | string | `"ghcr.io/liqotech/uninstaller"` | Image repository for the uninstaller pod. |
+| uninstaller.image.name | string | `"ghcr.io/liqotech/uninstaller"` | Image repository for the uninstaller pod. |
+| uninstaller.image.version | string | `""` | Custom version for the uninstaller image. If not specified, the global tag is used. |
 | uninstaller.pod.annotations | object | `{}` | Annotations for the uninstaller pod. |
 | uninstaller.pod.extraArgs | list | `[]` | Extra arguments for the uninstaller pod. |
 | uninstaller.pod.labels | object | `{}` | Labels for the uninstaller pod. |
@@ -211,7 +222,8 @@
 | virtualKubelet.extra.args | list | `[]` | Extra arguments virtual kubelet pod. |
 | virtualKubelet.extra.labels | object | `{}` | Labels for the virtual kubelet pod. |
 | virtualKubelet.extra.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the virtual kubelet pod. |
-| virtualKubelet.imageName | string | `"ghcr.io/liqotech/virtual-kubelet"` | Image repository for the virtual kubelet. |
+| virtualKubelet.image.name | string | `"ghcr.io/liqotech/virtual-kubelet"` | Image repository for the virtual kubelet pod. |
+| virtualKubelet.image.version | string | `""` | Custom version for the virtual kubelet image. If not specified, the global tag is used. |
 | virtualKubelet.metrics.enabled | bool | `false` | Enable/Disable to expose metrics about virtual kubelet resources. |
 | virtualKubelet.metrics.podMonitor.enabled | bool | `false` | Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator runs in your cluster; otherwise simply export the port above as an external endpoint. |
 | virtualKubelet.metrics.podMonitor.interval | string | `""` | Setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
