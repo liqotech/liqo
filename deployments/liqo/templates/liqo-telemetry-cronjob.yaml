@@ -1,4 +1,4 @@
-{{- $telemetryCronConfig := (merge (dict "name" "telemetry" "module" "telemetry") .) -}}
+{{- $telemetryCronConfig := (merge (dict "name" "telemetry" "module" "telemetry" "version" .Values.telemetry.image.version) .) -}}
 
 {{- if .Values.telemetry.enable }}
 
@@ -36,7 +36,7 @@ spec:
           serviceAccountName: {{ include "liqo.prefixedName" $telemetryCronConfig }}
           restartPolicy: Never
           containers:
-          - image: {{ .Values.telemetry.imageName }}{{ include "liqo.suffix" . }}:{{ include "liqo.version" . }}
+          - image: {{ .Values.telemetry.image.name }}{{ include "liqo.suffix" $telemetryCronConfig }}:{{ include "liqo.version" $telemetryCronConfig }}
             imagePullPolicy: {{ .Values.pullPolicy }}
             securityContext:
             {{- include "liqo.containerSecurityContext" . | nindent 14 }}

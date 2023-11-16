@@ -1,4 +1,4 @@
-{{- $proxyConfig := (merge (dict "name" "proxy" "module" "networking") .) -}}
+{{- $proxyConfig := (merge (dict "name" "proxy" "module" "networking"  "version" .Values.proxy.image.version) .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -26,7 +26,7 @@ spec:
       securityContext:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       containers:
-        - image: {{ .Values.proxy.imageName }}{{ include "liqo.suffix" $proxyConfig }}:{{ include "liqo.version" $proxyConfig }}
+        - image: {{ .Values.proxy.image.name }}{{ include "liqo.suffix" $proxyConfig }}:{{ include "liqo.version" $proxyConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $proxyConfig.name }}
           securityContext:
