@@ -365,12 +365,10 @@ func (o *Options) preProviderValues() map[string]interface{} {
 			},
 		},
 
-		"networkManager": map[string]interface{}{
-			"config": map[string]interface{}{
-				"podCIDR":         o.PodCIDR,
-				"serviceCIDR":     o.ServiceCIDR,
-				"reservedSubnets": util.GetInterfaceSlice(o.ReservedSubnets),
-			},
+		"ipam": map[string]interface{}{
+			"podCIDR":         o.PodCIDR,
+			"serviceCIDR":     o.ServiceCIDR,
+			"reservedSubnets": util.GetInterfaceSlice(o.ReservedSubnets),
 		},
 
 		"gateway": map[string]interface{}{
