@@ -36,7 +36,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/netcfgcreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
+	"github.com/liqotech/liqo/pkg/ipam"
 	liqonetsignals "github.com/liqotech/liqo/pkg/liqonet/utils/signals"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -64,7 +64,7 @@ type networkParam struct {
 type TunnelEndpointCreator struct {
 	client.Client
 	Scheme    *runtime.Scheme
-	IPManager liqonetIpam.Ipam
+	IPManager ipam.Ipam
 }
 
 // rbac for the net.liqo.io api

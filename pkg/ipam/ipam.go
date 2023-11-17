@@ -144,7 +144,10 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, listenin
 // Terminate function stops the gRPC server.
 func (liqoIPAM *IPAM) Terminate() {
 	// Stop GRPC server
-	liqoIPAM.grpcServer.GracefulStop()
+	if liqoIPAM.grpcServer != nil {
+		liqoIPAM.grpcServer.GracefulStop()
+		klog.Info("IPAM gRPC server gracefully stopped")
+	}
 }
 
 func (liqoIPAM *IPAM) initRPCServer(port int) error {
