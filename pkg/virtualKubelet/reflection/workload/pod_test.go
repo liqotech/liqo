@@ -32,7 +32,7 @@ import (
 	"k8s.io/utils/trace"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
-	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
+	fakeipam "github.com/liqotech/liqo/pkg/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
