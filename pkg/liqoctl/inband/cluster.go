@@ -39,11 +39,11 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/util"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
-	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -93,7 +93,7 @@ func NewCluster(local, remote *factory.Factory) *Cluster {
 		PortForwarder: &DefaultPortForwarder{
 			genericclioptions.NewTestIOStreamsDiscard(),
 		},
-		RemotePort:   liqoconsts.NetworkManagerIpamPort,
+		RemotePort:   liqoconsts.IpamPort,
 		LocalPort:    0,
 		Ports:        nil,
 		StopChannel:  make(chan struct{}),

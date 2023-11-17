@@ -1,7 +1,7 @@
 ---
 {{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
 
-{{- if .Values.networking.internal }}
+{{- if and (.Values.networking.internal) (.Values.ipam.legacy) }}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -40,14 +40,14 @@ spec:
               containerPort: 6000
           args:
             - --run-as=liqo-network-manager
-            - --manager.pod-cidr={{ .Values.networkManager.config.podCIDR }}
-            - --manager.service-cidr={{ .Values.networkManager.config.serviceCIDR }}
-            {{- if .Values.networkManager.config.reservedSubnets }}
-            {{- $d := dict "commandName" "--manager.reserved-pools" "list" .Values.networkManager.config.reservedSubnets }}
+            - --manager.pod-cidr={{ .Values.ipam.podCIDR }}
+            - --manager.service-cidr={{ .Values.ipam.serviceCIDR }}
+            {{- if .Values.ipam.reservedSubnets }}
+            {{- $d := dict "commandName" "--manager.reserved-pools" "list" .Values.ipam.reservedSubnets }}
             {{- include "liqo.concatenateList" $d | nindent 12 }}
             {{- end }}
-            {{- if .Values.networkManager.config.additionalPools }}
-            {{- $d := dict "commandName" "--manager.additional-pools" "list" .Values.networkManager.config.additionalPools }}
+            {{- if .Values.ipam.additionalPools }}
+            {{- $d := dict "commandName" "--manager.additional-pools" "list" .Values.ipam.additionalPools }}
             {{- include "liqo.concatenateList" $d | nindent 12 }}
             {{- end }}
             {{- if .Values.common.extraArgs }}

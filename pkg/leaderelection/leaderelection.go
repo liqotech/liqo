@@ -40,31 +40,29 @@ var (
 
 // Opts contains the options to configure the leader election mechanism.
 type Opts struct {
-	Enabled         bool
-	PodName         string
-	TenantNamespace string
-	LeaseDuration   time.Duration
-	RenewDeadline   time.Duration
-	RetryPeriod     time.Duration
+	PodName           string
+	Namespace         string
+	LeaderElectorName string
+	LeaseDuration     time.Duration
+	RenewDeadline     time.Duration
+	RetryPeriod       time.Duration
+	InitCallback      func()
+	StopCallback      func()
 }
 
-// InitAndRun initializes and runs the leader election mechanism.
-func InitAndRun(ctx context.Context, opts Opts, rc *rest.Config,
-	eb record.EventBroadcaster, initCallback func()) error {
-	if !opts.Enabled {
-		return nil
-	}
+// Init initializes the leader election mechanism.
+func Init(opts *Opts, rc *rest.Config, eb record.EventBroadcaster) (*leaderelection.LeaderElector, error) {
 	scheme := runtime.NewScheme()
 	err := coordv1.AddToScheme(scheme)
 	if err != nil {
 		klog.Error(err)
-		return err
+		return nil, err
 	}
 	leaderelector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
 		Lock: &resourcelock.LeaseLock{
 			LeaseMeta: metav1.ObjectMeta{
-				Name:      LeaderElectorName,
-				Namespace: opts.TenantNamespace,
+				Name:      opts.LeaderElectorName,
+				Namespace: opts.Namespace,
 			},
 			Client: coordinationv1.NewForConfigOrDie(rc),
 			LockConfig: resourcelock.ResourceLockConfig{
@@ -78,11 +76,16 @@ func InitAndRun(ctx context.Context, opts Opts, rc *rest.Config,
 				defer lock.Unlock()
 				klog.Infof("Leader election: this pod is the leader")
 				leading = true
-				initCallback()
+				if opts.InitCallback != nil {
+					opts.InitCallback()
+				}
 			},
 			OnStoppedLeading: func() {
 				lock.Lock()
 				defer lock.Unlock()
+				if opts.StopCallback != nil {
+					opts.StopCallback()
+				}
 				klog.Infof("Leader election: this pod is not the leader anymore")
 				leading = false
 			},
@@ -93,24 +96,27 @@ func InitAndRun(ctx context.Context, opts Opts, rc *rest.Config,
 		LeaseDuration:   opts.LeaseDuration,
 		RenewDeadline:   opts.RenewDeadline,
 		RetryPeriod:     opts.RetryPeriod,
-		Name:            LeaderElectorName,
+		Name:            opts.LeaderElectorName,
 		ReleaseOnCancel: true,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	go func() {
-		klog.Info("Leader election: starting leader election")
-		leaderelector.Run(ctx)
-		// If the context is not canceled, the leader election terminated unexpectedly.
-		if ctx.Err() == nil {
-			utilruntime.Must(fmt.Errorf("leader election terminated"))
-		}
-	}()
-	return nil
+
+	return leaderelector, nil
 }
 
-// IsLeader returns true if the current virtual node is the leader.
+// Run run the leader election mechanism.
+func Run(ctx context.Context, leaderelector *leaderelection.LeaderElector) {
+	klog.Info("Leader election: starting leader election")
+	leaderelector.Run(ctx)
+	// If the context is not canceled, the leader election terminated unexpectedly.
+	if ctx.Err() == nil {
+		utilruntime.Must(fmt.Errorf("leader election terminated"))
+	}
+}
+
+// IsLeader returns true if the current pod is the leader.
 func IsLeader() bool {
 	lock.RLock()
 	defer lock.RUnlock()

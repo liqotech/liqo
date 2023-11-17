@@ -76,6 +76,7 @@ rbacs: controller-gen
 	$(CONTROLLER_GEN) paths="./cmd/metric-agent" rbac:roleName=liqo-metric-agent output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-metric-agent-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-metric-agent-ClusterRole.yaml
 	$(CONTROLLER_GEN) paths="./cmd/telemetry" rbac:roleName=liqo-telemetry output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-telemetry-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-telemetry-ClusterRole.yaml
 	$(CONTROLLER_GEN) paths="{./pkg/gateway/...,./cmd/gateway/...}" rbac:roleName=liqo-gateway output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-gateway-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-gateway-ClusterRole.yaml
+	$(CONTROLLER_GEN) paths="./cmd/ipam/" rbac:roleName=liqo-ipam output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-ipam-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' && $(SED_COMMAND) deployments/liqo/files/liqo-ipam-ClusterRole.yaml
 
 # Install gci if not available
 gci:
@@ -166,7 +167,7 @@ generate-groups:
 
 # Generate gRPC files
 grpc: protoc
-	$(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/liqonet/ipam/ipam.proto
+	$(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/ipam/ipam.proto
 	$(PROTOC) --go_out=pkg/liqo-controller-manager/resource-request-controller/resource-monitors --go_opt=paths=source_relative \
 			  --go-grpc_out=pkg/liqo-controller-manager/resource-request-controller/resource-monitors --go-grpc_opt=paths=source_relative \
 			  -I pkg/liqo-controller-manager/resource-request-controller/resource-monitors \
