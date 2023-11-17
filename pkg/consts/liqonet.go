@@ -17,8 +17,6 @@ package consts
 import "strings"
 
 const (
-	// NetworkManagerIpamPort is the port used by IPAM gRPCs.
-	NetworkManagerIpamPort = 6000
 	// DefaultCIDRValue is the default value for a string that contains a CIDR.
 	DefaultCIDRValue = "None"
 	// NatMappingKind is the constant representing
