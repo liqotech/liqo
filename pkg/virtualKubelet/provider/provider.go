@@ -34,7 +34,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
-	"github.com/liqotech/liqo/pkg/liqonet/ipam"
+	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
