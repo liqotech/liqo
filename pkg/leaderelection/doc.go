@@ -13,5 +13,4 @@
 // limitations under the License.
 
 // Package leaderelection implements the leader election mechanism.
-// It avoids that multiple virtual node targeting the same cluster reflect some resources.
 package leaderelection
