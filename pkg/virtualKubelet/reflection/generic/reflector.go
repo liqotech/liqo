@@ -34,9 +34,9 @@ import (
 	"k8s.io/utils/trace"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/leaderelection"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/leaderelection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
