@@ -110,6 +110,20 @@
 | gateway.service.nodePort | object | `{"port":""}` | Options valid if service type is NodePort. |
 | gateway.service.nodePort.port | string | `""` | Force the port used by the NodePort service. |
 | gateway.service.type | string | `"LoadBalancer"` | Kubernetes service to be used to expose the network gateway pod. If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer". Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort". |
+| ipam.additionalPools | list | `[]` | Set of additional network pools to perform the automatic address mapping in Liqo. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
+| ipam.external.enabled | bool | `false` | Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM. |
+| ipam.external.url | string | `""` | The URL of the external IPAM. |
+| ipam.internal.enabled | bool | `true` | Use the default Liqo IPAM. |
+| ipam.internal.imageName | string | `"ghcr.io/liqotech/liqo-ipam"` | Image repository for the IPAM pod. |
+| ipam.internal.pod.annotations | object | `{}` | Annotations for the IPAM pod. |
+| ipam.internal.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
+| ipam.internal.pod.labels | object | `{}` | Labels for the IPAM pod. |
+| ipam.internal.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the proxy pod. |
+| ipam.internal.replicas | int | `1` | The number of IPAM instances to run, which can be increased for active/passive high availability. |
+| ipam.legacy | bool | `true` |  |
+| ipam.podCIDR | string | `""` | The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16). |
+| ipam.reservedSubnets | list | `[]` | List of IP subnets that do not have to be used by Liqo. Liqo can perform automatic IP address remapping when a remote cluster is peering with you, e.g., in case IP address spaces (e.g., PodCIDR) overlaps. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
+| ipam.serviceCIDR | string | `""` | The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16). |
 | metricAgent.config.timeout | object | `{"read":"30s","write":"30s"}` | Set the timeout for the metrics server. |
 | metricAgent.enable | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting  the resulting values as a property of the virtual kubelet running on the remote cluster. |
 | metricAgent.imageName | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |
@@ -120,12 +134,6 @@
 | metricAgent.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the metricAgent pod. |
 | metricAgent.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the metricAgent pod. |
 | nameOverride | string | `""` | Override the standard name used by Helm and associated to Kubernetes/Liqo resources. |
-| networkManager.config.additionalPools | list | `[]` | Set of additional network pools to perform the automatic address mapping in Liqo. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
-| networkManager.config.podCIDR | string | `""` | The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16). |
-| networkManager.config.reservedSubnets | list | `[]` | List of IP subnets that do not have to be used by Liqo. Liqo can perform automatic IP address remapping when a remote cluster is peering with you, e.g., in case IP address spaces (e.g., PodCIDR) overlaps. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
-| networkManager.config.serviceCIDR | string | `""` | The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16). |
-| networkManager.externalIPAM.enabled | bool | `false` | Use an external IPAM to allocate the IP addresses for the pods. |
-| networkManager.externalIPAM.url | string | `""` | The URL of the external IPAM. |
 | networkManager.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the networkManager pod. |
 | networkManager.pod.annotations | object | `{}` | Annotations for the networkManager pod. |
 | networkManager.pod.extraArgs | list | `[]` | Extra arguments for the networkManager pod. |
