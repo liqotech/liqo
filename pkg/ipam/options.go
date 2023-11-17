@@ -12,7 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package leaderelection
+package ipam
 
-// LeaderElectorName is the name of the leader election lock.
-const LeaderElectorName = "virtual-kubelet-leader-election"
+import (
+	"time"
+
+	"github.com/liqotech/liqo/pkg/utils/args"
+)
+
+// Options contains the options for the IPAM.
+type Options struct {
+	PodCIDR     args.CIDR
+	ServiceCIDR args.CIDR
+
+	AdditionalPools args.CIDRList
+	ReservedPools   args.CIDRList
+
+	LeaseEnabled       bool
+	LeaseDuration      time.Duration
+	LeaseRenewDeadline time.Duration
+	LeaseRetryPeriod   time.Duration
+}
+
+// NewOptions returns a new Options struct.
+func NewOptions() *Options {
+	return &Options{}
+}

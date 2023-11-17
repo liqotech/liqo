@@ -81,6 +81,7 @@ jobs:
         - auth-service
         - cert-creator
         - crd-replicator
+        - ipam
         - liqo-controller-manager
         - discovery
         - liqonet

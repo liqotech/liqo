@@ -2,6 +2,7 @@
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 {{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
+{{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
 
 {{- $vkargs := .Values.virtualKubelet.extra.args }}
 {{- /* Enable the API support if not overridden by the user */ -}}
@@ -112,13 +113,15 @@ spec:
           - --kubelet-metrics-enabled={{ .Values.virtualKubelet.metrics.enabled }}
           {{- else }}
           {{- end }}
-          {{- if .Values.networkManager.externalIPAM.enabled }}
-          - --ipam-server={{ .Values.networkManager.externalIPAM.url }}
+          {{- if .Values.ipam.external.enabled }}
+          - --ipam-server={{ .Values.ipam.external.url }}
           {{- else if not .Values.networking.internal }}
           - --ipam-server=
           - --disable-internal-network
-          {{- else }}
+          {{- else if .Values.ipam.legacy }}
           - --ipam-server={{ include "liqo.prefixedName" $netManagerConfig }}.{{ .Release.Namespace }}:6000
+          {{- else }}
+          - --ipam-server={{ include "liqo.prefixedName" $ipamConfig }}.{{ .Release.Namespace }}:6000
           {{- end }}
           - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
           - --enable-storage={{ .Values.storage.enable }}
