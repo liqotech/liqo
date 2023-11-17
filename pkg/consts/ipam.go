@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package leaderelection implements the leader election mechanism.
-// It avoids that multiple virtual node targeting the same cluster reflect some resources.
-package leaderelection
+package consts
+
+const (
+	// IpamPort is the port used by the IPAM gRPC server.
+	IpamPort = 6000
+)

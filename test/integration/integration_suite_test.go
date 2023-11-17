@@ -36,7 +36,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	tunneloperator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
-	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
+	liqoipam "github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/liqonet/iptables"
 	"github.com/liqotech/liqo/pkg/liqonet/netns"
 )
@@ -65,7 +65,7 @@ var (
 	err                error
 	envTest            *envtest.Environment
 	ipt                iptables.IPTHandler
-	ipam               *liqonetIpam.IPAM
+	ipam               *liqoipam.IPAM
 	homeExternalCIDR   string
 	k8sClient          client.Client
 	dynClient          dynamic.Interface
@@ -173,12 +173,12 @@ func initNatMappingController() error {
 }
 
 func initIpam() error {
-	ipam = liqonetIpam.NewIPAM()
+	ipam = liqoipam.NewIPAM()
 	n, err := rand.Int(rand.Reader, big.NewInt(2000))
 	if err != nil {
 		return err
 	}
-	err = ipam.Init(liqonetIpam.Pools, dynClient, 2000+int(n.Int64()))
+	err = ipam.Init(liqoipam.Pools, dynClient, 2000+int(n.Int64()))
 	if err != nil {
 		return err
 	}

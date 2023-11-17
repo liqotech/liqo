@@ -31,7 +31,7 @@ import (
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/netcfgcreator"
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/tunnelendpointcreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
+	liqoipam "github.com/liqotech/liqo/pkg/ipam"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -129,10 +129,10 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 	}
 }
 
-func initializeIPAM(client dynamic.Interface, managerFlags *networkManagerFlags) (*liqonetIpam.IPAM, error) {
-	ipam := liqonetIpam.NewIPAM()
+func initializeIPAM(dynClient dynamic.Interface, managerFlags *networkManagerFlags) (*liqoipam.IPAM, error) {
+	ipam := liqoipam.NewIPAM()
 
-	if err := ipam.Init(liqonetIpam.Pools, client, liqoconst.NetworkManagerIpamPort); err != nil {
+	if err := ipam.Init(liqoipam.Pools, dynClient, liqoconst.IpamPort); err != nil {
 		return nil, err
 	}
 

@@ -12,7 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package leaderelection implements the leader election mechanism.
 package leaderelection
-
-// LeaderElectorName is the name of the leader election lock.
-const LeaderElectorName = "virtual-kubelet-leader-election"

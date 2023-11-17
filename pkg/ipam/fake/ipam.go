@@ -20,7 +20,7 @@ import (
 
 	grpc "google.golang.org/grpc"
 
-	"github.com/liqotech/liqo/pkg/liqonet/ipam"
+	"github.com/liqotech/liqo/pkg/ipam"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 

@@ -34,10 +34,10 @@ import (
 
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	"github.com/liqotech/liqo/pkg/leaderelection"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/leaderelection"
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	metrics "github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
@@ -45,6 +45,7 @@ import (
 )
 
 const defaultVersion = "v1.25.0" // This should follow the version of k8s.io/kubernetes we are importing
+const leaderElectorName = "virtual-kubelet-leader-election"
 
 // NewCommand creates a new top-level command.
 // This command is used to start the virtual-kubelet daemon.
@@ -144,23 +145,32 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
-	leaderelectionOpts := leaderelection.Opts{
-		Enabled:         c.VirtualKubeletLeaseEnabled,
-		PodName:         c.PodName,
-		TenantNamespace: c.TenantNamespace,
-		LeaseDuration:   c.VirtualKubeletLeaseLeaseDuration,
-		RenewDeadline:   c.VirtualKubeletLeaseRenewDeadline,
-		RetryPeriod:     c.VirtualKubeletLeaseRetryPeriod,
-	}
-	if err := leaderelection.InitAndRun(ctx, leaderelectionOpts, localConfig, eb, func() {
+	initCallback := func() {
 		klog.Infof("Starting informer resync")
 		if err := podProvider.Resync(); err != nil {
 			klog.Errorf("Error during resync for pod provider: %s", err)
 			return
 		}
 		klog.Infof("Resync informer completed")
-	}); err != nil {
-		return err
+	}
+
+	// The leader election avoids that multiple virtual node targeting the same cluster reflect some resources.
+	if c.VirtualKubeletLeaseEnabled {
+		leaderelectionOpts := &leaderelection.Opts{
+			PodName:           c.PodName,
+			Namespace:         c.TenantNamespace,
+			LeaderElectorName: leaderElectorName,
+			LeaseDuration:     c.VirtualKubeletLeaseLeaseDuration,
+			RenewDeadline:     c.VirtualKubeletLeaseRenewDeadline,
+			RetryPeriod:       c.VirtualKubeletLeaseRetryPeriod,
+			InitCallback:      initCallback,
+			StopCallback:      nil,
+		}
+		leaderElector, err := leaderelection.Init(leaderelectionOpts, localConfig, eb)
+		if err != nil {
+			return err
+		}
+		go leaderelection.Run(ctx, leaderElector)
 	}
 
 	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, remoteConfig, c)

@@ -183,6 +183,46 @@ controllerManager:
     # However, enabling this feature could produce zombies in the worker node, in case the node returns Ready again without a restart.
     enableNodeFailureController: false
 
+ipam:
+  legacy: true
+  external:
+    # -- Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM.
+    enabled: false
+    # -- The URL of the external IPAM.
+    url: ""
+  internal:
+    # -- Use the default Liqo IPAM.
+    enabled: true
+    # -- Image repository for the IPAM pod.
+    imageName: "ghcr.io/liqotech/liqo-ipam"
+    # -- The number of IPAM instances to run, which can be increased for active/passive high availability.
+    replicas: 1
+    pod:
+      # -- Annotations for the IPAM pod.
+      annotations: {}
+      # -- Labels for the IPAM pod.
+      labels: {}
+      # -- Extra arguments for the route pod.
+      extraArgs: []
+      # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the proxy pod.
+      resources:
+        limits: {}
+        requests: {}
+  # -- The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16).
+  podCIDR: ""
+  # -- The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16).
+  serviceCIDR: ""
+  # -- List of IP subnets that do not have to be used by Liqo.
+  # Liqo can perform automatic IP address remapping when a remote cluster is peering with you, e.g., in case IP address spaces (e.g., PodCIDR) overlaps.
+  # In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters
+  # you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then
+  # you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list.
+  reservedSubnets: []
+  # -- Set of additional network pools to perform the automatic address mapping in Liqo.
+  # Network pools are used to map a cluster network into another one in order to prevent conflicts.
+  # Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
+  additionalPools: []
+
 route:
   pod:
     # -- Annotations for the route pod.
@@ -276,11 +316,6 @@ gateway:
       labels: {}
 
 networkManager:
-  externalIPAM:
-    # -- Use an external IPAM to allocate the IP addresses for the pods.
-    enabled: false
-    # -- The URL of the external IPAM.
-    url: ""
   pod:
     # -- Annotations for the networkManager pod.
     annotations: {}
@@ -294,21 +329,6 @@ networkManager:
       requests: {}
   # -- Image repository for the networkManager pod.
   imageName: "ghcr.io/liqotech/liqonet"
-  config:
-    # -- The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16).
-    podCIDR: ""
-    # -- The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16).
-    serviceCIDR: ""
-    # -- List of IP subnets that do not have to be used by Liqo.
-    # Liqo can perform automatic IP address remapping when a remote cluster is peering with you, e.g., in case IP address spaces (e.g., PodCIDR) overlaps.
-    # In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters
-    # you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then
-    # you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list.
-    reservedSubnets: []
-    # -- Set of additional network pools to perform the automatic address mapping in Liqo.
-    # Network pools are used to map a cluster network into another one in order to prevent conflicts.
-    # Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
-    additionalPools: []
 
 crdReplicator:
   pod:

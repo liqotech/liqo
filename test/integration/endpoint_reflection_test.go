@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
+	liqoipam "github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
@@ -41,7 +41,7 @@ var _ = Describe("EndpointReflection", func() {
 	Describe("Endpoint IP mapping", func() {
 		Context("Map the endpoint IP of a remote endpoint", func() {
 			It("DNAT rule should be inserted by the natmappingoperator", func() {
-				response, err := ipam.MapEndpointIP(ctx, &liqonetIpam.MapRequest{
+				response, err := ipam.MapEndpointIP(ctx, &liqoipam.MapRequest{
 					ClusterID: clusterID1,
 					Ip:        remoteEndpointIP,
 				})
@@ -63,7 +63,7 @@ var _ = Describe("EndpointReflection", func() {
 		Context("Ask to map more IPs of a remote endpoints", func() {
 			It("DNAT rules should be inserted for each of them"+
 				" by the natmappingoperator", func() {
-				response, err := ipam.MapEndpointIP(ctx, &liqonetIpam.MapRequest{
+				response, err := ipam.MapEndpointIP(ctx, &liqoipam.MapRequest{
 					ClusterID: clusterID1,
 					Ip:        remoteEndpointIP,
 				})
@@ -80,7 +80,7 @@ var _ = Describe("EndpointReflection", func() {
 					}
 					return false
 				}, timeout, interval).Should(BeTrue())
-				response, err = ipam.MapEndpointIP(ctx, &liqonetIpam.MapRequest{
+				response, err = ipam.MapEndpointIP(ctx, &liqoipam.MapRequest{
 					ClusterID: clusterID1,
 					Ip:        remoteEndpointIP2,
 				})
@@ -103,7 +103,7 @@ var _ = Describe("EndpointReflection", func() {
 		})
 		Context("Map the same endpoint IP on more clusters", func() {
 			It("DNAT rules should be inserted by the natmappingoperator", func() {
-				response, err := ipam.MapEndpointIP(ctx, &liqonetIpam.MapRequest{
+				response, err := ipam.MapEndpointIP(ctx, &liqoipam.MapRequest{
 					ClusterID: clusterID1,
 					Ip:        remoteEndpointIP,
 				})
@@ -120,7 +120,7 @@ var _ = Describe("EndpointReflection", func() {
 					}
 					return false
 				}, timeout, interval).Should(BeTrue())
-				response, err = ipam.MapEndpointIP(ctx, &liqonetIpam.MapRequest{
+				response, err = ipam.MapEndpointIP(ctx, &liqoipam.MapRequest{
 					ClusterID: clusterID2,
 					Ip:        remoteEndpointIP,
 				})
@@ -144,7 +144,7 @@ var _ = Describe("EndpointReflection", func() {
 		Context("Ask to terminate to map the IP of a remote endpoint", func() {
 			It("IPAM module should return no errors and a DNAT rule should be deleted"+
 				" by the natmappingoperator", func() {
-				response, err := ipam.MapEndpointIP(ctx, &liqonetIpam.MapRequest{
+				response, err := ipam.MapEndpointIP(ctx, &liqoipam.MapRequest{
 					ClusterID: clusterID1,
 					Ip:        remoteEndpointIP,
 				})
@@ -160,7 +160,7 @@ var _ = Describe("EndpointReflection", func() {
 					}
 					return false
 				}, timeout, interval).Should(BeTrue())
-				_, err = ipam.UnmapEndpointIP(ctx, &liqonetIpam.UnmapRequest{
+				_, err = ipam.UnmapEndpointIP(ctx, &liqoipam.UnmapRequest{
 					ClusterID: clusterID1,
 					Ip:        remoteEndpointIP,
 				})
@@ -181,14 +181,14 @@ var _ = Describe("EndpointReflection", func() {
 			It("DNAT rule should be deleted only for the requested endpoint"+
 				" by the natmappingoperator", func() {
 				// Map remoteEndpointIP and remoteEndpointIP2
-				response, err := ipam.MapEndpointIP(ctx, &liqonetIpam.MapRequest{
+				response, err := ipam.MapEndpointIP(ctx, &liqoipam.MapRequest{
 					ClusterID: clusterID1,
 					Ip:        remoteEndpointIP,
 				})
 				Expect(err).To(BeNil())
 				newEndpointIP := response.GetIp()
 				Expect(newEndpointIP).To(HavePrefix("10.80.")) // Local NAT ExternalCIDR is 10.80.0.0/24
-				response, err = ipam.MapEndpointIP(ctx, &liqonetIpam.MapRequest{
+				response, err = ipam.MapEndpointIP(ctx, &liqoipam.MapRequest{
 					ClusterID: clusterID1,
 					Ip:        remoteEndpointIP2,
 				})
@@ -208,7 +208,7 @@ var _ = Describe("EndpointReflection", func() {
 					return false
 				}, timeout, interval).Should(BeTrue())
 				// Terminate only mapping of remoteEndpointIP
-				_, err = ipam.UnmapEndpointIP(ctx, &liqonetIpam.UnmapRequest{
+				_, err = ipam.UnmapEndpointIP(ctx, &liqoipam.UnmapRequest{
 					ClusterID: clusterID1,
 					Ip:        remoteEndpointIP,
 				})
