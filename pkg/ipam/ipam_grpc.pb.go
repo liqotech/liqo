@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v3.15.5
-// source: pkg/liqonet/ipam/ipam.proto
+// source: pkg/ipam/ipam.proto
 
 package ipam
 
@@ -291,5 +291,5 @@ var Ipam_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "pkg/liqonet/ipam/ipam.proto",
+	Metadata: "pkg/ipam/ipam.proto",
 }
