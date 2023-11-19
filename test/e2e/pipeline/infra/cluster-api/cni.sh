@@ -65,7 +65,7 @@ function wait_calico() {
       exit 1
     fi
     # set felix to use different port for VXLAN
-    if ! waitandretry 5s 12 "${KUBECTL} patch felixconfiguration default --type='merge' -p '{\"spec\":{\"vxlanPort\": 6789}}' --kubeconfig $kubeconfig";
+    if ! waitandretry 5s 12 "${KUBECTL} patch felixconfiguration default --type=merge -p {\"spec\":{\"vxlanPort\":6789}} --kubeconfig $kubeconfig";
     then
       echo "Failed to patch felixconfiguration"
       exit 1
