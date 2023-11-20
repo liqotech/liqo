@@ -38,15 +38,15 @@ var RouteGroupVersionResource = GroupVersion.WithResource(RouteResource)
 // RouteDestination defines the destination of the route.
 type RouteDestination struct {
 	// IP is the IP address of the destination. It is mutually exclusive with CIDR.
-	IP *string `json:"ip,omitempty"`
+	IP *IP `json:"ip,omitempty"`
 	// CIDR is the CIDR of the destination. It is mutually exclusive with IP.
-	CIDR *string `json:"cidr,omitempty"`
+	CIDR *CIDR `json:"cidr,omitempty"`
 }
 
 // RouteNextHop defines the next hop of the route.
 type RouteNextHop struct {
 	// IP is the IP address of the next hop. It is mutually exclusive with Dev.
-	IP *string `json:"ip,omitempty"`
+	IP *IP `json:"ip,omitempty"`
 	// Dev is the name of the device of the next hop. It is mutually exclusive with IP.
 	Dev *string `json:"dev,omitempty"`
 }
