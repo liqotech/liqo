@@ -71,6 +71,8 @@ import (
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/server-operator"
 	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/wireguard"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
+	internalclientcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/client-controller"
+	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/server-controller"
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
@@ -584,28 +586,6 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	serverReconciler := serveroperator.NewServerReconciler(mgr.GetClient(),
-		dynClient, factory, mgr.GetScheme(), gatewayServerResources.StringList)
-	if err := serverReconciler.SetupWithManager(mgr); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
-	clientReconciler := clientoperator.NewClientReconciler(mgr.GetClient(),
-		dynClient, factory, mgr.GetScheme(), gatewayClientResources.StringList)
-	if err := clientReconciler.SetupWithManager(mgr); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
-	externalNetworkReconciler := externalnetworkcontroller.NewExternalNetworkReconciler(
-		mgr.GetClient(), mgr.GetScheme(), clientset, *liqoNamespace, &clusterIdentity,
-		corev1.ServiceType(*gatewayServiceType), int32(*gatewayServicePort), *gatewayMTU, *gatewayProxy)
-	if err := externalNetworkReconciler.SetupWithManager(mgr); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
 	// Start the handler to approve the virtual kubelet certificate signing requests.
 	csrWatcher := csr.NewWatcher(clientset, *resyncPeriod, labels.Everything(), fields.Everything())
 	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo",
@@ -709,6 +689,40 @@ func main() {
 			wgGatewayClientClusterRoleName)
 		if err = wgClientRec.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the WgGatewayClientReconciler", err)
+			os.Exit(1)
+		}
+
+		serverReconciler := serveroperator.NewServerReconciler(mgr.GetClient(),
+			dynClient, factory, mgr.GetScheme(), gatewayServerResources.StringList)
+		if err := serverReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		clientReconciler := clientoperator.NewClientReconciler(mgr.GetClient(),
+			dynClient, factory, mgr.GetScheme(), gatewayClientResources.StringList)
+		if err := clientReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		externalNetworkReconciler := externalnetworkcontroller.NewExternalNetworkReconciler(
+			mgr.GetClient(), mgr.GetScheme(), clientset, *liqoNamespace, &clusterIdentity,
+			corev1.ServiceType(*gatewayServiceType), int32(*gatewayServicePort), *gatewayMTU, *gatewayProxy)
+		if err := externalNetworkReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		internalServerReconciler := internalservercontroller.NewServerReconciler(mgr.GetClient(), mgr.GetScheme())
+		if err := internalServerReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		internalClientReconciler := internalclientcontroller.NewClientReconciler(mgr.GetClient(), mgr.GetScheme())
+		if err := internalClientReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
 			os.Exit(1)
 		}
 	}
