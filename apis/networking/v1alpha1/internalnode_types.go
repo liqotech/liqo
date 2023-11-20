@@ -40,7 +40,7 @@ type InternalNodeSpec struct {
 	// FabricRef is the reference to the internal fabric.
 	FabricRef *corev1.ObjectReference `json:"fabricRef,omitempty"`
 	// IP is the IP address to assign to the internal interface.
-	IP string `json:"ip,omitempty"`
+	IP IP `json:"ip,omitempty"`
 	// IsGateway is true if the node is the gateway.
 	IsGateway bool `json:"isGateway,omitempty"`
 }
