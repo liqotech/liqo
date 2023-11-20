@@ -64,10 +64,12 @@ spec:
                   cidr:
                     description: CIDR is the CIDR of the destination. It is mutually
                       exclusive with IP.
+                    pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
                     type: string
                   ip:
                     description: IP is the IP address of the destination. It is mutually
                       exclusive with CIDR.
+                    pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
                     type: string
                 type: object
               nextHop:
@@ -80,6 +82,7 @@ spec:
                   ip:
                     description: IP is the IP address of the next hop. It is mutually
                       exclusive with Dev.
+                    pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
                     type: string
                 type: object
               table:
