@@ -37,9 +37,9 @@ var InternalFabricGroupVersionResource = GroupVersion.WithResource(InternalFabri
 // InternalEndpoint defines the endpoint of the internal fabric.
 type InternalEndpoint struct {
 	// IP is the IP address of the endpoint.
-	IP string `json:"ip,omitempty"`
+	IP IP `json:"ip,omitempty"`
 	// Port is the port of the endpoint.
-	Port int `json:"port,omitempty"`
+	Port int32 `json:"port,omitempty"`
 }
 
 // InternalFabricSpec defines the desired state of InternalFabric.
@@ -47,19 +47,19 @@ type InternalFabricSpec struct {
 	// MTU is the MTU of the internal fabric.
 	MTU int `json:"mtu,omitempty"`
 	// GatewayIP is the IP address to assign to the gateway internal interface.
-	GatewayIP string `json:"gatewayIP,omitempty"`
+	GatewayIP IP `json:"gatewayIP,omitempty"`
 	// RemoteCIDRs is the list of remote CIDRs to be routed through the gateway.
-	RemoteCIDRs []string `json:"remoteCIDRs,omitempty"`
+	RemoteCIDRs []CIDR `json:"remoteCIDRs,omitempty"`
 	// NodeName is the name of the node where the gateway is running.
 	NodeName string `json:"nodeName,omitempty"`
 	// Endpoint is the endpoint of the gateway.
-	Endpoint InternalEndpoint `json:"endpoint,omitempty"`
+	Endpoint *InternalEndpoint `json:"endpoint,omitempty"`
 }
 
 // InternalFabricStatus defines the observed state of InternalFabric.
 type InternalFabricStatus struct {
 	// AssignedIPs is the list of IP addresses assigned to interfaces in the nodes.
-	AssignedIPs []string `json:"assignedIPs,omitempty"`
+	AssignedIPs []IP `json:"assignedIPs,omitempty"`
 }
 
 // +kubebuilder:object:root=true
