@@ -711,7 +711,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		wgClientRec := wggatewaycontrollers.NewWgGatewayClientReconciler(mgr.GetClient(), mgr.GetScheme(), wgGatewayClientClusterRoleName)
+		wgClientRec := wggatewaycontrollers.NewWgGatewayClientReconciler(mgr.GetClient(), mgr.GetScheme(), auxmgrExtNetworkPods.GetClient(),
+			wgGatewayClientClusterRoleName)
 		if err = wgClientRec.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the WgGatewayClientReconciler: %v", err)
 			os.Exit(1)
