@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -356,7 +357,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 			Port:      port,
 			Addresses: addresses,
 		}, &networkingv1alpha1.InternalGatewayEndpoint{
-			IP:   networkingv1alpha1.IP(internalAddress),
+			IP:   ptr.To(networkingv1alpha1.IP(internalAddress)),
 			Node: &nodeName,
 		}, nil
 }
