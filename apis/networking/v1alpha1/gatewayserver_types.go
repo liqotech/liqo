@@ -73,6 +73,14 @@ type EndpointStatus struct {
 	Protocol *corev1.Protocol `json:"protocol,omitempty"`
 }
 
+// InternalGatewayEndpoint defines the endpoint for the internal network.
+type InternalGatewayEndpoint struct {
+	// IP is the IP address of the endpoint.
+	IP IP `json:"ip,omitempty"`
+	// Node is the name of the node where the endpoint is running.
+	Node *string `json:"node,omitempty"`
+}
+
 // GatewayServerStatus defines the observed state of GatewayServer.
 type GatewayServerStatus struct {
 	// ServerRef specifies the reference to the server.
@@ -81,6 +89,8 @@ type GatewayServerStatus struct {
 	Endpoint *EndpointStatus `json:"endpoint,omitempty"`
 	// SecretRef specifies the reference to the secret.
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
+	// InternalEndpoint specifies the endpoint for the internal network.
+	InternalEndpoint *InternalGatewayEndpoint `json:"internalEndpoint,omitempty"`
 }
 
 // +kubebuilder:object:root=true
