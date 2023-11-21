@@ -76,7 +76,7 @@ type EndpointStatus struct {
 // InternalGatewayEndpoint defines the endpoint for the internal network.
 type InternalGatewayEndpoint struct {
 	// IP is the IP address of the endpoint.
-	IP IP `json:"ip,omitempty"`
+	IP *IP `json:"ip,omitempty"`
 	// Node is the name of the node where the endpoint is running.
 	Node *string `json:"node,omitempty"`
 }
