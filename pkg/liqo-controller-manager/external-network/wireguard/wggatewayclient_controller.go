@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -224,7 +225,7 @@ func (r *WgGatewayClientReconciler) handleInternalEndpointStatus(ctx context.Con
 	})
 
 	wgClient.Status.InternalEndpoint = &networkingv1alpha1.InternalGatewayEndpoint{
-		IP:   networkingv1alpha1.IP(podList.Items[0].Status.PodIP),
+		IP:   ptr.To(networkingv1alpha1.IP(podList.Items[0].Status.PodIP)),
 		Node: &podList.Items[0].Spec.NodeName,
 	}
 	return nil
