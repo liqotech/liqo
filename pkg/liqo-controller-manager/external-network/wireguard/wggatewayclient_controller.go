@@ -16,12 +16,15 @@ package wireguard
 
 import (
 	"context"
+	"fmt"
+	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
@@ -41,16 +44,19 @@ import (
 // WgGatewayClientReconciler manage WgGatewayClient lifecycle.
 type WgGatewayClientReconciler struct {
 	client.Client
-	Scheme          *runtime.Scheme
-	clusterRoleName string
+	Scheme           *runtime.Scheme
+	extNetPodsClient client.Client
+	clusterRoleName  string
 }
 
 // NewWgGatewayClientReconciler returns a new WgGatewayClientReconciler.
-func NewWgGatewayClientReconciler(cl client.Client, s *runtime.Scheme, clusterRoleName string) *WgGatewayClientReconciler {
+func NewWgGatewayClientReconciler(cl client.Client, s *runtime.Scheme, extNetPodsClient client.Client,
+	clusterRoleName string) *WgGatewayClientReconciler {
 	return &WgGatewayClientReconciler{
-		Client:          cl,
-		Scheme:          s,
-		clusterRoleName: clusterRoleName,
+		Client:           cl,
+		Scheme:           s,
+		extNetPodsClient: extNetPodsClient,
+		clusterRoleName:  clusterRoleName,
 	}
 }
 
@@ -87,8 +93,9 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	// Ensure deployment (create or update)
+	var deploy *appsv1.Deployment
 	deployNsName := types.NamespacedName{Namespace: wgClient.Namespace, Name: gateway.GenerateResourceName(wgClient.Name)}
-	_, err = r.ensureDeployment(ctx, wgClient, deployNsName)
+	deploy, err = r.ensureDeployment(ctx, wgClient, deployNsName)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -114,6 +121,10 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}()
 
 	if err := r.handleSecretRefStatus(ctx, wgClient); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.handleInternalEndpointStatus(ctx, wgClient, deploy); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -186,5 +197,35 @@ func (r *WgGatewayClientReconciler) handleSecretRefStatus(ctx context.Context, w
 		}
 	}
 
+	return nil
+}
+
+func (r *WgGatewayClientReconciler) handleInternalEndpointStatus(ctx context.Context,
+	wgClient *networkingv1alpha1.WgGatewayClient, dep *appsv1.Deployment) error {
+	podsFromDepSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)}
+	var podList corev1.PodList
+	if err := r.extNetPodsClient.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
+		klog.Errorf("Unable to list pods of deployment %s/%s: %v", dep.Namespace, dep.Name, err)
+		return err
+	}
+
+	if len(podList.Items) == 0 {
+		err := fmt.Errorf("no pods found for deployment %s/%s", dep.Namespace, dep.Name)
+		klog.Error(err)
+		return err
+	}
+
+	// sort pods by creation timestamp (older first), and name
+	sort.Slice(podList.Items, func(i, j int) bool {
+		if podList.Items[i].CreationTimestamp.Equal(&podList.Items[j].CreationTimestamp) {
+			return podList.Items[i].Name < podList.Items[j].Name
+		}
+		return podList.Items[i].CreationTimestamp.Before(&podList.Items[j].CreationTimestamp)
+	})
+
+	wgClient.Status.InternalEndpoint = &networkingv1alpha1.InternalGatewayEndpoint{
+		IP:   networkingv1alpha1.IP(podList.Items[0].Status.PodIP),
+		Node: &podList.Items[0].Spec.NodeName,
+	}
 	return nil
 }
