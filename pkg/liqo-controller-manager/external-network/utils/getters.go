@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 )
@@ -38,6 +39,18 @@ func ParseEndpoint(endpoint map[string]interface{}) *networkingv1alpha1.Endpoint
 	if value, ok := endpoint["protocol"]; ok {
 		tmp := corev1.Protocol(value.(string))
 		res.Protocol = &tmp
+	}
+	return res
+}
+
+// ParseInternalEndpoint parses an internal endpoint from a map.
+func ParseInternalEndpoint(internalEndpoint map[string]interface{}) *networkingv1alpha1.InternalGatewayEndpoint {
+	res := &networkingv1alpha1.InternalGatewayEndpoint{}
+	if value, ok := internalEndpoint["ip"]; ok {
+		res.IP = networkingv1alpha1.IP(value.(string))
+	}
+	if value, ok := internalEndpoint["node"]; ok {
+		res.Node = ptr.To(value.(string))
 	}
 	return res
 }
