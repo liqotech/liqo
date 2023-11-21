@@ -10115,6 +10115,19 @@ spec:
                     - UDP
                     type: string
                 type: object
+              internalEndpoint:
+                description: InternalEndpoint specifies the endpoint for the internal
+                  network.
+                properties:
+                  ip:
+                    description: IP is the IP address of the endpoint.
+                    pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                    type: string
+                  node:
+                    description: Node is the name of the node where the endpoint is
+                      running.
+                    type: string
+                type: object
               secretRef:
                 description: SecretRef specifies the reference to the secret.
                 properties:
