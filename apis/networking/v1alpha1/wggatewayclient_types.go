@@ -47,6 +47,8 @@ type WgGatewayClientSpec struct {
 type WgGatewayClientStatus struct {
 	// SecretRef specifies the reference to the secret.
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
+	// InternalEndpoint specifies the endpoint for the internal network.
+	InternalEndpoint *InternalGatewayEndpoint `json:"internalEndpoint,omitempty"`
 }
 
 // +kubebuilder:object:root=true
