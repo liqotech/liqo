@@ -47,7 +47,7 @@ func ParseEndpoint(endpoint map[string]interface{}) *networkingv1alpha1.Endpoint
 func ParseInternalEndpoint(internalEndpoint map[string]interface{}) *networkingv1alpha1.InternalGatewayEndpoint {
 	res := &networkingv1alpha1.InternalGatewayEndpoint{}
 	if value, ok := internalEndpoint["ip"]; ok {
-		res.IP = networkingv1alpha1.IP(value.(string))
+		res.IP = ptr.To(networkingv1alpha1.IP(value.(string)))
 	}
 	if value, ok := internalEndpoint["node"]; ok {
 		res.Node = ptr.To(value.(string))
