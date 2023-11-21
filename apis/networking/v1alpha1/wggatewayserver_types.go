@@ -87,6 +87,8 @@ type WgGatewayServerStatus struct {
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Endpoint specifies the endpoint of the server.
 	Endpoint *EndpointStatus `json:"endpoint,omitempty"`
+	// InternalEndpoint specifies the endpoint for the internal network.
+	InternalEndpoint *InternalGatewayEndpoint `json:"internalEndpoint,omitempty"`
 }
 
 // +kubebuilder:object:root=true

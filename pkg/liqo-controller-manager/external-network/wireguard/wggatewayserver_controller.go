@@ -138,6 +138,10 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
+	if err := r.handleInternalEndpointStatus(ctx, wgServer, svcNsName, deploy); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -236,7 +240,7 @@ func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wg
 	var endpointStatus *networkingv1alpha1.EndpointStatus
 	switch service.Spec.Type {
 	case corev1.ServiceTypeNodePort:
-		endpointStatus, err = r.forgeEndpointStatusNodePort(ctx, &service, dep)
+		endpointStatus, _, err = r.forgeEndpointStatusNodePort(ctx, &service, dep)
 	case corev1.ServiceTypeLoadBalancer:
 		endpointStatus, err = r.forgeEndpointStatusLoadBalancer(&service)
 	default:
@@ -255,11 +259,11 @@ func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wg
 }
 
 func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Context, service *corev1.Service,
-	dep *appsv1.Deployment) (*networkingv1alpha1.EndpointStatus, error) {
+	dep *appsv1.Deployment) (*networkingv1alpha1.EndpointStatus, *networkingv1alpha1.InternalGatewayEndpoint, error) {
 	if len(service.Spec.Ports) == 0 {
 		err := fmt.Errorf("service %s/%s has no ports", service.Namespace, service.Name)
 		klog.Error(err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	port := service.Spec.Ports[0].NodePort
@@ -268,23 +272,25 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 	// Every node IP is a valid endpoint. For convenience, we get the IP of all nodes hosting replicas of the deployment
 	// (i.e., WireGuard gateway servers).
 	var addresses []string
+	var internalAddress string
+	var nodeName string
 	podsFromDepSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)}
 	var podList corev1.PodList
 	if err := r.extNetPodsClient.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
 		klog.Errorf("Unable to list pods of deployment %s/%s: %v", dep.Namespace, dep.Name, err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Check if the number of pods found (i.e., in cache) matches the number of desired replicas.
 	if err := r.numPodsMatchesDesiredReplicas(len(podList.Items), dep); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	switch len(podList.Items) {
 	case 0:
 		err := fmt.Errorf("pods of deployment %s/%s not found", dep.Namespace, dep.Name)
 		klog.Error(err)
-		return nil, err
+		return nil, nil, err
 	default:
 		// TODO: if using active-passive, it should get the IP of the active node
 		// Get all nodes hosting pod replicas of the WireGuard server deployment
@@ -296,7 +302,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 			err := r.Get(ctx, types.NamespacedName{Name: pod.Spec.NodeName}, &node)
 			if err != nil && !apierrors.IsNotFound(err) {
 				klog.Errorf("Unable to get node %q: %v", pod.Spec.NodeName, err)
-				return nil, err
+				return nil, nil, err
 			}
 			if !apierrors.IsNotFound(err) {
 				nodes = append(nodes, &node)
@@ -305,12 +311,12 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		// For every node, get IP address. We avoid duplicate utilizing a map and then converting to array.
 		// Note that duplicates should not happen if the deployment correctly have replicas spread across different nodes,
 		// but we double check anyway.
-		addressesMap := make(map[string]interface{})
+		addressesMap := make(map[string]string)
 		for i := range nodes {
 			if utils.IsNodeReady(nodes[i]) {
 				address, err := discovery.GetAddress(nodes[i])
 				if err == nil {
-					addressesMap[address] = nil
+					addressesMap[address] = nodes[i].Name
 				}
 			}
 		}
@@ -320,7 +326,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 			if len(nodes) > 0 {
 				address, err := discovery.GetAddress(nodes[0])
 				if err == nil {
-					addressesMap[address] = nil
+					addressesMap[address] = nodes[0].Name
 				}
 			}
 		}
@@ -328,17 +334,31 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		if len(addressesMap) == 0 {
 			err := fmt.Errorf("no valid addresses found for WireGuard server %s/%s", service.Namespace, service.Name)
 			klog.Error(err)
-			return nil, err
+			return nil, nil, err
 		}
 		// Addresses contains only the keys to avoid duplicates
 		addresses = maps.Keys(addressesMap)
+		// TODO: if using active-passive, it should get the IP of the active node
+		nodeName = addressesMap[addresses[0]]
+	}
+
+	// get the ip of the pod running on the node
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		if pod.Spec.NodeName == nodeName {
+			internalAddress = pod.Status.PodIP
+			break
+		}
 	}
 
 	return &networkingv1alpha1.EndpointStatus{
-		Protocol:  protocol,
-		Port:      port,
-		Addresses: addresses,
-	}, nil
+			Protocol:  protocol,
+			Port:      port,
+			Addresses: addresses,
+		}, &networkingv1alpha1.InternalGatewayEndpoint{
+			IP:   networkingv1alpha1.IP(internalAddress),
+			Node: &nodeName,
+		}, nil
 }
 
 func (r *WgGatewayServerReconciler) numPodsMatchesDesiredReplicas(numPods int, dep *appsv1.Deployment) error {
@@ -405,5 +425,23 @@ func (r *WgGatewayServerReconciler) handleSecretRefStatus(ctx context.Context, w
 		}
 	}
 
+	return nil
+}
+
+func (r *WgGatewayServerReconciler) handleInternalEndpointStatus(ctx context.Context, wgServer *networkingv1alpha1.WgGatewayServer,
+	svcNsName types.NamespacedName, dep *appsv1.Deployment) error {
+	var service corev1.Service
+	err := r.Get(ctx, svcNsName, &service)
+	if err != nil {
+		klog.Error(err) // raise an error also if service NotFound
+		return err
+	}
+
+	_, ige, err := r.forgeEndpointStatusNodePort(ctx, &service, dep)
+	if err != nil {
+		return err
+	}
+
+	wgServer.Status.InternalEndpoint = ige
 	return nil
 }
