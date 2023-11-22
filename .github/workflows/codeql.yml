@@ -12,6 +12,9 @@
 name: "CodeQL"
 
 on:
+  push: 
+    branches:
+      - master
   # Runs at 19:30, only on Saturday
   schedule:
     - cron: '30 19 * * 6'
@@ -51,6 +54,7 @@ jobs:
       if: ${{ github.event_name == 'repository_dispatch' }}
   analyze:
     name: Analyze
+    needs: configure
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
     #   - https://gh.io/supported-runners-and-hardware-resources
@@ -74,7 +78,11 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      with:
+        ref: "${{ needs.configure.outputs.commit-ref }}"
+        repository: "${{ needs.configure.outputs.repo-name }}"
+        persist-credentials: false
 
     - uses: actions/setup-go@v4
       with:
