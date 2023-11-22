@@ -26,7 +26,6 @@ jobs:
   configure:
     name: Preliminary configuration
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
     outputs:
       commit-ref: ${{ steps.configure.outputs.commit-ref }}
       repo-suffix: ${{ steps.configure.outputs.repo-suffix }}
@@ -36,8 +35,17 @@ jobs:
       id: configure
       run: |
         # The ref of the commit to checkout (do not use the merge commit if pull request)
-        echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-        echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
+        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+          echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+        else
+          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+        fi
+
+        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+          echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "repo-name=${{ github.repository }}" >> $GITHUB_OUTPUT
+        fi
 
 
     # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
