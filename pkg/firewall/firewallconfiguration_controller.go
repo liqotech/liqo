@@ -42,10 +42,13 @@ type FirewallConfigurationReconciler struct {
 	client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
+	// Labels used to filter the reconciled resources.
+	Labels map[string]string
 }
 
 // NewFirewallConfigurationReconciler returns a new FirewallConfigurationReconciler.
-func NewFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder) (*FirewallConfigurationReconciler, error) {
+func NewFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
+	er record.EventRecorder, labels map[string]string) (*FirewallConfigurationReconciler, error) {
 	nftConnection, err := nftables.New()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create nftables connection: %w", err)
@@ -55,6 +58,7 @@ func NewFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme, er 
 		Client:         cl,
 		Scheme:         s,
 		EventsRecorder: er,
+		Labels:         labels,
 	}, nil
 }
 
@@ -132,8 +136,8 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 }
 
 // SetupWithManager register the FirewallConfigurationReconciler to the manager.
-func (r *FirewallConfigurationReconciler) SetupWithManager(mgr ctrl.Manager, labels map[string]string) error {
-	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: labels})
+func (r *FirewallConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: r.Labels})
 	if err != nil {
 		return err
 	}
