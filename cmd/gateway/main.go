@@ -31,9 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
+	gwremapping "github.com/liqotech/liqo/pkg/gateway/remapping"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -125,22 +127,36 @@ func run(_ *cobra.Command, _ []string) error {
 	}
 
 	if options.EnableConnectionController {
-		// Setup the controller.
+		// Setup the connection controller.
 		connr, err := connection.NewConnectionsReconciler(
 			ctx,
 			mgr.GetClient(),
 			mgr.GetScheme(),
-			mgr.GetEventRecorderFor("connections-controller"),
+			mgr.GetEventRecorderFor("connection-controller"),
 			options,
 		)
 		if err != nil {
 			return fmt.Errorf("unable to create connectioons reconciler: %w", err)
 		}
 
-		// Setup the controller.
 		if err = connr.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("unable to setup connections reconciler: %w", err)
 		}
+	}
+
+	// Setup the firewall configuration controller.
+	fwcr, err := firewall.NewFirewallConfigurationReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("firewall-controller"),
+		gwremapping.ForgeFirewallTargetLabels(options.GwOptions.RemoteClusterID),
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
+	}
+
+	if err := fwcr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
 	}
 
 	// Start the manager.
