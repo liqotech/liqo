@@ -20,6 +20,7 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -106,26 +107,19 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager register the ConfigurationReconciler to the manager.
+// SetupWithManager register the ConnectionReconciler to the manager.
 func (r *ConnectionsReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			string(consts.RemoteClusterID): r.Options.GwOptions.RemoteClusterID,
+		},
+	})
+	if err != nil {
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.Connection{}, r.Predicates()).
+		For(&networkingv1alpha1.Connection{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
-}
-
-// Predicates returns the predicates required for the PublicKey controller.
-func (r *ConnectionsReconciler) Predicates() builder.Predicates {
-	return builder.WithPredicates(
-		predicate.NewPredicateFuncs(func(object client.Object) bool {
-			connection, ok := object.(*networkingv1alpha1.Connection)
-			if !ok {
-				return false
-			}
-			if connection.Labels == nil {
-				return false
-			}
-			return connection.Labels[string(consts.RemoteClusterID)] == r.Options.GwOptions.RemoteClusterID
-		}))
 }
 
 // ForgeUpdateConnectionCallback forges the UpdateConnectionStatus function.
