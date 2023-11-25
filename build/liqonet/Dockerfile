@@ -1,11 +1,11 @@
 FROM golang:1.21.4 as goBuilder-wg
 
-ARG VERSION=0.0.20230223
-
+ARG VERSION=2e0774f246fb4fc1bd5cb44584d033038c89174e
 # change with "go install git.zx2c4.com/wireguard-go"
 # waiting for https://github.com/WireGuard/wireguard-go/pull/87 to be merged
-RUN git clone -b ${VERSION} https://git.zx2c4.com/wireguard-go
+RUN git clone https://git.zx2c4.com/wireguard-go
 WORKDIR /go/wireguard-go
+RUN git checkout $VERSION
 RUN CGO_ENABLED=0 make
 
 FROM golang:1.21.4 as goBuilder
