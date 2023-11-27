@@ -275,4 +275,5 @@ replace github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20
 // Waitin for PR https://github.com/coreos/go-iptables/pull/110 to be merged
 replace github.com/coreos/go-iptables => github.com/cheina97/go-iptables v0.0.0-20230824102241-61fc692e7548
 
-replace github.com/google/nftables => github.com/google/nftables v0.1.1-0.20231024065723-32bfbb662717
+// Waiting for an answer in issue https://github.com/google/nftables/issues/248
+replace github.com/google/nftables => github.com/cheina97/nftables v0.0.0-20231130113829-f658cd146651
