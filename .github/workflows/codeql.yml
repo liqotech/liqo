@@ -12,54 +12,24 @@
 name: "CodeQL"
 
 on:
-  push: 
-    branches:
-      - master
-  # Runs at 19:30, only on Saturday
+  # Runs at 19:30, everyday
   schedule:
-    - cron: '30 19 * * 6'
-  repository_dispatch:
-    types:
-      - test-command
+    - cron: '30 19 * * *'
 
 jobs:
   configure:
-    name: Preliminary configuration
+    name: "Start Message"
     runs-on: ubuntu-latest
-    outputs:
-      commit-ref: ${{ steps.configure.outputs.commit-ref }}
-      repo-suffix: ${{ steps.configure.outputs.repo-suffix }}
-      repo-name: ${{ steps.configure.outputs.repo-name }}
     steps:
-    - name: Configure
-      id: configure
-      run: |
-        # The ref of the commit to checkout (do not use the merge commit if pull request)
-        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-          echo "commit-ref=${{ github.event.client_payload.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-        else
-          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
-        fi
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_LIQO_NOTIFICATION }}
+          SLACK_COLOR: "#b105f5"
+          SLACK_MESSAGE: "https://github.com/liqotech/liqops/actions/runs/${{ github.run_id }}"
+          SLACK_TITLE: "Daily CodeQL analysis started  :rocket:"
+          MSG_MINIMAL: "true"
 
-        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
-          echo "repo-name=${{ github.event.client_payload.github.payload.repository.full_name }}" >> $GITHUB_OUTPUT
-        else
-          echo "repo-name=${{ github.repository }}" >> $GITHUB_OUTPUT
-        fi
-
-
-    # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
-    - uses: octokit/request-action@v2.x
-      name: "Initialize run check to 'pending'"
-      with:
-        route: POST /repos/${{ github.repository }}/statuses/${{ steps.configure.outputs.commit-ref }}
-        state: "pending"
-        description: "CodeQL status"
-        context:  "CodeQL"
-        target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      env:
-        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-      if: ${{ github.event_name == 'repository_dispatch' }}
   analyze:
     name: Analyze
     needs: configure
@@ -78,7 +48,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'go' ]
+        component:
+          - auth-service
+          - crd-replicator
+          - discovery
+          - liqo-controller-manager
+          - liqoctl
+          - liqonet
+          - metric-agent
+          - telemetry
+          - uninstaller
+          - virtual-kubelet
+          
         # CodeQL supports [ 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift' ]
         # Use only 'java-kotlin' to analyze code written in Java, Kotlin or both
         # Use only 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
@@ -87,21 +68,16 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        ref: "${{ needs.configure.outputs.commit-ref }}"
-        repository: "${{ needs.configure.outputs.repo-name }}"
-        persist-credentials: false
 
     - uses: actions/setup-go@v4
       with:
         go-version: '1.21'
-        cache: true
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v2
       with:
-        languages: ${{ matrix.language }}
+        languages: go
         
         # If you wish to specify custom queries, you can do so here or in a config file.
         # By default, queries listed here will override any specified in a config file.
@@ -112,29 +88,24 @@ jobs:
 
     - name: Build Application
       run: |
-        find ./cmd -name "main.go" -exec dirname {} \; | while read dir; do 
-          echo "Building ${dir}"
-          go build ${dir}
-        done
+        go build ./cmd/${{ matrix.component }}
+
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
       with:
-        category: "/language:${{matrix.language}}"
+        category: "/language:go"
   
-  results:
-    name: Result
+  result:
+    name: "Results Message"
+    if: always()
+    needs: [ configure, analyze]
     runs-on: ubuntu-latest
-    needs: [configure, analyze]
-    if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
     steps:
-    - uses: octokit/request-action@v2.x
-      name: "Update run check status"
-      with:
-        route: POST /repos/${{ github.repository }}/statuses/${{ needs.configure.outputs.commit-ref }}
-        state: "${{ job.status }}"
-        description: "CodeQL status"
-        context: "CodeQL"
-        target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      env:
-        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-      if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_LIQO_NOTIFICATION }}
+          SLACK_COLOR: ${{ needs.analyze.result }}
+          SLACK_MESSAGE: "https://github.com/liqotech/liqo/actions/runs/${{ github.run_id }}"
+          SLACK_TITLE: "Daily CodeQL analysis results  :rocket:"
+          MSG_MINIMAL: "true"
