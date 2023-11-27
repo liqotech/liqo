@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 )
 
 // cluster-role
@@ -141,7 +142,14 @@ func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) adm
 		if err := checkRulesInChain(&chain); err != nil {
 			return admission.Denied(err.Error())
 		}
-	}
 
+		switch *chain.Type {
+		case firewallapi.ChainTypeNAT:
+			if err := checkNatRulesInChain(&chain); err != nil {
+				return admission.Denied(err.Error())
+			}
+		default:
+		}
+	}
 	return admission.Allowed("")
 }
