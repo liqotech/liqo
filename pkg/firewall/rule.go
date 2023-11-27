@@ -29,7 +29,9 @@ func addRules(nftconn *nftables.Conn, chain *firewallapi.Chain, nftchain *nftabl
 	}
 	for i := range apirules {
 		if exist := existRule(nftrules, apirules[i]); !exist {
-			apirules[i].Add(nftconn, nftchain)
+			if err := apirules[i].Add(nftconn, nftchain); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
