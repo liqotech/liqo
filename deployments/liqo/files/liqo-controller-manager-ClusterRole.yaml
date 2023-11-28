@@ -542,6 +542,18 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - routeconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - wggatewayclients
   verbs:
   - create
