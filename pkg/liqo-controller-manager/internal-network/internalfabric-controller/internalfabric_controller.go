@@ -30,12 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/ipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
-)
-
-const (
-	internalFabricLabelKey = "liqo.io/internal-fabric"
 )
 
 // InternalFabricReconciler manage InternalFabric lifecycle.
@@ -88,7 +85,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	var internalNodes networkingv1alpha1.InternalNodeList
 	if err = r.List(ctx, &internalNodes, client.InNamespace(internalFabric.Namespace),
-		client.MatchingLabels{internalFabricLabelKey: req.Name}); err != nil {
+		client.MatchingLabels{consts.InternalFabricLabelKey: req.Name}); err != nil {
 		klog.Errorf("Unable to list InternalNodes: %s", err)
 		return ctrl.Result{}, err
 	}
@@ -120,7 +117,7 @@ func (r *InternalFabricReconciler) reconcileNode(ctx context.Context,
 		if internalNode.Labels == nil {
 			internalNode.Labels = make(map[string]string)
 		}
-		internalNode.Labels[internalFabricLabelKey] = internalFabric.Name
+		internalNode.Labels[consts.InternalFabricLabelKey] = internalFabric.Name
 
 		internalNode.Spec.FabricRef = &corev1.ObjectReference{
 			Name:      internalFabric.Name,
