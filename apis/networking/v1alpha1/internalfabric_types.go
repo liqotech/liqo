@@ -59,7 +59,7 @@ type InternalFabricSpec struct {
 // InternalFabricStatus defines the observed state of InternalFabric.
 type InternalFabricStatus struct {
 	// AssignedIPs is the list of IP addresses assigned to interfaces in the nodes.
-	AssignedIPs []IP `json:"assignedIPs,omitempty"`
+	AssignedIPs map[string]IP `json:"assignedIPs,omitempty"`
 }
 
 // +kubebuilder:object:root=true
