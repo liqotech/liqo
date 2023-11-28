@@ -38,11 +38,11 @@ var RouteConfigurationGroupVersionResource = GroupVersion.WithResource(RouteConf
 // Route is the route of the RouteConfiguration.
 type Route struct {
 	// Dst is the destination of the RouteConfiguration.
-	Dst *CIDR `json:"dest"`
+	Dst *CIDR `json:"dst"`
 	// Src is the source of the RouteConfiguration.
 	Src *IP `json:"src,omitempty"`
 	// Gw is the gateway of the RouteConfiguration.
-	Gw *IP `json:"ip,omitempty"`
+	Gw *IP `json:"gw,omitempty"`
 	// Dev is the device of the RouteConfiguration.
 	Dev *string `json:"dev,omitempty"`
 }
