@@ -58,14 +58,14 @@ spec:
                           items:
                             description: Route is the route of the RouteConfiguration.
                             properties:
-                              dest:
-                                description: Dst is the destination of the RouteConfiguration.
-                                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
-                                type: string
                               dev:
                                 description: Dev is the device of the RouteConfiguration.
                                 type: string
-                              ip:
+                              dst:
+                                description: Dst is the destination of the RouteConfiguration.
+                                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                                type: string
+                              gw:
                                 description: Gw is the gateway of the RouteConfiguration.
                                 pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
                                 type: string
@@ -74,7 +74,7 @@ spec:
                                 pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
                                 type: string
                             required:
-                            - dest
+                            - dst
                             type: object
                           minItems: 1
                           type: array
