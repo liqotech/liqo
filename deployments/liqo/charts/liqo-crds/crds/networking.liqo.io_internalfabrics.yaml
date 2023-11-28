@@ -88,13 +88,13 @@ spec:
             description: InternalFabricStatus defines the observed state of InternalFabric.
             properties:
               assignedIPs:
-                description: AssignedIPs is the list of IP addresses assigned to interfaces
-                  in the nodes.
-                items:
+                additionalProperties:
                   description: IP defines a syntax validated IP.
                   pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
                   type: string
-                type: array
+                description: AssignedIPs is the list of IP addresses assigned to interfaces
+                  in the nodes.
+                type: object
             type: object
         type: object
     served: true
