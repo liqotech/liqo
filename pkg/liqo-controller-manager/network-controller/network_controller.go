@@ -16,7 +16,6 @@ package networkctrl
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +28,6 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam"
 )
 
@@ -61,14 +59,6 @@ func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, nil
 		}
 		klog.Errorf("an error occurred while getting Network %q: %v", req.NamespacedName, err)
-		return ctrl.Result{}, err
-	}
-
-	// Retrieve the remote cluster ID from the labels.
-	_, found := nw.Labels[consts.RemoteClusterID] // it should always be present thanks to validating webhook
-	if !found {
-		err := fmt.Errorf("missing label %q on Network %q (webhook disabled or misconfigured)", consts.RemoteClusterID, req.NamespacedName)
-		klog.Error(err)
 		return ctrl.Result{}, err
 	}
 
