@@ -72,6 +72,7 @@ import (
 	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/wireguard"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	internalclientcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/client-controller"
+	internalfabriccontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/internalfabric-controller"
 	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/server-controller"
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
@@ -722,6 +723,12 @@ func main() {
 
 		internalClientReconciler := internalclientcontroller.NewClientReconciler(mgr.GetClient(), mgr.GetScheme())
 		if err := internalClientReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		internalFabricReconciler := internalfabriccontroller.NewInternalFabricReconciler(mgr.GetClient(), mgr.GetScheme())
+		if err := internalFabricReconciler.SetupWithManager(mgr); err != nil {
 			klog.Error(err)
 			os.Exit(1)
 		}
