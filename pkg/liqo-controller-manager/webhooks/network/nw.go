@@ -77,12 +77,6 @@ func (w *nwwhv) HandleCreate(req *admission.Request) admission.Response {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	// Check existence of the remote clusterID label
-	_, found := nw.Labels[consts.RemoteClusterID]
-	if !found {
-		return admission.Denied(fmt.Sprintf("Missing remote clusterID label (%q)", consts.RemoteClusterID))
-	}
-
 	// Check existence of the network CIDR
 	if nw.Spec.CIDR == "" {
 		return admission.Denied("Missing CIDR")
@@ -110,10 +104,11 @@ func (w *nwwhv) HandleUpdate(req *admission.Request) admission.Response {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	// Check if the remote clusterID label is modified
-	// We do not check the existence of the label as it should always be present
-	// thank to the webhook validation of creation requests.
-	if nwold.Labels[consts.RemoteClusterID] != nwnew.Labels[consts.RemoteClusterID] {
+	// Check if the remote clusterID label is modified.
+	// note: the label can only be added or removed, but not modified.
+	oldClusterID, oldExists := nwold.Labels[consts.RemoteClusterID]
+	newClusterID, newExists := nwnew.Labels[consts.RemoteClusterID]
+	if oldExists && newExists && oldClusterID != newClusterID {
 		return admission.Denied("The remote clusterID label cannot be modified after creation")
 	}
 
