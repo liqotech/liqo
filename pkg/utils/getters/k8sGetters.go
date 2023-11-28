@@ -26,6 +26,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -455,6 +456,32 @@ func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
 	default:
 		return nil, fmt.Errorf("multiple GatewayClients found for ForeignCluster %s", clusterID)
 	}
+}
+
+// ListPhysicalNodes returns the list of physical nodes. (i.e. nodes not created by Liqo).
+func ListPhysicalNodes(ctx context.Context, cl client.Client) (*corev1.NodeList, error) {
+	req, err := labels.NewRequirement(consts.TypeLabel, selection.DoesNotExist, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	lSelector := labels.NewSelector().Add(*req)
+
+	list := new(corev1.NodeList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// ListInternalNodesByLabels returns the list of internalnodes resources. (i.e. nodes created by Liqo).
+func ListInternalNodesByLabels(ctx context.Context, cl client.Client,
+	lSelector labels.Selector) (*networkingv1alpha1.InternalNodeList, error) {
+	list := new(networkingv1alpha1.InternalNodeList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
 // GetUniqueNetworkByLabel retrieves the Network resource with the given label selector.
