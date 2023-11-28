@@ -864,8 +864,10 @@ func (in *InternalFabricStatus) DeepCopyInto(out *InternalFabricStatus) {
 	*out = *in
 	if in.AssignedIPs != nil {
 		in, out := &in.AssignedIPs, &out.AssignedIPs
-		*out = make([]IP, len(*in))
-		copy(*out, *in)
+		*out = make(map[string]IP, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 }
 
