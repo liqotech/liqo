@@ -606,7 +606,7 @@ func (r *ForeignClusterReconciler) clusterIDEnqueuer(ctx context.Context, obj cl
 
 	fc, err := foreignclusterutils.GetForeignClusterByID(ctx, r.Client, clusterID)
 	if err != nil {
-		klog.Error(err)
+		klog.V(6).Info(err) // we only print the event, as the network can be created without the existence of the foreign cluster
 		return []ctrl.Request{}
 	}
 
