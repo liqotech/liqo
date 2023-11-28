@@ -510,6 +510,26 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - internalfabrics/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalnodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - publickeies
   verbs:
   - create
