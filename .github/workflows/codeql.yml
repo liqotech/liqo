@@ -26,7 +26,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_LIQO_NOTIFICATION }}
           SLACK_COLOR: "#b105f5"
-          SLACK_MESSAGE: "https://github.com/liqotech/liqops/actions/runs/${{ github.run_id }}"
+          SLACK_MESSAGE: "https://github.com/liqotech/liqo/actions/runs/${{ github.run_id }}"
           SLACK_TITLE: "Daily CodeQL analysis started  :rocket:"
           MSG_MINIMAL: "true"
 
@@ -51,14 +51,17 @@ jobs:
         component:
           - auth-service
           - crd-replicator
-          - discovery
+          - ipam
           - liqo-controller-manager
-          - liqoctl
+          - discovery
           - liqonet
-          - metric-agent
-          - telemetry
           - uninstaller
           - virtual-kubelet
+          - metric-agent
+          - telemetry
+          - gateway
+          - gateway/wireguard
+          - liqoctl
           
         # CodeQL supports [ 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift' ]
         # Use only 'java-kotlin' to analyze code written in Java, Kotlin or both
