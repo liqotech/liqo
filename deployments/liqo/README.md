@@ -114,7 +114,7 @@
 | ipam.external.enabled | bool | `false` | Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM. |
 | ipam.external.url | string | `""` | The URL of the external IPAM. |
 | ipam.internal.enabled | bool | `true` | Use the default Liqo IPAM. |
-| ipam.internal.imageName | string | `"ghcr.io/liqotech/liqo-ipam"` | Image repository for the IPAM pod. |
+| ipam.internal.imageName | string | `"ghcr.io/liqotech/ipam"` | Image repository for the IPAM pod. |
 | ipam.internal.pod.annotations | object | `{}` | Annotations for the IPAM pod. |
 | ipam.internal.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
 | ipam.internal.pod.labels | object | `{}` | Labels for the IPAM pod. |
