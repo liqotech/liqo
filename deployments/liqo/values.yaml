@@ -216,7 +216,7 @@ ipam:
     # -- Use the default Liqo IPAM.
     enabled: true
     # -- Image repository for the IPAM pod.
-    imageName: "ghcr.io/liqotech/liqo-ipam"
+    imageName: "ghcr.io/liqotech/ipam"
     # -- The number of IPAM instances to run, which can be increased for active/passive high availability.
     replicas: 1
     pod:
