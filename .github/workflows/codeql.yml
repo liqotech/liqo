@@ -26,7 +26,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_LIQO_NOTIFICATION }}
           SLACK_COLOR: "#b105f5"
-          SLACK_MESSAGE: "https://github.com/liqotech/liqops/actions/runs/${{ github.run_id }}"
+          SLACK_MESSAGE: "https://github.com/liqotech/liqo/actions/runs/${{ github.run_id }}"
           SLACK_TITLE: "Daily CodeQL analysis started  :rocket:"
           MSG_MINIMAL: "true"
 
