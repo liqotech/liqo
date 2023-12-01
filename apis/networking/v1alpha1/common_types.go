@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//nolint:lll // ignore long lines given by Kubebuilder marker annotations.
 package v1alpha1
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -20,6 +19,8 @@ package v1alpha1
 
 // CIDR defines a syntax validated CIDR.
 // +kubebuilder:validation:Pattern=`^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$`
+//
+//nolint:lll // ignore long lines given by Kubebuilder marker annotations.
 type CIDR string
 
 func (c CIDR) String() string {
