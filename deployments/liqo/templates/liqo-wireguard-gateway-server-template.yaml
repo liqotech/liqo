@@ -47,7 +47,7 @@ spec:
               containers:
               - name: gateway
                 image: ghcr.io/liqotech/gateway{{ include "liqo.suffix" $templateConfig }}:{{ include "liqo.version" $templateConfig }}
-                imagePullPolicy: Always
+                imagePullPolicy: {{ .Values.pullPolicy }}
                 args:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
@@ -64,7 +64,7 @@ spec:
                 {{- end }}
               - name: wireguard
                 image: ghcr.io/liqotech/gateway/wireguard{{ include "liqo.suffix" $templateConfig }}:{{ include "liqo.version" $templateConfig }}
-                imagePullPolicy: Always
+                imagePullPolicy: {{ .Values.pullPolicy }}
                 args:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
