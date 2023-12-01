@@ -208,7 +208,7 @@ controllerManager:
       labels: {}
 
 ipam:
-  legacy: true
+  legacy: false
   external:
     # -- Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM.
     enabled: false
@@ -239,6 +239,8 @@ ipam:
   podCIDR: ""
   # -- The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16).
   serviceCIDR: ""
+  # -- The subnet used for the external CIDR. If empty, the default value (10.70.0.0/16) is used.
+  externalCIDR: ""
   # -- List of IP subnets that do not have to be used by Liqo.
   # Liqo can perform automatic IP address remapping when a remote cluster is peering with you, e.g., in case IP address spaces (e.g., PodCIDR) overlaps.
   # In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters
