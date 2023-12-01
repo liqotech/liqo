@@ -63,7 +63,7 @@ func NewFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigrations,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations/finalizers,verbs=update
 
