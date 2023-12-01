@@ -20,7 +20,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -28,10 +27,41 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
-	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
-// ForgeConfigurationForRemoteCluster forges a configuration of the local cluster to be applied to a remote cluster.
+// ForgeConfiguration forges a Configuration resource of a remote cluster.
+func ForgeConfiguration(name, namespace, remoteClusterID, podCIDR, externalCIDR string) *networkingv1alpha1.Configuration {
+	conf := &networkingv1alpha1.Configuration{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       networkingv1alpha1.ConfigurationKind,
+			APIVersion: networkingv1alpha1.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				liqoconsts.RemoteClusterID: remoteClusterID,
+			},
+		},
+	}
+	MutateConfiguration(conf, remoteClusterID, podCIDR, externalCIDR)
+	return conf
+}
+
+// MutateConfiguration mutates a Configuration resource of a remote cluster.
+func MutateConfiguration(conf *networkingv1alpha1.Configuration, remoteClusterID, podCIDR, externalCIDR string) {
+	conf.Kind = networkingv1alpha1.ConfigurationKind
+	conf.APIVersion = networkingv1alpha1.GroupVersion.String()
+	if conf.Labels == nil {
+		conf.Labels = make(map[string]string)
+	}
+	conf.Labels[liqoconsts.RemoteClusterID] = remoteClusterID
+	conf.Spec.Remote.CIDR.Pod = networkingv1alpha1.CIDR(podCIDR)
+	conf.Spec.Remote.CIDR.External = networkingv1alpha1.CIDR(externalCIDR)
+}
+
+// ForgeConfigurationForRemoteCluster forges a Configuration of the local cluster to be applied to a remote cluster.
 // It retrieves the local configuration settings starting from the cluster identity and the IPAM storage.
 func ForgeConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 	namespace, liqoNamespace string) (*networkingv1alpha1.Configuration, error) {
@@ -40,9 +70,14 @@ func ForgeConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 		return nil, fmt.Errorf("unable to get cluster identity: %w", err)
 	}
 
-	ipamStorage, err := liqogetters.GetIPAMStorageByLabel(ctx, cl, labels.NewSelector())
+	podCIDR, err := ipamutils.RetrievePodCIDR(ctx, cl)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get IPAM storage: %w", err)
+		return nil, fmt.Errorf("unable to retrieve pod CIDR: %w", err)
+	}
+
+	externalCIDR, err := ipamutils.RetrieveExternalCIDR(ctx, cl)
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve external CIDR: %w", err)
 	}
 
 	cnf := &networkingv1alpha1.Configuration{
@@ -59,8 +94,8 @@ func ForgeConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 		Spec: networkingv1alpha1.ConfigurationSpec{
 			Remote: networkingv1alpha1.ClusterConfig{
 				CIDR: networkingv1alpha1.ClusterConfigCIDR{
-					Pod:      networkingv1alpha1.CIDR(ipamStorage.Spec.PodCIDR),
-					External: networkingv1alpha1.CIDR(ipamStorage.Spec.ExternalCIDR),
+					Pod:      networkingv1alpha1.CIDR(podCIDR),
+					External: networkingv1alpha1.CIDR(externalCIDR),
 				},
 			},
 		},

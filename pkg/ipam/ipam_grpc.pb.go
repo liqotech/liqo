@@ -20,12 +20,13 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Ipam_MapEndpointIP_FullMethodName    = "/ipam/MapEndpointIP"
-	Ipam_UnmapEndpointIP_FullMethodName  = "/ipam/UnmapEndpointIP"
-	Ipam_MapNetworkCIDR_FullMethodName   = "/ipam/MapNetworkCIDR"
-	Ipam_UnmapNetworkCIDR_FullMethodName = "/ipam/UnmapNetworkCIDR"
-	Ipam_GetHomePodIP_FullMethodName     = "/ipam/GetHomePodIP"
-	Ipam_BelongsToPodCIDR_FullMethodName = "/ipam/BelongsToPodCIDR"
+	Ipam_MapEndpointIP_FullMethodName        = "/ipam/MapEndpointIP"
+	Ipam_UnmapEndpointIP_FullMethodName      = "/ipam/UnmapEndpointIP"
+	Ipam_MapNetworkCIDR_FullMethodName       = "/ipam/MapNetworkCIDR"
+	Ipam_UnmapNetworkCIDR_FullMethodName     = "/ipam/UnmapNetworkCIDR"
+	Ipam_GetHomePodIP_FullMethodName         = "/ipam/GetHomePodIP"
+	Ipam_BelongsToPodCIDR_FullMethodName     = "/ipam/BelongsToPodCIDR"
+	Ipam_GetOrSetExternalCIDR_FullMethodName = "/ipam/GetOrSetExternalCIDR"
 )
 
 // IpamClient is the client API for Ipam service.
@@ -38,6 +39,7 @@ type IpamClient interface {
 	UnmapNetworkCIDR(ctx context.Context, in *UnmapCIDRRequest, opts ...grpc.CallOption) (*UnmapCIDRResponse, error)
 	GetHomePodIP(ctx context.Context, in *GetHomePodIPRequest, opts ...grpc.CallOption) (*GetHomePodIPResponse, error)
 	BelongsToPodCIDR(ctx context.Context, in *BelongsRequest, opts ...grpc.CallOption) (*BelongsResponse, error)
+	GetOrSetExternalCIDR(ctx context.Context, in *GetOrSetExtCIDRRequest, opts ...grpc.CallOption) (*GetOrSetExtCIDRResponse, error)
 }
 
 type ipamClient struct {
@@ -102,6 +104,15 @@ func (c *ipamClient) BelongsToPodCIDR(ctx context.Context, in *BelongsRequest, o
 	return out, nil
 }
 
+func (c *ipamClient) GetOrSetExternalCIDR(ctx context.Context, in *GetOrSetExtCIDRRequest, opts ...grpc.CallOption) (*GetOrSetExtCIDRResponse, error) {
+	out := new(GetOrSetExtCIDRResponse)
+	err := c.cc.Invoke(ctx, Ipam_GetOrSetExternalCIDR_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IpamServer is the server API for Ipam service.
 // All implementations must embed UnimplementedIpamServer
 // for forward compatibility
@@ -112,6 +123,7 @@ type IpamServer interface {
 	UnmapNetworkCIDR(context.Context, *UnmapCIDRRequest) (*UnmapCIDRResponse, error)
 	GetHomePodIP(context.Context, *GetHomePodIPRequest) (*GetHomePodIPResponse, error)
 	BelongsToPodCIDR(context.Context, *BelongsRequest) (*BelongsResponse, error)
+	GetOrSetExternalCIDR(context.Context, *GetOrSetExtCIDRRequest) (*GetOrSetExtCIDRResponse, error)
 	mustEmbedUnimplementedIpamServer()
 }
 
@@ -136,6 +148,9 @@ func (UnimplementedIpamServer) GetHomePodIP(context.Context, *GetHomePodIPReques
 }
 func (UnimplementedIpamServer) BelongsToPodCIDR(context.Context, *BelongsRequest) (*BelongsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BelongsToPodCIDR not implemented")
+}
+func (UnimplementedIpamServer) GetOrSetExternalCIDR(context.Context, *GetOrSetExtCIDRRequest) (*GetOrSetExtCIDRResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrSetExternalCIDR not implemented")
 }
 func (UnimplementedIpamServer) mustEmbedUnimplementedIpamServer() {}
 
@@ -258,6 +273,24 @@ func _Ipam_BelongsToPodCIDR_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Ipam_GetOrSetExternalCIDR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrSetExtCIDRRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpamServer).GetOrSetExternalCIDR(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Ipam_GetOrSetExternalCIDR_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpamServer).GetOrSetExternalCIDR(ctx, req.(*GetOrSetExtCIDRRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Ipam_ServiceDesc is the grpc.ServiceDesc for Ipam service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -288,6 +321,10 @@ var Ipam_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BelongsToPodCIDR",
 			Handler:    _Ipam_BelongsToPodCIDR_Handler,
+		},
+		{
+			MethodName: "GetOrSetExternalCIDR",
+			Handler:    _Ipam_GetOrSetExternalCIDR_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
