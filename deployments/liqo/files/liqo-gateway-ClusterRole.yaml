@@ -107,3 +107,29 @@ rules:
   - list
   - update
   - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - routeconfigurations
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - routeconfigurations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - routeconfigurations/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
