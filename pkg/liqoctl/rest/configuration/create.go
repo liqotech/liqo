@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -29,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
@@ -90,7 +88,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
-	conf := forgeConfiguration(o.createOptions.Name, o.createOptions.Namespace,
+	conf := ForgeConfiguration(o.createOptions.Name, o.createOptions.Namespace,
 		o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
 
 	if opts.OutputFormat != "" {
@@ -100,7 +98,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	s := opts.Printer.StartSpinner("Creating configuration")
 	_, err := controllerutil.CreateOrUpdate(ctx, opts.CRClient, conf, func() error {
-		mutateConfiguration(conf, o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
+		MutateConfiguration(conf, o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
 		return nil
 	})
 	if err != nil {
@@ -131,35 +129,6 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func forgeConfiguration(name, namespace, remoteClusterID, podCIDR, externalCIDR string) *networkingv1alpha1.Configuration {
-	conf := &networkingv1alpha1.Configuration{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       networkingv1alpha1.ConfigurationKind,
-			APIVersion: networkingv1alpha1.GroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels: map[string]string{
-				liqoconsts.RemoteClusterID: remoteClusterID,
-			},
-		},
-	}
-	mutateConfiguration(conf, remoteClusterID, podCIDR, externalCIDR)
-	return conf
-}
-
-func mutateConfiguration(conf *networkingv1alpha1.Configuration, remoteClusterID, podCIDR, externalCIDR string) {
-	conf.Kind = networkingv1alpha1.ConfigurationKind
-	conf.APIVersion = networkingv1alpha1.GroupVersion.String()
-	if conf.Labels == nil {
-		conf.Labels = make(map[string]string)
-	}
-	conf.Labels[liqoconsts.RemoteClusterID] = remoteClusterID
-	conf.Spec.Remote.CIDR.Pod = networkingv1alpha1.CIDR(podCIDR)
-	conf.Spec.Remote.CIDR.External = networkingv1alpha1.CIDR(externalCIDR)
 }
 
 // output implements the logic to output the generated Configuration resource.

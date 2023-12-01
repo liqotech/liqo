@@ -1,7 +1,7 @@
----
-{{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
-
 {{- if and (.Values.networking.internal) (not .Values.ipam.external.enabled) (not .Values.ipam.legacy ) }}
+
+{{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
+{{- $ha := (gt .Values.ipam.internal.replicas 1.0) -}}
 
 apiVersion: v1
 kind: Service
@@ -18,5 +18,8 @@ spec:
       protocol: TCP
   selector:
     {{- include "liqo.selectorLabels" $ipamConfig | nindent 4 }}
+    {{- if $ha }}
+    leaderelection.liqo.io/leader: "true"
+    {{- end }}
 
 {{- end }}
