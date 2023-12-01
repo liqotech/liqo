@@ -1,4 +1,3 @@
----
 {{- $proxyConfig := (merge (dict "name" "proxy" "module" "networking") .) -}}
 
 apiVersion: v1

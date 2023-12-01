@@ -1,4 +1,3 @@
----
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 
 apiVersion: v1
