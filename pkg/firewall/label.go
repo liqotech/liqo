@@ -16,7 +16,7 @@ package firewall
 
 const (
 	// FirewallCategoryTargetKey is the key used by the firewallconfiguration controller to reconcile only resources related to a group.
-	FirewallCategoryTargetKey = "liqo.io/firewall/category"
+	FirewallCategoryTargetKey = "networking.liqo.io/firewall-category"
 	// FirewallUniqueTargetKey is the key used by the firewallconfiguration controller to reconcile only resources related to a single component.
-	FirewallUniqueTargetKey = "liqo.io/firewall/unique"
+	FirewallUniqueTargetKey = "networking.liqo.io/firewall-unique"
 )
