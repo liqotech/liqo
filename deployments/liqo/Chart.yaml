@@ -2,6 +2,10 @@ apiVersion: v2
 name: liqo
 description: A Helm chart for Liqo
 icon:  https://liqo.io/imgs/favicon.svg
+dependencies:
+  - name: liqo-crds
+    version: 0.1.0
+    repository: file://./charts/liqo-crds
 
 # A chart can be either an 'application' or a 'library' chart.
 #
