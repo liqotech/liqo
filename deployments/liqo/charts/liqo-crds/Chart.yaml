@@ -1,6 +1,7 @@
 apiVersion: v2
 name: liqo-crds
 description: A Helm chart for Liqo, contains the CRDs
+icon:  https://liqo.io/imgs/favicon.svg
 
 # A chart can be either an 'application' or a 'library' chart.
 #
