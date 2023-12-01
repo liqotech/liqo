@@ -1,4 +1,3 @@
----
 {{- $crdReplicatorConfig := (merge (dict "name" "crd-replicator" "module" "dispatcher") .) -}}
 
 apiVersion: v1

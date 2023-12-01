@@ -1,4 +1,3 @@
----
 {{- $authConfig := (merge (dict "name" "auth" "module" "discovery" "containerName" "cert-creator") .) -}}
 {{- $awsConfig := (merge (dict "name" "aws-config" "module" "aws-config") .) -}}
 

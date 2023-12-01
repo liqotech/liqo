@@ -1,4 +1,3 @@
----
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 {{- $virtualKubeletConfigLocal := (merge (dict "name" "virtual-kubelet-local" "module" "virtualkubelet") .) -}}
 {{- $virtualKubeletConfigRemote := (merge (dict "name" "virtual-kubelet-remote" "module" "virtualkubelet") .) -}}

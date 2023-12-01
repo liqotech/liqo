@@ -1,4 +1,3 @@
----
 {{- $authConfig := (merge (dict "name" "auth" "module" "discovery") .) -}}
 
 apiVersion: v1
