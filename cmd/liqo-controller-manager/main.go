@@ -681,21 +681,13 @@ func main() {
 	}
 
 	if !*disableInternalNetwork {
-		networkReconciler := &networkctrl.NetworkReconciler{
-			Client:     mgr.GetClient(),
-			Scheme:     mgr.GetScheme(),
-			IpamClient: ipamClient,
-		}
+		networkReconciler := networkctrl.NewNetworkReconciler(mgr.GetClient(), mgr.GetScheme(), ipamClient)
 		if err = networkReconciler.SetupWithManager(mgr, *networkWorkers); err != nil {
 			klog.Errorf("Unable to start the networkReconciler: %v", err)
 			os.Exit(1)
 		}
 
-		ipReconciler := &ipctrl.IPReconciler{
-			Client:     mgr.GetClient(),
-			Scheme:     mgr.GetScheme(),
-			IpamClient: ipamClient,
-		}
+		ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), ipamClient)
 		if err = ipReconciler.SetupWithManager(ctx, mgr, *ipWorkers); err != nil {
 			klog.Errorf("Unable to start the ipReconciler: %v", err)
 			os.Exit(1)

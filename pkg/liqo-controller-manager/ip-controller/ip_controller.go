@@ -37,6 +37,7 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
 const (
@@ -46,8 +47,21 @@ const (
 // IPReconciler reconciles a IP object.
 type IPReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	IpamClient ipam.IpamClient
+	Scheme *runtime.Scheme
+
+	ipamClient      ipam.IpamClient
+	externalCIDRSet bool
+}
+
+// NewIPReconciler returns a new IPReconciler.
+func NewIPReconciler(cl client.Client, s *runtime.Scheme, ipamClient ipam.IpamClient) *IPReconciler {
+	return &IPReconciler{
+		Client: cl,
+		Scheme: s,
+
+		ipamClient:      ipamClient,
+		externalCIDRSet: false,
+	}
 }
 
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;create;update;patch;delete
@@ -70,6 +84,20 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 		}
 		klog.Errorf("an error occurred while getting IP %q: %v", req.NamespacedName, err)
 		return ctrl.Result{}, err
+	}
+
+	if !r.externalCIDRSet {
+		// Retrieve the externalCIDR of the local cluster
+		_, err := ipamutils.RetrieveExternalCIDR(ctx, r.Client)
+		if apierrors.IsNotFound(err) {
+			klog.Errorf("ExternalCIDR is not set yet. Configure it to correctly handle IP mappings")
+			return ctrl.Result{}, err
+		} else if err != nil {
+			klog.Errorf("error while retrieving externalCIDR: %v", err)
+			return ctrl.Result{}, err
+		}
+		// The external CIDR is set, we do not need to check it again in successive reconciliations.
+		r.externalCIDRSet = true
 	}
 
 	desiredIP = ip.Spec.IP
@@ -180,7 +208,7 @@ func (r *IPReconciler) forgeIPMappings(ctx context.Context, clusterIDs []string,
 		// multiple times by checking if the IP for that remote cluster is already set.
 		_, found := ip.Status.IPMappings[*remoteClusterID]
 		if !found {
-			remappedIP, err := getRemappedIP(ctx, r.IpamClient, *remoteClusterID, desiredIP)
+			remappedIP, err := getRemappedIP(ctx, r.ipamClient, *remoteClusterID, desiredIP)
 			if err != nil {
 				return false, err
 			}
@@ -194,7 +222,7 @@ func (r *IPReconciler) forgeIPMappings(ctx context.Context, clusterIDs []string,
 		if !slices.Contains(clusterIDs, entry) {
 			// We ignore eventual errors from the IPAM because the entries in the NatMappaings and IpamStorage for that cluster
 			// may have been already removed.
-			_ = deleteRemappedIP(ctx, r.IpamClient, entry, desiredIP)
+			_ = deleteRemappedIP(ctx, r.ipamClient, entry, desiredIP)
 			delete(ip.Status.IPMappings, entry)
 			needUpdate = true
 		}
@@ -207,7 +235,7 @@ func (r *IPReconciler) forgeIPMappings(ctx context.Context, clusterIDs []string,
 func (r *IPReconciler) handleDelete(ctx context.Context, clusterIDs []string, desiredIP networkingv1alpha1.IP, ip *ipamv1alpha1.IP) error {
 	for i := range clusterIDs {
 		remoteClusterID := &clusterIDs[i]
-		if err := deleteRemappedIP(ctx, r.IpamClient, *remoteClusterID, desiredIP); err != nil {
+		if err := deleteRemappedIP(ctx, r.ipamClient, *remoteClusterID, desiredIP); err != nil {
 			return err
 		}
 		delete(ip.Status.IPMappings, *remoteClusterID)

@@ -17,47 +17,63 @@ package leaderelection
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	coordv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const leaderLabel = "leaderelection.liqo.io/leader"
+
 var (
-	lock    sync.RWMutex
-	leading = false
+	lock                 sync.RWMutex
+	leading              = false
+	addToSchemeFunctions = []func(*runtime.Scheme) error{
+		clientgoscheme.AddToScheme,
+		coordv1.AddToScheme,
+	}
 )
 
 // Opts contains the options to configure the leader election mechanism.
 type Opts struct {
 	PodName           string
 	Namespace         string
+	DeploymentName    *string
 	LeaderElectorName string
 	LeaseDuration     time.Duration
 	RenewDeadline     time.Duration
 	RetryPeriod       time.Duration
 	InitCallback      func()
 	StopCallback      func()
+	LabelLeader       bool
 }
 
 // Init initializes the leader election mechanism.
 func Init(opts *Opts, rc *rest.Config, eb record.EventBroadcaster) (*leaderelection.LeaderElector, error) {
+	// Adds the APIs to the scheme.
 	scheme := runtime.NewScheme()
-	err := coordv1.AddToScheme(scheme)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
+	for _, addToScheme := range addToSchemeFunctions {
+		if err := addToScheme(scheme); err != nil {
+			return nil, fmt.Errorf("unable to add scheme: %w", err)
+		}
 	}
+
 	leaderelector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
 		Lock: &resourcelock.LeaseLock{
 			LeaseMeta: metav1.ObjectMeta{
@@ -75,6 +91,12 @@ func Init(opts *Opts, rc *rest.Config, eb record.EventBroadcaster) (*leaderelect
 				lock.Lock()
 				defer lock.Unlock()
 				klog.Infof("Leader election: this pod is the leader")
+				if opts.LabelLeader {
+					if err := handleLeaderLabel(ctx, rc, scheme, opts); err != nil {
+						klog.Errorf("Leader election: unable to handle labeling of leader: %s", err)
+						os.Exit(1)
+					}
+				}
 				leading = true
 				if opts.InitCallback != nil {
 					opts.InitCallback()
@@ -121,4 +143,58 @@ func IsLeader() bool {
 	lock.RLock()
 	defer lock.RUnlock()
 	return leading
+}
+
+// handleLeaderLabel labels the current pod as leader and unlabels eventual old leader.
+func handleLeaderLabel(ctx context.Context, rc *rest.Config, scheme *runtime.Scheme, opts *Opts) error {
+	klog.Infof("Leader election: labeling this pod as leader and unlabeling eventual old leader")
+	if opts.DeploymentName == nil {
+		return fmt.Errorf("deployment name not specified")
+	}
+
+	cl, err := client.New(rc, client.Options{Scheme: scheme})
+	if err != nil {
+		return fmt.Errorf("unable to create client: %w", err)
+	}
+
+	var deployment appsv1.Deployment
+	if err := cl.Get(ctx, client.ObjectKey{
+		Namespace: opts.Namespace,
+		Name:      *opts.DeploymentName,
+	}, &deployment); err != nil {
+		return fmt.Errorf("unable to get deployment: %w", err)
+	}
+
+	podsFromDepSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)}
+	var podList corev1.PodList
+	if err := cl.List(ctx, &podList, client.InNamespace(deployment.Namespace), podsFromDepSelector); err != nil {
+		return fmt.Errorf("unable to list pods of deployment %s/%s: %w", deployment.Namespace, deployment.Name, err)
+	}
+
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		if pod.Name == opts.PodName {
+			// Label pod if it is the new leader.
+			if pod.Labels == nil {
+				pod.Labels = map[string]string{}
+			}
+			pod.Labels[leaderLabel] = "true"
+			if err := cl.Update(ctx, pod); err != nil {
+				return fmt.Errorf("unable to label pod %s/%s: %w", pod.Namespace, pod.Name, err)
+			}
+			klog.Infof("Leader election: pod %s/%s labeled as leader", pod.Namespace, pod.Name)
+		} else {
+			// Unlabel pod if it is the old leader.
+			value, ok := pod.Labels[leaderLabel]
+			if ok && !strings.EqualFold(value, "false") {
+				delete(pod.Labels, leaderLabel)
+				if err := cl.Update(ctx, pod); err != nil {
+					return fmt.Errorf("unable to remove label from pod %s/%s: %w", pod.Namespace, pod.Name, err)
+				}
+				klog.Infof("Leader election: pod %s/%s unlabeled as leader", pod.Namespace, pod.Name)
+			}
+		}
+	}
+
+	return nil
 }

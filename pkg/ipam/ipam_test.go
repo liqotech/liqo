@@ -135,7 +135,9 @@ var _ = Describe("Ipam", func() {
 		Expect(err).To(BeNil())
 		n, err := rand.Int(rand.Reader, big.NewInt(10000))
 		Expect(err).To(BeNil())
-		err = ipam.Init(Pools, dynClient, 2000+int(n.Int64()))
+		err = ipam.Init(Pools, dynClient)
+		Expect(err).To(BeNil())
+		err = ipam.Serve(2000 + int(n.Int64()))
 		Expect(err).To(BeNil())
 	})
 	AfterEach(func() {
@@ -621,7 +623,9 @@ var _ = Describe("Ipam", func() {
 			ipam = NewIPAM()
 			n, err := rand.Int(rand.Reader, big.NewInt(2000))
 			Expect(err).To(BeNil())
-			err = ipam.Init(Pools, dynClient, 2000+int(n.Int64()))
+			err = ipam.Init(Pools, dynClient)
+			Expect(err).To(BeNil())
+			err = ipam.Serve(2000 + int(n.Int64()))
 			Expect(err).To(BeNil())
 
 			// Another cluster asks for the same networks
