@@ -221,7 +221,8 @@ func (r *IPReconciler) handleDelete(ctx context.Context, clusterIDs []string, de
 }
 
 // getRemappedIP returns the remapped IP for the given IP and remote clusterID.
-func getRemappedIP(ctx context.Context, ipamClient ipam.IpamClient, remoteClusterID string, desiredIP networkingv1alpha1.IP) (networkingv1alpha1.IP, error) {
+func getRemappedIP(ctx context.Context, ipamClient ipam.IpamClient, remoteClusterID string,
+	desiredIP networkingv1alpha1.IP) (networkingv1alpha1.IP, error) {
 	switch ipamClient.(type) {
 	case nil:
 		// IPAM is not enabled, use original IP from spec
