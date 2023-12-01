@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -59,7 +59,7 @@ func (r *IPReconciler) handleAssociatedService(ctx context.Context, ip *ipamv1al
 			{
 				Addresses: []string{ip.Spec.IP.String()},
 				Conditions: discoveryv1.EndpointConditions{
-					Ready: pointer.Bool(true),
+					Ready: ptr.To(true),
 				},
 			},
 		}

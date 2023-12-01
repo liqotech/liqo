@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package v1alpha1 contains API Schema definitions for the discovery v1alpha1 API group
-//
-//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 package v1alpha1
 
 import (
@@ -174,6 +171,8 @@ const (
 type PeeringCondition struct {
 	// Type of the peering condition.
 	// +kubebuilder:validation:Enum="OutgoingPeering";"IncomingPeering";"NetworkStatus";"APIServerStatus";"AuthenticationStatus";"ProcessForeignClusterStatus"
+	//
+	//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 	Type PeeringConditionType `json:"type"`
 	// Status of the condition.
 	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting";"Denied";"EmptyDenied";"Error";"Success";"External"
