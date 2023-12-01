@@ -30,6 +30,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -37,7 +38,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoipam "github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/leaderelection"
-	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -55,6 +55,8 @@ var (
 
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=ipamstorages,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=natmappings,verbs=get;list;watch;create;update;patch;delete
 
@@ -130,12 +132,14 @@ func run(_ *cobra.Command, _ []string) error {
 	leaderelectionOpts := &leaderelection.Opts{
 		PodName:           os.Getenv("POD_NAME"),
 		Namespace:         os.Getenv("POD_NAMESPACE"),
+		DeploymentName:    ptr.To(os.Getenv("DEPLOYMENT_NAME")),
 		LeaderElectorName: leaderElectorName,
 		LeaseDuration:     options.LeaseDuration,
 		RenewDeadline:     options.LeaseRenewDeadline,
 		RetryPeriod:       options.LeaseRetryPeriod,
 		InitCallback:      startIPAMServer,
 		StopCallback:      stopIPAMServer,
+		LabelLeader:       options.LabelLeader,
 	}
 
 	localClient := kubernetes.NewForConfigOrDie(cfg)
@@ -158,28 +162,33 @@ func initializeIPAM(ipam *liqoipam.IPAM, opts *liqoipam.Options, dynClient dynam
 		return fmt.Errorf("IPAM pointer is nil. Initialize it before calling this function")
 	}
 
-	if err := ipam.Init(liqoipam.Pools, dynClient, consts.IpamPort); err != nil {
+	if err := ipam.Init(liqoipam.Pools, dynClient); err != nil {
 		return err
 	}
 
+	// Configure PodCIDR
 	if err := ipam.SetPodCIDR(opts.PodCIDR.String()); err != nil {
 		return err
 	}
+
+	// Configure ServiceCIDR
 	if err := ipam.SetServiceCIDR(opts.ServiceCIDR.String()); err != nil {
 		return err
 	}
 
+	// Configure additional network pools.
 	for _, pool := range opts.AdditionalPools.StringList.StringList {
 		if err := ipam.AddNetworkPool(pool); err != nil {
 			return err
 		}
 	}
 
+	// Configure reserved subnets.
 	if err := ipam.SetReservedSubnets(opts.ReservedPools.StringList.StringList); err != nil {
 		return err
 	}
 
-	if _, err := ipam.GetExternalCIDR(liqonetutils.GetMask(options.PodCIDR.String())); err != nil {
+	if err := ipam.Serve(consts.IpamPort); err != nil {
 		return err
 	}
 
