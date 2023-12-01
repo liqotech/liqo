@@ -27,6 +27,8 @@ import (
 	goipam "github.com/metal-stack/go-ipam"
 	"go4.org/netipx"
 	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
@@ -67,6 +69,7 @@ type Ipam interface {
 	this function must not reserve it. If the remote cluster has not remapped
 	a local subnet, then CIDR value should be equal to "None". */
 	AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID string) error
+	// GetExternalCIDR chooses and returns the local cluster's ExternalCIDR.
 	GetExternalCIDR(mask uint8) (string, error)
 	// SetPodCIDR sets the cluster PodCIDR.
 	SetPodCIDR(podCIDR string) error
@@ -104,7 +107,7 @@ var Pools = []string{
 const emptyCIDR = ""
 
 // Init uses the Ipam resource to retrieve and allocate reserved networks.
-func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, listeningPort int) error {
+func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface) error {
 	var err error
 	// Set up storage
 	liqoIPAM.ipamStorage, err = NewIPAMStorage(dynClient)
@@ -130,14 +133,23 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, listenin
 			return fmt.Errorf("cannot set pools: %w", err)
 		}
 	}
-	if listeningPort > 0 {
-		err = liqoIPAM.initRPCServer(listeningPort)
-		if err != nil {
-			return fmt.Errorf("cannot start gRPC server: %w", err)
-		}
-	}
 
 	liqoIPAM.natMappingInflater = natmappinginflater.NewInflater(dynClient)
+	return nil
+}
+
+// Serve starts the gRPC server.
+func (liqoIPAM *IPAM) Serve(listeningPort int) error {
+	if listeningPort <= 0 {
+		return fmt.Errorf("IPAM gRPC server not started: invalid listening port %d", listeningPort)
+	}
+
+	if err := liqoIPAM.initRPCServer(listeningPort); err != nil {
+		return fmt.Errorf("cannot start gRPC server: %w", err)
+	}
+
+	klog.Infof("IPAM gRPC server listening on port %d", listeningPort)
+
 	return nil
 }
 
@@ -156,13 +168,22 @@ func (liqoIPAM *IPAM) initRPCServer(port int) error {
 		return err
 	}
 	liqoIPAM.grpcServer = grpc.NewServer()
+
+	// Register health service
+	hs := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(liqoIPAM.grpcServer, hs)
+
+	// Register IPAM service
 	RegisterIpamServer(liqoIPAM.grpcServer, liqoIPAM)
+
+	// Start serving
 	go func() {
 		err := liqoIPAM.grpcServer.Serve(lis)
 		if err != nil {
 			klog.Error(err)
 		}
 	}()
+
 	return nil
 }
 
@@ -378,9 +399,8 @@ func (liqoIPAM *IPAM) clusterSubnetEqualToPool(pool string) (string, error) {
 	return mappedNetwork, nil
 }
 
-// MapNetworkCIDR receives a network CIDR and a cluster identifier and,
-// return the network CIDR to use for the remote cluster, remapped if
-// necessary.
+// MapNetworkCIDR receives a network CIDR and return the network CIDR to use for the remote cluster,
+// remapped if necessary.
 func (liqoIPAM *IPAM) MapNetworkCIDR(_ context.Context, mapCIDRRequest *MapCIDRRequest) (*MapCIDRResponse, error) {
 	mappedCIDR, err := liqoIPAM.getOrRemapNetwork(mapCIDRRequest.GetCidr())
 	if err != nil {
@@ -389,13 +409,35 @@ func (liqoIPAM *IPAM) MapNetworkCIDR(_ context.Context, mapCIDRRequest *MapCIDRR
 	return &MapCIDRResponse{Cidr: mappedCIDR}, nil
 }
 
-// UnmapNetworkCIDR set the network CIDR as unused for a specific cluster.
+// UnmapNetworkCIDR set the network CIDR as unused.
 func (liqoIPAM *IPAM) UnmapNetworkCIDR(_ context.Context, unmapCIDRRequest *UnmapCIDRRequest) (*UnmapCIDRResponse, error) {
 	err := liqoIPAM.FreeReservedSubnet(unmapCIDRRequest.GetCidr())
 	if err != nil {
 		return &UnmapCIDRResponse{}, fmt.Errorf("cannot unmap network CIDR %s: %w", unmapCIDRRequest.GetCidr(), err)
 	}
 	return &UnmapCIDRResponse{}, nil
+}
+
+// GetOrSetExternalCIDR get or set the external CIDR (eventually remapped) for the cluster.
+func (liqoIPAM *IPAM) GetOrSetExternalCIDR(_ context.Context, getOrSetExtCIDRRequest *GetOrSetExtCIDRRequest) (*GetOrSetExtCIDRResponse, error) {
+	// Get cluster externalCIDR if already set
+	externalCIDR := liqoIPAM.ipamStorage.getExternalCIDR()
+	if externalCIDR != "" {
+		return &GetOrSetExtCIDRResponse{RemappedExtCIDR: externalCIDR}, nil
+	}
+
+	// ExternalCIDR is not set: allocate a new network (eventually remapped if conflicts are found)
+	externalCIDR, err := liqoIPAM.getOrRemapNetwork(getOrSetExtCIDRRequest.GetDesiredExtCIDR())
+	if err != nil {
+		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot map external CIDR %s: %w", getOrSetExtCIDRRequest.GetDesiredExtCIDR(), err)
+	}
+
+	// Update ipamstorage with the new external CIDR
+	if err := liqoIPAM.ipamStorage.updateExternalCIDR(externalCIDR); err != nil {
+		_ = liqoIPAM.FreeReservedSubnet(externalCIDR)
+		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot update external CIDR in the ipam storage: %w", err)
+	}
+	return &GetOrSetExtCIDRResponse{RemappedExtCIDR: externalCIDR}, nil
 }
 
 // getOrRemapNetwork first tries to acquire the received network.
@@ -1160,7 +1202,7 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 // MapEndpointIP receives a service endpoint IP and a cluster identifier and,
 // if the endpoint IP does not belong to cluster PodCIDR, maps
 // the endpoint IP to a new IP taken from the remote ExternalCIDR of the remote cluster.
-func (liqoIPAM *IPAM) MapEndpointIP(ctx context.Context, mapRequest *MapRequest) (*MapResponse, error) {
+func (liqoIPAM *IPAM) MapEndpointIP(_ context.Context, mapRequest *MapRequest) (*MapResponse, error) {
 	mappedIP, err := liqoIPAM.mapEndpointIPInternal(mapRequest.GetClusterID(), mapRequest.GetIp())
 	if err != nil {
 		return &MapResponse{}, fmt.Errorf("cannot map endpoint IP to ExternalCIDR of cluster %s, %w",
