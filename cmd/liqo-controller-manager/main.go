@@ -227,8 +227,10 @@ func main() {
 	enableNodeFailureController := flag.Bool("enable-node-failure-controller", false, "Enable the node failure controller")
 
 	// External network parameters
-	flag.Var(&gatewayServerResources, "gateway-server-resources", "The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
-	flag.Var(&gatewayClientResources, "gateway-client-resources", "The list of resource types that implements the gateway client. They must be in the form <group>/<version>/<resource>")
+	flag.Var(&gatewayServerResources, "gateway-server-resources",
+		"The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
+	flag.Var(&gatewayClientResources, "gateway-client-resources",
+		"The list of resource types that implements the gateway client. They must be in the form <group>/<version>/<resource>")
 	flag.StringVar(&wgGatewayServerClusterRoleName, "wg-gateway-server-cluster-role-name", "liqo-gateway",
 		"The name of the cluster role used by the wireguard gateway servers")
 	flag.StringVar(&wgGatewayClientClusterRoleName, "wg-gateway-client-cluster-role-name", "liqo-gateway",
