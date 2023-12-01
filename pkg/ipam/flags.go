@@ -46,6 +46,8 @@ const (
 	FlagNameLeaseRenewDeadline FlagName = "lease-renew-interval"
 	// FlagNameLeaseRetryPeriod is the duration the LeaderElector clients should wait between tries of actions.
 	FlagNameLeaseRetryPeriod FlagName = "lease-retry-period"
+	// FlagNameLabelLeader is the flag to enable the label of the leader node.
+	FlagNameLabelLeader FlagName = "label-leader"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
@@ -63,7 +65,7 @@ func InitFlags(flagset *pflag.FlagSet, o *Options) {
 	flagset.Var(&o.AdditionalPools, FlagNameAdditionalPools.String(),
 		"Network pools used to map a cluster network into another one in order to prevent conflicts, in addition to standard private CIDRs.")
 
-	flagset.BoolVar(&o.LeaseEnabled, FlagNameLeaseEnabled.String(), true,
+	flagset.BoolVar(&o.LeaseEnabled, FlagNameLeaseEnabled.String(), false,
 		"Enable the lease for the IPAM pods. Disabling it will disable IPAM high-availability.")
 	flagset.DurationVar(&o.LeaseDuration, FlagNameLeaseDuration.String(), 15*time.Second,
 		"The duration that non-leader candidates will wait to force acquire leadership.")
@@ -71,6 +73,8 @@ func InitFlags(flagset *pflag.FlagSet, o *Options) {
 		"The duration that the acting master will retry refreshing leadership before giving up.")
 	flagset.DurationVar(&o.LeaseRetryPeriod, FlagNameLeaseRetryPeriod.String(), 5*time.Second,
 		"The duration the LeaderElector clients should wait between tries of actions.")
+	flagset.BoolVar(&o.LabelLeader, FlagNameLabelLeader.String(), true,
+		"Label the leader node.")
 }
 
 // MarkFlagsRequired marks the flags as required.
