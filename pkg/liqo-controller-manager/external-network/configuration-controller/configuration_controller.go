@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -29,7 +28,7 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/events"
-	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
 // ConfigurationReconciler manage Configuration lifecycle.
@@ -57,7 +56,6 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.E
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks/status,verbs=get;list;watch
-// +kubebuilder:rbac:groups=net.liqo.io,resources=ipamstorages,verbs=get;list;watch
 
 // Reconcile manage Configurations, remapping cidrs with Networks resources.
 func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -99,14 +97,19 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *networkingv1alpha1.Configuration) error {
 	if r.localCIDR == nil {
-		ipamStorage, err := liqogetters.GetIPAMStorageByLabel(ctx, r.Client, labels.NewSelector())
+		podCIDR, err := ipamutils.RetrievePodCIDR(ctx, r.Client)
 		if err != nil {
-			return fmt.Errorf("unable to get IPAM storage: %w", err)
+			return fmt.Errorf("unable to retrieve the podCIDR: %w", err)
+		}
+
+		externalCIDR, err := ipamutils.RetrieveExternalCIDR(ctx, r.Client)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve the externalCIDR: %w", err)
 		}
 
 		r.localCIDR = &networkingv1alpha1.ClusterConfigCIDR{
-			Pod:      networkingv1alpha1.CIDR(ipamStorage.Spec.PodCIDR),
-			External: networkingv1alpha1.CIDR(ipamStorage.Spec.ExternalCIDR),
+			Pod:      networkingv1alpha1.CIDR(podCIDR),
+			External: networkingv1alpha1.CIDR(externalCIDR),
 		}
 	}
 
