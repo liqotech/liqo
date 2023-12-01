@@ -12,31 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package ipam contains utility functions to deal with resources of the IPAM API.
 package ipam
-
-import (
-	"time"
-
-	"github.com/liqotech/liqo/pkg/utils/args"
-)
-
-// Options contains the options for the IPAM.
-type Options struct {
-	PodCIDR     args.CIDR
-	ServiceCIDR args.CIDR
-
-	AdditionalPools args.CIDRList
-	ReservedPools   args.CIDRList
-
-	LeaseEnabled       bool
-	LeaseDuration      time.Duration
-	LeaseRenewDeadline time.Duration
-	LeaseRetryPeriod   time.Duration
-
-	LabelLeader bool
-}
-
-// NewOptions returns a new Options struct.
-func NewOptions() *Options {
-	return &Options{}
-}
