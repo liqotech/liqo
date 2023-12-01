@@ -115,3 +115,9 @@ func (mock *IPAMClient) MapNetworkCIDR(_ context.Context, req *ipam.MapCIDRReque
 func (mock *IPAMClient) UnmapNetworkCIDR(_ context.Context, _ *ipam.UnmapCIDRRequest, _ ...grpc.CallOption) (*ipam.UnmapCIDRResponse, error) {
 	return &ipam.UnmapCIDRResponse{}, nil
 }
+
+// GetOrSetExternalCIDR mocks the corresponding IPAMClient function.
+func (mock *IPAMClient) GetOrSetExternalCIDR(_ context.Context, req *ipam.GetOrSetExtCIDRRequest,
+	_ ...grpc.CallOption) (*ipam.GetOrSetExtCIDRResponse, error) {
+	return &ipam.GetOrSetExtCIDRResponse{RemappedExtCIDR: req.DesiredExtCIDR}, nil
+}
