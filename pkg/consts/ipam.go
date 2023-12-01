@@ -14,7 +14,26 @@
 
 package consts
 
+// NetworkType indicates the type of Network.
+type NetworkType string
+
 const (
 	// IpamPort is the port used by the IPAM gRPC server.
 	IpamPort = 6000
+
+	// NetworkNotRemappedLabelKey is the label key used to mark a Network that does not need CIDR remapping.
+	NetworkNotRemappedLabelKey = "ipam.liqo.io/network-not-remapped"
+	// NetworkNotRemappedLabelValue is the label value used to mark a Network that does not need CIDR remapping.
+	NetworkNotRemappedLabelValue = "true"
+
+	// NetworkTypeLabelKey is the label key used to indicate the type of a Network.
+	NetworkTypeLabelKey = "ipam.liqo.io/network-type"
+	// NetworkTypePodCIDR is the constant representing a network of type podCIDR.
+	NetworkTypePodCIDR NetworkType = "pod-cidr"
+	// NetworkTypeServiceCIDR is the constant representing a network of type serviceCIDR.
+	NetworkTypeServiceCIDR NetworkType = "service-cidr"
+	// NetworkTypeExternalCIDR is the constant representing a network of type externalCIDR.
+	NetworkTypeExternalCIDR NetworkType = "external-cidr"
+	// NetworkTypeReserved is the constant representing a network of type reserved subnet.
+	NetworkTypeReserved NetworkType = "reserved"
 )

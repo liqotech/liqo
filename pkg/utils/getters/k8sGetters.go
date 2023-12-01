@@ -397,3 +397,30 @@ func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
 		return nil, fmt.Errorf("multiple GatewayClients found for ForeignCluster %s", clusterID)
 	}
 }
+
+// GetUniqueNetworkByLabel retrieves the Network resource with the given label selector.
+// It returns error if multiple resources are found.
+func GetUniqueNetworkByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*ipamv1alpha1.Network, error) {
+	networks, err := GetNetworksByLabel(ctx, cl, lSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	switch len(networks.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(ipamv1alpha1.NetworkGroupResource, ipamv1alpha1.NetworkResource)
+	case 1:
+		return &networks.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple Network resources found for label selector %q", lSelector)
+	}
+}
+
+// GetNetworksByLabel retrieves the Network resources with the given labelSelector.
+func GetNetworksByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*ipamv1alpha1.NetworkList, error) {
+	var networks ipamv1alpha1.NetworkList
+	if err := cl.List(ctx, &networks, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+		return nil, err
+	}
+	return &networks, nil
+}

@@ -8,6 +8,7 @@ service ipam {
     rpc UnmapNetworkCIDR (UnmapCIDRRequest) returns (UnmapCIDRResponse);
     rpc GetHomePodIP (GetHomePodIPRequest) returns (GetHomePodIPResponse);
     rpc BelongsToPodCIDR (BelongsRequest) returns (BelongsResponse);
+    rpc GetOrSetExternalCIDR(GetOrSetExtCIDRRequest) returns (GetOrSetExtCIDRResponse);
 }
 
 message MapRequest {
@@ -55,4 +56,12 @@ message BelongsRequest {
 
 message BelongsResponse {
     bool belongs = 1;
+}
+
+message GetOrSetExtCIDRRequest {
+    string desiredExtCIDR = 1;
+}
+
+message GetOrSetExtCIDRResponse {
+    string remappedExtCIDR = 1;
 }

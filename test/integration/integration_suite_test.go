@@ -178,7 +178,7 @@ func initIpam() error {
 	if err != nil {
 		return err
 	}
-	err = ipam.Init(liqoipam.Pools, dynClient, 2000+int(n.Int64()))
+	err = ipam.Init(liqoipam.Pools, dynClient)
 	if err != nil {
 		return err
 	}
@@ -187,10 +187,17 @@ func initIpam() error {
 	if err != nil {
 		return err
 	}
+
+	// TODO: update with new GetOrSetExternalCIDR method
 	homeExternalCIDR, err = ipam.GetExternalCIDR(uint8(24))
 	if err != nil {
 		return err
 	}
+
+	if err := ipam.Serve(2000 + int(n.Int64())); err != nil {
+		return err
+	}
+
 	// Assign networks to clusterID1
 	_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 	if err != nil {

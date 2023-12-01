@@ -29,6 +29,7 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/ipam"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
 const (
@@ -38,8 +39,19 @@ const (
 // NetworkReconciler reconciles a Network object.
 type NetworkReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	IpamClient ipam.IpamClient
+	Scheme *runtime.Scheme
+
+	ipamClient ipam.IpamClient
+}
+
+// NewNetworkReconciler returns a new NetworkReconciler.
+func NewNetworkReconciler(cl client.Client, s *runtime.Scheme, ipamClient ipam.IpamClient) *NetworkReconciler {
+	return &NetworkReconciler{
+		Client: cl,
+		Scheme: s,
+
+		ipamClient: ipamClient,
+	}
 }
 
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;create;update;patch;delete
@@ -50,7 +62,6 @@ type NetworkReconciler struct {
 // Reconcile Network objects.
 func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var nw ipamv1alpha1.Network
-	var desiredCIDR, remappedCIDR networkingv1alpha1.CIDR
 
 	// Fetch the Network instance
 	if err := r.Get(ctx, req.NamespacedName, &nw); err != nil {
@@ -62,66 +73,19 @@ func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	desiredCIDR = nw.Spec.CIDR
-
-	if nw.GetDeletionTimestamp().IsZero() {
-		if !controllerutil.ContainsFinalizer(&nw, ipamNetworkFinalizer) {
-			// Add finalizer to prevent deletion without unmapping the Network.
-			controllerutil.AddFinalizer(&nw, ipamNetworkFinalizer)
-
-			// Update the Network object
-			if err := r.Update(ctx, &nw); err != nil {
-				klog.Errorf("error while adding finalizers to Network %q: %v", req.NamespacedName, err)
-				return ctrl.Result{}, err
-			}
-			klog.Infof("finalizer %q correctly added to Network %q", ipamNetworkFinalizer, req.NamespacedName)
-
-			// We return immediately and wait for the next reconcile to eventually update the status.
-			return ctrl.Result{}, nil
-		}
-
-		// Update Network status if it is not set yet
-		// The IPAM MapNetworkCIDR() function is not idempotent, so we avoid to call it
-		// multiple times by checking if the status is already set.
-		if nw.Status.CIDR == "" {
-			var err error
-			remappedCIDR, err = getRemappedCIDR(ctx, r.IpamClient, desiredCIDR)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			// Update status
-			nw.Status.CIDR = remappedCIDR
-			if err := r.Client.Status().Update(ctx, &nw); err != nil {
-				klog.Errorf("error while updating Network %q status: %v", req.NamespacedName, err)
-				return ctrl.Result{}, err
-			}
-			klog.Infof("updated Network %q status (spec: %s -> status: %s)", req.NamespacedName, desiredCIDR, remappedCIDR)
-		}
-	} else if controllerutil.ContainsFinalizer(&nw, ipamNetworkFinalizer) {
-		// The resource is being deleted and the finalizer is still present. Call the IPAM to unmap the network CIDR.
-		remappedCIDR = nw.Status.CIDR
-
-		if remappedCIDR != "" {
-			if _, _, err := net.ParseCIDR(remappedCIDR.String()); err != nil {
-				klog.Errorf("Unable to unmap CIDR %s of Network %q (inavlid format): %v", remappedCIDR, req.NamespacedName, err)
-				return ctrl.Result{}, err
-			}
-
-			if err := deleteRemappedCIDR(ctx, r.IpamClient, remappedCIDR); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-
-		// Remove status and finalizer, and update the object.
-		nw.Status.CIDR = ""
-		controllerutil.RemoveFinalizer(&nw, ipamNetworkFinalizer)
-
-		if err := r.Update(ctx, &nw); err != nil {
-			klog.Errorf("error while removing finalizer from Network %q: %v", req.NamespacedName, err)
+	switch {
+	case ipamutils.NetworkNotRemapped(&nw):
+		if err := r.handleNetworkNotRemappedStatus(ctx, &nw); err != nil {
 			return ctrl.Result{}, err
 		}
-		klog.Infof("finalizer correctly removed from Network %q", req.NamespacedName)
+	case ipamutils.IsExternalCIDR(&nw):
+		if err := r.handleNetworkExternalCIDRStatus(ctx, &nw); err != nil {
+			return ctrl.Result{}, err
+		}
+	default:
+		if err := r.handleNetworkStatus(ctx, &nw); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -135,7 +99,127 @@ func (r *NetworkReconciler) SetupWithManager(mgr ctrl.Manager, workers int) erro
 		Complete(r)
 }
 
-// getRemappedCIDR returns the remapped CIDR for the given CIDR and remote clusterID.
+// handleNetworkNotRemapped handles the status of a Network resource that does not need CIDR remapping.
+func (r *NetworkReconciler) handleNetworkNotRemappedStatus(ctx context.Context, nw *ipamv1alpha1.Network) error {
+	nw.Status.CIDR = nw.Spec.CIDR // set the status to the desired CIDR.
+	if err := r.Status().Update(ctx, nw); err != nil {
+		klog.Errorf("error while updating Network %q status: %v", client.ObjectKeyFromObject(nw), err)
+		return err
+	}
+	klog.V(4).Infof("updated Network %q status (spec: %s -> status: %s)", client.ObjectKeyFromObject(nw), nw.Spec.CIDR, nw.Status.CIDR)
+	return nil
+}
+
+// handleNetworkExternalCIDR handles the status of a Network resource of type ExternalCIDR.
+func (r *NetworkReconciler) handleNetworkExternalCIDRStatus(ctx context.Context, nw *ipamv1alpha1.Network) error {
+	if nw.GetDeletionTimestamp().IsZero() {
+		// Update Network status if it is not set yet.
+		// The external CIDR can't change after it is set, so we avoid to call it
+		// multiple times by checking if the status is already set.
+		if nw.Status.CIDR == "" {
+			desiredCIDR := nw.Spec.CIDR
+			remappedCIDR, err := getOrSetExternalCIDR(ctx, r.ipamClient, desiredCIDR)
+			if err != nil {
+				return err
+			}
+
+			// Update status
+			nw.Status.CIDR = remappedCIDR
+			if err := r.Client.Status().Update(ctx, nw); err != nil {
+				klog.Errorf("error while updating Network %q status: %v", client.ObjectKeyFromObject(nw), err)
+				return err
+			}
+			klog.Infof("updated Network %q status (spec: %s -> status: %s)", client.ObjectKeyFromObject(nw), desiredCIDR, remappedCIDR)
+		}
+	}
+
+	return nil
+}
+
+// getExternalCIDR returns the remapped external CIDR for the given CIDR.
+func getOrSetExternalCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1alpha1.CIDR) (networkingv1alpha1.CIDR, error) {
+	switch ipamClient.(type) {
+	case nil:
+		// IPAM is not enabled, use original CIDR from spec
+		return desiredCIDR, nil
+	default:
+		// interact with the IPAM to retrieve the correct mapping.
+		response, err := ipamClient.GetOrSetExternalCIDR(ctx, &ipam.GetOrSetExtCIDRRequest{DesiredExtCIDR: desiredCIDR.String()})
+		if err != nil {
+			klog.Errorf("IPAM: error while mapping network external CIDR %s: %v", desiredCIDR, err)
+			return "", err
+		}
+		klog.Infof("IPAM: mapped network external CIDR %s to %s", desiredCIDR, response.RemappedExtCIDR)
+		return networkingv1alpha1.CIDR(response.RemappedExtCIDR), nil
+	}
+}
+
+// handleNetworkStatus handles the status of a Network resource.
+func (r *NetworkReconciler) handleNetworkStatus(ctx context.Context, nw *ipamv1alpha1.Network) error {
+	if nw.GetDeletionTimestamp().IsZero() {
+		if !controllerutil.ContainsFinalizer(nw, ipamNetworkFinalizer) {
+			// Add finalizer to prevent deletion without unmapping the Network.
+			controllerutil.AddFinalizer(nw, ipamNetworkFinalizer)
+
+			// Update the Network object
+			if err := r.Update(ctx, nw); err != nil {
+				klog.Errorf("error while adding finalizers to Network %q: %v", client.ObjectKeyFromObject(nw), err)
+				return err
+			}
+			klog.Infof("finalizer %q correctly added to Network %q", ipamNetworkFinalizer, client.ObjectKeyFromObject(nw))
+
+			// We return immediately and wait for the next reconcile to eventually update the status.
+			return nil
+		}
+
+		// Update Network status if it is not set yet
+		// The IPAM MapNetworkCIDR() function is not idempotent, so we avoid to call it
+		// multiple times by checking if the status is already set.
+		if nw.Status.CIDR == "" {
+			desiredCIDR := nw.Spec.CIDR
+			remappedCIDR, err := getRemappedCIDR(ctx, r.ipamClient, desiredCIDR)
+			if err != nil {
+				return err
+			}
+
+			// Update status
+			nw.Status.CIDR = remappedCIDR
+			if err := r.Client.Status().Update(ctx, nw); err != nil {
+				klog.Errorf("error while updating Network %q status: %v", client.ObjectKeyFromObject(nw), err)
+				return err
+			}
+			klog.Infof("updated Network %q status (spec: %s -> status: %s)", client.ObjectKeyFromObject(nw), desiredCIDR, remappedCIDR)
+		}
+	} else if controllerutil.ContainsFinalizer(nw, ipamNetworkFinalizer) {
+		// The resource is being deleted and the finalizer is still present. Call the IPAM to unmap the network CIDR.
+		remappedCIDR := nw.Status.CIDR
+
+		if remappedCIDR != "" {
+			if _, _, err := net.ParseCIDR(remappedCIDR.String()); err != nil {
+				klog.Errorf("Unable to unmap CIDR %s of Network %q (inavlid format): %v", remappedCIDR, client.ObjectKeyFromObject(nw), err)
+				return err
+			}
+
+			if err := deleteRemappedCIDR(ctx, r.ipamClient, remappedCIDR); err != nil {
+				return err
+			}
+		}
+
+		// Remove status and finalizer, and update the object.
+		nw.Status.CIDR = ""
+		controllerutil.RemoveFinalizer(nw, ipamNetworkFinalizer)
+
+		if err := r.Update(ctx, nw); err != nil {
+			klog.Errorf("error while removing finalizer from Network %q: %v", client.ObjectKeyFromObject(nw), err)
+			return err
+		}
+		klog.Infof("finalizer correctly removed from Network %q", client.ObjectKeyFromObject(nw))
+	}
+
+	return nil
+}
+
+// getRemappedCIDR returns the remapped CIDR for the given CIDR.
 func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1alpha1.CIDR) (networkingv1alpha1.CIDR, error) {
 	switch ipamClient.(type) {
 	case nil:
@@ -153,7 +237,7 @@ func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCID
 	}
 }
 
-// deleteRemappedCIDR unmaps the CIDR for the given remote clusterID.
+// deleteRemappedCIDR unmaps the given CIDR.
 func deleteRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, remappedCIDR networkingv1alpha1.CIDR) error {
 	switch ipamClient.(type) {
 	case nil:
