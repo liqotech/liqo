@@ -17,6 +17,7 @@ package internalfabriccontroller
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -81,8 +82,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	// ensure status
-
+	// List all internalnodes
 	var internalNodes networkingv1alpha1.InternalNodeList
 	if err = r.List(ctx, &internalNodes, client.InNamespace(internalFabric.Namespace),
 		client.MatchingLabels{consts.InternalFabricLabelKey: req.Name}); err != nil {
@@ -90,10 +90,27 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	// Get the list of physical nodes names, storing only the ones that are not being deleted.
+	nodeNames := make([]string, len(nodes.Items))
+	for i := range nodes.Items {
+		if nodes.Items[i].GetDeletionTimestamp().IsZero() {
+			nodeNames[i] = nodes.Items[i].Name
+		}
+	}
+
+	// Ensure status
 	internalFabric.Status.AssignedIPs = make(map[string]networkingv1alpha1.IP)
 	for i := range internalNodes.Items {
 		internalNode := &internalNodes.Items[i]
-		internalFabric.Status.AssignedIPs[internalNode.Name] = internalNode.Spec.IP
+		// Delete InternalNode if the associated physical node is deleted/deleting.
+		if !slices.Contains(nodeNames, internalNode.Name) {
+			if err := r.deleteInternalNode(ctx, internalNode); err != nil {
+				klog.Errorf("Unable to delete InternalNode %q: %s", internalNode.Name, err)
+				return ctrl.Result{}, err
+			}
+		} else {
+			internalFabric.Status.AssignedIPs[internalNode.Name] = internalNode.Spec.IP
+		}
 	}
 
 	if err = r.Status().Update(ctx, internalFabric); err != nil {
@@ -111,6 +128,12 @@ func (r *InternalFabricReconciler) reconcileNode(ctx context.Context,
 			Name:      node.Name,
 			Namespace: internalFabric.Namespace,
 		},
+	}
+
+	if !node.GetDeletionTimestamp().IsZero() {
+		// Do not create/update internalNode if the associated physical node is being deleted.
+		// Note: deletion of the internalNode will be handled after.
+		return nil
 	}
 
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, internalNode, func() error {
@@ -139,14 +162,24 @@ func (r *InternalFabricReconciler) reconcileNode(ctx context.Context,
 		internalNode.Spec.IP = networkingv1alpha1.IP(ip.String())
 		internalNode.Spec.IsGateway = node.Name == internalFabric.Spec.NodeName
 
-		if err := controllerutil.SetControllerReference(internalFabric, internalNode, r.Scheme); err != nil {
-			return err
-		}
-		return controllerutil.SetOwnerReference(node, internalNode, r.Scheme)
+		return controllerutil.SetControllerReference(internalFabric, internalNode, r.Scheme)
 	}); err != nil {
 		klog.Errorf("Unable to create or update InternalNode %q: %s", internalNode.Name, err)
 		return err
 	}
+	return nil
+}
+
+func (r *InternalFabricReconciler) deleteInternalNode(ctx context.Context, internalNode *networkingv1alpha1.InternalNode) error {
+	if err := r.Delete(ctx, internalNode); err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.Infof("InternalNode %q not found", internalNode.Name)
+			return nil
+		}
+		klog.Errorf("Unable to delete InternalNode %q: %s", internalNode.Name, err)
+		return err
+	}
+	klog.Infof("InternalNode %q deleted as associated physical node does not exists anymore", internalNode.Name)
 	return nil
 }
 
