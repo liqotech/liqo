@@ -1,0 +1,142 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: routeconfigurations.networking.liqo.io
+spec:
+  group: networking.liqo.io
+  names:
+    categories:
+    - liqo
+    kind: RouteConfiguration
+    listKind: RouteConfigurationList
+    plural: routeconfigurations
+    singular: routeconfiguration
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RouteConfiguration contains the network RouteConfiguration of
+          a pair of clusters, including the local and the remote pod and external
+          CIDRs and how the where remapped.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RouteConfigurationSpec defines the desired state of RouteConfiguration.
+            properties:
+              table:
+                description: Table is the table of the RouteConfiguration.
+                properties:
+                  name:
+                    description: Name is the name of the table of the RouteConfiguration.
+                    type: string
+                  rules:
+                    description: Rules is the list of rules of the RouteConfiguration.
+                    items:
+                      description: Rule is the rule of the RouteConfiguration.
+                      properties:
+                        dst:
+                          description: Dst is the destination of the Rule.
+                          pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                          type: string
+                        routes:
+                          description: Routes is the list of routes of the Rule.
+                          items:
+                            description: Route is the route of the RouteConfiguration.
+                            properties:
+                              dest:
+                                description: Dst is the destination of the RouteConfiguration.
+                                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                                type: string
+                              dev:
+                                description: Dev is the device of the RouteConfiguration.
+                                type: string
+                              ip:
+                                description: Gw is the gateway of the RouteConfiguration.
+                                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                                type: string
+                              src:
+                                description: Src is the source of the RouteConfiguration.
+                                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                                type: string
+                            required:
+                            - dest
+                            type: object
+                          minItems: 1
+                          type: array
+                        src:
+                          description: Src is the source of the Rule.
+                          pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                          type: string
+                      required:
+                      - routes
+                      type: object
+                    minItems: 1
+                    type: array
+                required:
+                - name
+                - rules
+                type: object
+            type: object
+          status:
+            description: RouteConfigurationStatus defines the observed state of RouteConfiguration.
+            properties:
+              conditions:
+                description: Conditions contains information about the current status
+                  of the RouteConfiguration.
+                items:
+                  description: RouteConfigurationCondition contains details for the
+                    current condition of this RouteConfiguration.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time the condition
+                        transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message is a human-readable message indicating
+                        details about last transition.
+                      type: string
+                    reason:
+                      description: Reason is a unique, one-word, CamelCase reason
+                        for the condition's last transition.
+                      type: string
+                    status:
+                      default: Unknown
+                      description: Status is the status of the condition.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: Type is the type of the condition.
+                      enum:
+                      - Applied
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

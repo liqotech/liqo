@@ -23,57 +23,69 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// RouteResource the name of the route resources.
-var RouteResource = "routes"
+// RouteConfigurationResource the name of the routeconfiguration resources.
+var RouteConfigurationResource = "routeconfigurations"
 
-// RouteKind is the kind name used to register the Route CRD.
-var RouteKind = "Route"
+// RouteConfigurationKind is the kind name used to register the RouteConfiguration CRD.
+var RouteConfigurationKind = "RouteConfiguration"
 
-// RouteGroupResource is group resource used to register these objects.
-var RouteGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: RouteResource}
+// RouteConfigurationGroupResource is group resource used to register these objects.
+var RouteConfigurationGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: RouteConfigurationResource}
 
-// RouteGroupVersionResource is groupResourceVersion used to register these objects.
-var RouteGroupVersionResource = GroupVersion.WithResource(RouteResource)
+// RouteConfigurationGroupVersionResource is groupResourceVersion used to register these objects.
+var RouteConfigurationGroupVersionResource = GroupVersion.WithResource(RouteConfigurationResource)
 
-// RouteDestination defines the destination of the route.
-type RouteDestination struct {
-	// IP is the IP address of the destination. It is mutually exclusive with CIDR.
-	IP *IP `json:"ip,omitempty"`
-	// CIDR is the CIDR of the destination. It is mutually exclusive with IP.
-	CIDR *CIDR `json:"cidr,omitempty"`
-}
-
-// RouteNextHop defines the next hop of the route.
-type RouteNextHop struct {
-	// IP is the IP address of the next hop. It is mutually exclusive with Dev.
-	IP *IP `json:"ip,omitempty"`
-	// Dev is the name of the device of the next hop. It is mutually exclusive with IP.
+// Route is the route of the RouteConfiguration.
+type Route struct {
+	// Dst is the destination of the RouteConfiguration.
+	Dst *CIDR `json:"dest"`
+	// Src is the source of the RouteConfiguration.
+	Src *IP `json:"src,omitempty"`
+	// Gw is the gateway of the RouteConfiguration.
+	Gw *IP `json:"ip,omitempty"`
+	// Dev is the device of the RouteConfiguration.
 	Dev *string `json:"dev,omitempty"`
 }
 
-// RouteSpec defines the desired state of Route.
-type RouteSpec struct {
-	// Dest is the destination of the route.
-	Dest *RouteDestination `json:"dest,omitempty"`
-	// NextHop is the next hop of the route.
-	NextHop *RouteNextHop `json:"nextHop,omitempty"`
-	// Table is the table of the route.
-	Table string `json:"table,omitempty"`
+// Rule is the rule of the RouteConfiguration.
+type Rule struct {
+	// Dst is the destination of the Rule.
+	Dst *CIDR `json:"dst,omitempty"`
+	// Src is the source of the Rule.
+	Src *CIDR `json:"src,omitempty"`
+	// Routes is the list of routes of the Rule.
+	// +kubebuilder:validation:MinItems=1
+	Routes []Route `json:"routes"`
 }
 
-// RouteConditionType is a valid value for RouteCondition.Type.
-type RouteConditionType string
+// Table is the table of the RouteConfiguration.
+type Table struct {
+	// Name is the name of the table of the RouteConfiguration.
+	Name string `json:"name"`
+	// Rules is the list of rules of the RouteConfiguration.
+	// +kubebuilder:validation:MinItems=1
+	Rules []Rule `json:"rules"`
+}
+
+// RouteConfigurationSpec defines the desired state of RouteConfiguration.
+type RouteConfigurationSpec struct {
+	// Table is the table of the RouteConfiguration.
+	Table Table `json:"table,omitempty"`
+}
+
+// RouteConfigurationConditionType is a valid value for RouteConfigurationCondition.Type.
+type RouteConfigurationConditionType string
 
 const (
-	// RouteConditionTypeApplied means the route has been applied.
-	RouteConditionTypeApplied RouteConditionType = "Applied"
+	// RouteConfigurationConditionTypeApplied means the RouteConfiguration has been applied.
+	RouteConfigurationConditionTypeApplied RouteConfigurationConditionType = "Applied"
 )
 
-// RouteCondition contains details for the current condition of this route.
-type RouteCondition struct {
+// RouteConfigurationCondition contains details for the current condition of this RouteConfiguration.
+type RouteConfigurationCondition struct {
 	// Type is the type of the condition.
 	// +kubebuilder:validation:Enum=Applied
-	Type RouteConditionType `json:"type"`
+	Type RouteConfigurationConditionType `json:"type"`
 	// Status is the status of the condition.
 	// +kubebuilder:validation:Enum=True;False;Unknown
 	// +kubebuilder:default=Unknown
@@ -86,41 +98,35 @@ type RouteCondition struct {
 	Message string `json:"message,omitempty"`
 }
 
-// RouteStatus defines the observed state of Route.
-type RouteStatus struct {
-	// Conditions contains information about the current status of the route.
-	Conditions []RouteCondition `json:"conditions,omitempty"`
+// RouteConfigurationStatus defines the observed state of RouteConfiguration.
+type RouteConfigurationStatus struct {
+	// Conditions contains information about the current status of the RouteConfiguration.
+	Conditions []RouteConfigurationCondition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Destination IP",type=string,JSONPath=`.spec.dest.ip`
-// +kubebuilder:printcolumn:name="Destination CIDR",type=string,JSONPath=`.spec.dest.cidr`
-// +kubebuilder:printcolumn:name="Next Hop IP",type=string,JSONPath=`.spec.nextHop.ip`, priority=1
-// +kubebuilder:printcolumn:name="Next Hop Dev",type=string,JSONPath=`.spec.nextHop.dev`, priority=1
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[?(@.type == 'Applied')].status`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
-// Route contains the network route of a pair of clusters,
+// RouteConfiguration contains the network RouteConfiguration of a pair of clusters,
 // including the local and the remote pod and external CIDRs and how the where remapped.
-type Route struct {
+type RouteConfiguration struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RouteSpec   `json:"spec,omitempty"`
-	Status RouteStatus `json:"status,omitempty"`
+	Spec   RouteConfigurationSpec   `json:"spec,omitempty"`
+	Status RouteConfigurationStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// RouteList contains a list of Route.
-type RouteList struct {
+// RouteConfigurationList contains a list of RouteConfiguration.
+type RouteConfigurationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Route `json:"items"`
+	Items           []RouteConfiguration `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Route{}, &RouteList{})
+	SchemeBuilder.Register(&RouteConfiguration{}, &RouteConfigurationList{})
 }
