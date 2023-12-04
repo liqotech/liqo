@@ -74,7 +74,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringVar(&o.GatewayType, "type", DefaultGatewayType,
 		"Type of Gateway Server. Leave empty to use default Liqo implementation of WireGuard")
 	cmd.Flags().StringVar(&o.TemplateName, "template-name", DefaultTemplateName, "Name of the Gateway Server template")
-	cmd.Flags().StringVar(&o.TemplateNamespace, "template-namespace", DefaultTemplateNamespace, "Namespace of the Gateway Server template")
+	cmd.Flags().StringVar(&o.TemplateNamespace, "template-namespace", "", "Namespace of the Gateway Server template")
 	cmd.Flags().Var(o.ServiceType, "service-type", fmt.Sprintf("Service type of Gateway Server. Default: %s", DefaultServiceType))
 	cmd.Flags().IntVar(&o.MTU, "mtu", DefaultMTU, "MTU of Gateway Server")
 	cmd.Flags().Int32Var(&o.Port, "port", DefaultPort, "Port of Gateway Server")
