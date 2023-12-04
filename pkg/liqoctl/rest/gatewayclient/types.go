@@ -22,12 +22,11 @@ import (
 
 // Default values for the gatewayclient command.
 const (
-	DefaultGatewayType       = "networking.liqo.io/v1alpha1/wggatewayclienttemplates"
-	DefaultTemplateName      = "wireguard-client"
-	DefaultTemplateNamespace = "liqo"
-	DefaultMTU               = 1340
-	DefaultProtocol          = "UDP"
-	DefaultWait              = false
+	DefaultGatewayType  = "networking.liqo.io/v1alpha1/wggatewayclienttemplates"
+	DefaultTemplateName = "wireguard-client"
+	DefaultMTU          = 1340
+	DefaultProtocol     = "UDP"
+	DefaultWait         = false
 )
 
 // Options encapsulates the arguments of the gatewayclient command.
@@ -75,6 +74,10 @@ type ForgeOptions struct {
 }
 
 func (o *Options) getForgeOptions() *ForgeOptions {
+	if o.TemplateNamespace == "" {
+		o.TemplateNamespace = o.createOptions.LiqoNamespace
+	}
+
 	return &ForgeOptions{
 		KubeClient:        o.createOptions.KubeClient,
 		RemoteClusterID:   o.RemoteClusterID,

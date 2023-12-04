@@ -298,6 +298,10 @@ func (o *Options) RunDisconnect(ctx context.Context) error {
 }
 
 func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID string) *gatewayserver.ForgeOptions {
+	if o.ServerTemplateNamespace == "" {
+		o.ServerTemplateNamespace = o.LocalFactory.LiqoNamespace
+	}
+
 	return &gatewayserver.ForgeOptions{
 		KubeClient:        kubeClient,
 		RemoteClusterID:   remoteClusterID,
@@ -315,6 +319,10 @@ func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, 
 
 func (o *Options) newGatewayClientForgeOptions(kubeClient kubernetes.Interface, remoteClusterID string,
 	serverEndpoint *networkingv1alpha1.EndpointStatus) *gatewayclient.ForgeOptions {
+	if o.ClientTemplateNamespace == "" {
+		o.ClientTemplateNamespace = o.RemoteFactory.LiqoNamespace
+	}
+
 	return &gatewayclient.ForgeOptions{
 		KubeClient:        kubeClient,
 		RemoteClusterID:   remoteClusterID,
