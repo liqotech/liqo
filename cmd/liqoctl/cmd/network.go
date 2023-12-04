@@ -104,7 +104,7 @@ func newNetworkInitCommand(ctx context.Context, options *network.Options) *cobra
 			err := options.RunInit(ctx)
 			if err != nil {
 				options.LocalFactory.Printer.CheckErr(
-					fmt.Errorf("`network init` failed: issue `network reset` to cleanup the environment"))
+					fmt.Errorf("`network init` failed (error: %w). Issue `network reset` to cleanup the environment", err))
 			}
 			output.ExitOnErr(err)
 		},
@@ -143,7 +143,7 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 			err := options.RunConnect(ctx)
 			if err != nil {
 				options.LocalFactory.Printer.CheckErr(
-					fmt.Errorf("`network connect` failed: issue `network disconnect` to cleanup the environment"))
+					fmt.Errorf("`network connect` failed (error: %w). Issue `network disconnect` to cleanup the environment", err))
 			}
 			output.ExitOnErr(err)
 		},
@@ -154,7 +154,7 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 		"Type of Gateway Server. Leave empty to use default Liqo implementation of WireGuard")
 	cmd.Flags().StringVar(&options.ServerTemplateName, "server-template-name", gatewayserver.DefaultTemplateName,
 		"Name of the Gateway Server template")
-	cmd.Flags().StringVar(&options.ServerTemplateNamespace, "server-template-namespace", gatewayserver.DefaultTemplateNamespace,
+	cmd.Flags().StringVar(&options.ServerTemplateNamespace, "server-template-namespace", "",
 		"Namespace of the Gateway Server template")
 	cmd.Flags().Var(options.ServerServiceType, "server-service-type",
 		fmt.Sprintf("Service type of the Gateway Server. Default: %s", gatewayserver.DefaultServiceType))
@@ -170,7 +170,7 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 		"Type of Gateway Client. Leave empty to use default Liqo implementation of WireGuard")
 	cmd.Flags().StringVar(&options.ClientTemplateName, "client-template-name", gatewayclient.DefaultTemplateName,
 		"Name of the Gateway Client template")
-	cmd.Flags().StringVar(&options.ClientTemplateNamespace, "client-template-namespace", gatewayclient.DefaultTemplateNamespace,
+	cmd.Flags().StringVar(&options.ClientTemplateNamespace, "client-template-namespace", "",
 		"Namespace of the Gateway Client template")
 
 	// Common flags

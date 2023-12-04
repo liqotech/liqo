@@ -73,7 +73,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
 	cmd.Flags().StringVar(&o.GatewayType, "type", DefaultGatewayType, "Type of Gateway Client. Default: wireguard")
 	cmd.Flags().StringVar(&o.TemplateName, "template-name", DefaultTemplateName, "Name of the Gateway Client template")
-	cmd.Flags().StringVar(&o.TemplateNamespace, "template-namespace", DefaultTemplateNamespace, "Namespace of the Gateway Client template")
+	cmd.Flags().StringVar(&o.TemplateNamespace, "template-namespace", "", "Namespace of the Gateway Client template")
 	cmd.Flags().IntVar(&o.MTU, "mtu", DefaultMTU, "MTU of Gateway Client")
 	cmd.Flags().StringSliceVar(&o.Addresses, "addresses", []string{}, "Addresses of Gateway Server")
 	cmd.Flags().Int32Var(&o.Port, "port", 0, "Port of Gateway Server")
