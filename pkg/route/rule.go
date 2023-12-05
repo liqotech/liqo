@@ -84,7 +84,9 @@ func AddRule(rule *networkingv1alpha1.Rule, tableID uint32) error {
 
 // GetRulesByTableID returns all the rules associated with the given table ID.
 func GetRulesByTableID(tableID uint32) ([]netlink.Rule, error) {
-	rulelist, err := netlink.RuleList(netlink.FAMILY_ALL)
+	rulelist, err := netlink.RuleListFiltered(netlink.FAMILY_ALL, &netlink.Rule{
+		Table: int(tableID),
+	}, netlink.RT_FILTER_TABLE)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +117,13 @@ func RuleIsEqual(rule *networkingv1alpha1.Rule, netlinkRule *netlink.Rule) bool 
 	if rule.Src != nil && rule.Src.String() != netlinkRule.Src.String() {
 		return false
 	}
+	if rule.Src == nil && netlinkRule.Src != nil {
+		return false
+	}
 	if rule.Dst != nil && rule.Dst.String() != netlinkRule.Dst.String() {
+		return false
+	}
+	if rule.Dst == nil && netlinkRule.Dst != nil {
 		return false
 	}
 	return true
@@ -128,7 +136,7 @@ func CleanRules(rules []networkingv1alpha1.Rule, tableID uint32) error {
 		return err
 	}
 	for i := range existingrules {
-		if !RuleIsContained(&existingrules[i], rules) {
+		if !IsContainedRule(&existingrules[i], rules) {
 			if err := netlink.RuleDel(&existingrules[i]); err != nil {
 				return err
 			}
@@ -137,8 +145,8 @@ func CleanRules(rules []networkingv1alpha1.Rule, tableID uint32) error {
 	return nil
 }
 
-// RuleIsContained checks if the given rule is contained in the given rules list.
-func RuleIsContained(existingrule *netlink.Rule, rules []networkingv1alpha1.Rule) bool {
+// IsContainedRule checks if the given rule is contained in the given rules list.
+func IsContainedRule(existingrule *netlink.Rule, rules []networkingv1alpha1.Rule) bool {
 	for i := range rules {
 		if RuleIsEqual(&rules[i], existingrule) {
 			return true
