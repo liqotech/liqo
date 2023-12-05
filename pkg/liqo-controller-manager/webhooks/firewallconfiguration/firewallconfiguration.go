@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	v1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -100,7 +101,9 @@ func (w *webhookMutate) Handle(_ context.Context, req admission.Request) admissi
 //
 //nolint:gocritic // The signature of this method is imposed by controller runtime.
 func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) admission.Response {
-	firewallConfiguration, err := w.DecodeFirewallConfiguration(req.Object)
+	var err error
+	var firewallConfiguration, oldFirewallConfiguration *networkingv1alpha1.FirewallConfiguration
+	firewallConfiguration, err = w.DecodeFirewallConfiguration(req.Object)
 	if err != nil {
 		klog.Errorf("Failed decoding FirewallConfiguration object: %v", err)
 		return admission.Errored(http.StatusBadRequest, err)
@@ -108,6 +111,17 @@ func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) adm
 
 	family := firewallConfiguration.Spec.Table.Family
 	chains := firewallConfiguration.Spec.Table.Chains
+
+	if req.Operation == v1.Update {
+		oldFirewallConfiguration, err = w.DecodeFirewallConfiguration(req.OldObject)
+		if err != nil {
+			klog.Errorf("Failed decoding FirewallConfiguration object: %v", err)
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		if err := checkImmutableTableName(firewallConfiguration, oldFirewallConfiguration); err != nil {
+			return admission.Denied(err.Error())
+		}
+	}
 
 	if err := checkUniqueTableName(ctx, w.cl, firewallConfiguration); err != nil {
 		return admission.Denied(err.Error())
