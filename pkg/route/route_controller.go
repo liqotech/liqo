@@ -100,6 +100,9 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 			if err = EnsureRuleAbsence(&routeconfiguration.Spec.Table.Rules[i], tableID); err != nil {
 				return ctrl.Result{}, err
 			}
+			if err = EnsureRoutesAbsence(routeconfiguration.Spec.Table.Rules[i].Routes, tableID); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 
 		if err = EnsureTableAbsence(routeconfiguration, tableID); err != nil {
@@ -122,12 +125,21 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	if err = EnforceTablePresence(routeconfiguration, tableID); err != nil {
+	for i := range routeconfiguration.Spec.Table.Rules {
+		if err = CleanRoutes(routeconfiguration.Spec.Table.Rules[i].Routes, tableID); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	if err = EnsureTablePresence(routeconfiguration, tableID); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	for i := range routeconfiguration.Spec.Table.Rules {
 		if err = EnsureRulePresence(&routeconfiguration.Spec.Table.Rules[i], tableID); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := EnsureRoutesPresence(routeconfiguration.Spec.Table.Rules[i].Routes, tableID); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
