@@ -27,8 +27,8 @@ import (
 // RTTablesFilename contains path to the file with ID to routing tables IDs mapping in Linux.
 const RTTablesFilename = "/etc/iproute2/rt_tables"
 
-// EnforceTablePresence ensures the presence of the given table.
-func EnforceTablePresence(routeconfiguration *networkingv1alpha1.RouteConfiguration, tableID uint32) error {
+// EnsureTablePresence ensures the presence of the given table.
+func EnsureTablePresence(routeconfiguration *networkingv1alpha1.RouteConfiguration, tableID uint32) error {
 	exists, err := ExistsTableID(tableID, routeconfiguration.Spec.Table.Name)
 	if err != nil {
 		return err
