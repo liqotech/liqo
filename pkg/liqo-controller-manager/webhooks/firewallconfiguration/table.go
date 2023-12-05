@@ -39,6 +39,14 @@ func checkUniqueChainName(chains []firewallapi.Chain) error {
 	return nil
 }
 
+// checkImmutableTableName checks if the table name is immutable.
+func checkImmutableTableName(fwcfg, oldFwcfg *networkingv1alpha1.FirewallConfiguration) error {
+	if oldFwcfg.Spec.Table.Name != fwcfg.Spec.Table.Name {
+		return fmt.Errorf("table name is immutable")
+	}
+	return nil
+}
+
 func checkUniqueTableName(ctx context.Context, cl client.Client, currentFwcfg *networkingv1alpha1.FirewallConfiguration) error {
 	if currentFwcfg == nil {
 		return fmt.Errorf("firewallconfiguration is nil")
