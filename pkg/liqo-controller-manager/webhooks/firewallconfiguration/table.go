@@ -17,6 +17,7 @@ package firewallconfiguration
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -41,7 +42,10 @@ func checkUniqueChainName(chains []firewallapi.Chain) error {
 
 // checkImmutableTableName checks if the table name is immutable.
 func checkImmutableTableName(fwcfg, oldFwcfg *networkingv1alpha1.FirewallConfiguration) error {
-	if oldFwcfg.Spec.Table.Name != fwcfg.Spec.Table.Name {
+	if fwcfg.Spec.Table.Name == nil || oldFwcfg.Spec.Table.Name == nil {
+		return fmt.Errorf("table name is nil")
+	}
+	if *oldFwcfg.Spec.Table.Name != *fwcfg.Spec.Table.Name {
 		return fmt.Errorf("table name is immutable")
 	}
 	return nil
@@ -60,17 +64,18 @@ func checkUniqueTableName(ctx context.Context, cl client.Client, currentFwcfg *n
 	if err := cl.List(ctx, &fwcfglist); err != nil {
 		return err
 	}
+
 	for i := range fwcfglist.Items {
 		if fwcfglist.Items[i].UID == currentFwcfg.UID {
 			continue
 		}
-		fwcfg := fwcfglist.Items[i]
-		tableName := fwcfg.Spec.Table.Name
-		if tableName == nil {
+		if fwcfglist.Items[i].Spec.Table.Name == nil || currentFwcfg.Spec.Table.Name == nil {
 			return fmt.Errorf("table name is nil")
 		}
-		if *tableName == *currentTableName {
-			return fmt.Errorf("table name %v is duplicated", *tableName)
+		if *fwcfglist.Items[i].Spec.Table.Name == *currentFwcfg.Spec.Table.Name &&
+			maps.Equal(currentFwcfg.GetLabels(), fwcfglist.Items[i].GetLabels()) {
+			return fmt.Errorf("table name %s with labels %s already used",
+				*currentTableName, currentFwcfg.GetLabels())
 		}
 	}
 	return nil
