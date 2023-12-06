@@ -90,10 +90,7 @@ func (w *webhookMutate) Handle(_ context.Context, req admission.Request) admissi
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	table := firewallConfiguration.Spec.Table
-	chains := table.Chains
-
-	generateRuleNames(chains)
+	generateRuleNames(firewallConfiguration.Spec.Table.Chains)
 
 	return w.CreatePatchResponse(&req, firewallConfiguration)
 }
