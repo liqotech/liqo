@@ -94,6 +94,7 @@ import (
 	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
 	nwwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/network"
 	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/routeconfiguration"
 	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
 	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
@@ -443,6 +444,7 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/ips", ipwh.NewValidator())
 	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", firewallconfiguration.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", firewallconfiguration.NewMutator())
+	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routeconfiguration.NewValidator(mgr.GetClient()))
 
 	if err := indexer.IndexField(ctx, mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
 		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
