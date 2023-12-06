@@ -114,13 +114,15 @@ func RuleIsEqual(rule *networkingv1alpha1.Rule, netlinkRule *netlink.Rule) bool 
 	if rule == nil || netlinkRule == nil {
 		return false
 	}
-	if rule.Src != nil && rule.Src.String() != netlinkRule.Src.String() {
+
+	if rule.Src != nil && netlinkRule.Src != nil && rule.Src.String() != netlinkRule.Src.String() {
 		return false
 	}
 	if rule.Src == nil && netlinkRule.Src != nil {
 		return false
 	}
-	if rule.Dst != nil && rule.Dst.String() != netlinkRule.Dst.String() {
+
+	if rule.Dst != nil && netlinkRule.Dst != nil && rule.Dst.String() != netlinkRule.Dst.String() {
 		return false
 	}
 	if rule.Dst == nil && netlinkRule.Dst != nil {
