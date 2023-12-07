@@ -16,7 +16,6 @@ package wireguard
 
 import (
 	"context"
-	"fmt"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	corev1 "k8s.io/api/core/v1"
@@ -30,22 +29,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
 )
-
-// SetOwnerReferenceWithMode sets the owner reference of the object according to the mode.
-func SetOwnerReferenceWithMode(opts *Options, obj metav1.Object, scheme *runtime.Scheme) error {
-	meta := metav1.ObjectMeta{
-		Name:      opts.GwOptions.Name,
-		Namespace: opts.GwOptions.Namespace,
-		UID:       types.UID(opts.GatewayUID),
-	}
-	switch opts.GwOptions.Mode {
-	case gateway.ModeServer:
-		return controllerutil.SetOwnerReference(&networkingv1alpha1.GatewayServer{ObjectMeta: meta}, obj, scheme)
-	case gateway.ModeClient:
-		return controllerutil.SetOwnerReference(&networkingv1alpha1.GatewayClient{ObjectMeta: meta}, obj, scheme)
-	}
-	return fmt.Errorf("invalid mode %v", opts.GwOptions.Mode)
-}
 
 // CheckKeysSecret checks if the keys secret exists and if it contains the private and public keys.
 func CheckKeysSecret(ctx context.Context, cl client.Client, opts *Options) (wgtypes.Key, error) {
@@ -82,7 +65,7 @@ func CreateKeysSecret(ctx context.Context, cl client.Client, opts *Options, pri,
 			string(consts.RemoteClusterID):      opts.GwOptions.RemoteClusterID,
 			string(consts.GatewayResourceLabel): string(consts.GatewayResourceLabelValue),
 		})
-		if err := SetOwnerReferenceWithMode(opts, secret, cl.Scheme()); err != nil {
+		if err := gateway.SetOwnerReferenceWithMode(opts.GwOptions, secret, cl.Scheme()); err != nil {
 			return err
 		}
 		secret.Data = map[string][]byte{
@@ -106,13 +89,13 @@ func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Sch
 		},
 	}}
 	_, err := controllerutil.CreateOrUpdate(ctx, cl, conn, func() error {
-		if err := SetOwnerReferenceWithMode(opts, conn, scheme); err != nil {
+		if err := gateway.SetOwnerReferenceWithMode(opts.GwOptions, conn, scheme); err != nil {
 			return err
 		}
 		conn.Spec.GatewayRef.APIVersion = networkingv1alpha1.GroupVersion.String()
 		conn.Spec.GatewayRef.Name = opts.GwOptions.Name
 		conn.Spec.GatewayRef.Namespace = opts.GwOptions.Namespace
-		conn.Spec.GatewayRef.UID = types.UID(opts.GatewayUID)
+		conn.Spec.GatewayRef.UID = types.UID(opts.GwOptions.GatewayUID)
 		switch opts.GwOptions.Mode {
 		case gateway.ModeServer:
 			conn.Spec.Type = networkingv1alpha1.ConnectionTypeServer
