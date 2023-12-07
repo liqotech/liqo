@@ -12,39 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package wireguard
+package remapping
 
 import (
-	"net"
-	"sync"
-	"time"
-
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-
 	"github.com/liqotech/liqo/pkg/gateway"
 )
 
-// Options contains the options for the wireguard interface.
+// Options contains the options for the remapping controller.
 type Options struct {
 	GwOptions *gateway.Options
-
-	MTU             int
-	PrivateKey      wgtypes.Key
-	InterfaceIP     string
-	ListenPort      int
-	EndpointAddress string
-	EndpointPort    int
-
-	EndpointIP      net.IP
-	EndpointIPMutex *sync.Mutex
-
-	DNSCheckInterval time.Duration
+	// DefaultInterfaceName is the name of the interface where the default rout points in main table.
+	DefaultInterfaceName string
 }
 
 // NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
+func NewOptions(options *gateway.Options, defInfaName string) *Options {
 	return &Options{
-		GwOptions:       options,
-		EndpointIPMutex: &sync.Mutex{},
+		GwOptions:            options,
+		DefaultInterfaceName: defInfaName,
 	}
 }
