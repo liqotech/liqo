@@ -52,6 +52,7 @@ spec:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
                 - --metrics-address=:8080
                 - --health-probe-bind-address=:8081
@@ -62,6 +63,11 @@ spec:
                 {{- if gt .Values.networking.gateway.replicas 1.0 }}
                 - --leader-election=true
                 {{- end }}
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
               - name: wireguard
                 image: ghcr.io/liqotech/gateway/wireguard{{ include "liqo.suffix" $templateConfig }}:{{ include "liqo.version" $templateConfig }}
                 imagePullPolicy: {{ .Values.pullPolicy }}
