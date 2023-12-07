@@ -44,21 +44,24 @@ type FirewallConfigurationReconciler struct {
 	EventsRecorder record.EventRecorder
 	// Labels used to filter the reconciled resources.
 	Labels map[string]string
+	// EnableFinalizer is used to enable the finalizer on the reconciled resources.
+	EnableFinalizer bool
 }
 
 // NewFirewallConfigurationReconciler returns a new FirewallConfigurationReconciler.
 func NewFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
-	er record.EventRecorder, labels map[string]string) (*FirewallConfigurationReconciler, error) {
+	er record.EventRecorder, labels map[string]string, enableFinalizer bool) (*FirewallConfigurationReconciler, error) {
 	nftConnection, err := nftables.New()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create nftables connection: %w", err)
 	}
 	return &FirewallConfigurationReconciler{
-		NftConnection:  nftConnection,
-		Client:         cl,
-		Scheme:         s,
-		EventsRecorder: er,
-		Labels:         labels,
+		NftConnection:   nftConnection,
+		Client:          cl,
+		Scheme:          s,
+		EventsRecorder:  er,
+		Labels:          labels,
+		EnableFinalizer: enableFinalizer,
 	}, nil
 }
 
@@ -87,14 +90,15 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 
 	// Manage Finalizers and Table deletion.
 	// In nftables, table deletion automatically delete contained chains and rules.
-	if fwcfg.DeletionTimestamp.IsZero() {
+
+	if fwcfg.DeletionTimestamp.IsZero() && r.EnableFinalizer {
 		if !ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
 			if err = r.ensureFirewallConfigurationFinalizerPresence(ctx, fwcfg); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
 		}
-	} else {
+	} else if r.EnableFinalizer {
 		if ctrlutil.ContainsFinalizer(fwcfg, firewallConfigurationsControllerFinalizer) {
 			delTable(r.NftConnection, &fwcfg.Spec.Table)
 			if err = r.NftConnection.Flush(); err != nil {
