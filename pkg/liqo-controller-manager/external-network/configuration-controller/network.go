@@ -66,7 +66,7 @@ func ForgeNetwork(net *ipamv1alpha1.Network, cfg *networkingv1alpha1.Configurati
 
 // CreateOrGetNetwork creates or gets a ipamv1alpha1.Network resource.
 func CreateOrGetNetwork(ctx context.Context, cl client.Client, scheme *runtime.Scheme, er record.EventRecorder,
-	cfg *networkingv1alpha1.Configuration, cidrType LabelCIDRTypeValue) (network *ipamv1alpha1.Network, err error) {
+	cfg *networkingv1alpha1.Configuration, cidrType LabelCIDRTypeValue) (*ipamv1alpha1.Network, error) {
 	ls, err := ForgeNetworkLabelSelector(cfg, cidrType)
 	if err != nil {
 		return nil, err
@@ -77,8 +77,8 @@ func CreateOrGetNetwork(ctx context.Context, cl client.Client, scheme *runtime.S
 		return nil, err
 	}
 	if len(list.Items) == 1 {
-		if network != nil && string(network.OwnerReferences[0].UID) == string(cfg.UID) {
-			return network, nil
+		if len(list.Items[0].OwnerReferences) == 1 && string(list.Items[0].OwnerReferences[0].UID) == string(cfg.UID) {
+			return &list.Items[0], nil
 		}
 	}
 	if len(list.Items) > 1 {
@@ -87,7 +87,7 @@ func CreateOrGetNetwork(ctx context.Context, cl client.Client, scheme *runtime.S
 
 	events.Event(er, cfg, fmt.Sprintf("Creating network %s/%s", cfg.Name, cfg.Namespace))
 
-	network = &ipamv1alpha1.Network{}
+	network := &ipamv1alpha1.Network{}
 	if err = ForgeNetworkMetadata(network, cfg, cidrType); err != nil {
 		return nil, err
 	}
