@@ -46,5 +46,5 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 		}
 	}
 
-	return wgcl.ConfigureDevice(options.InterfaceName, confdev)
+	return wgcl.ConfigureDevice(options.GwOptions.TunnelInterfaceName, confdev)
 }

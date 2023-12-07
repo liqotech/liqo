@@ -30,12 +30,12 @@ func InitWireguardLink(options *Options) error {
 		return err
 	}
 
-	link, err := common.GetLink(options.InterfaceName)
+	link, err := common.GetLink(options.GwOptions.TunnelInterfaceName)
 	if err != nil {
 		return err
 	}
 
-	klog.Infof("Setting up Wireguard interface %q with IP %q", options.InterfaceName, common.GetInterfaceIP(options.GwOptions.Mode))
+	klog.Infof("Setting up Wireguard interface %q with IP %q", options.GwOptions.TunnelInterfaceName, common.GetInterfaceIP(options.GwOptions.Mode))
 	if err := common.AddAddress(link, common.GetInterfaceIP(options.GwOptions.Mode)); err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func createLink(options *Options) error {
 	link := netlink.Wireguard{
 		LinkAttrs: netlink.LinkAttrs{
 			MTU:  options.MTU,
-			Name: options.InterfaceName,
+			Name: options.GwOptions.TunnelInterfaceName,
 		},
 	}
 
@@ -64,7 +64,7 @@ func createLink(options *Options) error {
 		}
 		defer wgcl.Close()
 
-		if err := wgcl.ConfigureDevice(options.InterfaceName, wgtypes.Config{
+		if err := wgcl.ConfigureDevice(options.GwOptions.TunnelInterfaceName, wgtypes.Config{
 			ListenPort: &options.ListenPort,
 		}); err != nil {
 			return err

@@ -76,7 +76,7 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the connection %q: %w", req.NamespacedName, err)
 	}
-	klog.Infof("Reconciling connection %q", req.NamespacedName)
+	klog.V(4).Infof("Reconciling connection %q", req.NamespacedName)
 
 	updateConnection := ForgeUpdateConnectionCallback(ctx, r.Client, r.Options, req)
 

@@ -35,7 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
-	gwremapping "github.com/liqotech/liqo/pkg/gateway/remapping"
+	"github.com/liqotech/liqo/pkg/gateway/remapping"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -45,10 +45,8 @@ var (
 	addToSchemeFunctions = []func(*runtime.Scheme) error{
 		networkingv1alpha1.AddToScheme,
 	}
-	options = connection.NewOptions(
-		gateway.NewOptions(),
-		conncheck.NewOptions(),
-	)
+	connoptions  *connection.Options
+	remapoptions *remapping.Options
 )
 
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete
@@ -65,13 +63,28 @@ func main() {
 	klog.InitFlags(legacyflags)
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
-	gateway.InitFlags(cmd.Flags(), options.GwOptions)
+	defInfaName, err := gateway.GetDefaultInterfaceName()
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
+	gwoptions := gateway.NewOptions()
+	connoptions = connection.NewOptions(
+		gwoptions,
+		conncheck.NewOptions(),
+	)
+	remapoptions = remapping.NewOptions(
+		gwoptions, defInfaName,
+	)
+
+	gateway.InitFlags(cmd.Flags(), connoptions.GwOptions)
 	if err := gateway.MarkFlagsRequired(&cmd); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
 
-	connection.InitFlags(cmd.Flags(), options)
+	connection.InitFlags(cmd.Flags(), connoptions)
 
 	if err := cmd.Execute(); err != nil {
 		klog.Error(err)
@@ -103,37 +116,37 @@ func run(_ *cobra.Command, _ []string) error {
 		Scheme:         scheme,
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{
-				options.GwOptions.Namespace: {},
+				connoptions.GwOptions.Namespace: {},
 			},
 		},
 		Metrics: server.Options{
 			BindAddress: "0", // Metrics are exposed by "connection" container.
 		},
-		HealthProbeBindAddress: options.GwOptions.ProbeAddr,
-		LeaderElection:         options.GwOptions.LeaderElection,
+		HealthProbeBindAddress: connoptions.GwOptions.ProbeAddr,
+		LeaderElection:         connoptions.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
 			"%s.%s.%s.connections.liqo.io",
-			options.GwOptions.Name, options.GwOptions.Namespace, options.GwOptions.Mode,
+			connoptions.GwOptions.Name, connoptions.GwOptions.Namespace, connoptions.GwOptions.Mode,
 		),
-		LeaderElectionNamespace:       options.GwOptions.Namespace,
+		LeaderElectionNamespace:       connoptions.GwOptions.Namespace,
 		LeaderElectionReleaseOnCancel: true,
 		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
-		LeaseDuration:                 &options.GwOptions.LeaderElectionLeaseDuration,
-		RenewDeadline:                 &options.GwOptions.LeaderElectionRenewDeadline,
-		RetryPeriod:                   &options.GwOptions.LeaderElectionRetryPeriod,
+		LeaseDuration:                 &connoptions.GwOptions.LeaderElectionLeaseDuration,
+		RenewDeadline:                 &connoptions.GwOptions.LeaderElectionRenewDeadline,
+		RetryPeriod:                   &connoptions.GwOptions.LeaderElectionRetryPeriod,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
 	}
 
-	if options.EnableConnectionController {
+	if connoptions.EnableConnectionController {
 		// Setup the connection controller.
 		connr, err := connection.NewConnectionsReconciler(
 			ctx,
 			mgr.GetClient(),
 			mgr.GetScheme(),
 			mgr.GetEventRecorderFor("connection-controller"),
-			options,
+			connoptions,
 		)
 		if err != nil {
 			return fmt.Errorf("unable to create connectioons reconciler: %w", err)
@@ -149,7 +162,8 @@ func run(_ *cobra.Command, _ []string) error {
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("firewall-controller"),
-		gwremapping.ForgeFirewallTargetLabels(options.GwOptions.RemoteClusterID),
+		remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
+		false,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
@@ -157,6 +171,18 @@ func run(_ *cobra.Command, _ []string) error {
 
 	if err := fwcr.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
+	}
+
+	// Setup the configuration controller.
+	cfgr := remapping.NewRemappingReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("firewall-controller"),
+		remapoptions,
+	)
+
+	if err := cfgr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup configuration reconciler: %w", err)
 	}
 
 	// Start the manager.

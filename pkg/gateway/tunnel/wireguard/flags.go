@@ -31,15 +31,10 @@ func (fn FlagName) String() string {
 }
 
 const (
-	// FlagNameGatewayUID is the UID of the wireguard gateway.
-	FlagNameGatewayUID FlagName = "gateway-uid"
-
 	// FlagNameMTU is the MTU for the wireguard interface.
 	FlagNameMTU FlagName = "mtu"
 	// FlagNameListenPort is the listen port for the wireguard interface.
 	FlagNameListenPort FlagName = "listen-port"
-	// FlagNameInterfaceName is the name of the wireguard interface.
-	FlagNameInterfaceName FlagName = "interface-name"
 	// FlagNameInterfaceIP is the IP of the wireguard interface.
 	FlagNameInterfaceIP FlagName = "interface-ip"
 	// FlagNameEndpointAddress is the address of the endpoint for the wireguard interface.
@@ -51,11 +46,6 @@ const (
 	FlagNameDNSCheckInterval FlagName = "dns-check-interval"
 )
 
-// RequiredFlags contains the list of the mandatory flags.
-var RequiredFlags = []FlagName{
-	FlagNameGatewayUID,
-}
-
 // ClientRequiredFlags contains the list of the mandatory flags for the client mode.
 var ClientRequiredFlags = []FlagName{
 	FlagNameEndpointAddress,
@@ -63,10 +53,7 @@ var ClientRequiredFlags = []FlagName{
 
 // InitFlags initializes the flags for the wireguard tunnel.
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
-	flagset.StringVar(&opts.GatewayUID, FlagNameGatewayUID.String(), "", "Parent gateway resource UID")
-
 	flagset.IntVar(&opts.MTU, FlagNameMTU.String(), 1420, "MTU for the interface")
-	flagset.StringVar(&opts.InterfaceName, FlagNameInterfaceName.String(), "liqo-tunnel", "Name for the tunnel interface")
 	flagset.IntVar(&opts.ListenPort, FlagNameListenPort.String(), 51820, "Listen port (server only)")
 	flagset.StringVar(&opts.EndpointAddress, FlagNameEndpointAddress.String(), "", "Endpoint address (client only)")
 	flagset.IntVar(&opts.EndpointPort, FlagNameEndpointPort.String(), 51820, "Endpoint port (client only)")
@@ -76,11 +63,6 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 // MarkFlagsRequired marks the flags as required.
 func MarkFlagsRequired(cmd *cobra.Command, opts *Options) error {
-	for _, flag := range RequiredFlags {
-		if err := cmd.MarkFlagRequired(flag.String()); err != nil {
-			return err
-		}
-	}
 	if opts.GwOptions.Mode == gateway.ModeClient {
 		for _, flag := range ClientRequiredFlags {
 			if err := cmd.MarkFlagRequired(flag.String()); err != nil {
