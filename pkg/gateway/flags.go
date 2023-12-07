@@ -29,14 +29,19 @@ func (fn FlagName) String() string {
 }
 
 const (
-	// FlagNameName is the name of the WgGateway resource.
+	// FlagNameName is the name of the Gateway resource.
 	FlagNameName FlagName = "name"
-	// FlagNameNamespace is the namespace WgGateway resource.
+	// FlagNameNamespace is the namespace Gateway resource.
 	FlagNameNamespace FlagName = "namespace"
 	// FlagNameRemoteClusterID is the clusterID of the remote cluster.
 	FlagNameRemoteClusterID FlagName = "remote-cluster-id"
 
-	// FlagNameMode is the mode in which the wireguard interface is configured.
+	// FlagNameGatewayUID is the UID of the Gateway resource.
+	FlagNameGatewayUID FlagName = "gateway-uid"
+	// FlagNameInterfaceName is the name of the tunnel interface.
+	FlagNameInterfaceName FlagName = "interface-name"
+
+	// FlagNameMode is the mode in which the gateway is configured.
 	FlagNameMode FlagName = "mode"
 
 	// FlagNameLeaderElection is the flag to enable leader election.
@@ -60,13 +65,17 @@ var RequiredFlags = []FlagName{
 	FlagNameNamespace,
 	FlagNameRemoteClusterID,
 	FlagNameMode,
+	FlagNameGatewayUID,
 }
 
-// InitFlags initializes the flags for the wireguard tunnel.
+// InitFlags initializes the flags for the gateway.
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringVar(&opts.Name, FlagNameName.String(), "", "Parent gateway name")
 	flagset.StringVar(&opts.Namespace, FlagNameNamespace.String(), "", "Parent gateway namespace")
 	flagset.StringVar(&opts.RemoteClusterID, FlagNameRemoteClusterID.String(), "", "ClusterID of the remote cluster")
+
+	flagset.StringVar(&opts.GatewayUID, FlagNameGatewayUID.String(), "", "Parent gateway resource UID")
+	flagset.StringVar(&opts.TunnelInterfaceName, FlagNameInterfaceName.String(), "liqo-tunnel", "Name for the tunnel interface")
 
 	flagset.Var(&opts.Mode, FlagNameMode.String(), "Parent gateway mode")
 
