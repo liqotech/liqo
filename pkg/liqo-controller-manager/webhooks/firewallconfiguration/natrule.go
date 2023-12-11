@@ -29,6 +29,23 @@ func checkNatRulesInChain(chain *firewallapi.Chain) error {
 		if err := checkNatRuleChainHook(*chain.Hook, &natrules[i]); err != nil {
 			return err
 		}
+		if err := checkNatRuleTo(&natrules[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkNatRuleTo(natrule *firewallapi.NatRule) error {
+	switch natrule.NatType {
+	case firewallapi.NatTypeDestination, firewallapi.NatTypeSource:
+		if natrule.To == nil {
+			return fmt.Errorf("natrule %s is %s but has no To field", *natrule.GetName(), natrule.NatType)
+		}
+	case firewallapi.NatTypeMasquerade:
+		if natrule.To != nil {
+			return fmt.Errorf("natrule %s is Masquerade or masquerade but has a To field", *natrule.GetName())
+		}
 	}
 	return nil
 }
@@ -39,28 +56,28 @@ func checkNatRuleChainHook(hook firewallapi.ChainHook, rule *firewallapi.NatRule
 		switch rule.NatType {
 		case firewallapi.NatTypeDestination:
 			return fmt.Errorf("natrule %s is DNAT that is incompatible with postrouting", *rule.GetName())
-		case firewallapi.NatTypeSource:
+		case firewallapi.NatTypeSource, firewallapi.NatTypeMasquerade:
 			return nil
 		}
 	case firewallapi.ChainHookPrerouting:
 		switch rule.NatType {
 		case firewallapi.NatTypeDestination:
 			return nil
-		case firewallapi.NatTypeSource:
+		case firewallapi.NatTypeSource, firewallapi.NatTypeMasquerade:
 			return fmt.Errorf("natrule %s is SNAT that is incompatible with prerouting", *rule.GetName())
 		}
 	case firewallapi.ChainHookInput:
 		switch rule.NatType {
 		case firewallapi.NatTypeDestination:
 			return fmt.Errorf("natrule %s is DNAT that is incompatible with input", *rule.GetName())
-		case firewallapi.NatTypeSource:
+		case firewallapi.NatTypeSource, firewallapi.NatTypeMasquerade:
 			return nil
 		}
 	case firewallapi.ChainHookOutput:
 		switch rule.NatType {
 		case firewallapi.NatTypeDestination:
 			return nil
-		case firewallapi.NatTypeSource:
+		case firewallapi.NatTypeSource, firewallapi.NatTypeMasquerade:
 			return fmt.Errorf("natrule %s is SNAT that is incompatible with output", *rule.GetName())
 		}
 	default:

@@ -27,25 +27,25 @@ const (
 	IPValueTypeIP IPValueType = "ip"
 	// IPValueTypeSubnet is a string representing a subnet (eg. 10.0.0.0/24).
 	IPValueTypeSubnet IPValueType = "subnet"
-	// IPValueTypeInvalid is an invalid match value.
-	IPValueTypeInvalid IPValueType = "invalid"
+	// IPValueTypeVoid is a void match value.
+	IPValueTypeVoid IPValueType = "void"
 )
 
 // GetIPValueType parses the match value and returns the type of the value.
-func GetIPValueType(value string) (IPValueType, error) {
-	if value == "" {
-		return IPValueTypeInvalid, fmt.Errorf("match value cannot be empty")
+func GetIPValueType(value *string) (IPValueType, error) {
+	if value == nil {
+		return IPValueTypeVoid, nil
 	}
 
 	// Check if the value is a pool subnet.
-	if _, _, err := net.ParseCIDR(value); err == nil {
+	if _, _, err := net.ParseCIDR(*value); err == nil {
 		return IPValueTypeSubnet, nil
 	}
 
 	// Check if the value is an IP.
-	if net.ParseIP(value) != nil {
+	if net.ParseIP(*value) != nil {
 		return IPValueTypeIP, nil
 	}
 
-	return IPValueTypeInvalid, fmt.Errorf("invalid match value %s", value)
+	return IPValueTypeVoid, fmt.Errorf("invalid match value %s", *value)
 }

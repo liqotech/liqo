@@ -22,6 +22,8 @@ const (
 	NatTypeDestination NatType = "dnat"
 	// NatTypeSource is the type of the NAT rule.
 	NatTypeSource NatType = "snat"
+	// NatTypeMasquerade is the type of the NAT rule.
+	NatTypeMasquerade NatType = "masquerade"
 )
 
 var _ Rule = &NatRule{}
@@ -36,8 +38,8 @@ type NatRule struct {
 	// Using multiple ip matches with same position or
 	Match []Match `json:"match"`
 	// NatType is the type of the NAT rule.
-	// +kubebuilder:validation:Enum=dnat;snat
+	// +kubebuilder:validation:Enum=dnat;snat;masquerade
 	NatType NatType `json:"natType"`
 	// To is the IP to be used for the NAT translation.
-	To string `json:"to"`
+	To *string `json:"to,omitempty"`
 }
