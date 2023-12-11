@@ -38,7 +38,7 @@ func applyMatch(m *Match, rule *nftables.Rule) error {
 }
 
 func applyMatchIP(m *Match, rule *nftables.Rule, op expr.CmpOp) error {
-	matchIPValueType, err := GetIPValueType(m.IP.Value)
+	matchIPValueType, err := GetIPValueType(&m.IP.Value)
 	if err != nil {
 		return err
 	}
