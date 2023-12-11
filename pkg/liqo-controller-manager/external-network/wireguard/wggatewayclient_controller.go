@@ -224,6 +224,12 @@ func (r *WgGatewayClientReconciler) handleInternalEndpointStatus(ctx context.Con
 		return podList.Items[i].CreationTimestamp.Before(&podList.Items[j].CreationTimestamp)
 	})
 
+	if podList.Items[0].Status.PodIP == "" {
+		err := fmt.Errorf("pod %s/%s has no IP", podList.Items[0].Namespace, podList.Items[0].Name)
+		klog.Error(err)
+		return err
+	}
+
 	wgClient.Status.InternalEndpoint = &networkingv1alpha1.InternalGatewayEndpoint{
 		IP:   ptr.To(networkingv1alpha1.IP(podList.Items[0].Status.PodIP)),
 		Node: &podList.Items[0].Spec.NodeName,
