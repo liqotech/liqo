@@ -348,6 +348,11 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		pod := &podList.Items[i]
 		if pod.Spec.NodeName == nodeName {
 			internalAddress = pod.Status.PodIP
+			if internalAddress == "" {
+				err := fmt.Errorf("pod %s/%s has no IP", pod.Namespace, pod.Name)
+				klog.Error(err)
+				return nil, nil, err
+			}
 			break
 		}
 	}
