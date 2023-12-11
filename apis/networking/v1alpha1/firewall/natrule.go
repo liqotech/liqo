@@ -108,15 +108,19 @@ func applyNatRule(nr *NatRule, rule *nftables.Rule) error {
 		return applyNatIP(nr.To, natType, rule)
 	case IPValueTypeSubnet:
 		return applyNatSubnet(nr.To, natType, rule)
-	default:
-		return fmt.Errorf("invalid ip value %s", nr.To)
+	case IPValueTypeVoid:
+		return applyNatVoid(rule)
 	}
+	return nil
 }
 
-func applyNatIP(ip string, natType expr.NATType, rule *nftables.Rule) error {
-	ipNet := net.ParseIP(ip)
+func applyNatIP(ip *string, natType expr.NATType, rule *nftables.Rule) error {
+	if ip == nil {
+		return fmt.Errorf("\"to\" argument cannot be nil for nat type snat/dnat")
+	}
+	ipNet := net.ParseIP(*ip)
 	if ipNet == nil {
-		return fmt.Errorf("invalid ip %s", ip)
+		return fmt.Errorf("invalid ip %s", *ip)
 	}
 
 	rule.Exprs = append(rule.Exprs,
@@ -132,8 +136,16 @@ func applyNatIP(ip string, natType expr.NATType, rule *nftables.Rule) error {
 	return nil
 }
 
-func applyNatSubnet(ip string, natType expr.NATType, rule *nftables.Rule) error {
-	_, subnet, err := net.ParseCIDR(ip)
+func applyNatVoid(rule *nftables.Rule) error {
+	rule.Exprs = append(rule.Exprs, &expr.Masq{})
+	return nil
+}
+
+func applyNatSubnet(ip *string, natType expr.NATType, rule *nftables.Rule) error {
+	if ip == nil {
+		return fmt.Errorf("\"to\" argument cannot be nil for nat type snat/dnat")
+	}
+	_, subnet, err := net.ParseCIDR(*ip)
 	if err != nil {
 		return err
 	}
@@ -169,7 +181,7 @@ func getNatRuleType(natrule *NatRule) (expr.NATType, error) {
 	switch natrule.NatType {
 	case NatTypeDestination:
 		return expr.NATTypeDestNAT, nil
-	case NatTypeSource:
+	case NatTypeSource, NatTypeMasquerade:
 		return expr.NATTypeSourceNAT, nil
 	default:
 		return expr.NATType(0), fmt.Errorf("invalid nat type %s", natrule.NatType)
