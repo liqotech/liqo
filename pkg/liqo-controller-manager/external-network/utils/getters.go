@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -135,8 +136,11 @@ func TranslateMap(obj interface{}) map[string]string {
 
 // KindToResource returns the resource name for a given kind.
 func KindToResource(kind string) string {
+	plural, _ := meta.UnsafeGuessKindToResource(schema.GroupVersionKind{
+		Kind: kind,
+	})
 	// lowercased and pluralized
-	return strings.ToLower(kind) + "s"
+	return plural.Resource
 }
 
 // ResourceToKind returns the kind name for a given resource.
@@ -147,7 +151,11 @@ func ResourceToKind(gvr schema.GroupVersionResource, kubeClient kubernetes.Inter
 	}
 
 	for i := range res.APIResources {
-		if gvr.Resource == KindToResource(res.APIResources[i].Kind) {
+		if plural, singular := meta.UnsafeGuessKindToResource(schema.GroupVersionKind{
+			Group:   gvr.Group,
+			Version: gvr.Version,
+			Kind:    res.APIResources[i].Kind,
+		}); plural.Resource == gvr.Resource || singular.Resource == gvr.Resource {
 			return res.APIResources[i].Kind, nil
 		}
 	}
