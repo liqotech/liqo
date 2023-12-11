@@ -172,6 +172,7 @@ spec:
                                     enum:
                                     - dnat
                                     - snat
+                                    - masquerade
                                     type: string
                                   to:
                                     description: To is the IP to be used for the NAT
@@ -180,7 +181,6 @@ spec:
                                 required:
                                 - match
                                 - natType
-                                - to
                                 type: object
                               type: array
                             routeRules:
