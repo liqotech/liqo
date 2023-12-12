@@ -51,29 +51,39 @@ type NamespacedServiceReflector struct {
 	localServices        corev1listers.ServiceNamespaceLister
 	remoteServices       corev1listers.ServiceNamespaceLister
 	remoteServicesClient corev1clients.ServiceInterface
+
+	enableLoadBalancer              bool
+	remoteRealLoadBalancerClassName string
 }
 
 // NewServiceReflector returns a new ServiceReflector instance.
-func NewServiceReflector(reflectorConfig *generic.ReflectorConfig) manager.Reflector {
-	return generic.NewReflector(ServiceReflectorName, NewNamespacedServiceReflector, generic.WithoutFallback(),
+func NewServiceReflector(reflectorConfig *generic.ReflectorConfig,
+	enableLoadBalancer bool, remoteRealLoadBalancerClassName string) manager.Reflector {
+	return generic.NewReflector(ServiceReflectorName,
+		NewNamespacedServiceReflector(enableLoadBalancer, remoteRealLoadBalancerClassName), generic.WithoutFallback(),
 		reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedServiceReflector returns a new NamespacedServiceReflector instance.
-func NewNamespacedServiceReflector(opts *options.NamespacedOpts) manager.NamespacedReflector {
-	local := opts.LocalFactory.Core().V1().Services()
-	remote := opts.RemoteFactory.Core().V1().Services()
+func NewNamespacedServiceReflector(
+	enableLoadBalancer bool, remoteRealLoadBalancerClassName string) func(*options.NamespacedOpts) manager.NamespacedReflector {
+	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
+		local := opts.LocalFactory.Core().V1().Services()
+		remote := opts.RemoteFactory.Core().V1().Services()
 
-	_, err := local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
-	utilruntime.Must(err)
-	_, err = remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
-	utilruntime.Must(err)
+		_, err := local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		utilruntime.Must(err)
+		_, err = remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		utilruntime.Must(err)
 
-	return &NamespacedServiceReflector{
-		NamespacedReflector:  generic.NewNamespacedReflector(opts, ServiceReflectorName),
-		localServices:        local.Lister().Services(opts.LocalNamespace),
-		remoteServices:       remote.Lister().Services(opts.RemoteNamespace),
-		remoteServicesClient: opts.RemoteClient.CoreV1().Services(opts.RemoteNamespace),
+		return &NamespacedServiceReflector{
+			NamespacedReflector:             generic.NewNamespacedReflector(opts, ServiceReflectorName),
+			localServices:                   local.Lister().Services(opts.LocalNamespace),
+			remoteServices:                  remote.Lister().Services(opts.RemoteNamespace),
+			remoteServicesClient:            opts.RemoteClient.CoreV1().Services(opts.RemoteNamespace),
+			enableLoadBalancer:              enableLoadBalancer,
+			remoteRealLoadBalancerClassName: remoteRealLoadBalancerClassName,
+		}
 	}
 }
 
@@ -142,7 +152,7 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 	}
 
 	// Forge the mutation to be applied to the remote cluster.
-	mutation := forge.RemoteService(local, nsr.RemoteNamespace(), nsr.ForgingOpts)
+	mutation := forge.RemoteService(local, nsr.RemoteNamespace(), nsr.enableLoadBalancer, nsr.remoteRealLoadBalancerClassName, nsr.ForgingOpts)
 	tracer.Step("Remote mutation created")
 
 	defer tracer.Step("Enforced the correctness of the remote object")

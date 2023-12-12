@@ -124,6 +124,8 @@ func (r *ResourceOfferReconciler) getVirtualNodeMutator(fc *discoveryv1alpha1.Fo
 		virtualNode.Spec.ResourceQuota = resourceOffer.Spec.ResourceQuota
 		virtualNode.Spec.Labels = resourceOffer.Spec.Labels
 		virtualNode.Spec.StorageClasses = resourceOffer.Spec.StorageClasses
+		virtualNode.Spec.IngressClasses = resourceOffer.Spec.IngressClasses
+		virtualNode.Spec.LoadBalancerClasses = resourceOffer.Spec.LoadBalancerClasses
 		return controllerutil.SetControllerReference(resourceOffer, virtualNode, r.Scheme)
 	}
 }

@@ -173,6 +173,21 @@ Concatenates a values list into a string in the form "--commandName=val1,val2"
 {{- end -}}
 
 {{/*
+Concatenates a values list into a string in the form "--commandName=val1;default,val2"
+*/}}
+{{- define "liqo.concatenateListDefault" -}}
+{{- $res := print .commandName "=" -}}
+{{- range $val := .list -}}
+{{- $res = print $res $val.name -}}
+{{- if $val.default -}}
+{{- $res = print $res ";default" -}}
+{{- end -}}
+{{- $res = print $res "," -}}
+{{- end -}}
+- {{ trimSuffix "," $res }}
+{{- end -}}
+
+{{/*
 Get the liqo clusterID ConfigMap name
 */}}
 {{- define "liqo.clusterIdConfig" -}}

@@ -22,11 +22,12 @@ import (
 )
 
 // RemoteIngress forges the apply patch for the reflected ingress, given the local one.
-func RemoteIngress(local *netv1.Ingress, targetNamespace string, forgingOpts *ForgingOpts) *netv1apply.IngressApplyConfiguration {
+func RemoteIngress(local *netv1.Ingress, targetNamespace string, enableIngress bool, remoteRealIngressClassName string,
+	forgingOpts *ForgingOpts) *netv1apply.IngressApplyConfiguration {
 	return netv1apply.Ingress(local.GetName(), targetNamespace).
 		WithLabels(FilterNotReflected(local.GetLabels(), forgingOpts.LabelsNotReflected)).WithLabels(ReflectionLabels()).
 		WithAnnotations(FilterNotReflected(FilterIngressAnnotations(local.GetAnnotations()), forgingOpts.AnnotationsNotReflected)).
-		WithSpec(RemoteIngressSpec(local.Spec.DeepCopy()))
+		WithSpec(RemoteIngressSpec(local.Spec.DeepCopy(), enableIngress, remoteRealIngressClassName))
 }
 
 // FilterIngressAnnotations filters the ingress annotations to be reflected, removing the ingress class annotation.
@@ -36,11 +37,15 @@ func FilterIngressAnnotations(local map[string]string) map[string]string {
 
 // RemoteIngressSpec forges the apply patch for the specs of the reflected ingress, given the local one.
 // It expects the local object to be a deepcopy, as it is mutated.
-func RemoteIngressSpec(local *netv1.IngressSpec) *netv1apply.IngressSpecApplyConfiguration {
-	return netv1apply.IngressSpec().
+func RemoteIngressSpec(local *netv1.IngressSpec, enableIngress bool, remoteRealIngressClassName string) *netv1apply.IngressSpecApplyConfiguration {
+	ret := netv1apply.IngressSpec().
 		WithDefaultBackend(RemoteIngressBackend(local.DefaultBackend)).
 		WithRules(RemoteIngressRules(local.Rules)...).
 		WithTLS(RemoteIngressTLS(local.TLS)...)
+	if enableIngress {
+		ret.WithIngressClassName(remoteRealIngressClassName)
+	}
+	return ret
 }
 
 // RemoteIngressBackend forges the apply patch for the backend of the reflected ingress, given the local one.

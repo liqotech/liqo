@@ -112,12 +112,16 @@ type Opts struct {
 	NodeExtraAnnotations argsutils.StringMap
 	NodeExtraLabels      argsutils.StringMap
 
-	EnableAPIServerSupport     bool
-	EnableStorage              bool
-	VirtualStorageClassName    string
-	RemoteRealStorageClassName string
-	EnableMetrics              bool
-	MetricsAddress             string
+	EnableAPIServerSupport          bool
+	EnableStorage                   bool
+	VirtualStorageClassName         string
+	RemoteRealStorageClassName      string
+	EnableIngress                   bool
+	RemoteRealIngressClassName      string
+	EnableLoadBalancer              bool
+	RemoteRealLoadBalancerClassName string
+	EnableMetrics                   bool
+	MetricsAddress                  string
 
 	HomeAPIServerHost string
 	HomeAPIServerPort string

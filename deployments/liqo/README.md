@@ -136,12 +136,14 @@
 | reflection.endpointslice.workers | int | `10` | The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices. |
 | reflection.event.type | string | `"DenyList"` | The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList". |
 | reflection.event.workers | int | `3` | The number of workers used for the events reflector. Set 0 to disable the reflection of events. |
+| reflection.ingress.ingressClasses | list | `[]` | List of ingress classes that will be shown to remote clusters. If empty, ingress class will be reflected as-is. Example: ingressClasses: - name: nginx   default: true - name: traefik |
 | reflection.ingress.type | string | `"DenyList"` | The type of reflection used for the ingresses reflector. Ammitted values: "DenyList", "AllowList". |
 | reflection.ingress.workers | int | `3` | The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses. |
 | reflection.persistentvolumeclaim.workers | int | `3` | The number of workers used for the persistentvolumeclaims reflector. Set 0 to disable the reflection of persistentvolumeclaims. |
 | reflection.pod.workers | int | `10` | The number of workers used for the pods reflector. Set 0 to disable the reflection of pods. |
 | reflection.secret.type | string | `"DenyList"` | The type of reflection used for the secrets reflector. Ammitted values: "DenyList", "AllowList". |
 | reflection.secret.workers | int | `3` | The number of workers used for the secrets reflector. Set 0 to disable the reflection of secrets. |
+| reflection.service.loadBalancerClasses | list | `[]` | List of load balancer classes that will be shown to remote clusters. If empty, load balancer classes will be reflected as-is. Example: loadBalancerClasses: - name: public   default: true - name: internal |
 | reflection.service.type | string | `"DenyList"` | The type of reflection used for the services reflector. Ammitted values: "DenyList", "AllowList". |
 | reflection.service.workers | int | `3` | The number of workers used for the services reflector. Set 0 to disable the reflection of services. |
 | reflection.serviceaccount.workers | int | `3` | The number of workers used for the serviceaccounts reflector. Set 0 to disable the reflection of serviceaccounts. |

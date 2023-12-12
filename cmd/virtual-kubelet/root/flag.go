@@ -71,6 +71,11 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.BoolVar(&o.EnableStorage, "enable-storage", false, "Enable the Liqo storage reflection")
 	flags.StringVar(&o.VirtualStorageClassName, "virtual-storage-class-name", "liqo", "Name of the virtual storage class")
 	flags.StringVar(&o.RemoteRealStorageClassName, "remote-real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
+	flags.BoolVar(&o.EnableIngress, "enable-ingress", false, "Enable the Liqo ingress reflection")
+	flags.StringVar(&o.RemoteRealIngressClassName, "remote-real-ingress-class-name", "", "Name of the real ingress class to use for the actual ingress")
+	flags.BoolVar(&o.EnableLoadBalancer, "enable-load-balancer", false, "Enable the Liqo load balancer reflection")
+	flags.StringVar(&o.RemoteRealLoadBalancerClassName, "remote-real-load-balancer-class-name", "",
+		"Name of the real load balancer class to use for the actual load balancer")
 	flags.BoolVar(&o.EnableMetrics, "metrics-enabled", false, "Enable the metrics server")
 	flags.StringVar(&o.MetricsAddress, "metrics-address", ":8080", "The address to listen to for metrics requests")
 	flags.StringVar(&o.HomeAPIServerHost, "home-api-server-host", "",

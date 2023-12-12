@@ -33,6 +33,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
+	argutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // OfferUpdater is a component that responds to ResourceRequests with the cluster's resources read from ResourceReader.
@@ -45,6 +46,8 @@ type OfferUpdater struct {
 	clusterLabels             map[string]string
 	scheme                    *runtime.Scheme
 	localRealStorageClassName string
+	ingressClasses            argutils.ClassNameList
+	loadBalancerClasses       argutils.ClassNameList
 	enableStorage             bool
 	// currentResources maps the clusters that we intend to offer resources to, to the resource list that we last used
 	// when issuing them a ResourceOffer.
@@ -60,7 +63,8 @@ type OfferUpdater struct {
 // NewOfferUpdater constructs a new OfferUpdater.
 func NewOfferUpdater(ctx context.Context, k8sClient client.Client, homeCluster discoveryv1alpha1.ClusterIdentity,
 	clusterLabels map[string]string, reader resourcemonitors.ResourceReader, updateThresholdPercentage uint,
-	localRealStorageClassName string, enableStorage bool) *OfferUpdater {
+	localRealStorageClassName string, enableStorage bool,
+	ingressClasses, loadBalancerClasses argutils.ClassNameList) *OfferUpdater {
 	updater := &OfferUpdater{
 		ResourceReader:            reader,
 		client:                    k8sClient,
@@ -69,6 +73,8 @@ func NewOfferUpdater(ctx context.Context, k8sClient client.Client, homeCluster d
 		scheme:                    k8sClient.Scheme(),
 		localRealStorageClassName: localRealStorageClassName,
 		enableStorage:             enableStorage,
+		ingressClasses:            ingressClasses,
+		loadBalancerClasses:       loadBalancerClasses,
 		currentResources:          map[string][]*resourcemonitors.ResourceList{},
 		updateThresholdPercentage: updateThresholdPercentage,
 		clusterIdentityCache:      map[string]discoveryv1alpha1.ClusterIdentity{},
@@ -143,6 +149,8 @@ func (u *OfferUpdater) CreateOrUpdateOffer(cluster discoveryv1alpha1.ClusterIden
 			if err != nil {
 				return err
 			}
+			offer.Spec.IngressClasses = u.getIngressClasses()
+			offer.Spec.LoadBalancerClasses = u.getLoadBalancerClasses()
 
 			return controllerutil.SetControllerReference(request, offer, u.scheme)
 		})
@@ -167,6 +175,24 @@ func (u *OfferUpdater) NotifyChange(clusterID string) {
 	} else {
 		u.OfferQueue.Push(u.clusterIdentityCache[clusterID])
 	}
+}
+
+func (u *OfferUpdater) getIngressClasses() []sharingv1alpha1.IngressType {
+	ingressClasses := make([]sharingv1alpha1.IngressType, len(u.ingressClasses.Classes))
+	for i := range u.ingressClasses.Classes {
+		ingressClasses[i].IngressClassName = u.ingressClasses.Classes[i].Name
+		ingressClasses[i].Default = u.ingressClasses.Classes[i].IsDefault
+	}
+	return ingressClasses
+}
+
+func (u *OfferUpdater) getLoadBalancerClasses() []sharingv1alpha1.LoadBalancerType {
+	loadBalancerClasses := make([]sharingv1alpha1.LoadBalancerType, len(u.loadBalancerClasses.Classes))
+	for i := range u.loadBalancerClasses.Classes {
+		loadBalancerClasses[i].LoadBalancerClassName = u.loadBalancerClasses.Classes[i].Name
+		loadBalancerClasses[i].Default = u.loadBalancerClasses.Classes[i].IsDefault
+	}
+	return loadBalancerClasses
 }
 
 func (u *OfferUpdater) getStorageClasses(ctx context.Context) ([]sharingv1alpha1.StorageType, error) {

@@ -119,11 +119,15 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 		ReflectorsConfigs: reflectorsConfigs,
 
-		EnableAPIServerSupport:     c.EnableAPIServerSupport,
-		EnableStorage:              c.EnableStorage,
-		VirtualStorageClassName:    c.VirtualStorageClassName,
-		RemoteRealStorageClassName: c.RemoteRealStorageClassName,
-		EnableMetrics:              c.EnableMetrics,
+		EnableAPIServerSupport:          c.EnableAPIServerSupport,
+		EnableStorage:                   c.EnableStorage,
+		VirtualStorageClassName:         c.VirtualStorageClassName,
+		RemoteRealStorageClassName:      c.RemoteRealStorageClassName,
+		EnableIngress:                   c.EnableIngress,
+		RemoteRealIngressClassName:      c.RemoteRealIngressClassName,
+		EnableLoadBalancer:              c.EnableLoadBalancer,
+		RemoteRealLoadBalancerClassName: c.RemoteRealLoadBalancerClassName,
+		EnableMetrics:                   c.EnableMetrics,
 
 		HomeAPIServerHost: c.HomeAPIServerHost,
 		HomeAPIServerPort: c.HomeAPIServerPort,

@@ -66,11 +66,15 @@ type InitConfig struct {
 
 	ReflectorsConfigs map[generic.ResourceReflected]*generic.ReflectorConfig
 
-	EnableAPIServerSupport     bool
-	EnableStorage              bool
-	VirtualStorageClassName    string
-	RemoteRealStorageClassName string
-	EnableMetrics              bool
+	EnableAPIServerSupport          bool
+	EnableStorage                   bool
+	VirtualStorageClassName         string
+	RemoteRealStorageClassName      string
+	EnableIngress                   bool
+	RemoteRealIngressClassName      string
+	EnableLoadBalancer              bool
+	RemoteRealLoadBalancerClassName string
+	EnableMetrics                   bool
 
 	HomeAPIServerHost string
 	HomeAPIServerPort string
@@ -132,8 +136,8 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient,
 		cfg.InformerResyncPeriod, eb, cfg.LabelsNotReflected, cfg.AnnotationsNotReflected).
 		With(podreflector).
-		With(exposition.NewServiceReflector(cfg.ReflectorsConfigs[generic.Service])).
-		With(exposition.NewIngressReflector(cfg.ReflectorsConfigs[generic.Ingress])).
+		With(exposition.NewServiceReflector(cfg.ReflectorsConfigs[generic.Service], cfg.EnableLoadBalancer, cfg.RemoteRealLoadBalancerClassName)).
+		With(exposition.NewIngressReflector(cfg.ReflectorsConfigs[generic.Ingress], cfg.EnableIngress, cfg.RemoteRealIngressClassName)).
 		With(configuration.NewConfigMapReflector(cfg.ReflectorsConfigs[generic.ConfigMap])).
 		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, cfg.ReflectorsConfigs[generic.Secret])).
 		With(configuration.NewServiceAccountReflector(apiServerSupport == forge.APIServerSupportTokenAPI, cfg.ReflectorsConfigs[generic.ServiceAccount])).
