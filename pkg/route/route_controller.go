@@ -163,8 +163,13 @@ func (r *RouteConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error 
 // UpdateStatus updates the status of the given RouteConfiguration.
 func (r *RouteConfigurationReconciler) UpdateStatus(ctx context.Context, er record.EventRecorder,
 	routeconfiguration *networkingv1alpha1.RouteConfiguration, err error) error {
-	// TODO: implement this function.
-	er.Eventf(routeconfiguration, "Normal", "RouteConfigurationUpdate", "RouteConfiguration: %s", "TODO")
+	if err == nil {
+		routeconfiguration.Status.Condition = networkingv1alpha1.RouteConfigurationStatusConditionApplied
+	} else {
+		routeconfiguration.Status.Condition = networkingv1alpha1.RouteConfigurationStatusConditionError
+	}
+	er.Eventf(routeconfiguration, "Normal", "RouteConfigurationUpdate", "RouteConfiguration: %s",
+		routeconfiguration.Status.Condition)
 	if clerr := r.Client.Status().Update(ctx, routeconfiguration); clerr != nil {
 		err = errors.Join(err, clerr)
 	}
