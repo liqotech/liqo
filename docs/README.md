@@ -21,7 +21,7 @@ user
 │   ├── index.md       <-- /user/install/
 architecture
 developers
-index.rst              <-- /
+index.md              <-- /
 ```
 
 ### Images
