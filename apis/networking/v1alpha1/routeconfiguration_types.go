@@ -15,7 +15,6 @@
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -77,40 +76,27 @@ type RouteConfigurationSpec struct {
 	Table Table `json:"table,omitempty"`
 }
 
-// RouteConfigurationConditionType is a valid value for RouteConfigurationCondition.Type.
-type RouteConfigurationConditionType string
+// RouteConfigurationStatusCondition defines the observed state of FirewallConfiguration.
+type RouteConfigurationStatusCondition string
 
 const (
-	// RouteConfigurationConditionTypeApplied means the RouteConfiguration has been applied.
-	RouteConfigurationConditionTypeApplied RouteConfigurationConditionType = "Applied"
+	// RouteConfigurationStatusConditionApplied reports that the configuration has been applied.
+	RouteConfigurationStatusConditionApplied RouteConfigurationStatusCondition = "Applied"
+	// RouteConfigurationStatusConditionError reports an error in the configuration.
+	RouteConfigurationStatusConditionError RouteConfigurationStatusCondition = "Error"
 )
-
-// RouteConfigurationCondition contains details for the current condition of this RouteConfiguration.
-type RouteConfigurationCondition struct {
-	// Type is the type of the condition.
-	// +kubebuilder:validation:Enum=Applied
-	Type RouteConfigurationConditionType `json:"type"`
-	// Status is the status of the condition.
-	// +kubebuilder:validation:Enum=True;False;Unknown
-	// +kubebuilder:default=Unknown
-	Status corev1.ConditionStatus `json:"status"`
-	// LastTransitionTime is the last time the condition transitioned from one status to another.
-	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
-	// Reason is a unique, one-word, CamelCase reason for the condition's last transition.
-	Reason string `json:"reason,omitempty"`
-	// Message is a human-readable message indicating details about last transition.
-	Message string `json:"message,omitempty"`
-}
 
 // RouteConfigurationStatus defines the observed state of RouteConfiguration.
 type RouteConfigurationStatus struct {
-	// Conditions contains information about the current status of the RouteConfiguration.
-	Conditions []RouteConfigurationCondition `json:"conditions,omitempty"`
+	// Condition is the condition of the RouteConfiguration
+	Condition RouteConfigurationStatusCondition `json:"condition,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.condition`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // RouteConfiguration contains the network RouteConfiguration of a pair of clusters,
 // including the local and the remote pod and external CIDRs and how the where remapped.
