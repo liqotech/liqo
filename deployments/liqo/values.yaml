@@ -65,6 +65,13 @@ reflection:
     workers: 3
     # -- The type of reflection used for the services reflector. Ammitted values: "DenyList", "AllowList".
     type: DenyList
+    # -- List of load balancer classes that will be shown to remote clusters. If empty, load balancer classes will be reflected as-is.
+    # Example:
+    # loadBalancerClasses:
+    # - name: public
+    #   default: true
+    # - name: internal
+    loadBalancerClasses: []
   endpointslice:
     # -- The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices.
     workers: 10
@@ -73,6 +80,13 @@ reflection:
     workers: 3
     # -- The type of reflection used for the ingresses reflector. Ammitted values: "DenyList", "AllowList".
     type: DenyList
+    # -- List of ingress classes that will be shown to remote clusters. If empty, ingress class will be reflected as-is.
+    # Example:
+    # ingressClasses:
+    # - name: nginx
+    #   default: true
+    # - name: traefik
+    ingressClasses: []
   configmap:
     # -- The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps.
     workers: 3

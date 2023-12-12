@@ -44,7 +44,7 @@ var _ = Describe("Ingress Reflection Tests", func() {
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[generic.Ingress],
 			}
-			Expect(exposition.NewIngressReflector(&reflectorConfig)).ToNot(BeNil())
+			Expect(exposition.NewIngressReflector(&reflectorConfig, false, "")).ToNot(BeNil())
 		})
 	})
 
@@ -117,7 +117,7 @@ var _ = Describe("Ingress Reflection Tests", func() {
 
 		JustBeforeEach(func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
-			reflector = exposition.NewNamespacedIngressReflector(options.NewNamespaced().
+			reflector = exposition.NewNamespacedIngressReflector(false, "")(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).

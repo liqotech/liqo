@@ -36,6 +36,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
+	argutils "github.com/liqotech/liqo/pkg/utils/args"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
@@ -100,7 +101,12 @@ func createCluster() {
 	enableStorage := true
 	monitor = resourcemonitors.NewLocalMonitor(ctx, clientset, 5*time.Second)
 	scaledMonitor = &resourcemonitors.ResourceScaler{Provider: monitor, Factor: DefaultScaleFactor}
-	updater = NewOfferUpdater(ctx, k8sClient, homeCluster, nil, scaledMonitor, 5, localStorageClassName, enableStorage)
+	ingressClasses := argutils.ClassNameList{}
+	Expect(ingressClasses.Set("")).To(Succeed())
+	loadBalancerClasses := argutils.ClassNameList{}
+	Expect(loadBalancerClasses.Set("")).To(Succeed())
+	updater = NewOfferUpdater(ctx, k8sClient, homeCluster, nil, scaledMonitor, 5,
+		localStorageClassName, enableStorage, ingressClasses, loadBalancerClasses)
 
 	Expect(k8sManager.Add(updater)).To(Succeed())
 

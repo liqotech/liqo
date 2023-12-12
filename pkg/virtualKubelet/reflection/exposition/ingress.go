@@ -49,29 +49,38 @@ type NamespacedIngressReflector struct {
 	localIngresses        netv1listers.IngressNamespaceLister
 	remoteIngresses       netv1listers.IngressNamespaceLister
 	remoteIngressesClient netv1clients.IngressInterface
+
+	enableIngress              bool
+	remoteRealIngressClassName string
 }
 
 // NewIngressReflector returns a new IngressReflector instance.
-func NewIngressReflector(reflectorConfig *generic.ReflectorConfig) manager.Reflector {
-	return generic.NewReflector(IngressReflectorName, NewNamespacedIngressReflector, generic.WithoutFallback(),
-		reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
+func NewIngressReflector(reflectorConfig *generic.ReflectorConfig,
+	enableIngress bool, remoteRealIngressClassName string) manager.Reflector {
+	return generic.NewReflector(IngressReflectorName, NewNamespacedIngressReflector(enableIngress, remoteRealIngressClassName),
+		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedIngressReflector returns a new NamespacedIngressReflector instance.
-func NewNamespacedIngressReflector(opts *options.NamespacedOpts) manager.NamespacedReflector {
-	local := opts.LocalFactory.Networking().V1().Ingresses()
-	remote := opts.RemoteFactory.Networking().V1().Ingresses()
+func NewNamespacedIngressReflector(enableIngress bool,
+	remoteRealIngressClassName string) func(*options.NamespacedOpts) manager.NamespacedReflector {
+	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
+		local := opts.LocalFactory.Networking().V1().Ingresses()
+		remote := opts.RemoteFactory.Networking().V1().Ingresses()
 
-	_, err := local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
-	utilruntime.Must(err)
-	_, err = remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
-	utilruntime.Must(err)
+		_, err := local.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		utilruntime.Must(err)
+		_, err = remote.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		utilruntime.Must(err)
 
-	return &NamespacedIngressReflector{
-		NamespacedReflector:   generic.NewNamespacedReflector(opts, IngressReflectorName),
-		localIngresses:        local.Lister().Ingresses(opts.LocalNamespace),
-		remoteIngresses:       remote.Lister().Ingresses(opts.RemoteNamespace),
-		remoteIngressesClient: opts.RemoteClient.NetworkingV1().Ingresses(opts.RemoteNamespace),
+		return &NamespacedIngressReflector{
+			NamespacedReflector:        generic.NewNamespacedReflector(opts, IngressReflectorName),
+			localIngresses:             local.Lister().Ingresses(opts.LocalNamespace),
+			remoteIngresses:            remote.Lister().Ingresses(opts.RemoteNamespace),
+			remoteIngressesClient:      opts.RemoteClient.NetworkingV1().Ingresses(opts.RemoteNamespace),
+			enableIngress:              enableIngress,
+			remoteRealIngressClassName: remoteRealIngressClassName,
+		}
 	}
 }
 
@@ -134,7 +143,7 @@ func (nir *NamespacedIngressReflector) Handle(ctx context.Context, name string) 
 	}
 
 	// Forge the mutation to be applied to the remote cluster.
-	mutation := forge.RemoteIngress(local, nir.RemoteNamespace(), nir.ForgingOpts)
+	mutation := forge.RemoteIngress(local, nir.RemoteNamespace(), nir.enableIngress, nir.remoteRealIngressClassName, nir.ForgingOpts)
 	tracer.Step("Remote mutation created")
 
 	defer tracer.Step("Enforced the correctness of the remote object")

@@ -48,7 +48,7 @@ var _ = Describe("Services Forging", func() {
 
 			forgingOpts = testutil.FakeForgingOpts()
 
-			JustBeforeEach(func() { output = forge.RemoteService(input, "reflected", forgingOpts) })
+			JustBeforeEach(func() { output = forge.RemoteService(input, "reflected", false, "", forgingOpts) })
 
 			It("should correctly set the name and namespace", func() {
 				Expect(output.Name).To(PointTo(Equal("name")))
@@ -108,7 +108,7 @@ var _ = Describe("Services Forging", func() {
 		}
 
 		DescribeTable("RemoteServiceSpec table", func(c remoteServiceTestcase) {
-			output := forge.RemoteServiceSpec(c.input.DeepCopy(), false)
+			output := forge.RemoteServiceSpec(c.input.DeepCopy(), false, false, "")
 
 			By("should correctly replicate the core fields", func() {
 				Expect(output.Type).To(PointTo(c.expectedServiceType))
@@ -121,7 +121,6 @@ var _ = Describe("Services Forging", func() {
 				Expect(output.ExternalTrafficPolicy).To(PointTo(Equal(corev1.ServiceExternalTrafficPolicyTypeCluster)))
 				Expect(output.InternalTrafficPolicy).To(PointTo(Equal(corev1.ServiceInternalTrafficPolicyCluster)))
 				Expect(output.IPFamilyPolicy).To(PointTo(Equal(corev1.IPFamilyPolicyPreferDualStack)))
-				Expect(output.LoadBalancerClass).To(PointTo(Equal("class")))
 				Expect(output.LoadBalancerSourceRanges).To(ConsistOf("0.0.0.0/0"))
 				Expect(output.PublishNotReadyAddresses).To(PointTo(BeTrue()))
 				Expect(output.SessionAffinity).To(PointTo(Equal(corev1.ServiceAffinityNone)))

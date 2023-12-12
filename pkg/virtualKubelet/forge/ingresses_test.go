@@ -92,7 +92,7 @@ var _ = Describe("Ingresses Forging", func() {
 			ForgeIngressSpec(input)
 		})
 
-		JustBeforeEach(func() { output = forge.RemoteIngress(input, "reflected", forgingOpts) })
+		JustBeforeEach(func() { output = forge.RemoteIngress(input, "reflected", false, "", forgingOpts) })
 
 		It("should correctly set the name and namespace", func() {
 			Expect(output.Name).To(PointTo(Equal("name")))
@@ -140,7 +140,7 @@ var _ = Describe("Ingresses Forging", func() {
 		}
 
 		DescribeTable("RemoteIngressSpec table", func(c remoteIngressTestcase) {
-			output := forge.RemoteIngressSpec(c.input.DeepCopy())
+			output := forge.RemoteIngressSpec(c.input.DeepCopy(), false, "")
 
 			By("should not replicate the ingress class name", func() {
 				Expect(output.IngressClassName).To(BeNil())

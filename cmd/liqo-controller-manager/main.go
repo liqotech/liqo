@@ -111,6 +111,8 @@ func main() {
 	var kubeletMetricsEnabled bool
 	var labelsNotReflected argsutils.StringList
 	var annotationsNotReflected argsutils.StringList
+	var ingressClasses argsutils.ClassNameList
+	var loadBalancerClasses argsutils.ClassNameList
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -157,6 +159,8 @@ func main() {
 	offerUpdateThreshold := argsutils.Percentage{}
 	flag.Var(&offerUpdateThreshold, "offer-update-threshold-percentage",
 		"The threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update")
+	flag.Var(&ingressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
+	flag.Var(&loadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
 
 	// Virtual-kubelet parameters
 	kubeletImage := flag.String("kubelet-image", "ghcr.io/liqotech/virtual-kubelet", "The image of the virtual kubelet to be deployed")
@@ -412,7 +416,8 @@ func main() {
 		}
 	}
 	offerUpdater := resourceRequestOperator.NewOfferUpdater(ctx, mgr.GetClient(), clusterIdentity,
-		clusterLabels.StringMap, monitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
+		clusterLabels.StringMap, monitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage,
+		ingressClasses, loadBalancerClasses)
 	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),

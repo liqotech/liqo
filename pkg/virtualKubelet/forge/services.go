@@ -26,16 +26,18 @@ import (
 const nodePortUnset = 0
 
 // RemoteService forges the apply patch for the reflected service, given the local one.
-func RemoteService(local *corev1.Service, targetNamespace string, forgingOpts *ForgingOpts) *corev1apply.ServiceApplyConfiguration {
+func RemoteService(local *corev1.Service, targetNamespace string, enableLoadBalancer bool, remoteRealLoadBalancerClassName string,
+	forgingOpts *ForgingOpts) *corev1apply.ServiceApplyConfiguration {
 	return corev1apply.Service(local.GetName(), targetNamespace).
 		WithLabels(FilterNotReflected(local.GetLabels(), forgingOpts.LabelsNotReflected)).WithLabels(ReflectionLabels()).
 		WithAnnotations(FilterNotReflected(local.GetAnnotations(), forgingOpts.AnnotationsNotReflected)).
-		WithSpec(RemoteServiceSpec(local.Spec.DeepCopy(), getForceRemoteNodePort(local)))
+		WithSpec(RemoteServiceSpec(local.Spec.DeepCopy(), getForceRemoteNodePort(local), enableLoadBalancer, remoteRealLoadBalancerClassName))
 }
 
 // RemoteServiceSpec forges the apply patch for the specs of the reflected service, given the local ones.
 // It expects the local object to be a deepcopy, as it is mutated.
-func RemoteServiceSpec(local *corev1.ServiceSpec, forceRemoteNodePort bool) *corev1apply.ServiceSpecApplyConfiguration {
+func RemoteServiceSpec(local *corev1.ServiceSpec, forceRemoteNodePort,
+	enableLoadBalancer bool, remoteRealLoadBalancerClassName string) *corev1apply.ServiceSpecApplyConfiguration {
 	remote := corev1apply.ServiceSpec().
 		WithType(local.Type).WithSelector(local.Selector).
 		WithPorts(RemoteServicePorts(local.Ports, forceRemoteNodePort)...).
@@ -48,13 +50,18 @@ func RemoteServiceSpec(local *corev1.ServiceSpec, forceRemoteNodePort bool) *cor
 	remote.ExternalTrafficPolicy = &local.ExternalTrafficPolicy
 	remote.InternalTrafficPolicy = local.InternalTrafficPolicy
 	remote.IPFamilyPolicy = local.IPFamilyPolicy
-	remote.LoadBalancerClass = local.LoadBalancerClass
 	remote.LoadBalancerSourceRanges = local.LoadBalancerSourceRanges
 	remote.PublishNotReadyAddresses = &local.PublishNotReadyAddresses
 	remote.SessionAffinity = &local.SessionAffinity
 
 	if local.ClusterIP == corev1.ClusterIPNone {
 		remote.ClusterIP = pointer.String(corev1.ClusterIPNone)
+	}
+
+	if local.Type == corev1.ServiceTypeLoadBalancer {
+		if enableLoadBalancer {
+			remote.WithLoadBalancerClass(remoteRealLoadBalancerClassName)
+		}
 	}
 
 	return remote

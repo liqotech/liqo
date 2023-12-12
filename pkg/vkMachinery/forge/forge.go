@@ -37,9 +37,29 @@ func getDefaultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharin
 	return storageClasses[0]
 }
 
+func getDefaultIngressClass(ingressClasses []sharingv1alpha1.IngressType) sharingv1alpha1.IngressType {
+	for _, ingressClass := range ingressClasses {
+		if ingressClass.Default {
+			return ingressClass
+		}
+	}
+	return ingressClasses[0]
+}
+
+func getDefaultLoadBalancerClass(loadBalancerClasses []sharingv1alpha1.LoadBalancerType) sharingv1alpha1.LoadBalancerType {
+	for _, loadBalancerClass := range loadBalancerClasses {
+		if loadBalancerClass.Default {
+			return loadBalancerClass
+		}
+	}
+	return loadBalancerClasses[0]
+}
+
 func forgeVKContainers(
-	vkImage string, homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity,
-	nodeName, vkNamespace string, storageClasses []sharingv1alpha1.StorageType, opts *VirtualKubeletOpts) []v1.Container {
+	vkImage string, homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity, nodeName, vkNamespace string,
+	storageClasses []sharingv1alpha1.StorageType, ingressClasses []sharingv1alpha1.IngressType,
+	loadBalancerClasses []sharingv1alpha1.LoadBalancerType,
+	opts *VirtualKubeletOpts) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
@@ -62,6 +82,16 @@ func forgeVKContainers(
 		args = append(args, string(EnableStorage),
 			stringifyArgument(string(RemoteRealStorageClassName),
 				getDefaultStorageClass(storageClasses).StorageClassName))
+	}
+	if len(ingressClasses) > 0 {
+		args = append(args, string(EnableIngress),
+			stringifyArgument(string(RemoteRealIngressClassName),
+				getDefaultIngressClass(ingressClasses).IngressClassName))
+	}
+	if len(loadBalancerClasses) > 0 {
+		args = append(args, string(EnableLoadBalancer),
+			stringifyArgument(string(RemoteRealLoadBalancerClassName),
+				getDefaultLoadBalancerClass(loadBalancerClasses).LoadBalancerClassName))
 	}
 
 	args = appendArgsReflectorsWorkers(args, opts.ReflectorsWorkers)
@@ -129,7 +159,8 @@ func forgeVKPodSpec(
 	homeCluster *discoveryv1alpha1.ClusterIdentity, virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) v1.PodSpec {
 	return v1.PodSpec{
 		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, virtualNode.Spec.ClusterIdentity,
-			virtualNode.Name, vkNamespace, virtualNode.Spec.StorageClasses, opts),
+			virtualNode.Name, vkNamespace, virtualNode.Spec.StorageClasses, virtualNode.Spec.IngressClasses,
+			virtualNode.Spec.LoadBalancerClasses, opts),
 		ServiceAccountName: virtualNode.Name,
 	}
 }

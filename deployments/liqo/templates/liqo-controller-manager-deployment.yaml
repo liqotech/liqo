@@ -121,6 +121,10 @@ spec:
           - --real-storage-class-name={{ .Values.storage.realStorageClassName }}
           - --storage-namespace={{ .Values.storage.storageNamespace }}
           {{- end }}
+          {{- $d := dict "commandName" "--ingress-classes" "list" .Values.reflection.ingress.ingressClasses }}
+          {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
+          {{- $d := dict "commandName" "--load-balancer-classes" "list" .Values.reflection.service.loadBalancerClasses }}
+          {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
           {{- end }}

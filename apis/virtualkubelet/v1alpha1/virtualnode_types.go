@@ -68,6 +68,10 @@ type VirtualNodeSpec struct {
 	Labels map[string]string `json:"labels,omitempty"`
 	// StorageClasses contains the list of the storage classes offered by the cluster.
 	StorageClasses []sharingv1alpha1.StorageType `json:"storageClasses,omitempty"`
+	// IngressClasses contains the list of the ingress classes offered by the cluster.
+	IngressClasses []sharingv1alpha1.IngressType `json:"ingressClasses,omitempty"`
+	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
+	LoadBalancerClasses []sharingv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 }
 
 // VirtualNodeConditionType represents different conditions that a virtualNode could assume.

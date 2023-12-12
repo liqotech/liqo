@@ -69,6 +69,14 @@ const (
 	EnableStorage VirtualKubeletOptsFlag = "--enable-storage"
 	// RemoteRealStorageClassName is the flag used to specify the remote real storage class name.
 	RemoteRealStorageClassName VirtualKubeletOptsFlag = "--remote-real-storage-class-name"
+	// EnableIngress is the flag used to enable the ingress.
+	EnableIngress VirtualKubeletOptsFlag = "--enable-ingress"
+	// RemoteRealIngressClassName is the flag used to specify the remote real ingress class name.
+	RemoteRealIngressClassName VirtualKubeletOptsFlag = "--remote-real-ingress-class-name"
+	// EnableLoadBalancer is the flag used to enable the load balancer.
+	EnableLoadBalancer VirtualKubeletOptsFlag = "--enable-load-balancer"
+	// RemoteRealLoadBalancerClassName is the flag used to specify the remote real load balancer class name.
+	RemoteRealLoadBalancerClassName VirtualKubeletOptsFlag = "--remote-real-load-balancer-class-name"
 	// NodeExtraAnnotations is the flag used to specify the node extra annotations.
 	NodeExtraAnnotations VirtualKubeletOptsFlag = "--node-extra-annotations"
 	// NodeExtraLabels is the flag used to specify the node extra labels.

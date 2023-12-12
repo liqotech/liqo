@@ -30,6 +30,22 @@ type StorageType struct {
 	Default bool `json:"default,omitempty"`
 }
 
+// IngressType defines the type of ingress offered by a resource offer.
+type IngressType struct {
+	// IngressClassName indicates the name of the ingress class.
+	IngressClassName string `json:"ingressClassName"`
+	// Default indicates whether this ingress class is the default ingress class for Liqo.
+	Default bool `json:"default,omitempty"`
+}
+
+// LoadBalancerType defines the type of load balancer offered by a resource offer.
+type LoadBalancerType struct {
+	// LoadBalancerClassName indicates the name of the load balancer class.
+	LoadBalancerClassName string `json:"loadBalancerClassName"`
+	// Default indicates whether this load balancer class is the default load balancer class for Liqo.
+	Default bool `json:"default,omitempty"`
+}
+
 // ResourceOfferSpec defines the desired state of ResourceOffer.
 type ResourceOfferSpec struct {
 	// ClusterID is the identifier of the cluster that is sending this ResourceOffer.
@@ -53,6 +69,10 @@ type ResourceOfferSpec struct {
 	WithdrawalTimestamp *metav1.Time `json:"withdrawalTimestamp,omitempty"`
 	// StorageClasses contains the list of the storage classes offered by the cluster.
 	StorageClasses []StorageType `json:"storageClasses,omitempty"`
+	// IngressClasses contains the list of the ingress classes offered by the cluster.
+	IngressClasses []IngressType `json:"ingressClasses,omitempty"`
+	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
+	LoadBalancerClasses []LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 }
 
 // OfferPhase describes the phase of the ResourceOffer.

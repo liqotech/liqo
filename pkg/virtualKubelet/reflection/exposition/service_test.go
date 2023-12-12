@@ -45,7 +45,7 @@ var _ = Describe("Service Reflection Tests", func() {
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[generic.Service],
 			}
-			Expect(exposition.NewServiceReflector(&reflectorConfig)).ToNot(BeNil())
+			Expect(exposition.NewServiceReflector(&reflectorConfig, false, "")).ToNot(BeNil())
 		})
 	})
 
@@ -105,7 +105,7 @@ var _ = Describe("Service Reflection Tests", func() {
 
 		JustBeforeEach(func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
-			reflector = exposition.NewNamespacedServiceReflector(options.NewNamespaced().
+			reflector = exposition.NewNamespacedServiceReflector(false, "")(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithHandlerFactory(FakeEventHandler).
