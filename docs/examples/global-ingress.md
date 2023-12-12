@@ -27,7 +27,7 @@ The setup script creates three k3s clusters and deploys the appropriate infrastr
   * [ExternalDNS](https://github.com/kubernetes-sigs/external-dns): it is responsible for configuring the DNS entries.
   * [Ingress Nginx](https://kubernetes.github.io/ingress-nginx/): it is responsible for handling the local ingress traffic.
   * [K8GB](https://www.k8gb.io/): it configures the multi-cluster ingress.
-  * [Liqo](/index.rst): it enables the application to spread across multiple clusters, and takes care of reflecting the required resources.
+  * [Liqo](/index.md): it enables the application to spread across multiple clusters, and takes care of reflecting the required resources.
 
 Export the kubeconfigs environment variables to use them in the rest of the tutorial:
 

@@ -1,9 +1,9 @@
-Sphinx==4.5.0
-myst-parser==0.18.0
-sphinx_rtd_theme==1.0.0
-sphinx-copybutton==0.5.0
-sphinx-design==0.2.0
-sphinx_external_toc==0.3.0
-semver==2.13.0
-urllib3==1.26.18
+Sphinx==7.2.6
+myst-parser==2.0.0
+sphinx_rtd_theme==2.0.0
+sphinx-copybutton==0.5.2
+sphinx-design==0.5.0
+sphinx_external_toc==1.0.0
+semver==3.0.2
+urllib3==2.1.0
 sphinx-autobuild==2021.3.14
