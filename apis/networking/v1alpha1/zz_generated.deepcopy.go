@@ -1287,6 +1287,16 @@ func (in *Rule) DeepCopyInto(out *Rule) {
 		*out = new(CIDR)
 		**out = **in
 	}
+	if in.Iif != nil {
+		in, out := &in.Iif, &out.Iif
+		*out = new(string)
+		**out = **in
+	}
+	if in.Oif != nil {
+		in, out := &in.Oif, &out.Oif
+		*out = new(string)
+		**out = **in
+	}
 	if in.Routes != nil {
 		in, out := &in.Routes, &out.Routes
 		*out = make([]Route, len(*in))
