@@ -79,6 +79,14 @@ func AddRule(rule *networkingv1alpha1.Rule, tableID uint32) error {
 		newrule.Dst = dstnet
 	}
 
+	if rule.Iif != nil {
+		newrule.IifName = *rule.Iif
+	}
+
+	if rule.Oif != nil {
+		newrule.OifName = *rule.Oif
+	}
+
 	return netlink.RuleAdd(newrule)
 }
 
@@ -126,6 +134,20 @@ func RuleIsEqual(rule *networkingv1alpha1.Rule, netlinkRule *netlink.Rule) bool 
 		return false
 	}
 	if rule.Dst == nil && netlinkRule.Dst != nil {
+		return false
+	}
+
+	if rule.Iif != nil && *rule.Iif != netlinkRule.IifName {
+		return false
+	}
+	if rule.Iif == nil && netlinkRule.IifName != "" {
+		return false
+	}
+
+	if rule.Oif != nil && *rule.Oif != netlinkRule.OifName {
+		return false
+	}
+	if rule.Oif == nil && netlinkRule.OifName != "" {
 		return false
 	}
 	return true
