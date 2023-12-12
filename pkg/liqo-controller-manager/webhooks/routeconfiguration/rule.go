@@ -30,6 +30,12 @@ func checkUniqueRules(rules []networkingv1alpha1.Rule) error {
 		if rules[i].Dst != nil {
 			key += fmt.Sprintf("dst:%s,", rules[i].Dst.String())
 		}
+		if rules[i].Iif != nil {
+			key += fmt.Sprintf("iif:%s,", *rules[i].Iif)
+		}
+		if rules[i].Oif != nil {
+			key += fmt.Sprintf("oif:%s,", *rules[i].Oif)
+		}
 		if _, ok := uniqueKeys[key]; ok {
 			return fmt.Errorf("cannot insert replicated rules: %s", key)
 		}

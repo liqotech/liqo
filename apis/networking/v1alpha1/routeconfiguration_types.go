@@ -53,6 +53,10 @@ type Rule struct {
 	Dst *CIDR `json:"dst,omitempty"`
 	// Src is the source of the Rule.
 	Src *CIDR `json:"src,omitempty"`
+	// Iif is the input interface name of the Rule.
+	Iif *string `json:"iif,omitempty"`
+	// OifName is the output interface name of the Rule.
+	Oif *string `json:"oif,omitempty"`
 	// Routes is the list of routes of the Rule.
 	// +kubebuilder:validation:MinItems=1
 	Routes []Route `json:"routes"`
