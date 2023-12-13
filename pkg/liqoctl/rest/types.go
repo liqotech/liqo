@@ -64,6 +64,7 @@ type GenerateOptions struct {
 	*factory.Factory
 
 	OutputFormat string
+	Liqoctl      string
 }
 
 // API is the interface that must be implemented by the API.

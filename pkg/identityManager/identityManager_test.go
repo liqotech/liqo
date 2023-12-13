@@ -126,7 +126,7 @@ var _ = Describe("IdentityManager", func() {
 			idMan, ok := identityMan.(*identityManager)
 			Expect(ok).To(BeTrue())
 
-			secret, err := idMan.getSecret(remoteCluster)
+			secret, err := idMan.GetSecret(remoteCluster)
 			Expect(err).To(Succeed())
 
 			commonSecretChecks(secret)
@@ -155,7 +155,7 @@ var _ = Describe("IdentityManager", func() {
 			}
 			idMan.iamTokenManager = &tokenManager
 
-			secret, err := idMan.getSecret(remoteCluster)
+			secret, err := idMan.GetSecret(remoteCluster)
 			Expect(err).To(Succeed())
 
 			commonSecretChecks(secret)

@@ -86,3 +86,8 @@ func (i *IdentityReader) GetRemoteTenantNamespace(remoteCluster discoveryv1alpha
 	}
 	return "", fmt.Errorf("remote cluster ID %v not found", remoteCluster.ClusterID)
 }
+
+// GetSecret retrieves the secret associated with a remote cluster.
+func (i *IdentityReader) GetSecret(_ discoveryv1alpha1.ClusterIdentity) (*corev1.Secret, error) {
+	panic("implement me")
+}

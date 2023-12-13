@@ -53,6 +53,7 @@ func newGenerateCommand(ctx context.Context, f *factory.Factory) *cobra.Command 
 
 	options := &rest.GenerateOptions{
 		Factory: f,
+		Liqoctl: liqoctl,
 	}
 
 	for _, r := range liqoResources {

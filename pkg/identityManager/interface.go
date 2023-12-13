@@ -32,6 +32,7 @@ type IdentityReader interface {
 	GetConfigFromSecret(secret *corev1.Secret) (*rest.Config, error)
 	GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (string, error)
 	GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (types.NamespacedName, error)
+	GetSecret(remoteCluster discoveryv1alpha1.ClusterIdentity) (*corev1.Secret, error)
 }
 
 // IdentityManager interface provides the methods to manage identities for the remote clusters.
@@ -40,6 +41,8 @@ type IdentityManager interface {
 
 	StoreIdentity(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string, key []byte,
 		remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error
+	GenerateIdentitySecret(remoteCluster discoveryv1alpha1.ClusterIdentity,
+		namespace string, key []byte, remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) (*corev1.Secret, error)
 }
 
 // IdentityProvider provides the interface to retrieve and approve remote cluster identities.

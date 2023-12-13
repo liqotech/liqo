@@ -36,7 +36,7 @@ func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.Cl
 	var err error
 
 	if namespace == "" {
-		secret, err = certManager.getSecret(remoteCluster)
+		secret, err = certManager.GetSecret(remoteCluster)
 	} else {
 		secret, err = certManager.getSecretInNamespace(remoteCluster, namespace)
 	}
@@ -57,7 +57,7 @@ func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discov
 	var err error
 
 	if namespace == "" {
-		secret, err = certManager.getSecret(remoteCluster)
+		secret, err = certManager.GetSecret(remoteCluster)
 	} else {
 		secret, err = certManager.getSecretInNamespace(remoteCluster, namespace)
 	}
@@ -88,7 +88,7 @@ func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster disco
 	var err error
 
 	if localTenantNamespaceName == "" {
-		secret, err = certManager.getSecret(remoteCluster)
+		secret, err = certManager.GetSecret(remoteCluster)
 	} else {
 		secret, err = certManager.getSecretInNamespace(remoteCluster, localTenantNamespaceName)
 	}
