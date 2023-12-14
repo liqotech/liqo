@@ -160,6 +160,7 @@ func (r *InternalFabricReconciler) reconcileNode(ctx context.Context,
 		}
 
 		internalNode.Spec.IP = networkingv1alpha1.IP(ip.String())
+		internalNode.Spec.PodCIDR = networkingv1alpha1.CIDR(node.Spec.PodCIDR)
 		internalNode.Spec.IsGateway = node.Name == internalFabric.Spec.NodeName
 
 		return controllerutil.SetControllerReference(internalFabric, internalNode, r.Scheme)
