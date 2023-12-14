@@ -96,6 +96,10 @@ spec:
               isGateway:
                 description: IsGateway is true if the node is the gateway.
                 type: boolean
+              podCIDR:
+                description: PodCIDR is the pod CIDR of the node.
+                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                type: string
             type: object
           status:
             description: InternalNodeStatus defines the observed state of InternalNode.
