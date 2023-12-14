@@ -86,4 +86,19 @@ spec:
                     add:
                     - NET_ADMIN
                     - NET_RAW
+              - name: geneve
+                image: ghcr.io/liqotech/gateway/geneve{{ include "liqo.suffix" $templateConfig }}:{{ include "liqo.version" $templateConfig }}
+                imagePullPolicy: {{ .Values.pullPolicy }}
+                args:
+                - --name={{"{{ .Name }}"}}
+                - --namespace={{"{{ .Namespace }}"}}
+                - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --mode=server
+                - --metrics-address=:8084
+                - --health-probe-bind-address=:8085
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
 {{- end }}

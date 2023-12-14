@@ -22,6 +22,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -42,12 +43,14 @@ import (
 )
 
 var (
-	addToSchemeFunctions = []func(*runtime.Scheme) error{
-		networkingv1alpha1.AddToScheme,
-	}
 	connoptions  *connection.Options
 	remapoptions *remapping.Options
+	scheme       = runtime.NewScheme()
 )
+
+func init() {
+	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme))
+}
 
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
@@ -95,14 +98,6 @@ func main() {
 func run(_ *cobra.Command, _ []string) error {
 	var err error
 	ctx := ctrl.SetupSignalHandler()
-	scheme := runtime.NewScheme()
-
-	// Adds the APIs to the scheme.
-	for _, addToScheme := range addToSchemeFunctions {
-		if err = addToScheme(scheme); err != nil {
-			return fmt.Errorf("unable to add scheme: %w", err)
-		}
-	}
 
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
