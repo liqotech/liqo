@@ -17,42 +17,48 @@ package discovery
 import (
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 )
 
-var preferOrder = []v1.NodeAddressType{
-	v1.NodeExternalDNS,
-	v1.NodeExternalIP,
-	v1.NodeInternalDNS,
-	v1.NodeInternalIP,
-	v1.NodeHostName,
+var preferOrder = []corev1.NodeAddressType{
+	corev1.NodeExternalDNS,
+	corev1.NodeExternalIP,
+	corev1.NodeInternalDNS,
+	corev1.NodeInternalIP,
+	corev1.NodeHostName,
 }
 
 // GetAddressFromNodeList returns an address from a Node pool.
-func GetAddressFromNodeList(nodes []v1.Node) (string, error) {
-	for _, addrType := range preferOrder {
+func GetAddressFromNodeList(nodes []corev1.Node) (string, error) {
+	return GetAddressFromNodeListWithPreferredOrder(nodes, preferOrder)
+}
+
+// GetAddressFromNodeListWithPreferredOrder is like GetAddressFromNodeList but it takes a preferred order of address types.
+func GetAddressFromNodeListWithPreferredOrder(nodes []corev1.Node, preferredOrder []corev1.NodeAddressType) (string, error) {
+	for _, addrType := range preferredOrder {
 		for i := range nodes {
-			if addr, err := getAddressByType(&nodes[i], addrType); err != nil {
+			addr, err := GetAddressByType(&nodes[i], addrType)
+			if err != nil {
 				klog.V(4).Info(err.Error())
 				continue
-			} else {
-				klog.V(4).Infof("found address %v with type %v", addr, addrType)
-				return addr, nil
 			}
+			klog.V(4).Infof("found address %v with type %v", addr, addrType)
+			return addr, nil
 		}
 	}
 	return "", fmt.Errorf("no address found")
 }
 
 // GetAddress returns an address for a Node.
-func GetAddress(node *v1.Node) (string, error) {
-	return GetAddressFromNodeList([]v1.Node{
+func GetAddress(node *corev1.Node) (string, error) {
+	return GetAddressFromNodeList([]corev1.Node{
 		*node,
 	})
 }
 
-func getAddressByType(node *v1.Node, addrType v1.NodeAddressType) (string, error) {
+// GetAddressByType returns an address of a specific type for a Node.
+func GetAddressByType(node *corev1.Node, addrType corev1.NodeAddressType) (string, error) {
 	for _, addr := range node.Status.Addresses {
 		if addr.Type == addrType {
 			return addr.Address, nil
