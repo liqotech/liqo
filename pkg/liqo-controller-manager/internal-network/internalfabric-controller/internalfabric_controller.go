@@ -32,9 +32,18 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/ipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
+
+var preferredOrder = []corev1.NodeAddressType{
+	corev1.NodeInternalIP,
+	corev1.NodeExternalIP,
+	corev1.NodeInternalDNS,
+	corev1.NodeExternalDNS,
+	corev1.NodeHostName,
+}
 
 // InternalFabricReconciler manage InternalFabric lifecycle.
 type InternalFabricReconciler struct {
@@ -160,7 +169,10 @@ func (r *InternalFabricReconciler) reconcileNode(ctx context.Context,
 		}
 
 		internalNode.Spec.IP = networkingv1alpha1.IP(ip.String())
-		internalNode.Spec.PodCIDR = networkingv1alpha1.CIDR(node.Spec.PodCIDR)
+		internalNode.Spec.NodeAddr, err = discovery.GetAddressFromNodeListWithPreferredOrder([]corev1.Node{*node}, preferredOrder)
+		if err != nil {
+			return err
+		}
 		internalNode.Spec.IsGateway = node.Name == internalFabric.Spec.NodeName
 
 		return controllerutil.SetControllerReference(internalFabric, internalNode, r.Scheme)

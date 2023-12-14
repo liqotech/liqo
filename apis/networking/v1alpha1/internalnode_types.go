@@ -41,8 +41,8 @@ type InternalNodeSpec struct {
 	FabricRef *corev1.ObjectReference `json:"fabricRef,omitempty"`
 	// IP is the IP address to assign to the internal interface.
 	IP IP `json:"ip,omitempty"`
-	// PodCIDR is the pod CIDR of the node.
-	PodCIDR CIDR `json:"podCIDR,omitempty"`
+	// NodeAddr is the address of the node.
+	NodeAddr string `json:"nodeAddr,omitempty"`
 	// IsGateway is true if the node is the gateway.
 	IsGateway bool `json:"isGateway,omitempty"`
 }
