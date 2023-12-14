@@ -444,3 +444,13 @@ func ListPhysicalNodes(ctx context.Context, cl client.Client) (*corev1.NodeList,
 	}
 	return list, nil
 }
+
+// ListInternalNodesByLabels returns the list of internalnodes resources. (i.e. nodes created by Liqo).
+func ListInternalNodesByLabels(ctx context.Context, cl client.Client,
+	lSelector labels.Selector) (*networkingv1alpha1.InternalNodeList, error) {
+	list := new(networkingv1alpha1.InternalNodeList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+		return nil, err
+	}
+	return list, nil
+}

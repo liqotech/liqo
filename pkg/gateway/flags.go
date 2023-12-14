@@ -59,7 +59,6 @@ var RequiredFlags = []FlagName{
 	FlagNameName,
 	FlagNameNamespace,
 	FlagNameRemoteClusterID,
-	FlagNameMode,
 }
 
 // InitFlags initializes the flags for the wireguard tunnel.
