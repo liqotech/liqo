@@ -1,4 +1,4 @@
-// Copyright 2019-2024 The Liqo Authors
+// Copyright 2019-2023 The Liqo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,27 +18,22 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net"
 	"os"
 
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel/wireguard"
+	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
+	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -46,13 +41,11 @@ import (
 
 var (
 	scheme  = runtime.NewScheme()
-	options = wireguard.NewOptions(gateway.NewOptions())
+	options = geneve.NewOptions(gateway.NewOptions())
 )
 
 func init() {
-	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme))
 }
 
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete
@@ -60,7 +53,7 @@ func init() {
 
 func main() {
 	var cmd = cobra.Command{
-		Use:  "liqo-wireguard",
+		Use:  "liqo-geneve",
 		RunE: run,
 	}
 
@@ -70,12 +63,7 @@ func main() {
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
 	gateway.InitFlags(cmd.Flags(), options.GwOptions)
-	wireguard.InitFlags(cmd.Flags(), options)
-	if err := wireguard.MarkFlagsRequired(&cmd, options); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
+	geneve.InitFlags(cmd.Flags(), options)
 	if err := cmd.Execute(); err != nil {
 		klog.Error(err)
 		os.Exit(1)
@@ -91,31 +79,17 @@ func run(cmd *cobra.Command, _ []string) error {
 	// Get the rest config.
 	cfg := config.GetConfigOrDie()
 
-	// Create the client. This client should be used only outside the reconciler.
-	// This client don't need a cache.
-	cl, err := client.New(cfg, client.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to create client: %w", err)
-	}
-
 	// Create the manager.
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
-		Cache: cache.Options{
-			DefaultNamespaces: map[string]cache.Config{
-				options.GwOptions.Namespace: {},
-			},
-		},
 		Metrics: server.Options{
 			BindAddress: options.GwOptions.MetricsAddress,
 		},
 		HealthProbeBindAddress: options.GwOptions.ProbeAddr,
 		LeaderElection:         options.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
-			"%s.%s.%s.wgtunnel.liqo.io",
+			"%s.%s.%s.genevegateway.liqo.io",
 			gateway.GenerateResourceName(options.GwOptions.Name), options.GwOptions.Namespace, options.GwOptions.Mode,
 		),
 		LeaderElectionNamespace:       options.GwOptions.Namespace,
@@ -129,41 +103,32 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to create manager: %w", err)
 	}
 
-	// Setup the controller.
-	pkr, err := wireguard.NewPublicKeysReconciler(
+	rcr, err := route.NewRouteConfigurationReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("public-keys-controller"),
+		mgr.GetEventRecorderFor("routeconfiguration-controller"),
+		geneve.ForgeRouteTargetLabels(options.GwOptions.Name),
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create routeconfiguration reconciler: %w", err)
+	}
+
+	if err := rcr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
+	}
+
+	inr, err := geneve.NewInternalNodeReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("internalnode-controller"),
 		options,
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create public keys reconciler: %w", err)
+		return fmt.Errorf("unable to create internalnode reconciler: %w", err)
 	}
 
-	dnsChan := make(chan event.GenericEvent)
-	if options.GwOptions.Mode == gateway.ModeClient {
-		if wireguard.IsDNSRoutineRequired(options) {
-			go wireguard.StartDNSRoutine(cmd.Context(), dnsChan, options)
-			klog.Infof("Starting DNS routine: resolving the endpoint address every %s", options.DNSCheckInterval.String())
-		} else {
-			options.EndpointIP = net.ParseIP(options.EndpointAddress)
-			klog.Infof("Setting static endpoint IP: %s", options.EndpointIP.String())
-		}
-	}
-
-	// Setup the controller.
-	if err = pkr.SetupWithManager(mgr, dnsChan); err != nil {
-		return fmt.Errorf("unable to setup public keys reconciler: %w", err)
-	}
-
-	// Ensure presence of Secret with private and public keys.
-	if err = wireguard.EnsureKeysSecret(cmd.Context(), cl, options); err != nil {
-		return fmt.Errorf("unable to manage wireguard keys secret: %w", err)
-	}
-
-	// Create the wg-liqo interface and init the wireguard configuration depending on the mode (client/server).
-	if err := wireguard.InitWireguardLink(options); err != nil {
-		return fmt.Errorf("unable to init wireguard link: %w", err)
+	if err := inr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup internalnode reconciler: %w", err)
 	}
 
 	// Start the manager.
