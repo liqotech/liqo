@@ -23,9 +23,9 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/record"
@@ -45,13 +45,14 @@ import (
 const leaderElectorName = "liqo-ipam-leader-election"
 
 var (
-	addToSchemeFunctions = []func(*runtime.Scheme) error{
-		clientgoscheme.AddToScheme,
-		netv1alpha1.AddToScheme,
-	}
-
+	scheme  = runtime.NewScheme()
 	options = liqoipam.NewOptions()
 )
+
+func init() {
+	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(netv1alpha1.AddToScheme(scheme))
+}
 
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
@@ -85,14 +86,6 @@ func main() {
 
 func run(_ *cobra.Command, _ []string) error {
 	var err error
-	scheme := runtime.NewScheme()
-
-	// Adds the APIs to the scheme.
-	for _, addToScheme := range addToSchemeFunctions {
-		if err = addToScheme(scheme); err != nil {
-			return fmt.Errorf("unable to add scheme: %w", err)
-		}
-	}
 
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
