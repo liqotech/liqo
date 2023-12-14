@@ -99,6 +99,16 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - internalnodes
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - publickeies
   verbs:
   - create
@@ -112,6 +122,8 @@ rules:
   resources:
   - routeconfigurations
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch
