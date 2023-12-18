@@ -73,7 +73,7 @@ import (
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	internalclientcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/client-controller"
 	internalfabriccontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/internalfabric-controller"
-	internalnodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/internalnode-controller"
+	nodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/node-controller"
 	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/server-controller"
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
@@ -737,8 +737,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		internalNodeReconciler := internalnodecontroller.NewInternalNodeReconciler(mgr.GetClient(), mgr.GetScheme())
-		if err := internalNodeReconciler.SetupWithManager(mgr); err != nil {
+		nodeReconciler := nodecontroller.NewNodeReconciler(mgr.GetClient(), mgr.GetScheme())
+		if err := nodeReconciler.SetupWithManager(mgr); err != nil {
 			klog.Error(err)
 			os.Exit(1)
 		}

@@ -37,14 +37,10 @@ var InternalNodeGroupVersionResource = GroupVersion.WithResource(InternalNodeRes
 
 // InternalNodeSpec defines the desired state of InternalNode.
 type InternalNodeSpec struct {
-	// FabricRef is the reference to the internal fabric.
-	FabricRef *corev1.ObjectReference `json:"fabricRef,omitempty"`
 	// IP is the IP address to assign to the internal interface.
 	IP IP `json:"ip,omitempty"`
 	// NodeAddr is the address of the node.
 	NodeAddr string `json:"nodeAddr,omitempty"`
-	// IsGateway is true if the node is the gateway.
-	IsGateway bool `json:"isGateway,omitempty"`
 }
 
 // InternalNodeConditionType is a valid value for InternalNodeCondition.Type.
@@ -79,10 +75,8 @@ type InternalNodeStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:scope=Cluster,categories=liqo
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Fabric",type=string,JSONPath=`.spec.fabricRef.name`
-// +kubebuilder:printcolumn:name="Fabric Namespace",type=string,JSONPath=`.spec.fabricRef.namespace`, priority=1
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[?(@.type == 'Applied')].status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
