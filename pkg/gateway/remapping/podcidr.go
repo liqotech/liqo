@@ -34,7 +34,7 @@ func CreateOrUpdateNatMappingPodCIDR(ctx context.Context, cl client.Client,
 	cfg *networkingv1alpha1.Configuration, scheme *runtime.Scheme, opts *Options) error {
 	fwcfg := &networkingv1alpha1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", cfg.Name, TableNamePodCIDR),
+			Name:      fmt.Sprintf("%s-%s", cfg.Name, TablePodCIDRName),
 			Namespace: cfg.Namespace,
 		},
 	}
@@ -58,7 +58,7 @@ func forgePodCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration
 	opts *Options) networkingv1alpha1.FirewallConfigurationSpec {
 	return networkingv1alpha1.FirewallConfigurationSpec{
 		Table: firewall.Table{
-			Name:   &TableNamePodCIDR,
+			Name:   &TablePodCIDRName,
 			Family: ptr.To(firewall.TableFamilyIPv4),
 			Chains: []firewall.Chain{
 				forgePodCIDRFirewallConfigurationDNATChain(cfg, opts),
@@ -71,7 +71,7 @@ func forgePodCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration
 func forgePodCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configuration,
 	opts *Options) firewall.Chain {
 	return firewall.Chain{
-		Name:     &DNATChain,
+		Name:     &DNATChainName,
 		Policy:   ptr.To(firewall.ChainPolicyAccept),
 		Type:     ptr.To(firewall.ChainTypeNAT),
 		Hook:     &firewall.ChainHookPrerouting,
@@ -85,7 +85,7 @@ func forgePodCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configur
 func forgePodCIDRFirewallConfigurationSNATChain(cfg *networkingv1alpha1.Configuration,
 	opts *Options) firewall.Chain {
 	return firewall.Chain{
-		Name:     &SNATChain,
+		Name:     &SNATChainName,
 		Policy:   ptr.To(firewall.ChainPolicyAccept),
 		Type:     ptr.To(firewall.ChainTypeNAT),
 		Hook:     &firewall.ChainHookPostrouting,

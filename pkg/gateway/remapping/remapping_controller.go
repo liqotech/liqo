@@ -74,7 +74,7 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	fwcfg := &networkingv1alpha1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", configuration.Name, TableNamePodCIDR),
+			Name:      fmt.Sprintf("%s-%s", configuration.Name, TablePodCIDRName),
 			Namespace: configuration.Namespace,
 			Labels:    ForgeFirewallTargetLabels(r.Options.GwOptions.RemoteClusterID),
 		},
