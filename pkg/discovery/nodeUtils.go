@@ -29,14 +29,17 @@ var preferOrder = []corev1.NodeAddressType{
 	corev1.NodeHostName,
 }
 
-// GetAddressFromNodeList returns an address from a Node pool.
-func GetAddressFromNodeList(nodes []corev1.Node) (string, error) {
-	return GetAddressFromNodeListWithPreferredOrder(nodes, preferOrder)
+var preferOrderInternal = []corev1.NodeAddressType{
+	corev1.NodeInternalIP,
+	corev1.NodeExternalIP,
+	corev1.NodeInternalDNS,
+	corev1.NodeExternalDNS,
+	corev1.NodeHostName,
 }
 
-// GetAddressFromNodeListWithPreferredOrder is like GetAddressFromNodeList but it takes a preferred order of address types.
-func GetAddressFromNodeListWithPreferredOrder(nodes []corev1.Node, preferredOrder []corev1.NodeAddressType) (string, error) {
-	for _, addrType := range preferredOrder {
+// GetAddressFromNodeList returns an address from a Node pool.
+func GetAddressFromNodeList(nodes []corev1.Node) (string, error) {
+	for _, addrType := range preferOrder {
 		for i := range nodes {
 			addr, err := GetAddressByType(&nodes[i], addrType)
 			if err != nil {
@@ -55,6 +58,20 @@ func GetAddress(node *corev1.Node) (string, error) {
 	return GetAddressFromNodeList([]corev1.Node{
 		*node,
 	})
+}
+
+// GetInternalAddress returns an internal address for a Node.
+func GetInternalAddress(node *corev1.Node) (string, error) {
+	for _, addrType := range preferOrderInternal {
+		addr, err := GetAddressByType(node, addrType)
+		if err != nil {
+			klog.V(4).Info(err.Error())
+			continue
+		}
+		klog.V(4).Infof("found address %v with type %v", addr, addrType)
+		return addr, nil
+	}
+	return "", fmt.Errorf("no internal address found")
 }
 
 // GetAddressByType returns an address of a specific type for a Node.

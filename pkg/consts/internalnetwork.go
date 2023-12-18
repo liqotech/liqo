@@ -17,6 +17,4 @@ package consts
 const (
 	// DefaultRouteTable is the name of the default table used for routes.
 	DefaultRouteTable = "liqo"
-	// InternalFabricLabelKey is the key used to reference an InternalFabric resource.
-	InternalFabricLabelKey = "liqo.io/internal-fabric"
 )
