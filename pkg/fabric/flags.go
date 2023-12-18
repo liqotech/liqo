@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package geneve
+package fabric
 
 import (
 	"github.com/spf13/cobra"
@@ -27,18 +27,26 @@ func (fn FlagName) String() string {
 }
 
 const (
-	// FlagNameGeneveID is the interval between two DNS checks.
-	FlagNameGeneveID FlagName = "geneve-id"
+	// FlagNodeNameName is the name of the node where the pod is scheduled.
+	FlagNodeNameName FlagName = "nodename"
+
+	// FlagNameMetricsAddress is the address for the metrics endpoint.
+	FlagNameMetricsAddress FlagName = "metrics-address"
+	// FlagNameProbeAddr is the address for the health probe endpoint.
+	FlagNameProbeAddr FlagName = "health-probe-bind-address"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
 var RequiredFlags = []FlagName{
-	FlagNameGeneveID,
+	FlagNodeNameName,
 }
 
 // InitFlags initializes the flags for the wireguard tunnel.
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
-	flagset.Uint32Var(&opts.GeneveID, FlagNameGeneveID.String(), 10, "Geneve ID")
+	flagset.StringVar(&opts.NodeName, FlagNodeNameName.String(), "", "Name of the node where the pod is scheduled")
+
+	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), ":8080", "Address for the metrics endpoint")
+	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")
 }
 
 // MarkFlagsRequired marks the flags as required.
