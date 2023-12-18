@@ -544,6 +544,8 @@ rules:
   resources:
   - routeconfigurations
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch
