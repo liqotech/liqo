@@ -96,9 +96,8 @@ func main() {
 	}
 }
 
-func run(_ *cobra.Command, _ []string) error {
+func run(cmd *cobra.Command, _ []string) error {
 	var err error
-	ctx := ctrl.SetupSignalHandler()
 
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
@@ -138,7 +137,7 @@ func run(_ *cobra.Command, _ []string) error {
 	if connoptions.EnableConnectionController {
 		// Setup the connection controller.
 		connr, err := connection.NewConnectionsReconciler(
-			ctx,
+			cmd.Context(),
 			mgr.GetClient(),
 			mgr.GetScheme(),
 			mgr.GetEventRecorderFor("connection-controller"),
@@ -154,12 +153,11 @@ func run(_ *cobra.Command, _ []string) error {
 	}
 
 	// Setup the firewall configuration controller.
-	fwcr, err := firewall.NewFirewallConfigurationReconciler(
+	fwcr, err := firewall.NewFirewallConfigurationReconcilerWithoutFinalizer(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("firewall-controller"),
 		remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
-		false,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
@@ -182,7 +180,7 @@ func run(_ *cobra.Command, _ []string) error {
 	}
 
 	// Start the manager.
-	return mgr.Start(ctx)
+	return mgr.Start(cmd.Context())
 }
 
 func getDefaultInterfaceName() (string, error) {
