@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package internalnodecontroller implements the logic of the InternalNode Controller to create Routes.
-package internalnodecontroller
+// Package nodecontroller implements the logic that creates and manages InternalNodes.
+package nodecontroller
