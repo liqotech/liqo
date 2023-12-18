@@ -15,11 +15,11 @@
 package remapping
 
 var (
-	// TableNamePodCIDR is the name of the table for the pod CIDR.
-	TableNamePodCIDR = "remap-podcidr"
+	// TablePodCIDRName is the name of the table for the pod CIDR.
+	TablePodCIDRName = "remap-podcidr"
 
-	// DNATChain is the name of the chain for the output traffic.
-	DNATChain = "Outgoing packets remapping"
-	// SNATChain is the name of the chain for the input traffic.
-	SNATChain = "Incoming packets remapping"
+	// DNATChainName is the name of the chain for the output traffic.
+	DNATChainName = "Outgoing packets remapping"
+	// SNATChainName is the name of the chain for the input traffic.
+	SNATChainName = "Incoming packets remapping"
 )
