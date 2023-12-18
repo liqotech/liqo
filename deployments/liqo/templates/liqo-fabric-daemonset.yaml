@@ -1,0 +1,62 @@
+---
+{{- $fabricConfig := (merge (dict "name" "fabric" "module" "networking") .) -}}
+
+{{- if .Values.networking.internal }}
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    {{- include "liqo.labels" $fabricConfig | nindent 4 }}
+  name: {{ include "liqo.prefixedName" $fabricConfig }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "liqo.selectorLabels" $fabricConfig | nindent 6 }}
+  template:
+    metadata:
+    {{- if .Values.fabric.pod.annotations }}
+      annotations:
+        {{- toYaml .Values.fabric.pod.annotations | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- include "liqo.selectorLabels" $fabricConfig | nindent 8 }}
+        {{- if .Values.fabric.pod.labels }}
+          {{- toYaml .Values.fabric.pod.labels | nindent 8 }}
+        {{- end }}
+    spec:
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+        {{- if .Values.fabric.tolerations }}
+        {{- toYaml .Values.fabric.tolerations | nindent 8 }}
+        {{- end }}
+      serviceAccountName: {{ include "liqo.prefixedName" $fabricConfig }}
+      containers:
+        - image: {{ .Values.fabric.imageName }}{{ include "liqo.suffix" $fabricConfig }}:{{ include "liqo.version" $fabricConfig }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          name: {{ $fabricConfig.name }}
+          command: ["/usr/bin/liqo-fabric"]
+          args:
+          - --nodename=$(NODE_NAME)
+          {{- if .Values.common.extraArgs }}
+          {{- toYaml .Values.common.extraArgs | nindent 10 }}
+          {{- end }}
+          {{- if .Values.fabric.pod.extraArgs }}
+          {{- toYaml .Values.fabric.pod.extraArgs | nindent 10 }}
+          {{- end }}
+          resources: {{- toYaml .Values.fabric.pod.resources | nindent 12 }}
+          securityContext:
+            privileged: true
+          env:
+            - name: NODE_NAME
+              valueFrom:
+               fieldRef:
+                 fieldPath: spec.nodeName
+      hostNetwork: true
+
+{{- end }}
