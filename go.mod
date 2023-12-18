@@ -10,8 +10,8 @@ require (
 	github.com/containernetworking/plugins v1.4.0
 	github.com/coreos/go-iptables v0.7.0
 	github.com/go-git/go-git/v5 v5.11.0
-	github.com/google/uuid v1.5.0
 	github.com/google/nftables v0.1.0
+	github.com/google/uuid v1.5.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.2
