@@ -16,18 +16,21 @@ package internalfabriccontroller
 
 import (
 	"context"
+	"fmt"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
 )
 
 // InternalFabricReconciler manage InternalFabric lifecycle.
@@ -47,8 +50,7 @@ func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme) *InternalF
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;delete;create;update;patch
-// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations,verbs=get;list;watch;delete;create;update;patch
 
 // Reconcile manage InternalFabric lifecycle.
 func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
@@ -62,57 +64,88 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	nodes, err := getters.ListPhysicalNodes(ctx, r.Client)
+	route, err := forgeRouteConfiguration(internalFabric.Name, internalFabric.Namespace, internalFabric)
 	if err != nil {
-		klog.Errorf("Unable to list physical nodes: %s", err)
+		klog.Errorf("Unable to forge RouteConfiguration %q: %s", req.NamespacedName, err)
 		return ctrl.Result{}, err
 	}
 
-	for i := range nodes.Items {
-		node := &nodes.Items[i]
-		if err = r.reconcileNode(ctx, internalFabric, node); err != nil {
-			klog.Errorf("Unable to reconcile node %q: %s", node.Name, err)
-			return ctrl.Result{}, err
+	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, route, func() error {
+		if err := mutateRouteConfiguration(route, internalFabric); err != nil {
+			klog.Errorf("Unable to mutate RouteConfiguration %q: %s", req.NamespacedName, err)
+			return err
 		}
-	}
-
-	if err = r.Status().Update(ctx, internalFabric); err != nil {
-		klog.Errorf("Unable to update InternalFabric status: %s", err)
+		return controllerutil.SetControllerReference(internalFabric, route, r.Scheme)
+	}); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *InternalFabricReconciler) reconcileNode(ctx context.Context,
-	internalFabric *networkingv1alpha1.InternalFabric, node *corev1.Node) error {
+func forgeRouteConfiguration(name, namespace string,
+	internalFabric *networkingv1alpha1.InternalFabric) (*networkingv1alpha1.RouteConfiguration, error) {
+	route := &networkingv1alpha1.RouteConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	if err := mutateRouteConfiguration(route, internalFabric); err != nil {
+		return nil, err
+	}
+
+	return route, nil
+}
+
+func mutateRouteConfiguration(route *networkingv1alpha1.RouteConfiguration, internalFabric *networkingv1alpha1.InternalFabric) error {
+	remoteClusterID, ok := internalFabric.Labels[consts.RemoteClusterID]
+	if !ok {
+		return fmt.Errorf("internal fabric %q does not have remote cluster ID label", client.ObjectKeyFromObject(internalFabric))
+	}
+
+	if internalFabric.Spec.GatewayIP == "" {
+		return fmt.Errorf("internal fabric %q has gateway ip empty", client.ObjectKeyFromObject(internalFabric))
+	}
+
+	if route.Labels == nil {
+		route.Labels = make(map[string]string)
+	}
+	route.SetLabels(labels.Merge(route.Labels, geneve.ForgeRouteTargetLabels(remoteClusterID)))
+	route.SetLabels(labels.Merge(route.Labels, labels.Set{consts.RemoteClusterID: remoteClusterID}))
+
+	var rules []networkingv1alpha1.Rule
+	for _, remoteCIDR := range internalFabric.Spec.RemoteCIDRs {
+		rule := networkingv1alpha1.Rule{
+			Routes: []networkingv1alpha1.Route{
+				{
+					Dst: ptr.To(remoteCIDR),
+					Gw:  ptr.To(networkingv1alpha1.IP("10.200.0.1")), // TODO:: get from Network resource
+					// Gw:  ptr.To(internalFabric.Spec.GatewayIP), // TODO: check if makes sense
+					Dev: ptr.To(internalFabric.Spec.Interface.Node.Name),
+				},
+			},
+			Dst: ptr.To(remoteCIDR),
+		}
+
+		rules = append(rules, rule)
+	}
+
+	route.Spec = networkingv1alpha1.RouteConfigurationSpec{
+		Table: networkingv1alpha1.Table{
+			Name:  route.Name,
+			Rules: rules,
+		},
+	}
+
 	return nil
 }
 
 // SetupWithManager register the InternalFabricReconciler to the manager.
 func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	nodeEnqueuer := handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-		var internalFabrics networkingv1alpha1.InternalFabricList
-		if err := r.List(ctx, &internalFabrics); err != nil {
-			klog.Errorf("Unable to list InternalFabrics: %s", err)
-			return nil
-		}
-
-		var requests = make([]reconcile.Request, len(internalFabrics.Items))
-		for i := range internalFabrics.Items {
-			internalFabric := &internalFabrics.Items[i]
-			requests[i] = reconcile.Request{
-				NamespacedName: client.ObjectKey{
-					Name:      internalFabric.Name,
-					Namespace: internalFabric.Namespace,
-				},
-			}
-		}
-		return requests
-	})
-
 	return ctrl.NewControllerManagedBy(mgr).
-		Watches(&corev1.Node{}, nodeEnqueuer).
+		Owns(&networkingv1alpha1.RouteConfiguration{}).
 		For(&networkingv1alpha1.InternalFabric{}).
 		Complete(r)
 }

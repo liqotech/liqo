@@ -28,7 +28,6 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/ipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -77,7 +76,7 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, err
 	}
 
-	if err = r.ensureInternalFabric(ctx, gwClient, configuration); err != nil {
+	if err = r.ensureInternalFabric(ctx, gwClient, configuration, remoteClusterID); err != nil {
 		klog.Errorf("Unable to ensure the internal fabric for the gateway client %q: %s", req.NamespacedName, err)
 		return ctrl.Result{}, err
 	}
@@ -86,7 +85,7 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 }
 
 func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *networkingv1alpha1.GatewayClient,
-	configuration *networkingv1alpha1.Configuration) error {
+	configuration *networkingv1alpha1.Configuration, remoteClusterID string) error {
 	if configuration.Status.Remote == nil {
 		return fmt.Errorf("remote configuration not found for the gateway client %q", gwClient.Name)
 	}
@@ -98,17 +97,15 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 		},
 	}
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, internalFabric, func() error {
+		if internalFabric.Labels == nil {
+			internalFabric.Labels = make(map[string]string)
+		}
+		internalFabric.Labels[consts.RemoteClusterID] = remoteClusterID
+
 		internalFabric.Spec.MTU = gwClient.Spec.MTU
 
 		if gwClient.Status.InternalEndpoint != nil && gwClient.Status.InternalEndpoint.IP != nil {
-			internalFabric.Spec.Endpoint = &networkingv1alpha1.InternalEndpoint{
-				IP:   *gwClient.Status.InternalEndpoint.IP,
-				Port: 1234, // TODO: set the geneve port
-			}
-
-			if gwClient.Status.InternalEndpoint.Node != nil {
-				internalFabric.Spec.NodeName = *gwClient.Status.InternalEndpoint.Node
-			}
+			internalFabric.Spec.GatewayIP = *gwClient.Status.InternalEndpoint.IP
 		}
 
 		internalFabric.Spec.RemoteCIDRs = []networkingv1alpha1.CIDR{
@@ -116,15 +113,8 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 			configuration.Status.Remote.CIDR.External,
 		}
 
-		gwIpam, err := ipam.GetGatewayIpam(ctx, r.Client)
-		if err != nil {
-			return err
-		}
-		gwIP, err := gwIpam.Allocate(fmt.Sprintf("%s/%s", gwClient.Namespace, gwClient.Name))
-		if err != nil {
-			return err
-		}
-		internalFabric.Spec.GatewayIP = networkingv1alpha1.IP(gwIP.String())
+		// TODO:: generate random name for the node interface
+		internalFabric.Spec.Interface.Node.Name = internalFabric.Name
 
 		return controllerutil.SetControllerReference(gwClient, internalFabric, r.Scheme)
 	}); err != nil {
