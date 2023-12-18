@@ -138,8 +138,8 @@ func remotePersistentVolumeClaimSpec(virtualPvc *corev1.PersistentVolumeClaim,
 	return res
 }
 
-func persistentVolumeClaimResources(resources corev1.ResourceRequirements) *v1apply.ResourceRequirementsApplyConfiguration {
-	return v1apply.ResourceRequirements().
+func persistentVolumeClaimResources(resources corev1.VolumeResourceRequirements) *v1apply.VolumeResourceRequirementsApplyConfiguration {
+	return v1apply.VolumeResourceRequirements().
 		WithLimits(resources.Limits).
 		WithRequests(resources.Requests)
 }

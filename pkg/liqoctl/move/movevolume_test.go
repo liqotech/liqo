@@ -436,7 +436,7 @@ var _ = Context("Move Volumes", func() {
 					ResticServerImage: DefaultResticServerImage, ResticPassword: resticPassword}
 
 				targetPvc = newPvc("pvc1")
-				targetPvc.Spec.Resources = corev1.ResourceRequirements{
+				targetPvc.Spec.Resources = corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: resource.MustParse("1Gi"),
 					},
