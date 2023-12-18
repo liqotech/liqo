@@ -124,7 +124,7 @@ func (o *Options) ensureResticRepository(ctx context.Context, targetPvc *corev1.
 						AccessModes: []corev1.PersistentVolumeAccessMode{
 							corev1.ReadWriteOnce,
 						},
-						Resources: corev1.ResourceRequirements{
+						Resources: corev1.VolumeResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceStorage: targetPvc.Spec.Resources.Requests[corev1.ResourceStorage],
 							},

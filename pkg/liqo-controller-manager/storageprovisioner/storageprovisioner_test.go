@@ -93,7 +93,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 						UID:       "uuid",
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{
-						Resources: corev1.ResourceRequirements{
+						Resources: corev1.VolumeResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceStorage: *resource.NewQuantity(10, resource.BinarySI),
 							},
@@ -317,7 +317,7 @@ var _ = Describe("Test Storage Provisioner", func() {
 							},
 							Spec: corev1.PersistentVolumeClaimSpec{
 								StorageClassName: pointer.String(virtualStorageClassName),
-								Resources: corev1.ResourceRequirements{
+								Resources: corev1.VolumeResourceRequirements{
 									Requests: corev1.ResourceList{
 										corev1.ResourceStorage: *resource.NewQuantity(10, resource.BinarySI),
 									},
