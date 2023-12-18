@@ -23,7 +23,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -31,8 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
+	"github.com/liqotech/liqo/pkg/fabric"
+	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -40,20 +39,17 @@ import (
 )
 
 var (
+	options = fabric.NewOptions()
 	scheme  = runtime.NewScheme()
-	options = geneve.NewOptions(gateway.NewOptions())
 )
 
 func init() {
 	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme))
 }
 
-// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete
-// +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
-
 func main() {
 	var cmd = cobra.Command{
-		Use:  "liqo-geneve",
+		Use:  "liqo-fabric",
 		RunE: run,
 	}
 
@@ -62,8 +58,8 @@ func main() {
 	klog.InitFlags(legacyflags)
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
-	gateway.InitFlags(cmd.Flags(), options.GwOptions)
-	if err := gateway.MarkFlagsRequired(&cmd); err != nil {
+	fabric.InitFlags(cmd.Flags(), options)
+	if err := fabric.MarkFlagsRequired(&cmd); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
@@ -88,51 +84,43 @@ func run(cmd *cobra.Command, _ []string) error {
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
 		Metrics: server.Options{
-			BindAddress: options.GwOptions.MetricsAddress,
+			BindAddress: options.MetricsAddress,
 		},
-		HealthProbeBindAddress: options.GwOptions.ProbeAddr,
-		LeaderElection:         options.GwOptions.LeaderElection,
-		LeaderElectionID: fmt.Sprintf(
-			"%s.%s.%s.genevegateway.liqo.io",
-			gateway.GenerateResourceName(options.GwOptions.Name), options.GwOptions.Namespace, options.GwOptions.Mode,
-		),
-		LeaderElectionNamespace:       options.GwOptions.Namespace,
-		LeaderElectionReleaseOnCancel: true,
-		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
-		LeaseDuration:                 &options.GwOptions.LeaderElectionLeaseDuration,
-		RenewDeadline:                 &options.GwOptions.LeaderElectionRenewDeadline,
-		RetryPeriod:                   &options.GwOptions.LeaderElectionRetryPeriod,
+		HealthProbeBindAddress: options.ProbeAddr,
+		LeaderElection:         false,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
 	}
 
-	rcr, err := route.NewRouteConfigurationReconcilerWithoutFinalizer(
+	// Setup the firewall configuration controller.
+	fwcr, err := firewall.NewFirewallConfigurationReconcilerWithFinalizer(
 		mgr.GetClient(),
 		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("routeconfiguration-controller"),
-		geneve.ForgeRouteTargetLabels(options.GwOptions.Name),
+		mgr.GetEventRecorderFor("firewall-controller"),
+		fabric.ForgeFirewallTargetLabels(),
 	)
 	if err != nil {
-		return fmt.Errorf("unable to create routeconfiguration reconciler: %w", err)
+		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
+	}
+
+	if err := fwcr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
+	}
+
+	// Setup the route configuration controller.
+	rcr, err := route.NewRouteConfigurationReconcilerWithFinalizer(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("route-controller"),
+		fabric.ForgeRouteTargetLabels(),
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create route configuration reconciler: %w", err)
 	}
 
 	if err := rcr.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
-	}
-
-	inr, err := geneve.NewInternalNodeReconciler(
-		mgr.GetClient(),
-		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("internalnode-controller"),
-		options,
-	)
-	if err != nil {
-		return fmt.Errorf("unable to create internalnode reconciler: %w", err)
-	}
-
-	if err := inr.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("unable to setup internalnode reconciler: %w", err)
+		return fmt.Errorf("unable to setup route configuration reconciler: %w", err)
 	}
 
 	// Start the manager.

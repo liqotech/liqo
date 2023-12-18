@@ -21,7 +21,7 @@ import requests
 # -- Project information -----------------------------------------------------
 
 project = 'Liqo'
-copyright = '2019-2023, The Liqo Authors'
+copyright = '2019-2024, The Liqo Authors'
 author = 'The Liqo Authors'
 
 
