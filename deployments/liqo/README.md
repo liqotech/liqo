@@ -86,6 +86,12 @@
 | discovery.pod.labels | object | `{}` | Labels for the discovery pod. |
 | discovery.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the discovery pod. |
 | discovery.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the discovery pod. |
+| fabric.imageName | string | `"ghcr.io/liqotech/fabric"` | Image repository for the fabric pod. |
+| fabric.pod.annotations | object | `{}` | Annotations for the fabric pod. |
+| fabric.pod.extraArgs | list | `[]` | Extra arguments for the fabric pod. |
+| fabric.pod.labels | object | `{}` | Labels for the fabric pod. |
+| fabric.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the fabric pod. |
+| fabric.tolerations | list | `[]` | Extra tolerations for the fabric daemonset. |
 | fullnameOverride | string | `""` | Override the standard full name used by Helm and associated to Kubernetes/Liqo resources. |
 | gateway.config.addressOverride | string | `""` | Override the default address where your network gateway service is available. You should configure it if the network gateway is behind a reverse proxy or NAT. |
 | gateway.config.listeningPort | int | `5871` | Port used by the network gateway. |
