@@ -88,7 +88,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 	if !r.externalCIDRSet {
 		// Retrieve the externalCIDR of the local cluster
-		_, err := ipamutils.RetrieveExternalCIDR(ctx, r.Client)
+		_, err := ipamutils.GetExternalCIDR(ctx, r.Client)
 		if apierrors.IsNotFound(err) {
 			klog.Errorf("ExternalCIDR is not set yet. Configure it to correctly handle IP mappings")
 			return ctrl.Result{}, err
