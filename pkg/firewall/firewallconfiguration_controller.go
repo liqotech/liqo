@@ -48,8 +48,8 @@ type FirewallConfigurationReconciler struct {
 	EnableFinalizer bool
 }
 
-// NewFirewallConfigurationReconciler returns a new FirewallConfigurationReconciler.
-func NewFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
+// newFirewallConfigurationReconciler returns a new FirewallConfigurationReconciler.
+func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
 	er record.EventRecorder, labels map[string]string, enableFinalizer bool) (*FirewallConfigurationReconciler, error) {
 	nftConnection, err := nftables.New()
 	if err != nil {
@@ -63,6 +63,18 @@ func NewFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
 		Labels:          labels,
 		EnableFinalizer: enableFinalizer,
 	}, nil
+}
+
+// NewFirewallConfigurationReconcilerWithFinalizer returns a new FirewallConfigurationReconciler that uses finalizer.
+func NewFirewallConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme,
+	er record.EventRecorder, labels map[string]string) (*FirewallConfigurationReconciler, error) {
+	return newFirewallConfigurationReconciler(cl, s, er, labels, true)
+}
+
+// NewFirewallConfigurationReconcilerWithoutFinalizer returns a new FirewallConfigurationReconciler that doesn't use finalizer.
+func NewFirewallConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme,
+	er record.EventRecorder, labels map[string]string) (*FirewallConfigurationReconciler, error) {
+	return newFirewallConfigurationReconciler(cl, s, er, labels, false)
 }
 
 // cluster-role
