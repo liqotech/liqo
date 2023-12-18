@@ -97,12 +97,12 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *networkingv1alpha1.Configuration) error {
 	if r.localCIDR == nil {
-		podCIDR, err := ipamutils.RetrievePodCIDR(ctx, r.Client)
+		podCIDR, err := ipamutils.GetPodCIDR(ctx, r.Client)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve the podCIDR: %w", err)
 		}
 
-		externalCIDR, err := ipamutils.RetrieveExternalCIDR(ctx, r.Client)
+		externalCIDR, err := ipamutils.GetExternalCIDR(ctx, r.Client)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve the externalCIDR: %w", err)
 		}
