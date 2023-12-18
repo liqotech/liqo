@@ -16,7 +16,6 @@ package ipam
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -42,16 +41,14 @@ func GetNodeIpam(ctx context.Context, cl client.Client) (*IPAM, error) {
 		nodeIpam, err = New(nodeNetwork)
 		runtime.Must(err)
 
-		var internalFabrics networkingv1alpha1.InternalFabricList
-		err = cl.List(ctx, &internalFabrics)
+		var internalNodes networkingv1alpha1.InternalNodeList
+		err = cl.List(ctx, &internalNodes)
 		runtime.Must(err)
 
-		for i := range internalFabrics.Items {
-			intFab := &internalFabrics.Items[i]
-			for k, v := range intFab.Status.AssignedIPs {
-				err = nodeIpam.Configure(fmt.Sprintf("%s/%s/%s", intFab.Namespace, intFab.Name, k), v.String())
-				runtime.Must(err)
-			}
+		for i := range internalNodes.Items {
+			intNode := &internalNodes.Items[i]
+			err = nodeIpam.Configure(intNode.Name, intNode.Spec.IP.String())
+			runtime.Must(err)
 		}
 	})
 
