@@ -70,12 +70,12 @@ func ForgeConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 		return nil, fmt.Errorf("unable to get cluster identity: %w", err)
 	}
 
-	podCIDR, err := ipamutils.RetrievePodCIDR(ctx, cl)
+	podCIDR, err := ipamutils.GetPodCIDR(ctx, cl)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve pod CIDR: %w", err)
 	}
 
-	externalCIDR, err := ipamutils.RetrieveExternalCIDR(ctx, cl)
+	externalCIDR, err := ipamutils.GetExternalCIDR(ctx, cl)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve external CIDR: %w", err)
 	}
