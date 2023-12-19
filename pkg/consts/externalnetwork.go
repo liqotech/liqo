@@ -34,4 +34,11 @@ const (
 	PrivateKeyField = "privateKey"
 	// PublicKeyField is the data field of the secrets containing public keys.
 	PublicKeyField = "publicKey"
+
+	// ClusterRoleBindingFinalizer is the finalizer added ti the owner when a ClusterRoleBinding is created.
+	ClusterRoleBindingFinalizer = "liqo.io/clusterrolebinding"
+	// GatewayNameLabel is the label added to a resource to identify the Gateway it belongs to.
+	GatewayNameLabel = "liqo.io/gateway-name"
+	// GatewayNamespaceLabel is the label added to a resource to identify the namespace of the Gateway it belongs to.
+	GatewayNamespaceLabel = "liqo.io/gateway-namespace"
 )

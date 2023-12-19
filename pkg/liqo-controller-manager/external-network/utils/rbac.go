@@ -16,6 +16,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -26,11 +27,33 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// EnsureServiceAccountAndRoleBinding ensures that the service account and the role binding are created or deleted.
-func EnsureServiceAccountAndRoleBinding(ctx context.Context, cl client.Client, s *runtime.Scheme,
-	deploy *networkingv1alpha1.DeploymentTemplate, owner metav1.Object, clusterRoleName string) error {
+// DeleteClusterRoleBinding deletes the cluster role bindings owned by the given object.
+func DeleteClusterRoleBinding(ctx context.Context, cl client.Client, obj client.Object) error {
+	var crbList rbacv1.ClusterRoleBindingList
+	if err := cl.List(ctx, &crbList, client.MatchingLabels{
+		consts.GatewayNameLabel:      obj.GetName(),
+		consts.GatewayNamespaceLabel: obj.GetNamespace(),
+	}); err != nil {
+		klog.Errorf("error while listing cluster role bindings: %v", err)
+		return err
+	}
+
+	for i := range crbList.Items {
+		crb := &crbList.Items[i]
+		if err := client.IgnoreNotFound(cl.Delete(ctx, crb)); err != nil {
+			klog.Errorf("error while deleting cluster role binding %q: %v", crb.Name, err)
+			return err
+		}
+	}
+	return nil
+}
+
+// EnsureServiceAccountAndClusterRoleBinding ensures that the service account and the cluster role binding are created or deleted.
+func EnsureServiceAccountAndClusterRoleBinding(ctx context.Context, cl client.Client, s *runtime.Scheme,
+	deploy *networkingv1alpha1.DeploymentTemplate, owner client.Object, clusterRoleName string) error {
 	namespace := owner.GetNamespace()
 	name := owner.GetName()
 
@@ -53,29 +76,36 @@ func EnsureServiceAccountAndRoleBinding(ctx context.Context, cl client.Client, s
 		return err
 	}
 
-	// ensure role binding
-	rb := &rbacv1.RoleBinding{
+	// ensure cluster role binding
+	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name: fmt.Sprintf("%s-%s-%s", namespace, name, saName),
 		},
 	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, rb, func() error {
-		rb.RoleRef = rbacv1.RoleRef{
+	if _, err := controllerutil.CreateOrUpdate(ctx, cl, crb, func() error {
+		if crb.Labels == nil {
+			crb.Labels = make(map[string]string)
+		}
+		crb.Labels[consts.GatewayNameLabel] = name
+		crb.Labels[consts.GatewayNamespaceLabel] = namespace
+
+		crb.RoleRef = rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
 			Name:     clusterRoleName,
 		}
-		rb.Subjects = []rbacv1.Subject{{
+		crb.Subjects = []rbacv1.Subject{{
 			Kind:      "ServiceAccount",
 			Name:      saName,
 			Namespace: namespace,
 		}}
-		return controllerutil.SetControllerReference(owner, rb, s)
+		return nil
 	}); err != nil {
-		klog.Errorf("error while creating role binding %q: %v", name, err)
+		klog.Errorf("error while creating cluster role binding %q: %v", name, err)
 		return err
 	}
+
+	controllerutil.AddFinalizer(owner, consts.ClusterRoleBindingFinalizer)
 
 	return nil
 }
