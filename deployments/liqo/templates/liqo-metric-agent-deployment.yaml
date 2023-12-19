@@ -54,6 +54,8 @@ spec:
             - /certs/key.pem
             - -out
             - /certs/cert.pem
+            - -addext
+            - subjectAltName = DNS:{{ include "liqo.prefixedName" $metricConfig }}.{{ .Release.Namespace }}.svc
           resources: {{- toYaml .Values.metricAgent.pod.resources | nindent 12 }}
       containers:
         - image: {{ .Values.metricAgent.imageName }}{{ include "liqo.suffix" $metricConfig }}:{{ include "liqo.version" $metricConfig }}
