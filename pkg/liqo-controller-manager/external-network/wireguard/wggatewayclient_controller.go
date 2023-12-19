@@ -22,6 +22,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -67,7 +68,7 @@ func NewWgGatewayClientReconciler(cl client.Client, s *runtime.Scheme, extNetPod
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;delete;create;update;patch
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;delete;create;update;patch
 // +kubectl:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
 
 // Reconcile manage GatewayClient lifecycle.
@@ -83,14 +84,39 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	if !wgClient.DeletionTimestamp.IsZero() {
+		if controllerutil.ContainsFinalizer(wgClient, consts.ClusterRoleBindingFinalizer) {
+			if err = enutils.DeleteClusterRoleBinding(ctx, r.Client, wgClient); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			controllerutil.RemoveFinalizer(wgClient, consts.ClusterRoleBindingFinalizer)
+			if err = r.Update(ctx, wgClient); err != nil {
+				klog.Errorf("Unable to remove finalizer %q from WireGuard gateway client %q: %v",
+					consts.ClusterRoleBindingFinalizer, req.NamespacedName, err)
+				return ctrl.Result{}, err
+			}
+		}
+
 		// Resource is deleting and child resources are deleted as well by garbage collector. Nothing to do.
 		return ctrl.Result{}, nil
 	}
 
-	// Ensure ServiceAccount and RoleBinding (create or update)
-	if err = enutils.EnsureServiceAccountAndRoleBinding(ctx, r.Client, r.Scheme, &wgClient.Spec.Deployment, wgClient,
+	originalWgClient := wgClient.DeepCopy()
+
+	// Ensure ServiceAccount and ClusterRoleBinding (create or update)
+	if err = enutils.EnsureServiceAccountAndClusterRoleBinding(ctx, r.Client, r.Scheme, &wgClient.Spec.Deployment, wgClient,
 		r.clusterRoleName); err != nil {
 		return ctrl.Result{}, err
+	}
+
+	// update if the wgClient has been updated
+	if !equality.Semantic.DeepEqual(originalWgClient, wgClient) {
+		if err := r.Update(ctx, wgClient); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		// we return here to avoid conflicts
+		return ctrl.Result{}, nil
 	}
 
 	// Ensure deployment (create or update)
@@ -138,7 +164,8 @@ func (r *WgGatewayClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&networkingv1alpha1.WgGatewayClient{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ServiceAccount{}).
-		Owns(&rbacv1.RoleBinding{}).
+		Watches(&rbacv1.ClusterRoleBinding{},
+			handler.EnqueueRequestsFromMapFunc(clusterRoleBindingEnquerer)).
 		Watches(&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(wireGuardSecretEnquerer),
 			builder.WithPredicates(filterWireGuardSecretsPredicate())).
