@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -53,6 +54,34 @@ func wireGuardSecretEnquerer(_ context.Context, obj client.Object) []ctrl.Reques
 			NamespacedName: types.NamespacedName{
 				Namespace: secret.Namespace,
 				Name:      gateway.GenerateResourceName(secret.Name),
+			},
+		},
+	}
+}
+
+func clusterRoleBindingEnquerer(_ context.Context, obj client.Object) []ctrl.Request {
+	crb, ok := obj.(*rbacv1.ClusterRoleBinding)
+	if !ok {
+		return nil
+	}
+
+	if crb.Labels == nil {
+		return nil
+	}
+	gwName, ok := crb.Labels[consts.GatewayNameLabel]
+	if !ok {
+		return nil
+	}
+	gwNs, ok := crb.Labels[consts.GatewayNamespaceLabel]
+	if !ok {
+		return nil
+	}
+
+	return []ctrl.Request{
+		{
+			NamespacedName: types.NamespacedName{
+				Namespace: gwNs,
+				Name:      gwName,
 			},
 		},
 	}
