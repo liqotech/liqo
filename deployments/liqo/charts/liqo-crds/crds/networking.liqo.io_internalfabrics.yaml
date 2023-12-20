@@ -17,14 +17,8 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.nodeName
-      name: Gateway Node
-      type: string
-    - jsonPath: .spec.endpoint.ip
+    - jsonPath: .spec.gatewayIP
       name: Gateway IP
-      type: string
-    - jsonPath: .spec.endpoint.port
-      name: Gateway Port
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -32,9 +26,9 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: InternalFabric contains the network internalfabric of a pair
-          of clusters, including the local and the remote pod and external CIDRs and
-          how the where remapped.
+        description: InternalFabric contains the network internalfabric settings.
+          Every internalfabric resource targets a single gateway and respresents a
+          connection between the local cluster and a remote one.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -51,30 +45,31 @@ spec:
           spec:
             description: InternalFabricSpec defines the desired state of InternalFabric.
             properties:
-              endpoint:
-                description: Endpoint is the endpoint of the gateway.
-                properties:
-                  ip:
-                    description: IP is the IP address of the endpoint.
-                    pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
-                    type: string
-                  port:
-                    description: Port is the port of the endpoint.
-                    format: int32
-                    type: integer
-                type: object
               gatewayIP:
-                description: GatewayIP is the IP address to assign to the gateway
-                  internal interface.
+                description: GatewayIP is the IP of the gateway pod.
                 pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
                 type: string
+              interface:
+                description: Interface contains the information about network interfaces.
+                properties:
+                  node:
+                    description: Node contains the information about the node interface.
+                      The node interface is created on every node to connect them
+                      to the gateway related with the internalfabric.
+                    properties:
+                      name:
+                        description: Name is the name of the interface added to the
+                          nodes.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                required:
+                - node
+                type: object
               mtu:
                 description: MTU is the MTU of the internal fabric.
                 type: integer
-              nodeName:
-                description: NodeName is the name of the node where the gateway is
-                  running.
-                type: string
               remoteCIDRs:
                 description: RemoteCIDRs is the list of remote CIDRs to be routed
                   through the gateway.
@@ -83,21 +78,11 @@ spec:
                   pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
                   type: string
                 type: array
-            type: object
-          status:
-            description: InternalFabricStatus defines the observed state of InternalFabric.
-            properties:
-              assignedIPs:
-                additionalProperties:
-                  description: IP defines a syntax validated IP.
-                  pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
-                  type: string
-                description: AssignedIPs is the list of IP addresses assigned to interfaces
-                  in the nodes.
-                type: object
+            required:
+            - gatewayIP
+            - interface
             type: object
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}
+    subresources: {}
