@@ -14,19 +14,7 @@
 
 package geneve
 
-import (
-	"github.com/liqotech/liqo/pkg/route"
-)
-
 const (
-	// RouteCategoryTargetValue is the value used by the routeconfiguration controller to reconcile only resources related to a gateway.
-	RouteCategoryTargetValue = "gateway"
+	// GeneveGatewayInterfaceIP is the IP address of the geneve interface on the gateway.
+	GeneveGatewayInterfaceIP = "169.254.1.2"
 )
-
-// ForgeRouteTargetLabels returns the labels used by the routeconfiguration controller to reconcile only resources related to a single gateway.
-func ForgeRouteTargetLabels(remoteID string) map[string]string {
-	return map[string]string{
-		route.RouteCategoryTargetKey: RouteCategoryTargetValue,
-		route.RouteUniqueTargetKey:   remoteID,
-	}
-}

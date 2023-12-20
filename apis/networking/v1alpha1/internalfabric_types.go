@@ -34,50 +34,44 @@ var InternalFabricGroupResource = schema.GroupResource{Group: GroupVersion.Group
 // InternalFabricGroupVersionResource is groupResourceVersion used to register these objects.
 var InternalFabricGroupVersionResource = GroupVersion.WithResource(InternalFabricResource)
 
-// InternalEndpoint defines the endpoint of the internal fabric.
-type InternalEndpoint struct {
-	// IP is the IP address of the endpoint.
-	IP IP `json:"ip,omitempty"`
-	// Port is the port of the endpoint.
-	Port int32 `json:"port,omitempty"`
+// InternalFabricSpecInterfaceNode contains the information about the node interface.
+type InternalFabricSpecInterfaceNode struct {
+	// Name is the name of the interface added to the nodes.
+	Name string `json:"name"`
+}
+
+// InternalFabricSpecInterface contains the information about network interfaces.
+type InternalFabricSpecInterface struct {
+	// Node contains the information about the node interface.
+	// The node interface is created on every node to connect them to the gateway related with the internalfabric.
+	Node InternalFabricSpecInterfaceNode `json:"node"`
 }
 
 // InternalFabricSpec defines the desired state of InternalFabric.
 type InternalFabricSpec struct {
 	// MTU is the MTU of the internal fabric.
 	MTU int `json:"mtu,omitempty"`
-	// GatewayIP is the IP address to assign to the gateway internal interface.
-	GatewayIP IP `json:"gatewayIP,omitempty"`
 	// RemoteCIDRs is the list of remote CIDRs to be routed through the gateway.
 	RemoteCIDRs []CIDR `json:"remoteCIDRs,omitempty"`
-	// NodeName is the name of the node where the gateway is running.
-	NodeName string `json:"nodeName,omitempty"`
-	// Endpoint is the endpoint of the gateway.
-	Endpoint *InternalEndpoint `json:"endpoint,omitempty"`
-}
-
-// InternalFabricStatus defines the observed state of InternalFabric.
-type InternalFabricStatus struct {
-	// AssignedIPs is the list of IP addresses assigned to interfaces in the nodes.
-	AssignedIPs map[string]IP `json:"assignedIPs,omitempty"`
+	// Interface contains the information about network interfaces.
+	Interface InternalFabricSpecInterface `json:"interface"`
+	// GatewayIP is the IP of the gateway pod.
+	GatewayIP IP `json:"gatewayIP"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
-// +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Gateway Node",type=string,JSONPath=`.spec.nodeName`
-// +kubebuilder:printcolumn:name="Gateway IP",type=string,JSONPath=`.spec.endpoint.ip`
-// +kubebuilder:printcolumn:name="Gateway Port",type=string,JSONPath=`.spec.endpoint.port`
+// +kubebuilder:printcolumn:name="Gateway IP",type=string,JSONPath=`.spec.gatewayIP`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
-// InternalFabric contains the network internalfabric of a pair of clusters,
-// including the local and the remote pod and external CIDRs and how the where remapped.
+// InternalFabric contains the network internalfabric settings.
+// Every internalfabric resource targets a single gateway
+// and respresents a connection between the local cluster and a remote one.
 type InternalFabric struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   InternalFabricSpec   `json:"spec,omitempty"`
-	Status InternalFabricStatus `json:"status,omitempty"`
+	Spec InternalFabricSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true
