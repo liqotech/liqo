@@ -42,29 +42,32 @@ type InternalEndpoint struct {
 	Port int32 `json:"port,omitempty"`
 }
 
+// InternalFabricSpecInterfaceNode contains the information about the node interface.
+type InternalFabricSpecInterfaceNode struct {
+	// Name is the name of the node interface.
+	Name string `json:"name"`
+}
+
+// InternalFabricSpecInterface contains the information about network interfaces.
+type InternalFabricSpecInterface struct {
+	// Node contains the information about the node interface.
+	Node InternalFabricSpecInterfaceNode `json:"node"`
+}
+
 // InternalFabricSpec defines the desired state of InternalFabric.
 type InternalFabricSpec struct {
 	// MTU is the MTU of the internal fabric.
 	MTU int `json:"mtu,omitempty"`
-	// GatewayIP is the IP address to assign to the gateway internal interface.
-	GatewayIP IP `json:"gatewayIP,omitempty"`
 	// RemoteCIDRs is the list of remote CIDRs to be routed through the gateway.
 	RemoteCIDRs []CIDR `json:"remoteCIDRs,omitempty"`
-	// NodeName is the name of the node where the gateway is running.
-	NodeName string `json:"nodeName,omitempty"`
-	// Endpoint is the endpoint of the gateway.
-	Endpoint *InternalEndpoint `json:"endpoint,omitempty"`
-}
-
-// InternalFabricStatus defines the observed state of InternalFabric.
-type InternalFabricStatus struct {
-	// AssignedIPs is the list of IP addresses assigned to interfaces in the nodes.
-	AssignedIPs map[string]IP `json:"assignedIPs,omitempty"`
+	// Interface contains the information about network interfaces.
+	Interface InternalNodeSpecInterface `json:"interface"`
+	//GatewayAddress is the address of the gateway pod
+	GatewayAddress string `json:"gatewayAddress"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
-// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Gateway Node",type=string,JSONPath=`.spec.nodeName`
 // +kubebuilder:printcolumn:name="Gateway IP",type=string,JSONPath=`.spec.endpoint.ip`
 // +kubebuilder:printcolumn:name="Gateway Port",type=string,JSONPath=`.spec.endpoint.port`
@@ -76,8 +79,7 @@ type InternalFabric struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   InternalFabricSpec   `json:"spec,omitempty"`
-	Status InternalFabricStatus `json:"status,omitempty"`
+	Spec InternalFabricSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -51,30 +51,28 @@ spec:
           spec:
             description: InternalFabricSpec defines the desired state of InternalFabric.
             properties:
-              endpoint:
-                description: Endpoint is the endpoint of the gateway.
-                properties:
-                  ip:
-                    description: IP is the IP address of the endpoint.
-                    pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
-                    type: string
-                  port:
-                    description: Port is the port of the endpoint.
-                    format: int32
-                    type: integer
-                type: object
-              gatewayIP:
-                description: GatewayIP is the IP address to assign to the gateway
-                  internal interface.
-                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+              gatewayAddress:
+                description: GatewayAddress is the address of the gateway pod
                 type: string
+              interface:
+                description: Interface contains the information about network interfaces.
+                properties:
+                  gateway:
+                    description: Gateway contains the information about the gateway
+                      interface.
+                    properties:
+                      name:
+                        description: Name is the name of the gateway interface.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                required:
+                - gateway
+                type: object
               mtu:
                 description: MTU is the MTU of the internal fabric.
                 type: integer
-              nodeName:
-                description: NodeName is the name of the node where the gateway is
-                  running.
-                type: string
               remoteCIDRs:
                 description: RemoteCIDRs is the list of remote CIDRs to be routed
                   through the gateway.
@@ -83,21 +81,11 @@ spec:
                   pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
                   type: string
                 type: array
-            type: object
-          status:
-            description: InternalFabricStatus defines the observed state of InternalFabric.
-            properties:
-              assignedIPs:
-                additionalProperties:
-                  description: IP defines a syntax validated IP.
-                  pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
-                  type: string
-                description: AssignedIPs is the list of IP addresses assigned to interfaces
-                  in the nodes.
-                type: object
+            required:
+            - gatewayAddress
+            - interface
             type: object
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}
+    subresources: {}

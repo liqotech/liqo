@@ -35,12 +35,24 @@ var InternalNodeGroupResource = schema.GroupResource{Group: GroupVersion.Group, 
 // InternalNodeGroupVersionResource is groupResourceVersion used to register these objects.
 var InternalNodeGroupVersionResource = GroupVersion.WithResource(InternalNodeResource)
 
+// InternalNodeSpecInterfaceGateway contains the information about the gateway interface.
+type InternalNodeSpecInterfaceGateway struct {
+	// Name is the name of the gateway interface.
+	Name string `json:"name"`
+}
+
+// InternalNodeSpecInterface contains the information about network interfaces.
+type InternalNodeSpecInterface struct {
+	// Gateway contains the information about the gateway interface.
+	Gateway InternalNodeSpecInterfaceGateway `json:"gateway"`
+}
+
 // InternalNodeSpec defines the desired state of InternalNode.
 type InternalNodeSpec struct {
-	// IP is the IP address to assign to the internal interface.
-	IP IP `json:"ip,omitempty"`
-	// NodeAddr is the address of the node.
-	NodeAddr string `json:"nodeAddr,omitempty"`
+	// Interface contains the information about network interfaces.
+	Interface InternalNodeSpecInterface `json:"interface"`
+	// NodeAddress is the addres of the node pod
+	NodeAddress string `json:"nodeAddress"`
 }
 
 // InternalNodeConditionType is a valid value for InternalNodeCondition.Type.
@@ -68,15 +80,10 @@ type InternalNodeCondition struct {
 	Message string `json:"message,omitempty"`
 }
 
-// InternalNodeStatus defines the observed state of InternalNode.
-type InternalNodeStatus struct {
-	// Conditions contains information about the current status of the node.
-	Conditions []InternalNodeCondition `json:"conditions,omitempty"`
-}
-
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster,categories=liqo
-// +kubebuilder:subresource:status
+// +kubebuilder:resource:categories=liqo
+// +kubebuilder:printcolumn:name="Fabric",type=string,JSONPath=`.spec.fabricRef.name`
+// +kubebuilder:printcolumn:name="Fabric Namespace",type=string,JSONPath=`.spec.fabricRef.namespace`, priority=1
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[?(@.type == 'Applied')].status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
@@ -86,8 +93,7 @@ type InternalNode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   InternalNodeSpec   `json:"spec,omitempty"`
-	Status InternalNodeStatus `json:"status,omitempty"`
+	Spec InternalNodeSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true
