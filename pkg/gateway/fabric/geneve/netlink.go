@@ -25,11 +25,11 @@ import (
 
 // EnsureGeneveInterfacePresence ensures that a geneve interface exists for the given internal node.
 func EnsureGeneveInterfacePresence(internalnode *networkingv1alpha1.InternalNode, opts *Options) error {
-	interfaceName := GetGeneveInterfaceName(internalnode)
-	local := net.ParseIP(string(internalnode.Spec.IP))
-	nodeIP := net.ParseIP(internalnode.Spec.NodeAddr)
+	interfaceName := internalnode.Spec.Interface.Gateway.Name
+	local := net.ParseIP(GeneveGatewayInterfaceIP)
+	nodeIP := net.ParseIP(internalnode.Spec.NodeAddress)
 	if nodeIP == nil {
-		nodeIPs, err := net.LookupIP(internalnode.Spec.NodeAddr)
+		nodeIPs, err := net.LookupIP(internalnode.Spec.NodeAddress)
 		if err != nil {
 			return err
 		}
