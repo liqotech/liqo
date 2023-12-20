@@ -63,19 +63,11 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", req.NamespacedName, err)
 	}
 
-	if GetGeneveInterfaceName(internalnode) == "" {
-		if err = EnsureGeneveInterfaceNamePresence(ctx, r.Client, internalnode); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface name presence: %w", err)
-		}
-		klog.Infof("Geneve interface name %s assigned for internalnode %s.", GetGeneveInterfaceName(internalnode), req.String())
-		return ctrl.Result{}, nil
-	}
+	klog.V(4).Infof("Reconciling internalnode %s", req.String())
 
 	if err := EnsureGeneveInterfacePresence(internalnode, r.Options); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface presence: %w", err)
 	}
-
-	klog.V(4).Infof("Reconciling internalnode %s", req.String())
 
 	return ctrl.Result{}, nil
 }
