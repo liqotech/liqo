@@ -83,6 +83,10 @@ spec:
                                 description: Gw is the gateway of the RouteConfiguration.
                                 pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
                                 type: string
+                              onlink:
+                                description: Onlink enables the onlink falg inside
+                                  the route.
+                                type: boolean
                               src:
                                 description: Src is the source of the RouteConfiguration.
                                 pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
