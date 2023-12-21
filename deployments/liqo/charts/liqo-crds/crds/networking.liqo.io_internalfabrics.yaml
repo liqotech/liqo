@@ -17,8 +17,8 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.gatewayAddress
-      name: Gateway Address
+    - jsonPath: .spec.gatewayIP
+      name: Gateway IP
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -45,8 +45,9 @@ spec:
           spec:
             description: InternalFabricSpec defines the desired state of InternalFabric.
             properties:
-              gatewayAddress:
-                description: GatewayAddress is the address of the gateway pod.
+              gatewayIP:
+                description: GatewayIP is the IP of the gateway pod.
+                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
                 type: string
               interface:
                 description: Interface contains the information about network interfaces.
@@ -78,7 +79,7 @@ spec:
                   type: string
                 type: array
             required:
-            - gatewayAddress
+            - gatewayIP
             - interface
             type: object
         type: object
