@@ -109,6 +109,9 @@ func IsEqualRoute(route1, route2 *netlink.Route) bool {
 	if route1.LinkIndex != route2.LinkIndex {
 		return false
 	}
+	if route1.Flags != route2.Flags {
+		return false
+	}
 	return true
 }
 
@@ -143,6 +146,7 @@ func IsContainedRoute(route *netlink.Route, routes []networkingv1alpha1.Route) b
 }
 
 func forgeNetlinkRoute(route *networkingv1alpha1.Route, tableID uint32) (*netlink.Route, error) {
+	var flags int
 	var err error
 	var dst *net.IPNet
 	var src, gw net.IP
@@ -171,11 +175,16 @@ func forgeNetlinkRoute(route *networkingv1alpha1.Route, tableID uint32) (*netlin
 		linkIndex = link.Attrs().Index
 	}
 
+	if route.Onlink != nil && *route.Onlink {
+		flags |= int(netlink.FLAG_ONLINK)
+	}
+
 	return &netlink.Route{
 		Dst:       dst,
 		Gw:        gw,
 		Src:       src,
 		LinkIndex: linkIndex,
 		Table:     int(tableID),
+		Flags:     flags,
 	}, nil
 }
