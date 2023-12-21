@@ -44,6 +44,8 @@ type Route struct {
 	Gw *IP `json:"gw,omitempty"`
 	// Dev is the device of the RouteConfiguration.
 	Dev *string `json:"dev,omitempty"`
+	// Onlink enables the onlink falg inside the route.
+	Onlink *bool `json:"onlink,omitempty"`
 }
 
 // Rule is the rule of the RouteConfiguration.
