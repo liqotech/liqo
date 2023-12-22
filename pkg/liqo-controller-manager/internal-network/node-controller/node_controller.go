@@ -28,6 +28,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
+	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network"
 )
 
 // NodeReconciler creates and manages InternalNodes.
@@ -66,14 +67,15 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		},
 	}
 	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, internalNode, func() error {
+		if internalNode.Spec.Interface.Gateway.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalNode); err != nil {
+			return err
+		}
+
 		address, err := discovery.GetInternalAddress(node)
 		if err != nil {
 			return err
 		}
 		internalNode.Spec.NodeAddress = address
-
-		// TODO:: generate random name for the gateway interface
-		internalNode.Spec.Interface.Gateway.Name = internalNode.Name
 
 		return controllerutil.SetControllerReference(node, internalNode, r.Scheme)
 	}); err != nil {
