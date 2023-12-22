@@ -37,8 +37,8 @@ var GeneveTunnelGroupVersionResource = GroupVersion.WithResource(GeneveTunnelRes
 
 // GeneveTunnelSpec defines the desired state of GeneveTunnel.
 type GeneveTunnelSpec struct {
-	// The ID of the geneve tunnel.
-	ID int `json:"id"`
+	// The ID of the geneve tunnel. Only 24 can be used.
+	ID uint32 `json:"id"`
 	// InternalNodeRef is the reference to the internal node.
 	InternalNodeRef *corev1.ObjectReference `json:"internalNodeRef"`
 	// InternalFabricRef is the reference to the internal fabric.

@@ -28,6 +28,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -52,6 +54,8 @@ func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme) *InternalF
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch
 
 // Reconcile manage InternalFabric lifecycle.
 func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
@@ -65,7 +69,34 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	if !internalFabric.DeletionTimestamp.IsZero() && controllerutil.ContainsFinalizer(internalFabric, consts.InternalFabricGeneveTunnelFinalizer) {
+		if err = deleteGeneveTunnels(ctx, r.Client, internalFabric); err != nil {
+			klog.Errorf("Unable to delete GeneveTunnels: %s", err)
+			return ctrl.Result{}, err
+		}
+	}
+
+	// route configuration
+
 	if err = r.ensureRouteConfiguration(ctx, internalFabric); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// geneve tunnel
+
+	var internalNodeList networkingv1alpha1.InternalNodeList
+	if err = r.List(ctx, &internalNodeList); err != nil {
+		klog.Errorf("Unable to list InternalNodes: %s", err)
+		return ctrl.Result{}, err
+	}
+
+	if err = ensureGeneveTunnels(ctx, r.Client, r.Scheme, internalFabric, &internalNodeList); err != nil {
+		klog.Errorf("Unable to ensure GeneveTunnels: %s", err)
+		return ctrl.Result{}, err
+	}
+
+	if err = cleanupGeneveTunnels(ctx, r.Client, internalFabric, &internalNodeList); err != nil {
+		klog.Errorf("Unable to cleanup GeneveTunnels: %s", err)
 		return ctrl.Result{}, err
 	}
 
@@ -136,8 +167,32 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 
 // SetupWithManager register the InternalFabricReconciler to the manager.
 func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	internalNodeEnqueuer := handler.EnqueueRequestsFromMapFunc(
+		func(ctx context.Context, obj client.Object) []reconcile.Request {
+			var requests []reconcile.Request
+
+			var internalFabricList networkingv1alpha1.InternalFabricList
+			if err := r.List(ctx, &internalFabricList); err != nil {
+				klog.Errorf("Unable to list InternalFabrics: %s", err)
+				return nil
+			}
+
+			for i := range internalFabricList.Items {
+				fabric := &internalFabricList.Items[i]
+
+				requests = append(requests, reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(fabric),
+				})
+			}
+
+			return requests
+		},
+	)
+
 	return ctrl.NewControllerManagedBy(mgr).
+		Watches(&networkingv1alpha1.InternalNode{}, internalNodeEnqueuer).
 		Owns(&networkingv1alpha1.RouteConfiguration{}).
+		Owns(&networkingv1alpha1.GeneveTunnel{}).
 		For(&networkingv1alpha1.InternalFabric{}).
 		Complete(r)
 }

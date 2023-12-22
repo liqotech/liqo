@@ -38,7 +38,8 @@ spec:
             description: GeneveTunnelSpec defines the desired state of GeneveTunnel.
             properties:
               id:
-                description: The ID of the geneve tunnel.
+                description: The ID of the geneve tunnel. Only 24 can be used.
+                format: int32
                 type: integer
               internalFabricRef:
                 description: InternalFabricRef is the reference to the internal fabric.

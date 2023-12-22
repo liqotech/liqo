@@ -153,3 +153,4 @@ issues:
     - path: _test\.go
       linters:
         - whitespace
+        - revive  # it does not allow dot imports (e.g. . "github.com/onsi/ginkgo")

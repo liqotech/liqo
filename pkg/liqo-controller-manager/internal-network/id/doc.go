@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ipam implements the logic of the IPAM.
-package ipam
+// Package id implements the logic of the ID manager.
+package id
