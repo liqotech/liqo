@@ -17,4 +17,11 @@ package consts
 const (
 	// DefaultRouteTable is the name of the default table used for routes.
 	DefaultRouteTable = "liqo"
+	// InternalFabricName is the label used to identify the internal fabric name.
+	InternalFabricName = "networking.liqo.io/internal-fabric-name"
+	// InternalNodeName is the label used to identify the internal node name.
+	InternalNodeName = "networking.liqo.io/internal-node-name"
+	// InternalFabricGeneveTunnelFinalizer is the finalizer used to ensure that the geneve tunnel is deleted and the
+	// id is freed.
+	InternalFabricGeneveTunnelFinalizer = "networking.liqo.io/internal-fabric-geneve-tunnel-finalizer"
 )
