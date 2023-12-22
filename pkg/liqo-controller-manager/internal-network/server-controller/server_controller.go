@@ -90,6 +90,9 @@ func (r *ServerReconciler) ensureInternalFabric(ctx context.Context, gwServer *n
 	if configuration.Status.Remote == nil {
 		return fmt.Errorf("remote configuration not found for the gateway server %q", gwServer.Name)
 	}
+	if gwServer.Status.InternalEndpoint == nil || gwServer.Status.InternalEndpoint.IP == nil {
+		return fmt.Errorf("internal endpoint not found for the gateway server %q", gwServer.Name)
+	}
 
 	internalFabric := &networkingv1alpha1.InternalFabric{
 		ObjectMeta: metav1.ObjectMeta{
@@ -106,20 +109,16 @@ func (r *ServerReconciler) ensureInternalFabric(ctx context.Context, gwServer *n
 
 		internalFabric.Spec.MTU = gwServer.Spec.MTU
 
-		if gwServer.Status.InternalEndpoint != nil && gwServer.Status.InternalEndpoint.IP != nil {
-			internalFabric.Spec.GatewayIP = *gwServer.Status.InternalEndpoint.IP
-			if internalFabric.Spec.Interface.Node.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalFabric); err != nil {
-				return err
-			}
+		internalFabric.Spec.GatewayIP = *gwServer.Status.InternalEndpoint.IP
+
+		if internalFabric.Spec.Interface.Node.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalFabric); err != nil {
+			return err
 		}
 
 		internalFabric.Spec.RemoteCIDRs = []networkingv1alpha1.CIDR{
 			configuration.Status.Remote.CIDR.Pod,
 			configuration.Status.Remote.CIDR.External,
 		}
-
-		// TODO:: generate random name for the node interface
-		internalFabric.Spec.Interface.Node.Name = internalFabric.Name
 
 		return controllerutil.SetControllerReference(gwServer, internalFabric, r.Scheme)
 	}); err != nil {
