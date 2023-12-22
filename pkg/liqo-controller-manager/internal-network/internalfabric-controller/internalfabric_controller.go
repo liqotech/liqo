@@ -73,20 +73,21 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context, internalFabric *networkingv1alpha1.InternalFabric) error {
+	remoteClusterID, ok := internalFabric.Labels[consts.RemoteClusterID]
+	if !ok {
+		return fmt.Errorf("internal fabric %q does not have remote cluster ID label", client.ObjectKeyFromObject(internalFabric))
+	}
+	if internalFabric.Spec.Interface.Node.Name == "" {
+		return fmt.Errorf("internal fabric %q has node interface name empty", client.ObjectKeyFromObject(internalFabric))
+	}
+
 	route := &networkingv1alpha1.RouteConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      internalFabric.Name,
 			Namespace: internalFabric.Namespace,
 		},
 	}
-
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, route, func() error {
-		// Check if remote clusterID label is set
-		remoteClusterID, ok := internalFabric.Labels[consts.RemoteClusterID]
-		if !ok {
-			return fmt.Errorf("internal fabric %q does not have remote cluster ID label", client.ObjectKeyFromObject(internalFabric))
-		}
-
 		// Forge metadata
 		if route.Labels == nil {
 			route.Labels = make(map[string]string)
