@@ -16,7 +16,7 @@ package consts
 
 const (
 	// ExternalNetworkLabel is the label added to all components that belong to the external network.
-	ExternalNetworkLabel = "liqo.io/external-network"
+	ExternalNetworkLabel = "networking.liqo.io/external-network"
 	// ExternalNetworkLabelValue is the value of the label added to components that belong to the external network.
 	ExternalNetworkLabelValue = "true"
 
@@ -36,9 +36,9 @@ const (
 	PublicKeyField = "publicKey"
 
 	// ClusterRoleBindingFinalizer is the finalizer added ti the owner when a ClusterRoleBinding is created.
-	ClusterRoleBindingFinalizer = "liqo.io/clusterrolebinding"
+	ClusterRoleBindingFinalizer = "networking.liqo.io/clusterrolebinding"
 	// GatewayNameLabel is the label added to a resource to identify the Gateway it belongs to.
-	GatewayNameLabel = "liqo.io/gateway-name"
+	GatewayNameLabel = "networking.liqo.io/gateway-name"
 	// GatewayNamespaceLabel is the label added to a resource to identify the namespace of the Gateway it belongs to.
-	GatewayNamespaceLabel = "liqo.io/gateway-namespace"
+	GatewayNamespaceLabel = "networking.liqo.io/gateway-namespace"
 )
