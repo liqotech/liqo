@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" .
 FROM alpine:3.18
 
 RUN apk update && \
-    apk add nftables bash tcpdump conntrack-tools curl iputils && \
+    apk add iproute2 nftables bash tcpdump conntrack-tools curl iputils && \
     rm -rf /var/cache/apk/*
 
 COPY --from=goBuilder /tmp/builder/geneve /usr/bin/liqo-geneve
