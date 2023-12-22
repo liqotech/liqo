@@ -20,7 +20,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/metal-stack/go-ipam v1.11.3
 	github.com/miekg/dns v1.1.50
-	github.com/mittwald/go-helm-client v0.12.4
+	github.com/mittwald/go-helm-client v0.12.5
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
 	github.com/openshift/api v0.0.0-20210521075222-e273a339932a
