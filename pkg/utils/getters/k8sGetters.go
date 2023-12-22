@@ -484,6 +484,16 @@ func ListInternalNodesByLabels(ctx context.Context, cl client.Client,
 	return list, nil
 }
 
+// ListInternalFabricsByLabels returns the list of internalfabrics resources.
+func ListInternalFabricsByLabels(ctx context.Context, cl client.Client,
+	lSelector labels.Selector) (*networkingv1alpha1.InternalFabricList, error) {
+	list := new(networkingv1alpha1.InternalFabricList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
 // GetUniqueNetworkByLabel retrieves the Network resource with the given label selector.
 // It returns error if multiple resources are found.
 func GetUniqueNetworkByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*ipamv1alpha1.Network, error) {

@@ -28,6 +28,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -97,6 +98,7 @@ func (r *ServerReconciler) ensureInternalFabric(ctx context.Context, gwServer *n
 		},
 	}
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, internalFabric, func() error {
+		var err error
 		if internalFabric.Labels == nil {
 			internalFabric.Labels = make(map[string]string)
 		}
@@ -106,6 +108,9 @@ func (r *ServerReconciler) ensureInternalFabric(ctx context.Context, gwServer *n
 
 		if gwServer.Status.InternalEndpoint != nil && gwServer.Status.InternalEndpoint.IP != nil {
 			internalFabric.Spec.GatewayIP = *gwServer.Status.InternalEndpoint.IP
+			if internalFabric.Spec.Interface.Node.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalFabric); err != nil {
+				return err
+			}
 		}
 
 		internalFabric.Spec.RemoteCIDRs = []networkingv1alpha1.CIDR{
