@@ -26,23 +26,25 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
-const maxretries = 20
+const (
+	maxretries          = 20
+	interfaceNameLength = 15
+)
 
 // FindFreeInterfaceName returns a free  interface name.
 // If it cannot find a free name, it returns an error.
 func FindFreeInterfaceName(ctx context.Context, cl client.Client, i interface{}) (string, error) {
 	switch obj := i.(type) {
 	case *networkingv1alpha1.InternalNode:
-		return findFreeInterfaceNameForInternalNode(ctx, cl, obj)
+		return findFreeInterfaceNameForInternalNode(ctx, cl)
 	case *networkingv1alpha1.InternalFabric:
-		return findFreeInterfaceNameForInternalFabric(ctx, cl, obj)
+		return findFreeInterfaceNameForInternalFabric(ctx, cl)
 	default:
 		return "", fmt.Errorf("type %T not supported", obj)
 	}
 }
 
-func findFreeInterfaceNameForInternalFabric(ctx context.Context, cl client.Client,
-	internalfabric *networkingv1alpha1.InternalFabric) (string, error) {
+func findFreeInterfaceNameForInternalFabric(ctx context.Context, cl client.Client) (string, error) {
 	list, err := getters.ListInternalFabricsByLabels(ctx, cl, labels.Everything())
 	if err != nil {
 		return "", fmt.Errorf("cannot list internal nodes: %w", err)
@@ -52,7 +54,7 @@ func findFreeInterfaceNameForInternalFabric(ctx context.Context, cl client.Clien
 	retry := 0
 	var name string
 	for !ok && retry < maxretries {
-		name = forgeInterfaceName(internalfabric.Name)
+		name = rand.String(interfaceNameLength)
 		ok = true
 		for i := range list.Items {
 			if list.Items[i].Spec.Interface.Node.Name == name {
@@ -68,7 +70,7 @@ func findFreeInterfaceNameForInternalFabric(ctx context.Context, cl client.Clien
 	return name, nil
 }
 
-func findFreeInterfaceNameForInternalNode(ctx context.Context, cl client.Client, internalfabric *networkingv1alpha1.InternalNode) (string, error) {
+func findFreeInterfaceNameForInternalNode(ctx context.Context, cl client.Client) (string, error) {
 	list, err := getters.ListInternalNodesByLabels(ctx, cl, labels.Everything())
 	if err != nil {
 		return "", fmt.Errorf("cannot list internal nodes: %w", err)
@@ -78,7 +80,7 @@ func findFreeInterfaceNameForInternalNode(ctx context.Context, cl client.Client,
 	retry := 0
 	var name string
 	for !ok && retry < maxretries {
-		name = forgeInterfaceName(internalfabric.Name)
+		name = rand.String(interfaceNameLength)
 		ok = true
 		for i := range list.Items {
 			if list.Items[i].Spec.Interface.Gateway.Name == name {
@@ -92,13 +94,4 @@ func findFreeInterfaceNameForInternalNode(ctx context.Context, cl client.Client,
 		return "", fmt.Errorf("cannot find a free  interface name")
 	}
 	return name, nil
-}
-
-// forgeInterfaceName creates a new netlink interface name starting from a string.
-// The interface name can be at most 15 characters long.
-func forgeInterfaceName(name string) string {
-	if len(name) <= 15 {
-		return name
-	}
-	return rand.String(15)
 }
