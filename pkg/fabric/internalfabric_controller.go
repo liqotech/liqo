@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package geneve
+package fabric
 
 import (
 	"context"
@@ -26,22 +26,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/utils/geneve"
 )
 
-// InternalNodeReconciler manage InternalNode.
-type InternalNodeReconciler struct {
+// InternalFabricReconciler manage internalfabric.
+type InternalFabricReconciler struct {
 	client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 	Options        *Options
 }
 
-// NewInternalNodeReconciler returns a new InternalNodeReconciler.
-func NewInternalNodeReconciler(cl client.Client, s *runtime.Scheme,
-	er record.EventRecorder, opts *Options) (*InternalNodeReconciler, error) {
-	return &InternalNodeReconciler{
+// NewInternalFabricReconciler returns a new InternalFabricReconciler.
+func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme,
+	er record.EventRecorder, opts *Options) (*InternalFabricReconciler, error) {
+	return &InternalFabricReconciler{
 		Client:         cl,
 		Scheme:         s,
 		EventsRecorder: er,
@@ -50,47 +49,45 @@ func NewInternalNodeReconciler(cl client.Client, s *runtime.Scheme,
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch;update;patch
 
-// Reconcile manage InternalNodes.
-func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+// Reconcile manage InternalFabrics.
+func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	internalnode := &networkingv1alpha1.InternalNode{}
-	if err = r.Get(ctx, req.NamespacedName, internalnode); err != nil {
+	internalfabric := &networkingv1alpha1.InternalFabric{}
+	if err = r.Get(ctx, req.NamespacedName, internalfabric); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no internalnode %s", req.String())
+			klog.Infof("There is no internalfabric %s", req.String())
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", req.NamespacedName, err)
+		return ctrl.Result{}, fmt.Errorf("unable to get the internalfabric %q: %w", req.NamespacedName, err)
 	}
 
-	klog.V(4).Infof("Reconciling internalnode %s", req.String())
+	klog.V(4).Infof("Reconciling internalfabric %s", req.String())
 
-	// The internal fabric has the same name of the gateway resource.
-	internalNodeName := gateway.GenerateResourceName(r.Options.GwOptions.Name)
-	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalNodeName, internalnode.Name)
+	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalfabric.Name, r.Options.NodeName)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to get the geneve tunnel id: %w", err)
 	}
 
 	if err := geneve.EnsureGeneveInterfacePresence(
-		internalnode.Spec.Interface.Gateway.Name,
-		GeneveGatewayInterfaceIP,
-		internalnode.Spec.NodeAddress,
+		internalfabric.Spec.Interface.Node.Name,
+		GeneveNodeInterfaceIP,
+		string(internalfabric.Spec.GatewayIP),
 		id,
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface presence: %w", err)
 	}
 
-	klog.Infof("Created interface %s for internalnode %s", internalnode.Spec.Interface.Gateway.Name, internalnode.Name)
+	klog.Infof("Created interface %s for internalfabric %s", internalfabric.Spec.Interface.Node.Name, internalfabric.Name)
 
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager register the InternalNodeReconciler to the manager.
-func (r *InternalNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// SetupWithManager register the InternalFabricReconciler to the manager.
+func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.InternalNode{}).
+		For(&networkingv1alpha1.InternalFabric{}).
 		Complete(r)
 }

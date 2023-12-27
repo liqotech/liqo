@@ -123,6 +123,20 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup route configuration reconciler: %w", err)
 	}
 
+	ifr, err := fabric.NewInternalFabricReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("internalfabric-controller"),
+		options,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create internal fabric reconciler: %w", err)
+	}
+
+	if err := ifr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup internal fabric reconciler: %w", err)
+	}
+
 	// Start the manager.
 	return mgr.Start(cmd.Context())
 }
