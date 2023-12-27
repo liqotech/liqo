@@ -12,20 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package geneve contains utilities for the geneve interface
 package geneve
-
-import (
-	"github.com/liqotech/liqo/pkg/gateway"
-)
-
-// Options contains the options for the wireguard interface.
-type Options struct {
-	GwOptions *gateway.Options
-}
-
-// NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
-	return &Options{
-		GwOptions: options,
-	}
-}
