@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package fabric contains utilities to manage the internal network fabric.
+// Package fabric contains the logic to manage internal network fabric on each node.
 package fabric
