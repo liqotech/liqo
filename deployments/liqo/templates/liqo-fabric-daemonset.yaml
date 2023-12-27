@@ -52,6 +52,10 @@ spec:
           resources: {{- toYaml .Values.fabric.pod.resources | nindent 12 }}
           securityContext:
             privileged: true
+            capabilities:
+              add:
+              - NET_ADMIN
+              - NET_RAW
           env:
             - name: NODE_NAME
               valueFrom:
