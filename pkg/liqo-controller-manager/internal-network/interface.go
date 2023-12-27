@@ -36,8 +36,14 @@ const (
 func FindFreeInterfaceName(ctx context.Context, cl client.Client, i interface{}) (string, error) {
 	switch obj := i.(type) {
 	case *networkingv1alpha1.InternalNode:
+		if obj.Spec.Interface.Gateway.Name != "" {
+			return obj.Spec.Interface.Gateway.Name, nil
+		}
 		return findFreeInterfaceNameForInternalNode(ctx, cl)
 	case *networkingv1alpha1.InternalFabric:
+		if obj.Spec.Interface.Node.Name != "" {
+			return obj.Spec.Interface.Node.Name, nil
+		}
 		return findFreeInterfaceNameForInternalFabric(ctx, cl)
 	default:
 		return "", fmt.Errorf("type %T not supported", obj)
