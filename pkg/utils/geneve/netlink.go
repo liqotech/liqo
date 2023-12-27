@@ -19,39 +19,44 @@ import (
 	"net"
 
 	"github.com/vishvananda/netlink"
-
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 )
 
 // EnsureGeneveInterfacePresence ensures that a geneve interface exists for the given internal node.
-func EnsureGeneveInterfacePresence(internalnode *networkingv1alpha1.InternalNode, opts *Options) error {
-	interfaceName := internalnode.Spec.Interface.Gateway.Name
-	local := net.ParseIP(GeneveGatewayInterfaceIP)
-	nodeIP := net.ParseIP(internalnode.Spec.NodeAddress)
-	if nodeIP == nil {
-		nodeIPs, err := net.LookupIP(internalnode.Spec.NodeAddress)
+func EnsureGeneveInterfacePresence(interfaceName, localIP, remoteIP string, id uint32) error {
+	remoteIPNet := net.ParseIP(remoteIP)
+	if remoteIPNet == nil {
+		remoteIPsNet, err := net.LookupIP(remoteIP)
 		if err != nil {
 			return err
 		}
-		nodeIP = nodeIPs[0]
+		remoteIPNet = remoteIPsNet[0]
 	}
-	return CreateGeneveInterface(interfaceName, local, nodeIP, opts)
+	return CreateGeneveInterface(interfaceName,
+		net.ParseIP(localIP),
+		remoteIPNet,
+		id,
+	)
 }
 
 // CreateGeneveInterface creates a geneve interface with the given name, remote IP and ID.
-func CreateGeneveInterface(name string, local, remote net.IP, opts *Options) error {
+func CreateGeneveInterface(name string, local, remote net.IP, id uint32) error {
 	link := ExistGeneveInterface(name)
 	if link == nil {
 		link = &netlink.Geneve{
 			LinkAttrs: netlink.LinkAttrs{
-				Name: name,
+				Name:   name,
+				TxQLen: 1000,
 			},
-			ID:     opts.GeneveID,
+			ID:     id,
 			Remote: remote,
 		}
 		if err := netlink.LinkAdd(link); err != nil {
 			fmt.Printf("cannot create geneve link: %s", err)
 		}
+	}
+
+	if err := netlink.LinkSetUp(link); err != nil {
+		fmt.Printf("cannot set geneve link up: %s", err)
 	}
 
 	if ExistGeneveInterfaceAddr(link, local) == nil {
@@ -63,10 +68,6 @@ func CreateGeneveInterface(name string, local, remote net.IP, opts *Options) err
 		}); err != nil {
 			fmt.Printf("cannot add address to geneve link: %s", err)
 		}
-	}
-
-	if err := netlink.LinkSetUp(link); err != nil {
-		fmt.Printf("cannot set geneve link up: %s", err)
 	}
 
 	return nil
