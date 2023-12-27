@@ -12,20 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package geneve
+package fabric
 
-import (
-	"github.com/liqotech/liqo/pkg/gateway"
+const (
+	// GeneveNodeInterfaceIP is the IP address of the geneve interface on the node.
+	GeneveNodeInterfaceIP = "169.254.1.1"
 )
-
-// Options contains the options for the wireguard interface.
-type Options struct {
-	GwOptions *gateway.Options
-}
-
-// NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
-	return &Options{
-		GwOptions: options,
-	}
-}
