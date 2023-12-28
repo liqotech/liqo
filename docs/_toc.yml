@@ -34,6 +34,7 @@ subtrees:
       - file: usage/stateful-applications.md
       - file: usage/prometheus-metrics.md
       - file: usage/external-network.md
+      - file: usage/inter-cluster-network.md
       - file: usage/service-continuity.md
       - file: usage/security-modes.md
 
