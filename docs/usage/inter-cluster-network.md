@@ -344,8 +344,8 @@ kubectl wait --for jsonpath='{.status.remote.cidr.pod}' configuration $SERVER_CO
 kubectl wait --for jsonpath='{.status.remote.cidr.pod}' configuration $CLIENT_CONFIGURATION_NAME --timeout=300s --kubeconfig $KUBE_CLIENT
 
 # Get cluster IDs
-CLUSTER_ID_SERVER=$(kubectl get --kubeconfig $KUBE_SERVER -n liqo configmaps liqo-clusterid-configmap -o json | jq -r '.data.CLUSTER_ID')
-CLUSTER_ID_CLIENT=$(kubectl get --kubeconfig $KUBE_CLIENT -n liqo configmaps liqo-clusterid-configmap -o json | jq -r '.data.CLUSTER_ID')
+CLUSTER_ID_SERVER=$(liqoctl get cluster-config --cluster-id)
+CLUSTER_ID_CLIENT=$(liqoctl get cluster-config --cluster-id)
 
 # Create gateways
 liqoctl --kubeconfig $KUBE_SERVER create gatewayserver server --remote-cluster-id $CLUSTER_ID_CLIENT --service-type NodePort

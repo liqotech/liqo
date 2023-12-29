@@ -35,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/get"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/clusterconfig"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
@@ -50,6 +51,7 @@ var liqoResources = []rest.APIProvider{
 	gatewayserver.GatewayServer,
 	gatewayclient.GatewayClient,
 	publickey.PublicKey,
+	clusterconfig.ClusterConfig,
 }
 
 func init() {
