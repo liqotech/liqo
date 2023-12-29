@@ -1,7 +1,7 @@
 ---
 {{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
 
-{{- if and (.Values.networking.internal) (.Values.ipam.legacy) }}
+{{- if and (.Values.networking.internal) (.Values.networking.legacy) }}
 
 apiVersion: v1
 kind: ServiceAccount
