@@ -127,7 +127,6 @@
 | ipam.internal.pod.labels | object | `{}` | Labels for the IPAM pod. |
 | ipam.internal.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the proxy pod. |
 | ipam.internal.replicas | int | `1` | The number of IPAM instances to run, which can be increased for active/passive high availability. |
-| ipam.legacy | bool | `false` |  |
 | ipam.podCIDR | string | `""` | The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16). |
 | ipam.reservedSubnets | list | `[]` | List of IP subnets that do not have to be used by Liqo. Liqo can perform automatic IP address remapping when a remote cluster is peering with you, e.g., in case IP address spaces (e.g., PodCIDR) overlaps. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet, then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
 | ipam.serviceCIDR | string | `""` | The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16). |
@@ -162,6 +161,7 @@
 | networking.internal | bool | `true` | Use the default Liqo network manager. |
 | networking.iptables | object | `{"mode":"nf_tables"}` | Iptables configuration tuning. |
 | networking.iptables.mode | string | `"nf_tables"` | Select the iptables mode to use. Possible values are "legacy" and "nf_tables". |
+| networking.legacy | bool | `false` | Set to "false" to install the legacy networking stack. |
 | networking.mtu | int | `1340` | Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces. The value is used by the gateway and route operators. The default value is configured to ensure correct behavior regardless of the combination of the underlying environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.securityMode | string | `"FullPodToPod"` | Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation"  |
