@@ -1,4 +1,4 @@
-{{- if and (.Values.networking.internal) (not .Values.ipam.external.enabled) (not .Values.ipam.legacy ) }}
+{{- if and (.Values.networking.internal) (not .Values.ipam.external.enabled) (not .Values.networking.legacy ) }}
 
 {{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam" "version" .Values.ipam.internal.image.version) .) -}}
 {{- $ha := (gt .Values.ipam.internal.replicas 1.0) -}}
