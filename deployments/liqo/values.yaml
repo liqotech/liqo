@@ -24,6 +24,8 @@ apiServer:
   trustedCA: false
 
 networking:
+  # -- Set to "false" to install the legacy networking stack.
+  legacy: false
   # -- Use the default Liqo network manager.
   internal: true
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
@@ -209,7 +211,6 @@ controllerManager:
       labels: {}
 
 ipam:
-  legacy: false
   external:
     # -- Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM.
     enabled: false
