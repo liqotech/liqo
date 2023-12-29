@@ -26,7 +26,7 @@ type ClusterID string
 type ForeignClusterSpec struct {
 	// Foreign Cluster ID.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="ClusterID field is immutable"
-	ClusterID ClusterID `json:"clusterID"`
+	ClusterID ClusterID `json:"clusterID" yaml:"clusterID"`
 }
 
 // RoleType represents the role of a ForeignCluster.

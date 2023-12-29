@@ -230,8 +230,7 @@ spec:
 You can find *REMOTE_CLUSTER_ID* these parameters in the output of the
 
 ```bash
-kubectl get configmaps -n liqo liqo-clusterid-configmap \
-  --template {{.data.CLUSTER_ID}}
+liqoctl get cluster-config --cluster-id
 ```
 
 command in the remote cluster.

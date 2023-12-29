@@ -1,0 +1,71 @@
+// Copyright 2019-2024 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package clusterconfig
+
+import (
+	"fmt"
+
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+)
+
+// ClusterConfigType is the type of the cluster configuration.
+// This is the object that will be printed to the user.
+//
+//nolint:revive // It is a standard name.
+type ClusterConfigType struct {
+	ClusterID liqov1beta1.ClusterID `json:"clusterID" yaml:"clusterID"`
+}
+
+// Options encapsulates the arguments of the configuration command.
+type Options struct {
+	getOptions *rest.GetOptions
+
+	onlyClusterID bool
+}
+
+var _ rest.API = &Options{}
+
+// ClusterConfig returns the rest API for the cluster configuration command.
+func ClusterConfig() rest.API {
+	return &Options{}
+}
+
+// APIOptions returns the APIOptions for the cluster configuration API.
+func (o *Options) APIOptions() *rest.APIOptions {
+	return &rest.APIOptions{
+		EnableGet: true,
+	}
+}
+
+// output implements the logic to output the cluster configuration.
+func (o *Options) output(cc *ClusterConfigType) error {
+	var outputFormat string
+	switch {
+	case o.getOptions != nil:
+		outputFormat = o.getOptions.OutputFormat
+	default:
+		return fmt.Errorf("unable to determine output format")
+	}
+
+	switch outputFormat {
+	case "yaml":
+		return rest.OutputYAML(cc)
+	case "json":
+		return rest.OutputJSON(cc)
+	default:
+		return fmt.Errorf("unknown output format: %s", outputFormat)
+	}
+}

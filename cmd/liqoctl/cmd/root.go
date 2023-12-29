@@ -36,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/generate"
 	"github.com/liqotech/liqo/pkg/liqoctl/get"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/clusterconfig"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
@@ -61,6 +62,7 @@ var liqoResources = []rest.APIProvider{
 	identity.Identity,
 	resourceslice.ResourceSlice,
 	kubeconfig.Kubeconfig,
+	clusterconfig.ClusterConfig,
 }
 
 func init() {
