@@ -133,6 +133,20 @@ md-lint: markdownlint
 lint: golangci-lint
 	$(GOLANGCILINT) run --new
 
+# Install nilaway if not available
+nilaway:
+ifeq (, $(shell which nilaway))
+	@go install go.uber.org/nilaway/cmd/nilaway@latest
+NILAWAY=$(GOBIN)/nilaway
+else
+NILAWAY=$(shell which nilaway)
+endif
+
+# Run static check anaylisis tools.
+# - nilaway: static analysis tool to detect potential Nil panics in Go code
+staticcheck: nilaway
+	$(NILAWAY) -include-pkgs github.com/liqotech/liqo ./...
+
 generate-controller: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."
 
