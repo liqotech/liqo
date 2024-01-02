@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package firewall
+package utils
 
 import (
 	"fmt"
@@ -20,9 +20,11 @@ import (
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
+
+	firewallv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 )
 
-func applyMatch(m *Match, rule *nftables.Rule) error {
+func applyMatch(m *firewallv1alpha1.Match, rule *nftables.Rule) error {
 	op, err := getMatchCmpOp(m)
 	if err != nil {
 		return err
@@ -37,23 +39,23 @@ func applyMatch(m *Match, rule *nftables.Rule) error {
 	return nil
 }
 
-func applyMatchIP(m *Match, rule *nftables.Rule, op expr.CmpOp) error {
-	matchIPValueType, err := GetIPValueType(&m.IP.Value)
+func applyMatchIP(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+	matchIPValueType, err := firewallv1alpha1.GetIPValueType(&m.IP.Value)
 	if err != nil {
 		return err
 	}
 
 	switch matchIPValueType {
-	case IPValueTypeIP:
+	case firewallv1alpha1.IPValueTypeIP:
 		return applyMatchIPSingleIP(m, rule, op)
-	case IPValueTypeSubnet:
+	case firewallv1alpha1.IPValueTypeSubnet:
 		return applyMatchIPPoolSubnet(m, rule, op)
 	default:
 		return fmt.Errorf("invalid match value type %s", matchIPValueType)
 	}
 }
 
-func applyMatchIPSingleIP(m *Match, rule *nftables.Rule, op expr.CmpOp) error {
+func applyMatchIPSingleIP(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
 	posOffset, err := getMatchIPPositionOffset(m)
 	if err != nil {
 		return err
@@ -75,7 +77,7 @@ func applyMatchIPSingleIP(m *Match, rule *nftables.Rule, op expr.CmpOp) error {
 	return nil
 }
 
-func applyMatchIPPoolSubnet(m *Match, rule *nftables.Rule, op expr.CmpOp) error {
+func applyMatchIPPoolSubnet(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
 	posOffset, err := getMatchIPPositionOffset(m)
 	if err != nil {
 		return err
@@ -109,7 +111,7 @@ func applyMatchIPPoolSubnet(m *Match, rule *nftables.Rule, op expr.CmpOp) error 
 	return nil
 }
 
-func applyMatchDev(m *Match, rule *nftables.Rule, op expr.CmpOp) error {
+func applyMatchDev(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
 	metakey, err := getMatchDevMetaKey(m)
 	if err != nil {
 		return err
@@ -130,31 +132,31 @@ func applyMatchDev(m *Match, rule *nftables.Rule, op expr.CmpOp) error {
 	return nil
 }
 
-func getMatchCmpOp(m *Match) (expr.CmpOp, error) {
+func getMatchCmpOp(m *firewallv1alpha1.Match) (expr.CmpOp, error) {
 	switch m.Op {
-	case MatchOperationEq:
+	case firewallv1alpha1.MatchOperationEq:
 		return expr.CmpOpEq, nil
-	case MatchOperationNeq:
+	case firewallv1alpha1.MatchOperationNeq:
 		return expr.CmpOpNeq, nil
 	}
 	return expr.CmpOp(0), fmt.Errorf("invalid match operation %s", m.Op)
 }
 
-func getMatchIPPositionOffset(m *Match) (uint32, error) {
+func getMatchIPPositionOffset(m *firewallv1alpha1.Match) (uint32, error) {
 	switch m.IP.Position {
-	case MatchIPPositionSrc:
+	case firewallv1alpha1.MatchIPPositionSrc:
 		return 12, nil
-	case MatchIPPositionDst:
+	case firewallv1alpha1.MatchIPPositionDst:
 		return 16, nil
 	}
 	return 0, fmt.Errorf("invalid match IP position %s", m.Dev.Position)
 }
 
-func getMatchDevMetaKey(m *Match) (expr.MetaKey, error) {
+func getMatchDevMetaKey(m *firewallv1alpha1.Match) (expr.MetaKey, error) {
 	switch m.Dev.Position {
-	case MatchDevPositionIn:
+	case firewallv1alpha1.MatchDevPositionIn:
 		return expr.MetaKeyIIFNAME, nil
-	case MatchDevPositionOut:
+	case firewallv1alpha1.MatchDevPositionOut:
 		return expr.MetaKeyOIFNAME, nil
 	}
 	return 0, fmt.Errorf("invalid match IP position %s", m.Dev.Position)

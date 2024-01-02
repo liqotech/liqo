@@ -12,28 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package firewall
+package utils
 
 import "github.com/google/nftables"
 
-// GetName returns the name of the rule.
-func (rr *RouteRule) GetName() *string {
-	return rr.Name
-}
-
-// SetName sets the name of the rule.
-func (rr *RouteRule) SetName(name string) {
-	rr.Name = &name
-}
-
-// Add adds the rule to the chain.
-func (rr *RouteRule) Add(_ *nftables.Conn, _ *nftables.Chain) error {
-	// TODO: implement
-	return nil
-}
-
-// Equal checks if the rule is equal to the given one.
-func (rr *RouteRule) Equal(_ *nftables.Rule) bool {
-	// TODO: implement
-	return true
+// Rule is a rule to be applied to a chain.
+type Rule interface {
+	GetName() *string
+	SetName(string)
+	Add(nftconn *nftables.Conn, chain *nftables.Chain) error
+	Equal(rule *nftables.Rule) bool
 }
