@@ -12,16 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package generate_test
+package rest
 
 import (
-	"testing"
+	"encoding/json"
+	"os"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v3"
 )
 
-func TestGenerate(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Generate Suite")
+// OutputYAML prints the given object in YAML format.
+func OutputYAML(v any) error {
+	enc := yaml.NewEncoder(os.Stdout)
+	return enc.Encode(v)
+}
+
+// OutputJSON prints the given object in JSON format with indentation.
+func OutputJSON(v any) error {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
 }
