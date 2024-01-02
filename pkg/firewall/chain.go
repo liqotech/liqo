@@ -19,6 +19,7 @@ import (
 	"k8s.io/klog/v2"
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )
 
 func addChains(nftConn *nftables.Conn, chains []firewallapi.Chain, table *nftables.Table) error {
@@ -213,27 +214,27 @@ func isChainModified(nftChain *nftables.Chain, chain *firewallapi.Chain) bool {
 }
 
 // FromChainToRulesArray converts a chain to an array of rules.
-func FromChainToRulesArray(chain *firewallapi.Chain) (rules []firewallapi.Rule) {
+func FromChainToRulesArray(chain *firewallapi.Chain) (rules []firewallutils.Rule) {
 	switch *chain.Type {
 	case firewallapi.ChainTypeFilter:
-		rules = make([]firewallapi.Rule, len(chain.Rules.FilterRules))
+		rules = make([]firewallutils.Rule, len(chain.Rules.FilterRules))
 		for i := range chain.Rules.FilterRules {
-			rules[i] = &chain.Rules.FilterRules[i]
+			rules[i] = &firewallutils.FilterRuleWrapper{FilterRule: &chain.Rules.FilterRules[i]}
 		}
 		return rules
 	case firewallapi.ChainTypeNAT:
-		rules = make([]firewallapi.Rule, len(chain.Rules.NatRules))
+		rules = make([]firewallutils.Rule, len(chain.Rules.NatRules))
 		for i := range chain.Rules.NatRules {
-			rules[i] = &chain.Rules.NatRules[i]
+			rules[i] = &firewallutils.NatRuleWrapper{NatRule: &chain.Rules.NatRules[i]}
 		}
 	case firewallapi.ChainTypeRoute:
-		rules = make([]firewallapi.Rule, len(chain.Rules.RouteRules))
+		rules = make([]firewallutils.Rule, len(chain.Rules.RouteRules))
 		for i := range chain.Rules.RouteRules {
-			rules[i] = &chain.Rules.RouteRules[i]
+			rules[i] = &firewallutils.RouteRuleWrapper{RouteRule: &chain.Rules.RouteRules[i]}
 		}
 	default:
 		klog.Warningf("unknown chain type %v", chain.Type)
-		rules = []firewallapi.Rule{}
+		rules = []firewallutils.Rule{}
 	}
 	// It is not necessary, but linter complains
 	return rules

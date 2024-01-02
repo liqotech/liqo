@@ -40,11 +40,11 @@ func checkNatRuleTo(natrule *firewallapi.NatRule) error {
 	switch natrule.NatType {
 	case firewallapi.NatTypeDestination, firewallapi.NatTypeSource:
 		if natrule.To == nil {
-			return fmt.Errorf("natrule %s is %s but has no To field", *natrule.GetName(), natrule.NatType)
+			return fmt.Errorf("natrule %s is %s but has no To field", *natrule.Name, natrule.NatType)
 		}
 	case firewallapi.NatTypeMasquerade:
 		if natrule.To != nil {
-			return fmt.Errorf("natrule %s is Masquerade or masquerade but has a To field", *natrule.GetName())
+			return fmt.Errorf("natrule %s is Masquerade or masquerade but has a To field", *natrule.Name)
 		}
 	}
 	return nil
@@ -55,7 +55,7 @@ func checkNatRuleChainHook(hook firewallapi.ChainHook, rule *firewallapi.NatRule
 	case firewallapi.ChainHookPostrouting:
 		switch rule.NatType {
 		case firewallapi.NatTypeDestination:
-			return fmt.Errorf("natrule %s is DNAT that is incompatible with postrouting", *rule.GetName())
+			return fmt.Errorf("natrule %s is DNAT that is incompatible with postrouting", *rule.Name)
 		case firewallapi.NatTypeSource, firewallapi.NatTypeMasquerade:
 			return nil
 		}
@@ -64,12 +64,12 @@ func checkNatRuleChainHook(hook firewallapi.ChainHook, rule *firewallapi.NatRule
 		case firewallapi.NatTypeDestination:
 			return nil
 		case firewallapi.NatTypeSource, firewallapi.NatTypeMasquerade:
-			return fmt.Errorf("natrule %s is SNAT that is incompatible with prerouting", *rule.GetName())
+			return fmt.Errorf("natrule %s is SNAT that is incompatible with prerouting", *rule.Name)
 		}
 	case firewallapi.ChainHookInput:
 		switch rule.NatType {
 		case firewallapi.NatTypeDestination:
-			return fmt.Errorf("natrule %s is DNAT that is incompatible with input", *rule.GetName())
+			return fmt.Errorf("natrule %s is DNAT that is incompatible with input", *rule.Name)
 		case firewallapi.NatTypeSource, firewallapi.NatTypeMasquerade:
 			return nil
 		}
@@ -78,7 +78,7 @@ func checkNatRuleChainHook(hook firewallapi.ChainHook, rule *firewallapi.NatRule
 		case firewallapi.NatTypeDestination:
 			return nil
 		case firewallapi.NatTypeSource, firewallapi.NatTypeMasquerade:
-			return fmt.Errorf("natrule %s is SNAT that is incompatible with output", *rule.GetName())
+			return fmt.Errorf("natrule %s is SNAT that is incompatible with output", *rule.Name)
 		}
 	default:
 		return fmt.Errorf("hook %s is not a valid hook", hook)
