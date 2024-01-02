@@ -12,28 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package firewall
+package utils
 
-import "github.com/google/nftables"
+import (
+	"github.com/google/nftables"
+
+	firewallv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+)
+
+var _ Rule = &FilterRuleWrapper{}
+
+// RouteRuleWrapper is a wrapper for a RouteRule.
+type RouteRuleWrapper struct {
+	*firewallv1alpha1.RouteRule
+}
 
 // GetName returns the name of the rule.
-func (fr *FilterRule) GetName() *string {
-	return fr.Name
+func (rr *RouteRuleWrapper) GetName() *string {
+	return rr.Name
 }
 
 // SetName sets the name of the rule.
-func (fr *FilterRule) SetName(name string) {
-	fr.Name = &name
+func (rr *RouteRuleWrapper) SetName(name string) {
+	rr.Name = &name
 }
 
 // Add adds the rule to the chain.
-func (fr *FilterRule) Add(_ *nftables.Conn, _ *nftables.Chain) error {
+func (rr *RouteRuleWrapper) Add(_ *nftables.Conn, _ *nftables.Chain) error {
 	// TODO: implement
 	return nil
 }
 
 // Equal checks if the rule is equal to the given one.
-func (fr *FilterRule) Equal(_ *nftables.Rule) bool {
+func (rr *RouteRuleWrapper) Equal(_ *nftables.Rule) bool {
 	// TODO: implement
 	return true
 }
