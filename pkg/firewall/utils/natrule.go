@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package firewall
+package utils
 
 import (
 	"bytes"
@@ -23,21 +23,30 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	"github.com/google/nftables/userdata"
+
+	firewallv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 )
 
+var _ Rule = &NatRuleWrapper{}
+
+// NatRuleWrapper wraps a NatRule.
+type NatRuleWrapper struct {
+	*firewallv1alpha1.NatRule
+}
+
 // GetName returns the name of the rule.
-func (nr *NatRule) GetName() *string {
+func (nr *NatRuleWrapper) GetName() *string {
 	return nr.Name
 }
 
 // SetName sets the name of the rule.
-func (nr *NatRule) SetName(name string) {
+func (nr *NatRuleWrapper) SetName(name string) {
 	nr.Name = &name
 }
 
 // Add adds the rule to the chain.
-func (nr *NatRule) Add(nftconn *nftables.Conn, chain *nftables.Chain) error {
-	rule, err := forgeNatRule(nr, chain)
+func (nr *NatRuleWrapper) Add(nftconn *nftables.Conn, chain *nftables.Chain) error {
+	rule, err := forgeNatRule(nr.NatRule, chain)
 	if err != nil {
 		return err
 	}
@@ -47,9 +56,9 @@ func (nr *NatRule) Add(nftconn *nftables.Conn, chain *nftables.Chain) error {
 }
 
 // Equal checks if the rule is equal to the given one.
-func (nr *NatRule) Equal(currentrule *nftables.Rule) bool {
+func (nr *NatRuleWrapper) Equal(currentrule *nftables.Rule) bool {
 	currentrule.Chain.Table = currentrule.Table
-	newrule, err := forgeNatRule(nr, currentrule.Chain)
+	newrule, err := forgeNatRule(nr.NatRule, currentrule.Chain)
 	if err != nil {
 		return false
 	}
@@ -72,7 +81,7 @@ func (nr *NatRule) Equal(currentrule *nftables.Rule) bool {
 	return true
 }
 
-func forgeNatRule(nr *NatRule, chain *nftables.Chain) (*nftables.Rule, error) {
+func forgeNatRule(nr *firewallv1alpha1.NatRule, chain *nftables.Chain) (*nftables.Rule, error) {
 	rule := &nftables.Rule{
 		Table:    chain.Table,
 		Chain:    chain,
@@ -92,8 +101,8 @@ func forgeNatRule(nr *NatRule, chain *nftables.Chain) (*nftables.Rule, error) {
 	return rule, nil
 }
 
-func applyNatRule(nr *NatRule, rule *nftables.Rule) error {
-	ipType, err := GetIPValueType(nr.To)
+func applyNatRule(nr *firewallv1alpha1.NatRule, rule *nftables.Rule) error {
+	ipType, err := firewallv1alpha1.GetIPValueType(nr.To)
 	if err != nil {
 		return err
 	}
@@ -104,11 +113,11 @@ func applyNatRule(nr *NatRule, rule *nftables.Rule) error {
 	}
 
 	switch ipType {
-	case IPValueTypeIP:
+	case firewallv1alpha1.IPValueTypeIP:
 		return applyNatIP(nr.To, natType, rule)
-	case IPValueTypeSubnet:
+	case firewallv1alpha1.IPValueTypeSubnet:
 		return applyNatSubnet(nr.To, natType, rule)
-	case IPValueTypeVoid:
+	case firewallv1alpha1.IPValueTypeVoid:
 		return applyNatVoid(rule)
 	}
 	return nil
@@ -177,11 +186,11 @@ func applyNatSubnet(ip *string, natType expr.NATType, rule *nftables.Rule) error
 	return nil
 }
 
-func getNatRuleType(natrule *NatRule) (expr.NATType, error) {
+func getNatRuleType(natrule *firewallv1alpha1.NatRule) (expr.NATType, error) {
 	switch natrule.NatType {
-	case NatTypeDestination:
+	case firewallv1alpha1.NatTypeDestination:
 		return expr.NATTypeDestNAT, nil
-	case NatTypeSource, NatTypeMasquerade:
+	case firewallv1alpha1.NatTypeSource, firewallv1alpha1.NatTypeMasquerade:
 		return expr.NATTypeSourceNAT, nil
 	default:
 		return expr.NATType(0), fmt.Errorf("invalid nat type %s", natrule.NatType)
