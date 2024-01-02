@@ -21,6 +21,7 @@ import (
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 	"github.com/liqotech/liqo/pkg/firewall"
+	firewallutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )
 
 func checkRulesInChain(chain *firewallapi.Chain) error {
@@ -34,7 +35,7 @@ func checkRulesInChain(chain *firewallapi.Chain) error {
 	return nil
 }
 
-func checkVoidRuleName(rules []firewallapi.Rule) error {
+func checkVoidRuleName(rules []firewallutils.Rule) error {
 	for i := range rules {
 		name := rules[i].GetName()
 		if name == nil || *name == "" {
@@ -44,7 +45,7 @@ func checkVoidRuleName(rules []firewallapi.Rule) error {
 	return nil
 }
 
-func checkUniqueRuleNames(rules []firewallapi.Rule) error {
+func checkUniqueRuleNames(rules []firewallutils.Rule) error {
 	names := map[string]interface{}{}
 	for i := range rules {
 		name := rules[i].GetName()

@@ -14,18 +14,6 @@
 
 package firewall
 
-import (
-	"github.com/google/nftables"
-)
-
-// Rule is a rule to be applied to a chain.
-type Rule interface {
-	GetName() *string
-	SetName(string)
-	Add(nftconn *nftables.Conn, chain *nftables.Chain) error
-	Equal(rule *nftables.Rule) bool
-}
-
 // RulesSet is a set of rules to be applied to a chain.
 // +kubebuilder:object:generate=true
 // +kubebuilder:validation:MaxProperties=1

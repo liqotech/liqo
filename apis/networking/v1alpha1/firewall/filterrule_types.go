@@ -14,8 +14,6 @@
 
 package firewall
 
-var _ Rule = &FilterRule{}
-
 // FilterRule is a rule to be applied to a filter chain.
 // +kubebuilder:object:generate=true
 type FilterRule struct {

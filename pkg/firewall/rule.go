@@ -19,6 +19,7 @@ import (
 	"github.com/google/nftables/userdata"
 
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )
 
 func addRules(nftconn *nftables.Conn, chain *firewallapi.Chain, nftchain *nftables.Chain) error {
@@ -37,7 +38,7 @@ func addRules(nftconn *nftables.Conn, chain *firewallapi.Chain, nftchain *nftabl
 	return nil
 }
 
-func existRule(nftrules []*nftables.Rule, rule firewallapi.Rule) bool {
+func existRule(nftrules []*nftables.Rule, rule firewallutils.Rule) bool {
 	for i := range nftrules {
 		name, ok := userdata.GetString(nftrules[i].UserData, userdata.TypeComment)
 		if !ok {
@@ -53,7 +54,7 @@ func existRule(nftrules []*nftables.Rule, rule firewallapi.Rule) bool {
 // isRuleOutdated checks if the rule has to be deleted.
 // A rule must be deleted when it's properties change
 // or when it is not contained in the FirewallConfiguration CRD.
-func isRuleOutdated(nftrule *nftables.Rule, rules []firewallapi.Rule) (outdated bool, ruleName string) {
+func isRuleOutdated(nftrule *nftables.Rule, rules []firewallutils.Rule) (outdated bool, ruleName string) {
 	nftRuleName, nftRuleHasName := userdata.GetString(nftrule.UserData, userdata.TypeComment)
 	if !nftRuleHasName {
 		return true, nftRuleName

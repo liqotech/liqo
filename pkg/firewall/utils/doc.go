@@ -12,11 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package firewall
-
-// RouteRule is a rule to be applied to a route chain.
-// +kubebuilder:object:generate=true
-type RouteRule struct {
-	// Name is the name of the rule.
-	Name *string `json:"name,omitempty"`
-}
+// Package utils contains utility functions for firewalls.
+package utils

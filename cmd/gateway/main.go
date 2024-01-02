@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
@@ -63,7 +64,7 @@ func main() {
 	klog.InitFlags(legacyflags)
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
-	defInfaName, err := gateway.GetDefaultInterfaceName()
+	defInfaName, err := getDefaultInterfaceName()
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
@@ -187,4 +188,24 @@ func run(_ *cobra.Command, _ []string) error {
 
 	// Start the manager.
 	return mgr.Start(ctx)
+}
+
+func getDefaultInterfaceName() (string, error) {
+	routes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{
+		Dst: nil,
+	}, netlink.RT_FILTER_DST)
+	if err != nil {
+		return "", err
+	}
+	if len(routes) == 0 {
+		return "", fmt.Errorf("no default route found")
+	}
+	link, err := netlink.LinkByIndex(routes[0].LinkIndex)
+	if err != nil {
+		return "", err
+	}
+	if link == nil {
+		return "", fmt.Errorf("no default interface found")
+	}
+	return link.Attrs().Name, err
 }

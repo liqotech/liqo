@@ -26,8 +26,6 @@ const (
 	NatTypeMasquerade NatType = "masquerade"
 )
 
-var _ Rule = &NatRule{}
-
 // NatRule is a rule to be applied to a NAT chain.
 // +kubebuilder:object:generate=true
 type NatRule struct {
