@@ -1,7 +1,6 @@
 <!-- markdownlint-disable first-line-h1 -->
 <p align="center">
   <a href="https://github.com/liqotech/liqo/actions/workflows/codeql.yml"><img src="https://github.com/liqotech/liqo/actions/workflows/codeql.yml/badge.svg" alt="Integration Pipeline Status"></a>
-  <a href="https://github.com/liqotech/liqo/actions/workflows/github-code-scanning/codeql"><img src="https://github.com/liqotech/liqo/actions/workflows/github-code-scanning/codeql/badge.svg" alt="CodeQL Status"></a>
   <a href="https://goreportcard.com/report/github.com/liqotech/liqo"><img src=https://goreportcard.com/badge/github.com/liqotech/liqo></a>
   <a href="https://coveralls.io/github/liqotech/liqo" alt="Liqo Test Coverage"><img src=https://coveralls.io/repos/github/liqotech/liqo/badge.svg?branch=master></a>
   <a href="https://docs.liqo.io/en/stable" alt="Liqo's Documentation"><img src="https://readthedocs.org/projects/liqo/badge/"></a>
