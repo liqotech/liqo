@@ -62,6 +62,8 @@ var _ = Describe("Pod forging", func() {
 			Expect(output.Status.PodIP).To(Equal("remote-ip-reflected"))
 			Expect(output.Status.PodIPs).To(ConsistOf(corev1.PodIP{IP: "remote-ip-reflected"}))
 			Expect(output.Status.HostIP).To(Equal(LiqoNodeIP))
+			Expect(output.Status.HostIPs).To(HaveLen(1))
+			Expect(output.Status.HostIPs[0]).To(Equal(corev1.HostIP{IP: LiqoNodeIP}))
 			Expect(output.Status.ContainerStatuses).To(HaveLen(1))
 			Expect(output.Status.ContainerStatuses[0].Ready).To(BeTrue())
 			Expect(output.Status.ContainerStatuses[0].RestartCount).To(BeNumerically("==", 4))

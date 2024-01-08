@@ -422,6 +422,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 					local.Status.PodIP = "192.168.201.25"
 					local.Status.PodIPs = []corev1.PodIP{{IP: "192.168.201.25"}}
 					local.Status.HostIP = LiqoNodeIP
+					local.Status.HostIPs = []corev1.HostIP{{IP: LiqoNodeIP}}
 					local.Status.ContainerStatuses = []corev1.ContainerStatus{{RestartCount: 1}}
 					local.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
 

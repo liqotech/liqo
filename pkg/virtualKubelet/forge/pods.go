@@ -103,6 +103,9 @@ func LocalPodStatus(remote *corev1.PodStatus, translator PodIPTranslator, restar
 		remote.PodIPs = []corev1.PodIP{{IP: remote.PodIP}}
 	}
 	remote.HostIP = LiqoNodeIP
+	remote.HostIPs = []corev1.HostIP{{
+		IP: LiqoNodeIP,
+	}}
 
 	// Increase the restart count if necessary
 	for idx := range remote.ContainerStatuses {
