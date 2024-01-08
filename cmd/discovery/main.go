@@ -91,7 +91,7 @@ func main() {
 		LeaderElectionID: "b3156c4e.liqo.io",
 	})
 	if err != nil {
-		klog.Errorf("Unable to create main manager: %w", err)
+		klog.Errorf("Unable to create main manager: %v", err)
 		os.Exit(1)
 	}
 
@@ -110,7 +110,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		klog.Errorf("Unable to create auxiliary (namespaced) manager: %w", err)
+		klog.Errorf("Unable to create auxiliary (namespaced) manager: %v", err)
 		os.Exit(1)
 	}
 
@@ -120,16 +120,16 @@ func main() {
 	discoveryCtl := discovery.NewDiscoveryCtrl(mgr.GetClient(), namespacedClient, *namespace,
 		clusterIdentity, mdnsConfig, *dialTCPTimeout)
 	if err := mgr.Add(discoveryCtl); err != nil {
-		klog.Errorf("Unable to add the discovery controller to the manager: %w", err)
+		klog.Errorf("Unable to add the discovery controller to the manager: %v", err)
 		os.Exit(1)
 	}
 
 	if err := mgr.Add(auxmgr); err != nil {
-		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
+		klog.Errorf("Unable to add the auxiliary manager to the main one: %v", err)
 		os.Exit(1)
 	}
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		klog.Errorf("Unable to start manager: %w", err)
+		klog.Errorf("Unable to start manager: %v", err)
 		os.Exit(1)
 	}
 }

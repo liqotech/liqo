@@ -165,12 +165,12 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 		},
 	})
 	if err != nil {
-		klog.Errorf("Unable to create auxiliary manager: %w", err)
+		klog.Errorf("Unable to create auxiliary manager: %v", err)
 		os.Exit(1)
 	}
 
 	if err := main.Add(auxmgrOffloadedPods); err != nil {
-		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
+		klog.Errorf("Unable to add the auxiliary manager to the main one: %v", err)
 		os.Exit(1)
 	}
 

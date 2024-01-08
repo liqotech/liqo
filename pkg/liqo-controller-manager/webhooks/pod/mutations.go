@@ -147,7 +147,7 @@ func mutatePod(namespaceOffloading *offv1alpha1.NamespaceOffloading, pod *corev1
 			namespaceOffloading.Namespace, namespaceOffloading.Spec.PodOffloadingStrategy)
 		return err
 	}
-	klog.V(5).Infof("Generated Toleration: %s", toleration)
+	klog.V(5).Infof("Generated Toleration: %s", toleration.String())
 
 	// Create the right NodeSelector according to the PodOffloadingStrategy case.
 	imposedNodeSelector, err := createNodeSelectorFromNamespaceOffloading(namespaceOffloading)

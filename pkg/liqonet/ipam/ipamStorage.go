@@ -285,7 +285,7 @@ func (ipamStorage *IPAMStorage) updateConfig(updateType string, data interface{}
 	unstr, err := ipamStorage.dynClient.Resource(netv1alpha1.IpamGroupVersionResource).Patch(context.Background(),
 		ipamStorage.getConfigName(), types.JSONPatchType, b.Bytes(), metav1.PatchOptions{})
 	if err != nil {
-		klog.Error("Failed to patch the IPAM resource: %v", err)
+		klog.Errorf("Failed to patch the IPAM resource: %v", err)
 		return err
 	}
 

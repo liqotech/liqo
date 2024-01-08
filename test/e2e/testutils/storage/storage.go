@@ -189,7 +189,7 @@ func WaitDemoApp(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions, replica
 
 // WriteToVolume writes a file to the volume of the StatefulSet.
 func WriteToVolume(ctx context.Context, cl kubernetes.Interface, config *rest.Config, namespace string) error {
-	_, _, err := testutils.ExecCmd(config, cl, fmt.Sprintf("%s-0", StatefulSetName), namespace,
+	_, _, err := testutils.ExecCmd(ctx, config, cl, fmt.Sprintf("%s-0", StatefulSetName), namespace,
 		"echo -n test > /usr/share/nginx/html/index.html")
 	return err
 }
@@ -197,7 +197,7 @@ func WriteToVolume(ctx context.Context, cl kubernetes.Interface, config *rest.Co
 // ReadFromVolume reads a file from the volume of the StatefulSet.
 func ReadFromVolume(ctx context.Context,
 	cl kubernetes.Interface, config *rest.Config, namespace string) (string, error) {
-	out, _, err := testutils.ExecCmd(config, cl, fmt.Sprintf("%s-0", StatefulSetName), namespace,
+	out, _, err := testutils.ExecCmd(ctx, config, cl, fmt.Sprintf("%s-0", StatefulSetName), namespace,
 		"cat /usr/share/nginx/html/index.html")
 	return out, err
 }

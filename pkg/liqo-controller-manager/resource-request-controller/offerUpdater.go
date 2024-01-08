@@ -245,7 +245,7 @@ func (u *OfferUpdater) shouldUpdate(clusterID string) bool {
 		oldResources := u.currentResources[clusterID][i]
 		newResources, err := u.ResourceReader.ReadResources(ctx, clusterID)
 		if err != nil {
-			klog.Errorf("Error while reading resources from external monitor: %w", err)
+			klog.Errorf("Error while reading resources from external monitor: %v", err)
 			// returns true when an error occurs in order to enqueue again the offer update, otherwise the update will be lost.
 			return true
 		}

@@ -255,7 +255,7 @@ func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedR
 			klog.Infof("[%v] Remote %v with name %v already vanished", r.remoteClusterID, key.gvr, key.name)
 			return true, nil
 		}
-		klog.Errorf("[%v] Failed to retrieve remote object %v: %v", r.remoteClusterID, key.gvr, key.name, err)
+		klog.Errorf("[%v] Failed to retrieve remote object %v %s: %v", r.remoteClusterID, key.gvr, key.name, err)
 		return false, err
 	}
 

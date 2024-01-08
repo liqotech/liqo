@@ -37,7 +37,7 @@ func (r *NamespaceMapReconciler) SetNamespaceMapControllerFinalizer(ctx context.
 
 	ctrlutils.AddFinalizer(nm, NamespaceMapControllerFinalizer)
 	if err := r.Update(ctx, nm); err != nil {
-		klog.Errorf("Failed to add finalizer to the NamespaceMap %q", klog.KObj(nm), err)
+		klog.Errorf("Failed to add finalizer to the NamespaceMap %q: %v", klog.KObj(nm), err)
 		return err
 	}
 
@@ -53,7 +53,7 @@ func (r *NamespaceMapReconciler) RemoveNamespaceMapControllerFinalizer(ctx conte
 
 	ctrlutils.RemoveFinalizer(nm, NamespaceMapControllerFinalizer)
 	if err := r.Update(ctx, nm); err != nil {
-		klog.Errorf("Failed to remove finalizer from NamespaceMap %q", klog.KObj(nm), err)
+		klog.Errorf("Failed to remove finalizer from NamespaceMap %q: %v", klog.KObj(nm), err)
 		return err
 	}
 

@@ -237,7 +237,7 @@ E2E_TARGETS = e2e-dir \
 # Export these variables before to run the e2e tests
 
 # export CLUSTER_NUMBER=2
-# export K8S_VERSION=v1.25.0
+# export K8S_VERSION=v1.27.3
 # export CNI=kindnet
 # export TMPDIR=$(mktemp -d)
 # export BINDIR=${TMPDIR}/bin
@@ -246,10 +246,11 @@ E2E_TARGETS = e2e-dir \
 # export TEMPLATE_DIR=${PWD}/test/e2e/pipeline/infra/kind
 # export NAMESPACE=liqo
 # export KUBECONFIGDIR=${TMPDIR}/kubeconfigs
-# export LIQO_VERSION=5e08ffc6e498ba312f9b161a3993887c321dc5f5
+# export LIQO_VERSION=cf55ff100e9d183d483693d63391446dce6cfdcc
 # export INFRA=kind
 # export LIQOCTL=${BINDIR}/liqoctl
 # export POD_CIDR_OVERLAPPING=false
+# export SECURITY_MODE=FullPodToPod
 # export TEMPLATE_FILE=cluster-templates.yaml.tmpl
 
 # Run e2e tests

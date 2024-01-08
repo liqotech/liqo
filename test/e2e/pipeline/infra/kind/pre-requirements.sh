@@ -27,7 +27,7 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-KIND_VERSION="v0.17.0"
+KIND_VERSION="v0.20.0"
 
 function setup_arch_and_os(){
   ARCH=$(uname -m)

@@ -128,7 +128,7 @@ func (authService *Controller) Start(ctx context.Context, address string, useTLS
 	// populate the lists of ClusterRoles to bind in the different peering states.
 	permissions, err := peeringroles.GetPeeringPermission(ctx, authService.clientset)
 	if err != nil {
-		klog.Errorf("Unable to populate peering permission: %w", err)
+		klog.Errorf("Unable to populate peering permission: %v", err)
 		return err
 	}
 	authService.peeringPermission = *permissions

@@ -286,7 +286,7 @@ func main() {
 	})
 
 	if err != nil {
-		klog.Errorf("Unable to create auxiliary manager: %w", err)
+		klog.Errorf("Unable to create auxiliary manager: %v", err)
 		os.Exit(1)
 	}
 
@@ -312,17 +312,17 @@ func main() {
 	})
 
 	if err != nil {
-		klog.Errorf("Unable to create auxiliary manager: %w", err)
+		klog.Errorf("Unable to create auxiliary manager: %v", err)
 		os.Exit(1)
 	}
 
 	if err := mgr.Add(auxmgrLocalPods); err != nil {
-		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
+		klog.Errorf("Unable to add the auxiliary manager to the main one: %v", err)
 		os.Exit(1)
 	}
 
 	if err := mgr.Add(auxmgrVirtualKubeletPods); err != nil {
-		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
+		klog.Errorf("Unable to add the auxiliary manager to the main one: %v", err)
 		os.Exit(1)
 	}
 
@@ -534,7 +534,7 @@ func main() {
 		LocalPodsClient: auxmgrLocalPods.GetClient(),
 	}
 	if err = podStatusReconciler.SetupWithManager(mgr); err != nil {
-		klog.Errorf("Unable to start the podstatus reconciler", err)
+		klog.Errorf("Unable to start the podstatus reconciler: %v", err)
 		os.Exit(1)
 	}
 
@@ -544,7 +544,7 @@ func main() {
 			Scheme: mgr.GetScheme(),
 		}
 		if err = nodeFailureReconciler.SetupWithManager(mgr); err != nil {
-			klog.Errorf("Unable to start the nodeFailureReconciler", err)
+			klog.Errorf("Unable to start the nodeFailureReconciler: %v", err)
 			os.Exit(1)
 		}
 	}
