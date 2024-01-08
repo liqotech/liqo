@@ -120,9 +120,9 @@ type ForeignClusterSpec struct {
 // ClusterIdentity contains the information about a remote cluster (ID and Name).
 type ClusterIdentity struct {
 	// Foreign Cluster ID, this is a unique identifier of that cluster.
-	ClusterID string `json:"clusterID"`
+	ClusterID string `json:"clusterID" yaml:"clusterID"`
 	// Foreign Cluster Name to be shown in GUIs.
-	ClusterName string `json:"clusterName"`
+	ClusterName string `json:"clusterName" yaml:"clusterName"`
 }
 
 // String returns the ClusterName. It makes it possible to format ClusterIdentities with %s.
