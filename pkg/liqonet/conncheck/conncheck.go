@@ -78,14 +78,14 @@ func (c *ConnChecker) AddAndRunSender(ctx context.Context, clusterID, ip string,
 
 	if err != nil {
 		c.sm.Unlock()
-		klog.Errorf("failed to create sender: %w", err)
+		klog.Errorf("failed to create sender: %v", err)
 		return
 	}
 
 	err = c.receiver.InitPeer(clusterID, updateCallback)
 	if err != nil {
 		c.sm.Unlock()
-		klog.Errorf("failed to add redirect chan: %w", err)
+		klog.Errorf("failed to add redirect chan: %v", err)
 	}
 
 	klog.Infof("conncheck sender %q starting against %q", clusterID, ip)

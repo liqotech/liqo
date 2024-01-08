@@ -48,5 +48,9 @@ do
 	envsubst < "${TEMPLATE_DIR}/templates/$CLUSTER_TEMPLATE_FILE" > "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml"
 	echo "Creating cluster ${CLUSTER_NAME}${i}..."
 	${KIND} create cluster --name "${CLUSTER_NAME}${i}" --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" --config "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml" --wait 2m
+
+	# Install metrics-server
+	"${KUBECTL}" apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.6.4/components.yaml --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+	"${KUBECTL}" -n kube-system patch deployment metrics-server --type json --patch '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]' --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done
 

@@ -154,7 +154,7 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 		// In order to take the ClusterID of the sender we need to retrieve it from the labels.
 		clusterID = cid
 	} else {
-		klog.Warning("NetworkConfig %q is invalid, as neither local nor remote", klog.KObj(&netConfig))
+		klog.Warningf("NetworkConfig %q is invalid, as neither local nor remote", klog.KObj(&netConfig))
 		return ctrl.Result{}, nil
 	}
 
@@ -225,7 +225,7 @@ func (tec *TunnelEndpointCreator) processNetworkConfig(ctx context.Context, clus
 			return nil
 		}
 
-		klog.Error("failed to retrieve local NetworkConfig for cluster %v: %v", clusterID, err)
+		klog.Errorf("failed to retrieve local NetworkConfig for cluster %v: %v", clusterID, err)
 		return err
 	}
 

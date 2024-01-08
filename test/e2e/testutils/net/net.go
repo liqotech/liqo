@@ -84,7 +84,7 @@ func CheckPodConnectivity(ctx context.Context,
 		return err
 	}
 	cmd := command + serverPod.Status.PodIP
-	return execCmd(homeConfig, homeClient, clientPod, cmd)
+	return execCmd(ctx, homeConfig, homeClient, clientPod, cmd)
 }
 
 // CheckServiceConnectivity contacts the remote service by executing the command inside podRemoteUpdateCluster1.
@@ -96,7 +96,7 @@ func CheckServiceConnectivity(ctx context.Context,
 		return err
 	}
 	cmd := command + serverPod.GetName()
-	return execCmd(homeConfig, homeClient, clientPod, cmd)
+	return execCmd(ctx, homeConfig, homeClient, clientPod, cmd)
 }
 
 func getPods(ctx context.Context, homeClient kubernetes.Interface,
@@ -113,9 +113,9 @@ func getPods(ctx context.Context, homeClient kubernetes.Interface,
 	return clientPod, serverPod, nil
 }
 
-func execCmd(homeConfig *restclient.Config, homeClient kubernetes.Interface, clientPod *v1.Pod, cmd string) error {
+func execCmd(ctx context.Context, homeConfig *restclient.Config, homeClient kubernetes.Interface, clientPod *v1.Pod, cmd string) error {
 	klog.Infof("running command %s", cmd)
-	stdout, stderr, err := util.ExecCmd(homeConfig, homeClient, clientPod.Name, clientPod.Namespace, cmd)
+	stdout, stderr, err := util.ExecCmd(ctx, homeConfig, homeClient, clientPod.Name, clientPod.Namespace, cmd)
 	klog.Infof("stdout: %s", stdout)
 	klog.Infof("stderr: %s", stderr)
 	if err != nil {

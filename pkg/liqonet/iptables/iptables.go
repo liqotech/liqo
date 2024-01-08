@@ -603,7 +603,7 @@ func buildRulesPerClusterForOffloadedPods(podsInfo *sync.Map, ipSetHandler *liqo
 	// Populate Pod IPs per cluster
 	podsInfo.Range(func(key, value any) bool {
 		podInfo := value.(PodInfo)
-		klog.Infof("buildIPSetPerClusterForOffloadedPods: %s", podInfo)
+		klog.Infof("buildIPSetPerClusterForOffloadedPods: %v", podInfo)
 		if _, ok := ipsPerCluster[podInfo.RemoteClusterID]; !ok {
 			// Add remote cluster ID key (regardless of pod being deleted or not)
 			ipsPerCluster[podInfo.RemoteClusterID] = []string{}
@@ -624,13 +624,13 @@ func buildRulesPerClusterForOffloadedPods(podsInfo *sync.Map, ipSetHandler *liqo
 		setName := getClusterIPSetForOffloadedPods(clusterID)
 		ipset, err := ipSetHandler.CreateSet(setName, "")
 		if err != nil {
-			klog.Infof("Error while creating IP set %q: %w", setName, err)
+			klog.Infof("Error while creating IP set %q: %v", setName, err)
 			return nil, err
 		}
 
 		// Clear IP set (just in case it already existed)
 		if err := ipSetHandler.FlushSet(ipset.Name); err != nil {
-			klog.Infof("Error while deleting all entries from IP set %q: %w", setName, err)
+			klog.Infof("Error while deleting all entries from IP set %q: %v", setName, err)
 			return nil, err
 		}
 
@@ -638,7 +638,7 @@ func buildRulesPerClusterForOffloadedPods(podsInfo *sync.Map, ipSetHandler *liqo
 			for _, podIP := range ips {
 				// Add pod's IP entry to IP set
 				if err := ipSetHandler.AddEntry(podIP, ipset); err != nil {
-					klog.Infof("Error while adding entry %q to IP set %q: %w", podIP, ipset.Name, err)
+					klog.Infof("Error while adding entry %q to IP set %q: %v", podIP, ipset.Name, err)
 					return nil, err
 				}
 			}
@@ -705,13 +705,13 @@ func buildRulesPerClusterForEndpointslicesReflected(
 			// Create IP set
 			ipset, err := ipSetHandler.CreateSet(croppedSetName, setName)
 			if err != nil {
-				klog.Infof("Error while creating IP set %q: %w", setName, err)
+				klog.Infof("Error while creating IP set %q: %v", setName, err)
 				return nil, err
 			}
 
 			// Clear IP set (just in case it already existed)
 			if err := ipSetHandler.FlushSet(ipset.Name); err != nil {
-				klog.Infof("Error while deleting all entries from IP set %q: %w", setName, err)
+				klog.Infof("Error while deleting all entries from IP set %q: %v", setName, err)
 				return nil, err
 			}
 
@@ -719,7 +719,7 @@ func buildRulesPerClusterForEndpointslicesReflected(
 				for _, ip := range endpointSet {
 					// Add endpoint's IP entry to IP set
 					if err := ipSetHandler.AddEntry(ip, ipset); err != nil {
-						klog.Infof("Error while adding entry %q to IP set %q: %w", ip, ipset.Name, err)
+						klog.Infof("Error while adding entry %q to IP set %q: %v", ip, ipset.Name, err)
 						return nil, err
 					}
 				}
@@ -996,7 +996,7 @@ func (h IPTHandler) insertRulesIfNotPresent(table, chain string, rules []IPTable
 	for _, rule := range rules {
 		exists, err := h.Ipt.Exists(table, chain, rule...)
 		if err != nil {
-			klog.Errorf("unable to check if rule '%s' exists in chain %s in table %s: %w", rule, chain, table, err)
+			klog.Errorf("unable to check if rule '%s' exists in chain %s in table %s: %v", rule, chain, table, err)
 			return err
 		}
 		if !exists {

@@ -16,6 +16,7 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -47,7 +48,8 @@ func ExecLiqoctl(kubeconfig string, args []string, output io.Writer) error {
 }
 
 // ExecCmd executes a command inside a pod.
-func ExecCmd(config *rest.Config, client kubernetes.Interface, podName, namespace, command string) (stdOut, stdErr string, retErr error) {
+func ExecCmd(ctx context.Context, config *rest.Config, client kubernetes.Interface,
+	podName, namespace, command string) (stdOut, stdErr string, retErr error) {
 	cmd := []string{
 		"sh",
 		"-c",
@@ -71,7 +73,7 @@ func ExecCmd(config *rest.Config, client kubernetes.Interface, podName, namespac
 	if err != nil {
 		return "", "", err
 	}
-	err = executor.Stream(remotecommandclient.StreamOptions{
+	err = executor.StreamWithContext(ctx, remotecommandclient.StreamOptions{
 		Stdin:  nil,
 		Stdout: &stdout,
 		Stderr: &stderr,

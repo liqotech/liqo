@@ -115,7 +115,7 @@ func (lbc *LabelerController) annotateGatewayService(ctx context.Context) error 
 	svc := &svcList.Items[0]
 	if liqonetutils.AddAnnotationToObj(svc, serviceAnnotationKey, lbc.PodIP) {
 		if err := lbc.Update(ctx, svc); err != nil {
-			klog.Errorf("an error occurred while annotating gateway service {%s/%s}: %v",
+			klog.Errorf("an error occurred while annotating gateway service {%s/%s} with annotation %s: %v",
 				svc.Namespace, svc.Name, serviceAnnotationKey, err)
 			return err
 		}

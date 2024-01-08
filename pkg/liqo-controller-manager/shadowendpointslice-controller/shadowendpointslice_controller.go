@@ -81,7 +81,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	fc, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, clusterID)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			klog.Error("foreigncluster (id: %q) associated with shadowendpointslice %q not found", clusterID, nsName)
+			klog.Errorf("foreigncluster (id: %q) associated with shadowendpointslice %q not found", clusterID, nsName)
 			return ctrl.Result{}, err
 		}
 		klog.Errorf("an error occurred while getting foreigncluster %q: %v", clusterID, err)

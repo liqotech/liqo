@@ -109,13 +109,13 @@ func (r *Receiver) Run(ctx context.Context) {
 	err := wait.PollUntilContextCancel(ctx, time.Duration(0), false, func(ctx context.Context) (done bool, err error) {
 		n, raddr, err := r.conn.ReadFromUDP(r.buff)
 		if err != nil {
-			klog.Errorf("conncheck receiver: failed to read from %s: %w", raddr.String(), err)
+			klog.Errorf("conncheck receiver: failed to read from %s: %v", raddr.String(), err)
 			return false, nil
 		}
 		msgr := &Msg{}
 		err = json.Unmarshal(r.buff[:n], msgr)
 		if err != nil {
-			klog.Errorf("conncheck receiver: failed to unmarshal msg: %w", err)
+			klog.Errorf("conncheck receiver: failed to unmarshal msg: %v", err)
 			return false, nil
 		}
 		klog.V(9).Infof("conncheck receiver: received a msg -> %s", msgr)

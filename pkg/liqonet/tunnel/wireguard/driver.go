@@ -143,7 +143,7 @@ func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) 
 	defer func() {
 		if err != nil {
 			if e := w.client.Close(); e != nil {
-				klog.Errorf("Failed to close client %w", e)
+				klog.Errorf("Failed to close client %v", e)
 			}
 			w.client = nil
 		}
@@ -365,7 +365,7 @@ func runWgUserCmd(cmd *exec.Cmd) {
 		if err != nil {
 			outStr, errStr := stdout.String(), stderr.String()
 			fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
-			klog.Fatalf("failed to run '%s': %w", cmd.String(), err)
+			klog.Fatalf("failed to run '%s': %v", cmd.String(), err)
 		}
 	}
 }

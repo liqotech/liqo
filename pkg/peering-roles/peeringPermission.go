@@ -85,7 +85,7 @@ func GetPeeringPermission(ctx context.Context, client kubernetes.Interface) (*Pe
 func getClusterRoles(ctx context.Context, client kubernetes.Interface, selector labels.Selector) ([]*rbacv1.ClusterRole, error) {
 	clusterroleslist, err := client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
-		klog.Error("Failed to retrieve ClusterRoles: %w", err)
+		klog.Errorf("Failed to retrieve ClusterRoles: %v", err)
 		return nil, err
 	}
 

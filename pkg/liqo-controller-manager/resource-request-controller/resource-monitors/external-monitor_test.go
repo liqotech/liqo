@@ -109,7 +109,7 @@ var _ = Describe("ResourceMonitors Suite", func() {
 			fakeServer.Ready.Wait()
 			resources, err := monitor.ReadResources(context.Background(), "")
 			if err != nil {
-				klog.Errorln("error while reading resources quota from grpc server: %s", err)
+				klog.Errorf("error while reading resources quota from grpc server: %v", err)
 			}
 			Expect(resources[0].Resources["cpu"].Equal(resource.MustParse("1000"))).To(BeTrue())
 			Expect(resources[0].Resources["memory"].Equal(resource.MustParse("200e6"))).To(BeTrue())

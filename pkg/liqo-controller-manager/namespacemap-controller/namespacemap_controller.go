@@ -101,7 +101,7 @@ func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 		namespace, name, err := cache.SplitMetaNamespaceKey(nm)
 		if err != nil {
-			klog.Warning("Failed to retrieve NamespaceMap associated with namespace %q, key: %q", obj.GetName(), nm)
+			klog.Warningf("Failed to retrieve NamespaceMap associated with namespace %q, key: %q", obj.GetName(), nm)
 			return nil
 		}
 

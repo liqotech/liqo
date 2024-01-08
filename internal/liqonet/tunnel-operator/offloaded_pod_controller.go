@@ -130,7 +130,7 @@ func (r *OffloadedPodController) Reconcile(ctx context.Context, req ctrl.Request
 	// Ensure iptables rules
 	klog.V(3).Infof("Ensuring updated iptables rules")
 	if err := r.gatewayNetns.Do(ensureIptablesRules); err != nil {
-		klog.Errorf("Error while ensuring iptables rules: %w", err)
+		klog.Errorf("Error while ensuring iptables rules: %v", err)
 		return ctrl.Result{}, err
 	}
 

@@ -114,7 +114,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) provisionClaimOperation(c
 	// provisioned)
 	claimRef, err := ref.GetReference(scheme.Scheme, claim)
 	if err != nil {
-		klog.Error("Unexpected error getting claim reference (local claim %q): %v", npvcr.LocalRef(claim.GetName()), err)
+		klog.Errorf("Unexpected error getting claim reference (local claim %q): %v", npvcr.LocalRef(claim.GetName()), err)
 		return controller.ProvisioningNoChange, err
 	}
 
@@ -122,14 +122,14 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) provisionClaimOperation(c
 	// retry the claim because the storageClass can be fixed/(re)created independently of the claim
 	class, err := npvcr.classes.Get(claimClass)
 	if err != nil {
-		klog.Error("Error getting StorageClass field of claim %q: %v", npvcr.LocalRef(claim.GetName()), err)
+		klog.Errorf("Error getting StorageClass field of claim %q: %v", npvcr.LocalRef(claim.GetName()), err)
 		return controller.ProvisioningFinished, err
 	}
 	if !npvcr.knownProvisioner(class.Provisioner) {
 		// class.Provisioner has either changed since shouldProvision() or
 		// annDynamicallyProvisioned contains different provisioner than
 		// class.Provisioner.
-		klog.Error("Unknown provisioner %q requested in StorageClass of claim %q", class.Provisioner, npvcr.LocalRef(claim.GetName()))
+		klog.Errorf("Unknown provisioner %q requested in StorageClass of claim %q", class.Provisioner, npvcr.LocalRef(claim.GetName()))
 		return controller.ProvisioningFinished, nil
 	}
 
@@ -159,7 +159,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) provisionClaimOperation(c
 		var ierr *controller.IgnoredError
 		if ok := errors.As(err, &ierr); ok {
 			// Provision ignored, do nothing and hope another provisioner will provision it.
-			klog.V(4).Infof("Volume provision ignored: %w", ierr)
+			klog.V(4).Infof("Volume provision ignored: %v", ierr)
 			return controller.ProvisioningFinished, nil
 		}
 		err = fmt.Errorf("failed to provision volume with StorageClass %q: %w", claimClass, err)

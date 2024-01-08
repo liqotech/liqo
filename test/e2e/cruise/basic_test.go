@@ -254,7 +254,7 @@ var _ = Describe("Liqo E2E", func() {
 		Context("E2E Testing with Emojivoto", func() {
 
 			var (
-				manifestBasePath = "./test/e2e/manifests/emojivoto/"
+				manifestBasePath = "../manifests/emojivoto/"
 			)
 
 			type manifest struct {
@@ -280,7 +280,7 @@ var _ = Describe("Liqo E2E", func() {
 						// check if the basePath dir exists
 						if _, err := os.Stat(manifestBasePath); os.IsNotExist(err) {
 							// trim ./ prefix
-							manifestBasePath = strings.TrimPrefix(manifestBasePath, "./")
+							manifestBasePath = strings.TrimPrefix(manifestBasePath, "../")
 							// append new prefix
 							manifestBasePath = fmt.Sprintf("/runner/_work/liqops/liqops/liqo/%v", manifestBasePath)
 						}
