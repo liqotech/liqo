@@ -181,10 +181,21 @@ func (identityProvider *certificateIdentityProvider) storeRemoteCertificate(clus
 		},
 	}
 
-	if secret, err = identityProvider.client.CoreV1().
-		Secrets(namespace.Name).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
+	res, err := identityProvider.client.CoreV1().
+		Secrets(namespace.Name).Create(context.TODO(), secret, metav1.CreateOptions{})
+	switch {
+	case kerrors.IsAlreadyExists(err):
+		res, err = identityProvider.client.CoreV1().
+			Secrets(namespace.Name).Update(context.TODO(), secret, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Error(err)
+			return nil, err
+		}
+		return res, nil
+	case err != nil:
 		klog.Error(err)
 		return nil, err
+	default:
+		return res, nil
 	}
-	return secret, nil
 }

@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -34,10 +34,14 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-// StoreIdentity stores the identity to authenticate with a remote cluster.
-func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterIdentity,
-	namespace string, key []byte, remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error {
-	secret := &v1.Secret{
+// GenerateIdentitySecret generates the identity secret to authenticate with a remote cluster.
+func (certManager *identityManager) GenerateIdentitySecret(remoteCluster discoveryv1alpha1.ClusterIdentity,
+	namespace string, key []byte, remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) (*corev1.Secret, error) {
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: identitySecretRoot + "-",
 			Namespace:    namespace,
@@ -69,7 +73,7 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 	} else {
 		certificate, err := base64.StdEncoding.DecodeString(identityResponse.Certificate)
 		if err != nil {
-			return fmt.Errorf("failed to decode certificate: %w", err)
+			return nil, fmt.Errorf("failed to decode certificate: %w", err)
 		}
 
 		secret.Data[certificateSecretKey] = certificate
@@ -79,7 +83,7 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 	if identityResponse.APIServerCA != "" {
 		apiServerCa, err := base64.StdEncoding.DecodeString(identityResponse.APIServerCA)
 		if err != nil {
-			return fmt.Errorf("failed to decode certification authority: %w", err)
+			return nil, fmt.Errorf("failed to decode certification authority: %w", err)
 		}
 
 		secret.Data[apiServerCaSecretKey] = apiServerCa
@@ -89,14 +93,25 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 		secret.StringData[apiProxyURLSecretKey] = remoteProxyURL
 	}
 
-	if _, err := certManager.client.CoreV1().Secrets(secret.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+	return secret, nil
+}
+
+// StoreIdentity generates and stores the identity to authenticate with a remote cluster.
+func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterIdentity,
+	namespace string, key []byte, remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error {
+	secret, err := certManager.GenerateIdentitySecret(remoteCluster, namespace, key, remoteProxyURL, identityResponse)
+	if err != nil {
+		return err
+	}
+
+	if _, err = certManager.client.CoreV1().Secrets(secret.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to create secret: %w", err)
 	}
 	return nil
 }
 
-// getSecret retrieves the identity secret given the clusterID.
-func (certManager *identityManager) getSecret(remoteCluster discoveryv1alpha1.ClusterIdentity) (*v1.Secret, error) {
+// GetSecret retrieves the identity secret given the clusterID.
+func (certManager *identityManager) GetSecret(remoteCluster discoveryv1alpha1.ClusterIdentity) (*corev1.Secret, error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(context.TODO(), remoteCluster)
 	if err != nil {
 		return nil, err
@@ -107,7 +122,7 @@ func (certManager *identityManager) getSecret(remoteCluster discoveryv1alpha1.Cl
 
 // getSecretInNamespace retrieves the identity secret in the given Namespace.
 func (certManager *identityManager) getSecretInNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity,
-	namespace string) (*v1.Secret, error) {
+	namespace string) (*corev1.Secret, error) {
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			localIdentitySecretLabel: "true",
@@ -142,7 +157,7 @@ func (certManager *identityManager) getSecretInNamespace(remoteCluster discovery
 }
 
 // getExpireTime reads the expire time from the annotations of the secret.
-func getExpireTime(secret *v1.Secret) int64 {
+func getExpireTime(secret *corev1.Secret) int64 {
 	now := time.Now().Unix()
 	if secret.Annotations == nil {
 		klog.Warningf("annotation %v not found in secret %v/%v", certificateExpireTimeAnnotation, secret.Namespace, secret.Name)
@@ -163,7 +178,7 @@ func getExpireTime(secret *v1.Secret) int64 {
 	return n
 }
 
-func (certManager *identityManager) isAwsIdentity(secret *v1.Secret) bool {
+func (certManager *identityManager) isAwsIdentity(secret *corev1.Secret) bool {
 	data := secret.Data
 	keys := []string{awsAccessKeyIDSecretKey, awsSecretAccessKeySecretKey, awsRegionSecretKey, awsEKSClusterIDSecretKey, awsIAMUserArnSecretKey}
 	for i := range keys {

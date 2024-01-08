@@ -38,8 +38,10 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/identity"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/virtualnode"
+	"github.com/liqotech/liqo/pkg/liqoctl/update"
 )
 
 var liqoctl string
@@ -50,6 +52,7 @@ var liqoResources = []rest.APIProvider{
 	gatewayserver.GatewayServer,
 	gatewayclient.GatewayClient,
 	publickey.PublicKey,
+	identity.Identity,
 }
 
 func init() {
@@ -138,6 +141,7 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(create.NewCreateCommand(ctx, liqoResources, f))
 	cmd.AddCommand(delete.NewDeleteCommand(ctx, liqoResources, f))
+	cmd.AddCommand(update.NewUpdateCommand(ctx, liqoResources, f))
 	return cmd
 }
 

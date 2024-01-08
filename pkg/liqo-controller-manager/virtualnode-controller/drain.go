@@ -19,15 +19,12 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 )
 
@@ -44,7 +41,7 @@ func drainNode(ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1
 		return err
 	}
 
-	if err = evictPods(ctx, cl, podsToEvict); err != nil {
+	if err = utils.EvictPods(ctx, cl, podsToEvict, waitForPodTerminationCheckPeriod); err != nil {
 		klog.Error(err)
 		return err
 	}
@@ -68,60 +65,4 @@ func getPodsForDeletion(ctx context.Context, cl client.Client, vn *virtualkubele
 		klog.V(4).Infof("Drain node %s -> pod %v/%v found", podList.Items[i].Spec.NodeName, podList.Items[i].Namespace, podList.Items[i].Name)
 	}
 	return podList, nil
-}
-
-// evictPods performs the eviction of the provided list of pods in parallel, waiting for their deletion.
-func evictPods(ctx context.Context, cl client.Client, podList *corev1.PodList) error {
-	for i := range podList.Items {
-		if err := evictPod(ctx, cl, &podList.Items[i]); err != nil {
-			return err
-		}
-	}
-
-	for i := range podList.Items {
-		if err := waitPodForDelete(ctx, cl, &podList.Items[i]); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// evictPod evicts the provided pod and waits for its deletion.
-func evictPod(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
-	eviction := &policyv1.Eviction{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      pod.Name,
-			Namespace: pod.Namespace,
-		},
-		DeleteOptions: &metav1.DeleteOptions{},
-	}
-
-	if err := cl.SubResource("eviction").Create(ctx, pod, eviction); err != nil {
-		return err
-	}
-
-	klog.V(4).Infof("Drain node %s -> pod %v/%v eviction started", pod.Spec.NodeName, pod.Namespace, pod.Name)
-
-	return nil
-}
-
-// waitForDelete waits for the pod deletion.
-func waitPodForDelete(ctx context.Context, cl client.Client, pod *corev1.Pod) error {
-	//nolint:staticcheck // Waiting for PollWithContextCancel implementation.
-	return wait.PollImmediateInfinite(waitForPodTerminationCheckPeriod, func() (bool, error) {
-		klog.Infof("Drain node %s -> pod %v/%v waiting for deletion", pod.Spec.NodeName, pod.Namespace, pod.Name)
-		updatedPod := &corev1.Pod{}
-		err := cl.Get(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: pod.Name}, updatedPod)
-		if kerrors.IsNotFound(err) || (updatedPod != nil &&
-			pod.ObjectMeta.UID != updatedPod.ObjectMeta.UID) {
-			klog.Infof("Drain node %s -> pod %v/%v successfully deleted", pod.Spec.NodeName, pod.Namespace, pod.Name)
-			return true, nil
-		}
-		if err != nil {
-			klog.Error(err)
-			return false, err
-		}
-		return false, nil
-	})
 }
