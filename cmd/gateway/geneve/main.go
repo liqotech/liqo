@@ -62,6 +62,12 @@ func main() {
 	klog.InitFlags(legacyflags)
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
+	geneve.InitFlags(cmd.Flags(), options)
+	if err := geneve.MarkFlagsRequired(&cmd); err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
 	gateway.InitFlags(cmd.Flags(), options.GwOptions)
 	if err := gateway.MarkFlagsRequired(&cmd); err != nil {
 		klog.Error(err)
