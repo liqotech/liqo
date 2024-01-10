@@ -38,6 +38,15 @@ func EnsureGeneveInterfacePresence(interfaceName, localIP, remoteIP string, id u
 	)
 }
 
+// EnsureGeneveInterfaceAbsence ensures that a geneve interface does not exist for the given internal node.
+func EnsureGeneveInterfaceAbsence(interfaceName string) error {
+	link := ExistGeneveInterface(interfaceName)
+	if link == nil {
+		return nil
+	}
+	return netlink.LinkDel(link)
+}
+
 // CreateGeneveInterface creates a geneve interface with the given name, remote IP and ID.
 func CreateGeneveInterface(name string, local, remote net.IP, id uint32) error {
 	link := ExistGeneveInterface(name)
