@@ -30,7 +30,6 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network"
 )
 
@@ -73,12 +72,6 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		if internalNode.Spec.Interface.Gateway.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalNode); err != nil {
 			return err
 		}
-
-		address, err := discovery.GetInternalAddress(node)
-		if err != nil {
-			return err
-		}
-		internalNode.Spec.NodeAddress = address
 
 		return controllerutil.SetControllerReference(node, internalNode, r.Scheme)
 	}); err != nil {

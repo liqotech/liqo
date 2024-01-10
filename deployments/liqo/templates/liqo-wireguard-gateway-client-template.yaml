@@ -84,9 +84,15 @@ spec:
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
+                - --node-name={{"$(NODE_NAME)"}}
                 - --mode=server
                 - --metrics-address=:8084
                 - --health-probe-bind-address=:8085
+                env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
                 securityContext:
                   capabilities:
                     add:
