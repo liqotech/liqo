@@ -24,6 +24,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/geneve"
@@ -66,6 +67,34 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	klog.V(4).Infof("Reconciling internalfabric %s", req.String())
 
+	// Manage Finalizers and routeconfiguration deletion.
+	deleting := !internalfabric.ObjectMeta.DeletionTimestamp.IsZero()
+	containsFinalizer := ctrlutil.ContainsFinalizer(internalfabric, internalfabricControllerFinalizer)
+	switch {
+	case !deleting && !containsFinalizer:
+		if err = r.ensureinternalfabricFinalizerPresence(ctx, internalfabric); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, nil
+
+	case deleting && containsFinalizer:
+		if err := geneve.EnsureGeneveInterfaceAbsence(internalfabric.Spec.Interface.Node.Name); err != nil {
+			return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface absence: %w", err)
+		}
+
+		if err = r.ensureinternalfabricFinalizerAbsence(ctx, internalfabric); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		klog.V(2).Infof("InternalFabric %s deleted", req.String())
+
+		return ctrl.Result{}, nil
+
+	case deleting && !containsFinalizer:
+		return ctrl.Result{}, nil
+	}
+
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalfabric.Name, r.Options.NodeName)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to get the geneve tunnel id: %w", err)
@@ -80,7 +109,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface presence: %w", err)
 	}
 
-	klog.Infof("Created interface %s for internalfabric %s", internalfabric.Spec.Interface.Node.Name, internalfabric.Name)
+	klog.Infof("Enforced interface %s for internalfabric %s", internalfabric.Spec.Interface.Node.Name, internalfabric.Name)
 
 	return ctrl.Result{}, nil
 }
