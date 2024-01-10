@@ -52,10 +52,17 @@ func EnsureRoutesPresence(routes []networkingv1alpha1.Route, tableID uint32) err
 // EnsureRoutesAbsence ensures the absence of the given routes.
 func EnsureRoutesAbsence(routes []networkingv1alpha1.Route, tableID uint32) error {
 	for i := range routes {
-		route, err := forgeNetlinkRoute(&routes[i], tableID)
+		if routes[i].Dst == nil {
+			continue
+		}
+		_, dst, err := net.ParseCIDR(routes[i].Dst.String())
 		if err != nil {
 			return err
 		}
+		route := &netlink.Route{
+			Dst: dst,
+		}
+
 		_, exists, err := ExistsRoute(&routes[i], tableID)
 		if err != nil {
 			return err

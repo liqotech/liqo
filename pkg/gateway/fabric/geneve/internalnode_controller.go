@@ -17,6 +17,7 @@ package geneve
 import (
 	"context"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,22 +69,35 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	klog.V(4).Infof("Reconciling internalnode %s", req.String())
 
 	// The internal fabric has the same name of the gateway resource.
-	internalNodeName := gateway.GenerateResourceName(r.Options.GwOptions.Name)
-	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalNodeName, internalnode.Name)
+	internalFabricName := gateway.GenerateResourceName(r.Options.GwOptions.Name)
+	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalFabricName, internalnode.Name)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to get the geneve tunnel id: %w", err)
+	}
+
+	var remoteIP *networkingv1alpha1.IP
+	switch {
+	case r.Options.NodeName == internalnode.Name:
+		remoteIP = internalnode.Status.NodeIP.Local
+	default:
+		remoteIP = internalnode.Status.NodeIP.Remote
+	}
+
+	if remoteIP == nil {
+		klog.Infof("The remote IP of internalnode %s is not set yet.", internalnode.Name)
+		return ctrl.Result{RequeueAfter: time.Second * 2}, nil
 	}
 
 	if err := geneve.EnsureGeneveInterfacePresence(
 		internalnode.Spec.Interface.Gateway.Name,
 		GeneveGatewayInterfaceIP,
-		internalnode.Spec.NodeAddress,
+		remoteIP.String(),
 		id,
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface presence: %w", err)
 	}
 
-	klog.Infof("Created interface %s for internalnode %s", internalnode.Spec.Interface.Gateway.Name, internalnode.Name)
+	klog.Infof("Enforced interface %s for internalnode %s", internalnode.Spec.Interface.Gateway.Name, internalnode.Name)
 
 	return ctrl.Result{}, nil
 }
