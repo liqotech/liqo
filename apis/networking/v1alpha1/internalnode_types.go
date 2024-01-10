@@ -51,13 +51,27 @@ type InternalNodeSpecInterface struct {
 type InternalNodeSpec struct {
 	// Interface contains the information about network interfaces.
 	Interface InternalNodeSpecInterface `json:"interface"`
+}
+
+// InternalNodeStatusNodeIP defines the observed state of InternalNode.
+type InternalNodeStatusNodeIP struct {
+	// Local is the IP of the node in the local cluster.
+	Local *IP `json:"local,omitempty"`
+	// Remote is the IP of the node in the remote cluster.
+	Remote *IP `json:"remote,omitempty"`
+}
+
+// InternalNodeStatus defines the observed state of InternalNode.
+type InternalNodeStatus struct {
 	// NodeAddress is the address of the node.
-	NodeAddress string `json:"nodeAddress"`
+	NodeIP InternalNodeStatusNodeIP `json:"nodeIP"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster,categories=liqo
-// +kubebuilder:printcolumn:name="Node Address",type=string,JSONPath=`.spec.nodeAddress`
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Node IP Local",type=string,JSONPath=`.status.nodeIP.local`
+// +kubebuilder:printcolumn:name="Node IP Remote",type=string,JSONPath=`.status.nodeIP.remote`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // InternalNode contains the network internalnode settings.
@@ -66,7 +80,8 @@ type InternalNode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec InternalNodeSpec `json:"spec,omitempty"`
+	Spec   InternalNodeSpec   `json:"spec,omitempty"`
+	Status InternalNodeStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

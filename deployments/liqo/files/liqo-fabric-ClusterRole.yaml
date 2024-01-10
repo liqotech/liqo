@@ -1,5 +1,13 @@
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - networking.liqo.io
   resources:
   - firewallconfigurations
@@ -39,6 +47,26 @@ rules:
   - networking.liqo.io
   resources:
   - internalfabrics
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalnodes
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalnodes/status
   verbs:
   - get
   - list

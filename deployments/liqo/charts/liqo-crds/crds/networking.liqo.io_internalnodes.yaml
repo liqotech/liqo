@@ -17,8 +17,11 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.nodeAddress
-      name: Node Address
+    - jsonPath: .status.nodeIP.local
+      name: Node IP Local
+      type: string
+    - jsonPath: .status.nodeIP.remote
+      name: Node IP Remote
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -62,14 +65,29 @@ spec:
                 required:
                 - gateway
                 type: object
-              nodeAddress:
-                description: NodeAddress is the address of the node.
-                type: string
             required:
             - interface
-            - nodeAddress
+            type: object
+          status:
+            description: InternalNodeStatus defines the observed state of InternalNode.
+            properties:
+              nodeIP:
+                description: NodeAddress is the address of the node.
+                properties:
+                  local:
+                    description: Local is the IP of the node in the local cluster.
+                    pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                    type: string
+                  remote:
+                    description: Remote is the IP of the node in the remote cluster.
+                    pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                    type: string
+                type: object
+            required:
+            - nodeIP
             type: object
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}
