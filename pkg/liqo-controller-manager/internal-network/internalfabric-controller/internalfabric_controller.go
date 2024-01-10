@@ -33,6 +33,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/fabric"
 	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
 )
 
@@ -104,10 +105,6 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context, internalFabric *networkingv1alpha1.InternalFabric) error {
-	remoteClusterID, ok := internalFabric.Labels[consts.RemoteClusterID]
-	if !ok {
-		return fmt.Errorf("internal fabric %q does not have remote cluster ID label", client.ObjectKeyFromObject(internalFabric))
-	}
 	if internalFabric.Spec.Interface.Node.Name == "" {
 		return fmt.Errorf("internal fabric %q has node interface name empty", client.ObjectKeyFromObject(internalFabric))
 	}
@@ -123,8 +120,7 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 		if route.Labels == nil {
 			route.Labels = make(map[string]string)
 		}
-		route.SetLabels(labels.Merge(route.Labels, geneve.ForgeRouteTargetLabels(remoteClusterID)))
-		route.SetLabels(labels.Merge(route.Labels, labels.Set{consts.RemoteClusterID: remoteClusterID}))
+		route.SetLabels(labels.Merge(route.Labels, fabric.ForgeRouteTargetLabels()))
 
 		// Add route rule for every remote CIDR
 		var rules []networkingv1alpha1.Rule
@@ -137,9 +133,10 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 			rule := networkingv1alpha1.Rule{
 				Routes: []networkingv1alpha1.Route{
 					{
-						Dst: ptr.To(remoteCIDR),
-						Gw:  ptr.To(networkingv1alpha1.IP("10.200.0.1")), // TODO:: get from Network resource
-						Dev: ptr.To(internalFabric.Spec.Interface.Node.Name),
+						Dst:    ptr.To(remoteCIDR),
+						Gw:     ptr.To(networkingv1alpha1.IP(geneve.GeneveGatewayInterfaceIP)),
+						Dev:    ptr.To(internalFabric.Spec.Interface.Node.Name),
+						Onlink: ptr.To(true),
 					},
 				},
 				Dst: ptr.To(remoteCIDR),

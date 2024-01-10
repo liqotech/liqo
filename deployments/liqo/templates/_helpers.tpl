@@ -79,7 +79,7 @@ app.kubernetes.io/part-of: {{ quote (include "liqo.name" .) }}
 {{- end }}
 
 {{/*
-Common metadata for Templates
+Common metadata for Gateway Templates
 */}}
 {{- define "liqo.metadataTemplate" -}}
 name: {{ quote "{{ .Name }}" }}
@@ -89,13 +89,14 @@ labels:
 {{- end }}
 
 {{/*
-Common Labels for Templates
+Common Labels for Gateway Templates
 */}}
 {{- define "liqo.labelsTemplate" -}}
 {{ include "liqo.selectorLabelsTemplate" . }}
 helm.sh/chart: {{ quote (include "liqo.chart" .) }}
 app.kubernetes.io/version: {{ quote (include "liqo.version" .) }}
 app.kubernetes.io/managed-by: {{ quote .Release.Service }}
+networking.liqo.io/component: "gateway"
 {{- end }}
 
 {{/*
