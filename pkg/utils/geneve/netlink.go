@@ -51,12 +51,12 @@ func CreateGeneveInterface(name string, local, remote net.IP, id uint32) error {
 			Remote: remote,
 		}
 		if err := netlink.LinkAdd(link); err != nil {
-			fmt.Printf("cannot create geneve link: %s", err)
+			return fmt.Errorf("cannot create geneve link: %w", err)
 		}
 	}
 
 	if err := netlink.LinkSetUp(link); err != nil {
-		fmt.Printf("cannot set geneve link up: %s", err)
+		return fmt.Errorf("cannot set geneve link up: %w", err)
 	}
 
 	if ExistGeneveInterfaceAddr(link, local) == nil {
@@ -66,7 +66,7 @@ func CreateGeneveInterface(name string, local, remote net.IP, id uint32) error {
 				Mask: net.IPMask{0xff, 0xff, 0xff, 0xff}, // Maybe it is not necessary. Remember to check.
 			},
 		}); err != nil {
-			fmt.Printf("cannot add address to geneve link: %s", err)
+			return fmt.Errorf("cannot add address to geneve link: %w", err)
 		}
 	}
 
