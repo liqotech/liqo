@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package route
+package fabric
 
 import (
 	"context"
@@ -23,18 +23,18 @@ import (
 )
 
 const (
-	// routeconfigurationControllerFinalizer is the finalizer added to the RouteConfiguration.
-	routeconfigurationControllerFinalizer = "routeconfiguration-controller.liqo.io/finalizer"
+	// internalfabricControllerFinalizer is the finalizer added to internalfabric to allow the controller to clean up.
+	internalfabricControllerFinalizer = "internalfabric-controller.liqo.io/finalizer"
 )
 
-func (r *RouteConfigurationReconciler) ensureRouteConfigurationFinalizerPresence(
-	ctx context.Context, fwcfg *networkingv1alpha1.RouteConfiguration) error {
-	ctrlutil.AddFinalizer(fwcfg, routeconfigurationControllerFinalizer)
+func (r *InternalFabricReconciler) ensureinternalfabricFinalizerPresence(
+	ctx context.Context, fwcfg *networkingv1alpha1.InternalFabric) error {
+	ctrlutil.AddFinalizer(fwcfg, internalfabricControllerFinalizer)
 	return r.Client.Update(ctx, fwcfg)
 }
 
-func (r *RouteConfigurationReconciler) ensureRouteConfigurationFinalizerAbsence(
-	ctx context.Context, fwcfg *networkingv1alpha1.RouteConfiguration) error {
-	ctrlutil.RemoveFinalizer(fwcfg, routeconfigurationControllerFinalizer)
+func (r *InternalFabricReconciler) ensureinternalfabricFinalizerAbsence(
+	ctx context.Context, fwcfg *networkingv1alpha1.InternalFabric) error {
+	ctrlutil.RemoveFinalizer(fwcfg, internalfabricControllerFinalizer)
 	return r.Client.Update(ctx, fwcfg)
 }

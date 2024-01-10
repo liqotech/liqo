@@ -74,6 +74,7 @@ func NewRouteConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtim
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile manage RouteConfigurations, applying nftables configuration.
 func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

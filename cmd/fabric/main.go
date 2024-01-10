@@ -21,17 +21,25 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/fabric"
+	"github.com/liqotech/liqo/pkg/fabric/sourcedetector"
 	"github.com/liqotech/liqo/pkg/firewall"
+	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -45,6 +53,7 @@ var (
 
 func init() {
 	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
 }
 
 func main() {
@@ -79,6 +88,14 @@ func run(cmd *cobra.Command, _ []string) error {
 	// Get the rest config.
 	cfg := config.GetConfigOrDie()
 
+	// Create a label selector to filter only the events for gateway pods
+	reqGatewayPods, err := labels.NewRequirement(
+		gateway.GatewayComponentKey,
+		selection.Equals,
+		[]string{gateway.GatewayComponentGateway},
+	)
+	utilruntime.Must(err)
+
 	// Create the manager.
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
@@ -88,9 +105,31 @@ func run(cmd *cobra.Command, _ []string) error {
 		},
 		HealthProbeBindAddress: options.ProbeAddr,
 		LeaderElection:         false,
+		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.ByObject = map[client.Object]cache.ByObject{
+				&corev1.Pod{}: {
+					Label: labels.NewSelector().Add(*reqGatewayPods),
+				},
+			}
+			return cache.New(config, opts)
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
+	}
+
+	gwr, err := sourcedetector.NewGatewayReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("gateway-controller"),
+		options,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create gateway reconciler: %w", err)
+	}
+
+	if err := gwr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup gateway reconciler: %w", err)
 	}
 
 	// Setup the firewall configuration controller.
