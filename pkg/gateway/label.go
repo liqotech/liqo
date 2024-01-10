@@ -12,21 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package geneve
+package gateway
 
-import (
-	"github.com/liqotech/liqo/pkg/gateway"
+const (
+	// GatewayComponentKey is the key used to label the gateway pod.
+	GatewayComponentKey = "networking.liqo.io/component"
+
+	// GatewayComponentGateway is the key used to label the gateway pod.
+	GatewayComponentGateway = "gateway"
 )
 
-// Options contains the options for the wireguard interface.
-type Options struct {
-	GwOptions *gateway.Options
-	NodeName  string
-}
-
-// NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
-	return &Options{
-		GwOptions: options,
+// ForgeGatewayPodLabels returns the labels for the gateway pod.
+func ForgeGatewayPodLabels() map[string]string {
+	return map[string]string{
+		GatewayComponentKey: GatewayComponentGateway,
 	}
 }
