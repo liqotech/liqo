@@ -49,8 +49,11 @@ networking:
   clientResources:
     - apiVersion: networking.liqo.io/v1alpha1
       resource: wggatewayclients
-  # -- Set the options for gateway templates
-  gateway:
+  # -- Set the options for the default gateway (server/client) templates.
+  # The default templates use a WireGuard implementation to connect the gateway of the clusters.
+  # These options are used to configure only the default templates and should not be considered
+  # if a custom template is used.
+  gatewayTemplates:
     # -- Set the number of replicas for the gateway deployments
     replicas: 1
     # -- Set the options to configure the gateway ping used to check connection
@@ -67,6 +70,25 @@ networking:
       service:
         # -- Set to "false" if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature).
         allocateLoadBalancerNodePorts: ""
+    container:
+      gateway:
+        image:
+          # -- Image repository for the gateway container.
+          name: "ghcr.io/liqotech/gateway"
+          # -- Custom version for the gateway image. If not specified, the global tag is used.
+          version: ""
+      wireguard:
+        image:
+          # -- Image repository for the wireguard container.
+          name: "ghcr.io/liqotech/gateway/wireguard"
+          # -- Custom version for the wireguard image. If not specified, the global tag is used.
+          version: ""
+      geneve:
+        image:
+          # -- Image repository for the geneve container.
+          name: "ghcr.io/liqotech/gateway/geneve"
+          # -- Custom version for the geneve image. If not specified, the global tag is used.
+          version: ""
 
 peering:
   # -- Set the default configuration for the networking resources created during the peering process
@@ -261,8 +283,11 @@ fabric:
     resources:
       limits: {}
       requests: {}
-  # -- Image repository for the fabric pod.
-  imageName: "ghcr.io/liqotech/fabric"
+  image:
+    # -- Image repository for the fabric pod.
+    name: "ghcr.io/liqotech/fabric"
+    # -- Custom version for the fabric image. If not specified, the global tag is used.
+    version: ""
   # -- Extra tolerations for the fabric daemonset.
   tolerations: []
 
