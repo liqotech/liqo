@@ -43,9 +43,9 @@ func GetGeneveTunnelID(ctx context.Context, cl client.Client,
 		return 0, fmt.Errorf("no geneve tunnel found for internalfabric %s and internalnode %s",
 			internalFabricName, internalNodeName)
 	case 1:
+		return list.Items[0].Spec.ID, nil
+	default:
 		return 0, fmt.Errorf("multiple geneve tunnels found for internalfabric %s and internalnode %s",
 			internalFabricName, internalNodeName)
-	default:
-		return list.Items[0].Spec.ID, nil
 	}
 }
