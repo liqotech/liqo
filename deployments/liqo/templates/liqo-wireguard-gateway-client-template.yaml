@@ -1,4 +1,7 @@
 {{- $templateConfig := (merge (dict "name" "wireguard-client" "module" "networking") .) -}}
+{{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking" "version" .Values.networking.gatewayTemplates.container.gateway.image.version) .) -}}
+{{- $wireguardConfig := (merge (dict "name" "gateway-wireguard" "module" "networking" "version" .Values.networking.gatewayTemplates.container.wireguard.image.version) .) -}}
+{{- $geneveConfig := (merge (dict "name" "gateway-geneve" "module" "networking" "version" .Values.networking.gatewayTemplates.container.geneve.image.version) .) -}}
 
 {{- if .Values.networking.internal }}
 
@@ -20,7 +23,7 @@ spec:
         metadata:
           {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
         spec:
-          replicas: {{ .Values.networking.gateway.replicas }}
+          replicas: {{ .Values.networking.gatewayTemplates.replicas }}
           selector:
             matchLabels:
               {{- include "liqo.labelsTemplate" $templateConfig | nindent 14 }}
@@ -32,7 +35,7 @@ spec:
               serviceAccountName: "{{"{{ .Name }}"}}"
               containers:
               - name: gateway
-                image: ghcr.io/liqotech/gateway{{ include "liqo.suffix" $templateConfig }}:{{ include "liqo.version" $templateConfig }}
+                image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
                 imagePullPolicy: {{ .Values.pullPolicy }}
                 args:
                 - --name={{"{{ .Name }}"}}
@@ -43,10 +46,10 @@ spec:
                 - --metrics-address=:8080
                 - --health-probe-bind-address=:8081
                 - --ping-enabled=true
-                - --ping-loss-threshold={{ .Values.networking.gateway.ping.lossThreshold }}
-                - --ping-interval={{ .Values.networking.gateway.ping.interval }}
-                - --ping-update-status-interval={{ .Values.networking.gateway.ping.updateStatusInterval }}
-                {{- if gt .Values.networking.gateway.replicas 1.0 }}
+                - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
+                - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
+                - --ping-update-status-interval={{ .Values.networking.gatewayTemplates.ping.updateStatusInterval }}
+                {{- if gt .Values.networking.gatewayTemplates.replicas 1.0 }}
                 - --leader-election=true
                 {{- end }}
                 securityContext:
@@ -55,7 +58,7 @@ spec:
                     - NET_ADMIN
                     - NET_RAW
               - name: wireguard
-                image: ghcr.io/liqotech/gateway/wireguard{{ include "liqo.suffix" $templateConfig }}:{{ include "liqo.version" $templateConfig }}
+                image: {{ .Values.networking.gatewayTemplates.container.wireguard.image.name }}{{ include "liqo.suffix" $wireguardConfig }}:{{ include "liqo.version" $wireguardConfig }}
                 imagePullPolicy: {{ .Values.pullPolicy }}
                 args:
                 - --name={{"{{ .Name }}"}}
@@ -74,12 +77,13 @@ spec:
                     - NET_ADMIN
                     - NET_RAW
               - name: geneve
-                image: ghcr.io/liqotech/gateway/geneve{{ include "liqo.suffix" $templateConfig }}:{{ include "liqo.version" $templateConfig }}
+                image: {{ .Values.networking.gatewayTemplates.container.geneve.image.name }}{{ include "liqo.suffix" $geneveConfig }}:{{ include "liqo.version" $geneveConfig }}
                 imagePullPolicy: {{ .Values.pullPolicy }}
                 args:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
                 - --metrics-address=:8084
                 - --health-probe-bind-address=:8085
