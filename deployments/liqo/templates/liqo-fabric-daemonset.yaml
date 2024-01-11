@@ -1,5 +1,5 @@
 ---
-{{- $fabricConfig := (merge (dict "name" "fabric" "module" "networking") .) -}}
+{{- $fabricConfig := (merge (dict "name" "fabric" "module" "networking" "version" .Values.fabric.image.version ) .) -}}
 
 {{- if .Values.networking.internal }}
 
@@ -37,7 +37,7 @@ spec:
         {{- end }}
       serviceAccountName: {{ include "liqo.prefixedName" $fabricConfig }}
       containers:
-        - image: {{ .Values.fabric.imageName }}{{ include "liqo.suffix" $fabricConfig }}:{{ include "liqo.version" $fabricConfig }}
+        - image: {{ .Values.fabric.image.name }}{{ include "liqo.suffix" $fabricConfig }}:{{ include "liqo.version" $fabricConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $fabricConfig.name }}
           command: ["/usr/bin/liqo-fabric"]
