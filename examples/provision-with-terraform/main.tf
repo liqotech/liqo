@@ -2,19 +2,19 @@ terraform {
   required_providers {
     kind = {
       source  = "tehcyx/kind"
-      version = "0.0.15"
+      version = "0.2.1"
     }
     helm = {
       source  = "hashicorp/helm"
-      version = "2.7.1"
+      version = "2.12.1"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = "2.16.1"
+      version = "2.25.2"
     }
     liqo = {
       source = "liqotech/liqo"
-      version = "0.0.1"
+      version = "0.0.2"
     }
   }
 }
@@ -25,18 +25,18 @@ provider "helm" {
   kubernetes {
     config_path = kind_cluster.rome.kubeconfig_path
   }
-
 }
 provider "helm" {
   alias = "milan"
   kubernetes {
     config_path = kind_cluster.milan.kubeconfig_path
   }
-
 }
+
 provider "kubernetes" {
   config_path = kind_cluster.rome.kubeconfig_path
 }
+
 provider "liqo" {
   alias = "rome"
   kubernetes = {
