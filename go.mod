@@ -14,7 +14,7 @@ require (
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.2
-	github.com/gruntwork-io/terratest v0.46.8
+	github.com/gruntwork-io/terratest v0.46.9
 	github.com/jinzhu/copier v0.4.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mattn/go-isatty v0.0.20
@@ -215,7 +215,7 @@ require (
 	github.com/rubenv/sql-migrate v1.6.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/safchain/ethtool v0.3.0 // indirect
-	github.com/sergi/go-diff v1.2.0 // indirect
+	github.com/sergi/go-diff v1.3.1 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.2.1 // indirect

@@ -456,8 +456,8 @@ github.com/gruntwork-io/go-commons v0.13.3 h1:tRNMZgXbmD9cgqhV/bEdYK4e0SndNKGH5e
 github.com/gruntwork-io/go-commons v0.13.3/go.mod h1:ILC/UDRkC/+vTQNhdfnN/b4WySgc5kwXUO338hnS1f4=
 github.com/gruntwork-io/gruntwork-cli v0.7.2 h1:aZTztE9vVxUnpNFBecOPuqk1QYl5fPPIriE15Sp3ATs=
 github.com/gruntwork-io/gruntwork-cli v0.7.2/go.mod h1:jp6Z7NcLF2avpY8v71fBx6hds9eOFPELSuD/VPv7w00=
-github.com/gruntwork-io/terratest v0.46.8 h1:rgK7z6Dy/eMGFaclKR0WVG9Z54tR+Ehl7S09+8Y25j0=
-github.com/gruntwork-io/terratest v0.46.8/go.mod h1:6MxfmOFQQEpQZjpuWRwuAK8qm836hYgAOCzSIZIWTmg=
+github.com/gruntwork-io/terratest v0.46.9 h1:2K0503TC8bhz1SQTlw6vX8SjexztXmCp3WvWxE6g22c=
+github.com/gruntwork-io/terratest v0.46.9/go.mod h1:DVZG/s7eP1u3KOQJJfE6n7FDriMWpDvnj85XIlZMEM8=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
 github.com/hashicorp/errwrap v1.1.0 h1:OxrOeh75EUXMY8TBjag2fzXGZ40LB6IKw45YeGUDY2I=
 github.com/hashicorp/errwrap v1.1.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
@@ -727,8 +727,9 @@ github.com/russross/blackfriday/v2 v2.1.0 h1:JIOH55/0cWyOuilr9/qlrm0BSXldqnqwMsf
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/safchain/ethtool v0.3.0 h1:gimQJpsI6sc1yIqP/y8GYgiXn/NjgvpM0RNoWLVVmP0=
 github.com/safchain/ethtool v0.3.0/go.mod h1:SA9BwrgyAqNo7M+uaL6IYbxpm5wk3L7Mm6ocLW+CJUs=
-github.com/sergi/go-diff v1.2.0 h1:XU+rvMAioB0UC3q1MFrIQy4Vo5/4VsRDQQXHsEya6xQ=
 github.com/sergi/go-diff v1.2.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNXdaHfM=
+github.com/sergi/go-diff v1.3.1 h1:xkr+Oxo4BOQKmkn/B9eMK0g5Kg/983T9DqqPHwYqD+8=
+github.com/sergi/go-diff v1.3.1/go.mod h1:aMJSSKb2lpPvRNec0+w3fl7LP9IOFzdc9Pa4NFbPK1I=
 github.com/shopspring/decimal v1.2.0/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
 github.com/shopspring/decimal v1.3.1 h1:2Usl1nmF/WZucqkFZhnfFYxxxu8LG21F6nPQBE5gKV8=
 github.com/shopspring/decimal v1.3.1/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
