@@ -54,10 +54,11 @@ type InternalNodeSpec struct {
 }
 
 // InternalNodeStatusNodeIP defines the observed state of InternalNode.
+// It contains the IPs used by an host network pod (scheduled on that node) as src IPs to contact a pod.
 type InternalNodeStatusNodeIP struct {
-	// Local is the IP of the node in the local cluster.
+	// Local is the src IP used to contact a pod on the same node.
 	Local *IP `json:"local,omitempty"`
-	// Remote is the IP of the node in the remote cluster.
+	// Remote is the src IP used to contact a pod on another node.
 	Remote *IP `json:"remote,omitempty"`
 }
 

@@ -8,7 +8,6 @@ on:
       - network-general
       - network-external
       - network-internal
-      - frc/geneve
   repository_dispatch:
     types:
       - test-command

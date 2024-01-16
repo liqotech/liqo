@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	// routeconfigurationControllerFinalizer is the finalizer added to virtual-node to allow the controller to clean up.
+	// routeconfigurationControllerFinalizer is the finalizer added to the RouteConfiguration.
 	routeconfigurationControllerFinalizer = "routeconfiguration-controller.liqo.io/finalizer"
 )
 
