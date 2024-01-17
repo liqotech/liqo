@@ -200,6 +200,11 @@ func (o *Options) RunConnect(ctx context.Context) error {
 		return err
 	}
 
+	// Wait for the gateway pod to be ready
+	if err := cluster1.Waiter.ForGatewayPodReady(ctx, gwServer); err != nil {
+		return err
+	}
+
 	// Wait for the endpoint status of the gateway server to be set
 	if err := cluster1.Waiter.ForGatewayServerStatusEndpoint(ctx, gwServer); err != nil {
 		return err
@@ -210,6 +215,11 @@ func (o *Options) RunConnect(ctx context.Context) error {
 		gatewayclient.DefaultGatewayClientName(cluster1.clusterIdentity),
 		o.newGatewayClientForgeOptions(o.RemoteFactory.KubeClient, cluster1.clusterIdentity.ClusterID, gwServer.Status.Endpoint))
 	if err != nil {
+		return err
+	}
+
+	// Wait for the gateway pod to be ready
+	if err := cluster2.Waiter.ForGatewayPodReady(ctx, gwClient); err != nil {
 		return err
 	}
 
