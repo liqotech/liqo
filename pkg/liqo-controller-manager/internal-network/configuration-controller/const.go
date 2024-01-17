@@ -12,21 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fabric
+package configurationcontroller
 
-import (
-	"github.com/liqotech/liqo/pkg/gateway"
+const (
+	// PrePostroutingChainName is the name of the chain that manage masquerade-bypass.
+	PrePostroutingChainName = "pre-postrouting"
 )
-
-// Options contains the options for the wireguard interface.
-type Options struct {
-	GwOptions *gateway.Options
-	EnableARP bool
-}
-
-// NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
-	return &Options{
-		GwOptions: options,
-	}
-}
