@@ -258,7 +258,7 @@ func (w *Waiter) ForGatewayServerStatusEndpoint(ctx context.Context, gwServer *n
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
-		return gwServer.Status.Endpoint != nil, nil
+		return gwServer.Status.Endpoint != nil && len(gwServer.Status.Endpoint.Addresses) > 0, nil
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("Failed waiting for gateway server Service to be created: %s", output.PrettyErr(err)))
