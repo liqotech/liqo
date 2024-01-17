@@ -12,21 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package geneve
-
-import (
-	"github.com/liqotech/liqo/pkg/route"
-)
-
-const (
-	// RouteCategoryTargetValue is the value used by the routeconfiguration controller to reconcile only resources related to a gateway.
-	RouteCategoryTargetValue = "gateway"
-)
-
-// ForgeRouteTargetLabels returns the labels used by the routeconfiguration controller to reconcile only resources related to a single gateway.
-func ForgeRouteTargetLabels(remoteID string) map[string]string {
-	return map[string]string{
-		route.RouteCategoryTargetKey: RouteCategoryTargetValue,
-		route.RouteUniqueTargetKey:   remoteID,
-	}
-}
+// Package route contains the logic to manage the routes for the internal network.
+// It creates a new route for each pod that is created in the cluster,
+// to route the traffic from the gateway to the correct node.
+package route

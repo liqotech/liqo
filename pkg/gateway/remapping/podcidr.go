@@ -27,6 +27,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
 // CreateOrUpdateNatMappingPodCIDR creates or updates the NAT mapping for the POD CIDR.
@@ -126,7 +127,7 @@ func forgePodCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configur
 				{
 					Op: firewall.MatchOperationNeq,
 					Dev: &firewall.MatchDev{
-						Value:    opts.GwOptions.TunnelInterfaceName,
+						Value:    tunnel.TunnelInterfaceName,
 						Position: firewall.MatchDevPositionIn,
 					},
 				},
@@ -140,7 +141,7 @@ func forgePodCIDRFirewallConfigurationSNATRules(cfg *networkingv1alpha1.Configur
 	opts *Options) []firewall.NatRule {
 	return []firewall.NatRule{
 		{
-			NatType: firewall.NatTypeDestination,
+			NatType: firewall.NatTypeSource,
 			To:      ptr.To(cfg.Status.Remote.CIDR.Pod.String()),
 			Match: []firewall.Match{
 				{
@@ -160,7 +161,7 @@ func forgePodCIDRFirewallConfigurationSNATRules(cfg *networkingv1alpha1.Configur
 				{
 					Op: firewall.MatchOperationEq,
 					Dev: &firewall.MatchDev{
-						Value:    opts.GwOptions.TunnelInterfaceName,
+						Value:    tunnel.TunnelInterfaceName,
 						Position: firewall.MatchDevPositionIn,
 					},
 				},

@@ -21,6 +21,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -41,33 +42,33 @@ type RouteConfigurationReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 	// Labels used to filter the reconciled resources.
-	Labels map[string]string
+	LabelsSets []labels.Set
 	// EnableFinalizer is used to enable the finalizer on the reconciled resources.
 	EnableFinalizer bool
 }
 
 // newRouteConfigurationReconciler returns a new RouteConfigurationReconciler.
 func newRouteConfigurationReconciler(cl client.Client, s *runtime.Scheme,
-	er record.EventRecorder, labels map[string]string, enableFinalizer bool) (*RouteConfigurationReconciler, error) {
+	er record.EventRecorder, labelsSets []labels.Set, enableFinalizer bool) (*RouteConfigurationReconciler, error) {
 	return &RouteConfigurationReconciler{
 		Client:          cl,
 		Scheme:          s,
 		EventsRecorder:  er,
-		Labels:          labels,
+		LabelsSets:      labelsSets,
 		EnableFinalizer: enableFinalizer,
 	}, nil
 }
 
 // NewRouteConfigurationReconcilerWithFinalizer initializes a reconciler that uses finalizers on routeconfigurations.
 func NewRouteConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme,
-	er record.EventRecorder, labels map[string]string) (*RouteConfigurationReconciler, error) {
-	return newRouteConfigurationReconciler(cl, s, er, labels, true)
+	er record.EventRecorder, labelsSets []labels.Set) (*RouteConfigurationReconciler, error) {
+	return newRouteConfigurationReconciler(cl, s, er, labelsSets, true)
 }
 
 // NewRouteConfigurationReconcilerWithoutFinalizer initializes a reconciler that doesn't use finalizers on routeconfigurations.
 func NewRouteConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme,
-	er record.EventRecorder, labels map[string]string) (*RouteConfigurationReconciler, error) {
-	return newRouteConfigurationReconciler(cl, s, er, labels, false)
+	er record.EventRecorder, labelsSets []labels.Set) (*RouteConfigurationReconciler, error) {
+	return newRouteConfigurationReconciler(cl, s, er, labelsSets, false)
 }
 
 // cluster-role
@@ -147,6 +148,8 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	}
 
+	klog.Infof("Applying routeconfiguration %s", req.String())
+
 	if err = EnsureTablePresence(routeconfiguration, tableID); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -160,20 +163,34 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	}
 
-	klog.V(4).Infof("Applying routeconfiguration %s", req.String())
+	klog.Infof("Applied routeconfiguration %s", req.String())
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager register the RouteConfigurationReconciler to the manager.
 func (r *RouteConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: r.Labels})
+	klog.Infof("Starting RouteConfiguration controller with labels %v", r.LabelsSets)
+	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
 	if err != nil {
 		return err
 	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1alpha1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
+}
+
+// forgeLabelsPredicate returns a predicate that filters the resources based on the given labels.
+func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) {
+	var err error
+	labelPredicates := make([]predicate.Predicate, len(labelsSets))
+	for i := range labelsSets {
+		if labelPredicates[i], err = predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: labelsSets[i]}); err != nil {
+			return nil, err
+		}
+	}
+	return predicate.Or(labelPredicates...), nil
 }
 
 // UpdateStatus updates the status of the given RouteConfiguration.
