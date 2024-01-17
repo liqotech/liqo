@@ -16,6 +16,7 @@ package nodecontroller
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,6 +32,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/fabricipam"
 )
 
 // NodeReconciler creates and manages InternalNodes.
@@ -63,6 +65,15 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		return ctrl.Result{}, err
 	}
 
+	ipam, err := fabricipam.Get(ctx, r.Client)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to initialize the IPAM: %w", err)
+	}
+	if ipam == nil {
+		klog.Infof("IPAM not ready")
+		return ctrl.Result{}, nil
+	}
+
 	internalNode := &networkingv1alpha1.InternalNode{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: node.Name,
@@ -72,6 +83,12 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		if internalNode.Spec.Interface.Gateway.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalNode); err != nil {
 			return err
 		}
+
+		ip, err := ipam.Allocate(internalNode.GetName())
+		if err != nil {
+			return err
+		}
+		internalNode.Spec.Interface.Node.IP = networkingv1alpha1.IP(ip.String())
 
 		return controllerutil.SetControllerReference(node, internalNode, r.Scheme)
 	}); err != nil {

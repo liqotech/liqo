@@ -21,6 +21,7 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
 func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.Key) error {
@@ -46,5 +47,5 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 		}
 	}
 
-	return wgcl.ConfigureDevice(options.GwOptions.TunnelInterfaceName, confdev)
+	return wgcl.ConfigureDevice(tunnel.TunnelInterfaceName, confdev)
 }

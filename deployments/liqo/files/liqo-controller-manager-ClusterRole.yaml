@@ -450,6 +450,8 @@ rules:
   resources:
   - firewallconfigurations
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch

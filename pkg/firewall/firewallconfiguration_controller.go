@@ -149,11 +149,14 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
+	klog.Infof("Applied firewallconfiguration %s", req.String())
+
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager register the FirewallConfigurationReconciler to the manager.
 func (r *FirewallConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	klog.Infof("Starting FirewallConfiguration controller with labels %v", r.Labels)
 	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: r.Labels})
 	if err != nil {
 		return err
