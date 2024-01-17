@@ -544,6 +544,18 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - ips
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - publickeies
   verbs:
   - create
