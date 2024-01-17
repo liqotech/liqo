@@ -19,6 +19,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -145,5 +146,5 @@ func generateTableID(name string) uint32 {
 }
 
 func forgeTableEntry(tableID uint32, tableName string) string {
-	return fmt.Sprintf("%d\t%s", tableID, tableName)
+	return fmt.Sprintf("%s\t%s", strconv.FormatUint(uint64(tableID), 10), tableName)
 }

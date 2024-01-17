@@ -34,6 +34,9 @@ const (
 	FlagNameMetricsAddress FlagName = "metrics-address"
 	// FlagNameProbeAddr is the address for the health probe endpoint.
 	FlagNameProbeAddr FlagName = "health-probe-bind-address"
+
+	// FlagEnableARP is the flag to enable ARP.
+	FlagEnableARP FlagName = "enable-arp"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
@@ -47,6 +50,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), ":8080", "Address for the metrics endpoint")
 	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")
+
+	flagset.BoolVar(&opts.EnableARP, FlagEnableARP.String(), true, "Enable ARP")
 }
 
 // MarkFlagsRequired marks the flags as required.

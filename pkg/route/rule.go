@@ -15,6 +15,7 @@
 package route
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/vishvananda/netlink"
@@ -87,7 +88,11 @@ func AddRule(rule *networkingv1alpha1.Rule, tableID uint32) error {
 		newrule.OifName = *rule.Oif
 	}
 
-	return netlink.RuleAdd(newrule)
+	err := netlink.RuleAdd(newrule)
+	if err != nil {
+		return fmt.Errorf("unable to add rule %v: %w", rule, err)
+	}
+	return nil
 }
 
 // GetRulesByTableID returns all the rules associated with the given table ID.

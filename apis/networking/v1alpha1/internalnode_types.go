@@ -40,11 +40,19 @@ type InternalNodeSpecInterfaceGateway struct {
 	Name string `json:"name"`
 }
 
+// InternalNodeSpecInterfaceNode contains the information about the node interface.
+type InternalNodeSpecInterfaceNode struct {
+	// IP is the IP of the interface added to the node.
+	IP IP `json:"ip"`
+}
+
 // InternalNodeSpecInterface contains the information about network interfaces.
 type InternalNodeSpecInterface struct {
 	// Gateway contains the information about the gateway interface.
 	// The gateway interface is created on every gateway to connect them to the node related with the internalnode.
 	Gateway InternalNodeSpecInterfaceGateway `json:"gateway"`
+	// Node contains the information about the node interface.
+	Node InternalNodeSpecInterfaceNode `json:"node"`
 }
 
 // InternalNodeSpec defines the desired state of InternalNode.

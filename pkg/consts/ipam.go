@@ -34,6 +34,8 @@ const (
 	NetworkTypeServiceCIDR NetworkType = "service-cidr"
 	// NetworkTypeExternalCIDR is the constant representing a network of type externalCIDR.
 	NetworkTypeExternalCIDR NetworkType = "external-cidr"
+	// NetworkTypeInternalCIDR is the constant representing a network of type internalCIDR.
+	NetworkTypeInternalCIDR NetworkType = "internal-cidr"
 	// NetworkTypeReserved is the constant representing a network of type reserved subnet.
 	NetworkTypeReserved NetworkType = "reserved"
 )

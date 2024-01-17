@@ -24,9 +24,9 @@ import (
 
 const (
 	// ServerInterfaceIP is the IP address of the Wireguard interface in server mode.
-	ServerInterfaceIP = "169.254.0.1/30"
+	ServerInterfaceIP = "169.254.18.1/30"
 	// ClientInterfaceIP is the IP address of the Wireguard interface in client mode.
-	ClientInterfaceIP = "169.254.0.2/30"
+	ClientInterfaceIP = "169.254.18.2/30"
 )
 
 // AddAddress adds an IP address to the Wireguard interface.

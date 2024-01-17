@@ -43,6 +43,7 @@ spec:
           command: ["/usr/bin/liqo-fabric"]
           args:
           - --nodename=$(NODE_NAME)
+          - --enable-arp=true
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
           {{- end }}
