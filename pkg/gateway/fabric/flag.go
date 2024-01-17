@@ -15,7 +15,6 @@
 package fabric
 
 import (
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -27,31 +26,11 @@ func (fn FlagName) String() string {
 }
 
 const (
-	// FlagNameNodeName is the name of the node.
-	FlagNameNodeName FlagName = "node-name"
-
 	// FlagNameEnableARP is the flag to enable ARP.
 	FlagNameEnableARP FlagName = "enable-arp"
 )
 
-// RequiredFlags contains the list of the mandatory flags.
-var RequiredFlags = []FlagName{
-	FlagNameNodeName,
-}
-
 // InitFlags initializes the flags for the gateway.
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
-	flagset.StringVar(&opts.NodeName, FlagNameNodeName.String(), "", "Name of the node")
-
 	flagset.BoolVar(&opts.EnableARP, FlagNameEnableARP.String(), false, "Enable ARP")
-}
-
-// MarkFlagsRequired marks the flags as required.
-func MarkFlagsRequired(cmd *cobra.Command) error {
-	for _, flag := range RequiredFlags {
-		if err := cmd.MarkFlagRequired(flag.String()); err != nil {
-			return err
-		}
-	}
-	return nil
 }

@@ -34,10 +34,10 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 const (
@@ -67,7 +67,7 @@ func NewIPReconciler(cl client.Client, s *runtime.Scheme, ipamClient ipam.IpamCl
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips/finalizers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;create;update;patch;delete
 
@@ -103,12 +103,13 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	desiredIP = ip.Spec.IP
 
 	// Get the clusterIDs of all remote clusters
-	virtualNodes, err := getters.ListVirtualNodesByLabels(ctx, r.Client, labels.Everything())
+	configurations, err := getters.ListConfigurationsByLabel(ctx, r.Client, labels.Everything())
 	if err != nil {
 		klog.Errorf("error while listing virtual nodes: %v", err)
 		return ctrl.Result{}, err
 	}
-	clusterIDs := getters.RetrieveClusterIDsFromVirtualNodes(virtualNodes)
+
+	clusterIDs := getters.RetrieveClusterIDsFromObjectsLabels(slice.ToPointerSlice(configurations.Items))
 
 	if ip.GetDeletionTimestamp().IsZero() {
 		if !controllerutil.ContainsFinalizer(&ip, ipamIPFinalizer) {
@@ -187,7 +188,7 @@ func (r *IPReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, w
 		For(&ipamv1alpha1.IP{}).
 		Owns(&v1.Service{}).
 		Owns(&discoveryv1.EndpointSlice{}).
-		Watches(&virtualkubeletv1alpha1.VirtualNode{}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
+		Watches(&networkingv1alpha1.Configuration{}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
 }

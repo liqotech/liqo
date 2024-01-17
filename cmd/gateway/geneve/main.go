@@ -64,10 +64,6 @@ func main() {
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
 	fabric.InitFlags(cmd.Flags(), options)
-	if err := fabric.MarkFlagsRequired(&cmd); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
 
 	gateway.InitFlags(cmd.Flags(), options.GwOptions)
 	if err := gateway.MarkFlagsRequired(&cmd); err != nil {
