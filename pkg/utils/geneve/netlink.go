@@ -64,6 +64,10 @@ func CreateGeneveInterface(name string, local, remote net.IP, id uint32) error {
 		}
 	}
 
+	if err := netlink.LinkSetARPOff(link); err != nil {
+		return fmt.Errorf("cannot set geneve link arp off: %w", err)
+	}
+
 	if err := netlink.LinkSetUp(link); err != nil {
 		return fmt.Errorf("cannot set geneve link up: %w", err)
 	}
