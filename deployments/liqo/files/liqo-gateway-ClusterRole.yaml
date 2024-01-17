@@ -31,6 +31,16 @@ rules:
   - list
   - update
 - apiGroups:
+  - ipam.liqo.io
+  resources:
+  - ips
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - networking.liqo.io
   resources:
   - configurations
