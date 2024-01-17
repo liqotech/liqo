@@ -53,6 +53,7 @@ spec:
                 - --leader-election=true
                 {{- end }}
                 securityContext:
+                  privileged: true
                   capabilities:
                     add:
                     - NET_ADMIN
@@ -88,6 +89,7 @@ spec:
                 - --mode=server
                 - --metrics-address=:8084
                 - --health-probe-bind-address=:8085
+                - --enable-arp=true
                 env:
                 - name: NODE_NAME
                   valueFrom:

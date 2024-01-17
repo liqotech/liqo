@@ -25,8 +25,7 @@ type Options struct {
 	Namespace       string
 	RemoteClusterID string
 
-	GatewayUID          string
-	TunnelInterfaceName string
+	GatewayUID string
 
 	Mode Mode
 
