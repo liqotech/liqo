@@ -59,3 +59,12 @@ func Sub[K comparable](s1, s2 []K) []K {
 	}
 	return s1
 }
+
+// ToPointerSlice returns a new slice of pointers to the elements of the input slice.
+func ToPointerSlice[T any](s []T) []*T {
+	p := make([]*T, len(s))
+	for i := range s {
+		p[i] = &s[i]
+	}
+	return p
+}

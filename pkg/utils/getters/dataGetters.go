@@ -22,6 +22,7 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -255,6 +256,23 @@ func RetrieveClusterIDsFromVirtualNodes(virtualNodes *virtualkubeletv1alpha1.Vir
 	clusterIDs := make(map[string]interface{})
 	for i := range virtualNodes.Items {
 		clusterIDs[virtualNodes.Items[i].Spec.ClusterIdentity.ClusterID] = nil
+	}
+	return maps.Keys(clusterIDs)
+}
+
+// RetrieveClusterIDsFromObjectsLabels returns the remote cluster IDs in a list of objects avoiding duplicates.
+func RetrieveClusterIDsFromObjectsLabels[T metav1.Object](objectList []T) []string {
+	clusterIDs := make(map[string]interface{})
+	for i := range objectList {
+		labels := objectList[i].GetLabels()
+		if labels == nil {
+			continue
+		}
+		clusterID, ok := labels[liqoconsts.RemoteClusterID]
+		if !ok {
+			continue
+		}
+		clusterIDs[clusterID] = nil
 	}
 	return maps.Keys(clusterIDs)
 }

@@ -42,6 +42,7 @@ spec:
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
+                - --node-name={{"$(NODE_NAME)"}}
                 - --mode=client
                 - --metrics-address=:8080
                 - --health-probe-bind-address=:8081
@@ -52,6 +53,11 @@ spec:
                 {{- if gt .Values.networking.gatewayTemplates.replicas 1.0 }}
                 - --leader-election=true
                 {{- end }}
+                env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
                 securityContext:
                   privileged: true
                   capabilities:

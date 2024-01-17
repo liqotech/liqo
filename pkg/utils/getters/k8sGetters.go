@@ -433,8 +433,8 @@ func ListConnectionsByLabel(ctx context.Context, cl client.Client, ns string, lS
 	return list, err
 }
 
-// ListRouteConfigurationsByLabel returns the RouteConfiguration resource with the given labels.
-func ListRouteConfigurationsByLabel(ctx context.Context, cl client.Client,
+// ListRouteConfigurationsInNamespaceByLabel returns the RouteConfiguration resource in a namespace with the given labels.
+func ListRouteConfigurationsInNamespaceByLabel(ctx context.Context, cl client.Client,
 	ns string, lSelector labels.Selector) (*networkingv1alpha1.RouteConfigurationList, error) {
 	list := &networkingv1alpha1.RouteConfigurationList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
@@ -455,8 +455,8 @@ func ListFirewallConfigurationsByLabel(ctx context.Context, cl client.Client,
 	return list, err
 }
 
-// ListConfigurationsByLabel returns the Configuration resource with the given labels.
-func ListConfigurationsByLabel(ctx context.Context, cl client.Client,
+// ListConfigurationsInNamespaceByLabel returns the Configuration resources with the given labels.
+func ListConfigurationsInNamespaceByLabel(ctx context.Context, cl client.Client,
 	ns string, lSelector labels.Selector) (*networkingv1alpha1.ConfigurationList, error) {
 	list := &networkingv1alpha1.ConfigurationList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
@@ -466,10 +466,20 @@ func ListConfigurationsByLabel(ctx context.Context, cl client.Client,
 	return list, err
 }
 
+// ListConfigurationsByLabel returns the Configuration resource with the given labels.
+func ListConfigurationsByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*networkingv1alpha1.ConfigurationList, error) {
+	list := &networkingv1alpha1.ConfigurationList{}
+	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector})
+	if err != nil {
+		return nil, err
+	}
+	return list, err
+}
+
 // GetConfigurationByClusterID returns the Configuration resource with the given clusterID.
 func GetConfigurationByClusterID(ctx context.Context, cl client.Client, clusterID string) (*networkingv1alpha1.Configuration, error) {
 	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: clusterID}.AsSelector()
-	configurations, err := ListConfigurationsByLabel(ctx, cl, corev1.NamespaceAll, remoteClusterIDSelector)
+	configurations, err := ListConfigurationsInNamespaceByLabel(ctx, cl, corev1.NamespaceAll, remoteClusterIDSelector)
 	if err != nil {
 		return nil, err
 	}
@@ -482,6 +492,16 @@ func GetConfigurationByClusterID(ctx context.Context, cl client.Client, clusterI
 	default:
 		return nil, fmt.Errorf("multiple Configurations found for ForeignCluster %s", clusterID)
 	}
+}
+
+// ListIPsByLabel returns the IP resource with the given labels.
+func ListIPsByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*ipamv1alpha1.IPList, error) {
+	list := &ipamv1alpha1.IPList{}
+	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector})
+	if err != nil {
+		return nil, err
+	}
+	return list, err
 }
 
 // GetConnectionByClusterID returns the Connection resource with the given clusterID.
