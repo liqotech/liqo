@@ -21,6 +21,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,6 +29,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/utils/geneve"
 )
 
@@ -36,12 +38,12 @@ type InternalNodeReconciler struct {
 	client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
-	Options        *Options
+	Options        *fabric.Options
 }
 
 // NewInternalNodeReconciler returns a new InternalNodeReconciler.
 func NewInternalNodeReconciler(cl client.Client, s *runtime.Scheme,
-	er record.EventRecorder, opts *Options) (*InternalNodeReconciler, error) {
+	er record.EventRecorder, opts *fabric.Options) (*InternalNodeReconciler, error) {
 	return &InternalNodeReconciler{
 		Client:         cl,
 		Scheme:         s,
@@ -52,6 +54,8 @@ func NewInternalNodeReconciler(cl client.Client, s *runtime.Scheme,
 
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch;update;patch
 
 // Reconcile manage InternalNodes.
@@ -75,6 +79,12 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("unable to get the geneve tunnel id: %w", err)
 	}
 
+	internalFabric := &networkingv1alpha1.InternalFabric{}
+	if err = r.Get(ctx, types.NamespacedName{
+		Name: internalFabricName, Namespace: r.Options.GwOptions.Namespace}, internalFabric); err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to get the internalfabric %q: %w", internalFabricName, err)
+	}
+
 	var remoteIP *networkingv1alpha1.IP
 	switch {
 	case r.Options.NodeName == internalnode.Name:
@@ -90,9 +100,10 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := geneve.EnsureGeneveInterfacePresence(
 		internalnode.Spec.Interface.Gateway.Name,
-		GeneveGatewayInterfaceIP,
+		internalFabric.Spec.Interface.Gateway.IP.String(),
 		remoteIP.String(),
 		id,
+		r.Options.EnableARP,
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface presence: %w", err)
 	}

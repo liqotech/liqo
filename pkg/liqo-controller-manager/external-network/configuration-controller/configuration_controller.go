@@ -86,7 +86,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	if isConfigurationConfigured(configuration) {
+	if !isConfigurationConfigured(configuration) {
 		events.Event(r.EventsRecorder, configuration, "Waiting for the network to be ready")
 	} else {
 		events.Event(r.EventsRecorder, configuration, "Configuration remapped")

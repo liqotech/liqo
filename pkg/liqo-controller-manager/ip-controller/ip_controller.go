@@ -41,7 +41,7 @@ import (
 )
 
 const (
-	ipamIPFinalizer = "ip.ipam.liqo.io"
+	ipamIPFinalizer = "ip.ipam.liqo.io/finalizer"
 )
 
 // IPReconciler reconciles a IP object.

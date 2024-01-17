@@ -40,11 +40,19 @@ type InternalFabricSpecInterfaceNode struct {
 	Name string `json:"name"`
 }
 
+// InternalFabricSpecInterfaceGateway contains the information about the gateway interface.
+type InternalFabricSpecInterfaceGateway struct {
+	// IP is the IP of the interface added to the gateway.
+	IP IP `json:"ip"`
+}
+
 // InternalFabricSpecInterface contains the information about network interfaces.
 type InternalFabricSpecInterface struct {
 	// Node contains the information about the node interface.
 	// The node interface is created on every node to connect them to the gateway related with the internalfabric.
 	Node InternalFabricSpecInterfaceNode `json:"node"`
+	// Gateway contains the information about the gateway interface.
+	Gateway InternalFabricSpecInterfaceGateway `json:"gateway"`
 }
 
 // InternalFabricSpec defines the desired state of InternalFabric.

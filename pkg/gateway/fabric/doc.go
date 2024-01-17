@@ -12,9 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package fabric implements the connection between gateways and the internal network.
 package fabric
-
-const (
-	// GeneveNodeInterfaceIP is the IP address of the geneve interface on the node.
-	GeneveNodeInterfaceIP = "169.254.1.1"
-)

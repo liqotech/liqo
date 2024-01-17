@@ -22,12 +22,12 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vishvananda/netlink"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -37,8 +37,11 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
+	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/gateway/remapping"
+	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
+	"github.com/liqotech/liqo/pkg/utils/kernel"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -98,6 +101,11 @@ func main() {
 func run(cmd *cobra.Command, _ []string) error {
 	var err error
 
+	// Enable ip_forwarding.
+	if err = kernel.EnableIPForwarding(); err != nil {
+		return err
+	}
+
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
 
@@ -108,11 +116,6 @@ func run(cmd *cobra.Command, _ []string) error {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
-		Cache: cache.Options{
-			DefaultNamespaces: map[string]cache.Config{
-				connoptions.GwOptions.Namespace: {},
-			},
-		},
 		Metrics: server.Options{
 			BindAddress: "0", // Metrics are exposed by "connection" container.
 		},
@@ -149,6 +152,23 @@ func run(cmd *cobra.Command, _ []string) error {
 		if err = connr.SetupWithManager(mgr); err != nil {
 			return fmt.Errorf("unable to setup connections reconciler: %w", err)
 		}
+	}
+
+	rcr, err := route.NewRouteConfigurationReconcilerWithoutFinalizer(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("routeconfiguration-controller"),
+		[]labels.Set{
+			fabric.ForgeRouteExternalTargetLabels(connoptions.GwOptions.RemoteClusterID),
+			fabric.ForgeRouteInternalTargetLabels(),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create routeconfiguration reconciler: %w", err)
+	}
+
+	if err := rcr.SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
 	}
 
 	// Setup the firewall configuration controller.
