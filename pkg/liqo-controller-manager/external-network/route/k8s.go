@@ -102,9 +102,6 @@ func forgeMutateRouteConfiguration(cfg *networkingv1alpha1.Configuration,
 		}
 
 		routecfg.ObjectMeta.Labels = gateway.ForgeRouteExternalTargetLabels(remoteClusterID)
-		if err != nil {
-			return err
-		}
 
 		routecfg.Spec = networkingv1alpha1.RouteConfigurationSpec{
 			Table: networkingv1alpha1.Table{

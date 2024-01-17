@@ -26,15 +26,20 @@ const (
 	// GatewayComponentGateway is the key used to label the gateway pod.
 	GatewayComponentGateway = "gateway"
 
-	// RouteCategoryTargetValue is the value used by the routeconfiguration controller to reconcile only resources related to a gateway.
-	RouteCategoryTargetValue = "gateway"
-	// RouteSubCategoryTargetValue is the value used by the routeconfiguration controller to reconcile only resources related to a gateway.
-	RouteSubCategoryTargetValue = "fabric"
+	// RouteCategoryGwTargetValue is the value used by the routeconfiguration controller to reconcile only resources related to a gateway.
+	RouteCategoryGwTargetValue = "gateway"
 
-	// FirewallCategoryTargetValue is the value used by the firewallconfiguration controller to reconcile only resources related to a gateway.
-	FirewallCategoryTargetValue = "gateway"
-	// FirewallSubCategoryTargetValue is the value used by the firewallconfiguration controller to reconcile only resources related to a gateway.
-	FirewallSubCategoryTargetValue = "fabric"
+	// RouteSubCategoryFabricTargetValue is the value used by the routeconfiguration controller to reconcile only resources related to a gateway.
+	RouteSubCategoryFabricTargetValue = "fabric"
+	// RouteSubCategoryFabricNodeTargetValue is the value used by the routeconfiguration controller
+	// to reconcile only resources related to a gateway on anode.
+	RouteSubCategoryFabricNodeTargetValue = "fabric-node"
+
+	// FirewallCategoryGwTargetValue is the value used by the firewallconfiguration controller to reconcile only resources related to a gateway.
+	FirewallCategoryGwTargetValue = "gateway"
+
+	// FirewallSubCategoryFabricTargetValue is the value used by the firewallconfiguration controller to reconcile only resources related to a gateway.
+	FirewallSubCategoryFabricTargetValue = "fabric"
 )
 
 // ForgeGatewayPodLabels returns the labels for the gateway pod.
@@ -48,7 +53,7 @@ func ForgeGatewayPodLabels() map[string]string {
 // to reconcile only resources related to a single gateway and external-network.
 func ForgeRouteExternalTargetLabels(remoteID string) map[string]string {
 	return map[string]string{
-		route.RouteCategoryTargetKey: RouteCategoryTargetValue,
+		route.RouteCategoryTargetKey: RouteCategoryGwTargetValue,
 		route.RouteUniqueTargetKey:   remoteID,
 	}
 }
@@ -57,8 +62,18 @@ func ForgeRouteExternalTargetLabels(remoteID string) map[string]string {
 // to reconcile only resources related to internal-network.
 func ForgeRouteInternalTargetLabels() map[string]string {
 	return map[string]string{
-		route.RouteCategoryTargetKey:    RouteCategoryTargetValue,
-		route.RouteSubCategoryTargetKey: RouteSubCategoryTargetValue,
+		route.RouteCategoryTargetKey:    RouteCategoryGwTargetValue,
+		route.RouteSubCategoryTargetKey: RouteSubCategoryFabricTargetValue,
+	}
+}
+
+// ForgeRouteInternalTargetLabelsByNode returns the labels used by the routeconfiguration controller
+// to reconcile only resources related to internal-network and a single node.
+func ForgeRouteInternalTargetLabelsByNode(nodeName string) map[string]string {
+	return map[string]string{
+		route.RouteCategoryTargetKey:    RouteCategoryGwTargetValue,
+		route.RouteSubCategoryTargetKey: RouteSubCategoryFabricNodeTargetValue,
+		route.RouteUniqueTargetKey:      nodeName,
 	}
 }
 
@@ -66,7 +81,7 @@ func ForgeRouteInternalTargetLabels() map[string]string {
 // to reconcile only resources related to a gateway.
 func ForgeFirewallInternalTargetLabels() map[string]string {
 	return map[string]string{
-		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValue,
-		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValue,
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryGwTargetValue,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryFabricTargetValue,
 	}
 }

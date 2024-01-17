@@ -22,14 +22,19 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 var (
@@ -109,8 +114,16 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 // SetupWithManager register the PodReconciler to the manager.
 func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	p, err := predicate.LabelSelectorPredicate(v1.LabelSelector{
+		MatchLabels: map[string]string{
+			consts.LocalPodLabelKey: consts.LocalPodLabelValue,
+		},
+	})
+	if err != nil {
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}).
+		For(&corev1.Pod{}, builder.WithPredicates(predicate.Not(p))).
 		WatchesRawSource(
 			NewLeftoverPodsSource(r.GenericEvents),
 			NewLeftoverPodsEventHandler()).
