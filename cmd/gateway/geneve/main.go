@@ -32,8 +32,8 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
-	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -41,7 +41,7 @@ import (
 
 var (
 	scheme  = runtime.NewScheme()
-	options = geneve.NewOptions(gateway.NewOptions())
+	options = fabric.NewOptions(gateway.NewOptions())
 )
 
 func init() {
@@ -62,8 +62,8 @@ func main() {
 	klog.InitFlags(legacyflags)
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
-	geneve.InitFlags(cmd.Flags(), options)
-	if err := geneve.MarkFlagsRequired(&cmd); err != nil {
+	fabric.InitFlags(cmd.Flags(), options)
+	if err := fabric.MarkFlagsRequired(&cmd); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
@@ -111,20 +111,6 @@ func run(cmd *cobra.Command, _ []string) error {
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
-	}
-
-	rcr, err := route.NewRouteConfigurationReconcilerWithoutFinalizer(
-		mgr.GetClient(),
-		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("routeconfiguration-controller"),
-		geneve.ForgeRouteTargetLabels(options.GwOptions.Name),
-	)
-	if err != nil {
-		return fmt.Errorf("unable to create routeconfiguration reconciler: %w", err)
-	}
-
-	if err := rcr.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("unable to setup routeconfiguration reconciler: %w", err)
 	}
 
 	inr, err := geneve.NewInternalNodeReconciler(

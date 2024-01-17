@@ -20,6 +20,8 @@ type Options struct {
 
 	MetricsAddress string
 	ProbeAddr      string
+
+	EnableARP bool
 }
 
 // NewOptions returns a new Options struct.

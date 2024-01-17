@@ -16,15 +16,10 @@ package internalfabriccontroller
 
 import (
 	"context"
-	"fmt"
-	"sort"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -33,8 +28,6 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/fabric"
-	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
 )
 
 // InternalFabricReconciler manage InternalFabric lifecycle.
@@ -102,64 +95,6 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context, internalFabric *networkingv1alpha1.InternalFabric) error {
-	if internalFabric.Spec.Interface.Node.Name == "" {
-		return fmt.Errorf("internal fabric %q has node interface name empty", client.ObjectKeyFromObject(internalFabric))
-	}
-
-	route := &networkingv1alpha1.RouteConfiguration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      internalFabric.Name,
-			Namespace: internalFabric.Namespace,
-		},
-	}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, route, func() error {
-		// Forge metadata
-		if route.Labels == nil {
-			route.Labels = make(map[string]string)
-		}
-		route.SetLabels(labels.Merge(route.Labels, fabric.ForgeRouteTargetLabels()))
-
-		// Add route rule for every remote CIDR
-		var rules []networkingv1alpha1.Rule
-		remoteCIDRs := internalFabric.Spec.RemoteCIDRs
-		// sort slice to prevent useless updates if CIDRs are in different order
-		sort.Slice(remoteCIDRs, func(i, j int) bool {
-			return remoteCIDRs[i] < remoteCIDRs[j]
-		})
-		for _, remoteCIDR := range remoteCIDRs {
-			rule := networkingv1alpha1.Rule{
-				Routes: []networkingv1alpha1.Route{
-					{
-						Dst:    ptr.To(remoteCIDR),
-						Gw:     ptr.To(networkingv1alpha1.IP(geneve.GeneveGatewayInterfaceIP)),
-						Dev:    ptr.To(internalFabric.Spec.Interface.Node.Name),
-						Onlink: ptr.To(true),
-					},
-				},
-				Dst: ptr.To(remoteCIDR),
-			}
-
-			rules = append(rules, rule)
-		}
-
-		route.Spec = networkingv1alpha1.RouteConfigurationSpec{
-			Table: networkingv1alpha1.Table{
-				Name:  route.Name,
-				Rules: rules,
-			},
-		}
-
-		return controllerutil.SetControllerReference(internalFabric, route, r.Scheme)
-	})
-	if err != nil {
-		klog.Errorf("Unable to create or update RouteConfiguration %q: %s", route.Name, err)
-		return err
-	}
-
-	return nil
 }
 
 // SetupWithManager register the InternalFabricReconciler to the manager.
