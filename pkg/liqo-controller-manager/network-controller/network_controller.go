@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	ipamNetworkFinalizer = "network.ipam.liqo.io"
+	ipamNetworkFinalizer = "network.ipam.liqo.io/finalizer"
 )
 
 // NetworkReconciler reconciles a Network object.

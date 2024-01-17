@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package geneve
+package route
 
-const (
-	// GeneveGatewayInterfaceIP is the IP address of the geneve interface on the gateway.
-	GeneveGatewayInterfaceIP = "169.254.1.2"
-)
+// Options contains the options for the pod route controller.
+type Options struct {
+	Namespace string
+}

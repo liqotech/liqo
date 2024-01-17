@@ -68,12 +68,15 @@ import (
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
 	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
 	externalnetworkcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/externalnetwork-controller"
+	externalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/route"
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/server-operator"
 	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/wireguard"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	internalclientcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/client-controller"
+	internalconfigurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/configuration-controller"
 	internalfabriccontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/internalfabric-controller"
 	nodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/node-controller"
+	internalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/route"
 	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/server-controller"
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
@@ -677,9 +680,40 @@ func main() {
 			os.Exit(1)
 		}
 
-		cfgr := configurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("configuration-controller"))
-		if err = cfgr.SetupWithManager(mgr); err != nil {
+		cfgReconciler := configurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
+			mgr.GetEventRecorderFor("configuration-controller"))
+		if err = cfgReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to create controller ConfigurationReconciler: %s", err)
+			os.Exit(1)
+		}
+
+		extCfgReconciler := externalnetworkroute.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
+			mgr.GetEventRecorderFor("external-configuration-controller"))
+		if err = extCfgReconciler.SetupWithManager(mgr); err != nil {
+			klog.Errorf("unable to create controller ExternalConfigurationReconciler: %s", err)
+			os.Exit(1)
+		}
+
+		allpodmgr, err := ctrl.NewManager(config, ctrl.Options{
+			MapperProvider: mapper.LiqoMapperProvider(scheme),
+			Scheme:         scheme,
+			Metrics:        server.Options{BindAddress: "0"}, // Disable the metrics of the auxiliary manager to prevent conflicts.
+		})
+
+		if err != nil {
+			klog.Errorf("Unable to create auxiliary manager: %w", err)
+			os.Exit(1)
+		}
+
+		if err := mgr.Add(allpodmgr); err != nil {
+			klog.Errorf("Unable to add the ExternalNetworkPods auxiliary manager to the main one: %w", err)
+			os.Exit(1)
+		}
+
+		intPodReconciler := internalnetworkroute.NewPodReconciler(allpodmgr.GetClient(), allpodmgr.GetScheme(),
+			allpodmgr.GetEventRecorderFor("internal-pod-controller"), &internalnetworkroute.Options{Namespace: *liqoNamespace})
+		if err = intPodReconciler.SetupWithManager(allpodmgr); err != nil {
+			klog.Errorf("unable to create controller InternalPodReconciler: %s", err)
 			os.Exit(1)
 		}
 
@@ -733,6 +767,12 @@ func main() {
 
 		internalFabricReconciler := internalfabriccontroller.NewInternalFabricReconciler(mgr.GetClient(), mgr.GetScheme())
 		if err := internalFabricReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		configurationReconciler := internalconfigurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme())
+		if err := configurationReconciler.SetupWithManager(mgr); err != nil {
 			klog.Error(err)
 			os.Exit(1)
 		}
