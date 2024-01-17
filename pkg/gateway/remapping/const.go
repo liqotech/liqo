@@ -17,9 +17,20 @@ package remapping
 var (
 	// TablePodCIDRName is the name of the table for the pod CIDR.
 	TablePodCIDRName = "remap-podcidr"
+	// TableExternalCIDRName is the name of the table for the external CIDR.
+	TableExternalCIDRName = "remap-externalcidr"
+	// TableIPMappingGwName is the name of the table for the IP mapping.
+	TableIPMappingGwName = "remap-ipmapping-gw"
+	// TableIPMappingFabricName is the name of the table for the IP mapping.
+	TableIPMappingFabricName = "remap-ipmapping-fabric"
 
 	// DNATChainName is the name of the chain for the output traffic.
 	DNATChainName = "Outgoing packets remapping"
 	// SNATChainName is the name of the chain for the input traffic.
 	SNATChainName = "Incoming packets remapping"
+
+	// PreroutingChainName is the name of the chain for the IP mapping.
+	PreroutingChainName = "prerouting"
+	// PostroutingChainName is the name of the chain for the IP mapping.
+	PostroutingChainName = "postrouting"
 )
