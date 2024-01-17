@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -218,6 +219,25 @@ func (w *Waiter) ForConfiguration(ctx context.Context, conf *networkingv1alpha1.
 		return err
 	}
 	s.Success("Configuration applied successfully")
+	return nil
+}
+
+// ForGatewayPodReady waits until the pod of a Gateway resource has been created and is ready.
+func (w *Waiter) ForGatewayPodReady(ctx context.Context, gateway client.Object) error {
+	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for gateway pod %s to be ready", gateway.GetName()))
+	gatewayDeployment := &appsv1.Deployment{}
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		err = w.CRClient.Get(ctx, client.ObjectKeyFromObject(gateway), gatewayDeployment)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+		return gatewayDeployment.Status.ReadyReplicas > 0, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for gateway pod %s to be ready: %s", gatewayDeployment.GetName(), output.PrettyErr(err)))
+		return err
+	}
+	s.Success(fmt.Sprintf("Gateway pod %s is ready", gatewayDeployment.GetName()))
 	return nil
 }
 
