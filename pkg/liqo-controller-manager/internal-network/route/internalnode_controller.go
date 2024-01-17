@@ -20,14 +20,20 @@ import (
 
 	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
@@ -54,6 +60,8 @@ func NewInternalNodeReconciler(cl client.Client, s *runtime.Scheme,
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations,verbs=get;list;watch;update;patch;create;delete
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations,verbs=get;list;watch;update;patch;create;delete
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch;update;patch;create;delete
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=ips,verbs=get;list;watch;update;patch;create;delete
 
 // Reconcile manage InternalNodes.
 func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -113,9 +121,25 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	configurations, err := getters.ListConfigurationsByLabel(ctx, r.Client, labels.SelectorFromSet(labels.Set{
+		configurationcontroller.Configured: configurationcontroller.ConfiguredValue,
+	}))
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	ips, err := getters.ListIPsByLabel(ctx, r.Client, labels.Everything())
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	mark := AssignMark(internalnode.GetName())
 
 	if err = enforceRouteWithConntrackPresence(ctx, r.Client, internalnode, r.Scheme, mark, firstIP.String(), r.Options); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := enforceRouteConfigurationExtCIDR(ctx, r.Client, internalnode, configurations.Items, ips.Items, r.Scheme, r.Options); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -128,5 +152,22 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *InternalNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1alpha1.InternalNode{}).
+		Watches(&networkingv1alpha1.Configuration{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).
+		Watches(&ipamv1alpha1.IP{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).
 		Complete(r)
+}
+
+func (r *InternalNodeReconciler) genericEnqueuerfunc(ctx context.Context, _ client.Object) []reconcile.Request {
+	internalNodes, err := getters.ListInternalNodesByLabels(ctx, r.Client, labels.Everything())
+	if err != nil {
+		klog.Error(err)
+		return nil
+	}
+	var requests []reconcile.Request
+	for i := range internalNodes.Items {
+		requests = append(requests, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(&internalNodes.Items[i]),
+		})
+	}
+	return requests
 }

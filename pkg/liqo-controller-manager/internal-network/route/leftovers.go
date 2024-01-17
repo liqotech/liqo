@@ -67,7 +67,7 @@ func NewLeftoverPodsEventHandler() handler.EventHandler {
 // reboots).
 // It also populates podKeyToNode map with existing pods nodename.
 func (r *PodReconciler) CheckLeftoverRoutes(ctx context.Context) error {
-	routecfglist, err := getters.ListRouteConfigurationsByLabel(ctx, r.Client, r.Options.Namespace, labels.Everything())
+	routecfglist, err := getters.ListRouteConfigurationsInNamespaceByLabel(ctx, r.Client, r.Options.Namespace, labels.Everything())
 	if err != nil {
 		return err
 	}

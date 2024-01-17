@@ -87,7 +87,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	var remoteIP *networkingv1alpha1.IP
 	switch {
-	case r.Options.NodeName == internalnode.Name:
+	case r.Options.GwOptions.NodeName == internalnode.Name:
 		remoteIP = internalnode.Status.NodeIP.Local
 	default:
 		remoteIP = internalnode.Status.NodeIP.Remote

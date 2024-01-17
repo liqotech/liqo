@@ -37,9 +37,10 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/fabric"
-	"github.com/liqotech/liqo/pkg/fabric/sourcedetector"
+	sourcedetector "github.com/liqotech/liqo/pkg/fabric/source-detector"
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -137,7 +138,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("firewall-controller"),
-		[]labels.Set{fabric.ForgeFirewallTargetLabels()},
+		[]labels.Set{fabric.ForgeFirewallTargetLabels(), remapping.ForgeFirewallTargetLabelsIPMappingFabric()},
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
