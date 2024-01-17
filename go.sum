@@ -456,8 +456,8 @@ github.com/gruntwork-io/go-commons v0.13.3 h1:tRNMZgXbmD9cgqhV/bEdYK4e0SndNKGH5e
 github.com/gruntwork-io/go-commons v0.13.3/go.mod h1:ILC/UDRkC/+vTQNhdfnN/b4WySgc5kwXUO338hnS1f4=
 github.com/gruntwork-io/gruntwork-cli v0.7.2 h1:aZTztE9vVxUnpNFBecOPuqk1QYl5fPPIriE15Sp3ATs=
 github.com/gruntwork-io/gruntwork-cli v0.7.2/go.mod h1:jp6Z7NcLF2avpY8v71fBx6hds9eOFPELSuD/VPv7w00=
-github.com/gruntwork-io/terratest v0.46.9 h1:2K0503TC8bhz1SQTlw6vX8SjexztXmCp3WvWxE6g22c=
-github.com/gruntwork-io/terratest v0.46.9/go.mod h1:DVZG/s7eP1u3KOQJJfE6n7FDriMWpDvnj85XIlZMEM8=
+github.com/gruntwork-io/terratest v0.46.11 h1:1Z9G18I2FNuH87Ro0YtjW4NH9ky4GDpfzE7+ivkPeB8=
+github.com/gruntwork-io/terratest v0.46.11/go.mod h1:DVZG/s7eP1u3KOQJJfE6n7FDriMWpDvnj85XIlZMEM8=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
 github.com/hashicorp/errwrap v1.1.0 h1:OxrOeh75EUXMY8TBjag2fzXGZ40LB6IKw45YeGUDY2I=
 github.com/hashicorp/errwrap v1.1.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
