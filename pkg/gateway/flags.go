@@ -38,8 +38,6 @@ const (
 
 	// FlagNameGatewayUID is the UID of the Gateway resource.
 	FlagNameGatewayUID FlagName = "gateway-uid"
-	// FlagNameInterfaceName is the name of the tunnel interface.
-	FlagNameInterfaceName FlagName = "interface-name"
 
 	// FlagNameMode is the mode in which the gateway is configured.
 	FlagNameMode FlagName = "mode"
@@ -75,7 +73,6 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringVar(&opts.RemoteClusterID, FlagNameRemoteClusterID.String(), "", "ClusterID of the remote cluster")
 
 	flagset.StringVar(&opts.GatewayUID, FlagNameGatewayUID.String(), "", "Parent gateway resource UID")
-	flagset.StringVar(&opts.TunnelInterfaceName, FlagNameInterfaceName.String(), "liqo-tunnel", "Name for the tunnel interface")
 
 	flagset.Var(&opts.Mode, FlagNameMode.String(), "Parent gateway mode")
 

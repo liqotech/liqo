@@ -20,6 +20,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -51,6 +52,7 @@ func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme,
 
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalfabrics/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=genevetunnels,verbs=get;list;watch;update;patch
 
 // Reconcile manage InternalFabrics.
@@ -63,6 +65,11 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalfabric %q: %w", req.NamespacedName, err)
+	}
+
+	internalnode := &networkingv1alpha1.InternalNode{}
+	if err = r.Get(ctx, types.NamespacedName{Name: r.Options.NodeName}, internalnode); err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", r.Options.NodeName, err)
 	}
 
 	klog.V(4).Infof("Reconciling internalfabric %s", req.String())
@@ -102,9 +109,10 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if err := geneve.EnsureGeneveInterfacePresence(
 		internalfabric.Spec.Interface.Node.Name,
-		GeneveNodeInterfaceIP,
-		string(internalfabric.Spec.GatewayIP),
+		internalnode.Spec.Interface.Node.IP.String(),
+		internalfabric.Spec.GatewayIP.String(),
 		id,
+		r.Options.EnableARP,
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface presence: %w", err)
 	}

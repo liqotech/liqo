@@ -109,6 +109,14 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - internalfabrics
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - internalnodes
   verbs:
   - get
@@ -116,6 +124,14 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalnodes/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - networking.liqo.io
   resources:

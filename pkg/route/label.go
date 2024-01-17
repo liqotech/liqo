@@ -17,6 +17,8 @@ package route
 const (
 	// RouteCategoryTargetKey is the key used by the route controller to reconcile only resources related to a group.
 	RouteCategoryTargetKey = "networking.liqo.io/route-category"
+	// RouteSubCategoryTargetKey is the key used by the route controller to reconcile only resources related to a subgroup.
+	RouteSubCategoryTargetKey = "networking.liqo.io/route-subcategory"
 	// RouteUniqueTargetKey is the key used by the route controller to reconcile only resources related to a single component.
 	RouteUniqueTargetKey = "networking.liqo.io/route-unique"
 )
