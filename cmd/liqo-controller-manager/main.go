@@ -58,6 +58,7 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway/remapping"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/ipam"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
@@ -656,6 +657,12 @@ func main() {
 			&route.Options{Namespace: *liqoNamespace},
 		)
 		if err := internalNodeReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		ipMappingReconciler := remapping.NewIPReconciler(mgr.GetClient(), mgr.GetScheme())
+		if err := ipMappingReconciler.SetupWithManager(mgr); err != nil {
 			klog.Error(err)
 			os.Exit(1)
 		}
