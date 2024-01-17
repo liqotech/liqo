@@ -37,12 +37,12 @@ func EnsureRoutesPresence(routes []networkingv1alpha1.Route, tableID uint32) err
 		if exists {
 			if !IsEqualRoute(route, existingroute) {
 				if err := netlink.RouteReplace(route); err != nil {
-					return err
+					return fmt.Errorf("error replacing route %v: %w", route, err)
 				}
 			}
 		} else {
 			if err := netlink.RouteAdd(route); err != nil {
-				return err
+				return fmt.Errorf("error adding route %v: %w", route, err)
 			}
 		}
 	}
@@ -157,6 +157,7 @@ func forgeNetlinkRoute(route *networkingv1alpha1.Route, tableID uint32) (*netlin
 	var err error
 	var dst *net.IPNet
 	var src, gw net.IP
+	var scope netlink.Scope
 	var linkIndex int
 
 	if route.Dst != nil {
@@ -186,6 +187,22 @@ func forgeNetlinkRoute(route *networkingv1alpha1.Route, tableID uint32) (*netlin
 		flags |= int(netlink.FLAG_ONLINK)
 	}
 
+	if route.Scope != nil {
+		switch *route.Scope {
+		case networkingv1alpha1.GlobalScope:
+			scope = netlink.SCOPE_UNIVERSE
+		case networkingv1alpha1.LinkScope:
+			scope = netlink.SCOPE_LINK
+		case networkingv1alpha1.HostScope:
+			scope = netlink.SCOPE_HOST
+		case networkingv1alpha1.SiteScope:
+			scope = netlink.SCOPE_SITE
+		case networkingv1alpha1.NowhereScope:
+			scope = netlink.SCOPE_NOWHERE
+		default:
+		}
+	}
+
 	return &netlink.Route{
 		Dst:       dst,
 		Gw:        gw,
@@ -193,5 +210,6 @@ func forgeNetlinkRoute(route *networkingv1alpha1.Route, tableID uint32) (*netlin
 		LinkIndex: linkIndex,
 		Table:     int(tableID),
 		Flags:     flags,
+		Scope:     scope,
 	}, nil
 }

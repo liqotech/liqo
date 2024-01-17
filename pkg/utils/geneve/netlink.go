@@ -19,10 +19,11 @@ import (
 	"net"
 
 	"github.com/vishvananda/netlink"
+	"k8s.io/klog/v2"
 )
 
 // EnsureGeneveInterfacePresence ensures that a geneve interface exists for the given internal node.
-func EnsureGeneveInterfacePresence(interfaceName, localIP, remoteIP string, id uint32) error {
+func EnsureGeneveInterfacePresence(interfaceName, localIP, remoteIP string, id uint32, enableARP bool) error {
 	remoteIPNet := net.ParseIP(remoteIP)
 	if remoteIPNet == nil {
 		remoteIPsNet, err := net.LookupIP(remoteIP)
@@ -35,6 +36,7 @@ func EnsureGeneveInterfacePresence(interfaceName, localIP, remoteIP string, id u
 		net.ParseIP(localIP),
 		remoteIPNet,
 		id,
+		enableARP,
 	)
 }
 
@@ -47,36 +49,58 @@ func EnsureGeneveInterfaceAbsence(interfaceName string) error {
 	return netlink.LinkDel(link)
 }
 
+// ForgeGeneveInterface creates a geneve interface with the given name, remote IP and ID.
+func ForgeGeneveInterface(name string, remote net.IP, id uint32) *netlink.Geneve {
+	return &netlink.Geneve{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:   name,
+			TxQLen: 1000,
+		},
+		ID:     id,
+		Remote: remote,
+	}
+}
+
 // CreateGeneveInterface creates a geneve interface with the given name, remote IP and ID.
-func CreateGeneveInterface(name string, local, remote net.IP, id uint32) error {
+func CreateGeneveInterface(name string, local, remote net.IP, id uint32, enableARP bool) error {
+	var geneveLink *netlink.Geneve
 	link := ExistGeneveInterface(name)
+
 	if link == nil {
-		link = &netlink.Geneve{
-			LinkAttrs: netlink.LinkAttrs{
-				Name:   name,
-				TxQLen: 1000,
-			},
-			ID:     id,
-			Remote: remote,
-		}
-		if err := netlink.LinkAdd(link); err != nil {
+		geneveLink = ForgeGeneveInterface(name, remote, id)
+		if err := netlink.LinkAdd(geneveLink); err != nil {
 			return fmt.Errorf("cannot create geneve link: %w", err)
 		}
+	} else {
+		geneveLink = link.(*netlink.Geneve)
+		if !geneveLink.Remote.Equal(remote) {
+			klog.Warning("geneve link already exists with different remote IP (%s -> %s), deleting and recreating it",
+				geneveLink.Remote.String(), remote.String())
+			if err := netlink.LinkDel(geneveLink); err != nil {
+				return fmt.Errorf("cannot delete geneve link: %w", err)
+			}
+			geneveLink = ForgeGeneveInterface(name, remote, id)
+			if err := netlink.LinkAdd(geneveLink); err != nil {
+				return fmt.Errorf("cannot create geneve link: %w", err)
+			}
+		}
 	}
 
-	if err := netlink.LinkSetARPOff(link); err != nil {
-		return fmt.Errorf("cannot set geneve link arp off: %w", err)
+	if !enableARP {
+		if err := netlink.LinkSetARPOff(geneveLink); err != nil {
+			return fmt.Errorf("cannot set geneve link arp off: %w", err)
+		}
 	}
 
-	if err := netlink.LinkSetUp(link); err != nil {
+	if err := netlink.LinkSetUp(geneveLink); err != nil {
 		return fmt.Errorf("cannot set geneve link up: %w", err)
 	}
 
-	if ExistGeneveInterfaceAddr(link, local) == nil {
-		if err := netlink.AddrAdd(link, &netlink.Addr{
+	if ExistGeneveInterfaceAddr(geneveLink, local) == nil {
+		if err := netlink.AddrAdd(geneveLink, &netlink.Addr{
 			IPNet: &net.IPNet{
 				IP:   local,
-				Mask: net.IPMask{0xff, 0xff, 0xff, 0xff}, // Maybe it is not necessary. Remember to check.
+				Mask: net.IPMask{0xff, 0xff, 0xff, 0xff},
 			},
 		}); err != nil {
 			return fmt.Errorf("cannot add address to geneve link: %w", err)

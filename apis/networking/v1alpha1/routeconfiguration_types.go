@@ -15,6 +15,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -34,6 +35,22 @@ var RouteConfigurationGroupResource = schema.GroupResource{Group: GroupVersion.G
 // RouteConfigurationGroupVersionResource is groupResourceVersion used to register these objects.
 var RouteConfigurationGroupVersionResource = GroupVersion.WithResource(RouteConfigurationResource)
 
+// Scope is the scope of the route.
+type Scope string
+
+const (
+	// GlobalScope is the global scope of the RouteConfiguration.
+	GlobalScope Scope = "global"
+	// LinkScope is the link scope of the RouteConfiguration.
+	LinkScope Scope = "link"
+	// HostScope is the host scope of the RouteConfiguration.
+	HostScope Scope = "host"
+	// SiteScope is the site scope of the RouteConfiguration.
+	SiteScope Scope = "site"
+	// NowhereScope is the nowhere scope of the RouteConfiguration.
+	NowhereScope Scope = "nowhere"
+)
+
 // Route is the route of the RouteConfiguration.
 type Route struct {
 	// Dst is the destination of the RouteConfiguration.
@@ -46,6 +63,12 @@ type Route struct {
 	Dev *string `json:"dev,omitempty"`
 	// Onlink enables the onlink falg inside the route.
 	Onlink *bool `json:"onlink,omitempty"`
+	// Scope is the scope of the RouteConfiguration.
+	// +kubebuilder:validation:Enum=global;link;host;site;nowhere
+	Scope *Scope `json:"scope,omitempty"`
+	// TargetRef is the reference to the target object of the route.
+	// It is optional and it can be used for custom purposes.
+	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
 }
 
 // Rule is the rule of the RouteConfiguration.
@@ -61,6 +84,9 @@ type Rule struct {
 	// Routes is the list of routes of the Rule.
 	// +kubebuilder:validation:MinItems=1
 	Routes []Route `json:"routes"`
+	// TargetRef is the reference to the target object of the rule.
+	// It is optional and it can be used for custom purposes.
+	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
 }
 
 // Table is the table of the RouteConfiguration.
@@ -70,6 +96,9 @@ type Table struct {
 	// Rules is the list of rules of the RouteConfiguration.
 	// +kubebuilder:validation:MinItems=1
 	Rules []Rule `json:"rules"`
+	// TargetRef is the reference to the target object of the table.
+	// It is optional and it can be used for custom purposes.
+	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
 }
 
 // RouteConfigurationSpec defines the desired state of RouteConfiguration.

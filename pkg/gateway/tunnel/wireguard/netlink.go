@@ -21,6 +21,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
 )
 
@@ -30,12 +31,12 @@ func InitWireguardLink(options *Options) error {
 		return err
 	}
 
-	link, err := common.GetLink(options.GwOptions.TunnelInterfaceName)
+	link, err := common.GetLink(tunnel.TunnelInterfaceName)
 	if err != nil {
 		return err
 	}
 
-	klog.Infof("Setting up Wireguard interface %q with IP %q", options.GwOptions.TunnelInterfaceName, common.GetInterfaceIP(options.GwOptions.Mode))
+	klog.Infof("Setting up Wireguard interface %q with IP %q", tunnel.TunnelInterfaceName, common.GetInterfaceIP(options.GwOptions.Mode))
 	if err := common.AddAddress(link, common.GetInterfaceIP(options.GwOptions.Mode)); err != nil {
 		return err
 	}
@@ -48,7 +49,7 @@ func createLink(options *Options) error {
 	link := netlink.Wireguard{
 		LinkAttrs: netlink.LinkAttrs{
 			MTU:  options.MTU,
-			Name: options.GwOptions.TunnelInterfaceName,
+			Name: tunnel.TunnelInterfaceName,
 		},
 	}
 
@@ -64,7 +65,7 @@ func createLink(options *Options) error {
 		}
 		defer wgcl.Close()
 
-		if err := wgcl.ConfigureDevice(options.GwOptions.TunnelInterfaceName, wgtypes.Config{
+		if err := wgcl.ConfigureDevice(tunnel.TunnelInterfaceName, wgtypes.Config{
 			ListenPort: &options.ListenPort,
 		}); err != nil {
 			return err
