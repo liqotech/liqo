@@ -152,7 +152,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("route-controller"),
-		fabric.ForgeRouteTargetLabels(),
+		[]labels.Set{fabric.ForgeRouteTargetLabels()},
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create route configuration reconciler: %w", err)

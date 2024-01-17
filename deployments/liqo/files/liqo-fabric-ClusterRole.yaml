@@ -68,6 +68,16 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - internalfabrics/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
   - internalnodes
   verbs:
   - get

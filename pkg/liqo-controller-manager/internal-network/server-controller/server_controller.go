@@ -29,6 +29,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/fabricipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -64,6 +65,15 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, err
 	}
 
+	ipam, err := fabricipam.Get(ctx, r.Client)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to initialize the IPAM: %w", err)
+	}
+	if ipam == nil {
+		klog.Infof("IPAM not ready")
+		return ctrl.Result{}, nil
+	}
+
 	remoteClusterID, ok := gwServer.Labels[consts.RemoteClusterID]
 	if !ok {
 		err = fmt.Errorf("remote cluster ID not found in the gateway server %q", req.NamespacedName)
@@ -77,7 +87,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, err
 	}
 
-	if err = r.ensureInternalFabric(ctx, gwServer, configuration, remoteClusterID); err != nil {
+	if err = r.ensureInternalFabric(ctx, gwServer, configuration, remoteClusterID, ipam); err != nil {
 		klog.Errorf("Unable to ensure the internal fabric for the gateway server %q: %s", req.NamespacedName, err)
 		return ctrl.Result{}, err
 	}
@@ -86,7 +96,7 @@ func (r *ServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 }
 
 func (r *ServerReconciler) ensureInternalFabric(ctx context.Context, gwServer *networkingv1alpha1.GatewayServer,
-	configuration *networkingv1alpha1.Configuration, remoteClusterID string) error {
+	configuration *networkingv1alpha1.Configuration, remoteClusterID string, ipam *fabricipam.IPAM) error {
 	if configuration.Status.Remote == nil {
 		return fmt.Errorf("remote configuration not found for the gateway server %q", gwServer.Name)
 	}
@@ -114,6 +124,12 @@ func (r *ServerReconciler) ensureInternalFabric(ctx context.Context, gwServer *n
 		if internalFabric.Spec.Interface.Node.Name, err = internalnetwork.FindFreeInterfaceName(ctx, r.Client, internalFabric); err != nil {
 			return err
 		}
+
+		ip, err := ipam.Allocate(internalFabric.GetName())
+		if err != nil {
+			return err
+		}
+		internalFabric.Spec.Interface.Gateway.IP = networkingv1alpha1.IP(ip.String())
 
 		internalFabric.Spec.RemoteCIDRs = []networkingv1alpha1.CIDR{
 			configuration.Status.Remote.CIDR.Pod,
