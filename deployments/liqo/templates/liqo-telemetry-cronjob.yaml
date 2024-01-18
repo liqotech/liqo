@@ -50,6 +50,12 @@ spec:
               {{- $d := dict "commandName" "--cluster-labels" "dictionary" .Values.discovery.config.clusterLabels }}
               {{- include "liqo.concatenateMap" $d | nindent 14 }}
               {{- end }}
+              {{- if .Values.common.extraArgs }}
+              {{- toYaml .Values.common.extraArgs | nindent 14 }}
+              {{- end }}
+              {{- if .Values.telemetry.pod.extraArgs }}
+              {{- toYaml .Values.telemetry.pod.extraArgs | nindent 14 }}
+              {{- end }}
             resources: {{- toYaml .Values.telemetry.pod.resources | nindent 14 }}
           {{- if ((.Values.common).nodeSelector) }}
           nodeSelector:
