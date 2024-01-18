@@ -16,7 +16,6 @@ package status
 
 import (
 	"context"
-	"errors"
 
 	"github.com/pterm/pterm"
 
@@ -38,10 +37,10 @@ func (o *Options) Run(ctx context.Context) error {
 		return err
 	}
 
+	hasErrors := false
 	for i, checker := range o.Checkers {
 		checker.Collect(ctx)
-		text := ""
-		text = checker.Format()
+		text := checker.Format()
 
 		if !checker.Silent() || !checker.HasSucceeded() {
 			o.Printer.BoxSetTitle(checker.GetTitle())
@@ -49,13 +48,17 @@ func (o *Options) Run(ctx context.Context) error {
 		}
 
 		if !checker.HasSucceeded() {
-			return errors.New("some checks failed")
+			hasErrors = true
 		}
 		// Insert a new line between each checker.
 		if i != len(o.Checkers)-1 && !checker.Silent() {
 			pterm.Println()
 		}
 	}
+	if hasErrors {
+		o.Printer.Error.Println("some checks failed")
+	}
+
 	return nil
 }
 

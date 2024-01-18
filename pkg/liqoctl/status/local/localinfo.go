@@ -87,6 +87,13 @@ func (lic *LocalInfoChecker) Collect(ctx context.Context) {
 		}
 	}
 
+	configurationSection := lic.localInfoSection.AddSection("Configuration")
+	liqoVersion, err := liqogetters.GetLiqoVersion(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
+	if err != nil {
+		lic.addCollectionError(fmt.Errorf("unable to get Liqo version: %w", err))
+	}
+	configurationSection.AddEntry("Version", liqoVersion)
+
 	networkSection := lic.localInfoSection.AddSection("Network")
 
 	if !lic.options.InternalNetworkEnabled {

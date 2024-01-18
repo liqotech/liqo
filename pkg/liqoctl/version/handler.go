@@ -19,8 +19,8 @@ import (
 	"fmt"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
-	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 var liqoctlVersion = "unknown"
@@ -40,28 +40,13 @@ func (o *Options) Run(ctx context.Context) error {
 		return nil
 	}
 
-	release, err := o.HelmClient().GetRelease(install.LiqoReleaseName)
+	version, err := liqogetters.GetLiqoVersion(ctx, o.CRClient, o.LiqoNamespace)
 	if err != nil {
-		o.Printer.Error.Printfln("Failed to retrieve release information from namespace %q: %v", o.LiqoNamespace, output.PrettyErr(err))
+		o.Printer.Error.Printfln("Failed to retrieve Liqo version: %v", output.PrettyErr(err))
 		return err
-	}
-
-	if release.Chart == nil || release.Chart.Metadata == nil {
-		o.Printer.Error.Println("Invalid release information")
-		return err
-	}
-
-	version := release.Chart.Metadata.AppVersion
-	if version == "" {
-		// Development version, fallback to the value specified as tag
-		tag, ok := release.Config["tag"]
-		if !ok {
-			o.Printer.Error.Println("Invalid release information")
-			return err
-		}
-		version = tag.(string)
 	}
 
 	fmt.Printf("Server version: %s\n", version)
+
 	return nil
 }

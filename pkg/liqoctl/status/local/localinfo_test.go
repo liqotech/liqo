@@ -137,6 +137,9 @@ var _ = Describe("LocalInfo", func() {
 				Expect(text).To(ContainSubstring(v))
 			}
 		}
+		Expect(text).To(ContainSubstring(
+			pterm.Sprintf("Version: %s", testutil.FakeLiqoVersion),
+		))
 		if args.net.InternalNetworkEnabled {
 			Expect(text).To(ContainSubstring(
 				pterm.Sprintf("Pod CIDR: %s", testutil.PodCIDR),

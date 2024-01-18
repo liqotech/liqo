@@ -17,8 +17,11 @@ package getters
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -32,6 +35,7 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
@@ -324,4 +328,29 @@ func ListVirtualKubeletPodsFromVirtualNode(ctx context.Context, cl client.Client
 		return nil, err
 	}
 	return list, nil
+}
+
+// GetLiqoVersion returns the installed Liqo version.
+func GetLiqoVersion(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
+	// Retrieve the deployment of the liqo controller manager component
+	var deployments appsv1.DeploymentList
+	if err := cl.List(ctx, &deployments, client.InNamespace(liqoNamespace), client.MatchingLabelsSelector{
+		Selector: liqolabels.ControllerManagerLabelSelector(),
+	}); err != nil || len(deployments.Items) != 1 {
+		return "", errors.New("failed to retrieve the liqo controller manager deployment")
+	}
+
+	// Get version from image version
+	containers := deployments.Items[0].Spec.Template.Spec.Containers
+	for i := range containers {
+		if containers[i].Name == "controller-manager" {
+			version := strings.Split(containers[i].Image, ":")[1]
+			if version == "" {
+				return "", errors.New("missing version in liqo controller manager image")
+			}
+			return version, nil
+		}
+	}
+
+	return "", errors.New("retrieved an invalid liqo controller manager deployment")
 }
