@@ -69,6 +69,12 @@ spec:
           - --cert-path=/certs/cert.pem
           - --read-timeout={{ .Values.metricAgent.config.timeout.read }}
           - --write-timeout={{ .Values.metricAgent.config.timeout.write }}
+          {{- if .Values.common.extraArgs }}
+          {{- toYaml .Values.common.extraArgs | nindent 10 }}
+          {{- end }}
+          {{- if .Values.metricAgent.pod.extraArgs }}
+          {{- toYaml .Values.metricAgent.pod.extraArgs | nindent 10 }}
+          {{- end }}
           resources: {{- toYaml .Values.metricAgent.pod.resources | nindent 12 }}
           volumeMounts:
             - mountPath: '/certs'
