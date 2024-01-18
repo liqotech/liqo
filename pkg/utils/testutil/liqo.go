@@ -89,7 +89,11 @@ func FakeControllerManagerDeployment(argsClusterLabels []string, networkEnabled 
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						{Args: containerArgs},
+						{
+							Args:  containerArgs,
+							Image: fmt.Sprintf("liqo-controller-manager:%s", FakeLiqoVersion),
+							Name:  "controller-manager",
+						},
 					},
 				},
 			},

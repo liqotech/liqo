@@ -39,6 +39,8 @@ const (
 	FakeNotReflectedLabelKey = "not-reflected-label"
 	// FakeNotReflectedAnnotKey is the key of the fake not reflected annotation used for testing.
 	FakeNotReflectedAnnotKey = "not-reflected-annot"
+	// FakeLiqoVersion is the version of Liqo used for testing.
+	FakeLiqoVersion = "fake-version"
 )
 
 var (
