@@ -247,7 +247,7 @@ var _ = Describe("Pods", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset()
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(9))
+						Expect(podC.collectionErrors).To(HaveLen(8))
 					})
 				})
 
@@ -256,7 +256,7 @@ var _ = Describe("Pods", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset(deployment)
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(9))
+						Expect(podC.collectionErrors).To(HaveLen(8))
 					})
 				})
 
@@ -267,7 +267,7 @@ var _ = Describe("Pods", func() {
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
 						fmt.Fprintln(GinkgoWriter, len(podC.collectionErrors))
-						Expect(podC.collectionErrors).To(HaveLen(9))
+						Expect(podC.collectionErrors).To(HaveLen(8))
 
 					})
 				})
@@ -280,7 +280,7 @@ var _ = Describe("Pods", func() {
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
 						fmt.Fprintln(GinkgoWriter, len(podC.collectionErrors))
-						Expect(podC.collectionErrors).To(HaveLen(9))
+						Expect(podC.collectionErrors).To(HaveLen(8))
 					})
 				})
 
@@ -289,7 +289,7 @@ var _ = Describe("Pods", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset(daemonSet)
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(9))
+						Expect(podC.collectionErrors).To(HaveLen(8))
 					})
 				})
 
@@ -299,7 +299,7 @@ var _ = Describe("Pods", func() {
 						podC.options.KubeClient = fake.NewSimpleClientset(daemonSet, pod)
 						podC.Collect(ctx)
 						Expect(podC.errors).To(BeTrue())
-						Expect(podC.collectionErrors).To(HaveLen(8))
+						Expect(podC.collectionErrors).To(HaveLen(7))
 					})
 				})
 			})
