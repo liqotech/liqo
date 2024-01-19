@@ -36,18 +36,17 @@ const (
 
 var (
 	liqoDeployments = []string{
+		"liqo-auth",
 		"liqo-controller-manager",
 		"liqo-crd-replicator",
 		"liqo-metric-agent",
-		"liqo-auth",
 		"liqo-proxy",
 	}
 	liqoDeploymentsNetwork = []string{
-		"liqo-network-manager",
-		"liqo-legacy-gateway",
+		"liqo-ipam",
 	}
 	liqoDaemonSetsNetwork = []string{
-		"liqo-route",
+		"liqo-fabric",
 	}
 )
 
@@ -183,7 +182,7 @@ type PodChecker struct {
 func NewPodChecker(options *status.Options) *PodChecker {
 	return &PodChecker{
 		options:           options,
-		podsState:         make(podStateMap, 6),
+		podsState:         make(podStateMap),
 		errors:            false,
 		podCheckerSection: output.NewRootSection(),
 	}

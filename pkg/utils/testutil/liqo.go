@@ -24,7 +24,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	v1alpha1networking "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -255,5 +257,75 @@ func FakeForgingOpts() *forge.ForgingOpts {
 	return &forge.ForgingOpts{
 		LabelsNotReflected:      []string{FakeNotReflectedLabelKey},
 		AnnotationsNotReflected: []string{FakeNotReflectedAnnotKey},
+	}
+}
+
+// FakeNetworkPodCIDR returns a fake Network of type PodCIDR.
+func FakeNetworkPodCIDR() *ipamv1alpha1.Network {
+	return &ipamv1alpha1.Network{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod-cidr",
+			Namespace: liqoconsts.DefaultLiqoNamespace,
+			Labels: map[string]string{
+				"ipam.liqo.io/network-type":         "pod-cidr",
+				"ipam.liqo.io/network-not-remapped": "true",
+			},
+		},
+		Spec: ipamv1alpha1.NetworkSpec{
+			CIDR: v1alpha1networking.CIDR(PodCIDR),
+		},
+	}
+}
+
+// FakeNetworkServiceCIDR returns a fake Network of type ServiceCIDR.
+func FakeNetworkServiceCIDR() *ipamv1alpha1.Network {
+	return &ipamv1alpha1.Network{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "service-cidr",
+			Namespace: liqoconsts.DefaultLiqoNamespace,
+			Labels: map[string]string{
+				"ipam.liqo.io/network-type":         "service-cidr",
+				"ipam.liqo.io/network-not-remapped": "true",
+			},
+		},
+		Spec: ipamv1alpha1.NetworkSpec{
+			CIDR: v1alpha1networking.CIDR(ServiceCIDR),
+		},
+	}
+}
+
+// FakeNetworkExternalCIDR returns a fake Network of type ExternalCIDR.
+func FakeNetworkExternalCIDR() *ipamv1alpha1.Network {
+	return &ipamv1alpha1.Network{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "external-cidr",
+			Namespace: liqoconsts.DefaultLiqoNamespace,
+			Labels: map[string]string{
+				"ipam.liqo.io/network-type": "external-cidr",
+			},
+		},
+		Spec: ipamv1alpha1.NetworkSpec{
+			CIDR: v1alpha1networking.CIDR(ExternalCIDR),
+		},
+		Status: ipamv1alpha1.NetworkStatus{
+			CIDR: v1alpha1networking.CIDR(ExternalCIDR),
+		},
+	}
+}
+
+// FakeNetworkReservedSubnet returns a fake Network of type Reserved Subnet.
+func FakeNetworkReservedSubnet(i int) *ipamv1alpha1.Network {
+	return &ipamv1alpha1.Network{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ReservedSubnets[i],
+			Namespace: liqoconsts.DefaultLiqoNamespace,
+			Labels: map[string]string{
+				"ipam.liqo.io/network-type":         "reserved",
+				"ipam.liqo.io/network-not-remapped": "true",
+			},
+		},
+		Spec: ipamv1alpha1.NetworkSpec{
+			CIDR: v1alpha1networking.CIDR(ReservedSubnets[i]),
+		},
 	}
 }
