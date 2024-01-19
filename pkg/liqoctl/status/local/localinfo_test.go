@@ -110,8 +110,13 @@ var _ = Describe("LocalInfo", func() {
 		)
 		if args.net.InternalNetworkEnabled {
 			objects = append(objects,
-				testutil.FakeLiqoGatewayService(args.net.endpointServiceType),
-				testutil.FakeIPAM(liqoconsts.DefaultLiqoNamespace))
+				testutil.FakeNetworkPodCIDR(),
+				testutil.FakeNetworkServiceCIDR(),
+				testutil.FakeNetworkExternalCIDR(),
+			)
+			for i := range testutil.ReservedSubnets {
+				objects = append(objects, testutil.FakeNetworkReservedSubnet(i))
+			}
 		}
 
 		clientBuilder.WithObjects(objects...)
@@ -150,9 +155,6 @@ var _ = Describe("LocalInfo", func() {
 			for _, v := range testutil.ReservedSubnets {
 				Expect(text).To(ContainSubstring(v))
 			}
-			Expect(text).To(ContainSubstring(
-				pterm.Sprintf("Network gateway: udp://%s:%d", testutil.EndpointIP, testutil.VPNGatewayPort),
-			))
 		} else {
 			Expect(text).To(ContainSubstring(pterm.Sprintf("Status: %s", discoveryv1alpha1.PeeringConditionStatusExternal)))
 		}
