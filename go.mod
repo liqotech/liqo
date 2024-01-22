@@ -30,7 +30,7 @@ require (
 	github.com/pterm/pterm v0.12.75
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
-	github.com/virtual-kubelet/virtual-kubelet v1.10.0
+	github.com/virtual-kubelet/virtual-kubelet v1.11.0
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.4
 	go4.org/netipx v0.0.0-20220925034521-797b0c90d8ab
@@ -240,9 +240,9 @@ require (
 	go.mongodb.org/mongo-driver v1.11.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.46.1 // indirect
-	go.opentelemetry.io/otel v1.21.0 // indirect
-	go.opentelemetry.io/otel/metric v1.21.0 // indirect
-	go.opentelemetry.io/otel/trace v1.21.0 // indirect
+	go.opentelemetry.io/otel v1.22.0 // indirect
+	go.opentelemetry.io/otel/metric v1.22.0 // indirect
+	go.opentelemetry.io/otel/trace v1.22.0 // indirect
 	go.starlark.net v0.0.0-20231121155337-90ade8b19d09 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
@@ -275,5 +275,4 @@ replace (
 	// Waitin for PR https://github.com/coreos/go-iptables/pull/110 to be merged
 	github.com/coreos/go-iptables => github.com/cheina97/go-iptables v0.0.0-20230824102241-61fc692e7548
 	github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
-	github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.5.1-0.20240112103312-cae982a2af58
 )
