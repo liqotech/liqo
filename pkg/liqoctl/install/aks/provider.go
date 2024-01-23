@@ -78,6 +78,7 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 		"The Azure ResourceGroup name of the Virtual Network (defaults to --resource-group-name if not provided)")
 	cmd.Flags().StringVar(&o.fqdn, "fqdn", "", "The private AKS cluster fqdn")
 	cmd.Flags().BoolVar(&o.privateLink, "private-link", false, "Use the private FQDN for the API server")
+	cmd.Flags().StringVar(&o.PodCIDR, "pod-cidr", "10.224.0.0/16", "The Pod CIDR of the cluster, only used for AzureCNI clusters with no defined subnet")
 
 	utilruntime.Must(cmd.MarkFlagRequired("resource-group-name"))
 	utilruntime.Must(cmd.MarkFlagRequired("resource-name"))
@@ -183,7 +184,7 @@ func (o *Options) parseClusterOutput(ctx context.Context, cluster *containerserv
 
 // setupKubenet setups the data for a Kubenet cluster.
 func (o *Options) setupKubenet(ctx context.Context, cluster *containerservice.ManagedCluster) error {
-	const defaultAksNodeCIDR = "10.240.0.0/16"
+	const defaultAksNodeCIDR = "10.224.0.0/16"
 
 	o.PodCIDR = *cluster.ManagedClusterProperties.NetworkProfile.PodCidr
 	o.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
@@ -219,20 +220,25 @@ func (o *Options) setupKubenet(ctx context.Context, cluster *containerservice.Ma
 func (o *Options) setupAzureCNI(ctx context.Context, cluster *containerservice.ManagedCluster) error {
 	vnetSubjectID := (*cluster.AgentPoolProfiles)[0].VnetSubnetID
 
-	networkClient := network.NewSubnetsClient(o.subscriptionID)
-	networkClient.Authorizer = *o.authorizer
+	if vnetSubjectID != nil {
+		networkClient := network.NewSubnetsClient(o.subscriptionID)
+		networkClient.Authorizer = *o.authorizer
 
-	vnetName, subnetName, err := parseSubnetID(*vnetSubjectID)
-	if err != nil {
-		return err
+		vnetName, subnetName, err := parseSubnetID(*vnetSubjectID)
+		if err != nil {
+			return err
+		}
+
+		vnet, err := networkClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, "")
+		if err != nil {
+			return err
+		}
+
+		o.PodCIDR = *vnet.AddressPrefix
+	} else if o.PodCIDR == "" {
+		return fmt.Errorf("no PodCIDR found on cluster, please specify it with --pod-cidr")
 	}
 
-	vnet, err := networkClient.Get(ctx, o.vnetResourceGroupName, vnetName, subnetName, "")
-	if err != nil {
-		return err
-	}
-
-	o.PodCIDR = *vnet.AddressPrefix
 	o.ServiceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
 
 	return nil
