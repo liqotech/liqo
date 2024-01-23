@@ -67,7 +67,7 @@ var _ = Describe("Extract elements from AKS", func() {
 		Expect(options.ServiceCIDR).To(Equal(serviceCIDR))
 
 		Expect(len(options.ReservedSubnets)).To(BeNumerically("==", 1))
-		Expect(options.ReservedSubnets).To(ContainElement("10.240.0.0/16"))
+		Expect(options.ReservedSubnets).To(ContainElement("10.224.0.0/16"))
 		Expect(options.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
 	})
 })
