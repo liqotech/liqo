@@ -36,6 +36,7 @@ type Options struct {
 	ClusterName string
 	Timeout     time.Duration
 
+	Incoming bool
 	// Whether to enforce the peering to be of type out-of-band, and delete the ForeignCluster resource.
 	UnpeerOOBMode bool
 }
@@ -52,6 +53,15 @@ func (o *Options) Run(ctx context.Context) error {
 		s.Fail("Failed unpeering clusters: ", output.PrettyErr(err))
 		return err
 	}
+
+	if o.Incoming {
+		s.Success("Incoming peering marked as disabled")
+		if err = o.wait(ctx, &fc.Spec.ClusterIdentity); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	s.Success("Outgoing peering marked as disabled")
 
 	if err = o.wait(ctx, &fc.Spec.ClusterIdentity); err != nil {
@@ -89,7 +99,12 @@ func (o *Options) unpeer(ctx context.Context) (*discoveryv1alpha1.ForeignCluster
 			o.ClusterName, foreignCluster.Spec.PeeringType, discoveryv1alpha1.PeeringTypeOutOfBand)
 	}
 
-	foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
+	if o.Incoming {
+		foreignCluster.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
+	} else {
+		foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
+	}
+
 	if err := o.CRClient.Update(ctx, &foreignCluster); err != nil {
 		return nil, err
 	}
@@ -111,5 +126,8 @@ func (o *Options) delete(ctx context.Context, fc *discoveryv1alpha1.ForeignClust
 
 func (o *Options) wait(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
 	waiter := wait.NewWaiterFromFactory(o.Factory)
+	if o.Incoming {
+		return waiter.ForIncomingUnpeering(ctx, remoteClusterID)
+	}
 	return waiter.ForOutgoingUnpeering(ctx, remoteClusterID)
 }

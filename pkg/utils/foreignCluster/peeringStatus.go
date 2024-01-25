@@ -55,6 +55,16 @@ func IsIncomingPeeringNone(foreignCluster *discoveryv1alpha1.ForeignCluster) boo
 	return curPhase == discoveryv1alpha1.PeeringConditionStatusNone
 }
 
+// IsIncomingPeeringYes checks if the incoming peering is set to Yes.
+func IsIncomingPeeringYes(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	return foreignCluster.Spec.IncomingPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes
+}
+
+// IsIncomingPeeringNo checks if the incoming peering is set to No.
+func IsIncomingPeeringNo(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	return foreignCluster.Spec.IncomingPeeringEnabled == discoveryv1alpha1.PeeringEnabledNo
+}
+
 // IsOutgoingPeeringNone checks if the outgoing peering is set to none.
 func IsOutgoingPeeringNone(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.OutgoingPeeringCondition)

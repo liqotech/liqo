@@ -76,6 +76,20 @@ func (w *Waiter) ForOutgoingUnpeering(ctx context.Context, remoteClusterID *disc
 	return nil
 }
 
+// ForIncomingUnpeering waits until the status on the foreiglcusters resource states that the incoming peering has been successfully
+// set to None or the timeout expires.
+func (w *Waiter) ForIncomingUnpeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	remName := remoteClusterID.ClusterName
+	s := w.Printer.StartSpinner(fmt.Sprintf("Disabling incoming peering to the remote cluster %q", remName))
+	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsIncomingPeeringNo, 1*time.Second)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail(fmt.Sprintf("Failed disabling incoming peering to the remote cluster %q: %s", remName, output.PrettyErr(err)))
+		return err
+	}
+	s.Success(fmt.Sprintf("Successfully disabled incoming peering to the remote cluster %q", remName))
+	return nil
+}
+
 // ForAuth waits until the authentication has been established with the remote cluster or the timeout expires.
 func (w *Waiter) ForAuth(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
 	remName := remoteClusterID.ClusterName
@@ -113,6 +127,20 @@ func (w *Waiter) ForOutgoingPeering(ctx context.Context, remoteClusterID *discov
 		return err
 	}
 	s.Success(fmt.Sprintf("Outgoing peering activated to the remote cluster %q", remName))
+	return nil
+}
+
+// ForIncomingPeering waits until the status on the foreiglcusters resource states that the incoming peering has been successfully
+// set to Yes or the timeout expires.
+func (w *Waiter) ForIncomingPeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	remName := remoteClusterID.ClusterName
+	s := w.Printer.StartSpinner(fmt.Sprintf("Activating incoming peering to the remote cluster %q", remName))
+	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsIncomingPeeringYes, 1*time.Second)
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed activating outgoing peering to the remote cluster %q: %s", remName, output.PrettyErr(err)))
+		return err
+	}
+	s.Success(fmt.Sprintf("Incoming peering activated to the remote cluster %q", remName))
 	return nil
 }
 

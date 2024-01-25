@@ -30,7 +30,8 @@ type Options struct {
 	LocalLiqoNamespace  string
 	RemoteLiqoNamespace string
 
-	Timeout time.Duration
+	Timeout  time.Duration
+	Incoming bool
 }
 
 // Run implements the unpeer in-band command.
@@ -51,13 +52,19 @@ func (o *Options) Run(ctx context.Context) error {
 	}
 
 	// Disable peering in cluster 1.
-	if err := cluster1.DisablePeering(ctx, cluster2.GetClusterID()); err != nil {
+	if err := cluster1.DisablePeering(ctx, cluster2.GetClusterID(), o.Incoming); err != nil {
 		return err
 	}
 
 	// Disable peering in cluster 2.
-	if err := cluster2.DisablePeering(ctx, cluster1.GetClusterID()); err != nil {
+	if err := cluster2.DisablePeering(ctx, cluster1.GetClusterID(), o.Incoming); err != nil {
 		return err
+	}
+
+	// DisablePeering only disables incoming peering when the flag is set
+	// Return if incoming flag is set
+	if o.Incoming {
+		return nil
 	}
 
 	// Wait to unpeer in cluster 1.
@@ -113,6 +120,7 @@ func (o *Options) Run(ctx context.Context) error {
 	if err := cluster2.UnmapAuthIPForCluster(ctx, ipamClient2, cluster1.GetClusterID()); err != nil {
 		return err
 	}
+
 	// Delete foreigncluster of cluster2 in cluster1.
 	if err := cluster1.DeleteForeignCluster(ctx, cluster2.GetClusterID()); err != nil {
 		return err
