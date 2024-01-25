@@ -125,7 +125,7 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	}
 
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for peering completion")
-
+	cmd.PersistentFlags().BoolVar(&options.Incoming, "incoming", false, "Allows incoming peering")
 	cmd.AddCommand(newPeerOutOfBandCommand(ctx, options))
 	cmd.AddCommand(newPeerInBandCommand(ctx, options))
 	return cmd
@@ -182,6 +182,7 @@ func newPeerInBandCommand(ctx context.Context, peerOptions *peer.Options) *cobra
 
 		Run: func(cmd *cobra.Command, args []string) {
 			options.Timeout = peerOptions.Timeout
+			options.Incoming = peerOptions.Incoming
 			output.ExitOnErr(options.Run(ctx))
 		},
 	}

@@ -29,6 +29,7 @@ type Options struct {
 
 	Bidirectional bool
 	Timeout       time.Duration
+	Incoming      bool
 }
 
 // Run implements the peer in-band command.
@@ -134,6 +135,20 @@ func (o *Options) Run(ctx context.Context) error {
 	if err := cluster2.EnforceForeignCluster(ctx, cluster1.GetClusterID(), cluster1.GetAuthToken(),
 		cluster1.GetAuthURL(), cluster1.GetProxyURL()); err != nil {
 		return err
+	}
+
+	// Allowing Incoming peering when the flag is set
+	if o.Incoming {
+		// Setting the foreign cluster incoming flag in cluster 1 for cluster 2
+		if err := cluster1.EnforceIncomingPeeringFlag(ctx, cluster2.GetClusterID(), true); err != nil {
+			return err
+		}
+
+		// Setting the foreign cluster incoming flag in cluster 2 for cluster 1
+		if err := cluster2.EnforceIncomingPeeringFlag(ctx, cluster1.GetClusterID(), o.Bidirectional); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	// Setting the foreign cluster outgoing flag in cluster 1 for cluster 2

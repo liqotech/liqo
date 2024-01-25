@@ -106,7 +106,7 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	}
 
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for unpeering completion")
-
+	cmd.PersistentFlags().BoolVar(&options.Incoming, "incoming", false, "Dis-allowing peering")
 	cmd.AddCommand(newUnpeerOutOfBandCommand(ctx, options))
 	cmd.AddCommand(newUnpeerInBandCommand(ctx, options))
 	return cmd
@@ -158,6 +158,7 @@ func newUnpeerInBandCommand(ctx context.Context, unpeerOptions *unpeeroob.Option
 
 		Run: func(cmd *cobra.Command, args []string) {
 			options.Timeout = unpeerOptions.Timeout
+			options.Incoming = unpeerOptions.Incoming
 			output.ExitOnErr(options.Run(ctx))
 		},
 	}

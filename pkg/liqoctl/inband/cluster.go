@@ -827,6 +827,22 @@ func (c *Cluster) EnforceOutgoingPeeringFlag(ctx context.Context, remoteID *disc
 	return nil
 }
 
+// EnforceIncomingPeeringFlag sets the incoming peering flag for a given foreign cluster.
+func (c *Cluster) EnforceIncomingPeeringFlag(ctx context.Context, remoteID *discoveryv1alpha1.ClusterIdentity, enabled bool) error {
+	s := c.local.Printer.StartSpinner(fmt.Sprintf("configuring the incoming peering flag for the remote cluster %q", remoteID.ClusterName))
+	if _, err := controllerutil.CreateOrUpdate(ctx, c.local.CRClient, c.foreignCluster, func() error {
+		if enabled {
+			c.foreignCluster.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+		}
+		return nil
+	}); err != nil {
+		s.Fail(fmt.Sprintf("an error occurred while configuring the incoming peering flag for remote cluster %q: %v", remoteID.ClusterName, err))
+		return err
+	}
+	s.Success(fmt.Sprintf("incoming peering flag for remote cluster %q correctly configured", remoteID.ClusterName))
+	return nil
+}
+
 // DeleteForeignCluster deletes the foreignclusters instance for the given remote cluster.
 func (c *Cluster) DeleteForeignCluster(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
 	remID := remoteClusterID.ClusterID
@@ -861,7 +877,7 @@ func (c *Cluster) DeleteForeignCluster(ctx context.Context, remoteClusterID *dis
 }
 
 // DisablePeering disables the peering for the remote cluster by patching the foreigncusters resource.
-func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) (err error) {
+func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity, incoming bool) (err error) {
 	remID := remoteClusterID.ClusterID
 	remName := remoteClusterID.ClusterName
 	s := c.local.Printer.StartSpinner(fmt.Sprintf("disabling peering for the remote cluster %q", remName))
@@ -894,9 +910,21 @@ func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discovery
 			remName, fc.Spec.PeeringType, discoveryv1alpha1.PeeringTypeInBand)
 	}
 
+	// Set incoming peering to no and return if flag is set
+	if incoming {
+		if _, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, fc, func() error {
+			fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
+			return nil
+		}); err != nil {
+			return fmt.Errorf("an error occurred while disabling incoming peering for remote cluster %q: %w", remName, err)
+		}
+		s.Success(fmt.Sprintf("incoming peering correctly disabled for remote cluster %q", remName))
+		return nil
+	}
+
 	// Set outgoing peering to no.
 	if _, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, fc, func() error {
-		fc.Spec.OutgoingPeeringEnabled = "No"
+		fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
 		return nil
 	}); err != nil {
 		return fmt.Errorf("an error occurred while disabling peering for remote cluster %q: %w", remName, err)

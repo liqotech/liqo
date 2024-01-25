@@ -32,6 +32,7 @@ type Options struct {
 
 	ClusterName string
 	Timeout     time.Duration
+	Incoming    bool
 }
 
 // Run implements the peer out-of-band command.
@@ -46,6 +47,15 @@ func (o *Options) Run(ctx context.Context) error {
 		s.Fail(err.Error())
 		return err
 	}
+
+	if o.Incoming {
+		o.Printer.Success.Println("Incoming peering enabled")
+		if err = o.Wait(ctx, remoteClusterID); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	s.Success("Peering enabled")
 
 	if err = o.Wait(ctx, remoteClusterID); err != nil {
@@ -64,7 +74,11 @@ func (o *Options) peer(ctx context.Context) (*discoveryv1alpha1.ClusterIdentity,
 		return nil, err
 	}
 
-	fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+	if o.Incoming {
+		fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+	} else {
+		fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+	}
 
 	return &fc.Spec.ClusterIdentity, retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		return o.CRClient.Update(ctx, &fc)
@@ -74,6 +88,13 @@ func (o *Options) peer(ctx context.Context) (*discoveryv1alpha1.ClusterIdentity,
 // Wait waits for the peering to the remote cluster to be fully enabled.
 func (o *Options) Wait(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
 	waiter := wait.NewWaiterFromFactory(o.Factory)
+
+	if o.Incoming {
+		if err := waiter.ForIncomingPeering(ctx, remoteClusterID); err != nil {
+			return err
+		}
+		return nil
+	}
 
 	if err := waiter.ForAuth(ctx, remoteClusterID); err != nil {
 		return err

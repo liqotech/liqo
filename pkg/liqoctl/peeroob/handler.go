@@ -108,9 +108,14 @@ func (o *Options) enforceForeignCluster(ctx context.Context) (*discoveryv1alpha1
 
 		fc.Spec.ForeignAuthURL = o.ClusterAuthURL
 		fc.Spec.ForeignProxyURL = ""
-		fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
-		if fc.Spec.IncomingPeeringEnabled == "" {
-			fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto
+
+		if o.Incoming {
+			fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+		} else {
+			fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+			if fc.Spec.IncomingPeeringEnabled == "" {
+				fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto
+			}
 		}
 		if fc.Spec.InsecureSkipTLSVerify == nil {
 			fc.Spec.InsecureSkipTLSVerify = pointer.BoolPtr(true)
