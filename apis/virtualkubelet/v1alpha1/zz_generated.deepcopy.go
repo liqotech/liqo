@@ -526,6 +526,20 @@ func (in *VirtualNodeSpec) DeepCopyInto(out *VirtualNodeSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.Taints != nil {
+		in, out := &in.Taints, &out.Taints
+		*out = make([]corev1.Taint, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.StorageClasses != nil {
 		in, out := &in.StorageClasses, &out.StorageClasses
 		*out = make([]sharingv1alpha1.StorageType, len(*in))

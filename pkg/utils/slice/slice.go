@@ -14,27 +14,14 @@
 
 package slice
 
-// ContainsString checks if a given slice of strings contains the provided string.
-func ContainsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
+import "slices"
 
-// RemoveString returns a newly created []string that contains all items from slice that
+// Remove returns a newly created slice that contains all items from slice that
 // are not equal to s.
-func RemoveString(slice []string, s string) []string {
-	newSlice := make([]string, 0)
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		newSlice = append(newSlice, item)
-	}
-	return newSlice
+func Remove[K comparable](slice []K, s K) []K {
+	return slices.DeleteFunc(slice, func(t K) bool {
+		return t == s
+	})
 }
 
 // LongestString returns the longest string in a slice of strings.
@@ -46,4 +33,29 @@ func LongestString(slice []string) string {
 		}
 	}
 	return longest
+}
+
+// Merge merges two slices removing duplicates.
+func Merge[K comparable](s1, s2 []K) []K {
+	if s1 == nil {
+		return s2
+	}
+	if s2 == nil {
+		return s1
+	}
+	// merge and remove duplicates
+	for _, item := range s2 {
+		if !slices.Contains(s1, item) {
+			s1 = append(s1, item)
+		}
+	}
+	return s1
+}
+
+// Sub removes elements of s2 from s1.
+func Sub[K comparable](s1, s2 []K) []K {
+	for _, item := range s2 {
+		s1 = Remove(s1, item)
+	}
+	return s1
 }

@@ -20,6 +20,7 @@ import (
 	"math/rand"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/goombaio/namegenerator"
@@ -28,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 // validate validates the correctness of the different parameters.
@@ -103,7 +103,7 @@ func (o *Options) validateAPIServer() error {
 			return err
 		}
 
-		if !slice.ContainsString(localhostValues, apiServerURL.Hostname()) {
+		if !slices.Contains(localhostValues, apiServerURL.Hostname()) {
 			o.APIServer = o.RESTConfig.Host
 		}
 
@@ -122,7 +122,7 @@ func (o *Options) validateAPIServer() error {
 		return err
 	}
 
-	if slice.ContainsString(localhostValues, apiServerURL.Hostname()) {
+	if slices.Contains(localhostValues, apiServerURL.Hostname()) {
 		return fmt.Errorf("cannot use localhost as API Server address")
 	}
 

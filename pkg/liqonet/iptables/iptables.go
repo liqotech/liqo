@@ -18,6 +18,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/errors"
 	liqoipset "github.com/liqotech/liqo/pkg/liqonet/ipset"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
-	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 const (
@@ -305,7 +305,7 @@ func (h IPTHandler) deleteLiqoChains() error {
 func (h IPTHandler) deleteChainsInTable(table string, chains, chainsToBeRemoved []string) error {
 	for _, chain := range chainsToBeRemoved {
 		// Check existence of chain
-		if slice.ContainsString(chains, chain) {
+		if slices.Contains(chains, chain) {
 			continue
 		}
 		// Chain does exist, then delete it.
@@ -474,7 +474,7 @@ func (h IPTHandler) deleteRulesInChain(chain string, rules []IPTableRule) error 
 		return fmt.Errorf("unable to list rules in chain %s (table %s): %w", chain, table, err)
 	}
 	for _, rule := range rules {
-		if !slice.ContainsString(existingRules, rule.String()) {
+		if !slices.Contains(existingRules, rule.String()) {
 			continue
 		}
 		// Rule exists, then delete it
@@ -503,9 +503,9 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 	// For each cluster chain, check if it exists.
 	// If it does exist, then remove it. Otherwise do nothing.
 	for _, chain := range chains {
-		if getTableFromChain(chain) == natTable && slice.ContainsString(existingChainsNAT, chain) {
+		if getTableFromChain(chain) == natTable && slices.Contains(existingChainsNAT, chain) {
 			// Check if chain exists
-			if !slice.ContainsString(existingChainsNAT, chain) {
+			if !slices.Contains(existingChainsNAT, chain) {
 				continue
 			}
 			if err := h.Ipt.ClearAndDeleteChain(natTable, chain); err != nil {
@@ -514,8 +514,8 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 			klog.Infof("Deleted chain %s in table %s", chain, getTableFromChain(chain))
 			continue
 		}
-		if getTableFromChain(chain) == filterTable && slice.ContainsString(existingChainsFilter, chain) {
-			if !slice.ContainsString(existingChainsFilter, chain) {
+		if getTableFromChain(chain) == filterTable && slices.Contains(existingChainsFilter, chain) {
+			if !slices.Contains(existingChainsFilter, chain) {
 				continue
 			}
 			if err := h.Ipt.ClearChain(filterTable, chain); err != nil {

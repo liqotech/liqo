@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strconv"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -29,6 +30,7 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/maps"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 func (p *LiqoNodeProvider) reconcileNodeFromVirtualNode(event watch.Event) error {
@@ -98,6 +100,24 @@ func (p *LiqoNodeProvider) updateFromVirtualNode(ctx context.Context,
 	}
 
 	if err := p.patchLabels(ctx, lbls); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	annotations := virtualNode.Spec.Annotations
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	if err := p.patchAnnotations(ctx, annotations); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	taints := virtualNode.Spec.Taints
+	if taints == nil {
+		taints = []v1.Taint{}
+	}
+	if err := p.patchTaints(ctx, taints); err != nil {
 		klog.Error(err)
 		return err
 	}
@@ -184,5 +204,60 @@ func (p *LiqoNodeProvider) patchLabels(ctx context.Context, labels map[string]st
 	}
 
 	p.lastAppliedLabels = labels
+	return nil
+}
+
+func (p *LiqoNodeProvider) patchAnnotations(ctx context.Context, annotations map[string]string) error {
+	if reflect.DeepEqual(annotations, p.lastAppliedAnnotations) {
+		return nil
+	}
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+
+	if err := p.patchNode(ctx, func(node *v1.Node) error {
+		nodeAnnotations := node.GetAnnotations()
+		nodeAnnotations = maps.Sub(nodeAnnotations, p.lastAppliedAnnotations)
+		nodeAnnotations = maps.Merge(nodeAnnotations, annotations)
+		node.Annotations = nodeAnnotations
+		return nil
+	}); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	p.lastAppliedAnnotations = annotations
+	return nil
+}
+
+func (p *LiqoNodeProvider) patchTaints(ctx context.Context, taints []v1.Taint) error {
+	if taints == nil {
+		taints = []v1.Taint{}
+	}
+	taints = append(taints, v1.Taint{
+		Key:    consts.VirtualNodeTolerationKey,
+		Value:  strconv.FormatBool(true),
+		Effect: v1.TaintEffectNoExecute,
+	})
+
+	if reflect.DeepEqual(taints, p.lastAppliedTaints) {
+		return nil
+	}
+	if taints == nil {
+		taints = []v1.Taint{}
+	}
+
+	if err := p.patchNode(ctx, func(node *v1.Node) error {
+		nodeTaints := node.Spec.Taints
+		nodeTaints = slice.Sub(nodeTaints, p.lastAppliedTaints)
+		nodeTaints = slice.Merge(nodeTaints, taints)
+		node.Spec.Taints = nodeTaints
+		return nil
+	}); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	p.lastAppliedTaints = taints
 	return nil
 }

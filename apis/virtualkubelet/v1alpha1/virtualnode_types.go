@@ -66,6 +66,10 @@ type VirtualNodeSpec struct {
 	ResourceQuota corev1.ResourceQuotaSpec `json:"resourceQuota,omitempty"`
 	// Labels contains the labels to be added to the virtual node.
 	Labels map[string]string `json:"labels,omitempty"`
+	// Annotations contains the annotations to be added to the virtual node.
+	Annotations map[string]string `json:"annotations,omitempty"`
+	// Taints contains the taints to be added to the virtual node.
+	Taints []corev1.Taint `json:"taints,omitempty"`
 	// StorageClasses contains the list of the storage classes offered by the cluster.
 	StorageClasses []sharingv1alpha1.StorageType `json:"storageClasses,omitempty"`
 	// IngressClasses contains the list of the ingress classes offered by the cluster.
