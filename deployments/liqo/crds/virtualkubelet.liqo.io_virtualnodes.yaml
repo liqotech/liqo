@@ -156,7 +156,7 @@ spec:
                 description: OffloadingPatch contains the information to target a
                   groups of node on the remote cluster.
                 properties:
-                  affinities:
+                  affinity:
                     description: Affinity contains the affinity and anti-affinity
                       rules to target the remote cluster.
                     properties:

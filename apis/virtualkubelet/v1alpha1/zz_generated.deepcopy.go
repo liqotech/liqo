@@ -212,8 +212,8 @@ func (in *OffloadingPatch) DeepCopyInto(out *OffloadingPatch) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Affinities != nil {
-		in, out := &in.Affinities, &out.Affinities
+	if in.Affinity != nil {
+		in, out := &in.Affinity, &out.Affinity
 		*out = new(Affinity)
 		(*in).DeepCopyInto(*out)
 	}

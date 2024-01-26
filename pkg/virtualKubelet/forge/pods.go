@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
@@ -225,7 +225,7 @@ func RemotePodSpec(creation bool, local, remote *corev1.PodSpec, mutators ...Rem
 
 	// The information about the service account name is not reflected, since the volume is already
 	// present, and the remote creation would fail as the corresponding service account is not present.
-	remote.AutomountServiceAccountToken = pointer.Bool(false)
+	remote.AutomountServiceAccountToken = ptr.To(false)
 
 	// This fields are currently forced to false, to prevent invasive settings on the remote cluster (which might not work).
 	remote.HostIPC = false
@@ -283,7 +283,7 @@ func ServiceAccountMutator(apiServerSupport APIServerSupportType, localAnnotatio
 			}
 
 			remote.ServiceAccountName = remoteServiceAccountName
-			remote.AutomountServiceAccountToken = pointer.Bool(true)
+			remote.AutomountServiceAccountToken = ptr.To(true)
 		default:
 			// Remove the service account name.
 			remote.ServiceAccountName = ""
@@ -350,6 +350,64 @@ func AntiAffinityHardMutator(labels map[string]string) RemotePodSpecMutator {
 				LabelSelector: &metav1.LabelSelector{MatchLabels: labels},
 			}},
 		}}
+	}
+}
+
+// NodeSelectorMutator is a mutator which implements the support to propagate a given node selector constraint.
+func NodeSelectorMutator(nodeSelector map[string]string) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		if remote.NodeSelector == nil {
+			remote.NodeSelector = map[string]string{}
+		}
+
+		for k, v := range nodeSelector {
+			remote.NodeSelector[k] = v
+		}
+	}
+}
+
+// TolerationsMutator is a mutator which implements the support to propagate tolerations.
+func TolerationsMutator(tolerations []corev1.Toleration) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		remote.Tolerations = append(remote.Tolerations, tolerations...)
+	}
+}
+
+// AffinityMutator is a mutator which implements the support to propagate affinity constraints.
+func AffinityMutator(affinity *vkv1alpha1.Affinity) RemotePodSpecMutator {
+	return func(remote *corev1.PodSpec) {
+		if affinity == nil || affinity.NodeAffinity == nil {
+			return
+		}
+
+		nodeAffinity := affinity.NodeAffinity.DeepCopy()
+
+		if remote.Affinity == nil {
+			remote.Affinity = &corev1.Affinity{
+				NodeAffinity: nodeAffinity,
+			}
+			return
+		}
+
+		if remote.Affinity.NodeAffinity == nil {
+			remote.Affinity.NodeAffinity = nodeAffinity
+			return
+		}
+
+		if nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			if remote.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+				remote.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution =
+					nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+			} else {
+				remote.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
+					remote.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+					nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms...)
+			}
+		}
+
+		remote.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution =
+			append(remote.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+				nodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution...)
 	}
 }
 

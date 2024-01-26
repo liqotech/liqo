@@ -324,11 +324,22 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 		return ip
 	}
 
-	// Forge the target shadowpod object.
-	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(), forgingOpts,
+	var mutators []forge.RemotePodSpecMutator
+
+	mutators = append(mutators,
 		forge.APIServerSupportMutator(npr.config.APIServerSupport, local.Annotations, pod.ServiceAccountName(local),
 			saSecretRetriever, ipGetter, npr.config.HomeAPIServerHost, npr.config.HomeAPIServerPort),
 		forge.ServiceAccountMutator(npr.config.APIServerSupport, local.Annotations))
+
+	if forgingOpts.OffloadingPatch != nil {
+		mutators = append(mutators,
+			forge.NodeSelectorMutator(forgingOpts.OffloadingPatch.NodeSelector),
+			forge.TolerationsMutator(forgingOpts.OffloadingPatch.Tolerations),
+			forge.AffinityMutator(forgingOpts.OffloadingPatch.Affinity))
+	}
+
+	// Forge the target shadowpod object.
+	target := forge.RemoteShadowPod(local, shadow, npr.RemoteNamespace(), forgingOpts, mutators...)
 
 	// Check whether an error occurred during secret name retrieval.
 	if saerr != nil {
@@ -527,7 +538,7 @@ func (npr *NamespacedPodReflector) Attach(ctx context.Context, po, container str
 }
 
 // PortForward forwards a connection from local to the ports of a reflected pod.
-func (npr *NamespacedPodReflector) PortForward(ctx context.Context, name string, port int32, stream io.ReadWriteCloser) error {
+func (npr *NamespacedPodReflector) PortForward(_ context.Context, name string, port int32, stream io.ReadWriteCloser) error {
 	klog.V(4).Infof("Requested to port forward to pod %q (remote %q) on ports %d", npr.LocalRef(name), npr.RemoteRef(name), port)
 
 	request := npr.remoteRESTClient.Post().

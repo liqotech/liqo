@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 // ReflectionFieldManager -> The name associated with the fields modified by virtual kubelet reflection.
@@ -72,12 +73,14 @@ func ApplyOptions() metav1.ApplyOptions {
 type ForgingOpts struct {
 	LabelsNotReflected      []string
 	AnnotationsNotReflected []string
+	OffloadingPatch         *virtualkubeletv1alpha1.OffloadingPatch
 }
 
 // NewForgingOpts returns a new ForgingOpts instance.
-func NewForgingOpts(labelsNotReflected, annotationsNotReflected []string) ForgingOpts {
+func NewForgingOpts(labelsNotReflected, annotationsNotReflected []string, offloadingPatch *virtualkubeletv1alpha1.OffloadingPatch) ForgingOpts {
 	return ForgingOpts{
 		LabelsNotReflected:      labelsNotReflected,
 		AnnotationsNotReflected: annotationsNotReflected,
+		OffloadingPatch:         offloadingPatch,
 	}
 }
