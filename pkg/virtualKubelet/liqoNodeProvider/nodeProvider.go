@@ -35,9 +35,11 @@ type LiqoNodeProvider struct {
 	remoteDiscoveryClient discovery.DiscoveryInterface
 	dynClient             dynamic.Interface
 
-	node              *corev1.Node
-	terminating       bool
-	lastAppliedLabels map[string]string
+	node                   *corev1.Node
+	terminating            bool
+	lastAppliedLabels      map[string]string
+	lastAppliedAnnotations map[string]string
+	lastAppliedTaints      []corev1.Taint
 
 	nodeName           string
 	foreignClusterID   string

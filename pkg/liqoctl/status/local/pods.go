@@ -17,13 +17,13 @@ package statuslocal
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/pterm/pterm"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/utils/strings/slices"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/status"
@@ -120,7 +120,7 @@ func (ps *componentState) setImages(images []string) {
 // addImageVersion adds an image version to the existing ones.
 func (ps *componentState) addImageVersion(imageVersion string) {
 	iv := ps.getImages()
-	if !(slice.ContainsString(iv, imageVersion)) {
+	if !(slices.Contains(iv, imageVersion)) {
 		iv = append(iv, imageVersion)
 	}
 	ps.setImages(iv)

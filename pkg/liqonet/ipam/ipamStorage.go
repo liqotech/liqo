@@ -238,7 +238,7 @@ func (ipamStorage *IPAMStorage) updateReservedSubnets(subnet, operation string) 
 	case updateOpAdd:
 		subnets = append(subnets, subnet)
 	case updateOpRemove:
-		subnets = slice.RemoveString(subnets, subnet)
+		subnets = slice.Remove(subnets, subnet)
 	}
 	return ipamStorage.updateConfig(reservedSubnetsUpdate, subnets)
 }

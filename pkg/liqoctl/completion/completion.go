@@ -17,6 +17,7 @@ package completion
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -28,7 +29,6 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
-	"github.com/liqotech/liqo/pkg/utils/slice"
 	utilsvirtualnode "github.com/liqotech/liqo/pkg/utils/virtualnode"
 )
 
@@ -57,7 +57,7 @@ func common(ctx context.Context, f *factory.Factory, argsLimit int, retrieve ret
 
 		var output []string
 		for _, value := range values {
-			if strings.HasPrefix(value, toComplete) && !slice.ContainsString(args, value) {
+			if strings.HasPrefix(value, toComplete) && !slices.Contains(args, value) {
 				output = append(output, value)
 			}
 		}

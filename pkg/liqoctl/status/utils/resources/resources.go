@@ -17,6 +17,7 @@ package resources
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 
 	"golang.org/x/exp/maps"
@@ -28,7 +29,6 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
-	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 // WellKnownResources contains the well known resources.
@@ -69,7 +69,7 @@ func Others(r corev1.ResourceList) map[string]string {
 	keys := maps.Keys(r)
 	sort.SliceStable(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	for _, k := range keys {
-		if v, ok := (r)[k]; !slice.ContainsString(WellKnownResources, k.String()) && ok && v.Value() != 0 {
+		if v, ok := (r)[k]; !slices.Contains(WellKnownResources, k.String()) && ok && v.Value() != 0 {
 			result[k.String()] = v.String()
 		}
 	}

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 
@@ -34,7 +35,6 @@ import (
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/natmappinginflater"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
-	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 // Ipam Interface.
@@ -824,11 +824,11 @@ func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
 	// Get cluster subnets
 	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
 	// Check existence
-	if exists := slice.ContainsString(ipamPools, network); !exists {
+	if exists := slices.Contains(ipamPools, network); !exists {
 		return fmt.Errorf("network %s is not a network pool", network)
 	}
 	// Cannot remove a default one
-	if contains := slice.ContainsString(Pools, network); contains {
+	if contains := slices.Contains(Pools, network); contains {
 		return fmt.Errorf("cannot remove a default network pool")
 	}
 	// Check overlapping with cluster networks
@@ -1338,7 +1338,7 @@ func (liqoIPAM *IPAM) SetReservedSubnets(subnets []string) error {
 
 	// Free all the reserved networks not needed anymore.
 	for _, r := range reserved {
-		if !slice.ContainsString(subnets, r) {
+		if !slices.Contains(subnets, r) {
 			klog.Infof("freeing old reserved subnet %s", r)
 			if err := liqoIPAM.FreeReservedSubnet(r); err != nil {
 				return fmt.Errorf("an error occurred while freeing reserved subnet {%s}: %w", r, err)
@@ -1366,7 +1366,7 @@ func (liqoIPAM *IPAM) SetReservedSubnets(subnets []string) error {
 
 	// Reserve the newly added subnets.
 	for _, s := range subnets {
-		if slice.ContainsString(reserved, s) {
+		if slices.Contains(reserved, s) {
 			continue
 		}
 		klog.Infof("acquiring reserved subnet %s", s)
