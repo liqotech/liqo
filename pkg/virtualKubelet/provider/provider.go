@@ -81,6 +81,8 @@ type InitConfig struct {
 
 	LabelsNotReflected      []string
 	AnnotationsNotReflected []string
+
+	OffloadingPatch *vkalpha1.OffloadingPatch
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -134,7 +136,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 
 	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, &podReflectorConfig, cfg.ReflectorsConfigs[generic.Pod])
 	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient,
-		cfg.InformerResyncPeriod, eb, cfg.LabelsNotReflected, cfg.AnnotationsNotReflected).
+		cfg.InformerResyncPeriod, eb, cfg.LabelsNotReflected, cfg.AnnotationsNotReflected, cfg.OffloadingPatch).
 		With(podreflector).
 		With(exposition.NewServiceReflector(cfg.ReflectorsConfigs[generic.Service], cfg.EnableLoadBalancer, cfg.RemoteRealLoadBalancerClassName)).
 		With(exposition.NewIngressReflector(cfg.ReflectorsConfigs[generic.Ingress], cfg.EnableIngress, cfg.RemoteRealIngressClassName)).

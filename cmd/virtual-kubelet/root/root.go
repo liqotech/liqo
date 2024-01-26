@@ -18,6 +18,7 @@ package root
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -25,13 +26,17 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	corev1clients "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -43,6 +48,15 @@ import (
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 )
+
+var (
+	scheme = runtime.NewScheme()
+)
+
+func init() {
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
+}
 
 const defaultVersion = "v1.25.0" // This should follow the version of k8s.io/kubernetes we are importing
 
@@ -102,6 +116,22 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	restcfg.SetRateLimiter(remoteConfig)
 
+	cl, err := client.New(localConfig, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Get virtual node
+	vnName := os.Getenv("VIRTUALNODE_NAME")
+	ns := os.Getenv("POD_NAMESPACE")
+	var vn virtualkubeletv1alpha1.VirtualNode
+	if err := cl.Get(ctx, client.ObjectKey{Name: vnName, Namespace: ns}, &vn); err != nil {
+		klog.Errorf("Unable to get virtual node: %v", err)
+		return err
+	}
+
 	// Initialize the pod provider
 	podcfg := podprovider.InitConfig{
 		LocalConfig:   localConfig,
@@ -134,6 +164,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 		LabelsNotReflected:      c.LabelsNotReflected.StringList,
 		AnnotationsNotReflected: c.AnnotationsNotReflected.StringList,
+
+		OffloadingPatch: vn.Spec.OffloadingPatch,
 	}
 
 	eb := record.NewBroadcaster()

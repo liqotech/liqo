@@ -19,7 +19,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // IsPodReady returns true if a pod is ready; false otherwise. It also returns a reason (as provided by Kubernetes).
@@ -60,7 +60,7 @@ func IsPodSpecEqual(previous, updated *corev1.PodSpec) bool {
 	// * spec.tolerations (only new entries can be added)
 	return AreContainersEqual(previous.Containers, updated.Containers) &&
 		AreContainersEqual(previous.InitContainers, updated.InitContainers) &&
-		pointer.Int64Equal(previous.ActiveDeadlineSeconds, updated.ActiveDeadlineSeconds) &&
+		ptr.Equal(previous.ActiveDeadlineSeconds, updated.ActiveDeadlineSeconds) &&
 		len(previous.Tolerations) == len(updated.Tolerations)
 }
 

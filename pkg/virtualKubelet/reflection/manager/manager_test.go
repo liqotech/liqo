@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	reflectionfake "github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic/fake"
@@ -44,6 +45,7 @@ var _ = Describe("Manager tests", func() {
 		broadcaster             record.EventBroadcaster
 		labelsNotReflected      []string
 		annotationsNotReflected []string
+		offloadingPatch         *virtualkubeletv1alpha1.OffloadingPatch
 
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -60,7 +62,8 @@ var _ = Describe("Manager tests", func() {
 	AfterEach(func() { cancel() })
 
 	JustBeforeEach(func() {
-		mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour, broadcaster, labelsNotReflected, annotationsNotReflected)
+		mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour, broadcaster,
+			labelsNotReflected, annotationsNotReflected, offloadingPatch)
 	})
 
 	Context("a new manager is created", func() {
@@ -183,6 +186,6 @@ type fakeNamespaceHandler struct {
 }
 
 // Start is the fake Start method.
-func (nh *fakeNamespaceHandler) Start(ctx context.Context, mgr NamespaceStartStopper) {
+func (nh *fakeNamespaceHandler) Start(_ context.Context, _ NamespaceStartStopper) {
 	nh.StartCalled++
 }

@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -61,7 +62,8 @@ type manager struct {
 
 // New returns a new manager to start the reflection towards a remote cluster.
 func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.Interface, resync time.Duration,
-	eb record.EventBroadcaster, labelsNotReflected, annotationsNotReflected []string) Manager {
+	eb record.EventBroadcaster, labelsNotReflected, annotationsNotReflected []string,
+	offloadingPatch *virtualkubeletv1alpha1.OffloadingPatch) Manager {
 	// Configure the field selector to retrieve only the pods scheduled on the current virtual node.
 	localPodTweakListOptions := func(opts *metav1.ListOptions) {
 		opts.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", forge.LiqoNodeName).String()
@@ -82,7 +84,7 @@ func New(local, remote kubernetes.Interface, localLiqo, remoteLiqo liqoclient.In
 		started: false,
 		stop:    make(map[string]context.CancelFunc),
 
-		forgingOpts: forge.NewForgingOpts(labelsNotReflected, annotationsNotReflected),
+		forgingOpts: forge.NewForgingOpts(labelsNotReflected, annotationsNotReflected, offloadingPatch),
 	}
 }
 

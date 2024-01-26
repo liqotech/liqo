@@ -148,6 +148,14 @@ func forgeVKContainers(
 					Name:      "POD_NAME",
 					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}},
 				},
+				{
+					Name:      "POD_NAMESPACE",
+					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}},
+				},
+				{
+					Name:  "VIRTUALNODE_NAME",
+					Value: nodeName,
+				},
 			},
 			Ports: containerPorts,
 		},

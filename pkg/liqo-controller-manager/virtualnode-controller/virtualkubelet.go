@@ -16,12 +16,16 @@ package virtualnodectrl
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 	k8strings "k8s.io/utils/strings"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +36,8 @@ import (
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 	vkutils "github.com/liqotech/liqo/pkg/vkMachinery/utils"
 )
+
+const offloadingPatchHashAnnotation = "liqo.io/offloading-patch-hash"
 
 // createVirtualKubeletDeployment creates the VirtualKubelet Deployment.
 func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
@@ -50,6 +56,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 			err = fmt.Errorf("error updating virtual node status: %w", interr)
 		}
 	}()
+
 	ForgeCondition(virtualNode,
 		VnConditionMap{
 			virtualkubeletv1alpha1.VirtualKubeletConditionType: VnCondition{
@@ -86,11 +93,28 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 		remoteClusterIdentity.ClusterName, vkClusterRoleBinding.Name, op)
 
 	// forge the virtual Kubelet Deployment
-	vkDeployment := &appsv1.Deployment{}
-	vkDeployment.ObjectMeta = *virtualNode.Spec.Template.ObjectMeta.DeepCopy()
+	vkDeployment := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      virtualNode.Spec.Template.GetName(),
+			Namespace: virtualNode.Spec.Template.GetNamespace(),
+		},
+	}
+	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, &vkDeployment, func() error {
+		vkDeployment.Annotations = labels.Merge(vkDeployment.Annotations, virtualNode.Spec.Template.ObjectMeta.GetAnnotations())
+		vkDeployment.Labels = labels.Merge(vkDeployment.Labels, virtualNode.Spec.Template.ObjectMeta.GetLabels())
 
-	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkDeployment, func() error {
 		vkDeployment.Spec = *virtualNode.Spec.Template.Spec.DeepCopy()
+
+		// Add the hash of the offloading patch as annotation
+		opHash, err := offloadingPatchHash(virtualNode.Spec.OffloadingPatch)
+		if err != nil {
+			return err
+		}
+		if vkDeployment.Spec.Template.Annotations == nil {
+			vkDeployment.Spec.Template.Annotations = make(map[string]string)
+		}
+		vkDeployment.Spec.Template.Annotations[offloadingPatchHashAnnotation] = opHash
+
 		return nil
 	})
 	if err != nil {
@@ -110,7 +134,9 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 		VnConditionMap{
 			virtualkubeletv1alpha1.VirtualKubeletConditionType: VnCondition{
 				Status: virtualkubeletv1alpha1.RunningConditionStatusType,
-			}})
+			},
+		})
+
 	if *virtualNode.Spec.CreateNode {
 		ForgeCondition(virtualNode,
 			VnConditionMap{
@@ -159,4 +185,21 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 	}
 
 	return nil
+}
+
+func offloadingPatchHash(offloadingPatch *virtualkubeletv1alpha1.OffloadingPatch) (string, error) {
+	if offloadingPatch == nil {
+		return "", nil
+	}
+
+	opString, err := json.Marshal(offloadingPatch)
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
+	opHash := sha256.Sum256(opString)
+	opHashHex := hex.EncodeToString(opHash[:])
+
+	return opHashHex, nil
 }

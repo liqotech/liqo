@@ -35,7 +35,7 @@ type OffloadingPatch struct {
 	// Tolerations contains the tolerations to target the remote cluster.
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 	// Affinity contains the affinity and anti-affinity rules to target the remote cluster.
-	Affinities *Affinity `json:"affinities,omitempty"`
+	Affinity *Affinity `json:"affinity,omitempty"`
 }
 
 // DeploymentTemplate contains the deployment template of the virtual node.
