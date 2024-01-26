@@ -176,7 +176,7 @@ jobs:
     steps:
 
        - name: Notify Event to E2E Tests
-         uses: peter-evans/repository-dispatch@v2
+         uses: peter-evans/repository-dispatch@v3
          with:
            token: ${{ secrets.CI_TOKEN }}
            repository: liqotech/liqops
