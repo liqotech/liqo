@@ -91,6 +91,9 @@ spec:
           - --configmap-reflection-type={{ .Values.reflection.configmap.type }}
           - --secret-reflection-type={{ .Values.reflection.secret.type }}
           - --event-reflection-type={{ .Values.reflection.event.type }}
+          {{- if not .Values.offloading.runtimeClass.enable }}
+          - --add-virtual-node-toleration-on-offloaded-pods
+          {{- end }}
           {{- if .Values.reflection.skip.labels }}
           {{- $d := dict "commandName" "--labels-not-reflected" "list" .Values.reflection.skip.labels }}
           {{- include "liqo.concatenateList" $d | nindent 10 }}
