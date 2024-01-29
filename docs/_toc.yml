@@ -30,6 +30,7 @@ subtrees:
     entries:
       - file: usage/peer.md
       - file: usage/namespace-offloading.md
+      - file: usage/kubernetes-api.md
       - file: usage/reflection.md
       - file: usage/stateful-applications.md
       - file: usage/prometheus-metrics.md
