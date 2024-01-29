@@ -120,6 +120,15 @@
 | networking.mtu | int | `1340` | Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces. The value is used by the gateway and route operators. The default value is configured to ensure correct behavior regardless of the combination of the underlying environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.securityMode | string | `"FullPodToPod"` | Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation"  |
+| offloading.runtimeClass.annotations | object | `{}` | Annotations for the runtime class. |
+| offloading.runtimeClass.enable | bool | `false` |  |
+| offloading.runtimeClass.handler | string | `"liqo"` | Handler for the runtime class. |
+| offloading.runtimeClass.labels | object | `{}` | Labels for the runtime class. |
+| offloading.runtimeClass.name | string | `"liqo"` | Name of the runtime class to use for offloading. |
+| offloading.runtimeClass.nodeSelector | object | `{"enable":true,"labels":{"liqo.io/type":"virtual-node"}}` | Node selector for the runtime class. |
+| offloading.runtimeClass.nodeSelector.labels | object | `{"liqo.io/type":"virtual-node"}` | Labels for the node selector. |
+| offloading.runtimeClass.tolerations | object | `{"enable":true,"tolerations":[{"effect":"NoExecute","key":"virtual-node.liqo.io/not-allowed","operator":"Exists"}]}` | Tolerations for the runtime class. |
+| offloading.runtimeClass.tolerations.tolerations | list | `[{"effect":"NoExecute","key":"virtual-node.liqo.io/not-allowed","operator":"Exists"}]` | Tolerations for the tolerations. |
 | openshiftConfig.enable | bool | `false` | Enable/Disable the OpenShift support, enabling Openshift-specific resources, and setting the pod security contexts in a way that is compatible with Openshift. |
 | openshiftConfig.virtualKubeletSCCs | list | `["anyuid"]` | Security context configurations granted to the virtual kubelet in the local cluster. The configuration of one or more SCCs for the virtual kubelet is not strictly required, and privileges can be reduced in production environments. Still, the default configuration (i.e., anyuid) is suggested to prevent problems (i.e., the virtual kubelet fails to add the appropriate labels) when attempting to offload pods not managed by higher-level abstractions (e.g., Deployments), and not associated with a properly privileged service account. Indeed, "anyuid" is the SCC automatically associated with pods created by cluster administrators. Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded. |
 | proxy.config.listeningPort | int | `8118` | Port used by the proxy pod. |

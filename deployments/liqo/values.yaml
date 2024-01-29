@@ -565,4 +565,28 @@ openshiftConfig:
   virtualKubeletSCCs:
   - anyuid
 
-
+offloading:
+  runtimeClass:
+    enable: false
+    # -- Name of the runtime class to use for offloading.
+    name: liqo
+    # -- Annotations for the runtime class.
+    annotations: {}
+    # -- Labels for the runtime class.
+    labels: {}
+    # -- Handler for the runtime class.
+    handler: liqo
+    # -- Node selector for the runtime class.
+    nodeSelector:
+      enable: true
+      # -- Labels for the node selector.
+      labels:
+        liqo.io/type: virtual-node
+    # -- Tolerations for the runtime class.
+    tolerations:
+      enable: true
+      # -- Tolerations for the tolerations.
+      tolerations:
+      - key: virtual-node.liqo.io/not-allowed
+        operator: Exists
+        effect: NoExecute

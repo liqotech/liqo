@@ -113,6 +113,7 @@ func main() {
 	var annotationsNotReflected argsutils.StringList
 	var ingressClasses argsutils.ClassNameList
 	var loadBalancerClasses argsutils.ClassNameList
+	var addVirtualNodeTolerationOnOffloadedPods bool
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -183,6 +184,9 @@ func main() {
 	flag.Var(&annotationsNotReflected, "annotations-not-reflected", "List of annotations (key) that must not be reflected")
 	kubeletIpamServer := flag.String("kubelet-ipam-server", "",
 		"The address of the IPAM server to use for the virtual kubelet (set to empty string to disable IPAM)")
+
+	flag.BoolVar(&addVirtualNodeTolerationOnOffloadedPods, "add-virtual-node-toleration-on-offloaded-pods", false,
+		"Automatically add the virtual node toleration on offloaded pods")
 
 	// Storage Provisioner parameters
 	enableStorage := flag.Bool("enable-storage", false, "enable the liqo virtual storage class")
@@ -343,7 +347,7 @@ func main() {
 	mgr.GetWebhookServer().Register("/mutate/foreign-cluster", fcwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
-	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient()))
+	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), addVirtualNodeTolerationOnOffloadedPods))
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), &clusterIdentity, virtualKubeletOpts))
 
 	if err := indexer.IndexField(ctx, mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {

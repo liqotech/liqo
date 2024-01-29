@@ -130,7 +130,7 @@ func fillPodWithTheNewNodeSelector(imposedNodeSelector *corev1.NodeSelector, pod
 // chosen in the CR. Two possible modifications:
 // - The VirtualNodeToleration is added to the Pod Toleration if necessary.
 // - The old Pod NodeSelector is substituted with a new one according to the PodOffloadingStrategyType.
-func mutatePod(namespaceOffloading *offv1alpha1.NamespaceOffloading, pod *corev1.Pod) error {
+func mutatePod(namespaceOffloading *offv1alpha1.NamespaceOffloading, pod *corev1.Pod, addVirtualNodeToleration bool) error {
 	// The NamespaceOffloading CR contains information about the PodOffloadingStrategy and
 	// the NodeSelector inserted by the user (ClusterSelector field).
 	klog.V(5).Infof("Chosen strategy: %s", namespaceOffloading.Spec.PodOffloadingStrategy)
@@ -140,14 +140,19 @@ func mutatePod(namespaceOffloading *offv1alpha1.NamespaceOffloading, pod *corev1
 		return nil
 	}
 
-	// Create the right Toleration according to the PodOffloadingStrategy case.
-	toleration, err := createTolerationFromNamespaceOffloading(namespaceOffloading.Spec.PodOffloadingStrategy)
-	if err != nil {
-		klog.Errorf("The NamespaceOffloading in namespace '%s' has unknown strategy '%s'",
-			namespaceOffloading.Namespace, namespaceOffloading.Spec.PodOffloadingStrategy)
-		return err
+	if addVirtualNodeToleration {
+		// Create the right Toleration according to the PodOffloadingStrategy case.
+		toleration, err := createTolerationFromNamespaceOffloading(namespaceOffloading.Spec.PodOffloadingStrategy)
+		if err != nil {
+			klog.Errorf("The NamespaceOffloading in namespace '%s' has unknown strategy '%s'",
+				namespaceOffloading.Namespace, namespaceOffloading.Spec.PodOffloadingStrategy)
+			return err
+		}
+		klog.V(5).Infof("Generated Toleration: %s", toleration.String())
+
+		// It is necessary to add the just created toleration.
+		pod.Spec.Tolerations = append(pod.Spec.Tolerations, toleration)
 	}
-	klog.V(5).Infof("Generated Toleration: %s", toleration.String())
 
 	// Create the right NodeSelector according to the PodOffloadingStrategy case.
 	imposedNodeSelector, err := createNodeSelectorFromNamespaceOffloading(namespaceOffloading)
@@ -157,9 +162,6 @@ func mutatePod(namespaceOffloading *offv1alpha1.NamespaceOffloading, pod *corev1
 		return err
 	}
 	klog.V(5).Infof("ImposedNodeSelector: %s", imposedNodeSelector)
-
-	// It is necessary to add the just created toleration.
-	pod.Spec.Tolerations = append(pod.Spec.Tolerations, toleration)
 
 	// Enforce the new NodeSelector policy imposed by the NamespaceOffloading creator.
 	fillPodWithTheNewNodeSelector(imposedNodeSelector, pod)
