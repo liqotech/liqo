@@ -47,6 +47,9 @@ const (
 	// DefaultNameMappingStrategyType -> the remote namespace is assigned a default name which ensures uniqueness
 	// and avoids conflicts (localNamespaceName-localClusterID).
 	DefaultNameMappingStrategyType NamespaceMappingStrategyType = "DefaultName"
+	// SelectedNameMappingStrategyType -> the remote namespace is assigned a name chosen by the user.
+	// (the creation may fail in case of conflicts).
+	SelectedNameMappingStrategyType NamespaceMappingStrategyType = "SelectedName"
 )
 
 // PodOffloadingStrategyType represents different strategies to offload pods in this Namespace.
@@ -97,10 +100,14 @@ type NamespaceOffloadingSpec struct {
 	//  NamespaceMappingStrategy allows users to map local and remote namespace names according to two
 	//  different strategies: "DefaultName", which ensures uniqueness and prevents conflicts, and "EnforceSameName",
 	//  which enforces the same name at the cost of possible conflicts.
-	// +kubebuilder:validation:Enum="EnforceSameName";"DefaultName"
+	// +kubebuilder:validation:Enum="EnforceSameName";"DefaultName";"SelectedName"
 	// +kubebuilder:default="DefaultName"
 	// +kubebuilder:validation:Optional
 	NamespaceMappingStrategy NamespaceMappingStrategyType `json:"namespaceMappingStrategy"`
+
+	// RemoteNamespaceName allows users to choose a specific name for the remote namespace.
+	// This field is required if NamespaceMappingStrategy is set to "SelectedName". It is ignored otherwise.
+	RemoteNamespaceName string `json:"remoteNamespaceName,omitempty"`
 
 	// PodOffloadingStrategy allows users to configure how pods in this namespace are offloaded, according to three
 	// different strategies: "Local" (i.e. no pod offloading is performed), "Remote" (i.e. all pods are offloaded

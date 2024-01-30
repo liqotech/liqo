@@ -50,8 +50,6 @@ func (w *nsoffwh) DecodeNamespaceOffloading(obj runtime.RawExtension) (*offv1alp
 //
 //nolint:gocritic // The signature of this method is imposed by controller runtime.
 func (w *nsoffwh) Handle(ctx context.Context, req admission.Request) admission.Response {
-	var warnings []string
-
 	nsoff, err := w.DecodeNamespaceOffloading(req.Object)
 	if err != nil {
 		klog.Errorf("Failed decoding NamespaceOffloading object: %v", err)
@@ -63,9 +61,27 @@ func (w *nsoffwh) Handle(ctx context.Context, req admission.Request) admission.R
 		return admission.Denied("NamespaceOffloading name must match " + consts.DefaultNamespaceOffloadingName)
 	}
 
-	if req.Operation != admissionv1.Update {
+	switch req.Operation {
+	case admissionv1.Create:
+		return w.handleCreate(ctx, &req, nsoff)
+	case admissionv1.Update:
+		return w.handleUpdate(ctx, &req, nsoff)
+	default:
 		return admission.Allowed("")
 	}
+}
+
+func (w *nsoffwh) handleCreate(_ context.Context, _ *admission.Request, nsoff *offv1alpha1.NamespaceOffloading) admission.Response {
+	if nsoff.Spec.NamespaceMappingStrategy == offv1alpha1.SelectedNameMappingStrategyType &&
+		nsoff.Spec.RemoteNamespaceName == "" {
+		return admission.Denied("The RemoteNamespaceName value cannot be empty when using the SelectedName NamespaceMappingStrategy")
+	}
+
+	return admission.Allowed("")
+}
+
+func (w *nsoffwh) handleUpdate(_ context.Context, req *admission.Request, nsoff *offv1alpha1.NamespaceOffloading) admission.Response {
+	var warnings []string
 
 	// In case of updates, validate the modified fields.
 	old, err := w.DecodeNamespaceOffloading(req.OldObject)
@@ -76,6 +92,10 @@ func (w *nsoffwh) Handle(ctx context.Context, req admission.Request) admission.R
 
 	if old.Spec.NamespaceMappingStrategy != nsoff.Spec.NamespaceMappingStrategy {
 		return admission.Denied("The NamespaceMappingStrategy value cannot be modified after creation")
+	}
+
+	if old.Spec.RemoteNamespaceName != nsoff.Spec.RemoteNamespaceName {
+		return admission.Denied("The RemoteNamespaceName value cannot be modified after creation")
 	}
 
 	if nsoff.Spec.PodOffloadingStrategy != offv1alpha1.LocalAndRemotePodOffloadingStrategyType &&
