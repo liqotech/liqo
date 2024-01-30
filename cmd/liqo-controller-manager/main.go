@@ -206,23 +206,21 @@ func main() {
 
 	// Options for the virtual kubelet.
 	virtualKubeletOpts := &forge.VirtualKubeletOpts{
-		ContainerImage:          *kubeletImage,
-		ExtraAnnotations:        kubeletExtraAnnotations.StringMap,
-		ExtraLabels:             kubeletExtraLabels.StringMap,
-		ExtraArgs:               kubeletExtraArgs.StringList,
-		NodeExtraAnnotations:    nodeExtraAnnotations,
-		NodeExtraLabels:         nodeExtraLabels,
-		RequestsCPU:             kubeletCPURequests.Quantity,
-		RequestsRAM:             kubeletRAMRequests.Quantity,
-		LimitsCPU:               kubeletCPULimits.Quantity,
-		LimitsRAM:               kubeletRAMLimits.Quantity,
-		IpamEndpoint:            *kubeletIpamServer,
-		MetricsAddress:          kubeletMetricsAddress,
-		MetricsEnabled:          kubeletMetricsEnabled,
-		ReflectorsWorkers:       reflectorsWorkers,
-		ReflectorsType:          reflectorsType,
-		LabelsNotReflected:      labelsNotReflected.StringList,
-		AnnotationsNotReflected: annotationsNotReflected.StringList,
+		ContainerImage:       *kubeletImage,
+		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
+		ExtraLabels:          kubeletExtraLabels.StringMap,
+		ExtraArgs:            kubeletExtraArgs.StringList,
+		NodeExtraAnnotations: nodeExtraAnnotations,
+		NodeExtraLabels:      nodeExtraLabels,
+		RequestsCPU:          kubeletCPURequests.Quantity,
+		RequestsRAM:          kubeletRAMRequests.Quantity,
+		LimitsCPU:            kubeletCPULimits.Quantity,
+		LimitsRAM:            kubeletRAMLimits.Quantity,
+		IpamEndpoint:         *kubeletIpamServer,
+		MetricsAddress:       kubeletMetricsAddress,
+		MetricsEnabled:       kubeletMetricsEnabled,
+		ReflectorsWorkers:    reflectorsWorkers,
+		ReflectorsType:       reflectorsType,
 	}
 
 	clusterIdentity := clusterIdentityFlags.ReadOrDie()
@@ -435,7 +433,8 @@ func main() {
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
-		mgr, idManager, *resyncPeriod, *offerDisableAutoAccept)
+		mgr, idManager, *resyncPeriod, *offerDisableAutoAccept,
+		labelsNotReflected.StringList, annotationsNotReflected.StringList)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}

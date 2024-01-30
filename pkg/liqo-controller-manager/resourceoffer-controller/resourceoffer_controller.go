@@ -41,10 +41,12 @@ type ResourceOfferReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	identityReader    identitymanager.IdentityReader
-	eventsRecorder    record.EventRecorder
-	disableAutoAccept bool
-	resyncPeriod      time.Duration
+	identityReader          identitymanager.IdentityReader
+	eventsRecorder          record.EventRecorder
+	disableAutoAccept       bool
+	resyncPeriod            time.Duration
+	labelsNotReflected      []string
+	annotationsNotReflected []string
 }
 
 //+kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;list;watch;create;update;patch;delete

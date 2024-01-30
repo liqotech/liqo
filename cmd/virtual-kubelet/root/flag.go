@@ -63,9 +63,6 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.Var(&o.NodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flags.Var(&o.NodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
 
-	flags.Var(&o.LabelsNotReflected, "labels-not-reflected", "List of labels (key) that must not be reflected")
-	flags.Var(&o.AnnotationsNotReflected, "annotations-not-reflected", "List of annotations (key) that must not be reflected")
-
 	flags.BoolVar(&o.EnableAPIServerSupport, "enable-apiserver-support", false,
 		"Enable offloaded pods to interact back with the local Kubernetes API server")
 	flags.BoolVar(&o.EnableStorage, "enable-storage", false, "Enable the Liqo storage reflection")

@@ -79,9 +79,6 @@ type InitConfig struct {
 	HomeAPIServerHost string
 	HomeAPIServerPort string
 
-	LabelsNotReflected      []string
-	AnnotationsNotReflected []string
-
 	OffloadingPatch *vkalpha1.OffloadingPatch
 }
 
@@ -135,8 +132,10 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	}
 
 	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, &podReflectorConfig, cfg.ReflectorsConfigs[generic.Pod])
-	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient,
-		cfg.InformerResyncPeriod, eb, cfg.LabelsNotReflected, cfg.AnnotationsNotReflected, cfg.OffloadingPatch).
+
+	forgingOpts := forge.NewForgingOpts(cfg.OffloadingPatch)
+
+	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb, &forgingOpts).
 		With(podreflector).
 		With(exposition.NewServiceReflector(cfg.ReflectorsConfigs[generic.Service], cfg.EnableLoadBalancer, cfg.RemoteRealLoadBalancerClassName)).
 		With(exposition.NewIngressReflector(cfg.ReflectorsConfigs[generic.Ingress], cfg.EnableIngress, cfg.RemoteRealIngressClassName)).

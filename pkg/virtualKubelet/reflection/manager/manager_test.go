@@ -27,6 +27,7 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	reflectionfake "github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic/fake"
 )
 
@@ -37,15 +38,14 @@ var _ = Describe("Manager tests", func() {
 	)
 
 	var (
-		mgr                     Manager
-		localClient             kubernetes.Interface
-		remoteClient            kubernetes.Interface
-		localLiqoClient         liqoclient.Interface
-		remoteLiqoClient        liqoclient.Interface
-		broadcaster             record.EventBroadcaster
-		labelsNotReflected      []string
-		annotationsNotReflected []string
-		offloadingPatch         *virtualkubeletv1alpha1.OffloadingPatch
+		mgr              Manager
+		localClient      kubernetes.Interface
+		remoteClient     kubernetes.Interface
+		localLiqoClient  liqoclient.Interface
+		remoteLiqoClient liqoclient.Interface
+		broadcaster      record.EventBroadcaster
+		offloadingPatch  virtualkubeletv1alpha1.OffloadingPatch
+		forgingOpts      forge.ForgingOpts
 
 		ctx    context.Context
 		cancel context.CancelFunc
@@ -58,12 +58,12 @@ var _ = Describe("Manager tests", func() {
 		localLiqoClient = liqoclientfake.NewSimpleClientset()
 		remoteLiqoClient = liqoclientfake.NewSimpleClientset()
 		broadcaster = record.NewBroadcaster()
+		forgingOpts = forge.NewForgingOpts(&offloadingPatch)
 	})
 	AfterEach(func() { cancel() })
 
 	JustBeforeEach(func() {
-		mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour, broadcaster,
-			labelsNotReflected, annotationsNotReflected, offloadingPatch)
+		mgr = New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, 1*time.Hour, broadcaster, &forgingOpts)
 	})
 
 	Context("a new manager is created", func() {

@@ -377,6 +377,18 @@ spec:
                             x-kubernetes-map-type: atomic
                         type: object
                     type: object
+                  annotationsNotReflected:
+                    description: AnnotationsNotReflected is the list of annotations
+                      (key) that must not be reflected
+                    items:
+                      type: string
+                    type: array
+                  labelsNotReflected:
+                    description: LabelsNotReflected is the list of labels (key) that
+                      must not be reflected
+                    items:
+                      type: string
+                    type: array
                   nodeSelector:
                     additionalProperties:
                       type: string

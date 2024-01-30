@@ -10,6 +10,8 @@ Briefly, the set of supported resources includes (by category):
 * [**Configuration**](UsageReflectionConfiguration): *ConfigMaps*, *Secrets*, *ServiceAccounts*
 * [**Event**](UsageReflectionEvent): *Events*
 
+(UsageReflectionPolicies)=
+
 ## Reflection policies
 
 Liqo implements two different reflection policies:
@@ -39,6 +41,19 @@ Additionally, you can set the number of workers to 0 to **completely disable the
 liqoctl install ... --set "reflection.secret.workers=0"
 ```
 ````
+
+(UsageReflectionLabelsAnnots)=
+
+## Disabling the reflection of specific labels and annotations
+
+In some cases, it could be useful to **not propagate** to the remote clusters some labels/annotations present on reflected resources.
+This can be useful to avoid reflecting labels/annotations that lead to conflicts between the local and remote resources (e.g., the ones added by cloud providers and that are tied to the configuration of the hosting cluster), thus **preventing infinite reconciliations** of the reflected resource.
+
+You can disable the reflection of custom labels and annotations by configuring at install-time respectively the Helm values `reflection.skip.labels` and `reflection.skip.annotations` with the list of **keys** that must not be reflected.
+To modify the list of not-reflected labels/annotations if Liqo is already installed you can either:
+
+* Patch the individual virtual nodes fields `spec.offloadingPatch.labelsNotReflected` and `spec.offloadingPatch.annotationsNotReflected`.
+* Patch the *liqo-controller-manager* args or upgrade Liqo with the new Helm values (but keep in mind that existing virtual nodes will not be updated dynamically, so you should unpeer first and peer again to apply the new changes to existing peers).
 
 (UsageReflectionPods)=
 

@@ -30,6 +30,10 @@ type Affinity struct {
 
 // OffloadingPatch contains the information to patch the virtual node.
 type OffloadingPatch struct {
+	// AnnotationsNotReflected is the list of annotations (key) that must not be reflected
+	AnnotationsNotReflected []string `json:"annotationsNotReflected,omitempty"`
+	// LabelsNotReflected is the list of labels (key) that must not be reflected
+	LabelsNotReflected []string `json:"labelsNotReflected,omitempty"`
 	// NodeSelector contains the node selector to target the remote cluster.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// Tolerations contains the tolerations to target the remote cluster.
