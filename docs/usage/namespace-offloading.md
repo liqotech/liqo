@@ -44,6 +44,8 @@ The accepted values are:
 * **EnforceSameName**: remote namespaces are named after the local cluster's namespace.
 This approach ensures **naming transparency**, which is required by certain applications, as well as guarantees that **cross-namespace DNS queries** referring to reflected services work out of the box (i.e., without adapting the target namespace name).
 Yet, it can lead to **conflicts** in case a namespace with the same name already exists inside the selected remote clusters, ultimately causing the remote namespace creation request to be rejected.
+* **SelectedName**: you can specify the name of the remote namespace through the `--remote-namespace-name` flag.
+This flag is ignored in case the *namespace mapping strategy* is set to *DefaultName* or *EnforceSameName*.
 
 ```{admonition} Note
 Once configured for a given namespace, the *namespace mapping strategy* is **immutable**, and any modification is prevented by a dedicated Liqo webhook.

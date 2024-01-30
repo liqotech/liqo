@@ -152,6 +152,7 @@ spec:
                 enum:
                 - EnforceSameName
                 - DefaultName
+                - SelectedName
                 type: string
               podOffloadingStrategy:
                 default: LocalAndRemote
@@ -165,6 +166,11 @@ spec:
                 - Local
                 - Remote
                 - LocalAndRemote
+                type: string
+              remoteNamespaceName:
+                description: RemoteNamespaceName allows users to choose a specific
+                  name for the remote namespace. This field is required if NamespaceMappingStrategy
+                  is set to "SelectedName". It is ignored otherwise.
                 type: string
             type: object
           status:

@@ -39,6 +39,7 @@ type Options struct {
 	Namespace                string
 	PodOffloadingStrategy    offloadingv1alpha1.PodOffloadingStrategyType
 	NamespaceMappingStrategy offloadingv1alpha1.NamespaceMappingStrategyType
+	RemoteNamespaceName      string
 	ClusterSelector          [][]metav1.LabelSelectorRequirement
 
 	OutputFormat string
@@ -87,6 +88,7 @@ func (o *Options) Run(ctx context.Context) error {
 		oldStrategy = nsoff.Spec.PodOffloadingStrategy
 		nsoff.Spec.PodOffloadingStrategy = o.PodOffloadingStrategy
 		nsoff.Spec.NamespaceMappingStrategy = o.NamespaceMappingStrategy
+		nsoff.Spec.RemoteNamespaceName = o.RemoteNamespaceName
 		nsoff.Spec.ClusterSelector = toNodeSelector(o.ClusterSelector)
 		return nil
 	})
@@ -132,6 +134,7 @@ func (o *Options) output() error {
 		Spec: offloadingv1alpha1.NamespaceOffloadingSpec{
 			PodOffloadingStrategy:    o.PodOffloadingStrategy,
 			NamespaceMappingStrategy: o.NamespaceMappingStrategy,
+			RemoteNamespaceName:      o.RemoteNamespaceName,
 			ClusterSelector:          toNodeSelector(o.ClusterSelector),
 		},
 	}

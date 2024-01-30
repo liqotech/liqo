@@ -86,8 +86,11 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 
 	namespaceMappingStrategy := args.NewEnum([]string{
 		string(offloadingv1alpha1.EnforceSameNameMappingStrategyType),
-		string(offloadingv1alpha1.DefaultNameMappingStrategyType)},
+		string(offloadingv1alpha1.DefaultNameMappingStrategyType),
+		string(offloadingv1alpha1.SelectedNameMappingStrategyType)},
 		string(offloadingv1alpha1.DefaultNameMappingStrategyType))
+
+	var remoteNamespaceName = ""
 
 	outputFormat := args.NewEnum([]string{"json", "yaml"}, "")
 
@@ -104,6 +107,7 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 		PreRun: func(cmd *cobra.Command, args []string) {
 			options.PodOffloadingStrategy = offloadingv1alpha1.PodOffloadingStrategyType(podOffloadingStrategy.Value)
 			options.NamespaceMappingStrategy = offloadingv1alpha1.NamespaceMappingStrategyType(namespaceMappingStrategy.Value)
+			options.RemoteNamespaceName = remoteNamespaceName
 			options.OutputFormat = outputFormat.Value
 			options.Printer.CheckErr(options.ParseClusterSelectors(selectors))
 		},
@@ -117,8 +121,11 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 	cmd.Flags().Var(podOffloadingStrategy, "pod-offloading-strategy",
 		"The constraints regarding pods scheduling in this namespace, among Local, Remote and LocalAndRemote")
 	cmd.Flags().Var(namespaceMappingStrategy, "namespace-mapping-strategy",
-		"The naming strategy adopted for the creation of remote namespaces, among DefaultName and EnforceSameName")
+		"The naming strategy adopted for the creation of remote namespaces, among DefaultName, EnforceSameName and SelectedName")
 	cmd.Flags().DurationVar(&options.Timeout, "timeout", 20*time.Second, "The timeout for the offloading process")
+	cmd.Flags().StringVar(&remoteNamespaceName, "remote-namespace-name", "",
+		"The name of the remote namespace, required when using the SelectedName NamespaceMappingStrategy. "+
+			"Otherwise, it is ignored")
 
 	cmd.Flags().StringArrayVarP(&selectors, "selector", "l", []string{},
 		"The selector to filter the target clusters. Can be specified multiple times, defining alternative requirements (i.e., in logical OR)")
