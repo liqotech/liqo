@@ -18,6 +18,7 @@ import (
 	"os"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -73,14 +74,27 @@ func ApplyOptions() metav1.ApplyOptions {
 type ForgingOpts struct {
 	LabelsNotReflected      []string
 	AnnotationsNotReflected []string
-	OffloadingPatch         *virtualkubeletv1alpha1.OffloadingPatch
+	NodeSelector            map[string]string
+	Tolerations             []corev1.Toleration
+	Affinity                *virtualkubeletv1alpha1.Affinity
 }
 
 // NewForgingOpts returns a new ForgingOpts instance.
-func NewForgingOpts(labelsNotReflected, annotationsNotReflected []string, offloadingPatch *virtualkubeletv1alpha1.OffloadingPatch) ForgingOpts {
-	return ForgingOpts{
-		LabelsNotReflected:      labelsNotReflected,
-		AnnotationsNotReflected: annotationsNotReflected,
-		OffloadingPatch:         offloadingPatch,
+func NewForgingOpts(offloadingPatch *virtualkubeletv1alpha1.OffloadingPatch) ForgingOpts {
+	if offloadingPatch == nil {
+		return NewEmptyForgingOpts()
 	}
+
+	return ForgingOpts{
+		LabelsNotReflected:      offloadingPatch.LabelsNotReflected,
+		AnnotationsNotReflected: offloadingPatch.AnnotationsNotReflected,
+		NodeSelector:            offloadingPatch.NodeSelector,
+		Tolerations:             offloadingPatch.Tolerations,
+		Affinity:                offloadingPatch.Affinity,
+	}
+}
+
+// NewEmptyForgingOpts returns a new ForgingOpts instance with empty fields.
+func NewEmptyForgingOpts() ForgingOpts {
+	return ForgingOpts{}
 }

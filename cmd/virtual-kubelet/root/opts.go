@@ -101,9 +101,6 @@ type Opts struct {
 	// Type of reflection to use for each reflected resource
 	ReflectorsType map[string]*string
 
-	LabelsNotReflected      argsutils.StringList
-	AnnotationsNotReflected argsutils.StringList
-
 	NodeLeaseDuration time.Duration
 	NodePingInterval  time.Duration
 	NodePingTimeout   time.Duration
@@ -151,9 +148,6 @@ func NewOpts() *Opts {
 
 		ReflectorsWorkers: initReflectionWorkers(),
 		ReflectorsType:    initReflectionType(),
-
-		LabelsNotReflected:      argsutils.StringList{},
-		AnnotationsNotReflected: argsutils.StringList{},
 
 		NodeLeaseDuration: node.DefaultLeaseDuration * time.Second,
 		NodePingInterval:  node.DefaultPingInterval,

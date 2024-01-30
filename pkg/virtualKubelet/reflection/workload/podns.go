@@ -331,11 +331,11 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 			saSecretRetriever, ipGetter, npr.config.HomeAPIServerHost, npr.config.HomeAPIServerPort),
 		forge.ServiceAccountMutator(npr.config.APIServerSupport, local.Annotations))
 
-	if forgingOpts.OffloadingPatch != nil {
+	if forgingOpts != nil {
 		mutators = append(mutators,
-			forge.NodeSelectorMutator(forgingOpts.OffloadingPatch.NodeSelector),
-			forge.TolerationsMutator(forgingOpts.OffloadingPatch.Tolerations),
-			forge.AffinityMutator(forgingOpts.OffloadingPatch.Affinity))
+			forge.NodeSelectorMutator(forgingOpts.NodeSelector),
+			forge.TolerationsMutator(forgingOpts.Tolerations),
+			forge.AffinityMutator(forgingOpts.Affinity))
 	}
 
 	// Forge the target shadowpod object.

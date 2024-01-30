@@ -26,14 +26,17 @@ import (
 func NewResourceOfferController(
 	mgr manager.Manager,
 	identityReader identitymanager.IdentityReader,
-	resyncPeriod time.Duration, disableAutoAccept bool) *ResourceOfferReconciler {
+	resyncPeriod time.Duration, disableAutoAccept bool,
+	labelsNotReflected, annotationsNotReflected []string) *ResourceOfferReconciler {
 	return &ResourceOfferReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
-		identityReader:    identityReader,
-		eventsRecorder:    mgr.GetEventRecorderFor("ResourceOffer"),
-		disableAutoAccept: disableAutoAccept,
-		resyncPeriod:      resyncPeriod,
+		identityReader:          identityReader,
+		eventsRecorder:          mgr.GetEventRecorderFor("ResourceOffer"),
+		disableAutoAccept:       disableAutoAccept,
+		resyncPeriod:            resyncPeriod,
+		labelsNotReflected:      labelsNotReflected,
+		annotationsNotReflected: annotationsNotReflected,
 	}
 }

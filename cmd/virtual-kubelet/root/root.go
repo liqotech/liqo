@@ -162,9 +162,6 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		HomeAPIServerHost: c.HomeAPIServerHost,
 		HomeAPIServerPort: c.HomeAPIServerPort,
 
-		LabelsNotReflected:      c.LabelsNotReflected.StringList,
-		AnnotationsNotReflected: c.AnnotationsNotReflected.StringList,
-
 		OffloadingPatch: vn.Spec.OffloadingPatch,
 	}
 

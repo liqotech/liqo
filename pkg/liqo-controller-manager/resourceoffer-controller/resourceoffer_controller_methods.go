@@ -32,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnode-controller"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 // setControllerReference sets owner reference to the related ForeignCluster.
@@ -126,6 +127,15 @@ func (r *ResourceOfferReconciler) getVirtualNodeMutator(fc *discoveryv1alpha1.Fo
 		virtualNode.Spec.StorageClasses = resourceOffer.Spec.StorageClasses
 		virtualNode.Spec.IngressClasses = resourceOffer.Spec.IngressClasses
 		virtualNode.Spec.LoadBalancerClasses = resourceOffer.Spec.LoadBalancerClasses
+
+		if virtualNode.Spec.OffloadingPatch == nil {
+			virtualNode.Spec.OffloadingPatch = &virtualkubeletv1alpha1.OffloadingPatch{}
+		}
+		virtualNode.Spec.OffloadingPatch.AnnotationsNotReflected = slice.Merge(
+			r.annotationsNotReflected, virtualNode.Spec.OffloadingPatch.AnnotationsNotReflected)
+		virtualNode.Spec.OffloadingPatch.LabelsNotReflected = slice.Merge(
+			r.labelsNotReflected, virtualNode.Spec.OffloadingPatch.LabelsNotReflected)
+
 		return controllerutil.SetControllerReference(resourceOffer, virtualNode, r.Scheme)
 	}
 }

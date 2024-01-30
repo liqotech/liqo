@@ -116,7 +116,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 		identityReader := fake.NewIdentityReader().Add(remoteClusterIdentity.ClusterID,
 			testNamespace, kubeconfigSecretName, cluster.GetCfg())
 
-		controller = NewResourceOfferController(mgr, identityReader, 10*time.Second, true)
+		controller = NewResourceOfferController(mgr, identityReader, 10*time.Second, true, []string{}, []string{})
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)

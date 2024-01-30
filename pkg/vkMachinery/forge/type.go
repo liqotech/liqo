@@ -23,23 +23,21 @@ import (
 // VirtualKubeletOpts defines the custom options associated with the virtual kubelet deployment forging.
 type VirtualKubeletOpts struct {
 	// ContainerImage contains the virtual kubelet image name and tag.
-	ContainerImage          string
-	ExtraAnnotations        map[string]string
-	ExtraLabels             map[string]string
-	ExtraArgs               []string
-	NodeExtraAnnotations    argsutils.StringMap
-	NodeExtraLabels         argsutils.StringMap
-	RequestsCPU             resource.Quantity
-	LimitsCPU               resource.Quantity
-	RequestsRAM             resource.Quantity
-	LimitsRAM               resource.Quantity
-	IpamEndpoint            string
-	MetricsEnabled          bool
-	MetricsAddress          string
-	ReflectorsWorkers       map[string]*uint
-	ReflectorsType          map[string]*string
-	LabelsNotReflected      []string
-	AnnotationsNotReflected []string
+	ContainerImage       string
+	ExtraAnnotations     map[string]string
+	ExtraLabels          map[string]string
+	ExtraArgs            []string
+	NodeExtraAnnotations argsutils.StringMap
+	NodeExtraLabels      argsutils.StringMap
+	RequestsCPU          resource.Quantity
+	LimitsCPU            resource.Quantity
+	RequestsRAM          resource.Quantity
+	LimitsRAM            resource.Quantity
+	IpamEndpoint         string
+	MetricsEnabled       bool
+	MetricsAddress       string
+	ReflectorsWorkers    map[string]*uint
+	ReflectorsType       map[string]*string
 }
 
 // VirtualKubeletOptsFlag defines the custom options flags associated with the virtual kubelet deployment forging.
@@ -87,8 +85,4 @@ const (
 	MetricsAddress VirtualKubeletOptsFlag = "--metrics-address"
 	// CreateNode is the flag used to specify if the node must be created.
 	CreateNode VirtualKubeletOptsFlag = "--create-node"
-	// LabelsNotReflected is the flag used to specify the labels not reflected.
-	LabelsNotReflected VirtualKubeletOptsFlag = "--labels-not-reflected"
-	// AnnotationsNotReflected is the flag used to specify the annotations not reflected.
-	AnnotationsNotReflected VirtualKubeletOptsFlag = "--annotations-not-reflected"
 )
