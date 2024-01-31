@@ -420,8 +420,16 @@ Before listing all the parameters, we start here with some general consideration
   * **`liqoctl install --values [file]`**: it accepts as input a file containing all the parameters that you want to set.
   * **`liqoctl install --set [param=value]`**: it changes a single parameter, using the standard Helm syntax. Multiple parameters can be changed by issuing multiple `set` commands on the command line.
 
-For the parameters that are updated after the initial installation (either by updating their values and re-applying the Helm chart or by re-issuing the proper `liqoctl install [--values | --set]` command), please note that not all parameters can be changed at run-time; hence, please check that the command triggered the desired effect.
-A precise list of commands that can be changed at run-time is left for our future work.
+  The following order, which is displayed in decreasing order of priority, is used to generate the final values:
+
+  1. values provided with `--set`
+  2. values provided with `--values` file
+  3. liqoctl specific flags (e.g., `--service-type` flag)
+  4. provider specific values
+  5. chart values
+
+  For the parameters that are updated after the initial installation (either by updating their values and re-applying the Helm chart or by re-issuing the proper `liqoctl install [--values | --set]` command), please note that not all parameters can be changed at run-time; hence, please check that the command triggered the desired effect.
+  A precise list of commands that can be changed at run-time is left for our future work.
 
 ### Global
 
