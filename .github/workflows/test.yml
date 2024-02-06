@@ -117,7 +117,7 @@ jobs:
       if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
 
     - name: Send coverage
-      uses: shogo82148/actions-goveralls@v1.8.0
+      uses: shogo82148/actions-goveralls@v1.9.0
       with:
         path-to-profile: coverage.txt
       if: github.event_name == 'push'
