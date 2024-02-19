@@ -121,3 +121,9 @@ func (mock *IPAMClient) GetOrSetExternalCIDR(_ context.Context, req *ipam.GetOrS
 	_ ...grpc.CallOption) (*ipam.GetOrSetExtCIDRResponse, error) {
 	return &ipam.GetOrSetExtCIDRResponse{RemappedExtCIDR: req.DesiredExtCIDR}, nil
 }
+
+// SetSubnetsPerCluster mocks the corresponding IPAMClient function.
+func (mock *IPAMClient) SetSubnetsPerCluster(_ context.Context, _ *ipam.SetSubnetsPerClusterRequest,
+	_ ...grpc.CallOption) (*ipam.SetSubnetsPerClusterResponse, error) {
+	return &ipam.SetSubnetsPerClusterResponse{}, nil
+}
