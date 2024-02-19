@@ -27,6 +27,8 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/utils/events"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -37,17 +39,19 @@ type ConfigurationReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 
-	localCIDR *networkingv1alpha1.ClusterConfigCIDR
+	localCIDR  *networkingv1alpha1.ClusterConfigCIDR
+	ipamClient ipam.IpamClient
 }
 
 // NewConfigurationReconciler returns a new ConfigurationReconciler.
-func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder) *ConfigurationReconciler {
+func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder, ipamClient ipam.IpamClient) *ConfigurationReconciler {
 	return &ConfigurationReconciler{
 		Client:         cl,
 		Scheme:         s,
 		EventsRecorder: er,
 
-		localCIDR: nil,
+		localCIDR:  nil,
+		ipamClient: ipamClient,
 	}
 }
 
@@ -89,9 +93,21 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if !isConfigurationConfigured(configuration) {
 		events.Event(r.EventsRecorder, configuration, "Waiting for the network to be ready")
 	} else {
+		// Set the subnets for the remote cluster.
+		if configuration.Labels != nil && configuration.Labels[consts.RemoteClusterID] != "" {
+			if _, err := r.ipamClient.SetSubnetsPerCluster(ctx, &ipam.SetSubnetsPerClusterRequest{
+				RemappedPodCIDR:      configuration.Status.Remote.CIDR.Pod.String(),
+				RemappedExternalCIDR: configuration.Status.Remote.CIDR.External.String(),
+				ClusterID:            configuration.Labels[consts.RemoteClusterID],
+			}); err != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to set subnets per cluster: %w", err)
+			}
+		}
+
 		events.Event(r.EventsRecorder, configuration, "Configuration remapped")
 		err = SetConfigurationConfigured(ctx, r.Client, configuration)
 	}
+
 	return ctrl.Result{}, err
 }
 
