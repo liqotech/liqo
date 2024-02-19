@@ -440,6 +440,18 @@ func (liqoIPAM *IPAM) GetOrSetExternalCIDR(_ context.Context, getOrSetExtCIDRReq
 	return &GetOrSetExtCIDRResponse{RemappedExtCIDR: externalCIDR}, nil
 }
 
+// SetSubnetsPerCluster set the remapped PodCIDR and ExternalCIDR for a given Cluster in the IpamStorage.
+func (liqoIPAM *IPAM) SetSubnetsPerCluster(_ context.Context,
+	setSubnetsRequest *SetSubnetsPerClusterRequest) (*SetSubnetsPerClusterResponse, error) {
+	// Set subnets for the cluster
+	err := liqoIPAM.SetSubnetsPerClusterInternal(setSubnetsRequest.GetRemappedPodCIDR(), setSubnetsRequest.GetRemappedExternalCIDR(),
+		setSubnetsRequest.GetClusterID())
+	if err != nil {
+		return &SetSubnetsPerClusterResponse{}, fmt.Errorf("cannot set subnets for cluster %s: %w", setSubnetsRequest.GetClusterID(), err)
+	}
+	return &SetSubnetsPerClusterResponse{}, nil
+}
+
 // getOrRemapNetwork first tries to acquire the received network.
 // If conflicts are found, a new mapped network is returned.
 func (liqoIPAM *IPAM) getOrRemapNetwork(network string) (string, error) {
@@ -565,6 +577,54 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 		return "", "", fmt.Errorf("cannot update cluster subnets: %w", err)
 	}
 	return mappedPodCIDR, mappedExternalCIDR, nil
+}
+
+/*
+SetSubnetsPerClusterInternal set the remapped PodCIDR and ExternalCIDR for a given Cluster.
+*/
+func (liqoIPAM *IPAM) SetSubnetsPerClusterInternal(mappedPodCIDR, mappedExternalCIDR, clusterID string) error {
+	var exists bool
+
+	// Check if podCidr is a valid CIDR
+	if err := liqonetutils.IsValidCIDR(mappedPodCIDR); err != nil {
+		return fmt.Errorf("PodCidr is an invalid CIDR: %w", err)
+	}
+
+	// Check if externalCIDR is a valid CIDR
+	if err := liqonetutils.IsValidCIDR(mappedExternalCIDR); err != nil {
+		return fmt.Errorf("ExternalCIDR is an invalid CIDR: %w", err)
+	}
+
+	// Get subnets for the cluster
+	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
+
+	// Check if entry is already present and do nothing if CIDRs are the same
+	subnets, exists := clusterSubnets[clusterID]
+	if exists && subnets.RemotePodCIDR == mappedPodCIDR && subnets.RemoteExternalCIDR == mappedExternalCIDR {
+		return nil
+	}
+
+	// Create or update subnets for the cluster
+	if !exists {
+		// Create cluster network configuration
+		subnets = netv1alpha1.Subnets{
+			LocalNATPodCIDR:      consts.DefaultCIDRValue,
+			RemotePodCIDR:        mappedPodCIDR,
+			RemoteExternalCIDR:   mappedExternalCIDR,
+			LocalNATExternalCIDR: consts.DefaultCIDRValue,
+		}
+	} else {
+		// Update cluster network configuration
+		subnets.RemotePodCIDR = mappedPodCIDR
+		subnets.RemoteExternalCIDR = mappedExternalCIDR
+	}
+	clusterSubnets[clusterID] = subnets
+
+	// Push it in clusterSubnets
+	if err := liqoIPAM.ipamStorage.updateClusterSubnets(clusterSubnets); err != nil {
+		return fmt.Errorf("cannot update cluster subnets: %w", err)
+	}
+	return nil
 }
 
 // getNetworkFromPool returns a network with mask length equal to mask taken by a network pool.
@@ -1128,6 +1188,7 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 			return "", fmt.Errorf("cannot update endpointMappings: %w", err)
 		}
 
+		//TODO: delete with new network?
 		// Add NAT mapping
 		if err := liqoIPAM.natMappingInflater.AddMapping(ip, externalCIDRNattedIP, clusterID); err != nil {
 			return "", fmt.Errorf("cannot add NAT mapping: %w", err)
@@ -1339,6 +1400,7 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 		return fmt.Errorf("cannot update endpointIPs: %w", err)
 	}
 
+	// TODO: delete with new network?
 	// Remove NAT mapping
 	if err := liqoIPAM.natMappingInflater.RemoveMapping(endpointIP, clusterID); err != nil {
 		return err
