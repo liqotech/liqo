@@ -681,7 +681,7 @@ func main() {
 		}
 
 		cfgReconciler := configurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
-			mgr.GetEventRecorderFor("configuration-controller"))
+			mgr.GetEventRecorderFor("configuration-controller"), ipamClient)
 		if err = cfgReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to create controller ConfigurationReconciler: %s", err)
 			os.Exit(1)
