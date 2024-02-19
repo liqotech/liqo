@@ -9,6 +9,7 @@ service ipam {
     rpc GetHomePodIP (GetHomePodIPRequest) returns (GetHomePodIPResponse);
     rpc BelongsToPodCIDR (BelongsRequest) returns (BelongsResponse);
     rpc GetOrSetExternalCIDR(GetOrSetExtCIDRRequest) returns (GetOrSetExtCIDRResponse);
+    rpc SetSubnetsPerCluster(SetSubnetsPerClusterRequest) returns (SetSubnetsPerClusterResponse);
 }
 
 message MapRequest {
@@ -65,3 +66,11 @@ message GetOrSetExtCIDRRequest {
 message GetOrSetExtCIDRResponse {
     string remappedExtCIDR = 1;
 }
+
+message SetSubnetsPerClusterRequest {
+    string remappedPodCIDR = 1;
+    string remappedExternalCIDR = 2;
+    string clusterID = 3;
+}
+
+message SetSubnetsPerClusterResponse {}

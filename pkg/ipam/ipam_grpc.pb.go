@@ -27,6 +27,7 @@ const (
 	Ipam_GetHomePodIP_FullMethodName         = "/ipam/GetHomePodIP"
 	Ipam_BelongsToPodCIDR_FullMethodName     = "/ipam/BelongsToPodCIDR"
 	Ipam_GetOrSetExternalCIDR_FullMethodName = "/ipam/GetOrSetExternalCIDR"
+	Ipam_SetSubnetsPerCluster_FullMethodName = "/ipam/SetSubnetsPerCluster"
 )
 
 // IpamClient is the client API for Ipam service.
@@ -40,6 +41,7 @@ type IpamClient interface {
 	GetHomePodIP(ctx context.Context, in *GetHomePodIPRequest, opts ...grpc.CallOption) (*GetHomePodIPResponse, error)
 	BelongsToPodCIDR(ctx context.Context, in *BelongsRequest, opts ...grpc.CallOption) (*BelongsResponse, error)
 	GetOrSetExternalCIDR(ctx context.Context, in *GetOrSetExtCIDRRequest, opts ...grpc.CallOption) (*GetOrSetExtCIDRResponse, error)
+	SetSubnetsPerCluster(ctx context.Context, in *SetSubnetsPerClusterRequest, opts ...grpc.CallOption) (*SetSubnetsPerClusterResponse, error)
 }
 
 type ipamClient struct {
@@ -113,6 +115,15 @@ func (c *ipamClient) GetOrSetExternalCIDR(ctx context.Context, in *GetOrSetExtCI
 	return out, nil
 }
 
+func (c *ipamClient) SetSubnetsPerCluster(ctx context.Context, in *SetSubnetsPerClusterRequest, opts ...grpc.CallOption) (*SetSubnetsPerClusterResponse, error) {
+	out := new(SetSubnetsPerClusterResponse)
+	err := c.cc.Invoke(ctx, Ipam_SetSubnetsPerCluster_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IpamServer is the server API for Ipam service.
 // All implementations must embed UnimplementedIpamServer
 // for forward compatibility
@@ -124,6 +135,7 @@ type IpamServer interface {
 	GetHomePodIP(context.Context, *GetHomePodIPRequest) (*GetHomePodIPResponse, error)
 	BelongsToPodCIDR(context.Context, *BelongsRequest) (*BelongsResponse, error)
 	GetOrSetExternalCIDR(context.Context, *GetOrSetExtCIDRRequest) (*GetOrSetExtCIDRResponse, error)
+	SetSubnetsPerCluster(context.Context, *SetSubnetsPerClusterRequest) (*SetSubnetsPerClusterResponse, error)
 	mustEmbedUnimplementedIpamServer()
 }
 
@@ -151,6 +163,9 @@ func (UnimplementedIpamServer) BelongsToPodCIDR(context.Context, *BelongsRequest
 }
 func (UnimplementedIpamServer) GetOrSetExternalCIDR(context.Context, *GetOrSetExtCIDRRequest) (*GetOrSetExtCIDRResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrSetExternalCIDR not implemented")
+}
+func (UnimplementedIpamServer) SetSubnetsPerCluster(context.Context, *SetSubnetsPerClusterRequest) (*SetSubnetsPerClusterResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetSubnetsPerCluster not implemented")
 }
 func (UnimplementedIpamServer) mustEmbedUnimplementedIpamServer() {}
 
@@ -291,6 +306,24 @@ func _Ipam_GetOrSetExternalCIDR_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Ipam_SetSubnetsPerCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetSubnetsPerClusterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpamServer).SetSubnetsPerCluster(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Ipam_SetSubnetsPerCluster_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpamServer).SetSubnetsPerCluster(ctx, req.(*SetSubnetsPerClusterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Ipam_ServiceDesc is the grpc.ServiceDesc for Ipam service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -325,6 +358,10 @@ var Ipam_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOrSetExternalCIDR",
 			Handler:    _Ipam_GetOrSetExternalCIDR_Handler,
+		},
+		{
+			MethodName: "SetSubnetsPerCluster",
+			Handler:    _Ipam_SetSubnetsPerCluster_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
