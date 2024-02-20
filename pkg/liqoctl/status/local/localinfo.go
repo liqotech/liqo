@@ -26,6 +26,7 @@ import (
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
@@ -124,6 +125,13 @@ func (lic *LocalInfoChecker) addClusterIdentitySection(ctx context.Context) {
 			}
 		}
 	}
+
+	configurationSection := lic.localInfoSection.AddSection("Configuration")
+	liqoVersion, err := liqogetters.GetLiqoVersion(ctx, lic.options.CRClient, lic.options.LiqoNamespace)
+	if err != nil {
+		lic.addCollectionError(fmt.Errorf("unable to get Liqo version: %w", err))
+	}
+	configurationSection.AddEntry("Version", liqoVersion)
 }
 
 func (lic *LocalInfoChecker) addNetworkSection(ctx context.Context) {
