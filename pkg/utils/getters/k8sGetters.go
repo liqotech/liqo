@@ -411,8 +411,7 @@ func ListConfigurationsByLabel(ctx context.Context, cl client.Client,
 }
 
 // GetConfigurationByClusterID returns the Configuration resource with the given clusterID.
-func GetConfigurationByClusterID(ctx context.Context, cl client.Client,
-	clusterID string) (*networkingv1alpha1.Configuration, error) {
+func GetConfigurationByClusterID(ctx context.Context, cl client.Client, clusterID string) (*networkingv1alpha1.Configuration, error) {
 	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: clusterID}.AsSelector()
 	configurations, err := ListConfigurationsByLabel(ctx, cl, corev1.NamespaceAll, remoteClusterIDSelector)
 	if err != nil {
@@ -429,12 +428,30 @@ func GetConfigurationByClusterID(ctx context.Context, cl client.Client,
 	}
 }
 
+// GetConnectionByClusterID returns the Connection resource with the given clusterID.
+func GetConnectionByClusterID(ctx context.Context, cl client.Client, clusterID string) (*networkingv1alpha1.Connection, error) {
+	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: clusterID}.AsSelector()
+	connections, err := ListConnectionsByLabel(ctx, cl, corev1.NamespaceAll, remoteClusterIDSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	switch len(connections.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(networkingv1alpha1.ConnectionGroupResource, networkingv1alpha1.ConnectionResource)
+	case 1:
+		return &connections.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple Connections found for ForeignCluster %s", clusterID)
+	}
+}
+
 // GetGatewayServerByClusterID returns the GatewayServer resource with the given clusterID.
 func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
-	clusterID *discoveryv1alpha1.ClusterIdentity) (*networkingv1alpha1.GatewayServer, error) {
+	remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) (*networkingv1alpha1.GatewayServer, error) {
 	var gwServers networkingv1alpha1.GatewayServerList
 	if err := cl.List(ctx, &gwServers, client.MatchingLabels{
-		consts.RemoteClusterID: clusterID.ClusterID,
+		consts.RemoteClusterID: remoteClusterIdentity.ClusterID,
 	}); err != nil {
 		return nil, err
 	}
@@ -445,16 +462,16 @@ func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
 	case 1:
 		return &gwServers.Items[0], nil
 	default:
-		return nil, fmt.Errorf("multiple GatewayServers found for ForeignCluster %s", clusterID)
+		return nil, fmt.Errorf("multiple GatewayServers found for ForeignCluster %s", remoteClusterIdentity.ClusterID)
 	}
 }
 
 // GetGatewayClientByClusterID returns the GatewayClient resource with the given clusterID.
 func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
-	clusterID *discoveryv1alpha1.ClusterIdentity) (*networkingv1alpha1.GatewayClient, error) {
+	remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) (*networkingv1alpha1.GatewayClient, error) {
 	var gwClients networkingv1alpha1.GatewayClientList
 	if err := cl.List(ctx, &gwClients, client.MatchingLabels{
-		consts.RemoteClusterID: clusterID.ClusterID,
+		consts.RemoteClusterID: remoteClusterIdentity.ClusterID,
 	}); err != nil {
 		return nil, err
 	}
@@ -465,7 +482,7 @@ func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
 	case 1:
 		return &gwClients.Items[0], nil
 	default:
-		return nil, fmt.Errorf("multiple GatewayClients found for ForeignCluster %s", clusterID)
+		return nil, fmt.Errorf("multiple GatewayClients found for ForeignCluster %s", remoteClusterIdentity.ClusterID)
 	}
 }
 
