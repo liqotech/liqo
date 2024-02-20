@@ -17,24 +17,21 @@ package statuspeer
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	liqoconsts "github.com/liqotech/liqo/pkg/consts"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/status"
 	"github.com/liqotech/liqo/pkg/liqoctl/status/utils/resources"
-	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
-	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
@@ -105,10 +102,7 @@ func (pic *PeerInfoChecker) Collect(ctx context.Context) {
 
 		pic.addAuthSection(clusterSection, fc)
 
-		err = pic.addNetworkSection(ctx, clusterSection, fc, localClusterName)
-		if err != nil {
-			pic.addCollectionError(fmt.Errorf("unable to get network info for cluster %q: %w", remoteClusterName, err))
-		}
+		pic.addNetworkSection(ctx, clusterSection, fc, localClusterName)
 
 		pic.addAPIServerSection(clusterSection, fc)
 
@@ -165,112 +159,93 @@ func (pic *PeerInfoChecker) addAuthSection(rootSection output.Section, foreignCl
 
 // addNetworkSection adds a section about the network configuration.
 func (pic *PeerInfoChecker) addNetworkSection(ctx context.Context, rootSection output.Section,
-	foreignCluster *discoveryv1alpha1.ForeignCluster, localClusterName string) error {
+	foreignCluster *discoveryv1alpha1.ForeignCluster, localClusterName string) {
 	networkSection := rootSection.AddSection("Network")
 	networkStatus := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.NetworkStatusCondition)
 	networkSection.AddEntry("Status", string(networkStatus))
 	if !pic.options.InternalNetworkEnabled {
-		return nil
+		return
 	}
-	var localFound, remoteFound bool
 	if pic.options.Verbose {
-		networkConfigs, err := liqogetters.ListNetworkConfigsByLabel(ctx, pic.options.CRClient,
-			foreignCluster.Status.TenantNamespace.Local, labels.NewSelector())
+		cfg, err := liqogetters.GetConfigurationByClusterID(ctx, pic.options.CRClient, foreignCluster.Spec.ClusterIdentity.ClusterID)
 		if err != nil {
-			return err
+			pic.addCollectionError(fmt.Errorf("unable to get configuration for cluster %s: %w", foreignCluster.Name, err))
+			return
 		}
 
-		var selectedSection output.Section
-		var remoteSectionMsg, remotePodCIDRMsg, remoteExternalCIDRMsg string
-		for i := range networkConfigs.Items {
-			nc := &networkConfigs.Items[i]
-			if liqonetutils.IsLocalNetworkConfig(nc) {
-				localFound = true
-				selectedSection = networkSection.AddSection("Local CIDRs")
-				remoteSectionMsg = fmt.Sprintf("how %q has been remapped by %q", localClusterName, foreignCluster.Name)
-			} else {
-				remoteFound = true
-				selectedSection = networkSection.AddSection("Remote CIDRs")
-				remoteSectionMsg = fmt.Sprintf("how %q remapped %q", localClusterName, foreignCluster.Name)
-			}
+		// Collect Local Network
+		cidrSection := networkSection.AddSection("CIDRs")
+		localSection := cidrSection.AddSection("Local Cluster")
+		localSection.AddEntry("Pod CIDR", cfg.Spec.Local.CIDR.Pod.String())
+		localSection.AddEntry("External CIDR", cfg.Spec.Local.CIDR.External.String())
 
-			if nc.Status.PodCIDRNAT == liqoconsts.DefaultCIDRValue {
-				remotePodCIDRMsg = NotRemappedMsg
-			} else {
-				remotePodCIDRMsg = nc.Status.PodCIDRNAT
-			}
-			if nc.Status.ExternalCIDRNAT == liqoconsts.DefaultCIDRValue {
-				remoteExternalCIDRMsg = NotRemappedMsg
-			} else {
-				remoteExternalCIDRMsg = nc.Status.ExternalCIDRNAT
-			}
-
-			// Collect Original Network Configs
-			originalSection := selectedSection.AddSection("Original")
-			originalSection.AddEntry("Pod CIDR", nc.Spec.PodCIDR)
-			originalSection.AddEntry("External CIDR", nc.Spec.ExternalCIDR)
-
-			// Collect Remapped Network Configs
-			remoteSection := selectedSection.AddSectionWithDetail("Remapped", remoteSectionMsg)
-			remoteSection.AddEntry("Pod CIDR", remotePodCIDRMsg)
-			remoteSection.AddEntry("External CIDR", remoteExternalCIDRMsg)
-		}
-
-		if !localFound {
-			networkSection.AddSectionWithDetail("Local CIDRs", NetworkConfigNotFoundMsg)
-		}
-		if !remoteFound {
-			networkSection.AddSectionWithDetail("Remote CIDRs", NetworkConfigNotFoundMsg)
-		}
+		// Collect Remapped Network Configs
+		remoteSection := cidrSection.AddSection("Remote Cluster")
+		remoteOriginalSection := remoteSection.AddSection("Original")
+		remoteOriginalSection.AddEntry("Pod CIDR", cfg.Spec.Remote.CIDR.Pod.String())
+		remoteOriginalSection.AddEntry("External CIDR", cfg.Spec.Remote.CIDR.External.String())
+		remoteRemappedSectionMsg := fmt.Sprintf("how %q remapped %q", localClusterName, foreignCluster.Name)
+		remoteRemappedSection := remoteSection.AddSectionWithDetail("Remapped", remoteRemappedSectionMsg)
+		remoteRemappedSection.AddEntry("Pod CIDR", cfg.Status.Remote.CIDR.Pod.String())
+		remoteRemappedSection.AddEntry("External CIDR", cfg.Status.Remote.CIDR.External.String())
 	}
-	return pic.addVpnSection(ctx, networkSection, foreignCluster.Spec.ClusterIdentity,
-		foreignCluster.Status.TenantNamespace.Local)
+	pic.addExternalNetworkSection(ctx, networkSection, foreignCluster.Spec.ClusterIdentity)
 }
 
-func (pic *PeerInfoChecker) getVpnEndpointFromService(ctx context.Context) (address string, err error) {
-	gwSvcSelector, err := metav1.LabelSelectorAsSelector(&liqolabels.GatewayServiceLabelSelector)
-	if err != nil {
-		return "", err
-	}
-	gwSvc, err := liqogetters.GetServiceByLabel(ctx, pic.options.CRClient, pic.options.LiqoNamespace, gwSvcSelector)
-	if err != nil {
-		return "", err
-	}
-	vpnEndpointLocalIP, vpnEndpointLocalPort, err := liqogetters.RetrieveWGEPFromService(
-		gwSvc, liqoconsts.GatewayServiceAnnotationKey, liqoconsts.DriverName)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s:%s", vpnEndpointLocalIP, vpnEndpointLocalPort), nil
-}
+// addExternalNetworkSection adds a section about the External Network configuration.
+func (pic *PeerInfoChecker) addExternalNetworkSection(ctx context.Context, rootSection output.Section,
+	remoteClusterIdentity discoveryv1alpha1.ClusterIdentity) {
+	var endpoint *networkingv1alpha1.EndpointStatus
+	var MTU int
+	var serviceType *corev1.ServiceType
 
-// addVpnSection adds a section about the VPN configuration.
-func (pic *PeerInfoChecker) addVpnSection(ctx context.Context, rootSection output.Section,
-	remoteClusterIdentity discoveryv1alpha1.ClusterIdentity, tenantNamespace string) error {
-	var err error
-	vpnEndpointFromService, err := pic.getVpnEndpointFromService(ctx)
+	// Get Connection for remote cluster
+	connection, err := liqogetters.GetConnectionByClusterID(ctx, pic.options.CRClient, remoteClusterIdentity.ClusterID)
 	if err != nil {
-		pic.addCollectionError(fmt.Errorf("unable to get local network endpoint address: %w", err))
-		return err
+		pic.addCollectionError(fmt.Errorf("unable to get connection for cluster %s: %w", remoteClusterIdentity.ClusterName, err))
+		return
 	}
-	te, err := liqogetters.GetTunnelEndpoint(ctx, pic.options.CRClient, &remoteClusterIdentity, tenantNamespace)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			rootSection.AddSectionWithDetail("Network connection", TunnelEndpointNotFoundMsg)
-			return nil
+	mode := connection.Spec.Type
+
+	switch mode {
+	case networkingv1alpha1.ConnectionTypeServer:
+		gatewayServer, err := liqogetters.GetGatewayServerByClusterID(ctx, pic.options.CRClient, &remoteClusterIdentity)
+		if err != nil {
+			pic.addCollectionError(fmt.Errorf("unable to get gateway for cluster %s: %w", remoteClusterIdentity.ClusterName, err))
+			return
 		}
-		return err
+		endpoint = gatewayServer.Status.Endpoint
+		MTU = gatewayServer.Spec.MTU
+		serviceType = &gatewayServer.Spec.Endpoint.ServiceType
+	case networkingv1alpha1.ConnectionTypeClient:
+		gatewayClient, err := liqogetters.GetGatewayClientByClusterID(ctx, pic.options.CRClient, &remoteClusterIdentity)
+		if err != nil {
+			pic.addCollectionError(fmt.Errorf("unable to get gateway for cluster %s: %w", remoteClusterIdentity.ClusterName, err))
+			return
+		}
+		endpoint = &gatewayClient.Spec.Endpoint
+		MTU = gatewayClient.Spec.MTU
+	default:
+		err := fmt.Errorf("unknown connection type %s", mode)
+		pic.addCollectionError(err)
+		return
 	}
-	tunnelEndpointSection := rootSection.AddSection("Network connection")
-	vpnEndpointSection := tunnelEndpointSection.AddSection("Gateway IPs")
-	vpnEndpointSection.AddEntry("Local", vpnEndpointFromService)
-	vpnEndpointSection.AddEntry("Remote", fmt.Sprintf("%s:%s",
-		te.Status.Connection.PeerConfiguration[liqoconsts.WgEndpointIP],
-		te.Status.Connection.PeerConfiguration[liqoconsts.ListeningPort],
-	))
-	tunnelEndpointSection.AddEntry("Status", string(te.Status.Connection.Status))
-	tunnelEndpointSection.AddEntry("Latency", te.Status.Connection.Latency.Value)
-	return nil
+
+	extNetSection := rootSection.AddSection("Connection")
+	extNetSection.AddEntry("Status", string(connection.Status.Value))
+	extNetSection.AddEntry("Latency", connection.Status.Latency.Value)
+
+	gwEndpointSection := extNetSection.AddSection("Gateway Endpoint")
+	gwEndpointSection.AddEntry("Mode", string(mode))
+	if serviceType != nil {
+		gwEndpointSection.AddEntry("Service Type", string(*serviceType))
+	}
+	gwEndpointSection.AddEntry("IP(s)", endpoint.Addresses...)
+	gwEndpointSection.AddEntry("Port", strconv.Itoa(int(endpoint.Port)))
+	gwEndpointSection.AddEntry("Protocol", string(*endpoint.Protocol))
+	if pic.options.Verbose {
+		gwEndpointSection.AddEntry("MTU", strconv.Itoa(MTU))
+	}
 }
 
 // addAPIServerSection adds a section about the foreign API server status.
