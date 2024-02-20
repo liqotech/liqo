@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -43,7 +43,7 @@ type TestArgsPeer struct {
 }
 
 type TestArgsNet struct {
-	internalNetworkEnabled, remapped bool
+	internalNetworkEnabled bool
 }
 
 type TestArgs struct {
@@ -60,14 +60,13 @@ var _ = Describe("PeerInfo", func() {
 		remoteClusterID     = "remote-fake"
 		remoteClusterName   = "remote-fake"
 		remoteClusterTenant = "remote-fake-tenant"
-		// NetworkCOnfig
-		// podCIDR is the CIDR of the local pod network used for testing.
-		podCIDR    = "20.1.0.0/16"
-		extCIDR    = "20.2.0.0/16"
-		podCIDRNAT = "20.3.0.0/16"
-		extCIDRNAT = "20.4.0.0/16"
-		podCIDRalt = "20.5.0.0/16"
-		extCIDRalt = "20.6.0.0/16"
+		// Local and Remote CIDRs
+		podCIDR               = "20.1.0.0/16"
+		extCIDR               = "20.2.0.0/16"
+		remotePodCIDR         = "20.3.0.0/16"
+		remoteExtCIDR         = "20.4.0.0/16"
+		remoteRemappedPodCIDR = "20.5.0.0/16"
+		remoteRemappedExtCIDR = "20.6.0.0/16"
 	)
 
 	var (
@@ -95,8 +94,6 @@ var _ = Describe("PeerInfo", func() {
 		baseObjects = []client.Object{
 			testutil.FakeClusterIDConfigMap(liqoconsts.DefaultLiqoNamespace, clusterID, clusterName),
 			testutil.FakeLiqoAuthService(corev1.ServiceTypeLoadBalancer),
-			testutil.FakeLiqoGatewayService(corev1.ServiceTypeLoadBalancer),
-			testutil.FakeTunnelEndpoint(&remoteClusterIdentity, remoteClusterTenant),
 			testutil.FakeSharedResourceOffer(&remoteClusterIdentity, remoteClusterTenant, clusterName, sharedResources),
 			testutil.FakeAcquiredResourceOffer(&remoteClusterIdentity, remoteClusterTenant, acquiredResources),
 		}
@@ -142,21 +139,18 @@ var _ = Describe("PeerInfo", func() {
 				incomingConditionStatus = discoveryv1alpha1.PeeringConditionStatusEstablished
 			}
 
-			var localNc, remoteNc *netv1alpha1.NetworkConfig
+			var conf *networkingv1alpha1.Configuration
+			var conn *networkingv1alpha1.Connection
+			var gwServer *networkingv1alpha1.GatewayServer
+			var gwClient *networkingv1alpha1.GatewayClient
 			if args.net.internalNetworkEnabled {
 				networkConditionStatus = discoveryv1alpha1.PeeringConditionStatusEstablished
-				if args.net.remapped {
-					localNc = testutil.FakeNetworkConfig(true, clusterName, remoteClusterTenant,
-						podCIDR, extCIDR, podCIDRNAT, extCIDRNAT)
-					remoteNc = testutil.FakeNetworkConfig(false, remoteClusterName, remoteClusterTenant,
-						podCIDR, extCIDR, podCIDRNAT, extCIDRNAT)
-				} else {
-					localNc = testutil.FakeNetworkConfig(true, clusterName, remoteClusterTenant,
-						podCIDR, extCIDR, "None", "None")
-					remoteNc = testutil.FakeNetworkConfig(false, remoteClusterName, remoteClusterTenant,
-						podCIDRalt, extCIDRalt, "None", "None")
-				}
-				objects = append(objects, localNc, remoteNc)
+				conf = testutil.FakeConfiguration(remoteClusterID, podCIDR, extCIDR,
+					remotePodCIDR, remoteExtCIDR, remoteRemappedPodCIDR, remoteRemappedExtCIDR)
+				conn = testutil.FakeConnection(remoteClusterID)
+				gwServer = testutil.FakeGatewayServer(remoteClusterID)
+				gwClient = testutil.FakeGatewayClient(remoteClusterID)
+				objects = append(objects, conf, conn, gwServer, gwClient)
 			}
 
 			objects = append(objects,
@@ -220,8 +214,7 @@ var _ = Describe("PeerInfo", func() {
 					pterm.Sprintf("Network Status: %s", discoveryv1alpha1.PeeringConditionStatusEstablished),
 				))
 				if args.verbose {
-					expectNetworkSectionToBeCorrect(text, clusterName, remoteClusterName,
-						args.net.remapped, localNc, remoteNc)
+					expectNetworkSectionToBeCorrect(text, clusterName, remoteClusterName, conf)
 				}
 
 			} else {
@@ -262,24 +255,17 @@ var _ = Describe("PeerInfo", func() {
 	)
 })
 
-func expectNetworkSectionToBeCorrect(text, clusterName, remoteClusterName string, remapped bool, localNc, remoteNc *netv1alpha1.NetworkConfig) {
-	local := pterm.Sprintf("Local CIDRs Original")
-	local = pterm.Sprintf("%s Pod CIDR: %s External CIDR: %s", local, localNc.Spec.PodCIDR, localNc.Spec.ExternalCIDR)
-	remote := pterm.Sprintf("Remote CIDRs Original")
-	remote = pterm.Sprintf("%s Pod CIDR: %s External CIDR: %s", remote, remoteNc.Spec.PodCIDR, remoteNc.Spec.ExternalCIDR)
-	local = pterm.Sprintf("%s Remapped - how %q has been remapped by %q",
-		local, clusterName, remoteClusterName)
-	remote = pterm.Sprintf("%s Remapped - how %q remapped %q",
-		remote, clusterName, remoteClusterName)
-	if remapped {
-		local = pterm.Sprintf("%s Pod CIDR: %s External CIDR: %s",
-			local, localNc.Status.PodCIDRNAT, localNc.Status.ExternalCIDRNAT)
-		remote = pterm.Sprintf("%s Pod CIDR: %s External CIDR: %s",
-			remote, remoteNc.Status.PodCIDRNAT, remoteNc.Status.ExternalCIDRNAT)
-	} else {
-		local = pterm.Sprintf("%s Pod CIDR: remapping not necessary External CIDR: remapping not necessary", local)
-		remote = pterm.Sprintf("%s Pod CIDR: remapping not necessary External CIDR: remapping not necessary", remote)
-	}
+func expectNetworkSectionToBeCorrect(text, clusterName, remoteClusterName string, conf *networkingv1alpha1.Configuration) {
+	cidrs := pterm.Sprintf("CIDRs")
+	local := pterm.Sprintf("Local Cluster")
+	local = pterm.Sprintf("%s Pod CIDR: %s External CIDR: %s", local, conf.Spec.Local.CIDR.Pod, conf.Spec.Local.CIDR.External)
+	remote := pterm.Sprintf("Remote Cluster")
+	remote = pterm.Sprintf("%s Original", remote)
+	remote = pterm.Sprintf("%s Pod CIDR: %s External CIDR: %s", remote, conf.Spec.Remote.CIDR.Pod, conf.Spec.Remote.CIDR.External)
+	remote = pterm.Sprintf("%s Remapped - how %q remapped %q", remote, clusterName, remoteClusterName)
+	remote = pterm.Sprintf("%s Pod CIDR: %s External CIDR: %s", remote, conf.Status.Remote.CIDR.Pod, conf.Status.Remote.CIDR.External)
+
+	Expect(text).To(ContainSubstring(cidrs))
 	Expect(text).To(ContainSubstring(local))
 	Expect(text).To(ContainSubstring(remote))
 }
@@ -299,11 +285,10 @@ func expectResourcesToBeContainedIn(text string, genericResources corev1.Resourc
 }
 
 func forgeTestTableEntry(verbose bool, peeringType discoveryv1alpha1.PeeringType,
-	incomingPeeringEnabled bool, outgoingPeeringEnabled bool, remapped bool, internalNetworkEnabled bool,
+	incomingPeeringEnabled bool, outgoingPeeringEnabled bool, internalNetworkEnabled bool,
 ) TableEntry {
-	msg := pterm.Sprintf(`verbose: %t, peeringType: %s, incomingPeeringEnabled: %t, outgoingPeeringEnabled: %t, 
-		remapped: %t, internalNetworkEnabled: %t`,
-		verbose, peeringType, incomingPeeringEnabled, outgoingPeeringEnabled, remapped, internalNetworkEnabled)
+	msg := pterm.Sprintf(`verbose: %t, peeringType: %s, incomingPeeringEnabled: %t, outgoingPeeringEnabled: %t, internalNetworkEnabled: %t`,
+		verbose, peeringType, incomingPeeringEnabled, outgoingPeeringEnabled, internalNetworkEnabled)
 	return Entry(msg, TestArgs{
 		verbose: verbose,
 		peer: TestArgsPeer{
@@ -312,7 +297,6 @@ func forgeTestTableEntry(verbose bool, peeringType discoveryv1alpha1.PeeringType
 			outgoingPeeringEnabled: outgoingPeeringEnabled,
 		},
 		net: TestArgsNet{
-			remapped:               remapped,
 			internalNetworkEnabled: internalNetworkEnabled,
 		},
 	})
@@ -328,22 +312,14 @@ func forgeTestMatrix() []TableEntry {
 		} {
 			for _, incomingPeeringEnabled := range []bool{true, false} {
 				for _, outgoingPeeringEnabled := range []bool{true, false} {
-					for _, remapped := range []bool{true, false} {
-						for _, internalNetworkEnabled := range []bool{true, false} {
-							// excludes cases where the network is not enabled and the peering is in-band
-							if !internalNetworkEnabled && peeringType == discoveryv1alpha1.PeeringTypeInBand {
-								continue
-							}
-							// avoid to test the same case twice, when the network is not enabled
-							// or the verbose flag is not set the remapped value does not affects the output.
-							if remapped {
-								if !internalNetworkEnabled || !verbose {
-									continue
-								}
-							}
-							testMatrix = append(testMatrix, forgeTestTableEntry(verbose, peeringType,
-								incomingPeeringEnabled, outgoingPeeringEnabled, remapped, internalNetworkEnabled))
+
+					for _, internalNetworkEnabled := range []bool{true, false} {
+						// excludes cases where the network is not enabled and the peering is in-band
+						if !internalNetworkEnabled && peeringType == discoveryv1alpha1.PeeringTypeInBand {
+							continue
 						}
+						testMatrix = append(testMatrix, forgeTestTableEntry(verbose, peeringType,
+							incomingPeeringEnabled, outgoingPeeringEnabled, internalNetworkEnabled))
 					}
 				}
 			}
