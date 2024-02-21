@@ -94,4 +94,7 @@ spec:
       affinity:
       {{- toYaml .Values.common.affinity | nindent 8 }}
       {{- end }}
+      {{- if .Values.metricAgent.pod.priorityClassName }}
+      priorityClassName: {{ .Values.metricAgent.pod.priorityClassName }}
+      {{- end }}
 {{- end }}

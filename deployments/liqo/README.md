@@ -18,6 +18,7 @@
 | auth.pod.annotations | object | `{}` | Annotations for the auth pod. |
 | auth.pod.extraArgs | list | `[]` | Extra arguments for the auth pod. |
 | auth.pod.labels | object | `{}` | Labels for the auth pod. |
+| auth.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the auth pod. |
 | auth.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the auth pod. |
 | auth.service.annotations | object | `{}` | Annotations for the auth service. |
 | auth.service.labels | object | `{}` | Labels for the auth service. |
@@ -46,12 +47,14 @@
 | controllerManager.pod.annotations | object | `{}` | Annotations for the controller-manager pod. |
 | controllerManager.pod.extraArgs | list | `[]` | Extra arguments for the controller-manager pod. |
 | controllerManager.pod.labels | object | `{}` | Labels for the controller-manager pod. |
+| controllerManager.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the controller-manager pod. |
 | controllerManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the controller-manager pod. |
 | controllerManager.replicas | int | `1` | The number of controller-manager instances to run, which can be increased for active/passive high availability. |
 | crdReplicator.imageName | string | `"ghcr.io/liqotech/crd-replicator"` | Image repository for the crdReplicator pod. |
 | crdReplicator.pod.annotations | object | `{}` | Annotations for the crdReplicator pod. |
 | crdReplicator.pod.extraArgs | list | `[]` | Extra arguments for the crdReplicator pod. |
 | crdReplicator.pod.labels | object | `{}` | Labels for the crdReplicator pod. |
+| crdReplicator.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the crdReplicator pod. |
 | crdReplicator.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the crdReplicator pod. |
 | discovery.config.autojoin | bool | `true` | Automatically join discovered clusters. |
 | discovery.config.clusterIDOverride | string | `""` | Specify an unique ID (must be a valid uuidv4) for your cluster, instead of letting helm generate it automatically at install time. You can generate it using the command: `uuidgen` This field is needed when using tools such as ArgoCD, since the helm lookup function is not supported and a new value would be generated at each deployment. |
@@ -65,6 +68,7 @@
 | discovery.pod.annotations | object | `{}` | Annotation for the discovery pod. |
 | discovery.pod.extraArgs | list | `[]` | Extra arguments for the discovery pod. |
 | discovery.pod.labels | object | `{}` | Labels for the discovery pod. |
+| discovery.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the discovery pod. |
 | discovery.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the discovery pod. |
 | fullnameOverride | string | `""` | Override the standard full name used by Helm and associated to Kubernetes/Liqo resources. |
 | gateway.config.addressOverride | string | `""` | Override the default address where your network gateway service is available. You should configure it if the network gateway is behind a reverse proxy or NAT. |
@@ -84,6 +88,7 @@
 | gateway.pod.annotations | object | `{}` | Annotations for the network gateway pod. |
 | gateway.pod.extraArgs | list | `[]` | Extra arguments for the network gateway pod. |
 | gateway.pod.labels | object | `{}` | Labels for the network gateway pod. |
+| gateway.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the network gateway pod. |
 | gateway.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the network gateway pod. |
 | gateway.replicas | int | `1` | The number of gateway instances to run. The gateway component supports active/passive high availability. Make sure that there are enough nodes to accommodate the replicas, because such pod has to run in the host network, hence no more than one replica can be scheduled on a given node. |
 | gateway.service.annotations | object | `{}` | Annotations for the network gateway service. |
@@ -101,6 +106,7 @@
 | metricAgent.pod.annotations | object | `{}` | Annotations for the metricAgent pod. |
 | metricAgent.pod.extraArgs | list | `[]` | Extra arguments for the metricAgent pod. |
 | metricAgent.pod.labels | object | `{}` | Labels for the metricAgent pod. |
+| metricAgent.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the metricAgent pod. |
 | metricAgent.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the metricAgent pod. |
 | nameOverride | string | `""` | Override the standard name used by Helm and associated to Kubernetes/Liqo resources. |
 | networkManager.config.additionalPools | list | `[]` | Set of additional network pools to perform the automatic address mapping in Liqo. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
@@ -113,6 +119,7 @@
 | networkManager.pod.annotations | object | `{}` | Annotations for the networkManager pod. |
 | networkManager.pod.extraArgs | list | `[]` | Extra arguments for the networkManager pod. |
 | networkManager.pod.labels | object | `{}` | Labels for the networkManager pod. |
+| networkManager.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the networkManager pod. |
 | networkManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the networkManager pod. |
 | networking.internal | bool | `true` | Use the default Liqo network manager. |
 | networking.iptables | object | `{"mode":"nf_tables"}` | Iptables configuration tuning. |
@@ -136,6 +143,7 @@
 | proxy.pod.annotations | object | `{}` | Annotations for the proxy pod. |
 | proxy.pod.extraArgs | list | `[]` | Extra arguments for the proxy pod. |
 | proxy.pod.labels | object | `{}` | Labels for the proxy pod. |
+| proxy.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the proxy pod. |
 | proxy.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the proxy pod. |
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
@@ -162,6 +170,7 @@
 | route.pod.annotations | object | `{}` | Annotations for the route pod. |
 | route.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
 | route.pod.labels | object | `{}` | Labels for the route pod. |
+| route.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the route pod. |
 | route.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the route pod. |
 | route.tolerations | list | `[]` | Extra tolerations for the route daemonset. |
 | storage.enable | bool | `true` | Enable/Disable the liqo virtual storage class on the local cluster. You will be able to offload your persistent volumes, while other clusters will be able to schedule their persistent workloads on the current cluster. |

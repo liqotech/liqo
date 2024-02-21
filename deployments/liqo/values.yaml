@@ -123,6 +123,8 @@ controllerManager:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the controller-manager pod.
+    priorityClassName: ""
   # -- Image repository for the controller-manager pod.
   imageName: "ghcr.io/liqotech/liqo-controller-manager"
   config:
@@ -153,6 +155,8 @@ route:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the route pod.
+    priorityClassName: ""
   # -- Image repository for the route pod.
   imageName: "ghcr.io/liqotech/liqonet"
   # -- Extra tolerations for the route daemonset.
@@ -175,6 +179,8 @@ gateway:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the network gateway pod.
+    priorityClassName: ""
   # -- Image repository for the network gateway pod.
   imageName: "ghcr.io/liqotech/liqonet"
   service:
@@ -250,6 +256,8 @@ networkManager:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the networkManager pod.
+    priorityClassName: ""
   # -- Image repository for the networkManager pod.
   imageName: "ghcr.io/liqotech/liqonet"
   config:
@@ -280,6 +288,8 @@ crdReplicator:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the crdReplicator pod.
+    priorityClassName: ""
   # -- Image repository for the crdReplicator pod.
   imageName: "ghcr.io/liqotech/crd-replicator"
 
@@ -295,6 +305,8 @@ discovery:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the discovery pod.
+    priorityClassName: ""
   # -- Image repository for the discovery pod.
   imageName: "ghcr.io/liqotech/discovery"
   config:
@@ -336,6 +348,8 @@ auth:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the auth pod.
+    priorityClassName: ""
   # -- Image repository for the auth pod.
   imageName: "ghcr.io/liqotech/auth-service"
   initContainer:
@@ -409,6 +423,8 @@ metricAgent:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the metricAgent pod.
+    priorityClassName: ""
   # -- Image repository for the metricAgent pod.
   imageName: "ghcr.io/liqotech/metric-agent"
   initContainer:
@@ -511,6 +527,8 @@ proxy:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the proxy pod.
+    priorityClassName: ""
   # -- Image repository for the proxy pod.
   imageName: "ghcr.io/liqotech/proxy"
   service:
