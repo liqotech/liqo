@@ -70,6 +70,22 @@ func GetExternalCIDR(ctx context.Context, cl client.Client) (string, error) {
 	return nw.Status.CIDR.String(), nil
 }
 
+// GetInternalCIDR retrieves the internalCIDR of the local cluster.
+func GetInternalCIDR(ctx context.Context, cl client.Client) (string, error) {
+	nw, err := liqogetters.GetUniqueNetworkByLabel(ctx, cl, labels.SelectorFromSet(map[string]string{
+		consts.NetworkTypeLabelKey: string(consts.NetworkTypeInternalCIDR),
+	}))
+	if err != nil {
+		return "", err
+	}
+
+	if nw.Status.CIDR == "" {
+		return "", fmt.Errorf("the internal CIDR is not yet configured: missing status on the Network resource")
+	}
+
+	return nw.Status.CIDR.String(), nil
+}
+
 // GetReservedSubnets retrieves the reserved subnets of the local cluster.
 func GetReservedSubnets(ctx context.Context, cl client.Client) ([]string, error) {
 	var reservedSubnets []string
@@ -110,6 +126,12 @@ func IsServiceCIDR(nw *ipamv1alpha1.Network) bool {
 func IsExternalCIDR(nw *ipamv1alpha1.Network) bool {
 	nwType, ok := nw.Labels[consts.NetworkTypeLabelKey]
 	return ok && nwType == string(consts.NetworkTypeExternalCIDR)
+}
+
+// IsInternalCIDR returns whether the given Network is of type InternalCIDR.
+func IsInternalCIDR(nw *ipamv1alpha1.Network) bool {
+	nwType, ok := nw.Labels[consts.NetworkTypeLabelKey]
+	return ok && nwType == string(consts.NetworkTypeInternalCIDR)
 }
 
 // IsReservedNetwork returns whether the given Network is of type Reserved.
