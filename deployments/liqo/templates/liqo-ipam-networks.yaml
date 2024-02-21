@@ -32,6 +32,16 @@ metadata:
 spec:
   cidr: {{ .Values.ipam.externalCIDR }}
 ---
+apiVersion: ipam.liqo.io/v1alpha1
+kind: Network
+metadata:
+  name: internal-cidr
+  labels:
+    {{- include "liqo.labels" $ipamConfig | nindent 4 }}
+    ipam.liqo.io/network-type: internal-cidr
+spec:
+  cidr: {{ .Values.ipam.internalCIDR }}
+---
 {{- range $i, $value := .Values.ipam.reservedSubnets }}
 apiVersion: ipam.liqo.io/v1alpha1
 kind: Network
@@ -44,14 +54,3 @@ metadata:
 spec:
   cidr: {{ $value }}
 {{- end }}
----
-apiVersion: ipam.liqo.io/v1alpha1
-kind: Network
-metadata:
-  name: internal-cidr
-  labels:
-    {{- include "liqo.labels" $ipamConfig | nindent 4 }}
-    ipam.liqo.io/network-type: internal-cidr
-spec:
-  cidr: {{ .Values.ipam.internalCIDR }}
-

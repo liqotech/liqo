@@ -271,8 +271,8 @@ func FakeNetworkPodCIDR() *ipamv1alpha1.Network {
 			Name:      "pod-cidr",
 			Namespace: liqoconsts.DefaultLiqoNamespace,
 			Labels: map[string]string{
-				"ipam.liqo.io/network-type":         "pod-cidr",
-				"ipam.liqo.io/network-not-remapped": "true",
+				liqoconsts.NetworkTypeLabelKey:        string(liqoconsts.NetworkTypePodCIDR),
+				liqoconsts.NetworkNotRemappedLabelKey: liqoconsts.NetworkNotRemappedLabelValue,
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
@@ -288,8 +288,8 @@ func FakeNetworkServiceCIDR() *ipamv1alpha1.Network {
 			Name:      "service-cidr",
 			Namespace: liqoconsts.DefaultLiqoNamespace,
 			Labels: map[string]string{
-				"ipam.liqo.io/network-type":         "service-cidr",
-				"ipam.liqo.io/network-not-remapped": "true",
+				liqoconsts.NetworkTypeLabelKey:        string(liqoconsts.NetworkTypeServiceCIDR),
+				liqoconsts.NetworkNotRemappedLabelKey: liqoconsts.NetworkNotRemappedLabelValue,
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
@@ -305,7 +305,7 @@ func FakeNetworkExternalCIDR() *ipamv1alpha1.Network {
 			Name:      "external-cidr",
 			Namespace: liqoconsts.DefaultLiqoNamespace,
 			Labels: map[string]string{
-				"ipam.liqo.io/network-type": "external-cidr",
+				liqoconsts.NetworkTypeLabelKey: string(liqoconsts.NetworkTypeExternalCIDR),
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
@@ -317,6 +317,25 @@ func FakeNetworkExternalCIDR() *ipamv1alpha1.Network {
 	}
 }
 
+// FakeNetworkInternalCIDR returns a fake Network of type InternalCIDR.
+func FakeNetworkInternalCIDR() *ipamv1alpha1.Network {
+	return &ipamv1alpha1.Network{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "internal-cidr",
+			Namespace: liqoconsts.DefaultLiqoNamespace,
+			Labels: map[string]string{
+				liqoconsts.NetworkTypeLabelKey: string(liqoconsts.NetworkTypeInternalCIDR),
+			},
+		},
+		Spec: ipamv1alpha1.NetworkSpec{
+			CIDR: v1alpha1networking.CIDR(InternalCIDR),
+		},
+		Status: ipamv1alpha1.NetworkStatus{
+			CIDR: v1alpha1networking.CIDR(InternalCIDR),
+		},
+	}
+}
+
 // FakeNetworkReservedSubnet returns a fake Network of type Reserved Subnet.
 func FakeNetworkReservedSubnet(i int) *ipamv1alpha1.Network {
 	return &ipamv1alpha1.Network{
@@ -324,8 +343,8 @@ func FakeNetworkReservedSubnet(i int) *ipamv1alpha1.Network {
 			Name:      ReservedSubnets[i],
 			Namespace: liqoconsts.DefaultLiqoNamespace,
 			Labels: map[string]string{
-				"ipam.liqo.io/network-type":         "reserved",
-				"ipam.liqo.io/network-not-remapped": "true",
+				liqoconsts.NetworkTypeLabelKey:        string(liqoconsts.NetworkTypeReserved),
+				liqoconsts.NetworkNotRemappedLabelKey: liqoconsts.NetworkNotRemappedLabelValue,
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
