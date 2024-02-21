@@ -153,6 +153,15 @@ func (lic *LocalInfoChecker) addNetworkSection(ctx context.Context) {
 			networkSection.AddEntry("External CIDR", externalCIDR)
 		}
 
+		if lic.options.Verbose {
+			internalCIDR, err := ipamutils.GetInternalCIDR(ctx, lic.options.CRClient)
+			if err != nil {
+				lic.addCollectionError(fmt.Errorf("unable to retrieve internal CIDR: %w", err))
+			} else {
+				networkSection.AddEntry("Internal CIDR", internalCIDR)
+			}
+		}
+
 		reservedSubnets, err := ipamutils.GetReservedSubnets(ctx, lic.options.CRClient)
 		if err != nil {
 			lic.addCollectionError(fmt.Errorf("unable to retrieve reserved subnets: %w", err))
