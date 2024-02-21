@@ -37,6 +37,9 @@ import (
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update;delete;deletecollection;
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;patch;update;delete;
+// +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;patch;update;delete;
+// +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;patch;update;delete;
 
 func main() {
 	log.SetLogger(klog.NewKlogr())
@@ -92,7 +95,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Wait for the foreign clusters to be effectively deleted, to allow releasing possible finalizers.
+	if err := uninstaller.DeleteVirtualNodes(ctx, client); err != nil {
+		klog.Errorf("Unable to delete virtual nodes: %s", err)
+		os.Exit(1)
+	}
+
+	if err := uninstaller.DeleteIPs(ctx, client); err != nil {
+		klog.Errorf("Unable to delete IP addresses: %s", err)
+		os.Exit(1)
+	}
+
+	if err := uninstaller.DeleteNetworks(ctx, client); err != nil {
+		klog.Errorf("Unable to delete Network CIDRs: %s", err)
+		os.Exit(1)
+	}
+
+	// Wait for resources to be effectively deleted, to allow releasing possible finalizers.
 	if err := uninstaller.WaitForResources(client, uninstaller.PhaseCleanup); err != nil {
 		klog.Errorf("Unable to wait deletion of objects: %s", err)
 		os.Exit(1)

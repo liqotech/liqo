@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/ipam"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -99,14 +98,25 @@ func (r *NetworkReconciler) SetupWithManager(mgr ctrl.Manager, workers int) erro
 		Complete(r)
 }
 
-// handleNetworkNotRemapped handles the status of a Network resource that does not need CIDR remapping.
-func (r *NetworkReconciler) handleNetworkNotRemappedStatus(ctx context.Context, nw *ipamv1alpha1.Network) error {
-	nw.Status.CIDR = nw.Spec.CIDR // set the status to the desired CIDR.
-	if err := r.Status().Update(ctx, nw); err != nil {
+// updateNetworkStatus updates the status of the given Network resource.
+func (r *NetworkReconciler) updateNetworkStatus(ctx context.Context, nw *ipamv1alpha1.Network, log bool) error {
+	if err := r.Client.Status().Update(ctx, nw); err != nil {
 		klog.Errorf("error while updating Network %q status: %v", client.ObjectKeyFromObject(nw), err)
 		return err
 	}
-	klog.V(4).Infof("updated Network %q status (spec: %s -> status: %s)", client.ObjectKeyFromObject(nw), nw.Spec.CIDR, nw.Status.CIDR)
+	if log {
+		klog.Infof("updated Network %q status (spec: %s | status: %s)", client.ObjectKeyFromObject(nw), nw.Spec.CIDR, nw.Status.CIDR)
+	}
+
+	return nil
+}
+
+// handleNetworkNotRemapped handles the status of a Network resource that does not need CIDR remapping.
+func (r *NetworkReconciler) handleNetworkNotRemappedStatus(ctx context.Context, nw *ipamv1alpha1.Network) error {
+	nw.Status.CIDR = nw.Spec.CIDR // set the status to the desired CIDR.
+	if err := r.updateNetworkStatus(ctx, nw, false); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -125,8 +135,7 @@ func (r *NetworkReconciler) handleNetworkExternalCIDRStatus(ctx context.Context,
 
 			// Update status
 			nw.Status.CIDR = remappedCIDR
-			if err := r.Client.Status().Update(ctx, nw); err != nil {
-				klog.Errorf("error while updating Network %q status: %v", client.ObjectKeyFromObject(nw), err)
+			if err := r.updateNetworkStatus(ctx, nw, true); err != nil {
 				return err
 			}
 			klog.Infof("updated Network %q status (spec: %s -> status: %s)", client.ObjectKeyFromObject(nw), desiredCIDR, remappedCIDR)
@@ -134,24 +143,6 @@ func (r *NetworkReconciler) handleNetworkExternalCIDRStatus(ctx context.Context,
 	}
 
 	return nil
-}
-
-// getExternalCIDR returns the remapped external CIDR for the given CIDR.
-func getOrSetExternalCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1alpha1.CIDR) (networkingv1alpha1.CIDR, error) {
-	switch ipamClient.(type) {
-	case nil:
-		// IPAM is not enabled, use original CIDR from spec
-		return desiredCIDR, nil
-	default:
-		// interact with the IPAM to retrieve the correct mapping.
-		response, err := ipamClient.GetOrSetExternalCIDR(ctx, &ipam.GetOrSetExtCIDRRequest{DesiredExtCIDR: desiredCIDR.String()})
-		if err != nil {
-			klog.Errorf("IPAM: error while mapping network external CIDR %s: %v", desiredCIDR, err)
-			return "", err
-		}
-		klog.Infof("IPAM: mapped network external CIDR %s to %s", desiredCIDR, response.RemappedExtCIDR)
-		return networkingv1alpha1.CIDR(response.RemappedExtCIDR), nil
-	}
 }
 
 // handleNetworkStatus handles the status of a Network resource.
@@ -184,11 +175,9 @@ func (r *NetworkReconciler) handleNetworkStatus(ctx context.Context, nw *ipamv1a
 
 			// Update status
 			nw.Status.CIDR = remappedCIDR
-			if err := r.Client.Status().Update(ctx, nw); err != nil {
-				klog.Errorf("error while updating Network %q status: %v", client.ObjectKeyFromObject(nw), err)
+			if err := r.updateNetworkStatus(ctx, nw, true); err != nil {
 				return err
 			}
-			klog.Infof("updated Network %q status (spec: %s -> status: %s)", client.ObjectKeyFromObject(nw), desiredCIDR, remappedCIDR)
 		}
 	} else if controllerutil.ContainsFinalizer(nw, ipamNetworkFinalizer) {
 		// The resource is being deleted and the finalizer is still present. Call the IPAM to unmap the network CIDR.
@@ -217,40 +206,4 @@ func (r *NetworkReconciler) handleNetworkStatus(ctx context.Context, nw *ipamv1a
 	}
 
 	return nil
-}
-
-// getRemappedCIDR returns the remapped CIDR for the given CIDR.
-func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1alpha1.CIDR) (networkingv1alpha1.CIDR, error) {
-	switch ipamClient.(type) {
-	case nil:
-		// IPAM is not enabled, use original CIDR from spec
-		return desiredCIDR, nil
-	default:
-		// interact with the IPAM to retrieve the correct mapping.
-		response, err := ipamClient.MapNetworkCIDR(ctx, &ipam.MapCIDRRequest{Cidr: desiredCIDR.String()})
-		if err != nil {
-			klog.Errorf("IPAM: error while mapping network CIDR %s: %v", desiredCIDR, err)
-			return "", err
-		}
-		klog.Infof("IPAM: mapped network CIDR %s to %s", desiredCIDR, response.Cidr)
-		return networkingv1alpha1.CIDR(response.Cidr), nil
-	}
-}
-
-// deleteRemappedCIDR unmaps the given CIDR.
-func deleteRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, remappedCIDR networkingv1alpha1.CIDR) error {
-	switch ipamClient.(type) {
-	case nil:
-		// If the IPAM is not enabled we do not need to free the network CIDR.
-		return nil
-	default:
-		// Interact with the IPAM to free the network CIDR.
-		_, err := ipamClient.UnmapNetworkCIDR(ctx, &ipam.UnmapCIDRRequest{Cidr: remappedCIDR.String()})
-		if err != nil {
-			klog.Errorf("IPAM: error while unmapping CIDR %s: %v", remappedCIDR, err)
-			return err
-		}
-		klog.Infof("IPAM: unmapped CIDR %s", remappedCIDR)
-		return nil
-	}
 }

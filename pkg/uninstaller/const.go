@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -84,6 +85,16 @@ var (
 		},
 		{
 			gvr:           offloadingv1alpha1.NamespaceOffloadingGroupVersionResource,
+			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseCleanup,
+		},
+		{
+			gvr:           ipamv1alpha1.NetworkGroupVersionResource,
+			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseCleanup,
+		},
+		{
+			gvr:           ipamv1alpha1.IPGroupVersionResource,
 			labelSelector: metav1.LabelSelector{},
 			phase:         PhaseCleanup,
 		},
