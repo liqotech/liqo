@@ -28,6 +28,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/errors"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
 type errorMap struct {
@@ -170,6 +171,10 @@ func (o *Options) preUninstall(ctx context.Context) error {
 		return err
 	}
 	for i := range networks.Items {
+		// These networks will be handled by the uninstaller job
+		if ipamutils.IsExternalCIDR(&networks.Items[i]) || ipamutils.IsInternalCIDR(&networks.Items[i]) {
+			continue
+		}
 		if len(networks.Items[i].GetFinalizers()) > 0 {
 			addResourceToErrMap(&networks.Items[i], &errMap, &foreignClusterList)
 		}
