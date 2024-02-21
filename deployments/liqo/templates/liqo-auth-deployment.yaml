@@ -140,3 +140,6 @@ spec:
       affinity:
       {{- toYaml .Values.common.affinity | nindent 8 }}
       {{- end }}
+      {{- if .Values.auth.pod.priorityClassName }}
+      priorityClassName: {{ .Values.auth.pod.priorityClassName }}
+      {{- end }}

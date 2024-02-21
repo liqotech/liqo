@@ -63,3 +63,6 @@ spec:
       affinity:
       {{- toYaml .Values.common.affinity | nindent 8 }}
       {{- end }}
+      {{- if .Values.proxy.pod.priorityClassName }}
+      priorityClassName: {{ .Values.proxy.pod.priorityClassName }}
+      {{- end }}

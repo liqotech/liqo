@@ -236,3 +236,6 @@ spec:
       affinity:
       {{- toYaml .Values.common.affinity | nindent 8 }}
       {{- end }}
+      {{- if .Values.controllerManager.pod.priorityClassName }}
+      priorityClassName: {{ .Values.controllerManager.pod.priorityClassName }}
+      {{- end }}

@@ -66,4 +66,7 @@ spec:
       affinity:
       {{- toYaml .Values.common.affinity | nindent 8 }}
       {{- end }}
+      {{- if .Values.crdReplicator.pod.priorityClassName }}
+      priorityClassName: {{ .Values.crdReplicator.pod.priorityClassName }}
+      {{- end }}
 ---

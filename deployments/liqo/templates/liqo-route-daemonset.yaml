@@ -81,5 +81,8 @@ spec:
             path: /run/xtables.lock
             type: FileOrCreate
           name: xtables-lock
+      {{- if .Values.route.pod.priorityClassName }}
+      priorityClassName: {{ .Values.route.pod.priorityClassName }}
+      {{- end }}
 
 {{- end }}
