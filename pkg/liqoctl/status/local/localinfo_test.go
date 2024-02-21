@@ -45,6 +45,7 @@ type TestArgsNet struct {
 type TestArgs struct {
 	clusterLabels bool
 	net           TestArgsNet
+	verbose       bool
 }
 
 var _ = Describe("LocalInfo", func() {
@@ -113,6 +114,7 @@ var _ = Describe("LocalInfo", func() {
 				testutil.FakeNetworkPodCIDR(),
 				testutil.FakeNetworkServiceCIDR(),
 				testutil.FakeNetworkExternalCIDR(),
+				testutil.FakeNetworkInternalCIDR(),
 			)
 			for i := range testutil.ReservedSubnets {
 				objects = append(objects, testutil.FakeNetworkReservedSubnet(i))
@@ -123,6 +125,7 @@ var _ = Describe("LocalInfo", func() {
 		options.InternalNetworkEnabled = args.net.InternalNetworkEnabled
 		options.CRClient = clientBuilder.Build()
 		options.LiqoNamespace = liqoconsts.DefaultLiqoNamespace
+		options.Verbose = args.verbose
 		lic = NewLocalInfoChecker(&options)
 		lic.Collect(ctx)
 
@@ -155,6 +158,11 @@ var _ = Describe("LocalInfo", func() {
 			Expect(text).To(ContainSubstring(
 				pterm.Sprintf("External CIDR: %s", testutil.ExternalCIDR),
 			))
+			if args.verbose {
+				Expect(text).To(ContainSubstring(
+					pterm.Sprintf("Internal CIDR: %s", testutil.InternalCIDR),
+				))
+			}
 			for _, v := range testutil.ReservedSubnets {
 				Expect(text).To(ContainSubstring(v))
 			}
@@ -180,98 +188,98 @@ var _ = Describe("LocalInfo", func() {
 				InternalNetworkEnabled: true,
 				apiServerOverride:      false,
 				endpointServiceType:    corev1.ServiceTypeNodePort,
-			}}),
+			}, true}),
 		Entry("Standard case with LoadBalancer",
 			TestArgs{false, TestArgsNet{
 				InternalNetworkEnabled: true,
 				apiServerOverride:      false,
 				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
-			}}),
+			}, true}),
 		Entry("Cluster Labels with NodePort",
 			TestArgs{true, TestArgsNet{
 				InternalNetworkEnabled: true,
 				apiServerOverride:      false,
 				endpointServiceType:    corev1.ServiceTypeNodePort,
-			}}),
+			}, true}),
 
 		Entry("Cluster Labels with LoadBalancer",
 			TestArgs{true, TestArgsNet{
 				InternalNetworkEnabled: true,
 				apiServerOverride:      false,
 				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
-			}}),
+			}, true}),
 		Entry("API Server Override with NodePort",
 			TestArgs{false, TestArgsNet{
 				InternalNetworkEnabled: true,
 				apiServerOverride:      true,
 				endpointServiceType:    corev1.ServiceTypeNodePort,
-			}}),
+			}, true}),
 		Entry("API Server Override with LoadBalancer",
 			TestArgs{false, TestArgsNet{
 				InternalNetworkEnabled: true,
 				apiServerOverride:      true,
 				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
-			}}),
+			}, true}),
 		Entry("Cluster Labels and API Server Override with NodePort",
 			TestArgs{true, TestArgsNet{
 				InternalNetworkEnabled: true,
 				apiServerOverride:      true,
 				endpointServiceType:    corev1.ServiceTypeNodePort,
-			}}),
+			}, true}),
 		Entry("Cluster Labels and API Server Override with LoadBalancer",
 			TestArgs{true, TestArgsNet{
 				InternalNetworkEnabled: true,
 				apiServerOverride:      true,
 				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
-			}}),
+			}, true}),
 		Entry("Standard case with NodePort (Internal network Disabled)",
 			TestArgs{false, TestArgsNet{
 				InternalNetworkEnabled: false,
 				apiServerOverride:      false,
 				endpointServiceType:    corev1.ServiceTypeNodePort,
-			}}),
+			}, true}),
 		Entry("Standard case with LoadBalancer (Internal network Disabled)",
 			TestArgs{false, TestArgsNet{
 				InternalNetworkEnabled: false,
 				apiServerOverride:      false,
 				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
-			}}),
+			}, true}),
 		Entry("Cluster Labels with NodePort (Internal network Disabled)",
 			TestArgs{true, TestArgsNet{
 				InternalNetworkEnabled: false,
 				apiServerOverride:      false,
 				endpointServiceType:    corev1.ServiceTypeNodePort,
-			}}),
+			}, true}),
 
 		Entry("Cluster Labels with LoadBalancer (Internal network Disabled)",
 			TestArgs{true, TestArgsNet{
 				InternalNetworkEnabled: false,
 				apiServerOverride:      false,
 				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
-			}}),
+			}, true}),
 		Entry("API Server Override with NodePort (Internal network Disabled)",
 			TestArgs{false, TestArgsNet{
 				InternalNetworkEnabled: false,
 				apiServerOverride:      true,
 				endpointServiceType:    corev1.ServiceTypeNodePort,
-			}}),
+			}, true}),
 		Entry("API Server Override with LoadBalancer (Internal network Disabled)",
 			TestArgs{false, TestArgsNet{
 				InternalNetworkEnabled: false,
 				apiServerOverride:      true,
 				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
-			}}),
+			}, true}),
 		Entry("Cluster Labels and API Server Override with NodePort (Internal network Disabled)",
 			TestArgs{true, TestArgsNet{
 				InternalNetworkEnabled: false,
 				apiServerOverride:      true,
 				endpointServiceType:    corev1.ServiceTypeNodePort,
-			}}),
+			}, true}),
 		Entry("Cluster Labels and API Server Override with LoadBalancer (Internal network Disabled)",
 			TestArgs{true, TestArgsNet{
 				InternalNetworkEnabled: false,
 				apiServerOverride:      true,
 				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
-			}}),
+			}, true}),
 	)
 })
