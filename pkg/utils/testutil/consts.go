@@ -21,8 +21,10 @@ const (
 	PodCIDR = "fake pod CIDR"
 	// ServiceCIDR is the CIDR of the service network used for testing.
 	ServiceCIDR = "fake service CIDR"
-	// ExternalCIDR is the name of the cluster used for testing.
+	// ExternalCIDR is the external CIDR used for testing.
 	ExternalCIDR = "fake external CIDR"
+	// InternalCIDR is the internal CIDR used for testing.
+	InternalCIDR = "fake internal CIDR"
 	// OverrideAPIAddress is the overrided address of the API server used for testing.
 	OverrideAPIAddress = "1.0.0.2:6443"
 	// ForeignAuthURL is the URL of the foreign cluster used for testing.
