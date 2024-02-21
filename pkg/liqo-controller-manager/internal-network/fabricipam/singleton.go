@@ -16,14 +16,11 @@ package fabricipam
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/utils/getters"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
 var (
@@ -40,17 +37,12 @@ func Get(ctx context.Context, cl client.Client) (*IPAM, error) {
 		return fabricIPAM, nil
 	}
 
-	network, err := getters.GetUniqueNetworkByLabel(ctx, cl, labels.SelectorFromSet(map[string]string{
-		consts.NetworkTypeLabelKey: string(consts.NetworkTypeInternalCIDR),
-	}))
+	internalCIDR, err := ipamutils.GetInternalCIDR(ctx, cl)
 	if err != nil {
 		return nil, err
 	}
-	if network.Status.CIDR.String() == "" {
-		return nil, fmt.Errorf("network %s has not been remapped yet", consts.NetworkTypeInternalCIDR)
-	}
 
-	fabricIPAM, err = newIPAM(network.Status.CIDR.String())
+	fabricIPAM, err = newIPAM(internalCIDR)
 	if err != nil {
 		return nil, err
 	}

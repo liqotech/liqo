@@ -25,6 +25,8 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 // UnjoinClusters disables incoming and outgoing peerings with available clusters.
@@ -99,4 +101,55 @@ func DeleteAllForeignClusters(ctx context.Context, client dynamic.Interface) err
 	err := r1.DeleteCollection(ctx,
 		metav1.DeleteOptions{TypeMeta: metav1.TypeMeta{}}, metav1.ListOptions{TypeMeta: metav1.TypeMeta{}})
 	return err
+}
+
+// DeleteVirtualNodes deletes all VirtualNode resources.
+func DeleteVirtualNodes(ctx context.Context, client dynamic.Interface) error {
+	r1 := client.Resource(virtualkubeletv1alpha1.VirtualNodeGroupVersionResource)
+	unstructured, err := r1.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, item := range unstructured.Items {
+		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DeleteNetworks deletes the Networks installed.
+func DeleteNetworks(ctx context.Context, client dynamic.Interface) error {
+	r1 := client.Resource(ipamv1alpha1.NetworkGroupVersionResource)
+	unstructured, err := r1.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, item := range unstructured.Items {
+		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DeleteIPs deletes the IPs installed.
+func DeleteIPs(ctx context.Context, client dynamic.Interface) error {
+	r1 := client.Resource(ipamv1alpha1.IPGroupVersionResource)
+	unstructured, err := r1.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, item := range unstructured.Items {
+		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
