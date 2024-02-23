@@ -16,6 +16,7 @@ package fabricipam
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -46,7 +47,7 @@ func Get(ctx context.Context, cl client.Client) (*IPAM, error) {
 		return nil, err
 	}
 	if network.Status.CIDR.String() == "" {
-		return nil, nil
+		return nil, fmt.Errorf("network %s has not been remapped yet", consts.NetworkTypeInternalCIDR)
 	}
 
 	fabricIPAM, err = newIPAM(network.Status.CIDR.String())
