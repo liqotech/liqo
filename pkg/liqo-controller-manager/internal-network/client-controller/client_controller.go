@@ -69,10 +69,6 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to initialize the IPAM: %w", err)
 	}
-	if ipam == nil {
-		klog.Info("IPAM not ready")
-		return ctrl.Result{Requeue: true}, nil
-	}
 
 	remoteClusterID, ok := gwClient.Labels[consts.RemoteClusterID]
 	if !ok {
