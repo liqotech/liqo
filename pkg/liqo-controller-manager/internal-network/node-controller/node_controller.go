@@ -69,10 +69,6 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to initialize the IPAM: %w", err)
 	}
-	if ipam == nil {
-		klog.Infof("IPAM not ready")
-		return ctrl.Result{}, nil
-	}
 
 	internalNode := &networkingv1alpha1.InternalNode{
 		ObjectMeta: metav1.ObjectMeta{
