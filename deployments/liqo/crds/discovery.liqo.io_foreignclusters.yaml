@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.13.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: foreignclusters.discovery.liqo.io
 spec:
   group: discovery.liqo.io
@@ -53,14 +53,19 @@ spec:
         description: ForeignCluster is the Schema for the foreignclusters API.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -86,9 +91,9 @@ spec:
                 pattern: https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)
                 type: string
               foreignProxyUrl:
-                description: URL where to contact foreign proxy for the api server.
-                  This URL is used when creating the k8s clients toward the remote
-                  cluster.
+                description: |-
+                  URL where to contact foreign proxy for the api server. This URL is used when
+                  creating the k8s clients toward the remote cluster.
                 type: string
               incomingPeeringEnabled:
                 default: Auto
@@ -120,9 +125,9 @@ spec:
                 - InBand
                 type: string
               ttl:
-                description: If discoveryType is LAN, this indicates the number of
-                  seconds after that this ForeignCluster will be removed if no updates
-                  have been received.
+                description: |-
+                  If discoveryType is LAN, this indicates the number of seconds after that
+                  this ForeignCluster will be removed if no updates have been received.
                 minimum: 0
                 type: integer
             required:
@@ -135,8 +140,9 @@ spec:
                 description: URL of the forign cluster's API server.
                 type: string
               peeringConditions:
-                description: PeeringConditions contains the conditions about the peering
-                  related to this ForeignCluster.
+                description: |-
+                  PeeringConditions contains the conditions about the peering related to this
+                  ForeignCluster.
                 items:
                   description: PeeringCondition contains details about state of the
                     peering.

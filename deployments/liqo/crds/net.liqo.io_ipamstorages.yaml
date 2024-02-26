@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.13.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: ipamstorages.net.liqo.io
 spec:
   group: net.liqo.io
@@ -22,14 +22,19 @@ spec:
         description: IpamStorage is the Schema for the ipams API.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -64,9 +69,9 @@ spec:
                   - remoteExternalCIDR
                   - remotePodCIDR
                   type: object
-                description: Map used to keep track of networks assigned to clusters.
-                  Key is the remote cluster ID, value is a the set of networks used
-                  by the remote cluster.
+                description: |-
+                  Map used to keep track of networks assigned to clusters. Key is the remote cluster ID, value is a the set of
+                  networks used by the remote cluster.
                 type: object
               endpointMappings:
                 additionalProperties:
@@ -95,10 +100,10 @@ spec:
                   - ExternalCIDROriginalIP
                   - clusterMappings
                   type: object
-                description: Endpoint IP mappings. Key is the IP address of the local
-                  endpoint, value is an EndpointMapping struct that contains the related
-                  IP belonging to the ExternalCIDR and also the list of clusters on
-                  which this mapping is active
+                description: |-
+                  Endpoint IP mappings. Key is the IP address of the local endpoint, value is an EndpointMapping struct
+                  that contains the related IP belonging to the ExternalCIDR and also the list of clusters
+                  on which this mapping is active
                 type: object
               externalCIDR:
                 description: Cluster ExternalCIDR
@@ -108,8 +113,9 @@ spec:
                   description: ConfiguredCluster is an empty struct used as value
                     for NatMappingsConfigured.
                   type: object
-                description: NatMappingsConfigured is a map that contains all the
-                  remote clusters for which NatMappings have been already configured.
+                description: |-
+                  NatMappingsConfigured is a map that contains all the remote clusters
+                  for which NatMappings have been already configured.
                   Key is a cluster ID, value is an empty struct.
                 type: object
               podCIDR:
@@ -124,9 +130,10 @@ spec:
                 additionalProperties:
                   format: byte
                   type: string
-                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                description: |-
+                  INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
                   Important: Run "make" to regenerate code after modifying this file
-                  Map consumed by go-ipam module. Key is prefic cidr, value is a Prefix.'
+                  Map consumed by go-ipam module. Key is prefic cidr, value is a Prefix.
                 type: object
               reservedSubnets:
                 description: Reserved Networks. Subnets listed in this field are excluded

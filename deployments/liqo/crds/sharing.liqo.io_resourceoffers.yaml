@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.13.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: resourceoffers.sharing.liqo.io
 spec:
   group: sharing.liqo.io
@@ -37,14 +37,19 @@ spec:
         description: ResourceOffer is the Schema for the resourceOffers API.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -52,9 +57,9 @@ spec:
             description: ResourceOfferSpec defines the desired state of ResourceOffer.
             properties:
               clusterId:
-                description: ClusterID is the identifier of the cluster that is sending
-                  this ResourceOffer. It is the uid of the first master node in you
-                  cluster.
+                description: |-
+                  ClusterID is the identifier of the cluster that is sending this ResourceOffer.
+                  It is the uid of the first master node in you cluster.
                 type: string
               images:
                 description: Images is the list of the images already stored in the
@@ -63,8 +68,9 @@ spec:
                   description: Describe a container image
                   properties:
                     names:
-                      description: Names by which this image is known. e.g. ["kubernetes.example/hyperkube:v1.0.7",
-                        "cloud-vendor.registry.example/cloud-vendor/hyperkube:v1.0.7"]
+                      description: |-
+                        Names by which this image is known.
+                        e.g. ["kubernetes.example/hyperkube:v1.0.7", "cloud-vendor.registry.example/cloud-vendor/hyperkube:v1.0.7"]
                       items:
                         type: string
                       type: array
@@ -119,12 +125,14 @@ spec:
                   type: object
                 type: array
               nodeName:
-                description: NodeName is the exact name that the virtual node will
-                  have. One and only one of NodeName and NodeNamePrefix must be set.
+                description: |-
+                  NodeName is the exact name that the virtual node will have.
+                  One and only one of NodeName and NodeNamePrefix must be set.
                 type: string
               nodeNamePrefix:
-                description: NodeNamePrefix is the prefix that the virtual node will
-                  have. One and only one of NodeName and NodeNamePrefix must be set.
+                description: |-
+                  NodeNamePrefix is the prefix that the virtual node will have.
+                  One and only one of NodeName and NodeNamePrefix must be set.
                 type: string
               prices:
                 additionalProperties:
@@ -147,39 +155,39 @@ spec:
                       - type: string
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
-                    description: 'hard is the set of desired hard limits for each
-                      named resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/'
+                    description: |-
+                      hard is the set of desired hard limits for each named resource.
+                      More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/
                     type: object
                   scopeSelector:
-                    description: scopeSelector is also a collection of filters like
-                      scopes that must match each object tracked by a quota but expressed
-                      using ScopeSelectorOperator in combination with possible values.
-                      For a resource to match, both scopes AND scopeSelector (if specified
-                      in spec), must be matched.
+                    description: |-
+                      scopeSelector is also a collection of filters like scopes that must match each object tracked by a quota
+                      but expressed using ScopeSelectorOperator in combination with possible values.
+                      For a resource to match, both scopes AND scopeSelector (if specified in spec), must be matched.
                     properties:
                       matchExpressions:
                         description: A list of scope selector requirements by scope
                           of the resources.
                         items:
-                          description: A scoped-resource selector requirement is a
-                            selector that contains values, a scope name, and an operator
+                          description: |-
+                            A scoped-resource selector requirement is a selector that contains values, a scope name, and an operator
                             that relates the scope name and values.
                           properties:
                             operator:
-                              description: Represents a scope's relationship to a
-                                set of values. Valid operators are In, NotIn, Exists,
-                                DoesNotExist.
+                              description: |-
+                                Represents a scope's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists, DoesNotExist.
                               type: string
                             scopeName:
                               description: The name of the scope that the selector
                                 applies to.
                               type: string
                             values:
-                              description: An array of string values. If the operator
-                                is In or NotIn, the values array must be non-empty.
-                                If the operator is Exists or DoesNotExist, the values
-                                array must be empty. This array is replaced during
-                                a strategic merge patch.
+                              description: |-
+                                An array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty.
+                                This array is replaced during a strategic merge patch.
                               items:
                                 type: string
                               type: array
@@ -191,9 +199,9 @@ spec:
                     type: object
                     x-kubernetes-map-type: atomic
                   scopes:
-                    description: A collection of filters that must match each object
-                      tracked by a quota. If not specified, the quota matches all
-                      objects.
+                    description: |-
+                      A collection of filters that must match each object tracked by a quota.
+                      If not specified, the quota matches all objects.
                     items:
                       description: A ResourceQuotaScope defines a filter that must
                         match each object tracked by a quota
@@ -232,11 +240,10 @@ spec:
             properties:
               phase:
                 default: Pending
-                description: Phase is the status of this ResourceOffer. When the offer
-                  is created it is checked by the operator, which sets this field
-                  to "Accepted" or "Refused" on tha base of cluster configuration.
-                  If the ResourceOffer is accepted a virtual-kubelet for the foreign
-                  cluster will be created.
+                description: |-
+                  Phase is the status of this ResourceOffer.
+                  When the offer is created it is checked by the operator, which sets this field to "Accepted" or "Refused" on tha base of cluster configuration.
+                  If the ResourceOffer is accepted a virtual-kubelet for the foreign cluster will be created.
                 enum:
                 - Pending
                 - ManualActionRequired
