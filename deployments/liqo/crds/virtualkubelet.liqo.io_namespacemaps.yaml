@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.13.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: namespacemaps.virtualkubelet.liqo.io
 spec:
   group: virtualkubelet.liqo.io
@@ -29,14 +29,19 @@ spec:
         description: NamespaceMap is the Schema for the namespacemaps API.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -46,11 +51,10 @@ spec:
               desiredMapping:
                 additionalProperties:
                   type: string
-                description: DesiredMapping is filled by NamespaceController when
-                  a user requires to offload a remote namespace, every entry of the
-                  map represents the localNamespaceName[key]-remoteNamespaceName[value]
-                  association. When a new entry is created the NamespaceMap Controller
-                  tries to create the associated remote namespace.
+                description: |-
+                  DesiredMapping is filled by NamespaceController when a user requires to offload a remote namespace, every entry
+                  of the map represents the localNamespaceName[key]-remoteNamespaceName[value] association. When a new entry is
+                  created the NamespaceMap Controller tries to create the associated remote namespace.
                 type: object
             type: object
           status:
@@ -73,10 +77,9 @@ spec:
                         at creation time according to NamespaceMappingStrategy
                       type: string
                   type: object
-                description: CurrentMapping is filled by NamespaceMap Controller,
-                  when a new remote namespace's creation is requested. The key is
-                  the local namespace name, while the value is a summary of new remote
-                  namespace's status.
+                description: |-
+                  CurrentMapping is filled by NamespaceMap Controller, when a new remote namespace's creation is requested. The key
+                  is the local namespace name, while the value is a summary of new remote namespace's status.
                 type: object
             type: object
         type: object

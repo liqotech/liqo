@@ -1,6 +1,6 @@
 module github.com/liqotech/liqo
 
-go 1.21.0
+go 1.22.0
 
 require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible

@@ -59,7 +59,7 @@ In most scenarios, the only variable that needs to be modified is `LIQO_VERSION`
 
 ```bash
 export CLUSTER_NUMBER=4
-export K8S_VERSION=v1.21.1
+export K8S_VERSION=v1.22.0
 export CNI=kindnet
 export TMPDIR=$(mktemp -d)
 export BINDIR=${TMPDIR}/bin

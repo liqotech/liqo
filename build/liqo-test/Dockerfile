@@ -1,4 +1,4 @@
-FROM golang:1.21 as builder
+FROM golang:1.22 as builder
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 ENV K8S_VERSION=1.25.0
