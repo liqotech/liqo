@@ -14,9 +14,29 @@
 
 package firewall
 
+// FilterAction is the action to be applied to the rule.
+type FilterAction string
+
+const (
+	// ActionCtMark is the action to be applied to the rule.
+	// It is used to mark the connection using the conntrack.
+	ActionCtMark FilterAction = "ctmark"
+	// ActionSetMetaMarkFromCtMark is the action to be applied to the rule.
+	// It is used to set the meta mark from the conntrack mark.
+	ActionSetMetaMarkFromCtMark FilterAction = "metamarkfromctmark"
+)
+
 // FilterRule is a rule to be applied to a filter chain.
 // +kubebuilder:object:generate=true
 type FilterRule struct {
 	// Name is the name of the rule.
 	Name *string `json:"name,omitempty"`
+	// Match is the match to be applied to the rule.
+	// They can be multiple and they are applied with an AND operator.
+	Match []Match `json:"match"`
+	// Action is the action to be applied to the rule.
+	// +kubebuilder:validation:Enum=ctmark;metamarkfromctmark
+	Action FilterAction `json:"action"`
+	// Value is the value to be used for the action.
+	Value *string `json:"value,omitempty"`
 }
