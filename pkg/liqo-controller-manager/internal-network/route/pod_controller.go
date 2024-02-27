@@ -90,7 +90,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	op, err := enforeRoutePodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
+	op, err := enforceRoutePodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

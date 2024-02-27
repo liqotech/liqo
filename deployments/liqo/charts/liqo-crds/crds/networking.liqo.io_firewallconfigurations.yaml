@@ -92,9 +92,82 @@ spec:
                                 description: FilterRule is a rule to be applied to
                                   a filter chain.
                                 properties:
+                                  action:
+                                    description: Action is the action to be applied
+                                      to the rule.
+                                    enum:
+                                    - ctmark
+                                    - metamarkfromctmark
+                                    type: string
+                                  match:
+                                    description: Match is the match to be applied
+                                      to the rule. They can be multiple and they are
+                                      applied with an AND operator.
+                                    items:
+                                      description: Match is a match to be applied
+                                        to a rule.
+                                      maxProperties: 2
+                                      minProperties: 2
+                                      properties:
+                                        dev:
+                                          description: Dev contains the options to
+                                            match a device.
+                                          properties:
+                                            position:
+                                              description: Position is the source
+                                                device of the packet.
+                                              enum:
+                                              - in
+                                              - out
+                                              type: string
+                                            value:
+                                              description: Value is the name of the
+                                                device to be matched.
+                                              type: string
+                                          required:
+                                          - position
+                                          - value
+                                          type: object
+                                        ip:
+                                          description: IP contains the options to
+                                            match an IP or a Subnet.
+                                          properties:
+                                            position:
+                                              description: Position is the position
+                                                of the IP in the packet.
+                                              enum:
+                                              - src
+                                              - dst
+                                              type: string
+                                            value:
+                                              description: Value is the IP or a SUbnet
+                                                to be matched.
+                                              type: string
+                                          required:
+                                          - position
+                                          - value
+                                          type: object
+                                        op:
+                                          description: Op is the operation of the
+                                            match.
+                                          enum:
+                                          - eq
+                                          - neq
+                                          type: string
+                                      required:
+                                      - op
+                                      type: object
+                                    type: array
                                   name:
                                     description: Name is the name of the rule.
                                     type: string
+                                  value:
+                                    description: Value is the value to be used for
+                                      the action.
+                                    type: string
+                                required:
+                                - action
+                                - match
                                 type: object
                               type: array
                             natRules:
@@ -107,8 +180,7 @@ spec:
                                   match:
                                     description: Match is the match to be applied
                                       to the rule. They can be multiple and they are
-                                      applied with an AND operator. Using multiple
-                                      ip matches with same position or
+                                      applied with an AND operator.
                                     items:
                                       description: Match is a match to be applied
                                         to a rule.
