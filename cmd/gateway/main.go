@@ -37,7 +37,6 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
-	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/gateway/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
@@ -159,8 +158,8 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("routeconfiguration-controller"),
 		[]labels.Set{
-			fabric.ForgeRouteExternalTargetLabels(connoptions.GwOptions.RemoteClusterID),
-			fabric.ForgeRouteInternalTargetLabels(),
+			gateway.ForgeRouteExternalTargetLabels(connoptions.GwOptions.RemoteClusterID),
+			gateway.ForgeRouteInternalTargetLabels(),
 		},
 	)
 	if err != nil {
@@ -176,7 +175,10 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("firewall-controller"),
-		remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
+		[]labels.Set{
+			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
+			gateway.ForgeFirewallInternalTargetLabels(),
+		},
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)

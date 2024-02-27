@@ -8,6 +8,7 @@ on:
       - network-general
       - network-external
       - network-internal
+      - frc/mangle
   repository_dispatch:
     types:
       - test-command
