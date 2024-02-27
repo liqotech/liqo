@@ -36,7 +36,7 @@ func GenerateRouteConfigurationName(nodeName string) string {
 	return fmt.Sprintf("%s-gw-node", nodeName)
 }
 
-func enforeRoutePodPresence(ctx context.Context, cl client.Client, scheme *runtime.Scheme,
+func enforceRoutePodPresence(ctx context.Context, cl client.Client, scheme *runtime.Scheme,
 	opts *Options, pod *corev1.Pod) (controllerutil.OperationResult, error) {
 	if pod.Spec.NodeName == "" {
 		return "", nil

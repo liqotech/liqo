@@ -1423,6 +1423,11 @@ func (in *Rule) DeepCopyInto(out *Rule) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.FwMark != nil {
+		in, out := &in.FwMark, &out.FwMark
+		*out = new(int)
+		**out = **in
+	}
 	if in.Routes != nil {
 		in, out := &in.Routes, &out.Routes
 		*out = make([]Route, len(*in))

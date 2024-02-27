@@ -88,6 +88,10 @@ func AddRule(rule *networkingv1alpha1.Rule, tableID uint32) error {
 		newrule.OifName = *rule.Oif
 	}
 
+	if rule.FwMark != nil {
+		newrule.Mark = *rule.FwMark
+	}
+
 	err := netlink.RuleAdd(newrule)
 	if err != nil {
 		return fmt.Errorf("unable to add rule %v: %w", rule, err)
@@ -153,6 +157,10 @@ func RuleIsEqual(rule *networkingv1alpha1.Rule, netlinkRule *netlink.Rule) bool 
 		return false
 	}
 	if rule.Oif == nil && netlinkRule.OifName != "" {
+		return false
+	}
+
+	if rule.FwMark != nil && *rule.FwMark != netlinkRule.Mark {
 		return false
 	}
 	return true
