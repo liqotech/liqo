@@ -22,6 +22,7 @@ import (
 	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -43,14 +44,14 @@ type FirewallConfigurationReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 	// Labels used to filter the reconciled resources.
-	Labels map[string]string
+	LabelsSets []labels.Set
 	// EnableFinalizer is used to enable the finalizer on the reconciled resources.
 	EnableFinalizer bool
 }
 
 // newFirewallConfigurationReconciler returns a new FirewallConfigurationReconciler.
 func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
-	er record.EventRecorder, labels map[string]string, enableFinalizer bool) (*FirewallConfigurationReconciler, error) {
+	er record.EventRecorder, labelsSets []labels.Set, enableFinalizer bool) (*FirewallConfigurationReconciler, error) {
 	nftConnection, err := nftables.New()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create nftables connection: %w", err)
@@ -60,21 +61,21 @@ func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
 		Client:          cl,
 		Scheme:          s,
 		EventsRecorder:  er,
-		Labels:          labels,
+		LabelsSets:      labelsSets,
 		EnableFinalizer: enableFinalizer,
 	}, nil
 }
 
 // NewFirewallConfigurationReconcilerWithFinalizer returns a new FirewallConfigurationReconciler that uses finalizer.
 func NewFirewallConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme,
-	er record.EventRecorder, labels map[string]string) (*FirewallConfigurationReconciler, error) {
-	return newFirewallConfigurationReconciler(cl, s, er, labels, true)
+	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationReconciler, error) {
+	return newFirewallConfigurationReconciler(cl, s, er, labelsSets, true)
 }
 
 // NewFirewallConfigurationReconcilerWithoutFinalizer returns a new FirewallConfigurationReconciler that doesn't use finalizer.
 func NewFirewallConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme,
-	er record.EventRecorder, labels map[string]string) (*FirewallConfigurationReconciler, error) {
-	return newFirewallConfigurationReconciler(cl, s, er, labels, false)
+	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationReconciler, error) {
+	return newFirewallConfigurationReconciler(cl, s, er, labelsSets, false)
 }
 
 // cluster-role
@@ -156,8 +157,8 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 
 // SetupWithManager register the FirewallConfigurationReconciler to the manager.
 func (r *FirewallConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	klog.Infof("Starting FirewallConfiguration controller with labels %v", r.Labels)
-	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: r.Labels})
+	klog.Infof("Starting FirewallConfiguration controller with labels %v", r.LabelsSets)
+	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
 	if err != nil {
 		return err
 	}
@@ -179,4 +180,16 @@ func (r *FirewallConfigurationReconciler) UpdateStatus(ctx context.Context, er r
 		err = errors.Join(err, clerr)
 	}
 	return err
+}
+
+// forgeLabelsPredicate returns a predicate that filters the resources based on the given labels.
+func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) {
+	var err error
+	labelPredicates := make([]predicate.Predicate, len(labelsSets))
+	for i := range labelsSets {
+		if labelPredicates[i], err = predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: labelsSets[i]}); err != nil {
+			return nil, err
+		}
+	}
+	return predicate.Or(labelPredicates...), nil
 }

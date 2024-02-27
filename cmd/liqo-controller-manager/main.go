@@ -76,7 +76,7 @@ import (
 	internalconfigurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/configuration-controller"
 	internalfabriccontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/internalfabric-controller"
 	nodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/node-controller"
-	internalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/route"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/route"
 	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/server-controller"
 	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
@@ -710,8 +710,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		intPodReconciler := internalnetworkroute.NewPodReconciler(allpodmgr.GetClient(), allpodmgr.GetScheme(),
-			allpodmgr.GetEventRecorderFor("internal-pod-controller"), &internalnetworkroute.Options{Namespace: *liqoNamespace})
+		intPodReconciler := route.NewPodReconciler(allpodmgr.GetClient(), allpodmgr.GetScheme(),
+			allpodmgr.GetEventRecorderFor("internal-pod-controller"), &route.Options{Namespace: *liqoNamespace})
 		if err = intPodReconciler.SetupWithManager(allpodmgr); err != nil {
 			klog.Errorf("unable to create controller InternalPodReconciler: %s", err)
 			os.Exit(1)
@@ -779,6 +779,17 @@ func main() {
 
 		nodeReconciler := nodecontroller.NewNodeReconciler(mgr.GetClient(), mgr.GetScheme())
 		if err := nodeReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		internalNodeReconciler := route.NewInternalNodeReconciler(
+			mgr.GetClient(),
+			mgr.GetScheme(),
+			mgr.GetEventRecorderFor("internal-node-controller"),
+			&route.Options{Namespace: *liqoNamespace},
+		)
+		if err := internalNodeReconciler.SetupWithManager(mgr); err != nil {
 			klog.Error(err)
 			os.Exit(1)
 		}

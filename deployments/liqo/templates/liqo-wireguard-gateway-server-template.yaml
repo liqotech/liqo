@@ -25,7 +25,7 @@ spec:
         spec:
           selector:
             {{- include "liqo.labelsTemplate" $templateConfig | nindent 12 }}
-          type: "{{"{{ .Spec.Endpoint.ServiceType }}"}}"
+          type: NodePort
           ports:
           - port: "{{"{{ .Spec.Endpoint.Port }}"}}"
             protocol: UDP

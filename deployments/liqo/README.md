@@ -7,7 +7,7 @@
 | auth.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
 | auth.config.enableAuthentication | bool | `true` | Set to false to disable the authentication of discovered clusters. Note: use it only for testing installations. |
 | auth.config.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT or using an Ingress with a port different from 443. |
-| auth.image.name | string | `"ghcr.io/liqotech/auth-service"` | Image repository for the auth pod. |
+| auth.image.name | string | `"ghcr.io/cheina97/auth-service"` | Image repository for the auth pod. |
 | auth.image.version | string | `""` | Custom version for the auth image. If not specified, the global tag is used. |
 | auth.ingress.annotations | object | `{}` | Annotations for the Auth ingress. |
 | auth.ingress.class | string | `""` | Set your ingress class. |
@@ -15,7 +15,7 @@
 | auth.ingress.host | string | `""` | Set the hostname for your ingress. |
 | auth.ingress.port | int | `443` | Set port for your ingress. |
 | auth.ingress.tlsSecretName | string | `""` | Override default (ChartName-auth) tls secretName. |
-| auth.initContainer.image.name | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the auth pod. |
+| auth.initContainer.image.name | string | `"ghcr.io/cheina97/cert-creator"` | Image repository for the init container of the auth pod. |
 | auth.initContainer.image.version | string | `""` | Custom version for the init container image of the auth pod. If not specified, the global tag is used. |
 | auth.pod.annotations | object | `{}` | Annotations for the auth pod. |
 | auth.pod.extraArgs | list | `[]` | Extra arguments for the auth pod. |
@@ -42,16 +42,16 @@
 | controllerManager.config.enableNodeFailureController | bool | `false` | Ensure offloaded pods running on a failed node are evicted and rescheduled on a healthy node, preventing them to remain in a terminating state indefinitely. This feature can be useful in case of remote node failure to guarantee better service continuity and to have the expected pods workload on the remote cluster. However, enabling this feature could produce zombies in the worker node, in case the node returns Ready again without a restart. |
 | controllerManager.config.enableResourceEnforcement | bool | `false` | It enforces offerer-side that offloaded pods do not exceed offered resources (based on container limits). This feature is suggested to be enabled when consumer-side enforcement is not sufficient. It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set). |
 | controllerManager.config.offerUpdateThresholdPercentage | string | `""` | Threshold (in percentage) of the variation of resources that triggers a ResourceOffer update. E.g., when the available resources grow/decrease by X, a new ResourceOffer is generated. |
-| controllerManager.config.resourcePluginAddress | string | `""` | The address of an external resource plugin service (see https://github.com/liqotech/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor. |
+| controllerManager.config.resourcePluginAddress | string | `""` | The address of an external resource plugin service (see https://github.com/cheina97/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor. |
 | controllerManager.config.resourceSharingPercentage | int | `30` | Percentage of available cluster resources that you are willing to share with foreign clusters. |
-| controllerManager.image.name | string | `"ghcr.io/liqotech/liqo-controller-manager"` | Image repository for the controller-manager pod. |
+| controllerManager.image.name | string | `"ghcr.io/cheina97/liqo-controller-manager"` | Image repository for the controller-manager pod. |
 | controllerManager.image.version | string | `""` | Custom version for the controller-manager image. If not specified, the global tag is used. |
 | controllerManager.pod.annotations | object | `{}` | Annotations for the controller-manager pod. |
 | controllerManager.pod.extraArgs | list | `[]` | Extra arguments for the controller-manager pod. |
 | controllerManager.pod.labels | object | `{}` | Labels for the controller-manager pod. |
 | controllerManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the controller-manager pod. |
 | controllerManager.replicas | int | `1` | The number of controller-manager instances to run, which can be increased for active/passive high availability. |
-| crdReplicator.image.name | string | `"ghcr.io/liqotech/crd-replicator"` | Image repository for the crdReplicator pod. |
+| crdReplicator.image.name | string | `"ghcr.io/cheina97/crd-replicator"` | Image repository for the crdReplicator pod. |
 | crdReplicator.image.version | string | `""` | Custom version for the crdReplicator image. If not specified, the global tag is used. |
 | crdReplicator.pod.annotations | object | `{}` | Annotations for the crdReplicator pod. |
 | crdReplicator.pod.extraArgs | list | `[]` | Extra arguments for the crdReplicator pod. |
@@ -65,13 +65,13 @@
 | discovery.config.enableDiscovery | bool | `false` | Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN. Usually this feature should be active when you have multiple (tiny) clusters on the same LAN (e.g., multiple K3s running on individual devices); if your clusters operate on the big Internet, this feature is not needed and it can be turned off. |
 | discovery.config.incomingPeeringEnabled | bool | `true` | Allow (by default) the remote clusters to establish a peering with our cluster. |
 | discovery.config.ttl | int | `90` | Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds). |
-| discovery.image.name | string | `"ghcr.io/liqotech/discovery"` | Image repository for the discovery pod. |
+| discovery.image.name | string | `"ghcr.io/cheina97/discovery"` | Image repository for the discovery pod. |
 | discovery.image.version | string | `""` | Custom version for the discovery image. If not specified, the global tag is used. |
 | discovery.pod.annotations | object | `{}` | Annotation for the discovery pod. |
 | discovery.pod.extraArgs | list | `[]` | Extra arguments for the discovery pod. |
 | discovery.pod.labels | object | `{}` | Labels for the discovery pod. |
 | discovery.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the discovery pod. |
-| fabric.image.name | string | `"ghcr.io/liqotech/fabric"` | Image repository for the fabric pod. |
+| fabric.image.name | string | `"ghcr.io/cheina97/fabric"` | Image repository for the fabric pod. |
 | fabric.image.version | string | `""` | Custom version for the fabric image. If not specified, the global tag is used. |
 | fabric.pod.annotations | object | `{}` | Annotations for the fabric pod. |
 | fabric.pod.extraArgs | list | `[]` | Extra arguments for the fabric pod. |
@@ -83,7 +83,7 @@
 | gateway.config.listeningPort | int | `5871` | Port used by the network gateway. |
 | gateway.config.portOverride | string | `""` | Overrides the port where your network gateway service is available. You should configure it if the network gateway is behind a reverse proxy or NAT and is different from the listening port. |
 | gateway.config.wireguardImplementation | string | `"kernel"` | Implementation used by wireguard to establish the VPN tunnel between two clusters. Possible values are "userspace" and "kernel". Do not use "userspace" unless strictly necessary  (i.e., only if the Linux kernel does not support Wireguard). |
-| gateway.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the network gateway pod. |
+| gateway.imageName | string | `"ghcr.io/cheina97/liqonet"` | Image repository for the network gateway pod. |
 | gateway.metrics.enabled | bool | `false` | Expose metrics about network traffic towards cluster peers. |
 | gateway.metrics.port | int | `5872` | Port used to expose metrics. |
 | gateway.metrics.service | object | `{"annotations":{},"labels":{}}` | Service used to expose metrics. |
@@ -111,7 +111,7 @@
 | ipam.external.url | string | `""` | The URL of the external IPAM. |
 | ipam.externalCIDR | string | `"10.70.0.0/16"` | The subnet used for the external CIDR. |
 | ipam.internal.enabled | bool | `true` | Use the default Liqo IPAM. |
-| ipam.internal.image.name | string | `"ghcr.io/liqotech/ipam"` | Image repository for the IPAM pod. |
+| ipam.internal.image.name | string | `"ghcr.io/cheina97/ipam"` | Image repository for the IPAM pod. |
 | ipam.internal.image.version | string | `""` | Custom version for the IPAM image. If not specified, the global tag is used. |
 | ipam.internal.pod.annotations | object | `{}` | Annotations for the IPAM pod. |
 | ipam.internal.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
@@ -124,27 +124,27 @@
 | ipam.serviceCIDR | string | `""` | The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16). |
 | metricAgent.config.timeout | object | `{"read":"30s","write":"30s"}` | Set the timeout for the metrics server. |
 | metricAgent.enable | bool | `true` | Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics (e.g., CPU, RAM, etc) collected on the nodes that are used by a remote cluster peered with you, then exporting  the resulting values as a property of the virtual kubelet running on the remote cluster. |
-| metricAgent.image.name | string | `"ghcr.io/liqotech/metric-agent"` | Image repository for the metricAgent pod. |
+| metricAgent.image.name | string | `"ghcr.io/cheina97/metric-agent"` | Image repository for the metricAgent pod. |
 | metricAgent.image.version | string | `""` | Custom version for the metricAgent image. If not specified, the global tag is used. |
-| metricAgent.initContainer.image.name | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the metricAgent pod. |
+| metricAgent.initContainer.image.name | string | `"ghcr.io/cheina97/cert-creator"` | Image repository for the init container of the metricAgent pod. |
 | metricAgent.initContainer.image.version | string | `""` | Custom version for the init container image of the metricAgent pod. If not specified, the global tag is used. |
 | metricAgent.pod.annotations | object | `{}` | Annotations for the metricAgent pod. |
 | metricAgent.pod.extraArgs | list | `[]` | Extra arguments for the metricAgent pod. |
 | metricAgent.pod.labels | object | `{}` | Labels for the metricAgent pod. |
 | metricAgent.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the metricAgent pod. |
 | nameOverride | string | `""` | Override the standard name used by Helm and associated to Kubernetes/Liqo resources. |
-| networkManager.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the networkManager pod. |
+| networkManager.imageName | string | `"ghcr.io/cheina97/liqonet"` | Image repository for the networkManager pod. |
 | networkManager.pod.annotations | object | `{}` | Annotations for the networkManager pod. |
 | networkManager.pod.extraArgs | list | `[]` | Extra arguments for the networkManager pod. |
 | networkManager.pod.labels | object | `{}` | Labels for the networkManager pod. |
 | networkManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the networkManager pod. |
 | networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
-| networking.gatewayTemplates | object | `{"container":{"gateway":{"image":{"name":"ghcr.io/liqotech/gateway","version":""}},"geneve":{"image":{"name":"ghcr.io/liqotech/gateway/geneve","version":""}},"wireguard":{"image":{"name":"ghcr.io/liqotech/gateway/wireguard","version":""}}},"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1,"server":{"service":{"allocateLoadBalancerNodePorts":""}}}` | Set the options for the default gateway (server/client) templates. The default templates use a WireGuard implementation to connect the gateway of the clusters. These options are used to configure only the default templates and should not be considered if a custom template is used. |
-| networking.gatewayTemplates.container.gateway.image.name | string | `"ghcr.io/liqotech/gateway"` | Image repository for the gateway container. |
+| networking.gatewayTemplates | object | `{"container":{"gateway":{"image":{"name":"ghcr.io/cheina97/gateway","version":""}},"geneve":{"image":{"name":"ghcr.io/cheina97/gateway/geneve","version":""}},"wireguard":{"image":{"name":"ghcr.io/cheina97/gateway/wireguard","version":""}}},"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1,"server":{"service":{"allocateLoadBalancerNodePorts":""}}}` | Set the options for the default gateway (server/client) templates. The default templates use a WireGuard implementation to connect the gateway of the clusters. These options are used to configure only the default templates and should not be considered if a custom template is used. |
+| networking.gatewayTemplates.container.gateway.image.name | string | `"ghcr.io/cheina97/gateway"` | Image repository for the gateway container. |
 | networking.gatewayTemplates.container.gateway.image.version | string | `""` | Custom version for the gateway image. If not specified, the global tag is used. |
-| networking.gatewayTemplates.container.geneve.image.name | string | `"ghcr.io/liqotech/gateway/geneve"` | Image repository for the geneve container. |
+| networking.gatewayTemplates.container.geneve.image.name | string | `"ghcr.io/cheina97/gateway/geneve"` | Image repository for the geneve container. |
 | networking.gatewayTemplates.container.geneve.image.version | string | `""` | Custom version for the geneve image. If not specified, the global tag is used. |
-| networking.gatewayTemplates.container.wireguard.image.name | string | `"ghcr.io/liqotech/gateway/wireguard"` | Image repository for the wireguard container. |
+| networking.gatewayTemplates.container.wireguard.image.name | string | `"ghcr.io/cheina97/gateway/wireguard"` | Image repository for the wireguard container. |
 | networking.gatewayTemplates.container.wireguard.image.version | string | `""` | Custom version for the wireguard image. If not specified, the global tag is used. |
 | networking.gatewayTemplates.ping | object | `{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"}` | Set the options to configure the gateway ping used to check connection |
 | networking.gatewayTemplates.ping.interval | string | `"2s"` | Set the interval between two consecutive pings |
@@ -181,7 +181,7 @@
 | peering.networking.gateway.server.service.port | int | `51820` | Set the port of the service |
 | peering.networking.gateway.server.service.type | string | `"LoadBalancer"` | Set the type of the service |
 | proxy.config.listeningPort | int | `8118` | Port used by the proxy pod. |
-| proxy.image.name | string | `"ghcr.io/liqotech/proxy"` | Image repository for the proxy pod. |
+| proxy.image.name | string | `"ghcr.io/cheina97/proxy"` | Image repository for the proxy pod. |
 | proxy.image.version | string | `""` | Custom version for the proxy image. If not specified, the global tag is used. |
 | proxy.pod.annotations | object | `{}` | Annotations for the proxy pod. |
 | proxy.pod.extraArgs | list | `[]` | Extra arguments for the proxy pod. |
@@ -208,7 +208,7 @@
 | reflection.serviceaccount.workers | int | `3` | The number of workers used for the serviceaccounts reflector. Set 0 to disable the reflection of serviceaccounts. |
 | reflection.skip.annotations | list | `["cloud.google.com/neg","cloud.google.com/neg-status","kubernetes.digitalocean.com/load-balancer-id","ingress.kubernetes.io/backends","ingress.kubernetes.io/forwarding-rule","ingress.kubernetes.io/target-proxy","ingress.kubernetes.io/url-map","metallb.universe.tf/address-pool","metallb.universe.tf/ip-allocated-from-pool","metallb.universe.tf/loadBalancerIPs"]` | List of annotations that must not be reflected on remote clusters. |
 | reflection.skip.labels | list | `[]` | List of labels that must not be reflected on remote clusters. |
-| route.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the route pod. |
+| route.imageName | string | `"ghcr.io/cheina97/liqonet"` | Image repository for the route pod. |
 | route.pod.annotations | object | `{}` | Annotations for the route pod. |
 | route.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
 | route.pod.labels | object | `{}` | Labels for the route pod. |
@@ -221,13 +221,13 @@
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
 | telemetry.config.schedule | string | `""` | Set the schedule of the telemetry collector CronJob. Consider setting this value on ArgoCD deployments to avoid randomization. |
 | telemetry.enable | bool | `true` | Enable/Disable the telemetry collector. |
-| telemetry.image.name | string | `"ghcr.io/liqotech/telemetry"` | Image repository for the telemetry pod. |
+| telemetry.image.name | string | `"ghcr.io/cheina97/telemetry"` | Image repository for the telemetry pod. |
 | telemetry.image.version | string | `""` | Custom version for the telemetry image. If not specified, the global tag is used. |
 | telemetry.pod.annotations | object | `{}` | Annotations for the telemetry pod. |
 | telemetry.pod.extraArgs | list | `[]` | Extra arguments for the telemetry pod. |
 | telemetry.pod.labels | object | `{}` | Labels for the telemetry pod. |
 | telemetry.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the telemetry pod. |
-| uninstaller.image.name | string | `"ghcr.io/liqotech/uninstaller"` | Image repository for the uninstaller pod. |
+| uninstaller.image.name | string | `"ghcr.io/cheina97/uninstaller"` | Image repository for the uninstaller pod. |
 | uninstaller.image.version | string | `""` | Custom version for the uninstaller image. If not specified, the global tag is used. |
 | uninstaller.pod.annotations | object | `{}` | Annotations for the uninstaller pod. |
 | uninstaller.pod.extraArgs | list | `[]` | Extra arguments for the uninstaller pod. |
@@ -237,7 +237,7 @@
 | virtualKubelet.extra.args | list | `[]` | Extra arguments virtual kubelet pod. |
 | virtualKubelet.extra.labels | object | `{}` | Labels for the virtual kubelet pod. |
 | virtualKubelet.extra.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the virtual kubelet pod. |
-| virtualKubelet.image.name | string | `"ghcr.io/liqotech/virtual-kubelet"` | Image repository for the virtual kubelet pod. |
+| virtualKubelet.image.name | string | `"ghcr.io/cheina97/virtual-kubelet"` | Image repository for the virtual kubelet pod. |
 | virtualKubelet.image.version | string | `""` | Custom version for the virtual kubelet image. If not specified, the global tag is used. |
 | virtualKubelet.metrics.enabled | bool | `false` | Enable/Disable to expose metrics about virtual kubelet resources. |
 | virtualKubelet.metrics.podMonitor.enabled | bool | `false` | Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator runs in your cluster; otherwise simply export the port above as an external endpoint. |

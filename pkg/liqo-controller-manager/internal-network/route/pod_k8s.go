@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	gwfabric "github.com/liqotech/liqo/pkg/gateway/fabric"
+	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
@@ -93,7 +93,7 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1alpha1.InternalNode, 
 			return err
 		}
 
-		routecfg.SetLabels(gwfabric.ForgeRouteInternalTargetLabels())
+		routecfg.SetLabels(gateway.ForgeRouteInternalTargetLabels())
 
 		routecfg.Spec.Table.Name = pod.Spec.NodeName
 
