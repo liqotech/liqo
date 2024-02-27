@@ -43,7 +43,8 @@ func checkUniqueTableName(ctx context.Context, cl client.Client, routeconfigurat
 
 func checkImmutableTableName(newroutecfg, oldroutecfg *networkingv1alpha1.RouteConfiguration) error {
 	if newroutecfg.Spec.Table.Name != oldroutecfg.Spec.Table.Name {
-		return fmt.Errorf("table name is immutable and cannot be changed")
+		return fmt.Errorf("table name is immutable and cannot be changed: %s -> %s",
+			oldroutecfg.Spec.Table.Name, newroutecfg.Spec.Table.Name)
 	}
 	return nil
 }
