@@ -399,6 +399,17 @@ func ListRouteConfigurationsByLabel(ctx context.Context, cl client.Client,
 	return list, err
 }
 
+// ListFirewallConfigurationsByLabel returns the FirewallConfiguration resource with the given labels.
+func ListFirewallConfigurationsByLabel(ctx context.Context, cl client.Client,
+	ns string, lSelector labels.Selector) (*networkingv1alpha1.FirewallConfigurationList, error) {
+	list := &networkingv1alpha1.FirewallConfigurationList{}
+	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
+	if err != nil {
+		return nil, err
+	}
+	return list, err
+}
+
 // ListConfigurationsByLabel returns the Configuration resource with the given labels.
 func ListConfigurationsByLabel(ctx context.Context, cl client.Client,
 	ns string, lSelector labels.Selector) (*networkingv1alpha1.ConfigurationList, error) {
