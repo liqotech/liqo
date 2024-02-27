@@ -30,7 +30,6 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -102,7 +101,7 @@ func forgeMutateRouteConfiguration(cfg *networkingv1alpha1.Configuration,
 			return err
 		}
 
-		routecfg.ObjectMeta.Labels = fabric.ForgeRouteExternalTargetLabels(remoteClusterID)
+		routecfg.ObjectMeta.Labels = gateway.ForgeRouteExternalTargetLabels(remoteClusterID)
 		if err != nil {
 			return err
 		}
