@@ -33,7 +33,6 @@ type NatRule struct {
 	Name *string `json:"name,omitempty"`
 	// Match is the match to be applied to the rule.
 	// They can be multiple and they are applied with an AND operator.
-	// Using multiple ip matches with same position or
 	Match []Match `json:"match"`
 	// NatType is the type of the NAT rule.
 	// +kubebuilder:validation:Enum=dnat;snat;masquerade

@@ -81,6 +81,8 @@ type Rule struct {
 	Iif *string `json:"iif,omitempty"`
 	// OifName is the output interface name of the Rule.
 	Oif *string `json:"oif,omitempty"`
+	// FwMark is the firewall mark of the Rule.
+	FwMark *int `json:"fwmark,omitempty"`
 	// Routes is the list of routes of the Rule.
 	// +kubebuilder:validation:MinItems=1
 	Routes []Route `json:"routes"`
