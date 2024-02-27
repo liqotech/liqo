@@ -16,7 +16,9 @@ package ipam
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"net"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -171,4 +173,37 @@ func CreateNetwork(ctx context.Context, cl client.Client, name, namespace, cidr 
 	}
 
 	return nil
+}
+
+// GetSecondIPFromCIDR returns the second IP address of the given CIDR.
+func GetSecondIPFromCIDR(cidr string) (string, error) {
+	_, subnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return "", err
+	}
+
+	second := make(net.IP, len(subnet.IP))
+
+	switch len(subnet.IP) {
+	case net.IPv4len:
+		mask := binary.BigEndian.Uint32(subnet.Mask)
+		ip := binary.BigEndian.Uint32(subnet.IP)
+		// To achieve the second IP address, we need to AND the IP with the mask to get the first ip.
+		// The AND operation will set all bits in the host part to 0.
+		// The second IP address will be the first IP address + 1.
+		binary.BigEndian.PutUint32(second, (ip&mask)+1)
+	case net.IPv6len:
+		mask1 := binary.BigEndian.Uint64(subnet.Mask[:8])
+		mask2 := binary.BigEndian.Uint64(subnet.Mask[8:])
+		ip1 := binary.BigEndian.Uint64(subnet.IP[:8])
+		ip2 := binary.BigEndian.Uint64(subnet.IP[8:])
+
+		binary.BigEndian.PutUint64(second[8:], (ip2&mask2)+1)
+		if (ip2&mask2)+1 == 0 {
+			binary.BigEndian.PutUint64(second[:8], (ip1&mask1)+1)
+		} else {
+			binary.BigEndian.PutUint64(second[:8], (ip1 & mask1))
+		}
+	}
+	return second.String(), nil
 }

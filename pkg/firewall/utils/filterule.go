@@ -113,24 +113,21 @@ func applyCtMarkAction(value *string, rule *nftables.Rule) error {
 	if err != nil {
 		return fmt.Errorf("cannot convert value to int: %w", err)
 	}
-	rule.Exprs = []expr.Any{
-		//	[ immediate reg 1 0x00000001 ]
+	rule.Exprs = append(rule.Exprs,
 		&expr.Immediate{
 			Register: 1,
 			Data:     binaryutil.NativeEndian.PutUint32(uint32(valueInt)),
-		},
-		// [ ct set mark with reg 1 ]
-		&expr.Ct{
+		}, &expr.Ct{
 			Key:            expr.CtKeyMARK,
 			Register:       1,
 			SourceRegister: true,
 		},
-	}
+	)
 	return nil
 }
 
 func applySetMetaMarkFromCtMarkAction(rule *nftables.Rule) {
-	rule.Exprs = []expr.Any{
+	rule.Exprs = append(rule.Exprs,
 		&expr.Ct{
 			Register:       1,
 			Key:            expr.CtKeyMARK,
@@ -141,5 +138,5 @@ func applySetMetaMarkFromCtMarkAction(rule *nftables.Rule) {
 			SourceRegister: true,
 			Register:       1,
 		},
-	}
+	)
 }

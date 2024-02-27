@@ -41,7 +41,7 @@ func NewLeftoverPodsSource(src <-chan event.GenericEvent) *source.Channel {
 
 // NewLeftoverPodsEventHandler returns a new LeftoverPodsEventHandler.
 func NewLeftoverPodsEventHandler() handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+	return handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
 		pod, ok := o.(*corev1.Pod)
 		if !ok {
 			klog.Errorf("unable to cast object %s to pod", o.GetName())
