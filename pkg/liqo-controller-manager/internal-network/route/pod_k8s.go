@@ -27,12 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	gwfabric "github.com/liqotech/liqo/pkg/gateway/fabric"
+	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
-// GenerateRouteConfigurationName generates the name of the route configuration for the given node.
-func GenerateRouteConfigurationName(nodeName string) string {
+// generatePodRouteConfigurationName generates the name of the route configuration for the given node.
+func generatePodRouteConfigurationName(nodeName string) string {
 	return fmt.Sprintf("%s-gw-node", nodeName)
 }
 
@@ -46,17 +46,13 @@ func enforceRoutePodPresence(ctx context.Context, cl client.Client, scheme *runt
 		return "", nil
 	}
 
-	if pod.Spec.HostNetwork {
-		return "", nil
-	}
-
 	internalnode := &networkingv1alpha1.InternalNode{}
 	if err := cl.Get(ctx, client.ObjectKey{Name: pod.Spec.NodeName}, internalnode); err != nil {
 		return "", err
 	}
 
 	routecfg := &networkingv1alpha1.RouteConfiguration{
-		ObjectMeta: metav1.ObjectMeta{Name: GenerateRouteConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: generatePodRouteConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, cl, routecfg, forgeRoutePodUpdateFunction(internalnode, routecfg, pod, scheme))
@@ -73,7 +69,7 @@ func enforceRoutePodAbsence(ctx context.Context, cl client.Client, opts *Options
 		return fmt.Errorf("unable to get node name from pod %s/%s", pod.GetNamespace(), pod.GetName())
 	}
 	routecfg := networkingv1alpha1.RouteConfiguration{}
-	if err := cl.Get(ctx, client.ObjectKey{Name: GenerateRouteConfigurationName(nodeName), Namespace: opts.Namespace}, &routecfg); err != nil {
+	if err := cl.Get(ctx, client.ObjectKey{Name: generatePodRouteConfigurationName(nodeName), Namespace: opts.Namespace}, &routecfg); err != nil {
 		return err
 	}
 
@@ -93,20 +89,30 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1alpha1.InternalNode, 
 			return err
 		}
 
-		routecfg.SetLabels(gwfabric.ForgeRouteInternalTargetLabels())
+		routecfg.SetLabels(gateway.ForgeRouteInternalTargetLabels())
 
 		routecfg.Spec.Table.Name = pod.Spec.NodeName
 
-		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) != 2 {
-			routecfg.Spec.Table.Rules = make([]networkingv1alpha1.Rule, 2)
+		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) < 1 {
+			routecfg.Spec.Table.Rules = make([]networkingv1alpha1.Rule, 1)
 			routecfg.Spec.Table.Rules[0].Dst = ptr.To(networkingv1alpha1.CIDR(
 				fmt.Sprintf("%s/32", internalnode.Spec.Interface.Node.IP),
 			))
-			routecfg.Spec.Table.Rules[1].Iif = ptr.To(tunnel.TunnelInterfaceName)
 		}
 
 		if exists := routeContainsNode(internalnode, &routecfg.Spec.Table.Rules[0]); !exists {
 			addNodeToRoute(internalnode, &routecfg.Spec.Table.Rules[0])
+		}
+
+		// We don't need to add routes for pods running on the host network.
+		// Anyways, it's important to add the route for the node itself.
+		if pod.Spec.HostNetwork {
+			return nil
+		}
+
+		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) < 2 {
+			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1alpha1.Rule{})
+			routecfg.Spec.Table.Rules[1].Iif = ptr.To(tunnel.TunnelInterfaceName)
 		}
 
 		if existingroute, exists := routeContainsPod(pod, &routecfg.Spec.Table.Rules[1]); exists {
@@ -161,7 +167,7 @@ func routeContainsNode(internalnode *networkingv1alpha1.InternalNode, rule *netw
 }
 
 func addPodToRoute(pod *corev1.Pod, internalnode *networkingv1alpha1.InternalNode, rule *networkingv1alpha1.Rule) {
-	route := networkingv1alpha1.Route{
+	rule.Routes = append(rule.Routes, networkingv1alpha1.Route{
 		Dst: ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", pod.Status.PodIP))),
 		Gw:  ptr.To(internalnode.Spec.Interface.Node.IP),
 		TargetRef: &corev1.ObjectReference{
@@ -170,8 +176,7 @@ func addPodToRoute(pod *corev1.Pod, internalnode *networkingv1alpha1.InternalNod
 			Namespace: pod.GetNamespace(),
 			UID:       pod.GetUID(),
 		},
-	}
-	rule.Routes = append(rule.Routes, route)
+	})
 }
 
 func addNodeToRoute(internlnode *networkingv1alpha1.InternalNode, rule *networkingv1alpha1.Rule) {

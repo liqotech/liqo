@@ -14,17 +14,59 @@
 
 package gateway
 
+import (
+	"github.com/liqotech/liqo/pkg/firewall"
+	"github.com/liqotech/liqo/pkg/route"
+)
+
 const (
 	// GatewayComponentKey is the key used to label the gateway pod.
 	GatewayComponentKey = "networking.liqo.io/component"
 
 	// GatewayComponentGateway is the key used to label the gateway pod.
 	GatewayComponentGateway = "gateway"
+
+	// RouteCategoryTargetValue is the value used by the routeconfiguration controller to reconcile only resources related to a gateway.
+	RouteCategoryTargetValue = "gateway"
+	// RouteSubCategoryTargetValue is the value used by the routeconfiguration controller to reconcile only resources related to a gateway.
+	RouteSubCategoryTargetValue = "fabric"
+
+	// FirewallCategoryTargetValue is the value used by the firewallconfiguration controller to reconcile only resources related to a gateway.
+	FirewallCategoryTargetValue = "gateway"
+	// FirewallSubCategoryTargetValue is the value used by the firewallconfiguration controller to reconcile only resources related to a gateway.
+	FirewallSubCategoryTargetValue = "fabric"
 )
 
 // ForgeGatewayPodLabels returns the labels for the gateway pod.
 func ForgeGatewayPodLabels() map[string]string {
 	return map[string]string{
 		GatewayComponentKey: GatewayComponentGateway,
+	}
+}
+
+// ForgeRouteExternalTargetLabels returns the labels used by the routeconfiguration controller
+// to reconcile only resources related to a single gateway and external-network.
+func ForgeRouteExternalTargetLabels(remoteID string) map[string]string {
+	return map[string]string{
+		route.RouteCategoryTargetKey: RouteCategoryTargetValue,
+		route.RouteUniqueTargetKey:   remoteID,
+	}
+}
+
+// ForgeRouteInternalTargetLabels returns the labels used by the routeconfiguration controller
+// to reconcile only resources related to internal-network.
+func ForgeRouteInternalTargetLabels() map[string]string {
+	return map[string]string{
+		route.RouteCategoryTargetKey:    RouteCategoryTargetValue,
+		route.RouteSubCategoryTargetKey: RouteSubCategoryTargetValue,
+	}
+}
+
+// ForgeFirewallInternalTargetLabels returns the labels used by the firewallconfiguration controller
+// to reconcile only resources related to a gateway.
+func ForgeFirewallInternalTargetLabels() map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValue,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetValue,
 	}
 }
