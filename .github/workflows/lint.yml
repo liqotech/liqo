@@ -135,7 +135,7 @@ jobs:
         repository: ${{github.event.pull_request.head.repo.full_name}}
         persist-credentials: false
     - name: Verify that the helm chart is well-formed
-      uses: WyriHaximus/github-action-helm3@v3
+      uses: WyriHaximus/github-action-helm3@v4
       with:
         exec:
           helm lint ./deployments/liqo --with-subcharts --set tag=fakeversion --set discovery.config.clusterName=fakename
