@@ -701,12 +701,12 @@ func main() {
 		})
 
 		if err != nil {
-			klog.Errorf("Unable to create auxiliary manager: %w", err)
+			klog.Errorf("Unable to create auxiliary manager: %v", err)
 			os.Exit(1)
 		}
 
 		if err := mgr.Add(allpodmgr); err != nil {
-			klog.Errorf("Unable to add the ExternalNetworkPods auxiliary manager to the main one: %w", err)
+			klog.Errorf("Unable to add the ExternalNetworkPods auxiliary manager to the main one: %v", err)
 			os.Exit(1)
 		}
 
