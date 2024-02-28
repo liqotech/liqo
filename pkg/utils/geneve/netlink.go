@@ -74,7 +74,7 @@ func CreateGeneveInterface(name string, local, remote net.IP, id uint32, enableA
 	} else {
 		geneveLink = link.(*netlink.Geneve)
 		if !geneveLink.Remote.Equal(remote) {
-			klog.Warning("geneve link already exists with different remote IP (%s -> %s), deleting and recreating it",
+			klog.Warningf("geneve link already exists with different remote IP (%s -> %s), deleting and recreating it",
 				geneveLink.Remote.String(), remote.String())
 			if err := netlink.LinkDel(geneveLink); err != nil {
 				return fmt.Errorf("cannot delete geneve link: %w", err)
