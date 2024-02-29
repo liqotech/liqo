@@ -63,5 +63,8 @@ spec:
                fieldRef:
                  fieldPath: spec.nodeName
       hostNetwork: true
+      {{- if .Values.fabric.pod.priorityClassName }}
+      priorityClassName: {{ .Values.fabric.pod.priorityClassName }}
+      {{- end }}
 
 {{- end }}

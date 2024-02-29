@@ -223,8 +223,7 @@ func main() {
 	flag.Var(&annotationsNotReflected, "annotations-not-reflected", "List of annotations (key) that must not be reflected")
 
 	// Ipam server endpoint
-	ipamServer := flag.String("ipam-server", "",
-		"The address of the IPAM server to use for the virtual kubelet (set to empty string to disable IPAM)")
+	ipamServer := flag.String("ipam-server", "", "The address of the IPAM server (set to empty string to disable IPAM)")
 
 	flag.BoolVar(&addVirtualNodeTolerationOnOffloadedPods, "add-virtual-node-toleration-on-offloaded-pods", false,
 		"Automatically add the virtual node toleration on offloaded pods")
