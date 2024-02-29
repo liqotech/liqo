@@ -252,12 +252,14 @@ ipam:
       annotations: {}
       # -- Labels for the IPAM pod.
       labels: {}
-      # -- Extra arguments for the route pod.
+      # -- Extra arguments for the IPAM pod.
       extraArgs: []
-      # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the proxy pod.
+      # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the IPAM pod.
       resources:
         limits: {}
         requests: {}
+      # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the IPAM pod.
+      priorityClassName: ""
   # -- The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16).
   podCIDR: ""
   # -- The subnet used by the services in you cluster, in CIDR notation (e.g., 172.16.0.0/16).
@@ -309,6 +311,8 @@ fabric:
     resources:
       limits: {}
       requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the fabric pod.
+    priorityClassName: ""
   image:
     # -- Image repository for the fabric pod.
     name: "ghcr.io/liqotech/fabric"
