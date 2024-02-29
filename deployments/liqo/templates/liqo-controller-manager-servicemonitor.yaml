@@ -1,0 +1,22 @@
+{{- $ctrlManagerMetricsConfig := (merge (dict "name" "controller-manager-metrics" "module" "controller-manager") .) -}}
+
+{{- if .Values.controllerManager.metrics.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "liqo.prefixedName" $ctrlManagerMetricsConfig }}
+  labels:
+    {{- include "liqo.labels" $ctrlManagerMetricsConfig | nindent 4 }}
+    {{- if .Values.controllerManager.metrics.serviceMonitor.labels }}
+      {{- toYaml .Values.controllerManager.metrics.serviceMonitor.labels | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "liqo.labels" $ctrlManagerMetricsConfig | nindent 6 }}
+  endpoints:
+  - port: metrics
+    interval: {{ .Values.controllerManager.metrics.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.controllerManager.metrics.serviceMonitor.scrapeTimeout }}
+{{- end }}

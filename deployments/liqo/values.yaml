@@ -142,6 +142,25 @@ controllerManager:
     # This feature can be useful in case of remote node failure to guarantee better service continuity and to have the expected pods workload on the remote cluster.
     # However, enabling this feature could produce zombies in the worker node, in case the node returns Ready again without a restart.
     enableNodeFailureController: false
+  metrics:
+    # -- Service used to expose metrics.
+    service:
+      # -- Labels for the metrics service.
+      labels: {}
+      # -- Annotations for the metrics service.
+      annotations: {}
+    serviceMonitor:
+      # -- Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator
+      # runs in your cluster
+      enabled: false
+      # -- Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval
+      # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
+      interval: ""
+      # -- Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout
+      # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
+      scrapeTimeout: ""
+      # -- Labels for the gateway servicemonitor.
+      labels: {}
 
 route:
   pod:
@@ -292,6 +311,19 @@ crdReplicator:
     priorityClassName: ""
   # -- Image repository for the crdReplicator pod.
   imageName: "ghcr.io/liqotech/crd-replicator"
+  metrics:
+    podMonitor:
+      # -- Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator
+      # runs in your cluster
+      enabled: false
+      # -- Setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval
+      # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
+      interval: ""
+      # -- Setup pod monitor scrape timeout. If empty, Prometheus uses the global scrape timeout
+      # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
+      scrapeTimeout: ""
+      # -- Labels for the crdReplicator podmonitor.
+      labels: {}
 
 discovery:
   pod:
