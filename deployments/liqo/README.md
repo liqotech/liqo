@@ -44,6 +44,13 @@
 | controllerManager.config.resourcePluginAddress | string | `""` | The address of an external resource plugin service (see https://github.com/liqotech/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor. |
 | controllerManager.config.resourceSharingPercentage | int | `30` | Percentage of available cluster resources that you are willing to share with foreign clusters. |
 | controllerManager.imageName | string | `"ghcr.io/liqotech/liqo-controller-manager"` | Image repository for the controller-manager pod. |
+| controllerManager.metrics.service | object | `{"annotations":{},"labels":{}}` | Service used to expose metrics. |
+| controllerManager.metrics.service.annotations | object | `{}` | Annotations for the metrics service. |
+| controllerManager.metrics.service.labels | object | `{}` | Labels for the metrics service. |
+| controllerManager.metrics.serviceMonitor.enabled | bool | `false` | Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator runs in your cluster |
+| controllerManager.metrics.serviceMonitor.interval | string | `""` | Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
+| controllerManager.metrics.serviceMonitor.labels | object | `{}` | Labels for the gateway servicemonitor. |
+| controllerManager.metrics.serviceMonitor.scrapeTimeout | string | `""` | Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | controllerManager.pod.annotations | object | `{}` | Annotations for the controller-manager pod. |
 | controllerManager.pod.extraArgs | list | `[]` | Extra arguments for the controller-manager pod. |
 | controllerManager.pod.labels | object | `{}` | Labels for the controller-manager pod. |
@@ -51,6 +58,10 @@
 | controllerManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the controller-manager pod. |
 | controllerManager.replicas | int | `1` | The number of controller-manager instances to run, which can be increased for active/passive high availability. |
 | crdReplicator.imageName | string | `"ghcr.io/liqotech/crd-replicator"` | Image repository for the crdReplicator pod. |
+| crdReplicator.metrics.podMonitor.enabled | bool | `false` | Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator runs in your cluster |
+| crdReplicator.metrics.podMonitor.interval | string | `""` | Setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
+| crdReplicator.metrics.podMonitor.labels | object | `{}` | Labels for the crdReplicator podmonitor. |
+| crdReplicator.metrics.podMonitor.scrapeTimeout | string | `""` | Setup pod monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | crdReplicator.pod.annotations | object | `{}` | Annotations for the crdReplicator pod. |
 | crdReplicator.pod.extraArgs | list | `[]` | Extra arguments for the crdReplicator pod. |
 | crdReplicator.pod.labels | object | `{}` | Labels for the crdReplicator pod. |

@@ -13,3 +13,29 @@ spec:
   ports:
   - port: {{ .Values.webhook.port }}
     targetPort: webhook
+
+---
+{{- $ctrlManagerMetricsConfig := (merge (dict "name" "controller-manager-metrics" "module" "controller-manager") .) -}}
+
+{{- if .Values.controllerManager.metrics.serviceMonitor.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $ctrlManagerMetricsConfig }}
+  annotations:
+    {{- if .Values.controllerManager.metrics.service.annotations }}
+      {{- toYaml .Values.controllerManager.metrics.service.annotations | nindent 4 }}
+    {{- end}}
+  labels:
+    {{- include "liqo.labels" $ctrlManagerMetricsConfig | nindent 4 }}
+    {{- if .Values.controllerManager.metrics.service.labels }}
+      {{- toYaml .Values.controllerManager.metrics.service.labels | nindent 4 }}
+    {{- end}}
+spec:
+  selector:
+    {{- include "liqo.selectorLabels" $ctrlManagerConfig | nindent 4 }}
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: metrics
+{{- end }}

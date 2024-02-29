@@ -54,6 +54,10 @@ spec:
                   name: {{ include "liqo.clusterIdConfig" . }}
                   key: CLUSTER_NAME
           resources: {{- toYaml .Values.crdReplicator.pod.resources | nindent 12 }}
+          ports:
+          - name: metrics
+            containerPort: 8080
+            protocol: TCP
       {{- if ((.Values.common).nodeSelector) }}
       nodeSelector:
       {{- toYaml .Values.common.nodeSelector | nindent 8 }}
