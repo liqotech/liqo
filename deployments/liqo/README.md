@@ -76,6 +76,7 @@
 | fabric.pod.annotations | object | `{}` | Annotations for the fabric pod. |
 | fabric.pod.extraArgs | list | `[]` | Extra arguments for the fabric pod. |
 | fabric.pod.labels | object | `{}` | Labels for the fabric pod. |
+| fabric.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the fabric pod. |
 | fabric.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the fabric pod. |
 | fabric.tolerations | list | `[]` | Extra tolerations for the fabric daemonset. |
 | fullnameOverride | string | `""` | Override the standard full name used by Helm and associated to Kubernetes/Liqo resources. |
@@ -114,9 +115,10 @@
 | ipam.internal.image.name | string | `"ghcr.io/liqotech/ipam"` | Image repository for the IPAM pod. |
 | ipam.internal.image.version | string | `""` | Custom version for the IPAM image. If not specified, the global tag is used. |
 | ipam.internal.pod.annotations | object | `{}` | Annotations for the IPAM pod. |
-| ipam.internal.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
+| ipam.internal.pod.extraArgs | list | `[]` | Extra arguments for the IPAM pod. |
 | ipam.internal.pod.labels | object | `{}` | Labels for the IPAM pod. |
-| ipam.internal.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the proxy pod. |
+| ipam.internal.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the IPAM pod. |
+| ipam.internal.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the IPAM pod. |
 | ipam.internal.replicas | int | `1` | The number of IPAM instances to run, which can be increased for active/passive high availability. |
 | ipam.internalCIDR | string | `"10.80.0.0/16"` | The subnet used for the internal CIDR. These IPs are assigned to the Liqo internal-network interfaces. |
 | ipam.podCIDR | string | `""` | The subnet used by the pods in your cluster, in CIDR notation (e.g., 10.0.0.0/16). |

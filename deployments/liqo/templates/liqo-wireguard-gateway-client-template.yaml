@@ -100,4 +100,6 @@ spec:
                     add:
                     - NET_ADMIN
                     - NET_RAW
+              # Uncomment to set a priorityClassName
+              # priorityClassName: ""
 {{- end }}
