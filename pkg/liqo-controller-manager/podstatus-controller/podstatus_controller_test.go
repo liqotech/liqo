@@ -46,15 +46,14 @@ var _ = Describe("PodStatusController", func() {
 	)
 
 	var (
-		ctx                 context.Context
-		err                 error
-		buffer              *bytes.Buffer
-		fakeClient          client.WithWatch
-		fakeClientBuilder   *fake.ClientBuilder
-		fakeLocalPodsClient client.WithWatch
-		localPod            *corev1.Pod
-		localPod2           *corev1.Pod
-		liqoNode2           *corev1.Node
+		ctx               context.Context
+		err               error
+		buffer            *bytes.Buffer
+		fakeClient        client.WithWatch
+		fakeClientBuilder *fake.ClientBuilder
+		localPod          *corev1.Pod
+		localPod2         *corev1.Pod
+		liqoNode2         *corev1.Node
 
 		reqLiqoNode = ctrl.Request{NamespacedName: types.NamespacedName{Name: liqoNodeName}}
 
@@ -144,9 +143,8 @@ var _ = Describe("PodStatusController", func() {
 
 	JustBeforeEach(func() {
 		r := &PodStatusReconciler{
-			Client:          fakeClient,
-			Scheme:          scheme.Scheme,
-			LocalPodsClient: fakeLocalPodsClient,
+			Client: fakeClient,
+			Scheme: scheme.Scheme,
 		}
 		_, err = r.Reconcile(ctx, reqLiqoNode)
 		Expect(err).NotTo(HaveOccurred())
@@ -160,14 +158,14 @@ var _ = Describe("PodStatusController", func() {
 
 		When("remote unavailable label not present", func() {
 			BeforeEach(func() {
-				fakeLocalPodsClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
+				fakeClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
 			})
 
 			It("should add remote unavailable label to local offloaded pods", func() {
 				localPodAfter := corev1.Pod{}
 				localPod2After := corev1.Pod{}
-				Expect(fakeLocalPodsClient.Get(ctx, reqLocalPod.NamespacedName, &localPodAfter)).To(Succeed())
-				Expect(fakeLocalPodsClient.Get(ctx, reqLocalPod2.NamespacedName, &localPod2After)).To(Succeed())
+				Expect(fakeClient.Get(ctx, reqLocalPod.NamespacedName, &localPodAfter)).To(Succeed())
+				Expect(fakeClient.Get(ctx, reqLocalPod2.NamespacedName, &localPod2After)).To(Succeed())
 				Expect(localPodAfter.Labels).To(HaveKeyWithValue(consts.RemoteUnavailableKey, consts.RemoteUnavailableValue))
 				Expect(localPod2After.Labels).ToNot(HaveKeyWithValue(consts.RemoteUnavailableKey, consts.RemoteUnavailableValue))
 			})
@@ -176,14 +174,14 @@ var _ = Describe("PodStatusController", func() {
 		When("remote unavailable label present", func() {
 			BeforeEach(func() {
 				localPod.Labels = labels.Merge(localPod.Labels, labels.Set{consts.RemoteUnavailableKey: consts.RemoteUnavailableValue})
-				fakeLocalPodsClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
+				fakeClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
 			})
 
 			It("should keep remote unavailable label to local offloaded pods", func() {
 				localPodAfter := corev1.Pod{}
 				localPod2After := corev1.Pod{}
-				Expect(fakeLocalPodsClient.Get(ctx, reqLocalPod.NamespacedName, &localPodAfter)).To(Succeed())
-				Expect(fakeLocalPodsClient.Get(ctx, reqLocalPod2.NamespacedName, &localPod2After)).To(Succeed())
+				Expect(fakeClient.Get(ctx, reqLocalPod.NamespacedName, &localPodAfter)).To(Succeed())
+				Expect(fakeClient.Get(ctx, reqLocalPod2.NamespacedName, &localPod2After)).To(Succeed())
 				Expect(localPodAfter.Labels).To(HaveKeyWithValue(consts.RemoteUnavailableKey, consts.RemoteUnavailableValue))
 				Expect(localPod2After.Labels).ToNot(HaveKeyWithValue(consts.RemoteUnavailableKey, consts.RemoteUnavailableValue))
 			})
@@ -197,14 +195,14 @@ var _ = Describe("PodStatusController", func() {
 
 		When("remote unavailable label not present", func() {
 			BeforeEach(func() {
-				fakeLocalPodsClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
+				fakeClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
 			})
 
 			It("should not add remote unavailable label to local offloaded pods", func() {
 				localPodAfter := corev1.Pod{}
 				localPod2After := corev1.Pod{}
-				Expect(fakeLocalPodsClient.Get(ctx, reqLocalPod.NamespacedName, &localPodAfter)).To(Succeed())
-				Expect(fakeLocalPodsClient.Get(ctx, reqLocalPod2.NamespacedName, &localPod2After)).To(Succeed())
+				Expect(fakeClient.Get(ctx, reqLocalPod.NamespacedName, &localPodAfter)).To(Succeed())
+				Expect(fakeClient.Get(ctx, reqLocalPod2.NamespacedName, &localPod2After)).To(Succeed())
 				Expect(localPodAfter.Labels).ToNot(HaveKeyWithValue(consts.RemoteUnavailableKey, consts.RemoteUnavailableValue))
 				Expect(localPod2After.Labels).ToNot(HaveKeyWithValue(consts.RemoteUnavailableKey, consts.RemoteUnavailableValue))
 			})
@@ -213,14 +211,14 @@ var _ = Describe("PodStatusController", func() {
 		When("remote unavailable label present", func() {
 			BeforeEach(func() {
 				localPod.Labels = labels.Merge(localPod.Labels, labels.Set{consts.RemoteUnavailableKey: consts.RemoteUnavailableValue})
-				fakeLocalPodsClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
+				fakeClient = fakeClientBuilder.WithObjects(localPod, localPod2).Build()
 			})
 
 			It("should remove remote unavailable label to local offloaded pods", func() {
 				localPod := corev1.Pod{}
 				localPod2 := corev1.Pod{}
-				Expect(fakeLocalPodsClient.Get(ctx, reqLocalPod.NamespacedName, &localPod)).To(Succeed())
-				Expect(fakeLocalPodsClient.Get(ctx, reqLocalPod2.NamespacedName, &localPod2)).To(Succeed())
+				Expect(fakeClient.Get(ctx, reqLocalPod.NamespacedName, &localPod)).To(Succeed())
+				Expect(fakeClient.Get(ctx, reqLocalPod2.NamespacedName, &localPod2)).To(Succeed())
 				Expect(localPod.Labels).ToNot(HaveKeyWithValue(consts.RemoteUnavailableKey, consts.RemoteUnavailableValue))
 				Expect(localPod2.Labels).ToNot(HaveKeyWithValue(consts.RemoteUnavailableKey, consts.RemoteUnavailableValue))
 			})
