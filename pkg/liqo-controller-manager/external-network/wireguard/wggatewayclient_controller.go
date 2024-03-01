@@ -46,19 +46,17 @@ import (
 // WgGatewayClientReconciler manage WgGatewayClient lifecycle.
 type WgGatewayClientReconciler struct {
 	client.Client
-	Scheme           *runtime.Scheme
-	extNetPodsClient client.Client
-	clusterRoleName  string
+	Scheme          *runtime.Scheme
+	clusterRoleName string
 }
 
 // NewWgGatewayClientReconciler returns a new WgGatewayClientReconciler.
-func NewWgGatewayClientReconciler(cl client.Client, s *runtime.Scheme, extNetPodsClient client.Client,
+func NewWgGatewayClientReconciler(cl client.Client, s *runtime.Scheme,
 	clusterRoleName string) *WgGatewayClientReconciler {
 	return &WgGatewayClientReconciler{
-		Client:           cl,
-		Scheme:           s,
-		extNetPodsClient: extNetPodsClient,
-		clusterRoleName:  clusterRoleName,
+		Client:          cl,
+		Scheme:          s,
+		clusterRoleName: clusterRoleName,
 	}
 }
 
@@ -199,11 +197,6 @@ func (r *WgGatewayClientReconciler) mutateFnWgClientDeployment(deployment *appsv
 	// Forge spec
 	deployment.Spec = wgClient.Spec.Deployment.Spec
 
-	if deployment.Spec.Template.ObjectMeta.Labels == nil {
-		deployment.Spec.Template.ObjectMeta.Labels = map[string]string{}
-	}
-	deployment.Spec.Template.ObjectMeta.Labels[consts.ExternalNetworkLabel] = consts.ExternalNetworkLabelValue
-
 	// Set WireGuard client as owner of the deployment
 	return controllerutil.SetControllerReference(wgClient, deployment, r.Scheme)
 }
@@ -232,7 +225,7 @@ func (r *WgGatewayClientReconciler) handleInternalEndpointStatus(ctx context.Con
 	wgClient *networkingv1alpha1.WgGatewayClient, dep *appsv1.Deployment) error {
 	podsFromDepSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)}
 	var podList corev1.PodList
-	if err := r.extNetPodsClient.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
+	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
 		klog.Errorf("Unable to list pods of deployment %s/%s: %v", dep.Namespace, dep.Name, err)
 		return err
 	}
