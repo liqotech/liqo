@@ -48,19 +48,17 @@ import (
 // WgGatewayServerReconciler manage WgGatewayServer lifecycle.
 type WgGatewayServerReconciler struct {
 	client.Client
-	Scheme           *runtime.Scheme
-	extNetPodsClient client.Client
-	clusterRoleName  string
+	Scheme          *runtime.Scheme
+	clusterRoleName string
 }
 
 // NewWgGatewayServerReconciler returns a new WgGatewayServerReconciler.
-func NewWgGatewayServerReconciler(cl client.Client, s *runtime.Scheme, extNetPodsClient client.Client,
+func NewWgGatewayServerReconciler(cl client.Client, s *runtime.Scheme,
 	clusterRoleName string) *WgGatewayServerReconciler {
 	return &WgGatewayServerReconciler{
-		Client:           cl,
-		Scheme:           s,
-		extNetPodsClient: extNetPodsClient,
-		clusterRoleName:  clusterRoleName,
+		Client:          cl,
+		Scheme:          s,
+		clusterRoleName: clusterRoleName,
 	}
 }
 
@@ -233,11 +231,6 @@ func (r *WgGatewayServerReconciler) mutateFnWgServerDeployment(deployment *appsv
 	// Forge spec
 	deployment.Spec = wgServer.Spec.Deployment.Spec
 
-	if deployment.Spec.Template.ObjectMeta.Labels == nil {
-		deployment.Spec.Template.ObjectMeta.Labels = map[string]string{}
-	}
-	deployment.Spec.Template.ObjectMeta.Labels[consts.ExternalNetworkLabel] = consts.ExternalNetworkLabelValue
-
 	// Set WireGuard server as owner of the deployment
 	return controllerutil.SetControllerReference(wgServer, deployment, r.Scheme)
 }
@@ -304,7 +297,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 	var nodeName string
 	podsFromDepSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)}
 	var podList corev1.PodList
-	if err := r.extNetPodsClient.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
+	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
 		klog.Errorf("Unable to list pods of deployment %s/%s: %v", dep.Namespace, dep.Name, err)
 		return nil, nil, err
 	}

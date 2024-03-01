@@ -149,7 +149,7 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 			// We need to ensure that the current pods will no recreate the node after deleting it.
 			var found bool
 			if found, err = vkutils.CheckVirtualKubeletFlagsConsistence(
-				ctx, dr.vnr.ClientVK, vn, dr.vnr.VirtualKubeletOptions, createNodeFalseFlag); err != nil || !found {
+				ctx, dr.vnr.Client, vn, dr.vnr.VirtualKubeletOptions, createNodeFalseFlag); err != nil || !found {
 				if err == nil {
 					err = fmt.Errorf("virtual kubelet pods are still running with arg %s", createNodeFalseFlag.String())
 					return err
@@ -196,7 +196,7 @@ func (dr *DeletionRoutine) deleteNode(ctx context.Context, node *corev1.Node, vn
 
 	klog.Infof("Node %s cordoned", node.Name)
 
-	if err := client.IgnoreNotFound(drainNode(ctx, dr.vnr.ClientLocal, vn)); err != nil {
+	if err := client.IgnoreNotFound(drainNode(ctx, dr.vnr.Client, vn)); err != nil {
 		return fmt.Errorf("error draining node: %w", err)
 	}
 
