@@ -15,11 +15,6 @@
 package consts
 
 const (
-	// ExternalNetworkLabel is the label added to all components that belong to the external network.
-	ExternalNetworkLabel = "networking.liqo.io/external-network"
-	// ExternalNetworkLabelValue is the value of the label added to components that belong to the external network.
-	ExternalNetworkLabelValue = "true"
-
 	// GatewayResourceLabel is the label added to a gateway resource.
 	GatewayResourceLabel = "networking.liqo.io/gateway-resource"
 	// GatewayResourceLabelValue is the value of the label added to a gateway resource.
