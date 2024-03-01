@@ -50,10 +50,6 @@ const (
 // VirtualNodeReconciler manage NamespaceMap lifecycle.
 type VirtualNodeReconciler struct {
 	client.Client
-	// Client used to list local pods
-	ClientLocal client.Client
-	// Client used to list virtual-kubelet pods
-	ClientVK              client.Client
 	Scheme                *runtime.Scheme
 	HomeClusterIdentity   *discoveryv1alpha1.ClusterIdentity
 	VirtualKubeletOptions *vkforge.VirtualKubeletOpts
@@ -64,14 +60,12 @@ type VirtualNodeReconciler struct {
 // NewVirtualNodeReconciler returns a new VirtualNodeReconciler.
 func NewVirtualNodeReconciler(
 	ctx context.Context,
-	cl client.Client, cll client.Client, clvk client.Client,
+	cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
 	hci *discoveryv1alpha1.ClusterIdentity, vko *vkforge.VirtualKubeletOpts,
 ) (*VirtualNodeReconciler, error) {
 	vnr := &VirtualNodeReconciler{
 		Client:                cl,
-		ClientLocal:           cll,
-		ClientVK:              clvk,
 		Scheme:                s,
 		HomeClusterIdentity:   hci,
 		VirtualKubeletOptions: vko,
