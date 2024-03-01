@@ -166,7 +166,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 		}
 	}
 
-	if err := vkutils.CheckVirtualKubeletPodAbsence(ctx, r.ClientVK, virtualNode, r.VirtualKubeletOptions); err != nil {
+	if err := vkutils.CheckVirtualKubeletPodAbsence(ctx, r.Client, virtualNode, r.VirtualKubeletOptions); err != nil {
 		return err
 	}
 

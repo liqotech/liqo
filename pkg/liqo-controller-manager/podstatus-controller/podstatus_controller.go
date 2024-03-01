@@ -38,8 +38,7 @@ func HasRemoteUnavailableLabel(pod *corev1.Pod) bool {
 // PodStatusReconciler reconciles Liqo nodes.
 type PodStatusReconciler struct {
 	client.Client
-	Scheme          *runtime.Scheme
-	LocalPodsClient client.Client
+	Scheme *runtime.Scheme
 }
 
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;
@@ -70,7 +69,7 @@ func (r *PodStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	var pods corev1.PodList
 	localOffloadedPodSelector := client.MatchingLabels{consts.LocalPodLabelKey: consts.LocalPodLabelValue}
 	nodeSelector := client.MatchingFields{indexer.FieldNodeNameFromPod: node.Name}
-	if err := r.LocalPodsClient.List(ctx, &pods, localOffloadedPodSelector, nodeSelector); err != nil {
+	if err := r.List(ctx, &pods, localOffloadedPodSelector, nodeSelector); err != nil {
 		klog.Errorf("unable to list pods: %v", err)
 		return ctrl.Result{}, err
 	}
@@ -89,7 +88,7 @@ func (r *PodStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				pod.Labels = map[string]string{}
 			}
 			pod.Labels[consts.RemoteUnavailableKey] = consts.RemoteUnavailableValue
-			if err := r.LocalPodsClient.Update(ctx, pod); err != nil {
+			if err := r.Update(ctx, pod); err != nil {
 				klog.Errorf("failed to update pod %q: %v", klog.KObj(pod), err)
 				return ctrl.Result{}, err
 			}
@@ -98,7 +97,7 @@ func (r *PodStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		case nodeReady && HasRemoteUnavailableLabel(pod):
 			// Ensure the absence of the remote unavailable label
 			delete(pod.Labels, consts.RemoteUnavailableKey)
-			if err := r.LocalPodsClient.Update(ctx, pod); err != nil {
+			if err := r.Update(ctx, pod); err != nil {
 				klog.Errorf("failed to update pod %q: %v", klog.KObj(pod), err)
 				return ctrl.Result{}, err
 			}
