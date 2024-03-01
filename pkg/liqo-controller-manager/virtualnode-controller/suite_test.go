@@ -127,8 +127,6 @@ var _ = BeforeSuite(func() {
 
 	vnr, err := NewVirtualNodeReconciler(ctx,
 		k8sClient,
-		k8sClient,
-		k8sClient,
 		scheme.Scheme,
 		k8sManager.GetEventRecorderFor("virtualnode-controller"),
 		&localIdentity,

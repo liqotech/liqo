@@ -34,19 +34,14 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/selection"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -290,13 +285,7 @@ func main() {
 		DynamicSharedInformerFactory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, 0, corev1.NamespaceAll, nil),
 	}
 
-	// Create a label selector to filter only the events for pods managed by a ShadowPod (i.e., remote offloaded pods),
-	// as those are the only ones we are interested in to implement the resiliency mechanism.
-	reqRemoteLiqoPods, err := labels.NewRequirement(consts.ManagedByLabelKey, selection.Equals, []string{consts.ManagedByShadowPodValue})
-	utilruntime.Must(err)
-
 	// Create the main manager.
-	// This manager caches only the pods that are offloaded from a remote cluster and are scheduled on this.
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
@@ -314,14 +303,6 @@ func main() {
 				Port: int(*webhookPort),
 			},
 		},
-		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
-			opts.ByObject = map[client.Object]cache.ByObject{
-				&corev1.Pod{}: {
-					Label: labels.NewSelector().Add(*reqRemoteLiqoPods),
-				},
-			}
-			return cache.New(config, opts)
-		},
 	})
 	if err != nil {
 		klog.Error(err)
@@ -330,96 +311,6 @@ func main() {
 
 	if err = mgr.Add(factory); err != nil {
 		klog.Error(err)
-		os.Exit(1)
-	}
-
-	// Create a label selector to filter only the events for local offloaded pods
-	reqLocalLiqoPods, err := labels.NewRequirement(consts.LocalPodLabelKey, selection.Equals, []string{consts.LocalPodLabelValue})
-	utilruntime.Must(err)
-
-	// Create an accessory manager that cache only local offloaded pods.
-	// This manager caches only the pods that are offloaded and scheduled on a remote cluster.
-	auxmgrLocalPods, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider: mapper.LiqoMapperProvider(scheme),
-		Scheme:         scheme,
-		Metrics:        server.Options{BindAddress: "0"}, // Disable the metrics of the auxiliary manager to prevent conflicts.
-		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
-			opts.ByObject = map[client.Object]cache.ByObject{
-				&corev1.Pod{}: {
-					Label: labels.NewSelector().Add(*reqLocalLiqoPods),
-				},
-			}
-			return cache.New(config, opts)
-		},
-	})
-
-	if err != nil {
-		klog.Errorf("Unable to create auxiliary manager: %v", err)
-		os.Exit(1)
-	}
-
-	// Create a label selector to filter only the events for virtual kubelet pods
-	reqVirtualKubeletPods, err := labels.NewRequirement(consts.K8sAppComponentKey, selection.Equals,
-		[]string{vkMachinery.KubeletBaseLabels[consts.K8sAppComponentKey]})
-	utilruntime.Must(err)
-
-	// Create an accessory manager that cache only local offloaded pods.
-	// This manager caches only virtual kubelet pods.
-	auxmgrVirtualKubeletPods, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider: mapper.LiqoMapperProvider(scheme),
-		Scheme:         scheme,
-		Metrics:        server.Options{BindAddress: "0"}, // Disable the metrics of the auxiliary manager to prevent conflicts.
-		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
-			opts.ByObject = map[client.Object]cache.ByObject{
-				&corev1.Pod{}: {
-					Label: labels.NewSelector().Add(*reqVirtualKubeletPods),
-				},
-			}
-			return cache.New(config, opts)
-		},
-	})
-
-	if err != nil {
-		klog.Errorf("Unable to create auxiliary manager: %v", err)
-		os.Exit(1)
-	}
-
-	// Create a label selector to filter only events that are part of the Gateway
-	reqExtNetworkPods, err := labels.NewRequirement(consts.ExternalNetworkLabel, selection.Equals, []string{consts.ExternalNetworkLabelValue})
-	utilruntime.Must(err)
-
-	// Create an accessory manager that cache only local offloaded pods.
-	// This manager caches only the pods that are offloaded and scheduled on a remote cluster.
-	auxmgrExtNetworkPods, err := ctrl.NewManager(config, ctrl.Options{
-		MapperProvider: mapper.LiqoMapperProvider(scheme),
-		Scheme:         scheme,
-		Metrics:        server.Options{BindAddress: "0"}, // Disable the metrics of the auxiliary manager to prevent conflicts.
-		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
-			opts.ByObject = map[client.Object]cache.ByObject{
-				&corev1.Pod{}: {
-					Label: labels.NewSelector().Add(*reqExtNetworkPods),
-				},
-			}
-			return cache.New(config, opts)
-		},
-	})
-
-	if err != nil {
-		klog.Errorf("Unable to create auxiliary manager: %v", err)
-		os.Exit(1)
-	}
-
-	// Add all the auxiliary managers to the main one.
-	if err := mgr.Add(auxmgrLocalPods); err != nil {
-		klog.Errorf("Unable to add the LocalPods auxiliary manager to the main one: %v", err)
-		os.Exit(1)
-	}
-	if err := mgr.Add(auxmgrVirtualKubeletPods); err != nil {
-		klog.Errorf("Unable to add the VirtualKubeletPods auxiliary manager to the main one: %v", err)
-		os.Exit(1)
-	}
-	if err := mgr.Add(auxmgrExtNetworkPods); err != nil {
-		klog.Errorf("Unable to add the ExternalNetworkPods auxiliary manager to the main one: %v", err)
 		os.Exit(1)
 	}
 
@@ -449,11 +340,6 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routeconfiguration.NewValidator(mgr.GetClient()))
 
 	if err := indexer.IndexField(ctx, mgr, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
-		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
-		os.Exit(1)
-	}
-
-	if err := indexer.IndexField(ctx, auxmgrLocalPods, &corev1.Pod{}, indexer.FieldNodeNameFromPod, indexer.ExtractNodeName); err != nil {
 		klog.Errorf("Unable to setup the indexer for the Pod nodeName field: %v", err)
 		os.Exit(1)
 	}
@@ -542,8 +428,6 @@ func main() {
 	virtualNodeReconciler, err := virtualnodectrl.NewVirtualNodeReconciler(
 		ctx,
 		mgr.GetClient(),
-		auxmgrLocalPods.GetClient(),
-		auxmgrVirtualKubeletPods.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("virtualnode-controller"),
 		&clusterIdentity,
@@ -632,9 +516,8 @@ func main() {
 	}
 
 	podStatusReconciler := &podstatusctrl.PodStatusReconciler{
-		Client:          mgr.GetClient(),
-		Scheme:          mgr.GetScheme(),
-		LocalPodsClient: auxmgrLocalPods.GetClient(),
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 	}
 	if err = podStatusReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the podstatus reconciler: %v", err)
@@ -693,37 +576,21 @@ func main() {
 			os.Exit(1)
 		}
 
-		allpodmgr, err := ctrl.NewManager(config, ctrl.Options{
-			MapperProvider: mapper.LiqoMapperProvider(scheme),
-			Scheme:         scheme,
-			Metrics:        server.Options{BindAddress: "0"}, // Disable the metrics of the auxiliary manager to prevent conflicts.
-		})
-
-		if err != nil {
-			klog.Errorf("Unable to create auxiliary manager: %v", err)
-			os.Exit(1)
-		}
-
-		if err := mgr.Add(allpodmgr); err != nil {
-			klog.Errorf("Unable to add the ExternalNetworkPods auxiliary manager to the main one: %v", err)
-			os.Exit(1)
-		}
-
-		intPodReconciler := route.NewPodReconciler(allpodmgr.GetClient(), allpodmgr.GetScheme(),
-			allpodmgr.GetEventRecorderFor("internal-pod-controller"), &route.Options{Namespace: *liqoNamespace})
-		if err = intPodReconciler.SetupWithManager(allpodmgr); err != nil {
+		intPodReconciler := route.NewPodReconciler(mgr.GetClient(), mgr.GetScheme(),
+			mgr.GetEventRecorderFor("internal-pod-controller"), &route.Options{Namespace: *liqoNamespace})
+		if err = intPodReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to create controller InternalPodReconciler: %s", err)
 			os.Exit(1)
 		}
 
 		wgServerRec := wggatewaycontrollers.NewWgGatewayServerReconciler(
-			mgr.GetClient(), mgr.GetScheme(), auxmgrExtNetworkPods.GetClient(), wgGatewayServerClusterRoleName)
+			mgr.GetClient(), mgr.GetScheme(), wgGatewayServerClusterRoleName)
 		if err = wgServerRec.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the WgGatewayServerReconciler: %v", err)
 			os.Exit(1)
 		}
 
-		wgClientRec := wggatewaycontrollers.NewWgGatewayClientReconciler(mgr.GetClient(), mgr.GetScheme(), auxmgrExtNetworkPods.GetClient(),
+		wgClientRec := wggatewaycontrollers.NewWgGatewayClientReconciler(mgr.GetClient(), mgr.GetScheme(),
 			wgGatewayClientClusterRoleName)
 		if err = wgClientRec.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the WgGatewayClientReconciler: %v", err)
