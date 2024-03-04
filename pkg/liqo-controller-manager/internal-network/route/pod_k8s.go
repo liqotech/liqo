@@ -31,8 +31,8 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
-// GenerateRouteConfigurationName generates the name of the route configuration for the given node.
-func GenerateRouteConfigurationName(nodeName string) string {
+// generatePodRouteConfigurationName generates the name of the route configuration for the given node.
+func generatePodRouteConfigurationName(nodeName string) string {
 	return fmt.Sprintf("%s-gw-node", nodeName)
 }
 
@@ -56,7 +56,7 @@ func enforceRoutePodPresence(ctx context.Context, cl client.Client, scheme *runt
 	}
 
 	routecfg := &networkingv1alpha1.RouteConfiguration{
-		ObjectMeta: metav1.ObjectMeta{Name: GenerateRouteConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: generatePodRouteConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, cl, routecfg, forgeRoutePodUpdateFunction(internalnode, routecfg, pod, scheme))
@@ -73,7 +73,7 @@ func enforceRoutePodAbsence(ctx context.Context, cl client.Client, opts *Options
 		return fmt.Errorf("unable to get node name from pod %s/%s", pod.GetNamespace(), pod.GetName())
 	}
 	routecfg := networkingv1alpha1.RouteConfiguration{}
-	if err := cl.Get(ctx, client.ObjectKey{Name: GenerateRouteConfigurationName(nodeName), Namespace: opts.Namespace}, &routecfg); err != nil {
+	if err := cl.Get(ctx, client.ObjectKey{Name: generatePodRouteConfigurationName(nodeName), Namespace: opts.Namespace}, &routecfg); err != nil {
 		return err
 	}
 

@@ -34,7 +34,7 @@ import (
 
 const configurationName = "service-nodeport-routing"
 
-func generateRouteconfigurationName(nodename string) string {
+func generateInternalNodeRouteConfigurationName(nodename string) string {
 	return fmt.Sprintf("%s-%s", nodename, configurationName)
 }
 
@@ -50,7 +50,7 @@ func enforceRouteWithConntrackPresence(ctx context.Context, cl client.Client,
 	}
 
 	routecfg := &networkingv1alpha1.RouteConfiguration{
-		ObjectMeta: metav1.ObjectMeta{Name: GenerateRouteConfigurationName(internalnode.Name), Namespace: opts.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: generateInternalNodeRouteConfigurationName(internalnode.Name), Namespace: opts.Namespace},
 	}
 
 	if _, err := controllerutil.CreateOrUpdate(ctx, cl, routecfg,
@@ -190,7 +190,7 @@ func forgeRouteConfigurationMutateFunction(internalnode *networkingv1alpha1.Inte
 		if err := controllerutil.SetOwnerReference(internalnode, routecfg, scheme); err != nil {
 			return err
 		}
-		routecfg.Spec.Table.Name = generateRouteconfigurationName(internalnode.Name)
+		routecfg.Spec.Table.Name = generateInternalNodeRouteConfigurationName(internalnode.Name)
 		enforceRouteConfigurationRule(routecfg, internalnode, mark, nodePortSrcIP)
 		return nil
 	}
