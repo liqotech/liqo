@@ -74,19 +74,19 @@ networking:
       gateway:
         image:
           # -- Image repository for the gateway container.
-          name: "ghcr.io/cheina97/gateway"
+          name: "ghcr.io/liqotech/gateway"
           # -- Custom version for the gateway image. If not specified, the global tag is used.
           version: ""
       wireguard:
         image:
           # -- Image repository for the wireguard container.
-          name: "ghcr.io/cheina97/gateway/wireguard"
+          name: "ghcr.io/liqotech/gateway/wireguard"
           # -- Custom version for the wireguard image. If not specified, the global tag is used.
           version: ""
       geneve:
         image:
           # -- Image repository for the geneve container.
-          name: "ghcr.io/cheina97/gateway/geneve"
+          name: "ghcr.io/liqotech/gateway/geneve"
           # -- Custom version for the geneve image. If not specified, the global tag is used.
           version: ""
 
@@ -191,7 +191,7 @@ controllerManager:
       requests: {}
   image:
     # -- Image repository for the controller-manager pod.
-    name: "ghcr.io/cheina97/liqo-controller-manager"
+    name: "ghcr.io/liqotech/liqo-controller-manager"
     # -- Custom version for the controller-manager image. If not specified, the global tag is used.
     version: ""
   config:
@@ -199,7 +199,7 @@ controllerManager:
     resourceSharingPercentage: 30
     # -- Threshold (in percentage) of the variation of resources that triggers a ResourceOffer update. E.g., when the available resources grow/decrease by X, a new ResourceOffer is generated.
     offerUpdateThresholdPercentage: ""
-    # -- The address of an external resource plugin service (see https://github.com/cheina97/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor.
+    # -- The address of an external resource plugin service (see https://github.com/liqotech/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor.
     resourcePluginAddress: ""
     # -- It enforces offerer-side that offloaded pods do not exceed offered resources (based on container limits).
     # This feature is suggested to be enabled when consumer-side enforcement is not sufficient.
@@ -221,7 +221,7 @@ ipam:
     enabled: true
     image:
       # -- Image repository for the IPAM pod.
-      name: "ghcr.io/cheina97/ipam"
+      name: "ghcr.io/liqotech/ipam"
       # -- Custom version for the IPAM image. If not specified, the global tag is used.
       version: ""
     # -- The number of IPAM instances to run, which can be increased for active/passive high availability.
@@ -270,7 +270,7 @@ route:
       limits: {}
       requests: {}
   # -- Image repository for the route pod.
-  imageName: "ghcr.io/cheina97/liqonet"
+  imageName: "ghcr.io/liqotech/liqonet"
   # -- Extra tolerations for the route daemonset.
   tolerations: []
 
@@ -288,7 +288,7 @@ fabric:
       requests: {}
   image:
     # -- Image repository for the fabric pod.
-    name: "ghcr.io/cheina97/fabric"
+    name: "ghcr.io/liqotech/fabric"
     # -- Custom version for the fabric image. If not specified, the global tag is used.
     version: ""
   # -- Extra tolerations for the fabric daemonset.
@@ -312,7 +312,7 @@ gateway:
       limits: {}
       requests: {}
   # -- Image repository for the network gateway pod.
-  imageName: "ghcr.io/cheina97/liqonet"
+  imageName: "ghcr.io/liqotech/liqonet"
   service:
     # -- Kubernetes service to be used to expose the network gateway pod.
     # If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer".
@@ -382,7 +382,7 @@ networkManager:
       limits: {}
       requests: {}
   # -- Image repository for the networkManager pod.
-  imageName: "ghcr.io/cheina97/liqonet"
+  imageName: "ghcr.io/liqotech/liqonet"
 
 crdReplicator:
   pod:
@@ -398,7 +398,7 @@ crdReplicator:
       requests: {}
   image:
     # -- Image repository for the crdReplicator pod.
-    name: "ghcr.io/cheina97/crd-replicator"
+    name: "ghcr.io/liqotech/crd-replicator"
     # -- Custom version for the crdReplicator image. If not specified, the global tag is used.
     version: ""
 
@@ -416,7 +416,7 @@ discovery:
       requests: {}
   image:
     # -- Image repository for the discovery pod.
-    name: "ghcr.io/cheina97/discovery"
+    name: "ghcr.io/liqotech/discovery"
     # -- Custom version for the discovery image. If not specified, the global tag is used.
     version: ""
   config:
@@ -460,13 +460,13 @@ auth:
       requests: {}
   image:
     # -- Image repository for the auth pod.
-    name: "ghcr.io/cheina97/auth-service"
+    name: "ghcr.io/liqotech/auth-service"
     # -- Custom version for the auth image. If not specified, the global tag is used.
     version: ""
   initContainer:
     image:
       # -- Image repository for the init container of the auth pod.
-      name: "ghcr.io/cheina97/cert-creator"
+      name: "ghcr.io/liqotech/cert-creator"
       # -- Custom version for the init container image of the auth pod. If not specified, the global tag is used.
       version: ""
   service:
@@ -539,13 +539,13 @@ metricAgent:
       requests: {}
   image:
     # -- Image repository for the metricAgent pod.
-    name: "ghcr.io/cheina97/metric-agent"
+    name: "ghcr.io/liqotech/metric-agent"
     # -- Custom version for the metricAgent image. If not specified, the global tag is used.
     version: ""
   initContainer:
     image:
       # --Image repository for the init container of the metricAgent pod.
-      name: "ghcr.io/cheina97/cert-creator"
+      name: "ghcr.io/liqotech/cert-creator"
       # -- Custom version for the init container image of the metricAgent pod. If not specified, the global tag is used.
       version: ""
 
@@ -565,7 +565,7 @@ telemetry:
       requests: {}
   image:
     # -- Image repository for the telemetry pod.
-    name: "ghcr.io/cheina97/telemetry"
+    name: "ghcr.io/liqotech/telemetry"
     # -- Custom version for the telemetry image. If not specified, the global tag is used.
     version: ""
   config:
@@ -585,7 +585,7 @@ webhook:
 virtualKubelet:
   image:
     # -- Image repository for the virtual kubelet pod.
-    name: "ghcr.io/cheina97/virtual-kubelet"
+    name: "ghcr.io/liqotech/virtual-kubelet"
     # -- Custom version for the virtual kubelet image. If not specified, the global tag is used.
     version: ""
   # Additional values that are added to virtual kubelet deployments and pods.
@@ -638,7 +638,7 @@ uninstaller:
       requests: {}
   image:
     # -- Image repository for the uninstaller pod.
-    name: "ghcr.io/cheina97/uninstaller"
+    name: "ghcr.io/liqotech/uninstaller"
     # -- Custom version for the uninstaller image. If not specified, the global tag is used.
     version: ""
 
@@ -656,7 +656,7 @@ proxy:
       requests: {}
   image:
     # -- Image repository for the proxy pod.
-    name: "ghcr.io/cheina97/proxy"
+    name: "ghcr.io/liqotech/proxy"
     # -- Custom version for the proxy image. If not specified, the global tag is used.
     version: ""
   service:

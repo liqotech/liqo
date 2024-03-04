@@ -86,22 +86,24 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("an error occurred while getting the second IP from the podCIDR: %w", err)
 	}
 
-	mark := StartMarkTransaction(internalnode.GetName())
+	StartMarkTransaction()
+	defer EndMarkTransaction()
+	mark := AssignMark(internalnode.GetName())
 
 	containsFinalizer := controllerutil.ContainsFinalizer(internalnode, internalNodesControllerFinalizer)
 	if internalnode.DeletionTimestamp.IsZero() {
 		if !containsFinalizer {
-			if err := r.enforceInternalNodeFinalizerPresence(ctx, internalnode); err != nil {
+			if err = r.enforceInternalNodeFinalizerPresence(ctx, internalnode); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
 	} else {
 		if containsFinalizer {
-			FreeMarkTransaction(internalnode.GetName())
-			if err := enforceRouteWithConntrackAbsence(ctx, r.Client, internalnode, r.Options); err != nil {
+			if err = enforceRouteWithConntrackAbsence(ctx, r.Client, internalnode, r.Options); err != nil {
 				return ctrl.Result{}, err
 			}
-			if err := r.enforceInternalNodeFinalizerAbsence(ctx, internalnode); err != nil {
+			FreeMark(internalnode.GetName())
+			if err = r.enforceInternalNodeFinalizerAbsence(ctx, internalnode); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
@@ -111,13 +113,10 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	klog.Infof("Assigning mark %d to internalnode %s", mark, req.Name)
 
 	if err = enforceRouteWithConntrackPresence(ctx, r.Client, internalnode, r.Scheme, mark, nodePortSrcIP, r.Options); err != nil {
-		EndMarkTransaction(internalnode.GetName(), err)
 		return ctrl.Result{}, err
 	}
 
 	klog.Infof("Enforced routeconfiguration and firewallconfiguration for internalnode %s", req.Name)
-
-	EndMarkTransaction(internalnode.GetName(), err)
 
 	return ctrl.Result{}, nil
 }

@@ -46,10 +46,6 @@ func enforceRoutePodPresence(ctx context.Context, cl client.Client, scheme *runt
 		return "", nil
 	}
 
-	if pod.Spec.HostNetwork {
-		return "", nil
-	}
-
 	internalnode := &networkingv1alpha1.InternalNode{}
 	if err := cl.Get(ctx, client.ObjectKey{Name: pod.Spec.NodeName}, internalnode); err != nil {
 		return "", err
@@ -97,16 +93,26 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1alpha1.InternalNode, 
 
 		routecfg.Spec.Table.Name = pod.Spec.NodeName
 
-		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) != 2 {
-			routecfg.Spec.Table.Rules = make([]networkingv1alpha1.Rule, 2)
+		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) < 1 {
+			routecfg.Spec.Table.Rules = make([]networkingv1alpha1.Rule, 1)
 			routecfg.Spec.Table.Rules[0].Dst = ptr.To(networkingv1alpha1.CIDR(
 				fmt.Sprintf("%s/32", internalnode.Spec.Interface.Node.IP),
 			))
-			routecfg.Spec.Table.Rules[1].Iif = ptr.To(tunnel.TunnelInterfaceName)
 		}
 
 		if exists := routeContainsNode(internalnode, &routecfg.Spec.Table.Rules[0]); !exists {
 			addNodeToRoute(internalnode, &routecfg.Spec.Table.Rules[0])
+		}
+
+		// We don't need to add routes for pods running on the host network.
+		// Anyways, it's important to add the route for the node itself.
+		if pod.Spec.HostNetwork {
+			return nil
+		}
+
+		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) < 2 {
+			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1alpha1.Rule{})
+			routecfg.Spec.Table.Rules[1].Iif = ptr.To(tunnel.TunnelInterfaceName)
 		}
 
 		if existingroute, exists := routeContainsPod(pod, &routecfg.Spec.Table.Rules[1]); exists {
@@ -161,7 +167,7 @@ func routeContainsNode(internalnode *networkingv1alpha1.InternalNode, rule *netw
 }
 
 func addPodToRoute(pod *corev1.Pod, internalnode *networkingv1alpha1.InternalNode, rule *networkingv1alpha1.Rule) {
-	route := networkingv1alpha1.Route{
+	rule.Routes = append(rule.Routes, networkingv1alpha1.Route{
 		Dst: ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", pod.Status.PodIP))),
 		Gw:  ptr.To(internalnode.Spec.Interface.Node.IP),
 		TargetRef: &corev1.ObjectReference{
@@ -170,8 +176,7 @@ func addPodToRoute(pod *corev1.Pod, internalnode *networkingv1alpha1.InternalNod
 			Namespace: pod.GetNamespace(),
 			UID:       pod.GetUID(),
 		},
-	}
-	rule.Routes = append(rule.Routes, route)
+	})
 }
 
 func addNodeToRoute(internlnode *networkingv1alpha1.InternalNode, rule *networkingv1alpha1.Rule) {

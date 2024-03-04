@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -56,7 +57,9 @@ func InitMark(ctx context.Context, cl client.Client, options *Options) {
 
 		RegisterMarksFromRouteconfigurations(routecfglist.Items)
 
-		RegisterMarksFromFirewallconfigurations(firewallcfglist.Items)
+		utilruntime.Must(RegisterMarksFromFirewallconfigurations(firewallcfglist.Items))
+
+		klog.Infof("Initialized marks: %v", marks)
 	})
 }
 
@@ -79,7 +82,7 @@ func RegisterMarksFromRouteconfigurations(routecfgs []networkingv1alpha1.RouteCo
 // RegisterMarksFromFirewallconfigurations registers the marks used in the firewallconfigurations.
 // It fullfills the marks map with the marks used in the firewallconfigurations
 // and the marksreverse map with the nodename and the mark used.
-func RegisterMarksFromFirewallconfigurations(fwcfgs []networkingv1alpha1.FirewallConfiguration) {
+func RegisterMarksFromFirewallconfigurations(fwcfgs []networkingv1alpha1.FirewallConfiguration) error {
 	for i := range fwcfgs {
 		chains := fwcfgs[i].Spec.Table.Chains
 		for j := range chains {
@@ -88,18 +91,25 @@ func RegisterMarksFromFirewallconfigurations(fwcfgs []networkingv1alpha1.Firewal
 				filterrule := filterrules[k]
 				if filterrule.Action == firewall.ActionCtMark {
 					mark, err := strconv.Atoi(*filterrule.Value)
-					utilruntime.Must(err)
+					if err != nil {
+						return err
+					}
 					marks[mark] = struct{}{}
 					marksreverse[*filterrule.Name] = mark
 				}
 			}
 		}
 	}
+	return nil
 }
 
-// StartMarkTransaction returns a new mark to be used in the firewall configuration.
-func StartMarkTransaction(nodename string) int {
+// StartMarkTransaction starts a transaction to assign a mark to a node.
+func StartMarkTransaction() {
 	m.Lock()
+}
+
+// AssignMark assigns a mark to a node.
+func AssignMark(nodename string) int {
 	found := false
 	if mark, ok := marksreverse[nodename]; ok {
 		return mark
@@ -116,21 +126,21 @@ func StartMarkTransaction(nodename string) int {
 			}
 		}
 	}
+
+	marks[nextmark] = struct{}{}
+	marksreverse[nodename] = nextmark
+
+	klog.Infof("Mark %d assigned to node %s", nextmark, nodename)
 	return nextmark
 }
 
-// EndMarkTransaction marks the transaction as successful or not.
-func EndMarkTransaction(nodename string, err error) {
-	defer m.Unlock()
-	if err == nil {
-		marks[nextmark] = struct{}{}
-		marksreverse[nodename] = nextmark
-	}
+// EndMarkTransaction marks the transaction.
+func EndMarkTransaction() {
+	m.Unlock()
 }
 
-// FreeMarkTransaction frees the mark used in the firewall configuration.
-func FreeMarkTransaction(nodename string) {
-	defer m.Unlock()
+// FreeMark frees the mark used in the firewall configuration.
+func FreeMark(nodename string) {
 	delete(marks, marksreverse[nodename])
 	delete(marksreverse, nodename)
 }

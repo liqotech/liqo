@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	// internalNodesControllerFinalizer is the finalizer added to virtual-node to allow the controller to clean up.
+	// internalNodesControllerFinalizer is the finalizer added to internalnode to allow the controller to clean up.
 	internalNodesControllerFinalizer = "internalnodes-route.liqo.io/finalizer"
 )
 

@@ -191,30 +191,32 @@ func forgeRouteConfigurationMutateFunction(internalnode *networkingv1alpha1.Inte
 			return err
 		}
 		routecfg.Spec.Table.Name = generateInternalNodeRouteConfigurationName(internalnode.Name)
-		enforceRouteConfigurationRule(routecfg, internalnode, mark, nodePortSrcIP)
+		enforceRouteConfigurationRules(routecfg, internalnode, mark, nodePortSrcIP)
 		return nil
 	}
 }
 
-func enforceRouteConfigurationRule(routecfg *networkingv1alpha1.RouteConfiguration,
+func enforceRouteConfigurationRules(routecfg *networkingv1alpha1.RouteConfiguration,
 	internalnode *networkingv1alpha1.InternalNode, mark int, nodePortSrcIP string) {
-	routecfg.Spec.Table.Rules = []networkingv1alpha1.Rule{forgeRouteConfigurationRule(internalnode, mark, nodePortSrcIP)}
+	routecfg.Spec.Table.Rules = forgeRouteConfigurationRules(internalnode, mark, nodePortSrcIP)
 }
 
-func forgeRouteConfigurationRule(internalnode *networkingv1alpha1.InternalNode, mark int, nodePortSrcIP string) networkingv1alpha1.Rule {
-	return networkingv1alpha1.Rule{
-		FwMark: &mark,
-		Dst:    ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", nodePortSrcIP))),
-		Routes: []networkingv1alpha1.Route{
-			{
-				Dst: ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", nodePortSrcIP))),
-				Dev: ptr.To(internalnode.Spec.Interface.Gateway.Name),
-				Gw:  ptr.To(internalnode.Spec.Interface.Node.IP),
+func forgeRouteConfigurationRules(internalnode *networkingv1alpha1.InternalNode, mark int, nodePortSrcIP string) []networkingv1alpha1.Rule {
+	return []networkingv1alpha1.Rule{
+		{
+			FwMark: &mark,
+			Dst:    ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", nodePortSrcIP))),
+			Routes: []networkingv1alpha1.Route{
+				{
+					Dst: ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", nodePortSrcIP))),
+					Dev: ptr.To(internalnode.Spec.Interface.Gateway.Name),
+					Gw:  ptr.To(internalnode.Spec.Interface.Node.IP),
+				},
 			},
-		},
-		TargetRef: &corev1.ObjectReference{
-			Name: internalnode.Name,
-			Kind: networkingv1alpha1.InternalNodeKind,
+			TargetRef: &corev1.ObjectReference{
+				Name: internalnode.Name,
+				Kind: networkingv1alpha1.InternalNodeKind,
+			},
 		},
 	}
 }
