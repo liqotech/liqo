@@ -17,6 +17,10 @@ spec:
       {{- include "liqo.labels" $ctrlManagerMetricsConfig | nindent 6 }}
   endpoints:
   - port: metrics
-    interval: {{ .Values.controllerManager.metrics.serviceMonitor.interval }}
-    scrapeTimeout: {{ .Values.controllerManager.metrics.serviceMonitor.scrapeTimeout }}
+    {{- with .Values.controllerManager.metrics.serviceMonitor.interval }}
+    interval: {{ . }}
+    {{- end }}
+    {{- with .Values.controllerManager.metrics.serviceMonitor.scrapeTimeout }}
+    scrapeTimeout: {{ . }}
+    {{- end }}
 {{- end }}

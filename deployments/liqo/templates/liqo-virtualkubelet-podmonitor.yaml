@@ -19,7 +19,11 @@ spec:
       app.kubernetes.io/component: "virtual-kubelet"
   podMetricsEndpoints:
   - port: metrics
-    interval: {{ .Values.virtualKubelet.metrics.podMonitor.interval }}
-    scrapeTimeout: {{ .Values.virtualKubelet.metrics.podMonitor.scrapeTimeout }}
+    {{- with .Values.virtualKubelet.metrics.podMonitor.interval }}
+    interval: {{ . }}
+    {{- end }}
+    {{- with .Values.virtualKubelet.metrics.podMonitor.scrapeTimeout }}
+    scrapeTimeout: {{ . }}
+    {{- end }}
 {{- end }}
 

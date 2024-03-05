@@ -17,7 +17,11 @@ spec:
       {{- include "liqo.selectorLabels" $crdReplicatorConfig | nindent 6 }}
   podMetricsEndpoints:
   - port: metrics
-    interval: {{ .Values.crdReplicator.metrics.podMonitor.interval }}
-    scrapeTimeout: {{ .Values.crdReplicator.metrics.podMonitor.scrapeTimeout }}
+    {{- with .Values.crdReplicator.metrics.podMonitor.interval }}
+    interval: {{ . }}
+    {{- end }}
+    {{- with .Values.crdReplicator.metrics.podMonitor.scrapeTimeout }}
+    scrapeTimeout: {{ . }}
+    {{- end }}
 {{- end }}
 

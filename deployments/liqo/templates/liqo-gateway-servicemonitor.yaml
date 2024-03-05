@@ -18,8 +18,12 @@ spec:
       {{- include "liqo.labels" $gatewayMetricsConfig | nindent 6 }}
   endpoints:
   - port: metrics
-    interval: {{ .Values.gateway.metrics.serviceMonitor.interval }}
-    scrapeTimeout: {{ .Values.gateway.metrics.serviceMonitor.scrapeTimeout }}
+    {{- with .Values.gateway.metrics.serviceMonitor.interval }}
+    interval: {{ . }}
+    {{- end }}
+    {{- with .Values.gateway.metrics.serviceMonitor.scrapeTimeout }}
+    scrapeTimeout: {{ . }}
+    {{- end }}
 {{- end }}
 
 {{- end }}
