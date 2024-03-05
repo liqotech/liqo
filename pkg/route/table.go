@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/runtime"
+
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 )
 
@@ -30,7 +32,7 @@ const RTTablesFilename = "/etc/iproute2/rt_tables"
 
 // EnsureTablePresence ensures the presence of the given table.
 func EnsureTablePresence(routeconfiguration *networkingv1alpha1.RouteConfiguration, tableID uint32) error {
-	exists, err := ExistsTableID(tableID, routeconfiguration.Spec.Table.Name)
+	exists, err := ExistsTableID(tableID)
 	if err != nil {
 		return err
 	}
@@ -43,8 +45,8 @@ func EnsureTablePresence(routeconfiguration *networkingv1alpha1.RouteConfigurati
 }
 
 // EnsureTableAbsence ensures the absence of the given table.
-func EnsureTableAbsence(routeconfiguration *networkingv1alpha1.RouteConfiguration, tableID uint32) error {
-	exists, err := ExistsTableID(tableID, routeconfiguration.Spec.Table.Name)
+func EnsureTableAbsence(tableID uint32) error {
+	exists, err := ExistsTableID(tableID)
 	if err != nil {
 		return err
 	}
@@ -65,7 +67,7 @@ func GetTableID(tableName string) (uint32, error) {
 }
 
 // ExistsTableID checks if the given table ID is already present in the rt_tables file.
-func ExistsTableID(tableID uint32, tableName string) (exists bool, err error) {
+func ExistsTableID(tableID uint32) (exists bool, err error) {
 	if tableID == 0 {
 		return false, fmt.Errorf("table ID is empty")
 	}
@@ -73,11 +75,13 @@ func ExistsTableID(tableID uint32, tableName string) (exists bool, err error) {
 	if err != nil {
 		return false, err
 	}
-	defer file.Close()
+	defer func() {
+		runtime.Must(file.Close())
+	}()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		entry := scanner.Text()
-		if strings.Contains(entry, fmt.Sprintf("%d", tableID)) || strings.Contains(entry, tableName) {
+		if strings.Contains(entry, fmt.Sprintf("%d", tableID)) {
 			return true, nil
 		}
 	}
@@ -91,7 +95,10 @@ func AddTableID(tableID uint32, tableName string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		runtime.Must(file.Close())
+	}()
+
 	if _, err := fmt.Fprintf(file, "%s\n", newEntry); err != nil {
 		return err
 	}
@@ -108,7 +115,9 @@ func DeleteTableID(tableID uint32) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		runtime.Must(file.Close())
+	}()
 	for _, line := range lines {
 		if _, err := fmt.Fprintf(file, "%s\n", line); err != nil {
 			return err
@@ -122,7 +131,9 @@ func filterDeletedLines(tableID uint32) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		runtime.Must(file.Close())
+	}()
 	scanner := bufio.NewScanner(file)
 	var lines []string
 	for scanner.Scan() {
