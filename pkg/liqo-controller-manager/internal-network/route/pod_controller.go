@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -92,6 +93,10 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	op, err := enforceRoutePodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.Infof("there is no internalnode %s", pod.Spec.NodeName)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
