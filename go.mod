@@ -10,7 +10,7 @@ require (
 	github.com/containernetworking/plugins v1.4.1
 	github.com/coreos/go-iptables v0.7.0
 	github.com/go-git/go-git/v5 v5.12.0
-	github.com/google/nftables v0.1.0
+	github.com/google/nftables v0.1.1-0.20240112203004-33ee8df9d8e2
 	github.com/google/uuid v1.6.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/grandcat/zeroconf v1.0.0
@@ -275,6 +275,5 @@ require (
 replace (
 	// Waitin for PR https://github.com/coreos/go-iptables/pull/110 to be merged
 	github.com/coreos/go-iptables => github.com/cheina97/go-iptables v0.0.0-20230824102241-61fc692e7548
-	github.com/google/nftables => github.com/cheina97/nftables v0.0.0-20231130113829-f658cd146651
 	github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
 )
