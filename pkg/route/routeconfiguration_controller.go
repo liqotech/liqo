@@ -122,7 +122,7 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 			}
 		}
 
-		if err = EnsureTableAbsence(routeconfiguration, tableID); err != nil {
+		if err = EnsureTableAbsence(tableID); err != nil {
 			return ctrl.Result{}, err
 		}
 
