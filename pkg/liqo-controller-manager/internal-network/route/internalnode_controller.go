@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -80,10 +81,9 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	// The IP used by nodeport to src nat the incoming traffic.
-	nodePortSrcIP, err := ipam.GetSecondIPFromCIDR(podCIDR)
+	firstIP, _, err := nftables.NetFirstAndLastIP(podCIDR)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("an error occurred while getting the second IP from the podCIDR: %w", err)
+		return ctrl.Result{}, err
 	}
 
 	StartMarkTransaction()
@@ -112,7 +112,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	klog.Infof("Assigning mark %d to internalnode %s", mark, req.Name)
 
-	if err = enforceRouteWithConntrackPresence(ctx, r.Client, internalnode, r.Scheme, mark, nodePortSrcIP, r.Options); err != nil {
+	if err = enforceRouteWithConntrackPresence(ctx, r.Client, internalnode, r.Scheme, mark, firstIP.String(), r.Options); err != nil {
 		return ctrl.Result{}, err
 	}
 
