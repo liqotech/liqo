@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/nftables"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -63,11 +64,15 @@ func forgeMutateFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfigur
 			fwcfg.Spec.Table.Chains = []firewallapi.Chain{*forgeFirewallChain()}
 		}
 
-		if !isNatRuleAlreadyPresentInChain(generateNatRuleName(cfg), &fwcfg.Spec.Table.Chains[0]) {
+		if !isNatRuleAlreadyPresentInChain(cfg, &fwcfg.Spec.Table.Chains[0]) {
 			if fwcfg.Spec.Table.Chains[0].Rules.NatRules == nil {
 				fwcfg.Spec.Table.Chains[0].Rules.NatRules = []firewallapi.NatRule{}
 			}
-			fwcfg.Spec.Table.Chains[0].Rules.NatRules = append(fwcfg.Spec.Table.Chains[0].Rules.NatRules, *forgeFirewallNatRule(cfg))
+			rules, err := forgeFirewallNatRule(cfg)
+			if err != nil {
+				return err
+			}
+			fwcfg.Spec.Table.Chains[0].Rules.NatRules = append(fwcfg.Spec.Table.Chains[0].Rules.NatRules, rules...)
 		}
 		return nil
 	}
@@ -86,38 +91,79 @@ func forgeFirewallChain() *firewallapi.Chain {
 	}
 }
 
-func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) *firewallapi.NatRule {
-	return &firewallapi.NatRule{
-		Name: ptr.To(generateNatRuleName(cfg)),
-		Match: []firewallapi.Match{
-			{
-				Op: firewallapi.MatchOperationEq,
-				IP: &firewallapi.MatchIP{
-					Position: firewallapi.MatchIPPositionDst,
-					Value:    cfg.Status.Remote.CIDR.Pod.String(),
+func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) ([]firewallapi.NatRule, error) {
+	firstIP, _, err := nftables.NetFirstAndLastIP(cfg.Spec.Local.CIDR.Pod.String())
+	if err != nil {
+		return nil, fmt.Errorf("unable to get first IP from CIDR: %w", err)
+	}
+	return []firewallapi.NatRule{
+		{
+			Name: ptr.To(generatePodNatRuleName(cfg)),
+			Match: []firewallapi.Match{
+				{
+					Op: firewallapi.MatchOperationEq,
+					IP: &firewallapi.MatchIP{
+						Position: firewallapi.MatchIPPositionDst,
+						Value:    cfg.Status.Remote.CIDR.Pod.String(),
+					},
+				},
+				{
+					Op: firewallapi.MatchOperationEq,
+					IP: &firewallapi.MatchIP{
+						Position: firewallapi.MatchIPPositionSrc,
+						Value:    cfg.Spec.Local.CIDR.Pod.String(),
+					},
 				},
 			},
+			NatType: firewallapi.NatTypeSource,
+			To:      ptr.To(cfg.Spec.Local.CIDR.Pod.String()),
 		},
-		NatType: firewallapi.NatTypeSource,
-		To:      ptr.To(cfg.Spec.Local.CIDR.Pod.String()),
-	}
+		{
+			Name: ptr.To(generateNodePortSvcNatRuleName(cfg)),
+			Match: []firewallapi.Match{
+				{
+					Op: firewallapi.MatchOperationEq,
+					IP: &firewallapi.MatchIP{
+						Position: firewallapi.MatchIPPositionDst,
+						Value:    cfg.Status.Remote.CIDR.Pod.String(),
+					},
+				},
+				{
+					Op: firewallapi.MatchOperationNeq,
+					IP: &firewallapi.MatchIP{
+						Position: firewallapi.MatchIPPositionSrc,
+						Value:    cfg.Spec.Local.CIDR.Pod.String(),
+					},
+				},
+			},
+			NatType: firewallapi.NatTypeSource,
+			To:      ptr.To(firstIP.String()),
+		},
+	}, nil
 }
 
 func generateFirewallConfigurationName(cfg *networkingv1alpha1.Configuration) string {
 	return fmt.Sprintf("masquerade-bypass-%s", cfg.Name)
 }
 
-func generateNatRuleName(cfg *networkingv1alpha1.Configuration) string {
+func generatePodNatRuleName(cfg *networkingv1alpha1.Configuration) string {
 	return fmt.Sprintf("podcidr-%s", cfg.Name)
 }
 
-func isNatRuleAlreadyPresentInChain(natRuleName string, chain *firewallapi.Chain) bool {
+func generateNodePortSvcNatRuleName(cfg *networkingv1alpha1.Configuration) string {
+	return fmt.Sprintf("service-nodeport-%s", cfg.Name)
+}
+
+func isNatRuleAlreadyPresentInChain(cfg *networkingv1alpha1.Configuration, chain *firewallapi.Chain) bool {
+	natRuleNames := []string{generatePodNatRuleName(cfg), generateNodePortSvcNatRuleName(cfg)}
 	if chain.Rules.NatRules == nil {
 		return false
 	}
 	for _, rule := range chain.Rules.NatRules {
-		if rule.Name != nil && *rule.Name == natRuleName {
-			return true
+		for _, natRuleName := range natRuleNames {
+			if rule.Name != nil && *rule.Name == natRuleName {
+				return true
+			}
 		}
 	}
 	return false
