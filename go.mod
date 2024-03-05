@@ -21,7 +21,7 @@ require (
 	github.com/metal-stack/go-ipam v1.11.3
 	github.com/miekg/dns v1.1.50
 	github.com/mittwald/go-helm-client v0.12.7
-	github.com/onsi/ginkgo/v2 v2.15.0
+	github.com/onsi/ginkgo/v2 v2.16.0
 	github.com/onsi/gomega v1.31.1
 	github.com/openshift/api v0.0.0-20210521075222-e273a339932a
 	github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142
@@ -251,7 +251,7 @@ require (
 	golang.org/x/oauth2 v0.16.0 // indirect
 	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.16.1 // indirect
+	golang.org/x/tools v0.17.0 // indirect
 	golang.zx2c4.com/wireguard v0.0.0-20220904105730-b51010ba13f0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20240123012728-ef4313101c80 // indirect
