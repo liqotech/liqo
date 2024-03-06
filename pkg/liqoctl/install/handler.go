@@ -418,6 +418,17 @@ func (o *Options) postProviderValues() map[string]interface{} {
 				"type": o.ExtServiceType.Value,
 			},
 		}
+		values["peering"] = map[string]interface{}{
+			"networking": map[string]interface{}{
+				"gateway": map[string]interface{}{
+					"server": map[string]interface{}{
+						"service": map[string]interface{}{
+							"type": o.ExtServiceType.Value,
+						},
+					},
+				},
+			},
+		}
 	}
 	return values
 }
