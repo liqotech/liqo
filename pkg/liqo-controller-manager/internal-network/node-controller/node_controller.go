@@ -33,25 +33,31 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/fabricipam"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // NodeReconciler creates and manages InternalNodes.
 type NodeReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	liqoNamespace string
 }
 
 // NewNodeReconciler returns a new NodeReconciler.
-func NewNodeReconciler(cl client.Client, s *runtime.Scheme) *NodeReconciler {
+func NewNodeReconciler(cl client.Client, s *runtime.Scheme, liqoNamespace string) *NodeReconciler {
 	return &NodeReconciler{
 		Client: cl,
 		Scheme: s,
+
+		liqoNamespace: liqoNamespace,
 	}
 }
 
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;
 
 // Reconcile manage Node lifecycle.
 func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
@@ -63,6 +69,16 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		}
 		klog.Errorf("Unable to get the Node %q: %s", req.Name, err)
 		return ctrl.Result{}, err
+	}
+
+	cmDep, err := getters.GetControllerManagerDeployment(ctx, r.Client, r.liqoNamespace)
+	if err != nil {
+		klog.Errorf("Unable to get the ControllerManager deployment: %s", err)
+		return ctrl.Result{}, err
+	}
+	if cmDep.Annotations != nil && cmDep.Annotations[consts.UninstallingAnnotationKey] == consts.UninstallingAnnotationValue {
+		klog.V(4).Infof("Liqo is being uninstalled, skipping the Node %q reconciliation", node.Name)
+		return ctrl.Result{}, nil
 	}
 
 	ipam, err := fabricipam.Get(ctx, r.Client)
