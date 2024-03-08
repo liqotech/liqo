@@ -138,7 +138,6 @@ func (r *NetworkReconciler) handleNetworkExternalCIDRStatus(ctx context.Context,
 			if err := r.updateNetworkStatus(ctx, nw, true); err != nil {
 				return err
 			}
-			klog.Infof("updated Network %q status (spec: %s -> status: %s)", client.ObjectKeyFromObject(nw), desiredCIDR, remappedCIDR)
 		}
 	}
 
