@@ -72,7 +72,20 @@ func enforceRouteWithConntrackAbsence(ctx context.Context, cl client.Client,
 		return fmt.Errorf("an error occurred while cleaning the firewall configuration: %w", err)
 	}
 
+	if err := deleteVoidFwcfg(ctx, cl, fwcfg); err != nil {
+		return fmt.Errorf("an error occurred while deleting the firewall configuration: %w", err)
+	}
+
 	// We don't need to clean routeconfigurations since they have an owner reference on the node.
+	return nil
+}
+
+func deleteVoidFwcfg(ctx context.Context, cl client.Client, fwcfg *networkingv1alpha1.FirewallConfiguration) error {
+	if len(fwcfg.Spec.Table.Chains) > 0 && len(fwcfg.Spec.Table.Chains[0].Rules.FilterRules) == 0 {
+		if err := cl.Delete(ctx, fwcfg); err != nil {
+			return fmt.Errorf("an error occurred while deleting the firewall configuration: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -135,9 +148,6 @@ func forgeFirewallConfigurationForwardChainRule(internalnode *networkingv1alpha1
 }
 
 func enforceFirewallConfigurationPreroutingChain(fwcfg *networkingv1alpha1.FirewallConfiguration, nodePortSrcIP string) {
-	if len(fwcfg.Spec.Table.Chains) == 0 {
-		fwcfg.Spec.Table.Chains = append(fwcfg.Spec.Table.Chains, firewall.Chain{})
-	}
 	if len(fwcfg.Spec.Table.Chains) == 1 {
 		fwcfg.Spec.Table.Chains = append(fwcfg.Spec.Table.Chains, firewall.Chain{})
 	}
@@ -153,7 +163,7 @@ func enforceFirewallConfigurationPreroutingChain(fwcfg *networkingv1alpha1.Firew
 
 func forgeFirewallConfigurationPreroutingChainRule(nodePortSrcIP string) firewall.FilterRule {
 	return firewall.FilterRule{
-		Name:   ptr.To("conntrack-mark-to-meta-mark "),
+		Name:   ptr.To("conntrack-mark-to-meta-mark"),
 		Action: firewall.ActionSetMetaMarkFromCtMark,
 		Match: []firewall.Match{
 			{

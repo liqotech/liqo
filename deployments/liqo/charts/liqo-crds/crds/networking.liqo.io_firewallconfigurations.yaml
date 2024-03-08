@@ -88,7 +88,6 @@ spec:
                           description: Rules is a list of rules to be applied to the
                             chain.
                           maxProperties: 1
-                          minProperties: 1
                           properties:
                             filterRules:
                               description: FilterRules is a list of rules to be applied
