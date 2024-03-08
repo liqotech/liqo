@@ -28,13 +28,13 @@ const (
 )
 
 func (r *InternalNodeReconciler) enforceInternalNodeFinalizerPresence(
-	ctx context.Context, fwcfg *networkingv1alpha1.InternalNode) error {
-	ctrlutil.AddFinalizer(fwcfg, internalNodesControllerFinalizer)
-	return r.Client.Update(ctx, fwcfg)
+	ctx context.Context, internalNode *networkingv1alpha1.InternalNode) error {
+	ctrlutil.AddFinalizer(internalNode, internalNodesControllerFinalizer)
+	return r.Client.Update(ctx, internalNode)
 }
 
 func (r *InternalNodeReconciler) enforceInternalNodeFinalizerAbsence(
-	ctx context.Context, fwcfg *networkingv1alpha1.InternalNode) error {
-	ctrlutil.RemoveFinalizer(fwcfg, internalNodesControllerFinalizer)
-	return r.Client.Update(ctx, fwcfg)
+	ctx context.Context, internalNode *networkingv1alpha1.InternalNode) error {
+	ctrlutil.RemoveFinalizer(internalNode, internalNodesControllerFinalizer)
+	return r.Client.Update(ctx, internalNode)
 }

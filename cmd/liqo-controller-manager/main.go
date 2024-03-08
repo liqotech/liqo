@@ -643,7 +643,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		nodeReconciler := nodecontroller.NewNodeReconciler(mgr.GetClient(), mgr.GetScheme())
+		nodeReconciler := nodecontroller.NewNodeReconciler(mgr.GetClient(), mgr.GetScheme(), *liqoNamespace)
 		if err := nodeReconciler.SetupWithManager(mgr); err != nil {
 			klog.Error(err)
 			os.Exit(1)
