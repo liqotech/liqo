@@ -17,7 +17,6 @@ package firewall
 // RulesSet is a set of rules to be applied to a chain.
 // +kubebuilder:object:generate=true
 // +kubebuilder:validation:MaxProperties=1
-// +kubebuilder:validation:MinProperties=1
 type RulesSet struct {
 	// NatRules is a list of rules to be applied to the chain.
 	NatRules []NatRule `json:"natRules,omitempty"`

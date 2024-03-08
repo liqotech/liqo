@@ -17,16 +17,45 @@ package uninstaller
 import (
 	"context"
 
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
+
+// AnnotateControllerManagerDeployment annotates the controller-manager deployment with the uninstaller label.
+func AnnotateControllerManagerDeployment(ctx context.Context, client dynamic.Interface, liqoNamespace string) error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		deploy, err := getters.GetControllerManagerDeploymentWithDynamicClient(ctx, client, liqoNamespace)
+		if err != nil {
+			return err
+		}
+
+		// Add an annotation to the liqo-controller-manager to signal the uninstalling process.
+		deploy.SetAnnotations(labels.Merge(deploy.GetAnnotations(),
+			map[string]string{consts.UninstallingAnnotationKey: consts.UninstallingAnnotationValue}))
+
+		unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(deploy)
+		if err != nil {
+			return err
+		}
+
+		_, err = client.Resource(appsv1.SchemeGroupVersion.WithResource("deployments")).Namespace(liqoNamespace).Update(
+			ctx, &unstructured.Unstructured{Object: unstr}, metav1.UpdateOptions{},
+		)
+		return err
+	})
+}
 
 // getForeignList retrieve the list of available ForeignCluster and return it as a ForeignClusterList object.
 func getForeignList(client dynamic.Interface) (*discoveryV1alpha1.ForeignClusterList, error) {

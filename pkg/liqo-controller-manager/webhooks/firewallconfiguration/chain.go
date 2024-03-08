@@ -49,11 +49,7 @@ func checkAllowedTableFamilyChainTypeHook(tableFamily firewallapi.TableFamily, c
 }
 
 func checkTotalDefinedRulesSets(rules firewallapi.RulesSet) error {
-	total := totalDefinedRulesSets(rules)
-	if total == 0 {
-		return fmt.Errorf("no rules set defined")
-	}
-	if total > 1 {
+	if totalDefinedRulesSets(rules) > 1 {
 		return fmt.Errorf("only one rules set must be defined")
 	}
 	return nil
@@ -74,22 +70,16 @@ func totalDefinedRulesSets(rules firewallapi.RulesSet) int {
 }
 
 func allowedChainType(chaintype *firewallapi.ChainType, rules firewallapi.RulesSet) error {
-	switch *chaintype {
-	case firewallapi.ChainTypeNAT:
-		if rules.NatRules == nil {
-			return fmt.Errorf("NAT rules must be defined when using NAT chain. Please fulfill the rules.natRules field")
-		}
-	case firewallapi.ChainTypeFilter:
-		if rules.FilterRules == nil {
-			return fmt.Errorf("filter rules must be defined when using Filter chain. Please fulfill the rules.filterRules field")
-		}
-	case firewallapi.ChainTypeRoute:
-		if rules.RouteRules == nil {
-			return fmt.Errorf("route rules must be defined when using Route chain. Please fulfill the rules.routeRules field")
-		}
-	default:
-		return fmt.Errorf("chain type not supported")
+	if rules.NatRules != nil && *chaintype != firewallapi.ChainTypeNAT {
+		return fmt.Errorf("NAT rules must be defined only when using NAT chain")
 	}
+	if rules.FilterRules != nil && *chaintype != firewallapi.ChainTypeFilter {
+		return fmt.Errorf("filter rules must be defined only when using Filter chain")
+	}
+	if rules.RouteRules != nil && *chaintype != firewallapi.ChainTypeRoute {
+		return fmt.Errorf("route rules must be defined only when using Route chain")
+	}
+
 	return nil
 }
 
