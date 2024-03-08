@@ -75,6 +75,17 @@ rules:
   - list
   - watch
 - apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalnodes
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - offloading.liqo.io
   resources:
   - namespaceoffloadings
