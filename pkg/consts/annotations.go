@@ -40,4 +40,9 @@ const (
 	LabelsTemplateAnnotationKey = "liqo.io/template-labels"
 	// AnnotsTemplateAnnotationKey contains a cache to store annotations keys that belongs to a template.
 	AnnotsTemplateAnnotationKey = "liqo.io/template-annotations"
+
+	// UninstallingAnnotationKey is the annotation used to signal liqo is being uninstalled.
+	UninstallingAnnotationKey = "liqo.io/uninstalling"
+	// UninstallingAnnotationValue is the value of the annotation used to signal liqo is being uninstalled.
+	UninstallingAnnotationValue = "true"
 )
