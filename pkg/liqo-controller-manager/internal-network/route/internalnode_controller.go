@@ -71,10 +71,37 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", req.NamespacedName, err)
 	}
+	klog.V(4).Infof("Reconciling internalnode %s", req.String())
 
 	InitMark(ctx, r.Client, r.Options)
 
-	klog.V(4).Infof("Reconciling internalnode %s", req.String())
+	StartMarkTransaction()
+	defer EndMarkTransaction()
+
+	containsFinalizer := controllerutil.ContainsFinalizer(internalnode, internalNodesControllerFinalizer)
+
+	// The internalnode is being deleted. Ensure the absence of RouteConfigurations and FirewallConfigurations
+	// and delete internalNode finalizer.
+	if !internalnode.DeletionTimestamp.IsZero() {
+		if containsFinalizer {
+			if err = enforceRouteWithConntrackAbsence(ctx, r.Client, internalnode, r.Options); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			FreeMark(internalnode.GetName())
+
+			if err = r.enforceInternalNodeFinalizerAbsence(ctx, internalnode); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if !containsFinalizer {
+		if err = r.enforceInternalNodeFinalizerPresence(ctx, internalnode); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 
 	podCIDR, err := ipam.GetPodCIDR(ctx, r.Client)
 	if err != nil {
@@ -86,31 +113,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	StartMarkTransaction()
-	defer EndMarkTransaction()
 	mark := AssignMark(internalnode.GetName())
-
-	containsFinalizer := controllerutil.ContainsFinalizer(internalnode, internalNodesControllerFinalizer)
-	if internalnode.DeletionTimestamp.IsZero() {
-		if !containsFinalizer {
-			if err = r.enforceInternalNodeFinalizerPresence(ctx, internalnode); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-	} else {
-		if containsFinalizer {
-			if err = enforceRouteWithConntrackAbsence(ctx, r.Client, internalnode, r.Options); err != nil {
-				return ctrl.Result{}, err
-			}
-			FreeMark(internalnode.GetName())
-			if err = r.enforceInternalNodeFinalizerAbsence(ctx, internalnode); err != nil {
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, nil
-		}
-	}
-
-	klog.Infof("Assigning mark %d to internalnode %s", mark, req.Name)
 
 	if err = enforceRouteWithConntrackPresence(ctx, r.Client, internalnode, r.Scheme, mark, firstIP.String(), r.Options); err != nil {
 		return ctrl.Result{}, err

@@ -24,10 +24,13 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -333,18 +336,60 @@ func ListVirtualKubeletPodsFromVirtualNode(ctx context.Context, cl client.Client
 	return list, nil
 }
 
-// GetLiqoVersion returns the installed Liqo version.
-func GetLiqoVersion(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
-	// Retrieve the deployment of the liqo controller manager component
+// GetControllerManagerDeployment returns the liqo controller manager deployment.
+func GetControllerManagerDeployment(ctx context.Context, cl client.Client, liqoNamespace string) (*appsv1.Deployment, error) {
 	var deployments appsv1.DeploymentList
 	if err := cl.List(ctx, &deployments, client.InNamespace(liqoNamespace), client.MatchingLabelsSelector{
 		Selector: liqolabels.ControllerManagerLabelSelector(),
-	}); err != nil || len(deployments.Items) != 1 {
-		return "", errors.New("failed to retrieve the liqo controller manager deployment")
+	}); err != nil {
+		return nil, errors.New("failed to retrieve the liqo controller manager deployment")
+	}
+
+	switch len(deployments.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(appsv1.Resource("deployments"), "liqo-controller-manager")
+	case 1:
+		return &deployments.Items[0], nil
+	default:
+		return nil, fmt.Errorf("retrieved multiple liqo-controller-manager deployments: %v", len(deployments.Items))
+	}
+}
+
+// GetControllerManagerDeploymentWithDynamicClient retrieves the controller manager deployment usingg the dynamic client.
+func GetControllerManagerDeploymentWithDynamicClient(ctx context.Context,
+	dynClient dynamic.Interface, liqoNamespace string) (*appsv1.Deployment, error) {
+	unstr, err := dynClient.Resource(appsv1.SchemeGroupVersion.WithResource("deployments")).Namespace(liqoNamespace).List(
+		ctx, metav1.ListOptions{
+			LabelSelector: liqolabels.ControllerManagerLabelSelector().String(),
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	var deployments appsv1.DeploymentList
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstr.UnstructuredContent(), &deployments); err != nil {
+		return nil, err
+	}
+
+	switch len(deployments.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(appsv1.Resource("deployments"), "liqo-controller-manager")
+	case 1:
+		return &deployments.Items[0], nil
+	default:
+		return nil, fmt.Errorf("retrieved multiple liqo-controller-manager deployments: %v", len(deployments.Items))
+	}
+}
+
+// GetLiqoVersion returns the installed Liqo version.
+func GetLiqoVersion(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
+	deployment, err := GetControllerManagerDeployment(ctx, cl, liqoNamespace)
+	if err != nil {
+		return "", err
 	}
 
 	// Get version from image version
-	containers := deployments.Items[0].Spec.Template.Spec.Containers
+	containers := deployment.Spec.Template.Spec.Containers
 	for i := range containers {
 		if containers[i].Name == "controller-manager" {
 			version := strings.Split(containers[i].Image, ":")[1]

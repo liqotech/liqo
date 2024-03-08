@@ -26,6 +26,7 @@ import (
 
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -113,6 +114,23 @@ func DeleteVirtualNodes(ctx context.Context, client dynamic.Interface) error {
 
 	for _, item := range unstructured.Items {
 		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DeleteInternalNodes deletes all InternalNode resources.
+func DeleteInternalNodes(ctx context.Context, client dynamic.Interface) error {
+	r1 := client.Resource(networkingv1alpha1.InternalNodeGroupVersionResource)
+	unstructured, err := r1.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, item := range unstructured.Items {
+		if err := r1.Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
