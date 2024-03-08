@@ -38,6 +38,7 @@ import (
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update;delete;deletecollection;
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;patch;update;delete;
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;patch;update;delete;
 
@@ -77,6 +78,12 @@ func main() {
 		klog.Warning("Failed to stop the discovery component")
 	}
 
+	// Annotate the controller-manager deployment to signal the uninstall process.
+	if err := uninstaller.AnnotateControllerManagerDeployment(ctx, client, namespace); err != nil {
+		klog.Errorf("Unable to annotate the controller-manager: %s", err)
+		os.Exit(1)
+	}
+
 	// Trigger unjoin clusters
 	err = uninstaller.UnjoinClusters(ctx, client)
 	if err != nil {
@@ -97,6 +104,11 @@ func main() {
 
 	if err := uninstaller.DeleteVirtualNodes(ctx, client); err != nil {
 		klog.Errorf("Unable to delete virtual nodes: %s", err)
+		os.Exit(1)
+	}
+
+	if err := uninstaller.DeleteInternalNodes(ctx, client); err != nil {
+		klog.Errorf("Unable to delete internal nodes: %s", err)
 		os.Exit(1)
 	}
 
