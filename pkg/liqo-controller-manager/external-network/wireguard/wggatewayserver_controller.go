@@ -384,6 +384,10 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		}
 	}
 
+	if err := checkServiceOverrides(service, &addresses, &port); err != nil {
+		return nil, nil, err
+	}
+
 	return &networkingv1alpha1.EndpointStatus{
 			Protocol:  protocol,
 			Port:      port,
@@ -432,6 +436,10 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *cor
 		if ip := service.Status.LoadBalancer.Ingress[i].IP; ip != "" {
 			addresses = append(addresses, ip)
 		}
+	}
+
+	if err := checkServiceOverrides(service, &addresses, &port); err != nil {
+		return nil, err
 	}
 
 	return &networkingv1alpha1.EndpointStatus{
