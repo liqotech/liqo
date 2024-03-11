@@ -21,7 +21,11 @@ spec:
     spec:
       service:
         metadata:
-          {{- include "liqo.metadataTemplate" $templateConfig | nindent 12 }}
+          {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
+          {{- if .Values.networking.gatewayTemplates.server.service.annotations }}
+          annotations:
+            {{- toYaml .Values.networking.gatewayTemplates.server.service.annotations | nindent 12 }}
+          {{- end }}
         spec:
           selector:
             {{- include "liqo.labelsTemplate" $templateConfig | nindent 12 }}
