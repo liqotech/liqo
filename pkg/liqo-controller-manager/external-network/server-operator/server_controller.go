@@ -170,13 +170,13 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 			ClusterID:  remoteClusterID,
 		}
 
-		name, err := enutils.RenderTemplate(objectTemplateMetadata["name"], td)
+		name, err := enutils.RenderTemplate(objectTemplateMetadata["name"], td, true)
 		if err != nil {
 			return fmt.Errorf("unable to render the template name: %w", err)
 		}
 		objChild.SetName(name.(string))
 
-		namespace, err := enutils.RenderTemplate(objectTemplateMetadata["namespace"], td)
+		namespace, err := enutils.RenderTemplate(objectTemplateMetadata["namespace"], td, true)
 		if err != nil {
 			return fmt.Errorf("unable to render the template namespace: %w", err)
 		}
@@ -190,7 +190,7 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 
 		var objectTemplateMetadataLabels interface{}
 		if objectTemplateMetadataLabels, ok = objectTemplateMetadata["labels"]; ok {
-			labels, err := enutils.RenderTemplate(objectTemplateMetadataLabels, td)
+			labels, err := enutils.RenderTemplate(objectTemplateMetadataLabels, td, true)
 			if err != nil {
 				return fmt.Errorf("unable to render the template labels: %w", err)
 			}
@@ -199,7 +199,7 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 
 		var objectTemplateMetadataAnnotations interface{}
 		if objectTemplateMetadataAnnotations, ok = objectTemplateMetadata["annotations"]; ok {
-			annotations, err := enutils.RenderTemplate(objectTemplateMetadataAnnotations, td)
+			annotations, err := enutils.RenderTemplate(objectTemplateMetadataAnnotations, td, true)
 			if err != nil {
 				return fmt.Errorf("unable to render the template annotations: %w", err)
 			}
@@ -218,7 +218,7 @@ func (r *ServerReconciler) EnsureGatewayServer(ctx context.Context, gwServer *ne
 
 		objChild.SetLabels(labelsutils.Merge(objChild.GetLabels(), labelsutils.Set{consts.RemoteClusterID: remoteClusterID}))
 
-		spec, err := enutils.RenderTemplate(objectTemplateSpec, td)
+		spec, err := enutils.RenderTemplate(objectTemplateSpec, td, false)
 		if err != nil {
 			return fmt.Errorf("unable to render the template spec: %w", err)
 		}
