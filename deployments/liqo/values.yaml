@@ -70,6 +70,14 @@ networking:
       service:
         # -- Set to "false" if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature).
         allocateLoadBalancerNodePorts: ""
+        # -- Annotations for the server service.
+        annotations: {}
+          # -- Override the default address where your network gateway service is available.
+          # You should configure it if the network gateway is behind a reverse proxy or NAT.
+          # liqo.io/override-address: "10.43.12.182"
+          # -- Overrides the port where your network gateway service is available.
+          # You should configure it if the network gateway is behind a reverse proxy or NAT and is different from the listening port.
+          # liqo.io/override-port: "51820"
     container:
       gateway:
         image:

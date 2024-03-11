@@ -22,7 +22,7 @@ import (
 )
 
 // RenderTemplate renders a template.
-func RenderTemplate(obj, data interface{}) (interface{}, error) {
+func RenderTemplate(obj, data interface{}, forceString bool) (interface{}, error) {
 	// if the object is a string, render the template
 	if reflect.TypeOf(obj).Kind() == reflect.String {
 		tmpl, err := template.New("").Parse(obj.(string))
@@ -35,9 +35,11 @@ func RenderTemplate(obj, data interface{}) (interface{}, error) {
 			return obj, err
 		}
 
-		ret, err := strconv.Atoi(res.String())
-		if err == nil {
-			return ret, nil
+		if !forceString {
+			ret, err := strconv.Atoi(res.String())
+			if err == nil {
+				return ret, nil
+			}
 		}
 
 		return res.String(), nil
@@ -46,7 +48,7 @@ func RenderTemplate(obj, data interface{}) (interface{}, error) {
 	// if the object is a map, render the template for each value
 	if reflect.TypeOf(obj).Kind() == reflect.Map {
 		for k, v := range obj.(map[string]interface{}) {
-			res, err := RenderTemplate(v, data)
+			res, err := RenderTemplate(v, data, forceString || isLabelsOrAnnotations(obj))
 			if err != nil {
 				return obj, err
 			}
@@ -60,7 +62,7 @@ func RenderTemplate(obj, data interface{}) (interface{}, error) {
 	// if the object is a slice, render the template for each element
 	if reflect.TypeOf(obj).Kind() == reflect.Slice {
 		for i, v := range obj.([]interface{}) {
-			res, err := RenderTemplate(v, data)
+			res, err := RenderTemplate(v, data, forceString || isLabelsOrAnnotations(obj))
 			if err != nil {
 				return obj, err
 			}
@@ -72,4 +74,16 @@ func RenderTemplate(obj, data interface{}) (interface{}, error) {
 	}
 
 	return obj, nil
+}
+
+func isLabelsOrAnnotations(obj interface{}) bool {
+	if reflect.TypeOf(obj).Kind() == reflect.Map {
+		for k := range obj.(map[string]interface{}) {
+			if k == "labels" || k == "annotations" {
+				return true
+			}
+		}
+	}
+
+	return false
 }
