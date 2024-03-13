@@ -1,0 +1,124 @@
+apiVersion: networking.liqo.io/v1alpha1
+kind: WgGatewayServerTemplate
+metadata:
+  name: wireguard-server-high-availability
+  # namespace: liqo # or custom namespace
+spec:
+  objectKind:
+    apiVersion: networking.liqo.io/v1alpha1
+    kind: WgGatewayServer
+  template:
+    metadata:
+      labels:
+        networking.liqo.io/component: gateway
+      name: '{{ .Name }}'
+      namespace: '{{ .Namespace }}'
+    spec:
+      deployment:
+        metadata:
+          labels:
+            networking.liqo.io/component: gateway
+          name: '{{ .Name }}'
+          namespace: '{{ .Namespace }}'
+        spec:
+          replicas: 2
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: '{{ .Name }}'
+              networking.liqo.io/component: gateway
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: '{{ .Name }}'
+                networking.liqo.io/component: gateway
+              name: '{{ .Name }}'
+              namespace: '{{ .Namespace }}'
+            spec:
+              affinity:
+                podAntiAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                  - labelSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: '{{ .Name }}'
+                        networking.liqo.io/component: gateway
+                    topologyKey: "kubernetes.io/hostname"
+              containers:
+              - args:
+                - --name={{ .Name }}
+                - --namespace={{ .Namespace }}
+                - --remote-cluster-id={{ .ClusterID }}
+                - --gateway-uid={{ .GatewayUID }}
+                - --mode=server
+                - --metrics-address=:8080
+                - --health-probe-bind-address=:8081
+                - --ping-enabled=true
+                - --ping-loss-threshold=5
+                - --ping-interval=2s
+                - --ping-update-status-interval=10s
+                image: ghcr.io/liqotech/gateway:<VERSION>
+                imagePullPolicy: IfNotPresent
+                name: gateway
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+                  privileged: true
+              - args:
+                - --name={{ .Name }}
+                - --namespace={{ .Namespace }}
+                - --remote-cluster-id={{ .ClusterID }}
+                - --gateway-uid={{ .GatewayUID }}
+                - --mode=server
+                - --mtu={{ .Spec.MTU }}
+                - --listen-port={{ .Spec.Endpoint.Port }}
+                - --metrics-address=:8082
+                - --health-probe-bind-address=:8083
+                image: ghcr.io/liqotech/gateway/wireguard:<VERSION>
+                imagePullPolicy: IfNotPresent
+                name: wireguard
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+              - args:
+                - --name={{ .Name }}
+                - --namespace={{ .Namespace }}
+                - --remote-cluster-id={{ .ClusterID }}
+                - --node-name=$(NODE_NAME)
+                - --gateway-uid={{ .GatewayUID }}
+                - --mode=server
+                - --metrics-address=:8084
+                - --health-probe-bind-address=:8085
+                - --enable-arp=true
+                env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+                image: ghcr.io/liqotech/gateway/geneve:<VERSION>
+                imagePullPolicy: IfNotPresent
+                name: geneve
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+              serviceAccount: '{{ .Name }}'
+              serviceAccountName: '{{ .Name }}'
+      service:
+        metadata:
+          labels:
+            networking.liqo.io/component: gateway
+          name: '{{ .Name }}'
+          namespace: '{{ .Namespace }}'
+        spec:
+          ports:
+          - port: '{{ .Spec.Endpoint.Port }}'
+            protocol: UDP
+            targetPort: '{{ .Spec.Endpoint.Port }}'
+          selector:
+            app.kubernetes.io/name: '{{ .Name }}'
+            networking.liqo.io/component: gateway
+          type: '{{ .Spec.Endpoint.ServiceType }}'
