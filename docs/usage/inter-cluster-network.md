@@ -33,6 +33,14 @@ Automatic network configuration
 
 The unpeer process will automatically remove the Liqo Gateway from the tenant namespace.
 
+### Configuration
+
+You can configure the settings for the automatic Liqo networking by setting the following parameters in the `values.yaml` file or by using the `liqoctl` command line `--set` option:
+
+* `peering.networking.gateway.mtu` (default: `1340`): the MTU of the Gateway interface.
+* `peering.networking.gateway.server.service.port` (default: `51820`): the port of the Gateway service.
+* `peering.networking.gateway.server.service.type` (default: `LoadBalancer`): the type of the Gateway service, it can be `NodePort` or `LoadBalancer`.
+
 ## Manual on cluster couple
 
 When you have access to both clusters, you can configure the network connectivity for all the successive peering creations.
@@ -178,6 +186,16 @@ INFO   (remote) Cluster identity correctly retrieved
 INFO   (local) Network configuration correctly deleted                                                        
 INFO   (remote) Network configuration correctly deleted
 ```
+
+### Configuration
+
+You can configure how to expose the Liqo Gateway Server service by using the following flags for the `liqoctl network connect` command on the server side:
+
+* `--server-service-type` (default `LoadBalancer`): the type of the Gateway service, it can be `NodePort` or `LoadBalancer`.
+* `--server-port` (default `51820`): the port of the Gateway service.
+* `--node-port` (default `0`): set it to force the NodePort binding to a specific port. If set to `0`, the system will allocate a port automatically.
+* `--load-balancer-ip` (default `""`): set it to force the LoadBalancer service to bind to a specific IP address. If set to `""`, the system will allocate an IP address automatically.
+* `--mtu` (default `1340`): the MTU of the Gateway interface. Note that the MTU must be the same on both sides.
 
 ## Manual on single cluster
 
