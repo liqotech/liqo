@@ -368,3 +368,27 @@ liqoctl --kubeconfig $KUBE_CLIENT generate publickey --gateway-type client --gat
 kubectl --kubeconfig $KUBE_SERVER apply -f publickey-client.yaml
 kubectl --kubeconfig $KUBE_CLIENT apply -f publickey-server.yaml
 ```
+
+## Custom templates
+
+Gateway resources (i.e., `GatewayServer` and `GatewayClient`) contain a reference to the template CR implementing the inter-cluster network technology.
+
+The default technology used by Liqo is an implementation of a WireGuard VPN tunnel to connect the gateway client and gateway server of the two peered clusters.
+The template is referenced in the spec of the API, as shown here:
+
+```yaml
+spec:
+  serverTemplateRef:
+    apiVersion: networking.liqo.io/v1alpha1
+    kind: WgGatewayServerTemplate
+    name: wireguard-server
+    namespace: liqo
+```
+
+This allows the user to reference custom-made templates, giving also the possibility to implement custom technologies different from WireGuard.
+
+The `examples/networking` folder contains a bunch of template manifests, showing possible customizations to the default WireGuard template.
+
+```{admonition} Tip
+A field with a value in the form of `'{{ EXAMPLE }}'` will be templated automatically by the Gateway operator with the value(s) from the `GatewayServer`/`GatewayClient` resource.  
+```
