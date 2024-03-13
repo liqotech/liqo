@@ -43,7 +43,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.4.0
 	google.golang.org/api v0.149.0
 	google.golang.org/grpc v1.62.0
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.14.2
 	k8s.io/api v0.29.2
