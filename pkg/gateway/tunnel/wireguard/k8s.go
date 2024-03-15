@@ -28,13 +28,14 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/forge"
 )
 
 // CheckKeysSecret checks if the keys secret exists and if it contains the private and public keys.
 func CheckKeysSecret(ctx context.Context, cl client.Client, opts *Options) (wgtypes.Key, error) {
 	secret := &corev1.Secret{}
 	if err := cl.Get(ctx, types.NamespacedName{
-		Name:      gateway.GenerateResourceName(opts.GwOptions.Name),
+		Name:      forge.GatewayResourceName(opts.GwOptions.Name),
 		Namespace: opts.GwOptions.Namespace,
 	}, secret); err != nil {
 		return wgtypes.Key{}, err
@@ -55,7 +56,7 @@ func CheckKeysSecret(ctx context.Context, cl client.Client, opts *Options) (wgty
 func CreateKeysSecret(ctx context.Context, cl client.Client, opts *Options, pri, pub wgtypes.Key) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      gateway.GenerateResourceName(opts.GwOptions.Name),
+			Name:      forge.GatewayResourceName(opts.GwOptions.Name),
 			Namespace: opts.GwOptions.Namespace,
 		},
 	}
@@ -83,7 +84,7 @@ func CreateKeysSecret(ctx context.Context, cl client.Client, opts *Options, pri,
 // EnsureConnection creates or updates the connection resource.
 func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Scheme, opts *Options) error {
 	conn := &networkingv1alpha1.Connection{ObjectMeta: metav1.ObjectMeta{
-		Name: gateway.GenerateResourceName(opts.GwOptions.Name), Namespace: opts.GwOptions.Namespace,
+		Name: forge.GatewayResourceName(opts.GwOptions.Name), Namespace: opts.GwOptions.Namespace,
 		Labels: map[string]string{
 			string(consts.RemoteClusterID): opts.GwOptions.RemoteClusterID,
 		},
