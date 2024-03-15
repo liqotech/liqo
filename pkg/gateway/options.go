@@ -43,13 +43,13 @@ func NewOptions() *Options {
 	return &Options{}
 }
 
-// Mode is the mode in which the wireguard interface is configured.
+// Mode is the mode in which the gateway is configured.
 type Mode string
 
 const (
-	// ModeServer is the mode in which the wireguard interface is configured as a server.
+	// ModeServer is the mode when the gateway is configured as a server.
 	ModeServer Mode = "server"
-	// ModeClient is the mode in which the wireguard interface is configured as a client.
+	// ModeClient is the mode when the gateway is configured as a client.
 	ModeClient Mode = "client"
 )
 
@@ -73,10 +73,4 @@ func (m *Mode) Set(value string) error {
 // Type returns the type of the mode.
 func (m *Mode) Type() string {
 	return "string"
-}
-
-// GenerateResourceName generates the name used for the resources created by the gateway.
-// This will help if a suffix will be added to the name of the resources in future.
-func GenerateResourceName(name string) string {
-	return name
 }

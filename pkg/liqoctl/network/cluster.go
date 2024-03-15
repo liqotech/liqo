@@ -28,7 +28,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
@@ -245,7 +245,7 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *ga
 	// If the forged server endpoint has different parameters from the existing server service (if present),
 	// we delete the existing gateway server so that the client can correctly connect to the new endpoint.
 	var service corev1.Service
-	svcNsName := types.NamespacedName{Namespace: gwServer.Namespace, Name: gateway.GenerateResourceName(gwServer.Name)}
+	svcNsName := types.NamespacedName{Namespace: gwServer.Namespace, Name: forge.GatewayResourceName(gwServer.Name)}
 	err = c.local.CRClient.Get(ctx, svcNsName, &service)
 	if client.IgnoreNotFound(err) != nil {
 		s.Fail(fmt.Sprintf("An error occurred while retrieving gateway server service: %v", output.PrettyErr(err)))
