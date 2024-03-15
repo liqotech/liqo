@@ -34,6 +34,7 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/gateway/fabric/geneve"
+	"github.com/liqotech/liqo/pkg/gateway/forge"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -100,7 +101,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		LeaderElection:         options.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
 			"%s.%s.%s.genevegateway.liqo.io",
-			gateway.GenerateResourceName(options.GwOptions.Name), options.GwOptions.Namespace, options.GwOptions.Mode,
+			forge.GatewayResourceName(options.GwOptions.Name), options.GwOptions.Namespace, options.GwOptions.Mode,
 		),
 		LeaderElectionNamespace:       options.GwOptions.Namespace,
 		LeaderElectionReleaseOnCancel: true,
