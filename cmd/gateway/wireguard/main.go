@@ -38,6 +38,7 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/wireguard"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -116,7 +117,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		LeaderElection:         options.GwOptions.LeaderElection,
 		LeaderElectionID: fmt.Sprintf(
 			"%s.%s.%s.wgtunnel.liqo.io",
-			gateway.GenerateResourceName(options.GwOptions.Name), options.GwOptions.Namespace, options.GwOptions.Mode,
+			forge.GatewayResourceName(options.GwOptions.Name), options.GwOptions.Namespace, options.GwOptions.Mode,
 		),
 		LeaderElectionNamespace:       options.GwOptions.Namespace,
 		LeaderElectionReleaseOnCancel: true,

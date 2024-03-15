@@ -39,7 +39,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/forge"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
@@ -122,14 +122,14 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	// Ensure deployment (create or update)
-	deployNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: gateway.GenerateResourceName(wgServer.Name)}
+	deployNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: forge.GatewayResourceName(wgServer.Name)}
 	deploy, err := r.ensureDeployment(ctx, wgServer, deployNsName)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// Ensure service (create or update)
-	svcNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: gateway.GenerateResourceName(wgServer.Name)}
+	svcNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: forge.GatewayResourceName(wgServer.Name)}
 	_, err = r.ensureService(ctx, wgServer, svcNsName)
 	if err != nil {
 		return ctrl.Result{}, err
