@@ -110,16 +110,28 @@ spec:
             {{- if .Values.awsConfig.accessKeyId }}
             - name: ACCESS_KEY_ID
               valueFrom:
+                {{- if .Values.awsConfig.accessKeyId.secretKeyRef }}
+                secretKeyRef:
+                  name: {{ .Values.awsConfig.accessKeyId.secretKeyRef.name }}
+                  key: {{ .Values.awsConfig.accessKeyId.secretKeyRef.key }}
+                {{- else }}
                 secretKeyRef:
                   name: {{ include "liqo.prefixedName" $awsConfig }}
                   key: ACCESS_KEY_ID
+                {{- end }}
             {{- end }}
             {{- if .Values.awsConfig.secretAccessKey }}
             - name: SECRET_ACCESS_KEY
               valueFrom:
+                {{- if .Values.awsConfig.secretAccessKey.secretKeyRef }}
+                secretKeyRef:
+                  name: {{ .Values.awsConfig.secretAccessKey.secretKeyRef.name }}
+                  key: {{ .Values.awsConfig.secretAccessKey.secretKeyRef.key }}
+                {{- else }}
                 secretKeyRef:
                   name: {{ include "liqo.prefixedName" $awsConfig }}
                   key: SECRET_ACCESS_KEY
+                {{- end }}
             {{- end }}
           resources: {{- toYaml .Values.auth.pod.resources | nindent 12 }}
           volumeMounts:

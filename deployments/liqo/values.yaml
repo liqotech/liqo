@@ -600,6 +600,18 @@ awsConfig:
   region: ""
   # -- Name of the EKS cluster.
   clusterName: ""
+# To use an existing secret instead of setting the secrets in values file:
+# awsConfig:
+#   accessKeyId:
+#     secretKeyRef:
+#       name: "your-secret-name"
+#       key: "your-secret-key"
+#   secretAccessKey
+#     secretKeyRef:
+#       name: "your-secret-name"
+#       key: "your-secret-key"
+#   region: "your-region"
+#   clusterName: "your-cluster-name"
 
 # OpenShift-specific configurations.
 openshiftConfig:
