@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package identitymanager
+package v1alpha1
 
 // AwsConfig contains the AWS configuration and access key for the Liqo user and the current EKS cluster.
 type AwsConfig struct {
-	AwsAccessKeyID     string
-	AwsSecretAccessKey string
-	AwsRegion          string
-	AwsClusterName     string
+	AwsAccessKeyID     string `json:"awsAccessKeyID"`
+	AwsSecretAccessKey string `json:"awsSecretAccessKey"`
+	AwsRegion          string `json:"awsRegion"`
+	AwsClusterName     string `json:"awsClusterName"`
 }
 
 // IsEmpty indicates that some of the required values is not set.
