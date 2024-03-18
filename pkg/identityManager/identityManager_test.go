@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
@@ -213,7 +214,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient(), localCluster, &AwsConfig{
+			idProvider := NewIAMIdentityManager(cluster.GetClient(), localCluster, &authv1alpha1.AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",
