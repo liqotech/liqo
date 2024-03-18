@@ -24,6 +24,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/csr"
@@ -77,14 +78,14 @@ func NewCertificateIdentityProvider(ctx context.Context, client kubernetes.Inter
 
 // NewIAMIdentityReader gets a new identity reader to handle IAM identities.
 func NewIAMIdentityReader(client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *AwsConfig,
+	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *authv1alpha1.AwsConfig,
 	namespaceManager tenantnamespace.Manager) IdentityManager {
 	return NewIAMIdentityManager(client, localCluster, awsConfig, namespaceManager)
 }
 
 // NewIAMIdentityManager gets a new identity manager to handle IAM identities.
 func NewIAMIdentityManager(client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *AwsConfig,
+	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *authv1alpha1.AwsConfig,
 	namespaceManager tenantnamespace.Manager) IdentityManager {
 	idProvider := &iamIdentityProvider{
 		awsConfig: awsConfig,
@@ -96,7 +97,7 @@ func NewIAMIdentityManager(client kubernetes.Interface,
 
 // NewIAMIdentityProvider gets a new identity approver to handle IAM identities.
 func NewIAMIdentityProvider(client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *AwsConfig,
+	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *authv1alpha1.AwsConfig,
 	namespaceManager tenantnamespace.Manager) IdentityProvider {
 	idProvider := &iamIdentityProvider{
 		awsConfig:      awsConfig,

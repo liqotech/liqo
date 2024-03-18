@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -72,7 +73,7 @@ type Controller struct {
 
 // NewAuthServiceCtrl creates a new Auth Controller.
 func NewAuthServiceCtrl(ctx context.Context, config *rest.Config, namespace string,
-	awsConfig identitymanager.AwsConfig, resyncTime time.Duration,
+	awsConfig authv1alpha1.AwsConfig, resyncTime time.Duration,
 	apiServerConfig apiserver.Config, authEnabled, useTLS bool,
 	localCluster discoveryv1alpha1.ClusterIdentity) (*Controller, error) {
 	clientset, err := kubernetes.NewForConfig(config)
