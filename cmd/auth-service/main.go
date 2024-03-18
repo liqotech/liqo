@@ -24,8 +24,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	authservice "github.com/liqotech/liqo/internal/auth-service"
-	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -34,7 +34,7 @@ import (
 func main() {
 	klog.Info("Starting")
 
-	var awsConfig identitymanager.AwsConfig
+	var awsConfig authv1alpha1.AwsConfig
 
 	namespace := flag.String("namespace", "default", "Namespace where your configs are stored.")
 	resync := flag.Duration("resync-period", 30*time.Second, "The resync period for the informers")
