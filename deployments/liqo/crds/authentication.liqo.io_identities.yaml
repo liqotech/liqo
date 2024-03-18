@@ -1,0 +1,118 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+  name: identities.authentication.liqo.io
+spec:
+  group: authentication.liqo.io
+  names:
+    categories:
+    - liqo
+    kind: Identity
+    listKind: IdentityList
+    plural: identities
+    singular: identity
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Identity contains the information to operate in a remote cluster.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: IdentitySpec defines the desired state of Identity.
+            properties:
+              authParams:
+                description: AuthParams contains the parameters to create an Identity
+                  to use in the provider cluster.
+                properties:
+                  apiServer:
+                    type: string
+                  awsConfig:
+                    description: AwsConfig contains the AWS configuration and access
+                      key for the Liqo user and the current EKS cluster.
+                    properties:
+                      awsAccessKeyID:
+                        type: string
+                      awsClusterName:
+                        type: string
+                      awsRegion:
+                        type: string
+                      awsSecretAccessKey:
+                        type: string
+                    required:
+                    - awsAccessKeyID
+                    - awsClusterName
+                    - awsRegion
+                    - awsSecretAccessKey
+                    type: object
+                  ca:
+                    type: string
+                  signedCRT:
+                    type: string
+                type: object
+              clusterIdentity:
+                description: ClusterIdentity is the identity of the provider cluster.
+                properties:
+                  clusterID:
+                    description: Foreign Cluster ID, this is a unique identifier of
+                      that cluster.
+                    type: string
+                  clusterName:
+                    description: Foreign Cluster Name to be shown in GUIs.
+                    type: string
+                required:
+                - clusterID
+                - clusterName
+                type: object
+              type:
+                description: Type is the type of the identity.
+                enum:
+                - ControlPlane
+                - VirtualNode
+                type: string
+            type: object
+          status:
+            description: IdentityStatus defines the observed state of Identity.
+            properties:
+              kubeconfigSecretRef:
+                description: KubeconfigSecretRef contains the reference to the secret
+                  containing the kubeconfig to access the provider cluster.
+                properties:
+                  name:
+                    description: |-
+                      Name of the referent.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

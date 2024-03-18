@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 )
@@ -42,7 +43,7 @@ const (
 )
 
 type iamIdentityProvider struct {
-	awsConfig      *AwsConfig
+	awsConfig      *authv1alpha1.AwsConfig
 	client         kubernetes.Interface
 	localClusterID string
 }
