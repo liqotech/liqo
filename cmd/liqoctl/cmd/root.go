@@ -123,6 +123,7 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(newUnoffloadCommand(ctx, f))
 	cmd.AddCommand(newStatusCommand(ctx, f))
 	cmd.AddCommand(newMoveCommand(ctx, f))
+	cmd.AddCommand(newPurgeCommand(ctx))
 	cmd.AddCommand(newVersionCommand(ctx, f))
 	cmd.AddCommand(newDocsCommand(ctx))
 	cmd.AddCommand(create.NewCreateCommand(ctx, liqoResources, f))
