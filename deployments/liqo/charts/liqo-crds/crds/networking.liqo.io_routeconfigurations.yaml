@@ -157,7 +157,6 @@ spec:
                             required:
                             - dst
                             type: object
-                          minItems: 1
                           type: array
                         src:
                           description: Src is the source of the Rule.
