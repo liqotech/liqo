@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -60,7 +61,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/ipam"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
@@ -134,6 +134,7 @@ func main() {
 	var gatewayClientResources argsutils.StringList
 
 	networkingEnabled := flag.Bool("networking-enabled", true, "Enable/disable the networking module")
+	authenticationEnabled := flag.Bool("authentication-enabled", true, "Enable/disable the authentication module")
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -158,8 +159,6 @@ func main() {
 	shadowEndpointSliceWorkers := flag.Int("shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
 	podcidr := flag.String("podcidr", "", "The CIDR to use for the pod network")
-	disableAuthentication := flag.Bool("disable-authentication", false, "Disable the authentication module")
-	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
 	foreignClusterPingInterval := flag.Duration("foreign-cluster-ping-interval", 15*time.Second,
 		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
 	foreignClusterPingTimeout := flag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
@@ -336,17 +335,11 @@ func main() {
 
 	clientset := kubernetes.NewForConfigOrDie(config)
 
-	cl, err := client.New(config, client.Options{Scheme: scheme})
+	// Create an uncached client. Use mgr.GetClient() to get the cached client used in controllers.
+	uncachedClient, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
 		klog.Errorf("unable to create the client: %s", err)
 		os.Exit(1)
-	}
-
-	if !*disableAuthentication {
-		if err := authentication.InitClusterKeys(ctx, cl, *liqoNamespace); err != nil {
-			klog.Errorf("Unable to initialize cluster authentication keys: %v", err)
-		}
-		klog.Info("Enforced cluster authentication keys")
 	}
 
 	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
@@ -365,6 +358,14 @@ func main() {
 	insecureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute, TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 
 	// Setup operators
+
+	// authentication module
+	if *authenticationEnabled {
+		if err := modules.SetupAuthenticationModule(ctx, uncachedClient, *liqoNamespace); err != nil {
+			klog.Fatalf("Unable to setup the authentication module: %v", err)
+		}
+	}
+
 	foreignClusterReconciler := &foreignclusteroperator.ForeignClusterReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
