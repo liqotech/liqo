@@ -12,17 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package virtualnode
-
-import (
-	"context"
-
-	"github.com/spf13/cobra"
-
-	"github.com/liqotech/liqo/pkg/liqoctl/rest"
-)
-
-// Generate implements the generate command.
-func (o *Options) Generate(_ context.Context, _ *rest.GenerateOptions) *cobra.Command {
-	panic("not implemented")
-}
+// Package forge contains utility functions to forge resources of the authentication module.
+package forge

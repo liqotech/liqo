@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package virtualnode
+package tenant
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 )
 
-// Generate implements the generate command.
-func (o *Options) Generate(_ context.Context, _ *rest.GenerateOptions) *cobra.Command {
+// Create implements the create command.
+func (o *Options) Create(_ context.Context, _ *rest.CreateOptions) *cobra.Command {
 	panic("not implemented")
 }
