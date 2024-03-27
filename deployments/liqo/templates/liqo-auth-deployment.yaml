@@ -80,17 +80,17 @@ spec:
           {{- if .Values.apiServer.trustedCA }}
           - --advertise-api-server-trusted-ca
           {{- end }}
-          {{- if .Values.awsConfig.accessKeyId }}
+          {{- if .Values.authentication.awsConfig.accessKeyId }}
           - --aws-access-key-id=$(ACCESS_KEY_ID)
           {{- end }}
-          {{- if .Values.awsConfig.secretAccessKey }}
+          {{- if .Values.authentication.awsConfig.secretAccessKey }}
           - --aws-secret-access-key=$(SECRET_ACCESS_KEY)
           {{- end }}
-          {{- if .Values.awsConfig.region }}
-          - --aws-region={{ .Values.awsConfig.region }}
+          {{- if .Values.authentication.awsConfig.region }}
+          - --aws-region={{ .Values.authentication.awsConfig.region }}
           {{- end }}
-          {{- if .Values.awsConfig.clusterName }}
-          - --aws-cluster-name={{ .Values.awsConfig.clusterName }}
+          {{- if .Values.authentication.awsConfig.clusterName }}
+          - --aws-cluster-name={{ .Values.authentication.awsConfig.clusterName }}
           {{- end }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
@@ -108,26 +108,26 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{- if .Values.awsConfig.accessKeyId }}
+            {{- if .Values.authentication.awsConfig.accessKeyId }}
             - name: ACCESS_KEY_ID
               valueFrom:
-                {{- if .Values.awsConfig.useExistingSecret }}
+                {{- if .Values.authentication.awsConfig.useExistingSecret }}
                 secretKeyRef:
-                  name: {{ .Values.awsConfig.accessKeyId.secretKeyRef.name }}
-                  key: {{ .Values.awsConfig.accessKeyId.secretKeyRef.key }}
+                  name: {{ .Values.authentication.awsConfig.accessKeyId.secretKeyRef.name }}
+                  key: {{ .Values.authentication.awsConfig.accessKeyId.secretKeyRef.key }}
                 {{- else }}
                 secretKeyRef:
                   name: {{ include "liqo.prefixedName" $awsConfig }}
                   key: ACCESS_KEY_ID
                 {{- end }}
             {{- end }}
-            {{- if .Values.awsConfig.secretAccessKey }}
+            {{- if .Values.authentication.awsConfig.secretAccessKey }}
             - name: SECRET_ACCESS_KEY
               valueFrom:
-                {{- if .Values.awsConfig.useExistingSecret }}
+                {{- if .Values.authentication.awsConfig.useExistingSecret }}
                 secretKeyRef:
-                  name: {{ .Values.awsConfig.secretAccessKey.secretKeyRef.name }}
-                  key: {{ .Values.awsConfig.secretAccessKey.secretKeyRef.key }}
+                  name: {{ .Values.authentication.awsConfig.secretAccessKey.secretKeyRef.name }}
+                  key: {{ .Values.authentication.awsConfig.secretAccessKey.secretKeyRef.key }}
                 {{- else }}
                 secretKeyRef:
                   name: {{ include "liqo.prefixedName" $awsConfig }}

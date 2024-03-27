@@ -4,18 +4,11 @@
 
 # -- Images' tag to select a development version of liqo instead of a release
 tag: ""
-# -- The pullPolicy for liqo pods.
-pullPolicy: "IfNotPresent"
 
-common:
-  # -- NodeSelector for all liqo pods, excluding virtual kubelet.
-  nodeSelector: {}
-  # -- Tolerations for all liqo pods, excluding virtual kubelet.
-  tolerations: []
-  # -- Affinity for all liqo pods, excluding virtual kubelet.
-  affinity: {}
-  # -- Extra arguments for all liqo pods, excluding virtual kubelet.
-  extraArgs: []
+# -- Override the standard name used by Helm and associated to Kubernetes/Liqo resources.
+nameOverride: ""
+# -- Override the standard full name used by Helm and associated to Kubernetes/Liqo resources.
+fullnameOverride: ""
 
 apiServer:
   # -- The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP).
@@ -116,75 +109,156 @@ peering:
           # -- Set the type of the service
           type: LoadBalancer
 
-reflection:
-  skip:
-    # -- List of labels that must not be reflected on remote clusters.
-    labels: []
-    # -- List of annotations that must not be reflected on remote clusters.
-    annotations: [
-      cloud.google.com/neg,
-      cloud.google.com/neg-status,
-      kubernetes.digitalocean.com/load-balancer-id,
-      ingress.kubernetes.io/backends,
-      ingress.kubernetes.io/forwarding-rule,
-      ingress.kubernetes.io/target-proxy,
-      ingress.kubernetes.io/url-map,
-      metallb.universe.tf/address-pool,
-      metallb.universe.tf/ip-allocated-from-pool,
-      metallb.universe.tf/loadBalancerIPs,
-      loadbalancer.openstack.org/load-balancer-id,
-    ]
-  pod:
-    # -- The number of workers used for the pods reflector. Set 0 to disable the reflection of pods.
-    workers: 10
-  service:
-    # -- The number of workers used for the services reflector. Set 0 to disable the reflection of services.
-    workers: 3
-    # -- The type of reflection used for the services reflector. Ammitted values: "DenyList", "AllowList".
-    type: DenyList
-    # -- List of load balancer classes that will be shown to remote clusters. If empty, load balancer classes will be reflected as-is.
-    # Example:
-    # loadBalancerClasses:
-    # - name: public
-    #   default: true
-    # - name: internal
-    loadBalancerClasses: []
-  endpointslice:
-    # -- The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices.
-    workers: 10
-  ingress:
-    # -- The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses.
-    workers: 3
-    # -- The type of reflection used for the ingresses reflector. Ammitted values: "DenyList", "AllowList".
-    type: DenyList
-    # -- List of ingress classes that will be shown to remote clusters. If empty, ingress class will be reflected as-is.
-    # Example:
-    # ingressClasses:
-    # - name: nginx
-    #   default: true
-    # - name: traefik
-    ingressClasses: []
-  configmap:
-    # -- The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps.
-    workers: 3
-    # -- The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList".
-    type: DenyList
-  secret:
-    # -- The number of workers used for the secrets reflector. Set 0 to disable the reflection of secrets.
-    workers: 3
-    # -- The type of reflection used for the secrets reflector. Ammitted values: "DenyList", "AllowList".
-    type: DenyList
-  serviceaccount:
-    # -- The number of workers used for the serviceaccounts reflector. Set 0 to disable the reflection of serviceaccounts.
-    workers: 3
-  persistentvolumeclaim:
-    # -- The number of workers used for the persistentvolumeclaims reflector. Set 0 to disable the reflection of persistentvolumeclaims.
-    workers: 3
-  event:
-    # -- The number of workers used for the events reflector. Set 0 to disable the reflection of events.
-    workers: 3
-    # -- The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList".
-    type: DenyList
+authentication:
+  enabled: true
+  # AWS-specific configuration for the local cluster and the Liqo user.
+  # This user should be able (1) to create new IAM users, (2) to create new programmatic access
+  # credentials, and (3) to describe EKS clusters.
+  # NOTE: set it only if running on EKS, otherwise let this fields with the default value
+  awsConfig:
+    # -- Use an existing secret to configure the AWS credentials.
+    useExistingSecret: false
+    # -- AccessKeyID for the Liqo user.
+    accessKeyId: ""
+    # -- SecretAccessKey for the Liqo user.
+    secretAccessKey: ""
+    # -- AWS region where the clsuter is runnnig.
+    region: ""
+    # -- Name of the EKS cluster.
+    clusterName: ""
+  # To use an existing secret instead of setting the secrets in values file:
+  # awsConfig:
+  #   useExistingSecret: true
+  #   accessKeyId:
+  #     secretKeyRef:
+  #       name: "your-secret-name"
+  #       key: "your-secret-key"
+  #   secretAccessKey:
+  #     secretKeyRef:
+  #       name: "your-secret-name"
+  #       key: "your-secret-key"
+  #   region: "your-region"
+  #   clusterName: "your-cluster-name"
+
+offloading:
+  runtimeClass:
+    enable: false
+    # -- Name of the runtime class to use for offloading.
+    name: liqo
+    # -- Annotations for the runtime class.
+    annotations: {}
+    # -- Labels for the runtime class.
+    labels: {}
+    # -- Handler for the runtime class.
+    handler: liqo
+    # -- Node selector for the runtime class.
+    nodeSelector:
+      enable: true
+      # -- Labels for the node selector.
+      labels:
+        liqo.io/type: virtual-node
+    # -- Tolerations for the runtime class.
+    tolerations:
+      enable: true
+      # -- Tolerations for the tolerations.
+      tolerations:
+      - key: virtual-node.liqo.io/not-allowed
+        operator: Exists
+        effect: NoExecute
+  reflection:
+    skip:
+      # -- List of labels that must not be reflected on remote clusters.
+      labels: []
+      # -- List of annotations that must not be reflected on remote clusters.
+      annotations: [
+        cloud.google.com/neg,
+        cloud.google.com/neg-status,
+        kubernetes.digitalocean.com/load-balancer-id,
+        ingress.kubernetes.io/backends,
+        ingress.kubernetes.io/forwarding-rule,
+        ingress.kubernetes.io/target-proxy,
+        ingress.kubernetes.io/url-map,
+        metallb.universe.tf/address-pool,
+        metallb.universe.tf/ip-allocated-from-pool,
+        metallb.universe.tf/loadBalancerIPs,
+        loadbalancer.openstack.org/load-balancer-id,
+      ]
+    pod:
+      # -- The number of workers used for the pods reflector. Set 0 to disable the reflection of pods.
+      workers: 10
+    service:
+      # -- The number of workers used for the services reflector. Set 0 to disable the reflection of services.
+      workers: 3
+      # -- The type of reflection used for the services reflector. Ammitted values: "DenyList", "AllowList".
+      type: DenyList
+      # -- List of load balancer classes that will be shown to remote clusters. If empty, load balancer classes will be reflected as-is.
+      # Example:
+      # loadBalancerClasses:
+      # - name: public
+      #   default: true
+      # - name: internal
+      loadBalancerClasses: []
+    endpointslice:
+      # -- The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices.
+      workers: 10
+    ingress:
+      # -- The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses.
+      workers: 3
+      # -- The type of reflection used for the ingresses reflector. Ammitted values: "DenyList", "AllowList".
+      type: DenyList
+      # -- List of ingress classes that will be shown to remote clusters. If empty, ingress class will be reflected as-is.
+      # Example:
+      # ingressClasses:
+      # - name: nginx
+      #   default: true
+      # - name: traefik
+      ingressClasses: []
+    configmap:
+      # -- The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps.
+      workers: 3
+      # -- The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList".
+      type: DenyList
+    secret:
+      # -- The number of workers used for the secrets reflector. Set 0 to disable the reflection of secrets.
+      workers: 3
+      # -- The type of reflection used for the secrets reflector. Ammitted values: "DenyList", "AllowList".
+      type: DenyList
+    serviceaccount:
+      # -- The number of workers used for the serviceaccounts reflector. Set 0 to disable the reflection of serviceaccounts.
+      workers: 3
+    persistentvolumeclaim:
+      # -- The number of workers used for the persistentvolumeclaims reflector. Set 0 to disable the reflection of persistentvolumeclaims.
+      workers: 3
+    event:
+      # -- The number of workers used for the events reflector. Set 0 to disable the reflection of events.
+      workers: 3
+      # -- The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList".
+      type: DenyList
+
+storage:
+  # -- Enable/Disable the liqo virtual storage class on the local cluster. You will be able to
+  # offload your persistent volumes, while other clusters will be able to schedule their
+  # persistent workloads on the current cluster.
+  enable: true
+  # -- Name to assign to the liqo virtual storage class.
+  virtualStorageClassName: liqo
+  # -- Name of the real storage class to use in the local cluster.
+  realStorageClassName: ""
+  # -- Namespace where liqo will deploy specific PVCs. Internal parameter, do not change.
+  storageNamespace: liqo-storage
+
+# -- The pullPolicy for liqo pods.
+pullPolicy: "IfNotPresent"
+
+common:
+  # -- NodeSelector for all liqo pods, excluding virtual kubelet.
+  nodeSelector: {}
+  # -- Tolerations for all liqo pods, excluding virtual kubelet.
+  tolerations: []
+  # -- Affinity for all liqo pods, excluding virtual kubelet.
+  affinity: {}
+  # -- Extra arguments for all liqo pods, excluding virtual kubelet.
+  extraArgs: []
 
 controllerManager:
   # -- The number of controller-manager instances to run, which can be increased for active/passive high availability.
@@ -241,6 +315,15 @@ controllerManager:
       scrapeTimeout: ""
       # -- Labels for the gateway servicemonitor.
       labels: {}
+
+webhook:
+  # -- TCP port the webhook server binds to.
+  port: 9443
+  # -- Webhook failure policy, either Ignore or Fail.
+  failurePolicy: Fail
+  patch:
+    # -- Image used for the patch jobs to manage certificates.
+    image: k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1
 
 ipam:
   external:
@@ -404,6 +487,7 @@ discovery:
     # -- Allow (by default) the remote clusters to establish a peering with our cluster.
     incomingPeeringEnabled: true
 
+# Deprecated
 auth:
   pod:
     # -- Annotations for the auth pod.
@@ -535,15 +619,6 @@ telemetry:
     schedule: ""
     # schedule: "0 */12 * * *"
 
-webhook:
-  # -- TCP port the webhook server binds to.
-  port: 9443
-  # -- Webhook failure policy, either Ignore or Fail.
-  failurePolicy: Fail
-  patch:
-    # -- Image used for the patch jobs to manage certificates.
-    image: k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1
-
 virtualKubelet:
   image:
     # -- Image repository for the virtual kubelet pod.
@@ -630,52 +705,6 @@ proxy:
     # -- Port used by the proxy pod.
     listeningPort: 8118
 
-storage:
-  # -- Enable/Disable the liqo virtual storage class on the local cluster. You will be able to
-  # offload your persistent volumes, while other clusters will be able to schedule their
-  # persistent workloads on the current cluster.
-  enable: true
-  # -- Name to assign to the liqo virtual storage class.
-  virtualStorageClassName: liqo
-  # -- Name of the real storage class to use in the local cluster.
-  realStorageClassName: ""
-  # -- Namespace where liqo will deploy specific PVCs. Internal parameter, do not change.
-  storageNamespace: liqo-storage
-
-# -- Override the standard name used by Helm and associated to Kubernetes/Liqo resources.
-nameOverride: ""
-# -- Override the standard full name used by Helm and associated to Kubernetes/Liqo resources.
-fullnameOverride: ""
-
-# AWS-specific configuration for the local cluster and the Liqo user.
-# This user should be able (1) to create new IAM users, (2) to create new programmatic access
-# credentials, and (3) to describe EKS clusters.
-# NOTE: set it only if running on EKS, otherwise let this fields with the default value
-awsConfig:
-  # -- Use an existing secret to configure the AWS credentials.
-  useExistingSecret: false
-  # -- AccessKeyID for the Liqo user.
-  accessKeyId: ""
-  # -- SecretAccessKey for the Liqo user.
-  secretAccessKey: ""
-  # -- AWS region where the clsuter is runnnig.
-  region: ""
-  # -- Name of the EKS cluster.
-  clusterName: ""
-# To use an existing secret instead of setting the secrets in values file:
-# awsConfig:
-#   useExistingSecret: true
-#   accessKeyId:
-#     secretKeyRef:
-#       name: "your-secret-name"
-#       key: "your-secret-key"
-#   secretAccessKey
-#     secretKeyRef:
-#       name: "your-secret-name"
-#       key: "your-secret-key"
-#   region: "your-region"
-#   clusterName: "your-cluster-name"
-
 # OpenShift-specific configurations.
 openshiftConfig:
   # -- Enable/Disable the OpenShift support, enabling Openshift-specific resources,
@@ -689,29 +718,3 @@ openshiftConfig:
   # Any pod granted a more privileged SCC and not linked to an adequately privileged service account will fail to be offloaded.
   virtualKubeletSCCs:
   - anyuid
-
-offloading:
-  runtimeClass:
-    enable: false
-    # -- Name of the runtime class to use for offloading.
-    name: liqo
-    # -- Annotations for the runtime class.
-    annotations: {}
-    # -- Labels for the runtime class.
-    labels: {}
-    # -- Handler for the runtime class.
-    handler: liqo
-    # -- Node selector for the runtime class.
-    nodeSelector:
-      enable: true
-      # -- Labels for the node selector.
-      labels:
-        liqo.io/type: virtual-node
-    # -- Tolerations for the runtime class.
-    tolerations:
-      enable: true
-      # -- Tolerations for the tolerations.
-      tolerations:
-      - key: virtual-node.liqo.io/not-allowed
-        operator: Exists
-        effect: NoExecute
