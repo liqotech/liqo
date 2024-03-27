@@ -18,14 +18,23 @@ import (
 	"context"
 
 	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/nonce-signer"
 )
 
 // SetupAuthenticationModule setup the authentication module and initializes its controllers .
-func SetupAuthenticationModule(ctx context.Context, cl client.Client, liqoNamespace string) error {
+func SetupAuthenticationModule(ctx context.Context, cl client.Client, mgr ctrl.Manager, liqoNamespace string) error {
 	if err := enforceAuthenticationKeys(ctx, cl, liqoNamespace); err != nil {
+		return err
+	}
+
+	// Configure controller that sign nonces with the private key of the cluster.
+	nonceSignerReconciler := noncesigner.NewSecretReconciler(mgr, liqoNamespace)
+	if err := nonceSignerReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to setup the nonce signer reconciler: %v", err)
 		return err
 	}
 
