@@ -79,6 +79,7 @@ import (
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
 	networkctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/network-controller"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
+	offloadedpodcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadedpod-controller"
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
@@ -663,6 +664,16 @@ func main() {
 
 		ipMappingReconciler := remapping.NewIPReconciler(mgr.GetClient(), mgr.GetScheme())
 		if err := ipMappingReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		offloadedPodReconciler := offloadedpodcontroller.NewOffloadedPodReconciler(
+			mgr.GetClient(),
+			mgr.GetScheme(),
+			mgr.GetEventRecorderFor("offloadedpod-controller"),
+		)
+		if err := offloadedPodReconciler.SetupWithManager(mgr); err != nil {
 			klog.Error(err)
 			os.Exit(1)
 		}
