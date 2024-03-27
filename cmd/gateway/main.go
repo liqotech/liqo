@@ -68,7 +68,7 @@ func main() {
 	klog.InitFlags(legacyflags)
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
-	defInfaName, err := getDefaultInterfaceName()
+	defInfName, err := getDefaultInterfaceName()
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
@@ -80,7 +80,7 @@ func main() {
 		conncheck.NewOptions(),
 	)
 	remapoptions = remapping.NewOptions(
-		gwoptions, defInfaName,
+		gwoptions, defInfName,
 	)
 
 	gateway.InitFlags(cmd.Flags(), connoptions.GwOptions)
@@ -160,6 +160,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		[]labels.Set{
 			gateway.ForgeRouteExternalTargetLabels(connoptions.GwOptions.RemoteClusterID),
 			gateway.ForgeRouteInternalTargetLabels(),
+			gateway.ForgeRouteInternalTargetLabelsByNode(remapoptions.GwOptions.NodeName),
 		},
 	)
 	if err != nil {
@@ -176,8 +177,9 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("firewall-controller"),
 		[]labels.Set{
-			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
 			gateway.ForgeFirewallInternalTargetLabels(),
+			remapping.ForgeFirewallTargetLabels(connoptions.GwOptions.RemoteClusterID),
+			remapping.ForgeFirewallTargetLabelsIPMappingGw(),
 		},
 	)
 	if err != nil {

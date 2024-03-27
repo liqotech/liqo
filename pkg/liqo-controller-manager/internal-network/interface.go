@@ -28,8 +28,13 @@ import (
 
 const (
 	maxretries          = 20
-	interfaceNameLength = 15
+	interfaceNameLength = 10
+	interfaceNamePrefix = "liqo."
 )
+
+func forgeInterfaceName() string {
+	return interfaceNamePrefix + rand.String(interfaceNameLength)
+}
 
 // FindFreeInterfaceName returns a free  interface name.
 // If it cannot find a free name, it returns an error.
@@ -60,7 +65,7 @@ func findFreeInterfaceNameForInternalFabric(ctx context.Context, cl client.Clien
 	retry := 0
 	var name string
 	for !ok && retry < maxretries {
-		name = rand.String(interfaceNameLength)
+		name = forgeInterfaceName()
 		ok = true
 		for i := range list.Items {
 			if list.Items[i].Spec.Interface.Node.Name == name {
@@ -86,7 +91,7 @@ func findFreeInterfaceNameForInternalNode(ctx context.Context, cl client.Client)
 	retry := 0
 	var name string
 	for !ok && retry < maxretries {
-		name = rand.String(interfaceNameLength)
+		name = forgeInterfaceName()
 		ok = true
 		for i := range list.Items {
 			if list.Items[i].Spec.Interface.Gateway.Name == name {

@@ -52,6 +52,10 @@ type IPSpec struct {
 	// If empty the creation of the service is disabled (default).
 	// +kubebuilder:validation:Optional
 	ServiceTemplate *ServiceTemplate `json:"serviceTemplate,omitempty"`
+	// Masquerade is a flag to enable masquerade for the local IP on nodes.
+	// If empty the masquerade is disabled.
+	// +kubebuilder:validation:Optional
+	Masquerade *bool `json:"masquerade,omitempty"`
 }
 
 // IPStatus defines remapped IPs.

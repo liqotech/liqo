@@ -30,47 +30,72 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
-// CreateOrUpdateNatMappingPodCIDR creates or updates the NAT mapping for the POD CIDR.
-func CreateOrUpdateNatMappingPodCIDR(ctx context.Context, cl client.Client,
-	cfg *networkingv1alpha1.Configuration, scheme *runtime.Scheme, opts *Options) error {
+// CIDRType is the type of the CIDR.
+type CIDRType string
+
+const (
+	// PodCIDR is the CIDR type for the pod CIDR.
+	PodCIDR CIDRType = "PodCIDR"
+	// ExternalCIDR is the CIDR type for the external CIDR.
+	ExternalCIDR CIDRType = "ExternalCIDR"
+)
+
+// CreateOrUpdateNatMappingCIDR creates or updates the NAT mapping for a CIDR type.
+func CreateOrUpdateNatMappingCIDR(ctx context.Context, cl client.Client,
+	cfg *networkingv1alpha1.Configuration, scheme *runtime.Scheme, opts *Options, cidrtype CIDRType) error {
+	var tableCIDRName string
+	switch cidrtype {
+	case PodCIDR:
+		tableCIDRName = TablePodCIDRName
+	case ExternalCIDR:
+		tableCIDRName = TableExternalCIDRName
+	}
 	fwcfg := &networkingv1alpha1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", cfg.Name, TablePodCIDRName),
+			Name:      fmt.Sprintf("%s-%s", cfg.Name, tableCIDRName),
 			Namespace: cfg.Namespace,
 		},
 	}
 	_, err := controllerutil.CreateOrUpdate(
 		ctx, cl, fwcfg,
-		mutatePodCIDRFirewallConfiguration(fwcfg, cfg, opts, scheme),
+		mutateCIDRFirewallConfiguration(fwcfg, cfg, opts, scheme, cidrtype),
 	)
 	return err
 }
 
-func mutatePodCIDRFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration,
-	cfg *networkingv1alpha1.Configuration, opts *Options, scheme *runtime.Scheme) func() error {
+func mutateCIDRFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration,
+	cfg *networkingv1alpha1.Configuration, opts *Options, scheme *runtime.Scheme, cidrtype CIDRType) func() error {
 	return func() error {
 		fwcfg.SetLabels(ForgeFirewallTargetLabels(opts.GwOptions.RemoteClusterID))
-		fwcfg.Spec = forgePodCIDRFirewallConfigurationSpec(cfg, opts)
+		fwcfg.Spec = forgeCIDRFirewallConfigurationSpec(cfg, opts, cidrtype)
 		return gateway.SetOwnerReferenceWithMode(opts.GwOptions, fwcfg, scheme)
 	}
 }
 
-func forgePodCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration,
-	opts *Options) networkingv1alpha1.FirewallConfigurationSpec {
+func forgeCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration,
+	opts *Options, cidrtype CIDRType) networkingv1alpha1.FirewallConfigurationSpec {
+	var tableCIDRName string
+	switch cidrtype {
+	case PodCIDR:
+		tableCIDRName = TablePodCIDRName
+	case ExternalCIDR:
+		tableCIDRName = TableExternalCIDRName
+	}
+
 	return networkingv1alpha1.FirewallConfigurationSpec{
 		Table: firewall.Table{
-			Name:   &TablePodCIDRName,
+			Name:   &tableCIDRName,
 			Family: ptr.To(firewall.TableFamilyIPv4),
 			Chains: []firewall.Chain{
-				forgePodCIDRFirewallConfigurationDNATChain(cfg, opts),
-				forgePodCIDRFirewallConfigurationSNATChain(cfg, opts),
+				forgeCIDRFirewallConfigurationDNATChain(cfg, opts, cidrtype),
+				forgeCIDRFirewallConfigurationSNATChain(cfg, cidrtype),
 			},
 		},
 	}
 }
 
-func forgePodCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configuration,
-	opts *Options) firewall.Chain {
+func forgeCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configuration,
+	opts *Options, cidrtype CIDRType) firewall.Chain {
 	return firewall.Chain{
 		Name:     &DNATChainName,
 		Policy:   ptr.To(firewall.ChainPolicyAccept),
@@ -78,13 +103,13 @@ func forgePodCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configur
 		Hook:     &firewall.ChainHookPrerouting,
 		Priority: &firewall.ChainPriorityNATDest,
 		Rules: firewall.RulesSet{
-			NatRules: forgePodCIDRFirewallConfigurationDNATRules(cfg, opts),
+			NatRules: forgeCIDRFirewallConfigurationDNATRules(cfg, opts, cidrtype),
 		},
 	}
 }
 
-func forgePodCIDRFirewallConfigurationSNATChain(cfg *networkingv1alpha1.Configuration,
-	opts *Options) firewall.Chain {
+func forgeCIDRFirewallConfigurationSNATChain(cfg *networkingv1alpha1.Configuration,
+	cidrtype CIDRType) firewall.Chain {
 	return firewall.Chain{
 		Name:     &SNATChainName,
 		Policy:   ptr.To(firewall.ChainPolicyAccept),
@@ -92,13 +117,22 @@ func forgePodCIDRFirewallConfigurationSNATChain(cfg *networkingv1alpha1.Configur
 		Hook:     &firewall.ChainHookPostrouting,
 		Priority: &firewall.ChainPriorityNATSource,
 		Rules: firewall.RulesSet{
-			NatRules: forgePodCIDRFirewallConfigurationSNATRules(cfg, opts),
+			NatRules: forgeCIDRFirewallConfigurationSNATRules(cfg, cidrtype),
 		},
 	}
 }
 
-func forgePodCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configuration,
-	opts *Options) []firewall.NatRule {
+func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configuration,
+	opts *Options, cidrtype CIDRType) []firewall.NatRule {
+	var remoteCIDR, remoteRemapCIDR string
+	switch cidrtype {
+	case PodCIDR:
+		remoteCIDR = cfg.Spec.Remote.CIDR.Pod.String()
+		remoteRemapCIDR = cfg.Status.Remote.CIDR.Pod.String()
+	case ExternalCIDR:
+		remoteCIDR = cfg.Spec.Remote.CIDR.External.String()
+		remoteRemapCIDR = cfg.Status.Remote.CIDR.External.String()
+	}
 	return []firewall.NatRule{
 		{
 			NatType: firewall.NatTypeDestination,
@@ -106,14 +140,7 @@ func forgePodCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configur
 				{
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
-						Value:    cfg.Spec.Local.CIDR.Pod.String(),
-						Position: firewall.MatchIPPositionSrc,
-					},
-				},
-				{
-					Op: firewall.MatchOperationEq,
-					IP: &firewall.MatchIP{
-						Value:    cfg.Status.Remote.CIDR.Pod.String(),
+						Value:    remoteRemapCIDR,
 						Position: firewall.MatchIPPositionDst,
 					},
 				},
@@ -132,29 +159,32 @@ func forgePodCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configur
 					},
 				},
 			},
-			To: ptr.To(cfg.Spec.Remote.CIDR.Pod.String()),
+			To: ptr.To(remoteCIDR),
 		},
 	}
 }
 
-func forgePodCIDRFirewallConfigurationSNATRules(cfg *networkingv1alpha1.Configuration,
-	opts *Options) []firewall.NatRule {
+func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1alpha1.Configuration,
+	cidrtype CIDRType) []firewall.NatRule {
+	var localCIDR, remoteRemapCIDR string
+	switch cidrtype {
+	case PodCIDR:
+		localCIDR = cfg.Spec.Local.CIDR.Pod.String()
+		remoteRemapCIDR = cfg.Status.Remote.CIDR.Pod.String()
+	case ExternalCIDR:
+		localCIDR = cfg.Spec.Local.CIDR.External.String()
+		remoteRemapCIDR = cfg.Status.Remote.CIDR.External.String()
+	}
+
 	return []firewall.NatRule{
 		{
 			NatType: firewall.NatTypeSource,
-			To:      ptr.To(cfg.Status.Remote.CIDR.Pod.String()),
+			To:      ptr.To(remoteRemapCIDR),
 			Match: []firewall.Match{
 				{
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
-						Value:    cfg.Spec.Local.CIDR.Pod.String(),
-						Position: firewall.MatchIPPositionDst,
-					},
-				},
-				{
-					Op: firewall.MatchOperationEq,
-					IP: &firewall.MatchIP{
-						Value:    cfg.Spec.Remote.CIDR.Pod.String(),
+						Value:    localCIDR,
 						Position: firewall.MatchIPPositionSrc,
 					},
 				},

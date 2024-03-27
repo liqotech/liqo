@@ -162,9 +162,22 @@ func (r *FirewallConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) err
 	if err != nil {
 		return err
 	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1alpha1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
+}
+
+// forgeLabelsPredicate returns a predicate that filters the resources based on the given labels.
+func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) {
+	var err error
+	labelPredicates := make([]predicate.Predicate, len(labelsSets))
+	for i := range labelsSets {
+		if labelPredicates[i], err = predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: labelsSets[i]}); err != nil {
+			return nil, err
+		}
+	}
+	return predicate.Or(labelPredicates...), nil
 }
 
 // UpdateStatus updates the status of the given FirewallConfiguration.
@@ -180,16 +193,4 @@ func (r *FirewallConfigurationReconciler) UpdateStatus(ctx context.Context, er r
 		err = errors.Join(err, clerr)
 	}
 	return err
-}
-
-// forgeLabelsPredicate returns a predicate that filters the resources based on the given labels.
-func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) {
-	var err error
-	labelPredicates := make([]predicate.Predicate, len(labelsSets))
-	for i := range labelsSets {
-		if labelPredicates[i], err = predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: labelsSets[i]}); err != nil {
-			return nil, err
-		}
-	}
-	return predicate.Or(labelPredicates...), nil
 }

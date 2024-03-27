@@ -59,6 +59,7 @@ spec:
                 - --name={{"{{ .Name }}"}}
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --node-name={{"$(NODE_NAME)"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
                 - --metrics-address=:8080
@@ -70,6 +71,11 @@ spec:
                 {{- if gt .Values.networking.gatewayTemplates.replicas 1.0 }}
                 - --leader-election=true
                 {{- end }}
+                env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
                 securityContext:
                   privileged: true
                   capabilities:
