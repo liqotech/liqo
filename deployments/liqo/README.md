@@ -30,11 +30,12 @@
 | auth.service.port | int | `443` | Port used by the Authentication Service. |
 | auth.service.type | string | `"LoadBalancer"` | Kubernetes service used to expose the Authentication Service. If you are exposing this service with an Ingress, you can change it to ClusterIP; if your cluster does not support LoadBalancer services, consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress, consider to disable it or add the appropriate annotations to the Ingress resource. |
-| awsConfig.accessKeyId | string | `""` | AccessKeyID for the Liqo user. |
-| awsConfig.clusterName | string | `""` | Name of the EKS cluster. |
-| awsConfig.region | string | `""` | AWS region where the clsuter is runnnig. |
-| awsConfig.secretAccessKey | string | `""` | SecretAccessKey for the Liqo user. |
-| awsConfig.useExistingSecret | bool | `false` | Use an existing secret to configure the AWS credentials. |
+| authentication.awsConfig.accessKeyId | string | `""` | AccessKeyID for the Liqo user. |
+| authentication.awsConfig.clusterName | string | `""` | Name of the EKS cluster. |
+| authentication.awsConfig.region | string | `""` | AWS region where the clsuter is runnnig. |
+| authentication.awsConfig.secretAccessKey | string | `""` | SecretAccessKey for the Liqo user. |
+| authentication.awsConfig.useExistingSecret | bool | `false` | Use an existing secret to configure the AWS credentials. |
+| authentication.enabled | bool | `true` |  |
 | common.affinity | object | `{}` | Affinity for all liqo pods, excluding virtual kubelet. |
 | common.extraArgs | list | `[]` | Extra arguments for all liqo pods, excluding virtual kubelet. |
 | common.nodeSelector | object | `{}` | NodeSelector for all liqo pods, excluding virtual kubelet. |
@@ -139,6 +140,24 @@
 | networking.mtu | int | `1340` | Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces. The value is used by the gateway and route operators. The default value is configured to ensure correct behavior regardless of the combination of the underlying environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.securityMode | string | `"FullPodToPod"` | Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation"  |
+| offloading.reflection.configmap.type | string | `"DenyList"` | The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.configmap.workers | int | `3` | The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps. |
+| offloading.reflection.endpointslice.workers | int | `10` | The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices. |
+| offloading.reflection.event.type | string | `"DenyList"` | The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.event.workers | int | `3` | The number of workers used for the events reflector. Set 0 to disable the reflection of events. |
+| offloading.reflection.ingress.ingressClasses | list | `[]` | List of ingress classes that will be shown to remote clusters. If empty, ingress class will be reflected as-is. Example: ingressClasses: - name: nginx   default: true - name: traefik |
+| offloading.reflection.ingress.type | string | `"DenyList"` | The type of reflection used for the ingresses reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.ingress.workers | int | `3` | The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses. |
+| offloading.reflection.persistentvolumeclaim.workers | int | `3` | The number of workers used for the persistentvolumeclaims reflector. Set 0 to disable the reflection of persistentvolumeclaims. |
+| offloading.reflection.pod.workers | int | `10` | The number of workers used for the pods reflector. Set 0 to disable the reflection of pods. |
+| offloading.reflection.secret.type | string | `"DenyList"` | The type of reflection used for the secrets reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.secret.workers | int | `3` | The number of workers used for the secrets reflector. Set 0 to disable the reflection of secrets. |
+| offloading.reflection.service.loadBalancerClasses | list | `[]` | List of load balancer classes that will be shown to remote clusters. If empty, load balancer classes will be reflected as-is. Example: loadBalancerClasses: - name: public   default: true - name: internal |
+| offloading.reflection.service.type | string | `"DenyList"` | The type of reflection used for the services reflector. Ammitted values: "DenyList", "AllowList". |
+| offloading.reflection.service.workers | int | `3` | The number of workers used for the services reflector. Set 0 to disable the reflection of services. |
+| offloading.reflection.serviceaccount.workers | int | `3` | The number of workers used for the serviceaccounts reflector. Set 0 to disable the reflection of serviceaccounts. |
+| offloading.reflection.skip.annotations | list | `["cloud.google.com/neg","cloud.google.com/neg-status","kubernetes.digitalocean.com/load-balancer-id","ingress.kubernetes.io/backends","ingress.kubernetes.io/forwarding-rule","ingress.kubernetes.io/target-proxy","ingress.kubernetes.io/url-map","metallb.universe.tf/address-pool","metallb.universe.tf/ip-allocated-from-pool","metallb.universe.tf/loadBalancerIPs"]` | List of annotations that must not be reflected on remote clusters. |
+| offloading.reflection.skip.labels | list | `[]` | List of labels that must not be reflected on remote clusters. |
 | offloading.runtimeClass.annotations | object | `{}` | Annotations for the runtime class. |
 | offloading.runtimeClass.enable | bool | `false` |  |
 | offloading.runtimeClass.handler | string | `"liqo"` | Handler for the runtime class. |
@@ -160,24 +179,6 @@
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods. |
-| reflection.configmap.type | string | `"DenyList"` | The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList". |
-| reflection.configmap.workers | int | `3` | The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps. |
-| reflection.endpointslice.workers | int | `10` | The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices. |
-| reflection.event.type | string | `"DenyList"` | The type of reflection used for the events reflector. Ammitted values: "DenyList", "AllowList". |
-| reflection.event.workers | int | `3` | The number of workers used for the events reflector. Set 0 to disable the reflection of events. |
-| reflection.ingress.ingressClasses | list | `[]` | List of ingress classes that will be shown to remote clusters. If empty, ingress class will be reflected as-is. Example: ingressClasses: - name: nginx   default: true - name: traefik |
-| reflection.ingress.type | string | `"DenyList"` | The type of reflection used for the ingresses reflector. Ammitted values: "DenyList", "AllowList". |
-| reflection.ingress.workers | int | `3` | The number of workers used for the ingresses reflector. Set 0 to disable the reflection of ingresses. |
-| reflection.persistentvolumeclaim.workers | int | `3` | The number of workers used for the persistentvolumeclaims reflector. Set 0 to disable the reflection of persistentvolumeclaims. |
-| reflection.pod.workers | int | `10` | The number of workers used for the pods reflector. Set 0 to disable the reflection of pods. |
-| reflection.secret.type | string | `"DenyList"` | The type of reflection used for the secrets reflector. Ammitted values: "DenyList", "AllowList". |
-| reflection.secret.workers | int | `3` | The number of workers used for the secrets reflector. Set 0 to disable the reflection of secrets. |
-| reflection.service.loadBalancerClasses | list | `[]` | List of load balancer classes that will be shown to remote clusters. If empty, load balancer classes will be reflected as-is. Example: loadBalancerClasses: - name: public   default: true - name: internal |
-| reflection.service.type | string | `"DenyList"` | The type of reflection used for the services reflector. Ammitted values: "DenyList", "AllowList". |
-| reflection.service.workers | int | `3` | The number of workers used for the services reflector. Set 0 to disable the reflection of services. |
-| reflection.serviceaccount.workers | int | `3` | The number of workers used for the serviceaccounts reflector. Set 0 to disable the reflection of serviceaccounts. |
-| reflection.skip.annotations | list | `["cloud.google.com/neg","cloud.google.com/neg-status","kubernetes.digitalocean.com/load-balancer-id","ingress.kubernetes.io/backends","ingress.kubernetes.io/forwarding-rule","ingress.kubernetes.io/target-proxy","ingress.kubernetes.io/url-map","metallb.universe.tf/address-pool","metallb.universe.tf/ip-allocated-from-pool","metallb.universe.tf/loadBalancerIPs"]` | List of annotations that must not be reflected on remote clusters. |
-| reflection.skip.labels | list | `[]` | List of labels that must not be reflected on remote clusters. |
 | route.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the route pod. |
 | route.pod.annotations | object | `{}` | Annotations for the route pod. |
 | route.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
