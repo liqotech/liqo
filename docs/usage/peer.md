@@ -143,6 +143,10 @@ The host used to issue the *liqoctl peer in-band* command must have **concurrent
 To this end, these subcommands feature a parallel set of flags concerning Kubernetes API access to the remote cluster, in the form `--remote-<flag>` (e.g., `--remote-kubeconfig`, `--remote-context`).
 ```
 
+```{warning}
+If you are using K3s as Kubernetes distribution and your local cluster is behind a NAT (a local network with a private IP address, for example), be aware to have installed K3s using `liqoctl install k3s` without the flag `--api-server-url`, as this could generate problems concerning the Network establishment during the in-band peering phase.
+```
+
 <!-- markdownlint-disable-next-line no-duplicate-heading -->
 ### Peering establishment
 
