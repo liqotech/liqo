@@ -21,7 +21,7 @@
 {{- end }}
 {{- end }}
 {{- /* Configure the appropriate certificate generation approach on EKS clusters, if not overridden by the user */ -}}
-{{- if .Values.awsConfig.accessKeyId }}
+{{- if .Values.authentication.awsConfig.accessKeyId }}
 {{- if not (or (has "--certificate-type=kubelet" $vkargs ) (has "--certificate-type=aws" $vkargs ) (has "--certificate-type=self-signed" $vkargs )) }}
 {{- $vkargs = append $vkargs "--certificate-type=aws" }}
 {{- end }}
@@ -75,31 +75,32 @@ spec:
           - --cluster-id=$(CLUSTER_ID)
           - --cluster-name={{ .Values.discovery.config.clusterName }}
           - --liqo-namespace=$(POD_NAMESPACE)
+          - --authentication-enabled={{ .Values.authentication.enabled }}
           - --enable-incoming-peering={{ .Values.discovery.config.incomingPeeringEnabled }}
           - --resource-sharing-percentage={{ .Values.controllerManager.config.resourceSharingPercentage }}
-          - --pod-reflection-workers={{ .Values.reflection.pod.workers }}
-          - --service-reflection-workers={{ .Values.reflection.service.workers }}
-          - --endpointslice-reflection-workers={{ .Values.reflection.endpointslice.workers }}
-          - --ingress-reflection-workers={{ .Values.reflection.ingress.workers }}
-          - --configmap-reflection-workers={{ .Values.reflection.configmap.workers }}
-          - --secret-reflection-workers={{ .Values.reflection.secret.workers }}
-          - --serviceaccount-reflection-workers={{ .Values.reflection.serviceaccount.workers }}
-          - --persistentvolumeclaim-reflection-workers={{ .Values.reflection.persistentvolumeclaim.workers }}
-          - --event-reflection-workers={{ .Values.reflection.event.workers }}
-          - --service-reflection-type={{ .Values.reflection.service.type }}
-          - --ingress-reflection-type={{ .Values.reflection.ingress.type }}
-          - --configmap-reflection-type={{ .Values.reflection.configmap.type }}
-          - --secret-reflection-type={{ .Values.reflection.secret.type }}
-          - --event-reflection-type={{ .Values.reflection.event.type }}
+          - --pod-reflection-workers={{ .Values.offloading.reflection.pod.workers }}
+          - --service-reflection-workers={{ .Values.offloading.reflection.service.workers }}
+          - --endpointslice-reflection-workers={{ .Values.offloading.reflection.endpointslice.workers }}
+          - --ingress-reflection-workers={{ .Values.offloading.reflection.ingress.workers }}
+          - --configmap-reflection-workers={{ .Values.offloading.reflection.configmap.workers }}
+          - --secret-reflection-workers={{ .Values.offloading.reflection.secret.workers }}
+          - --serviceaccount-reflection-workers={{ .Values.offloading.reflection.serviceaccount.workers }}
+          - --persistentvolumeclaim-reflection-workers={{ .Values.offloading.reflection.persistentvolumeclaim.workers }}
+          - --event-reflection-workers={{ .Values.offloading.reflection.event.workers }}
+          - --service-reflection-type={{ .Values.offloading.reflection.service.type }}
+          - --ingress-reflection-type={{ .Values.offloading.reflection.ingress.type }}
+          - --configmap-reflection-type={{ .Values.offloading.reflection.configmap.type }}
+          - --secret-reflection-type={{ .Values.offloading.reflection.secret.type }}
+          - --event-reflection-type={{ .Values.offloading.reflection.event.type }}
           {{- if not .Values.offloading.runtimeClass.enable }}
           - --add-virtual-node-toleration-on-offloaded-pods
           {{- end }}
-          {{- if .Values.reflection.skip.labels }}
-          {{- $d := dict "commandName" "--labels-not-reflected" "list" .Values.reflection.skip.labels }}
+          {{- if .Values.offloading.reflection.skip.labels }}
+          {{- $d := dict "commandName" "--labels-not-reflected" "list" .Values.offloading.reflection.skip.labels }}
           {{- include "liqo.concatenateList" $d | nindent 10 }}
           {{- end }}
-          {{- if .Values.reflection.skip.annotations }}
-          {{- $d := dict "commandName" "--annotations-not-reflected" "list" .Values.reflection.skip.annotations }}
+          {{- if .Values.offloading.reflection.skip.annotations }}
+          {{- $d := dict "commandName" "--annotations-not-reflected" "list" .Values.offloading.reflection.skip.annotations }}
           {{- include "liqo.concatenateList" $d | nindent 10 }}
           {{- end }}
           - --kubelet-image={{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
@@ -124,9 +125,9 @@ spec:
           - --real-storage-class-name={{ .Values.storage.realStorageClassName }}
           - --storage-namespace={{ .Values.storage.storageNamespace }}
           {{- end }}
-          {{- $d := dict "commandName" "--ingress-classes" "list" .Values.reflection.ingress.ingressClasses }}
+          {{- $d := dict "commandName" "--ingress-classes" "list" .Values.offloading.reflection.ingress.ingressClasses }}
           {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
-          {{- $d := dict "commandName" "--load-balancer-classes" "list" .Values.reflection.service.loadBalancerClasses }}
+          {{- $d := dict "commandName" "--load-balancer-classes" "list" .Values.offloading.reflection.service.loadBalancerClasses }}
           {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
