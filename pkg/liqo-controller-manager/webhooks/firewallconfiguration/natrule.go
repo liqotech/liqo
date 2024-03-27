@@ -22,9 +22,6 @@ import (
 
 func checkNatRulesInChain(chain *firewallapi.Chain) error {
 	natrules := chain.Rules.NatRules
-	if natrules == nil {
-		return fmt.Errorf("natrules is nil")
-	}
 	for i := range natrules {
 		if err := checkNatRuleChainHook(*chain.Hook, &natrules[i]); err != nil {
 			return err
