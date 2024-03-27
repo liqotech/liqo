@@ -19,13 +19,26 @@ import (
 
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
 // SetupAuthenticationModule setup the authentication module and initializes its controllers .
-func SetupAuthenticationModule(ctx context.Context, uncachedClient client.Client, liqoNamespace string) error {
+func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncachedClient client.Client,
+	namespaceManager tenantnamespace.Manager, liqoNamespace string) error {
 	if err := enforceAuthenticationKeys(ctx, uncachedClient, liqoNamespace); err != nil {
+		return err
+	}
+
+	// Configure controller that sign nonces with the private key of the cluster.
+	nonceSignerReconciler := noncesigner.NewNonceSignerReconciler(mgr.GetClient(), mgr.GetScheme(),
+		mgr.GetEventRecorderFor("signed-nonce-controller"),
+		namespaceManager, liqoNamespace)
+	if err := nonceSignerReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to setup the nonce signer reconciler: %v", err)
 		return err
 	}
 

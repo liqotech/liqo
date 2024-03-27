@@ -389,7 +389,7 @@ func main() {
 
 	// authentication module
 	if *authenticationEnabled {
-		if err := modules.SetupAuthenticationModule(ctx, uncachedClient, *liqoNamespace); err != nil {
+		if err := modules.SetupAuthenticationModule(ctx, mgr, uncachedClient, namespaceManager, *liqoNamespace); err != nil {
 			klog.Fatalf("Unable to setup the authentication module: %v", err)
 		}
 	}

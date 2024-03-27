@@ -62,12 +62,15 @@ spec:
               csr:
                 description: CSR is the Certificate Signing Request of the tenant
                   cluster.
+                format: byte
                 type: string
               publicKey:
                 description: PublicKey is the public key of the tenant cluster.
+                format: byte
                 type: string
               signature:
                 description: Signature contains the nonce signed by the tenant cluster.
+                format: byte
                 type: string
             type: object
           status:
