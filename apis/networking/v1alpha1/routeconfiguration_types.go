@@ -84,7 +84,6 @@ type Rule struct {
 	// FwMark is the firewall mark of the Rule.
 	FwMark *int `json:"fwmark,omitempty"`
 	// Routes is the list of routes of the Rule.
-	// +kubebuilder:validation:MinItems=1
 	Routes []Route `json:"routes"`
 	// TargetRef is the reference to the target object of the rule.
 	// It is optional and it can be used for custom purposes.
