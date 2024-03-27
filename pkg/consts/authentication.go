@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package virtualnode
+package consts
 
-import (
-	"context"
+const (
+	// AuthKeysSecretName is the name of the secret containing the authentication keys.
+	AuthKeysSecretName = "authentication-keys"
 
-	"github.com/spf13/cobra"
+	// SignedNonceSecretLabelKey is the label key used to identify signed nonce secrets.
+	SignedNonceSecretLabelKey = "liqo.io/signed-nonce" //nolint:gosec // this is not a credential
 
-	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	// NonceSecretField is the field key where the nonce is stored in the secret.
+	NonceSecretField = "nonce"
+	// SignedNonceSecretField is the field key where the signed nonce is stored in the secret.
+	SignedNonceSecretField = "signedNonce"
 )
-
-// Generate implements the generate command.
-func (o *Options) Generate(_ context.Context, _ *rest.GenerateOptions) *cobra.Command {
-	panic("not implemented")
-}
