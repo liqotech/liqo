@@ -38,11 +38,11 @@ type TenantSpec struct {
 	// ClusterIdentity is the identity of the consumer cluster.
 	ClusterIdentity discoveryv1alpha1.ClusterIdentity `json:"clusterIdentity,omitempty"`
 	// PublicKey is the public key of the tenant cluster.
-	PublicKey string `json:"publicKey,omitempty"`
+	PublicKey []byte `json:"publicKey,omitempty"`
 	// CSR is the Certificate Signing Request of the tenant cluster.
-	CSR string `json:"csr,omitempty"`
+	CSR []byte `json:"csr,omitempty"`
 	// Signature contains the nonce signed by the tenant cluster.
-	Signature string `json:"signature,omitempty"`
+	Signature []byte `json:"signature,omitempty"`
 }
 
 // TenantStatus defines the observed state of Tenant.

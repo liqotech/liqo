@@ -20,6 +20,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -31,6 +32,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
+	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
@@ -379,4 +381,29 @@ func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv
 	}
 	s.Success("Connection is established")
 	return nil
+}
+
+// ForSignedNonce waits until the signed nonce secret has been signed and returns the signature.
+func (w *Waiter) ForSignedNonce(ctx context.Context, clusterID string) ([]byte, error) {
+	var nonceSecret *corev1.Secret
+	var signedNonce []byte
+
+	s := w.Printer.StartSpinner("Waiting for nonce to be signed")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		nonceSecret, err = noncesigner.GetSignedNonceSecret(ctx, w.CRClient, clusterID)
+		if client.IgnoreNotFound(err) != nil {
+			return false, err
+		}
+		if signedNonce, err = noncesigner.GetSignedNonceFromSecret(nonceSecret); err != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for nonce to be signed: %s", output.PrettyErr(err)))
+		return nil, err
+	}
+	s.Success("Nonce is signed")
+
+	return signedNonce, nil
 }
