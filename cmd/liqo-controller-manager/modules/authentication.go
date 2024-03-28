@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
 	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
@@ -30,6 +31,16 @@ import (
 func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncachedClient client.Client,
 	namespaceManager tenantnamespace.Manager, liqoNamespace string) error {
 	if err := enforceAuthenticationKeys(ctx, uncachedClient, liqoNamespace); err != nil {
+		return err
+	}
+
+	nonceReconciler := noncecreatorcontroller.NewNonceReconciler(
+		mgr.GetClient(), mgr.GetScheme(),
+		namespaceManager,
+		mgr.GetEventRecorderFor("nonce-controller"),
+	)
+	if err := nonceReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to setup the nonce controller: %v", err)
 		return err
 	}
 

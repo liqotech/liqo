@@ -407,3 +407,23 @@ func (w *Waiter) ForSignedNonce(ctx context.Context, clusterID string) ([]byte, 
 
 	return signedNonce, nil
 }
+
+// ForNonce waits until the secret containing the nonce has been created or the timeout expires.
+func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	s := w.Printer.StartSpinner("Waiting for nonce to be created")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		secret, err := getters.GetNonceByClusterID(ctx, w.CRClient, remoteClusterID.ClusterID)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+
+		_, ok := secret.Data[consts.NonceSecretField]
+		return ok, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for nonce to be created: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Nonce created successfully")
+	return nil
+}
