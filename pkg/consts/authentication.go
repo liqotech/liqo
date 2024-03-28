@@ -20,6 +20,8 @@ const (
 
 	// SignedNonceSecretLabelKey is the label key used to identify signed nonce secrets.
 	SignedNonceSecretLabelKey = "liqo.io/signed-nonce" //nolint:gosec // this is not a credential
+	// NonceSecretLabelKey is the key used to store the Nonce value in the Secret.
+	NonceSecretLabelKey = "liqo.io/nonce" //nolint:gosec // this is not a credential
 
 	// NonceSecretField is the field key where the nonce is stored in the secret.
 	NonceSecretField = "nonce"
