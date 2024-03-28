@@ -34,6 +34,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/delete"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/nonce"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/virtualnode"
 )
 
@@ -41,6 +42,7 @@ var liqoctl string
 
 var liqoResources = []rest.APIProvider{
 	virtualnode.VirtualNode,
+	nonce.Nonce,
 }
 
 func init() {

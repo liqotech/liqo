@@ -57,6 +57,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	noncecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/nonce-controller"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
@@ -525,6 +526,19 @@ func main() {
 	if err := mgr.Add(manager.RunnableFunc(spv.CacheRefresher(*refreshInterval))); err != nil {
 		klog.Errorf("Unable to set up resource validator cache refresher: %v", err)
 		os.Exit(1)
+	}
+
+	if !*disableAuthentication {
+		nonceReconciler := noncecontroller.NewNonceReconciler(
+			mgr.GetClient(), mgr.GetScheme(),
+			namespaceManager,
+			mgr.GetEventRecorderFor("nonce-controller"),
+		)
+
+		if err := nonceReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
 	}
 
 	if *enableStorage {

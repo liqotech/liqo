@@ -25,6 +25,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -223,5 +224,22 @@ func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
 		return err
 	}
 	s.Success("Unoffloading completed successfully")
+	return nil
+}
+
+// ForNonce waits until the secret containing the nonce has been created or the timeout expires.
+func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		secret, err := getters.GetNonceByClusterID(ctx, w.CRClient, remoteClusterID.ClusterID)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+
+		_, ok := secret.Data[consts.NonceKey]
+		return ok, nil
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }

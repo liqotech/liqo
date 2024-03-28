@@ -35,6 +35,7 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/discovery"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
@@ -233,6 +234,29 @@ func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID *disc
 		return nil, kerrors.NewNotFound(nodeGR, clusterID.ClusterID)
 	default:
 		return list, nil
+	}
+}
+
+// GetNonceByClusterID returns the nonce secret for the given cluster id.
+func GetNonceByClusterID(ctx context.Context, cl client.Client, clusterID string) (*corev1.Secret, error) {
+	list := new(corev1.SecretList)
+	if err := cl.List(ctx, list, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			discovery.ClusterIDLabel: clusterID,
+			consts.NonceLabelKey:     "true",
+		}),
+	}); err != nil {
+		return nil, err
+	}
+
+	switch len(list.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), clusterID)
+	case 1:
+		return &list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
+			" when only one was expected", corev1.ResourceSecrets, clusterID)
 	}
 }
 
