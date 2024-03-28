@@ -236,6 +236,29 @@ func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID *disc
 	}
 }
 
+// GetNonceByClusterID returns the nonce secret for the given cluster id.
+func GetNonceByClusterID(ctx context.Context, cl client.Client, clusterID string) (*corev1.Secret, error) {
+	list := new(corev1.SecretList)
+	if err := cl.List(ctx, list, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			consts.RemoteClusterID:     clusterID,
+			consts.NonceSecretLabelKey: "true",
+		}),
+	}); err != nil {
+		return nil, err
+	}
+
+	switch len(list.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), clusterID)
+	case 1:
+		return &list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
+			" when only one was expected", corev1.ResourceSecrets, clusterID)
+	}
+}
+
 // GetOffloadingByNamespace returns the NamespaceOffloading resource for the given namespace.
 func GetOffloadingByNamespace(ctx context.Context, cl client.Client, namespace string) (*offloadingv1alpha1.NamespaceOffloading, error) {
 	var nsOffloading offloadingv1alpha1.NamespaceOffloading
