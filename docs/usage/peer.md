@@ -143,6 +143,12 @@ The host used to issue the *liqoctl peer in-band* command must have **concurrent
 To this end, these subcommands feature a parallel set of flags concerning Kubernetes API access to the remote cluster, in the form `--remote-<flag>` (e.g., `--remote-kubeconfig`, `--remote-context`).
 ```
 
+```{warning}
+If you are using K3s as Kubernetes distribution and your local cluster is in a LAN behind a NAT (your home network, for example), be aware that Liqo should have been installed without the `--api-server-url` flag.
+In fact, with in-band peering, the API server is reached through the Liqo inter-cluster tunnel, hence directly on the *actual* IP address of the server, not the *public* one.
+Consequently, this flag associated to a public IP address (or DDNS) of the cluster tells Liqo to use the public IP address to establish the peering between the two clusters instead of the local IP address of the K3s local cluster, causing the network establishment phase to fail.
+```
+
 <!-- markdownlint-disable-next-line no-duplicate-heading -->
 ### Peering establishment
 
