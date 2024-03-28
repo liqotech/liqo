@@ -83,14 +83,20 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	klog.Infof("Creating firewall configuration %q for PodCIDR", fwcfg.Name)
 
 	if configuration.Spec.Remote.CIDR.Pod != configuration.Status.Remote.CIDR.Pod {
-		if err := CreateOrUpdateNatMappingPodCIDR(ctx, r.Client, configuration, r.Scheme, r.Options); err != nil {
+		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, configuration,
+			r.Scheme, r.Options, ExternalCIDR); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	if configuration.Spec.Remote.CIDR.External != configuration.Status.Remote.CIDR.External {
+		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, configuration,
+			r.Scheme, r.Options, ExternalCIDR); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
 	klog.Infof("Firewall configuration %q for PodCIDR created", fwcfg.Name)
-
-	// TODO: add part about ExternalCIDR
 
 	return ctrl.Result{}, nil
 }

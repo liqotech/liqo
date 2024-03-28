@@ -45,7 +45,7 @@ var (
 // InitMark initializes the marks map with the marks already used in the cluster.
 func InitMark(ctx context.Context, cl client.Client, options *Options) {
 	once.Do(func() {
-		routecfglist, err := getters.ListRouteConfigurationsByLabel(ctx, cl, options.Namespace,
+		routecfglist, err := getters.ListRouteConfigurationsInNamespaceByLabel(ctx, cl, options.Namespace,
 			labels.SelectorFromSet(gateway.ForgeRouteInternalTargetLabels()),
 		)
 		utilruntime.Must(err)

@@ -12,21 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fabric
+package offloadedpodcontroller
 
 import (
-	"github.com/liqotech/liqo/pkg/gateway"
+	corev1 "k8s.io/api/core/v1"
+
+	"github.com/liqotech/liqo/pkg/gateway/remapping"
 )
 
-// Options contains the options for the wireguard interface.
-type Options struct {
-	GwOptions *gateway.Options
-	EnableARP bool
-}
+const (
+	offloadedPodNameLabelKey      = "offloading.liqo.io/pod-name"
+	offloadedPodNamespaceLabelKey = "offloading.liqo.io/pod-namespace"
+)
 
-// NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
-	return &Options{
-		GwOptions: options,
+func forgeIPLabels(pod *corev1.Pod) map[string]string {
+	return map[string]string{
+		remapping.IPCategoryTargetKey: remapping.IPCategoryTargetValueMapping,
+		offloadedPodNameLabelKey:      pod.Name,
+		offloadedPodNamespaceLabelKey: pod.Namespace,
 	}
 }

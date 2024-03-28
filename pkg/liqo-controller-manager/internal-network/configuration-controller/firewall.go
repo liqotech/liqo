@@ -80,7 +80,7 @@ func forgeMutateFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfigur
 
 func forgeFirewallChain() *firewallapi.Chain {
 	return &firewallapi.Chain{
-		Name:     ptr.To("pre-postrouting"),
+		Name:     ptr.To(PrePostroutingChainName),
 		Type:     ptr.To(firewallapi.ChainTypeNAT),
 		Policy:   ptr.To(firewallapi.ChainPolicyAccept),
 		Priority: ptr.To(firewallapi.ChainPriorityNATSource - 1),
@@ -139,11 +139,53 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) ([]firewallapi.
 			NatType: firewallapi.NatTypeSource,
 			To:      ptr.To(firstIP.String()),
 		},
+		{
+			Name: ptr.To(generatePodNatRuleNameExt(cfg)),
+			Match: []firewallapi.Match{
+				{
+					Op: firewallapi.MatchOperationEq,
+					IP: &firewallapi.MatchIP{
+						Position: firewallapi.MatchIPPositionDst,
+						Value:    cfg.Status.Remote.CIDR.External.String(),
+					},
+				},
+				{
+					Op: firewallapi.MatchOperationEq,
+					IP: &firewallapi.MatchIP{
+						Position: firewallapi.MatchIPPositionSrc,
+						Value:    cfg.Spec.Local.CIDR.Pod.String(),
+					},
+				},
+			},
+			NatType: firewallapi.NatTypeSource,
+			To:      ptr.To(cfg.Spec.Local.CIDR.Pod.String()),
+		},
+		{
+			Name: ptr.To(generateNodePortSvcNatRuleNameExt(cfg)),
+			Match: []firewallapi.Match{
+				{
+					Op: firewallapi.MatchOperationEq,
+					IP: &firewallapi.MatchIP{
+						Position: firewallapi.MatchIPPositionDst,
+						Value:    cfg.Status.Remote.CIDR.External.String(),
+					},
+				},
+				{
+					Op: firewallapi.MatchOperationNeq,
+					IP: &firewallapi.MatchIP{
+						Position: firewallapi.MatchIPPositionSrc,
+						Value:    cfg.Spec.Local.CIDR.Pod.String(),
+					},
+				},
+			},
+			NatType: firewallapi.NatTypeSource,
+			To:      ptr.To(firstIP.String()),
+		},
 	}, nil
 }
 
 func generateFirewallConfigurationName(cfg *networkingv1alpha1.Configuration) string {
-	return fmt.Sprintf("masquerade-bypass-%s", cfg.Name)
+	return fmt.Sprintf("%s-masquerade-bypass", cfg.Name)
 }
 
 func generatePodNatRuleName(cfg *networkingv1alpha1.Configuration) string {
@@ -152,6 +194,14 @@ func generatePodNatRuleName(cfg *networkingv1alpha1.Configuration) string {
 
 func generateNodePortSvcNatRuleName(cfg *networkingv1alpha1.Configuration) string {
 	return fmt.Sprintf("service-nodeport-%s", cfg.Name)
+}
+
+func generatePodNatRuleNameExt(cfg *networkingv1alpha1.Configuration) string {
+	return fmt.Sprintf("podcidr-%s-ext", cfg.Name)
+}
+
+func generateNodePortSvcNatRuleNameExt(cfg *networkingv1alpha1.Configuration) string {
+	return fmt.Sprintf("service-nodeport-%s-ext", cfg.Name)
 }
 
 func isNatRuleAlreadyPresentInChain(cfg *networkingv1alpha1.Configuration, chain *firewallapi.Chain) bool {

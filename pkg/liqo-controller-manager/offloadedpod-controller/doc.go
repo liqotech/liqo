@@ -12,21 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fabric
-
-import (
-	"github.com/liqotech/liqo/pkg/gateway"
-)
-
-// Options contains the options for the wireguard interface.
-type Options struct {
-	GwOptions *gateway.Options
-	EnableARP bool
-}
-
-// NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
-	return &Options{
-		GwOptions: options,
-	}
-}
+// Package offloadedpodcontroller contains the logic that reconcile offloaded pods and create related resources.
+package offloadedpodcontroller
