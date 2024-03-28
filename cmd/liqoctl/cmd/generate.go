@@ -23,6 +23,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/generate"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 )
 
 const liqoctlGeneratePeerLongHelp = `Generate the command to execute on another cluster to peer with the local cluster.
@@ -49,6 +50,23 @@ func newGenerateCommand(ctx context.Context, f *factory.Factory) *cobra.Command 
 	}
 
 	cmd.AddCommand(newGeneratePeerCommand(ctx, f))
+
+	options := &rest.GenerateOptions{
+		Factory: f,
+	}
+
+	for _, r := range liqoResources {
+		api := r()
+
+		apiOptions := api.APIOptions()
+		if apiOptions.EnableGenerate {
+			cmd.AddCommand(api.Generate(ctx, options))
+		}
+	}
+
+	f.AddNamespaceFlag(cmd.PersistentFlags())
+	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
+
 	return cmd
 }
 

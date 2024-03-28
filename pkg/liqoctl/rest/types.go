@@ -24,10 +24,11 @@ import (
 
 // APIOptions contains the options for the API.
 type APIOptions struct {
-	EnableCreate bool
-	EnableDelete bool
-	EnableGet    bool
-	EnableUpdate bool
+	EnableCreate   bool
+	EnableDelete   bool
+	EnableGet      bool
+	EnableUpdate   bool
+	EnableGenerate bool
 }
 
 // CreateOptions contains the options for the create API.
@@ -55,6 +56,13 @@ type UpdateOptions struct {
 	*factory.Factory
 }
 
+// GenerateOptions contains the options for the generate API.
+type GenerateOptions struct {
+	*factory.Factory
+
+	OutputFormat string
+}
+
 // API is the interface that must be implemented by the API.
 type API interface {
 	APIOptions() *APIOptions
@@ -62,6 +70,7 @@ type API interface {
 	Delete(ctx context.Context, options *DeleteOptions) *cobra.Command
 	Get(ctx context.Context, options *GetOptions) *cobra.Command
 	Update(ctx context.Context, options *UpdateOptions) *cobra.Command
+	Generate(ctx context.Context, options *GenerateOptions) *cobra.Command
 }
 
 // APIProvider is the function that returns the API.

@@ -16,7 +16,7 @@ package noncesigner
 
 import (
 	"context"
-	"fmt"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -64,9 +64,10 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	if secret.Data == nil || secret.Data[consts.NonceSecretField] == nil || len(secret.Data[consts.NonceSecretField]) == 0 {
-		err := fmt.Errorf("secret %q does not contain the nonce", req.NamespacedName)
-		klog.Error(err)
+	// Extract the nonce from the secret.
+	nonce, err := GetNonceFromSecret(&secret)
+	if err != nil {
+		klog.Errorf("unable to get nonce from secret %q: %v", req.NamespacedName, err)
 		return ctrl.Result{}, err
 	}
 
@@ -78,13 +79,21 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Sign the nonce using the private key.
-	signedNonce := authentication.SignNonce(privateKey, secret.Data[consts.NonceSecretField])
+	signedNonce := authentication.SignNonce(privateKey, nonce)
+
+	// Check if the secret is already signed.
+	existingSignedNonce, found := secret.Data[consts.SignedNonceSecretField]
+	if found && slices.Equal(existingSignedNonce, signedNonce) {
+		klog.V(4).Infof("secret %q already signed", req.NamespacedName)
+		return ctrl.Result{}, nil
+	}
 
 	secret.Data[consts.SignedNonceSecretField] = signedNonce
 	if err := r.Update(ctx, &secret); err != nil {
 		klog.Errorf("unable to update secret: %v", err)
 		return ctrl.Result{}, err
 	}
+	klog.Infof("secret %q signed", req.NamespacedName)
 
 	return ctrl.Result{}, nil
 }
