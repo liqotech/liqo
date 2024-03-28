@@ -144,8 +144,9 @@ To this end, these subcommands feature a parallel set of flags concerning Kubern
 ```
 
 ```{warning}
-If you are using K3s as Kubernetes distribution and your local cluster is in a LAN (your home network, for example), be aware to have installed K3s without the usage of `--api-server-url` flag. This flag associated to a public IP address (or DDNS) can cause the in-band peering to fail. 
-Liqo uses the public IP address to establish the peering between the two clusters instead of the local IP address of the K3s local cluster, causing the Network establishment phase to fail.
+If you are using K3s as Kubernetes distribution and your local cluster is in a LAN behind a NAT (your home network, for example), be aware that Liqo should have been installed without the `--api-server-url` flag.
+In fact, with in-band peering, the API server is reached through the Liqo inter-cluster tunnel, hence directly on the *actual* IP address of the server, not the *public* one.
+Consequently, this flag associated to a public IP address (or DDNS) of the cluster tells Liqo to use the public IP address to establish the peering between the two clusters instead of the local IP address of the K3s local cluster, causing the network establishment phase to fail.
 ```
 
 <!-- markdownlint-disable-next-line no-duplicate-heading -->
