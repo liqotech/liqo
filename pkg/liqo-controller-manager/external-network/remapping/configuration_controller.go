@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
 )
 
@@ -50,14 +49,17 @@ type RemappingReconciler struct {
 }
 
 // NewRemappingReconciler returns a new PublicKeysReconciler.
-func NewRemappingReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder,
-	options *Options) *RemappingReconciler {
+func NewRemappingReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder) (*RemappingReconciler, error) {
+	opts, err := NewOptions()
+	if err != nil {
+		return nil, fmt.Errorf("unable to create the RemappingReconciler: %w", err)
+	}
 	return &RemappingReconciler{
 		Client:         cl,
 		Scheme:         s,
 		EventsRecorder: er,
-		Options:        options,
-	}
+		Options:        opts,
+	}, nil
 }
 
 // Reconcile manage Configuration resources.
@@ -72,31 +74,19 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	klog.V(4).Infof("Reconciling configuration %q", req.NamespacedName)
 
-	fwcfg := &networkingv1alpha1.FirewallConfiguration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", configuration.Name, TablePodCIDRName),
-			Namespace: configuration.Namespace,
-			Labels:    ForgeFirewallTargetLabels(r.Options.GwOptions.RemoteClusterID),
-		},
-	}
-
-	klog.Infof("Creating firewall configuration %q for PodCIDR", fwcfg.Name)
-
 	if configuration.Spec.Remote.CIDR.Pod != configuration.Status.Remote.CIDR.Pod {
-		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, configuration,
-			r.Scheme, r.Options, ExternalCIDR); err != nil {
+		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, configuration,
+			r.Scheme, PodCIDR); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
 	if configuration.Spec.Remote.CIDR.External != configuration.Status.Remote.CIDR.External {
-		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, configuration,
-			r.Scheme, r.Options, ExternalCIDR); err != nil {
+		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, configuration,
+			r.Scheme, ExternalCIDR); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
-
-	klog.Infof("Firewall configuration %q for PodCIDR created", fwcfg.Name)
 
 	return ctrl.Result{}, nil
 }
@@ -105,7 +95,6 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *RemappingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			string(consts.RemoteClusterID):     r.Options.GwOptions.RemoteClusterID,
 			configurationcontroller.Configured: configurationcontroller.ConfiguredValue,
 		},
 	})
