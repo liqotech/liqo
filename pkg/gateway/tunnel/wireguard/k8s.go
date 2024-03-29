@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -89,6 +90,9 @@ func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Sch
 			string(consts.RemoteClusterID): opts.GwOptions.RemoteClusterID,
 		},
 	}}
+
+	klog.Infof("Creating connection %q", conn.Name)
+
 	_, err := controllerutil.CreateOrUpdate(ctx, cl, conn, func() error {
 		if err := gateway.SetOwnerReferenceWithMode(opts.GwOptions, conn, scheme); err != nil {
 			return err
@@ -111,6 +115,8 @@ func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Sch
 	if err != nil {
 		return err
 	}
+
+	klog.Infof("Connection %q created", conn.Name)
 
 	conn.Status.Value = networkingv1alpha1.Connecting
 	return cl.Status().Update(ctx, conn)
