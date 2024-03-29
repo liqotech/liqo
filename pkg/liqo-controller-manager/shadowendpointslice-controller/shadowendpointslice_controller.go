@@ -56,6 +56,7 @@ type Reconciler struct {
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch
 
 // Reconcile ShadowEndpointSlices objects.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -94,6 +95,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Check foreign API server status
 	apiServerReady := foreigncluster.IsAPIServerReady(fc)
 
+	// Remap the endpoints if the network configuration of the remote cluster overlaps with the local one
+	remappedEndpoints, err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, shadowEps.Spec.Template.Endpoints)
+	if err != nil {
+		klog.Errorf("an error occurred while remapping endpoints for shadowendpointslice %q: %v", nsName, err)
+		return ctrl.Result{}, err
+	}
+
 	// Forge the endpointslice given the shadowendpointslice
 	newEps := discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
@@ -104,7 +112,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Annotations: shadowEps.Annotations,
 		},
 		AddressType: shadowEps.Spec.Template.AddressType,
-		Endpoints:   shadowEps.Spec.Template.Endpoints,
+		Endpoints:   remappedEndpoints,
 		Ports:       shadowEps.Spec.Template.Ports,
 	}
 
