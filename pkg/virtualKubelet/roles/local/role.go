@@ -40,3 +40,6 @@ package local
 // Additional permissions necessary for the virtual kubelet initialization process.
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=create;update;patch
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=create;get;list;watch
+
+// Additional permissions necessary for the networking module
+// +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch
