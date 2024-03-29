@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"slices"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,23 +65,26 @@ func DeleteNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv1alpha1.
 		ObjectMeta: metav1.ObjectMeta{Name: TableIPMappingGwName, Namespace: ip.Namespace},
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, cl, fwcfg, cleanFirewallConfiguration(fwcfg, ip)); err != nil {
-		return fmt.Errorf("unable to clean firewall configuration: %w", err)
+	err := cl.Update(ctx, cleanFirewallConfiguration(fwcfg, ip))
+
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("unable to update the firewall configuration %q: %w", fwcfg.Name, err)
 	}
 
 	return deleteFirewallConfiguration(ctx, cl, fwcfg)
 }
 
-func cleanFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) func() error {
-	return func() error {
-		for i := range fwcfg.Spec.Table.Chains {
-			chain := &fwcfg.Spec.Table.Chains[i]
-			chain.Rules.NatRules = slices.DeleteFunc(chain.Rules.NatRules, func(r firewall.NatRule) bool {
-				return r.Name != nil && *r.Name == ip.Name
-			})
-		}
-		return nil
+func cleanFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) *networkingv1alpha1.FirewallConfiguration {
+	for i := range fwcfg.Spec.Table.Chains {
+		chain := &fwcfg.Spec.Table.Chains[i]
+		chain.Rules.NatRules = slices.DeleteFunc(chain.Rules.NatRules, func(r firewall.NatRule) bool {
+			return r.Name != nil && *r.Name == ip.Name
+		})
 	}
+	return fwcfg
 }
 
 func deleteFirewallConfiguration(ctx context.Context, cl client.Client, fwcfg *networkingv1alpha1.FirewallConfiguration) error {
