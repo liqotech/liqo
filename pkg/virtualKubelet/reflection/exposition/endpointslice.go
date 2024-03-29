@@ -36,8 +36,10 @@ import (
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
+	ipamv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
 	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway/remapping"
 	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -62,6 +64,7 @@ type NamespacedEndpointSliceReflector struct {
 	localEndpointSlices              discoveryv1listers.EndpointSliceNamespaceLister
 	remoteShadowEndpointSlices       vkv1alpha1listers.ShadowEndpointSliceNamespaceLister
 	remoteShadowEndpointSlicesClient vkv1alpha1clients.ShadowEndpointSliceInterface
+	localIPs                         ipamv1alpha1listers.IPNamespaceLister
 
 	ipamclient   ipam.IpamClient
 	translations sync.Map
@@ -80,6 +83,7 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 		localNode := opts.LocalFactory.Core().V1().Nodes()
 		localServices := opts.LocalFactory.Core().V1().Services()
 		localEndpointSlices := opts.LocalFactory.Discovery().V1().EndpointSlices()
+		localIPs := opts.LocalLiqoFactory.Ipam().V1alpha1().IPs()
 		remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowEndpointSlices()
 
 		_, err := localEndpointSlices.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
@@ -94,6 +98,7 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 			localEndpointSlices:              localEndpointSlices.Lister().EndpointSlices(opts.LocalNamespace),
 			remoteShadowEndpointSlices:       remoteShadow.Lister().ShadowEndpointSlices(opts.RemoteNamespace),
 			remoteShadowEndpointSlicesClient: opts.RemoteLiqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(opts.RemoteNamespace),
+			localIPs:                         localIPs.Lister().IPs(opts.LocalNamespace),
 			ipamclient:                       ipamclient,
 		}
 
@@ -207,7 +212,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		}
 
 		var translations []string
-		translations, terr = ner.MapEndpointIPs(ctx, name, originals)
+		translations, terr = ner.MapEndpointIPs(name, originals)
 		return translations
 	}
 
@@ -273,9 +278,27 @@ func (ner *NamespacedEndpointSliceReflector) ShouldUpdateShadowEndpointSlice(ctx
 		!reflect.DeepEqual(remote.Spec.Template.Ports, target.Spec.Template.Ports)
 }
 
+// MapEndpointIPFromIPResource maps an IP string using an IP resource.
+func (ner *NamespacedEndpointSliceReflector) MapEndpointIPFromIPResource(original string) (string, error) {
+	ips, err := ner.localIPs.List(labels.Everything())
+	if err != nil {
+		return "", fmt.Errorf("failed to list IPs: %w", err)
+	}
+	for i := range ips {
+		if ips[i].Spec.IP.String() == original {
+			if len(ips[i].Status.IPMappings) > 0 {
+				return remapping.GetFirstIPFromMapping(ips[i].Status.IPMappings), nil
+			}
+			return "", fmt.Errorf("resource IP %s has not been mapped yet", ips[i].Name)
+		}
+	}
+	return "", fmt.Errorf("resource IP %s not found", original)
+}
+
 // MapEndpointIPs maps the local set of addresses to the corresponding remote ones.
-func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context, endpointslice string, originals []string) ([]string, error) {
+func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string, originals []string) ([]string, error) {
 	var translations []string
+	var err error
 
 	// Retrieve the cache for the given endpointslice. The cache is not synchronized,
 	// since we are guaranteed to be the only ones operating on this object.
@@ -293,11 +316,10 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context,
 				translation = original
 			default:
 				// Cache miss -> we need to interact with the IPAM to request the translation.
-				response, err := ner.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{ClusterID: forge.RemoteCluster.ClusterID, Ip: original})
+				translation, err = ner.MapEndpointIPFromIPResource(original)
 				if err != nil {
 					return nil, fmt.Errorf("failed to translate endpoint IP %v: %w", original, err)
 				}
-				translation = response.GetIp()
 				cache[original] = translation
 			}
 		}
