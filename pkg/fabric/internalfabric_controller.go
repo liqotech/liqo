@@ -28,7 +28,7 @@ import (
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/utils/geneve"
+	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 )
 
 // InternalFabricReconciler manage internalfabric.

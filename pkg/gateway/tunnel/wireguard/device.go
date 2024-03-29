@@ -15,10 +15,12 @@
 package wireguard
 
 import (
+	"fmt"
 	"net"
 
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
@@ -47,5 +49,10 @@ func configureDevice(wgcl *wgctrl.Client, options *Options, peerPubKey wgtypes.K
 		}
 	}
 
-	return wgcl.ConfigureDevice(tunnel.TunnelInterfaceName, confdev)
+	klog.Infof("Configuring device %s", tunnel.TunnelInterfaceName)
+
+	if err := wgcl.ConfigureDevice(tunnel.TunnelInterfaceName, confdev); err != nil {
+		return fmt.Errorf("an error occurred while configuring the device: %w", err)
+	}
+	return nil
 }
