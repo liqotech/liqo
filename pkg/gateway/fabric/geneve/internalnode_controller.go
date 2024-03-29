@@ -29,7 +29,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/gateway/fabric"
-	"github.com/liqotech/liqo/pkg/utils/geneve"
+	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 )
 
 // InternalNodeReconciler manage InternalNode.

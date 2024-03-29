@@ -31,35 +31,6 @@ rules:
   - list
   - update
 - apiGroups:
-  - ipam.liqo.io
-  resources:
-  - ips
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - configurations
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - configurations/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - networking.liqo.io
   resources:
   - connections
@@ -83,8 +54,6 @@ rules:
   resources:
   - firewallconfigurations
   verbs:
-  - create
-  - delete
   - get
   - list
   - patch
