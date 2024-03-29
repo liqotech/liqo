@@ -58,12 +58,12 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway/remapping"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/ipam"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
 	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
 	externalnetworkcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/externalnetwork-controller"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/remapping"
 	externalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/route"
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/server-operator"
 	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/wireguard"
@@ -674,6 +674,20 @@ func main() {
 			mgr.GetEventRecorderFor("offloadedpod-controller"),
 		)
 		if err := offloadedPodReconciler.SetupWithManager(mgr); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+
+		remappingReconciler, err := remapping.NewRemappingReconciler(
+			mgr.GetClient(),
+			mgr.GetScheme(),
+			mgr.GetEventRecorderFor("remapping-controller"),
+		)
+		if err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+		if err := remappingReconciler.SetupWithManager(mgr); err != nil {
 			klog.Error(err)
 			os.Exit(1)
 		}

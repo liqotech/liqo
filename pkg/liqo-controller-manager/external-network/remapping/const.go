@@ -25,9 +25,9 @@ var (
 	TableIPMappingFabricName = "remap-ipmapping-fabric"
 
 	// DNATChainName is the name of the chain for the output traffic.
-	DNATChainName = "Outgoing packets remapping"
+	DNATChainName = "outgoing"
 	// SNATChainName is the name of the chain for the input traffic.
-	SNATChainName = "Incoming packets remapping"
+	SNATChainName = "incoming"
 
 	// PreroutingChainName is the name of the chain for the IP mapping.
 	PreroutingChainName = "prerouting"

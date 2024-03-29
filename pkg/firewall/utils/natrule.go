@@ -182,6 +182,7 @@ func applyNatSubnet(ip *string, natType expr.NATType, rule *nftables.Rule) error
 			Prefix:     true,
 			Family:     uint32(rule.Table.Family),
 		},
+		&expr.Counter{},
 	)
 	return nil
 }
