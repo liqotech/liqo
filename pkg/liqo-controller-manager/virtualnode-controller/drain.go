@@ -23,11 +23,13 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 )
 
@@ -58,6 +60,11 @@ func getPodsForDeletion(ctx context.Context, cl client.Client, vn *virtualkubele
 	err := cl.List(ctx, podList, &client.ListOptions{
 		FieldSelector: client.MatchingFieldsSelector{
 			Selector: fields.OneTermEqualSelector(indexer.FieldNodeNameFromPod, vn.Name),
+		},
+		LabelSelector: client.MatchingLabelsSelector{
+			Selector: labels.SelectorFromSet(map[string]string{
+				consts.LocalPodLabelKey: consts.LocalPodLabelValue,
+			}),
 		},
 	})
 	klog.Infof("Drain node %s -> %d pods found", vn.Name, len(podList.Items))
