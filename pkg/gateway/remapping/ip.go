@@ -177,7 +177,8 @@ func containsNATRule(rules []firewall.NatRule, to string, pos firewall.MatchIPPo
 	return false
 }
 
-func getFirstIPFromMapping(ipMapping map[string]networkingv1alpha1.IP) string {
+// GetFirstIPFromMapping returns the first IP from the IP mapping.
+func GetFirstIPFromMapping(ipMapping map[string]networkingv1alpha1.IP) string {
 	for _, ip := range ipMapping {
 		return ip.String()
 	}
@@ -197,7 +198,7 @@ func ensureFirewallConfigurationDNATRules(fwcfg *networkingv1alpha1.FirewallConf
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
 						Position: firewall.MatchIPPositionDst,
-						Value:    getFirstIPFromMapping(ip.Status.IPMappings),
+						Value:    GetFirstIPFromMapping(ip.Status.IPMappings),
 					},
 				},
 			},
@@ -218,7 +219,7 @@ func ensureFirewallConfigurationSNATRules(fwcfg *networkingv1alpha1.FirewallConf
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
 						Position: firewall.MatchIPPositionSrc,
-						Value:    getFirstIPFromMapping(ip.Status.IPMappings),
+						Value:    GetFirstIPFromMapping(ip.Status.IPMappings),
 					},
 				},
 			},
