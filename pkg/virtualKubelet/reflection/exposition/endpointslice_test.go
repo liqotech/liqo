@@ -364,7 +364,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			When("translating a set of IP addresses", func() {
 				JustBeforeEach(func() {
 					output, err = reflector.(*exposition.NamespacedEndpointSliceReflector).
-						MapEndpointIPs(ctx, EndpointSliceName, input)
+						MapEndpointIPs(EndpointSliceName, input)
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
@@ -373,7 +373,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				When("translating again the same set of IP addresses", func() {
 					JustBeforeEach(func() {
 						output, err = reflector.(*exposition.NamespacedEndpointSliceReflector).
-							MapEndpointIPs(ctx, EndpointSliceName, input)
+							MapEndpointIPs(EndpointSliceName, input)
 					})
 
 					// The IPAMClient is configured to return an error if the same translation is requested twice.
