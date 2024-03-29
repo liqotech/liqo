@@ -40,7 +40,7 @@ import (
 	sourcedetector "github.com/liqotech/liqo/pkg/fabric/source-detector"
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/remapping"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"

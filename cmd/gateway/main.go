@@ -21,7 +21,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -37,7 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/connection"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
-	"github.com/liqotech/liqo/pkg/gateway/remapping"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/kernel"
@@ -68,19 +67,10 @@ func main() {
 	klog.InitFlags(legacyflags)
 	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
 
-	defInfName, err := getDefaultInterfaceName()
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
 	gwoptions := gateway.NewOptions()
 	connoptions = connection.NewOptions(
 		gwoptions,
 		conncheck.NewOptions(),
-	)
-	remapoptions = remapping.NewOptions(
-		gwoptions, defInfName,
 	)
 
 	gateway.InitFlags(cmd.Flags(), connoptions.GwOptions)
@@ -160,7 +150,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		[]labels.Set{
 			gateway.ForgeRouteExternalTargetLabels(connoptions.GwOptions.RemoteClusterID),
 			gateway.ForgeRouteInternalTargetLabels(),
-			gateway.ForgeRouteInternalTargetLabelsByNode(remapoptions.GwOptions.NodeName),
+			gateway.ForgeRouteInternalTargetLabelsByNode(connoptions.GwOptions.NodeName),
 		},
 	)
 	if err != nil {
@@ -190,38 +180,6 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
 	}
 
-	// Setup the configuration controller.
-	cfgr := remapping.NewRemappingReconciler(
-		mgr.GetClient(),
-		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("firewall-controller"),
-		remapoptions,
-	)
-
-	if err := cfgr.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("unable to setup configuration reconciler: %w", err)
-	}
-
 	// Start the manager.
 	return mgr.Start(cmd.Context())
-}
-
-func getDefaultInterfaceName() (string, error) {
-	routes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{
-		Dst: nil,
-	}, netlink.RT_FILTER_DST)
-	if err != nil {
-		return "", err
-	}
-	if len(routes) == 0 {
-		return "", fmt.Errorf("no default route found")
-	}
-	link, err := netlink.LinkByIndex(routes[0].LinkIndex)
-	if err != nil {
-		return "", err
-	}
-	if link == nil {
-		return "", fmt.Errorf("no default interface found")
-	}
-	return link.Attrs().Name, err
 }
