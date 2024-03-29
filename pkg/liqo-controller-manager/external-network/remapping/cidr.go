@@ -20,13 +20,14 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
-	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
@@ -41,8 +42,8 @@ const (
 )
 
 // CreateOrUpdateNatMappingCIDR creates or updates the NAT mapping for a CIDR type.
-func CreateOrUpdateNatMappingCIDR(ctx context.Context, cl client.Client,
-	cfg *networkingv1alpha1.Configuration, scheme *runtime.Scheme, opts *Options, cidrtype CIDRType) error {
+func CreateOrUpdateNatMappingCIDR(ctx context.Context, cl client.Client, opts *Options,
+	cfg *networkingv1alpha1.Configuration, scheme *runtime.Scheme, cidrtype CIDRType) error {
 	var tableCIDRName string
 	switch cidrtype {
 	case PodCIDR:
@@ -56,24 +57,36 @@ func CreateOrUpdateNatMappingCIDR(ctx context.Context, cl client.Client,
 			Namespace: cfg.Namespace,
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(
+
+	klog.Infof("Creating firewall configuration %q for %q", fwcfg.Name, cidrtype)
+
+	if _, err := controllerutil.CreateOrUpdate(
 		ctx, cl, fwcfg,
 		mutateCIDRFirewallConfiguration(fwcfg, cfg, opts, scheme, cidrtype),
-	)
-	return err
+	); err != nil {
+		return err
+	}
+
+	klog.Infof("Firewall configuration %q for %q created", fwcfg.Name, cidrtype)
+
+	return nil
 }
 
-func mutateCIDRFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration,
-	cfg *networkingv1alpha1.Configuration, opts *Options, scheme *runtime.Scheme, cidrtype CIDRType) func() error {
+func mutateCIDRFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration, cfg *networkingv1alpha1.Configuration,
+	opts *Options, scheme *runtime.Scheme, cidrtype CIDRType) func() error {
 	return func() error {
-		fwcfg.SetLabels(ForgeFirewallTargetLabels(opts.GwOptions.RemoteClusterID))
+		if cfg.Labels == nil {
+			return fmt.Errorf("configuration %q has no labels", cfg.Name)
+		}
+		remoteClusterID := cfg.Labels[string(consts.RemoteClusterID)]
+		fwcfg.SetLabels(ForgeFirewallTargetLabels(remoteClusterID))
 		fwcfg.Spec = forgeCIDRFirewallConfigurationSpec(cfg, opts, cidrtype)
-		return gateway.SetOwnerReferenceWithMode(opts.GwOptions, fwcfg, scheme)
+		return controllerutil.SetOwnerReference(cfg, fwcfg, scheme)
 	}
 }
 
-func forgeCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration,
-	opts *Options, cidrtype CIDRType) networkingv1alpha1.FirewallConfigurationSpec {
+func forgeCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration, opts *Options,
+	cidrtype CIDRType) networkingv1alpha1.FirewallConfigurationSpec {
 	var tableCIDRName string
 	switch cidrtype {
 	case PodCIDR:
@@ -94,8 +107,7 @@ func forgeCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration,
 	}
 }
 
-func forgeCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configuration,
-	opts *Options, cidrtype CIDRType) firewall.Chain {
+func forgeCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configuration, opts *Options, cidrtype CIDRType) firewall.Chain {
 	return firewall.Chain{
 		Name:     &DNATChainName,
 		Policy:   ptr.To(firewall.ChainPolicyAccept),
@@ -122,8 +134,7 @@ func forgeCIDRFirewallConfigurationSNATChain(cfg *networkingv1alpha1.Configurati
 	}
 }
 
-func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configuration,
-	opts *Options, cidrtype CIDRType) []firewall.NatRule {
+func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configuration, opts *Options, cidrtype CIDRType) []firewall.NatRule {
 	var remoteCIDR, remoteRemapCIDR string
 	switch cidrtype {
 	case PodCIDR:
@@ -181,6 +192,13 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1alpha1.Configurati
 			NatType: firewall.NatTypeSource,
 			To:      ptr.To(remoteRemapCIDR),
 			Match: []firewall.Match{
+				{
+					Op: firewall.MatchOperationEq,
+					IP: &firewall.MatchIP{
+						Value:    localCIDR,
+						Position: firewall.MatchIPPositionDst,
+					},
+				},
 				{
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{

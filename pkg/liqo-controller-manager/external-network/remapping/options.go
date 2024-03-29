@@ -15,20 +15,25 @@
 package remapping
 
 import (
-	"github.com/liqotech/liqo/pkg/gateway"
+	"fmt"
+
+	"github.com/liqotech/liqo/pkg/utils/network"
 )
 
 // Options contains the options for the remapping controller.
 type Options struct {
-	GwOptions *gateway.Options
 	// DefaultInterfaceName is the name of the interface where the default rout points in main table.
 	DefaultInterfaceName string
 }
 
 // NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options, defInfaName string) *Options {
-	return &Options{
-		GwOptions:            options,
-		DefaultInterfaceName: defInfaName,
+func NewOptions() (*Options, error) {
+	// We assumes that the default interface created by the CNI inside a pod, is the same for each pod.
+	defaultInterfaceName, err := network.GetDefaultInterfaceName()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get the default interface name: %w", err)
 	}
+	return &Options{
+		DefaultInterfaceName: defaultInterfaceName,
+	}, nil
 }
