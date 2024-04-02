@@ -16,27 +16,50 @@ package modules
 
 import (
 	"context"
+	"encoding/base64"
 
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
 	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
+	tenantcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/tenant-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
+// AuthOption defines the options to setup the authentication module.
+type AuthOption struct {
+	IdentityProvider         identitymanager.IdentityProvider
+	NamespaceManager         tenantnamespace.Manager
+	LiqoNamespace            string
+	APIServerAddressOverride string
+	CAOverrideB64            string
+	TrustedCA                bool
+}
+
 // SetupAuthenticationModule setup the authentication module and initializes its controllers .
 func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncachedClient client.Client,
-	namespaceManager tenantnamespace.Manager, liqoNamespace string) error {
-	if err := enforceAuthenticationKeys(ctx, uncachedClient, liqoNamespace); err != nil {
+	opts *AuthOption) error {
+	var caOverride []byte
+	if opts.CAOverrideB64 != "" {
+		caOverride = make([]byte, base64.StdEncoding.DecodedLen(len(opts.CAOverrideB64)))
+		_, err := base64.StdEncoding.Decode(caOverride, []byte(opts.CAOverrideB64))
+		if err != nil {
+			klog.Errorf("Unable to decode the CA override: %v", err)
+			return err
+		}
+	}
+
+	if err := enforceAuthenticationKeys(ctx, uncachedClient, opts.LiqoNamespace); err != nil {
 		return err
 	}
 
 	nonceReconciler := noncecreatorcontroller.NewNonceReconciler(
 		mgr.GetClient(), mgr.GetScheme(),
-		namespaceManager,
+		opts.NamespaceManager,
 		mgr.GetEventRecorderFor("nonce-controller"),
 	)
 	if err := nonceReconciler.SetupWithManager(mgr); err != nil {
@@ -47,9 +70,18 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 	// Configure controller that sign nonces with the private key of the cluster.
 	nonceSignerReconciler := noncesigner.NewNonceSignerReconciler(mgr.GetClient(), mgr.GetScheme(),
 		mgr.GetEventRecorderFor("signed-nonce-controller"),
-		namespaceManager, liqoNamespace)
+		opts.NamespaceManager, opts.LiqoNamespace)
 	if err := nonceSignerReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the nonce signer reconciler: %v", err)
+		return err
+	}
+
+	tenantReconciler := tenantcontroller.NewTenantReconciler(mgr.GetClient(), mgr.GetScheme(), mgr.GetConfig(),
+		mgr.GetEventRecorderFor("tenant-controller"),
+		opts.IdentityProvider, opts.NamespaceManager,
+		opts.APIServerAddressOverride, caOverride, opts.TrustedCA)
+	if err := tenantReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to setup the tenant controller: %v", err)
 		return err
 	}
 

@@ -192,7 +192,7 @@ func (lic *LocalInfoChecker) addEndpointsSection(ctx context.Context) error {
 	}
 	// ExtractvalueFromArgumentList errors are not handled because GetURL is able to handle void values.
 	apiServerAddressArg, _ := liqoctlutils.ExtractValuesFromArgumentList("--advertise-api-server-address", authargs)
-	apiServerAddress, err := apiserver.GetURL(apiServerAddressArg, lic.options.KubeClient)
+	apiServerAddress, err := apiserver.GetURL(ctx, apiServerAddressArg, lic.options.CRClient)
 	if err != nil {
 		return fmt.Errorf("unable to get api server address: %w", err)
 	}

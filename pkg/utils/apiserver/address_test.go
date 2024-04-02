@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/liqotech/liqo/pkg/utils/apiserver"
 )
@@ -53,17 +53,17 @@ var _ = Describe("Address", func() {
 	DescribeTable("Address table",
 		func(c addressTestcase) {
 			ctx := context.Background()
-			client := fake.NewSimpleClientset()
+			cl := fake.NewFakeClient()
 
-			node, err := client.CoreV1().Nodes().Create(ctx, c.node, metav1.CreateOptions{})
+			err := cl.Create(ctx, c.node)
 			Expect(err).To(Succeed())
 
-			address, err := apiserver.GetAddressFromMasterNode(ctx, client)
+			address, err := apiserver.GetAddressFromMasterNode(ctx, cl)
 			Expect(err).To(Succeed())
 
 			Expect(address).To(Equal(c.expectedAddress))
 
-			Expect(client.CoreV1().Nodes().Delete(ctx, node.Name, metav1.DeleteOptions{})).To(Succeed())
+			Expect(cl.Delete(ctx, c.node)).To(Succeed())
 		},
 
 		Entry("master node", addressTestcase{

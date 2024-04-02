@@ -3,6 +3,7 @@
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | apiServer.address | string | `""` | The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP). |
+| apiServer.ca | string | `""` | The CA certificate used to issue x509 user certificates for the API server (base64). Leave it empty to use the default CA. |
 | apiServer.trustedCA | bool | `false` | Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority. |
 | auth.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
 | auth.config.enableAuthentication | bool | `true` | Set to false to disable the authentication of discovered clusters. Note: use it only for testing installations. |
