@@ -12,13 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1alpha1
-
-// AuthParams contains the authentication parameters for the tenant cluster.
-type AuthParams struct {
-	CA        []byte `json:"ca,omitempty"`
-	SignedCRT []byte `json:"signedCRT,omitempty"`
-	APIServer string `json:"apiServer,omitempty"`
-
-	AwsConfig *AwsConfig `json:"awsConfig,omitempty"`
-}
+// Package tenantcontroller contains the controller to manage Tenant resources.
+package tenantcontroller

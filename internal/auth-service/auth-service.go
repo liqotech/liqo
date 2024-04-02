@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -81,8 +82,13 @@ func NewAuthServiceCtrl(ctx context.Context, config *rest.Config, namespace stri
 		return nil, err
 	}
 
+	cl, err := client.New(config, client.Options{})
+	if err != nil {
+		return nil, err
+	}
+
 	// Complete the configuration retrieval, if necessary
-	if err = apiServerConfig.Complete(config, clientset); err != nil {
+	if err = apiServerConfig.Complete(config, cl); err != nil {
 		return nil, err
 	}
 

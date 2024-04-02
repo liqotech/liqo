@@ -20,14 +20,13 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // GetURL retrieves the API server URL either from the configuration or selecting the IP address of a master node (with port 6443).
-func GetURL(addressOverride string, clientset kubernetes.Interface) (string, error) {
+func GetURL(ctx context.Context, addressOverride string, cl client.Client) (string, error) {
 	if addressOverride != "" {
 		if !strings.HasPrefix(addressOverride, "https://") {
 			addressOverride = fmt.Sprintf("https://%v", addressOverride)
@@ -35,14 +34,13 @@ func GetURL(addressOverride string, clientset kubernetes.Interface) (string, err
 		return addressOverride, nil
 	}
 
-	return GetAddressFromMasterNode(context.TODO(), clientset)
+	return GetAddressFromMasterNode(ctx, cl)
 }
 
 // GetAddressFromMasterNode returns the API Server address using the IP of the
 // master node of this cluster. The port is always defaulted to 6443.
-func GetAddressFromMasterNode(ctx context.Context,
-	clientset kubernetes.Interface) (address string, err error) {
-	nodes, err := getMasterNodes(ctx, clientset)
+func GetAddressFromMasterNode(ctx context.Context, cl client.Client) (address string, err error) {
+	nodes, err := getMasterNodes(ctx, cl)
 	if err != nil {
 		return "", err
 	}
@@ -53,7 +51,7 @@ func GetAddressFromMasterNode(ctx context.Context,
 	return fmt.Sprintf("https://%v:6443", host), nil
 }
 
-func getMasterNodes(ctx context.Context, clientset kubernetes.Interface) (*v1.NodeList, error) {
+func getMasterNodes(ctx context.Context, cl client.Client) (*v1.NodeList, error) {
 	labelSelectors := []string{
 		"node-role.kubernetes.io/control-plane",
 		"node-role.kubernetes.io/master",
@@ -62,14 +60,11 @@ func getMasterNodes(ctx context.Context, clientset kubernetes.Interface) (*v1.No
 		"node-role.kubernetes.io/controlplane",
 	}
 
-	nodes := &v1.NodeList{}
+	var nodes v1.NodeList
 	var err error
 	for _, selector := range labelSelectors {
-		nodes, err = clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-			LabelSelector: selector,
-		})
-		if err != nil {
-			return nodes, err
+		if err = cl.List(ctx, &nodes, client.HasLabels{selector}); err != nil {
+			return nil, err
 		}
 		if len(nodes.Items) != 0 {
 			break
@@ -78,7 +73,7 @@ func getMasterNodes(ctx context.Context, clientset kubernetes.Interface) (*v1.No
 
 	if len(nodes.Items) == 0 {
 		err = fmt.Errorf("no ApiServer.Address variable provided and no master node found, one of the two values must be present")
-		return nodes, err
+		return &nodes, err
 	}
-	return nodes, nil
+	return &nodes, nil
 }
