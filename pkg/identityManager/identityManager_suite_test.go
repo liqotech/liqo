@@ -29,6 +29,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
@@ -43,7 +44,7 @@ var (
 	cancel context.CancelFunc
 
 	cluster       testutil.Cluster
-	client        kubernetes.Interface
+	k8sClient     kubernetes.Interface
 	localCluster  discoveryv1alpha1.ClusterIdentity
 	remoteCluster discoveryv1alpha1.ClusterIdentity
 
@@ -95,9 +96,12 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	client = cluster.GetClient()
+	k8sClient = cluster.GetClient()
+	cnf := cluster.GetCfg()
+	cl, err := client.New(cnf, client.Options{})
+	Expect(err).ToNot(HaveOccurred())
 
-	namespaceManager = tenantnamespace.NewManager(client)
+	namespaceManager = tenantnamespace.NewManager(k8sClient)
 	identityMan = NewCertificateIdentityManager(cluster.GetClient(), localCluster, namespaceManager)
 	identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
 
@@ -109,7 +113,7 @@ var _ = BeforeSuite(func() {
 
 	// Certificate Secret Section
 	apiServerConfig := apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
-	Expect(apiServerConfig.Complete(cluster.GetCfg(), client)).To(Succeed())
+	Expect(apiServerConfig.Complete(cluster.GetCfg(), cl)).To(Succeed())
 
 	signingIdentityResponse := responsetypes.SigningRequestResponse{
 		ResponseType: responsetypes.SigningRequestResponseCertificate,

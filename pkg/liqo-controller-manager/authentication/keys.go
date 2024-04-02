@@ -59,6 +59,11 @@ func SignNonce(priv ed25519.PrivateKey, nonce []byte) []byte {
 	return ed25519.Sign(priv, nonce)
 }
 
+// VerifyNonce verifies the signature of a nonce using the public key of the cluster.
+func VerifyNonce(pubKey ed25519.PublicKey, nonce, signature []byte) bool {
+	return ed25519.Verify(pubKey, nonce, signature)
+}
+
 // InitClusterKeys initializes the authentication keys for the cluster.
 // If the secret containing the keys does not exist, it generates a new pair of keys and stores them in a secret.
 func InitClusterKeys(ctx context.Context, cl client.Client, liqoNamespace string) error {
