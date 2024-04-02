@@ -93,6 +93,15 @@ spec:
           - --configmap-reflection-type={{ .Values.offloading.reflection.configmap.type }}
           - --secret-reflection-type={{ .Values.offloading.reflection.secret.type }}
           - --event-reflection-type={{ .Values.offloading.reflection.event.type }}
+          {{- if .Values.apiServer.address }}
+          - --api-server-address-override={{ .Values.apiServer.address }}
+          {{- end }}
+          {{- if .Values.apiServer.ca }}
+          - --ca-override={{ .Values.apiServer.ca }}
+          {{- end }}
+          {{- if .Values.apiServer.trustedCA }}
+          - --trusted-ca
+          {{- end }}
           {{- if not .Values.offloading.runtimeClass.enable }}
           - --add-virtual-node-toleration-on-offloaded-pods
           {{- end }}
