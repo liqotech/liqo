@@ -40,8 +40,8 @@ func CreateSignedNonceSecret(ctx context.Context, cl client.Client, remoteCluste
 				consts.RemoteClusterID:           remoteClusterID,
 			},
 		},
-		Data: map[string][]byte{
-			consts.NonceSecretField: []byte(nonce),
+		StringData: map[string]string{
+			consts.NonceSecretField: nonce,
 		},
 	}
 

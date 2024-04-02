@@ -48,6 +48,18 @@ rules:
   - update
   - watch
 - apiGroups:
+  - authentication.liqo.io
+  resources:
+  - tenants
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - certificates.k8s.io
   resources:
   - certificatesigningrequests
@@ -101,6 +113,7 @@ rules:
   - namespaces
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
