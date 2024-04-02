@@ -15,7 +15,6 @@
 package identitymanager
 
 import (
-	"encoding/base64"
 	"os"
 	"time"
 
@@ -48,7 +47,7 @@ var _ = Describe("IdentityManager", func() {
 
 		BeforeEach(func() {
 			stopChan = make(chan struct{})
-			idManTest.StartTestApprover(client, stopChan)
+			idManTest.StartTestApprover(k8sClient, stopChan)
 		})
 
 		AfterEach(func() {
@@ -56,14 +55,14 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Approve Signing Request", func() {
-			certificate, err := identityProvider.ApproveSigningRequest(remoteCluster, base64.StdEncoding.EncodeToString(csrBytes))
+			certificate, err := identityProvider.ApproveSigningRequest(remoteCluster, csrBytes)
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
 			Expect(certificate.Certificate).To(Equal([]byte(idManTest.FakeCRT)))
 		})
 
 		It("Retrieve Remote Certificate", func() {
-			certificate, err := identityProvider.GetRemoteCertificate(remoteCluster, namespace.Name, base64.StdEncoding.EncodeToString(csrBytes))
+			certificate, err := identityProvider.GetRemoteCertificate(remoteCluster, namespace.Name, csrBytes)
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
 			Expect(certificate.Certificate).To(Equal([]byte(idManTest.FakeCRT)))
@@ -74,7 +73,7 @@ var _ = Describe("IdentityManager", func() {
 				ClusterID:   "fake-cluster-id",
 				ClusterName: "fake-cluster-name",
 			}
-			certificate, err := identityProvider.GetRemoteCertificate(fakeIdentity, "fake", base64.StdEncoding.EncodeToString(csrBytes))
+			certificate, err := identityProvider.GetRemoteCertificate(fakeIdentity, "fake", csrBytes)
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeTrue())
 			Expect(kerrors.IsBadRequest(err)).To(BeFalse())
@@ -82,7 +81,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Retrieve Remote Certificate wrong CSR", func() {
-			certificate, err := identityProvider.GetRemoteCertificate(remoteCluster, namespace.Name, base64.StdEncoding.EncodeToString([]byte("fake")))
+			certificate, err := identityProvider.GetRemoteCertificate(remoteCluster, namespace.Name, []byte("fake"))
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeFalse())
 			Expect(kerrors.IsBadRequest(err)).To(BeTrue())
@@ -101,7 +100,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		AfterEach(func() {
-			Expect(client.CoreV1().Secrets(namespace.Name).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Succeed())
+			Expect(k8sClient.CoreV1().Secrets(namespace.Name).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Succeed())
 		})
 
 		commonSecretChecks := func(secret *v1.Secret) {
