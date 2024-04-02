@@ -16,6 +16,7 @@ package authservice
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -103,9 +104,15 @@ func (authService *Controller) handleIdentity(
 	}
 	tracer.Step("Tenant namespace created")
 
+	signingRequest, err := base64.StdEncoding.DecodeString(identityRequest.CertificateSigningRequest)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
 	// check that there is no available certificate for that clusterID
 	if _, err = authService.identityProvider.GetRemoteCertificate(
-		remoteClusterIdentity, namespace.Name, identityRequest.CertificateSigningRequest); err == nil {
+		remoteClusterIdentity, namespace.Name, signingRequest); err == nil {
 		klog.Info("multiple identity validations with unique clusterID")
 		err = &kerrors.StatusError{ErrStatus: metav1.Status{
 			Status: metav1.StatusFailure,
@@ -122,7 +129,7 @@ func (authService *Controller) handleIdentity(
 
 	// issue certificate request
 	identityResponse, err := authService.identityProvider.ApproveSigningRequest(
-		remoteClusterIdentity, identityRequest.CertificateSigningRequest)
+		remoteClusterIdentity, signingRequest)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

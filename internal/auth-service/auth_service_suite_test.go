@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -82,8 +83,12 @@ var _ = BeforeSuite(func() {
 	identityProvider := identitymanager.NewCertificateIdentityProvider(
 		ctx, cluster.GetClient(), clusterIdentity, namespaceManager)
 
+	cnf := cluster.GetCfg()
+	cl, err := client.New(cnf, client.Options{})
+	Expect(err).ToNot(HaveOccurred())
+
 	config := apiserver.Config{Address: cluster.GetCfg().Host, TrustedCA: false}
-	Expect(config.Complete(cluster.GetCfg(), cluster.GetClient())).To(Succeed())
+	Expect(config.Complete(cluster.GetCfg(), cl)).To(Succeed())
 
 	authService = Controller{
 		namespace:            "default",
