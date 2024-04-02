@@ -15,8 +15,8 @@
 package identitymanager
 
 import (
+	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -51,7 +51,11 @@ type certificateIdentityProvider struct {
 // GetRemoteCertificate retrieves a certificate issued in the past,
 // given the clusterid and the signingRequest.
 func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
-	namespace, signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
+	namespace string, signingRequest []byte) (response *responsetypes.SigningRequestResponse, err error) {
+	response = &responsetypes.SigningRequestResponse{
+		ResponseType: responsetypes.SigningRequestResponseCertificate,
+	}
+
 	secret, err := identityProvider.client.CoreV1().Secrets(namespace).Get(context.TODO(), remoteCertificateSecret, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -73,15 +77,12 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 	}
 
 	// check that this certificate is related to this signing request
-	if csr := base64.StdEncoding.EncodeToString(signingRequestSecret); csr != signingRequest {
+	if !bytes.Equal(signingRequestSecret, signingRequest) {
 		err = kerrors.NewBadRequest(fmt.Sprintf("the stored and the provided CSR for cluster %s does not match", cluster.ClusterName))
 		klog.Error(err)
 		return response, err
 	}
 
-	response = &responsetypes.SigningRequestResponse{
-		ResponseType: responsetypes.SigningRequestResponseCertificate,
-	}
 	response.Certificate, ok = secret.Data[certificateSecretKey]
 	if !ok {
 		klog.Errorf("no %v key in secret %v/%v", certificateSecretKey, secret.Namespace, secret.Name)
@@ -99,13 +100,7 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 // It creates a CertificateSigningRequest CR to be issued by the local cluster, and approves it.
 // This function will wait (with a timeout) for an available certificate before returning.
 func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(cluster discoveryv1alpha1.ClusterIdentity,
-	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
-	signingBytes, err := base64.StdEncoding.DecodeString(signingRequest)
-	if err != nil {
-		klog.Error(err)
-		return response, err
-	}
-
+	signingRequest []byte) (response *responsetypes.SigningRequestResponse, err error) {
 	cert := &certv1.CertificateSigningRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: identitySecretRoot + "-",
@@ -116,7 +111,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 				"system:authenticated",
 			},
 			SignerName: certv1.KubeAPIServerClientSignerName,
-			Request:    signingBytes,
+			Request:    signingRequest,
 			Usages: []certv1.KeyUsage{
 				certv1.UsageDigitalSignature,
 				certv1.UsageKeyEncipherment,
@@ -151,7 +146,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 	}
 
 	// store the certificate in a Secret, in this way is possbile to retrieve it again in the future
-	if _, err = identityProvider.storeRemoteCertificate(cluster, signingBytes, response.Certificate); err != nil {
+	if _, err = identityProvider.storeRemoteCertificate(cluster, signingRequest, response.Certificate); err != nil {
 		klog.Error(err)
 		return response, err
 	}

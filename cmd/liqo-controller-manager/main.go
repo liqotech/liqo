@@ -132,6 +132,9 @@ func main() {
 	var ipamClient ipam.IpamClient
 	var gatewayServerResources argsutils.StringList
 	var gatewayClientResources argsutils.StringList
+	var apiServerAddressOverride string
+	var caOverride string
+	var trustedCA bool
 
 	networkingEnabled := flag.Bool("networking-enabled", true, "Enable/disable the networking module")
 	authenticationEnabled := flag.Bool("authentication-enabled", true, "Enable/disable the authentication module")
@@ -235,6 +238,12 @@ func main() {
 	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
 	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
 	gwmasqbypassEnabled := flag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
+
+	// Authentication module parameters
+	flag.StringVar(&apiServerAddressOverride,
+		"api-server-address-override", "", "Override the API server address where the Kuberentes APIServer is exposed")
+	flag.StringVar(&caOverride, "ca-override", "", "Override the CA certificate used by Kubernetes to sign certificates (base64 encoded)")
+	flag.BoolVar(&trustedCA, "trusted-ca", false, "Whether the Kubernetes APIServer certificate is issue by a trusted CA")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -345,6 +354,9 @@ func main() {
 	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
 	idManager := identitymanager.NewCertificateIdentityManager(clientset, clusterIdentity, namespaceManager)
 
+	// TODO: check if is running on EKS and start the IAM identity provider
+	idProvider := identitymanager.NewCertificateIdentityProvider(ctx, clientset, clusterIdentity, namespaceManager)
+
 	// populate the lists of ClusterRoles to bind in the different peering states
 	permissions, err := peeringroles.GetPeeringPermission(ctx, clientset)
 	if err != nil {
@@ -361,7 +373,16 @@ func main() {
 
 	// authentication module
 	if *authenticationEnabled {
-		if err := modules.SetupAuthenticationModule(ctx, mgr, uncachedClient, namespaceManager, *liqoNamespace); err != nil {
+		opts := &modules.AuthOption{
+			IdentityProvider:         idProvider,
+			NamespaceManager:         namespaceManager,
+			LiqoNamespace:            *liqoNamespace,
+			APIServerAddressOverride: apiServerAddressOverride,
+			CAOverrideB64:            caOverride,
+			TrustedCA:                trustedCA,
+		}
+
+		if err := modules.SetupAuthenticationModule(ctx, mgr, uncachedClient, opts); err != nil {
 			klog.Fatalf("Unable to setup the authentication module: %v", err)
 		}
 	}

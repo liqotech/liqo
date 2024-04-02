@@ -15,12 +15,13 @@
 package apiserver
 
 import (
+	"context"
 	"encoding/base64"
 	"flag"
 	"os"
 
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // config is the instance of the configuration automatically populated based on the command line parameters.
@@ -56,33 +57,45 @@ func InitFlags(flagset *flag.FlagSet) {
 func GetConfig() Config { return config }
 
 // Complete completes the retrieval of the configuration, defaulting the fields if not set.
-func (c *Config) Complete(restcfg *rest.Config, client kubernetes.Interface) (err error) {
-	if c.Address, err = GetURL(c.Address, client); err != nil {
+func (c *Config) Complete(restcfg *rest.Config, cl client.Client) (err error) {
+	if c.Address, err = GetURL(context.TODO(), c.Address, cl); err != nil {
 		return err
 	}
 
-	if !c.TrustedCA {
-		if c.CA, err = retrieveAPIServerCA(restcfg); err != nil {
-			return err
-		}
+	ca, err := RetrieveAPIServerCA(restcfg, []byte{}, c.TrustedCA)
+	if err != nil {
+		return err
 	}
-
+	c.CA = string(ca)
 	return nil
 }
 
-// getAPIServerCA retrieves the APIServerCA, either from the CAData in the restConfig, or reading from the CAFile.
-func retrieveAPIServerCA(restcfg *rest.Config) (string, error) {
+// RetrieveAPIServerCA retrieves the APIServerCA, either from the CAData in the restConfig, or reading from the CAFile.
+func RetrieveAPIServerCA(restcfg *rest.Config, caOverride []byte, trustedCA bool) ([]byte, error) {
+	if len(caOverride) > 0 {
+		return caOverride, nil
+	}
+
+	// if the CA is trusted, we don't need to advertise it. All the peering clusters should trust it.
+	if trustedCA {
+		return []byte{}, nil
+	}
+
 	if restcfg.CAData != nil && len(restcfg.CAData) > 0 {
 		// CAData available in the restConfig, encode and return it.
-		return base64.StdEncoding.EncodeToString(restcfg.CAData), nil
+		res := make([]byte, base64.StdEncoding.EncodedLen(len(restcfg.CAData)))
+		base64.StdEncoding.Encode(res, restcfg.CAData)
+		return res, nil
 	}
 	if restcfg.CAFile != "" {
 		// CAData is not available, read it from the CAFile.
 		data, err := os.ReadFile(restcfg.CAFile)
 		if err != nil {
-			return "", err
+			return []byte{}, err
 		}
-		return base64.StdEncoding.EncodeToString(data), nil
+		res := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
+		base64.StdEncoding.Encode(res, data)
+		return res, nil
 	}
-	return "", nil
+	return []byte{}, nil
 }
