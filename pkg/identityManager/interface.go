@@ -45,7 +45,7 @@ type IdentityManager interface {
 // IdentityProvider provides the interface to retrieve and approve remote cluster identities.
 type IdentityProvider interface {
 	GetRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
-		namespace, signingRequest string) (response *responsetypes.SigningRequestResponse, err error)
+		namespace string, signingRequest []byte) (response *responsetypes.SigningRequestResponse, err error)
 	ApproveSigningRequest(cluster discoveryv1alpha1.ClusterIdentity,
-		signingRequest string) (response *responsetypes.SigningRequestResponse, err error)
+		signingRequest []byte) (response *responsetypes.SigningRequestResponse, err error)
 }

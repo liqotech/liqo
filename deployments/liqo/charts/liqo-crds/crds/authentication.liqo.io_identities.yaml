@@ -70,8 +70,10 @@ spec:
                     - awsSecretAccessKey
                     type: object
                   ca:
+                    format: byte
                     type: string
                   signedCRT:
+                    format: byte
                     type: string
                 type: object
               clusterIdentity:

@@ -43,6 +43,8 @@ type TenantSpec struct {
 	CSR []byte `json:"csr,omitempty"`
 	// Signature contains the nonce signed by the tenant cluster.
 	Signature []byte `json:"signature,omitempty"`
+	// ProxyURL is the URL of the proxy used by the tenant cluster to connect to the local cluster (optional).
+	ProxyURL *string `json:"proxyURL,omitempty"`
 }
 
 // TenantStatus defines the observed state of Tenant.
@@ -50,7 +52,7 @@ type TenantStatus struct {
 	// TenantNamespace is the namespace of the tenant cluster.
 	TenantNamespace string `json:"tenantNamespace,omitempty"`
 	// AuthParams contains the authentication parameters for the consumer cluster.
-	AuthParams AuthParams `json:"authParams,omitempty"`
+	AuthParams *AuthParams `json:"authParams,omitempty"`
 }
 
 // +kubebuilder:object:root=true

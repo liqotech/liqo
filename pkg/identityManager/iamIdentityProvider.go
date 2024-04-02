@@ -54,9 +54,12 @@ type mapUser struct {
 	Groups   []string `json:"groups"`
 }
 
-func (identityProvider *iamIdentityProvider) GetRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
-	namespace, signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
+func (identityProvider *iamIdentityProvider) GetRemoteCertificate(_ discoveryv1alpha1.ClusterIdentity,
+	_ string, _ []byte) (response *responsetypes.SigningRequestResponse, err error) {
 	// this method has no meaning for this identity provider
+	response = &responsetypes.SigningRequestResponse{
+		ResponseType: responsetypes.SigningRequestResponseIAM,
+	}
 	return response, kerrors.NewNotFound(schema.GroupResource{
 		Group:    "v1",
 		Resource: "secrets",
@@ -64,7 +67,7 @@ func (identityProvider *iamIdentityProvider) GetRemoteCertificate(cluster discov
 }
 
 func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster discoveryv1alpha1.ClusterIdentity,
-	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
+	_ []byte) (response *responsetypes.SigningRequestResponse, err error) {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(identityProvider.awsConfig.AwsRegion),
 		Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
