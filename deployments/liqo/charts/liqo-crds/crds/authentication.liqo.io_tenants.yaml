@@ -64,6 +64,10 @@ spec:
                   cluster.
                 format: byte
                 type: string
+              proxyURL:
+                description: ProxyURL is the URL of the proxy used by the tenant cluster
+                  to connect to the local cluster (optional).
+                type: string
               publicKey:
                 description: PublicKey is the public key of the tenant cluster.
                 format: byte
@@ -101,8 +105,10 @@ spec:
                     - awsSecretAccessKey
                     type: object
                   ca:
+                    format: byte
                     type: string
                   signedCRT:
+                    format: byte
                     type: string
                 type: object
               tenantNamespace:
