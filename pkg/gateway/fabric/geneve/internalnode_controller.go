@@ -29,7 +29,6 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/gateway/fabric"
-	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/utils/geneve"
 )
 
@@ -73,7 +72,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	klog.V(4).Infof("Reconciling internalnode %s", req.String())
 
 	// The internal fabric has the same name of the gateway resource.
-	internalFabricName := forge.GatewayResourceName(r.Options.GwOptions.Name)
+	internalFabricName := r.Options.GwOptions.Name
 	id, err := geneve.GetGeneveTunnelID(ctx, r.Client, internalFabricName, internalnode.Name)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to get the geneve tunnel id: %w", err)
