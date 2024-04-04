@@ -142,3 +142,25 @@ func GetClusterKeys(ctx context.Context, cl client.Client, liqoNamespace string)
 
 	return priv.(ed25519.PrivateKey), pub.(ed25519.PublicKey), nil
 }
+
+// GetClusterKeysPEM retrieves the private and public keys of the cluster from the secret and encoded in PEM format.
+func GetClusterKeysPEM(ctx context.Context, cl client.Client, liqoNamespace string) (privateKey, publicKey []byte, err error) {
+	var secret corev1.Secret
+	if err = cl.Get(ctx, client.ObjectKey{Name: consts.AuthKeysSecretName, Namespace: liqoNamespace}, &secret); err != nil {
+		return nil, nil, fmt.Errorf("unable to get secret with cluster authentication keys: %w", err)
+	}
+
+	// Get the private key from the secret.
+	privateKey, found := secret.Data[consts.PrivateKeyField]
+	if !found {
+		return nil, nil, fmt.Errorf("private key not found in secret %s/%s", liqoNamespace, consts.AuthKeysSecretName)
+	}
+
+	// Get the public key from the secret.
+	publicKey, found = secret.Data[consts.PublicKeyField]
+	if !found {
+		return nil, nil, fmt.Errorf("public key not found in secret %s/%s", liqoNamespace, consts.AuthKeysSecretName)
+	}
+
+	return privateKey, publicKey, nil
+}
