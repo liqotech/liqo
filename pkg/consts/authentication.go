@@ -27,4 +27,7 @@ const (
 	NonceSecretField = "nonce"
 	// SignedNonceSecretField is the field key where the signed nonce is stored in the secret.
 	SignedNonceSecretField = "signedNonce"
+
+	// KubeconfigSecretField is the field key where the kubeconfig is stored in the secret.
+	KubeconfigSecretField = "kubeconfig"
 )
