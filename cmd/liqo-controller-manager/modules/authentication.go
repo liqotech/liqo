@@ -24,6 +24,7 @@ import (
 
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	identitycontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/identity-controller"
 	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
 	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
 	tenantcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/tenant-controller"
@@ -57,6 +58,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 		return err
 	}
 
+	// Configure controller that generate nonces.
 	nonceReconciler := noncecreatorcontroller.NewNonceReconciler(
 		mgr.GetClient(), mgr.GetScheme(),
 		opts.NamespaceManager,
@@ -76,12 +78,21 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 		return err
 	}
 
+	// Configure controller that fill tenant status with the authentication parameters.
 	tenantReconciler := tenantcontroller.NewTenantReconciler(mgr.GetClient(), mgr.GetScheme(), mgr.GetConfig(),
 		mgr.GetEventRecorderFor("tenant-controller"),
 		opts.IdentityProvider, opts.NamespaceManager,
 		opts.APIServerAddressOverride, caOverride, opts.TrustedCA)
 	if err := tenantReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the tenant controller: %v", err)
+		return err
+	}
+
+	// Configure controller that create Kubeconfig secrets for each identities.
+	identityReconciler := identitycontroller.NewIdentityReconciler(mgr.GetClient(), mgr.GetScheme(),
+		mgr.GetEventRecorderFor("identity-controller"), opts.LiqoNamespace)
+	if err := identityReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to setup the identity reconciler: %v", err)
 		return err
 	}
 
