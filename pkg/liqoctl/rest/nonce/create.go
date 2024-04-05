@@ -45,7 +45,7 @@ const liqoctlCreateNonceLongHelp = `Create a Nonce.
 The Nonce secret is used to authenticate the remote cluster to the local cluster.
 
 Examples:
-  $ {{ .Executable }} create nonce --remote-cluster-id my-cluster-id`
+  $ {{ .Executable }} create nonce --remote-cluster-id remote-cluster-id`
 
 // Create creates a Nonce.
 func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobra.Command {

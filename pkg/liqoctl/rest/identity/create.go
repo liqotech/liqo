@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1alpha1
+package identity
 
-// AuthParams contains the authentication parameters for the tenant cluster.
-type AuthParams struct {
-	CA        []byte  `json:"ca,omitempty"`
-	SignedCRT []byte  `json:"signedCRT,omitempty"`
-	APIServer string  `json:"apiServer,omitempty"`
-	ProxyURL  *string `json:"proxyURL,omitempty"`
+import (
+	"context"
 
-	AwsConfig *AwsConfig `json:"awsConfig,omitempty"`
+	"github.com/spf13/cobra"
+
+	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+)
+
+// Create implements the create command.
+func (o *Options) Create(_ context.Context, _ *rest.CreateOptions) *cobra.Command {
+	panic("not implemented")
 }
