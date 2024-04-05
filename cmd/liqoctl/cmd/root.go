@@ -33,6 +33,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/create"
 	"github.com/liqotech/liqo/pkg/liqoctl/delete"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/get"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/identity"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/nonce"
@@ -132,7 +133,9 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(newVersionCommand(ctx, f))
 	cmd.AddCommand(newDocsCommand(ctx))
 	cmd.AddCommand(create.NewCreateCommand(ctx, liqoResources, f))
+	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(delete.NewDeleteCommand(ctx, liqoResources, f))
+
 	return cmd
 }
 

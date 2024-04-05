@@ -23,6 +23,7 @@ import (
 // Options encapsulates the arguments of the nonce command.
 type Options struct {
 	createOptions    *rest.CreateOptions
+	getOptions       *rest.GetOptions
 	namespaceManager tenantnamespace.Manager
 
 	clusterIdentity discoveryv1alpha1.ClusterIdentity
@@ -39,5 +40,6 @@ func Nonce() rest.API {
 func (o *Options) APIOptions() *rest.APIOptions {
 	return &rest.APIOptions{
 		EnableCreate: true,
+		EnableGet:    true,
 	}
 }
