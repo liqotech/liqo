@@ -143,7 +143,9 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(newNetworkCommand(ctx, f))
 	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(create.NewCreateCommand(ctx, liqoResources, f))
+	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(delete.NewDeleteCommand(ctx, liqoResources, f))
+
 	return cmd
 }
 

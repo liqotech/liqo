@@ -16,13 +16,71 @@ package nonce
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/runtime"
 
+	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
+	"github.com/liqotech/liqo/pkg/liqoctl/completion"
+	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
+const liqoctlGetNonceLongHelp = `Get a Nonce.
+
+The Nonce secret is used to authenticate the remote cluster to the local cluster.
+
+Examples:
+  $ {{ .Executable }} get nonce --remote-cluster-id remote-cluster-id`
+
 // Get implements the get command.
-func (o *Options) Get(_ context.Context, _ *rest.GetOptions) *cobra.Command {
-	panic("not implemented")
+func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Command {
+	o.getOptions = options
+
+	cmd := &cobra.Command{
+		Use:     "nonce",
+		Aliases: []string{},
+		Short:   "Get a nonce",
+		Long:    liqoctlGetNonceLongHelp,
+		Args:    cobra.NoArgs,
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			o.getOptions = options
+		},
+
+		Run: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(o.handleGet(ctx))
+		},
+	}
+
+	cmd.Flags().StringVar(&o.clusterIdentity.ClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
+
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
+
+	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
+		o.getOptions.Factory, completion.NoLimit)))
+
+	return cmd
+}
+
+func (o *Options) handleGet(ctx context.Context) error {
+	opts := o.getOptions
+
+	nonce, err := getters.GetNonceByClusterID(ctx, opts.CRClient, o.clusterIdentity.ClusterID)
+	if err != nil {
+		opts.Printer.CheckErr(fmt.Errorf("unable to get nonce: %v", output.PrettyErr(err)))
+		return err
+	}
+
+	nonceValue, err := noncecreatorcontroller.GetNonceFromSecret(nonce)
+	if err != nil {
+		opts.Printer.CheckErr(fmt.Errorf("unable to get nonce: %v", output.PrettyErr(err)))
+		return err
+	}
+
+	fmt.Print(string(nonceValue))
+
+	return nil
 }
