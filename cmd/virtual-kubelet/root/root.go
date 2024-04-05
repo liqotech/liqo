@@ -92,7 +92,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	// Retrieve the remote restcfg
 	tenantNamespaceManager := tenantnamespace.NewManager(localClient) // Do not use the cached version, as leveraged only once.
-	identityManager := identitymanager.NewCertificateIdentityReader(localClient, c.HomeCluster, tenantNamespaceManager)
+	// TODO: passing nil as client, refactor to not use the identityManager.
+	identityManager := identitymanager.NewCertificateIdentityReader(nil, localClient, c.HomeCluster, tenantNamespaceManager)
 
 	if c.RemoteKubeconfigSecretName == "" {
 		return fmt.Errorf("remote kubeconfig secret name is mandatory")

@@ -22,8 +22,6 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
-
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // GenerateCSR generates a new CSR given a private key and a subject.
@@ -47,6 +45,6 @@ func GenerateCSR(key ed25519.PrivateKey, commonName string) (csrBytes []byte, er
 }
 
 // CommonName returns a common name given the cluster identity.
-func CommonName(clusterIdentity discoveryv1alpha1.ClusterIdentity) string {
-	return fmt.Sprintf("%s-%s", clusterIdentity.ClusterName, clusterIdentity.ClusterID)
+func CommonName(clusterID string) string {
+	return clusterID
 }
