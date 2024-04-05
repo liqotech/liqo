@@ -89,7 +89,7 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 		secret.StringData[apiProxyURLSecretKey] = remoteProxyURL
 	}
 
-	if _, err := certManager.client.CoreV1().Secrets(secret.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+	if _, err := certManager.k8sClient.CoreV1().Secrets(secret.Namespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to create secret: %w", err)
 	}
 	return nil
@@ -114,7 +114,7 @@ func (certManager *identityManager) getSecretInNamespace(remoteCluster discovery
 			discovery.ClusterIDLabel: remoteCluster.ClusterID,
 		},
 	}
-	secretList, err := certManager.client.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{
+	secretList, err := certManager.k8sClient.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
 	})
 	if err != nil {
