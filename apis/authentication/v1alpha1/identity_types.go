@@ -56,6 +56,9 @@ type IdentitySpec struct {
 	Type IdentityType `json:"type,omitempty"`
 	// AuthParams contains the parameters to create an Identity to use in the provider cluster.
 	AuthParams AuthParams `json:"authParams,omitempty"`
+	// Namespace is the namespace where to use the identity.
+	// +kubebuilder:validation:Optional
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 // IdentityStatus defines the observed state of Identity.

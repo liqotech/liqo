@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
@@ -35,7 +34,14 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
-const liqoctlGenerateConfigHelp = `Generate the Tenant resource to be applied on the remote provider cluster.`
+const liqoctlGenerateConfigHelp = `Generate the Tenant resource to be applied on the remote provider cluster.
+
+This commands generates a Tenant filled with all the authentication parameters needed to authenticate with the remote cluster.
+It signs the nonce provided by the remote cluster and generates the CSR.
+The Nonce can be provided as a flag or it can be retrieved from the secret in the tenant namespace (if existing).   
+
+Examples:
+  $ {{ .Executable }} generate tenant --remote-cluster-id remote-cluster-id --remote-cluster-name remote-cluster-name`
 
 // Generate generates a Tenant.
 func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *cobra.Command {
@@ -68,6 +74,7 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterID, "remote-cluster-id", "", "The ID of the remote cluster")
 	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterName, "remote-cluster-name", "", "The name of the remote cluster")
 	cmd.Flags().StringVar(&o.nonce, "nonce", "", "The nonce to sign for the authentication with the remote cluster")
+	cmd.Flags().StringVar(&o.proxyURL, "proxy-url", "", "The URL of the proxy to use for the communication with the remote cluster")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-name"))
@@ -80,13 +87,11 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 }
 
 func (o *Options) handleGenerate(ctx context.Context) error {
-	var tenantNs *corev1.Namespace
-	var err error
-
 	opts := o.generateOptions
 
 	// Ensure tenant namespace exists
-	if tenantNs, err = o.namespaceManager.CreateNamespace(ctx, o.remoteClusterIdentity); err != nil {
+	tenantNs, err := o.namespaceManager.CreateNamespace(ctx, o.remoteClusterIdentity)
+	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to create tenant namespace: %w", err))
 		return err
 	}
@@ -154,7 +159,11 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 	}
 
 	// Forge tenant resource for the remote cluster and output it.
-	tenant := forge.TenantForRemoteCluster(localClusterIdentity, publicKey, CSR, signedNonce)
+	var proxyURL *string
+	if o.proxyURL != "" {
+		proxyURL = &o.proxyURL
+	}
+	tenant := forge.TenantForRemoteCluster(localClusterIdentity, publicKey, CSR, signedNonce, proxyURL)
 	opts.Printer.CheckErr(o.output(tenant))
 
 	return nil
