@@ -46,7 +46,7 @@ import (
 
 var (
 	tenantClusterRoles = []string{
-		"liqo-control-plane",
+		"liqo-remote-controlplane",
 	}
 )
 
@@ -249,7 +249,7 @@ func checkCSR(csr, publicKey []byte, remoteClusterIdentity *discoveryv1alpha1.Cl
 		return err
 	}
 
-	if x509Csr.Subject.CommonName != authentication.CommonName(*remoteClusterIdentity) {
+	if x509Csr.Subject.CommonName != authentication.CommonName(remoteClusterIdentity.ClusterID) {
 		return fmt.Errorf("invalid common name")
 	}
 

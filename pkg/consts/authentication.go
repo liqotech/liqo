@@ -30,4 +30,10 @@ const (
 
 	// KubeconfigSecretField is the field key where the kubeconfig is stored in the secret.
 	KubeconfigSecretField = "kubeconfig"
+
+	// IdentityTypeLabelKey is the label key to indicate the type of Identity.
+	IdentityTypeLabelKey = "liqo.io/identity-type"
+
+	// RemoteTenantNamespaceAnnotKey is the annotation key used to store the remote tenant namespace.
+	RemoteTenantNamespaceAnnotKey = "liqo.io/remote-tenant-namespace"
 )
