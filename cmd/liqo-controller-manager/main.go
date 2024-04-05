@@ -382,10 +382,10 @@ func main() {
 	}
 
 	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
-	idManager := identitymanager.NewCertificateIdentityManager(clientset, clusterIdentity, namespaceManager)
+	idManager := identitymanager.NewCertificateIdentityManager(mgr.GetClient(), clientset, clusterIdentity, namespaceManager)
 
 	// TODO: check if is running on EKS and start the IAM identity provider
-	idProvider := identitymanager.NewCertificateIdentityProvider(ctx, clientset, clusterIdentity, namespaceManager)
+	idProvider := identitymanager.NewCertificateIdentityProvider(ctx, mgr.GetClient(), clientset, clusterIdentity, namespaceManager)
 
 	// populate the lists of ClusterRoles to bind in the different peering states
 	permissions, err := peeringroles.GetPeeringPermission(ctx, clientset)

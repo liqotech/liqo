@@ -23,7 +23,7 @@ import (
 )
 
 // ResourceSliceResource is the name of the resourceSlice resources.
-var ResourceSliceResource = "identities"
+var ResourceSliceResource = "resourceslices"
 
 // ResourceSliceKind specifies the kind of the resourceSlice.
 var ResourceSliceKind = "ResourceSlice"
