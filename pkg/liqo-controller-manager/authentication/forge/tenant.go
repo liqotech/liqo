@@ -23,9 +23,10 @@ import (
 )
 
 // TenantForRemoteCluster forges a Tenant resource to be applied on a remote cluster.
-func TenantForRemoteCluster(localClusterIdentity discoveryv1alpha1.ClusterIdentity, publicKey, csr, signature []byte) *authv1alpha1.Tenant {
+func TenantForRemoteCluster(localClusterIdentity discoveryv1alpha1.ClusterIdentity,
+	publicKey, csr, signature []byte, proxyURL *string) *authv1alpha1.Tenant {
 	tenant := Tenant(localClusterIdentity)
-	MutateTenant(tenant, localClusterIdentity, publicKey, csr, signature)
+	MutateTenant(tenant, localClusterIdentity, publicKey, csr, signature, proxyURL)
 
 	return tenant
 }
@@ -44,7 +45,8 @@ func Tenant(remoteClusterIdentity discoveryv1alpha1.ClusterIdentity) *authv1alph
 }
 
 // MutateTenant mutates a Tenant resource.
-func MutateTenant(tenant *authv1alpha1.Tenant, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity, publicKey, csr, signature []byte) {
+func MutateTenant(tenant *authv1alpha1.Tenant, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity,
+	publicKey, csr, signature []byte, proxyURL *string) {
 	if tenant.Labels == nil {
 		tenant.Labels = map[string]string{}
 	}
@@ -55,5 +57,6 @@ func MutateTenant(tenant *authv1alpha1.Tenant, remoteClusterIdentity discoveryv1
 		PublicKey:       publicKey,
 		CSR:             csr,
 		Signature:       signature,
+		ProxyURL:        proxyURL,
 	}
 }

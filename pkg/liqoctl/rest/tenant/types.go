@@ -27,6 +27,7 @@ type Options struct {
 
 	remoteClusterIdentity discoveryv1alpha1.ClusterIdentity
 	nonce                 string
+	proxyURL              string
 }
 
 var _ rest.API = &Options{}
