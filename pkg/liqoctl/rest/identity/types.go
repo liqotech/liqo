@@ -12,14 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1alpha1
+package identity
 
-// AuthParams contains the authentication parameters for the tenant cluster.
-type AuthParams struct {
-	CA        []byte  `json:"ca,omitempty"`
-	SignedCRT []byte  `json:"signedCRT,omitempty"`
-	APIServer string  `json:"apiServer,omitempty"`
-	ProxyURL  *string `json:"proxyURL,omitempty"`
+import (
+	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+)
 
-	AwsConfig *AwsConfig `json:"awsConfig,omitempty"`
+// Options encapsulates the arguments of the tennant command.
+type Options struct {
+	generateOptions *rest.GenerateOptions
+
+	remoteClusterID string
+}
+
+var _ rest.API = &Options{}
+
+// Identity returns the rest API for the identity command.
+func Identity() rest.API {
+	return &Options{}
+}
+
+// APIOptions returns the APIOptions for the identity API.
+func (o *Options) APIOptions() *rest.APIOptions {
+	return &rest.APIOptions{
+		EnableGenerate: true,
+	}
 }
