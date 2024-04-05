@@ -273,3 +273,30 @@ func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID *discoveryv1alpha
 	s.Success("Nonce created successfully")
 	return nil
 }
+
+// ForTenantStatus waits until the tenant status has been updated or the timeout expires.
+func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID string) error {
+	s := w.Printer.StartSpinner("Waiting for tenant status to be filled")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		tenant, err := getters.GetTenantByClusterID(ctx, w.CRClient, remoteClusterID)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+
+		if tenant.Status.AuthParams == nil {
+			return false, nil
+		}
+
+		if tenant.Status.TenantNamespace == "" {
+			return false, nil
+		}
+
+		return true, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for tenant status to be updated: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Tenant status is filled")
+	return nil
+}

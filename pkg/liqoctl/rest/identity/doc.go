@@ -12,14 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1alpha1
-
-// AuthParams contains the authentication parameters for the tenant cluster.
-type AuthParams struct {
-	CA        []byte  `json:"ca,omitempty"`
-	SignedCRT []byte  `json:"signedCRT,omitempty"`
-	APIServer string  `json:"apiServer,omitempty"`
-	ProxyURL  *string `json:"proxyURL,omitempty"`
-
-	AwsConfig *AwsConfig `json:"awsConfig,omitempty"`
-}
+// Package identity contains the rest API commands to allow liqoctl to interact with Identity resources.
+package identity

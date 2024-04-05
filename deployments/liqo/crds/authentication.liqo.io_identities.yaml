@@ -72,6 +72,8 @@ spec:
                   ca:
                     format: byte
                     type: string
+                  proxyURL:
+                    type: string
                   signedCRT:
                     format: byte
                     type: string
@@ -90,6 +92,9 @@ spec:
                 - clusterID
                 - clusterName
                 type: object
+              namespace:
+                description: Namespace is the namespace where to use the identity.
+                type: string
               type:
                 description: Type is the type of the identity.
                 enum:
