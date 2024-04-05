@@ -18,9 +18,8 @@ package resources
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -39,16 +38,6 @@ type Resource struct {
 func GetResourcesToReplicate() []Resource {
 	return []Resource{
 		{
-			GroupVersionResource: discoveryv1alpha1.ResourceRequestGroupVersionResource,
-			PeeringPhase:         consts.PeeringPhaseAuthenticated,
-			Ownership:            consts.OwnershipShared,
-		},
-		{
-			GroupVersionResource: sharingv1alpha1.ResourceOfferGroupVersionResource,
-			PeeringPhase:         consts.PeeringPhaseIncoming,
-			Ownership:            consts.OwnershipShared,
-		},
-		{
 			GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
 			PeeringPhase:         consts.PeeringPhaseEstablished,
 			Ownership:            consts.OwnershipShared,
@@ -56,6 +45,11 @@ func GetResourcesToReplicate() []Resource {
 		{
 			GroupVersionResource: vkv1alpha1.NamespaceMapGroupVersionResource,
 			PeeringPhase:         consts.PeeringPhaseOutgoing,
+			Ownership:            consts.OwnershipShared,
+		},
+		{
+			GroupVersionResource: authv1alpha1.ResourceSliceGroupVersionResource,
+			PeeringPhase:         consts.PeeringPhaseAuthenticated,
 			Ownership:            consts.OwnershipShared,
 		},
 	}

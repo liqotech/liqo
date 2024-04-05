@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -49,6 +50,7 @@ var liqoGroupVersions = []schema.GroupVersion{
 	offv1alpha1.GroupVersion,
 	sharingv1alpha1.GroupVersion,
 	virtualKubeletv1alpha1.SchemeGroupVersion,
+	authv1alpha1.GroupVersion,
 }
 
 // Options encapsulates the arguments of the uninstall command.
