@@ -16,35 +16,39 @@ package crdreplicator
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
 const (
 	operatorName = "crdReplicator-operator"
-	finalizer    = "crdReplicator.liqo.io"
+	finalizer    = "crdreplicator.liqo.io/operator"
 )
 
-// Controller reconciles ForeignCluster objects to start/stop the reflection of registered resources to remote clusters.
+// Controller reconciles identity Secrets to start/stop the reflection of registered resources to remote clusters.
 type Controller struct {
 	Scheme *runtime.Scheme
 	client.Client
@@ -69,55 +73,63 @@ type Controller struct {
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;update;patch
 // role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list;watch
 
 // identity management
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 // Reconcile handles requests for subscribed types of object.
 func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
-	tracer := trace.New("Reconcile", trace.Field{Key: "ForeignCluster", Value: req.Name})
+	var prefix string
+	tracer := trace.New("Reconcile", trace.Field{Key: "Secret", Value: req.Name})
 	defer tracer.LogIfLong(traceutils.LongThreshold())
 
-	var fc discoveryv1alpha1.ForeignCluster
-	err = c.Get(ctx, req.NamespacedName, &fc)
-	if err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("Unable to retrieve resource %q: %s", req.NamespacedName, err)
+	var secret corev1.Secret
+	if err := c.Get(ctx, req.NamespacedName, &secret); err != nil {
+		if errors.IsNotFound(err) {
+			klog.V(4).Infof("secret %q not found", req.NamespacedName)
+			return ctrl.Result{}, nil
+		}
+		klog.Errorf("unable to get secret %q: %v", req.NamespacedName, err)
 		return ctrl.Result{}, err
 	}
-	if apierrors.IsNotFound(err) {
+
+	klog.Infof("Processing Secret %q", req.NamespacedName)
+
+	// Validate the secret to ensure it is a control plane identity and it has all the required labels and annotations.
+	if err := c.validateSecret(&secret); err != nil {
+		klog.Errorf("secret %q is not valid: %v", req.NamespacedName, err)
 		return ctrl.Result{}, nil
 	}
 
-	remoteCluster := fc.Spec.ClusterIdentity
-	klog.Infof("[%v] Processing ForeignCluster %q", remoteCluster.ClusterName, fc.Name)
-	// Prevent issues in case the remote cluster ID has not yet been set
-	if remoteCluster.ClusterID == "" {
-		klog.Infof("Remote Cluster ID is not yet set in resource %q", fc.Name)
-		return ctrl.Result{}, nil
+	// Extract remote cluster informations from the secret
+	remoteClusterID := secret.Labels[consts.RemoteClusterID]
+	localTenantNamespace := secret.Namespace
+	remoteTenantNamespace := secret.Annotations[consts.RemoteTenantNamespaceAnnotKey]
+	if remoteClusterName, ok := secret.Annotations[consts.RemoteClusterName]; ok { // optional, only used for logging
+		prefix = fmt.Sprintf("[%s] ", remoteClusterName)
 	}
 
 	// examine DeletionTimestamp to determine if object is under deletion
-	if !fc.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !secret.ObjectMeta.DeletionTimestamp.IsZero() {
 		// the object is being deleted
-		if controllerutil.ContainsFinalizer(&fc, finalizer) {
+		if controllerutil.ContainsFinalizer(&secret, finalizer) {
 			// close remote watcher for remote cluster
-			reflector, ok := c.Reflectors[remoteCluster.ClusterID]
+			reflector, ok := c.Reflectors[remoteClusterID]
 			if ok {
 				if err := reflector.Stop(); err != nil {
-					klog.Errorf("[%v] Failed to stop reflection: %v", remoteCluster.ClusterName, err)
+					klog.Errorf("%sFailed to stop reflection: %v", prefix, err)
 					return ctrl.Result{}, err
 				}
-				delete(c.Reflectors, remoteCluster.ClusterID)
+				delete(c.Reflectors, remoteClusterID)
 			}
 
 			// remove the finalizer from the list and update it.
-			if err := c.ensureFinalizer(ctx, &fc, controllerutil.RemoveFinalizer); err != nil {
-				klog.Errorf("An error occurred while removing the finalizer to %q: %s", fc.Name, err)
+			if err := c.ensureFinalizer(ctx, &secret, controllerutil.RemoveFinalizer); err != nil {
+				klog.Errorf("An error occurred while removing the finalizer to %q: %v", req.NamespacedName, err)
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
@@ -127,53 +139,51 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	// Defer the function to start/stop the reflection of the different resources based on the peering status.
 	defer func() {
 		if err == nil {
-			err = c.enforceReflectionStatus(ctx, remoteCluster.ClusterID, !fc.ObjectMeta.DeletionTimestamp.IsZero())
+			err = c.enforceReflectionStatus(ctx, remoteClusterID, !secret.GetDeletionTimestamp().IsZero())
 		}
 	}()
 
-	currentPhase := foreigncluster.GetPeeringPhase(&fc)
+	// TODO: redefine peering phases.
+	currentPhase := consts.PeeringPhaseAuthenticated
 	// The remote identity is not yet available, hence it is not possible to continue.
 	if currentPhase == consts.PeeringPhaseNone {
-		klog.Infof("Foreign cluster %s not yet associated with a valid identity", fc.Name)
+		klog.Infof("%sPeering phase not yet available for cluster %s", prefix, remoteClusterID)
 		return ctrl.Result{}, nil
 	}
 
 	// Add the finalizer to ensure the reflection is correctly stopped
-	if err := c.ensureFinalizer(ctx, &fc, controllerutil.AddFinalizer); err != nil {
-		klog.Errorf("An error occurred while adding the finalizer to %q: %s", fc.Name, err)
+	if err := c.ensureFinalizer(ctx, &secret, controllerutil.AddFinalizer); err != nil {
+		klog.Errorf("An error occurred while adding the finalizer to %q: %v", req.NamespacedName, err)
 		return ctrl.Result{}, err
 	}
 
-	if oldPhase := c.getPeeringPhase(remoteCluster.ClusterID); oldPhase != currentPhase {
-		klog.V(4).Infof("[%v] Peering phase changed: old: %v, new: %v", remoteCluster.ClusterName, oldPhase, currentPhase)
-		c.setPeeringPhase(remoteCluster.ClusterID, currentPhase)
+	if oldPhase := c.getPeeringPhase(remoteClusterID); oldPhase != currentPhase {
+		klog.V(4).Infof("%sPeering phase changed: old: %v, new: %v", prefix, oldPhase, currentPhase)
+		c.setPeeringPhase(remoteClusterID, currentPhase)
 	}
 
-	currentNetEnabled := foreigncluster.IsNetworkingEnabled(&fc)
-	if oldNetEnabled := c.getNetworkingEnabled(remoteCluster.ClusterID); oldNetEnabled != currentNetEnabled {
-		klog.V(4).Infof("[%v] Networking enabled status changed: old: %v, new %v", remoteCluster.ClusterName, oldNetEnabled, currentNetEnabled)
-		c.setNetworkingEnabled(remoteCluster.ClusterID, currentNetEnabled)
+	// TODO: replication of NetworkConfig is not necessary with the new network. Refactor to support new networking module.
+	currentNetEnabled := true
+	if oldNetEnabled := c.getNetworkingEnabled(remoteClusterID); oldNetEnabled != currentNetEnabled {
+		klog.V(4).Infof("%sNetworking enabled status changed: old: %v, new %v", prefix, oldNetEnabled, currentNetEnabled)
+		c.setNetworkingEnabled(remoteClusterID, currentNetEnabled)
 	}
 
 	// Check if reflection towards the remote cluster has already been started.
-	if _, found := c.Reflectors[remoteCluster.ClusterID]; found {
+	if _, found := c.Reflectors[remoteClusterID]; found {
 		return ctrl.Result{}, nil
 	}
 
-	if fc.Status.TenantNamespace.Local == "" || fc.Status.TenantNamespace.Remote == "" {
-		klog.Infof("[%v] TenantNamespace is not yet set in resource %q", remoteCluster.ClusterName, fc.Name)
-		return ctrl.Result{}, nil
-	}
-	config, err := c.IdentityReader.GetConfig(remoteCluster, fc.Status.TenantNamespace.Local)
+	config, err := c.IdentityReader.GetConfig(v1alpha1.ClusterIdentity{ClusterID: remoteClusterID}, localTenantNamespace)
 	if err != nil {
-		klog.Errorf("[%v] Unable to retrieve config from resource %q: %s", remoteCluster.ClusterName, fc.Name, err)
+		klog.Errorf("%sUnable to retrieve config for clusterID %q: %v", prefix, remoteClusterID, err)
 		return ctrl.Result{}, nil
 	}
 
-	return ctrl.Result{}, c.setupReflectionToPeeringCluster(ctx, config, &fc)
+	return ctrl.Result{}, c.setupReflectionToPeeringCluster(ctx, config, remoteClusterID, localTenantNamespace, remoteTenantNamespace)
 }
 
-// SetupWithManager registers a new controller for ForeignCluster resources.
+// SetupWithManager registers a new controller for identity Secrets.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	c.peeringPhases = make(map[string]consts.PeeringPhase)
 	c.networkingEnabled = make(map[string]bool)
@@ -183,30 +193,73 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 			return false
 		},
 	}
-	return ctrl.NewControllerManagedBy(mgr).Named(operatorName).WithEventFilter(resourceToBeProccesedPredicate).
-		For(&discoveryv1alpha1.ForeignCluster{}).
+
+	secretsFilter, err := predicate.LabelSelectorPredicate(c.controlPlaneIdentitySecretLabelSelector())
+	if err != nil {
+		return err
+	}
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(operatorName).
+		WithEventFilter(resourceToBeProccesedPredicate).
+		For(&corev1.Secret{}, builder.WithPredicates(secretsFilter)).
 		Complete(c)
 }
 
-// ensureFinalizer updates the ForeignCluster to ensure the presence/absence of the finalizer.
-func (c *Controller) ensureFinalizer(ctx context.Context, foreignCluster *discoveryv1alpha1.ForeignCluster,
+func (c *Controller) controlPlaneIdentitySecretLabelSelector() metav1.LabelSelector {
+	return metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      consts.RemoteClusterID,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+			{
+				Key:      consts.IdentityTypeLabelKey,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{string(authv1alpha1.ControlPlaneIdentityType)},
+			},
+		},
+	}
+}
+
+func (c *Controller) validateSecret(secret *corev1.Secret) error {
+	nsName := client.ObjectKeyFromObject(secret)
+
+	if secret.Labels == nil || secret.Annotations == nil {
+		return fmt.Errorf("secret %q does not have the required labels and annotations", nsName)
+	}
+
+	if idType, ok := secret.Labels[consts.IdentityTypeLabelKey]; ok && idType != string(authv1alpha1.ControlPlaneIdentityType) {
+		return fmt.Errorf("secret %q does not contain a control plane identity", nsName)
+	}
+
+	if _, ok := secret.Labels[consts.RemoteClusterID]; !ok {
+		return fmt.Errorf("secret %q does not have the remote cluster ID label %s", nsName, consts.RemoteClusterID)
+	}
+
+	if _, ok := secret.Annotations[consts.RemoteTenantNamespaceAnnotKey]; !ok {
+		return fmt.Errorf("secret %q does not have the remote tenant namespace annotation key %s", nsName, consts.RemoteTenantNamespaceAnnotKey)
+	}
+
+	return nil
+}
+
+// ensureFinalizer updates the identity secret to ensure the presence/absence of the finalizer.
+func (c *Controller) ensureFinalizer(ctx context.Context, secret *corev1.Secret,
 	updater func(client.Object, string) bool) error {
 	// Do not perform any action if the finalizer is already as expected
-	if !updater(foreignCluster, finalizer) {
+	if !updater(secret, finalizer) {
 		return nil
 	}
 
-	return c.Client.Update(ctx, foreignCluster)
+	return c.Client.Update(ctx, secret)
 }
 
-func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config *rest.Config, fc *discoveryv1alpha1.ForeignCluster) error {
-	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
-	localNamespace := fc.Status.TenantNamespace.Local
-	remoteNamespace := fc.Status.TenantNamespace.Remote
-
+func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config *rest.Config,
+	remoteClusterID, localNamespace, remoteNamespace string) error {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
-		klog.Errorf("[%v] Unable to create dynamic client for remote cluster: %v", remoteClusterID, err)
+		klog.Errorf("%sUnable to create dynamic client for remote cluster: %v", remoteClusterID, err)
 		return err
 	}
 

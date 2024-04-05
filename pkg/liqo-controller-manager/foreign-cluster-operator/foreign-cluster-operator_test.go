@@ -135,7 +135,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		Expect(authSvc).ToNot(BeNil())
 
 		namespaceManager := tenantnamespace.NewManager(cluster.GetClient())
-		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient(), homeCluster, namespaceManager)
+		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(mgr.GetClient(), cluster.GetClient(), homeCluster, namespaceManager)
 
 		foreignCluster := discoveryv1alpha1.ClusterIdentity{
 			ClusterID:   "foreign-cluster-id",

@@ -93,7 +93,7 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	if err = addGroup(dClient, networkingv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, authv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, authv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
 

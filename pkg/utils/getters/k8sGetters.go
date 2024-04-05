@@ -260,6 +260,58 @@ func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID strin
 	}
 }
 
+// GetControlPlaneIdentityByClusterID returns the Identity of type ControlPlane for the given cluster id.
+func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client, clusterID string) (*authv1alpha1.Identity, error) {
+	list := new(authv1alpha1.IdentityList)
+	if err := cl.List(ctx, list, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			consts.RemoteClusterID: clusterID,
+		}),
+	}); err != nil {
+		return nil, err
+	}
+
+	var controlPlaneIdentity *authv1alpha1.Identity
+	found := false
+	for i := range list.Items {
+		if list.Items[i].Spec.Type == authv1alpha1.ControlPlaneIdentityType {
+			if found {
+				return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
+					" when only one was expected", authv1alpha1.IdentityResource, clusterID)
+			}
+			controlPlaneIdentity = &list.Items[i]
+			found = true
+		}
+	}
+	if !found {
+		return nil, kerrors.NewNotFound(authv1alpha1.IdentityGroupResource, clusterID)
+	}
+
+	return controlPlaneIdentity, nil
+}
+
+// GetControlPlaneKubeconfigSecretByClusterID returns the Secret containing the Kubeconfig of a ControlPlane Identity given the cluster id.
+func GetControlPlaneKubeconfigSecretByClusterID(ctx context.Context, cl client.Client, clusterID string) (*corev1.Secret, error) {
+	list := new(corev1.SecretList)
+	if err := cl.List(ctx, list, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			consts.RemoteClusterID:      clusterID,
+			consts.IdentityTypeLabelKey: string(authv1alpha1.ControlPlaneIdentityType),
+		}),
+	}); err != nil {
+		return nil, err
+	}
+
+	switch len(list.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), clusterID)
+	case 1:
+		return &list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("found multiple secrets containing ControlPlane Kubeconfig for cluster %s", clusterID)
+	}
+}
+
 // GetOffloadingByNamespace returns the NamespaceOffloading resource for the given namespace.
 func GetOffloadingByNamespace(ctx context.Context, cl client.Client, namespace string) (*offloadingv1alpha1.NamespaceOffloading, error) {
 	var nsOffloading offloadingv1alpha1.NamespaceOffloading
