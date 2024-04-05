@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
@@ -47,6 +48,7 @@ var (
 	k8sClient     kubernetes.Interface
 	localCluster  discoveryv1alpha1.ClusterIdentity
 	remoteCluster discoveryv1alpha1.ClusterIdentity
+	mgr           manager.Manager
 
 	namespace *corev1.Namespace
 
@@ -91,9 +93,7 @@ var _ = BeforeSuite(func() {
 	}, remoteCluster.ClusterID)
 
 	var err error
-	cluster, _, err = testutil.NewTestCluster([]string{
-		filepath.Join("..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
-	})
+	cluster, mgr, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient = cluster.GetClient()
@@ -102,8 +102,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	namespaceManager = tenantnamespace.NewManager(k8sClient)
-	identityMan = NewCertificateIdentityManager(cluster.GetClient(), localCluster, namespaceManager)
-	identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
+	identityMan = NewCertificateIdentityManager(cl, cluster.GetClient(), localCluster, namespaceManager)
+	identityProvider = NewCertificateIdentityProvider(ctx, cl, cluster.GetClient(), localCluster, namespaceManager)
 
 	namespace, err = namespaceManager.CreateNamespace(ctx, remoteCluster)
 	Expect(err).ToNot(HaveOccurred())
