@@ -14,19 +14,6 @@ rules:
   verbs:
   - get
   - list
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - foreignclusters
-  verbs:
-  - get
-  - list
   - patch
   - update
   - watch
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - foreignclusters/status
-  verbs:
-  - get

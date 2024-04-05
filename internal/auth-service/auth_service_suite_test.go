@@ -79,13 +79,13 @@ var _ = BeforeSuite(func() {
 	informerFactory.Start(ctx.Done())
 	informerFactory.WaitForCacheSync(ctx.Done())
 
-	namespaceManager := tenantnamespace.NewManager(cluster.GetClient())
-	identityProvider := identitymanager.NewCertificateIdentityProvider(
-		ctx, cluster.GetClient(), clusterIdentity, namespaceManager)
-
 	cnf := cluster.GetCfg()
 	cl, err := client.New(cnf, client.Options{})
 	Expect(err).ToNot(HaveOccurred())
+
+	namespaceManager := tenantnamespace.NewManager(cluster.GetClient())
+	identityProvider := identitymanager.NewCertificateIdentityProvider(
+		ctx, cl, cluster.GetClient(), clusterIdentity, namespaceManager)
 
 	config := apiserver.Config{Address: cluster.GetCfg().Host, TrustedCA: false}
 	Expect(config.Complete(cluster.GetCfg(), cl)).To(Succeed())
