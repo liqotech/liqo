@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -234,6 +235,28 @@ func GetNonceByClusterID(ctx context.Context, cl client.Client, clusterID string
 	default:
 		return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
 			" when only one was expected", corev1.ResourceSecrets, clusterID)
+	}
+}
+
+// GetTenantByClusterID returns the Tenant resource for the given cluster id.
+func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID string) (*authv1alpha1.Tenant, error) {
+	list := new(authv1alpha1.TenantList)
+	if err := cl.List(ctx, list, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			consts.RemoteClusterID: clusterID,
+		}),
+	}); err != nil {
+		return nil, err
+	}
+
+	switch len(list.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(authv1alpha1.TenantGroupResource, clusterID)
+	case 1:
+		return &list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
+			" when only one was expected", authv1alpha1.TenantResource, clusterID)
 	}
 }
 

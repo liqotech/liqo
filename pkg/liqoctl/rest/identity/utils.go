@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tenant
+package identity
 
 import (
 	"fmt"
@@ -23,8 +23,8 @@ import (
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 )
 
-// output implements the logic to output the generated tenant resource.
-func (o *Options) output(tenant *authv1alpha1.Tenant) error {
+// output implements the logic to output the generated Identity resource.
+func (o *Options) output(identity *authv1alpha1.Identity) error {
 	var outputFormat string
 	switch {
 	case o.generateOptions != nil:
@@ -42,5 +42,5 @@ func (o *Options) output(tenant *authv1alpha1.Tenant) error {
 		return fmt.Errorf("unsupported output format %q", outputFormat)
 	}
 
-	return printer.PrintObj(tenant, os.Stdout)
+	return printer.PrintObj(identity, os.Stdout)
 }

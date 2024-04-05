@@ -38,6 +38,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/identity"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/nonce"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/tenant"
@@ -54,6 +55,7 @@ var liqoResources = []rest.APIProvider{
 	publickey.PublicKey,
 	tenant.Tenant,
 	nonce.Nonce,
+	identity.Identity,
 }
 
 func init() {
