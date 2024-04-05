@@ -149,7 +149,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(ok).To(BeTrue())
 
 			tokenManager := iamTokenManager{
-				client:                    idMan.client,
+				client:                    idMan.k8sClient,
 				availableClusterIDSecrets: map[string]types.NamespacedName{},
 				tokenFiles:                map[string]string{},
 			}
@@ -203,7 +203,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Identity Provider", func() {
 
 		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
+			idProvider := NewCertificateIdentityProvider(ctx, mgr.GetClient(), cluster.GetClient(), localCluster, namespaceManager)
 
 			certIDManager, ok := idProvider.(*identityManager)
 			Expect(ok).To(BeTrue())
@@ -213,7 +213,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient(), localCluster, &authv1alpha1.AwsConfig{
+			idProvider := NewIAMIdentityManager(mgr.GetClient(), cluster.GetClient(), localCluster, &authv1alpha1.AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",
@@ -241,28 +241,28 @@ var _ = Describe("IdentityManager", func() {
 
 		It("private key has not been set", func() {
 			delete(secret.Data, privateKeySecretKey)
-			config, err := buildConfigFromSecret(secret, remoteCluster)
+			config, err := buildConfigFromSecret(secret)
 			Expect(config).To(BeNil())
 			Expect(err).To(MatchError(notFoundError))
 		})
 
 		It("cert data has not been set", func() {
 			delete(secret.Data, certificateSecretKey)
-			config, err := buildConfigFromSecret(secret, remoteCluster)
+			config, err := buildConfigFromSecret(secret)
 			Expect(config).To(BeNil())
 			Expect(err).To(MatchError(notFoundError))
 		})
 
 		It("api server url has not been set", func() {
 			delete(secret.Data, APIServerURLSecretKey)
-			config, err := buildConfigFromSecret(secret, remoteCluster)
+			config, err := buildConfigFromSecret(secret)
 			Expect(config).To(BeNil())
 			Expect(err).To(MatchError(notFoundError))
 		})
 
 		It("api server CA data has not been set", func() {
 			delete(secret.Data, apiServerCaSecretKey)
-			config, err := buildConfigFromSecret(secret, remoteCluster)
+			config, err := buildConfigFromSecret(secret)
 			Expect(err).To(BeNil())
 			Expect(config).NotTo(BeNil())
 			Expect(config.CAData).To(BeNil())
@@ -270,7 +270,7 @@ var _ = Describe("IdentityManager", func() {
 
 		It("proxy URL has not been set", func() {
 			delete(secret.Data, apiProxyURLSecretKey)
-			config, err := buildConfigFromSecret(secret, remoteCluster)
+			config, err := buildConfigFromSecret(secret)
 			Expect(err).To(BeNil())
 			Expect(config).NotTo(BeNil())
 			Expect(config.Proxy).To(BeNil())
@@ -278,13 +278,13 @@ var _ = Describe("IdentityManager", func() {
 
 		It("proxy URL invalid value", func() {
 			secret.Data[apiProxyURLSecretKey] = []byte("notAn;URL\n")
-			config, err := buildConfigFromSecret(secret, remoteCluster)
+			config, err := buildConfigFromSecret(secret)
 			Expect(err).NotTo(BeNil())
 			Expect(config).To(BeNil())
 		})
 
 		It("secret contains all the needed data", func() {
-			config, err := buildConfigFromSecret(secret, remoteCluster)
+			config, err := buildConfigFromSecret(secret)
 			Expect(err).To(BeNil())
 			Expect(config).NotTo(BeNil())
 			Expect(config.Proxy).NotTo(BeNil())
@@ -307,7 +307,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(ok).To(BeTrue())
 
 			tokenManager = iamTokenManager{
-				client:                    idMan.client,
+				client:                    idMan.k8sClient,
 				availableClusterIDSecrets: map[string]types.NamespacedName{},
 				tokenFiles:                map[string]string{},
 			}

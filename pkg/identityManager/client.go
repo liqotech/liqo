@@ -15,60 +15,50 @@
 package identitymanager
 
 import (
-	"net/http"
-	"net/url"
+	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
+	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // GetConfig gets a rest config from the secret, given the remote clusterID and (optionally) the namespace.
 // This rest config con be used to create a client to the remote cluster.
-func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.ClusterIdentity,
-	namespace string) (*rest.Config, error) {
-	var secret *corev1.Secret
-	var err error
+func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.ClusterIdentity, _ string) (*rest.Config, error) {
+	ctx := context.TODO()
 
-	if namespace == "" {
-		secret, err = certManager.getSecret(remoteCluster)
-	} else {
-		secret, err = certManager.getSecretInNamespace(remoteCluster, namespace)
-	}
+	// Get Secret with ControlPlane Identity associated to the given remote cluster.
+	secret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, certManager.client, remoteCluster.ClusterID)
 	if err != nil {
 		return nil, err
 	}
 
+	// TODO: refactor to work with the new identity.
 	if certManager.isAwsIdentity(secret) {
 		return certManager.getIAMConfig(secret, remoteCluster)
 	}
 
-	return buildConfigFromSecret(secret, remoteCluster)
+	return buildConfigFromSecret(secret)
 }
 
 func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity,
-	namespace string) (types.NamespacedName, error) {
-	var secret *corev1.Secret
-	var err error
+	_ string) (types.NamespacedName, error) {
+	ctx := context.TODO()
 
-	if namespace == "" {
-		secret, err = certManager.getSecret(remoteCluster)
-	} else {
-		secret, err = certManager.getSecretInNamespace(remoteCluster, namespace)
-	}
+	// Get Secret with ControlPlane Identity associated to the given remote cluster.
+	secret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, certManager.client, remoteCluster.ClusterID)
 	if err != nil {
 		return types.NamespacedName{}, err
 	}
 
-	return types.NamespacedName{
-		Namespace: secret.Namespace,
-		Name:      secret.Name,
-	}, nil
+	return client.ObjectKeyFromObject(secret), nil
 }
 
 // GetConfigFromSecret gets a rest config from a secret.
@@ -77,36 +67,27 @@ func (certManager *identityManager) GetConfigFromSecret(secret *corev1.Secret) (
 		return certManager.getIAMConfig(secret, discoveryv1alpha1.ClusterIdentity{})
 	}
 
-	return buildConfigFromSecret(secret, discoveryv1alpha1.ClusterIdentity{})
+	return buildConfigFromSecret(secret)
 }
 
 // GetRemoteTenantNamespace returns the tenant namespace that
 // the remote cluster assigned to this peering.
-func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity,
-	localTenantNamespaceName string) (string, error) {
-	var secret *corev1.Secret
-	var err error
+func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity, _ string) (string, error) {
+	ctx := context.TODO()
 
-	if localTenantNamespaceName == "" {
-		secret, err = certManager.getSecret(remoteCluster)
-	} else {
-		secret, err = certManager.getSecretInNamespace(remoteCluster, localTenantNamespaceName)
-	}
+	// Get Secret with ControlPlane Identity associated to the given remote cluster.
+	secret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, certManager.client, remoteCluster.ClusterID)
 	if err != nil {
-		klog.Error(err)
 		return "", err
 	}
 
-	remoteNamespace, ok := secret.Data[namespaceSecretKey]
+	remoteTenantNamespace, ok := secret.Annotations[consts.RemoteTenantNamespaceAnnotKey]
 	if !ok {
-		klog.Errorf("key %v not found in secret %v/%v", namespaceSecretKey, secret.Namespace, secret.Name)
-		err = kerrors.NewNotFound(schema.GroupResource{
-			Group:    "v1",
-			Resource: "secrets",
-		}, remoteCluster.ClusterID)
-		return "", err
+		return "", fmt.Errorf("remote tenant namespace annotation (%s) not found in secret %q",
+			consts.RemoteTenantNamespaceAnnotKey, client.ObjectKeyFromObject(secret))
 	}
-	return string(remoteNamespace), nil
+
+	return remoteTenantNamespace, nil
 }
 
 func (certManager *identityManager) getIAMConfig(
@@ -114,68 +95,11 @@ func (certManager *identityManager) getIAMConfig(
 	return certManager.iamTokenManager.getConfig(secret, remoteCluster)
 }
 
-func buildConfigFromSecret(secret *corev1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*rest.Config, error) {
-	var err error
-	// retrieve the data required to build the rest config
-	keyData, ok := secret.Data[privateKeySecretKey]
+func buildConfigFromSecret(secret *corev1.Secret) (*rest.Config, error) {
+	kubeconfig, ok := secret.Data[consts.KubeconfigSecretField]
 	if !ok {
-		klog.Errorf("key %v not found in secret %v/%v", privateKeySecretKey, secret.Namespace, secret.Name)
-		err = kerrors.NewNotFound(schema.GroupResource{
-			Group:    "v1",
-			Resource: "secrets",
-		}, remoteCluster.ClusterID)
-		return nil, err
+		return nil, fmt.Errorf("key %v not found in secret %v/%v", consts.KubeconfigSecretField, secret.Namespace, secret.Name)
 	}
 
-	certData, ok := secret.Data[certificateSecretKey]
-	if !ok {
-		klog.Errorf("key %v not found in secret %v/%v", certificateSecretKey, secret.Namespace, secret.Name)
-		err = kerrors.NewNotFound(schema.GroupResource{
-			Group:    "v1",
-			Resource: "secrets",
-		}, remoteCluster.ClusterID)
-		return nil, err
-	}
-
-	caData, ok := secret.Data[apiServerCaSecretKey]
-	if !ok {
-		// CAData may be nil if the remote cluster exposes the API Server with a trusted certificate
-		caData = nil
-	}
-
-	host, ok := secret.Data[APIServerURLSecretKey]
-	if !ok {
-		klog.Errorf("key %v not found in secret %v/%v", APIServerURLSecretKey, secret.Namespace, secret.Name)
-		err = kerrors.NewNotFound(schema.GroupResource{
-			Group:    "v1",
-			Resource: "secrets",
-		}, remoteCluster.ClusterID)
-		return nil, err
-	}
-
-	var proxyURL *url.URL
-	var proxyFunc func(*http.Request) (*url.URL, error)
-	proxyConfig, ok := secret.Data[apiProxyURLSecretKey]
-	if ok {
-		proxyURL, err = url.Parse(string(proxyConfig))
-		if err != nil {
-			klog.Errorf("an error occurred while parsing proxy url %s from secret %v/%v: %s", proxyConfig, secret.Namespace, secret.Name, err)
-			return nil, err
-		}
-		proxyFunc = func(request *http.Request) (*url.URL, error) {
-			return proxyURL, nil
-		}
-	}
-
-	// create the rest config that can be used to create a client
-	return &rest.Config{
-		Host:    string(host),
-		APIPath: "/apis",
-		TLSClientConfig: rest.TLSClientConfig{
-			CertData: certData,
-			KeyData:  keyData,
-			CAData:   caData,
-		},
-		Proxy: proxyFunc,
-	}, nil
+	return clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 }

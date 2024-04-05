@@ -152,7 +152,7 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 	}
 
 	// Generate a CSR for the remote cluster.
-	CSR, err := authentication.GenerateCSR(privateKey, authentication.CommonName(localClusterIdentity))
+	CSR, err := authentication.GenerateCSR(privateKey, authentication.CommonName(localClusterIdentity.ClusterID))
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to generate CSR: %w", err))
 		return err

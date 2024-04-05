@@ -46,6 +46,21 @@ func KubeconfigSecret(identity *authv1alpha1.Identity) *corev1.Secret {
 
 // MutateKubeconfigSecret mutate a Secret object storing the kubeconfig associated to the provided identity.
 func MutateKubeconfigSecret(secret *corev1.Secret, identity *authv1alpha1.Identity, clientKey []byte, namespace *string) error {
+	if secret.Labels == nil {
+		secret.Labels = make(map[string]string)
+	}
+	secret.Labels[consts.RemoteClusterID] = identity.Spec.ClusterIdentity.ClusterID
+	secret.Labels[consts.IdentityTypeLabelKey] = string(identity.Spec.Type)
+
+	if secret.Annotations == nil {
+		secret.Annotations = make(map[string]string)
+	}
+	secret.Annotations[consts.RemoteClusterName] = identity.Spec.ClusterIdentity.ClusterName
+	// if the namespace is not empty, it stores the remote tenant namespace where the kubeconfig is used.
+	if namespace != nil && *namespace != "" {
+		secret.Annotations[consts.RemoteTenantNamespaceAnnotKey] = *namespace
+	}
+
 	kubeconfig, err := generateKubeconfiguration(identity.Name, identity.Spec.ClusterIdentity.ClusterName,
 		identity.Spec.AuthParams.APIServer, identity.Spec.AuthParams.CA, identity.Spec.AuthParams.SignedCRT, clientKey,
 		identity.Spec.AuthParams.ProxyURL, namespace)
