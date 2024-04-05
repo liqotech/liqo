@@ -107,6 +107,8 @@ spec:
                   ca:
                     format: byte
                     type: string
+                  proxyURL:
+                    type: string
                   signedCRT:
                     format: byte
                     type: string
