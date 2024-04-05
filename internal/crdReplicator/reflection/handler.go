@@ -40,7 +40,7 @@ const (
 	specKey   = "spec"
 	statusKey = "status"
 
-	finalizer = "crdReplicator.liqo.io"
+	finalizer = "crdreplicator.liqo.io/resource"
 )
 
 // item represents an item to be processed.

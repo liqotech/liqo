@@ -105,10 +105,10 @@ func NewAuthServiceCtrl(ctx context.Context, config *rest.Config, namespace stri
 	var idProvider identitymanager.IdentityProvider
 	if awsConfig.IsEmpty() {
 		idProvider = identitymanager.NewCertificateIdentityProvider(
-			context.Background(), clientset, localCluster, namespaceManager)
+			context.Background(), cl, clientset, localCluster, namespaceManager)
 	} else {
 		idProvider = identitymanager.NewIAMIdentityProvider(
-			clientset, localCluster, &awsConfig, namespaceManager)
+			cl, clientset, localCluster, &awsConfig, namespaceManager)
 	}
 
 	return &Controller{
