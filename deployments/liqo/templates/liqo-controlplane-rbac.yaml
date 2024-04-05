@@ -1,4 +1,4 @@
-{{- $controlPlaneConfig := (merge (dict "name" "control-plane" "module" "authentication") .) -}}
+{{- $controlPlaneConfig := (merge (dict "name" "remote-controlplane" "module" "authentication") .) -}}
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

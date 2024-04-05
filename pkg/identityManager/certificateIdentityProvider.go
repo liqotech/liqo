@@ -44,7 +44,7 @@ func init() {
 
 type certificateIdentityProvider struct {
 	namespaceManager tenantnamespace.Manager
-	client           kubernetes.Interface
+	k8sClient        kubernetes.Interface
 	csrWatcher       certificateSigningRequest.Watcher
 }
 
@@ -56,7 +56,7 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 		ResponseType: responsetypes.SigningRequestResponseCertificate,
 	}
 
-	secret, err := identityProvider.client.CoreV1().Secrets(namespace).Get(context.TODO(), remoteCertificateSecret, metav1.GetOptions{})
+	secret, err := identityProvider.k8sClient.CoreV1().Secrets(namespace).Get(context.TODO(), remoteCertificateSecret, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			klog.V(4).Info(err)
@@ -120,14 +120,14 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 		},
 	}
 
-	cert, err = identityProvider.client.CertificatesV1().CertificateSigningRequests().Create(context.TODO(), cert, metav1.CreateOptions{})
+	cert, err = identityProvider.k8sClient.CertificatesV1().CertificateSigningRequests().Create(context.TODO(), cert, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
 		return response, err
 	}
 
 	// approve the CertificateSigningRequest
-	if err = certificateSigningRequest.Approve(identityProvider.client, cert, "IdentityManagerApproval",
+	if err = certificateSigningRequest.Approve(identityProvider.k8sClient, cert, "IdentityManagerApproval",
 		"This CSR was approved by Liqo Identity Manager"); err != nil {
 		klog.Error(err)
 		return response, err
@@ -176,7 +176,7 @@ func (identityProvider *certificateIdentityProvider) storeRemoteCertificate(clus
 		},
 	}
 
-	if secret, err = identityProvider.client.CoreV1().
+	if secret, err = identityProvider.k8sClient.CoreV1().
 		Secrets(namespace.Name).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
 		klog.Error(err)
 		return nil, err
