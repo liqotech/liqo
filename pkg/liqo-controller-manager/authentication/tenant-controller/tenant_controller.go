@@ -46,7 +46,7 @@ import (
 
 var (
 	tenantClusterRoles = []string{
-		"liqo-remote-peering-basic",
+		"liqo-control-plane",
 	}
 )
 
@@ -88,7 +88,7 @@ func NewTenantReconciler(cl client.Client, scheme *runtime.Scheme, config *rest.
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants;tenants/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile manages the lifecycle of a Tenant.
