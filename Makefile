@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -152,16 +154,16 @@ generate-controller: controller-gen
 
 generate-groups:
 	if [ ! -d  "hack/code-generator" ]; then \
-		git clone --depth 1 -b v0.25.0 https://github.com/kubernetes/code-generator.git hack/code-generator; \
+		git clone --depth 1 -b v0.30.0-rc.1 https://github.com/kubernetes/code-generator.git hack/code-generator; \
 	fi
 	rm -rf pkg/client
-	hack/code-generator/generate-groups.sh client,lister,informer \
-		github.com/liqotech/liqo/pkg/client github.com/liqotech/liqo/apis \
-		"virtualkubelet:v1alpha1" \
-		--output-base ./ \
-		-h hack/boilerplate.go.txt && \
-	mv github.com/liqotech/liqo/pkg/client pkg/ && \
-	rm -rf github.com
+	mkdir -p pkg/client/informers pkg/client/listers pkg/client/clientset
+	source "./hack/code-generator/kube_codegen.sh" && kube::codegen::gen_client \
+	    --output-dir "./pkg/client" \
+	    --output-pkg "github.com/liqotech/liqo/pkg/client" \
+	    --with-watch \
+	    --boilerplate "./hack/boilerplate.go.txt" \
+	    ${PWD}/apis 
 
 # Generate gRPC files
 grpc: protoc
