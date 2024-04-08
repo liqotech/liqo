@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -92,6 +93,9 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	if err = addGroup(dClient, networkingv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
+	if err = addGroup(dClient, authv1alpha1.GroupVersion, mapper); err != nil {
+		return err
+	}
 
 	// Kubernetes groups
 	if err = addGroup(dClient, corev1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
@@ -143,7 +147,8 @@ func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersi
 		klog.Error(err)
 		return err
 	}
-	for _, apiRes := range res.APIResources {
+	for i := range res.APIResources {
+		apiRes := &res.APIResources[i]
 		var scope meta.RESTScope
 		if apiRes.Namespaced {
 			scope = meta.RESTScopeNamespace
