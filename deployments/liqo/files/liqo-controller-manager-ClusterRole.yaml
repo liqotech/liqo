@@ -51,6 +51,7 @@ rules:
   - authentication.liqo.io
   resources:
   - identities
+  - identities/status
   verbs:
   - create
   - delete
@@ -63,6 +64,7 @@ rules:
   - authentication.liqo.io
   resources:
   - tenants
+  - tenants/status
   verbs:
   - create
   - delete
@@ -95,6 +97,14 @@ rules:
   - certificates.k8s.io
   resourceNames:
   - beta.eks.amazonaws.com/app-serving
+  resources:
+  - signers
+  verbs:
+  - approve
+- apiGroups:
+  - certificates.k8s.io
+  resourceNames:
+  - kubernetes.io/kube-apiserver-client
   resources:
   - signers
   verbs:
