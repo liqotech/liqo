@@ -55,7 +55,7 @@ type IdentityReconciler struct {
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=authentication.liqo.io,resources=identities,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=authentication.liqo.io,resources=identities;identities/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile Identitiy resources and ensure the secret containing the associated kubeconfig.
