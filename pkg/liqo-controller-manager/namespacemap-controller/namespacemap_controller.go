@@ -54,6 +54,7 @@ type NamespaceMapReconciler struct {
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests/approval,verbs=update
 // +kubebuilder:rbac:groups=certificates.k8s.io,resourceNames=kubernetes.io/kubelet-serving,resources=signers,verbs=approve
 // +kubebuilder:rbac:groups=certificates.k8s.io,resourceNames=beta.eks.amazonaws.com/app-serving,resources=signers,verbs=approve
+// +kubebuilder:rbac:groups=certificates.k8s.io,resourceNames=kubernetes.io/kube-apiserver-client,resources=signers,verbs=approve
 
 // Reconcile adds/removes NamespaceMap finalizer, and checks differences
 // between DesiredMapping and CurrentMapping in order to create/delete the Namespaces if it is necessary.
