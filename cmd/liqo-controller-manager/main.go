@@ -378,6 +378,7 @@ func main() {
 		opts := &modules.AuthOption{
 			IdentityProvider:         idProvider,
 			NamespaceManager:         namespaceManager,
+			LocalClusterIdentity:     &clusterIdentity,
 			LiqoNamespace:            *liqoNamespace,
 			APIServerAddressOverride: apiServerAddressOverride,
 			CAOverrideB64:            caOverride,

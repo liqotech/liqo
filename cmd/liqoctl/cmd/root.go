@@ -41,6 +41,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/identity"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/nonce"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/resourceslice"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/tenant"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/virtualnode"
 )
@@ -56,6 +57,7 @@ var liqoResources = []rest.APIProvider{
 	tenant.Tenant,
 	nonce.Nonce,
 	identity.Identity,
+	resourceslice.ResourceSlice,
 }
 
 func init() {

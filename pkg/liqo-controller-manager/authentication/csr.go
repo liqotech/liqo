@@ -22,11 +22,24 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
+
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 )
+
+// GenerateCSRForResourceSlice generates a new CSR given a private key and a resource slice.
+func GenerateCSRForResourceSlice(key ed25519.PrivateKey,
+	resourceSlice *authv1alpha1.ResourceSlice) (csrBytes []byte, err error) {
+	return generateCSR(key, fmt.Sprintf("%s-%s", resourceSlice.Namespace, resourceSlice.Name),
+		resourceSlice.Spec.ConsumerClusterIdentity.ClusterID)
+}
 
 // GenerateCSR generates a new CSR given a private key and a subject.
 func GenerateCSR(key ed25519.PrivateKey, commonName string) (csrBytes []byte, err error) {
-	asn1Subj, err := asn1.Marshal(pkix.Name{CommonName: commonName, Organization: []string{"liqo.io"}}.ToRDNSequence())
+	return generateCSR(key, commonName, "liqo.io")
+}
+
+func generateCSR(key ed25519.PrivateKey, commonName, organization string) (csrBytes []byte, err error) {
+	asn1Subj, err := asn1.Marshal(pkix.Name{CommonName: commonName, Organization: []string{organization}}.ToRDNSequence())
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal subject information: %w", err)
 	}
