@@ -37,19 +37,36 @@ var ResourceSliceGroupVersionResource = GroupVersion.WithResource(ResourceSliceR
 // ResourceSliceClass is the class of the ResourceSlice.
 type ResourceSliceClass string
 
+const (
+	// ResourceSliceClassUnknown is the unknown class of the ResourceSlice.
+	ResourceSliceClassUnknown ResourceSliceClass = ""
+	// ResourceSliceClassDefault is the default class of the ResourceSlice.
+	ResourceSliceClassDefault ResourceSliceClass = "default"
+)
+
 // ResourceSliceSpec defines the desired state of ResourceSlice.
 type ResourceSliceSpec struct {
 	// ConsumerClusterIdentity is the identity of the consumer cluster.
-	ConsumerClusterIdentity discoveryv1alpha1.ClusterIdentity `json:"consumerClusterIdentity,omitempty"`
+	ConsumerClusterIdentity *discoveryv1alpha1.ClusterIdentity `json:"consumerClusterIdentity,omitempty"`
 	// ProviderClusterIdentity is the identity of the provider cluster.
-	ProviderClusterIdentity discoveryv1alpha1.ClusterIdentity `json:"providerClusterIdentity,omitempty"`
+	ProviderClusterIdentity *discoveryv1alpha1.ClusterIdentity `json:"providerClusterIdentity,omitempty"`
 	// Resources contains the slice of resources requested.
 	Resources corev1.ResourceList `json:"resources,omitempty"`
 	// Class contains the class of the ResourceSlice.
 	Class ResourceSliceClass `json:"class,omitempty"`
 	// CSR is the Certificate Signing Request of the consumer cluster.
-	CSR string `json:"csr,omitempty"`
+	CSR []byte `json:"csr,omitempty"`
 }
+
+// ResourceSliceConditionType represents different types of conditions that a ResourceSlice could assume.
+type ResourceSliceConditionType string
+
+const (
+	// ResourceSliceConditionTypeAuthentication informs users that the authentication of the ResourceSlice is in progress.
+	ResourceSliceConditionTypeAuthentication ResourceSliceConditionType = "Authentication"
+	// ResourceSliceConditionTypeResources informs users that the resources of the ResourceSlice are in progress.
+	ResourceSliceConditionTypeResources ResourceSliceConditionType = "Resources"
+)
 
 // ResourceSliceConditionStatus represents different status conditions that a ResourceSlice could assume.
 type ResourceSliceConditionStatus string
@@ -64,6 +81,9 @@ const (
 
 // ResourceSliceCondition contains details about the status of the provided ResourceSlice.
 type ResourceSliceCondition struct {
+	// Type of the condition.
+	// +kubebuilder:validation:Enum="Authentication";"Resources"
+	Type ResourceSliceConditionType `json:"type"`
 	// Status of the condition.
 	// +kubebuilder:validation:Enum="Accepted";"Denied"
 	Status ResourceSliceConditionStatus `json:"status"`
@@ -77,12 +97,12 @@ type ResourceSliceCondition struct {
 
 // ResourceSliceStatus defines the observed state of ResourceSlice.
 type ResourceSliceStatus struct {
-	// Condition contains the condition of the ResourceSlice.
-	Condition ResourceSliceCondition `json:"condition,omitempty"`
+	// Conditions contains the conditions of the ResourceSlice.
+	Conditions []ResourceSliceCondition `json:"conditions,omitempty"`
 	// Resources contains the slice of resources accepted.
 	Resources corev1.ResourceList `json:"resources,omitempty"`
 	// AuthParams contains the authentication parameters for the resources given by the provider cluster.
-	AuthParams AuthParams `json:"authParams,omitempty"`
+	AuthParams *AuthParams `json:"authParams,omitempty"`
 }
 
 // +kubebuilder:object:root=true
