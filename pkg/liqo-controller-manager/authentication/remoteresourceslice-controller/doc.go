@@ -12,29 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package identity
-
-import (
-	"github.com/liqotech/liqo/pkg/liqoctl/rest"
-)
-
-// Options encapsulates the arguments of the identity command.
-type Options struct {
-	generateOptions *rest.GenerateOptions
-
-	remoteClusterID string
-}
-
-var _ rest.API = &Options{}
-
-// Identity returns the rest API for the identity command.
-func Identity() rest.API {
-	return &Options{}
-}
-
-// APIOptions returns the APIOptions for the identity API.
-func (o *Options) APIOptions() *rest.APIOptions {
-	return &rest.APIOptions{
-		EnableGenerate: true,
-	}
-}
+// Package remoteresourceslicecontroller contains the logic to manage the remote ResourceSlice.
+package remoteresourceslicecontroller

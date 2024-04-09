@@ -22,11 +22,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	identitycontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/identity-controller"
+	localresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/localresourceslice-controller"
 	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
 	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
+	remoteresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/remoteresourceslice-controller"
 	tenantcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/tenant-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
@@ -35,6 +38,7 @@ import (
 type AuthOption struct {
 	IdentityProvider         identitymanager.IdentityProvider
 	NamespaceManager         tenantnamespace.Manager
+	LocalClusterIdentity     *discoveryv1alpha1.ClusterIdentity
 	LiqoNamespace            string
 	APIServerAddressOverride string
 	CAOverrideB64            string
@@ -58,7 +62,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 		return err
 	}
 
-	// Configure controller that generate nonces.
+	// Configure controller that generates nonces.
 	nonceReconciler := noncecreatorcontroller.NewNonceReconciler(
 		mgr.GetClient(), mgr.GetScheme(),
 		opts.NamespaceManager,
@@ -69,7 +73,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 		return err
 	}
 
-	// Configure controller that sign nonces with the private key of the cluster.
+	// Configure controller that signs nonces with the private key of the cluster.
 	nonceSignerReconciler := noncesigner.NewNonceSignerReconciler(mgr.GetClient(), mgr.GetScheme(),
 		mgr.GetEventRecorderFor("signed-nonce-controller"),
 		opts.NamespaceManager, opts.LiqoNamespace)
@@ -78,7 +82,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 		return err
 	}
 
-	// Configure controller that fill tenant status with the authentication parameters.
+	// Configure controller that fills tenant status with the authentication parameters.
 	tenantReconciler := tenantcontroller.NewTenantReconciler(mgr.GetClient(), mgr.GetScheme(), mgr.GetConfig(),
 		mgr.GetEventRecorderFor("tenant-controller"),
 		opts.IdentityProvider, opts.NamespaceManager,
@@ -88,11 +92,29 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 		return err
 	}
 
-	// Configure controller that create Kubeconfig secrets for each identities.
+	// Configure controller that creates Kubeconfig secrets for each identities.
 	identityReconciler := identitycontroller.NewIdentityReconciler(mgr.GetClient(), mgr.GetScheme(),
 		mgr.GetEventRecorderFor("identity-controller"), opts.LiqoNamespace)
 	if err := identityReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the identity reconciler: %v", err)
+		return err
+	}
+
+	// Configure controller that fills the local resource slice.
+	localResourceSliceReconciler := localresourceslicecontroller.NewLocalResourceSliceReconciler(mgr.GetClient(),
+		mgr.GetScheme(), mgr.GetEventRecorderFor("localresourceslice-controller"),
+		opts.LiqoNamespace, opts.LocalClusterIdentity)
+	if err := localResourceSliceReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to setup the local resource slice reconciler: %v", err)
+		return err
+	}
+
+	// Configure controller that fills the remote resource slice status.
+	remoteResourceSliceReconciler := remoteresourceslicecontroller.NewRemoteResourceSliceReconciler(mgr.GetClient(),
+		mgr.GetScheme(), mgr.GetConfig(), mgr.GetEventRecorderFor("remoteresourceslice-controller"),
+		opts.IdentityProvider, opts.APIServerAddressOverride, caOverride, opts.TrustedCA)
+	if err := remoteResourceSliceReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to setup the remote resource slice reconciler: %v", err)
 		return err
 	}
 

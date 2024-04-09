@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
@@ -42,10 +43,21 @@ type IdentityManager interface {
 		remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error
 }
 
+// SigningRequestOptions contains the options to handle a signing request.
+type SigningRequestOptions struct {
+	Cluster        *discoveryv1alpha1.ClusterIdentity
+	Namespace      string
+	IdentityType   authv1alpha1.IdentityType
+	Name           string
+	SigningRequest []byte
+}
+
 // IdentityProvider provides the interface to retrieve and approve remote cluster identities.
 type IdentityProvider interface {
-	GetRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
-		namespace string, signingRequest []byte) (response *responsetypes.SigningRequestResponse, err error)
-	ApproveSigningRequest(cluster discoveryv1alpha1.ClusterIdentity,
-		signingRequest []byte) (response *responsetypes.SigningRequestResponse, err error)
+	GetRemoteCertificate(ctx context.Context, options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error)
+	ApproveSigningRequest(ctx context.Context, options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error)
+	ForgeAuthParams(resp *responsetypes.SigningRequestResponse, apiServer string, ca []byte) *authv1alpha1.AuthParams
 }
+
+var _ IdentityProvider = &certificateIdentityProvider{}
+var _ IdentityProvider = &iamIdentityProvider{}

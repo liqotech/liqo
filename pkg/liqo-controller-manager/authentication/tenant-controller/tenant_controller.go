@@ -36,7 +36,6 @@ import (
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -160,27 +159,24 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			klog.Errorf("Unable to update the Tenant %q: %s", req.NamespacedName, errDef)
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "UpdateFailed", errDef.Error())
 			err = errDef
-			return
 		}
 
-		r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "Reconciled", "Tenant reconciled")
+		if err == nil {
+			r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "Reconciled", "Tenant reconciled")
+		}
 	}()
 
 	// create the CSR and forge the AuthParams
 
-	resp, err := r.IdentityProvider.GetRemoteCertificate(tenant.Spec.ClusterIdentity, tenant.Status.TenantNamespace, tenant.Spec.CSR)
-	switch {
-	case apierrors.IsNotFound(err) && resp.ResponseType == responsetypes.SigningRequestResponseIAM:
-		// iam always returns not found, so we can ignore it
-	case apierrors.IsNotFound(err):
-		resp, err = r.IdentityProvider.ApproveSigningRequest(tenant.Spec.ClusterIdentity, tenant.Spec.CSR)
-		if err != nil {
-			klog.Errorf("Unable to approve the CSR for the Tenant %q: %s", req.NamespacedName, err)
-			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "CSRApprovalFailed", err.Error())
-			return ctrl.Result{}, err
-		}
-	case err != nil:
-		klog.Errorf("Unable to get the remote certificate for the Tenant %q: %s", req.NamespacedName, err)
+	resp, err := identitymanager.EnsureCertificate(ctx, r.IdentityProvider, &identitymanager.SigningRequestOptions{
+		Cluster:        &tenant.Spec.ClusterIdentity,
+		Namespace:      tenant.Status.TenantNamespace,
+		IdentityType:   authv1alpha1.ControlPlaneIdentityType,
+		Name:           tenant.Name,
+		SigningRequest: tenant.Spec.CSR,
+	})
+	if err != nil {
+		klog.Errorf("Unable to ensure the remote certificate for the Tenant %q: %s", req.NamespacedName, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "RemoteCertificateFailed", err.Error())
 		return ctrl.Result{}, err
 	}
@@ -199,17 +195,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, err
 	}
 
-	switch resp.ResponseType {
-	case responsetypes.SigningRequestResponseCertificate:
-		tenant.Status.AuthParams = forgeAuthParamsCert(resp, apiServer, ca)
-	case responsetypes.SigningRequestResponseIAM:
-		tenant.Status.AuthParams = forgeAuthParamsIAM(resp, apiServer, ca)
-	default:
-		err = fmt.Errorf("unexpected response type %q", resp.ResponseType)
-		klog.Error(err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "UnexpectedResponseType", err.Error())
-		return ctrl.Result{}, err
-	}
+	tenant.Status.AuthParams = r.IdentityProvider.ForgeAuthParams(resp, apiServer, ca)
 
 	// own the tenant namespace
 
@@ -268,27 +254,6 @@ func checkCSR(csr, publicKey []byte, remoteClusterIdentity *discoveryv1alpha1.Cl
 	}
 
 	return nil
-}
-
-func forgeAuthParamsCert(resp *responsetypes.SigningRequestResponse, apiServer string, ca []byte) *authv1alpha1.AuthParams {
-	return &authv1alpha1.AuthParams{
-		CA:        ca,
-		SignedCRT: resp.Certificate,
-		APIServer: apiServer,
-	}
-}
-
-func forgeAuthParamsIAM(resp *responsetypes.SigningRequestResponse, apiServer string, ca []byte) *authv1alpha1.AuthParams {
-	return &authv1alpha1.AuthParams{
-		CA:        ca,
-		APIServer: apiServer,
-		AwsConfig: &authv1alpha1.AwsConfig{
-			AwsAccessKeyID:     *resp.AwsIdentityResponse.AccessKey.AccessKeyId,
-			AwsSecretAccessKey: *resp.AwsIdentityResponse.AccessKey.SecretAccessKey,
-			AwsRegion:          resp.AwsIdentityResponse.Region,
-			AwsClusterName:     *resp.AwsIdentityResponse.EksCluster.Name,
-		},
-	}
 }
 
 func (r *TenantReconciler) ensureSetup(ctx context.Context) error {
