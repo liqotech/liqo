@@ -27,8 +27,10 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
@@ -110,9 +112,15 @@ func (authService *Controller) handleIdentity(
 		return nil, err
 	}
 
+	opts := &identitymanager.SigningRequestOptions{
+		Cluster:        &remoteClusterIdentity,
+		Namespace:      namespace.Name,
+		IdentityType:   authv1alpha1.ControlPlaneIdentityType,
+		SigningRequest: signingRequest,
+	}
+
 	// check that there is no available certificate for that clusterID
-	if _, err = authService.identityProvider.GetRemoteCertificate(
-		remoteClusterIdentity, namespace.Name, signingRequest); err == nil {
+	if _, err = authService.identityProvider.GetRemoteCertificate(ctx, opts); err == nil {
 		klog.Info("multiple identity validations with unique clusterID")
 		err = &kerrors.StatusError{ErrStatus: metav1.Status{
 			Status: metav1.StatusFailure,
@@ -128,8 +136,7 @@ func (authService *Controller) handleIdentity(
 	tracer.Step("Cluster ID uniqueness ensured")
 
 	// issue certificate request
-	identityResponse, err := authService.identityProvider.ApproveSigningRequest(
-		remoteClusterIdentity, signingRequest)
+	identityResponse, err := authService.identityProvider.ApproveSigningRequest(ctx, opts)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
