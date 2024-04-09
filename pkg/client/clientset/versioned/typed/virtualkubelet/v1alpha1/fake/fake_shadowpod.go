@@ -21,7 +21,6 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,9 +34,9 @@ type FakeShadowPods struct {
 	ns   string
 }
 
-var shadowpodsResource = schema.GroupVersionResource{Group: "virtualkubelet.liqo.io", Version: "v1alpha1", Resource: "shadowpods"}
+var shadowpodsResource = v1alpha1.SchemeGroupVersion.WithResource("shadowpods")
 
-var shadowpodsKind = schema.GroupVersionKind{Group: "virtualkubelet.liqo.io", Version: "v1alpha1", Kind: "ShadowPod"}
+var shadowpodsKind = v1alpha1.SchemeGroupVersion.WithKind("ShadowPod")
 
 // Get takes name of the shadowPod, and returns the corresponding shadowPod object, and an error if there is any.
 func (c *FakeShadowPods) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ShadowPod, err error) {

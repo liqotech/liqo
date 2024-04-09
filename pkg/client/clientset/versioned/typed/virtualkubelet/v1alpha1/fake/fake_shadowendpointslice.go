@@ -21,7 +21,6 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,9 +34,9 @@ type FakeShadowEndpointSlices struct {
 	ns   string
 }
 
-var shadowendpointslicesResource = schema.GroupVersionResource{Group: "virtualkubelet.liqo.io", Version: "v1alpha1", Resource: "shadowendpointslices"}
+var shadowendpointslicesResource = v1alpha1.SchemeGroupVersion.WithResource("shadowendpointslices")
 
-var shadowendpointslicesKind = schema.GroupVersionKind{Group: "virtualkubelet.liqo.io", Version: "v1alpha1", Kind: "ShadowEndpointSlice"}
+var shadowendpointslicesKind = v1alpha1.SchemeGroupVersion.WithKind("ShadowEndpointSlice")
 
 // Get takes name of the shadowEndpointSlice, and returns the corresponding shadowEndpointSlice object, and an error if there is any.
 func (c *FakeShadowEndpointSlices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ShadowEndpointSlice, err error) {
