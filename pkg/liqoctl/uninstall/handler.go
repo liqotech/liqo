@@ -52,7 +52,7 @@ var liqoGroupVersions = []schema.GroupVersion{
 	sharingv1alpha1.GroupVersion,
 	virtualKubeletv1alpha1.SchemeGroupVersion,
 	networkingv1alpha1.GroupVersion,
-	ipamv1alpha1.GroupVersion,
+	ipamv1alpha1.SchemeGroupVersion,
 }
 
 // Options encapsulates the arguments of the uninstall command.
