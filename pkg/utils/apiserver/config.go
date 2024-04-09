@@ -66,7 +66,7 @@ func (c *Config) Complete(restcfg *rest.Config, cl client.Client) (err error) {
 	if err != nil {
 		return err
 	}
-	c.CA = string(ca)
+	c.CA = base64.StdEncoding.EncodeToString(ca)
 	return nil
 }
 
@@ -82,10 +82,7 @@ func RetrieveAPIServerCA(restcfg *rest.Config, caOverride []byte, trustedCA bool
 	}
 
 	if restcfg.CAData != nil && len(restcfg.CAData) > 0 {
-		// CAData available in the restConfig, encode and return it.
-		res := make([]byte, base64.StdEncoding.EncodedLen(len(restcfg.CAData)))
-		base64.StdEncoding.Encode(res, restcfg.CAData)
-		return res, nil
+		return restcfg.CAData, nil
 	}
 	if restcfg.CAFile != "" {
 		// CAData is not available, read it from the CAFile.
@@ -93,9 +90,7 @@ func RetrieveAPIServerCA(restcfg *rest.Config, caOverride []byte, trustedCA bool
 		if err != nil {
 			return []byte{}, err
 		}
-		res := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
-		base64.StdEncoding.Encode(res, data)
-		return res, nil
+		return data, nil
 	}
 	return []byte{}, nil
 }
