@@ -13,4 +13,6 @@
 // limitations under the License.
 
 // Package forge contains the utilities to forge gateway resources.
+// This package is separated from the others to allow "liqoctl" to use
+// the same functions to forge resources, without importing "linux-only" dependencies.
 package forge
