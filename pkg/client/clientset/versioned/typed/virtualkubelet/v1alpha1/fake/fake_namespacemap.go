@@ -21,7 +21,6 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,9 +34,9 @@ type FakeNamespaceMaps struct {
 	ns   string
 }
 
-var namespacemapsResource = schema.GroupVersionResource{Group: "virtualkubelet.liqo.io", Version: "v1alpha1", Resource: "namespacemaps"}
+var namespacemapsResource = v1alpha1.SchemeGroupVersion.WithResource("namespacemaps")
 
-var namespacemapsKind = schema.GroupVersionKind{Group: "virtualkubelet.liqo.io", Version: "v1alpha1", Kind: "NamespaceMap"}
+var namespacemapsKind = v1alpha1.SchemeGroupVersion.WithKind("NamespaceMap")
 
 // Get takes name of the namespaceMap, and returns the corresponding namespaceMap object, and an error if there is any.
 func (c *FakeNamespaceMaps) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.NamespaceMap, err error) {

@@ -30,10 +30,10 @@ var (
 	IPResource = "ips"
 
 	// IPGroupVersionResource is the group version resource used to register IP CRD.
-	IPGroupVersionResource = GroupVersion.WithResource(IPResource)
+	IPGroupVersionResource = SchemeGroupVersion.WithResource(IPResource)
 
 	// IPGroupResource is the group resource used to register IP CRD.
-	IPGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: IPResource}
+	IPGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: IPResource}
 )
 
 // ServiceTemplate contains the template to create the associated service (and endpointslice) for the IP endopoint.
@@ -70,6 +70,7 @@ type IPStatus struct {
 // +kubebuilder:printcolumn:name="Local IP",type=string,JSONPath=`.spec.ip`
 // +kubebuilder:printcolumn:name="Remapped IPs",type=string,JSONPath=`.status.ipMappings`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +genclient
 
 // IP is the Schema for the IP API.
 type IP struct {
