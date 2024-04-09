@@ -21,6 +21,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,6 +30,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
@@ -252,10 +254,15 @@ func (w *Waiter) ForConfiguration(ctx context.Context, conf *networkingv1alpha1.
 
 // ForGatewayPodReady waits until the pod of a Gateway resource has been created and is ready.
 func (w *Waiter) ForGatewayPodReady(ctx context.Context, gateway client.Object) error {
-	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for gateway pod %s to be ready", gateway.GetName()))
-	gatewayDeployment := &appsv1.Deployment{}
+	gatewayDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      forge.GatewayResourceName(gateway.GetName()),
+			Namespace: gateway.GetNamespace(),
+		},
+	}
+	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for gateway pod %s to be ready", gatewayDeployment.GetName()))
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		err = w.CRClient.Get(ctx, client.ObjectKeyFromObject(gateway), gatewayDeployment)
+		err = w.CRClient.Get(ctx, client.ObjectKeyFromObject(gatewayDeployment), gatewayDeployment)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
