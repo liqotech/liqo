@@ -54,8 +54,8 @@ type mapUser struct {
 	Groups   []string `json:"groups"`
 }
 
-func (identityProvider *iamIdentityProvider) GetRemoteCertificate(_ discoveryv1alpha1.ClusterIdentity,
-	_ string, _ []byte) (response *responsetypes.SigningRequestResponse, err error) {
+func (identityProvider *iamIdentityProvider) GetRemoteCertificate(_ context.Context,
+	_ *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error) {
 	// this method has no meaning for this identity provider
 	response = &responsetypes.SigningRequestResponse{
 		ResponseType: responsetypes.SigningRequestResponseIAM,
@@ -66,8 +66,8 @@ func (identityProvider *iamIdentityProvider) GetRemoteCertificate(_ discoveryv1a
 	}, remoteCertificateSecret)
 }
 
-func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster discoveryv1alpha1.ClusterIdentity,
-	_ []byte) (response *responsetypes.SigningRequestResponse, err error) {
+func (identityProvider *iamIdentityProvider) ApproveSigningRequest(_ context.Context,
+	options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error) {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(identityProvider.awsConfig.AwsRegion),
 		Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
@@ -84,10 +84,10 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster disco
 
 	// the IAM username has to have <= 64 characters
 	prefix := identityProvider.localClusterID[:15]
-	username := fmt.Sprintf("liqo-%s-%s", prefix, cluster.ClusterID)
+	username := fmt.Sprintf("liqo-%s-%s", prefix, options.Cluster.ClusterID)
 	tags := map[string]string{
 		localClusterIDTagKey:  identityProvider.localClusterID,
-		remoteClusterIDTagKey: cluster.ClusterID,
+		remoteClusterIDTagKey: options.Cluster.ClusterID,
 		managedByTagKey:       managedByTagValue,
 	}
 
@@ -109,7 +109,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster disco
 		return response, err
 	}
 
-	if err = identityProvider.ensureConfigMap(userArn, cluster); err != nil {
+	if err = identityProvider.ensureConfigMap(userArn, *options.Cluster); err != nil {
 		klog.Error(err)
 		return response, err
 	}
@@ -123,6 +123,20 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(cluster disco
 			Region:     identityProvider.awsConfig.AwsRegion,
 		},
 	}, nil
+}
+
+func (identityProvider *iamIdentityProvider) ForgeAuthParams(resp *responsetypes.SigningRequestResponse,
+	apiServer string, ca []byte) *authv1alpha1.AuthParams {
+	return &authv1alpha1.AuthParams{
+		CA:        ca,
+		APIServer: apiServer,
+		AwsConfig: &authv1alpha1.AwsConfig{
+			AwsAccessKeyID:     *resp.AwsIdentityResponse.AccessKey.AccessKeyId,
+			AwsSecretAccessKey: *resp.AwsIdentityResponse.AccessKey.SecretAccessKey,
+			AwsRegion:          resp.AwsIdentityResponse.Region,
+			AwsClusterName:     *resp.AwsIdentityResponse.EksCluster.Name,
+		},
+	}
 }
 
 func (identityProvider *iamIdentityProvider) ensureIamUser(iamSvc *iam.IAM, username string, tags map[string]string) (string, error) {
