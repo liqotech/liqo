@@ -12,29 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package identity
+package resourceslice
 
 import (
+	"context"
+
+	"github.com/spf13/cobra"
+
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 )
 
-// Options encapsulates the arguments of the identity command.
-type Options struct {
-	generateOptions *rest.GenerateOptions
-
-	remoteClusterID string
-}
-
-var _ rest.API = &Options{}
-
-// Identity returns the rest API for the identity command.
-func Identity() rest.API {
-	return &Options{}
-}
-
-// APIOptions returns the APIOptions for the identity API.
-func (o *Options) APIOptions() *rest.APIOptions {
-	return &rest.APIOptions{
-		EnableGenerate: true,
-	}
+// Update implements the update command.
+func (o *Options) Update(_ context.Context, _ *rest.UpdateOptions) *cobra.Command {
+	panic("not implemented")
 }

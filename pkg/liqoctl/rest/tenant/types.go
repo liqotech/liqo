@@ -20,7 +20,7 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
-// Options encapsulates the arguments of the tennant command.
+// Options encapsulates the arguments of the tenant command.
 type Options struct {
 	generateOptions  *rest.GenerateOptions
 	namespaceManager tenantnamespace.Manager
