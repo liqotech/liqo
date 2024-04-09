@@ -55,14 +55,25 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Approve Signing Request", func() {
-			certificate, err := identityProvider.ApproveSigningRequest(remoteCluster, csrBytes)
+			opts := &SigningRequestOptions{
+				Cluster:        &remoteCluster,
+				SigningRequest: csrBytes,
+				IdentityType:   authv1alpha1.ControlPlaneIdentityType,
+			}
+			certificate, err := identityProvider.ApproveSigningRequest(ctx, opts)
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
 			Expect(certificate.Certificate).To(Equal([]byte(idManTest.FakeCRT)))
 		})
 
 		It("Retrieve Remote Certificate", func() {
-			certificate, err := identityProvider.GetRemoteCertificate(remoteCluster, namespace.Name, csrBytes)
+			opts := &SigningRequestOptions{
+				Cluster:        &remoteCluster,
+				SigningRequest: csrBytes,
+				IdentityType:   authv1alpha1.ControlPlaneIdentityType,
+				Namespace:      namespace.Name,
+			}
+			certificate, err := identityProvider.GetRemoteCertificate(ctx, opts)
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
 			Expect(certificate.Certificate).To(Equal([]byte(idManTest.FakeCRT)))
@@ -73,7 +84,13 @@ var _ = Describe("IdentityManager", func() {
 				ClusterID:   "fake-cluster-id",
 				ClusterName: "fake-cluster-name",
 			}
-			certificate, err := identityProvider.GetRemoteCertificate(fakeIdentity, "fake", csrBytes)
+			opts := &SigningRequestOptions{
+				Cluster:        &fakeIdentity,
+				SigningRequest: csrBytes,
+				IdentityType:   authv1alpha1.ControlPlaneIdentityType,
+				Namespace:      namespace.Name,
+			}
+			certificate, err := identityProvider.GetRemoteCertificate(ctx, opts)
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeTrue())
 			Expect(kerrors.IsBadRequest(err)).To(BeFalse())
@@ -81,7 +98,13 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Retrieve Remote Certificate wrong CSR", func() {
-			certificate, err := identityProvider.GetRemoteCertificate(remoteCluster, namespace.Name, []byte("fake"))
+			opts := &SigningRequestOptions{
+				Cluster:        &remoteCluster,
+				SigningRequest: []byte("fake"),
+				IdentityType:   authv1alpha1.ControlPlaneIdentityType,
+				Namespace:      namespace.Name,
+			}
+			certificate, err := identityProvider.GetRemoteCertificate(ctx, opts)
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeFalse())
 			Expect(kerrors.IsBadRequest(err)).To(BeTrue())

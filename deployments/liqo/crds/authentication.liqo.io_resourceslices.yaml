@@ -67,6 +67,7 @@ spec:
               csr:
                 description: CSR is the Certificate Signing Request of the consumer
                   cluster.
+                format: byte
                 type: string
               providerClusterIdentity:
                 description: ProviderClusterIdentity is the identity of the provider
@@ -129,31 +130,42 @@ spec:
                     format: byte
                     type: string
                 type: object
-              condition:
-                description: Condition contains the condition of the ResourceSlice.
-                properties:
-                  lastTransitionTime:
-                    description: LastTransitionTime -> timestamp for when the condition
-                      last transitioned from one status to another.
-                    format: date-time
-                    type: string
-                  message:
-                    description: Message -> Human-readable message indicating details
-                      about the last status transition.
-                    type: string
-                  reason:
-                    description: Reason -> Machine-readable, UpperCamelCase text indicating
-                      the reason for the condition's last transition.
-                    type: string
-                  status:
-                    description: Status of the condition.
-                    enum:
-                    - Accepted
-                    - Denied
-                    type: string
-                required:
-                - status
-                type: object
+              conditions:
+                description: Conditions contains the conditions of the ResourceSlice.
+                items:
+                  description: ResourceSliceCondition contains details about the status
+                    of the provided ResourceSlice.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime -> timestamp for when the condition
+                        last transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message -> Human-readable message indicating details
+                        about the last status transition.
+                      type: string
+                    reason:
+                      description: Reason -> Machine-readable, UpperCamelCase text
+                        indicating the reason for the condition's last transition.
+                      type: string
+                    status:
+                      description: Status of the condition.
+                      enum:
+                      - Accepted
+                      - Denied
+                      type: string
+                    type:
+                      description: Type of the condition.
+                      enum:
+                      - Authentication
+                      - Resources
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
               resources:
                 additionalProperties:
                   anyOf:

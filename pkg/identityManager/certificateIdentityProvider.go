@@ -30,7 +30,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -50,13 +50,14 @@ type certificateIdentityProvider struct {
 
 // GetRemoteCertificate retrieves a certificate issued in the past,
 // given the clusterid and the signingRequest.
-func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
-	namespace string, signingRequest []byte) (response *responsetypes.SigningRequestResponse, err error) {
+func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(ctx context.Context,
+	options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error) {
 	response = &responsetypes.SigningRequestResponse{
 		ResponseType: responsetypes.SigningRequestResponseCertificate,
 	}
 
-	secret, err := identityProvider.k8sClient.CoreV1().Secrets(namespace).Get(context.TODO(), remoteCertificateSecret, metav1.GetOptions{})
+	secretName := remoteCertificateSecretName(options)
+	secret, err := identityProvider.k8sClient.CoreV1().Secrets(options.Namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			klog.V(4).Info(err)
@@ -72,13 +73,13 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, remoteCertificateSecret)
+		}, secretName)
 		return response, err
 	}
 
 	// check that this certificate is related to this signing request
-	if !bytes.Equal(signingRequestSecret, signingRequest) {
-		err = kerrors.NewBadRequest(fmt.Sprintf("the stored and the provided CSR for cluster %s does not match", cluster.ClusterName))
+	if !bytes.Equal(signingRequestSecret, options.SigningRequest) {
+		err = kerrors.NewBadRequest(fmt.Sprintf("the stored and the provided CSR for cluster %s does not match", options.Cluster.ClusterName))
 		klog.Error(err)
 		return response, err
 	}
@@ -89,7 +90,7 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, remoteCertificateSecret)
+		}, secretName)
 		return response, err
 	}
 
@@ -99,8 +100,8 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 // ApproveSigningRequest approves a remote CertificateSigningRequest.
 // It creates a CertificateSigningRequest CR to be issued by the local cluster, and approves it.
 // This function will wait (with a timeout) for an available certificate before returning.
-func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(cluster discoveryv1alpha1.ClusterIdentity,
-	signingRequest []byte) (response *responsetypes.SigningRequestResponse, err error) {
+func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(ctx context.Context,
+	options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error) {
 	cert := &certv1.CertificateSigningRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: identitySecretRoot + "-",
@@ -111,7 +112,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 				"system:authenticated",
 			},
 			SignerName: certv1.KubeAPIServerClientSignerName,
-			Request:    signingRequest,
+			Request:    options.SigningRequest,
 			Usages: []certv1.KeyUsage{
 				certv1.UsageDigitalSignature,
 				certv1.UsageKeyEncipherment,
@@ -120,7 +121,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 		},
 	}
 
-	cert, err = identityProvider.k8sClient.CertificatesV1().CertificateSigningRequests().Create(context.TODO(), cert, metav1.CreateOptions{})
+	cert, err = identityProvider.k8sClient.CertificatesV1().CertificateSigningRequests().Create(ctx, cert, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
 		return response, err
@@ -137,26 +138,44 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 		ResponseType: responsetypes.SigningRequestResponseCertificate,
 	}
 	// retrieve the certificate issued by the Kubernetes issuer in the CSR (with a 30 seconds timeout)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctxC, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	response.Certificate, err = identityProvider.csrWatcher.RetrieveCertificate(ctx, cert.Name)
+	response.Certificate, err = identityProvider.csrWatcher.RetrieveCertificate(ctxC, cert.Name)
 	if err != nil {
 		klog.Error(err)
 		return response, err
 	}
 
 	// store the certificate in a Secret, in this way is possbile to retrieve it again in the future
-	if _, err = identityProvider.storeRemoteCertificate(cluster, signingRequest, response.Certificate); err != nil {
+	if _, err = identityProvider.storeRemoteCertificate(ctx, options, response.Certificate); err != nil {
 		klog.Error(err)
 		return response, err
 	}
 	return response, nil
 }
 
+func (identityProvider *certificateIdentityProvider) ForgeAuthParams(resp *responsetypes.SigningRequestResponse,
+	apiServer string, ca []byte) *authv1alpha1.AuthParams {
+	return &authv1alpha1.AuthParams{
+		CA:        ca,
+		SignedCRT: resp.Certificate,
+		APIServer: apiServer,
+	}
+}
+
+func remoteCertificateSecretName(options *SigningRequestOptions) string {
+	switch options.IdentityType {
+	case authv1alpha1.VirtualNodeIdentityType:
+		return fmt.Sprintf("%s-%s", remoteCertificateSecret, options.Name)
+	default:
+		return remoteCertificateSecret
+	}
+}
+
 // storeRemoteCertificate stores the issued certificate in a Secret in the TenantNamespace.
-func (identityProvider *certificateIdentityProvider) storeRemoteCertificate(cluster discoveryv1alpha1.ClusterIdentity,
-	signingRequest, certificate []byte) (*v1.Secret, error) {
-	namespace, err := identityProvider.namespaceManager.GetNamespace(context.TODO(), cluster)
+func (identityProvider *certificateIdentityProvider) storeRemoteCertificate(ctx context.Context,
+	options *SigningRequestOptions, certificate []byte) (*v1.Secret, error) {
+	namespace, err := identityProvider.namespaceManager.GetNamespace(ctx, *options.Cluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -164,20 +183,20 @@ func (identityProvider *certificateIdentityProvider) storeRemoteCertificate(clus
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      remoteCertificateSecret,
+			Name:      remoteCertificateSecretName(options),
 			Namespace: namespace.Name,
 			Labels: map[string]string{
-				discovery.ClusterIDLabel: cluster.ClusterID,
+				discovery.ClusterIDLabel: options.Cluster.ClusterID,
 			},
 		},
 		Data: map[string][]byte{
-			csrSecretKey:         signingRequest,
+			csrSecretKey:         options.SigningRequest,
 			certificateSecretKey: certificate,
 		},
 	}
 
 	if secret, err = identityProvider.k8sClient.CoreV1().
-		Secrets(namespace.Name).Create(context.TODO(), secret, metav1.CreateOptions{}); err != nil {
+		Secrets(namespace.Name).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		klog.Error(err)
 		return nil, err
 	}

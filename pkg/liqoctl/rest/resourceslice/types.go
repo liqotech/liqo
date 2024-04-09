@@ -12,29 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package identity
+package resourceslice
 
 import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
-// Options encapsulates the arguments of the identity command.
+// Options encapsulates the arguments of the resourceslice command.
 type Options struct {
-	generateOptions *rest.GenerateOptions
+	createOptions *rest.CreateOptions
+
+	namespaceManager tenantnamespace.Manager
 
 	remoteClusterID string
+	class           string
+
+	cpu    string
+	memory string
+	pods   string
 }
 
 var _ rest.API = &Options{}
 
-// Identity returns the rest API for the identity command.
-func Identity() rest.API {
+// ResourceSlice returns the rest API for the resourceslice command.
+func ResourceSlice() rest.API {
 	return &Options{}
 }
 
 // APIOptions returns the APIOptions for the identity API.
 func (o *Options) APIOptions() *rest.APIOptions {
 	return &rest.APIOptions{
-		EnableGenerate: true,
+		EnableCreate: true,
 	}
 }
