@@ -22,7 +22,8 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 
-	v1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	v1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
@@ -51,14 +52,18 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=virtualkubelet.liqo.io, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("namespacemaps"):
+	// Group=ipam, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("ips"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ipam().V1alpha1().IPs().Informer()}, nil
+
+		// Group=virtualkubelet.liqo.io, Version=v1alpha1
+	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("namespacemaps"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().NamespaceMaps().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("shadowendpointslices"):
+	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("shadowendpointslices"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().ShadowEndpointSlices().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("shadowpods"):
+	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("shadowpods"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().ShadowPods().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("virtualnodes"):
+	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("virtualnodes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().VirtualNodes().Informer()}, nil
 
 	}
