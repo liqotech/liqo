@@ -24,9 +24,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -144,6 +146,33 @@ func (w *Waiter) ForIncomingPeering(ctx context.Context, remoteClusterID *discov
 		return err
 	}
 	s.Success(fmt.Sprintf("Incoming peering activated to the remote cluster %q", remName))
+	return nil
+}
+
+// ForResourceSlice waits until the ResourceSlice has been accepted or the timeout expires.
+func (w *Waiter) ForResourceSlice(ctx context.Context, resourceSlice *authv1alpha1.ResourceSlice) error {
+	s := w.Printer.StartSpinner("Waiting for ResourceSlice to be accepted")
+
+	nsName := client.ObjectKeyFromObject(resourceSlice)
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		if err := w.CRClient.Get(ctx, nsName, resourceSlice); err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+
+		authCondition := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeAuthentication)
+		resourcesCondition := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeResources)
+		if authCondition != nil && authCondition.Status == authv1alpha1.ResourceSliceConditionAccepted &&
+			resourcesCondition != nil && resourcesCondition.Status == authv1alpha1.ResourceSliceConditionAccepted {
+			return true, nil
+		}
+		return false, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for ResourceSlice to be accepted: %s", output.PrettyErr(err)))
+		return err
+	}
+
+	s.Success("ResourceSlice accepted")
 	return nil
 }
 

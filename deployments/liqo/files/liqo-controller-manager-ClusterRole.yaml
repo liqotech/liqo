@@ -51,7 +51,28 @@ rules:
   - authentication.liqo.io
   resources:
   - identities
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - identities
   - identities/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - resourceslices
+  - resourceslices/status
   verbs:
   - create
   - delete
