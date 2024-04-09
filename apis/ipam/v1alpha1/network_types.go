@@ -29,10 +29,10 @@ var (
 	NetworkResource = "networks"
 
 	// NetworkGroupVersionResource is the group version resource used to register the Network CRD.
-	NetworkGroupVersionResource = GroupVersion.WithResource(NetworkResource)
+	NetworkGroupVersionResource = SchemeGroupVersion.WithResource(NetworkResource)
 
 	// NetworkGroupResource is the group resource used to register the Network CRD.
-	NetworkGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: NetworkResource}
+	NetworkGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: NetworkResource}
 )
 
 // NetworkSpec defines the desired state of Network.
