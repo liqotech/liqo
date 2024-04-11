@@ -36,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/get"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/identity"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/kubeconfig"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/nonce"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/resourceslice"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/tenant"
@@ -50,6 +51,7 @@ var liqoResources = []rest.APIProvider{
 	nonce.Nonce,
 	identity.Identity,
 	resourceslice.ResourceSlice,
+	kubeconfig.Kubeconfig,
 }
 
 func init() {
