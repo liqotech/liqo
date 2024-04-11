@@ -67,6 +67,7 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 		"Output format of the resulting Identity resource. Supported formats: json, yaml")
 
 	cmd.Flags().StringVar(&o.remoteClusterID, "remote-cluster-id", "", "The ID of the remote cluster")
+	cmd.Flags().StringVar(&o.remoteTenantNs, "remote-tenant-namespace", "", "The remote tenant namespace where the Identity will be applied")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 
@@ -108,8 +109,8 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 		return err
 	}
 
-	identity := forge.IdentityForRemoteCluster(localClusterIdentity, authv1alpha1.ControlPlaneIdentityType,
-		&authParams, &tenant.Status.TenantNamespace)
+	identity := forge.IdentityForRemoteCluster(forge.ControlPlaneIdentityName(localClusterIdentity.ClusterName), o.remoteTenantNs,
+		localClusterIdentity, authv1alpha1.ControlPlaneIdentityType, &authParams, &tenant.Status.TenantNamespace)
 
 	opts.Printer.CheckErr(o.output(identity))
 
