@@ -146,13 +146,13 @@ func (r *LocalResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.R
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocalResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// generate the predicate to filter just the ResourceSlices created by the local cluster checking crdReplicator labels
-	p, err := predicate.LabelSelectorPredicate(reflection.LocalResourcesLabelSelector())
+	localResSliceFilter, err := predicate.LabelSelectorPredicate(reflection.LocalResourcesLabelSelector())
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&authv1alpha1.ResourceSlice{}, builder.WithPredicates(p)).
+		For(&authv1alpha1.ResourceSlice{}, builder.WithPredicates(localResSliceFilter)).
 		Complete(r)
 }
