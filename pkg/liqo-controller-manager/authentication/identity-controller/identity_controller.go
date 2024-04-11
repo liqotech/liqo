@@ -114,7 +114,7 @@ func (r *IdentityReconciler) ensureKubeconfigSecret(ctx context.Context, identit
 		if err := forge.MutateKubeconfigSecret(kubeconfigSecret, identity, privateKey, namespace); err != nil {
 			return err
 		}
-		return controllerutil.SetOwnerReference(identity, kubeconfigSecret, r.Scheme)
+		return controllerutil.SetControllerReference(identity, kubeconfigSecret, r.Scheme)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create or update kubeconfig secret: %w", err)
