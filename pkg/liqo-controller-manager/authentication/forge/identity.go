@@ -22,31 +22,42 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
+// ControlPlaneIdentityName forges the name of a ControlPlane Identity resource given the remote cluster name.
+func ControlPlaneIdentityName(remoteClusterName string) string {
+	return "controlplane-" + remoteClusterName
+}
+
+// ResourceSliceIdentityName forges the name of a ResourceSlice Identity.
+func ResourceSliceIdentityName(resourceSlice *authv1alpha1.ResourceSlice) string {
+	return "resourceslice-" + resourceSlice.Name
+}
+
 // IdentityForRemoteCluster forges a Identity resource to be applied on a remote cluster.
-func IdentityForRemoteCluster(localClusterIdentity discoveryv1alpha1.ClusterIdentity, identityType authv1alpha1.IdentityType,
-	authParams *authv1alpha1.AuthParams, namespace *string) *authv1alpha1.Identity {
-	identity := Identity(localClusterIdentity)
-	MutateIdentity(identity, localClusterIdentity, identityType, authParams, namespace)
+func IdentityForRemoteCluster(name, namespace string, localClusterIdentity discoveryv1alpha1.ClusterIdentity,
+	identityType authv1alpha1.IdentityType, authParams *authv1alpha1.AuthParams, defaultKubeConfigNs *string) *authv1alpha1.Identity {
+	identity := Identity(name, namespace)
+	MutateIdentity(identity, localClusterIdentity, identityType, authParams, defaultKubeConfigNs)
 
 	return identity
 }
 
 // Identity forges a Identity resource.
-func Identity(remoteClusterIdentity discoveryv1alpha1.ClusterIdentity) *authv1alpha1.Identity {
+func Identity(name, namespace string) *authv1alpha1.Identity {
 	return &authv1alpha1.Identity{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: authv1alpha1.GroupVersion.String(),
 			Kind:       authv1alpha1.IdentityKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: remoteClusterIdentity.ClusterName,
+			Name:      name,
+			Namespace: namespace,
 		},
 	}
 }
 
 // MutateIdentity mutates a Identity resource.
 func MutateIdentity(identity *authv1alpha1.Identity, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity,
-	identityType authv1alpha1.IdentityType, authParams *authv1alpha1.AuthParams, namespace *string) {
+	identityType authv1alpha1.IdentityType, authParams *authv1alpha1.AuthParams, defaultKubeConfigNs *string) {
 	if identity.Labels == nil {
 		identity.Labels = map[string]string{}
 	}
@@ -56,6 +67,6 @@ func MutateIdentity(identity *authv1alpha1.Identity, remoteClusterIdentity disco
 		ClusterIdentity: remoteClusterIdentity,
 		Type:            identityType,
 		AuthParams:      *authParams,
-		Namespace:       namespace,
+		Namespace:       defaultKubeConfigNs,
 	}
 }

@@ -52,8 +52,12 @@ rules:
   resources:
   - identities
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - authentication.liqo.io
