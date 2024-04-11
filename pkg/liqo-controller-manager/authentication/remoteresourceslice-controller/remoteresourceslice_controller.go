@@ -169,16 +169,14 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// generate the predicate to filter just the ResourceSlices created by the remote cluster checking crdReplicator labels
-	p, err := predicate.LabelSelectorPredicate(reflection.ReplicatedResourcesLabelSelector())
+	remoteResSliceFilter, err := predicate.LabelSelectorPredicate(reflection.ReplicatedResourcesLabelSelector())
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&authv1alpha1.ResourceSlice{},
-			builder.WithPredicates(p),
-			withCSR()).
+		For(&authv1alpha1.ResourceSlice{}, builder.WithPredicates(predicate.And(remoteResSliceFilter, withCSR()))).
 		Complete(r)
 }
 
@@ -233,12 +231,12 @@ func acceptResources(resourceSlice *authv1alpha1.ResourceSlice, er record.EventR
 	}
 }
 
-func withCSR() builder.ForOption {
-	return builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
+func withCSR() predicate.Funcs {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
 		rs, ok := obj.(*authv1alpha1.ResourceSlice)
 		if !ok {
 			return false
 		}
 		return rs.Spec.CSR != nil && len(rs.Spec.CSR) > 0
-	}))
+	})
 }
