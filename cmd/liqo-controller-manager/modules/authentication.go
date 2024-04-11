@@ -26,6 +26,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	identitycontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/identity-controller"
+	identitycreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/identitycreator-controller"
 	localresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/localresourceslice-controller"
 	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
 	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
@@ -115,6 +116,15 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 		opts.IdentityProvider, opts.APIServerAddressOverride, caOverride, opts.TrustedCA)
 	if err := remoteResourceSliceReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the remote resource slice reconciler: %v", err)
+		return err
+	}
+
+	// Configure controller that creates identity resources from resourceslices
+	identityCreatorReconciler := identitycreatorcontroller.NewIdentityCreatorReconciler(
+		mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("identitycreator-controller"),
+		opts.LiqoNamespace, opts.LocalClusterIdentity)
+	if err := identityCreatorReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to setup the identity creator reconciler: %v", err)
 		return err
 	}
 
