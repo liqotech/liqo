@@ -15,6 +15,8 @@
 package wireguard
 
 import (
+	"fmt"
+
 	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -28,12 +30,12 @@ import (
 // InitWireguardLink inits the Wireguard interface.
 func InitWireguardLink(options *Options) error {
 	if err := createLink(options); err != nil {
-		return err
+		return fmt.Errorf("cannot create Wireguard interface: %w", err)
 	}
 
 	link, err := common.GetLink(tunnel.TunnelInterfaceName)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot get Wireguard interface: %w", err)
 	}
 
 	klog.Infof("Setting up Wireguard interface %q with IP %q", tunnel.TunnelInterfaceName, common.GetInterfaceIP(options.GwOptions.Mode))
@@ -55,20 +57,20 @@ func createLink(options *Options) error {
 
 	err := netlink.LinkAdd(&link)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot add Wireguard interface: %w", err)
 	}
 
 	if options.GwOptions.Mode == gateway.ModeServer {
 		wgcl, err := wgctrl.New()
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot create Wireguard client: %w", err)
 		}
 		defer wgcl.Close()
 
 		if err := wgcl.ConfigureDevice(tunnel.TunnelInterfaceName, wgtypes.Config{
 			ListenPort: &options.ListenPort,
 		}); err != nil {
-			return err
+			return fmt.Errorf("cannot configure Wireguard interface: %w", err)
 		}
 	}
 	return nil
