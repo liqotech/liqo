@@ -15,6 +15,7 @@
 package authentication
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/x509"
@@ -24,7 +25,11 @@ import (
 	"fmt"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
+
+// CSRChecker is a function that checks a CSR.
+type CSRChecker func(*x509.CertificateRequest) error
 
 // GenerateCSRForResourceSlice generates a new CSR given a private key and a resource slice.
 func GenerateCSRForResourceSlice(key ed25519.PrivateKey,
@@ -34,7 +39,7 @@ func GenerateCSRForResourceSlice(key ed25519.PrivateKey,
 
 // CommonNameResourceSliceCSR returns the common name for a resource slice CSR.
 func CommonNameResourceSliceCSR(resourceSlice *authv1alpha1.ResourceSlice) string {
-	return fmt.Sprintf("%s-%s", resourceSlice.Namespace, resourceSlice.Name)
+	return fmt.Sprintf("%s-%s", resourceSlice.Spec.ConsumerClusterIdentity.ClusterID, resourceSlice.Name)
 }
 
 // OrganizationResourceSliceCSR returns the organization for a resource slice CSR.
@@ -55,6 +60,76 @@ func CommonNameControlPlaneCSR(clusterID string) string {
 // OrganizationControlPlaneCSR returns the organization for a control plane CSR.
 func OrganizationControlPlaneCSR() string {
 	return "liqo.io"
+}
+
+// CheckCSRForControlPlane checks a CSR for a control plane.
+func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) error {
+	return checkCSR(csr, publicKey,
+		func(x509Csr *x509.CertificateRequest) error {
+			if x509Csr.Subject.CommonName != CommonNameControlPlaneCSR(remoteClusterIdentity.ClusterID) {
+				return fmt.Errorf("invalid common name")
+			}
+			return nil
+		},
+		func(x509Csr *x509.CertificateRequest) error {
+			if x509Csr.Subject.Organization[0] != OrganizationControlPlaneCSR() {
+				return fmt.Errorf("invalid organization")
+			}
+			return nil
+		})
+}
+
+// CheckCSRForResourceSlice checks a CSR for a resource slice.
+func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1alpha1.ResourceSlice) error {
+	return checkCSR(resourceSlice.Spec.CSR, publicKey,
+		func(x509Csr *x509.CertificateRequest) error {
+			if x509Csr.Subject.CommonName != CommonNameResourceSliceCSR(resourceSlice) {
+				return fmt.Errorf("invalid common name")
+			}
+			return nil
+		},
+		func(x509Csr *x509.CertificateRequest) error {
+			if x509Csr.Subject.Organization[0] != OrganizationResourceSliceCSR(resourceSlice) {
+				return fmt.Errorf("invalid organization")
+			}
+			return nil
+		})
+}
+
+func checkCSR(csr, publicKey []byte, commonName, organization CSRChecker) error {
+	pemCsr, rst := pem.Decode(csr)
+	if pemCsr == nil || len(rst) != 0 {
+		return fmt.Errorf("invalid CSR")
+	}
+
+	x509Csr, err := x509.ParseCertificateRequest(pemCsr.Bytes)
+	if err != nil {
+		return err
+	}
+
+	if err := commonName(x509Csr); err != nil {
+		return err
+	}
+
+	if err := organization(x509Csr); err != nil {
+		return err
+	}
+
+	// if the pub key is 0-terminated, drop it
+	if publicKey[len(publicKey)-1] == 0 {
+		publicKey = publicKey[:len(publicKey)-1]
+	}
+
+	switch crtKey := x509Csr.PublicKey.(type) {
+	case ed25519.PublicKey:
+		if !bytes.Equal(crtKey, publicKey) {
+			return fmt.Errorf("invalid public key")
+		}
+	default:
+		return fmt.Errorf("invalid public key type %T", crtKey)
+	}
+
+	return nil
 }
 
 func generateCSR(key ed25519.PrivateKey, commonName, organization string) (csrBytes []byte, err error) {

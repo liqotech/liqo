@@ -15,11 +15,8 @@
 package tenantcontroller
 
 import (
-	"bytes"
 	"context"
 	"crypto/ed25519"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
@@ -136,7 +132,8 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	// check that the CSR is created with the same public key
 
-	if err = checkCSR(tenant.Spec.CSR, tenant.Spec.PublicKey, &tenant.Spec.ClusterIdentity); err != nil {
+	if err = authentication.CheckCSRForControlPlane(
+		tenant.Spec.CSR, tenant.Spec.PublicKey, &tenant.Spec.ClusterIdentity); err != nil {
 		klog.Errorf("Invalid CSR for the Tenant %q: %s", req.NamespacedName, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "InvalidCSR", err.Error())
 		return ctrl.Result{}, nil
@@ -222,42 +219,6 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func checkCSR(csr, publicKey []byte, remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) error {
-	pemCsr, rst := pem.Decode(csr)
-	if pemCsr == nil || len(rst) != 0 {
-		return fmt.Errorf("invalid CSR")
-	}
-
-	x509Csr, err := x509.ParseCertificateRequest(pemCsr.Bytes)
-	if err != nil {
-		return err
-	}
-
-	if x509Csr.Subject.CommonName != authentication.CommonNameControlPlaneCSR(remoteClusterIdentity.ClusterID) {
-		return fmt.Errorf("invalid common name")
-	}
-
-	if x509Csr.Subject.Organization[0] != authentication.OrganizationControlPlaneCSR() {
-		return fmt.Errorf("invalid organization")
-	}
-
-	// if the pub key is 0-terminated, drop it
-	if publicKey[len(publicKey)-1] == 0 {
-		publicKey = publicKey[:len(publicKey)-1]
-	}
-
-	switch crtKey := x509Csr.PublicKey.(type) {
-	case ed25519.PublicKey:
-		if !bytes.Equal(crtKey, publicKey) {
-			return fmt.Errorf("invalid public key")
-		}
-	default:
-		return fmt.Errorf("invalid public key type %T", crtKey)
-	}
-
-	return nil
 }
 
 func (r *TenantReconciler) ensureSetup(ctx context.Context) error {
