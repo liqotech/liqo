@@ -43,8 +43,8 @@ type IdentityType string
 const (
 	// ControlPlaneIdentityType indicates an Identity of type ControlPlane.
 	ControlPlaneIdentityType IdentityType = "ControlPlane"
-	// VirtualNodeIdentityType indicates an Identity of type VirtualNode.
-	VirtualNodeIdentityType IdentityType = "VirtualNode"
+	// ResourceSliceIdentityType indicates an Identity of type ResourceSlice.
+	ResourceSliceIdentityType IdentityType = "ResourceSlice"
 )
 
 // IdentitySpec defines the desired state of Identity.
@@ -52,7 +52,7 @@ type IdentitySpec struct {
 	// ClusterIdentity is the identity of the provider cluster.
 	ClusterIdentity discoveryv1alpha1.ClusterIdentity `json:"clusterIdentity,omitempty"`
 	// Type is the type of the identity.
-	// +kubebuilder:validation:Enum=ControlPlane;VirtualNode
+	// +kubebuilder:validation:Enum=ControlPlane;ResourceSlice
 	Type IdentityType `json:"type,omitempty"`
 	// AuthParams contains the parameters to create an Identity to use in the provider cluster.
 	AuthParams AuthParams `json:"authParams,omitempty"`
