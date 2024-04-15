@@ -165,7 +165,7 @@ func (identityProvider *certificateIdentityProvider) ForgeAuthParams(resp *respo
 
 func remoteCertificateSecretName(options *SigningRequestOptions) string {
 	switch options.IdentityType {
-	case authv1alpha1.VirtualNodeIdentityType:
+	case authv1alpha1.ResourceSliceIdentityType:
 		return fmt.Sprintf("%s-%s", remoteCertificateSecret, options.Name)
 	default:
 		return remoteCertificateSecret
