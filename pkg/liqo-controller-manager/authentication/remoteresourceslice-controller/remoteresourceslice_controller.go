@@ -134,7 +134,7 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 	resp, err := identitymanager.EnsureCertificate(ctx, r.identityProvider, &identitymanager.SigningRequestOptions{
 		Cluster:        resourceSlice.Spec.ConsumerClusterIdentity,
 		Namespace:      resourceSlice.Namespace,
-		IdentityType:   authv1alpha1.VirtualNodeIdentityType,
+		IdentityType:   authv1alpha1.ResourceSliceIdentityType,
 		Name:           resourceSlice.Name,
 		SigningRequest: resourceSlice.Spec.CSR,
 	})
