@@ -131,7 +131,7 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 
 	// Wait for the nonce to be signed.
 	waiter := wait.NewWaiterFromFactory(opts.Factory)
-	signedNonce, err := waiter.ForSignedNonce(ctx, o.remoteClusterIdentity.ClusterID)
+	signedNonce, err := waiter.ForSignedNonce(ctx, o.remoteClusterIdentity.ClusterID, true)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to wait for nonce to be signed: %w", err))
 		return err
@@ -152,7 +152,7 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 	}
 
 	// Generate a CSR for the remote cluster.
-	CSR, err := authentication.GenerateCSR(privateKey, authentication.CommonName(localClusterIdentity.ClusterID))
+	CSR, err := authentication.GenerateCSRForControlPlane(privateKey, localClusterIdentity.ClusterID)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to generate CSR: %w", err))
 		return err
