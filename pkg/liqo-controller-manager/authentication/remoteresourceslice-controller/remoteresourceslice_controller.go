@@ -36,6 +36,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/utils/apiserver"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // NewRemoteResourceSliceReconciler returns a new RemoteResourceSliceReconciler.
@@ -93,6 +94,29 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if resourceSlice.Spec.ConsumerClusterIdentity == nil {
+		err = fmt.Errorf("ConsumerClusterIdentity not set")
+		klog.Errorf("Unable to ensure the remote certificate for the ResourceSlice %q: %s", req.NamespacedName, err)
+		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "RemoteCertificateFailed", err.Error())
+		return ctrl.Result{}, nil
+	}
+
+	// check that the CSR is valid
+
+	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, resourceSlice.Spec.ConsumerClusterIdentity.ClusterID)
+	if err != nil {
+		klog.Errorf("Unable to get the Tenant for the ResourceSlice %q: %s", req.NamespacedName, err)
+		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "TenantNotFound", err.Error())
+		return ctrl.Result{}, err
+	}
+
+	if err = authentication.CheckCSRForResourceSlice(
+		tenant.Spec.PublicKey, &resourceSlice); err != nil {
+		klog.Errorf("Invalid CSR for the ResourceSlice %q: %s", req.NamespacedName, err)
+		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "InvalidCSR", err.Error())
+		return ctrl.Result{}, nil
+	}
+
 	defer func() {
 		errDef := r.Client.Status().Update(ctx, &resourceSlice)
 		if errDef != nil {
@@ -124,12 +148,6 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	// forge the AuthParams
-	if resourceSlice.Spec.ConsumerClusterIdentity == nil {
-		err = fmt.Errorf("ConsumerClusterIdentity not set")
-		klog.Errorf("Unable to ensure the remote certificate for the ResourceSlice %q: %s", req.NamespacedName, err)
-		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "RemoteCertificateFailed", err.Error())
-		return ctrl.Result{}, nil
-	}
 
 	resp, err := identitymanager.EnsureCertificate(ctx, r.identityProvider, &identitymanager.SigningRequestOptions{
 		Cluster:        resourceSlice.Spec.ConsumerClusterIdentity,
