@@ -19,6 +19,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,7 +40,24 @@ import (
 // The DNS is resolved every 5 minutes.
 // If the DNS changed a new publickkeys-controller reconcile is triggered through a generic event.
 func StartDNSRoutine(ctx context.Context, ch chan event.GenericEvent, opts *Options) {
-	err := wait.PollUntilContextCancel(ctx, opts.DNSCheckInterval, true, func(ctx context.Context) (done bool, err error) {
+	// Try to solve the DNS every 5 seconds until the DNS is resolved.
+	// This is useful to avoid to wait 5 minutes before the first DNS resolution.
+	// In some cases (like AWS LoadBalancer) the DNS is not immediatlly populated.
+	err := wait.PollUntilContextCancel(ctx, time.Second*5, true, forgeResolveCallback(opts, ch, true))
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+	err = wait.PollUntilContextCancel(ctx, opts.DNSCheckInterval, true, forgeResolveCallback(opts, ch, false))
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+}
+
+func forgeResolveCallback(opts *Options, ch chan event.GenericEvent,
+	solveJustOnce bool) func(_ context.Context) (done bool, err error) {
+	return func(_ context.Context) (done bool, err error) {
 		ips, err := net.LookupIP(opts.EndpointAddress)
 		if err != nil {
 			dnsErr := &net.DNSError{}
@@ -77,11 +95,11 @@ func StartDNSRoutine(ctx context.Context, ch chan event.GenericEvent, opts *Opti
 
 		// Triggers a new reconcile
 		ch <- event.GenericEvent{}
+
+		if solveJustOnce {
+			return true, nil
+		}
 		return false, nil
-	})
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
 	}
 }
 
@@ -112,6 +130,7 @@ func NewDNSEventHandler(cl client.Client, opts *Options) handler.EventHandler {
 			list, err := getters.ListPublicKeysByLabel(ctx, cl, opts.GwOptions.Namespace, labels.SelectorFromSet(labelSet))
 			if err != nil {
 				klog.Error(err)
+				return nil
 			}
 			if len(list.Items) == 0 {
 				klog.Errorf("There are no public keys with label %s", labelSet)
