@@ -41,9 +41,13 @@ jobs:
           echo "master=false" >> $GITHUB_OUTPUT
           echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
           echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
-        else
+        elif [ "${{ github.ref_name }}" == "master" ]; then
           echo "master=true" >> $GITHUB_OUTPUT
           echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+        else
+          echo "master=false" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64" >> $GITHUB_OUTPUT
           echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
         fi
 
