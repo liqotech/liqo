@@ -28,6 +28,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	utilsvirtualnode "github.com/liqotech/liqo/pkg/utils/virtualnode"
@@ -210,14 +211,16 @@ func ForeignClusters(ctx context.Context, f *factory.Factory, argsLimit int) FnT
 // ClusterIDs returns a function to autocomplete ForeignCluster cluster IDs.
 func ClusterIDs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var foreignClusters discoveryv1alpha1.ForeignClusterList
-		if err := f.CRClient.List(ctx, &foreignClusters); err != nil {
+		var namespaces corev1.NamespaceList
+		if err := f.CRClient.List(ctx, &namespaces,
+			client.MatchingLabels{discovery.TenantNamespaceLabel: "true"},
+			client.HasLabels{discovery.ClusterIDLabel}); err != nil {
 			return nil, err
 		}
 
 		var ids []string
-		for i := range foreignClusters.Items {
-			ids = append(ids, foreignClusters.Items[i].Spec.ClusterIdentity.ClusterID)
+		for i := range namespaces.Items {
+			ids = append(ids, namespaces.Items[i].Labels[discovery.ClusterIDLabel])
 		}
 		return ids, nil
 	}

@@ -235,8 +235,12 @@ func checkCSR(csr, publicKey []byte, remoteClusterIdentity *discoveryv1alpha1.Cl
 		return err
 	}
 
-	if x509Csr.Subject.CommonName != authentication.CommonName(remoteClusterIdentity.ClusterID) {
+	if x509Csr.Subject.CommonName != authentication.CommonNameControlPlaneCSR(remoteClusterIdentity.ClusterID) {
 		return fmt.Errorf("invalid common name")
+	}
+
+	if x509Csr.Subject.Organization[0] != authentication.OrganizationControlPlaneCSR() {
+		return fmt.Errorf("invalid organization")
 	}
 
 	// if the pub key is 0-terminated, drop it
