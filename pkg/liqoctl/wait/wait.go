@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pterm/pterm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -413,11 +414,15 @@ func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv
 }
 
 // ForSignedNonce waits until the signed nonce secret has been signed and returns the signature.
-func (w *Waiter) ForSignedNonce(ctx context.Context, clusterID string) ([]byte, error) {
+func (w *Waiter) ForSignedNonce(ctx context.Context, clusterID string, silent bool) ([]byte, error) {
 	var nonceSecret *corev1.Secret
 	var signedNonce []byte
+	var s *pterm.SpinnerPrinter
 
-	s := w.Printer.StartSpinner("Waiting for nonce to be signed")
+	if !silent {
+		s = w.Printer.StartSpinner("Waiting for nonce to be signed")
+	}
+
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		nonceSecret, err = noncesigner.GetSignedNonceSecret(ctx, w.CRClient, clusterID)
 		if client.IgnoreNotFound(err) != nil {
@@ -429,10 +434,15 @@ func (w *Waiter) ForSignedNonce(ctx context.Context, clusterID string) ([]byte, 
 		return true, nil
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed waiting for nonce to be signed: %s", output.PrettyErr(err)))
+		if !silent {
+			s.Fail(fmt.Sprintf("Failed waiting for nonce to be signed: %s", output.PrettyErr(err)))
+		}
 		return nil, err
 	}
-	s.Success("Nonce is signed")
+
+	if !silent {
+		s.Success("Nonce is signed")
+	}
 
 	return signedNonce, nil
 }
