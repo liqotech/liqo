@@ -101,7 +101,7 @@ func forgeCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration, o
 			Family: ptr.To(firewall.TableFamilyIPv4),
 			Chains: []firewall.Chain{
 				forgeCIDRFirewallConfigurationDNATChain(cfg, opts, cidrtype),
-				forgeCIDRFirewallConfigurationSNATChain(cfg, cidrtype),
+				forgeCIDRFirewallConfigurationSNATChain(cfg, opts, cidrtype),
 			},
 		},
 	}
@@ -121,7 +121,7 @@ func forgeCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configurati
 }
 
 func forgeCIDRFirewallConfigurationSNATChain(cfg *networkingv1alpha1.Configuration,
-	cidrtype CIDRType) firewall.Chain {
+	opts *Options, cidrtype CIDRType) firewall.Chain {
 	return firewall.Chain{
 		Name:     &SNATChainName,
 		Policy:   ptr.To(firewall.ChainPolicyAccept),
@@ -129,7 +129,7 @@ func forgeCIDRFirewallConfigurationSNATChain(cfg *networkingv1alpha1.Configurati
 		Hook:     &firewall.ChainHookPostrouting,
 		Priority: &firewall.ChainPriorityNATSource,
 		Rules: firewall.RulesSet{
-			NatRules: forgeCIDRFirewallConfigurationSNATRules(cfg, cidrtype),
+			NatRules: forgeCIDRFirewallConfigurationSNATRules(cfg, opts, cidrtype),
 		},
 	}
 }
@@ -176,7 +176,7 @@ func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configurati
 }
 
 func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1alpha1.Configuration,
-	cidrtype CIDRType) []firewall.NatRule {
+	opts *Options, cidrtype CIDRType) []firewall.NatRule {
 	var localCIDR, remoteRemapCIDR string
 	switch cidrtype {
 	case PodCIDR:
@@ -193,10 +193,10 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1alpha1.Configurati
 			To:      ptr.To(remoteRemapCIDR),
 			Match: []firewall.Match{
 				{
-					Op: firewall.MatchOperationEq,
-					IP: &firewall.MatchIP{
-						Value:    localCIDR,
-						Position: firewall.MatchIPPositionDst,
+					Op: firewall.MatchOperationNeq,
+					Dev: &firewall.MatchDev{
+						Value:    opts.DefaultInterfaceName,
+						Position: firewall.MatchDevPositionOut,
 					},
 				},
 				{
