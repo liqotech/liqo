@@ -1,7 +1,7 @@
 ---
 {{- $fabricConfig := (merge (dict "name" "fabric" "module" "networking" "version" .Values.fabric.image.version ) .) -}}
 
-{{- if .Values.networking.internal }}
+{{- if .Values.networking.enabled }}
 
 apiVersion: apps/v1
 kind: DaemonSet

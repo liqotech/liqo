@@ -98,10 +98,10 @@ type ForeignClusterReconciler struct {
 
 	LiqoNamespace string
 
-	ResyncPeriod           time.Duration
-	HomeCluster            discoveryv1alpha1.ClusterIdentity
-	AutoJoin               bool
-	DisableInternalNetwork bool
+	ResyncPeriod      time.Duration
+	HomeCluster       discoveryv1alpha1.ClusterIdentity
+	AutoJoin          bool
+	NetworkingEnabled bool
 
 	NamespaceManager tenantnamespace.Manager
 	IdentityManager  identitymanager.IdentityManager
@@ -362,7 +362,7 @@ func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 		discoveryv1alpha1.OutgoingPeeringCondition, status, reason, message)
 
 	// Ensure the ExternalNetwork presence
-	if !r.DisableInternalNetwork {
+	if r.NetworkingEnabled {
 		if err = r.ensureExternalNetwork(ctx, foreignCluster); err != nil {
 			klog.Error(err)
 			return err
@@ -558,9 +558,9 @@ func ensureStatusForConnection(foreignCluster *discoveryv1alpha1.ForeignCluster,
 
 func (r *ForeignClusterReconciler) checkConnection(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	if r.DisableInternalNetwork {
+	if !r.NetworkingEnabled {
 		peeringconditionsutils.EnsureStatus(foreignCluster,
-			discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusExternal,
+			discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusDisabled,
 			externalNetworkReason, externalNetworkMessage)
 		return nil
 	}

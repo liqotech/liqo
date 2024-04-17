@@ -28,12 +28,12 @@ type Options struct {
 	Verbose  bool
 	Checkers []Checker
 	*factory.Factory
-	InternalNetworkEnabled bool
+	NetworkingEnabled bool
 }
 
 // Run implements the logic of the status command.
 func (o *Options) Run(ctx context.Context) error {
-	if err := o.SetInternalNetworkEnabled(ctx); err != nil {
+	if err := o.SetNetworkingEnabled(ctx); err != nil {
 		return err
 	}
 
@@ -62,18 +62,18 @@ func (o *Options) Run(ctx context.Context) error {
 	return nil
 }
 
-// SetInternalNetworkEnabled sets the internal network enabled flag.
-func (o *Options) SetInternalNetworkEnabled(ctx context.Context) error {
+// SetNetworkingEnabled sets the internal network enabled flag.
+func (o *Options) SetNetworkingEnabled(ctx context.Context) error {
 	var ctrlargs []string
 	ctrlargs, err := liqoctlutil.RetrieveLiqoControllerManagerDeploymentArgs(ctx, o.CRClient, o.LiqoNamespace)
 	if err != nil {
 		return err
 	}
-	_, err = liqoctlutil.ExtractValuesFromArgumentList("--disable-internal-network", ctrlargs)
-	if err != nil {
-		o.InternalNetworkEnabled = true
+	value, err := liqoctlutil.ExtractValuesFromArgumentList("--networking-enabled", ctrlargs)
+	if err != nil || value == "true" {
+		o.NetworkingEnabled = true
 	} else {
-		o.InternalNetworkEnabled = false
+		o.NetworkingEnabled = false
 	}
 	return nil
 }
