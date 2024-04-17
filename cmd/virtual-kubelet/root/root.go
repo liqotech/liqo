@@ -146,6 +146,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 		LiqoIpamServer:       c.LiqoIpamServer,
 		DisableIPReflection:  c.DisableIPReflection,
+		LocalPodCIDR:         c.LocalPodCIDR,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 
 		ReflectorsConfigs: reflectorsConfigs,
@@ -284,7 +285,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		go func() {
 			if err := nodeRunner.Run(ctx); err != nil {
 				klog.Error(err, "error in pod controller running")
-				panic(nil)
+				panic(err)
 			}
 		}()
 
