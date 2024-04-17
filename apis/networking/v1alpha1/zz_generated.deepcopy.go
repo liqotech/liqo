@@ -396,11 +396,6 @@ func (in *ExternalNetworkSpec) DeepCopyInto(out *ExternalNetworkSpec) {
 		*out = new(ConfigurationSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.ServerEndpoint != nil {
-		in, out := &in.ServerEndpoint, &out.ServerEndpoint
-		*out = new(EndpointStatus)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.PublicKey != nil {
 		in, out := &in.PublicKey, &out.PublicKey
 		*out = make([]byte, len(*in))
@@ -429,6 +424,11 @@ func (in *ExternalNetworkStatus) DeepCopyInto(out *ExternalNetworkStatus) {
 	if in.Configuration != nil {
 		in, out := &in.Configuration, &out.Configuration
 		*out = new(ConfigurationSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ServerEndpoint != nil {
+		in, out := &in.ServerEndpoint, &out.ServerEndpoint
+		*out = new(EndpointStatus)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.PublicKey != nil {
