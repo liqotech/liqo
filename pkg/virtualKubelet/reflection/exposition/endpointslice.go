@@ -17,6 +17,7 @@ package exposition
 import (
 	"context"
 	"fmt"
+	"net"
 	"reflect"
 	"sync"
 
@@ -66,19 +67,21 @@ type NamespacedEndpointSliceReflector struct {
 	remoteShadowEndpointSlicesClient vkv1alpha1clients.ShadowEndpointSliceInterface
 	localIPs                         ipamv1alpha1listers.IPNamespaceLister
 
+	localPodCIDR *net.IPNet
+
 	ipamclient   ipam.IpamClient
 	translations sync.Map
 	epsSkipUnmap sync.Map
 }
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
-func NewEndpointSliceReflector(ipamclient ipam.IpamClient, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
-	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient),
+func NewEndpointSliceReflector(ipamclient ipam.IpamClient, localPodCIDR string, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
+	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient, localPodCIDR),
 		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedEndpointSliceReflector returns a function generating NamespacedEndpointSliceReflector instances.
-func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*options.NamespacedOpts) manager.NamespacedReflector {
+func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient, localPodCIDR string) func(*options.NamespacedOpts) manager.NamespacedReflector {
 	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
 		localNode := opts.LocalFactory.Core().V1().Nodes()
 		localServices := opts.LocalFactory.Core().V1().Services()
@@ -91,6 +94,9 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 		_, err = remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		utilruntime.Must(err)
 
+		_, podCIDR, err := net.ParseCIDR(localPodCIDR)
+		utilruntime.Must(err)
+
 		ner := &NamespacedEndpointSliceReflector{
 			NamespacedReflector:              generic.NewNamespacedReflector(opts, EndpointSliceReflectorName),
 			localNodeClient:                  localNode.Lister(),
@@ -100,6 +106,7 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 			remoteShadowEndpointSlicesClient: opts.RemoteLiqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(opts.RemoteNamespace),
 			localIPs:                         localIPs.Lister().IPs(opts.LocalNamespace),
 			ipamclient:                       ipamclient,
+			localPodCIDR:                     podCIDR,
 		}
 
 		// Enqueue all existing remote EndpointSlices in case the local Service has the "skip-reflection" annotation, to ensure they are also deleted.
@@ -315,10 +322,15 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string
 				// If the IPAM is not enabled we just use the original IP.
 				translation = original
 			default:
-				// Cache miss -> we need to interact with the IPAM to request the translation.
-				translation, err = ner.MapEndpointIPFromIPResource(original)
-				if err != nil {
-					return nil, fmt.Errorf("failed to translate endpoint IP %v: %w", original, err)
+				if !ner.localPodCIDR.Contains(net.ParseIP(original)) {
+					// Cache miss -> we need to interact with the IPAM to request the translation.
+					translation, err = ner.MapEndpointIPFromIPResource(original)
+					if err != nil {
+						return nil, fmt.Errorf("failed to translate endpoint IP %v: %w", original, err)
+					}
+				} else {
+					// If the IP is in the local podCIDR we don't need to ask  for a translation.
+					translation = original
 				}
 				cache[original] = translation
 			}

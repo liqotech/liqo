@@ -117,6 +117,7 @@ spec:
           - --kubelet-metrics-enabled={{ .Values.virtualKubelet.metrics.enabled }}
           {{- else }}
           {{- end }}
+          - --podcidr={{ .Values.ipam.podCIDR }}
           {{- if .Values.ipam.external.enabled }}
           - --ipam-server={{ .Values.ipam.external.url }}
           {{- else if not .Values.networking.internal }}

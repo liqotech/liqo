@@ -43,6 +43,7 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 		"The address to contact the IPAM module (leave it empty to disable the IPAM module)")
 	flags.BoolVar(&o.DisableIPReflection, "disable-ip-reflection", o.DisableIPReflection,
 		"Disable the IP reflection for the offloaded pods")
+	flags.StringVar(&o.LocalPodCIDR, "local-podcidr", o.LocalPodCIDR, "The CIDR used for the local pods")
 
 	flags.StringVar(&o.NodeIP, "node-ip", o.NodeIP, "The IP address of the virtual kubelet pod, and assigned to the virtual node as internal address")
 	flags.Var(o.CertificateType, "certificate-type", "The type of virtual kubelet server certificate to generate, among kubelet, aws, self-signed")

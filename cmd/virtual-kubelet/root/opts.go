@@ -88,6 +88,7 @@ type Opts struct {
 	ForeignCluster      discoveryv1alpha1.ClusterIdentity
 	LiqoIpamServer      string
 	DisableIPReflection bool
+	LocalPodCIDR        string
 
 	// Sets the addresses to listen for requests from the Kubernetes API server
 	NodeIP          string
