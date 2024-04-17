@@ -137,8 +137,8 @@ func (lic *LocalInfoChecker) addClusterIdentitySection(ctx context.Context) {
 func (lic *LocalInfoChecker) addNetworkSection(ctx context.Context) {
 	networkSection := lic.localInfoSection.AddSection("Network")
 
-	if !lic.options.InternalNetworkEnabled {
-		networkSection.AddEntry("Status", string(discoveryv1alpha1.PeeringConditionStatusExternal))
+	if !lic.options.NetworkingEnabled {
+		networkSection.AddEntry("Status", string(discoveryv1alpha1.PeeringConditionStatusDisabled))
 	} else {
 		podCIDR, err := ipamutils.GetPodCIDR(ctx, lic.options.CRClient)
 		if err != nil {

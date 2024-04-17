@@ -1,7 +1,7 @@
 ---
 {{- $routeConfig := (merge (dict "name" "route" "module" "networking") .) -}}
 
-{{- if and (.Values.networking.internal) (.Values.networking.legacy) }}
+{{- if and (.Values.networking.enabled) (.Values.networking.legacy) }}
 
 apiVersion: apps/v1
 kind: DaemonSet

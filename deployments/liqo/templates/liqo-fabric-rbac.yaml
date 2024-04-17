@@ -1,6 +1,6 @@
 {{- $fabricConfig := (merge (dict "name" "fabric" "module" "networking") .) -}}
 
-{{- if .Values.networking.internal }}
+{{- if .Values.networking.enabled }}
 
 apiVersion: v1
 kind: ServiceAccount
