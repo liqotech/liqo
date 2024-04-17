@@ -72,6 +72,7 @@ func forgeVKContainers(
 		stringifyArgument(string(TenantNamespace), vkNamespace),
 		stringifyArgument(string(HomeClusterID), homeCluster.ClusterID),
 		stringifyArgument(string(HomeClusterName), homeCluster.ClusterName),
+		stringifyArgument(string(LocalPodCIDR), opts.LocalPodCIDR),
 	}
 
 	if opts.IpamEndpoint != "" {

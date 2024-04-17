@@ -46,6 +46,10 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
 )
 
+const (
+	localPodCIDR string = "192.168.0.0/16"
+)
+
 var _ = Describe("EndpointSlice Reflection Tests", func() {
 	Describe("the NewEndpointSliceReflector function", func() {
 		It("should not return a nil reflector", func() {
@@ -53,7 +57,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[generic.EndpointSlice],
 			}
-			Expect(exposition.NewEndpointSliceReflector(nil, &reflectorConfig)).ToNot(BeNil())
+			Expect(exposition.NewEndpointSliceReflector(nil, localPodCIDR, &reflectorConfig)).ToNot(BeNil())
 		})
 	})
 
@@ -135,7 +139,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			ipam = fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
-			reflector = exposition.NewNamespacedEndpointSliceReflector(ipam)(options.NewNamespaced().
+			reflector = exposition.NewNamespacedEndpointSliceReflector(ipam, localPodCIDR)(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithLiqoRemote(liqoClient, liqoFactory).
