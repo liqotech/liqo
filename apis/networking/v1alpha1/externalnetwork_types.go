@@ -40,8 +40,6 @@ var ExternalNetworkGroupVersionResource = GroupVersion.WithResource(ExternalNetw
 type ExternalNetworkSpec struct {
 	// Configuration contains the configuration for the originating cluster.
 	Configuration *ConfigurationSpec `json:"configuration,omitempty"`
-	// ServerEndpoint contains the endpoint of the originating cluster.
-	ServerEndpoint *EndpointStatus `json:"serverEndpoint,omitempty"`
 	// PublicKey contains the public key of the originating cluster.
 	PublicKey []byte `json:"publicKey,omitempty"`
 	// ClusterIdentity contains the identity of the originating cluster.
@@ -52,6 +50,8 @@ type ExternalNetworkSpec struct {
 type ExternalNetworkStatus struct {
 	// Configuration contains the configuration for the target cluster.
 	Configuration *ConfigurationSpec `json:"configuration,omitempty"`
+	// ServerEndpoint contains the endpoint of the originating cluster.
+	ServerEndpoint *EndpointStatus `json:"serverEndpoint,omitempty"`
 	// PublicKey contains the public key of the target cluster.
 	PublicKey []byte `json:"publicKey,omitempty"`
 	// ClusterIdentity contains the identity of the target cluster.

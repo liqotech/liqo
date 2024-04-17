@@ -101,27 +101,6 @@ spec:
                   cluster.
                 format: byte
                 type: string
-              serverEndpoint:
-                description: ServerEndpoint contains the endpoint of the originating
-                  cluster.
-                properties:
-                  addresses:
-                    description: Addresses specifies the addresses of the endpoint.
-                    items:
-                      type: string
-                    type: array
-                  port:
-                    description: Port specifies the port of the endpoint.
-                    format: int32
-                    type: integer
-                  protocol:
-                    default: TCP
-                    description: Protocol specifies the protocol of the endpoint.
-                    enum:
-                    - TCP
-                    - UDP
-                    type: string
-                type: object
             type: object
           status:
             description: ExternalNetworkStatus defines the observed state of ExternalNetworks.
@@ -182,6 +161,27 @@ spec:
                 description: PublicKey contains the public key of the target cluster.
                 format: byte
                 type: string
+              serverEndpoint:
+                description: ServerEndpoint contains the endpoint of the originating
+                  cluster.
+                properties:
+                  addresses:
+                    description: Addresses specifies the addresses of the endpoint.
+                    items:
+                      type: string
+                    type: array
+                  port:
+                    description: Port specifies the port of the endpoint.
+                    format: int32
+                    type: integer
+                  protocol:
+                    default: TCP
+                    description: Protocol specifies the protocol of the endpoint.
+                    enum:
+                    - TCP
+                    - UDP
+                    type: string
+                type: object
             type: object
         type: object
     served: true

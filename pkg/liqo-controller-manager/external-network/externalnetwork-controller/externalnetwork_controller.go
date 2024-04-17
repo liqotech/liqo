@@ -143,19 +143,13 @@ func (r *ExternalNetworkReconciler) handleLocalExternalNetwork(ctx context.Conte
 		return err
 	}
 
-	var gw *networkingv1alpha1.GatewayServer
-	if gw, err = r.ensureGatewayServer(ctx, extNet); err != nil {
+	var gw *networkingv1alpha1.GatewayClient
+	if gw, err = r.ensureGatewayClient(ctx, extNet); err != nil {
 		return err
 	}
-
-	var ep *networkingv1alpha1.EndpointStatus
-	if ep, err = r.getServerEndpoint(ctx, gw); err != nil {
-		return err
-	}
-	extNet.Spec.ServerEndpoint = ep
 
 	if gw.Status.SecretRef == nil {
-		return fmt.Errorf("no SecretRef found for GatewayServer %q", gw.Name)
+		return fmt.Errorf("no SecretRef found for GatewayClient %q", gw.Name)
 	}
 	var pubKey []byte
 	if pubKey, err = publickey.ExtractKeyFromSecretRef(ctx, r.Client, gw.Status.SecretRef); err != nil {
@@ -186,13 +180,19 @@ func (r *ExternalNetworkReconciler) handleRemoteExternalNetwork(ctx context.Cont
 		return err
 	}
 
-	var gw *networkingv1alpha1.GatewayClient
-	if gw, err = r.ensureGatewayClient(ctx, extNet); err != nil {
+	var gw *networkingv1alpha1.GatewayServer
+	if gw, err = r.ensureGatewayServer(ctx, extNet); err != nil {
 		return err
 	}
 
+	var ep *networkingv1alpha1.EndpointStatus
+	if ep, err = r.getServerEndpoint(ctx, gw); err != nil {
+		return err
+	}
+	extNet.Status.ServerEndpoint = ep
+
 	if gw.Status.SecretRef == nil {
-		return fmt.Errorf("no SecretRef found for GatewayClient %q", gw.Name)
+		return fmt.Errorf("no SecretRef found for GatewayServer %q", gw.Name)
 	}
 	var pubKey []byte
 	if pubKey, err = publickey.ExtractKeyFromSecretRef(ctx, r.Client, gw.Status.SecretRef); err != nil {
@@ -257,13 +257,13 @@ func (r *ExternalNetworkReconciler) ensurePublicKey(ctx context.Context,
 
 func (r *ExternalNetworkReconciler) ensureGatewayClient(ctx context.Context,
 	extNet *networkingv1alpha1.ExternalNetwork) (*networkingv1alpha1.GatewayClient, error) {
-	if extNet.Spec.ServerEndpoint == nil {
+	if extNet.Status.ServerEndpoint == nil {
 		return nil, fmt.Errorf("no remote ServerEndpoint found for ExternalNetwork %q", extNet.Name)
 	}
 
 	var remoteClusterID string
 	if extNet.Labels != nil {
-		if v, ok := extNet.Labels[consts.ReplicationOriginLabel]; ok {
+		if v, ok := extNet.Labels[consts.ReplicationDestinationLabel]; ok {
 			remoteClusterID = v
 		}
 	}
@@ -278,15 +278,15 @@ func (r *ExternalNetworkReconciler) ensureGatewayClient(ctx context.Context,
 		TemplateName:      gatewayclient.DefaultTemplateName,
 		TemplateNamespace: r.LiqoNamespace,
 		MTU:               r.MTU,
-		Addresses:         extNet.Spec.ServerEndpoint.Addresses,
-		Port:              extNet.Spec.ServerEndpoint.Port,
+		Addresses:         extNet.Status.ServerEndpoint.Addresses,
+		Port:              extNet.Status.ServerEndpoint.Port,
 	}
-	if extNet.Spec.ServerEndpoint.Protocol != nil {
-		opts.Protocol = string(*extNet.Spec.ServerEndpoint.Protocol)
+	if extNet.Status.ServerEndpoint.Protocol != nil {
+		opts.Protocol = string(*extNet.Status.ServerEndpoint.Protocol)
 	} else {
 		opts.Protocol = string(corev1.ProtocolTCP)
 	}
-	gwClient, err := gatewayclient.ForgeGatewayClient(gatewayclient.DefaultGatewayClientName(getIdentity(extNet, false)), extNet.Namespace, opts)
+	gwClient, err := gatewayclient.ForgeGatewayClient(gatewayclient.DefaultGatewayClientName(getIdentity(extNet, true)), extNet.Namespace, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +322,7 @@ func (r *ExternalNetworkReconciler) ensureGatewayServer(ctx context.Context,
 	extNet *networkingv1alpha1.ExternalNetwork) (*networkingv1alpha1.GatewayServer, error) {
 	var remoteClusterID string
 	if extNet.Labels != nil {
-		if v, ok := extNet.Labels[consts.ReplicationDestinationLabel]; ok {
+		if v, ok := extNet.Labels[consts.ReplicationOriginLabel]; ok {
 			remoteClusterID = v
 		}
 	}
@@ -341,7 +341,7 @@ func (r *ExternalNetworkReconciler) ensureGatewayServer(ctx context.Context,
 		Port:              r.Port,
 		Proxy:             r.Proxy,
 	}
-	gwServer, err := gatewayserver.ForgeGatewayServer(gatewayserver.DefaultGatewayServerName(getIdentity(extNet, true)), extNet.Namespace, opts)
+	gwServer, err := gatewayserver.ForgeGatewayServer(gatewayserver.DefaultGatewayServerName(getIdentity(extNet, false)), extNet.Namespace, opts)
 	if err != nil {
 		return nil, err
 	}
