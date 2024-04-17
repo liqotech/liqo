@@ -77,7 +77,7 @@ func FakeControllerManagerDeployment(argsClusterLabels []string, networkEnabled 
 		containerArgs = append(containerArgs, "--cluster-labels="+strings.Join(argsClusterLabels, ","))
 	}
 	if !networkEnabled {
-		containerArgs = append(containerArgs, "--disable-internal-network")
+		containerArgs = append(containerArgs, "--networking-enabled=false")
 	}
 	return &appv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

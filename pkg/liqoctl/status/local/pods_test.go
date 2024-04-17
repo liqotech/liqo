@@ -162,7 +162,7 @@ var _ = Describe("Pods", func() {
 		BeforeEach(func() {
 			options.LiqoNamespace = namespace
 			options.Printer = printer
-			options.InternalNetworkEnabled = true
+			options.NetworkingEnabled = true
 			pod = &v1.Pod{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Pod",
@@ -222,14 +222,14 @@ var _ = Describe("Pods", func() {
 
 		Describe("Collect() function", func() {
 			Context("collecting deployment apps", func() {
-				DescribeTable("Validating deployments and daemonsets to check are initialized correctly", func(internalNetworkEnabled bool) {
+				DescribeTable("Validating deployments and daemonsets to check are initialized correctly", func(NetworkingEnabled bool) {
 					podC.options.KubeClient = fake.NewSimpleClientset()
-					podC.options.InternalNetworkEnabled = internalNetworkEnabled
+					podC.options.NetworkingEnabled = NetworkingEnabled
 					podC.Collect(ctx)
-					if internalNetworkEnabled {
+					if NetworkingEnabled {
 						Expect(podC.daemonSets[1:]).To(Equal(liqoDaemonSetsNetwork))
 					}
-					if internalNetworkEnabled {
+					if NetworkingEnabled {
 						Expect(podC.deployments).To(Equal(append(liqoDeployments, liqoDeploymentsNetwork...)))
 					} else {
 						Expect(podC.deployments).To(Equal(liqoDeployments))

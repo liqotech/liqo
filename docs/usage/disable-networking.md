@@ -1,33 +1,33 @@
-# External Network
+# Disable Networking Module
 
-Since Liqo v0.8.0, it is possible to enable [**resource reflection**](/usage/reflection) and [**namespace offloading**](/usage/namespace-offloading) without the need to establish network connectivity between the clusters.
-This feature is called **External Network**. In this section, we will see how to enable/disable this feature and how to use it.
+Since Liqo v0.8.0, it is possible to enable [**resource reflection**](/usage/reflection) and [**namespace offloading**](/usage/namespace-offloading) without the need to use the default Liqo networking module to establish network connectivity between the clusters.
+In this section, we will see how to enable/disable this module and how to use this feature.
 
 ## Overview
 
-The *External Network* feature allows resource reflection and namespaces offloading without requiring network connectivity between clusters.
+Turning off the networking module feature allows resource reflection and namespaces offloading without requiring network connectivity between clusters.
 
 This feature is useful in scenarios where the offloaded application **does not need to perform cross-cluster communication** but only needs to access local resources.
 For example, a batch processing application does not need to communicate with other clusters, but it needs to access a database external to the cluster.
 In this case, a network interconnection between clusters is not required and may lead to unnecessary **security issues** and **interdependencies** between clusters.
 
 Another use case is when the clusters and the pods running on them are **already connected to the same network**.
-In this case, you may leverage the *External Network* feature to enable resource reflection and namespaces offloading without having to establish another network connection between the clusters.
+In this case, you may enable resource reflection and namespaces offloading without having to establish another network connection between the clusters.
 
-## Enable/Disable the External Network
+## Enable/Disable the Networking module
 
-This feature is **disabled** by default, and can be configured with **two** different **feature flags** at install time (see the [reference](/installation/install.md)):
+The networking module is **enabled** by default and can be disabled or configured with **two** different **feature flags** at install time (see the [reference](/installation/install.md)):
 
-* `--set networking.internal=false` to disable the internal network
+* `--set networking.enabled=false` to disable the networking module
 * `--set networking.reflectIPs=false` to disable the reflection of the IP addresses
 
-### networking.internal=false
+### networking.enabled=false
 
 This flag disables the internal network.
 When this flag is set to `false`, the Liqo network controllers are not deployed on the cluster.
 The Liqo Network Manager is responsible for creating the `gatewayserver` and `gatewayclient` resources, which are used to establish the network connectivity between the clusters.
 
-When the internal network is disabled, the Liqo Network Fabric is not enabled and **no parameter negotiation or IP remapping is performed**.
+When the networking is disabled, the Liqo Network Fabric is not enabled and **no parameter negotiation or IP remapping is performed**.
 The IP addresses of the remote pods are reflected as they are.
 
 ```{admonition} Note
