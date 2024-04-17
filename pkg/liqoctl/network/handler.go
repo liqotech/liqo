@@ -136,22 +136,22 @@ func (o *Options) RunReset(ctx context.Context) error {
 	}
 
 	// If the clusters are still connected through the gateways, disconnect them before removing network Configurations.
-	gwServer, err := cluster1.GetGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster2.clusterIdentity))
+	gwClient, err := cluster1.GetGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster2.clusterIdentity))
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		return err
 	case err == nil:
-		if err := cluster1.DeleteGatewayServer(ctx, gwServer.Name); err != nil {
+		if err := cluster1.DeleteGatewayClient(ctx, gwClient.Name); err != nil {
 			return err
 		}
 	}
 
-	gwClient, err := cluster2.GetGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster1.clusterIdentity))
+	gwServer, err := cluster2.GetGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster1.clusterIdentity))
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		return err
 	case err == nil:
-		if err := cluster2.DeleteGatewayClient(ctx, gwClient.Name); err != nil {
+		if err := cluster2.DeleteGatewayServer(ctx, gwServer.Name); err != nil {
 			return err
 		}
 	}
@@ -192,34 +192,34 @@ func (o *Options) RunConnect(ctx context.Context) error {
 		return err
 	}
 
-	// Create gateway server on cluster 1
-	gwServer, err := cluster1.EnsureGatewayServer(ctx,
-		gatewayserver.DefaultGatewayServerName(cluster2.clusterIdentity),
-		o.newGatewayServerForgeOptions(o.LocalFactory.KubeClient, cluster2.clusterIdentity.ClusterID))
+	// Create gateway server on cluster 2
+	gwServer, err := cluster2.EnsureGatewayServer(ctx,
+		gatewayserver.DefaultGatewayServerName(cluster1.clusterIdentity),
+		o.newGatewayServerForgeOptions(o.RemoteFactory.KubeClient, cluster1.clusterIdentity.ClusterID))
 	if err != nil {
 		return err
 	}
 
 	// Wait for the gateway pod to be ready
-	if err := cluster1.Waiter.ForGatewayPodReady(ctx, gwServer); err != nil {
+	if err := cluster2.Waiter.ForGatewayPodReady(ctx, gwServer); err != nil {
 		return err
 	}
 
 	// Wait for the endpoint status of the gateway server to be set
-	if err := cluster1.Waiter.ForGatewayServerStatusEndpoint(ctx, gwServer); err != nil {
+	if err := cluster2.Waiter.ForGatewayServerStatusEndpoint(ctx, gwServer); err != nil {
 		return err
 	}
 
-	// Create gateway client on cluster 2
-	gwClient, err := cluster2.EnsureGatewayClient(ctx,
-		gatewayclient.DefaultGatewayClientName(cluster1.clusterIdentity),
-		o.newGatewayClientForgeOptions(o.RemoteFactory.KubeClient, cluster1.clusterIdentity.ClusterID, gwServer.Status.Endpoint))
+	// Create gateway client on cluster 1
+	gwClient, err := cluster1.EnsureGatewayClient(ctx,
+		gatewayclient.DefaultGatewayClientName(cluster2.clusterIdentity),
+		o.newGatewayClientForgeOptions(o.LocalFactory.KubeClient, cluster2.clusterIdentity.ClusterID, gwServer.Status.Endpoint))
 	if err != nil {
 		return err
 	}
 
 	// Wait for the gateway pod to be ready
-	if err := cluster2.Waiter.ForGatewayPodReady(ctx, gwClient); err != nil {
+	if err := cluster1.Waiter.ForGatewayPodReady(ctx, gwClient); err != nil {
 		return err
 	}
 
@@ -229,42 +229,42 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Wait for gateway server to set secret reference (containing the server public key) in the status
-	err = cluster1.Waiter.ForGatewayServerSecretRef(ctx, gwServer)
+	err = cluster2.Waiter.ForGatewayServerSecretRef(ctx, gwServer)
 	if err != nil {
 		return err
 	}
-	keyServer, err := publickey.ExtractKeyFromSecretRef(ctx, cluster1.local.CRClient, gwServer.Status.SecretRef)
+	keyServer, err := publickey.ExtractKeyFromSecretRef(ctx, cluster2.local.CRClient, gwServer.Status.SecretRef)
 	if err != nil {
 		return err
 	}
 
-	// Create PublicKey of gateway server on cluster 2
-	if err := cluster2.EnsurePublicKey(ctx, cluster1.clusterIdentity, keyServer, gwClient); err != nil {
+	// Create PublicKey of gateway server on cluster 1
+	if err := cluster1.EnsurePublicKey(ctx, cluster2.clusterIdentity, keyServer, gwClient); err != nil {
 		return err
 	}
 
 	// Wait for gateway client to set secret reference (containing the client public key) in the status
-	err = cluster2.Waiter.ForGatewayClientSecretRef(ctx, gwClient)
+	err = cluster1.Waiter.ForGatewayClientSecretRef(ctx, gwClient)
 	if err != nil {
 		return err
 	}
-	keyClient, err := publickey.ExtractKeyFromSecretRef(ctx, cluster2.local.CRClient, gwClient.Status.SecretRef)
+	keyClient, err := publickey.ExtractKeyFromSecretRef(ctx, cluster1.local.CRClient, gwClient.Status.SecretRef)
 	if err != nil {
 		return err
 	}
 
-	// Create PublicKey of gateway client on cluster 1
-	if err := cluster1.EnsurePublicKey(ctx, cluster2.clusterIdentity, keyClient, gwServer); err != nil {
+	// Create PublicKey of gateway client on cluster 2
+	if err := cluster2.EnsurePublicKey(ctx, cluster1.clusterIdentity, keyClient, gwServer); err != nil {
 		return err
 	}
 
 	if o.Wait {
 		// Wait for Connections on both cluster to be created.
-		conn1, err := cluster1.Waiter.ForConnection(ctx, gwServer.Namespace, cluster2.clusterIdentity)
+		conn2, err := cluster2.Waiter.ForConnection(ctx, gwServer.Namespace, cluster1.clusterIdentity)
 		if err != nil {
 			return err
 		}
-		conn2, err := cluster2.Waiter.ForConnection(ctx, gwClient.Namespace, cluster1.clusterIdentity)
+		conn1, err := cluster1.Waiter.ForConnection(ctx, gwClient.Namespace, cluster2.clusterIdentity)
 		if err != nil {
 			return err
 		}
@@ -298,13 +298,13 @@ func (o *Options) RunDisconnect(ctx context.Context) error {
 		return err
 	}
 
-	// Delete gateway server on cluster 1
-	if err := cluster1.DeleteGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster2.clusterIdentity)); err != nil {
+	// Delete gateway client on cluster 1
+	if err := cluster1.DeleteGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster2.clusterIdentity)); err != nil {
 		return err
 	}
 
-	// Delete gateway client on cluster 2
-	return cluster2.DeleteGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster1.clusterIdentity))
+	// Delete gateway server on cluster 2
+	return cluster2.DeleteGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster1.clusterIdentity))
 }
 
 func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID string) *gatewayserver.ForgeOptions {

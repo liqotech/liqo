@@ -82,25 +82,27 @@ liqoctl network connect --kubeconfig PATH_TO_CLUSTER_1_KUBECONFIG --remote-kubec
 You should see the following output:
 
 ```text
-INFO   (local) Cluster identity correctly retrieved                                                           
-INFO   (remote) Cluster identity correctly retrieved                                                          
-INFO   (local) Network correctly initialized                                                                  
-INFO   (remote) Network correctly initialized                                                                 
-INFO   (local) Gateway server correctly set up                                                                
-INFO   (local) Gateway server Service created successfully                                                    
-INFO   (remote) Gateway client correctly set up                                                               
-INFO   (local) Gateway server Secret created successfully                                                     
-INFO   (remote) Public key correctly created                                                                  
-INFO   (remote) Gateway client Secret created successfully                                                    
-INFO   (local) Public key correctly created                                                                   
-INFO   (local) Connection created successfully                                                                
-INFO   (remote) Connection created successfully                                                               
-INFO   (local) Connection is established                                                                      
-INFO   (remote) Connection is established 
+INFO   (local) Cluster identity correctly retrieved
+INFO   (remote) Cluster identity correctly retrieved
+INFO   (local) Network correctly initialized
+INFO   (remote) Network correctly initialized
+INFO   (remote) Gateway server correctly set up
+INFO   (remote) Gateway pod gw-crimson-rain is ready
+INFO   (remote) Gateway server Service created successfully
+INFO   (local) Gateway client correctly set up
+INFO   (local) Gateway pod gw-damp-feather is ready
+INFO   (remote) Gateway server Secret created successfully
+INFO   (local) Public key correctly created
+INFO   (local) Gateway client Secret created successfully
+INFO   (remote) Public key correctly created
+INFO   (remote) Connection created successfully
+INFO   (local) Connection created successfully
+INFO   (local) Connection is established
+INFO   (remote) Connection is established
 ```
 
 This command will deploy a Liqo Gateway for each cluster in the tenant namespace and establish the connection between them.
-In the first cluster, the Liqo Gateway will be configured as a server, while in the second cluster, it will be configured as a client.
+In the first cluster, the Liqo Gateway will be configured as a client, while in the second cluster, it will be configured as a server.
 
 ```{admonition} Note
 You can see further configuration options with `liqoctl network connect --help`.
@@ -110,26 +112,6 @@ Alternatively, you can use the `--server-service-type LoadBalancer` option to ex
 ```
 
 In cluster 1 you will find the following resources:
-
-```bash
-kubectl get gatewayservers.networking.liqo.io -A
-```
-
-```text
-NAMESPACE                      NAME        TEMPLATE NAME      IP           PORT    AGE
-liqo-tenant-dry-paper-5d16c0   dry-paper   wireguard-server   10.42.3.54   30316   69s
-```
-
-```bash
-kubectl get connections.networking.liqo.io -A
-```
-
-```text
-NAMESPACE                      NAME        TYPE     STATUS      AGE
-liqo-tenant-dry-paper-5d16c0   dry-paper   Server   Connected   51s
-```
-
-In cluster 2 you will find the following resources:
 
 ```bash
 kubectl get gatewayclients.networking.liqo.io -A
@@ -149,6 +131,26 @@ NAMESPACE                          NAME            TYPE     STATUS      AGE
 liqo-tenant-crimson-field-46ec75   crimson-field   Client   Connected   76s
 ```
 
+In cluster 2 you will find the following resources:
+
+```bash
+kubectl get gatewayservers.networking.liqo.io -A
+```
+
+```text
+NAMESPACE                      NAME        TEMPLATE NAME      IP           PORT    AGE
+liqo-tenant-dry-paper-5d16c0   dry-paper   wireguard-server   10.42.3.54   30316   69s
+```
+
+```bash
+kubectl get connections.networking.liqo.io -A
+```
+
+```text
+NAMESPACE                      NAME        TYPE     STATUS      AGE
+liqo-tenant-dry-paper-5d16c0   dry-paper   Server   Connected   51s
+```
+
 You can check the status of the connection to see if it is working correctly.
 
 ### Tear down
@@ -164,10 +166,10 @@ You should see the following output:
 ```text
 disconnect is a potentially destructive command.
 Are you sure you want to continue? [y/N]yes
-INFO   (local) Cluster identity correctly retrieved                                                           
-INFO   (remote) Cluster identity correctly retrieved                                                          
-INFO   (local) Gateway server correctly deleted                                                               
-INFO   (remote) Gateway client correctly deleted
+INFO   (local) Cluster identity correctly retrieved
+INFO   (remote) Cluster identity correctly retrieved
+INFO   (local) Gateway client correctly deleted
+INFO   (remote) Gateway server correctly deleted 
 ```
 
 Optionally, you can remove the network configuration with the following command:
@@ -181,9 +183,11 @@ You should see the following output:
 ```text
 reset is a potentially destructive command.
 Are you sure you want to continue? [y/N]yes
-INFO   (local) Cluster identity correctly retrieved                                                           
-INFO   (remote) Cluster identity correctly retrieved                                                          
-INFO   (local) Network configuration correctly deleted                                                        
+INFO   (local) Cluster identity correctly retrieved
+INFO   (remote) Cluster identity correctly retrieved
+INFO   (local) Gateway client correctly deleted
+INFO   (remote) Gateway server correctly deleted
+INFO   (local) Network configuration correctly deleted
 INFO   (remote) Network configuration correctly deleted
 ```
 
