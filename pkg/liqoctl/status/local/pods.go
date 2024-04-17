@@ -198,7 +198,7 @@ func (pc *PodChecker) Silent() bool {
 // collected at the pod level.
 func (pc *PodChecker) Collect(ctx context.Context) {
 	pc.deployments = slices.Clone(liqoDeployments)
-	if pc.options.InternalNetworkEnabled {
+	if pc.options.NetworkingEnabled {
 		pc.deployments = append(pc.deployments, liqoDeploymentsNetwork...)
 		pc.daemonSets = append(pc.daemonSets, liqoDaemonSetsNetwork...)
 	}

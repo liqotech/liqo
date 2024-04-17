@@ -1,4 +1,4 @@
-{{- if and (.Values.networking.internal) (.Values.networking.legacy) }}
+{{- if and (.Values.networking.enabled) (.Values.networking.legacy) }}
 
 ---
 {{- $gatewayMetricsConfig := (merge (dict "name" "legacy-gateway-metrics" "module" "networking") .) -}}

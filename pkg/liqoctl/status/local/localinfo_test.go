@@ -38,8 +38,8 @@ import (
 )
 
 type TestArgsNet struct {
-	InternalNetworkEnabled, apiServerOverride bool
-	endpointServiceType                       corev1.ServiceType
+	networkingEnabled, apiServerOverride bool
+	endpointServiceType                  corev1.ServiceType
 }
 
 type TestArgs struct {
@@ -95,9 +95,9 @@ var _ = Describe("LocalInfo", func() {
 
 		var fakectrlman *appv1.Deployment
 		if args.clusterLabels {
-			fakectrlman = testutil.FakeControllerManagerDeployment(argsClusterLabels, args.net.InternalNetworkEnabled)
+			fakectrlman = testutil.FakeControllerManagerDeployment(argsClusterLabels, args.net.networkingEnabled)
 		} else {
-			fakectrlman = testutil.FakeControllerManagerDeployment(nil, args.net.InternalNetworkEnabled)
+			fakectrlman = testutil.FakeControllerManagerDeployment(nil, args.net.networkingEnabled)
 		}
 		objects = append(objects, fakectrlman)
 
@@ -109,7 +109,7 @@ var _ = Describe("LocalInfo", func() {
 		objects = append(objects,
 			testutil.FakeLiqoAuthService(args.net.endpointServiceType),
 		)
-		if args.net.InternalNetworkEnabled {
+		if args.net.networkingEnabled {
 			objects = append(objects,
 				testutil.FakeNetworkPodCIDR(),
 				testutil.FakeNetworkServiceCIDR(),
@@ -122,7 +122,7 @@ var _ = Describe("LocalInfo", func() {
 		}
 
 		clientBuilder.WithObjects(objects...)
-		options.InternalNetworkEnabled = args.net.InternalNetworkEnabled
+		options.NetworkingEnabled = args.net.networkingEnabled
 		options.CRClient = clientBuilder.Build()
 		options.LiqoNamespace = liqoconsts.DefaultLiqoNamespace
 		options.Verbose = args.verbose
@@ -148,7 +148,7 @@ var _ = Describe("LocalInfo", func() {
 		Expect(text).To(ContainSubstring(
 			pterm.Sprintf("Version: %s", testutil.FakeLiqoVersion),
 		))
-		if args.net.InternalNetworkEnabled {
+		if args.net.networkingEnabled {
 			Expect(text).To(ContainSubstring(
 				pterm.Sprintf("Pod CIDR: %s", testutil.PodCIDR),
 			))
@@ -167,7 +167,7 @@ var _ = Describe("LocalInfo", func() {
 				Expect(text).To(ContainSubstring(v))
 			}
 		} else {
-			Expect(text).To(ContainSubstring(pterm.Sprintf("Status: %s", discoveryv1alpha1.PeeringConditionStatusExternal)))
+			Expect(text).To(ContainSubstring(pterm.Sprintf("Status: %s", discoveryv1alpha1.PeeringConditionStatusDisabled)))
 		}
 		Expect(text).To(ContainSubstring(
 			pterm.Sprintf("Authentication: https://%s:%d", testutil.EndpointIP, testutil.AuthenticationPort),
@@ -185,101 +185,101 @@ var _ = Describe("LocalInfo", func() {
 	},
 		Entry("Standard case with NodePort",
 			TestArgs{false, TestArgsNet{
-				InternalNetworkEnabled: true,
-				apiServerOverride:      false,
-				endpointServiceType:    corev1.ServiceTypeNodePort,
+				networkingEnabled:   true,
+				apiServerOverride:   false,
+				endpointServiceType: corev1.ServiceTypeNodePort,
 			}, true}),
 		Entry("Standard case with LoadBalancer",
 			TestArgs{false, TestArgsNet{
-				InternalNetworkEnabled: true,
-				apiServerOverride:      false,
-				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+				networkingEnabled:   true,
+				apiServerOverride:   false,
+				endpointServiceType: corev1.ServiceTypeLoadBalancer,
 			}, true}),
 		Entry("Cluster Labels with NodePort",
 			TestArgs{true, TestArgsNet{
-				InternalNetworkEnabled: true,
-				apiServerOverride:      false,
-				endpointServiceType:    corev1.ServiceTypeNodePort,
+				networkingEnabled:   true,
+				apiServerOverride:   false,
+				endpointServiceType: corev1.ServiceTypeNodePort,
 			}, true}),
 
 		Entry("Cluster Labels with LoadBalancer",
 			TestArgs{true, TestArgsNet{
-				InternalNetworkEnabled: true,
-				apiServerOverride:      false,
-				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+				networkingEnabled:   true,
+				apiServerOverride:   false,
+				endpointServiceType: corev1.ServiceTypeLoadBalancer,
 			}, true}),
 		Entry("API Server Override with NodePort",
 			TestArgs{false, TestArgsNet{
-				InternalNetworkEnabled: true,
-				apiServerOverride:      true,
-				endpointServiceType:    corev1.ServiceTypeNodePort,
+				networkingEnabled:   true,
+				apiServerOverride:   true,
+				endpointServiceType: corev1.ServiceTypeNodePort,
 			}, true}),
 		Entry("API Server Override with LoadBalancer",
 			TestArgs{false, TestArgsNet{
-				InternalNetworkEnabled: true,
-				apiServerOverride:      true,
-				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+				networkingEnabled:   true,
+				apiServerOverride:   true,
+				endpointServiceType: corev1.ServiceTypeLoadBalancer,
 			}, true}),
 		Entry("Cluster Labels and API Server Override with NodePort",
 			TestArgs{true, TestArgsNet{
-				InternalNetworkEnabled: true,
-				apiServerOverride:      true,
-				endpointServiceType:    corev1.ServiceTypeNodePort,
+				networkingEnabled:   true,
+				apiServerOverride:   true,
+				endpointServiceType: corev1.ServiceTypeNodePort,
 			}, true}),
 		Entry("Cluster Labels and API Server Override with LoadBalancer",
 			TestArgs{true, TestArgsNet{
-				InternalNetworkEnabled: true,
-				apiServerOverride:      true,
-				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+				networkingEnabled:   true,
+				apiServerOverride:   true,
+				endpointServiceType: corev1.ServiceTypeLoadBalancer,
 			}, true}),
 		Entry("Standard case with NodePort (Internal network Disabled)",
 			TestArgs{false, TestArgsNet{
-				InternalNetworkEnabled: false,
-				apiServerOverride:      false,
-				endpointServiceType:    corev1.ServiceTypeNodePort,
+				networkingEnabled:   false,
+				apiServerOverride:   false,
+				endpointServiceType: corev1.ServiceTypeNodePort,
 			}, true}),
 		Entry("Standard case with LoadBalancer (Internal network Disabled)",
 			TestArgs{false, TestArgsNet{
-				InternalNetworkEnabled: false,
-				apiServerOverride:      false,
-				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+				networkingEnabled:   false,
+				apiServerOverride:   false,
+				endpointServiceType: corev1.ServiceTypeLoadBalancer,
 			}, true}),
 		Entry("Cluster Labels with NodePort (Internal network Disabled)",
 			TestArgs{true, TestArgsNet{
-				InternalNetworkEnabled: false,
-				apiServerOverride:      false,
-				endpointServiceType:    corev1.ServiceTypeNodePort,
+				networkingEnabled:   false,
+				apiServerOverride:   false,
+				endpointServiceType: corev1.ServiceTypeNodePort,
 			}, true}),
 
 		Entry("Cluster Labels with LoadBalancer (Internal network Disabled)",
 			TestArgs{true, TestArgsNet{
-				InternalNetworkEnabled: false,
-				apiServerOverride:      false,
-				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+				networkingEnabled:   false,
+				apiServerOverride:   false,
+				endpointServiceType: corev1.ServiceTypeLoadBalancer,
 			}, true}),
 		Entry("API Server Override with NodePort (Internal network Disabled)",
 			TestArgs{false, TestArgsNet{
-				InternalNetworkEnabled: false,
-				apiServerOverride:      true,
-				endpointServiceType:    corev1.ServiceTypeNodePort,
+				networkingEnabled:   false,
+				apiServerOverride:   true,
+				endpointServiceType: corev1.ServiceTypeNodePort,
 			}, true}),
 		Entry("API Server Override with LoadBalancer (Internal network Disabled)",
 			TestArgs{false, TestArgsNet{
-				InternalNetworkEnabled: false,
-				apiServerOverride:      true,
-				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+				networkingEnabled:   false,
+				apiServerOverride:   true,
+				endpointServiceType: corev1.ServiceTypeLoadBalancer,
 			}, true}),
 		Entry("Cluster Labels and API Server Override with NodePort (Internal network Disabled)",
 			TestArgs{true, TestArgsNet{
-				InternalNetworkEnabled: false,
-				apiServerOverride:      true,
-				endpointServiceType:    corev1.ServiceTypeNodePort,
+				networkingEnabled:   false,
+				apiServerOverride:   true,
+				endpointServiceType: corev1.ServiceTypeNodePort,
 			}, true}),
 		Entry("Cluster Labels and API Server Override with LoadBalancer (Internal network Disabled)",
 			TestArgs{true, TestArgsNet{
-				InternalNetworkEnabled: false,
-				apiServerOverride:      true,
-				endpointServiceType:    corev1.ServiceTypeLoadBalancer,
+				networkingEnabled:   false,
+				apiServerOverride:   true,
+				endpointServiceType: corev1.ServiceTypeLoadBalancer,
 			}, true}),
 	)
 })

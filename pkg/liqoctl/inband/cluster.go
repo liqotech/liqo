@@ -137,7 +137,7 @@ func (c *Cluster) Init(ctx context.Context) error {
 		s.Fail(fmt.Sprintf("an error occurred while retrieving Liqo controller manager deployment args: %v", output.PrettyErr(err)))
 		return err
 	}
-	if hasExternalNetworkFlag(clusterArgs) {
+	if hasNetworkingDisabled(clusterArgs) {
 		err = fmt.Errorf("cluster network is not managed by Liqo, cannot perform in-band peering")
 		s.Fail(err)
 		return err
@@ -934,9 +934,9 @@ func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discovery
 	return nil
 }
 
-func hasExternalNetworkFlag(flags []string) bool {
+func hasNetworkingDisabled(flags []string) bool {
 	for _, flag := range flags {
-		if flag == "--disable-internal-network" || flag == "--disable-internal-network=true" {
+		if flag == "--networking-enabled=false" {
 			return true
 		}
 	}
