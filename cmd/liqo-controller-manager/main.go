@@ -56,28 +56,14 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/cmd/liqo-controller-manager/modules"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/ipam"
-	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
-	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
-	externalnetworkcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/externalnetwork-controller"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/remapping"
-	externalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/route"
-	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/server-operator"
-	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/wireguard"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
-	internalclientcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/client-controller"
-	internalconfigurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/configuration-controller"
-	internalfabriccontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/internalfabric-controller"
-	nodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/node-controller"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/route"
-	internalservercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/server-controller"
-	ipctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/ip-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
-	networkctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/network-controller"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
 	offloadedpodcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadedpod-controller"
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
@@ -147,7 +133,8 @@ func main() {
 	var ipamClient ipam.IpamClient
 	var gatewayServerResources argsutils.StringList
 	var gatewayClientResources argsutils.StringList
-	var wgGatewayServerClusterRoleName, wgGatewayClientClusterRoleName string
+
+	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -171,9 +158,6 @@ func main() {
 	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
 	shadowEndpointSliceWorkers := flag.Int("shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
-	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
-	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
-	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
 	podcidr := flag.String("podcidr", "", "The CIDR to use for the pod network")
 	foreignClusterPingInterval := flag.Duration("foreign-cluster-ping-interval", 15*time.Second,
 		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
@@ -235,21 +219,21 @@ func main() {
 	// Node failure controller parameter
 	enableNodeFailureController := flag.Bool("enable-node-failure-controller", false, "Enable the node failure controller")
 
-	// External network parameters
+	// Networking module parameters
 	flag.Var(&gatewayServerResources, "gateway-server-resources",
 		"The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
 	flag.Var(&gatewayClientResources, "gateway-client-resources",
 		"The list of resource types that implements the gateway client. They must be in the form <group>/<version>/<resource>")
-	flag.StringVar(&wgGatewayServerClusterRoleName, "wg-gateway-server-cluster-role-name", "liqo-gateway",
+	wgGatewayServerClusterRoleName := flag.String("wg-gateway-server-cluster-role-name", "liqo-gateway",
 		"The name of the cluster role used by the wireguard gateway servers")
-	flag.StringVar(&wgGatewayClientClusterRoleName, "wg-gateway-client-cluster-role-name", "liqo-gateway",
+	wgGatewayClientClusterRoleName := flag.String("wg-gateway-client-cluster-role-name", "liqo-gateway",
 		"The name of the cluster role used by the wireguard gateway clients")
-
-	// Gateway parameters
 	gatewayServiceType := flag.String("gateway-service-type", string(gatewayserver.DefaultServiceType), "The type of the gateway service")
 	gatewayServicePort := flag.Int("gateway-service-port", gatewayserver.DefaultPort, "The port of the gateway service")
 	gatewayMTU := flag.Int("gateway-mtu", gatewayserver.DefaultMTU, "The MTU of the gateway interface")
 	gatewayProxy := flag.Bool("gateway-proxy", gatewayserver.DefaultProxy, "Enable the proxy on the gateway")
+	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
+	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -554,145 +538,40 @@ func main() {
 	}
 
 	if !*disableInternalNetwork {
-		networkReconciler := networkctrl.NewNetworkReconciler(mgr.GetClient(), mgr.GetScheme(), ipamClient)
-		if err = networkReconciler.SetupWithManager(mgr, *networkWorkers); err != nil {
-			klog.Errorf("Unable to start the networkReconciler: %v", err)
-			os.Exit(1)
+		opts := &modules.NetworkingOption{
+			DynClient:  dynClient,
+			Factory:    factory,
+			KubeClient: clientset,
+
+			LiqoNamespace:        *liqoNamespace,
+			LocalClusterIdentity: &clusterIdentity,
+			IpamClient:           ipamClient,
+
+			GatewayServerResources:         gatewayServerResources.StringList,
+			GatewayClientResources:         gatewayClientResources.StringList,
+			WgGatewayServerClusterRoleName: *wgGatewayServerClusterRoleName,
+			WgGatewayClientClusterRoleName: *wgGatewayClientClusterRoleName,
+			GatewayServiceType:             corev1.ServiceType(*gatewayServiceType),
+			GatewayServicePort:             int32(*gatewayServicePort),
+			GatewayMTU:                     *gatewayMTU,
+			GatewayProxy:                   *gatewayProxy,
+			NetworkWorkers:                 *networkWorkers,
+			IPWorkers:                      *ipWorkers,
 		}
 
-		ipReconciler := ipctrl.NewIPReconciler(mgr.GetClient(), mgr.GetScheme(), ipamClient)
-		if err = ipReconciler.SetupWithManager(ctx, mgr, *ipWorkers); err != nil {
-			klog.Errorf("Unable to start the ipReconciler: %v", err)
-			os.Exit(1)
+		if err := modules.SetupNetworkingModule(ctx, mgr, opts); err != nil {
+			klog.Fatalf("Unable to setup the networking module: %v", err)
 		}
+	}
 
-		cfgReconciler := configurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
-			mgr.GetEventRecorderFor("configuration-controller"), ipamClient)
-		if err = cfgReconciler.SetupWithManager(mgr); err != nil {
-			klog.Errorf("unable to create controller ConfigurationReconciler: %s", err)
-			os.Exit(1)
-		}
-
-		extCfgReconciler := externalnetworkroute.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
-			mgr.GetEventRecorderFor("external-configuration-controller"))
-		if err = extCfgReconciler.SetupWithManager(mgr); err != nil {
-			klog.Errorf("unable to create controller ExternalConfigurationReconciler: %s", err)
-			os.Exit(1)
-		}
-
-		intPodReconciler := route.NewPodReconciler(mgr.GetClient(), mgr.GetScheme(),
-			mgr.GetEventRecorderFor("internal-pod-controller"), &route.Options{Namespace: *liqoNamespace})
-		if err = intPodReconciler.SetupWithManager(mgr); err != nil {
-			klog.Errorf("unable to create controller InternalPodReconciler: %s", err)
-			os.Exit(1)
-		}
-
-		wgServerRec := wggatewaycontrollers.NewWgGatewayServerReconciler(
-			mgr.GetClient(), mgr.GetScheme(), wgGatewayServerClusterRoleName)
-		if err = wgServerRec.SetupWithManager(mgr); err != nil {
-			klog.Errorf("Unable to start the WgGatewayServerReconciler: %v", err)
-			os.Exit(1)
-		}
-
-		wgClientRec := wggatewaycontrollers.NewWgGatewayClientReconciler(mgr.GetClient(), mgr.GetScheme(),
-			wgGatewayClientClusterRoleName)
-		if err = wgClientRec.SetupWithManager(mgr); err != nil {
-			klog.Errorf("Unable to start the WgGatewayClientReconciler: %v", err)
-			os.Exit(1)
-		}
-
-		serverReconciler := serveroperator.NewServerReconciler(mgr.GetClient(),
-			dynClient, factory, mgr.GetScheme(), gatewayServerResources.StringList)
-		if err := serverReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		clientReconciler := clientoperator.NewClientReconciler(mgr.GetClient(),
-			dynClient, factory, mgr.GetScheme(), gatewayClientResources.StringList)
-		if err := clientReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		externalNetworkReconciler := externalnetworkcontroller.NewExternalNetworkReconciler(
-			mgr.GetClient(), mgr.GetScheme(), clientset, *liqoNamespace, &clusterIdentity,
-			corev1.ServiceType(*gatewayServiceType), int32(*gatewayServicePort), *gatewayMTU, *gatewayProxy)
-		if err := externalNetworkReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		internalServerReconciler := internalservercontroller.NewServerReconciler(mgr.GetClient(), mgr.GetScheme())
-		if err := internalServerReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		internalClientReconciler := internalclientcontroller.NewClientReconciler(mgr.GetClient(), mgr.GetScheme())
-		if err := internalClientReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		internalFabricReconciler := internalfabriccontroller.NewInternalFabricReconciler(mgr.GetClient(), mgr.GetScheme())
-		if err := internalFabricReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		configurationReconciler := internalconfigurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme())
-		if err := configurationReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		nodeReconciler := nodecontroller.NewNodeReconciler(mgr.GetClient(), mgr.GetScheme(), *liqoNamespace)
-		if err := nodeReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		internalNodeReconciler := route.NewInternalNodeReconciler(
-			mgr.GetClient(),
-			mgr.GetScheme(),
-			mgr.GetEventRecorderFor("internal-node-controller"),
-			&route.Options{Namespace: *liqoNamespace},
-		)
-		if err := internalNodeReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		ipMappingReconciler := remapping.NewIPReconciler(mgr.GetClient(), mgr.GetScheme())
-		if err := ipMappingReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		offloadedPodReconciler := offloadedpodcontroller.NewOffloadedPodReconciler(
-			mgr.GetClient(),
-			mgr.GetScheme(),
-			mgr.GetEventRecorderFor("offloadedpod-controller"),
-		)
-		if err := offloadedPodReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-
-		remappingReconciler, err := remapping.NewRemappingReconciler(
-			mgr.GetClient(),
-			mgr.GetScheme(),
-			mgr.GetEventRecorderFor("remapping-controller"),
-		)
-		if err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
-		if err := remappingReconciler.SetupWithManager(mgr); err != nil {
-			klog.Error(err)
-			os.Exit(1)
-		}
+	offloadedPodReconciler := offloadedpodcontroller.NewOffloadedPodReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("offloadedpod-controller"),
+	)
+	if err := offloadedPodReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to start the offloadedPod reconciler: %v", err)
+		os.Exit(1)
 	}
 
 	klog.Info("starting manager as controller manager")
