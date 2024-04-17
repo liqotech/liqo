@@ -24,10 +24,10 @@ apiServer:
   trustedCA: false
 
 networking:
-  # -- Set to "false" to install the legacy networking stack.
+  # -- Set to "true" to install the legacy networking stack.
   legacy: false
-  # -- Use the default Liqo network manager.
-  internal: true
+  # -- Use the default Liqo networking module.
+  enabled: true
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
   # -- Iptables configuration tuning.
@@ -131,6 +131,7 @@ reflection:
       metallb.universe.tf/address-pool,
       metallb.universe.tf/ip-allocated-from-pool,
       metallb.universe.tf/loadBalancerIPs,
+      loadbalancer.openstack.org/load-balancer-id,
     ]
   pod:
     # -- The number of workers used for the pods reflector. Set 0 to disable the reflection of pods.

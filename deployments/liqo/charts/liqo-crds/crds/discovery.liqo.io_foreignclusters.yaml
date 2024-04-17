@@ -172,7 +172,7 @@ spec:
                       - EmptyDenied
                       - Error
                       - Success
-                      - External
+                      - Disabled
                       type: string
                     type:
                       description: Type of the peering condition.

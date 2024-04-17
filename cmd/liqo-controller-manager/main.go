@@ -134,7 +134,7 @@ func main() {
 	var gatewayServerResources argsutils.StringList
 	var gatewayClientResources argsutils.StringList
 
-	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
+	networkingEnabled := flag.Bool("networking-enabled", true, "Enable/disable the networking module")
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -355,10 +355,10 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		LiqoNamespace: *liqoNamespace,
 
-		ResyncPeriod:           *resyncPeriod,
-		HomeCluster:            clusterIdentity,
-		AutoJoin:               *autoJoin,
-		DisableInternalNetwork: *disableInternalNetwork,
+		ResyncPeriod:      *resyncPeriod,
+		HomeCluster:       clusterIdentity,
+		AutoJoin:          *autoJoin,
+		NetworkingEnabled: *networkingEnabled,
 
 		NamespaceManager:  namespaceManager,
 		IdentityManager:   idManager,
@@ -537,7 +537,7 @@ func main() {
 		ipamClient = ipam.NewIpamClient(connection)
 	}
 
-	if !*disableInternalNetwork {
+	if *networkingEnabled {
 		opts := &modules.NetworkingOption{
 			DynClient:  dynClient,
 			Factory:    factory,
