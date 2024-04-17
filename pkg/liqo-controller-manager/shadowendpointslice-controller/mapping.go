@@ -25,11 +25,10 @@ import (
 )
 
 // MapEndpointsWithConfiguration maps the endpoints of the shadowendpointslice.
-func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
-	clusterID string, endpoints []discoveryv1.Endpoint) ([]discoveryv1.Endpoint, error) {
+func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client, clusterID string, endpoints []discoveryv1.Endpoint) error {
 	cfg, err := getters.GetConfigurationByClusterID(ctx, cl, clusterID)
 	if err != nil {
-		return endpoints, err
+		return err
 	}
 
 	var (
@@ -42,24 +41,24 @@ func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
 
 	_, podnet, err = net.ParseCIDR(cfg.Spec.Remote.CIDR.Pod.String())
 	if err != nil {
-		return endpoints, err
+		return err
 	}
 	if podNeedsRemap {
 		_, podnetMapped, err = net.ParseCIDR(cfg.Status.Remote.CIDR.Pod.String())
 		if err != nil {
-			return endpoints, err
+			return err
 		}
 		podNetMaskLen, _ = podnetMapped.Mask.Size()
 	}
 
 	_, extnet, err = net.ParseCIDR(cfg.Spec.Remote.CIDR.External.String())
 	if err != nil {
-		return endpoints, err
+		return err
 	}
 	if extNeedsRemap {
 		_, extnetMapped, err = net.ParseCIDR(cfg.Status.Remote.CIDR.External.String())
 		if err != nil {
-			return endpoints, err
+			return err
 		}
 		extNetMaskLen, _ = extnetMapped.Mask.Size()
 	}
@@ -76,7 +75,8 @@ func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
 			}
 		}
 	}
-	return endpoints, nil
+
+	return nil
 }
 
 // remapMask remaps the mask of the address.

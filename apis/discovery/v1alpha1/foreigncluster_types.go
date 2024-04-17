@@ -46,8 +46,8 @@ const (
 	PeeringConditionStatusError PeeringConditionStatusType = "Error"
 	// PeeringConditionStatusSuccess indicates that the condition is successful.
 	PeeringConditionStatusSuccess PeeringConditionStatusType = "Success"
-	// PeeringConditionStatusExternal indicates that the condition is managed by an external component.
-	PeeringConditionStatusExternal PeeringConditionStatusType = "External"
+	// PeeringConditionStatusDisabled indicates that the condition is disabled or managed by an external component.
+	PeeringConditionStatusDisabled PeeringConditionStatusType = "Disabled"
 )
 
 // PeeringType defines the type of peering to be established.
@@ -175,7 +175,7 @@ type PeeringCondition struct {
 	//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 	Type PeeringConditionType `json:"type"`
 	// Status of the condition.
-	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting";"Denied";"EmptyDenied";"Error";"Success";"External"
+	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting";"Denied";"EmptyDenied";"Error";"Success";"Disabled"
 	// +kubebuilder:default="None"
 	Status PeeringConditionStatusType `json:"status"`
 	// LastTransitionTime -> timestamp for when the condition last transitioned from one status to another.

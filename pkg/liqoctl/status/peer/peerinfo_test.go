@@ -43,7 +43,7 @@ type TestArgsPeer struct {
 }
 
 type TestArgsNet struct {
-	internalNetworkEnabled bool
+	networkingEnabled bool
 }
 
 type TestArgs struct {
@@ -127,7 +127,7 @@ var _ = Describe("PeerInfo", func() {
 			incomingEnabled = discoveryv1alpha1.PeeringEnabledNo
 			outgoingConditionStatus = discoveryv1alpha1.PeeringConditionStatusNone
 			incomingConditionStatus = discoveryv1alpha1.PeeringConditionStatusNone
-			networkConditionStatus = discoveryv1alpha1.PeeringConditionStatusExternal
+			networkConditionStatus = discoveryv1alpha1.PeeringConditionStatusDisabled
 
 			if args.peer.outgoingPeeringEnabled {
 				outgoingEnabled = discoveryv1alpha1.PeeringEnabledYes
@@ -143,7 +143,7 @@ var _ = Describe("PeerInfo", func() {
 			var conn *networkingv1alpha1.Connection
 			var gwServer *networkingv1alpha1.GatewayServer
 			var gwClient *networkingv1alpha1.GatewayClient
-			if args.net.internalNetworkEnabled {
+			if args.net.networkingEnabled {
 				networkConditionStatus = discoveryv1alpha1.PeeringConditionStatusEstablished
 				conf = testutil.FakeConfiguration(remoteClusterID, podCIDR, extCIDR,
 					remotePodCIDR, remoteExtCIDR, remoteRemappedPodCIDR, remoteRemappedExtCIDR)
@@ -159,7 +159,7 @@ var _ = Describe("PeerInfo", func() {
 			)
 
 			clientBuilder.WithObjects(objects...)
-			options.InternalNetworkEnabled = args.net.internalNetworkEnabled
+			options.NetworkingEnabled = args.net.networkingEnabled
 			options.Verbose = args.verbose
 			options.LiqoNamespace = liqoconsts.DefaultLiqoNamespace
 			options.CRClient = clientBuilder.Build()
@@ -209,7 +209,7 @@ var _ = Describe("PeerInfo", func() {
 			}
 
 			// Network
-			if args.net.internalNetworkEnabled {
+			if args.net.networkingEnabled {
 				Expect(text).To(ContainSubstring(
 					pterm.Sprintf("Network Status: %s", discoveryv1alpha1.PeeringConditionStatusEstablished),
 				))
@@ -219,7 +219,7 @@ var _ = Describe("PeerInfo", func() {
 
 			} else {
 				Expect(text).To(ContainSubstring(
-					pterm.Sprintf("Network Status: %s", discoveryv1alpha1.PeeringConditionStatusExternal),
+					pterm.Sprintf("Network Status: %s", discoveryv1alpha1.PeeringConditionStatusDisabled),
 				))
 			}
 
@@ -285,10 +285,10 @@ func expectResourcesToBeContainedIn(text string, genericResources corev1.Resourc
 }
 
 func forgeTestTableEntry(verbose bool, peeringType discoveryv1alpha1.PeeringType,
-	incomingPeeringEnabled bool, outgoingPeeringEnabled bool, internalNetworkEnabled bool,
+	incomingPeeringEnabled bool, outgoingPeeringEnabled bool, networkingEnabled bool,
 ) TableEntry {
-	msg := pterm.Sprintf(`verbose: %t, peeringType: %s, incomingPeeringEnabled: %t, outgoingPeeringEnabled: %t, internalNetworkEnabled: %t`,
-		verbose, peeringType, incomingPeeringEnabled, outgoingPeeringEnabled, internalNetworkEnabled)
+	msg := pterm.Sprintf(`verbose: %t, peeringType: %s, incomingPeeringEnabled: %t, outgoingPeeringEnabled: %t, networkingEnabled: %t`,
+		verbose, peeringType, incomingPeeringEnabled, outgoingPeeringEnabled, networkingEnabled)
 	return Entry(msg, TestArgs{
 		verbose: verbose,
 		peer: TestArgsPeer{
@@ -297,7 +297,7 @@ func forgeTestTableEntry(verbose bool, peeringType discoveryv1alpha1.PeeringType
 			outgoingPeeringEnabled: outgoingPeeringEnabled,
 		},
 		net: TestArgsNet{
-			internalNetworkEnabled: internalNetworkEnabled,
+			networkingEnabled: networkingEnabled,
 		},
 	})
 }
@@ -313,13 +313,13 @@ func forgeTestMatrix() []TableEntry {
 			for _, incomingPeeringEnabled := range []bool{true, false} {
 				for _, outgoingPeeringEnabled := range []bool{true, false} {
 
-					for _, internalNetworkEnabled := range []bool{true, false} {
+					for _, networkingEnabled := range []bool{true, false} {
 						// excludes cases where the network is not enabled and the peering is in-band
-						if !internalNetworkEnabled && peeringType == discoveryv1alpha1.PeeringTypeInBand {
+						if !networkingEnabled && peeringType == discoveryv1alpha1.PeeringTypeInBand {
 							continue
 						}
 						testMatrix = append(testMatrix, forgeTestTableEntry(verbose, peeringType,
-							incomingPeeringEnabled, outgoingPeeringEnabled, internalNetworkEnabled))
+							incomingPeeringEnabled, outgoingPeeringEnabled, networkingEnabled))
 					}
 				}
 			}
