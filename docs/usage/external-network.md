@@ -24,8 +24,8 @@ This feature is **disabled** by default, and can be configured with **two** diff
 ### networking.internal=false
 
 This flag disables the internal network.
-When this flag is set to `false`, the Liqo Gateway and the Liqo Route are not deployed on the cluster and the Liqo Network Manager is not started.
-The Liqo Network Manager is responsible for creating the `tunnel-endpoint` resource, which is used to establish the network connectivity between the clusters.
+When this flag is set to `false`, the Liqo network controllers are not deployed on the cluster.
+The Liqo Network Manager is responsible for creating the `gatewayserver` and `gatewayclient` resources, which are used to establish the network connectivity between the clusters.
 
 When the internal network is disabled, the Liqo Network Fabric is not enabled and **no parameter negotiation or IP remapping is performed**.
 The IP addresses of the remote pods are reflected as they are.
