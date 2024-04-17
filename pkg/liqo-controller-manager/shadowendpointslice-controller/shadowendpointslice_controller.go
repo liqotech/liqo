@@ -90,16 +90,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Check network status of the foreigncluster
-	networkReady := foreigncluster.IsNetworkingEstablishedOrExternal(fc)
+	networkReady := foreigncluster.IsNetworkingEstablishedOrDisabled(fc)
 
 	// Check foreign API server status
 	apiServerReady := foreigncluster.IsAPIServerReady(fc)
 
-	// Remap the endpoints if the network configuration of the remote cluster overlaps with the local one
-	remappedEndpoints, err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, shadowEps.Spec.Template.Endpoints)
-	if err != nil {
-		klog.Errorf("an error occurred while remapping endpoints for shadowendpointslice %q: %v", nsName, err)
-		return ctrl.Result{}, err
+	// Get the endpoints from the shadowendpointslice and remap them if necessary.
+	// If the networking module is disabled, we do not need to remap the endpoints.
+	remappedEndpoints := shadowEps.Spec.Template.Endpoints
+	if !foreigncluster.IsNetworkingDisabled(fc) {
+		// remap the endpoints if the network configuration of the remote cluster overlaps with the local one
+		if err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, remappedEndpoints); err != nil {
+			klog.Errorf("an error occurred while remapping endpoints for shadowendpointslice %q: %v", nsName, err)
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Forge the endpointslice given the shadowendpointslice
@@ -219,8 +223,8 @@ func (r *Reconciler) endpointsShouldBeUpdated(newObj, oldObj client.Object) bool
 		return false
 	}
 
-	oldFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrExternal(oldForeignCluster)
-	newFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrExternal(newForeignCluster)
+	oldFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrDisabled(oldForeignCluster)
+	newFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrDisabled(newForeignCluster)
 
 	oldFcAPIServerReady := foreigncluster.IsAPIServerReady(oldForeignCluster)
 	newFcAPIServerReady := foreigncluster.IsAPIServerReady(newForeignCluster)

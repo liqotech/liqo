@@ -160,6 +160,7 @@
 | networkManager.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the networkManager pod. |
 | networkManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the networkManager pod. |
 | networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
+| networking.enabled | bool | `true` | Use the default Liqo networking module. |
 | networking.gatewayTemplates | object | `{"container":{"gateway":{"image":{"name":"ghcr.io/liqotech/gateway","version":""}},"geneve":{"image":{"name":"ghcr.io/liqotech/gateway/geneve","version":""}},"wireguard":{"image":{"name":"ghcr.io/liqotech/gateway/wireguard","version":""}}},"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1,"server":{"service":{"allocateLoadBalancerNodePorts":"","annotations":{"service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}}}}` | Set the options for the default gateway (server/client) templates. The default templates use a WireGuard implementation to connect the gateway of the clusters. These options are used to configure only the default templates and should not be considered if a custom template is used. |
 | networking.gatewayTemplates.container.gateway.image.name | string | `"ghcr.io/liqotech/gateway"` | Image repository for the gateway container. |
 | networking.gatewayTemplates.container.gateway.image.version | string | `""` | Custom version for the gateway image. If not specified, the global tag is used. |
@@ -176,10 +177,9 @@
 | networking.gatewayTemplates.server.service | object | `{"allocateLoadBalancerNodePorts":"","annotations":{"service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}}` | Set the options to configure the server service |
 | networking.gatewayTemplates.server.service.allocateLoadBalancerNodePorts | string | `""` | Set to "false" if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature). |
 | networking.gatewayTemplates.server.service.annotations | object | `{"service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations for the server service. |
-| networking.internal | bool | `true` | Use the default Liqo network manager. |
 | networking.iptables | object | `{"mode":"nf_tables"}` | Iptables configuration tuning. |
 | networking.iptables.mode | string | `"nf_tables"` | Select the iptables mode to use. Possible values are "legacy" and "nf_tables". |
-| networking.legacy | bool | `false` | Set to "false" to install the legacy networking stack. |
+| networking.legacy | bool | `false` | Set to "true" to install the legacy networking stack. |
 | networking.mtu | int | `1340` | Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces. The value is used by the gateway and route operators. The default value is configured to ensure correct behavior regardless of the combination of the underlying environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.securityMode | string | `"FullPodToPod"` | Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation"  |

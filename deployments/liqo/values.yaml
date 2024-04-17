@@ -24,10 +24,10 @@ apiServer:
   trustedCA: false
 
 networking:
-  # -- Set to "false" to install the legacy networking stack.
+  # -- Set to "true" to install the legacy networking stack.
   legacy: false
-  # -- Use the default Liqo network manager.
-  internal: true
+  # -- Use the default Liqo networking module.
+  enabled: true
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
   # -- Iptables configuration tuning.

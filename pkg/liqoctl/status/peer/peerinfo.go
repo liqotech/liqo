@@ -163,7 +163,7 @@ func (pic *PeerInfoChecker) addNetworkSection(ctx context.Context, rootSection o
 	networkSection := rootSection.AddSection("Network")
 	networkStatus := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.NetworkStatusCondition)
 	networkSection.AddEntry("Status", string(networkStatus))
-	if !pic.options.InternalNetworkEnabled {
+	if !pic.options.NetworkingEnabled {
 		return
 	}
 	if pic.options.Verbose {
