@@ -174,6 +174,7 @@ func main() {
 	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
 	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
 	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
+	podcidr := flag.String("podcidr", "", "The CIDR to use for the pod network")
 	foreignClusterPingInterval := flag.Duration("foreign-cluster-ping-interval", 15*time.Second,
 		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
 	foreignClusterPingTimeout := flag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
@@ -274,6 +275,7 @@ func main() {
 		MetricsEnabled:       kubeletMetricsEnabled,
 		ReflectorsWorkers:    reflectorsWorkers,
 		ReflectorsType:       reflectorsType,
+		LocalPodCIDR:         *podcidr,
 	}
 
 	clusterIdentity := clusterIdentityFlags.ReadOrDie()

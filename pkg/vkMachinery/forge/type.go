@@ -38,6 +38,7 @@ type VirtualKubeletOpts struct {
 	MetricsAddress       string
 	ReflectorsWorkers    map[string]*uint
 	ReflectorsType       map[string]*string
+	LocalPodCIDR         string
 }
 
 // VirtualKubeletOptsFlag defines the custom options flags associated with the virtual kubelet deployment forging.
@@ -61,6 +62,8 @@ const (
 	HomeClusterID VirtualKubeletOptsFlag = "--home-cluster-id"
 	// HomeClusterName is the flag used to specify the home cluster name.
 	HomeClusterName VirtualKubeletOptsFlag = "--home-cluster-name"
+	// LocalPodCIDR is the flag used to specify the local pod CIDR.
+	LocalPodCIDR VirtualKubeletOptsFlag = "--local-podcidr"
 	// IpamEndpoint is the flag used to specify the IPAM endpoint.
 	IpamEndpoint VirtualKubeletOptsFlag = "--ipam-server"
 	// EnableStorage is the flag used to enable the storage.
