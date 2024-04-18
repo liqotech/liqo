@@ -1,4 +1,4 @@
-Sphinx==7.2.6
+Sphinx==7.3.6
 myst-parser==2.0.0
 sphinx_rtd_theme==2.0.0
 sphinx-copybutton==0.5.2
