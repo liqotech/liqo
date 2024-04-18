@@ -134,7 +134,6 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface) error {
 		}
 	}
 
-	liqoIPAM.natMappingInflater = natmappinginflater.NewInflater(dynClient)
 	return nil
 }
 
@@ -1187,12 +1186,6 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 		if err := liqoIPAM.ipamStorage.updateEndpointMappings(endpointMappings); err != nil {
 			return "", fmt.Errorf("cannot update endpointMappings: %w", err)
 		}
-
-		//TODO: delete with new network?
-		// Add NAT mapping
-		if err := liqoIPAM.natMappingInflater.AddMapping(ip, externalCIDRNattedIP, clusterID); err != nil {
-			return "", fmt.Errorf("cannot add NAT mapping: %w", err)
-		}
 	}
 
 	return endpointMappings[ip].ClusterMappings[clusterID].ExternalCIDRNattedIP, nil
@@ -1400,11 +1393,6 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 		return fmt.Errorf("cannot update endpointIPs: %w", err)
 	}
 
-	// TODO: delete with new network?
-	// Remove NAT mapping
-	if err := liqoIPAM.natMappingInflater.RemoveMapping(endpointIP, clusterID); err != nil {
-		return err
-	}
 	return nil
 }
 
