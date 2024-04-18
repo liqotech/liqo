@@ -61,20 +61,24 @@ func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv
 
 // DeleteNatMappingIP deletes the NAT mapping for an IP.
 func DeleteNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv1alpha1.IP) error {
-	fwcfg := &networkingv1alpha1.FirewallConfiguration{
-		ObjectMeta: metav1.ObjectMeta{Name: TableIPMappingGwName, Namespace: ip.Namespace},
-	}
-
-	err := cl.Update(ctx, cleanFirewallConfiguration(fwcfg, ip))
-
-	if errors.IsNotFound(err) {
+	var fwcfg networkingv1alpha1.FirewallConfiguration
+	err := cl.Get(ctx, client.ObjectKey{Name: TableIPMappingGwName, Namespace: ip.Namespace}, &fwcfg)
+	switch {
+	case errors.IsNotFound(err):
 		return nil
+	case err != nil:
+		return fmt.Errorf("unable to get the firewall configuration %s/%s: %w", ip.Namespace, TableIPMappingGwName, err)
 	}
-	if err != nil {
+
+	err = cl.Update(ctx, cleanFirewallConfiguration(&fwcfg, ip))
+	switch {
+	case errors.IsNotFound(err):
+		return nil
+	case err != nil:
 		return fmt.Errorf("unable to update the firewall configuration %q: %w", fwcfg.Name, err)
 	}
 
-	return deleteFirewallConfiguration(ctx, cl, fwcfg)
+	return deleteFirewallConfiguration(ctx, cl, &fwcfg)
 }
 
 func cleanFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) *networkingv1alpha1.FirewallConfiguration {
