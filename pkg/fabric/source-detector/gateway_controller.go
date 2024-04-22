@@ -75,8 +75,8 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	internalnode := &networkingv1alpha1.InternalNode{}
 	if err = r.Get(ctx, client.ObjectKey{Name: r.Options.NodeName}, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no internal node %s", r.Options.NodeName)
-			return ctrl.Result{}, nil
+			klog.Errorf("There is no internalnode %s", r.Options.NodeName)
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the internal node %q: %w", r.Options.NodeName, err)
 	}
