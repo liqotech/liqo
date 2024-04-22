@@ -76,6 +76,14 @@ rules:
   - authentication.liqo.io
   resources:
   - resourceslices
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - resourceslices
   - resourceslices/status
   verbs:
   - create

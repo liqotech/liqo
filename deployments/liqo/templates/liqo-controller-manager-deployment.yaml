@@ -77,6 +77,7 @@ spec:
           - --cluster-name={{ .Values.discovery.config.clusterName }}
           - --liqo-namespace=$(POD_NAMESPACE)
           - --authentication-enabled={{ .Values.authentication.enabled }}
+          - --offloading-enabled={{ .Values.offloading.enabled }}
           - --enable-incoming-peering={{ .Values.discovery.config.incomingPeeringEnabled }}
           - --resource-sharing-percentage={{ .Values.controllerManager.config.resourceSharingPercentage }}
           - --pod-reflection-workers={{ .Values.offloading.reflection.pod.workers }}
