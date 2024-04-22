@@ -592,6 +592,8 @@ fullnameOverride: ""
 # credentials, and (3) to describe EKS clusters.
 # NOTE: set it only if running on EKS, otherwise let this fields with the default value
 awsConfig:
+  # -- Use an existing secret to configure the AWS credentials.
+  useExistingSecret: false
   # -- AccessKeyID for the Liqo user.
   accessKeyId: ""
   # -- SecretAccessKey for the Liqo user.
@@ -602,6 +604,7 @@ awsConfig:
   clusterName: ""
 # To use an existing secret instead of setting the secrets in values file:
 # awsConfig:
+#   useExistingSecret: true
 #   accessKeyId:
 #     secretKeyRef:
 #       name: "your-secret-name"

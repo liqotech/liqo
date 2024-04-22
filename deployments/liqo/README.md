@@ -34,6 +34,7 @@
 | awsConfig.clusterName | string | `""` | Name of the EKS cluster. |
 | awsConfig.region | string | `""` | AWS region where the clsuter is runnnig. |
 | awsConfig.secretAccessKey | string | `""` | SecretAccessKey for the Liqo user. |
+| awsConfig.useExistingSecret | bool | `false` | Use an existing secret to configure the AWS credentials. |
 | common.affinity | object | `{}` | Affinity for all liqo pods, excluding virtual kubelet. |
 | common.extraArgs | list | `[]` | Extra arguments for all liqo pods, excluding virtual kubelet. |
 | common.nodeSelector | object | `{}` | NodeSelector for all liqo pods, excluding virtual kubelet. |
