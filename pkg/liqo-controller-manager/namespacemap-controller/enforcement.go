@@ -88,7 +88,7 @@ func (r *NamespaceMapReconciler) createNamespace(ctx context.Context, name, orig
 			liqoconst.RemoteNamespaceManagedByAnnotationKey: nmID})
 
 		if binding.CreationTimestamp.IsZero() {
-			binding.Subjects = []rbacv1.Subject{{APIGroup: rbacv1.GroupName, Kind: rbacv1.UserKind, Name: origin}}
+			binding.Subjects = []rbacv1.Subject{{APIGroup: rbacv1.GroupName, Kind: rbacv1.GroupKind, Name: origin}}
 			binding.RoleRef = rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "ClusterRole", Name: liqoconst.RemoteNamespaceClusterRoleName}
 		}
 
