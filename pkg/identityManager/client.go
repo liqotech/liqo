@@ -21,12 +21,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	"github.com/liqotech/liqo/pkg/utils/kubeconfig"
 )
 
 // GetConfig gets a rest config from the secret, given the remote clusterID and (optionally) the namespace.
@@ -40,7 +40,7 @@ func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.Cl
 		return nil, err
 	}
 
-	cnf, err := buildConfigFromSecret(secret)
+	cnf, err := kubeconfig.BuildConfigFromSecret(secret)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discov
 // GetConfigFromSecret gets a rest config from a secret.
 func (certManager *identityManager) GetConfigFromSecret(remoteCluster discoveryv1alpha1.ClusterIdentity,
 	secret *corev1.Secret) (*rest.Config, error) {
-	cnf, err := buildConfigFromSecret(secret)
+	cnf, err := kubeconfig.BuildConfigFromSecret(secret)
 	if err != nil {
 		return nil, err
 	}
@@ -103,13 +103,4 @@ func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster disco
 func (certManager *identityManager) mutateIAMConfig(
 	secret *corev1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity, cnf *rest.Config) (*rest.Config, error) {
 	return certManager.iamTokenManager.mutateConfig(secret, remoteCluster, cnf)
-}
-
-func buildConfigFromSecret(secret *corev1.Secret) (*rest.Config, error) {
-	kubeconfig, ok := secret.Data[consts.KubeconfigSecretField]
-	if !ok {
-		return nil, fmt.Errorf("key %v not found in secret %v/%v", consts.KubeconfigSecretField, secret.Namespace, secret.Name)
-	}
-
-	return clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 }

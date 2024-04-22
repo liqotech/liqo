@@ -79,6 +79,8 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringVar(&o.cpu, "cpu", "", "The amount of CPU requested in the resource slice")
 	cmd.Flags().StringVar(&o.memory, "memory", "", "The amount of memory requested in the resource slice")
 	cmd.Flags().StringVar(&o.pods, "pods", "", "The amount of pods requested in the resource slice")
+	cmd.Flags().BoolVar(&o.disableVirtualNodeCreation, "no-virtual-node", false,
+		"Prevent the automatic creation of a VirtualNode for the ResourceSlice. Default: false")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 
@@ -113,7 +115,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 				corev1.ResourceMemory: o.memory,
 				corev1.ResourcePods:   o.pods,
 			},
-		})
+		}, !o.disableVirtualNodeCreation)
 	})
 	if err != nil {
 		s.Fail("Unable to create ResourceSlice: %v", output.PrettyErr(err))
@@ -167,7 +169,7 @@ func (o *Options) output(ctx context.Context) error {
 			corev1.ResourceMemory: o.memory,
 			corev1.ResourcePods:   o.pods,
 		},
-	})
+	}, !o.disableVirtualNodeCreation)
 	if err != nil {
 		return err
 	}

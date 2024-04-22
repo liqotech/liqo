@@ -99,8 +99,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	// Retrieve the remote restcfg
 	tenantNamespaceManager := tenantnamespace.NewManager(localClient) // Do not use the cached version, as leveraged only once.
-	identityManager := identitymanager.NewCertificateIdentityReader(ctx, cl, localClient, localConfig,
-		c.HomeCluster, tenantNamespaceManager)
+	identityManager := identitymanager.NewCertificateIdentityReader(ctx, cl, localClient, localConfig, c.HomeCluster, tenantNamespaceManager)
 
 	if c.RemoteKubeconfigSecretName == "" {
 		return fmt.Errorf("remote kubeconfig secret name is mandatory")
@@ -117,12 +116,13 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
+	restcfg.SetRateLimiter(remoteConfig)
+
+	// Get reflectors configurations
 	reflectorsConfigs, err := getReflectorsConfigs(c)
 	if err != nil {
 		return err
 	}
-
-	restcfg.SetRateLimiter(remoteConfig)
 
 	// Get virtual node
 	vnName := os.Getenv("VIRTUALNODE_NAME")
