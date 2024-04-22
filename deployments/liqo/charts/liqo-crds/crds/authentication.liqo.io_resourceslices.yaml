@@ -169,6 +169,49 @@ spec:
                   - type
                   type: object
                 type: array
+              ingressClasses:
+                description: IngressClasses contains the list of the ingress classes
+                  offered by the cluster.
+                items:
+                  description: IngressType defines the type of ingress offered by
+                    a resource offer.
+                  properties:
+                    default:
+                      description: Default indicates whether this ingress class is
+                        the default ingress class for Liqo.
+                      type: boolean
+                    ingressClassName:
+                      description: IngressClassName indicates the name of the ingress
+                        class.
+                      type: string
+                  required:
+                  - ingressClassName
+                  type: object
+                type: array
+              loadBalancerClasses:
+                description: LoadBalancerClasses contains the list of the load balancer
+                  classes offered by the cluster.
+                items:
+                  description: LoadBalancerType defines the type of load balancer
+                    offered by a resource offer.
+                  properties:
+                    default:
+                      description: Default indicates whether this load balancer class
+                        is the default load balancer class for Liqo.
+                      type: boolean
+                    loadBalancerClassName:
+                      description: LoadBalancerClassName indicates the name of the
+                        load balancer class.
+                      type: string
+                  required:
+                  - loadBalancerClassName
+                  type: object
+                type: array
+              nodeLabels:
+                additionalProperties:
+                  type: string
+                description: NodeLabels contains the provider cluster labels.
+                type: object
               resources:
                 additionalProperties:
                   anyOf:
@@ -178,6 +221,25 @@ spec:
                   x-kubernetes-int-or-string: true
                 description: Resources contains the slice of resources accepted.
                 type: object
+              storageClasses:
+                description: StorageClasses contains the list of the storage classes
+                  offered by the cluster.
+                items:
+                  description: StorageType defines the type of storage offered by
+                    a resource offer.
+                  properties:
+                    default:
+                      description: Default indicates whether this storage class is
+                        the default storage class for Liqo.
+                      type: boolean
+                    storageClassName:
+                      description: StorageClassName indicates the name of the storage
+                        class.
+                      type: string
+                  required:
+                  - storageClassName
+                  type: object
+                type: array
             type: object
         type: object
     served: true
