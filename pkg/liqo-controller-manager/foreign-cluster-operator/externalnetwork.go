@@ -115,14 +115,25 @@ func (r *ForeignClusterReconciler) checkForOtherGateways(ctx context.Context, fc
 		return true, nil
 	}
 
-	_, err = getters.GetGatewayClientByClusterID(ctx, r.Client, &fc.Spec.ClusterIdentity)
+	wgClient, err := getters.GetGatewayClientByClusterID(ctx, r.Client, &fc.Spec.ClusterIdentity)
 	switch {
 	case apierrors.IsNotFound(err):
 		// no GatewayClient found
-		return false, nil
 	case err != nil:
 		return false, err
 	default:
+		if wgClient.OwnerReferences == nil || len(wgClient.OwnerReferences) == 0 {
+			return true, nil
+		}
+		for i := range wgClient.OwnerReferences {
+			ownerRef := wgClient.OwnerReferences[i]
+			if ownerRef.Kind == networkingv1alpha1.ExternalNetworkKind {
+				// the GatewayClient is managed by the ExternalNetwork, so we can enforce it by ignoring its existence
+				return false, nil
+			}
+		}
 		return true, nil
 	}
+
+	return false, nil
 }
