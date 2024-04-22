@@ -45,13 +45,20 @@ func ResourceSlice(name, namespace string) *authv1alpha1.ResourceSlice {
 
 // MutateResourceSlice mutates a ResourceSlice resource.
 func MutateResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, remoteClusterID string,
-	opts *ResourceSliceOptions) error {
+	opts *ResourceSliceOptions, createVirtualNode bool) error {
 	if resourceSlice.Labels == nil {
 		resourceSlice.Labels = map[string]string{}
 	}
 	resourceSlice.Labels[consts.ReplicationRequestedLabel] = consts.ReplicationRequestedLabelValue
 	resourceSlice.Labels[consts.ReplicationDestinationLabel] = remoteClusterID
 	resourceSlice.Labels[consts.RemoteClusterID] = remoteClusterID
+
+	if createVirtualNode {
+		if resourceSlice.Annotations == nil {
+			resourceSlice.Annotations = map[string]string{}
+		}
+		resourceSlice.Annotations[consts.CreateVirtualNodeAnnotation] = "true"
+	}
 
 	rl, err := resourceList(opts.Resources)
 	if err != nil {

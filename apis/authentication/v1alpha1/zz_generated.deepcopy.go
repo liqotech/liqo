@@ -20,6 +20,7 @@ package v1alpha1
 
 import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -308,6 +309,28 @@ func (in *ResourceSliceStatus) DeepCopyInto(out *ResourceSliceStatus) {
 		in, out := &in.AuthParams, &out.AuthParams
 		*out = new(AuthParams)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.StorageClasses != nil {
+		in, out := &in.StorageClasses, &out.StorageClasses
+		*out = make([]sharingv1alpha1.StorageType, len(*in))
+		copy(*out, *in)
+	}
+	if in.IngressClasses != nil {
+		in, out := &in.IngressClasses, &out.IngressClasses
+		*out = make([]sharingv1alpha1.IngressType, len(*in))
+		copy(*out, *in)
+	}
+	if in.LoadBalancerClasses != nil {
+		in, out := &in.LoadBalancerClasses, &out.LoadBalancerClasses
+		*out = make([]sharingv1alpha1.LoadBalancerType, len(*in))
+		copy(*out, *in)
+	}
+	if in.NodeLabels != nil {
+		in, out := &in.NodeLabels, &out.NodeLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 }
 

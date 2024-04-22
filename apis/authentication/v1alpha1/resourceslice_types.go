@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 )
 
 // ResourceSliceResource is the name of the resourceSlice resources.
@@ -103,6 +104,14 @@ type ResourceSliceStatus struct {
 	Resources corev1.ResourceList `json:"resources,omitempty"`
 	// AuthParams contains the authentication parameters for the resources given by the provider cluster.
 	AuthParams *AuthParams `json:"authParams,omitempty"`
+	// StorageClasses contains the list of the storage classes offered by the cluster.
+	StorageClasses []sharingv1alpha1.StorageType `json:"storageClasses,omitempty"`
+	// IngressClasses contains the list of the ingress classes offered by the cluster.
+	IngressClasses []sharingv1alpha1.IngressType `json:"ingressClasses,omitempty"`
+	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
+	LoadBalancerClasses []sharingv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
+	// NodeLabels contains the provider cluster labels.
+	NodeLabels map[string]string `json:"nodeLabels,omitempty"`
 }
 
 // +kubebuilder:object:root=true

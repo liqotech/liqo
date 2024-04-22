@@ -31,6 +31,7 @@ import (
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 )
@@ -96,6 +97,10 @@ func (r *IdentityCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, identity, func() error {
 		forge.MutateIdentity(identity, *resourceSlice.Spec.ProviderClusterIdentity, authv1alpha1.ResourceSliceIdentityType,
 			resourceSlice.Status.AuthParams, nil)
+		if identity.Labels == nil {
+			identity.Labels = make(map[string]string)
+		}
+		identity.Labels[consts.ResourceSliceNameLabelKey] = resourceSlice.Name
 		return controllerutil.SetControllerReference(&resourceSlice, identity, r.Scheme)
 	}); err != nil {
 		klog.Errorf("unable to create or update Identity %q: %v", identity.Name, err)
