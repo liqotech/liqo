@@ -312,7 +312,45 @@ func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client, c
 	return controlPlaneIdentity, nil
 }
 
-// GetControlPlaneKubeconfigSecretByClusterID returns the Secret containing the Kubeconfig of a ControlPlane Identity given the cluster id.
+// GetResourceSliceIdentitiesByClusterID returns the list of Identities of type ResourceSlice for the given cluster id.
+func GetResourceSliceIdentitiesByClusterID(ctx context.Context, cl client.Client, clusterID string) ([]authv1alpha1.Identity, error) {
+	list := new(authv1alpha1.IdentityList)
+	if err := cl.List(ctx, list, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			consts.RemoteClusterID: clusterID,
+		}),
+	}); err != nil {
+		return nil, err
+	}
+
+	var identities []authv1alpha1.Identity
+	for i := range list.Items {
+		if list.Items[i].Spec.Type == authv1alpha1.ResourceSliceIdentityType {
+			identities = append(identities, list.Items[i])
+		}
+	}
+
+	return identities, nil
+}
+
+// GetIdentityFromResourceSlice returns the Identity of type ResourceSlice for the given cluster id and resourceslice name.
+func GetIdentityFromResourceSlice(ctx context.Context, cl client.Client, clusterID, resourceSliceName string) (*authv1alpha1.Identity, error) {
+	identities, err := GetResourceSliceIdentitiesByClusterID(ctx, cl, clusterID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range identities {
+		if identities[i].Labels != nil && identities[i].Labels[consts.ResourceSliceNameLabelKey] == resourceSliceName {
+			return &identities[i], nil
+		}
+	}
+
+	return nil, kerrors.NewNotFound(authv1alpha1.IdentityGroupResource, clusterID)
+}
+
+// GetControlPlaneKubeconfigSecretByClusterID returns the Secret containing the Kubeconfig of
+// a ControlPlane Identity given the cluster id.
 func GetControlPlaneKubeconfigSecretByClusterID(ctx context.Context, cl client.Client, clusterID string) (*corev1.Secret, error) {
 	list := new(corev1.SecretList)
 	if err := cl.List(ctx, list, &client.ListOptions{
@@ -332,6 +370,37 @@ func GetControlPlaneKubeconfigSecretByClusterID(ctx context.Context, cl client.C
 	default:
 		return nil, fmt.Errorf("found multiple secrets containing ControlPlane Kubeconfig for cluster %s", clusterID)
 	}
+}
+
+// GetResourceSliceKubeconfigSecretsByClusterID returns the list of Secrets containing the Kubeconfig of
+// a ResourceSlice Identity given the cluster id.
+func GetResourceSliceKubeconfigSecretsByClusterID(ctx context.Context, cl client.Client, clusterID string) ([]corev1.Secret, error) {
+	list := new(corev1.SecretList)
+	if err := cl.List(ctx, list, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			consts.RemoteClusterID:      clusterID,
+			consts.IdentityTypeLabelKey: string(authv1alpha1.ResourceSliceIdentityType),
+		}),
+	}); err != nil {
+		return nil, err
+	}
+
+	return list.Items, nil
+}
+
+// GetKubeconfigSecretFromIdentity returns the Secret referenced in the status of the given Identity.
+func GetKubeconfigSecretFromIdentity(ctx context.Context, cl client.Client, identity *authv1alpha1.Identity) (*corev1.Secret, error) {
+	if identity.Status.KubeconfigSecretRef == nil || identity.Status.KubeconfigSecretRef.Name == "" {
+		return nil, fmt.Errorf("identity %q does not contain the kubeconfig secret reference", identity.Name)
+	}
+
+	var kubeconfigSecret corev1.Secret
+	err := cl.Get(ctx, client.ObjectKey{Name: identity.Status.KubeconfigSecretRef.Name, Namespace: identity.Namespace}, &kubeconfigSecret)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get the kubeconfig secret %q: %w", identity.Status.KubeconfigSecretRef.Name, err)
+	}
+
+	return &kubeconfigSecret, nil
 }
 
 // GetOffloadingByNamespace returns the NamespaceOffloading resource for the given namespace.

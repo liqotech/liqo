@@ -36,6 +36,7 @@ networking:
   securityMode: "FullPodToPod"
 
 authentication:
+  # -- Enable/Disable the authentication module.
   enabled: true
   # AWS-specific configuration for the local cluster and the Liqo user.
   # This user should be able (1) to create new IAM users, (2) to create new programmatic access
@@ -67,6 +68,8 @@ authentication:
   #   clusterName: "your-cluster-name"
 
 offloading:
+  # -- Enable/Disable the offloading module
+  enabled: true
   runtimeClass:
     enable: false
     # -- Name of the runtime class to use for offloading.

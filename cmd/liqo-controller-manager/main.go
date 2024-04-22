@@ -58,6 +58,7 @@ import (
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/virtualnodecreator-controller"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
@@ -123,6 +124,7 @@ func main() {
 	var awsConfig identitymanager.LocalAwsConfig
 
 	authenticationEnabled := flag.Bool("authentication-enabled", true, "Enable/disable the authentication module")
+	offloadingEnabled := flag.Bool("offloading-enabled", true, "Enable/disable the offloading module")
 	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
 
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
@@ -413,7 +415,7 @@ func main() {
 	secureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute}
 	insecureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute, TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 
-	// Setup operators
+	// Setup operators for each module:
 
 	// authentication module
 	if *authenticationEnabled {
@@ -429,6 +431,29 @@ func main() {
 
 		if err := modules.SetupAuthenticationModule(ctx, mgr, uncachedClient, opts); err != nil {
 			klog.Fatalf("Unable to setup the authentication module: %v", err)
+		}
+	}
+
+	// offloading module
+	if *offloadingEnabled {
+		opts := &modules.OffloadingOption{
+			LocalClusterIdentity: &clusterIdentity,
+		}
+
+		if err := modules.SetupOffloadingModule(ctx, mgr, opts); err != nil {
+			klog.Fatalf("Unable to setup the offloading module: %v", err)
+		}
+	}
+
+	// Cross-modules operators:
+
+	if *authenticationEnabled && *offloadingEnabled {
+		// Configure controller that create virtualnodes from resourceslices.
+		// TODO: pass also virtualKubeletOpts.
+		vnCreatorReconciler := virtualnodecreatorcontroller.NewVirtualNodeCreatorReconciler(
+			mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("virtualnodecreator-controller"))
+		if err := vnCreatorReconciler.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Unable to setup the virtualnodecreator reconciler: %v", err)
 		}
 	}
 

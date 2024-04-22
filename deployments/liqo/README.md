@@ -36,7 +36,7 @@
 | authentication.awsConfig.region | string | `""` | AWS region where the clsuter is runnnig. |
 | authentication.awsConfig.secretAccessKey | string | `""` | SecretAccessKey for the Liqo user. |
 | authentication.awsConfig.useExistingSecret | bool | `false` | Use an existing secret to configure the AWS credentials. |
-| authentication.enabled | bool | `true` |  |
+| authentication.enabled | bool | `true` | Enable/Disable the authentication module. |
 | common.affinity | object | `{}` | Affinity for all liqo pods, excluding virtual kubelet. |
 | common.extraArgs | list | `[]` | Extra arguments for all liqo pods, excluding virtual kubelet. |
 | common.nodeSelector | object | `{}` | NodeSelector for all liqo pods, excluding virtual kubelet. |
@@ -141,6 +141,7 @@
 | networking.mtu | int | `1340` | Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces. The value is used by the gateway and route operators. The default value is configured to ensure correct behavior regardless of the combination of the underlying environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.securityMode | string | `"FullPodToPod"` | Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation"  |
+| offloading.enabled | bool | `true` | Enable/Disable the offloading module |
 | offloading.reflection.configmap.type | string | `"DenyList"` | The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList". |
 | offloading.reflection.configmap.workers | int | `3` | The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps. |
 | offloading.reflection.endpointslice.workers | int | `10` | The number of workers used for the endpointslices reflector. Set 0 to disable the reflection of endpointslices. |

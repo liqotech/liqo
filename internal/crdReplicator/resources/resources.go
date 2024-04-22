@@ -44,7 +44,7 @@ func GetResourcesToReplicate() []Resource {
 		},
 		{
 			GroupVersionResource: vkv1alpha1.NamespaceMapGroupVersionResource,
-			PeeringPhase:         consts.PeeringPhaseOutgoing,
+			PeeringPhase:         consts.PeeringPhaseAuthenticated,
 			Ownership:            consts.OwnershipShared,
 		},
 		{

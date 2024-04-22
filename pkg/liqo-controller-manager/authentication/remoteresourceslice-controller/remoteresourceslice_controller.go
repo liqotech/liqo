@@ -145,6 +145,10 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 
 		acceptResources(&resourceSlice, r.eventRecorder)
 	}
+	// TODO: add to status the StorageClasses
+	// TODO: add to status the IngressClasses
+	// TODO: add to status the LoadBalancerClasses
+	// TODO: add to status the NodeLabels
 
 	// forge the AuthParams
 

@@ -40,4 +40,10 @@ const (
 
 	// RemoteTenantNamespaceAnnotKey is the annotation key used to store the remote tenant namespace.
 	RemoteTenantNamespaceAnnotKey = "liqo.io/remote-tenant-namespace"
+
+	// ResourceSliceNameLabelKey is the label key used to store the name of the resource slice.
+	ResourceSliceNameLabelKey = "liqo.io/resourceslice-name"
+
+	// CreateVirtualNodeAnnotation is the value of the annotation that enables the creation of a virtual node.
+	CreateVirtualNodeAnnotation = "liqo.io/create-virtual-node"
 )

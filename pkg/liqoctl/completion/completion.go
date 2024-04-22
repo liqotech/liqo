@@ -24,11 +24,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
-	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	utilsvirtualnode "github.com/liqotech/liqo/pkg/utils/virtualnode"
 )
@@ -246,20 +247,38 @@ func ClusterNames(ctx context.Context, f *factory.Factory, argsLimit int) FnType
 }
 
 // KubeconfigSecretNames returns a function to autocomplete kubeconfig secret names.
-func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit int, namespace string, identityType authv1alpha1.IdentityType) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
 		matchingLabels := client.MatchingLabels{
-			identitymanager.CertificateAvailableLabel: "true",
+			consts.IdentityTypeLabelKey: string(identityType),
 		}
 
 		var secrets corev1.SecretList
-		if err := f.CRClient.List(ctx, &secrets, client.InNamespace(f.Namespace), matchingLabels); err != nil {
+		if err := f.CRClient.List(ctx, &secrets, client.InNamespace(namespace), matchingLabels); err != nil {
 			return nil, err
 		}
 
 		var names []string
 		for i := range secrets.Items {
 			names = append(names, secrets.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// ResourceSliceNames returns a function to autocomplete ResourceSlice names.
+func ResourceSliceNames(ctx context.Context, f *factory.Factory, argsLimit int, namespace string) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var resourceSlices authv1alpha1.ResourceSliceList
+		if err := f.CRClient.List(ctx, &resourceSlices, client.InNamespace(namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range resourceSlices.Items {
+			names = append(names, resourceSlices.Items[i].Name)
 		}
 		return names, nil
 	}
