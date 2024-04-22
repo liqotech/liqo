@@ -110,7 +110,7 @@ spec:
             {{- if .Values.awsConfig.accessKeyId }}
             - name: ACCESS_KEY_ID
               valueFrom:
-                {{- if .Values.awsConfig.accessKeyId.secretKeyRef }}
+                {{- if .Values.awsConfig.useExistingSecret }}
                 secretKeyRef:
                   name: {{ .Values.awsConfig.accessKeyId.secretKeyRef.name }}
                   key: {{ .Values.awsConfig.accessKeyId.secretKeyRef.key }}
@@ -123,7 +123,7 @@ spec:
             {{- if .Values.awsConfig.secretAccessKey }}
             - name: SECRET_ACCESS_KEY
               valueFrom:
-                {{- if .Values.awsConfig.secretAccessKey.secretKeyRef }}
+                {{- if .Values.awsConfig.useExistingSecret }}
                 secretKeyRef:
                   name: {{ .Values.awsConfig.secretAccessKey.secretKeyRef.name }}
                   key: {{ .Values.awsConfig.secretAccessKey.secretKeyRef.key }}
