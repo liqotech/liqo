@@ -99,7 +99,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	op, err := enforceRoutePodPresence(ctx, r.Client, r.Scheme, r.Options, pod)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("there is no internalnode %s", pod.Spec.NodeName)
+			klog.V(3).Infof("there is no internalnode %s. Retrying later...", pod.Spec.NodeName)
 			return ctrl.Result{RequeueAfter: time.Second}, nil
 		}
 		return ctrl.Result{}, err
