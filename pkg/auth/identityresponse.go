@@ -70,12 +70,12 @@ func NewCertificateIdentityResponse(
 	case responsetypes.SigningRequestResponseIAM:
 		return &CertificateIdentityResponse{
 			Namespace:    namespace,
-			APIServerURL: *identityResponse.AwsIdentityResponse.EksCluster.Endpoint,
-			APIServerCA:  *identityResponse.AwsIdentityResponse.EksCluster.CertificateAuthority.Data,
+			APIServerURL: identityResponse.AwsIdentityResponse.EksClusterEndpoint,
+			APIServerCA:  string(identityResponse.AwsIdentityResponse.EksClusterCertificateAuthorityData),
 			AWSIdentityInfo: AWSIdentityInfo{
-				EKSClusterID:    *identityResponse.AwsIdentityResponse.EksCluster.Name,
-				AccessKeyID:     *identityResponse.AwsIdentityResponse.AccessKey.AccessKeyId,
-				SecretAccessKey: *identityResponse.AwsIdentityResponse.AccessKey.SecretAccessKey,
+				EKSClusterID:    identityResponse.AwsIdentityResponse.EksClusterName,
+				AccessKeyID:     identityResponse.AwsIdentityResponse.AccessKeyID,
+				SecretAccessKey: identityResponse.AwsIdentityResponse.SecretAccessKey,
 				Region:          identityResponse.AwsIdentityResponse.Region,
 				IAMUserArn:      identityResponse.AwsIdentityResponse.IamUserArn,
 			},

@@ -120,6 +120,7 @@ func main() {
 	var apiServerAddressOverride string
 	var caOverride string
 	var trustedCA bool
+	var awsConfig identitymanager.LocalAwsConfig
 
 	authenticationEnabled := flag.Bool("authentication-enabled", true, "Enable/disable the authentication module")
 	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
@@ -210,6 +211,12 @@ func main() {
 		"api-server-address-override", "", "Override the API server address where the Kuberentes APIServer is exposed")
 	flag.StringVar(&caOverride, "ca-override", "", "Override the CA certificate used by Kubernetes to sign certificates (base64 encoded)")
 	flag.BoolVar(&trustedCA, "trusted-ca", false, "Whether the Kubernetes APIServer certificate is issue by a trusted CA")
+
+	// AWS configurations
+	flag.StringVar(&awsConfig.AwsAccessKeyID, "aws-access-key-id", "", "AWS IAM AccessKeyID for the Liqo User")
+	flag.StringVar(&awsConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
+	flag.StringVar(&awsConfig.AwsRegion, "aws-region", "", "AWS region where the local cluster is running")
+	flag.StringVar(&awsConfig.AwsClusterName, "aws-cluster-name", "", "Name of the local EKS cluster")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -382,10 +389,17 @@ func main() {
 	}
 
 	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
-	idManager := identitymanager.NewCertificateIdentityManager(mgr.GetClient(), clientset, clusterIdentity, namespaceManager)
-
-	// TODO: check if is running on EKS and start the IAM identity provider
-	idProvider := identitymanager.NewCertificateIdentityProvider(ctx, mgr.GetClient(), clientset, clusterIdentity, namespaceManager)
+	idManager := identitymanager.NewCertificateIdentityManager(ctx,
+		mgr.GetClient(), clientset, mgr.GetConfig(),
+		clusterIdentity, namespaceManager)
+	var idProvider identitymanager.IdentityProvider
+	if awsConfig.IsEmpty() {
+		idProvider = identitymanager.NewCertificateIdentityProvider(ctx,
+			mgr.GetClient(), clientset, config, clusterIdentity, namespaceManager)
+	} else {
+		idProvider = identitymanager.NewIAMIdentityProvider(ctx,
+			mgr.GetClient(), clientset, clusterIdentity, &awsConfig, namespaceManager)
+	}
 
 	// populate the lists of ClusterRoles to bind in the different peering states
 	permissions, err := peeringroles.GetPeeringPermission(ctx, clientset)
