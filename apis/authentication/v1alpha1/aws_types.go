@@ -16,13 +16,9 @@ package v1alpha1
 
 // AwsConfig contains the AWS configuration and access key for the Liqo user and the current EKS cluster.
 type AwsConfig struct {
+	AwsUserArn         string `json:"awsUserArn"`
 	AwsAccessKeyID     string `json:"awsAccessKeyID"`
 	AwsSecretAccessKey string `json:"awsSecretAccessKey"`
 	AwsRegion          string `json:"awsRegion"`
 	AwsClusterName     string `json:"awsClusterName"`
-}
-
-// IsEmpty indicates that some of the required values is not set.
-func (ac *AwsConfig) IsEmpty() bool {
-	return ac == nil || ac.AwsAccessKeyID == "" || ac.AwsSecretAccessKey == "" || ac.AwsRegion == "" || ac.AwsClusterName == ""
 }

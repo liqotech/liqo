@@ -26,7 +26,7 @@ import (
 )
 
 // GetURL retrieves the API server URL either from the configuration or selecting the IP address of a master node (with port 6443).
-func GetURL(ctx context.Context, addressOverride string, cl client.Client) (string, error) {
+func GetURL(ctx context.Context, cl client.Client, addressOverride string) (string, error) {
 	if addressOverride != "" {
 		if !strings.HasPrefix(addressOverride, "https://") {
 			addressOverride = fmt.Sprintf("https://%v", addressOverride)

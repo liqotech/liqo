@@ -29,7 +29,6 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -74,7 +73,7 @@ type Controller struct {
 
 // NewAuthServiceCtrl creates a new Auth Controller.
 func NewAuthServiceCtrl(ctx context.Context, config *rest.Config, namespace string,
-	awsConfig authv1alpha1.AwsConfig, resyncTime time.Duration,
+	awsConfig *identitymanager.LocalAwsConfig, resyncTime time.Duration,
 	apiServerConfig apiserver.Config, authEnabled, useTLS bool,
 	localCluster discoveryv1alpha1.ClusterIdentity) (*Controller, error) {
 	clientset, err := kubernetes.NewForConfig(config)
@@ -105,10 +104,10 @@ func NewAuthServiceCtrl(ctx context.Context, config *rest.Config, namespace stri
 	var idProvider identitymanager.IdentityProvider
 	if awsConfig.IsEmpty() {
 		idProvider = identitymanager.NewCertificateIdentityProvider(
-			context.Background(), cl, clientset, localCluster, namespaceManager)
+			context.Background(), cl, clientset, config, localCluster, namespaceManager)
 	} else {
-		idProvider = identitymanager.NewIAMIdentityProvider(
-			cl, clientset, localCluster, &awsConfig, namespaceManager)
+		idProvider = identitymanager.NewIAMIdentityProvider(ctx,
+			cl, clientset, localCluster, awsConfig, namespaceManager)
 	}
 
 	return &Controller{

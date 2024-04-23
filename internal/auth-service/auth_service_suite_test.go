@@ -83,7 +83,7 @@ var _ = BeforeSuite(func() {
 
 	namespaceManager := tenantnamespace.NewManager(cluster.GetClient())
 	identityProvider := identitymanager.NewCertificateIdentityProvider(
-		ctx, cl, cluster.GetClient(), clusterIdentity, namespaceManager)
+		ctx, cl, cluster.GetClient(), cnf, clusterIdentity, namespaceManager)
 
 	config := apiserver.Config{Address: cluster.GetCfg().Host, TrustedCA: false}
 	Expect(config.Complete(cluster.GetCfg(), cl)).To(Succeed())
