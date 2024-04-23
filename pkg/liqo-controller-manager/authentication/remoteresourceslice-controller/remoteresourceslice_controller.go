@@ -35,7 +35,6 @@ import (
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
-	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -149,34 +148,25 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	// forge the AuthParams
 
-	resp, err := identitymanager.EnsureCertificate(ctx, r.identityProvider, &identitymanager.SigningRequestOptions{
-		Cluster:        resourceSlice.Spec.ConsumerClusterIdentity,
-		Namespace:      resourceSlice.Namespace,
-		IdentityType:   authv1alpha1.ResourceSliceIdentityType,
-		Name:           resourceSlice.Name,
-		SigningRequest: resourceSlice.Spec.CSR,
+	authParams, err := r.identityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
+		Cluster:         resourceSlice.Spec.ConsumerClusterIdentity,
+		TenantNamespace: resourceSlice.Namespace,
+		IdentityType:    authv1alpha1.ResourceSliceIdentityType,
+		Name:            resourceSlice.Name,
+		SigningRequest:  resourceSlice.Spec.CSR,
+
+		APIServerAddressOverride: r.apiServerAddressOverride,
+		CAOverride:               r.caOverride,
+		TrustedCA:                r.trustedCA,
+		ResourceSlice:            &resourceSlice,
 	})
 	if err != nil {
-		klog.Errorf("Unable to ensure the remote certificate for the ResourceSlice %q: %s", req.NamespacedName, err)
-		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "RemoteCertificateFailed", err.Error())
+		klog.Errorf("Unable to forge the AuthParams for the ResourceSlice %q: %s", req.NamespacedName, err)
+		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "AuthParamsFailed", err.Error())
 		return ctrl.Result{}, err
 	}
 
-	apiServer, err := apiserver.GetURL(ctx, r.apiServerAddressOverride, r.Client)
-	if err != nil {
-		klog.Errorf("Unable to get the API server URL: %s", err)
-		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "APIServerURLFailed", err.Error())
-		return ctrl.Result{}, err
-	}
-
-	ca, err := apiserver.RetrieveAPIServerCA(r.Config, r.caOverride, r.trustedCA)
-	if err != nil {
-		klog.Errorf("Unable to get the API server CA: %s", err)
-		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "APIServerCAFailed", err.Error())
-		return ctrl.Result{}, err
-	}
-
-	resourceSlice.Status.AuthParams = r.identityProvider.ForgeAuthParams(resp, apiServer, ca)
+	resourceSlice.Status.AuthParams = authParams
 
 	// accept the ResourceSlice
 	acceptResourceSlice(&resourceSlice, r.eventRecorder)

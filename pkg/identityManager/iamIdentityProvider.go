@@ -16,7 +16,10 @@ package identitymanager
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"regexp"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -25,15 +28,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/discovery"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 )
 
 const (
@@ -43,8 +49,8 @@ const (
 )
 
 type iamIdentityProvider struct {
-	awsConfig      *authv1alpha1.AwsConfig
-	client         kubernetes.Interface
+	localAwsConfig *LocalAwsConfig
+	cl             client.Client
 	localClusterID string
 }
 
@@ -54,25 +60,78 @@ type mapUser struct {
 	Groups   []string `json:"groups"`
 }
 
-func (identityProvider *iamIdentityProvider) GetRemoteCertificate(_ context.Context,
-	_ *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error) {
-	// this method has no meaning for this identity provider
+func (identityProvider *iamIdentityProvider) init(ctx context.Context) error {
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(identityProvider.localAwsConfig.AwsRegion),
+		Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
+			AccessKeyID:     identityProvider.localAwsConfig.AwsAccessKeyID,
+			SecretAccessKey: identityProvider.localAwsConfig.AwsSecretAccessKey,
+		}),
+	})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	eksCluster, err := identityProvider.getEksClusterInfo(ctx, sess)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	identityProvider.localAwsConfig.AwsClusterEndpoint = *eksCluster.Endpoint
+	identityProvider.localAwsConfig.AwsClusterCA = []byte(*eksCluster.CertificateAuthority.Data)
+
+	return nil
+}
+
+func (identityProvider *iamIdentityProvider) GetRemoteCertificate(ctx context.Context,
+	options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error) {
 	response = &responsetypes.SigningRequestResponse{
 		ResponseType: responsetypes.SigningRequestResponseIAM,
 	}
-	return response, kerrors.NewNotFound(schema.GroupResource{
-		Group:    "v1",
-		Resource: "secrets",
-	}, remoteCertificateSecret)
+	secretName := remoteCertificateSecretName(options)
+	var secret corev1.Secret
+	if err := identityProvider.cl.Get(ctx, types.NamespacedName{
+		Namespace: options.TenantNamespace,
+		Name:      secretName,
+	}, &secret); err != nil {
+		if kerrors.IsNotFound(err) {
+			klog.V(4).Info(err)
+		} else {
+			klog.Error(err)
+		}
+		return response, err
+	}
+
+	response = &responsetypes.SigningRequestResponse{
+		ResponseType: responsetypes.SigningRequestResponseIAM,
+		AwsIdentityResponse: responsetypes.AwsIdentityResponse{
+			IamUserArn:                         string(secret.Data[AwsIAMUserArnSecretKey]),
+			AccessKeyID:                        string(secret.Data[AwsAccessKeyIDSecretKey]),
+			SecretAccessKey:                    string(secret.Data[AwsSecretAccessKeySecretKey]),
+			EksClusterName:                     identityProvider.localAwsConfig.AwsClusterName,
+			EksClusterEndpoint:                 identityProvider.localAwsConfig.AwsClusterEndpoint,
+			EksClusterCertificateAuthorityData: identityProvider.localAwsConfig.AwsClusterCA,
+			Region:                             identityProvider.localAwsConfig.AwsRegion,
+		},
+	}
+	return response, nil
 }
 
-func (identityProvider *iamIdentityProvider) ApproveSigningRequest(_ context.Context,
+var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
+
+func clearString(str string) string {
+	return nonAlphanumericRegex.ReplaceAllString(str, "")
+}
+
+func (identityProvider *iamIdentityProvider) ApproveSigningRequest(ctx context.Context,
 	options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error) {
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(identityProvider.awsConfig.AwsRegion),
+		Region: aws.String(identityProvider.localAwsConfig.AwsRegion),
 		Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
-			AccessKeyID:     identityProvider.awsConfig.AwsAccessKeyID,
-			SecretAccessKey: identityProvider.awsConfig.AwsSecretAccessKey,
+			AccessKeyID:     identityProvider.localAwsConfig.AwsAccessKeyID,
+			SecretAccessKey: identityProvider.localAwsConfig.AwsSecretAccessKey,
 		}),
 	})
 	if err != nil {
@@ -82,34 +141,67 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(_ context.Con
 
 	iamSvc := iam.New(sess)
 
+	var username string
+	var organization string
+
+	switch options.IdentityType {
+	case authv1alpha1.ControlPlaneIdentityType:
+		username = authentication.CommonNameControlPlaneCSR(options.Cluster.ClusterID)
+		organization = authentication.OrganizationControlPlaneCSR()
+	case authv1alpha1.ResourceSliceIdentityType:
+		if options.ResourceSlice == nil {
+			klog.Error("resource slice is nil")
+			return response, fmt.Errorf("resource slice is nil")
+		}
+
+		username = authentication.CommonNameResourceSliceCSR(options.ResourceSlice)
+		organization = authentication.OrganizationResourceSliceCSR(options.ResourceSlice)
+	default:
+		klog.Errorf("identity type %v not supported", options.IdentityType)
+		return response, fmt.Errorf("identity type %v not supported", options.IdentityType)
+	}
+
 	// the IAM username has to have <= 64 characters
-	prefix := identityProvider.localClusterID[:15]
-	username := fmt.Sprintf("liqo-%s-%s", prefix, options.Cluster.ClusterID)
+	s := fmt.Sprintf("%s-%s", username, organization)
+	h := sha256.New()
+	_, _ = h.Write([]byte(s))
+	bs := h.Sum(nil)
+	bsStr := clearString(base64.StdEncoding.EncodeToString(bs))
+	iamUsername := fmt.Sprintf("liqo-%s", bsStr)
+	if len(iamUsername) > 63 {
+		iamUsername = iamUsername[:63]
+	}
+	klog.Infof("IAM username: %s", iamUsername)
 	tags := map[string]string{
 		localClusterIDTagKey:  identityProvider.localClusterID,
 		remoteClusterIDTagKey: options.Cluster.ClusterID,
 		managedByTagKey:       managedByTagValue,
+		identityTypeTagKey:    string(options.IdentityType),
+	}
+	if options.IdentityType == authv1alpha1.ResourceSliceIdentityType {
+		tags[resourceSliceTagKey] = options.ResourceSlice.Name
 	}
 
-	userArn, err := identityProvider.ensureIamUser(iamSvc, username, tags)
+	userArn, err := identityProvider.ensureIamUser(ctx, iamSvc, iamUsername, tags)
 	if err != nil {
 		klog.Error(err)
 		return response, err
 	}
 
-	accessKey, err := identityProvider.ensureIamAccessKey(iamSvc, username)
+	accessKey, err := identityProvider.ensureIamAccessKey(ctx, iamSvc, iamUsername)
 	if err != nil {
 		klog.Error(err)
 		return response, err
 	}
 
-	eksCluster, err := identityProvider.getEksClusterInfo(sess)
-	if err != nil {
+	if err = identityProvider.ensureConfigMap(ctx, userArn, username, organization); err != nil {
 		klog.Error(err)
 		return response, err
 	}
 
-	if err = identityProvider.ensureConfigMap(userArn, *options.Cluster); err != nil {
+	if _, err = identityProvider.storeRemoteCertificate(ctx,
+		*accessKey.AccessKeyId, *accessKey.SecretAccessKey, userArn,
+		options); err != nil {
 		klog.Error(err)
 		return response, err
 	}
@@ -117,29 +209,53 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(_ context.Con
 	return &responsetypes.SigningRequestResponse{
 		ResponseType: responsetypes.SigningRequestResponseIAM,
 		AwsIdentityResponse: responsetypes.AwsIdentityResponse{
-			IamUserArn: userArn,
-			AccessKey:  accessKey,
-			EksCluster: eksCluster,
-			Region:     identityProvider.awsConfig.AwsRegion,
+			IamUserArn:                         userArn,
+			AccessKeyID:                        *accessKey.AccessKeyId,
+			SecretAccessKey:                    *accessKey.SecretAccessKey,
+			EksClusterName:                     identityProvider.localAwsConfig.AwsClusterName,
+			EksClusterEndpoint:                 identityProvider.localAwsConfig.AwsClusterEndpoint,
+			EksClusterCertificateAuthorityData: identityProvider.localAwsConfig.AwsClusterCA,
+			Region:                             identityProvider.localAwsConfig.AwsRegion,
 		},
 	}, nil
 }
 
-func (identityProvider *iamIdentityProvider) ForgeAuthParams(resp *responsetypes.SigningRequestResponse,
-	apiServer string, ca []byte) *authv1alpha1.AuthParams {
+func (identityProvider *iamIdentityProvider) ForgeAuthParams(ctx context.Context,
+	options *SigningRequestOptions) (*authv1alpha1.AuthParams, error) {
+	resp, err := EnsureCertificate(ctx, identityProvider, options)
+	if err != nil {
+		return nil, err
+	}
+
+	var ca []byte
+	if options.CAOverride != nil {
+		ca = options.CAOverride
+	} else {
+		ca = resp.AwsIdentityResponse.EksClusterCertificateAuthorityData
+	}
+
+	var apiServer string
+	if options.APIServerAddressOverride != "" {
+		apiServer = options.APIServerAddressOverride
+	} else {
+		apiServer = resp.AwsIdentityResponse.EksClusterEndpoint
+	}
+
 	return &authv1alpha1.AuthParams{
 		CA:        ca,
 		APIServer: apiServer,
 		AwsConfig: &authv1alpha1.AwsConfig{
-			AwsAccessKeyID:     *resp.AwsIdentityResponse.AccessKey.AccessKeyId,
-			AwsSecretAccessKey: *resp.AwsIdentityResponse.AccessKey.SecretAccessKey,
+			AwsUserArn:         resp.AwsIdentityResponse.IamUserArn,
+			AwsAccessKeyID:     resp.AwsIdentityResponse.AccessKeyID,
+			AwsSecretAccessKey: resp.AwsIdentityResponse.SecretAccessKey,
 			AwsRegion:          resp.AwsIdentityResponse.Region,
-			AwsClusterName:     *resp.AwsIdentityResponse.EksCluster.Name,
+			AwsClusterName:     resp.AwsIdentityResponse.EksClusterName,
 		},
-	}
+	}, nil
 }
 
-func (identityProvider *iamIdentityProvider) ensureIamUser(iamSvc *iam.IAM, username string, tags map[string]string) (string, error) {
+func (identityProvider *iamIdentityProvider) ensureIamUser(ctx context.Context,
+	iamSvc *iam.IAM, username string, tags map[string]string) (string, error) {
 	iamTags := make([]*iam.Tag, len(tags))
 	i := 0
 	for k, v := range tags {
@@ -155,14 +271,14 @@ func (identityProvider *iamIdentityProvider) ensureIamUser(iamSvc *iam.IAM, user
 		Tags:     iamTags,
 	}
 
-	createUserResult, err := iamSvc.CreateUser(createUser)
+	createUserResult, err := iamSvc.CreateUserWithContext(ctx, createUser)
 	if err != nil {
 		// ignore already exists error
 		if aerr, ok := err.(awserr.Error); ok { //nolint:errorlint // aws does not export a specific error type
 			if aerr.Code() == iam.ErrCodeEntityAlreadyExistsException {
 				klog.Warningf("IAM user %v already exists, Liqo will crate a new access key for it", username)
 
-				user, err := identityProvider.getUser(iamSvc, username)
+				user, err := identityProvider.getUser(ctx, iamSvc, username)
 				if err != nil {
 					klog.Error(err)
 					return "", err
@@ -179,12 +295,13 @@ func (identityProvider *iamIdentityProvider) ensureIamUser(iamSvc *iam.IAM, user
 	return *createUserResult.User.Arn, nil
 }
 
-func (identityProvider *iamIdentityProvider) getUser(iamSvc *iam.IAM, username string) (*iam.User, error) {
+func (identityProvider *iamIdentityProvider) getUser(ctx context.Context,
+	iamSvc *iam.IAM, username string) (*iam.User, error) {
 	getUserInput := &iam.GetUserInput{
 		UserName: aws.String(username),
 	}
 
-	getUserOutput, err := iamSvc.GetUser(getUserInput)
+	getUserOutput, err := iamSvc.GetUserWithContext(ctx, getUserInput)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -193,12 +310,13 @@ func (identityProvider *iamIdentityProvider) getUser(iamSvc *iam.IAM, username s
 	return getUserOutput.User, nil
 }
 
-func (identityProvider *iamIdentityProvider) ensureIamAccessKey(iamSvc *iam.IAM, username string) (*iam.AccessKey, error) {
+func (identityProvider *iamIdentityProvider) ensureIamAccessKey(ctx context.Context,
+	iamSvc *iam.IAM, username string) (*iam.AccessKey, error) {
 	createAccessKey := &iam.CreateAccessKeyInput{
 		UserName: aws.String(username),
 	}
 
-	createAccessKeyResult, err := iamSvc.CreateAccessKey(createAccessKey)
+	createAccessKeyResult, err := iamSvc.CreateAccessKeyWithContext(ctx, createAccessKey)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -207,14 +325,15 @@ func (identityProvider *iamIdentityProvider) ensureIamAccessKey(iamSvc *iam.IAM,
 	return createAccessKeyResult.AccessKey, nil
 }
 
-func (identityProvider *iamIdentityProvider) getEksClusterInfo(sess *session.Session) (*eks.Cluster, error) {
+func (identityProvider *iamIdentityProvider) getEksClusterInfo(ctx context.Context,
+	sess *session.Session) (*eks.Cluster, error) {
 	eksSvc := eks.New(sess)
 
 	describeCluster := &eks.DescribeClusterInput{
-		Name: aws.String(identityProvider.awsConfig.AwsClusterName),
+		Name: aws.String(identityProvider.localAwsConfig.AwsClusterName),
 	}
 
-	describeClusterResult, err := eksSvc.DescribeCluster(describeCluster)
+	describeClusterResult, err := eksSvc.DescribeClusterWithContext(ctx, describeCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -223,9 +342,12 @@ func (identityProvider *iamIdentityProvider) getEksClusterInfo(sess *session.Ses
 	return describeClusterResult.Cluster, nil
 }
 
-func (identityProvider *iamIdentityProvider) ensureConfigMap(userArn string, cluster discoveryv1alpha1.ClusterIdentity) error {
-	ctx := context.TODO()
-	authCm, err := identityProvider.client.CoreV1().ConfigMaps(namespaceKubeSystem).Get(ctx, awsAuthConfigMapName, metav1.GetOptions{})
+func (identityProvider *iamIdentityProvider) ensureConfigMap(ctx context.Context, userArn, username, organization string) error {
+	authCm := corev1.ConfigMap{}
+	err := identityProvider.cl.Get(ctx, types.NamespacedName{
+		Namespace: namespaceKubeSystem,
+		Name:      awsAuthConfigMapName,
+	}, &authCm)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -239,15 +361,15 @@ func (identityProvider *iamIdentityProvider) ensureConfigMap(userArn string, clu
 	}
 
 	if containsUser(users, userArn) {
-		klog.V(4).Infof("the map %v already contains user %v (cluster: %v)", awsAuthConfigMapName, userArn, cluster.ClusterName)
+		klog.V(4).Infof("the map %v already contains userARN %s (user: %s, organization: %s)", awsAuthConfigMapName, userArn, username, organization)
 		return nil
 	}
 
 	users = append(users, mapUser{
 		UserArn:  userArn,
-		Username: cluster.ClusterID,
+		Username: username,
 		Groups: []string{
-			defaultOrganization,
+			organization,
 		},
 	})
 
@@ -258,7 +380,7 @@ func (identityProvider *iamIdentityProvider) ensureConfigMap(userArn string, clu
 	}
 
 	authCm.Data[awsAuthConfigMapUsersKey] = string(bytes)
-	_, err = identityProvider.client.CoreV1().ConfigMaps(namespaceKubeSystem).Update(ctx, authCm, metav1.UpdateOptions{})
+	err = identityProvider.cl.Update(ctx, &authCm)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -274,4 +396,39 @@ func containsUser(currentUsers []mapUser, userArn string) bool {
 		}
 	}
 	return false
+}
+
+// storeRemoteCertificate stores the issued certificate in a Secret in the TenantNamespace.
+func (identityProvider *iamIdentityProvider) storeRemoteCertificate(ctx context.Context,
+	accessKeyID, secretAccessKey, userArn string,
+	options *SigningRequestOptions) (*corev1.Secret, error) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      remoteCertificateSecretName(options),
+			Namespace: options.TenantNamespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, identityProvider.cl, secret, func() error {
+		if secret.Labels == nil {
+			secret.Labels = map[string]string{}
+		}
+		// TODO: move it to the other clusterID label?
+		secret.Labels[discovery.ClusterIDLabel] = options.Cluster.ClusterID
+
+		if secret.Data == nil {
+			secret.Data = map[string][]byte{}
+		}
+		secret.Data[csrSecretKey] = options.SigningRequest
+		secret.Data[AwsAccessKeyIDSecretKey] = []byte(accessKeyID)
+		secret.Data[AwsSecretAccessKeySecretKey] = []byte(secretAccessKey)
+		secret.Data[AwsIAMUserArnSecretKey] = []byte(userArn)
+
+		return nil
+	})
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	return secret, nil
 }

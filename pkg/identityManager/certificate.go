@@ -18,15 +18,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"sort"
 	"strconv"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -61,11 +57,11 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 	}
 
 	if identityResponse.HasAWSValues() || certManager.isAwsIdentity(secret) {
-		secret.StringData[awsAccessKeyIDSecretKey] = identityResponse.AWSIdentityInfo.AccessKeyID
-		secret.StringData[awsSecretAccessKeySecretKey] = identityResponse.AWSIdentityInfo.SecretAccessKey
-		secret.StringData[awsRegionSecretKey] = identityResponse.AWSIdentityInfo.Region
-		secret.StringData[awsEKSClusterIDSecretKey] = identityResponse.AWSIdentityInfo.EKSClusterID
-		secret.StringData[awsIAMUserArnSecretKey] = identityResponse.AWSIdentityInfo.IAMUserArn
+		secret.StringData[AwsAccessKeyIDSecretKey] = identityResponse.AWSIdentityInfo.AccessKeyID
+		secret.StringData[AwsSecretAccessKeySecretKey] = identityResponse.AWSIdentityInfo.SecretAccessKey
+		secret.StringData[AwsRegionSecretKey] = identityResponse.AWSIdentityInfo.Region
+		secret.StringData[AwsEKSClusterIDSecretKey] = identityResponse.AWSIdentityInfo.EKSClusterID
+		secret.StringData[AwsIAMUserArnSecretKey] = identityResponse.AWSIdentityInfo.IAMUserArn
 	} else {
 		certificate, err := base64.StdEncoding.DecodeString(identityResponse.Certificate)
 		if err != nil {
@@ -95,52 +91,6 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 	return nil
 }
 
-// getSecret retrieves the identity secret given the clusterID.
-func (certManager *identityManager) getSecret(remoteCluster discoveryv1alpha1.ClusterIdentity) (*v1.Secret, error) {
-	namespace, err := certManager.namespaceManager.GetNamespace(context.TODO(), remoteCluster)
-	if err != nil {
-		return nil, err
-	}
-
-	return certManager.getSecretInNamespace(remoteCluster, namespace.Name)
-}
-
-// getSecretInNamespace retrieves the identity secret in the given Namespace.
-func (certManager *identityManager) getSecretInNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity,
-	namespace string) (*v1.Secret, error) {
-	labelSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			localIdentitySecretLabel: "true",
-			discovery.ClusterIDLabel: remoteCluster.ClusterID,
-		},
-	}
-	secretList, err := certManager.k8sClient.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	secrets := secretList.Items
-	if nItems := len(secrets); nItems == 0 {
-		err = kerrors.NewNotFound(schema.GroupResource{
-			Group:    "v1",
-			Resource: "secrets",
-		}, fmt.Sprintf("Identity for cluster %v in namespace %v", remoteCluster.ClusterID, namespace))
-		return nil, err
-	}
-
-	// sort by reverse certificate expire time
-	sort.Slice(secrets, func(i, j int) bool {
-		time1 := getExpireTime(&secretList.Items[i])
-		time2 := getExpireTime(&secretList.Items[j])
-		return time1 > time2
-	})
-
-	// if there are multiple secrets, get the one with the certificate that will expire last
-	return &secrets[0], nil
-}
-
 // getExpireTime reads the expire time from the annotations of the secret.
 func getExpireTime(secret *v1.Secret) int64 {
 	now := time.Now().Unix()
@@ -165,7 +115,7 @@ func getExpireTime(secret *v1.Secret) int64 {
 
 func (certManager *identityManager) isAwsIdentity(secret *v1.Secret) bool {
 	data := secret.Data
-	keys := []string{awsAccessKeyIDSecretKey, awsSecretAccessKeySecretKey, awsRegionSecretKey, awsEKSClusterIDSecretKey, awsIAMUserArnSecretKey}
+	keys := []string{AwsAccessKeyIDSecretKey, AwsSecretAccessKeySecretKey, AwsRegionSecretKey, AwsEKSClusterIDSecretKey, AwsIAMUserArnSecretKey}
 	for i := range keys {
 		if _, ok := data[keys[i]]; !ok {
 			return false

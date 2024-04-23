@@ -58,7 +58,7 @@ func GetConfig() Config { return config }
 
 // Complete completes the retrieval of the configuration, defaulting the fields if not set.
 func (c *Config) Complete(restcfg *rest.Config, cl client.Client) (err error) {
-	if c.Address, err = GetURL(context.TODO(), c.Address, cl); err != nil {
+	if c.Address, err = GetURL(context.TODO(), cl, c.Address); err != nil {
 		return err
 	}
 
