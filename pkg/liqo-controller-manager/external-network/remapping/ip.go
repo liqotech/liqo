@@ -126,14 +126,14 @@ func mutateFirewallConfigurationMasquerade(fwcfg *networkingv1alpha1.FirewallCon
 
 func enforceFirewallConfigurationSpec(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
 	table := &fwcfg.Spec.Table
-	table.Name = &TableIPMappingGwName
+	table.Name = ptr.To(fmt.Sprintf("%s-%s", TableIPMappingGwName, fwcfg.Namespace))
 	table.Family = ptr.To(firewall.TableFamilyIPv4)
 	enforceFirewallConfigurationChains(fwcfg, ip)
 }
 
 func enforceFirewallConfigurationMasqSpec(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
 	table := &fwcfg.Spec.Table
-	table.Name = &TableIPMappingFabricName
+	table.Name = ptr.To(fmt.Sprintf("%s-%s", TableIPMappingFabricName, fwcfg.Namespace))
 	table.Family = ptr.To(firewall.TableFamilyIPv4)
 	enforceFirewallConfigurationMasqChains(fwcfg, ip)
 }
