@@ -32,6 +32,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway"
 )
 
 // cluster-role
@@ -70,6 +71,12 @@ func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the publicKey %q: %w", req.NamespacedName, err)
+	}
+
+	if r.Options.GwOptions.Mode == gateway.ModeClient && r.Options.EndpointIP == nil {
+		// We don't need to retry because the DNS resolution routine will wakeup this controller.
+		klog.Warning("EndpointIP is not set yet. Maybe the DNS resolution is still in progress")
+		return ctrl.Result{}, nil
 	}
 
 	if err := configureDevice(r.Wgcl, r.Options, wgtypes.Key(publicKey.Spec.PublicKey)); err != nil {
