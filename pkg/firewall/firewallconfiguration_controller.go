@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -152,7 +153,7 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 
 	klog.Infof("Applied firewallconfiguration %s", req.String())
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
 // SetupWithManager register the FirewallConfigurationReconciler to the manager.

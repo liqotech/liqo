@@ -42,6 +42,8 @@ spec:
           {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
         spec:
           replicas: {{ .Values.networking.gatewayTemplates.replicas }}
+          strategy:
+            type: Recreate
           selector:
             matchLabels:
               {{- include "liqo.labelsTemplate" $templateConfig | nindent 14 }}
