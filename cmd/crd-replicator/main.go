@@ -88,8 +88,9 @@ func main() {
 		ReflectionManager:   reflectionManager,
 		Reflectors:          make(map[string]*reflection.Reflector),
 
-		IdentityReader: identitymanager.NewCertificateIdentityReader(
-			mgr.GetClient(), k8sClient, clusterIdentity, namespaceManager),
+		IdentityReader: identitymanager.NewCertificateIdentityReader(ctx,
+			mgr.GetClient(), k8sClient, mgr.GetConfig(),
+			clusterIdentity, namespaceManager),
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to setup the crdreplicator-operator")
