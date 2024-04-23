@@ -40,12 +40,16 @@ func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.Cl
 		return nil, err
 	}
 
-	// TODO: refactor to work with the new identity.
-	if certManager.isAwsIdentity(secret) {
-		return certManager.getIAMConfig(secret, remoteCluster)
+	cnf, err := buildConfigFromSecret(secret)
+	if err != nil {
+		return nil, err
 	}
 
-	return buildConfigFromSecret(secret)
+	if certManager.isAwsIdentity(secret) {
+		return certManager.mutateIAMConfig(secret, remoteCluster, cnf)
+	}
+
+	return cnf, nil
 }
 
 func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity,
@@ -62,12 +66,18 @@ func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discov
 }
 
 // GetConfigFromSecret gets a rest config from a secret.
-func (certManager *identityManager) GetConfigFromSecret(secret *corev1.Secret) (*rest.Config, error) {
-	if certManager.isAwsIdentity(secret) {
-		return certManager.getIAMConfig(secret, discoveryv1alpha1.ClusterIdentity{})
+func (certManager *identityManager) GetConfigFromSecret(remoteCluster discoveryv1alpha1.ClusterIdentity,
+	secret *corev1.Secret) (*rest.Config, error) {
+	cnf, err := buildConfigFromSecret(secret)
+	if err != nil {
+		return nil, err
 	}
 
-	return buildConfigFromSecret(secret)
+	if certManager.isAwsIdentity(secret) {
+		return certManager.mutateIAMConfig(secret, remoteCluster, cnf)
+	}
+
+	return cnf, nil
 }
 
 // GetRemoteTenantNamespace returns the tenant namespace that
@@ -90,9 +100,9 @@ func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster disco
 	return remoteTenantNamespace, nil
 }
 
-func (certManager *identityManager) getIAMConfig(
-	secret *corev1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*rest.Config, error) {
-	return certManager.iamTokenManager.getConfig(secret, remoteCluster)
+func (certManager *identityManager) mutateIAMConfig(
+	secret *corev1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity, cnf *rest.Config) (*rest.Config, error) {
+	return certManager.iamTokenManager.mutateConfig(secret, remoteCluster, cnf)
 }
 
 func buildConfigFromSecret(secret *corev1.Secret) (*rest.Config, error) {

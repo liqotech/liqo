@@ -26,8 +26,6 @@ import (
 func EnsureCertificate(ctx context.Context, idp IdentityProvider, options *SigningRequestOptions) (*responsetypes.SigningRequestResponse, error) {
 	resp, err := idp.GetRemoteCertificate(ctx, options)
 	switch {
-	case apierrors.IsNotFound(err) && resp.ResponseType == responsetypes.SigningRequestResponseIAM:
-		// iam always returns not found, so we can ignore it
 	case apierrors.IsNotFound(err):
 		resp, err = idp.ApproveSigningRequest(ctx, options)
 		if err != nil {

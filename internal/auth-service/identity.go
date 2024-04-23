@@ -113,10 +113,10 @@ func (authService *Controller) handleIdentity(
 	}
 
 	opts := &identitymanager.SigningRequestOptions{
-		Cluster:        &remoteClusterIdentity,
-		Namespace:      namespace.Name,
-		IdentityType:   authv1alpha1.ControlPlaneIdentityType,
-		SigningRequest: signingRequest,
+		Cluster:         &remoteClusterIdentity,
+		TenantNamespace: namespace.Name,
+		IdentityType:    authv1alpha1.ControlPlaneIdentityType,
+		SigningRequest:  signingRequest,
 	}
 
 	// check that there is no available certificate for that clusterID
