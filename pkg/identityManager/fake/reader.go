@@ -75,7 +75,7 @@ func (i *IdentityReader) GetSecretNamespacedName(remoteCluster discoveryv1alpha1
 }
 
 // GetConfigFromSecret retrieves the rest config associated with a remote cluster.
-func (i *IdentityReader) GetConfigFromSecret(_ *corev1.Secret) (*rest.Config, error) {
+func (i *IdentityReader) GetConfigFromSecret(_ discoveryv1alpha1.ClusterIdentity, _ *corev1.Secret) (*rest.Config, error) {
 	panic("implement me")
 }
 

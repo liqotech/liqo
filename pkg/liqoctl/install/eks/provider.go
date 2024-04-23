@@ -131,11 +131,13 @@ func (o *Options) Values() map[string]interface{} {
 			},
 		},
 
-		"awsConfig": map[string]interface{}{
-			"accessKeyId":     o.iamUser.accessKeyID,
-			"secretAccessKey": o.iamUser.secretAccessKey,
-			"region":          o.region,
-			"clusterName":     o.eksClusterName,
+		"authentication": map[string]interface{}{
+			"awsConfig": map[string]interface{}{
+				"accessKeyId":     o.iamUser.accessKeyID,
+				"secretAccessKey": o.iamUser.secretAccessKey,
+				"region":          o.region,
+				"clusterName":     o.eksClusterName,
+			},
 		},
 	}
 }
