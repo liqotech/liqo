@@ -35,7 +35,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -96,10 +95,10 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	tenant := &authv1alpha1.Tenant{}
 	if err = r.Get(ctx, req.NamespacedName, tenant); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("Tenant %q not found", req.NamespacedName)
+			klog.Infof("Tenant %q not found", req.Name)
 			return ctrl.Result{}, nil
 		}
-		klog.Errorf("Unable to get the Tenant %q: %s", req.NamespacedName, err)
+		klog.Errorf("Unable to get the Tenant %q: %s", req.Name, err)
 		return ctrl.Result{}, err
 	}
 
@@ -109,14 +108,14 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	nonceSecret, err := getters.GetNonceByClusterID(ctx, r.Client, clusterID)
 	if err != nil {
-		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.NamespacedName, err)
+		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
 		return ctrl.Result{}, err
 	}
 
 	nonce, err := noncecreatorcontroller.GetNonceFromSecret(nonceSecret)
 	if err != nil {
-		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.NamespacedName, err)
+		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
 		return ctrl.Result{}, err
 	}
@@ -124,7 +123,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	// check the signature
 
 	if !authentication.VerifyNonce(ed25519.PublicKey(tenant.Spec.PublicKey), nonce, tenant.Spec.Signature) {
-		err = fmt.Errorf("signature verification failed for Tenant %q", req.NamespacedName)
+		err = fmt.Errorf("signature verification failed for Tenant %q", req.Name)
 		klog.Error(err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "SignatureVerificationFailed", err.Error())
 		return ctrl.Result{}, nil
@@ -134,7 +133,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	if err = authentication.CheckCSRForControlPlane(
 		tenant.Spec.CSR, tenant.Spec.PublicKey, &tenant.Spec.ClusterIdentity); err != nil {
-		klog.Errorf("Invalid CSR for the Tenant %q: %s", req.NamespacedName, err)
+		klog.Errorf("Invalid CSR for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "InvalidCSR", err.Error())
 		return ctrl.Result{}, nil
 	}
@@ -143,7 +142,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	tenantNamespace, err := r.NamespaceManager.CreateNamespace(ctx, tenant.Spec.ClusterIdentity)
 	if err != nil {
-		klog.Errorf("Unable to create the TenantNamespace for the Tenant %q: %s", req.NamespacedName, err)
+		klog.Errorf("Unable to create the TenantNamespace for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "TenantNamespaceCreationFailed", err.Error())
 		return ctrl.Result{}, err
 	}
@@ -153,7 +152,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	defer func() {
 		errDef := r.Client.Status().Update(ctx, tenant)
 		if errDef != nil {
-			klog.Errorf("Unable to update the Tenant %q: %s", req.NamespacedName, errDef)
+			klog.Errorf("Unable to update the Tenant %q: %s", req.Name, errDef)
 			r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "UpdateFailed", errDef.Error())
 			err = errDef
 		}
@@ -165,34 +164,20 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	// create the CSR and forge the AuthParams
 
-	resp, err := identitymanager.EnsureCertificate(ctx, r.IdentityProvider, &identitymanager.SigningRequestOptions{
-		Cluster:        &tenant.Spec.ClusterIdentity,
-		Namespace:      tenant.Status.TenantNamespace,
-		IdentityType:   authv1alpha1.ControlPlaneIdentityType,
-		Name:           tenant.Name,
-		SigningRequest: tenant.Spec.CSR,
+	authParams, err := r.IdentityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
+		Cluster:         &tenant.Spec.ClusterIdentity,
+		TenantNamespace: tenant.Status.TenantNamespace,
+		IdentityType:    authv1alpha1.ControlPlaneIdentityType,
+		Name:            tenant.Name,
+		SigningRequest:  tenant.Spec.CSR,
 	})
 	if err != nil {
-		klog.Errorf("Unable to ensure the remote certificate for the Tenant %q: %s", req.NamespacedName, err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "RemoteCertificateFailed", err.Error())
+		klog.Errorf("Unable to forge the AuthParams for the Tenant %q: %s", req.Name, err)
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "AuthParamsFailed", err.Error())
 		return ctrl.Result{}, err
 	}
 
-	apiServer, err := apiserver.GetURL(ctx, r.APIServerAddressOverride, r.Client)
-	if err != nil {
-		klog.Errorf("Unable to get the API server URL: %s", err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "APIServerURLFailed", err.Error())
-		return ctrl.Result{}, err
-	}
-
-	ca, err := apiserver.RetrieveAPIServerCA(r.Config, r.CAOverride, r.TrustedCA)
-	if err != nil {
-		klog.Errorf("Unable to get the API server CA: %s", err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "APIServerCAFailed", err.Error())
-		return ctrl.Result{}, err
-	}
-
-	tenant.Status.AuthParams = r.IdentityProvider.ForgeAuthParams(resp, apiServer, ca)
+	tenant.Status.AuthParams = authParams
 
 	// own the tenant namespace
 
@@ -213,7 +198,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterIdentity, r.tenantClusterRoles...)
 	if err != nil {
-		klog.Errorf("Unable to bind the ClusterRoles for the Tenant %q: %s", req.NamespacedName, err)
+		klog.Errorf("Unable to bind the ClusterRoles for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesBindingFailed", err.Error())
 		return ctrl.Result{}, err
 	}

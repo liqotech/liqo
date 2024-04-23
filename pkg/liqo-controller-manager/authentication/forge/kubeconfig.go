@@ -23,6 +23,7 @@ import (
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 )
 
 // GenerateKubeconfigSecretName generates the name of the kubeconfig secret associated to an identity.
@@ -68,8 +69,20 @@ func MutateKubeconfigSecret(secret *corev1.Secret, identity *authv1alpha1.Identi
 		return err
 	}
 
-	secret.Data = map[string][]byte{
-		consts.KubeconfigSecretField: kubeconfig,
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
+	secret.Data[consts.KubeconfigSecretField] = kubeconfig
+
+	if identity.Spec.AuthParams.AwsConfig != nil {
+		if secret.StringData == nil {
+			secret.StringData = make(map[string]string)
+		}
+		secret.StringData[identitymanager.AwsAccessKeyIDSecretKey] = identity.Spec.AuthParams.AwsConfig.AwsAccessKeyID
+		secret.StringData[identitymanager.AwsSecretAccessKeySecretKey] = identity.Spec.AuthParams.AwsConfig.AwsSecretAccessKey
+		secret.StringData[identitymanager.AwsRegionSecretKey] = identity.Spec.AuthParams.AwsConfig.AwsRegion
+		secret.StringData[identitymanager.AwsEKSClusterIDSecretKey] = identity.Spec.AuthParams.AwsConfig.AwsClusterName
+		secret.StringData[identitymanager.AwsIAMUserArnSecretKey] = identity.Spec.AuthParams.AwsConfig.AwsUserArn
 	}
 
 	return nil
