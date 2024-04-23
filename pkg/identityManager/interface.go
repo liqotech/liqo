@@ -30,7 +30,7 @@ import (
 // IdentityReader provides the interface to retrieve the identities for the remote clusters.
 type IdentityReader interface {
 	GetConfig(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (*rest.Config, error)
-	GetConfigFromSecret(secret *corev1.Secret) (*rest.Config, error)
+	GetConfigFromSecret(remoteCluster discoveryv1alpha1.ClusterIdentity, secret *corev1.Secret) (*rest.Config, error)
 	GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (string, error)
 	GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (types.NamespacedName, error)
 }
@@ -45,18 +45,26 @@ type IdentityManager interface {
 
 // SigningRequestOptions contains the options to handle a signing request.
 type SigningRequestOptions struct {
-	Cluster        *discoveryv1alpha1.ClusterIdentity
-	Namespace      string
-	IdentityType   authv1alpha1.IdentityType
-	Name           string
-	SigningRequest []byte
+	Cluster         *discoveryv1alpha1.ClusterIdentity
+	TenantNamespace string
+	IdentityType    authv1alpha1.IdentityType
+	Name            string
+	SigningRequest  []byte
+
+	// optional
+	APIServerAddressOverride string
+	CAOverride               []byte
+	TrustedCA                bool
+	ResourceSlice            *authv1alpha1.ResourceSlice
 }
 
 // IdentityProvider provides the interface to retrieve and approve remote cluster identities.
 type IdentityProvider interface {
+	// deprecated
 	GetRemoteCertificate(ctx context.Context, options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error)
+	// deprecated
 	ApproveSigningRequest(ctx context.Context, options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error)
-	ForgeAuthParams(resp *responsetypes.SigningRequestResponse, apiServer string, ca []byte) *authv1alpha1.AuthParams
+	ForgeAuthParams(ctx context.Context, options *SigningRequestOptions) (*authv1alpha1.AuthParams, error)
 }
 
 var _ IdentityProvider = &certificateIdentityProvider{}

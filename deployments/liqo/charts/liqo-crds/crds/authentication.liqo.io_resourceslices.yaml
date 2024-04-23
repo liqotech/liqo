@@ -115,11 +115,14 @@ spec:
                         type: string
                       awsSecretAccessKey:
                         type: string
+                      awsUserArn:
+                        type: string
                     required:
                     - awsAccessKeyID
                     - awsClusterName
                     - awsRegion
                     - awsSecretAccessKey
+                    - awsUserArn
                     type: object
                   ca:
                     format: byte

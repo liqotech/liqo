@@ -90,11 +90,17 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	restcfg.SetRateLimiter(localConfig)
 	localClient := kubernetes.NewForConfigOrDie(localConfig)
+	cl, err := client.New(localConfig, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return err
+	}
 
 	// Retrieve the remote restcfg
 	tenantNamespaceManager := tenantnamespace.NewManager(localClient) // Do not use the cached version, as leveraged only once.
-	// TODO: passing nil as client, refactor to not use the identityManager.
-	identityManager := identitymanager.NewCertificateIdentityReader(nil, localClient, c.HomeCluster, tenantNamespaceManager)
+	identityManager := identitymanager.NewCertificateIdentityReader(ctx, cl, localClient, localConfig,
+		c.HomeCluster, tenantNamespaceManager)
 
 	if c.RemoteKubeconfigSecretName == "" {
 		return fmt.Errorf("remote kubeconfig secret name is mandatory")
@@ -106,7 +112,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		}
 		return err
 	}
-	remoteConfig, err := identityManager.GetConfigFromSecret(secret)
+	remoteConfig, err := identityManager.GetConfigFromSecret(c.ForeignCluster, secret)
 	if err != nil {
 		return err
 	}
@@ -117,13 +123,6 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	}
 
 	restcfg.SetRateLimiter(remoteConfig)
-
-	cl, err := client.New(localConfig, client.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		return err
-	}
 
 	// Get virtual node
 	vnName := os.Getenv("VIRTUALNODE_NAME")
