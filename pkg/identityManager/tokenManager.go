@@ -16,8 +16,7 @@ package identitymanager
 
 import (
 	"context"
-	"net/http"
-	"net/url"
+	"encoding/base64"
 	"os"
 	"sync"
 	"time"
@@ -40,14 +39,17 @@ import (
 
 type tokenManager interface {
 	start(ctx context.Context)
-	getConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*rest.Config, error)
+	mutateConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity, cnf *rest.Config) (*rest.Config, error)
 }
+
+var _ tokenManager = &iamTokenManager{}
 
 type iamTokenManager struct {
 	client                    kubernetes.Interface
 	availableClusterIDSecrets map[string]types.NamespacedName
 	availableTokenMutex       sync.Mutex
 
+	// TODO: the key cannot be the clusterID
 	tokenFiles map[string]string
 }
 
@@ -95,20 +97,9 @@ func (tokMan *iamTokenManager) refreshToken(ctx context.Context, remoteCluster d
 	return nil
 }
 
-func (tokMan *iamTokenManager) getConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*rest.Config, error) {
+func (tokMan *iamTokenManager) mutateConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity,
+	cnf *rest.Config) (*rest.Config, error) {
 	tok, err := getIAMBearerToken(secret, remoteCluster)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-
-	clusterEndpoint, err := getValue(secret, APIServerURLSecretKey, remoteCluster)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-
-	ca, err := getValue(secret, apiServerCaSecretKey, remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -125,29 +116,17 @@ func (tokMan *iamTokenManager) getConfig(secret *v1.Secret, remoteCluster discov
 		Name:      secret.Name,
 	})
 
-	var proxyURL *url.URL
-	var proxyFunc func(*http.Request) (*url.URL, error)
-	proxyConfig, ok := secret.Data[apiProxyURLSecretKey]
-	if ok {
-		proxyURL, err = url.Parse(string(proxyConfig))
-		if err != nil {
-			klog.Errorf("an error occurred while parsing proxy url %s from secret %v/%v: %s", proxyConfig, secret.Namespace, secret.Name, err)
-			return nil, err
-		}
-		proxyFunc = func(request *http.Request) (*url.URL, error) {
-			return proxyURL, nil
-		}
-	}
+	cnf.BearerTokenFile = filename
+	cnf.BearerToken = ""
 
-	// create the rest config
-	return &rest.Config{
-		Host:            string(clusterEndpoint),
-		BearerTokenFile: filename,
-		TLSClientConfig: rest.TLSClientConfig{
-			CAData: ca,
-		},
-		Proxy: proxyFunc,
-	}, nil
+	cert, err := base64.StdEncoding.DecodeString(string(cnf.CAData))
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	cnf.TLSClientConfig.CAData = cert
+
+	return cnf, nil
 }
 
 func (tokMan *iamTokenManager) addClusterID(remoteCluster discoveryv1alpha1.ClusterIdentity, secret types.NamespacedName) {
@@ -189,19 +168,19 @@ func (tokMan *iamTokenManager) storeToken(remoteCluster discoveryv1alpha1.Cluste
 }
 
 func getIAMBearerToken(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*token.Token, error) {
-	region, err := getValue(secret, awsRegionSecretKey, remoteCluster)
+	region, err := getValue(secret, AwsRegionSecretKey, remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
-	accessKeyID, err := getValue(secret, awsAccessKeyIDSecretKey, remoteCluster)
+	accessKeyID, err := getValue(secret, AwsAccessKeyIDSecretKey, remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
-	secretAccessKey, err := getValue(secret, awsSecretAccessKeySecretKey, remoteCluster)
+	secretAccessKey, err := getValue(secret, AwsSecretAccessKeySecretKey, remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -220,7 +199,7 @@ func getIAMBearerToken(secret *v1.Secret, remoteCluster discoveryv1alpha1.Cluste
 		return nil, err
 	}
 
-	eksClusterID, err := getValue(secret, awsEKSClusterIDSecretKey, remoteCluster)
+	eksClusterID, err := getValue(secret, AwsEKSClusterIDSecretKey, remoteCluster)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

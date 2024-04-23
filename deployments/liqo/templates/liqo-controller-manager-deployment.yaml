@@ -3,6 +3,7 @@
 {{- $kubeletConfig :=  (merge (dict "name" "virtual-kubelet" "module" "virtualkubelet" "version" .Values.virtualKubelet.image.version) .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 {{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
+{{- $awsConfig := (merge (dict "name" "aws-config" "module" "aws-config") .) -}}
 
 {{- $vkargs := .Values.virtualKubelet.extra.args }}
 {{- /* Enable the API support if not overridden by the user */ -}}
@@ -93,6 +94,18 @@ spec:
           - --configmap-reflection-type={{ .Values.offloading.reflection.configmap.type }}
           - --secret-reflection-type={{ .Values.offloading.reflection.secret.type }}
           - --event-reflection-type={{ .Values.offloading.reflection.event.type }}
+          {{- if .Values.authentication.awsConfig.accessKeyId }}
+          - --aws-access-key-id=$(ACCESS_KEY_ID)
+          {{- end }}
+          {{- if .Values.authentication.awsConfig.secretAccessKey }}
+          - --aws-secret-access-key=$(SECRET_ACCESS_KEY)
+          {{- end }}
+          {{- if .Values.authentication.awsConfig.region }}
+          - --aws-region={{ .Values.authentication.awsConfig.region }}
+          {{- end }}
+          {{- if .Values.authentication.awsConfig.clusterName }}
+          - --aws-cluster-name={{ .Values.authentication.awsConfig.clusterName }}
+          {{- end }}
           {{- if .Values.apiServer.address }}
           - --api-server-address-override={{ .Values.apiServer.address }}
           {{- end }}
@@ -223,6 +236,32 @@ spec:
             valueFrom:
              fieldRef:
                fieldPath: metadata.namespace
+          {{- if .Values.authentication.awsConfig.accessKeyId }}
+          - name: ACCESS_KEY_ID
+            valueFrom:
+              {{- if .Values.authentication.awsConfig.useExistingSecret }}
+              secretKeyRef:
+                name: {{ .Values.authentication.awsConfig.accessKeyId.secretKeyRef.name }}
+                key: {{ .Values.authentication.awsConfig.accessKeyId.secretKeyRef.key }}
+              {{- else }}
+              secretKeyRef:
+                name: {{ include "liqo.prefixedName" $awsConfig }}
+                key: ACCESS_KEY_ID
+              {{- end }}
+          {{- end }}
+          {{- if .Values.authentication.awsConfig.secretAccessKey }}
+          - name: SECRET_ACCESS_KEY
+            valueFrom:
+              {{- if .Values.authentication.awsConfig.useExistingSecret }}
+              secretKeyRef:
+                name: {{ .Values.authentication.awsConfig.secretAccessKey.secretKeyRef.name }}
+                key: {{ .Values.authentication.awsConfig.secretAccessKey.secretKeyRef.key }}
+              {{- else }}
+              secretKeyRef:
+                name: {{ include "liqo.prefixedName" $awsConfig }}
+                key: SECRET_ACCESS_KEY
+              {{- end }}
+          {{- end }}
         resources: {{- toYaml .Values.controllerManager.pod.resources | nindent 10 }}
         volumeMounts:
           - name: webhook-certs
