@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -165,7 +166,7 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	klog.Infof("Applied routeconfiguration %s", req.String())
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
 // SetupWithManager register the RouteConfigurationReconciler to the manager.

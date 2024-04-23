@@ -15,6 +15,7 @@
 package wireguard
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/vishvananda/netlink"
@@ -29,6 +30,15 @@ import (
 
 // InitWireguardLink inits the Wireguard interface.
 func InitWireguardLink(options *Options) error {
+	exists, err := existsLink()
+	if err != nil {
+		return fmt.Errorf("cannot check if Wireguard interface exists: %w", err)
+	}
+	if exists {
+		klog.Infof("Wireguard interface %q already exists", tunnel.TunnelInterfaceName)
+		return nil
+	}
+
 	if err := createLink(options); err != nil {
 		return fmt.Errorf("cannot create Wireguard interface: %w", err)
 	}
@@ -74,4 +84,15 @@ func createLink(options *Options) error {
 		}
 	}
 	return nil
+}
+
+func existsLink() (bool, error) {
+	_, err := common.GetLink(tunnel.TunnelInterfaceName)
+	if err != nil {
+		if errors.As(err, &netlink.LinkNotFoundError{}) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
