@@ -115,7 +115,16 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	}
 
 	// Prometheus operator group
-	return addGroup(dClient, monitoringv1.SchemeGroupVersion, mapper, GroupOptional)
+	if err = addGroup(dClient, monitoringv1.SchemeGroupVersion, mapper, GroupOptional); err != nil {
+		return err
+	}
+
+	mapper.Add(schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1",
+		Kind:    "List",
+	}, meta.RESTScopeRoot)
+	return nil
 }
 
 const (
@@ -149,6 +158,11 @@ func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersi
 			Group:   groupVersion.Group,
 			Version: groupVersion.Version,
 			Kind:    apiRes.Kind,
+		}, scope)
+		mapper.Add(schema.GroupVersionKind{
+			Group:   groupVersion.Group,
+			Version: groupVersion.Version,
+			Kind:    apiRes.Kind + "List",
 		}, scope)
 	}
 	return nil
