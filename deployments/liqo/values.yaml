@@ -56,6 +56,7 @@ reflection:
       metallb.universe.tf/address-pool,
       metallb.universe.tf/ip-allocated-from-pool,
       metallb.universe.tf/loadBalancerIPs,
+      loadbalancer.openstack.org/load-balancer-id,
     ]
   pod:
     # -- The number of workers used for the pods reflector. Set 0 to disable the reflection of pods.
