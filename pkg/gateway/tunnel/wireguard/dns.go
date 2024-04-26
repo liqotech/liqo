@@ -124,7 +124,6 @@ func NewDNSEventHandler(cl client.Client, opts *Options) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			labelSet := labels.Set{
-				string(LabelsMode):             string(opts.GwOptions.Mode),
 				string(consts.RemoteClusterID): opts.GwOptions.RemoteClusterID,
 			}
 			list, err := getters.ListPublicKeysByLabel(ctx, cl, opts.GwOptions.Namespace, labels.SelectorFromSet(labelSet))
@@ -132,16 +131,11 @@ func NewDNSEventHandler(cl client.Client, opts *Options) handler.EventHandler {
 				klog.Error(err)
 				return nil
 			}
-			if len(list.Items) == 0 {
-				klog.Errorf("There are no public keys with label %s", labelSet)
-				return nil
+			var requests []reconcile.Request
+			for i := range list.Items {
+				item := &list.Items[i]
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: item.Name, Namespace: item.Namespace}})
 			}
-			if len(list.Items) != 1 {
-				klog.Errorf("There are %d public keys with label %s", len(list.Items), labelSet)
-				return nil
-			}
-			return []reconcile.Request{
-				{NamespacedName: types.NamespacedName{Name: list.Items[0].Name, Namespace: list.Items[0].Namespace}},
-			}
+			return requests
 		})
 }
