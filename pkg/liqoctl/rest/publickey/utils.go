@@ -39,7 +39,8 @@ func ForgePublicKey(name, namespace, remoteClusterID string, key []byte) (*netwo
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				consts.RemoteClusterID: remoteClusterID,
+				consts.RemoteClusterID:      remoteClusterID,
+				consts.GatewayResourceLabel: consts.GatewayResourceLabelValue,
 			},
 		},
 	}
