@@ -24,7 +24,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/peer"
-	"github.com/liqotech/liqo/pkg/liqoctl/peerib"
 	"github.com/liqotech/liqo/pkg/liqoctl/peeroob"
 )
 
@@ -127,7 +126,6 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for peering completion")
 	cmd.PersistentFlags().BoolVar(&options.Incoming, "incoming", false, "Allows incoming peering")
 	cmd.AddCommand(newPeerOutOfBandCommand(ctx, options))
-	cmd.AddCommand(newPeerInBandCommand(ctx, options))
 	return cmd
 }
 
@@ -160,42 +158,6 @@ func newPeerOutOfBandCommand(ctx context.Context, peerOptions *peer.Options) *co
 	f.Printer.CheckErr(cmd.MarkFlagRequired(peeroob.ClusterIDFlagName))
 	f.Printer.CheckErr(cmd.MarkFlagRequired(peeroob.ClusterTokenFlagName))
 	f.Printer.CheckErr(cmd.MarkFlagRequired(peeroob.AuthURLFlagName))
-
-	return cmd
-}
-
-func newPeerInBandCommand(ctx context.Context, peerOptions *peer.Options) *cobra.Command {
-	local := peerOptions.Factory
-	remote := factory.NewForRemote()
-	options := peerib.Options{LocalFactory: local, RemoteFactory: remote}
-
-	cmd := &cobra.Command{
-		Use:     "in-band",
-		Aliases: []string{"ib"},
-		Short:   "Enable an in-band peering towards a remote cluster",
-		Long:    WithTemplate(liqoctlPeerIBLongHelp),
-		Args:    cobra.NoArgs,
-
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			twoClustersPersistentPreRun(cmd, local, remote, factory.WithScopedPrinter)
-		},
-
-		Run: func(cmd *cobra.Command, args []string) {
-			options.Timeout = peerOptions.Timeout
-			options.Incoming = peerOptions.Incoming
-			output.ExitOnErr(options.Run(ctx))
-		},
-	}
-
-	local.AddLiqoNamespaceFlag(cmd.Flags())
-	remote.AddLiqoNamespaceFlag(cmd.Flags())
-	remote.AddFlags(cmd.Flags(), cmd.RegisterFlagCompletionFunc)
-
-	cmd.Flags().BoolVar(&options.Bidirectional, "bidirectional", false,
-		"Whether to establish a bidirectional peering (i.e., also from remote to local) (default false)")
-
-	local.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("namespace", completion.Namespaces(ctx, options.LocalFactory, completion.NoLimit)))
-	local.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("remote-namespace", completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
 
 	return cmd
 }

@@ -63,33 +63,6 @@ func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, lSelector labe
 	}
 }
 
-// GetNetworkConfigByLabel it returns a networkconfigs instance that matches the given label selector.
-func GetNetworkConfigByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.NetworkConfig, error) {
-	list, err := ListNetworkConfigsByLabel(ctx, cl, ns, lSelector)
-	if err != nil {
-		return nil, err
-	}
-
-	switch len(list.Items) {
-	case 0:
-		return nil, kerrors.NewNotFound(netv1alpha1.NetworkConfigGroupResource, netv1alpha1.ResourceNetworkConfigs)
-	case 1:
-		return &list.Items[0], nil
-	default:
-		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s} in namespace {%s},"+
-			" when only one was expected", netv1alpha1.NetworkConfigGroupResource.String(), lSelector.String(), ns)
-	}
-}
-
-// ListNetworkConfigsByLabel it returns a NetworkConfig list that matches the given label selector.
-func ListNetworkConfigsByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.NetworkConfigList, error) {
-	list := new(netv1alpha1.NetworkConfigList)
-	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
-		return nil, err
-	}
-	return list, nil
-}
-
 // GetResourceOfferByLabel returns the ResourceOffer with the given labels.
 func GetResourceOfferByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*sharingv1alpha1.ResourceOffer, error) {
 	var resourceOfferList sharingv1alpha1.ResourceOfferList
@@ -285,29 +258,6 @@ func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *
 	nodeRN := "nodes"
 	nodeGR := corev1.Resource(nodeRN)
 	return nil, kerrors.NewNotFound(nodeGR, nodename)
-}
-
-// GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster.
-func GetTunnelEndpoint(ctx context.Context, cl client.Client,
-	destinationClusterIdentity *discoveryv1alpha1.ClusterIdentity, namespace string) (*netv1alpha1.TunnelEndpoint, error) {
-	tunEndpointList := &netv1alpha1.TunnelEndpointList{}
-	lbls := client.MatchingLabels{consts.ClusterIDLabelName: destinationClusterIdentity.ClusterID}
-	err := cl.List(ctx, tunEndpointList, lbls, client.InNamespace(namespace))
-	if err != nil {
-		return nil, err
-	}
-
-	switch len(tunEndpointList.Items) {
-	case 0:
-		return nil, kerrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
-			fmt.Sprintf("tunnelEndpoint for cluster: %q (ID: %s)",
-				destinationClusterIdentity.ClusterName, destinationClusterIdentity.ClusterID))
-	case 1:
-		return &tunEndpointList.Items[0], nil
-	default:
-		return nil, fmt.Errorf("multiple resources of type tunnelendpoint found for cluster %q (ID: %s)"+
-			" when only one was expected", destinationClusterIdentity.ClusterName, destinationClusterIdentity.ClusterID)
-	}
 }
 
 // MapForeignClustersByLabel returns a map of foreign clusters indexed their names.

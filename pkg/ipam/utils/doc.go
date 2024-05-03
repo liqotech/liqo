@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package utils contains shared utility methods for the IPAM package.
+// Package utils contain utility functions for the IPAM package.
 package utils
