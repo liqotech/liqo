@@ -34,6 +34,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -56,7 +57,7 @@ var _ = Describe("Handler tests", func() {
 
 		reflector                 Reflector
 		local, remote             dynamic.Interface
-		localBefore, remoteBefore netv1alpha1.NetworkConfig
+		localBefore, remoteBefore vkv1alpha1.NamespaceMap
 
 		key item
 		err error
@@ -73,15 +74,15 @@ var _ = Describe("Handler tests", func() {
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
-		gvr = netv1alpha1.NetworkConfigGroupVersionResource
+		gvr = vkv1alpha1.NamespaceMapGroupVersionResource
 		ownership = consts.OwnershipLocal
 
 		// Fill with fake data, to avoid issues if not overwritten later with real parameters
-		localBefore = netv1alpha1.NetworkConfig{
-			TypeMeta:   metav1.TypeMeta{APIVersion: netv1alpha1.GroupVersion.String(), Kind: "NetworkConfig"},
+		localBefore = vkv1alpha1.NamespaceMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: vkv1alpha1.SchemeGroupVersion.String(), Kind: "NamespaceMap"},
 			ObjectMeta: metav1.ObjectMeta{Name: "not-existing", Namespace: "not-existing"}}
-		remoteBefore = netv1alpha1.NetworkConfig{
-			TypeMeta:   metav1.TypeMeta{APIVersion: netv1alpha1.GroupVersion.String(), Kind: "NetworkConfig"},
+		remoteBefore = vkv1alpha1.NamespaceMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: vkv1alpha1.SchemeGroupVersion.String(), Kind: "NamespaceMap"},
 			ObjectMeta: metav1.ObjectMeta{Name: "not-existing", Namespace: "not-existing"}}
 
 		localCluster = discoveryv1alpha1.ClusterIdentity{
@@ -155,7 +156,7 @@ var _ = Describe("Handler tests", func() {
 
 	When("the local object is being deleted", func() {
 		const name = "existing"
-		var localAfter netv1alpha1.NetworkConfig
+		var localAfter vkv1alpha1.NamespaceMap
 
 		BeforeEach(func() {
 			localBefore.ObjectMeta = metav1.ObjectMeta{
@@ -207,7 +208,7 @@ var _ = Describe("Handler tests", func() {
 
 	When("the local object does exist", func() {
 		const name = "existing"
-		var localAfter, remoteAfter netv1alpha1.NetworkConfig
+		var localAfter, remoteAfter vkv1alpha1.NamespaceMap
 
 		BeforeEach(func() {
 			localBefore.ObjectMeta = metav1.ObjectMeta{
@@ -218,8 +219,8 @@ var _ = Describe("Handler tests", func() {
 					consts.LocalResourceOwnership:      "tester",
 					"foo":                              "bar"},
 			}
-			localBefore.Spec = netv1alpha1.NetworkConfigSpec{RemoteCluster: remoteCluster}
-			localBefore.Status = netv1alpha1.NetworkConfigStatus{PodCIDRNAT: "10.10.0.0/16"}
+			localBefore.Spec = vkv1alpha1.NamespaceMapSpec{DesiredMapping: map[string]string{"foo": "bar"}}
+			localBefore.Status = vkv1alpha1.NamespaceMapStatus{CurrentMapping: map[string]vkv1alpha1.RemoteNamespaceStatus{"foo": {RemoteNamespace: "bar"}}}
 			key = Item(name)
 		})
 
@@ -283,14 +284,14 @@ var _ = Describe("Handler tests", func() {
 		When("the remote object already exists", func() {
 			BeforeEach(func() {
 				remoteBefore.ObjectMeta = metav1.ObjectMeta{Name: name, Namespace: remoteNamespace}
-				localBefore.Spec = netv1alpha1.NetworkConfigSpec{
-					RemoteCluster: discoveryv1alpha1.ClusterIdentity{ClusterID: "something-wrong", ClusterName: "something-wrong"},
+				localBefore.Spec = vkv1alpha1.NamespaceMapSpec{
+					DesiredMapping: map[string]string{"something": "wrong"},
 				}
-				localBefore.Status = netv1alpha1.NetworkConfigStatus{PodCIDRNAT: "20.20.0.0/16"}
+				localBefore.Status = vkv1alpha1.NamespaceMapStatus{CurrentMapping: map[string]vkv1alpha1.RemoteNamespaceStatus{"something": {RemoteNamespace: "wrong"}}}
 			})
 
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-			It("should add a finalizer to the local obhect", func() {
+			It("should add a finalizer to the local object", func() {
 				Expect(localAfter.Finalizers).To(ContainElement(finalizer))
 			})
 
