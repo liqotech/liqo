@@ -19,7 +19,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
@@ -129,20 +128,8 @@ func (c *Builder) getPeeringInfo(ctx context.Context,
 		discoveryType = discovery.Type(v)
 	}
 
-	var latency time.Duration
-	tunnel, err := liqogetters.GetTunnelEndpoint(ctx, c.Client,
-		&foreignCluster.Spec.ClusterIdentity, foreignCluster.Status.TenantNamespace.Local)
-	switch {
-	case apierrors.IsNotFound(err):
-		// do nothing
-	case err != nil:
-		klog.Errorf("unable to get tunnel endpoint for cluster %q: %v", foreignCluster.Spec.ClusterIdentity.ClusterName, err)
-	default:
-		latency, err = time.ParseDuration(tunnel.Status.Connection.Latency.Value)
-		if err != nil {
-			klog.Errorf("unable to parse latency for cluster %q: %v", foreignCluster.Spec.ClusterIdentity.ClusterName, err)
-		}
-	}
+	// TODO: refactor to get latency from gateway
+	var latency time.Duration = 0
 
 	peeringInfo := PeeringInfo{
 		RemoteClusterID: foreignCluster.Spec.ClusterIdentity.ClusterID,

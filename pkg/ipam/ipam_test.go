@@ -33,9 +33,9 @@ import (
 
 	liqonetapi "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
-	"github.com/liqotech/liqo/pkg/liqonet/natmappinginflater"
-	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	ipamerrors "github.com/liqotech/liqo/pkg/ipam/errors"
+	"github.com/liqotech/liqo/pkg/ipam/natmappinginflater"
+	ipamutils "github.com/liqotech/liqo/pkg/ipam/utils"
 )
 
 const (
@@ -61,11 +61,11 @@ var (
 func fillNetworkPool(pool string, ipam *IPAM) error {
 
 	// Get halves mask length
-	mask := liqonetutils.GetMask(pool)
+	mask := ipamutils.GetMask(pool)
 	mask++
 
 	// Get first half CIDR
-	halfCidr := liqonetutils.SetMask(pool, mask)
+	halfCidr := ipamutils.SetMask(pool, mask)
 
 	err := ipam.AcquireReservedSubnet(halfCidr)
 	if err != nil {
@@ -73,7 +73,7 @@ func fillNetworkPool(pool string, ipam *IPAM) error {
 	}
 
 	// Get second half CIDR
-	halfCidr = liqonetutils.Next(halfCidr)
+	halfCidr = ipamutils.Next(halfCidr)
 	err = ipam.AcquireReservedSubnet(halfCidr)
 
 	return err
@@ -404,7 +404,7 @@ var _ = Describe("Ipam", func() {
 		Context("Passing an empty cluster ID", func() {
 			It("Should return a WrongParameter error", func() {
 				err := ipam.RemoveClusterConfig("")
-				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, ipamerrors.StringNotEmpty)))
 			})
 		})
 		Context("Remove config when the cluster has an active mapping and"+
@@ -781,7 +781,7 @@ var _ = Describe("Ipam", func() {
 				_, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
 				err = ipam.AddLocalSubnetsPerCluster(localNATPodCIDR, localNATExternalCIDR, "")
-				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, ipamerrors.StringNotEmpty)))
 			})
 		})
 		Context("Call before GetSubnetsPerCluster", func() {
@@ -1185,7 +1185,7 @@ var _ = Describe("Ipam", func() {
 						ClusterID: "",
 						Ip:        localEndpointIP,
 					})
-					Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
+					Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, ipamerrors.StringNotEmpty)))
 				})
 				It("Non-existing clusterID", func() {
 					_, err := ipam.MapEndpointIP(context.Background(), &MapRequest{
@@ -1248,7 +1248,7 @@ var _ = Describe("Ipam", func() {
 						ClusterID: clusterID1,
 					})
 				err = errors.Unwrap(err)
-				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", invalidValue, liqoneterrors.ValidIP)))
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", invalidValue, ipamerrors.ValidIP)))
 			})
 		})
 		Context("Pass function an empty cluster ID", func() {
@@ -1259,7 +1259,7 @@ var _ = Describe("Ipam", func() {
 						ClusterID: "",
 					})
 				err = errors.Unwrap(err)
-				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, ipamerrors.StringNotEmpty)))
 			})
 		})
 		Context("Invoking func without subnets init", func() {
@@ -1276,7 +1276,7 @@ var _ = Describe("Ipam", func() {
 		Context(`When the remote Pod CIDR has not been remapped by home cluster
 			and the call refers to a remote Pod`, func() {
 			It("should return the same IP", func() {
-				ip, err := liqonetutils.GetFirstIP(remotePodCIDR)
+				ip, err := ipamutils.GetFirstIP(remotePodCIDR)
 				Expect(err).To(BeNil())
 
 				// Home cluster has not remapped remote PodCIDR
@@ -1297,7 +1297,7 @@ var _ = Describe("Ipam", func() {
 			and the call refers to a remote Pod`, func() {
 			It("should return the remapped IP", func() {
 				// Original Pod IP
-				ip, err := liqonetutils.GetFirstIP(remotePodCIDR)
+				ip, err := ipamutils.GetFirstIP(remotePodCIDR)
 				Expect(err).To(BeNil())
 
 				// Reserve original PodCIDR so that home cluster will remap it
@@ -1317,7 +1317,7 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// IP should be mapped to remoteNATPodCIDR
-				remappedIP, err := liqonetutils.MapIPToNetwork(mappedPodCIDR, ip)
+				remappedIP, err := ipamutils.MapIPToNetwork(mappedPodCIDR, ip)
 				Expect(err).To(BeNil())
 				Expect(response.GetHomeIP()).To(Equal(remappedIP))
 			})
@@ -1331,7 +1331,7 @@ var _ = Describe("Ipam", func() {
 					ClusterID: "",
 					Ip:        localEndpointIP,
 				})
-				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, ipamerrors.StringNotEmpty)))
 			})
 			It("Non-existing clusterID", func() {
 				_, err := ipam.MapEndpointIP(context.Background(), &MapRequest{

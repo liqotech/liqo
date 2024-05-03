@@ -26,24 +26,6 @@ var (
 	// GroupVersion is group version used to register these objects.
 	GroupVersion = schema.GroupVersion{Group: "net.liqo.io", Version: "v1alpha1"}
 
-	// TunnelEndpointGroupResource is group resource used to register tunnel endpoints.
-	TunnelEndpointGroupResource = schema.GroupResource{Group: GroupVersion.Group,
-		Resource: ResourceTunnelEndpoints}
-
-	// TunnelEndpointGroupVersionResource is group version resource used by dynamic client.
-	TunnelEndpointGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group,
-		Version:  GroupVersion.Version,
-		Resource: ResourceTunnelEndpoints}
-
-	// NetworkConfigGroupResource is group resource used to register networkconfigs.
-	NetworkConfigGroupResource = schema.GroupResource{Group: GroupVersion.Group,
-		Resource: ResourceNetworkConfigs}
-
-	// NetworkConfigGroupVersionResource is group version resource used by dynamic client.
-	NetworkConfigGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group,
-		Version:  GroupVersion.Version,
-		Resource: ResourceNetworkConfigs}
-
 	// IpamGroupResource is group resource used to register ipamstorages.
 	IpamGroupResource = schema.GroupResource{Group: GroupVersion.Group,
 		Resource: ResourceIpamStorages}

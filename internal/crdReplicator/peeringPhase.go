@@ -17,7 +17,6 @@ package crdreplicator
 import (
 	"k8s.io/klog/v2"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -43,11 +42,6 @@ func (c *Controller) setPeeringPhase(clusterID string, phase consts.PeeringPhase
 // isReplicationEnabled indicates if the replication has to be enabled for a given peeringPhase
 // and a given CRD.
 func isReplicationEnabled(peeringPhase consts.PeeringPhase, networkingEnabled bool, resource *resources.Resource) (enabled bool) {
-	defer func() {
-		enabled = enabled && // Replication is disabled for NetworkConfigs, if networking is not enabled.
-			(networkingEnabled || resource.GroupVersionResource != netv1alpha1.NetworkConfigGroupVersionResource)
-	}()
-
 	switch resource.PeeringPhase {
 	case consts.PeeringPhaseNone:
 		return false

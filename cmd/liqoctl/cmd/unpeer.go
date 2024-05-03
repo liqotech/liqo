@@ -23,7 +23,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
-	"github.com/liqotech/liqo/pkg/liqoctl/unpeerib"
 	"github.com/liqotech/liqo/pkg/liqoctl/unpeeroob"
 )
 
@@ -108,7 +107,6 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for unpeering completion")
 	cmd.PersistentFlags().BoolVar(&options.Incoming, "incoming", false, "Dis-allowing peering")
 	cmd.AddCommand(newUnpeerOutOfBandCommand(ctx, options))
-	cmd.AddCommand(newUnpeerInBandCommand(ctx, options))
 	return cmd
 }
 
@@ -132,43 +130,6 @@ func newUnpeerOutOfBandCommand(ctx context.Context, options *unpeeroob.Options) 
 			output.ExitOnErr(options.Run(ctx))
 		},
 	}
-
-	return cmd
-}
-
-func newUnpeerInBandCommand(ctx context.Context, unpeerOptions *unpeeroob.Options) *cobra.Command {
-	local := unpeerOptions.Factory
-	remote := factory.NewForRemote()
-	options := unpeerib.Options{LocalFactory: local, RemoteFactory: remote}
-
-	cmd := &cobra.Command{
-		Use:     "in-band",
-		Aliases: []string{"ib"},
-		Short:   "Disable an in-band peering towards a remote cluster",
-		Long:    WithTemplate(liqoctlUnpeerIBLongHelp),
-		Args:    cobra.NoArgs,
-
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			twoClustersPersistentPreRun(cmd, local, remote, factory.WithScopedPrinter)
-		},
-
-		PreRun: func(cmd *cobra.Command, args []string) {
-			output.ExitOnErr(local.Printer.AskConfirm("unpeer", local.SkipConfirm))
-		},
-
-		Run: func(cmd *cobra.Command, args []string) {
-			options.Timeout = unpeerOptions.Timeout
-			options.Incoming = unpeerOptions.Incoming
-			output.ExitOnErr(options.Run(ctx))
-		},
-	}
-
-	local.AddLiqoNamespaceFlag(cmd.Flags())
-	remote.AddLiqoNamespaceFlag(cmd.Flags())
-	remote.AddFlags(cmd.Flags(), cmd.RegisterFlagCompletionFunc)
-
-	local.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("namespace", completion.Namespaces(ctx, options.LocalFactory, completion.NoLimit)))
-	local.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("remote-namespace", completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
 
 	return cmd
 }
