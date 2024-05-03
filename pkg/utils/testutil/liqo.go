@@ -26,7 +26,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
@@ -177,28 +176,6 @@ func FakeForeignCluster(clusterIdentity discoveryv1alpha1.ClusterIdentity, tenan
 	}
 }
 
-// FakeTunnelEndpoint returns a fake TunnelEndpoint.
-func FakeTunnelEndpoint(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity, remoteClusterTenant string) *netv1alpha1.TunnelEndpoint {
-	return &netv1alpha1.TunnelEndpoint{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      remoteClusterIdentity.ClusterName,
-			Namespace: remoteClusterTenant,
-			Labels: map[string]string{
-				liqoconsts.ClusterIDLabelName:     remoteClusterIdentity.ClusterID,
-				liqoconsts.GatewayServiceLabelKey: liqoconsts.GatewayServiceLabelValue,
-			},
-		},
-		Status: netv1alpha1.TunnelEndpointStatus{
-			Connection: netv1alpha1.Connection{
-				PeerConfiguration: map[string]string{
-					liqoconsts.WgEndpointIP:  EndpointIP,
-					liqoconsts.ListeningPort: fmt.Sprintf("%d", VPNGatewayPort),
-				},
-			},
-		},
-	}
-}
-
 // FakeResourceOffer returns a fake ResourceOffer.
 func FakeResourceOffer(name, tenant string, resources corev1.ResourceList) *sharingv1alpha1.ResourceOffer {
 	return &sharingv1alpha1.ResourceOffer{
@@ -231,30 +208,6 @@ func FakeSharedResourceOffer(remoteClusterIdentity *discoveryv1alpha1.ClusterIde
 	offer.ObjectMeta.Labels[liqoconsts.ReplicationDestinationLabel] = remoteClusterIdentity.ClusterID
 	offer.ObjectMeta.Labels[liqoconsts.ReplicationRequestedLabel] = strconv.FormatBool(true)
 	return offer
-}
-
-// FakeNetworkConfig returns a fake NetworkConfig.
-func FakeNetworkConfig(local bool, clusterName, tenantNamespace,
-	podCIDR, extCIDR, podCIDRNAT, extCIDRNAT string) *netv1alpha1.NetworkConfig {
-	labels := make(map[string]string)
-	if local {
-		labels[liqoconsts.ReplicationRequestedLabel] = strconv.FormatBool(true)
-	}
-	return &netv1alpha1.NetworkConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterName,
-			Namespace: tenantNamespace,
-			Labels:    labels,
-		},
-		Spec: netv1alpha1.NetworkConfigSpec{
-			PodCIDR:      podCIDR,
-			ExternalCIDR: extCIDR,
-		},
-		Status: netv1alpha1.NetworkConfigStatus{
-			PodCIDRNAT:      podCIDRNAT,
-			ExternalCIDRNAT: extCIDRNAT,
-		},
-	}
 }
 
 // FakeForgingOpts returns a fake ForgingOpts.

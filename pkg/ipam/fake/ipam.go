@@ -21,7 +21,7 @@ import (
 	grpc "google.golang.org/grpc"
 
 	"github.com/liqotech/liqo/pkg/ipam"
-	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
+	ipamutils "github.com/liqotech/liqo/pkg/ipam/utils"
 )
 
 var _ ipam.IpamClient = &IPAMClient{}
@@ -58,7 +58,7 @@ func (mock *IPAMClient) MapEndpointIP(_ context.Context, req *ipam.MapRequest, _
 		return &ipam.MapResponse{Ip: translation}, nil
 	}
 
-	ip, err := liqonetutils.MapIPToNetwork(mock.localRemappedPodCIDR, req.GetIp())
+	ip, err := ipamutils.MapIPToNetwork(mock.localRemappedPodCIDR, req.GetIp())
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (mock *IPAMClient) GetHomePodIP(_ context.Context, req *ipam.GetHomePodIPRe
 		return &ipam.GetHomePodIPResponse{HomeIP: translation}, nil
 	}
 
-	homeIP, err := liqonetutils.MapIPToNetwork(mock.remoteRemappedPodCIDR, req.GetIp())
+	homeIP, err := ipamutils.MapIPToNetwork(mock.remoteRemappedPodCIDR, req.GetIp())
 	if err != nil {
 		return nil, err
 	}
