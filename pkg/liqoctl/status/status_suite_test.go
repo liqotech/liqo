@@ -22,7 +22,7 @@ import (
 	"github.com/pterm/pterm"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 )
 
 func TestStatus(t *testing.T) {
@@ -31,6 +31,6 @@ func TestStatus(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	_ = netv1alpha1.AddToScheme(scheme.Scheme)
+	_ = ipamv1alpha1.AddToScheme(scheme.Scheme)
 	pterm.DisableStyling()
 })

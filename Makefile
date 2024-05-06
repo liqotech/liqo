@@ -101,7 +101,6 @@ fmt: gci addlicense
 	go mod tidy
 	go fmt ./...
 	find . -type f -name '*.go' -a ! -name '*zz_generated*' -exec $(GCI) write -s standard -s default -s "prefix(github.com/liqotech/liqo)" {} \;
-	find . -type f -name '*.go' -exec $(ADDLICENSE) -ignore pkg/liqonet/ipset/kubernetes -l apache -c "The Liqo Authors" -y "2019-$(shell date +%Y)" {} \;
 
 # Install golangci-lint if not available
 golangci-lint:

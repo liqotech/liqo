@@ -31,11 +31,6 @@ updates:
       interval: "daily"
 
   - package-ecosystem: "docker"
-    directory: "/build/liqonet"
-    schedule:
-      interval: "daily"
-
-  - package-ecosystem: "docker"
     directory: "/build/proxy"
     schedule:
       interval: "daily"

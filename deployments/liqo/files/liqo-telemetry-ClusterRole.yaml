@@ -18,14 +18,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - net.liqo.io
-  resources:
-  - tunnelendpoints
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - offloading.liqo.io
   resources:
   - namespaceoffloadings
