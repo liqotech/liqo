@@ -39,23 +39,11 @@ rules:
   - update
   - watch
 - apiGroups:
-  - net.liqo.io
+  - ipam.liqo.io
   resources:
   - ipamstorages
   verbs:
   - create
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - natmappings
-  verbs:
-  - create
-  - delete
   - get
   - list
   - patch

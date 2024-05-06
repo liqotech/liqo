@@ -96,34 +96,6 @@
 | fabric.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the fabric pod. |
 | fabric.tolerations | list | `[]` | Extra tolerations for the fabric daemonset. |
 | fullnameOverride | string | `""` | Override the standard full name used by Helm and associated to Kubernetes/Liqo resources. |
-| gateway.config.addressOverride | string | `""` | Override the default address where your network gateway service is available. You should configure it if the network gateway is behind a reverse proxy or NAT. |
-| gateway.config.listeningPort | int | `5871` | Port used by the network gateway. |
-| gateway.config.portOverride | string | `""` | Overrides the port where your network gateway service is available. You should configure it if the network gateway is behind a reverse proxy or NAT and is different from the listening port. |
-| gateway.config.wireguardImplementation | string | `"kernel"` | Implementation used by wireguard to establish the VPN tunnel between two clusters. Possible values are "userspace" and "kernel". Do not use "userspace" unless strictly necessary  (i.e., only if the Linux kernel does not support Wireguard). |
-| gateway.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the network gateway pod. |
-| gateway.metrics.enabled | bool | `false` | Expose metrics about network traffic towards cluster peers. |
-| gateway.metrics.port | int | `5872` | Port used to expose metrics. |
-| gateway.metrics.service | object | `{"annotations":{},"labels":{}}` | Service used to expose metrics. |
-| gateway.metrics.service.annotations | object | `{}` | Annotations for the metrics service. |
-| gateway.metrics.service.labels | object | `{}` | Labels for the metrics service. |
-| gateway.metrics.serviceMonitor.enabled | bool | `false` | Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator runs in your cluster; otherwise simply export the port above as an external endpoint. |
-| gateway.metrics.serviceMonitor.interval | string | `""` | Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
-| gateway.metrics.serviceMonitor.labels | object | `{}` | Labels for the gateway servicemonitor. |
-| gateway.metrics.serviceMonitor.scrapeTimeout | string | `""` | Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
-| gateway.pod.annotations | object | `{}` | Annotations for the network gateway pod. |
-| gateway.pod.extraArgs | list | `[]` | Extra arguments for the network gateway pod. |
-| gateway.pod.labels | object | `{}` | Labels for the network gateway pod. |
-| gateway.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the network gateway pod. |
-| gateway.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the network gateway pod. |
-| gateway.replicas | int | `1` | The number of gateway instances to run. The gateway component supports active/passive high availability. Make sure that there are enough nodes to accommodate the replicas, because such pod has to run in the host network, hence no more than one replica can be scheduled on a given node. |
-| gateway.service.annotations | object | `{}` | Annotations for the network gateway service. |
-| gateway.service.labels | object | `{}` | Labels for the network gateway service. |
-| gateway.service.loadBalancer | object | `{"allocateLoadBalancerNodePorts":"","ip":""}` | Options valid if service type is LoadBalancer. |
-| gateway.service.loadBalancer.allocateLoadBalancerNodePorts | string | `""` | Set to false if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature). |
-| gateway.service.loadBalancer.ip | string | `""` | Override the IP here if service type is LoadBalancer and you want to use a specific IP address, e.g., because you want a static LB. |
-| gateway.service.nodePort | object | `{"port":""}` | Options valid if service type is NodePort. |
-| gateway.service.nodePort.port | string | `""` | Force the port used by the NodePort service. |
-| gateway.service.type | string | `"LoadBalancer"` | Kubernetes service to be used to expose the network gateway pod. If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer". Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort". |
 | ipam.additionalPools | list | `[]` | Set of additional network pools to perform the automatic address mapping in Liqo. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
 | ipam.external.enabled | bool | `false` | Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM. |
 | ipam.external.url | string | `""` | The URL of the external IPAM. |
@@ -153,12 +125,6 @@
 | metricAgent.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the metricAgent pod. |
 | metricAgent.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the metricAgent pod. |
 | nameOverride | string | `""` | Override the standard name used by Helm and associated to Kubernetes/Liqo resources. |
-| networkManager.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the networkManager pod. |
-| networkManager.pod.annotations | object | `{}` | Annotations for the networkManager pod. |
-| networkManager.pod.extraArgs | list | `[]` | Extra arguments for the networkManager pod. |
-| networkManager.pod.labels | object | `{}` | Labels for the networkManager pod. |
-| networkManager.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the networkManager pod. |
-| networkManager.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the networkManager pod. |
 | networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
 | networking.enabled | bool | `true` | Use the default Liqo networking module. |
 | networking.gatewayTemplates | object | `{"container":{"gateway":{"image":{"name":"ghcr.io/liqotech/gateway","version":""}},"geneve":{"image":{"name":"ghcr.io/liqotech/gateway/geneve","version":""}},"wireguard":{"image":{"name":"ghcr.io/liqotech/gateway/wireguard","version":""}}},"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1,"server":{"service":{"allocateLoadBalancerNodePorts":"","annotations":{"service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}}}}` | Set the options for the default gateway (server/client) templates. The default templates use a WireGuard implementation to connect the gateway of the clusters. These options are used to configure only the default templates and should not be considered if a custom template is used. |
@@ -231,13 +197,6 @@
 | reflection.serviceaccount.workers | int | `3` | The number of workers used for the serviceaccounts reflector. Set 0 to disable the reflection of serviceaccounts. |
 | reflection.skip.annotations | list | `["cloud.google.com/neg","cloud.google.com/neg-status","kubernetes.digitalocean.com/load-balancer-id","ingress.kubernetes.io/backends","ingress.kubernetes.io/forwarding-rule","ingress.kubernetes.io/target-proxy","ingress.kubernetes.io/url-map","metallb.universe.tf/address-pool","metallb.universe.tf/ip-allocated-from-pool","metallb.universe.tf/loadBalancerIPs","loadbalancer.openstack.org/load-balancer-id"]` | List of annotations that must not be reflected on remote clusters. |
 | reflection.skip.labels | list | `[]` | List of labels that must not be reflected on remote clusters. |
-| route.imageName | string | `"ghcr.io/liqotech/liqonet"` | Image repository for the route pod. |
-| route.pod.annotations | object | `{}` | Annotations for the route pod. |
-| route.pod.extraArgs | list | `[]` | Extra arguments for the route pod. |
-| route.pod.labels | object | `{}` | Labels for the route pod. |
-| route.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the route pod. |
-| route.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the route pod. |
-| route.tolerations | list | `[]` | Extra tolerations for the route daemonset. |
 | storage.enable | bool | `true` | Enable/Disable the liqo virtual storage class on the local cluster. You will be able to offload your persistent volumes, while other clusters will be able to schedule their persistent workloads on the current cluster. |
 | storage.realStorageClassName | string | `""` | Name of the real storage class to use in the local cluster. |
 | storage.storageNamespace | string | `"liqo-storage"` | Namespace where liqo will deploy specific PVCs. Internal parameter, do not change. |
