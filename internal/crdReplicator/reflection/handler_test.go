@@ -287,7 +287,8 @@ var _ = Describe("Handler tests", func() {
 				localBefore.Spec = vkv1alpha1.NamespaceMapSpec{
 					DesiredMapping: map[string]string{"something": "wrong"},
 				}
-				localBefore.Status = vkv1alpha1.NamespaceMapStatus{CurrentMapping: map[string]vkv1alpha1.RemoteNamespaceStatus{"something": {RemoteNamespace: "wrong"}}}
+				localBefore.Status = vkv1alpha1.NamespaceMapStatus{
+					CurrentMapping: map[string]vkv1alpha1.RemoteNamespaceStatus{"something": {RemoteNamespace: "wrong"}}}
 			})
 
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
