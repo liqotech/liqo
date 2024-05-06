@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -38,12 +38,12 @@ func FakeClusterIDConfigMap(namespace, clusterID, clusterName string) *corev1.Co
 }
 
 // FakeIPAM returns an IPAM with the specified namespace and name.
-func FakeIPAM(namespace string) *netv1alpha1.IpamStorage {
-	return &netv1alpha1.IpamStorage{
+func FakeIPAM(namespace string) *ipamv1alpha1.IpamStorage {
+	return &ipamv1alpha1.IpamStorage{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 		},
-		Spec: netv1alpha1.IpamSpec{
+		Spec: ipamv1alpha1.IpamSpec{
 			PodCIDR:         PodCIDR,
 			ServiceCIDR:     ServiceCIDR,
 			ExternalCIDR:    ExternalCIDR,

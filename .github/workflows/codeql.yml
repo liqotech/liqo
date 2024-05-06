@@ -54,7 +54,6 @@ jobs:
           - ipam
           - liqo-controller-manager
           - discovery
-          - liqonet
           - uninstaller
           - virtual-kubelet
           - metric-agent

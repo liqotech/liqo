@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -329,7 +329,7 @@ var _ = Describe("DataGetters", func() {
 
 	Describe("retrieval of network configuration from ipamstorage", func() {
 		var (
-			ipamStorage  *netv1alpha1.IpamStorage
+			ipamStorage  *ipamv1alpha1.IpamStorage
 			resNets      = []string{"10.1.0.0/16", "192.168.0.0/16"}
 			podCIDR      = "10.200.0.0/16"
 			serviceCIDR  = "10.150.2.0/24"
@@ -344,8 +344,8 @@ var _ = Describe("DataGetters", func() {
 		}
 
 		BeforeEach(func() {
-			ipamStorage = &netv1alpha1.IpamStorage{
-				Spec: netv1alpha1.IpamSpec{
+			ipamStorage = &ipamv1alpha1.IpamStorage{
+				Spec: ipamv1alpha1.IpamSpec{
 					ReservedSubnets: resNets,
 					ExternalCIDR:    externalCIDR,
 					PodCIDR:         podCIDR,

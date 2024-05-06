@@ -26,7 +26,7 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 )
@@ -230,7 +230,7 @@ func retrievePortFromService(svc *corev1.Service, portName string, portType core
 
 // RetrieveNetworkConfiguration returns the podCIDR, serviceCIDR, reservedSubnets and the externalCIDR
 // as saved in the ipams.net.liqo.io custom resource instance.
-func RetrieveNetworkConfiguration(ipamS *netv1alpha1.IpamStorage) (*NetworkConfig, error) {
+func RetrieveNetworkConfiguration(ipamS *ipamv1alpha1.IpamStorage) (*NetworkConfig, error) {
 	if ipamS.Spec.PodCIDR == "" {
 		return nil, fmt.Errorf("unable to get network configuration: podCIDR is not set in resource %q", klog.KObj(ipamS))
 	}
