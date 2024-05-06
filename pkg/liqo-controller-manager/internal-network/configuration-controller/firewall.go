@@ -92,7 +92,7 @@ func forgeFirewallChain() *firewallapi.Chain {
 }
 
 func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) ([]firewallapi.NatRule, error) {
-	firstIP, _, err := nftables.NetFirstAndLastIP(cfg.Spec.Local.CIDR.Pod.String())
+	firstIP, _, err := nftables.NetFirstAndLastIP(cfg.Spec.Local.CIDR.External.String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to get first IP from CIDR: %w", err)
 	}
