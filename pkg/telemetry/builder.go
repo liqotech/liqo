@@ -129,7 +129,7 @@ func (c *Builder) getPeeringInfo(ctx context.Context,
 	}
 
 	// TODO: refactor to get latency from gateway
-	var latency time.Duration = 0
+	var latency time.Duration
 
 	peeringInfo := PeeringInfo{
 		RemoteClusterID: foreignCluster.Spec.ClusterIdentity.ClusterID,

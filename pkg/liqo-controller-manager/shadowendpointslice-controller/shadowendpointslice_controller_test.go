@@ -27,14 +27,15 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	liqoconsts "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/consts"
 	liqodiscovery "github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -64,6 +65,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		testShadowEps *vkv1alpha1.ShadowEndpointSlice
 		testEps       *discoveryv1.EndpointSlice
 		testFc        *discoveryv1alpha1.ForeignCluster
+		testConf      *networkingv1alpha1.Configuration
 
 		newFc = func(networkReady, apiServerReady bool) *discoveryv1alpha1.ForeignCluster {
 			networkStatus := discoveryv1alpha1.PeeringConditionStatusEstablished
@@ -105,9 +107,9 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		}
 
 		newShadowEps = func(endpointsReady bool) *vkv1alpha1.ShadowEndpointSlice {
-			ready := pointer.Bool(true)
+			ready := ptr.To(true)
 			if !endpointsReady {
-				ready = pointer.Bool(false)
+				ready = ptr.To(false)
 			}
 
 			return &vkv1alpha1.ShadowEndpointSlice{
@@ -126,13 +128,13 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				Spec: vkv1alpha1.ShadowEndpointSliceSpec{
 					Template: vkv1alpha1.EndpointSliceTemplate{
 						Endpoints: []discoveryv1.Endpoint{{
-							NodeName: pointer.String(testFcName),
+							NodeName: ptr.To(testFcName),
 							Conditions: discoveryv1.EndpointConditions{
 								Ready: ready,
 							},
-							Addresses: []string{"192.168.0.1"},
+							Addresses: []string{"10.10.0.1"},
 						}},
-						Ports:       []discoveryv1.EndpointPort{{Name: pointer.String("HTTPS")}},
+						Ports:       []discoveryv1.EndpointPort{{Name: ptr.To("HTTPS")}},
 						AddressType: discoveryv1.AddressTypeFQDN,
 					},
 				},
@@ -154,13 +156,50 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 						{
 							Kind:               "ShadowEndpointSlice",
 							Name:               shadowEpsName,
-							Controller:         pointer.Bool(true),
-							BlockOwnerDeletion: pointer.Bool(true),
+							Controller:         ptr.To(true),
+							BlockOwnerDeletion: ptr.To(true),
 						},
 					},
 				},
 			}
 
+		}
+
+		newConfiguration = func(remapped bool) *networkingv1alpha1.Configuration {
+			var remappedPodCIDR, remappedExternalCIDR networkingv1alpha1.CIDR
+			if remapped {
+				remappedPodCIDR = "10.30.0.0/16"
+				remappedExternalCIDR = "10.40.0.0/16"
+			} else {
+				remappedPodCIDR = "10.10.0.0/16"
+				remappedExternalCIDR = "10.20.0.0/16"
+			}
+
+			return &networkingv1alpha1.Configuration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+					Labels: map[string]string{
+						consts.RemoteClusterID: testFcID,
+					},
+				},
+				Spec: networkingv1alpha1.ConfigurationSpec{
+					Remote: networkingv1alpha1.ClusterConfig{
+						CIDR: networkingv1alpha1.ClusterConfigCIDR{
+							Pod:      "10.10.0.0/16",
+							External: "10.20.0.0/16",
+						},
+					},
+				},
+				Status: networkingv1alpha1.ConfigurationStatus{
+					Remote: &networkingv1alpha1.ClusterConfig{
+						CIDR: networkingv1alpha1.ClusterConfigCIDR{
+							Pod:      remappedPodCIDR,
+							External: remappedExternalCIDR,
+						},
+					},
+				},
+			}
 		}
 	)
 
@@ -198,7 +237,8 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			testShadowEps = newShadowEps(true)
 			testEps = newEps()
 			testFc = newFc(true, true)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testEps, testFc).Build()
+			testConf = newConfiguration(false)
+			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testEps, testFc, testConf).Build()
 		})
 
 		It("should output the correct log", func() {
@@ -209,7 +249,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		It("should update endpointslice metadata to shadowendpointslice metadata", func() {
 			eps := discoveryv1.EndpointSlice{}
 			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
-			Expect(eps.Labels).To(HaveKeyWithValue(liqoconsts.ManagedByLabelKey, liqoconsts.ManagedByShadowEndpointSliceValue))
+			Expect(eps.Labels).To(HaveKeyWithValue(consts.ManagedByLabelKey, consts.ManagedByShadowEndpointSliceValue))
 			for key, value := range testShadowEps.Labels {
 				Expect(eps.Labels).To(HaveKeyWithValue(key, value))
 			}
@@ -250,7 +290,8 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		BeforeEach(func() {
 			testShadowEps = newShadowEps(true)
 			testFc = newFc(true, true)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc).Build()
+			testConf = newConfiguration(false)
+			fakeClient = fakeClientBuilder.WithObjects(testShadowEps.DeepCopy(), testFc, testConf).Build()
 		})
 
 		It("should output the correct log", func() {
@@ -261,7 +302,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		It("should create endpointslice metadata with shadowendpointslice metadata", func() {
 			eps := discoveryv1.EndpointSlice{}
 			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
-			Expect(eps.Labels).To(HaveKeyWithValue(liqoconsts.ManagedByLabelKey, liqoconsts.ManagedByShadowEndpointSliceValue))
+			Expect(eps.Labels).To(HaveKeyWithValue(consts.ManagedByLabelKey, consts.ManagedByShadowEndpointSliceValue))
 			for key, value := range testShadowEps.Labels {
 				Expect(eps.Labels).To(HaveKeyWithValue(key, value))
 			}
@@ -291,11 +332,30 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		})
 	})
 
+	When("network remapping is enabled", func() {
+		BeforeEach(func() {
+			testShadowEps = newShadowEps(true)
+			testFc = newFc(true, true)
+			testConf = newConfiguration(true)
+			fakeClient = fakeClientBuilder.WithObjects(testShadowEps.DeepCopy(), testFc, testConf).Build()
+		})
+
+		It("should remap ep ip", func() {
+			eps := discoveryv1.EndpointSlice{}
+			Expect(fakeClient.Get(ctx, req.NamespacedName, &eps)).To(Succeed())
+			for i := range testShadowEps.Spec.Template.Endpoints {
+				Expect(eps.Endpoints[i].Addresses).To(HaveLen(1))
+				Expect(eps.Endpoints[i].Addresses[0]).To(HavePrefix("10.30."))
+			}
+		})
+	})
+
 	When("foreign cluster network not ready and endpoints ready", func() {
 		BeforeEach(func() {
 			testShadowEps = newShadowEps(true)
 			testFc = newFc(false, true)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc).Build()
+			testConf = newConfiguration(true)
+			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc, testConf).Build()
 		})
 
 		It("should set remote endpoints to not ready", func() {
@@ -311,7 +371,8 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		BeforeEach(func() {
 			testShadowEps = newShadowEps(true)
 			testFc = newFc(true, false)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc).Build()
+			testConf = newConfiguration(true)
+			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc, testConf).Build()
 		})
 
 		It("should set remote endpoints to not ready", func() {
@@ -327,7 +388,8 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		BeforeEach(func() {
 			testShadowEps = newShadowEps(true)
 			testFc = newFc(false, false)
-			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc).Build()
+			testConf = newConfiguration(true)
+			fakeClient = fakeClientBuilder.WithObjects(testShadowEps, testFc, testConf).Build()
 		})
 
 		It("should set remote endpoints to not ready", func() {
