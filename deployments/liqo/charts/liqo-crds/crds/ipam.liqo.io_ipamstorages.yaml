@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
-  name: ipamstorages.net.liqo.io
+  name: ipamstorages.ipam.liqo.io
 spec:
-  group: net.liqo.io
+  group: ipam.liqo.io
   names:
     categories:
     - liqo

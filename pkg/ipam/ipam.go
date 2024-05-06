@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	ipamerrors "github.com/liqotech/liqo/pkg/ipam/errors"
 	ipamutils "github.com/liqotech/liqo/pkg/ipam/utils"
@@ -507,7 +507,7 @@ func (liqoIPAM *IPAM) SetSubnetsPerClusterInternal(mappedPodCIDR, mappedExternal
 	// Create or update subnets for the cluster
 	if !exists {
 		// Create cluster network configuration
-		subnets = netv1alpha1.Subnets{
+		subnets = ipamv1alpha1.Subnets{
 			LocalNATPodCIDR:      consts.DefaultCIDRValue,
 			RemotePodCIDR:        mappedPodCIDR,
 			RemoteExternalCIDR:   mappedExternalCIDR,
@@ -609,7 +609,7 @@ func (liqoIPAM *IPAM) FreeReservedSubnet(network string) error {
 
 // eventuallyDeleteClusterSubnet deletes cluster entry from cluster subnets if all fields are deleted (empty string).
 func (liqoIPAM *IPAM) eventuallyDeleteClusterSubnet(clusterID string,
-	clusterSubnets map[string]netv1alpha1.Subnets) error {
+	clusterSubnets map[string]ipamv1alpha1.Subnets) error {
 	// Get entry of cluster
 	subnets := clusterSubnets[clusterID]
 
@@ -718,7 +718,7 @@ func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
 // RemoveLocalSubnetsPerCluster deletes networks related to a cluster.
 func (liqoIPAM *IPAM) RemoveLocalSubnetsPerCluster(clusterID string) error {
 	var exists bool
-	var subnets netv1alpha1.Subnets
+	var subnets ipamv1alpha1.Subnets
 
 	// Get cluster subnets
 	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
@@ -824,9 +824,9 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 		if err != nil {
 			return "", fmt.Errorf("cannot allocate a new IP for endpoint %s: %w", ip, err)
 		}
-		endpointMappings[ip] = netv1alpha1.EndpointMapping{
+		endpointMappings[ip] = ipamv1alpha1.EndpointMapping{
 			ExternalCIDROriginalIP: ipamIP.IP.String(),
-			ClusterMappings:        make(map[string]netv1alpha1.ClusterMapping),
+			ClusterMappings:        make(map[string]ipamv1alpha1.ClusterMapping),
 		}
 		klog.Infof("%s has been acquired for endpoint %s", endpointMappings[ip].ExternalCIDROriginalIP, ip)
 	}
@@ -839,7 +839,7 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 		}
 
 		// setup clusterMappings
-		endpointMappings[ip].ClusterMappings[clusterID] = netv1alpha1.ClusterMapping{ExternalCIDRNattedIP: externalCIDRNattedIP}
+		endpointMappings[ip].ClusterMappings[clusterID] = ipamv1alpha1.ClusterMapping{ExternalCIDRNattedIP: externalCIDRNattedIP}
 		klog.Infof("Endpoint %s has been remapped as %s", ip, externalCIDRNattedIP)
 
 		// Update endpointMappings
@@ -859,7 +859,7 @@ i.e. using the network used in the remote cluster for local PodCIDR.
 If the received IP does not belong to local PodCIDR, then it maps the address using the ExternalCIDR.
 */
 func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error) {
-	var subnets netv1alpha1.Subnets
+	var subnets ipamv1alpha1.Subnets
 	var exists bool
 
 	err := validateEndpointMappingInputs(clusterID, ip)

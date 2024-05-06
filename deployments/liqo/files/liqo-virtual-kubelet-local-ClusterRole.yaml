@@ -150,14 +150,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - net.liqo.io
-  resources:
-  - tunnelendpoints
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
