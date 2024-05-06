@@ -111,12 +111,12 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	podCIDR, err := ipam.GetPodCIDR(ctx, r.Client)
+	extCIDR, err := ipam.GetExternalCIDR(ctx, r.Client)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	firstIP, _, err := nftables.NetFirstAndLastIP(podCIDR)
+	firstIP, _, err := nftables.NetFirstAndLastIP(extCIDR)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
