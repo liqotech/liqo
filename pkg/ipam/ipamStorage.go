@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
@@ -53,22 +53,22 @@ const (
 
 // IpamStorage is the interface to be implemented to enforce persistency in IPAM.
 type IpamStorage interface {
-	updateClusterSubnets(clusterSubnet map[string]netv1alpha1.Subnets) error
+	updateClusterSubnets(clusterSubnet map[string]ipamv1alpha1.Subnets) error
 	updatePools(pools []string) error
 	updateExternalCIDR(externalCIDR string) error
-	updateEndpointMappings(endpoints map[string]netv1alpha1.EndpointMapping) error
+	updateEndpointMappings(endpoints map[string]ipamv1alpha1.EndpointMapping) error
 	updatePodCIDR(podCIDR string) error
 	updateServiceCIDR(serviceCIDR string) error
 	updateReservedSubnets(subnet, operation string) error
-	updateNatMappingsConfigured(natMappingsConfigured map[string]netv1alpha1.ConfiguredCluster) error
-	getClusterSubnets() map[string]netv1alpha1.Subnets
+	updateNatMappingsConfigured(natMappingsConfigured map[string]ipamv1alpha1.ConfiguredCluster) error
+	getClusterSubnets() map[string]ipamv1alpha1.Subnets
 	getPools() []string
 	getExternalCIDR() string
-	getEndpointMappings() map[string]netv1alpha1.EndpointMapping
+	getEndpointMappings() map[string]ipamv1alpha1.EndpointMapping
 	getPodCIDR() string
 	getServiceCIDR() string
 	getReservedSubnets() []string
-	getNatMappingsConfigured() map[string]netv1alpha1.ConfiguredCluster
+	getNatMappingsConfigured() map[string]ipamv1alpha1.ConfiguredCluster
 	goipam.Storage
 }
 
@@ -77,7 +77,7 @@ type IPAMStorage struct {
 	m sync.RWMutex
 
 	dynClient dynamic.Interface
-	storage   *netv1alpha1.IpamStorage
+	storage   *ipamv1alpha1.IpamStorage
 }
 
 // NewIPAMStorage inits the storage of the IPAM module,
@@ -100,10 +100,10 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 		}
 
 		ipamStorage.storage = ipam
-		klog.Infof("Resource %s of type %s successfully created", ipam.GetName(), netv1alpha1.GroupVersion)
+		klog.Infof("Resource %s of type %s successfully created", ipam.GetName(), ipamv1alpha1.IpamStorageGroupVersionResource)
 	} else {
 		ipamStorage.storage = ipam
-		klog.Infof("Resource %s of type %s has been found", ipam.GetName(), netv1alpha1.IpamGroupVersionResource)
+		klog.Infof("Resource %s of type %s has been found", ipam.GetName(), ipamv1alpha1.IpamStorageGroupVersionResource)
 	}
 	klog.Infof("Ipam storage successfully configured")
 	return ipamStorage, nil
@@ -224,7 +224,7 @@ func (ipamStorage *IPAMStorage) DeleteAllPrefixes(_ context.Context) error {
 	return nil
 }
 
-func (ipamStorage *IPAMStorage) updateClusterSubnets(clusterSubnets map[string]netv1alpha1.Subnets) error {
+func (ipamStorage *IPAMStorage) updateClusterSubnets(clusterSubnets map[string]ipamv1alpha1.Subnets) error {
 	return ipamStorage.updateConfig(clusterSubnetUpdate, clusterSubnets)
 }
 
@@ -251,7 +251,7 @@ func (ipamStorage *IPAMStorage) updateExternalCIDR(externalCIDR string) error {
 	return ipamStorage.updateConfig(externalCIDRUpdate, externalCIDR)
 }
 
-func (ipamStorage *IPAMStorage) updateEndpointMappings(endpoints map[string]netv1alpha1.EndpointMapping) error {
+func (ipamStorage *IPAMStorage) updateEndpointMappings(endpoints map[string]ipamv1alpha1.EndpointMapping) error {
 	return ipamStorage.updateConfig(endpointMappingsUpdate, endpoints)
 }
 
@@ -263,7 +263,7 @@ func (ipamStorage *IPAMStorage) updateServiceCIDR(serviceCIDR string) error {
 	return ipamStorage.updateConfig(serviceCIDRUpdate, serviceCIDR)
 }
 
-func (ipamStorage *IPAMStorage) updateNatMappingsConfigured(natMappingsConfigured map[string]netv1alpha1.ConfiguredCluster) error {
+func (ipamStorage *IPAMStorage) updateNatMappingsConfigured(natMappingsConfigured map[string]ipamv1alpha1.ConfiguredCluster) error {
 	return ipamStorage.updateConfig(natMappingsConfiguredUpdate, natMappingsConfigured)
 }
 
@@ -282,14 +282,14 @@ func (ipamStorage *IPAMStorage) updateConfig(updateType string, data interface{}
 	b.Write(jsonData)
 	b.WriteString("}]")
 
-	unstr, err := ipamStorage.dynClient.Resource(netv1alpha1.IpamGroupVersionResource).Patch(context.Background(),
+	unstr, err := ipamStorage.dynClient.Resource(ipamv1alpha1.IpamStorageGroupVersionResource).Patch(context.Background(),
 		ipamStorage.getConfigName(), types.JSONPatchType, b.Bytes(), metav1.PatchOptions{})
 	if err != nil {
 		klog.Errorf("Failed to patch the IPAM resource: %v", err)
 		return err
 	}
 
-	var storage netv1alpha1.IpamStorage
+	var storage ipamv1alpha1.IpamStorage
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstr.UnstructuredContent(), &storage)
 	utilruntime.Must(err)
 
@@ -304,7 +304,7 @@ func (ipamStorage *IPAMStorage) getPools() []string {
 	return ipamStorage.getConfig().Spec.Pools
 }
 
-func (ipamStorage *IPAMStorage) getClusterSubnets() map[string]netv1alpha1.Subnets {
+func (ipamStorage *IPAMStorage) getClusterSubnets() map[string]ipamv1alpha1.Subnets {
 	return ipamStorage.getConfig().Spec.ClusterSubnets
 }
 
@@ -312,7 +312,7 @@ func (ipamStorage *IPAMStorage) getExternalCIDR() string {
 	return ipamStorage.getConfig().Spec.ExternalCIDR
 }
 
-func (ipamStorage *IPAMStorage) getEndpointMappings() map[string]netv1alpha1.EndpointMapping {
+func (ipamStorage *IPAMStorage) getEndpointMappings() map[string]ipamv1alpha1.EndpointMapping {
 	return ipamStorage.getConfig().Spec.EndpointMappings
 }
 
@@ -328,11 +328,11 @@ func (ipamStorage *IPAMStorage) getReservedSubnets() []string {
 	return ipamStorage.getConfig().Spec.ReservedSubnets
 }
 
-func (ipamStorage *IPAMStorage) getNatMappingsConfigured() map[string]netv1alpha1.ConfiguredCluster {
+func (ipamStorage *IPAMStorage) getNatMappingsConfigured() map[string]ipamv1alpha1.ConfiguredCluster {
 	return ipamStorage.getConfig().Spec.NatMappingsConfigured
 }
 
-func (ipamStorage *IPAMStorage) getConfig() *netv1alpha1.IpamStorage {
+func (ipamStorage *IPAMStorage) getConfig() *ipamv1alpha1.IpamStorage {
 	ipamStorage.m.RLock()
 	defer ipamStorage.m.RUnlock()
 
@@ -346,9 +346,9 @@ func (ipamStorage *IPAMStorage) getConfigName() string {
 	return ipamStorage.storage.GetName()
 }
 
-func (ipamStorage *IPAMStorage) retrieveConfig() (*netv1alpha1.IpamStorage, error) {
+func (ipamStorage *IPAMStorage) retrieveConfig() (*ipamv1alpha1.IpamStorage, error) {
 	list, err := ipamStorage.dynClient.
-		Resource(netv1alpha1.IpamGroupVersionResource).
+		Resource(ipamv1alpha1.IpamStorageGroupVersionResource).
 		List(context.Background(), metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s", consts.IpamStorageResourceLabelKey, consts.IpamStorageResourceLabelValue),
 		})
@@ -359,34 +359,34 @@ func (ipamStorage *IPAMStorage) retrieveConfig() (*netv1alpha1.IpamStorage, erro
 
 	if len(list.Items) != 1 {
 		if len(list.Items) != 0 {
-			return nil, fmt.Errorf("multiple resources of type %s found", netv1alpha1.IpamGroupVersionResource)
+			return nil, fmt.Errorf("multiple resources of type %s found", ipamv1alpha1.IpamStorageGroupVersionResource)
 		}
-		return nil, errors.NewNotFound(netv1alpha1.IpamGroupVersionResource.GroupResource(), "")
+		return nil, errors.NewNotFound(ipamv1alpha1.IpamStorageGroupResource, "")
 	}
 
-	var storage netv1alpha1.IpamStorage
+	var storage ipamv1alpha1.IpamStorage
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(list.Items[0].UnstructuredContent(), &storage)
 	utilruntime.Must(err)
 
 	return &storage, nil
 }
 
-func (ipamStorage *IPAMStorage) createConfig() (*netv1alpha1.IpamStorage, error) {
-	ipam := &netv1alpha1.IpamStorage{
+func (ipamStorage *IPAMStorage) createConfig() (*ipamv1alpha1.IpamStorage, error) {
+	ipam := &ipamv1alpha1.IpamStorage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "net.liqo.io/v1alpha1",
+			APIVersion: "ipam.liqo.io/v1alpha1",
 			Kind:       "IpamStorage",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: ipamNamePrefix,
 			Labels:       map[string]string{consts.IpamStorageResourceLabelKey: consts.IpamStorageResourceLabelValue},
 		},
-		Spec: netv1alpha1.IpamSpec{
+		Spec: ipamv1alpha1.IpamSpec{
 			Prefixes:              make(map[string][]byte),
 			Pools:                 make([]string, 0),
-			ClusterSubnets:        make(map[string]netv1alpha1.Subnets),
-			EndpointMappings:      make(map[string]netv1alpha1.EndpointMapping),
-			NatMappingsConfigured: make(map[string]netv1alpha1.ConfiguredCluster),
+			ClusterSubnets:        make(map[string]ipamv1alpha1.Subnets),
+			EndpointMappings:      make(map[string]ipamv1alpha1.EndpointMapping),
+			NatMappingsConfigured: make(map[string]ipamv1alpha1.ConfiguredCluster),
 			ReservedSubnets:       []string{},
 		},
 	}
@@ -394,14 +394,14 @@ func (ipamStorage *IPAMStorage) createConfig() (*netv1alpha1.IpamStorage, error)
 	unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ipam)
 	utilruntime.Must(err)
 
-	created, err := ipamStorage.dynClient.Resource(netv1alpha1.IpamGroupVersionResource).
+	created, err := ipamStorage.dynClient.Resource(ipamv1alpha1.IpamStorageGroupVersionResource).
 		Create(context.Background(), &unstructured.Unstructured{Object: unstr}, metav1.CreateOptions{})
 	if err != nil {
 		klog.Errorf("cannot create ipam resource: %s", err.Error())
 		return nil, err
 	}
 
-	var storage netv1alpha1.IpamStorage
+	var storage ipamv1alpha1.IpamStorage
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(created.UnstructuredContent(), &storage)
 	utilruntime.Must(err)
 

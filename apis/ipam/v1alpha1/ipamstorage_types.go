@@ -16,13 +16,25 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// ResourceIpamStorages the name of the ipamstorages resources.
-var ResourceIpamStorages = "ipamstorages"
+var (
+	// IpamStorageKind is the kind name used to register the IpamStorage CRD.
+	IpamStorageKind = "IpamStorage"
+
+	// IpamStorageResource is the resource name used to register the IpamStorage CRD.
+	IpamStorageResource = "ipamstorages"
+
+	// IpamStorageGroupVersionResource is the group version resource used to register IpamStorage CRD.
+	IpamStorageGroupVersionResource = SchemeGroupVersion.WithResource(IpamStorageResource)
+
+	// IpamStorageGroupResource is the group resource used to register IpamStorage CRD.
+	IpamStorageGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: IpamStorageResource}
+)
 
 // Subnets type contains relevant networks related to a remote cluster.
 type Subnets struct {
