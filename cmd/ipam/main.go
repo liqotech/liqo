@@ -58,8 +58,7 @@ func init() {
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=net.liqo.io,resources=ipamstorages,verbs=get;list;watch;create;update;patch
-// +kubebuilder:rbac:groups=net.liqo.io,resources=natmappings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ipam.liqo.io,resources=ipamstorages,verbs=get;list;watch;create;update;patch
 
 func main() {
 	var cmd = cobra.Command{

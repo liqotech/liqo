@@ -374,7 +374,7 @@ func (ipamStorage *IPAMStorage) retrieveConfig() (*ipamv1alpha1.IpamStorage, err
 func (ipamStorage *IPAMStorage) createConfig() (*ipamv1alpha1.IpamStorage, error) {
 	ipam := &ipamv1alpha1.IpamStorage{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "net.liqo.io/v1alpha1",
+			APIVersion: "ipam.liqo.io/v1alpha1",
 			Kind:       "IpamStorage",
 		},
 		ObjectMeta: metav1.ObjectMeta{

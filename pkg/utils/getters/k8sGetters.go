@@ -57,8 +57,8 @@ func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, lSelector labe
 	case 1:
 		return &list.Items[0], nil
 	default:
-		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s}"+
-			" when only one was expected", ipamv1alpha1.IpamStorageGroupVersionResource, lSelector.String())
+		return nil, fmt.Errorf("multiple resources of type %s found for label selector %s",
+			ipamv1alpha1.IpamStorageGroupVersionResource, lSelector.String())
 	}
 }
 
