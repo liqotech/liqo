@@ -125,3 +125,15 @@ func SplitNetwork(network string) []string {
 
 	return halves
 }
+
+// GetUnknownSourceIP returns the IP address used to map unknown sources.
+func GetUnknownSourceIP(extCIDR string) (string, error) {
+	if extCIDR == "" {
+		return "", fmt.Errorf("ExternalCIDR not set")
+	}
+	firstExtCIDRip, err := GetFirstIP(extCIDR)
+	if err != nil {
+		return "", fmt.Errorf("cannot get first IP of ExternalCIDR")
+	}
+	return firstExtCIDRip, nil
+}

@@ -394,7 +394,7 @@ func (liqoIPAM *IPAM) UnmapNetworkCIDR(_ context.Context, unmapCIDRRequest *Unma
 }
 
 // GetOrSetExternalCIDR get or set the external CIDR (eventually remapped) for the cluster.
-func (liqoIPAM *IPAM) GetOrSetExternalCIDR(_ context.Context, getOrSetExtCIDRRequest *GetOrSetExtCIDRRequest) (*GetOrSetExtCIDRResponse, error) {
+func (liqoIPAM *IPAM) GetOrSetExternalCIDR(ctx context.Context, getOrSetExtCIDRRequest *GetOrSetExtCIDRRequest) (*GetOrSetExtCIDRResponse, error) {
 	// Get cluster externalCIDR if already set
 	externalCIDR := liqoIPAM.ipamStorage.getExternalCIDR()
 	if externalCIDR != "" {
@@ -412,6 +412,24 @@ func (liqoIPAM *IPAM) GetOrSetExternalCIDR(_ context.Context, getOrSetExtCIDRReq
 		_ = liqoIPAM.FreeReservedSubnet(externalCIDR)
 		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot update external CIDR in the ipam storage: %w", err)
 	}
+
+	// Acquire the UnknownSourceIP
+	// It must be the first ip in the externalCIDR
+	unknownSourceIP, err := ipamutils.GetUnknownSourceIP(externalCIDR)
+	if err != nil {
+		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot get the UnknownSourceIP: %w", err)
+	}
+	r, err := liqoIPAM.ipam.AcquireSpecificIP(ctx, externalCIDR, unknownSourceIP)
+	if err != nil {
+		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot acquire the UnknownSourceIP: %w", err)
+	}
+	if r == nil {
+		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot acquire the UnknownSourceIP: nil response")
+	}
+	if r.IP.String() != unknownSourceIP {
+		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot acquire the UnknownSourceIP: returned %s but expected %s", r.IP.String(), unknownSourceIP)
+	}
+
 	return &GetOrSetExtCIDRResponse{RemappedExtCIDR: externalCIDR}, nil
 }
 
