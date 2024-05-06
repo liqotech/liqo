@@ -34,7 +34,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoipam "github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/leaderelection"
@@ -51,7 +51,7 @@ var (
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
-	utilruntime.Must(netv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme))
 }
 
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete

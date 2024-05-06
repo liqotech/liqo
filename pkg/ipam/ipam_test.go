@@ -30,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
 
-	liqonetapi "github.com/liqotech/liqo/apis/net/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	ipamerrors "github.com/liqotech/liqo/pkg/ipam/errors"
 	ipamutils "github.com/liqotech/liqo/pkg/ipam/utils"
@@ -86,7 +86,7 @@ func setDynClient() error {
 		Group:   "net.liqo.io",
 		Version: "v1alpha1",
 		Kind:    "ipamstorages",
-	}, &liqonetapi.IpamStorage{})
+	}, &ipamv1alpha1.IpamStorage{})
 
 	var m = make(map[schema.GroupVersionResource]string)
 
@@ -1191,9 +1191,9 @@ func checkForPrefixes(subnets []string) {
 	}
 }
 
-func getIpamStorageResource() (*liqonetapi.IpamStorage, error) {
-	ipamConfig := &liqonetapi.IpamStorage{}
-	list, err := dynClient.Resource(liqonetapi.IpamGroupVersionResource).List(
+func getIpamStorageResource() (*ipamv1alpha1.IpamStorage, error) {
+	ipamConfig := &ipamv1alpha1.IpamStorage{}
+	list, err := dynClient.Resource(ipamv1alpha1.IpamStorageGroupVersionResource).List(
 		ctx,
 		v1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s",
@@ -1205,7 +1205,7 @@ func getIpamStorageResource() (*liqonetapi.IpamStorage, error) {
 		return nil, err
 	}
 	if len(list.Items) == 0 {
-		return nil, k8serrors.NewNotFound(liqonetapi.IpamGroupVersionResource.GroupResource(), "")
+		return nil, k8serrors.NewNotFound(ipamv1alpha1.IpamStorageGroupResource, "")
 	}
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(list.Items[0].Object, ipamConfig)
 	if err != nil {
