@@ -100,7 +100,7 @@ var _ = Describe("NodeProvider", func() {
 
 		nodeProvider.NotifyNodeStatus(ctx, func(node *v1.Node) {
 			nodeChan <- node
-			client.CoreV1().Nodes().UpdateStatus(ctx, node, metav1.UpdateOptions{})
+			_, _ = client.CoreV1().Nodes().UpdateStatus(ctx, node, metav1.UpdateOptions{})
 		})
 
 		ready := nodeProvider.StartProvider(ctx)
