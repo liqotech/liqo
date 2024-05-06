@@ -28,9 +28,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"k8s.io/utils/trace"
 
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
@@ -101,6 +103,20 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			return svc
 		}
 
+		CreateIP := func(name, namespace, ip, remappedIP string) *ipamv1alpha1.IP {
+			ipamIP := &ipamv1alpha1.IP{ObjectMeta: metav1.ObjectMeta{Name: name}, Spec: ipamv1alpha1.IPSpec{IP: networkingv1alpha1.IP(ip)}}
+			ipamIP, err = liqoClient.IpamV1alpha1().IPs(namespace).Create(ctx, ipamIP, metav1.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			ipamIP.Status = ipamv1alpha1.IPStatus{
+				IPMappings: map[string]networkingv1alpha1.IP{
+					RemoteClusterID: networkingv1alpha1.IP(remappedIP),
+				},
+			}
+			ipamIP, err = liqoClient.IpamV1alpha1().IPs(namespace).UpdateStatus(ctx, ipamIP, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			return ipamIP
+		}
+
 		WhenBodyRemoteShouldNotExist := func(createRemote bool) func() {
 			return func() {
 				BeforeEach(func() {
@@ -141,6 +157,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
 			reflector = exposition.NewNamespacedEndpointSliceReflector(ipam, localPodCIDR)(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
+				WithLiqoLocal(liqoClient, liqoFactory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithLiqoRemote(liqoClient, liqoFactory).
 				WithHandlerFactory(FakeEventHandler).
@@ -170,10 +187,12 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					local.SetAnnotations(map[string]string{"bar": "baz", FakeNotReflectedAnnotKey: "true"})
 					local.AddressType = discoveryv1.AddressTypeIPv4
 					local.Endpoints = []discoveryv1.Endpoint{{
-						NodeName:  pointer.String(LocalClusterNodeName),
-						Addresses: []string{"192.168.0.25", "192.168.0.43"},
+						NodeName:  ptr.To(LocalClusterNodeName),
+						Addresses: []string{"10.168.0.25", "10.168.0.43"},
 					}}
 					CreateEndpointSlice(&local)
+					CreateIP("ip1", LocalNamespace, "10.168.0.25", "192.168.200.25")
+					CreateIP("ip2", LocalNamespace, "10.168.0.43", "192.168.200.43")
 				})
 
 				When("the remote object does not exist", func() {
@@ -363,7 +382,12 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				err           error
 			)
 
-			BeforeEach(func() { input = []string{"192.168.0.25", "192.168.0.43"} })
+			BeforeEach(func() {
+				input = []string{"10.168.0.25", "10.168.0.43"}
+
+				CreateIP("ip1", LocalNamespace, "10.168.0.25", "192.168.200.25")
+				CreateIP("ip2", LocalNamespace, "10.168.0.43", "192.168.200.43")
+			})
 
 			When("translating a set of IP addresses", func() {
 				JustBeforeEach(func() {
@@ -383,18 +407,6 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					// The IPAMClient is configured to return an error if the same translation is requested twice.
 					It("should succeed (i.e., use the cached values)", func() { Expect(err).ToNot(HaveOccurred()) })
 					It("should return the same translations", func() { Expect(output).To(ConsistOf("192.168.200.25", "192.168.200.43")) })
-				})
-
-				When("releasing the same set of IP addresses", func() {
-					JustBeforeEach(func() {
-						err = reflector.(*exposition.NamespacedEndpointSliceReflector).UnmapEndpointIPs(ctx, EndpointSliceName)
-					})
-
-					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-					It("should have released the translations", func() {
-						Expect(ipam.IsEndpointTranslated("192.168.0.25")).To(BeFalse())
-						Expect(ipam.IsEndpointTranslated("192.168.0.43")).To(BeFalse())
-					})
 				})
 
 				When("releasing a different set of IP addresses", func() {
