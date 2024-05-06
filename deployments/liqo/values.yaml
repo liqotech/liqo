@@ -290,25 +290,6 @@ ipam:
   # Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
   additionalPools: []
 
-route:
-  pod:
-    # -- Annotations for the route pod.
-    annotations: {}
-    # -- Labels for the route pod.
-    labels: {}
-    # -- Extra arguments for the route pod.
-    extraArgs: []
-    # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the route pod.
-    resources:
-      limits: {}
-      requests: {}
-    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the route pod.
-    priorityClassName: ""
-  # -- Image repository for the route pod.
-  imageName: "ghcr.io/liqotech/liqonet"
-  # -- Extra tolerations for the route daemonset.
-  tolerations: []
-
 fabric:
   pod:
     # -- Annotations for the fabric pod.
@@ -330,100 +311,6 @@ fabric:
     version: ""
   # -- Extra tolerations for the fabric daemonset.
   tolerations: []
-
-gateway:
-  # -- The number of gateway instances to run.
-  # The gateway component supports active/passive high availability.
-  # Make sure that there are enough nodes to accommodate the replicas, because such pod has to run in the host network, hence
-  # no more than one replica can be scheduled on a given node.
-  replicas: 1
-  pod:
-    # -- Annotations for the network gateway pod.
-    annotations: {}
-    # -- Labels for the network gateway pod.
-    labels: {}
-    # -- Extra arguments for the network gateway pod.
-    extraArgs: []
-    # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the network gateway pod.
-    resources:
-      limits: {}
-      requests: {}
-    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the network gateway pod.
-    priorityClassName: ""
-  # -- Image repository for the network gateway pod.
-  imageName: "ghcr.io/liqotech/liqonet"
-  service:
-    # -- Kubernetes service to be used to expose the network gateway pod.
-    # If you plan to use liqo over the Internet, consider to change this field to "LoadBalancer".
-    # Instead, if your nodes are directly reachable from the cluster you are peering to, you may change it to "NodePort".
-    type: "LoadBalancer"
-    # -- Annotations for the network gateway service.
-    annotations: {}
-    # -- Labels for the network gateway service.
-    labels: {}
-    # -- Options valid if service type is NodePort.
-    nodePort:
-      # -- Force the port used by the NodePort service.
-      port: ""
-    # -- Options valid if service type is LoadBalancer.
-    loadBalancer:
-      # -- Override the IP here if service type is LoadBalancer and you want to use a specific IP address, e.g., because you want a static LB.
-      ip: ""
-      # -- Set to false if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature).
-      allocateLoadBalancerNodePorts: ""
-  config:
-    # -- Override the default address where your network gateway service is available.
-    # You should configure it if the network gateway is behind a reverse proxy or NAT.
-    addressOverride: ""
-    # -- Overrides the port where your network gateway service is available.
-    # You should configure it if the network gateway is behind a reverse proxy or NAT and is different from the listening port.
-    portOverride: ""
-    # -- Port used by the network gateway.
-    listeningPort: 5871
-    # -- Implementation used by wireguard to establish the VPN tunnel between two clusters.
-    # Possible values are "userspace" and "kernel". Do not use "userspace" unless strictly necessary 
-    # (i.e., only if the Linux kernel does not support Wireguard).
-    wireguardImplementation: "kernel"
-  metrics:
-    # -- Expose metrics about network traffic towards cluster peers.
-    enabled: false
-    # -- Port used to expose metrics.
-    port: 5872
-    # -- Service used to expose metrics.
-    service:
-      # -- Labels for the metrics service.
-      labels: {}
-      # -- Annotations for the metrics service.
-      annotations: {}
-    serviceMonitor:
-      # -- Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator
-      # runs in your cluster; otherwise simply export the port above as an external endpoint.
-      enabled: false
-      # -- Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval
-      # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
-      interval: ""
-      # -- Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout
-      # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
-      scrapeTimeout: ""
-      # -- Labels for the gateway servicemonitor.
-      labels: {}
-
-networkManager:
-  pod:
-    # -- Annotations for the networkManager pod.
-    annotations: {}
-    # -- Labels for the networkManager pod.
-    labels: {}
-    # -- Extra arguments for the networkManager pod.
-    extraArgs: []
-    # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the networkManager pod.
-    resources:
-      limits: {}
-      requests: {}
-    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the networkManager pod.
-    priorityClassName: ""
-  # -- Image repository for the networkManager pod.
-  imageName: "ghcr.io/liqotech/liqonet"
 
 crdReplicator:
   pod:

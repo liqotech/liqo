@@ -33,7 +33,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -100,7 +100,7 @@ var _ = Describe("Handler tests", func() {
 	JustBeforeEach(func() {
 		scheme := runtime.NewScheme()
 		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-		utilruntime.Must(netv1alpha1.AddToScheme(scheme))
+		utilruntime.Must(ipamv1alpha1.AddToScheme(scheme))
 
 		local = fake.NewSimpleDynamicClient(scheme, localBefore.DeepCopy())
 		remote = fake.NewSimpleDynamicClient(scheme, remoteBefore.DeepCopy())

@@ -18,9 +18,6 @@
 // when the Pods will be offloaded from the local cluster
 package outgoing
 
-// +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;update;patch;list;watch;delete;create;deletecollection
-// +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=get;update;patch;list;watch;delete;create;deletecollection
-
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=externalnetworks,verbs=get;update;patch;list;watch;delete;create;deletecollection
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=externalnetworks/status,verbs=get;update;patch;list;watch;delete;create;deletecollection
 
