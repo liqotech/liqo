@@ -38,7 +38,6 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 		foreignClusterName  = "foreign-cluster"
 		resourceRequestName = "resource-request"
 		resourceOfferName   = "resource-offer"
-		networkConfigName   = "network-config"
 
 		authURL = "https://foo.bar"
 	)

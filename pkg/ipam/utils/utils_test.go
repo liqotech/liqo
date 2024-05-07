@@ -28,9 +28,9 @@ import (
 const (
 	invalidValue      = "invalidValue"
 	CIDRAddressNetErr = "CIDR address"
-	labelKey          = "net.liqo.io/LabelKey"
+	labelKey          = "ipam.liqo.io/LabelKey"
 	labelValue        = "LabelValue"
-	annotationKey     = "net.liqo.io/AnnotationKey"
+	annotationKey     = "ipam.liqo.io/AnnotationKey"
 	annotationValue   = "AnnotationValue"
 )
 

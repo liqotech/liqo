@@ -2,7 +2,6 @@
 {{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager" "version" .Values.controllerManager.image.version) .) -}}
 {{- $kubeletConfig :=  (merge (dict "name" "virtual-kubelet" "module" "virtualkubelet" "version" .Values.virtualKubelet.image.version) .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
-{{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
 {{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
 
 {{- $vkargs := .Values.virtualKubelet.extra.args }}
@@ -123,8 +122,6 @@ spec:
           {{- else if not .Values.networking.enabled }}
           - --ipam-server=
           - --networking-enabled=false
-          {{- else if .Values.networking.legacy }}
-          - --ipam-server={{ include "liqo.prefixedName" $netManagerConfig }}.{{ .Release.Namespace }}:6000
           {{- else }}
           - --ipam-server={{ include "liqo.prefixedName" $ipamConfig }}.{{ .Release.Namespace }}:6000
           {{- end }}
