@@ -26,31 +26,18 @@ const (
 	// K8sAppComponentKey = key of the label used to denote a deployed application component.
 	K8sAppComponentKey = "app.kubernetes.io/component"
 
-	// GatewayServiceLabelKey key of the label used to get the service.
-	GatewayServiceLabelKey = "net.liqo.io/gateway"
-	// GatewayServiceLabelValue value of the label used to get the service.
-	GatewayServiceLabelValue = "true"
-
 	// AuthAppName label value that denotes the name of the liqo-auth deployment.
 	AuthAppName = "auth"
-
-	// NetworkManagerAppName label value that denotes the name of the liqo-network-manager deployment.
-	NetworkManagerAppName = "network-manager"
 
 	// ControllerManagerAppName label value that denotes the name of the liqo-controller-manager deployment.
 	ControllerManagerAppName = "controller-manager"
 
 	// APIServerProxyAppName label value that denotes the name of the liqo-api-server-proxy deployment.
 	APIServerProxyAppName = "proxy"
-	// NatMappingResourceLabelKey is the constant representing
-	// the key of the label assigned to all NatMapping resources.
-	NatMappingResourceLabelKey = "net.liqo.io/natmapping"
-	// NatMappingResourceLabelValue is the constant representing
-	// the value of the label assigned to all NatMapping resources.
-	NatMappingResourceLabelValue = "true"
+
 	// IpamStorageResourceLabelKey is the constant representing
 	// the key of the label assigned to all IpamStorage resources.
-	IpamStorageResourceLabelKey = "net.liqo.io/ipamstorage"
+	IpamStorageResourceLabelKey = "ipam.liqo.io/ipamstorage"
 	// IpamStorageResourceLabelValue is the constant representing
 	// the value of the label assigned to all IpamStorage resources.
 	IpamStorageResourceLabelValue = "true"

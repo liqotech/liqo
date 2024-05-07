@@ -28,4 +28,7 @@ const (
 
 	// ResourcePluginAddressParameter is the name of the parameter specifying the address of a resource plugin.
 	ResourcePluginAddressParameter = "resource-plugin-address"
+
+	// NotApplicable is a constant used to represent a not applicable value.
+	NotApplicable = "N/A"
 )

@@ -127,7 +127,7 @@ var _ = Describe("Manager tests", func() {
 
 		AfterEach(func() { cancel() })
 
-		CreateNetworkConfig := func() error {
+		CreateReplicatedResource := func() error {
 			obj := &unstructured.Unstructured{}
 			obj.SetGroupVersionKind(objGVK)
 			obj.SetNamespace(objNamespace)
@@ -144,14 +144,14 @@ var _ = Describe("Manager tests", func() {
 			return func() {
 				JustBeforeEach(func() {
 					if alreadyPresent && !skipCreation {
-						Expect(CreateNetworkConfig()).To(Succeed())
+						Expect(CreateReplicatedResource()).To(Succeed())
 					}
 
 					manager.Start(ctx, res)
 					manager.registerHandler(gvr, localNamespace, func(key item) { receiver <- key })
 
 					if !alreadyPresent && !skipCreation {
-						Expect(CreateNetworkConfig()).To(Succeed())
+						Expect(CreateReplicatedResource()).To(Succeed())
 					}
 				})
 
@@ -166,7 +166,7 @@ var _ = Describe("Manager tests", func() {
 							JustBeforeEach(func() {
 								manager.unregisterHandler(gvr, localNamespace)
 								// Create the object only once the handler has been unregistered, to prevent race conditions.
-								Expect(CreateNetworkConfig()).To(Succeed())
+								Expect(CreateReplicatedResource()).To(Succeed())
 							})
 							It("should not trigger the handler", func() { Consistently(receiver).ShouldNot(Receive()) })
 						})

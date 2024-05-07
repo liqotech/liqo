@@ -17,12 +17,6 @@ package statuspeer
 const (
 	// peerInfoCheckerName contains the name of the checker.
 	peerInfoCheckerName = "Peered Cluster Information"
-	// NotRemappedMsg contains the message printed when a cluster is not remapped.
-	NotRemappedMsg = "remapping not necessary"
 	// PeerNotFoundMsg contains the message printed when a cluster is not found.
 	PeerNotFoundMsg = "Peer Not Found"
-	// NetworkConfigNotFoundMsg contains the message printed when a network config is not found.
-	NetworkConfigNotFoundMsg = "NetWorkConfig Not Found"
-	// TunnelEndpointNotFoundMsg contains the message printed when a tunnel endpoint is not found.
-	TunnelEndpointNotFoundMsg = "TunnelEndpoint Not Found"
 )

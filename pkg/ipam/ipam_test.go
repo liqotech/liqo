@@ -83,7 +83,7 @@ func fillNetworkPool(pool string, ipam *IPAM) error {
 func setDynClient() error {
 	scheme := runtime.NewScheme()
 	scheme.AddKnownTypeWithName(schema.GroupVersionKind{
-		Group:   "net.liqo.io",
+		Group:   "ipam.liqo.io",
 		Version: "v1alpha1",
 		Kind:    "ipamstorages",
 	}, &ipamv1alpha1.IpamStorage{})
@@ -91,7 +91,7 @@ func setDynClient() error {
 	var m = make(map[schema.GroupVersionResource]string)
 
 	m[schema.GroupVersionResource{
-		Group:    "net.liqo.io",
+		Group:    "ipam.liqo.io",
 		Version:  "v1alpha1",
 		Resource: "ipamstorages",
 	}] = "ipamstoragesList"
