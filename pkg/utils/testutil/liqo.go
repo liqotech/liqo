@@ -46,29 +46,6 @@ func FakeLiqoAuthService(serviceType corev1.ServiceType) *corev1.Service {
 	}
 }
 
-// FakeLiqoGatewayService returns a fake liqo-gateway service.
-func FakeLiqoGatewayService(serviceType corev1.ServiceType) *corev1.Service {
-	switch serviceType {
-	case corev1.ServiceTypeLoadBalancer:
-		return FakeServiceLoadBalancer(liqoconsts.DefaultLiqoNamespace, liqoconsts.LiqoGatewayOperatorName, EndpointIP,
-			map[string]string{
-				liqoconsts.GatewayServiceLabelKey: liqoconsts.GatewayServiceLabelValue,
-			},
-			nil, corev1.ProtocolUDP, VPNGatewayPort, liqoconsts.DriverName)
-	case corev1.ServiceTypeNodePort:
-		return FakeServiceNodePort(liqoconsts.DefaultLiqoNamespace, liqoconsts.LiqoGatewayOperatorName,
-			map[string]string{
-				liqoconsts.GatewayServiceLabelKey: liqoconsts.GatewayServiceLabelValue,
-			},
-			map[string]string{
-				liqoconsts.GatewayServiceAnnotationKey: EndpointIP,
-			},
-			corev1.ProtocolUDP, VPNGatewayPort, liqoconsts.DriverName, VPNGatewayPort)
-	default:
-		return nil
-	}
-}
-
 // FakeControllerManagerDeployment returns a fake liqo-controller-manager deployment.
 func FakeControllerManagerDeployment(argsClusterLabels []string, networkEnabled bool) *appv1.Deployment {
 	containerArgs := []string{}
