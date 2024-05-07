@@ -79,10 +79,6 @@ var _ = Describe("Liqo E2E", func() {
 			for index1 := range testContext.Clusters {
 				for index2 := range testContext.Clusters {
 					if index2 != index1 {
-						if testContext.SecurityMode == liqoconst.IntraClusterTrafficSegregationSecurityMode && index1 != 0 {
-							// this will work only for pod offloaded from the cluster, not the viceversa
-							continue
-						}
 						ConnectivityCheckTableEntries = append(ConnectivityCheckTableEntries,
 							Entry(fmt.Sprintf("Check Pod to Pod connectivity from cluster %v to cluster %v", index1+1, index2+1),
 								connectivityTestcase{
@@ -451,10 +447,6 @@ var _ = Describe("Liqo E2E", func() {
 			)
 
 			BeforeEach(func() {
-				if testContext.SecurityMode == liqoconst.IntraClusterTrafficSegregationSecurityMode {
-					Skip("Skip API server interaction test because it is not working with IntraClusterTrafficSegregationSecurityMode, waiting to fix it")
-				}
-
 				client, err := discovery.NewDiscoveryClientForConfig(testContext.Clusters[0].Config)
 				Expect(err).ToNot(HaveOccurred())
 				v, err = client.ServerVersion()

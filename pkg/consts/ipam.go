@@ -38,4 +38,7 @@ const (
 	NetworkTypeInternalCIDR NetworkType = "internal-cidr"
 	// NetworkTypeReserved is the constant representing a network of type reserved subnet.
 	NetworkTypeReserved NetworkType = "reserved"
+
+	// DefaultCIDRValue is the default value for a string that contains a CIDR.
+	DefaultCIDRValue = "None"
 )
