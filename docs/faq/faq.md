@@ -79,8 +79,6 @@ It is highly recommended to first unpeer all existing foreignclusters before upg
 If using `liqoctl unpeer` command does not fix the problem (probably due to some cluster setup misconfiguration), you can try to manually unpeer the cluster by force deleting all Liqo resources associated with that ForeignCluster.
 To do this, force delete all resources (look also in the tenant namespace) with the following types (possibly in this order):
 
-* `TunnelEndpoint`
-* `NetworkConfig`
 * `ResourceOffers`
 * `ResourceRequests`
 * `NamespaceMap`
