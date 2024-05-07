@@ -34,7 +34,6 @@ import (
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
@@ -47,7 +46,6 @@ type Tester struct {
 	// ClustersNumber represents the number of available clusters
 	ClustersNumber   int
 	OverlappingCIDRs bool
-	SecurityMode     consts.SecurityModeType
 }
 
 // ClusterContext encapsulate all information and objects used to access a test cluster.
@@ -105,7 +103,6 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 	TmpDir := testutils.GetEnvironmentVariableOrDie(testconsts.KubeconfigDirVarName)
 
 	overlappingCIDRsString := testutils.GetEnvironmentVariableOrDie(testconsts.OverlappingCIDRsEnvVar)
-	securityModeString := testutils.GetEnvironmentVariableOrDie(testconsts.SecurityModeEnvVar)
 
 	// Here is necessary to add the controller runtime clients.
 	scheme := getScheme()
@@ -113,7 +110,6 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 	tester = &Tester{
 		Namespace:        namespace,
 		OverlappingCIDRs: strings.EqualFold(overlappingCIDRsString, "true"),
-		SecurityMode:     consts.SecurityModeType(securityModeString),
 	}
 
 	tester.ClustersNumber, err = getClusterNumberFromEnv()

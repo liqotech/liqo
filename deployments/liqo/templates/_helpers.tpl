@@ -131,22 +131,6 @@ Create the file name of a cluster role starting from a prefix, it accepts a dict
 {{- end }}
 
 {{/*
-Gateway pod labels.
-If you change any value here, please make sure that you change it also in the source code.
-*/}}
-{{- define "liqo.gatewayPodLabels" -}}
-net.liqo.io/gateway: "standby"
-{{- end }}
-
-{{/*
-Label selector used by the gateway service to select the right gateway pod.
-If you change any value here, please make sure that you change it also in the source code.
-*/}}
-{{- define "liqo.gatewaySelector" -}}
-net.liqo.io/gateway: "active"
-{{- end }}
-
-{{/*
 Auth pod labels
 */}}
 {{- define "liqo.authServiceLabels" -}}
@@ -165,13 +149,6 @@ Webhook pod labels
 */}}
 {{- define "liqo.webhookServiceLabels" -}}
 webhook.liqo.io/backend: "liqo-webhook"
-{{- end }}
-
-{{/*
-Gateway service labels
-*/}}
-{{- define "liqo.gatewayServiceLabels" -}}
-net.liqo.io/gateway: "true"
 {{- end }}
 
 {{/*
