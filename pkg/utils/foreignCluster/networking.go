@@ -16,7 +16,7 @@ package foreigncluster
 
 import discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 
-// IsNetworkingEnabled checks if the automatic creation/propagation of NetworkConfigs is enabled.
+// IsNetworkingEnabled checks if the networking is enabled.
 func IsNetworkingEnabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	return foreignCluster.Spec.PeeringType == discoveryv1alpha1.PeeringTypeOutOfBand
 }
