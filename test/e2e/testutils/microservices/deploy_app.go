@@ -90,10 +90,25 @@ func CheckApplicationIsWorking(t ginkgo.GinkgoTInterface, options *k8s.KubectlOp
 	if len(nodes) == 0 {
 		return fmt.Errorf("no nodes retrieved from the cluster")
 	}
-	nodeAddress, err := getInternalAddress(nodes[0].Status.Addresses)
-	if err != nil {
-		return err
+
+	var nodeAddress string
+	if len(nodes) == 1 {
+		nodeAddress, err = getInternalAddress(nodes[0].Status.Addresses)
+		if err != nil {
+			return err
+		}
+	} else {
+		for i := range nodes {
+			if util.IsNodeControlPlane(nodes[i].Spec.Taints) {
+				continue
+			}
+			nodeAddress, err = getInternalAddress(nodes[i].Status.Addresses)
+			if err != nil {
+				return err
+			}
+		}
 	}
+
 	url := fmt.Sprintf("http://%s:%d", nodeAddress, service.Spec.Ports[0].NodePort)
 	return http_helper.HttpGetWithRetryWithCustomValidationE(t, url, nil, retries, sleepBetweenRetries, func(code int, body string) bool {
 		return code == 200

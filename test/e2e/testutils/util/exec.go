@@ -87,6 +87,9 @@ func TriggerCheckNodeConnectivity(localNodes *v1.NodeList, command string, nodeP
 		return fmt.Errorf("nodePort Value invalid (Must be >= 0)")
 	}
 	for index := range localNodes.Items {
+		if len(localNodes.Items) != 1 && IsNodeControlPlane(localNodes.Items[index].Spec.Taints) {
+			continue
+		}
 		cmd := command + localNodes.Items[index].Status.Addresses[0].Address + ":" + strconv.Itoa(nodePortValue)
 		c := exec.Command("sh", "-c", cmd) //nolint:gosec // Just a test, no need for this check
 		output := &bytes.Buffer{}
