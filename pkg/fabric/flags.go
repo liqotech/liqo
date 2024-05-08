@@ -47,6 +47,7 @@ var RequiredFlags = []FlagName{
 // InitFlags initializes the flags for the wireguard tunnel.
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringVar(&opts.NodeName, FlagNodeNameName.String(), "", "Name of the node where the pod is scheduled")
+	flagset.StringVar(&opts.PodName, "podname", "", "Name of the pod")
 
 	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), ":8080", "Address for the metrics endpoint")
 	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")

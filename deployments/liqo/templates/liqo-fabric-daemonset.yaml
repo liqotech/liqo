@@ -42,6 +42,7 @@ spec:
           name: {{ $fabricConfig.name }}
           command: ["/usr/bin/liqo-fabric"]
           args:
+          - --podname=$(POD_NAME)
           - --nodename=$(NODE_NAME)
           - --enable-arp=true
           {{- if .Values.common.extraArgs }}
@@ -60,8 +61,12 @@ spec:
           env:
             - name: NODE_NAME
               valueFrom:
-               fieldRef:
-                 fieldPath: spec.nodeName
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
       hostNetwork: true
       {{- if .Values.fabric.pod.priorityClassName }}
       priorityClassName: {{ .Values.fabric.pod.priorityClassName }}
