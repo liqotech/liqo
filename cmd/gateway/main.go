@@ -146,6 +146,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	rcr, err := route.NewRouteConfigurationReconcilerWithoutFinalizer(
 		mgr.GetClient(),
 		mgr.GetScheme(),
+		connoptions.GwOptions.Name,
 		mgr.GetEventRecorderFor("routeconfiguration-controller"),
 		[]labels.Set{
 			gateway.ForgeRouteExternalTargetLabels(connoptions.GwOptions.RemoteClusterID),
@@ -165,6 +166,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	fwcr, err := firewall.NewFirewallConfigurationReconcilerWithoutFinalizer(
 		mgr.GetClient(),
 		mgr.GetScheme(),
+		connoptions.GwOptions.Name,
 		mgr.GetEventRecorderFor("firewall-controller"),
 		[]labels.Set{
 			gateway.ForgeFirewallInternalTargetLabels(),

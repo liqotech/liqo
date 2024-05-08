@@ -40,6 +40,7 @@ import (
 //
 //nolint:revive // We usually the name of the reconciled resource in the controller name.
 type FirewallConfigurationReconciler struct {
+	PodName       string
 	NftConnection *nftables.Conn
 	client.Client
 	Scheme         *runtime.Scheme
@@ -51,13 +52,14 @@ type FirewallConfigurationReconciler struct {
 }
 
 // newFirewallConfigurationReconciler returns a new FirewallConfigurationReconciler.
-func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
+func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme, podname string,
 	er record.EventRecorder, labelsSets []labels.Set, enableFinalizer bool) (*FirewallConfigurationReconciler, error) {
 	nftConnection, err := nftables.New()
 	if err != nil {
 		return nil, fmt.Errorf("unable to create nftables connection: %w", err)
 	}
 	return &FirewallConfigurationReconciler{
+		PodName:         podname,
 		NftConnection:   nftConnection,
 		Client:          cl,
 		Scheme:          s,
@@ -68,15 +70,15 @@ func newFirewallConfigurationReconciler(cl client.Client, s *runtime.Scheme,
 }
 
 // NewFirewallConfigurationReconcilerWithFinalizer returns a new FirewallConfigurationReconciler that uses finalizer.
-func NewFirewallConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme,
+func NewFirewallConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme, podname string,
 	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationReconciler, error) {
-	return newFirewallConfigurationReconciler(cl, s, er, labelsSets, true)
+	return newFirewallConfigurationReconciler(cl, s, podname, er, labelsSets, true)
 }
 
 // NewFirewallConfigurationReconcilerWithoutFinalizer returns a new FirewallConfigurationReconciler that doesn't use finalizer.
-func NewFirewallConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme,
+func NewFirewallConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme, podname string,
 	er record.EventRecorder, labelsSets []labels.Set) (*FirewallConfigurationReconciler, error) {
-	return newFirewallConfigurationReconciler(cl, s, er, labelsSets, false)
+	return newFirewallConfigurationReconciler(cl, s, podname, er, labelsSets, false)
 }
 
 // cluster-role
@@ -100,7 +102,7 @@ func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctr
 	klog.V(4).Infof("Reconciling firewallconfiguration %s", req.String())
 
 	defer func() {
-		err = r.UpdateStatus(ctx, r.EventsRecorder, fwcfg, err)
+		err = r.UpdateStatus(ctx, r.EventsRecorder, fwcfg, r.PodName, err)
 	}()
 
 	// Manage Finalizers and Table deletion.
@@ -181,15 +183,41 @@ func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) 
 	return predicate.Or(labelPredicates...), nil
 }
 
+func getConditionRef(fwcfg *networkingv1alpha1.FirewallConfiguration, podname string) *networkingv1alpha1.FirewallConfigurationStatusCondition {
+	var conditionRef *networkingv1alpha1.FirewallConfigurationStatusCondition
+	for i := range fwcfg.Status.Conditions {
+		if fwcfg.Status.Conditions[i].Host == podname {
+			conditionRef = &fwcfg.Status.Conditions[i]
+			break
+		}
+	}
+	if conditionRef == nil {
+		conditionRef = &networkingv1alpha1.FirewallConfigurationStatusCondition{
+			Host: podname,
+		}
+		fwcfg.Status.Conditions = append(fwcfg.Status.Conditions, *conditionRef)
+	}
+	return conditionRef
+}
+
 // UpdateStatus updates the status of the given FirewallConfiguration.
 func (r *FirewallConfigurationReconciler) UpdateStatus(ctx context.Context, er record.EventRecorder,
-	fwcfg *networkingv1alpha1.FirewallConfiguration, err error) error {
+	fwcfg *networkingv1alpha1.FirewallConfiguration, podname string, err error) error {
+	conditionRef := getConditionRef(fwcfg, podname)
+	conditionRef.Host = podname
+	conditionRef.Type = networkingv1alpha1.FirewallConfigurationStatusConditionTypeApplied
+
+	oldStatus := conditionRef.Status
 	if err == nil {
-		fwcfg.Status.Condition = networkingv1alpha1.FirewallConfigurationStatusConditionApplied
+		conditionRef.Status = metav1.ConditionTrue
 	} else {
-		fwcfg.Status.Condition = networkingv1alpha1.FirewallConfigurationStatusConditionError
+		conditionRef.Status = metav1.ConditionFalse
 	}
-	er.Eventf(fwcfg, "Normal", "FirewallConfigurationUpdate", "FirewallConfiguration: %s", fwcfg.Status.Condition)
+	if oldStatus != conditionRef.Status {
+		conditionRef.LastTransitionTime = metav1.Now()
+	}
+
+	er.Eventf(fwcfg, "Normal", "FirewallConfigurationUpdate", "FirewallConfiguration %s: %s", conditionRef.Type, conditionRef.Status)
 	if clerr := r.Client.Status().Update(ctx, fwcfg); clerr != nil {
 		err = errors.Join(err, clerr)
 	}
