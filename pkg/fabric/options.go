@@ -17,6 +17,7 @@ package fabric
 // Options contains the options for the wireguard interface.
 type Options struct {
 	NodeName string
+	PodName  string
 
 	MetricsAddress string
 	ProbeAddr      string

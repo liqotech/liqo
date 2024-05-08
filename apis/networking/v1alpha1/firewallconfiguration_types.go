@@ -29,26 +29,37 @@ type FirewallConfigurationSpec struct {
 	Table firewallapi.Table `json:"table"`
 }
 
-// FirewallConfigurationStatusCondition defines the observed state of FirewallConfiguration.
-type FirewallConfigurationStatusCondition string
+// FirewallConfigurationStatusConditionType is a type of firewallconfiguration condition.
+type FirewallConfigurationStatusConditionType string
 
 const (
-	// FirewallConfigurationStatusConditionApplied is true if the configuration has been applied to the firewall.
-	FirewallConfigurationStatusConditionApplied FirewallConfigurationStatusCondition = "Applied"
-	// FirewallConfigurationStatusConditionError is true if the configuration has not been applied to the firewall.
-	FirewallConfigurationStatusConditionError FirewallConfigurationStatusCondition = "Error"
+	// FirewallConfigurationStatusConditionTypeApplied is true if the configuration has been applied to the firewall.
+	FirewallConfigurationStatusConditionTypeApplied FirewallConfigurationStatusConditionType = "Applied"
+	// FirewallConfigurationStatusConditionTypeError is true if the configuration has not been applied to the firewall.
+	FirewallConfigurationStatusConditionTypeError FirewallConfigurationStatusConditionType = "Error"
 )
+
+// FirewallConfigurationStatusCondition defines the observed state of FirewallConfiguration.
+type FirewallConfigurationStatusCondition struct {
+	// Host where the configuration has been applied.
+	Host string `json:"host"`
+	// Type of firewallconfiguration condition.
+	Type FirewallConfigurationStatusConditionType `json:"type"`
+	// Status of the condition, one of True, False, Unknown.
+	Status metav1.ConditionStatus `json:"status"`
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
+}
 
 // FirewallConfigurationStatus defines the observed state of FirewallConfiguration.
 type FirewallConfigurationStatus struct {
-	// Applied is true if the configuration has been applied to the firewall.
-	Condition FirewallConfigurationStatusCondition `json:"condition,omitempty"`
+	// Conditions is the list of conditions of the FirewallConfiguration.
+	Conditions []FirewallConfigurationStatusCondition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.condition`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // FirewallConfiguration contains a rule to be applied to the firewall in the gateway.

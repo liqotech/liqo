@@ -17,9 +17,6 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.condition
-      name: Status
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -312,10 +309,32 @@ spec:
             description: FirewallConfigurationStatus defines the observed state of
               FirewallConfiguration.
             properties:
-              condition:
-                description: Applied is true if the configuration has been applied
-                  to the firewall.
-                type: string
+              conditions:
+                description: Conditions is the list of conditions of the FirewallConfiguration.
+                items:
+                  description: FirewallConfigurationStatusCondition defines the observed
+                    state of FirewallConfiguration.
+                  properties:
+                    host:
+                      description: Host where the configuration has been applied.
+                      type: string
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of firewallconfiguration condition.
+                      type: string
+                  required:
+                  - host
+                  - status
+                  - type
+                  type: object
+                type: array
             type: object
         type: object
     served: true
