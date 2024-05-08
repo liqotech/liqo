@@ -88,7 +88,7 @@ var _ = Describe("Liqo E2E", func() {
 						Eventually(func() bool {
 							readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.NativeClient, tenantNs.Name)
 							klog.Infof("Tenant pods status: %d ready, %d not ready", len(readyPods), len(notReadyPods))
-							return err == nil && len(notReadyPods) == 0 && len(readyPods) == 1
+							return err == nil && len(notReadyPods) == 0 && len(readyPods) == 2
 						}, timeout, interval).Should(BeTrue())
 					}
 				},
