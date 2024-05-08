@@ -17,9 +17,6 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.condition
-      name: Status
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -267,9 +264,32 @@ spec:
           status:
             description: RouteConfigurationStatus defines the observed state of RouteConfiguration.
             properties:
-              condition:
-                description: Condition is the condition of the RouteConfiguration
-                type: string
+              conditions:
+                description: Conditions is the list of conditions of the RouteConfiguration.
+                items:
+                  description: RouteConfigurationStatusCondition defines the observed
+                    state of FirewallConfiguration.
+                  properties:
+                    host:
+                      description: Host where the configuration has been applied.
+                      type: string
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of routeconfiguration condition.
+                      type: string
+                  required:
+                  - host
+                  - status
+                  - type
+                  type: object
+                type: array
             type: object
         type: object
     served: true

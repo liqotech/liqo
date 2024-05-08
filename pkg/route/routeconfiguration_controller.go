@@ -39,6 +39,7 @@ import (
 //
 //nolint:revive // We usually use the name of the reconciled resource in the controller name.
 type RouteConfigurationReconciler struct {
+	PodName string
 	client.Client
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
@@ -49,9 +50,10 @@ type RouteConfigurationReconciler struct {
 }
 
 // newRouteConfigurationReconciler returns a new RouteConfigurationReconciler.
-func newRouteConfigurationReconciler(cl client.Client, s *runtime.Scheme,
+func newRouteConfigurationReconciler(cl client.Client, s *runtime.Scheme, podname string,
 	er record.EventRecorder, labelsSets []labels.Set, enableFinalizer bool) (*RouteConfigurationReconciler, error) {
 	return &RouteConfigurationReconciler{
+		PodName:         podname,
 		Client:          cl,
 		Scheme:          s,
 		EventsRecorder:  er,
@@ -61,15 +63,15 @@ func newRouteConfigurationReconciler(cl client.Client, s *runtime.Scheme,
 }
 
 // NewRouteConfigurationReconcilerWithFinalizer initializes a reconciler that uses finalizers on routeconfigurations.
-func NewRouteConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme,
+func NewRouteConfigurationReconcilerWithFinalizer(cl client.Client, s *runtime.Scheme, podname string,
 	er record.EventRecorder, labelsSets []labels.Set) (*RouteConfigurationReconciler, error) {
-	return newRouteConfigurationReconciler(cl, s, er, labelsSets, true)
+	return newRouteConfigurationReconciler(cl, s, podname, er, labelsSets, true)
 }
 
 // NewRouteConfigurationReconcilerWithoutFinalizer initializes a reconciler that doesn't use finalizers on routeconfigurations.
-func NewRouteConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme,
+func NewRouteConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtime.Scheme, podname string,
 	er record.EventRecorder, labelsSets []labels.Set) (*RouteConfigurationReconciler, error) {
-	return newRouteConfigurationReconciler(cl, s, er, labelsSets, false)
+	return newRouteConfigurationReconciler(cl, s, podname, er, labelsSets, false)
 }
 
 // cluster-role
@@ -93,7 +95,7 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 	klog.V(4).Infof("Reconciling routeconfiguration %s", req.String())
 
 	defer func() {
-		err = r.UpdateStatus(ctx, r.EventsRecorder, routeconfiguration, err)
+		err = r.UpdateStatus(ctx, r.EventsRecorder, routeconfiguration, r.PodName, err)
 	}()
 
 	var tableID uint32
@@ -194,16 +196,41 @@ func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) 
 	return predicate.Or(labelPredicates...), nil
 }
 
+func getConditionRef(rcfg *networkingv1alpha1.RouteConfiguration, podname string) *networkingv1alpha1.RouteConfigurationStatusCondition {
+	var conditionRef *networkingv1alpha1.RouteConfigurationStatusCondition
+	for i := range rcfg.Status.Conditions {
+		if rcfg.Status.Conditions[i].Host == podname {
+			conditionRef = &rcfg.Status.Conditions[i]
+			break
+		}
+	}
+	if conditionRef == nil {
+		conditionRef = &networkingv1alpha1.RouteConfigurationStatusCondition{
+			Host: podname,
+		}
+		rcfg.Status.Conditions = append(rcfg.Status.Conditions, *conditionRef)
+	}
+	return conditionRef
+}
+
 // UpdateStatus updates the status of the given RouteConfiguration.
 func (r *RouteConfigurationReconciler) UpdateStatus(ctx context.Context, er record.EventRecorder,
-	routeconfiguration *networkingv1alpha1.RouteConfiguration, err error) error {
+	routeconfiguration *networkingv1alpha1.RouteConfiguration, podname string, err error) error {
+	conditionRef := getConditionRef(routeconfiguration, podname)
+	conditionRef.Host = podname
+	conditionRef.Type = networkingv1alpha1.RouteConfigurationStatusConditionTypeApplied
+
+	oldStatus := conditionRef.Status
 	if err == nil {
-		routeconfiguration.Status.Condition = networkingv1alpha1.RouteConfigurationStatusConditionApplied
+		conditionRef.Status = metav1.ConditionTrue
 	} else {
-		routeconfiguration.Status.Condition = networkingv1alpha1.RouteConfigurationStatusConditionError
+		conditionRef.Status = metav1.ConditionFalse
 	}
-	er.Eventf(routeconfiguration, "Normal", "RouteConfigurationUpdate", "RouteConfiguration: %s",
-		routeconfiguration.Status.Condition)
+	if oldStatus != conditionRef.Status {
+		conditionRef.LastTransitionTime = metav1.Now()
+	}
+
+	er.Eventf(routeconfiguration, "Normal", "RouteConfigurationUpdate", "RouteConfiguration %s: %s", conditionRef.Type, conditionRef.Status)
 	if clerr := r.Client.Status().Update(ctx, routeconfiguration); clerr != nil {
 		err = errors.Join(err, clerr)
 	}
