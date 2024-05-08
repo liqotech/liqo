@@ -108,26 +108,37 @@ type RouteConfigurationSpec struct {
 	Table Table `json:"table,omitempty"`
 }
 
-// RouteConfigurationStatusCondition defines the observed state of FirewallConfiguration.
-type RouteConfigurationStatusCondition string
+// RouteConfigurationStatusConditionType is a type of routeconfiguration condition.
+type RouteConfigurationStatusConditionType string
 
 const (
-	// RouteConfigurationStatusConditionApplied reports that the configuration has been applied.
-	RouteConfigurationStatusConditionApplied RouteConfigurationStatusCondition = "Applied"
-	// RouteConfigurationStatusConditionError reports an error in the configuration.
-	RouteConfigurationStatusConditionError RouteConfigurationStatusCondition = "Error"
+	// RouteConfigurationStatusConditionTypeApplied reports that the configuration has been applied.
+	RouteConfigurationStatusConditionTypeApplied RouteConfigurationStatusConditionType = "Applied"
+	// RouteConfigurationStatusConditionTypeError reports an error in the configuration.
+	RouteConfigurationStatusConditionTypeError RouteConfigurationStatusConditionType = "Error"
 )
+
+// RouteConfigurationStatusCondition defines the observed state of FirewallConfiguration.
+type RouteConfigurationStatusCondition struct {
+	// Host where the configuration has been applied.
+	Host string `json:"host"`
+	// Type of routeconfiguration condition.
+	Type RouteConfigurationStatusConditionType `json:"type"`
+	// Status of the condition, one of True, False, Unknown.
+	Status metav1.ConditionStatus `json:"status"`
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
+}
 
 // RouteConfigurationStatus defines the observed state of RouteConfiguration.
 type RouteConfigurationStatus struct {
-	// Condition is the condition of the RouteConfiguration
-	Condition RouteConfigurationStatusCondition `json:"condition,omitempty"`
+	// Conditions is the list of conditions of the RouteConfiguration.
+	Conditions []RouteConfigurationStatusCondition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.condition`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // RouteConfiguration contains the network RouteConfiguration of a pair of clusters,
