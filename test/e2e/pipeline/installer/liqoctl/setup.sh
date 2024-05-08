@@ -77,7 +77,7 @@ do
   fi
   if [[ "${INFRA}" == "cluster-api" ]]; then
     LIQO_PROVIDER="kubeadm"
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --set auth.service.type=NodePort --set gateway.service.type=NodePort)
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --set auth.service.type=NodePort --set peering.networking.gateway.server.service.type=NodePort )
   else
     LIQO_PROVIDER="${INFRA}"
   fi
