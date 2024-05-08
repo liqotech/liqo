@@ -137,6 +137,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	fwcr, err := firewall.NewFirewallConfigurationReconcilerWithFinalizer(
 		mgr.GetClient(),
 		mgr.GetScheme(),
+		options.PodName,
 		mgr.GetEventRecorderFor("firewall-controller"),
 		[]labels.Set{fabric.ForgeFirewallTargetLabels(), remapping.ForgeFirewallTargetLabelsIPMappingFabric()},
 	)
@@ -152,6 +153,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	rcr, err := route.NewRouteConfigurationReconcilerWithFinalizer(
 		mgr.GetClient(),
 		mgr.GetScheme(),
+		options.PodName,
 		mgr.GetEventRecorderFor("route-controller"),
 		[]labels.Set{fabric.ForgeRouteTargetLabels()},
 	)
