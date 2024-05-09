@@ -33,6 +33,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
+	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
@@ -108,7 +109,7 @@ func (r *NonceSignerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Extract the nonce from the secret.
-	nonce, err := GetNonceFromSecret(&secret)
+	nonce, err := authgetters.GetNonceFromSecret(&secret)
 	if err != nil {
 		klog.Errorf("unable to get nonce from secret %q: %v", req.NamespacedName, err)
 		return ctrl.Result{}, err

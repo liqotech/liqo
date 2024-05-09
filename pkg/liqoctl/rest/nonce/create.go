@@ -22,22 +22,15 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/printers"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
-	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
+	authutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/args"
-	"github.com/liqotech/liqo/pkg/utils/getters"
-)
-
-const (
-	// nonceSecretName is the name of the Secret used to store the Nonce.
-	nonceSecretName = "liqo-nonce"
 )
 
 const liqoctlCreateNonceLongHelp = `Create a Nonce.
@@ -92,56 +85,46 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
+	waiter := wait.NewWaiterFromFactory(opts.Factory)
+
+	tenantNs, err := o.namespaceManager.CreateNamespace(ctx, o.clusterIdentity)
+	if err != nil {
+		opts.Printer.CheckErr(fmt.Errorf("unable to create tenant namespace: %v", output.PrettyErr(err)))
+		return err
+	}
+
 	if opts.OutputFormat != "" {
-		opts.Printer.CheckErr(o.output())
+		opts.Printer.CheckErr(o.output(tenantNs.GetName()))
 		return nil
 	}
 
+	// Ensure the presence of the nonce secret.
 	s := opts.Printer.StartSpinner("Creating nonce")
-
-	namespace, err := o.namespaceManager.CreateNamespace(ctx, o.clusterIdentity)
-	if err != nil {
-		s.Fail(fmt.Sprintf("Unable to create tenant namespace: %v", output.PrettyErr(err)))
+	if err := authutils.EnsureNonceSecret(ctx, opts.CRClient, o.clusterIdentity.ClusterID, tenantNs.GetName()); err != nil {
+		s.Fail(fmt.Sprintf("Unable to create nonce secret: %v", output.PrettyErr(err)))
 		return err
 	}
-
-	nonce := forge.Nonce(nonceSecretName, namespace.Name)
-	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, nonce, func() error {
-		return forge.MutateNonce(nonce, o.clusterIdentity.ClusterID)
-	})
-	if err != nil {
-		s.Fail(fmt.Sprintf("Unable to create nonce: %v", output.PrettyErr(err)))
-		return err
-	}
-
 	s.Success("Nonce created")
 
-	waiter := wait.NewWaiterFromFactory(opts.Factory)
-	if err := waiter.ForNonce(ctx, &o.clusterIdentity); err != nil {
+	// Wait for secret to be filled with the nonce.
+	if err := waiter.ForNonce(ctx, o.clusterIdentity.ClusterID, false); err != nil {
 		return err
 	}
 
+	// Retrieve nonce from secret.
 	s = opts.Printer.StartSpinner("Retrieving nonce")
-
-	nonce, err = getters.GetNonceByClusterID(ctx, opts.CRClient, o.clusterIdentity.ClusterID)
+	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterIdentity.ClusterID)
 	if err != nil {
-		s.Fail(fmt.Sprintf("Unable to get nonce: %v", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("Unable to retrieve nonce: %v", output.PrettyErr(err)))
 		return err
 	}
-
-	nonceValue, err := noncecreatorcontroller.GetNonceFromSecret(nonce)
-	if err != nil {
-		s.Fail(fmt.Sprintf("Unable to get nonce: %v", output.PrettyErr(err)))
-		return err
-	}
-
 	s.Success(fmt.Sprintf("Nonce retrieved: %s", string(nonceValue)))
 
 	return nil
 }
 
 // output implements the logic to output the generated Nonce secret.
-func (o *Options) output() error {
+func (o *Options) output(tenantNamespace string) error {
 	opts := o.createOptions
 	var printer printers.ResourcePrinter
 	switch opts.OutputFormat {
@@ -153,7 +136,7 @@ func (o *Options) output() error {
 		return fmt.Errorf("unsupported output format %q", opts.OutputFormat)
 	}
 
-	nonce := forge.Nonce(nonceSecretName, "")
+	nonce := forge.Nonce(tenantNamespace)
 	if err := forge.MutateNonce(nonce, o.clusterIdentity.ClusterID); err != nil {
 		return err
 	}
