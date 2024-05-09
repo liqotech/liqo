@@ -33,7 +33,7 @@ import (
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
-	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
+	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -106,14 +106,14 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	// get the nonce for the tenant
 
-	nonceSecret, err := getters.GetNonceByClusterID(ctx, r.Client, clusterID)
+	nonceSecret, err := getters.GetNonceSecretByClusterID(ctx, r.Client, clusterID)
 	if err != nil {
 		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())
 		return ctrl.Result{}, err
 	}
 
-	nonce, err := noncecreatorcontroller.GetNonceFromSecret(nonceSecret)
+	nonce, err := authgetters.GetNonceFromSecret(nonceSecret)
 	if err != nil {
 		klog.Errorf("Unable to get the nonce for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "NonceNotFound", err.Error())

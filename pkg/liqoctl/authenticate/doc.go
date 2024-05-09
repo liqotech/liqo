@@ -12,24 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package noncecreatorcontroller
-
-import (
-	"fmt"
-
-	corev1 "k8s.io/api/core/v1"
-
-	"github.com/liqotech/liqo/pkg/consts"
-)
-
-// GetNonceFromSecret retrieves the nonce from the given secret.
-func GetNonceFromSecret(secret *corev1.Secret) ([]byte, error) {
-	nonce, found := secret.Data[consts.NonceSecretField]
-	if !found {
-		return nil, fmt.Errorf("nonce not found")
-	} else if len(nonce) == 0 {
-		return nil, fmt.Errorf("empty nonce found")
-	}
-
-	return nonce, nil
-}
+// Package authenticate contains the commands to manage authentication in Liqo.
+package authenticate
