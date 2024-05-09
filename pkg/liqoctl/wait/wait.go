@@ -21,7 +21,6 @@ import (
 
 	"github.com/pterm/pterm"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -35,7 +34,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
-	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
+	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
@@ -409,14 +408,46 @@ func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv
 		s.Fail(fmt.Sprintf("Failed waiting for Connection status to be established: %s", output.PrettyErr(err)))
 		return err
 	}
+
 	s.Success("Connection is established")
 	return nil
 }
 
+// ForNonce waits until the secret containing the nonce has been created or the timeout expires.
+func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID string, silent bool) error {
+	var s *pterm.SpinnerPrinter
+
+	if !silent {
+		s = w.Printer.StartSpinner("Waiting for nonce to be generated")
+	}
+
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		secret, err := getters.GetNonceSecretByClusterID(ctx, w.CRClient, remoteClusterID)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+
+		if _, err := authgetters.GetNonceFromSecret(secret); err != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		if !silent {
+			s.Fail(fmt.Sprintf("Failed waiting for nonce to be generated: %s", output.PrettyErr(err)))
+		}
+		return err
+	}
+
+	if !silent {
+		s.Success("Nonce generated successfully")
+	}
+
+	return nil
+}
+
 // ForSignedNonce waits until the signed nonce secret has been signed and returns the signature.
-func (w *Waiter) ForSignedNonce(ctx context.Context, clusterID string, silent bool) ([]byte, error) {
-	var nonceSecret *corev1.Secret
-	var signedNonce []byte
+func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID string, silent bool) error {
 	var s *pterm.SpinnerPrinter
 
 	if !silent {
@@ -424,11 +455,11 @@ func (w *Waiter) ForSignedNonce(ctx context.Context, clusterID string, silent bo
 	}
 
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		nonceSecret, err = noncesigner.GetSignedNonceSecret(ctx, w.CRClient, clusterID)
-		if client.IgnoreNotFound(err) != nil {
-			return false, err
+		secret, err := getters.GetSignedNonceSecretByClusterID(ctx, w.CRClient, remoteClusterID)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
 		}
-		if signedNonce, err = noncesigner.GetSignedNonceFromSecret(nonceSecret); err != nil {
+		if _, err = authgetters.GetSignedNonceFromSecret(secret); err != nil {
 			return false, nil
 		}
 		return true, nil
@@ -437,33 +468,13 @@ func (w *Waiter) ForSignedNonce(ctx context.Context, clusterID string, silent bo
 		if !silent {
 			s.Fail(fmt.Sprintf("Failed waiting for nonce to be signed: %s", output.PrettyErr(err)))
 		}
-		return nil, err
+		return err
 	}
 
 	if !silent {
 		s.Success("Nonce is signed")
 	}
 
-	return signedNonce, nil
-}
-
-// ForNonce waits until the secret containing the nonce has been created or the timeout expires.
-func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	s := w.Printer.StartSpinner("Waiting for nonce to be created")
-	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		secret, err := getters.GetNonceByClusterID(ctx, w.CRClient, remoteClusterID.ClusterID)
-		if err != nil {
-			return false, client.IgnoreNotFound(err)
-		}
-
-		_, ok := secret.Data[consts.NonceSecretField]
-		return ok, nil
-	})
-	if err != nil {
-		s.Fail(fmt.Sprintf("Failed waiting for nonce to be created: %s", output.PrettyErr(err)))
-		return err
-	}
-	s.Success("Nonce created successfully")
 	return nil
 }
 
@@ -491,5 +502,28 @@ func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID string) er
 		return err
 	}
 	s.Success("Tenant status is filled")
+	return nil
+}
+
+// ForIdentityStatus waits until the identity status has been updated or the timeout expires.
+func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID string) error {
+	s := w.Printer.StartSpinner("Waiting for identity status to be filled")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		identity, err := getters.GetControlPlaneIdentityByClusterID(ctx, w.CRClient, remoteClusterID)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+
+		if identity.Status.KubeconfigSecretRef == nil || identity.Status.KubeconfigSecretRef.Name == "" {
+			return false, nil
+		}
+
+		return true, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for identity status to be updated: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Identity status is filled")
 	return nil
 }

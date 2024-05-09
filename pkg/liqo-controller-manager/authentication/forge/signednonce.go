@@ -21,33 +21,28 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// GenerateNonceSecretName generates the name of the Secret object to store the nonce.
-func GenerateNonceSecretName() string {
-	return "liqo-nonce"
+// GenerateSignedNonceSecretName generates the name of the Secret object to store the signed nonce.
+func GenerateSignedNonceSecretName() string {
+	return "liqo-signed-nonce"
 }
 
-// Nonce creates a new Secret object to store the nonce.
-func Nonce(tenantNamespace string) *corev1.Secret {
+// SignedNonce creates a new Secret object to store the nonce signed by the consumer cluster.
+func SignedNonce(remoteClusterID, tenantNamespace, nonce string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: corev1.SchemeGroupVersion.String(),
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      GenerateNonceSecretName(),
+			Name:      GenerateSignedNonceSecretName(),
 			Namespace: tenantNamespace,
+			Labels: map[string]string{
+				consts.SignedNonceSecretLabelKey: "true",
+				consts.RemoteClusterID:           remoteClusterID,
+			},
+		},
+		StringData: map[string]string{
+			consts.NonceSecretField: nonce,
 		},
 	}
-}
-
-// MutateNonce sets the nonce labels and data.
-func MutateNonce(nonce *corev1.Secret, remoteClusterID string) error {
-	if nonce.Labels == nil {
-		nonce.Labels = make(map[string]string)
-	}
-
-	nonce.Labels[consts.NonceSecretLabelKey] = "true"
-	nonce.Labels[consts.RemoteClusterID] = remoteClusterID
-
-	return nil
 }

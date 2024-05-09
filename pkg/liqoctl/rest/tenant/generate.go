@@ -19,12 +19,9 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
-	noncesigner "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncesigner-controller"
+	authutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
@@ -88,6 +85,7 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 
 func (o *Options) handleGenerate(ctx context.Context) error {
 	opts := o.generateOptions
+	waiter := wait.NewWaiterFromFactory(opts.Factory)
 
 	// Ensure tenant namespace exists
 	tenantNs, err := o.namespaceManager.CreateNamespace(ctx, o.remoteClusterIdentity)
@@ -96,74 +94,38 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 		return err
 	}
 
-	// If nonce is not provided, get it from the secret in the tenant namespace and raise an error if the secret does not exist.
-	// If nonce is provided, create nonce secret in the tenant namespace and wait for it to be signed. Raise an error if there is
-	// already a nonce secret in the tenant namespace.
-	nonceSecret, err := noncesigner.GetSignedNonceSecret(ctx, opts.CRClient, o.remoteClusterIdentity.ClusterID)
-	switch {
-	case errors.IsNotFound(err):
-		// Secret not found. Create it given the provided nonce.
-		if o.nonce == "" {
-			opts.Printer.CheckErr(fmt.Errorf("nonce not provided and no nonce secret found"))
-			return err
-		}
-		_, err = noncesigner.CreateSignedNonceSecret(ctx, opts.CRClient, o.remoteClusterIdentity.ClusterID, tenantNs.GetName(), o.nonce)
-		if err != nil {
-			opts.Printer.CheckErr(fmt.Errorf("unable to create nonce secret: %w", err))
-			return err
-		}
-	case err != nil:
-		opts.Printer.CheckErr(fmt.Errorf("unable to get nonce secret: %w", err))
-		return err
-	default:
-		// Secret already exists.
-		nonce, err := noncesigner.GetNonceFromSecret(nonceSecret)
-		if err != nil {
-			opts.Printer.CheckErr(fmt.Errorf("unable to extract nonce data from secret %s/%s: %w", nonceSecret.Namespace, nonceSecret.Name, err))
-			return err
-		}
-		// If nonce is provided, check if it is the same of the one in the secret.
-		if o.nonce != "" && string(nonce) != o.nonce {
-			opts.Printer.CheckErr(fmt.Errorf("nonce secret already exists with a different nonce: %s", nonce))
-			return err
-		}
+	// Ensure the presence of the signed nonce secret.
+	err = authutils.EnsureSignedNonceSecret(ctx, opts.CRClient, o.remoteClusterIdentity.ClusterID, tenantNs.GetName(), &o.nonce)
+	if err != nil {
+		opts.Printer.CheckErr(fmt.Errorf("unable to ensure signed nonce secret: %w", err))
 	}
 
-	// Wait for the nonce to be signed.
-	waiter := wait.NewWaiterFromFactory(opts.Factory)
-	signedNonce, err := waiter.ForSignedNonce(ctx, o.remoteClusterIdentity.ClusterID, true)
-	if err != nil {
+	// Wait for secret to be filled with the signed nonce.
+	if err := waiter.ForSignedNonce(ctx, o.remoteClusterIdentity.ClusterID, true); err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to wait for nonce to be signed: %w", err))
 		return err
 	}
 
-	// Get the local cluster identity.
+	// Retrieve signed nonce from secret.
+	signedNonce, err := authutils.RetrieveSignedNonce(ctx, opts.CRClient, o.remoteClusterIdentity.ClusterID)
+	if err != nil {
+		opts.Printer.CheckErr(fmt.Errorf("unable to retrieve signed nonce: %w", err))
+		return err
+	}
+
+	// Forge tenant resource for the remote cluster and output it.
 	localClusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, opts.CRClient, opts.LiqoNamespace)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
 		return err
 	}
 
-	// Get public and private keys of the local cluster.
-	privateKey, publicKey, err := authentication.GetClusterKeys(ctx, opts.CRClient, opts.LiqoNamespace)
+	tenant, err := authutils.GenerateTenant(ctx, opts.CRClient, &localClusterIdentity, opts.LiqoNamespace, signedNonce, &o.proxyURL)
 	if err != nil {
-		opts.Printer.CheckErr(fmt.Errorf("unable to get cluster keys: %w", err))
+		opts.Printer.CheckErr(fmt.Errorf("unable to generate tenant: %w", err))
 		return err
 	}
 
-	// Generate a CSR for the remote cluster.
-	CSR, err := authentication.GenerateCSRForControlPlane(privateKey, localClusterIdentity.ClusterID)
-	if err != nil {
-		opts.Printer.CheckErr(fmt.Errorf("unable to generate CSR: %w", err))
-		return err
-	}
-
-	// Forge tenant resource for the remote cluster and output it.
-	var proxyURL *string
-	if o.proxyURL != "" {
-		proxyURL = &o.proxyURL
-	}
-	tenant := forge.TenantForRemoteCluster(localClusterIdentity, publicKey, CSR, signedNonce, proxyURL)
 	opts.Printer.CheckErr(o.output(tenant))
 
 	return nil
