@@ -21,11 +21,10 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	noncecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/noncecreator-controller"
+	authutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
-	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 const liqoctlGetNonceLongHelp = `Get a Nonce.
@@ -68,15 +67,9 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 func (o *Options) handleGet(ctx context.Context) error {
 	opts := o.getOptions
 
-	nonce, err := getters.GetNonceByClusterID(ctx, opts.CRClient, o.clusterIdentity.ClusterID)
+	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterIdentity.ClusterID)
 	if err != nil {
-		opts.Printer.CheckErr(fmt.Errorf("unable to get nonce: %v", output.PrettyErr(err)))
-		return err
-	}
-
-	nonceValue, err := noncecreatorcontroller.GetNonceFromSecret(nonce)
-	if err != nil {
-		opts.Printer.CheckErr(fmt.Errorf("unable to get nonce: %v", output.PrettyErr(err)))
+		opts.Printer.CheckErr(fmt.Errorf("unable to retrieve nonce: %v", output.PrettyErr(err)))
 		return err
 	}
 
