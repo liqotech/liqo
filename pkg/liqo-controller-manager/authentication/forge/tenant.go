@@ -52,11 +52,16 @@ func MutateTenant(tenant *authv1alpha1.Tenant, remoteClusterIdentity discoveryv1
 	}
 	tenant.Labels[consts.RemoteClusterID] = remoteClusterIdentity.ClusterID
 
+	var proxyURLPtr *string
+	if proxyURL != nil && *proxyURL != "" {
+		proxyURLPtr = proxyURL
+	}
+
 	tenant.Spec = authv1alpha1.TenantSpec{
 		ClusterIdentity: remoteClusterIdentity,
 		PublicKey:       publicKey,
 		CSR:             csr,
 		Signature:       signature,
-		ProxyURL:        proxyURL,
+		ProxyURL:        proxyURLPtr,
 	}
 }
