@@ -21,14 +21,12 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
+	authutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/args"
-	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 const liqoctlGenerateConfigHelp = `Generate the Identity resource to be applied on the remote consumer cluster.
@@ -80,38 +78,18 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 func (o *Options) handleGenerate(ctx context.Context) error {
 	opts := o.generateOptions
 
-	// Get tenant with the given remote clusterID.
-	tenant, err := getters.GetTenantByClusterID(ctx, opts.CRClient, o.remoteClusterID)
-	if err != nil {
-		opts.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving tenant: %v", output.PrettyErr(err)))
-		return err
-	}
-
-	if tenant.Status.AuthParams == nil || tenant.Status.TenantNamespace == "" {
-		err := fmt.Errorf("tenant %s does not have the required status fields", tenant.Name)
-		opts.Printer.CheckErr(err)
-		return err
-	}
-
-	// Forge Identity resource for the remote cluster and output it.
-	authParams := authv1alpha1.AuthParams{
-		CA:        tenant.Status.AuthParams.CA,
-		SignedCRT: tenant.Status.AuthParams.SignedCRT,
-		APIServer: tenant.Status.AuthParams.APIServer,
-		ProxyURL:  tenant.Spec.ProxyURL,
-
-		AwsConfig: tenant.Status.AuthParams.AwsConfig,
-	}
-
 	localClusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, opts.CRClient, opts.LiqoNamespace)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
 		return err
 	}
 
-	identity := forge.IdentityForRemoteCluster(forge.ControlPlaneIdentityName(localClusterIdentity.ClusterName), o.remoteTenantNs,
-		localClusterIdentity, authv1alpha1.ControlPlaneIdentityType, &authParams, &tenant.Status.TenantNamespace)
-
+	// Forge Identity resource for the remote cluster and output it.
+	identity, err := authutils.GenerateIdentityControlPlane(ctx, opts.CRClient, o.remoteClusterID, o.remoteTenantNs, &localClusterIdentity)
+	if err != nil {
+		opts.Printer.CheckErr(fmt.Errorf("an error occurred while generating identity: %v", output.PrettyErr(err)))
+		return err
+	}
 	opts.Printer.CheckErr(o.output(identity))
 
 	return nil

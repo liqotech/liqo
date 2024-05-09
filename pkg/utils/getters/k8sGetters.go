@@ -237,26 +237,45 @@ func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID *disc
 	}
 }
 
-// GetNonceByClusterID returns the nonce secret for the given cluster id.
-func GetNonceByClusterID(ctx context.Context, cl client.Client, clusterID string) (*corev1.Secret, error) {
-	list := new(corev1.SecretList)
-	if err := cl.List(ctx, list, &client.ListOptions{
+// GetNonceSecretByClusterID returns the secret containing the nonce to be signed by the consumer cluster.
+func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID string) (*corev1.Secret, error) {
+	var secrets corev1.SecretList
+	if err := cl.List(ctx, &secrets, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
-			consts.RemoteClusterID:     clusterID,
+			consts.RemoteClusterID:     remoteClusterID,
 			consts.NonceSecretLabelKey: "true",
 		}),
 	}); err != nil {
 		return nil, err
 	}
 
-	switch len(list.Items) {
+	switch len(secrets.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), clusterID)
+		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), remoteClusterID)
 	case 1:
-		return &list.Items[0], nil
+		return &secrets.Items[0], nil
 	default:
-		return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
-			" when only one was expected", corev1.ResourceSecrets, clusterID)
+		return nil, fmt.Errorf("multiple nonce secrets found for remote cluster %q", remoteClusterID)
+	}
+}
+
+// GetSignedNonceSecretByClusterID returns the secret containing the nonce signed by the consumer cluster.
+func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID string) (*corev1.Secret, error) {
+	var secrets corev1.SecretList
+	if err := cl.List(ctx, &secrets, client.MatchingLabels{
+		consts.RemoteClusterID:           remoteClusterID,
+		consts.SignedNonceSecretLabelKey: "true",
+	}); err != nil {
+		return nil, err
+	}
+
+	switch len(secrets.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), remoteClusterID)
+	case 1:
+		return &secrets.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple signed nonce secrets found for remote cluster %q", remoteClusterID)
 	}
 }
 
