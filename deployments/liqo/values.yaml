@@ -143,6 +143,15 @@ authentication:
 offloading:
   # -- Enable/Disable the offloading module
   enabled: true
+  defaultNodeResources:
+    # -- The amount of CPU to reserve for a virtual node targeting this cluster.
+    cpu: "4"
+    # -- The amount of memory to reserve for a virtual node targeting this cluster.
+    memory: "8Gi"
+    # -- The amount of pods that can be scheduled on a virtual node targeting this cluster.
+    pods: "110"
+    # -- The amount of ephemeral storage to reserve for a virtual node targeting this cluster.
+    ephemeralStorage: "20Gi"
   runtimeClass:
     enable: false
     # -- Name of the runtime class to use for offloading.

@@ -152,6 +152,10 @@
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.securityMode | string | `"FullPodToPod"` | Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation"  |
 | networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |
+| offloading.defaultNodeResources.cpu | string | `"4"` | The amount of CPU to reserve for a virtual node targeting this cluster. |
+| offloading.defaultNodeResources.ephemeralStorage | string | `"20Gi"` | The amount of ephemeral storage to reserve for a virtual node targeting this cluster. |
+| offloading.defaultNodeResources.memory | string | `"8Gi"` | The amount of memory to reserve for a virtual node targeting this cluster. |
+| offloading.defaultNodeResources.pods | string | `"110"` | The amount of pods that can be scheduled on a virtual node targeting this cluster. |
 | offloading.enabled | bool | `true` | Enable/Disable the offloading module |
 | offloading.reflection.configmap.type | string | `"DenyList"` | The type of reflection used for the configmaps reflector. Ammitted values: "DenyList", "AllowList". |
 | offloading.reflection.configmap.workers | int | `3` | The number of workers used for the configmaps reflector. Set 0 to disable the reflection of configmaps. |
