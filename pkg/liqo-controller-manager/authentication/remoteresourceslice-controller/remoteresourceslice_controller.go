@@ -40,8 +40,10 @@ import (
 
 // NewRemoteResourceSliceReconciler returns a new RemoteResourceSliceReconciler.
 func NewRemoteResourceSliceReconciler(cl client.Client, s *runtime.Scheme, config *rest.Config,
-	recorder record.EventRecorder, identityProvider identitymanager.IdentityProvider,
-	apiServerAddressOverride string, caOverride []byte, trustedCA bool) *RemoteResourceSliceReconciler {
+	recorder record.EventRecorder,
+	identityProvider identitymanager.IdentityProvider,
+	apiServerAddressOverride string, caOverride []byte, trustedCA bool,
+	sliceStatusOptions *SliceStatusOptions) *RemoteResourceSliceReconciler {
 	return &RemoteResourceSliceReconciler{
 		Client: cl,
 		Scheme: s,
@@ -53,6 +55,8 @@ func NewRemoteResourceSliceReconciler(cl client.Client, s *runtime.Scheme, confi
 		apiServerAddressOverride: apiServerAddressOverride,
 		caOverride:               caOverride,
 		trustedCA:                trustedCA,
+
+		sliceStatusOptions: sliceStatusOptions,
 
 		reconciledClasses: []authv1alpha1.ResourceSliceClass{
 			authv1alpha1.ResourceSliceClassDefault,
@@ -74,12 +78,15 @@ type RemoteResourceSliceReconciler struct {
 	caOverride               []byte
 	trustedCA                bool
 
+	sliceStatusOptions *SliceStatusOptions
+
 	reconciledClasses []authv1alpha1.ResourceSliceClass
 }
 
 // cluster-role
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices;resourceslices/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=storage,resources=storageclasses,verbs=get;list;watch
 
 // Reconcile replicated ResourceSlice resources.
 func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
@@ -130,25 +137,35 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 	}()
 
 	if isInResourceClasses(&resourceSlice, r.reconciledClasses...) {
-		// TODO: compute the resources
 		findOrDefault := func(resource corev1.ResourceName, val resource.Quantity) resource.Quantity {
-			if _, ok := resourceSlice.Spec.Resources[resource]; !ok {
-				return val
+			v, ok := resourceSlice.Spec.Resources[resource]
+			if ok {
+				return v
 			}
-			return resourceSlice.Spec.Resources[resource]
+			return val
 		}
-		resourceSlice.Status.Resources = corev1.ResourceList{
-			corev1.ResourceCPU:    findOrDefault(corev1.ResourceCPU, resource.MustParse("2")),
-			corev1.ResourceMemory: findOrDefault(corev1.ResourceMemory, resource.MustParse("4Gi")),
-			corev1.ResourcePods:   findOrDefault(corev1.ResourcePods, resource.MustParse("100")),
+
+		if resourceSlice.Status.Resources == nil {
+			resourceSlice.Status.Resources = corev1.ResourceList{}
 		}
+
+		for k, v := range r.sliceStatusOptions.DefaultResourceQuantity {
+			resourceSlice.Status.Resources[k] = findOrDefault(k, v)
+		}
+
+		resourceSlice.Status.StorageClasses, err = getStorageClasses(ctx, r.Client, r.sliceStatusOptions)
+		if err != nil {
+			klog.Errorf("Unable to get the StorageClasses for the ResourceSlice %q: %s", req.NamespacedName, err)
+			r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "StorageClassesFailed", err.Error())
+			return ctrl.Result{}, err
+		}
+
+		resourceSlice.Status.IngressClasses = getIngressClasses(r.sliceStatusOptions)
+		resourceSlice.Status.LoadBalancerClasses = getLoadBalancerClasses(r.sliceStatusOptions)
+		resourceSlice.Status.NodeLabels = getNodeLabels(r.sliceStatusOptions)
 
 		acceptResources(&resourceSlice, r.eventRecorder)
 	}
-	// TODO: add to status the StorageClasses
-	// TODO: add to status the IngressClasses
-	// TODO: add to status the LoadBalancerClasses
-	// TODO: add to status the NodeLabels
 
 	// forge the AuthParams
 

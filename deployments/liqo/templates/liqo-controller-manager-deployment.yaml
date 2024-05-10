@@ -94,6 +94,8 @@ spec:
           - --configmap-reflection-type={{ .Values.offloading.reflection.configmap.type }}
           - --secret-reflection-type={{ .Values.offloading.reflection.secret.type }}
           - --event-reflection-type={{ .Values.offloading.reflection.event.type }}
+          {{- $d := dict "commandName" "--default-node-resources" "dictionary" .Values.offloading.defaultNodeResources -}}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
           {{- if .Values.authentication.awsConfig.accessKeyId }}
           - --aws-access-key-id=$(ACCESS_KEY_ID)
           {{- end }}

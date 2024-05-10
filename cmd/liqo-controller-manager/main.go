@@ -58,6 +58,7 @@ import (
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	remoteresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/remoteresourceslice-controller"
 	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/virtualnodecreator-controller"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
@@ -117,6 +118,7 @@ func main() {
 	var annotationsNotReflected argsutils.StringList
 	var ingressClasses argsutils.ClassNameList
 	var loadBalancerClasses argsutils.ClassNameList
+	var defaultNodeResources argsutils.ResourceMap
 	var addVirtualNodeTolerationOnOffloadedPods bool
 	var apiServerAddressOverride string
 	var caOverride string
@@ -173,6 +175,7 @@ func main() {
 		"The threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update")
 	flag.Var(&ingressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
 	flag.Var(&loadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
+	flag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
 
 	// Virtual-kubelet parameters
 	kubeletImage := flag.String("kubelet-image", "ghcr.io/liqotech/virtual-kubelet", "The image of the virtual kubelet to be deployed")
@@ -427,6 +430,14 @@ func main() {
 			APIServerAddressOverride: apiServerAddressOverride,
 			CAOverrideB64:            caOverride,
 			TrustedCA:                trustedCA,
+			SliceStatusOptions: &remoteresourceslicecontroller.SliceStatusOptions{
+				EnableStorage:             *enableStorage,
+				LocalRealStorageClassName: *realStorageClassName,
+				IngressClasses:            ingressClasses,
+				LoadBalancerClasses:       loadBalancerClasses,
+				ClusterLabels:             clusterLabels.StringMap,
+				DefaultResourceQuantity:   defaultNodeResources.ToResourceList(),
+			},
 		}
 
 		if err := modules.SetupAuthenticationModule(ctx, mgr, uncachedClient, opts); err != nil {
