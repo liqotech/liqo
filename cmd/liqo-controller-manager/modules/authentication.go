@@ -44,6 +44,7 @@ type AuthOption struct {
 	APIServerAddressOverride string
 	CAOverrideB64            string
 	TrustedCA                bool
+	SliceStatusOptions       *remoteresourceslicecontroller.SliceStatusOptions
 }
 
 // SetupAuthenticationModule setup the authentication module and initializes its controllers .
@@ -113,7 +114,8 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 	// Configure controller that fills the remote resource slice status.
 	remoteResourceSliceReconciler := remoteresourceslicecontroller.NewRemoteResourceSliceReconciler(mgr.GetClient(),
 		mgr.GetScheme(), mgr.GetConfig(), mgr.GetEventRecorderFor("remoteresourceslice-controller"),
-		opts.IdentityProvider, opts.APIServerAddressOverride, caOverride, opts.TrustedCA)
+		opts.IdentityProvider, opts.APIServerAddressOverride, caOverride, opts.TrustedCA,
+		opts.SliceStatusOptions)
 	if err := remoteResourceSliceReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the remote resource slice reconciler: %v", err)
 		return err
