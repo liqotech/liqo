@@ -792,6 +792,14 @@ rules:
   - update
   - watch
 - apiGroups:
+  - storage
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - storage.k8s.io
   resources:
   - storageclasses
