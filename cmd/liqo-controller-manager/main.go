@@ -64,7 +64,7 @@ import (
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
-	offloadedpodcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadedpod-controller"
+	offloadingipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/ipmapping"
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
@@ -562,13 +562,23 @@ func main() {
 		}
 	}
 
-	offloadedPodReconciler := offloadedpodcontroller.NewOffloadedPodReconciler(
+	offloadedPodReconciler := offloadingipmapping.NewOffloadedPodReconciler(
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("offloadedpod-controller"),
 	)
 	if err := offloadedPodReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the offloadedPod reconciler: %v", err)
+		os.Exit(1)
+	}
+
+	configurationReconciler := offloadingipmapping.NewConfigurationReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		mgr.GetEventRecorderFor("configuration-controller"),
+	)
+	if err := configurationReconciler.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to start the configuration reconciler: %v", err)
 		os.Exit(1)
 	}
 
