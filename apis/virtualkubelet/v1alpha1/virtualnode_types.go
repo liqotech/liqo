@@ -19,8 +19,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 )
 
 // Affinity contains the affinity and anti-affinity rules for the virtual node.
@@ -75,11 +75,11 @@ type VirtualNodeSpec struct {
 	// Taints contains the taints to be added to the virtual node.
 	Taints []corev1.Taint `json:"taints,omitempty"`
 	// StorageClasses contains the list of the storage classes offered by the cluster.
-	StorageClasses []sharingv1alpha1.StorageType `json:"storageClasses,omitempty"`
+	StorageClasses []authv1alpha1.StorageType `json:"storageClasses,omitempty"`
 	// IngressClasses contains the list of the ingress classes offered by the cluster.
-	IngressClasses []sharingv1alpha1.IngressType `json:"ingressClasses,omitempty"`
+	IngressClasses []authv1alpha1.IngressType `json:"ingressClasses,omitempty"`
 	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
-	LoadBalancerClasses []sharingv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
+	LoadBalancerClasses []authv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 }
 
 // VirtualNodeConditionType represents different conditions that a virtualNode could assume.

@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
@@ -78,63 +78,34 @@ func Others(r corev1.ResourceList) map[string]string {
 
 // GetAcquiredTotal returns the total acquired resources for a given cluster.
 func GetAcquiredTotal(ctx context.Context, cl client.Client, clusterID string) (corev1.ResourceList, error) {
-	rl, err := getters.ListResourceOfferByLabel(ctx, cl, metav1.NamespaceAll, liqolabels.RemoteLabelSelectorForCluster(clusterID))
+	rl, err := getters.ListResourceSlicesByLabel(ctx, cl, metav1.NamespaceAll, liqolabels.LocalLabelSelectorForCluster(clusterID))
 	if err != nil {
 		return corev1.ResourceList{}, err
 	}
-	return SumResourceOffers(rl), nil
+	return SumResourceSlices(rl), nil
 }
 
 // GetSharedTotal returns the total shared resources for a given cluster.
 func GetSharedTotal(ctx context.Context, cl client.Client, clusterID string) (corev1.ResourceList, error) {
-	rl, err := getters.ListResourceOfferByLabel(ctx, cl, metav1.NamespaceAll, liqolabels.LocalLabelSelectorForCluster(clusterID))
+	rl, err := getters.ListResourceSlicesByLabel(ctx, cl, metav1.NamespaceAll, liqolabels.RemoteLabelSelectorForCluster(clusterID))
 	if err != nil {
 		return corev1.ResourceList{}, err
 	}
-	return SumResourceOffers(rl), nil
+	return SumResourceSlices(rl), nil
 }
 
-// SumResourceOffers sums the resources of a list of resource offers.
-func SumResourceOffers(resourceoffers *sharingv1alpha1.ResourceOfferList) corev1.ResourceList {
+// SumResourceSlices sums the resources of a list of resource offers.
+func SumResourceSlices(resourceslices []authv1alpha1.ResourceSlice) corev1.ResourceList {
 	tot := corev1.ResourceList{}
-	for i := range resourceoffers.Items {
-		h := resourceoffers.Items[i].Spec.ResourceQuota.Hard
-		if cpu, ok := tot[corev1.ResourceCPU]; !ok {
-			tot[corev1.ResourceCPU] = h.Cpu().DeepCopy()
-		} else {
-			cpu.Add(h.Cpu().DeepCopy())
-			tot[corev1.ResourceCPU] = cpu.DeepCopy()
-		}
+	for i := range resourceslices {
+		h := resourceslices[i].Status.Resources
 
-		if mem, ok := tot[corev1.ResourceMemory]; !ok {
-			tot[corev1.ResourceMemory] = h.Memory().DeepCopy()
-		} else {
-			mem.Add(h.Memory().DeepCopy())
-			tot[corev1.ResourceMemory] = mem.DeepCopy()
-		}
-
-		if storage, ok := tot[corev1.ResourceEphemeralStorage]; !ok {
-			tot[corev1.ResourceEphemeralStorage] = h.StorageEphemeral().DeepCopy()
-		} else {
-			storage.Add(h.StorageEphemeral().DeepCopy())
-			tot[corev1.ResourceEphemeralStorage] = storage.DeepCopy()
-		}
-
-		if pods, ok := tot[corev1.ResourcePods]; !ok {
-			tot[corev1.ResourcePods] = h.Pods().DeepCopy()
-		} else {
-			pods.Add(h.Pods().DeepCopy())
-			tot[corev1.ResourcePods] = pods.DeepCopy()
-		}
-
-		for k := range Others(h) {
-			fmt.Println(k)
-			q := h[corev1.ResourceName(k)]
-			if t, ok := tot[corev1.ResourceName(k)]; !ok {
-				tot[corev1.ResourceName(k)] = q.DeepCopy()
+		for k, v := range h {
+			if r, ok := tot[k]; !ok {
+				tot[k] = v.DeepCopy()
 			} else {
-				t.Add(q.DeepCopy())
-				tot[corev1.ResourceName(k)] = t.DeepCopy()
+				r.Add(v.DeepCopy())
+				tot[k] = r.DeepCopy()
 			}
 		}
 	}

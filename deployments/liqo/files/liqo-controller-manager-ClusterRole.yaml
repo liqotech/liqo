@@ -222,18 +222,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - serviceaccounts
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - services
   verbs:
   - create
@@ -278,15 +266,6 @@ rules:
 - apiGroups:
   - discovery.liqo.io
   resources:
-  - foreignclusters/finalizers
-  - foreignclusters/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - discovery.liqo.io
-  resources:
   - foreignclusters/status
   verbs:
   - create
@@ -309,23 +288,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - resourcerequests/finalizers
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - resourcerequests/finalizers
-  - resourcerequests/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - discovery.liqo.io
   resources:
@@ -408,13 +370,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - metrics.liqo.io
-  resources:
-  - scrape
-  - scrape/metrics
-  verbs:
-  - get
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -726,7 +681,6 @@ rules:
   verbs:
   - create
   - delete
-  - deletecollection
   - get
   - list
   - patch
@@ -773,23 +727,12 @@ rules:
 - apiGroups:
   - sharing.liqo.io
   resources:
-  - resourceoffers/finalizers
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - sharing.liqo.io
-  resources:
   - resourceoffers/status
   verbs:
   - create
   - delete
   - deletecollection
-  - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - storage
