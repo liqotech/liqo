@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
-	sharev1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 )
 
@@ -31,5 +31,5 @@ func TestShare(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	utilruntime.Must(sharev1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(authv1alpha1.AddToScheme(scheme.Scheme))
 })

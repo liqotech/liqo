@@ -21,7 +21,6 @@ import (
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
@@ -32,9 +31,9 @@ type VirtualNodeOptions struct {
 	CreateNode          bool
 
 	ResourceList        corev1.ResourceList
-	StorageClasses      []sharingv1alpha1.StorageType      `json:"storageClasses,omitempty"`
-	IngressClasses      []sharingv1alpha1.IngressType      `json:"ingressClasses,omitempty"`
-	LoadBalancerClasses []sharingv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
+	StorageClasses      []authv1alpha1.StorageType      `json:"storageClasses,omitempty"`
+	IngressClasses      []authv1alpha1.IngressType      `json:"ingressClasses,omitempty"`
+	LoadBalancerClasses []authv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 	NodeLabels          map[string]string
 }
 

@@ -5,34 +5,6 @@
 | apiServer.address | string | `""` | The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP). |
 | apiServer.ca | string | `""` | The CA certificate used to issue x509 user certificates for the API server (base64). Leave it empty to use the default CA. |
 | apiServer.trustedCA | bool | `false` | Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority. |
-| auth.config.addressOverride | string | `""` | Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT. |
-| auth.config.enableAuthentication | bool | `true` | Set to false to disable the authentication of discovered clusters. Note: use it only for testing installations. |
-| auth.config.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT or using an Ingress with a port different from 443. |
-| auth.image.name | string | `"ghcr.io/liqotech/auth-service"` | Image repository for the auth pod. |
-| auth.image.version | string | `""` | Custom version for the auth image. If not specified, the global tag is used. |
-| auth.ingress.annotations | object | `{}` | Annotations for the Auth ingress. |
-| auth.ingress.class | string | `""` | Set your ingress class. |
-| auth.ingress.enable | bool | `false` | Enable/disable the creation of the Ingress resource. |
-| auth.ingress.host | string | `""` | Set the hostname for your ingress. |
-| auth.ingress.port | int | `443` | Set port for your ingress. |
-| auth.ingress.tlsSecretName | string | `""` | Override default (ChartName-auth) tls secretName. |
-| auth.initContainer.image.name | string | `"ghcr.io/liqotech/cert-creator"` | Image repository for the init container of the auth pod. |
-| auth.initContainer.image.version | string | `""` | Custom version for the init container image of the auth pod. If not specified, the global tag is used. |
-| auth.pod.annotations | object | `{}` | Annotations for the auth pod. |
-| auth.pod.extraArgs | list | `[]` | Extra arguments for the auth pod. |
-| auth.pod.labels | object | `{}` | Labels for the auth pod. |
-| auth.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the auth pod. |
-| auth.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the auth pod. |
-| auth.service.annotations | object | `{}` | Annotations for the auth service. |
-| auth.service.labels | object | `{}` | Labels for the auth service. |
-| auth.service.loadBalancer | object | `{"allocateLoadBalancerNodePorts":"","ip":""}` | Options valid if service type is LoadBalancer. |
-| auth.service.loadBalancer.allocateLoadBalancerNodePorts | string | `""` | Set to false if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature). |
-| auth.service.loadBalancer.ip | string | `""` | Override the IP here if service type is LoadBalancer and you want to use a specific IP address, e.g., because you want a static LB. |
-| auth.service.nodePort | object | `{"port":""}` | Options valid if service type is NodePort. |
-| auth.service.nodePort.port | string | `""` | Force the port used by the NodePort service. This value must be included between 30000 and 32767. |
-| auth.service.port | int | `443` | Port used by the Authentication Service. |
-| auth.service.type | string | `"LoadBalancer"` | Kubernetes service used to expose the Authentication Service. If you are exposing this service with an Ingress, you can change it to ClusterIP; if your cluster does not support LoadBalancer services, consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
-| auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress, consider to disable it or add the appropriate annotations to the Ingress resource. |
 | authentication.awsConfig.accessKeyId | string | `""` | AccessKeyID for the Liqo user. |
 | authentication.awsConfig.clusterName | string | `""` | Name of the EKS cluster. |
 | authentication.awsConfig.region | string | `""` | AWS region where the clsuter is runnnig. |
@@ -45,9 +17,6 @@
 | common.tolerations | list | `[]` | Tolerations for all liqo pods, excluding virtual kubelet. |
 | controllerManager.config.enableNodeFailureController | bool | `false` | Ensure offloaded pods running on a failed node are evicted and rescheduled on a healthy node, preventing them to remain in a terminating state indefinitely. This feature can be useful in case of remote node failure to guarantee better service continuity and to have the expected pods workload on the remote cluster. However, enabling this feature could produce zombies in the worker node, in case the node returns Ready again without a restart. |
 | controllerManager.config.enableResourceEnforcement | bool | `false` | It enforces offerer-side that offloaded pods do not exceed offered resources (based on container limits). This feature is suggested to be enabled when consumer-side enforcement is not sufficient. It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set). |
-| controllerManager.config.offerUpdateThresholdPercentage | string | `""` | Threshold (in percentage) of the variation of resources that triggers a ResourceOffer update. E.g., when the available resources grow/decrease by X, a new ResourceOffer is generated. |
-| controllerManager.config.resourcePluginAddress | string | `""` | The address of an external resource plugin service (see https://github.com/liqotech/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor. |
-| controllerManager.config.resourceSharingPercentage | int | `30` | Percentage of available cluster resources that you are willing to share with foreign clusters. |
 | controllerManager.image.name | string | `"ghcr.io/liqotech/liqo-controller-manager"` | Image repository for the controller-manager pod. |
 | controllerManager.image.version | string | `""` | Custom version for the controller-manager image. If not specified, the global tag is used. |
 | controllerManager.metrics.service | object | `{"annotations":{},"labels":{}}` | Service used to expose metrics. |

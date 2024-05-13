@@ -38,7 +38,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
@@ -61,34 +60,6 @@ func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, lSelector labe
 		return nil, fmt.Errorf("multiple resources of type %s found for label selector %s",
 			ipamv1alpha1.IpamStorageGroupVersionResource, lSelector.String())
 	}
-}
-
-// GetResourceOfferByLabel returns the ResourceOffer with the given labels.
-func GetResourceOfferByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*sharingv1alpha1.ResourceOffer, error) {
-	var resourceOfferList sharingv1alpha1.ResourceOfferList
-	if err := cl.List(ctx, &resourceOfferList, client.MatchingLabelsSelector{Selector: lSelector}, client.InNamespace(ns)); err != nil {
-		return nil, err
-	}
-
-	switch len(resourceOfferList.Items) {
-	case 0:
-		return nil, kerrors.NewNotFound(sharingv1alpha1.ResourceOfferGroupResource, sharingv1alpha1.ResourceResourceOffer)
-	case 1:
-		return &resourceOfferList.Items[0], nil
-	default:
-		return nil, fmt.Errorf("multiple resources of type %q found for label selector %q,"+
-			" when only one was expected", sharingv1alpha1.ResourceOfferGroupResource.String(), lSelector.String())
-	}
-}
-
-// ListResourceOfferByLabel returns the ResourceOfferList with the given labels.
-func ListResourceOfferByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) (*sharingv1alpha1.ResourceOfferList, error) {
-	list := new(sharingv1alpha1.ResourceOfferList)
-	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
-		return nil, err
-	}
-	return list, nil
 }
 
 // GetNamespaceMapByLabel returns the NamespaceMapping with the given labels.
@@ -382,6 +353,16 @@ func GetResourceSliceKubeconfigSecretsByClusterID(ctx context.Context, cl client
 		return nil, err
 	}
 
+	return list.Items, nil
+}
+
+// ListResourceSlicesByLabel returns the ResourceSlice list that matches the given label selector.
+func ListResourceSlicesByLabel(ctx context.Context, cl client.Client,
+	ns string, lSelector labels.Selector) ([]authv1alpha1.ResourceSlice, error) {
+	var list authv1alpha1.ResourceSliceList
+	if err := cl.List(ctx, &list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
 	return list.Items, nil
 }
 

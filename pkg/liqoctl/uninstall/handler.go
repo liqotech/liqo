@@ -36,7 +36,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
@@ -48,7 +47,6 @@ import (
 var liqoGroupVersions = []schema.GroupVersion{
 	discoveryv1alpha1.GroupVersion,
 	offv1alpha1.GroupVersion,
-	sharingv1alpha1.GroupVersion,
 	virtualKubeletv1alpha1.SchemeGroupVersion,
 	networkingv1alpha1.GroupVersion,
 	ipamv1alpha1.SchemeGroupVersion,

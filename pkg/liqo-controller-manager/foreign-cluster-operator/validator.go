@@ -20,48 +20,11 @@ import (
 	"net/url"
 
 	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
-
-// validateForeignCluster contains the logic that validates and defaults labels and spec fields.
-func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) (cont bool, res ctrl.Result, err error) {
-	requireUpdate := false
-
-	if r.needsClusterIdentityDefaulting(foreignCluster) {
-		// this ForeignCluster has not all the cluster identity fields (clusterID and clusterName),
-		// get them from the foreignAuthUrl.
-		if err := r.clusterIdentityDefaulting(ctx, foreignCluster); err != nil {
-			klog.Error(err)
-			return false, ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.ResyncPeriod,
-			}, err
-		}
-		requireUpdate = true
-	}
-
-	if requireUpdate {
-		if err = r.Client.Update(ctx, foreignCluster); err != nil {
-			klog.Error(err, err.Error())
-			return false, ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.ResyncPeriod,
-			}, err
-		}
-		klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
-		return false, ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: r.ResyncPeriod,
-		}, nil
-	}
-
-	return true, ctrl.Result{}, nil
-}
 
 // isClusterProcessable checks if the provided ForeignCluster is processable.
 // It can not be processable if:

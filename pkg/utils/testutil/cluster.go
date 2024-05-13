@@ -28,7 +28,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -72,7 +71,6 @@ func NewTestCluster(crdPath []string) (Cluster, manager.Manager, error) {
 	cluster.client = kubernetes.NewForConfigOrDie(cluster.cfg)
 
 	utilruntime.Must(discoveryv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(sharingv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(virtualkubeletv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme.Scheme))

@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	sharev1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/status/utils/resources"
@@ -59,41 +59,39 @@ var _ = Describe("Shared Resources utility functions", func() {
 		ctx = context.Background()
 		clientBuilder = *fake.NewClientBuilder().WithScheme(scheme.Scheme)
 		clientBuilder.WithObjects(
-			&sharev1alpha1.ResourceOffer{
+			&authv1alpha1.ResourceSlice{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "offerRemote",
-					Labels: map[string]string{
-						consts.ReplicationOriginLabel: clusterID,
-						consts.ReplicationStatusLabel: "true",
-					},
-				},
-				Spec: sharev1alpha1.ResourceOfferSpec{
-					ResourceQuota: corev1.ResourceQuotaSpec{
-						Hard: corev1.ResourceList{
-							corev1.ResourceCPU:    *cpuQuantityAcquired,
-							corev1.ResourceMemory: *memQuantityAcquired,
-							corev1.ResourcePods:   *podsQuantityAcquired,
-							"other":               *otherQuantityAcquired,
-						},
-					},
-				},
-			},
-			&sharev1alpha1.ResourceOffer{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "offerLocal",
+					Name: "sliceLocal",
 					Labels: map[string]string{
 						consts.ReplicationDestinationLabel: clusterID,
 						consts.ReplicationRequestedLabel:   "true",
 					},
 				},
-				Spec: sharev1alpha1.ResourceOfferSpec{
-					ResourceQuota: corev1.ResourceQuotaSpec{
-						Hard: corev1.ResourceList{
-							corev1.ResourceCPU:    *cpuQuantityShared,
-							corev1.ResourceMemory: *memQuantityShared,
-							corev1.ResourcePods:   *podsQuantityShared,
-							"other":               *otherQuantityShared,
-						},
+				Spec: authv1alpha1.ResourceSliceSpec{},
+				Status: authv1alpha1.ResourceSliceStatus{
+					Resources: corev1.ResourceList{
+						corev1.ResourceCPU:    *cpuQuantityAcquired,
+						corev1.ResourceMemory: *memQuantityAcquired,
+						corev1.ResourcePods:   *podsQuantityAcquired,
+						"other":               *otherQuantityAcquired,
+					},
+				},
+			},
+			&authv1alpha1.ResourceSlice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "sliceRemote",
+					Labels: map[string]string{
+						consts.ReplicationOriginLabel: clusterID,
+						consts.ReplicationStatusLabel: "true",
+					},
+				},
+				Spec: authv1alpha1.ResourceSliceSpec{},
+				Status: authv1alpha1.ResourceSliceStatus{
+					Resources: corev1.ResourceList{
+						corev1.ResourceCPU:    *cpuQuantityShared,
+						corev1.ResourceMemory: *memQuantityShared,
+						corev1.ResourcePods:   *podsQuantityShared,
+						"other":               *otherQuantityShared,
 					},
 				},
 			},
