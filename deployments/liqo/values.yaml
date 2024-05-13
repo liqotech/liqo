@@ -316,12 +316,6 @@ controllerManager:
     # -- Custom version for the controller-manager image. If not specified, the global tag is used.
     version: ""
   config:
-    # -- Percentage of available cluster resources that you are willing to share with foreign clusters.
-    resourceSharingPercentage: 30
-    # -- Threshold (in percentage) of the variation of resources that triggers a ResourceOffer update. E.g., when the available resources grow/decrease by X, a new ResourceOffer is generated.
-    offerUpdateThresholdPercentage: ""
-    # -- The address of an external resource plugin service (see https://github.com/liqotech/liqo-resource-plugins for additional information), overriding the default resource computation logic based on the percentage of available resources. Leave it empty to use the standard local resource monitor.
-    resourcePluginAddress: ""
     # -- It enforces offerer-side that offloaded pods do not exceed offered resources (based on container limits).
     # This feature is suggested to be enabled when consumer-side enforcement is not sufficient.
     # It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set).
@@ -486,79 +480,6 @@ discovery:
     autojoin: true
     # -- Allow (by default) the remote clusters to establish a peering with our cluster.
     incomingPeeringEnabled: true
-
-# Deprecated
-auth:
-  pod:
-    # -- Annotations for the auth pod.
-    annotations: {}
-    # -- Labels for the auth pod.
-    labels: {}
-    # -- Extra arguments for the auth pod.
-    extraArgs: []
-    # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the auth pod.
-    resources:
-      limits: {}
-      requests: {}
-    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the auth pod.
-    priorityClassName: ""
-  image:
-    # -- Image repository for the auth pod.
-    name: "ghcr.io/liqotech/auth-service"
-    # -- Custom version for the auth image. If not specified, the global tag is used.
-    version: ""
-  initContainer:
-    image:
-      # -- Image repository for the init container of the auth pod.
-      name: "ghcr.io/liqotech/cert-creator"
-      # -- Custom version for the init container image of the auth pod. If not specified, the global tag is used.
-      version: ""
-  service:
-    # -- Kubernetes service used to expose the Authentication Service.
-    # If you are exposing this service with an Ingress, you can change it to ClusterIP;
-    # if your cluster does not support LoadBalancer services, consider to switch it to NodePort.
-    # See https://doc.liqo.io/installation/ for more details.
-    type: "LoadBalancer"
-    # -- Labels for the auth service.
-    labels: {}
-    # -- Annotations for the auth service.
-    annotations: {}
-    # -- Port used by the Authentication Service.
-    port: 443
-    # -- Options valid if service type is NodePort.
-    nodePort:
-      # -- Force the port used by the NodePort service. This value must be included between 30000 and 32767.
-      port: ""
-    # -- Options valid if service type is LoadBalancer.
-    loadBalancer:
-      # -- Override the IP here if service type is LoadBalancer and you want to use a specific IP address, e.g., because you want a static LB.
-      ip: ""
-      # -- Set to false if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature).
-      allocateLoadBalancerNodePorts: ""
-  # -- Enable TLS for the Authentication Service Pod (using a self-signed certificate).
-  # If you are exposing this service with an Ingress, consider to disable it or add the appropriate annotations to the Ingress resource.
-  tls: true
-  ingress:
-    # -- Annotations for the Auth ingress.
-    annotations: {}
-    # -- Enable/disable the creation of the Ingress resource.
-    enable: false
-    # -- Set the hostname for your ingress.
-    host: ""
-    # -- Set your ingress class.
-    class: ""
-    # -- Set port for your ingress.
-    port: 443
-    # -- Override default (ChartName-auth) tls secretName.
-    tlsSecretName: ""
-  config:
-    # -- Set to false to disable the authentication of discovered clusters.
-    # Note: use it only for testing installations.
-    enableAuthentication: true
-    # -- Override the default address where your service is available, you should configure it if behind a reverse proxy or NAT.
-    addressOverride: ""
-    # -- Overrides the port where your service is available, you should configure it if behind a reverse proxy or NAT or using an Ingress with a port different from 443.
-    portOverride: ""
 
 metricAgent:
   # -- Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics
