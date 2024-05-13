@@ -30,7 +30,6 @@ import (
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -216,9 +215,9 @@ func (o *Options) forgeVirtualNodeOptions() (*forge.VirtualNodeOptions, error) {
 		return nil, fmt.Errorf("unable to parse pod quantity: %w", err)
 	}
 
-	storageClasses := make([]sharingv1alpha1.StorageType, len(o.storageClasses))
+	storageClasses := make([]authv1alpha1.StorageType, len(o.storageClasses))
 	for i, storageClass := range o.storageClasses {
-		sc := sharingv1alpha1.StorageType{
+		sc := authv1alpha1.StorageType{
 			StorageClassName: storageClass,
 		}
 		if i == 0 {
@@ -227,9 +226,9 @@ func (o *Options) forgeVirtualNodeOptions() (*forge.VirtualNodeOptions, error) {
 		storageClasses[i] = sc
 	}
 
-	ingressClasses := make([]sharingv1alpha1.IngressType, len(o.ingressClasses))
+	ingressClasses := make([]authv1alpha1.IngressType, len(o.ingressClasses))
 	for i, ingressClass := range o.ingressClasses {
-		ic := sharingv1alpha1.IngressType{
+		ic := authv1alpha1.IngressType{
 			IngressClassName: ingressClass,
 		}
 		if i == 0 {
@@ -238,9 +237,9 @@ func (o *Options) forgeVirtualNodeOptions() (*forge.VirtualNodeOptions, error) {
 		ingressClasses[i] = ic
 	}
 
-	loadBalancerClasses := make([]sharingv1alpha1.LoadBalancerType, len(o.loadBalancerClasses))
+	loadBalancerClasses := make([]authv1alpha1.LoadBalancerType, len(o.loadBalancerClasses))
 	for i, loadBalancerClass := range o.loadBalancerClasses {
-		lbc := sharingv1alpha1.LoadBalancerType{
+		lbc := authv1alpha1.LoadBalancerType{
 			LoadBalancerClassName: loadBalancerClass,
 		}
 		if i == 0 {

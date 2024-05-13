@@ -24,7 +24,6 @@ import (
 	"github.com/grandcat/zeroconf"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/discoverymanager/utils"
 )
 
@@ -94,7 +93,7 @@ func (discovery *Controller) resolve(ctx context.Context, service, domain string
 	<-ctx.Done()
 }
 
-func (discovery *Controller) getClusterInfo(ctx context.Context, authData *AuthData) (*auth.ClusterInfo, error) {
+func (discovery *Controller) getClusterInfo(ctx context.Context, authData *AuthData) (*utils.ClusterInfo, error) {
 	ids, err := utils.GetClusterInfo(ctx, discovery.insecureTransport, authData.getURL())
 	if err != nil {
 		klog.Error(err)

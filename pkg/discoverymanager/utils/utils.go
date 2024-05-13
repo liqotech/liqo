@@ -36,7 +36,7 @@ const (
 
 // GetClusterInfo contacts the remote cluster to get its info,
 // it returns also if the remote cluster exposes a trusted certificate.
-func GetClusterInfo(ctx context.Context, transport *http.Transport, url string) (*auth.ClusterInfo, error) {
+func GetClusterInfo(ctx context.Context, transport *http.Transport, url string) (*ClusterInfo, error) {
 	client := &http.Client{
 		Transport: transport,
 		Timeout:   HTTPRequestTimeout,
@@ -53,7 +53,7 @@ func GetClusterInfo(ctx context.Context, transport *http.Transport, url string) 
 		return nil, err
 	}
 
-	var ids auth.ClusterInfo
+	var ids ClusterInfo
 	if err = json.Unmarshal(respBytes, &ids); err != nil {
 		klog.Error(err)
 		return nil, err
