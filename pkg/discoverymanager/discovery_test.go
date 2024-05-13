@@ -34,9 +34,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/auth"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/discoverymanager/utils"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
@@ -322,7 +322,7 @@ var _ = Describe("Discovery", func() {
 					Entry("local cluster", updateForeignTestcase{
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
-							ClusterInfo: &auth.ClusterInfo{
+							ClusterInfo: &utils.ClusterInfo{
 								ClusterID:   "local-cluster-id",
 								ClusterName: "ClusterTest1",
 							},
@@ -334,7 +334,7 @@ var _ = Describe("Discovery", func() {
 					Entry("foreign cluster (untrusted)", updateForeignTestcase{
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
-							ClusterInfo: &auth.ClusterInfo{
+							ClusterInfo: &utils.ClusterInfo{
 								ClusterID:   "foreign-cluster",
 								ClusterName: "ClusterTest2",
 							},
@@ -346,7 +346,7 @@ var _ = Describe("Discovery", func() {
 					Entry("foreign cluster (trusted)", updateForeignTestcase{
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
-							ClusterInfo: &auth.ClusterInfo{
+							ClusterInfo: &utils.ClusterInfo{
 								ClusterID:   "foreign-cluster",
 								ClusterName: "ClusterTest2",
 							},
@@ -366,7 +366,7 @@ var _ = Describe("Discovery", func() {
 				BeforeEach(func() {
 					discoveryCtrl.updateForeignLAN(&discoveryData{
 						AuthData: NewAuthData("1.2.3.4", 1234, 30),
-						ClusterInfo: &auth.ClusterInfo{
+						ClusterInfo: &utils.ClusterInfo{
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest2",
 						},
@@ -403,7 +403,7 @@ var _ = Describe("Discovery", func() {
 					Entry("no update", updateForeignTestcase{
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
-							ClusterInfo: &auth.ClusterInfo{
+							ClusterInfo: &utils.ClusterInfo{
 								ClusterID:   "foreign-cluster",
 								ClusterName: "ClusterTest2",
 							},
@@ -415,7 +415,7 @@ var _ = Describe("Discovery", func() {
 					Entry("update", updateForeignTestcase{
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
-							ClusterInfo: &auth.ClusterInfo{
+							ClusterInfo: &utils.ClusterInfo{
 								ClusterID:   "foreign-cluster",
 								ClusterName: "ClusterTest2",
 							},
@@ -472,7 +472,7 @@ var _ = Describe("Discovery", func() {
 					Entry("update discovery type", updateForeignTestcase{
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
-							ClusterInfo: &auth.ClusterInfo{
+							ClusterInfo: &utils.ClusterInfo{
 								ClusterID:   "foreign-cluster",
 								ClusterName: "ClusterTest2",
 							},

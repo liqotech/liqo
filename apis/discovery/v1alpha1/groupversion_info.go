@@ -40,13 +40,4 @@ var (
 
 	// ForeignClusterGroupResource is the group resource used to register the ForeignCluster CRD.
 	ForeignClusterGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: ForeignClusterResource}
-
-	// ResourceRequestResource is the resource name used to register the ResourceRequest CRD.
-	ResourceRequestResource = "resourcerequests"
-
-	// ResourceRequestGroupVersionResource is the group version resource used to register ResourceRequest CRD.
-	ResourceRequestGroupVersionResource = GroupVersion.WithResource(ResourceRequestResource)
-
-	// ResourceRequestGroupResource is the group resource used to register ResourceRequest CRD.
-	ResourceRequestGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: ResourceRequestResource}
 )
