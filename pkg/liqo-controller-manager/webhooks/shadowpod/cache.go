@@ -16,7 +16,6 @@ package shadowpod
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -26,12 +25,8 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharing "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // peeringCache is a cache that holds the peeringInfo for each peered cluster.
@@ -53,38 +48,38 @@ func (spv *Validator) CacheRefresher(interval time.Duration) func(ctx context.Co
 }
 
 func (spv *Validator) initializeCache(ctx context.Context) (err error) {
-	resourceOfferList := sharing.ResourceOfferList{}
-	if err := spv.client.List(ctx, &resourceOfferList, &client.ListOptions{LabelSelector: liqolabels.LocalLabelSelector()}); err != nil {
-		return err
-	}
-	klog.Infof("Cache initialization started")
-	for i := range resourceOfferList.Items {
-		ro := &resourceOfferList.Items[i]
-		clusterID := ro.Labels[discovery.ClusterIDLabel]
-		if clusterID == "" {
-			klog.Warningf("ResourceOffer %s/%s has no cluster id", ro.Namespace, ro.Name)
-			continue
-		}
-		clusterName := retrieveClusterName(ctx, spv.client, clusterID)
-		klog.V(4).Infof("Generating PeeringInfo in cache for corresponding ResourceOffer %s", klog.KObj(ro))
-		pi := createPeeringInfo(discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   clusterID,
-			ClusterName: clusterName,
-		}, ro.Spec.ResourceQuota.Hard)
+	// resourceOfferList := sharing.ResourceOfferList{}
+	// if err := spv.client.List(ctx, &resourceOfferList, &client.ListOptions{LabelSelector: liqolabels.LocalLabelSelector()}); err != nil {
+	// 	return err
+	// }
+	// klog.Infof("Cache initialization started")
+	// for i := range resourceOfferList.Items {
+	// 	ro := &resourceOfferList.Items[i]
+	// 	clusterID := ro.Labels[discovery.ClusterIDLabel]
+	// 	if clusterID == "" {
+	// 		klog.Warningf("ResourceOffer %s/%s has no cluster id", ro.Namespace, ro.Name)
+	// 		continue
+	// 	}
+	// 	clusterName := retrieveClusterName(ctx, spv.client, clusterID)
+	// 	klog.V(4).Infof("Generating PeeringInfo in cache for corresponding ResourceOffer %s", klog.KObj(ro))
+	// 	pi := createPeeringInfo(discoveryv1alpha1.ClusterIdentity{
+	// 		ClusterID:   clusterID,
+	// 		ClusterName: clusterName,
+	// 	}, ro.Spec.ResourceQuota.Hard)
 
-		// Get the List of shadow pods running on the cluster with a given clusterID
-		shadowPodList, err := spv.getShadowPodListByClusterID(ctx, clusterID)
-		if err != nil {
-			return err
-		}
+	// 	// Get the List of shadow pods running on the cluster with a given clusterID
+	// 	shadowPodList, err := spv.getShadowPodListByClusterID(ctx, clusterID)
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		klog.V(5).Infof("Found %d ShadowPods running on cluster %s", len(shadowPodList.Items), pi.clusterIdentity.String())
-		pi.alignExistingShadowPods(shadowPodList)
+	// 	klog.V(5).Infof("Found %d ShadowPods running on cluster %s", len(shadowPodList.Items), pi.clusterIdentity.String())
+	// 	pi.alignExistingShadowPods(shadowPodList)
 
-		spv.PeeringCache.peeringInfo.Store(clusterID, pi)
-	}
-	klog.Infof("Cache initialization completed. Found %d peered clusters", len(resourceOfferList.Items))
-	spv.PeeringCache.ready = true
+	// 	spv.PeeringCache.peeringInfo.Store(clusterID, pi)
+	// }
+	// klog.Infof("Cache initialization completed. Found %d peered clusters", len(resourceOfferList.Items))
+	// spv.PeeringCache.ready = true
 	return nil
 }
 
@@ -182,54 +177,54 @@ func (pi *peeringInfo) checkAndAddShadowPods(shadowPod *vkv1alpha1.ShadowPod, ns
 }
 
 func (spv *Validator) checkAlignmentResourceOfferPeeringInfo(ctx context.Context) error {
-	resourceOfferList := sharing.ResourceOfferList{}
-	roMap := make(map[string]struct{})
+	// resourceOfferList := sharing.ResourceOfferList{}
+	// roMap := make(map[string]struct{})
 
-	// Get the List of resource offers
-	if err := spv.client.List(ctx, &resourceOfferList, &client.ListOptions{LabelSelector: liqolabels.LocalLabelSelector()}); err != nil {
-		return err
-	}
+	// // Get the List of resource offers
+	// if err := spv.client.List(ctx, &resourceOfferList, &client.ListOptions{LabelSelector: liqolabels.LocalLabelSelector()}); err != nil {
+	// 	return err
+	// }
 
-	// Check if there are new ResourceOffers in the system snapshot
-	for i := range resourceOfferList.Items {
-		ro := &resourceOfferList.Items[i]
-		clusterID := ro.Labels[discovery.ClusterIDLabel]
-		if clusterID == "" {
-			return fmt.Errorf("ResourceOffer %q has no cluster id", ro.Name)
-		}
-		clusterName := retrieveClusterName(ctx, spv.client, clusterID)
-		// Populating a map of valid  and existing ResourceOffers in the system snapshot
-		roMap[clusterID] = struct{}{}
+	// // Check if there are new ResourceOffers in the system snapshot
+	// for i := range resourceOfferList.Items {
+	// 	ro := &resourceOfferList.Items[i]
+	// 	clusterID := ro.Labels[discovery.ClusterIDLabel]
+	// 	if clusterID == "" {
+	// 		return fmt.Errorf("ResourceOffer %q has no cluster id", ro.Name)
+	// 	}
+	// 	clusterName := retrieveClusterName(ctx, spv.client, clusterID)
+	// 	// Populating a map of valid  and existing ResourceOffers in the system snapshot
+	// 	roMap[clusterID] = struct{}{}
 
-		// Check if the ResourceOffer is not present in the cache
-		if newPI, found := spv.PeeringCache.peeringInfo.LoadOrStore(clusterID, createPeeringInfo(discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   clusterID,
-			ClusterName: clusterName,
-		}, ro.Spec.ResourceQuota.Hard)); !found {
-			klog.V(4).Infof("ResourceOffer %q not found in cache, adding it", clusterName)
-			// Get the List of ShadowPods running on the cluster
-			shadowPodList, err := spv.getShadowPodListByClusterID(ctx, clusterID)
-			if err != nil {
-				return err
-			}
-			klog.V(5).Infof("Found %d ShadowPods running on cluster %s", len(shadowPodList.Items), newPI.(*peeringInfo).clusterIdentity.String())
-			newPI.(*peeringInfo).alignExistingShadowPods(shadowPodList)
-		}
-	}
+	// 	// Check if the ResourceOffer is not present in the cache
+	// 	if newPI, found := spv.PeeringCache.peeringInfo.LoadOrStore(clusterID, createPeeringInfo(discoveryv1alpha1.ClusterIdentity{
+	// 		ClusterID:   clusterID,
+	// 		ClusterName: clusterName,
+	// 	}, ro.Spec.ResourceQuota.Hard)); !found {
+	// 		klog.V(4).Infof("ResourceOffer %q not found in cache, adding it", clusterName)
+	// 		// Get the List of ShadowPods running on the cluster
+	// 		shadowPodList, err := spv.getShadowPodListByClusterID(ctx, clusterID)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		klog.V(5).Infof("Found %d ShadowPods running on cluster %s", len(shadowPodList.Items), newPI.(*peeringInfo).clusterIdentity.String())
+	// 		newPI.(*peeringInfo).alignExistingShadowPods(shadowPodList)
+	// 	}
+	// }
 
-	// Check if PeeringInfos still have corresponding ResourceOffers
-	spv.PeeringCache.peeringInfo.Range(
-		func(key, value interface{}) bool {
-			peeringInfo := value.(*peeringInfo)
-			clusterID := key.(string)
-			// If the corresponding ResourceOffer is not present anymore, remove the PeeringInfo from the cache
-			if _, found := roMap[clusterID]; !found {
-				klog.V(4).Infof("ResourceOffer %q not found in system snapshot, removing it from cache", peeringInfo.clusterIdentity.String())
-				spv.PeeringCache.peeringInfo.Delete(clusterID)
-			}
-			return true
-		},
-	)
+	// // Check if PeeringInfos still have corresponding ResourceOffers
+	// spv.PeeringCache.peeringInfo.Range(
+	// 	func(key, value interface{}) bool {
+	// 		peeringInfo := value.(*peeringInfo)
+	// 		clusterID := key.(string)
+	// 		// If the corresponding ResourceOffer is not present anymore, remove the PeeringInfo from the cache
+	// 		if _, found := roMap[clusterID]; !found {
+	// 			klog.V(4).Infof("ResourceOffer %q not found in system snapshot, removing it from cache", peeringInfo.clusterIdentity.String())
+	// 			spv.PeeringCache.peeringInfo.Delete(clusterID)
+	// 		}
+	// 		return true
+	// 	},
+	// )
 	return nil
 }
 

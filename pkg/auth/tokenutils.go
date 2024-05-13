@@ -16,7 +16,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
@@ -53,15 +52,4 @@ func GetTokenFromSecret(secret *v1.Secret) (string, error) {
 		return "", err
 	}
 	return string(v), nil
-}
-
-// GenerateToken generates a random authentication token.
-func GenerateToken() (string, error) {
-	b := make([]byte, 64)
-	_, err := rand.Read(b)
-	if err != nil {
-		klog.Error(err)
-		return "", err
-	}
-	return fmt.Sprintf("%x", b), nil
 }

@@ -30,8 +30,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
-	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	pod "github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -111,30 +109,31 @@ func (spv *Validator) HandleCreate(ctx context.Context, req *admission.Request) 
 		return admission.Allowed("")
 	}
 
-	// Check existence and get resource offer by Cluster ID label
-	resourceoffer, err := liqogetters.GetResourceOfferByLabel(ctx, spv.client, corev1.NamespaceAll,
-		liqolabels.LocalLabelSelectorForCluster(clusterID))
-	if err != nil {
-		newErr := fmt.Errorf("error getting resource offer by label: %w", err)
-		klog.Error(newErr)
-		return admission.Errored(http.StatusInternalServerError, newErr)
-	}
+	// TODO: implement the resource validation with the ResourceSlices
+	// // Check existence and get resource offer by Cluster ID label
+	// resourceoffer, err := liqogetters.GetResourceOfferByLabel(ctx, spv.client, corev1.NamespaceAll,
+	// 	liqolabels.LocalLabelSelectorForCluster(clusterID))
+	// if err != nil {
+	// 	newErr := fmt.Errorf("error getting resource offer by label: %w", err)
+	// 	klog.Error(newErr)
+	// 	return admission.Errored(http.StatusInternalServerError, newErr)
+	// }
 
-	clusterName := retrieveClusterName(ctx, spv.client, clusterID)
+	// clusterName := retrieveClusterName(ctx, spv.client, clusterID)
 
-	klog.V(5).Infof("ResourceOffer found for cluster %q with Quota %s",
-		clusterName, quotaFormatter(resourceoffer.Spec.ResourceQuota.Hard))
+	// klog.V(5).Infof("ResourceOffer found for cluster %q with Quota %s",
+	// 	clusterName, quotaFormatter(resourceoffer.Spec.ResourceQuota.Hard))
 
-	peeringInfo := spv.PeeringCache.getOrCreatePeeringInfo(discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   clusterID,
-		ClusterName: clusterName,
-	}, resourceoffer.Spec.ResourceQuota.Hard)
+	// peeringInfo := spv.PeeringCache.getOrCreatePeeringInfo(discoveryv1alpha1.ClusterIdentity{
+	// 	ClusterID:   clusterID,
+	// 	ClusterName: clusterName,
+	// }, resourceoffer.Spec.ResourceQuota.Hard)
 
-	err = peeringInfo.testAndUpdateCreation(ctx, spv.client, shadowpod, *req.DryRun)
-	if err != nil {
-		klog.Warning(err)
-		return admission.Denied(err.Error())
-	}
+	// err = peeringInfo.testAndUpdateCreation(ctx, spv.client, shadowpod, *req.DryRun)
+	// if err != nil {
+	// 	klog.Warning(err)
+	// 	return admission.Denied(err.Error())
+	// }
 
 	return admission.Allowed("")
 }
