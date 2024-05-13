@@ -77,7 +77,6 @@ jobs:
       fail-fast: false
       matrix:
         component:
-        - auth-service
         - cert-creator
         - crd-replicator
         - liqo-controller-manager

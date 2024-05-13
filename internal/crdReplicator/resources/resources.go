@@ -19,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -37,11 +36,6 @@ type Resource struct {
 // GetResourcesToReplicate returns the list of resources to be replicated through the CRD replicator.
 func GetResourcesToReplicate() []Resource {
 	return []Resource{
-		{
-			GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
-			PeeringPhase:         consts.PeeringPhaseEstablished,
-			Ownership:            consts.OwnershipShared,
-		},
 		{
 			GroupVersionResource: vkv1alpha1.NamespaceMapGroupVersionResource,
 			PeeringPhase:         consts.PeeringPhaseAuthenticated,

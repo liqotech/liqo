@@ -28,6 +28,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	resourceutils "github.com/liqotech/liqo/pkg/liqoctl/status/utils/resources"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 	labelsutils "github.com/liqotech/liqo/pkg/utils/labels"
@@ -167,18 +168,17 @@ func (c *Builder) getPeeringDetails(ctx context.Context,
 
 	var resources corev1.ResourceList
 	if enabled && foreignCluster.Status.TenantNamespace.Local != "" {
-		offer, err := liqogetters.GetResourceOfferByLabel(ctx, c.Client,
-			foreignCluster.Status.TenantNamespace.Local,
-			selector)
+		rl, err := liqogetters.ListResourceSlicesByLabel(ctx, c.Client,
+			foreignCluster.Status.TenantNamespace.Local, selector)
 		if err != nil {
-			klog.Errorf("unable to get resource offer for cluster %s: %v",
+			klog.Errorf("unable to get resource slices for cluster %s: %v",
 				foreignCluster.Spec.ClusterIdentity.ClusterID, err)
 			return PeeringDetails{
 				Enabled:   enabled,
 				Resources: corev1.ResourceList{},
 			}
 		}
-		resources = offer.Spec.ResourceQuota.Hard
+		resources = resourceutils.SumResourceSlices(rl)
 	}
 
 	return PeeringDetails{

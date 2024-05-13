@@ -21,14 +21,14 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
-func getDefaultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharingv1alpha1.StorageType {
+func getDefaultStorageClass(storageClasses []authv1alpha1.StorageType) authv1alpha1.StorageType {
 	for _, storageClass := range storageClasses {
 		if storageClass.Default {
 			return storageClass
@@ -37,7 +37,7 @@ func getDefaultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharin
 	return storageClasses[0]
 }
 
-func getDefaultIngressClass(ingressClasses []sharingv1alpha1.IngressType) sharingv1alpha1.IngressType {
+func getDefaultIngressClass(ingressClasses []authv1alpha1.IngressType) authv1alpha1.IngressType {
 	for _, ingressClass := range ingressClasses {
 		if ingressClass.Default {
 			return ingressClass
@@ -46,7 +46,7 @@ func getDefaultIngressClass(ingressClasses []sharingv1alpha1.IngressType) sharin
 	return ingressClasses[0]
 }
 
-func getDefaultLoadBalancerClass(loadBalancerClasses []sharingv1alpha1.LoadBalancerType) sharingv1alpha1.LoadBalancerType {
+func getDefaultLoadBalancerClass(loadBalancerClasses []authv1alpha1.LoadBalancerType) authv1alpha1.LoadBalancerType {
 	for _, loadBalancerClass := range loadBalancerClasses {
 		if loadBalancerClass.Default {
 			return loadBalancerClass
@@ -57,8 +57,8 @@ func getDefaultLoadBalancerClass(loadBalancerClasses []sharingv1alpha1.LoadBalan
 
 func forgeVKContainers(
 	vkImage string, homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity, nodeName, vkNamespace string,
-	storageClasses []sharingv1alpha1.StorageType, ingressClasses []sharingv1alpha1.IngressType,
-	loadBalancerClasses []sharingv1alpha1.LoadBalancerType,
+	storageClasses []authv1alpha1.StorageType, ingressClasses []authv1alpha1.IngressType,
+	loadBalancerClasses []authv1alpha1.LoadBalancerType,
 	opts *VirtualKubeletOpts) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",

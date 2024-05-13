@@ -24,7 +24,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 )
 
 func TestPeer(t *testing.T) {
@@ -35,5 +34,4 @@ func TestPeer(t *testing.T) {
 var _ = BeforeSuite(func() {
 	utilruntime.Must(discoveryv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(netv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(sharingv1alpha1.AddToScheme(scheme.Scheme))
 })

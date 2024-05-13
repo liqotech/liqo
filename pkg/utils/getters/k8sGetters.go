@@ -33,7 +33,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
@@ -79,34 +78,6 @@ func GetNetworkConfigByLabel(ctx context.Context, cl client.Client, ns string, l
 // ListNetworkConfigsByLabel it returns a NetworkConfig list that matches the given label selector.
 func ListNetworkConfigsByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*netv1alpha1.NetworkConfigList, error) {
 	list := new(netv1alpha1.NetworkConfigList)
-	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
-		return nil, err
-	}
-	return list, nil
-}
-
-// GetResourceOfferByLabel returns the ResourceOffer with the given labels.
-func GetResourceOfferByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*sharingv1alpha1.ResourceOffer, error) {
-	var resourceOfferList sharingv1alpha1.ResourceOfferList
-	if err := cl.List(ctx, &resourceOfferList, client.MatchingLabelsSelector{Selector: lSelector}, client.InNamespace(ns)); err != nil {
-		return nil, err
-	}
-
-	switch len(resourceOfferList.Items) {
-	case 0:
-		return nil, kerrors.NewNotFound(sharingv1alpha1.ResourceOfferGroupResource, sharingv1alpha1.ResourceResourceOffer)
-	case 1:
-		return &resourceOfferList.Items[0], nil
-	default:
-		return nil, fmt.Errorf("multiple resources of type %q found for label selector %q,"+
-			" when only one was expected", sharingv1alpha1.ResourceOfferGroupResource.String(), lSelector.String())
-	}
-}
-
-// ListResourceOfferByLabel returns the ResourceOfferList with the given labels.
-func ListResourceOfferByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) (*sharingv1alpha1.ResourceOfferList, error) {
-	list := new(sharingv1alpha1.ResourceOfferList)
 	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
 		return nil, err
 	}
@@ -404,6 +375,16 @@ func GetResourceSliceKubeconfigSecretsByClusterID(ctx context.Context, cl client
 		return nil, err
 	}
 
+	return list.Items, nil
+}
+
+// ListResourceSlicesByLabel returns the ResourceSlice list that matches the given label selector.
+func ListResourceSlicesByLabel(ctx context.Context, cl client.Client,
+	ns string, lSelector labels.Selector) ([]authv1alpha1.ResourceSlice, error) {
+	var list authv1alpha1.ResourceSliceList
+	if err := cl.List(ctx, &list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
 	return list.Items, nil
 }
 

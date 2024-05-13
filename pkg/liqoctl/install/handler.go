@@ -359,10 +359,6 @@ func (o *Options) preProviderValues() map[string]interface{} {
 
 		"controllerManager": map[string]interface{}{
 			"replicas": float64(replicas),
-			"config": map[string]interface{}{
-				// The value is converted to float64 to match the type returned by the helm client.
-				"resourceSharingPercentage": float64(o.SharingPercentage),
-			},
 		},
 
 		"networkManager": map[string]interface{}{

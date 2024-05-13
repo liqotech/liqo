@@ -81,8 +81,6 @@ To do this, force delete all resources (look also in the tenant namespace) with 
 
 * `TunnelEndpoint`
 * `NetworkConfig`
-* `ResourceOffers`
-* `ResourceRequests`
 * `NamespaceMap`
 
 Make sure to also manually remove possible finalizers.
