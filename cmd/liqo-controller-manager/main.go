@@ -52,7 +52,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/liqo-controller-manager/modules"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
@@ -65,9 +64,6 @@ import (
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
-	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
-	resourcemonitors "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/resource-monitors"
-	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	shadowepsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowendpointslice-controller"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
@@ -97,7 +93,6 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = sharingv1alpha1.AddToScheme(scheme)
 	_ = netv1alpha1.AddToScheme(scheme)
 	_ = discoveryv1alpha1.AddToScheme(scheme)
 	_ = offloadingv1alpha1.AddToScheme(scheme)
@@ -160,19 +155,8 @@ func main() {
 	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
 
 	// Resource sharing parameters
-	resourcePluginAddress := flag.String(consts.ResourcePluginAddressParameter, "",
-		"The address of a resource plugin service (default: monitor local resources)")
 	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
-	resourceSharingPercentage := argsutils.Percentage{Val: 50}
-	flag.Var(&resourceSharingPercentage, "resource-sharing-percentage",
-		"The amount (in percentage) of cluster resources possibly shared with foreign clusters (ignored when using an external resource monitor)")
-	enableIncomingPeering := flag.Bool("enable-incoming-peering", true,
-		"Enable remote clusters to establish an incoming peering with the local cluster (can be overwritten on a per foreign cluster basis)")
-	offerDisableAutoAccept := flag.Bool("offer-disable-auto-accept", false, "Disable the automatic acceptance of resource offers")
-	offerUpdateThreshold := argsutils.Percentage{}
-	flag.Var(&offerUpdateThreshold, "offer-update-threshold-percentage",
-		"The threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update")
 	flag.Var(&ingressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
 	flag.Var(&loadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
 	flag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
@@ -493,44 +477,6 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
-	var monitor resourcemonitors.ResourceReader
-	if *resourcePluginAddress != "" {
-		externalMonitor, err := resourcemonitors.NewExternalMonitor(ctx, *resourcePluginAddress, 3*time.Second)
-		if err != nil {
-			klog.Errorf("error on creating external resource monitor: %s", err)
-			os.Exit(1)
-		}
-		monitor = externalMonitor
-	} else {
-		localMonitor := resourcemonitors.NewLocalMonitor(ctx, clientset, *resyncPeriod)
-		monitor = &resourcemonitors.ResourceScaler{
-			Provider: localMonitor,
-			Factor:   float32(resourceSharingPercentage.Val) / 100.,
-		}
-	}
-	offerUpdater := resourceRequestOperator.NewOfferUpdater(ctx, mgr.GetClient(), clusterIdentity,
-		clusterLabels.StringMap, monitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage,
-		ingressClasses, loadBalancerClasses)
-	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
-		Client:                mgr.GetClient(),
-		Scheme:                mgr.GetScheme(),
-		HomeCluster:           clusterIdentity,
-		OfferUpdater:          offerUpdater,
-		EnableIncomingPeering: *enableIncomingPeering,
-	}
-
-	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {
-		klog.Fatal(err)
-	}
-
-	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
-		mgr, idManager, *resyncPeriod, *offerDisableAutoAccept,
-		labelsNotReflected.StringList, annotationsNotReflected.StringList)
-	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
-		klog.Fatal(err)
-	}
-
 	virtualNodeReconciler, err := virtualnodectrl.NewVirtualNodeReconciler(
 		ctx,
 		mgr.GetClient(),
@@ -594,10 +540,6 @@ func main() {
 			return strings.HasPrefix(csr.Spec.Username, fmt.Sprintf("system:serviceaccount:%v-", tenantnamespace.NamePrefix))
 		}))
 	csrWatcher.Start(ctx)
-
-	if err = mgr.Add(offerUpdater); err != nil {
-		klog.Fatal(err)
-	}
 
 	if err := mgr.Add(manager.RunnableFunc(spv.CacheRefresher(*refreshInterval))); err != nil {
 		klog.Errorf("Unable to set up resource validator cache refresher: %v", err)

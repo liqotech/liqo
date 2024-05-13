@@ -25,7 +25,4 @@ const (
 	EnableLanDiscoveryParameter = "enable-lan-discovery"
 	// GenerateNameParameter is the name of the parameter specifying whether to generate a random name for the cluster.
 	GenerateNameParameter = "generate-name"
-
-	// ResourcePluginAddressParameter is the name of the parameter specifying the address of a resource plugin.
-	ResourcePluginAddressParameter = "resource-plugin-address"
 )

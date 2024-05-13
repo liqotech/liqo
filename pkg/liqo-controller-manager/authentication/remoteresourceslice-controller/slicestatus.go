@@ -22,7 +22,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	argutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
@@ -36,12 +36,12 @@ type SliceStatusOptions struct {
 	DefaultResourceQuantity   corev1.ResourceList
 }
 
-func getIngressClasses(opts *SliceStatusOptions) []sharingv1alpha1.IngressType {
+func getIngressClasses(opts *SliceStatusOptions) []authv1alpha1.IngressType {
 	if opts == nil {
-		return []sharingv1alpha1.IngressType{}
+		return []authv1alpha1.IngressType{}
 	}
 
-	ingressClasses := make([]sharingv1alpha1.IngressType, len(opts.IngressClasses.Classes))
+	ingressClasses := make([]authv1alpha1.IngressType, len(opts.IngressClasses.Classes))
 	for i := range opts.IngressClasses.Classes {
 		ingressClasses[i].IngressClassName = opts.IngressClasses.Classes[i].Name
 		ingressClasses[i].Default = opts.IngressClasses.Classes[i].IsDefault
@@ -49,12 +49,12 @@ func getIngressClasses(opts *SliceStatusOptions) []sharingv1alpha1.IngressType {
 	return ingressClasses
 }
 
-func getLoadBalancerClasses(opts *SliceStatusOptions) []sharingv1alpha1.LoadBalancerType {
+func getLoadBalancerClasses(opts *SliceStatusOptions) []authv1alpha1.LoadBalancerType {
 	if opts == nil {
-		return []sharingv1alpha1.LoadBalancerType{}
+		return []authv1alpha1.LoadBalancerType{}
 	}
 
-	loadBalancerClasses := make([]sharingv1alpha1.LoadBalancerType, len(opts.LoadBalancerClasses.Classes))
+	loadBalancerClasses := make([]authv1alpha1.LoadBalancerType, len(opts.LoadBalancerClasses.Classes))
 	for i := range opts.LoadBalancerClasses.Classes {
 		loadBalancerClasses[i].LoadBalancerClassName = opts.LoadBalancerClasses.Classes[i].Name
 		loadBalancerClasses[i].Default = opts.LoadBalancerClasses.Classes[i].IsDefault
@@ -62,9 +62,9 @@ func getLoadBalancerClasses(opts *SliceStatusOptions) []sharingv1alpha1.LoadBala
 	return loadBalancerClasses
 }
 
-func getStorageClasses(ctx context.Context, cl client.Client, opts *SliceStatusOptions) ([]sharingv1alpha1.StorageType, error) {
+func getStorageClasses(ctx context.Context, cl client.Client, opts *SliceStatusOptions) ([]authv1alpha1.StorageType, error) {
 	if opts == nil || !opts.EnableStorage {
-		return []sharingv1alpha1.StorageType{}, nil
+		return []authv1alpha1.StorageType{}, nil
 	}
 
 	storageClassList := &storagev1.StorageClassList{}
@@ -73,7 +73,7 @@ func getStorageClasses(ctx context.Context, cl client.Client, opts *SliceStatusO
 		return nil, err
 	}
 
-	storageTypes := make([]sharingv1alpha1.StorageType, len(storageClassList.Items))
+	storageTypes := make([]authv1alpha1.StorageType, len(storageClassList.Items))
 	for i := range storageClassList.Items {
 		class := &storageClassList.Items[i]
 		storageTypes[i].StorageClassName = class.GetName()

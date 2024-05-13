@@ -25,7 +25,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -194,40 +193,6 @@ func FakeTunnelEndpoint(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity
 			},
 		},
 	}
-}
-
-// FakeResourceOffer returns a fake ResourceOffer.
-func FakeResourceOffer(name, tenant string, resources corev1.ResourceList) *sharingv1alpha1.ResourceOffer {
-	return &sharingv1alpha1.ResourceOffer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: tenant,
-			Labels:    make(map[string]string),
-		},
-		Spec: sharingv1alpha1.ResourceOfferSpec{
-			ResourceQuota: corev1.ResourceQuotaSpec{
-				Hard: resources,
-			},
-		},
-	}
-}
-
-// FakeAcquiredResourceOffer returns a fake ResourceOffer containing acquired resources.
-func FakeAcquiredResourceOffer(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity,
-	remoteClusterTenant string, resources corev1.ResourceList) *sharingv1alpha1.ResourceOffer {
-	offer := FakeResourceOffer(remoteClusterIdentity.ClusterName, remoteClusterTenant, resources)
-	offer.ObjectMeta.Labels[liqoconsts.ReplicationOriginLabel] = remoteClusterIdentity.ClusterID
-	offer.ObjectMeta.Labels[liqoconsts.ReplicationStatusLabel] = strconv.FormatBool(true)
-	return offer
-}
-
-// FakeSharedResourceOffer returns a fake ResourceOffer containing shared resources.
-func FakeSharedResourceOffer(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity,
-	remoteClusterTenant, localClusterName string, resources corev1.ResourceList) *sharingv1alpha1.ResourceOffer {
-	offer := FakeResourceOffer(localClusterName, remoteClusterTenant, resources)
-	offer.ObjectMeta.Labels[liqoconsts.ReplicationDestinationLabel] = remoteClusterIdentity.ClusterID
-	offer.ObjectMeta.Labels[liqoconsts.ReplicationRequestedLabel] = strconv.FormatBool(true)
-	return offer
 }
 
 // FakeNetworkConfig returns a fake NetworkConfig.

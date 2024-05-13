@@ -21,9 +21,7 @@ import (
 	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -38,34 +36,16 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	resourcerequestoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
 const (
-	noResourceRequestReason  = "NoResourceRequest"
-	noResourceRequestMessage = "No ResourceRequest found in the Tenant Namespace %v"
-
-	resourceRequestDeletingReason  = "ResourceRequestDeleting"
-	resourceRequestDeletingMessage = "The ResourceRequest is in deleting phase in the Tenant Namespace %v"
-
-	resourceRequestAcceptedReason  = "ResourceRequestAccepted"
-	resourceRequestAcceptedMessage = "The ResourceRequest has been accepted by the remote cluster in the Tenant Namespace %v"
-
-	resourceRequestPendingReason  = "ResourceRequestPending"
-	resourceRequestPendingMessage = "The remote cluster has not created a ResourceOffer in the Tenant Namespace %v yet"
-
-	virtualKubeletPendingReason  = "KubeletPending"
-	virtualKubeletPendingMessage = "The remote cluster has not started the VirtualKubelet for the peering yet"
-
 	tunnelEndpointNotFoundReason  = "TunnelEndpointNotFound"
 	tunnelEndpointNotFoundMessage = "The TunnelEndpoint has not been found in the Tenant Namespace %v"
 
@@ -118,10 +98,6 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/finalizers,verbs=get;update;patch
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests,verbs=get;list;watch;create;update;patch;delete;deletecollection
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests/status,verbs=create;delete;deletecollection;list;watch
-// +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;list;watch;create;update;patch;delete;deletecollection
-// +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers/status,verbs=create;delete;deletecollection;list;watch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=*
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=*
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch
@@ -176,21 +152,6 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	// ------ (1) validation ------
-
-	// set labels and validate the resource spec
-	cont, res, err := r.validateForeignCluster(ctx, &foreignCluster)
-	if !cont || err != nil {
-		tracer.Step("Validated foreign cluster", trace.Field{Key: "requeuing", Value: true})
-		if err != nil {
-			klog.Error(err)
-			r.setForeignClusterStatusOnAuthUnavailable(&foreignCluster)
-			updateStatus()
-		}
-		return res, err
-	}
-	tracer.Step("Validated foreign cluster", trace.Field{Key: "requeuing", Value: false})
-
 	// defer the status update function
 	defer updateStatus()
 
@@ -218,7 +179,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Checked the TunnelEndpoint status")
 
-	// ------ (2) ensuring prerequirements ------
+	// ------ (1) ensuring prerequirements ------
 
 	// ensure the existence of the local TenantNamespace
 	if err = r.ensureLocalTenantNamespace(ctx, &foreignCluster); err != nil {
@@ -230,22 +191,8 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Add the foreigncluster to the map once the local tenant namespace has been created.
 	r.ForeignClusters.Store(foreignCluster.Status.TenantNamespace.Local, foreignCluster.GetName())
 
-	// ensure the existence of an identity to operate in the remote cluster
-	if err = r.ensureRemoteIdentity(ctx, &foreignCluster); err != nil {
-		klog.Errorf("Failed to ensure identity for remote cluster %q: %v", foreignCluster.Spec.ClusterIdentity, err)
-		return ctrl.Result{}, err
-	}
-	tracer.Step("Ensured the existence of the remote identity")
-
-	// fetch the remote tenant namespace name
-	if err = r.fetchRemoteTenantNamespace(ctx, &foreignCluster); err != nil {
-		klog.Error(err)
-		return ctrl.Result{}, err
-	}
-	tracer.Step("Fetched the remote tenant namespace name")
-
-	// ------ (3) activate/deactivate API server checker logic ------
-	cont, res, err = r.handleAPIServerChecker(ctx, &foreignCluster)
+	// ------ (2) activate/deactivate API server checker logic ------
+	cont, res, err := r.handleAPIServerChecker(ctx, &foreignCluster)
 	if !cont || err != nil {
 		// Prevent the deferred updateStatus() function to do an update since the FC has already been updated
 		// or an error have occurred
@@ -256,31 +203,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Handled the API server checker", trace.Field{Key: "requeuing", Value: false})
 
-	// ------ (4) peering/unpeering logic ------
-
-	// read the ForeignCluster status and ensure the peering state
-	phase := r.getDesiredOutgoingPeeringState(ctx, &foreignCluster)
-	tracer.Step("Fetched the desired peering state")
-	switch phase {
-	case desiredPeeringPhasePeering:
-		if err = r.peerNamespaced(ctx, &foreignCluster); err != nil {
-			klog.Error(err)
-			return ctrl.Result{}, err
-		}
-		tracer.Step("Peered with a remote cluster")
-	case desiredPeeringPhaseUnpeering:
-		if err = r.unpeerNamespaced(ctx, &foreignCluster); err != nil {
-			klog.Error(err)
-			return ctrl.Result{}, err
-		}
-		tracer.Step("Unpeered from a remote cluster")
-	default:
-		err := fmt.Errorf("unknown phase %v", phase)
-		klog.Error(err)
-		return ctrl.Result{}, err
-	}
-
-	// ------ (5) update peering conditions ------
+	// ------ (3) update peering conditions ------
 	// check if peering request really exists on foreign cluster
 	if err = r.checkIncomingPeeringStatus(ctx, &foreignCluster); err != nil {
 		klog.Errorf("[%s] %s", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
@@ -288,7 +211,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Checked the incoming peering status")
 
-	// ------ (6) ensuring permission ------
+	// ------ (4) ensuring permission ------
 
 	// ensure the permission for the current peering phase
 	if err = r.ensurePermission(ctx, &foreignCluster); err != nil {
@@ -297,10 +220,9 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Ensured the necessary permissions are present")
 
-	// ------ (7) garbage collection ------
+	// ------ (5) garbage collection ------
 
-	// check if this ForeignCluster needs to be deleted. It could happen, for example, if it has been discovered
-	// thanks to incoming resourceRequest and it has no active connections
+	// check if this ForeignCluster needs to be deleted.
 	if foreignclusterutils.HasToBeRemoved(&foreignCluster) {
 		klog.Infof("[%v] Delete ForeignCluster %v with discovery type %v",
 			foreignCluster.Spec.ClusterIdentity.ClusterID,
@@ -321,91 +243,6 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}, nil
 }
 
-func (r *ForeignClusterReconciler) setForeignClusterStatusOnAuthUnavailable(foreignCluster *discoveryv1alpha1.ForeignCluster) {
-	peeringconditionsutils.EnsureStatus(foreignCluster,
-		discoveryv1alpha1.AuthenticationStatusCondition,
-		discoveryv1alpha1.PeeringConditionStatusError,
-		"AuthNotReachable",
-		"The remote authentication service is not reachable")
-}
-
-// peerNamespaced enables the peering creating the resources in the correct TenantNamespace.
-func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	// Ensure the ResourceRequest is present
-	resourceRequest, err := r.ensureResourceRequest(ctx, foreignCluster)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	resourceOffers, err := r.getOutgoingResourceOffers(ctx, foreignCluster)
-	if err != nil {
-		return fmt.Errorf("reading resource offers: %w", err)
-	}
-
-	// Update the peering status based on the ResourceRequest status
-	status, reason, message, err := getPeeringPhase(foreignCluster, resourceRequest, resourceOffers)
-	if err != nil {
-		err = fmt.Errorf("[%v] %w", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
-		klog.Error(err)
-		return err
-	}
-
-	peeringconditionsutils.EnsureStatus(foreignCluster,
-		discoveryv1alpha1.OutgoingPeeringCondition, status, reason, message)
-
-	return nil
-}
-
-// unpeerNamespaced disables the peering deleting the resources in the correct TenantNamespace.
-func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	var resourceRequest discoveryv1alpha1.ResourceRequest
-	err := r.Client.Get(ctx, types.NamespacedName{
-		Namespace: foreignCluster.Status.TenantNamespace.Local,
-		Name:      getResourceRequestNameFor(r.HomeCluster),
-	}, &resourceRequest)
-	if errors.IsNotFound(err) {
-		peeringconditionsutils.EnsureStatus(foreignCluster,
-			discoveryv1alpha1.OutgoingPeeringCondition,
-			discoveryv1alpha1.PeeringConditionStatusNone,
-			noResourceRequestReason, fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local))
-		return nil
-	}
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	if resourceRequest.Status.OfferWithdrawalTimestamp.IsZero() {
-		if resourceRequest.Spec.WithdrawalTimestamp.IsZero() {
-			now := metav1.Now()
-			resourceRequest.Spec.WithdrawalTimestamp = &now
-		}
-		err = r.Client.Update(ctx, &resourceRequest)
-		if err != nil && !errors.IsNotFound(err) {
-			klog.Error(err)
-			return err
-		}
-		peeringconditionsutils.EnsureStatus(foreignCluster,
-			discoveryv1alpha1.OutgoingPeeringCondition,
-			discoveryv1alpha1.PeeringConditionStatusDisconnecting,
-			resourceRequestDeletingReason, fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local))
-	} else {
-		err = r.deleteResourceRequest(ctx, foreignCluster)
-		if err != nil && !errors.IsNotFound(err) {
-			klog.Error(err)
-			return err
-		}
-		peeringconditionsutils.EnsureStatus(foreignCluster,
-			discoveryv1alpha1.OutgoingPeeringCondition,
-			discoveryv1alpha1.PeeringConditionStatusNone,
-			noResourceRequestReason, fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local))
-	}
-	return nil
-}
-
 // SetupWithManager assigns the operator to a manager.
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 	// Prevent triggering a reconciliation in case of status modifications only.
@@ -413,111 +250,14 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers in
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ForeignCluster{}, builder.WithPredicates(foreignClusterPredicate)).
-		Owns(&discoveryv1alpha1.ResourceRequest{}).
-		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer),
-			builder.WithPredicates(getAuthTokenSecretPredicate())).
 		Watches(&netv1alpha1.TunnelEndpoint{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
-		Watches(&sharingv1alpha1.ResourceOffer{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
 }
 
-func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
-	localNamespace := foreignCluster.Status.TenantNamespace.Local
-
-	incomingResourceRequest, err := resourcerequestoperator.GetResourceRequest(ctx, r.Client, remoteClusterID)
-	if err != nil {
-		return fmt.Errorf("reading resource requests: %w", err)
-	}
-
-	resourceOffers, err := r.getIncomingResourceOffers(ctx, foreignCluster)
-	if err != nil {
-		return fmt.Errorf("reading resource offers: %w", err)
-	}
-
-	status, reason, message, err := getPeeringPhase(foreignCluster, incomingResourceRequest, resourceOffers)
-	if err != nil {
-		return fmt.Errorf("reading peering phase from namespace %s: %w", localNamespace, err)
-	}
-	peeringconditionsutils.EnsureStatus(foreignCluster,
-		discoveryv1alpha1.IncomingPeeringCondition, status, reason, message)
+func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(_ context.Context,
+	_ *discoveryv1alpha1.ForeignCluster) error {
 	return nil
-}
-
-// getIncomingResourceOffers returns the ResourceOffers created for the given remote cluster in an incoming peering, or an
-// empty list if there is none.
-func (r *ForeignClusterReconciler) getIncomingResourceOffers(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) ([]sharingv1alpha1.ResourceOffer, error) {
-	resourceOfferList := sharingv1alpha1.ResourceOfferList{}
-	if err := r.Client.List(ctx, &resourceOfferList,
-		client.MatchingLabelsSelector{Selector: liqolabels.LocalLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID)},
-		client.InNamespace(metav1.NamespaceAll)); err != nil {
-		return nil, err
-	}
-	return resourceOfferList.Items, nil
-}
-
-// getOutgoingResourceOffers returns the ResourceOffers created by the given remote cluster in an outgoing peering, or an
-// empty list if there is none.
-func (r *ForeignClusterReconciler) getOutgoingResourceOffers(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) ([]sharingv1alpha1.ResourceOffer, error) {
-	resourceOfferList := sharingv1alpha1.ResourceOfferList{}
-	if err := r.Client.List(ctx, &resourceOfferList,
-		client.MatchingLabelsSelector{Selector: liqolabels.RemoteLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID)},
-		client.InNamespace(metav1.NamespaceAll)); err != nil {
-		return nil, err
-	}
-	return resourceOfferList.Items, nil
-}
-
-func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
-	resourceRequest *discoveryv1alpha1.ResourceRequest,
-	resourceOffers []sharingv1alpha1.ResourceOffer) (status discoveryv1alpha1.PeeringConditionStatusType,
-	reason, message string, err error) {
-	if resourceRequest == nil {
-		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
-			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
-	}
-
-	desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
-	deleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
-	offerState := resourceRequest.Status.OfferState
-
-	// the offerState indicates if the ResourceRequest has been accepted and
-	// the ResourceOffer has been created by the remote cluster.
-	// * "Created" state means that the resources has been offered, and, if the withdrawal timestamp is set,
-	//   the offered is created, but it is no more valid. -> the cluster is disconnecting.
-	// * "None" there is no ResourceOffer created by the remote cluster, both because it didn't yet or because
-	//   it did not accept the incoming peering from the local cluster. -> the peering state is Pending.
-	switch offerState {
-	case discoveryv1alpha1.OfferStateCreated:
-		if desiredDelete || deleted {
-			return discoveryv1alpha1.PeeringConditionStatusDisconnecting, resourceRequestDeletingReason,
-				fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local), nil
-		}
-		// Return "pending" if we sent the ResourceRequest but the foreign cluster did not yet create the ResourceOffer
-		if len(resourceOffers) == 0 {
-			return discoveryv1alpha1.PeeringConditionStatusPending, resourceRequestPendingReason,
-				fmt.Sprintf(resourceRequestPendingMessage, foreignCluster.Status.TenantNamespace.Local), nil
-		}
-		for i := range resourceOffers {
-			if resourceOffers[i].Status.VirtualKubeletStatus != sharingv1alpha1.VirtualKubeletStatusCreated {
-				return discoveryv1alpha1.PeeringConditionStatusPending, virtualKubeletPendingReason,
-					virtualKubeletPendingMessage, nil
-			}
-		}
-		return discoveryv1alpha1.PeeringConditionStatusEstablished, resourceRequestAcceptedReason,
-			fmt.Sprintf(resourceRequestAcceptedMessage, foreignCluster.Status.TenantNamespace.Local), nil
-	case discoveryv1alpha1.OfferStateNone, "":
-		return discoveryv1alpha1.PeeringConditionStatusPending, resourceRequestPendingReason,
-			fmt.Sprintf(resourceRequestPendingMessage, foreignCluster.Status.TenantNamespace.Local), nil
-	default:
-		err = fmt.Errorf("unknown offer state %v", offerState)
-		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
-			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), err
-	}
 }
 
 func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
