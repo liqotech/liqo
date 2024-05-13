@@ -32,7 +32,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
+	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -122,7 +122,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	configurations, err := getters.ListConfigurationsByLabel(ctx, r.Client, labels.SelectorFromSet(labels.Set{
-		configurationcontroller.Configured: configurationcontroller.ConfiguredValue,
+		configuration.Configured: configuration.ConfiguredValue,
 	}))
 	if err != nil {
 		return ctrl.Result{}, err

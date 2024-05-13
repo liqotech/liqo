@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
+	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration"
 )
 
 // cluster-role
@@ -95,7 +95,7 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *RemappingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			configurationcontroller.Configured: configurationcontroller.ConfiguredValue,
+			configuration.Configured: configuration.ConfiguredValue,
 		},
 	})
 	if err != nil {
