@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
+	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration"
 )
 
 // ConfigurationReconciler manage Configuration lifecycle.
@@ -78,7 +78,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	p, err := predicate.LabelSelectorPredicate(v1.LabelSelector{
 		MatchLabels: map[string]string{
-			configurationcontroller.Configured: configurationcontroller.ConfiguredValue,
+			configuration.Configured: configuration.ConfiguredValue,
 		},
 	})
 	if err != nil {

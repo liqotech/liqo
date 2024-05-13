@@ -26,8 +26,8 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/ipam"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/client-operator"
-	configurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration-controller"
-	externalnetworkcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/externalnetwork-controller"
+	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration"
+	externalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/externalnetwork"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/remapping"
 	externalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/route"
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/server-operator"
@@ -79,7 +79,7 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 		return err
 	}
 
-	cfgReconciler := configurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
+	cfgReconciler := configuration.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
 		mgr.GetEventRecorderFor("configuration-controller"), opts.IpamClient)
 	if err := cfgReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("unable to create controller configurationReconciler: %s", err)
@@ -128,7 +128,7 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 		return err
 	}
 
-	externalNetworkReconciler := externalnetworkcontroller.NewExternalNetworkReconciler(
+	externalNetworkReconciler := externalnetwork.NewExternalNetworkReconciler(
 		mgr.GetClient(), mgr.GetScheme(), opts.KubeClient, opts.LiqoNamespace, opts.LocalClusterIdentity,
 		opts.GatewayServiceType, opts.GatewayServicePort, opts.GatewayMTU, opts.GatewayProxy)
 	if err := externalNetworkReconciler.SetupWithManager(mgr); err != nil {
