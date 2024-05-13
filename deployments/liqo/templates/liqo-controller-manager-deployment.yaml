@@ -79,8 +79,6 @@ spec:
           - --liqo-namespace=$(POD_NAMESPACE)
           - --authentication-enabled={{ .Values.authentication.enabled }}
           - --offloading-enabled={{ .Values.offloading.enabled }}
-          - --enable-incoming-peering={{ .Values.discovery.config.incomingPeeringEnabled }}
-          - --resource-sharing-percentage={{ .Values.controllerManager.config.resourceSharingPercentage }}
           - --pod-reflection-workers={{ .Values.offloading.reflection.pod.workers }}
           - --service-reflection-workers={{ .Values.offloading.reflection.service.workers }}
           - --endpointslice-reflection-workers={{ .Values.offloading.reflection.endpointslice.workers }}
@@ -223,12 +221,6 @@ spec:
           {{- else }}
           {{ fail (printf "Unsupported resource type \"%s\" for virtual kubelet containers' limits" $resource) }}
           {{- end }}
-          {{- end }}
-          {{- if .Values.controllerManager.config.resourcePluginAddress }}
-          - --resource-plugin-address={{ .Values.controllerManager.config.resourcePluginAddress }}
-          - --offer-update-threshold-percentage={{ .Values.controllerManager.config.offerUpdateThresholdPercentage | default 0 }}
-          {{- else }}
-          - --offer-update-threshold-percentage={{ .Values.controllerManager.config.offerUpdateThresholdPercentage | default 5 }}
           {{- end }}
         env:
           - name: CLUSTER_ID

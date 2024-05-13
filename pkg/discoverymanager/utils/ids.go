@@ -12,17 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package resourcemonitors
+package utils
 
-import (
-	"testing"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-)
-
-func TestAPIs(t *testing.T) {
-	defer GinkgoRecover()
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "ResourceMonitors")
+// ClusterInfo contains the information to be shared to a remote cluster to make the peering possible.
+type ClusterInfo struct {
+	ClusterID   string `json:"clusterId"`
+	ClusterName string `json:"clusterName,omitempty"`
 }

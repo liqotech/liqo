@@ -88,7 +88,7 @@ var _ = Describe("Enforcement logic", func() {
 				It("should correctly ensure the rolebinding is present", func() {
 					var binding rbacv1.RoleBinding
 					Expect(reconciler.Get(ctx, types.NamespacedName{Namespace: "namespace-remote", Name: "tenant-namespace"}, &binding)).To(Succeed())
-					Expect(binding.Subjects).To(ConsistOf(rbacv1.Subject{APIGroup: rbacv1.GroupName, Kind: rbacv1.UserKind, Name: "origin"}))
+					Expect(binding.Subjects).To(ConsistOf(rbacv1.Subject{APIGroup: rbacv1.GroupName, Kind: rbacv1.GroupKind, Name: "origin"}))
 					Expect(binding.RoleRef).To(Equal(
 						rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "ClusterRole", Name: liqoconst.RemoteNamespaceClusterRoleName}))
 					Expect(binding.GetAnnotations()).To(HaveKeyWithValue(liqoconst.RemoteNamespaceManagedByAnnotationKey, "tenant-namespace/name"))

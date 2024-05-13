@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
@@ -43,8 +42,6 @@ var (
 	scheme *runtime.Scheme
 	ctx    = context.Background()
 
-	tenantNamespace                   = "tenant-namespace"
-	tenantNamespace2                  = "tenant-namespace-2"
 	testNamespace                     = "test-namespace"
 	testNamespace2                    = "test-namespace-2"
 	testNamespaceInvalid              = "test-namespace-invalid"
@@ -71,15 +68,15 @@ var (
 	clusterIdentity2                  = forgeClusterIdentity(clusterName2, clusterID2)
 	foreignCluster                    = forgeForeignCluster(clusterName, clusterID)
 	foreignCluster2                   = forgeForeignCluster(clusterName2, clusterID2)
-	resourceOffer                     = forgeResourceOfferWithLabel(clusterName, tenantNamespace, clusterID)
-	resourceOffer2                    = forgeResourceOfferWithLabel(clusterName2, tenantNamespace2, clusterID2)
-	fakeShadowPod                     = forgeShadowPod(nsName.Name, nsName.Namespace, string(testShadowPodUID), clusterID)
-	fakeShadowPod2                    = forgeShadowPod(nsName2.Name, nsName2.Namespace, string(testShadowPodUID2), clusterID)
-	nsName                            = types.NamespacedName{Name: testShadowPodName, Namespace: testNamespace}
-	nsName2                           = types.NamespacedName{Name: testShadowPodName2, Namespace: testNamespace}
-	nsName3                           = types.NamespacedName{Name: testShadowPodName + "-3", Namespace: testNamespace2}
-	nsName4                           = types.NamespacedName{Name: testShadowPodName + "-4", Namespace: testNamespace2}
-	freeQuotaZero                     = &corev1.ResourceList{
+	// resourceOffer                     = forgeResourceOfferWithLabel(clusterName, tenantNamespace, clusterID)
+	// resourceOffer2                    = forgeResourceOfferWithLabel(clusterName2, tenantNamespace2, clusterID2)
+	fakeShadowPod  = forgeShadowPod(nsName.Name, nsName.Namespace, string(testShadowPodUID), clusterID)
+	fakeShadowPod2 = forgeShadowPod(nsName2.Name, nsName2.Namespace, string(testShadowPodUID2), clusterID)
+	nsName         = types.NamespacedName{Name: testShadowPodName, Namespace: testNamespace}
+	nsName2        = types.NamespacedName{Name: testShadowPodName2, Namespace: testNamespace}
+	nsName3        = types.NamespacedName{Name: testShadowPodName + "-3", Namespace: testNamespace2}
+	nsName4        = types.NamespacedName{Name: testShadowPodName + "-4", Namespace: testNamespace2}
+	freeQuotaZero  = &corev1.ResourceList{
 		corev1.ResourceCPU:    *resource.NewQuantity(0, resource.DecimalSI),
 		corev1.ResourceMemory: *resource.NewQuantity(0, resource.DecimalSI),
 	}
@@ -95,7 +92,6 @@ var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
 	Expect(vkv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(corev1.AddToScheme(scheme)).To(Succeed())
-	Expect(sharingv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(discoveryv1alpha1.AddToScheme(scheme)).To(Succeed())
 })
 
@@ -235,27 +231,27 @@ func forgeShadowPodList(shadowPods ...*vkv1alpha1.ShadowPod) *vkv1alpha1.ShadowP
 	return spList
 }
 
-func forgeResourceOfferWithLabel(clustername, namespace, clusterID string) *sharingv1alpha1.ResourceOffer {
-	ro := &sharingv1alpha1.ResourceOffer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clustername,
-			Namespace: namespace,
-		},
-		Spec: sharingv1alpha1.ResourceOfferSpec{
-			ResourceQuota: corev1.ResourceQuotaSpec{
-				Hard: *forgeResourceList(int64(resourceCPU), int64(resourceMemory)),
-			},
-		},
-	}
-	if clusterID != "" {
-		ro.Labels = map[string]string{
-			discovery.ClusterIDLabel:           clusterID,
-			consts.ReplicationDestinationLabel: clusterID,
-			consts.ReplicationRequestedLabel:   "true",
-		}
-	}
-	return ro
-}
+// func forgeResourceOfferWithLabel(clustername, namespace, clusterID string) *sharingv1alpha1.ResourceOffer {
+// 	ro := &sharingv1alpha1.ResourceOffer{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      clustername,
+// 			Namespace: namespace,
+// 		},
+// 		Spec: sharingv1alpha1.ResourceOfferSpec{
+// 			ResourceQuota: corev1.ResourceQuotaSpec{
+// 				Hard: *forgeResourceList(int64(resourceCPU), int64(resourceMemory)),
+// 			},
+// 		},
+// 	}
+// 	if clusterID != "" {
+// 		ro.Labels = map[string]string{
+// 			discovery.ClusterIDLabel:           clusterID,
+// 			consts.ReplicationDestinationLabel: clusterID,
+// 			consts.ReplicationRequestedLabel:   "true",
+// 		}
+// 	}
+// 	return ro
+// }
 
 func forgeForeignCluster(clustername, clusterID string) *discoveryv1alpha1.ForeignCluster {
 	return &discoveryv1alpha1.ForeignCluster{

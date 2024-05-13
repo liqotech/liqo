@@ -30,7 +30,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamtypes "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	discovery "github.com/liqotech/liqo/pkg/discoverymanager"
 	"github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -44,7 +43,6 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = discoveryv1alpha1.AddToScheme(scheme)
-	_ = advtypes.AddToScheme(scheme)
 	_ = ipamtypes.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }

@@ -20,12 +20,12 @@ import (
 
 	"github.com/jinzhu/copier"
 
-	"github.com/liqotech/liqo/pkg/auth"
+	"github.com/liqotech/liqo/pkg/discoverymanager/utils"
 )
 
 type discoveryData struct {
 	AuthData    *AuthData
-	ClusterInfo *auth.ClusterInfo
+	ClusterInfo *utils.ClusterInfo
 }
 
 // cache used to match different services coming for the same Liqo instance.

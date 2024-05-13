@@ -33,13 +33,10 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/util"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
-	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
@@ -86,8 +83,7 @@ var _ = Describe("Liqo E2E", func() {
 		}
 	)
 
-	Context("Assert that labels inserted at installation time are in the right resources: ControllerManager args,"+
-		" resourceOffer and virtualNodes", func() {
+	Context("Assert that labels inserted at installation time are in the right resources: ControllerManager args", func() {
 
 		DescribeTable(" 1 - Check labels presence in the ControllerManager arguments for every cluster", util.DescribeTableArgs(
 			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
@@ -107,33 +103,7 @@ var _ = Describe("Liqo E2E", func() {
 			getTableEntries()...,
 		)...)
 
-		DescribeTable(" 2 - Check labels presence in the ResourceOffer resources for every cluster", util.DescribeTableArgs(
-			// In every Local Tenant Namespace there must be the ResourceOffer sent by the cluster under examination
-			// with the expected labels in the field ResourceOffer.Spec.Labels.
-			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
-				resourceOffer := &sharingv1alpha1.ResourceOffer{}
-				// For every peering get the resourceOffer sent by the cluster under examination.
-				for i := range testContext.Clusters {
-					if i == index {
-						continue
-					}
-
-					By("Retrieving the ResourceOffers created by the cluster under examination")
-					Eventually(func() (err error) {
-						resourceOffer, err = liqogetters.GetResourceOfferByLabel(ctx, cluster.ControllerClient, metav1.NamespaceAll,
-							liqolabels.LocalLabelSelectorForCluster(testContext.Clusters[i].Cluster.ClusterID))
-						return err
-					}, timeout, interval).Should(Succeed())
-
-					for key, value := range clusterLabels {
-						Expect(resourceOffer.Spec.Labels).To(HaveKeyWithValue(key, value))
-					}
-				}
-			},
-			getTableEntries()...,
-		)...)
-
-		DescribeTable(" 3 - Check labels presence on the virtual nodes for every cluster", util.DescribeTableArgs(
+		DescribeTable(" 2 - Check labels presence on the virtual nodes for every cluster", util.DescribeTableArgs(
 			// Each virtual node representing the cluster under examination in the remote clusters must have the
 			// expected labels.
 			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
