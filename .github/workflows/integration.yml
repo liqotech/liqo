@@ -254,7 +254,7 @@ jobs:
           persist-credentials: false
 
       - name: Get the latest Liqo release
-        uses: pozetroninc/github-action-get-latest-release@v0.7.0
+        uses: pozetroninc/github-action-get-latest-release@v0.8.0
         id: last-release
         with:
           repository: ${{ github.repository }}
