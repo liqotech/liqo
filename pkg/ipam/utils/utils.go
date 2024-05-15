@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/google/nftables"
 	"go4.org/netipx"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
@@ -131,9 +132,9 @@ func GetUnknownSourceIP(extCIDR string) (string, error) {
 	if extCIDR == "" {
 		return "", fmt.Errorf("ExternalCIDR not set")
 	}
-	firstExtCIDRip, err := GetFirstIP(extCIDR)
+	firstExtCIDRip, _, err := nftables.NetFirstAndLastIP(extCIDR)
 	if err != nil {
 		return "", fmt.Errorf("cannot get first IP of ExternalCIDR")
 	}
-	return firstExtCIDRip, nil
+	return string(firstExtCIDRip), nil
 }

@@ -55,7 +55,6 @@ func EnsureRuleAbsence(rule *networkingv1alpha1.Rule, tableID uint32) error {
 	if !exists {
 		return nil
 	}
-
 	return netlink.RuleDel(existingrule)
 }
 

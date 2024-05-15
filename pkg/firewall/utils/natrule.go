@@ -23,6 +23,7 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	"github.com/google/nftables/userdata"
+	"k8s.io/klog/v2"
 
 	firewallv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 )
@@ -66,15 +67,24 @@ func (nr *NatRuleWrapper) Equal(currentrule *nftables.Rule) bool {
 		return false
 	}
 	for i := range currentrule.Exprs {
+		foundEqual := false
 		currentbytes, err := expr.Marshal(byte(currentrule.Table.Family), currentrule.Exprs[i])
 		if err != nil {
+			klog.Errorf("Error while marshaling current rule %s", err.Error())
 			return false
 		}
-		newbytes, err := expr.Marshal(byte(newrule.Table.Family), newrule.Exprs[i])
-		if err != nil {
-			return false
+		for j := range newrule.Exprs {
+			newbytes, err := expr.Marshal(byte(newrule.Table.Family), newrule.Exprs[j])
+			if err != nil {
+				klog.Errorf("Error while marshaling new rule %s", err.Error())
+				return false
+			}
+			if bytes.Equal(currentbytes, newbytes) {
+				foundEqual = true
+				break
+			}
 		}
-		if !bytes.Equal(currentbytes, newbytes) {
+		if !foundEqual {
 			return false
 		}
 	}
@@ -140,6 +150,7 @@ func applyNatIP(ip *string, natType expr.NATType, rule *nftables.Rule) error {
 		&expr.NAT{
 			Type:       natType,
 			RegAddrMin: 1,
+			RegAddrMax: 1,
 			Family:     uint32(rule.Table.Family),
 		})
 	return nil
@@ -182,7 +193,6 @@ func applyNatSubnet(ip *string, natType expr.NATType, rule *nftables.Rule) error
 			Prefix:     true,
 			Family:     uint32(rule.Table.Family),
 		},
-		&expr.Counter{},
 	)
 	return nil
 }
