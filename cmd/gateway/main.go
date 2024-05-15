@@ -94,6 +94,11 @@ func run(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
+	// Disable rp_filter.
+	if err = kernel.DisableRtFilter(); err != nil {
+		return err
+	}
+
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
 
