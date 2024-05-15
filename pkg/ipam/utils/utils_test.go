@@ -15,8 +15,6 @@
 package utils_test
 
 import (
-	"net"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -70,22 +68,5 @@ var _ = Describe("Mapping", func() {
 		Entry("Mapping 10.2.128.128 to 10.0.126.0/25", "10.0.126.0/25", "10.2.128.128", "10.0.126.0", ""),
 		Entry("Using an invalid newPodCidr", "10.0..0/25", "10.2.128.128", "", "invalid CIDR address: 10.0..0/25"),
 		Entry("Using an invalid oldIp", "10.0.0.0/25", "10.2...128", "", "cannot parse oldIP"),
-	)
-
-	DescribeTable("GetFirstIP",
-		func(network, expectedIP string, expectedErr *net.ParseError) {
-			ip, err := ipamutils.GetFirstIP(network)
-			if expectedErr != nil {
-				Expect(err).To(MatchError(expectedErr))
-			} else {
-				Expect(err).ToNot(HaveOccurred())
-			}
-			Expect(ip).To(Equal(expectedIP))
-		},
-		Entry("Passing an invalid network", invalidValue, "", &net.ParseError{Type: CIDRAddressNetErr, Text: invalidValue}),
-		Entry("Passing an empty network", "", "", &net.ParseError{Type: CIDRAddressNetErr, Text: ""}),
-		Entry("Passing an IP", "10.0.0.0", "", &net.ParseError{Type: CIDRAddressNetErr, Text: "10.0.0.0"}),
-		Entry("Getting first IP of 10.0.0.0/8", "10.0.0.0/8", "10.0.0.0", nil),
-		Entry("Getting first IP of 192.168.0.0/16", "192.168.0.0/16", "192.168.0.0", nil),
 	)
 })

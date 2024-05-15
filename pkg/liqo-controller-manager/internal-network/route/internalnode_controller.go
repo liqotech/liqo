@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/nftables"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,6 +31,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/ipam/utils"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/ipam"
@@ -116,7 +116,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	firstIP, _, err := nftables.NetFirstAndLastIP(extCIDR)
+	unknownSourceIP, err := utils.GetUnknownSourceIP(extCIDR)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -135,7 +135,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	mark := AssignMark(internalnode.GetName())
 
-	if err = enforceRouteWithConntrackPresence(ctx, r.Client, internalnode, r.Scheme, mark, firstIP.String(), r.Options); err != nil {
+	if err = enforceRouteWithConntrackPresence(ctx, r.Client, internalnode, r.Scheme, mark, unknownSourceIP, r.Options); err != nil {
 		return ctrl.Result{}, err
 	}
 
