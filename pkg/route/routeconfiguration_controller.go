@@ -18,21 +18,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/network/netmonitor"
 )
 
 // RouteConfigurationReconciler manage Configuration lifecycle.
@@ -145,10 +147,14 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
+	allRoutes := []networkingv1alpha1.Route{}
 	for i := range routeconfiguration.Spec.Table.Rules {
-		if err = CleanRoutes(routeconfiguration.Spec.Table.Rules[i].Routes, tableID); err != nil {
-			return ctrl.Result{}, err
-		}
+		// Append all the routes in the same table in a single array.
+		// This is necessary because we can't list the route rules filtering per rule.
+		allRoutes = append(allRoutes, routeconfiguration.Spec.Table.Rules[i].Routes...)
+	}
+	if err = CleanRoutes(allRoutes, tableID); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	klog.Infof("Applying routeconfiguration %s", req.String())
@@ -168,12 +174,18 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	klog.Infof("Applied routeconfiguration %s", req.String())
 
-	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager register the RouteConfigurationReconciler to the manager.
-func (r *RouteConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
 	klog.Infof("Starting RouteConfiguration controller with labels %v", r.LabelsSets)
+
+	src := make(chan event.GenericEvent)
+	go func() {
+		utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Route: &netmonitor.OptionsRoute{Delete: true}}))
+	}()
+
 	filterByLabelsPredicate, err := forgeLabelsPredicate(r.LabelsSets)
 	if err != nil {
 		return err
@@ -181,6 +193,7 @@ func (r *RouteConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error 
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1alpha1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
+		WatchesRawSource(NewRouteWatchSource(src), NewRouteWatchEventHandler(r.Client, r.LabelsSets)).
 		Complete(r)
 }
 

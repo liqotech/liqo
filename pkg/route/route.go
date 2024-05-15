@@ -113,7 +113,7 @@ func IsEqualRoute(route1, route2 *netlink.Route) bool {
 	if route1.Gw != nil && route2.Gw != nil && route1.Gw.String() != route2.Gw.String() {
 		return false
 	}
-	if route1.LinkIndex != route2.LinkIndex {
+	if route1.LinkIndex != 0 && route2.LinkIndex != 0 && route1.LinkIndex != route2.LinkIndex {
 		return false
 	}
 	if route1.Flags != route2.Flags {
