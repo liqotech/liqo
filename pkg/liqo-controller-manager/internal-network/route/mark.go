@@ -50,7 +50,7 @@ func InitMark(ctx context.Context, cl client.Client, options *Options) {
 		)
 		utilruntime.Must(err)
 
-		firewallcfglist, err := getters.ListFirewallConfigurationsByLabel(ctx, cl, options.Namespace,
+		firewallcfglist, err := getters.ListFirewallConfigurationsInNamespaceByLabel(ctx, cl, options.Namespace,
 			labels.SelectorFromSet(gateway.ForgeFirewallInternalTargetLabels()),
 		)
 		utilruntime.Must(err)

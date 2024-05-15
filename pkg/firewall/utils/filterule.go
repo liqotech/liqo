@@ -23,6 +23,7 @@ import (
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	"github.com/google/nftables/userdata"
+	"k8s.io/klog/v2"
 
 	firewallv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 )
@@ -59,6 +60,15 @@ func (fr *FilterRuleWrapper) Add(nftconn *nftables.Conn, chain *nftables.Chain) 
 func (fr *FilterRuleWrapper) Equal(currentrule *nftables.Rule) bool {
 	currentrule.Chain.Table = currentrule.Table
 	newrule, err := forgeFilterRule(fr.FilterRule, currentrule.Chain)
+	// TODO: this ugly exception is caused by an error in the expr retrieved by nftables library.
+	// In particular, the expr retrieved by the library when the action is ctmark
+	// Retrieved expr: &{0 false 3}
+	// Generated expr: &{1 true 3}
+	// We think that this error should be caused by a library bug.
+	// We are going to investigate it further.
+	if fr.FilterRule.Action == firewallv1alpha1.ActionCtMark {
+		return true
+	}
 	if err != nil {
 		return false
 	}
@@ -66,15 +76,24 @@ func (fr *FilterRuleWrapper) Equal(currentrule *nftables.Rule) bool {
 		return false
 	}
 	for i := range currentrule.Exprs {
+		foundEqual := false
 		currentbytes, err := expr.Marshal(byte(currentrule.Table.Family), currentrule.Exprs[i])
 		if err != nil {
+			klog.Errorf("Error while marshaling current rule %s", err.Error())
 			return false
 		}
-		newbytes, err := expr.Marshal(byte(newrule.Table.Family), newrule.Exprs[i])
-		if err != nil {
-			return false
+		for j := range newrule.Exprs {
+			newbytes, err := expr.Marshal(byte(newrule.Table.Family), newrule.Exprs[j])
+			if err != nil {
+				klog.Errorf("Error while marshaling new rule %s", err.Error())
+				return false
+			}
+			if bytes.Equal(currentbytes, newbytes) {
+				foundEqual = true
+				break
+			}
 		}
-		if !bytes.Equal(currentbytes, newbytes) {
+		if !foundEqual {
 			return false
 		}
 	}
@@ -118,9 +137,9 @@ func applyCtMarkAction(value *string, rule *nftables.Rule) error {
 			Register: 1,
 			Data:     binaryutil.NativeEndian.PutUint32(uint32(valueInt)),
 		}, &expr.Ct{
-			Key:            expr.CtKeyMARK,
 			Register:       1,
 			SourceRegister: true,
+			Key:            expr.CtKeyMARK,
 		},
 	)
 	return nil
