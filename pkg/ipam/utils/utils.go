@@ -92,15 +92,6 @@ func IsValidCIDR(cidr string) error {
 	return err
 }
 
-// GetFirstIP returns the first IP address of a network.
-func GetFirstIP(network string) (string, error) {
-	firstIP, _, err := net.ParseCIDR(network)
-	if err != nil {
-		return "", err
-	}
-	return firstIP.String(), nil
-}
-
 // GetTunnelIP returns the IP address of the tunnel, which is the first external CIDR ip.
 func GetTunnelIP(externalCIDR string) (string, error) {
 	ipPrefix, err := netip.ParsePrefix(externalCIDR)
@@ -136,5 +127,5 @@ func GetUnknownSourceIP(extCIDR string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot get first IP of ExternalCIDR")
 	}
-	return string(firstExtCIDRip), nil
+	return firstExtCIDRip.String(), nil
 }

@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/google/nftables"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -708,7 +709,7 @@ var _ = Describe("Ipam", func() {
 		Context(`When the remote Pod CIDR has not been remapped by home cluster
 			and the call refers to a remote Pod`, func() {
 			It("should return the same IP", func() {
-				ip, err := ipamutils.GetFirstIP(remotePodCIDR)
+				ip, _, err := nftables.NetFirstAndLastIP(remotePodCIDR)
 				Expect(err).To(BeNil())
 
 				// Assign networks to cluster
@@ -737,7 +738,7 @@ var _ = Describe("Ipam", func() {
 
 				response, err := ipam.GetHomePodIP(ctx,
 					&GetHomePodIPRequest{
-						Ip:        ip,
+						Ip:        ip.String(),
 						ClusterID: clusterID1,
 					})
 				Expect(err).To(BeNil())
@@ -748,7 +749,7 @@ var _ = Describe("Ipam", func() {
 			and the call refers to a remote Pod`, func() {
 			It("should return the remapped IP", func() {
 				// Original Pod IP
-				ip, err := ipamutils.GetFirstIP(remotePodCIDR)
+				ip, _, err := nftables.NetFirstAndLastIP(remotePodCIDR)
 				Expect(err).To(BeNil())
 
 				// Reserve original PodCIDR so that home cluster will remap it
@@ -781,13 +782,13 @@ var _ = Describe("Ipam", func() {
 
 				response, err := ipam.GetHomePodIP(ctx,
 					&GetHomePodIPRequest{
-						Ip:        ip,
+						Ip:        ip.String(),
 						ClusterID: clusterID1,
 					})
 				Expect(err).To(BeNil())
 
 				// IP should be mapped to remoteNATPodCIDR
-				remappedIP, err := ipamutils.MapIPToNetwork(res.Cidr, ip)
+				remappedIP, err := ipamutils.MapIPToNetwork(res.Cidr, ip.String())
 				Expect(err).To(BeNil())
 				Expect(response.GetHomeIP()).To(Equal(remappedIP))
 			})
