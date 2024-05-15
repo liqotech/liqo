@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/nftables"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,6 +27,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 	"github.com/liqotech/liqo/pkg/fabric"
+	"github.com/liqotech/liqo/pkg/ipam/utils"
 )
 
 func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Context, cfg *networkingv1alpha1.Configuration) error {
@@ -92,7 +92,7 @@ func forgeFirewallChain() *firewallapi.Chain {
 }
 
 func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) ([]firewallapi.NatRule, error) {
-	firstIP, _, err := nftables.NetFirstAndLastIP(cfg.Spec.Local.CIDR.External.String())
+	unknownSourceIP, err := utils.GetUnknownSourceIP(cfg.Spec.Local.CIDR.External.String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to get first IP from CIDR: %w", err)
 	}
@@ -137,7 +137,7 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) ([]firewallapi.
 				},
 			},
 			NatType: firewallapi.NatTypeSource,
-			To:      ptr.To(firstIP.String()),
+			To:      ptr.To(unknownSourceIP),
 		},
 		{
 			Name: ptr.To(generatePodNatRuleNameExt(cfg)),
@@ -179,7 +179,7 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) ([]firewallapi.
 				},
 			},
 			NatType: firewallapi.NatTypeSource,
-			To:      ptr.To(firstIP.String()),
+			To:      ptr.To(unknownSourceIP),
 		},
 	}, nil
 }
