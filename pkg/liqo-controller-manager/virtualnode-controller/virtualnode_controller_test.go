@@ -20,7 +20,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/pterm/pterm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -131,8 +130,6 @@ var _ = Describe("VirtualNode controller", func() {
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return false
 				}
-				pterm.BgYellow.Printfln("nms: %v", nms)
-				pterm.BgYellow.Printfln("nms len: %v", len(nms.Items))
 				return len(nms.Items) == 1
 			}, timeout, interval).Should(BeTrue())
 
