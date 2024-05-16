@@ -108,16 +108,6 @@ spec:
               externalCIDR:
                 description: Cluster ExternalCIDR
                 type: string
-              natMappingsConfigured:
-                additionalProperties:
-                  description: ConfiguredCluster is an empty struct used as value
-                    for NatMappingsConfigured.
-                  type: object
-                description: |-
-                  NatMappingsConfigured is a map that contains all the remote clusters
-                  for which NatMappings have been already configured.
-                  Key is a cluster ID, value is an empty struct.
-                type: object
               podCIDR:
                 description: Cluster PodCIDR
                 type: string
@@ -148,7 +138,6 @@ spec:
             - clusterSubnets
             - endpointMappings
             - externalCIDR
-            - natMappingsConfigured
             - podCIDR
             - pools
             - prefixes
