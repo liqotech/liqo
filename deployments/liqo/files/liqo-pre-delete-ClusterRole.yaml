@@ -39,6 +39,17 @@ rules:
 - apiGroups:
   - ipam.liqo.io
   resources:
+  - ipamstorages
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.liqo.io
+  resources:
   - ips
   verbs:
   - delete
