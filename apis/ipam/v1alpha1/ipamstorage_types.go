@@ -95,7 +95,7 @@ type IpamSpec struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster,categories=liqo
+// +kubebuilder:resource:scope=Namespaced,categories=liqo
 
 // IpamStorage is the Schema for the ipams API.
 type IpamStorage struct {
