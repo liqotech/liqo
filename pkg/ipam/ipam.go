@@ -83,10 +83,10 @@ var Pools = []string{
 const emptyCIDR = ""
 
 // Init uses the Ipam resource to retrieve and allocate reserved networks.
-func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface) error {
+func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, namespace string) error {
 	var err error
 	// Set up storage
-	liqoIPAM.ipamStorage, err = NewIPAMStorage(dynClient)
+	liqoIPAM.ipamStorage, err = NewIPAMStorage(dynClient, namespace)
 	if err != nil {
 		return fmt.Errorf("cannot set up storage for ipam: %w", err)
 	}
