@@ -22,7 +22,7 @@ With the different methods of network configuration, you will create and manage 
 ## Automatic
 
 When you [create a peering](/usage/peer) between two clusters, Liqo automatically deploys a Liqo Gateway for each cluster in the tenant namespace, no further configuration is required.
-The cluster that is requesting resources and where the virtual node will be created will be configured as a server, while the cluster that is providing resources is configured as a client.
+The cluster that is requesting resources and where the virtual node will be created will be configured as a client, while the cluster that is providing resources is configured as a server.
 
 ```{figure} /_static/images/usage/inter-cluster-network/automatic.drawio.svg
 ---
