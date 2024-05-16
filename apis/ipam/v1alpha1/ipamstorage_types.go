@@ -54,9 +54,6 @@ type ClusterMapping struct {
 	ExternalCIDRNattedIP string `json:"ExternalCIDRNattedIP"`
 }
 
-// ConfiguredCluster is an empty struct used as value for NatMappingsConfigured.
-type ConfiguredCluster struct{}
-
 // EndpointMapping describes a relation between an enpoint IP and an IP belonging to ExternalCIDR.
 type EndpointMapping struct {
 	// IP belonging to cluster LocalExternalCIDR assigned to this endpoint.
@@ -84,10 +81,6 @@ type IpamSpec struct {
 	// that contains the related IP belonging to the ExternalCIDR and also the list of clusters
 	// on which this mapping is active
 	EndpointMappings map[string]EndpointMapping `json:"endpointMappings"`
-	// NatMappingsConfigured is a map that contains all the remote clusters
-	// for which NatMappings have been already configured.
-	// Key is a cluster ID, value is an empty struct.
-	NatMappingsConfigured map[string]ConfiguredCluster `json:"natMappingsConfigured"`
 	// Cluster PodCIDR
 	PodCIDR string `json:"podCIDR"`
 	// ServiceCIDR

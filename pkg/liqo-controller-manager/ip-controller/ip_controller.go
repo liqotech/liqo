@@ -221,7 +221,7 @@ func (r *IPReconciler) forgeIPMappings(ctx context.Context, clusterIDs []string,
 	// Check if the IPMappings has entries associated to clusters that have been deleted (i.e., the virtualNode is missing)
 	for entry := range ip.Status.IPMappings {
 		if !slices.Contains(clusterIDs, entry) {
-			// We ignore eventual errors from the IPAM because the entries in the NatMappaings and IpamStorage for that cluster
+			// We ignore eventual errors from the IPAM because the entries in the IpamStorage for that cluster
 			// may have been already removed.
 			_ = deleteRemappedIP(ctx, r.ipamClient, entry, desiredIP)
 			delete(ip.Status.IPMappings, entry)
