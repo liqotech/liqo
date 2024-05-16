@@ -86,6 +86,9 @@ func main() {
 func run(_ *cobra.Command, _ []string) error {
 	var err error
 
+	// The IpamStorage resource will be stored in the same namespace of the IPAM pod.
+	podNamespace := os.Getenv("POD_NAMESPACE")
+
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
 
@@ -100,7 +103,7 @@ func run(_ *cobra.Command, _ []string) error {
 
 	startIPAMServer := func() {
 		// Initialize and start IPAM server.
-		if err = initializeIPAM(ipam, options, dynClient); err != nil {
+		if err = initializeIPAM(ipam, options, dynClient, podNamespace); err != nil {
 			klog.Errorf("Failed to initialize IPAM: %s", err)
 			os.Exit(1)
 		}
@@ -123,7 +126,7 @@ func run(_ *cobra.Command, _ []string) error {
 	// Else, initialize the leader election mechanism to manage multiple replicas of the IPAM server running in active-passive mode.
 	leaderelectionOpts := &leaderelection.Opts{
 		PodName:           os.Getenv("POD_NAME"),
-		Namespace:         os.Getenv("POD_NAMESPACE"),
+		Namespace:         podNamespace,
 		DeploymentName:    ptr.To(os.Getenv("DEPLOYMENT_NAME")),
 		LeaderElectorName: leaderElectorName,
 		LeaseDuration:     options.LeaseDuration,
@@ -149,12 +152,12 @@ func run(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-func initializeIPAM(ipam *liqoipam.IPAM, opts *liqoipam.Options, dynClient dynamic.Interface) error {
+func initializeIPAM(ipam *liqoipam.IPAM, opts *liqoipam.Options, dynClient dynamic.Interface, namespace string) error {
 	if ipam == nil {
 		return fmt.Errorf("IPAM pointer is nil. Initialize it before calling this function")
 	}
 
-	if err := ipam.Init(liqoipam.Pools, dynClient); err != nil {
+	if err := ipam.Init(liqoipam.Pools, dynClient, namespace); err != nil {
 		return err
 	}
 
