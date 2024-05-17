@@ -246,6 +246,24 @@ func ClusterNames(ctx context.Context, f *factory.Factory, argsLimit int) FnType
 	return common(ctx, f, argsLimit, retriever)
 }
 
+// Tenants returns a function to autocomplete Tenant names.
+func Tenants(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var tenants authv1alpha1.TenantList
+		if err := f.CRClient.List(ctx, &tenants); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range tenants.Items {
+			names = append(names, tenants.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
 // KubeconfigSecretNames returns a function to autocomplete kubeconfig secret names.
 func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit int, namespace string, identityType authv1alpha1.IdentityType) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
