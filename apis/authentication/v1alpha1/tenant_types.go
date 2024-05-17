@@ -75,6 +75,7 @@ type TenantStatus struct {
 // +kubebuilder:resource:scope=Cluster,categories=liqo
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Condition",type=string,JSONPath=`.spec.tenantCondition`
 
 // Tenant represents a consumer cluster.
 type Tenant struct {
