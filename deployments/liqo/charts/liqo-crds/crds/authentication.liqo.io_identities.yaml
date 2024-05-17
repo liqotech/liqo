@@ -20,6 +20,12 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    - jsonPath: .status.kubeconfigSecretRef.name
+      name: KubeconfigSecret
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
