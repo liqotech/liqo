@@ -24,10 +24,12 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/printers"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -124,8 +126,18 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	s.Success("ResourceSlice created")
 
 	waiter := wait.NewWaiterFromFactory(opts.Factory)
-	if err := waiter.ForResourceSlice(ctx, resourceSlice); err != nil {
+	if err := waiter.ForResourceSliceAuthentication(ctx, resourceSlice); err != nil {
 		return err
+	}
+
+	// Check if the resources are accepted by the provider cluster.
+	// If the resources are not accepted, the provider cluster may have cordoned the tenant or the resourceslice.
+	if err := opts.CRClient.Get(ctx, client.ObjectKeyFromObject(resourceSlice), resourceSlice); err != nil {
+		return err
+	}
+	resourcesCondition := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeResources)
+	if resourcesCondition == nil || resourcesCondition.Status != authv1alpha1.ResourceSliceConditionAccepted {
+		opts.Printer.Warning.Printfln("ResourceSlice resources not accepted. The provider cluster may have cordoned the tenant or the resourceslice")
 	}
 
 	return nil

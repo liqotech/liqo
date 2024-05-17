@@ -155,9 +155,9 @@ func (w *Waiter) ForIncomingPeering(ctx context.Context, remoteClusterID *discov
 	return nil
 }
 
-// ForResourceSlice waits until the ResourceSlice has been accepted or the timeout expires.
-func (w *Waiter) ForResourceSlice(ctx context.Context, resourceSlice *authv1alpha1.ResourceSlice) error {
-	s := w.Printer.StartSpinner("Waiting for ResourceSlice to be accepted")
+// ForResourceSliceAuthentication waits until the ResourceSlice authentication has been accepted or the timeout expires.
+func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSlice *authv1alpha1.ResourceSlice) error {
+	s := w.Printer.StartSpinner("Waiting for ResourceSlice authentication to be accepted")
 
 	nsName := client.ObjectKeyFromObject(resourceSlice)
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
@@ -166,19 +166,17 @@ func (w *Waiter) ForResourceSlice(ctx context.Context, resourceSlice *authv1alph
 		}
 
 		authCondition := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeAuthentication)
-		resourcesCondition := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeResources)
-		if authCondition != nil && authCondition.Status == authv1alpha1.ResourceSliceConditionAccepted &&
-			resourcesCondition != nil && resourcesCondition.Status == authv1alpha1.ResourceSliceConditionAccepted {
+		if authCondition != nil && authCondition.Status == authv1alpha1.ResourceSliceConditionAccepted {
 			return true, nil
 		}
 		return false, nil
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed waiting for ResourceSlice to be accepted: %s", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("Failed waiting for ResourceSlice authentication to be accepted: %s", output.PrettyErr(err)))
 		return err
 	}
 
-	s.Success("ResourceSlice accepted")
+	s.Success("ResourceSlice authentication accepted")
 	return nil
 }
 

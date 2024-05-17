@@ -147,6 +147,8 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(newNetworkCommand(ctx, f))
 	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(newAuthenticateCommand(ctx, f))
+	cmd.AddCommand(newCordonCommand(ctx, f))
+	cmd.AddCommand(newUncordonCommand(ctx, f))
 	cmd.AddCommand(create.NewCreateCommand(ctx, liqoResources, f))
 	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(delete.NewDeleteCommand(ctx, liqoResources, f))
