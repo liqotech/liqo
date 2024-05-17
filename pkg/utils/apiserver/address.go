@@ -22,7 +22,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // GetURL retrieves the API server URL either from the configuration or selecting the IP address of a master node (with port 6443).
@@ -44,7 +44,7 @@ func GetAddressFromMasterNode(ctx context.Context, cl client.Client) (address st
 	if err != nil {
 		return "", err
 	}
-	host, err := discovery.GetAddressFromNodeList(nodes.Items)
+	host, err := utils.GetAddressFromNodeList(nodes.Items)
 	if err != nil {
 		return "", err
 	}

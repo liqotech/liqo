@@ -22,25 +22,4 @@ const (
 	ClusterIDLabel = "discovery.liqo.io/cluster-id"
 	// VirtualNodeLabel used to mark the virtual nodes.
 	VirtualNodeLabel = "discovery.liqo.io/virtual-node"
-	// AuthTokenLabel used to mark secrets containing an auth token.
-	AuthTokenLabel = "discovery.liqo.io/auth-token"
-	// DiscoveryTypeLabel used to mark the discovery type.
-	DiscoveryTypeLabel = "discovery.liqo.io/discovery-type"
-)
-
-// Type indicates how a ForeignCluster has been discovered.
-type Type string
-
-const (
-	// LanDiscovery value.
-	LanDiscovery Type = "LAN"
-	// ManualDiscovery value.
-	ManualDiscovery Type = "Manual"
-	// IncomingPeeringDiscovery value.
-	IncomingPeeringDiscovery Type = "IncomingPeering"
-)
-
-const (
-	// LastUpdateAnnotation marks the last update time of a ForeignCluster resource, needed by the garbage collection.
-	LastUpdateAnnotation string = "LastUpdate"
 )

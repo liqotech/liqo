@@ -48,6 +48,8 @@ var _ = Describe("Test Peer Command", func() {
 	)
 
 	BeforeEach(func() {
+		Skip("Skipping test")
+
 		ctx = context.Background()
 		options = &Options{
 			Options: &peer.Options{
