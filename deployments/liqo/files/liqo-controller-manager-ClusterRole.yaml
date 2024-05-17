@@ -97,6 +97,14 @@ rules:
   - authentication.liqo.io
   resources:
   - tenants
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - tenants
   - tenants/status
   verbs:
   - create
