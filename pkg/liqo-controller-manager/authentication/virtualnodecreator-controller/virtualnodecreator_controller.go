@@ -81,6 +81,11 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 	}
 
+	if !allConditionsAccepted(&resourceSlice) {
+		klog.V(6).Infof("Not all ResourceSlice %q conditions are yet accepted", req.NamespacedName)
+		return ctrl.Result{}, nil
+	}
+
 	if resourceSlice.Labels == nil || resourceSlice.Labels[consts.RemoteClusterID] == "" {
 		err := fmt.Errorf("resourceslice %q does not contain the remote cluster ID label", req.NamespacedName)
 		klog.Error(err)
@@ -148,12 +153,16 @@ func withConditionsAccepeted() predicate.Funcs {
 			return false
 		}
 
-		authCond := authentication.GetCondition(rs, authv1alpha1.ResourceSliceConditionTypeAuthentication)
-		authAccepted := authCond != nil && authCond.Status == authv1alpha1.ResourceSliceConditionAccepted
-
-		resourcesCond := authentication.GetCondition(rs, authv1alpha1.ResourceSliceConditionTypeResources)
-		resourcesAccepted := resourcesCond != nil && resourcesCond.Status == authv1alpha1.ResourceSliceConditionAccepted
-
-		return authAccepted && resourcesAccepted
+		return allConditionsAccepted(rs)
 	})
+}
+
+func allConditionsAccepted(rs *authv1alpha1.ResourceSlice) bool {
+	authCond := authentication.GetCondition(rs, authv1alpha1.ResourceSliceConditionTypeAuthentication)
+	authAccepted := authCond != nil && authCond.Status == authv1alpha1.ResourceSliceConditionAccepted
+
+	resourcesCond := authentication.GetCondition(rs, authv1alpha1.ResourceSliceConditionTypeResources)
+	resourcesAccepted := resourcesCond != nil && resourcesCond.Status == authv1alpha1.ResourceSliceConditionAccepted
+
+	return authAccepted && resourcesAccepted
 }
