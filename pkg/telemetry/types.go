@@ -22,7 +22,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // NamespaceInfo contains information about an offloaded namespace.
@@ -44,7 +43,6 @@ type PeeringDetails struct {
 type PeeringInfo struct {
 	RemoteClusterID string                        `json:"remoteClusterID"`
 	Method          discoveryv1alpha1.PeeringType `json:"method,omitempty"`
-	DiscoveryType   discovery.Type                `json:"discoveryType,omitempty"`
 	Latency         time.Duration                 `json:"latency,omitempty"`
 	Incoming        PeeringDetails                `json:"incoming"`
 	Outgoing        PeeringDetails                `json:"outgoing"`

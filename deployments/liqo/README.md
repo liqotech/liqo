@@ -43,21 +43,9 @@
 | crdReplicator.pod.labels | object | `{}` | Labels for the crdReplicator pod. |
 | crdReplicator.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the crdReplicator pod. |
 | crdReplicator.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the crdReplicator pod. |
-| discovery.config.autojoin | bool | `true` | Automatically join discovered clusters. |
 | discovery.config.clusterIDOverride | string | `""` | Specify an unique ID (must be a valid uuidv4) for your cluster, instead of letting helm generate it automatically at install time. You can generate it using the command: `uuidgen` This field is needed when using tools such as ArgoCD, since the helm lookup function is not supported and a new value would be generated at each deployment. |
 | discovery.config.clusterLabels | object | `{}` | A set of labels that characterizes the local cluster when exposed remotely as a virtual node. It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster. |
 | discovery.config.clusterName | string | `""` | Set a mnemonic name for your cluster. |
-| discovery.config.enableAdvertisement | bool | `false` | Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN. When this flag is 'false', the cluster can still receive the advertising from other (local) clusters, and automatically peer with them.  |
-| discovery.config.enableDiscovery | bool | `false` | Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN. Usually this feature should be active when you have multiple (tiny) clusters on the same LAN (e.g., multiple K3s running on individual devices); if your clusters operate on the big Internet, this feature is not needed and it can be turned off. |
-| discovery.config.incomingPeeringEnabled | bool | `true` | Allow (by default) the remote clusters to establish a peering with our cluster. |
-| discovery.config.ttl | int | `90` | Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds). |
-| discovery.image.name | string | `"ghcr.io/liqotech/discovery"` | Image repository for the discovery pod. |
-| discovery.image.version | string | `""` | Custom version for the discovery image. If not specified, the global tag is used. |
-| discovery.pod.annotations | object | `{}` | Annotation for the discovery pod. |
-| discovery.pod.extraArgs | list | `[]` | Extra arguments for the discovery pod. |
-| discovery.pod.labels | object | `{}` | Labels for the discovery pod. |
-| discovery.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the discovery pod. |
-| discovery.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the discovery pod. |
 | fabric.config.fullMasquerade | bool | `false` | Enabe/Disable the full masquerade mode for the fabric pod. It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP. Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic. IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster,  making impossible for a pod that receives the traffic to know the original source IP.  |
 | fabric.config.gatewayMasqueradeBypass | bool | `false` | Enable/Disable the masquerade bypass for the gateway pods. It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled. This is useful in scenarios where CNIs masquerade the traffic from pod to nodes. For example this is required when using the Azure CNI or Kindnet. |
 | fabric.image.name | string | `"ghcr.io/liqotech/fabric"` | Image repository for the fabric pod. |
