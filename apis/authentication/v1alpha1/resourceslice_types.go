@@ -117,6 +117,8 @@ type ResourceSliceStatus struct {
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Authentication",type=string,JSONPath=`.status.conditions[?(@.type=="Authentication")].status`
+// +kubebuilder:printcolumn:name="Resources",type=string,JSONPath=`.status.conditions[?(@.type=="Resources")].status`
 
 // ResourceSlice represents a slice of resources given by the provider cluster to the consumer cluster.
 type ResourceSlice struct {
