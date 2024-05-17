@@ -45,7 +45,23 @@ type TenantSpec struct {
 	Signature []byte `json:"signature,omitempty"`
 	// ProxyURL is the URL of the proxy used by the tenant cluster to connect to the local cluster (optional).
 	ProxyURL *string `json:"proxyURL,omitempty"`
+	// TenantCondition contains the conditions of the tenant.
+	// +kubebuilder:validation:Enum=Active;Cordoned;Drained
+	// +kubebuilder:default=Active
+	TenantCondition TenantCondition `json:"tenantCondition,omitempty"`
 }
+
+// TenantCondition contains the conditions of the tenant.
+type TenantCondition string
+
+const (
+	// TenantConditionActive indicates that the tenant is active: it can consume resources and negotiate new ones.
+	TenantConditionActive TenantCondition = "Active"
+	// TenantConditionCordoned indicates that the tenant is cordoned: it can consume existing resources but can't negotiate new ones.
+	TenantConditionCordoned TenantCondition = "Cordoned"
+	// TenantConditionDrained indicates that the tenant is drained: it can't consume resources nor negotiate new ones.
+	TenantConditionDrained TenantCondition = "Drained"
+)
 
 // TenantStatus defines the observed state of Tenant.
 type TenantStatus struct {
