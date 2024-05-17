@@ -76,6 +76,14 @@ spec:
                 description: Signature contains the nonce signed by the tenant cluster.
                 format: byte
                 type: string
+              tenantCondition:
+                default: Active
+                description: TenantCondition contains the conditions of the tenant.
+                enum:
+                - Active
+                - Cordoned
+                - Drained
+                type: string
             type: object
           status:
             description: TenantStatus defines the observed state of Tenant.
