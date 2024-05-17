@@ -418,21 +418,6 @@ crdReplicator:
       labels: {}
 
 discovery:
-  pod:
-    # -- Annotation for the discovery pod.
-    annotations: {}
-    # -- Labels for the discovery pod.
-    labels: {}
-    # -- Extra arguments for the discovery pod.
-    extraArgs: []
-    # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the discovery pod.
-    resources:
-      limits: {}
-      requests: {}
-    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the discovery pod.
-    priorityClassName: ""
-  # -- Image repository for the discovery pod.
-  imageName: "ghcr.io/liqotech/discovery"
   config:
     # -- Specify an unique ID (must be a valid uuidv4) for your cluster, instead of letting helm generate it automatically at install time.
     # You can generate it using the command: `uuidgen`
@@ -445,20 +430,6 @@ discovery:
     clusterLabels: {}
      # topology.kubernetes.io/zone: us-east-1
      # liqo.io/provider: your-provider
-
-    # -- Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN.
-    # Usually this feature should be active when you have multiple (tiny) clusters on the same LAN (e.g., multiple K3s running on individual devices);
-    # if your clusters operate on the big Internet, this feature is not needed and it can be turned off.
-    enableDiscovery: false
-    # -- Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN.
-    # When this flag is 'false', the cluster can still receive the advertising from other (local) clusters, and automatically peer with them. 
-    enableAdvertisement: false
-    # -- Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds).
-    ttl: 90
-    # -- Automatically join discovered clusters.
-    autojoin: true
-    # -- Allow (by default) the remote clusters to establish a peering with our cluster.
-    incomingPeeringEnabled: true
 
 metricAgent:
   # -- Enable/Disable the virtual kubelet metric agent. This component aggregates all the kubelet-related metrics

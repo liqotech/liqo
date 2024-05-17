@@ -27,7 +27,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	resourceutils "github.com/liqotech/liqo/pkg/liqoctl/status/utils/resources"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
@@ -125,11 +124,6 @@ func (c *Builder) getPeeringInfoSlice(ctx context.Context) []PeeringInfo {
 
 func (c *Builder) getPeeringInfo(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) PeeringInfo {
-	discoveryType := discovery.ManualDiscovery
-	if v, ok := foreignCluster.Labels[discovery.DiscoveryTypeLabel]; ok {
-		discoveryType = discovery.Type(v)
-	}
-
 	var latency time.Duration
 	tunnel, err := liqogetters.GetTunnelEndpoint(ctx, c.Client,
 		&foreignCluster.Spec.ClusterIdentity, foreignCluster.Status.TenantNamespace.Local)
@@ -148,7 +142,6 @@ func (c *Builder) getPeeringInfo(ctx context.Context,
 	peeringInfo := PeeringInfo{
 		RemoteClusterID: foreignCluster.Spec.ClusterIdentity.ClusterID,
 		Method:          foreignCluster.Spec.PeeringType,
-		DiscoveryType:   discoveryType,
 		Latency:         latency,
 		Incoming: c.getPeeringDetails(ctx, foreignCluster,
 			discoveryv1alpha1.IncomingPeeringCondition,

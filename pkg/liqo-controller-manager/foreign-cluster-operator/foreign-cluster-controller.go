@@ -40,7 +40,6 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
@@ -219,22 +218,6 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 	tracer.Step("Ensured the necessary permissions are present")
-
-	// ------ (5) garbage collection ------
-
-	// check if this ForeignCluster needs to be deleted.
-	if foreignclusterutils.HasToBeRemoved(&foreignCluster) {
-		klog.Infof("[%v] Delete ForeignCluster %v with discovery type %v",
-			foreignCluster.Spec.ClusterIdentity.ClusterID,
-			foreignCluster.Name, foreignclusterutils.GetDiscoveryType(&foreignCluster))
-		if err := r.Client.Delete(ctx, &foreignCluster); err != nil {
-			klog.Error(err)
-			return ctrl.Result{}, err
-		}
-		klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
-		return ctrl.Result{}, nil
-	}
-	tracer.Step("Performed ForeignCluster garbage collection")
 
 	klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 	return ctrl.Result{
