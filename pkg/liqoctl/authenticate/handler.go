@@ -21,7 +21,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 )
 
-// Options encapsulates the arguments of the network command.
+// Options encapsulates the arguments of the authenticate command.
 type Options struct {
 	LocalFactory  *factory.Factory
 	RemoteFactory *factory.Factory
