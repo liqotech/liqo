@@ -71,6 +71,8 @@ type IdentityStatus struct {
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
+// +kubebuilder:printcolumn:name="KubeconfigSecret",type=string,JSONPath=`.status.kubeconfigSecretRef.name`
 
 // Identity contains the information to operate in a remote cluster.
 type Identity struct {
