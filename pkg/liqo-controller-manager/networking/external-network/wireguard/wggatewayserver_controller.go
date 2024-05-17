@@ -38,7 +38,6 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -335,7 +334,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		addressesMap := make(map[string]string)
 		for i := range nodes {
 			if utils.IsNodeReady(nodes[i]) {
-				address, err := discovery.GetAddress(nodes[i])
+				address, err := utils.GetAddress(nodes[i])
 				if err == nil {
 					addressesMap[address] = nodes[i].Name
 				}
@@ -345,7 +344,7 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		// In this case, we choose a random one (e.g., the first)
 		if len(addressesMap) == 0 {
 			if len(nodes) > 0 {
-				address, err := discovery.GetAddress(nodes[0])
+				address, err := utils.GetAddress(nodes[0])
 				if err == nil {
 					addressesMap[address] = nodes[0].Name
 				}
