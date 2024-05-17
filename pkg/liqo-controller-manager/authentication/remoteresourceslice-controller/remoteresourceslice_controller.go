@@ -21,7 +21,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	klog "k8s.io/klog/v2"
@@ -29,10 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
+	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -85,6 +90,7 @@ type RemoteResourceSliceReconciler struct {
 
 // cluster-role
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices;resourceslices/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=storage,resources=storageclasses,verbs=get;list;watch
 
@@ -136,7 +142,18 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		}
 	}()
 
-	if isInResourceClasses(&resourceSlice, r.reconciledClasses...) {
+	// Handle the ResourceSlice resources status
+
+	switch tenant.Spec.TenantCondition {
+	case authv1alpha1.TenantConditionActive:
+		// If the ResourceSlice is not of the default class, the resource status is leaved as it is and the update is
+		// demanded to external controllers/plugins.
+		if !isInResourceClasses(&resourceSlice, r.reconciledClasses...) {
+			klog.V(6).Infof("ResourceSlice %q is not of the default class, the resource status is leaved as it is", req.NamespacedName)
+			break
+		}
+
+		// Default class: accept requested resources and set the default values for the resources not specified.
 		findOrDefault := func(resource corev1.ResourceName, val resource.Quantity) resource.Quantity {
 			v, ok := resourceSlice.Spec.Resources[resource]
 			if ok {
@@ -165,10 +182,19 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		resourceSlice.Status.NodeLabels = getNodeLabels(r.sliceStatusOptions)
 
 		acceptResources(&resourceSlice, r.eventRecorder)
+	case authv1alpha1.TenantConditionCordoned:
+		// Only deny if the resources are not already accepted.
+		resCond := authentication.GetCondition(&resourceSlice, authv1alpha1.ResourceSliceConditionTypeResources)
+		if resCond == nil || resCond.Status == "" {
+			denyResources(&resourceSlice, r.eventRecorder)
+		}
+	case authv1alpha1.TenantConditionDrained:
+		// TODO: drain the resources
 	}
 
-	// forge the AuthParams
+	// Handle the ResourceSlice authentication status
 
+	// forge the AuthParams
 	authParams, err := r.identityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
 		Cluster:         resourceSlice.Spec.ConsumerClusterIdentity,
 		TenantNamespace: resourceSlice.Namespace,
@@ -189,8 +215,8 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	resourceSlice.Status.AuthParams = authParams
 
-	// accept the ResourceSlice
-	acceptResourceSlice(&resourceSlice, r.eventRecorder)
+	// accept the authentication
+	acceptAuthentication(&resourceSlice, r.eventRecorder)
 
 	return ctrl.Result{}, nil
 }
@@ -206,10 +232,55 @@ func (r *RemoteResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&authv1alpha1.ResourceSlice{}, builder.WithPredicates(predicate.And(remoteResSliceFilter, withCSR()))).
+		Watches(&authv1alpha1.Tenant{}, handler.EnqueueRequestsFromMapFunc(r.resourceSlicesEnquer())).
 		Complete(r)
 }
 
-func acceptResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, er record.EventRecorder) {
+func (r *RemoteResourceSliceReconciler) resourceSlicesEnquer() func(ctx context.Context, obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		tenant, ok := obj.(*authv1alpha1.Tenant)
+		if !ok {
+			klog.Infof("Object %q is not a Tenant", obj.GetName())
+			return nil
+		}
+
+		if tenant.Spec.ClusterIdentity.ClusterID == "" {
+			klog.Infof("ClusterID not set for Tenant %q", tenant.Name)
+			return nil
+		}
+
+		resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll, labels.SelectorFromSet(labels.Set{
+			consts.ReplicationOriginLabel: tenant.Spec.ClusterIdentity.ClusterID,
+			consts.ReplicationStatusLabel: "true",
+		}))
+		if err != nil {
+			klog.Errorf("Failed to retrieve ResourceSlices for Tenant %q: %v", tenant.Name, err)
+			return nil
+		}
+
+		reqs := make([]reconcile.Request, len(resSlices))
+		for i := range resSlices {
+			reqs[i] = reconcile.Request{NamespacedName: types.NamespacedName{
+				Name:      resSlices[i].Name,
+				Namespace: resSlices[i].Namespace,
+			}}
+		}
+
+		return reqs
+	}
+}
+
+func withCSR() predicate.Funcs {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		rs, ok := obj.(*authv1alpha1.ResourceSlice)
+		if !ok {
+			return false
+		}
+		return rs.Spec.CSR != nil && len(rs.Spec.CSR) > 0
+	})
+}
+
+func acceptAuthentication(resourceSlice *authv1alpha1.ResourceSlice, er record.EventRecorder) {
 	switch authentication.EnsureCondition(
 		resourceSlice,
 		authv1alpha1.ResourceSliceConditionTypeAuthentication,
@@ -230,15 +301,6 @@ func acceptResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, er record.Ev
 	}
 }
 
-func isInResourceClasses(resourceSlice *authv1alpha1.ResourceSlice, classes ...authv1alpha1.ResourceSliceClass) bool {
-	for _, class := range classes {
-		if resourceSlice.Spec.Class == class {
-			return true
-		}
-	}
-	return false
-}
-
 func acceptResources(resourceSlice *authv1alpha1.ResourceSlice, er record.EventRecorder) {
 	switch authentication.EnsureCondition(
 		resourceSlice,
@@ -250,22 +312,42 @@ func acceptResources(resourceSlice *authv1alpha1.ResourceSlice, er record.EventR
 	case controllerutil.OperationResultNone:
 		klog.V(4).Infof("ResourceSlice resources %q already accepted", resourceSlice.Name)
 	case controllerutil.OperationResultUpdated:
-		klog.Infof("Resources %q updated", resourceSlice.Name)
+		klog.Infof("ResourceSlice resources %q accepted", resourceSlice.Name)
 		er.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceResourcesAccepted", "ResourceSlice resources updated")
 	case controllerutil.OperationResultCreated:
-		klog.Infof("Resources %q accepted", resourceSlice.Name)
+		klog.Infof("ResourceSlice resources %q accepted", resourceSlice.Name)
 		er.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceResourcesAccepted", "ResourceSlice resources accepted")
 	default:
 		return
 	}
 }
 
-func withCSR() predicate.Funcs {
-	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		rs, ok := obj.(*authv1alpha1.ResourceSlice)
-		if !ok {
-			return false
+func denyResources(resourceSlice *authv1alpha1.ResourceSlice, er record.EventRecorder) {
+	switch authentication.EnsureCondition(
+		resourceSlice,
+		authv1alpha1.ResourceSliceConditionTypeResources,
+		authv1alpha1.ResourceSliceConditionDenied,
+		"ResourceSliceResourcesDenied",
+		"ResourceSlice resources denied",
+	) {
+	case controllerutil.OperationResultNone:
+		klog.V(4).Infof("ResourceSlice resources %q already denied", resourceSlice.Name)
+	case controllerutil.OperationResultUpdated:
+		klog.Infof("ResourceSlice resources %q denied", resourceSlice.Name)
+		er.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceResourcesDenied", "ResourceSlice resources updated")
+	case controllerutil.OperationResultCreated:
+		klog.Infof("ResourceSlice resources %q denied", resourceSlice.Name)
+		er.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceResourcesDenied", "ResourceSlice resources denied")
+	default:
+		return
+	}
+}
+
+func isInResourceClasses(resourceSlice *authv1alpha1.ResourceSlice, classes ...authv1alpha1.ResourceSliceClass) bool {
+	for _, class := range classes {
+		if resourceSlice.Spec.Class == class {
+			return true
 		}
-		return rs.Spec.CSR != nil && len(rs.Spec.CSR) > 0
-	})
+	}
+	return false
 }
