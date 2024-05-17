@@ -11,9 +11,8 @@ require (
 	github.com/google/nftables v0.1.1-0.20240112203004-33ee8df9d8e2
 	github.com/google/uuid v1.6.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
-	github.com/grandcat/zeroconf v1.0.0
+	github.com/gruntwork-io/gruntwork-cli v0.7.2
 	github.com/gruntwork-io/terratest v0.46.13
-	github.com/jinzhu/copier v0.4.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/metal-stack/go-ipam v1.11.3
@@ -90,7 +89,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/boombuler/barcode v1.0.1 // indirect
-	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
@@ -266,8 +264,5 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace (
-	// Waitin for PR https://github.com/coreos/go-iptables/pull/110 to be merged
-	github.com/coreos/go-iptables => github.com/cheina97/go-iptables v0.0.0-20230824102241-61fc692e7548
-	github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
-)
+// Waitin for PR https://github.com/coreos/go-iptables/pull/110 to be merged
+replace github.com/coreos/go-iptables => github.com/cheina97/go-iptables v0.0.0-20230824102241-61fc692e7548
