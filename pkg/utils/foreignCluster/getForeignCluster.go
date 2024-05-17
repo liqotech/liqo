@@ -35,6 +35,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // CheckForeignClusterExistence checks if a ForeignCluster with the given clusterID exists.
@@ -167,7 +168,7 @@ func getAuthAddress(ctx context.Context, cl client.Client, svc *corev1.Service) 
 	}
 
 	node := nodes.Items[0]
-	return discovery.GetAddress(&node)
+	return utils.GetAddress(&node)
 
 	// when an error occurs, it means that we were not able to get an address in any of the previous cases:
 	// 1. no overwrite variable is set

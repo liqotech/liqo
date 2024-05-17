@@ -28,7 +28,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/peer"
 	"github.com/liqotech/liqo/pkg/utils"
-	authenticationtokenutils "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
@@ -75,11 +74,11 @@ func (o *Options) peer(ctx context.Context) (*discoveryv1alpha1.ForeignCluster, 
 		return nil, fmt.Errorf("the Cluster ID of the remote cluster is the same of that of the local cluster")
 	}
 
-	// Create the secret containing the authentication token.
-	err = authenticationtokenutils.StoreInSecret(ctx, o.KubeClient, o.ClusterID, o.ClusterToken, o.LiqoNamespace)
-	if err != nil {
-		return nil, err
-	}
+	// // Create the secret containing the authentication token.
+	// err = authenticationtokenutils.StoreInSecret(ctx, o.KubeClient, o.ClusterID, o.ClusterToken, o.LiqoNamespace)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Enforce the presence of the ForeignCluster resource.
 	return o.enforceForeignCluster(ctx)
