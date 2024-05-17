@@ -80,7 +80,6 @@ jobs:
         - cert-creator
         - crd-replicator
         - liqo-controller-manager
-        - discovery
         - liqonet
         - uninstaller
         - virtual-kubelet

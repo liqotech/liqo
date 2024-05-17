@@ -264,8 +264,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "foreign-cluster-name",
 						Labels: map[string]string{
-							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster-id",
+							discovery.ClusterIDLabel: "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -292,8 +291,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "foreign-cluster-name",
 						Labels: map[string]string{
-							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster-id",
+							discovery.ClusterIDLabel: "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -332,8 +330,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "foreign-cluster-name",
 						Labels: map[string]string{
-							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster-id",
+							discovery.ClusterIDLabel: "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -372,8 +369,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "foreign-cluster-name",
 						Labels: map[string]string{
-							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster-id",
+							discovery.ClusterIDLabel: "foreign-cluster-id",
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -418,8 +414,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "cluster-1",
 					Labels: map[string]string{
-						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-						discovery.ClusterIDLabel:     "cluster-1",
+						discovery.ClusterIDLabel: "cluster-1",
 					},
 				},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -479,8 +474,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "cluster-1",
 					Labels: map[string]string{
-						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-						discovery.ClusterIDLabel:     controller.HomeCluster.ClusterID,
+						discovery.ClusterIDLabel: controller.HomeCluster.ClusterID,
 					},
 				},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{

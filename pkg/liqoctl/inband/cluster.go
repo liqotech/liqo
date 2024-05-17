@@ -45,7 +45,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
@@ -772,15 +771,15 @@ func (c *Cluster) CheckForeignCluster(ctx context.Context, remoteIdentity *disco
 //     handled manually by the licoctl connect/disconnect commands.
 func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity,
 	token, authURL, proxyURL string) error {
-	remID := remoteClusterID.ClusterID
+	// remID := remoteClusterID.ClusterID
 	remName := remoteClusterID.ClusterName
 
 	s := c.local.Printer.StartSpinner(fmt.Sprintf("configuring the foreign cluster resource for the remote cluster %q", remName))
-	if err := authenticationtoken.StoreInSecret(ctx, c.local.KubeClient, remID, token, c.local.LiqoNamespace); err != nil {
-		msg := fmt.Sprintf("an error occurred while storing auth token for remote cluster %q: %v", remName, err)
-		s.Fail(msg)
-		return errors.New(msg)
-	}
+	// if err := authenticationtoken.StoreInSecret(ctx, c.local.KubeClient, remID, token, c.local.LiqoNamespace); err != nil {
+	// 	msg := fmt.Sprintf("an error occurred while storing auth token for remote cluster %q: %v", remName, err)
+	// 	s.Fail(msg)
+	// 	return errors.New(msg)
+	// }
 
 	if _, err := controllerutil.CreateOrUpdate(ctx, c.local.CRClient, c.foreignCluster, func() error {
 		c.foreignCluster.Spec.PeeringType = discoveryv1alpha1.PeeringTypeInBand
