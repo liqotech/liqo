@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cordon
+package activate
 
 import (
 	"context"
@@ -22,12 +22,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 )
 
-// Options encapsulates the arguments of the cordon command.
+// Options encapsulates the arguments of the activate command.
 type Options struct {
 	*factory.Factory
 
@@ -43,8 +42,8 @@ func NewOptions(f *factory.Factory) *Options {
 	}
 }
 
-// RunCordonTenant cordons a tenant cluster.
-func (o *Options) RunCordonTenant(ctx context.Context) error {
+// RunActivateTenant activates a tenant cluster.
+func (o *Options) RunActivateTenant(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
@@ -54,44 +53,13 @@ func (o *Options) RunCordonTenant(ctx context.Context) error {
 		return err
 	}
 
-	if tenant.Spec.TenantCondition != authv1alpha1.TenantConditionActive {
-		o.Printer.Warning.Printfln("Tenant %q is not active. Activate the tenant to cordon it.", o.Name)
-		return nil
-	}
-
-	tenant.Spec.TenantCondition = authv1alpha1.TenantConditionCordoned
+	tenant.Spec.TenantCondition = authv1alpha1.TenantConditionActive
 	if err := o.CRClient.Update(ctx, &tenant); err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to update tenant: %v", output.PrettyErr(err)))
 		return err
 	}
 
-	o.Printer.Success.Printfln("Tenant %q cordoned", o.Name)
-
-	return nil
-}
-
-// RunCordonResourceSlice cordons a ResourceSlice.
-func (o *Options) RunCordonResourceSlice(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
-	defer cancel()
-
-	var rs authv1alpha1.ResourceSlice
-	if err := o.CRClient.Get(ctx, client.ObjectKey{Name: o.Name}, &rs); err != nil {
-		o.Printer.CheckErr(fmt.Errorf("unable to get ResourceSlice: %v", output.PrettyErr(err)))
-		return err
-	}
-
-	if rs.Annotations == nil {
-		rs.Annotations = make(map[string]string)
-	}
-	rs.Annotations[consts.CordonResourceAnnotation] = "true"
-
-	if err := o.CRClient.Update(ctx, &rs); err != nil {
-		o.Printer.CheckErr(fmt.Errorf("unable to update ResourceSlice: %v", output.PrettyErr(err)))
-		return err
-	}
-
-	o.Printer.Success.Printfln("ResourceSlice %q cordoned", o.Name)
+	o.Printer.Success.Printfln("Tenant %q activated", o.Name)
 
 	return nil
 }
