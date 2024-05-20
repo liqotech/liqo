@@ -46,4 +46,7 @@ const (
 
 	// CreateVirtualNodeAnnotation is the value of the annotation that enables the creation of a virtual node.
 	CreateVirtualNodeAnnotation = "liqo.io/create-virtual-node"
+
+	// CordonResourceAnnotation is the value of the annotation that enables the cordon of a resource.
+	CordonResourceAnnotation = "liqo.io/cordon"
 )
