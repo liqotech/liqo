@@ -113,8 +113,7 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	// check that the CSR is valid
-
+	// Get Tenant associated with the ResourceSlice.
 	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, resourceSlice.Spec.ConsumerClusterIdentity.ClusterID)
 	if err != nil {
 		klog.Errorf("Unable to get the Tenant for the ResourceSlice %q: %s", req.NamespacedName, err)
@@ -122,13 +121,7 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
-	if err = authentication.CheckCSRForResourceSlice(
-		tenant.Spec.PublicKey, &resourceSlice); err != nil {
-		klog.Errorf("Invalid CSR for the ResourceSlice %q: %s", req.NamespacedName, err)
-		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "InvalidCSR", err.Error())
-		return ctrl.Result{}, nil
-	}
-
+	// Defer the update of the ResourceSlice status.
 	defer func() {
 		errDef := r.Client.Status().Update(ctx, &resourceSlice)
 		if errDef != nil {
@@ -142,15 +135,69 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		}
 	}()
 
+	// Handle the ResourceSlice authentication status
+	if err = r.handleAuthenticationStatus(ctx, &resourceSlice, tenant); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Handle the ResourceSlice resources status
+	if err = r.handleResourcesStatus(ctx, &resourceSlice, tenant); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.Context,
+	resourceSlice *authv1alpha1.ResourceSlice, tenant *authv1alpha1.Tenant) error {
+	// check that the CSR is valid
+	if err := authentication.CheckCSRForResourceSlice(tenant.Spec.PublicKey, resourceSlice); err != nil {
+		klog.Errorf("Invalid CSR for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)
+		r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "InvalidCSR", err.Error())
+		denyAuthentication(resourceSlice, r.eventRecorder)
+		return nil
+	}
+
+	// forge the AuthParams
+	authParams, err := r.identityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
+		Cluster:         resourceSlice.Spec.ConsumerClusterIdentity,
+		TenantNamespace: resourceSlice.Namespace,
+		IdentityType:    authv1alpha1.ResourceSliceIdentityType,
+		Name:            resourceSlice.Name,
+		SigningRequest:  resourceSlice.Spec.CSR,
+
+		APIServerAddressOverride: r.apiServerAddressOverride,
+		CAOverride:               r.caOverride,
+		TrustedCA:                r.trustedCA,
+		ResourceSlice:            resourceSlice,
+	})
+	if err != nil {
+		klog.Errorf("Unable to forge the AuthParams for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)
+		r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "AuthParamsFailed", err.Error())
+		denyAuthentication(resourceSlice, r.eventRecorder)
+		return err
+	}
+
+	resourceSlice.Status.AuthParams = authParams
+
+	// accept the authentication
+	acceptAuthentication(resourceSlice, r.eventRecorder)
+
+	return nil
+}
+
+func (r *RemoteResourceSliceReconciler) handleResourcesStatus(ctx context.Context,
+	resourceSlice *authv1alpha1.ResourceSlice, tenant *authv1alpha1.Tenant) error {
+	var err error
 
 	switch tenant.Spec.TenantCondition {
 	case authv1alpha1.TenantConditionActive:
 		// If the ResourceSlice is not of the default class, the resource status is leaved as it is and the update is
 		// demanded to external controllers/plugins.
-		if !isInResourceClasses(&resourceSlice, r.reconciledClasses...) {
-			klog.V(6).Infof("ResourceSlice %q is not of the default class, the resource status is leaved as it is", req.NamespacedName)
-			break
+		if !isInResourceClasses(resourceSlice, r.reconciledClasses...) {
+			klog.V(6).Infof("ResourceSlice %q is not of the default class, the resource status is leaved as it is",
+				client.ObjectKeyFromObject(resourceSlice))
+			return nil
 		}
 
 		// Default class: accept requested resources and set the default values for the resources not specified.
@@ -172,53 +219,27 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 
 		resourceSlice.Status.StorageClasses, err = getStorageClasses(ctx, r.Client, r.sliceStatusOptions)
 		if err != nil {
-			klog.Errorf("Unable to get the StorageClasses for the ResourceSlice %q: %s", req.NamespacedName, err)
-			r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "StorageClassesFailed", err.Error())
-			return ctrl.Result{}, err
+			klog.Errorf("Unable to get the StorageClasses for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)
+			r.eventRecorder.Event(resourceSlice, corev1.EventTypeWarning, "StorageClassesFailed", err.Error())
+			return err
 		}
 
 		resourceSlice.Status.IngressClasses = getIngressClasses(r.sliceStatusOptions)
 		resourceSlice.Status.LoadBalancerClasses = getLoadBalancerClasses(r.sliceStatusOptions)
 		resourceSlice.Status.NodeLabels = getNodeLabels(r.sliceStatusOptions)
 
-		acceptResources(&resourceSlice, r.eventRecorder)
+		acceptResources(resourceSlice, r.eventRecorder)
 	case authv1alpha1.TenantConditionCordoned:
 		// Only deny if the resources are not already accepted.
-		resCond := authentication.GetCondition(&resourceSlice, authv1alpha1.ResourceSliceConditionTypeResources)
+		resCond := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeResources)
 		if resCond == nil || resCond.Status == "" {
-			denyResources(&resourceSlice, r.eventRecorder)
+			denyResources(resourceSlice, r.eventRecorder)
 		}
 	case authv1alpha1.TenantConditionDrained:
-		// TODO: drain the resources
+		denyResources(resourceSlice, r.eventRecorder)
 	}
 
-	// Handle the ResourceSlice authentication status
-
-	// forge the AuthParams
-	authParams, err := r.identityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
-		Cluster:         resourceSlice.Spec.ConsumerClusterIdentity,
-		TenantNamespace: resourceSlice.Namespace,
-		IdentityType:    authv1alpha1.ResourceSliceIdentityType,
-		Name:            resourceSlice.Name,
-		SigningRequest:  resourceSlice.Spec.CSR,
-
-		APIServerAddressOverride: r.apiServerAddressOverride,
-		CAOverride:               r.caOverride,
-		TrustedCA:                r.trustedCA,
-		ResourceSlice:            &resourceSlice,
-	})
-	if err != nil {
-		klog.Errorf("Unable to forge the AuthParams for the ResourceSlice %q: %s", req.NamespacedName, err)
-		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "AuthParamsFailed", err.Error())
-		return ctrl.Result{}, err
-	}
-
-	resourceSlice.Status.AuthParams = authParams
-
-	// accept the authentication
-	acceptAuthentication(&resourceSlice, r.eventRecorder)
-
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -290,12 +311,27 @@ func acceptAuthentication(resourceSlice *authv1alpha1.ResourceSlice, er record.E
 	) {
 	case controllerutil.OperationResultNone:
 		klog.V(4).Infof("ResourceSlice authentication %q already accepted", resourceSlice.Name)
-	case controllerutil.OperationResultUpdated:
-		klog.Infof("ResourceSlice authentication %q confirmed", resourceSlice.Name)
-		er.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceAuthenticationAccepted", "ResourceSlice authentication confirmed")
-	case controllerutil.OperationResultCreated:
+	case controllerutil.OperationResultUpdated, controllerutil.OperationResultCreated:
 		klog.Infof("ResourceSlice authentication %q accepted", resourceSlice.Name)
 		er.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceAuthenticationAccepted", "ResourceSlice authentication accepted")
+	default:
+		return
+	}
+}
+
+func denyAuthentication(resourceSlice *authv1alpha1.ResourceSlice, er record.EventRecorder) {
+	switch authentication.EnsureCondition(
+		resourceSlice,
+		authv1alpha1.ResourceSliceConditionTypeAuthentication,
+		authv1alpha1.ResourceSliceConditionDenied,
+		"ResourceSliceAuthenticationDenied",
+		"ResourceSlice authentication denied",
+	) {
+	case controllerutil.OperationResultNone:
+		klog.V(4).Infof("ResourceSlice authentication %q already denied", resourceSlice.Name)
+	case controllerutil.OperationResultUpdated, controllerutil.OperationResultCreated:
+		klog.Infof("ResourceSlice authentication %q denied", resourceSlice.Name)
+		er.Event(resourceSlice, corev1.EventTypeNormal, "ResourceSliceAuthenticationDenied", "ResourceSlice authentication denied")
 	default:
 		return
 	}

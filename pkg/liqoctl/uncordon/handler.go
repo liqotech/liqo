@@ -54,6 +54,11 @@ func (o *Options) RunUncordonTenant(ctx context.Context) error {
 		return err
 	}
 
+	if tenant.Spec.TenantCondition != authv1alpha1.TenantConditionCordoned {
+		o.Printer.Warning.Printfln("Tenant %q is not cordoned", o.Name)
+		return nil
+	}
+
 	tenant.Spec.TenantCondition = authv1alpha1.TenantConditionActive
 	if err := o.CRClient.Update(ctx, &tenant); err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to update tenant: %v", output.PrettyErr(err)))
