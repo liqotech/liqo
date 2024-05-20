@@ -127,3 +127,20 @@ webhooks:
         resources: ["routeconfigurations"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
+  - name: resourceslice.validate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/validate/resourceslices"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["UPDATE"]
+        apiGroups: ["authentication.liqo.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["resourceslices"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
