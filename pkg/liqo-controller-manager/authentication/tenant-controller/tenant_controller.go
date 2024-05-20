@@ -102,6 +102,15 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, err
 	}
 
+	// If the Tenant is drained we remove the binding of cluster roles used to replicate resources.
+	if tenant.Spec.TenantCondition == authv1alpha1.TenantConditionDrained {
+		if err := r.handleTenantDrained(ctx, tenant); err != nil {
+			klog.Errorf("Unable to handle drained Tenant %q: %s", req.Name, err)
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
 	clusterID := tenant.Spec.ClusterIdentity.ClusterID
 
 	// get the nonce for the tenant
@@ -226,4 +235,15 @@ func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&authv1alpha1.Tenant{}).
 		Owns(&corev1.Namespace{}).
 		Complete(r)
+}
+
+func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *authv1alpha1.Tenant) error {
+	// Delete binding of cluster roles
+	if err := r.NamespaceManager.UnbindClusterRoles(ctx, tenant.Spec.ClusterIdentity, tenantClusterRoles...); err != nil {
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesUnbindingFailed", err.Error())
+		return err
+	}
+	r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "ClusterRolesUnbindingSuccess", "Cluser roles unbinded")
+
+	return nil
 }
