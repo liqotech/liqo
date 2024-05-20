@@ -265,6 +265,24 @@ func Tenants(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	return common(ctx, f, argsLimit, retriever)
 }
 
+// ResourceSlices returns a function to autocomplete ResourceSlice names.
+func ResourceSlices(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var resourceSlices authv1alpha1.ResourceSliceList
+		if err := f.CRClient.List(ctx, &resourceSlices); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range resourceSlices.Items {
+			names = append(names, resourceSlices.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
 // KubeconfigSecretNames returns a function to autocomplete kubeconfig secret names.
 func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit int, namespace string, identityType authv1alpha1.IdentityType) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {

@@ -36,6 +36,15 @@ Examples:
   $ {{ .Executable }} cordon tenant my-tenant-name
 `
 
+const liqoctlCordonResourceSliceLongHelp = `Cordon a ResourceSlice.
+
+This command allows to cordon a ResourceSlice, preventing it from receiving new resources.
+Resources provided by existing ResourceSlices are left untouched, while new ones are denied.
+
+Examples:
+  $ {{ .Executable }} cordon resourceslice my-rs-name
+`
+
 // newCordonCommand represents the cordon command.
 func newCordonCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -46,6 +55,7 @@ func newCordonCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(newCordonTenantCommand(ctx, f))
+	cmd.AddCommand(newCordonResourceSliceCommand(ctx, f))
 
 	return cmd
 }
@@ -56,6 +66,7 @@ func newCordonTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 
 	var cmd = &cobra.Command{
 		Use:               "tenant",
+		Aliases:           []string{"tenants"},
 		Short:             "Cordon a tenant cluster",
 		Long:              WithTemplate(liqoctlCordonTenantLongHelp),
 		Args:              cobra.ExactArgs(1),
@@ -66,8 +77,37 @@ func newCordonTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			options.TenantName = args[0]
+			options.Name = args[0]
 			output.ExitOnErr(options.RunCordonTenant(ctx))
+		},
+	}
+
+	options.Factory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
+
+	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for cordon completion")
+
+	return cmd
+}
+
+// newCordonResourceSliceCommand represents the cordon command.
+func newCordonResourceSliceCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := cordon.NewOptions(f)
+
+	var cmd = &cobra.Command{
+		Use:               "resourceslice",
+		Aliases:           []string{"resourceslices", "rs"},
+		Short:             "Cordon a ResourceSlice",
+		Long:              WithTemplate(liqoctlCordonResourceSliceLongHelp),
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completion.ResourceSlices(ctx, f, 1),
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.Printer.AskConfirm("cordon", options.SkipConfirm))
+		},
+
+		Run: func(cmd *cobra.Command, args []string) {
+			options.Name = args[0]
+			output.ExitOnErr(options.RunCordonResourceSlice(ctx))
 		},
 	}
 
