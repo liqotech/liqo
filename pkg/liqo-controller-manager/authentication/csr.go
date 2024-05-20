@@ -62,6 +62,16 @@ func OrganizationControlPlaneCSR() string {
 	return "liqo.io"
 }
 
+// IsControlPlaneUser checks if a user is a control plane user.
+func IsControlPlaneUser(groups []string) bool {
+	for _, group := range groups {
+		if group == OrganizationControlPlaneCSR() {
+			return true
+		}
+	}
+	return false
+}
+
 // CheckCSRForControlPlane checks a CSR for a control plane.
 func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) error {
 	return checkCSR(csr, publicKey,

@@ -35,6 +35,15 @@ Examples:
   $ {{ .Executable }} uncordon tenant my-tenant-name
 `
 
+const liqoctlUncordonResourceSliceLongHelp = `Uncordon a ResourceSlice.
+
+This command allows to uncordon a ResourceSlice, allowing it to receive and accept new resources.
+Resources provided by existing ResourceSlices can be accepted again.
+
+Examples:
+  $ {{ .Executable }} uncordon resourceslice my-rs-name
+`
+
 // newUncordonCommand represents the uncordon command.
 func newUncordonCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -45,6 +54,7 @@ func newUncordonCommand(ctx context.Context, f *factory.Factory) *cobra.Command 
 	}
 
 	cmd.AddCommand(newUncordonTenantCommand(ctx, f))
+	cmd.AddCommand(newUncordonResourceSliceCommand(ctx, f))
 
 	return cmd
 }
@@ -55,6 +65,7 @@ func newUncordonTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 
 	var cmd = &cobra.Command{
 		Use:               "tenant",
+		Aliases:           []string{"tenants"},
 		Short:             "Uncordon a tenant cluster",
 		Long:              WithTemplate(liqoctlUncordonTenantLongHelp),
 		Args:              cobra.ExactArgs(1),
@@ -65,8 +76,36 @@ func newUncordonTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			options.TenantName = args[0]
+			options.Name = args[0]
 			output.ExitOnErr(options.RunUncordonTenant(ctx))
+		},
+	}
+
+	options.Factory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
+
+	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for uncordon completion")
+
+	return cmd
+}
+
+func newUncordonResourceSliceCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := uncordon.NewOptions(f)
+
+	var cmd = &cobra.Command{
+		Use:               "resourceslice",
+		Aliases:           []string{"resourceslices", "rs"},
+		Short:             "Uncordon a ResourceSlice",
+		Long:              WithTemplate(liqoctlUncordonResourceSliceLongHelp),
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completion.ResourceSlices(ctx, f, 1),
+
+		PreRun: func(cmd *cobra.Command, args []string) {
+			output.ExitOnErr(options.Printer.AskConfirm("uncordon", options.SkipConfirm))
+		},
+
+		Run: func(cmd *cobra.Command, args []string) {
+			options.Name = args[0]
+			output.ExitOnErr(options.RunUncordonResourceSlice(ctx))
 		},
 	}
 
