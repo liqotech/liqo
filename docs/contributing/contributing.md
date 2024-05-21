@@ -82,7 +82,7 @@ make e2e
 ### Unit tests
 
 Most unit tests can be run directly using [the *ginkgo* CLI](https://onsi.github.io/ginkgo/#installing-ginkgo), which in turn supports the standard testing API (*go test*, IDE features, ...).
-The only requirement is the [controller-runtime envtest environment](https://book.kubebuilder.io/reference/envtest.html), which can be installed through [`setup-envtest`](https://pkg.go.dev/sigs.k8s.io/controller-runtime/tools/setup-envtest):
+The only requirement is the [controller-runtime envtest environment](https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/envtest), which can be installed through [`setup-envtest`](https://pkg.go.dev/sigs.k8s.io/controller-runtime/tools/setup-envtest):
 
 ```bash
 go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
