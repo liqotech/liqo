@@ -151,9 +151,6 @@ func main() {
 	foreignClusterPingTimeout := flag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
 		"The timeout of the ForeignCluster API server readiness check")
 
-	// Discovery parameters
-	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
-
 	// Resource sharing parameters
 	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
@@ -459,7 +456,6 @@ func main() {
 
 		ResyncPeriod:           *resyncPeriod,
 		HomeCluster:            clusterIdentity,
-		AutoJoin:               *autoJoin,
 		DisableInternalNetwork: *disableInternalNetwork,
 
 		NamespaceManager:  namespaceManager,
