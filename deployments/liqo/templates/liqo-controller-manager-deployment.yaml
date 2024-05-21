@@ -140,7 +140,6 @@ spec:
           {{- else }}
           - --kubelet-ipam-server={{ include "liqo.prefixedName" $netManagerConfig }}.{{ .Release.Namespace }}:6000
           {{- end }}
-          - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
           - --enable-storage={{ .Values.storage.enable }}
           - --webhook-port={{ .Values.webhook.port }}
           {{- if .Values.storage.enable }}
