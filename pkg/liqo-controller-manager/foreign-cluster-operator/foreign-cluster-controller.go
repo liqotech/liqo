@@ -96,7 +96,6 @@ type ForeignClusterReconciler struct {
 
 	ResyncPeriod      time.Duration
 	HomeCluster       discoveryv1alpha1.ClusterIdentity
-	AutoJoin          bool
 	NetworkingEnabled bool
 
 	NamespaceManager tenantnamespace.Manager
