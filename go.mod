@@ -24,7 +24,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.67.0
 	github.com/prometheus/client_golang v1.18.0
-	github.com/prometheus/client_model v0.5.0
+	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.45.0
 	github.com/pterm/pterm v0.12.79
 	github.com/spf13/cobra v1.8.0
@@ -35,13 +35,13 @@ require (
 	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc
 	golang.org/x/mod v0.17.0
 	golang.org/x/sync v0.7.0
-	golang.org/x/sys v0.19.0
+	golang.org/x/sys v0.24.0
 	golang.org/x/text v0.14.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20220504211119-3d4a969bb56b
 	gomodules.xyz/jsonpatch/v2 v2.4.0
 	google.golang.org/api v0.162.0
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.34.1
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.14.4
 	k8s.io/api v0.30.3
