@@ -621,7 +621,13 @@ func (npr *NamespacedPodReflector) Logs(ctx context.Context, po, container strin
 		SinceTime:    TimeAsPointerOrNil(opts.SinceTime),
 	}
 
-	stream, err := npr.remotePodsClient.GetLogs(po, &logOpts).Stream(ctx)
+	var logsCtx context.Context
+	if opts.Follow {
+		logsCtx = context.Background()
+	} else {
+		logsCtx = ctx
+	}
+	stream, err := npr.remotePodsClient.GetLogs(po, &logOpts).Stream(logsCtx)
 	if err != nil {
 		klog.Errorf("Failed to retrieve logs of container %q of local pod %q (remote %q): %v", container, npr.LocalRef(po), npr.RemoteRef(po), err)
 		return nil, fmt.Errorf("could not get stream from logs request: %w", err)
