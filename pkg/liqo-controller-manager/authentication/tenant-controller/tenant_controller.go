@@ -36,6 +36,7 @@ import (
 	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 var (
@@ -102,7 +103,8 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, err
 	}
 
-	// If the Tenant is drained we remove the binding of cluster roles used to replicate resources.
+	// If the Tenant is drained we remove the binding of cluster roles used to replicate resources and
+	// delete all replicated resources.
 	if tenant.Spec.TenantCondition == authv1alpha1.TenantConditionDrained {
 		if err := r.handleTenantDrained(ctx, tenant); err != nil {
 			klog.Errorf("Unable to handle drained Tenant %q: %s", req.Name, err)
@@ -243,7 +245,39 @@ func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *auth
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesUnbindingFailed", err.Error())
 		return err
 	}
-	r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "ClusterRolesUnbindingSuccess", "Cluser roles unbinded")
+	r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "ClusterRolesUnbindingSuccess", "ClusterRoles unbinded")
+
+	// Delete all resourceslices related to the tenant
+	resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll,
+		liqolabels.RemoteLabelSelectorForCluster(tenant.Spec.ClusterIdentity.ClusterID))
+	if err != nil {
+		klog.Errorf("Failed to retrieve ResourceSlices for Tenant %q: %v", tenant.Name, err)
+		return err
+	}
+
+	for i := range resSlices {
+		if err := client.IgnoreNotFound(r.Client.Delete(ctx, &resSlices[i])); err != nil {
+			klog.Errorf("Failed to delete ResourceSlice %q for Tenant %q: %v", client.ObjectKeyFromObject(&resSlices[i]), tenant.Name, err)
+			return err
+		}
+	}
+	r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "ResourceSlicesDeleted", "ResourceSlices deleted")
+
+	// Delete all the namespacemaps related to the tenant
+	namespaceMaps, err := getters.ListNamespaceMapsByLabel(ctx, r.Client, corev1.NamespaceAll,
+		liqolabels.RemoteLabelSelectorForCluster(tenant.Spec.ClusterIdentity.ClusterID))
+	if err != nil {
+		klog.Errorf("Failed to retrieve NamespaceMaps for Tenant %q: %v", tenant.Name, err)
+		return err
+	}
+
+	for i := range namespaceMaps {
+		if err := client.IgnoreNotFound(r.Client.Delete(ctx, &namespaceMaps[i])); err != nil {
+			klog.Errorf("Failed to delete NamespaceMap %q for Tenant %q: %v", client.ObjectKeyFromObject(&namespaceMaps[i]), tenant.Name, err)
+			return err
+		}
+	}
+	r.EventRecorder.Event(tenant, corev1.EventTypeNormal, "NamespaceMapsDeleted", "NamespaceMaps deleted")
 
 	return nil
 }

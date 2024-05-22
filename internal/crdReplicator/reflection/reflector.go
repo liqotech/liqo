@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -182,6 +183,13 @@ func (r *Reflector) stopForResource(gvr schema.GroupVersionResource) error {
 	// Check if any object is still present in the local or in the remote cluster
 	for key, lister := range map[string]cache.GenericNamespaceLister{"local": rs.local, "remote": rs.remote} {
 		objects, err := lister.List(labels.Everything())
+
+		if key == "remote" && apierrors.IsForbidden(err) {
+			// The remote cluster has probably removed the necessary permissions to operate on reflected resources, let's ignore the error
+			klog.Infof("[%v] Cannot list %v objects in the remote cluster (permission removed by provider).", r.remoteClusterID, gvr)
+			continue
+		}
+
 		if err != nil {
 			klog.Errorf("[%v] Failed to stop reflection of %v: %v", r.remoteClusterID, gvr, err)
 			return err
