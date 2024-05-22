@@ -120,12 +120,20 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 
 	// Retrieve the resource from the remote cluster
 	remote, err := resource.remote.Get(key.name)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			klog.Infof("[%v] Creating remote %v with name %v", r.remoteClusterID, key.gvr, key.name)
-			defer tracer.Step("Ensured the presence of the remote object")
-			return r.createRemoteObject(ctx, resource, localUnstr)
+	switch {
+	case kerrors.IsForbidden(err):
+		klog.Infof("[%v] Cannot retrieve remote %v with name %v (permission removed by provider)", r.remoteClusterID, key.gvr, key.name)
+		return nil
+	case kerrors.IsNotFound(err):
+		klog.Infof("[%v] Creating remote %v with name %v", r.remoteClusterID, key.gvr, key.name)
+		defer tracer.Step("Ensured the presence of the remote object")
+		errCreate := r.createRemoteObject(ctx, resource, localUnstr)
+		if kerrors.IsForbidden(errCreate) {
+			klog.Infof("[%v] Cannot create remote %v with name %v (permission removed by provider)", r.remoteClusterID, key.gvr, key.name)
+			return nil
 		}
+		return errCreate
+	case err != nil:
 		klog.Errorf("[%v] Failed to retrieve remote %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
 		return err
 	}
@@ -251,6 +259,10 @@ func (r *Reflector) updateObjectStatusInner(ctx context.Context, cl dynamic.Inte
 // deleteRemoteObject deletes a given object from the remote cluster.
 func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedResource, key item) (vanished bool, err error) {
 	if _, err := resource.remote.Get(key.name); err != nil {
+		if kerrors.IsForbidden(err) {
+			klog.Infof("[%v] Cannot retrieve remote %v with name %v (permission removed by provider)", r.remoteClusterID, key.gvr, key.name)
+			return true, nil
+		}
 		if kerrors.IsNotFound(err) {
 			klog.Infof("[%v] Remote %v with name %v already vanished", r.remoteClusterID, key.gvr, key.name)
 			return true, nil
