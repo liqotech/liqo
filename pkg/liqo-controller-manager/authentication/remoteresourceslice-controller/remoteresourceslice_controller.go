@@ -21,7 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
@@ -37,10 +36,10 @@ import (
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
-	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // NewRemoteResourceSliceReconciler returns a new RemoteResourceSliceReconciler.
@@ -269,11 +268,8 @@ func (r *RemoteResourceSliceReconciler) resourceSlicesEnquer() func(ctx context.
 			klog.Infof("ClusterID not set for Tenant %q", tenant.Name)
 			return nil
 		}
-
-		resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll, labels.SelectorFromSet(labels.Set{
-			consts.ReplicationOriginLabel: tenant.Spec.ClusterIdentity.ClusterID,
-			consts.ReplicationStatusLabel: "true",
-		}))
+		resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll,
+			liqolabels.RemoteLabelSelectorForCluster(tenant.Spec.ClusterIdentity.ClusterID))
 		if err != nil {
 			klog.Errorf("Failed to retrieve ResourceSlices for Tenant %q: %v", tenant.Name, err)
 			return nil

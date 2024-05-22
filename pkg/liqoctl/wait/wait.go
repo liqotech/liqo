@@ -169,7 +169,7 @@ func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSli
 		return err
 	}
 
-	s.Success("ResourceSlice authentication accepted")
+	s.Success("ResourceSlice authentication: ", authv1alpha1.ResourceSliceConditionAccepted)
 	return nil
 }
 
