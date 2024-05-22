@@ -103,6 +103,16 @@ func GetNamespaceMapByLabel(ctx context.Context, cl client.Client,
 	}
 }
 
+// ListNamespaceMapsByLabel returns the NamespaceMaps that match the given label selector.
+func ListNamespaceMapsByLabel(ctx context.Context, cl client.Client,
+	ns string, lSelector labels.Selector) ([]virtualkubeletv1alpha1.NamespaceMap, error) {
+	var namespaceMapList virtualkubeletv1alpha1.NamespaceMapList
+	if err := cl.List(ctx, &namespaceMapList, client.MatchingLabelsSelector{Selector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+	return namespaceMapList.Items, nil
+}
+
 // GetServiceByLabel it returns a service instance that matches the given label selector.
 func GetServiceByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*corev1.Service, error) {
 	list := new(corev1.ServiceList)
