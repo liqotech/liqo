@@ -139,6 +139,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	if resourcesCondition == nil || resourcesCondition.Status != authv1alpha1.ResourceSliceConditionAccepted {
 		opts.Printer.Warning.Printfln("ResourceSlice resources not accepted. The provider cluster may have cordoned the tenant or the resourceslice")
 	}
+	opts.Printer.Success.Printfln("ResourceSlice resources: %s", resourcesCondition.Status)
 
 	return nil
 }
