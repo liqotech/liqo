@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	// DefaultClientTimeout -> The default timeout value assigned to client-go clients.
-	DefaultClientTimeout = 10 * time.Second
+	// DefaultClientTimeout -> The default timeout value assigned to client-go clients. 0 means no timeout.
+	DefaultClientTimeout = time.Duration(0)
 	// DefaultQPS -> The default QPS value assigned to client-go clients.
 	DefaultQPS = uint(100)
 	// DefaultBurst -> The default burst value assigned to client-go clients.
@@ -31,7 +31,7 @@ const (
 )
 
 var (
-	timeout time.Duration // = 0 means no timeout
+	timeout = DefaultClientTimeout
 	qps     = DefaultQPS
 	burst   = DefaultBurst
 )
