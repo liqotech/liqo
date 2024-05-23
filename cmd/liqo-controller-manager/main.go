@@ -226,6 +226,7 @@ func main() {
 		"The name of the cluster role used by the wireguard gateway servers")
 	wgGatewayClientClusterRoleName := flag.String("wg-gateway-client-cluster-role-name", "liqo-gateway",
 		"The name of the cluster role used by the wireguard gateway clients")
+	fabricFullMasqueradeEnabled := flag.Bool("fabric-full-masquerade-enabled", false, "Enable the full masquerade on the fabric network")
 	gatewayServiceType := flag.String("gateway-service-type", string(gatewayserver.DefaultServiceType), "The type of the gateway service")
 	gatewayServicePort := flag.Int("gateway-service-port", gatewayserver.DefaultPort, "The port of the gateway service")
 	gatewayMTU := flag.Int("gateway-mtu", gatewayserver.DefaultMTU, "The MTU of the gateway interface")
@@ -536,7 +537,7 @@ func main() {
 	}
 
 	if *networkingEnabled {
-		opts := &modules.NetworkingOption{
+		if err := modules.SetupNetworkingModule(ctx, mgr, &modules.NetworkingOption{
 			DynClient:  dynClient,
 			Factory:    factory,
 			KubeClient: clientset,
@@ -555,9 +556,8 @@ func main() {
 			GatewayProxy:                   *gatewayProxy,
 			NetworkWorkers:                 *networkWorkers,
 			IPWorkers:                      *ipWorkers,
-		}
-
-		if err := modules.SetupNetworkingModule(ctx, mgr, opts); err != nil {
+			FabricFullMasquerade:           *fabricFullMasqueradeEnabled,
+		}); err != nil {
 			klog.Fatalf("Unable to setup the networking module: %v", err)
 		}
 	}
