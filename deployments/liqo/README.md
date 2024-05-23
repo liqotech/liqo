@@ -87,6 +87,7 @@
 | discovery.pod.labels | object | `{}` | Labels for the discovery pod. |
 | discovery.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the discovery pod. |
 | discovery.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the discovery pod. |
+| fabric.config.fullMasquerade | bool | `false` | Enabe/Disable the full masquerade mode for the fabric pod. It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP. Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic. IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster,  making impossible for a pod that receives the traffic to know the original source IP.  |
 | fabric.image.name | string | `"ghcr.io/liqotech/fabric"` | Image repository for the fabric pod. |
 | fabric.image.version | string | `""` | Custom version for the fabric image. If not specified, the global tag is used. |
 | fabric.pod.annotations | object | `{}` | Annotations for the fabric pod. |

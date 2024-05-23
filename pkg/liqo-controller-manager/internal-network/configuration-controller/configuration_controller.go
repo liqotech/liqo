@@ -33,14 +33,16 @@ import (
 // ConfigurationReconciler manage Configuration lifecycle.
 type ConfigurationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme  *runtime.Scheme
+	Options *Options
 }
 
 // NewConfigurationReconciler returns a new ConfigurationReconciler.
-func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme) *ConfigurationReconciler {
+func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, opts *Options) *ConfigurationReconciler {
 	return &ConfigurationReconciler{
-		Client: cl,
-		Scheme: s,
+		Client:  cl,
+		Scheme:  s,
+		Options: opts,
 	}
 }
 
@@ -63,7 +65,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	klog.V(4).Infof("Reconciling Configuration %q", req.NamespacedName)
 
-	err = r.ensureFirewallConfiguration(ctx, cfg)
+	err = r.ensureFirewallConfiguration(ctx, cfg, r.Options)
 
 	if err != nil {
 		return ctrl.Result{}, err
