@@ -30,14 +30,15 @@ import (
 	"github.com/liqotech/liqo/pkg/ipam/utils"
 )
 
-func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Context, cfg *networkingv1alpha1.Configuration) error {
+func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Context,
+	cfg *networkingv1alpha1.Configuration, opts *Options) error {
 	firewall := &networkingv1alpha1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateFirewallConfigurationName(cfg),
 			Namespace: cfg.GetNamespace(),
 		},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, firewall, forgeMutateFirewallConfiguration(firewall, cfg, r.Scheme))
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, firewall, forgeMutateFirewallConfiguration(firewall, cfg, r.Scheme, opts))
 	if err != nil {
 		return err
 	}
@@ -45,7 +46,7 @@ func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Contex
 }
 
 func forgeMutateFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration,
-	cfg *networkingv1alpha1.Configuration, scheme *runtime.Scheme) func() error {
+	cfg *networkingv1alpha1.Configuration, scheme *runtime.Scheme, opts *Options) func() error {
 	return func() error {
 		if fwcfg.Labels == nil {
 			fwcfg.Labels = make(map[string]string)
@@ -68,7 +69,7 @@ func forgeMutateFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfigur
 			if fwcfg.Spec.Table.Chains[0].Rules.NatRules == nil {
 				fwcfg.Spec.Table.Chains[0].Rules.NatRules = []firewallapi.NatRule{}
 			}
-			rules, err := forgeFirewallNatRule(cfg)
+			rules, err := forgeFirewallNatRule(cfg, opts)
 			if err != nil {
 				return err
 			}
@@ -91,13 +92,15 @@ func forgeFirewallChain() *firewallapi.Chain {
 	}
 }
 
-func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) ([]firewallapi.NatRule, error) {
+func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration, opts *Options) (natrules []firewallapi.NatRule, err error) {
 	unknownSourceIP, err := utils.GetUnknownSourceIP(cfg.Spec.Local.CIDR.External.String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to get first IP from CIDR: %w", err)
 	}
-	return []firewallapi.NatRule{
-		{
+
+	// Pod CIDR
+	if !opts.FullMasqueradeEnabled {
+		natrules = append(natrules, firewallapi.NatRule{
 			Name: ptr.To(generatePodNatRuleName(cfg)),
 			Match: []firewallapi.Match{
 				{
@@ -117,29 +120,36 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) ([]firewallapi.
 			},
 			NatType: firewallapi.NatTypeSource,
 			To:      ptr.To(cfg.Spec.Local.CIDR.Pod.String()),
-		},
-		{
-			Name: ptr.To(generateNodePortSvcNatRuleName(cfg)),
-			Match: []firewallapi.Match{
-				{
-					Op: firewallapi.MatchOperationEq,
-					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchIPPositionDst,
-						Value:    cfg.Status.Remote.CIDR.Pod.String(),
-					},
-				},
-				{
-					Op: firewallapi.MatchOperationNeq,
-					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchIPPositionSrc,
-						Value:    cfg.Spec.Local.CIDR.Pod.String(),
-					},
+		})
+	}
+
+	natrules = append(natrules, firewallapi.NatRule{
+		Name: ptr.To(generateNodePortSvcNatRuleName(cfg)),
+		Match: []firewallapi.Match{
+			{
+				Op: firewallapi.MatchOperationEq,
+				IP: &firewallapi.MatchIP{
+					Position: firewallapi.MatchIPPositionDst,
+					Value:    cfg.Status.Remote.CIDR.Pod.String(),
 				},
 			},
-			NatType: firewallapi.NatTypeSource,
-			To:      ptr.To(unknownSourceIP),
 		},
-		{
+		NatType: firewallapi.NatTypeSource,
+		To:      ptr.To(unknownSourceIP),
+	})
+	if !opts.FullMasqueradeEnabled {
+		natrules[1].Match = append(natrules[1].Match, firewallapi.Match{
+			Op: firewallapi.MatchOperationNeq,
+			IP: &firewallapi.MatchIP{
+				Position: firewallapi.MatchIPPositionSrc,
+				Value:    cfg.Spec.Local.CIDR.Pod.String(),
+			},
+		})
+	}
+
+	// External CIDR
+	if !opts.FullMasqueradeEnabled {
+		natrules = append(natrules, firewallapi.NatRule{
 			Name: ptr.To(generatePodNatRuleNameExt(cfg)),
 			Match: []firewallapi.Match{
 				{
@@ -159,29 +169,33 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration) ([]firewallapi.
 			},
 			NatType: firewallapi.NatTypeSource,
 			To:      ptr.To(cfg.Spec.Local.CIDR.Pod.String()),
-		},
-		{
-			Name: ptr.To(generateNodePortSvcNatRuleNameExt(cfg)),
-			Match: []firewallapi.Match{
-				{
-					Op: firewallapi.MatchOperationEq,
-					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchIPPositionDst,
-						Value:    cfg.Status.Remote.CIDR.External.String(),
-					},
-				},
-				{
-					Op: firewallapi.MatchOperationNeq,
-					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchIPPositionSrc,
-						Value:    cfg.Spec.Local.CIDR.Pod.String(),
-					},
+		})
+	}
+
+	natrules = append(natrules, firewallapi.NatRule{
+		Name: ptr.To(generateNodePortSvcNatRuleNameExt(cfg)),
+		Match: []firewallapi.Match{
+			{
+				Op: firewallapi.MatchOperationEq,
+				IP: &firewallapi.MatchIP{
+					Position: firewallapi.MatchIPPositionDst,
+					Value:    cfg.Status.Remote.CIDR.External.String(),
 				},
 			},
-			NatType: firewallapi.NatTypeSource,
-			To:      ptr.To(unknownSourceIP),
 		},
-	}, nil
+		NatType: firewallapi.NatTypeSource,
+		To:      ptr.To(unknownSourceIP),
+	})
+	if !opts.FullMasqueradeEnabled {
+		natrules[3].Match = append(natrules[3].Match, firewallapi.Match{
+			Op: firewallapi.MatchOperationNeq,
+			IP: &firewallapi.MatchIP{
+				Position: firewallapi.MatchIPPositionSrc,
+				Value:    cfg.Spec.Local.CIDR.Pod.String(),
+			},
+		})
+	}
+	return natrules, nil
 }
 
 func generateFirewallConfigurationName(cfg *networkingv1alpha1.Configuration) string {
