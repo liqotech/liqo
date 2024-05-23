@@ -19,7 +19,7 @@ COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" ./cmd/liqonet
 
 
-FROM alpine:3.19
+FROM alpine:3.20
 
 RUN apk update && \
     apk add iptables ipset bash wireguard-tools tcpdump conntrack-tools curl && \
