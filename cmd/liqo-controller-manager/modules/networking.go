@@ -63,6 +63,7 @@ type NetworkingOption struct {
 	GatewayProxy                   bool
 	NetworkWorkers                 int
 	IPWorkers                      int
+	FabricFullMasquerade           bool
 }
 
 // SetupNetworkingModule setup the networking module and initializes its controllers .
@@ -154,7 +155,10 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 		return err
 	}
 
-	configurationReconciler := internalconfigurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme())
+	configurationReconciler := internalconfigurationcontroller.NewConfigurationReconciler(mgr.GetClient(), mgr.GetScheme(),
+		&internalconfigurationcontroller.Options{
+			FullMasqueradeEnabled: opts.FabricFullMasquerade,
+		})
 	if err := configurationReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the configurationReconciler: %v", err)
 		return err
