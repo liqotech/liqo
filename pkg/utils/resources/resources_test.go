@@ -28,7 +28,7 @@ import (
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqoctl/status/utils/resources"
+	"github.com/liqotech/liqo/pkg/utils/resources"
 )
 
 var _ = Describe("Shared Resources utility functions", func() {
