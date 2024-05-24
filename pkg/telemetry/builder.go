@@ -26,11 +26,11 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	resourceutils "github.com/liqotech/liqo/pkg/liqoctl/status/utils/resources"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 	labelsutils "github.com/liqotech/liqo/pkg/utils/labels"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
+	resourceutils "github.com/liqotech/liqo/pkg/utils/resources"
 )
 
 // ForgeTelemetryItem returns a Telemetry item with the current status of the cluster.
