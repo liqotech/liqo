@@ -68,7 +68,7 @@ func (w *fcwh) DecodeForeignCluster(obj runtime.RawExtension) (*discoveryv1alpha
 // Handle implements the ForeignCluster mutating webhook logic.
 //
 //nolint:gocritic // The signature of this method is imposed by controller runtime.
-func (w *fcwhm) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (w *fcwhm) Handle(_ context.Context, req admission.Request) admission.Response {
 	fc, err := w.DecodeForeignCluster(req.Object)
 	if err != nil {
 		klog.Errorf("Failed decoding ForeignCluster object: %v", err)
@@ -95,7 +95,7 @@ func (w *fcwhm) Handle(ctx context.Context, req admission.Request) admission.Res
 // Handle implements the ForeignCluster validating webhook logic.
 //
 //nolint:gocritic // The signature of this method is imposed by controller runtime.
-func (w *fcwhv) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (w *fcwhv) Handle(_ context.Context, req admission.Request) admission.Response {
 	if req.Operation != admissionv1.Update {
 		return admission.Allowed("")
 	}
@@ -111,10 +111,6 @@ func (w *fcwhv) Handle(ctx context.Context, req admission.Request) admission.Res
 	if err != nil {
 		klog.Errorf("Failed decoding ForeignCluster object: %v", err)
 		return admission.Errored(http.StatusBadRequest, err)
-	}
-
-	if fcold.Spec.PeeringType != fcnew.Spec.PeeringType {
-		return admission.Denied("The PeeringType value cannot be modified after creation")
 	}
 
 	if fcold.Spec.ClusterIdentity.ClusterID != "" && fcold.Spec.ClusterIdentity.ClusterID != fcnew.Spec.ClusterIdentity.ClusterID {

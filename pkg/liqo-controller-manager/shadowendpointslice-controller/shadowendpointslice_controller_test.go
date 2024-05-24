@@ -68,14 +68,14 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		testConf      *networkingv1alpha1.Configuration
 
 		newFc = func(networkReady, apiServerReady bool) *discoveryv1alpha1.ForeignCluster {
-			networkStatus := discoveryv1alpha1.PeeringConditionStatusEstablished
+			networkStatus := discoveryv1alpha1.ConditionStatusEstablished
 			if !networkReady {
-				networkStatus = discoveryv1alpha1.PeeringConditionStatusError
+				networkStatus = discoveryv1alpha1.ConditionStatusError
 			}
 
-			apiServerStatus := discoveryv1alpha1.PeeringConditionStatusEstablished
+			apiServerStatus := discoveryv1alpha1.ConditionStatusEstablished
 			if !apiServerReady {
-				apiServerStatus = discoveryv1alpha1.PeeringConditionStatusError
+				apiServerStatus = discoveryv1alpha1.ConditionStatusError
 			}
 
 			return &discoveryv1alpha1.ForeignCluster{
@@ -92,14 +92,24 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 					},
 				},
 				Status: discoveryv1alpha1.ForeignClusterStatus{
-					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
-						{
-							Type:   discoveryv1alpha1.NetworkStatusCondition,
-							Status: networkStatus,
+					Modules: discoveryv1alpha1.Modules{
+						Networking: discoveryv1alpha1.Module{
+							Enabled: true,
+							Conditions: []discoveryv1alpha1.Condition{
+								{
+									Type:   discoveryv1alpha1.NetworkConnectionStatusCondition,
+									Status: networkStatus,
+								},
+							},
 						},
-						{
-							Type:   discoveryv1alpha1.APIServerStatusCondition,
-							Status: apiServerStatus,
+						Offloading: discoveryv1alpha1.Module{
+							Enabled: true,
+							Conditions: []discoveryv1alpha1.Condition{
+								{
+									Type:   discoveryv1alpha1.OffloadingAPIServerStatusCondition,
+									Status: apiServerStatus,
+								},
+							},
 						},
 					},
 				},

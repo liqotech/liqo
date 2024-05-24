@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 const (
@@ -64,9 +64,9 @@ func (r *ForeignClusterReconciler) handleAPIServerChecker(ctx context.Context,
 
 	// If checker disabled, we consider the foreign API server as always ready.
 	if checkerDisabled {
-		peeringconditionsutils.EnsureStatus(foreignCluster,
-			discoveryv1alpha1.APIServerStatusCondition,
-			discoveryv1alpha1.PeeringConditionStatusEstablished,
+		fcutils.EnsureModuleCondition(&foreignCluster.Status.Modules.Offloading,
+			discoveryv1alpha1.OffloadingAPIServerStatusCondition,
+			discoveryv1alpha1.ConditionStatusEstablished,
 			apiServerReadyReason,
 			apiServerReadyMessage)
 
@@ -154,7 +154,7 @@ func (r *ForeignClusterReconciler) ensureFinalizer(ctx context.Context, foreignC
 func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clusterName string,
 	discoveryClient *discovery.DiscoveryClient) {
 	var fc = new(discoveryv1alpha1.ForeignCluster)
-	var oldStatus, newStatus discoveryv1alpha1.PeeringConditionStatusType
+	var oldStatus, newStatus discoveryv1alpha1.ConditionStatusType
 	var reason, message string
 
 	// We delay for a bit to not update the foreign cluster too soon, avoiding possible collision with the
@@ -169,20 +169,21 @@ func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clus
 			return false, nil
 		}
 
-		oldStatus = peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.APIServerStatusCondition)
+		oldStatus = fcutils.GetStatus(fc.Status.Modules.Offloading.Conditions, discoveryv1alpha1.OffloadingAPIServerStatusCondition)
 
 		if r.isForeignAPIServerReady(ctx, discoveryClient, clusterName) {
-			newStatus = discoveryv1alpha1.PeeringConditionStatusEstablished
+			newStatus = discoveryv1alpha1.ConditionStatusEstablished
 			reason = apiServerReadyReason
 			message = apiServerReadyMessage
 		} else {
-			newStatus = discoveryv1alpha1.PeeringConditionStatusError
+			newStatus = discoveryv1alpha1.ConditionStatusError
 			reason = apiServerNotReadyReason
 			message = apiServerNotReadyMessage
 		}
 
 		if oldStatus != newStatus {
-			peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.APIServerStatusCondition, newStatus, reason, message)
+			fcutils.EnsureModuleCondition(&fc.Status.Modules.Offloading,
+				discoveryv1alpha1.OffloadingAPIServerStatusCondition, newStatus, reason, message)
 			if err := r.Status().Update(ctx, fc); err != nil {
 				klog.Errorf("[%s] error while updating foreign API server status: %v", clusterName, err)
 				return false, nil
