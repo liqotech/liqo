@@ -111,6 +111,8 @@ type ResourceSliceStatus struct {
 	LoadBalancerClasses []LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 	// NodeLabels contains the provider cluster labels.
 	NodeLabels map[string]string `json:"nodeLabels,omitempty"`
+	// NodeSelector contains the selector to be applied to offloaded pods.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // +kubebuilder:object:root=true
