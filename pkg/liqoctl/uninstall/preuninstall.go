@@ -88,12 +88,6 @@ func (o *Options) preUninstall(ctx context.Context) error {
 	for i := range foreignClusterList.Items {
 		fc := &foreignClusterList.Items[i]
 
-		if foreignclusterutils.IsOutgoingEnabled(fc) {
-			errMap.outgoingPeering = append(errMap.outgoingPeering, fc.Name)
-		}
-		if foreignclusterutils.IsIncomingEnabled(fc) {
-			errMap.incomingPeering = append(errMap.incomingPeering, fc.Name)
-		}
 		if foreignclusterutils.IsNetworkingEstablished(fc) {
 			errMap.networking = append(errMap.networking, fc.Name)
 		}

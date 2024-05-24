@@ -89,7 +89,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Check network status of the foreigncluster
-	networkReady := foreigncluster.IsNetworkingEstablishedOrExternal(fc)
+	networkReady := foreigncluster.IsNetworkingEstablishedOrDisabled(fc)
 
 	// Check foreign API server status
 	apiServerReady := foreigncluster.IsAPIServerReady(fc)
@@ -211,8 +211,8 @@ func (r *Reconciler) endpointsShouldBeUpdated(newObj, oldObj client.Object) bool
 		return false
 	}
 
-	oldFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrExternal(oldForeignCluster)
-	newFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrExternal(newForeignCluster)
+	oldFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrDisabled(oldForeignCluster)
+	newFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrDisabled(newForeignCluster)
 
 	oldFcAPIServerReady := foreigncluster.IsAPIServerReady(oldForeignCluster)
 	newFcAPIServerReady := foreigncluster.IsAPIServerReady(newForeignCluster)

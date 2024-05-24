@@ -37,7 +37,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -442,7 +442,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			processable, err := controller.isClusterProcessable(ctx, fc1)
 			Expect(err).To(Succeed())
 			Expect(processable).To(BeTrue())
-			Expect(peeringconditionsutils.GetStatus(fc1, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+			Expect(fcutils.GetStatus(fc1, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
 				To(Equal(discoveryv1alpha1.PeeringConditionStatusSuccess))
 
 			By("Create the second ForeignCluster")
@@ -450,7 +450,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			processable, err = controller.isClusterProcessable(ctx, fc2)
 			Expect(err).To(Succeed())
 			Expect(processable).To(BeFalse())
-			Expect(peeringconditionsutils.GetStatus(fc2, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+			Expect(fcutils.GetStatus(fc2, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
 				To(Equal(discoveryv1alpha1.PeeringConditionStatusError))
 
 			By("Delete the first ForeignCluster")
@@ -464,7 +464,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(Succeed())
 				return processable
 			}, timeout, interval).Should(BeTrue())
-			Expect(peeringconditionsutils.GetStatus(fc2, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+			Expect(fcutils.GetStatus(fc2, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
 				To(Equal(discoveryv1alpha1.PeeringConditionStatusSuccess))
 		})
 
@@ -491,7 +491,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			processable, err := controller.isClusterProcessable(ctx, fc)
 			Expect(err).To(Succeed())
 			Expect(processable).To(BeFalse())
-			Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+			Expect(fcutils.GetStatus(fc, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
 				To(Equal(discoveryv1alpha1.PeeringConditionStatusError))
 
 		})
@@ -511,7 +511,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			processable, err := controller.isClusterProcessable(ctx, fc)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(processable).To(BeFalse())
-			Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+			Expect(fcutils.GetStatus(fc, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
 				To(Equal(discoveryv1alpha1.PeeringConditionStatusError))
 		})
 

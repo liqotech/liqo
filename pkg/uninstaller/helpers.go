@@ -24,8 +24,7 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // getForeignList retrieve the list of available ForeignCluster and return it as a ForeignClusterList object.
@@ -45,14 +44,11 @@ func getForeignList(client dynamic.Interface) (*discoveryV1alpha1.ForeignCluster
 
 // checkPeeringsStatus verifies if the cluster has any active peerings with foreign clusters.
 func checkPeeringsStatus(foreign *discoveryV1alpha1.ForeignClusterList) bool {
+	// TODO: review the implementation
 	var returnValue = true
 	for i := range foreign.Items {
 		item := &foreign.Items[i]
-		if foreigncluster.IsIncomingJoined(item) || foreigncluster.IsOutgoingJoined(item) {
-			incomingStatus := peeringconditionsutils.GetStatus(item, discoveryV1alpha1.IncomingPeeringCondition)
-			outgoingStatus := peeringconditionsutils.GetStatus(item, discoveryV1alpha1.OutgoingPeeringCondition)
-			klog.Infof("Cluster %s still has a valid peering: (Incoming: %s, Outgoing: %s",
-				item.Name, incomingStatus, outgoingStatus)
+		if fcutils.IsNetworkingEstablished(item) || fcutils.IsAuthenticationEstablished(item) || fcutils.IsOffloadingEstablished(item) {
 			returnValue = false
 		}
 	}

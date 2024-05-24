@@ -31,7 +31,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
-	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/utils/syncset"
 )
 
@@ -195,32 +195,32 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 			}
 
 			Context("incoming peering", ContextBody(func() {
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.IncomingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.OutgoingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusNone, "", "")
 			}))
 
 			Context("outgoing peering", ContextBody(func() {
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.IncomingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusNone, "", "")
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.OutgoingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
 			}))
 
 			Context("bidirectional peering", ContextBody(func() {
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.IncomingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.OutgoingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
 			}))
 		})
 
 		When("the ForeignCluster has not a peering enabled", func() {
 			BeforeEach(func() {
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.IncomingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusNone, "", "")
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.OutgoingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusNone, "", "")
 			})
 
@@ -261,31 +261,31 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 
 		Context("peering is enabled", func() {
 			Context("incoming peering", ContextBody(func() {
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.IncomingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.OutgoingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusNone, "", "")
 			}))
 
 			Context("outgoing peering", ContextBody(func() {
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.IncomingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusNone, "", "")
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.OutgoingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
 			}))
 
 			Context("bidirectional peering", ContextBody(func() {
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.IncomingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
-				peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+				fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.OutgoingPeeringCondition,
 					discoveryv1alpha1.PeeringConditionStatusEstablished, "", "")
 			}))
 		})
 
 		Context("peering is not enabled", ContextBody(func() {
-			peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.IncomingPeeringCondition,
+			fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.IncomingPeeringCondition,
 				discoveryv1alpha1.PeeringConditionStatusNone, "", "")
-			peeringconditionsutils.EnsureStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition,
+			fcutils.EnsureModuleCondition(fc, discoveryv1alpha1.OutgoingPeeringCondition,
 				discoveryv1alpha1.PeeringConditionStatusNone, "", "")
 		}))
 	})

@@ -29,20 +29,6 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
-// FakeLiqoAuthService returns a fake liqo-auth service.
-func FakeLiqoAuthService(serviceType corev1.ServiceType) *corev1.Service {
-	switch serviceType {
-	case corev1.ServiceTypeLoadBalancer:
-		return FakeServiceLoadBalancer(liqoconsts.DefaultLiqoNamespace, liqoconsts.AuthServiceName, EndpointIP, nil, nil,
-			corev1.ProtocolTCP, AuthenticationPort, "https")
-	case corev1.ServiceTypeNodePort:
-		return FakeServiceNodePort(liqoconsts.DefaultLiqoNamespace, liqoconsts.AuthServiceName, nil, nil,
-			corev1.ProtocolTCP, AuthenticationPort, "https", AuthenticationPort)
-	default:
-		return nil
-	}
-}
-
 // FakeLiqoGatewayService returns a fake liqo-gateway service.
 func FakeLiqoGatewayService(serviceType corev1.ServiceType) *corev1.Service {
 	switch serviceType {
@@ -73,7 +59,7 @@ func FakeControllerManagerDeployment(argsClusterLabels []string, networkEnabled 
 		containerArgs = append(containerArgs, "--cluster-labels="+strings.Join(argsClusterLabels, ","))
 	}
 	if !networkEnabled {
-		containerArgs = append(containerArgs, "--disable-internal-network")
+		containerArgs = append(containerArgs, "--networking-enabled=false")
 	}
 	return &appv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -122,53 +108,6 @@ func FakeLiqoAuthDeployment(addressOverride string) *appv1.Deployment {
 					},
 				},
 			},
-		},
-	}
-}
-
-// FakeForeignCluster returns a fake ForeignCluster.
-func FakeForeignCluster(clusterIdentity discoveryv1alpha1.ClusterIdentity, tenantNamespace string,
-	peeringType discoveryv1alpha1.PeeringType,
-	outgoingEnabled, incomingEnabled discoveryv1alpha1.PeeringEnabledType,
-	outgoingConditionStatus, incomingConditionStatus, networkConditionStatus discoveryv1alpha1.PeeringConditionStatusType,
-) *discoveryv1alpha1.ForeignCluster {
-	return &discoveryv1alpha1.ForeignCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterIdentity.ClusterName,
-			Namespace: tenantNamespace,
-		},
-		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			PeeringType:            peeringType,
-			ClusterIdentity:        clusterIdentity,
-			OutgoingPeeringEnabled: outgoingEnabled,
-			IncomingPeeringEnabled: incomingEnabled,
-			ForeignAuthURL:         ForeignAuthURL,
-			ForeignProxyURL:        ForeignProxyURL,
-		},
-		Status: discoveryv1alpha1.ForeignClusterStatus{
-			PeeringConditions: []discoveryv1alpha1.PeeringCondition{
-				{
-					Type:   discoveryv1alpha1.OutgoingPeeringCondition,
-					Status: outgoingConditionStatus,
-				},
-				{
-					Type:   discoveryv1alpha1.IncomingPeeringCondition,
-					Status: incomingConditionStatus,
-				},
-				{
-					Type:   discoveryv1alpha1.AuthenticationStatusCondition,
-					Status: discoveryv1alpha1.PeeringConditionStatusEstablished,
-				},
-				{
-					Type:   discoveryv1alpha1.NetworkStatusCondition,
-					Status: networkConditionStatus,
-				},
-				{
-					Type:   discoveryv1alpha1.APIServerStatusCondition,
-					Status: discoveryv1alpha1.PeeringConditionStatusEstablished,
-				},
-			},
-			APIServerURL: ForeignAPIServerURL,
 		},
 	}
 }

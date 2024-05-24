@@ -91,7 +91,7 @@ func (ncc *NetworkConfigCreator) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	if !foreigncluster.IsNetworkingEnabled(&fc) {
+	if foreigncluster.IsNetworkingModuleDisabled(&fc) {
 		klog.V(4).Infof("Networking for cluster %q is disabled, hence no need to create the networkconfig", req.Name)
 	}
 
@@ -99,8 +99,7 @@ func (ncc *NetworkConfigCreator) Reconcile(ctx context.Context, req ctrl.Request
 	ncc.foreignClusters.Add(req.NamespacedName.Name)
 
 	// A peering is (being) established and networking is enabled, hence we need to ensure the network interconnection.
-	if fc.GetDeletionTimestamp().IsZero() && foreigncluster.IsNetworkingEnabled(&fc) &&
-		(foreigncluster.IsIncomingJoined(&fc) || foreigncluster.IsOutgoingJoined(&fc)) {
+	if fc.GetDeletionTimestamp().IsZero() {
 		return ctrl.Result{}, ncc.EnforceNetworkConfigPresence(ctx, &fc)
 	}
 

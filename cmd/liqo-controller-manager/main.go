@@ -16,9 +16,7 @@
 package main
 
 import (
-	"crypto/tls"
 	"flag"
-	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -59,7 +57,6 @@ import (
 	resourceslicewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/resourceslice"
 	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
 	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
-	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
@@ -105,9 +102,9 @@ func main() {
 	var awsConfig identitymanager.LocalAwsConfig
 
 	// Cluster-wide modules enable/disable flags.
+	networkingEnabled := flag.Bool("networking-enabled", true, "Enable/disable the networking module")
 	authenticationEnabled := flag.Bool("authentication-enabled", true, "Enable/disable the authentication module")
 	offloadingEnabled := flag.Bool("offloading-enabled", true, "Enable/disable the offloading module")
-	disableInternalNetwork := flag.Bool("disable-internal-network", false, "Disable the creation of the internal network")
 
 	// Manager flags
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
@@ -162,6 +159,8 @@ func main() {
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
 	flag.Var(&labelsNotReflected, "labels-not-reflected", "List of labels (key) that must not be reflected")
 	flag.Var(&annotationsNotReflected, "annotations-not-reflected", "List of annotations (key) that must not be reflected")
+	reflectorsWorkers := modules.SetReflectorsWorkers()
+	reflectorsType := modules.SetReflectorsType()
 	kubeletIpamServer := flag.String("kubelet-ipam-server", "",
 		"The address of the IPAM server to use for the virtual kubelet (set to empty string to disable IPAM)")
 	// Storage Provisioner parameters
@@ -340,8 +339,8 @@ func main() {
 		IpamEndpoint:         *kubeletIpamServer,
 		MetricsAddress:       kubeletMetricsAddress,
 		MetricsEnabled:       kubeletMetricsEnabled,
-		ReflectorsWorkers:    modules.SetReflectorsWorkers(),
-		ReflectorsType:       modules.SetReflectorsType(),
+		ReflectorsWorkers:    reflectorsWorkers,
+		ReflectorsType:       reflectorsType,
 	}
 
 	// Setup operators for each module:
@@ -418,40 +417,27 @@ func main() {
 
 	// Configure the foreigncluster controller.
 	idManager := identitymanager.NewCertificateIdentityManager(ctx, mgr.GetClient(), clientset, mgr.GetConfig(), clusterIdentity, namespaceManager)
-	// configure the transports used for the interaction with the remote authentication service.
-	// Using the same transport allows to reuse the underlying TCP/TLS connections when contacting the same destinations,
-	// and reduce the overall handshake overhead, especially with high-latency links.
-	secureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute}
-	insecureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute, TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-	// populate the lists of ClusterRoles to bind in the different peering states
-	permissions, err := peeringroles.GetPeeringPermission(ctx, clientset)
-	if err != nil {
-		klog.Errorf("Unable to populate peering permission: %v", err)
-		os.Exit(1)
-	}
-
 	foreignClusterReconciler := &foreignclusteroperator.ForeignClusterReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		LiqoNamespace: *liqoNamespace,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 
-		ResyncPeriod:           *resyncPeriod,
-		HomeCluster:            clusterIdentity,
-		DisableInternalNetwork: *disableInternalNetwork,
+		ResyncPeriod: *resyncPeriod,
 
-		NamespaceManager:  namespaceManager,
-		IdentityManager:   idManager,
-		PeeringPermission: *permissions,
+		LiqoNamespace:    *liqoNamespace,
+		HomeCluster:      clusterIdentity,
+		NamespaceManager: namespaceManager,
+		IdentityManager:  idManager,
 
-		SecureTransport:   secureTransport,
-		InsecureTransport: insecureTransport,
+		NetworkingEnabled:     *networkingEnabled,
+		AuthenticationEnabled: *authenticationEnabled,
+		OffloadingEnabled:     *offloadingEnabled,
 
 		ForeignClusters: sync.Map{},
 
 		APIServerCheckers: foreignclusteroperator.NewAPIServerCheckers(*foreignClusterPingInterval, *foreignClusterPingTimeout),
 	}
 	if err = foreignClusterReconciler.SetupWithManager(mgr, *foreignClusterWorkers); err != nil {
-		klog.Errorf("Unable to start the foreigncluster reconciler: %v", err)
+		klog.Errorf("Unable to setup the foreigncluster reconciler: %v", err)
 		os.Exit(1)
 	}
 

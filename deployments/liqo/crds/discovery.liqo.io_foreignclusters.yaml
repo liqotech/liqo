@@ -17,8 +17,8 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.peeringType
-      name: Type
+    - jsonPath: .status.role
+      name: Role
       type: string
     - jsonPath: .spec.clusterIdentity.clusterID
       name: ClusterID
@@ -27,22 +27,6 @@ spec:
     - jsonPath: .spec.clusterIdentity.clusterName
       name: ClusterName
       priority: 1
-      type: string
-    - jsonPath: .status.peeringConditions[?(@.type == 'OutgoingPeering')].status
-      name: Outgoing peering
-      type: string
-    - jsonPath: .status.peeringConditions[?(@.type == 'IncomingPeering')].status
-      name: Incoming peering
-      type: string
-    - jsonPath: .status.peeringConditions[?(@.type == 'NetworkStatus')].status
-      name: Networking
-      type: string
-    - jsonPath: .status.peeringConditions[?(@.type == 'APIServerStatus')].status
-      name: API Server
-      priority: 1
-      type: string
-    - jsonPath: .status.peeringConditions[?(@.type == 'AuthenticationStatus')].status
-      name: Authentication
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -86,52 +70,6 @@ spec:
                 - clusterID
                 - clusterName
                 type: object
-              foreignAuthUrl:
-                description: URL where to contact foreign Auth service.
-                pattern: https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)
-                type: string
-              foreignProxyUrl:
-                description: |-
-                  URL where to contact foreign proxy for the api server. This URL is used when
-                  creating the k8s clients toward the remote cluster.
-                type: string
-              incomingPeeringEnabled:
-                default: Auto
-                description: Allow the remote cluster to establish a peering with
-                  our cluster.
-                enum:
-                - Auto
-                - "No"
-                - "Yes"
-                type: string
-              insecureSkipTLSVerify:
-                default: true
-                description: Indicates if the local cluster has to skip the tls verification
-                  over the remote Authentication Service or not.
-                type: boolean
-              outgoingPeeringEnabled:
-                default: Auto
-                description: Enable the peering process to the remote cluster.
-                enum:
-                - Auto
-                - "No"
-                - "Yes"
-                type: string
-              peeringType:
-                default: OutOfBand
-                description: The type of peering to be established.
-                enum:
-                - OutOfBand
-                - InBand
-                type: string
-              ttl:
-                description: |-
-                  If discoveryType is LAN, this indicates the number of seconds after that
-                  this ForeignCluster will be removed if no updates have been received.
-                minimum: 0
-                type: integer
-            required:
-            - foreignAuthUrl
             type: object
           status:
             description: ForeignClusterStatus defines the observed state of ForeignCluster.
@@ -139,56 +77,223 @@ spec:
               apiServerUrl:
                 description: URL of the forign cluster's API server.
                 type: string
-              peeringConditions:
+              foreignProxyUrl:
                 description: |-
-                  PeeringConditions contains the conditions about the peering related to this
-                  ForeignCluster.
-                items:
-                  description: PeeringCondition contains details about state of the
-                    peering.
-                  properties:
-                    lastTransitionTime:
-                      description: LastTransitionTime -> timestamp for when the condition
-                        last transitioned from one status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: Message -> Human-readable message indicating details
-                        about the last status transition.
-                      type: string
-                    reason:
-                      description: Reason -> Machine-readable, UpperCamelCase text
-                        indicating the reason for the condition's last transition.
-                      type: string
-                    status:
-                      default: None
-                      description: Status of the condition.
-                      enum:
-                      - None
-                      - Pending
-                      - Established
-                      - Disconnecting
-                      - Denied
-                      - EmptyDenied
-                      - Error
-                      - Success
-                      - External
-                      type: string
-                    type:
-                      description: Type of the peering condition.
-                      enum:
-                      - OutgoingPeering
-                      - IncomingPeering
-                      - NetworkStatus
-                      - APIServerStatus
-                      - AuthenticationStatus
-                      - ProcessForeignClusterStatus
-                      type: string
-                  required:
-                  - status
-                  - type
-                  type: object
-                type: array
+                  URL where to contact foreign proxy for the api server.
+                  This URL is used when creating the k8s clients toward the remote cluster.
+                type: string
+              modules:
+                description: Modules contains the configuration of the modules for
+                  this foreign cluster.
+                properties:
+                  authentication:
+                    description: Module contains the configuration and conditions
+                      of a module for a foreign cluster.
+                    properties:
+                      conditions:
+                        description: Conditions contains the status conditions related
+                          to the module.
+                        items:
+                          description: Condition contains details about state of a.
+                          properties:
+                            lastTransitionTime:
+                              description: LastTransitionTime -> timestamp for when
+                                the condition last transitioned from one status to
+                                another.
+                              format: date-time
+                              type: string
+                            message:
+                              description: Message -> Human-readable message indicating
+                                details about the last status transition.
+                              type: string
+                            reason:
+                              description: Reason -> Machine-readable, UpperCamelCase
+                                text indicating the reason for the condition's last
+                                transition.
+                              type: string
+                            status:
+                              default: None
+                              description: Status of the condition.
+                              enum:
+                              - None
+                              - Pending
+                              - Established
+                              - Disconnecting
+                              - Denied
+                              - Error
+                              - Success
+                              - External
+                              - Ready
+                              - NotReady
+                              - SomeNotReady
+                              type: string
+                            type:
+                              description: Type of the condition.
+                              enum:
+                              - NetworkConnectionStatus
+                              - NetworkGatewayServerStatus
+                              - NetworkGatewayClientStatus
+                              - AuthIdentityControlPlaneStatus
+                              - AuthTenantStatus
+                              - OffloadingAPIServerStatus
+                              - OffloadingVirtualNodeStatus
+                              - OffloadingNodeStatus
+                              type: string
+                          required:
+                          - status
+                          - type
+                          type: object
+                        type: array
+                      enabled:
+                        description: Enabled indicates if the module is enabled or
+                          not.
+                        type: boolean
+                    required:
+                    - enabled
+                    type: object
+                  networking:
+                    description: Module contains the configuration and conditions
+                      of a module for a foreign cluster.
+                    properties:
+                      conditions:
+                        description: Conditions contains the status conditions related
+                          to the module.
+                        items:
+                          description: Condition contains details about state of a.
+                          properties:
+                            lastTransitionTime:
+                              description: LastTransitionTime -> timestamp for when
+                                the condition last transitioned from one status to
+                                another.
+                              format: date-time
+                              type: string
+                            message:
+                              description: Message -> Human-readable message indicating
+                                details about the last status transition.
+                              type: string
+                            reason:
+                              description: Reason -> Machine-readable, UpperCamelCase
+                                text indicating the reason for the condition's last
+                                transition.
+                              type: string
+                            status:
+                              default: None
+                              description: Status of the condition.
+                              enum:
+                              - None
+                              - Pending
+                              - Established
+                              - Disconnecting
+                              - Denied
+                              - Error
+                              - Success
+                              - External
+                              - Ready
+                              - NotReady
+                              - SomeNotReady
+                              type: string
+                            type:
+                              description: Type of the condition.
+                              enum:
+                              - NetworkConnectionStatus
+                              - NetworkGatewayServerStatus
+                              - NetworkGatewayClientStatus
+                              - AuthIdentityControlPlaneStatus
+                              - AuthTenantStatus
+                              - OffloadingAPIServerStatus
+                              - OffloadingVirtualNodeStatus
+                              - OffloadingNodeStatus
+                              type: string
+                          required:
+                          - status
+                          - type
+                          type: object
+                        type: array
+                      enabled:
+                        description: Enabled indicates if the module is enabled or
+                          not.
+                        type: boolean
+                    required:
+                    - enabled
+                    type: object
+                  offloading:
+                    description: Module contains the configuration and conditions
+                      of a module for a foreign cluster.
+                    properties:
+                      conditions:
+                        description: Conditions contains the status conditions related
+                          to the module.
+                        items:
+                          description: Condition contains details about state of a.
+                          properties:
+                            lastTransitionTime:
+                              description: LastTransitionTime -> timestamp for when
+                                the condition last transitioned from one status to
+                                another.
+                              format: date-time
+                              type: string
+                            message:
+                              description: Message -> Human-readable message indicating
+                                details about the last status transition.
+                              type: string
+                            reason:
+                              description: Reason -> Machine-readable, UpperCamelCase
+                                text indicating the reason for the condition's last
+                                transition.
+                              type: string
+                            status:
+                              default: None
+                              description: Status of the condition.
+                              enum:
+                              - None
+                              - Pending
+                              - Established
+                              - Disconnecting
+                              - Denied
+                              - Error
+                              - Success
+                              - External
+                              - Ready
+                              - NotReady
+                              - SomeNotReady
+                              type: string
+                            type:
+                              description: Type of the condition.
+                              enum:
+                              - NetworkConnectionStatus
+                              - NetworkGatewayServerStatus
+                              - NetworkGatewayClientStatus
+                              - AuthIdentityControlPlaneStatus
+                              - AuthTenantStatus
+                              - OffloadingAPIServerStatus
+                              - OffloadingVirtualNodeStatus
+                              - OffloadingNodeStatus
+                              type: string
+                          required:
+                          - status
+                          - type
+                          type: object
+                        type: array
+                      enabled:
+                        description: Enabled indicates if the module is enabled or
+                          not.
+                        type: boolean
+                    required:
+                    - enabled
+                    type: object
+                required:
+                - authentication
+                - networking
+                - offloading
+                type: object
+              role:
+                description: Role of the ForeignCluster.
+                enum:
+                - Consumer
+                - Provider
+                - ConsumerAndProvider
+                - Unknown
+                type: string
               tenantNamespace:
                 description: TenantNamespace names in the peered clusters
                 properties:
@@ -199,6 +304,8 @@ spec:
                     description: remote TenantNamespace name
                     type: string
                 type: object
+            required:
+            - role
             type: object
         type: object
     served: true

@@ -52,99 +52,16 @@ func NewWaiterFromFactory(f *factory.Factory) *Waiter {
 	}
 }
 
-// ForUnpeering waits until the status on the foreiglcusters resource states that the in/outgoing peering has been successfully
-// set to None or the timeout expires.
-func (w *Waiter) ForUnpeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	remName := remoteClusterID.ClusterName
-	s := w.Printer.StartSpinner(fmt.Sprintf("Unpeering from the remote cluster %q", remName))
-	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsUnpeered, 1*time.Second)
-	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("Failed unpeering from remote cluster %q: %s", remName, output.PrettyErr(err)))
-		return err
-	}
-	s.Success(fmt.Sprintf("Successfully unpeered from remote cluster %q", remName))
-	return nil
-}
-
-// ForOutgoingUnpeering waits until the status on the foreiglcusters resource states that the outgoing peering has been successfully
-// set to None or the timeout expires.
-func (w *Waiter) ForOutgoingUnpeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	remName := remoteClusterID.ClusterName
-	s := w.Printer.StartSpinner(fmt.Sprintf("Disabling outgoing peering to the remote cluster %q", remName))
-	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsOutgoingPeeringNone, 1*time.Second)
-	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("Failed disabling outgoing peering to the remote cluster %q: %s", remName, output.PrettyErr(err)))
-		return err
-	}
-	s.Success(fmt.Sprintf("Successfully disabled outgoing peering to the remote cluster %q", remName))
-	return nil
-}
-
-// ForIncomingUnpeering waits until the status on the foreiglcusters resource states that the incoming peering has been successfully
-// set to None or the timeout expires.
-func (w *Waiter) ForIncomingUnpeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	remName := remoteClusterID.ClusterName
-	s := w.Printer.StartSpinner(fmt.Sprintf("Disabling incoming peering to the remote cluster %q", remName))
-	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsIncomingPeeringNo, 1*time.Second)
-	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("Failed disabling incoming peering to the remote cluster %q: %s", remName, output.PrettyErr(err)))
-		return err
-	}
-	s.Success(fmt.Sprintf("Successfully disabled incoming peering to the remote cluster %q", remName))
-	return nil
-}
-
-// ForAuth waits until the authentication has been established with the remote cluster or the timeout expires.
-func (w *Waiter) ForAuth(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	remName := remoteClusterID.ClusterName
-	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for authentication to the cluster %q", remName))
-	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsAuthenticated, 1*time.Second)
-	if err != nil {
-		s.Fail(fmt.Sprintf("Authentication to the remote cluster %q failed: %s", remName, output.PrettyErr(err)))
-		return err
-	}
-	s.Success(fmt.Sprintf("Authenticated to cluster %q", remName))
-	return nil
-}
-
 // ForNetwork waits until the networking has been established with the remote cluster or the timeout expires.
 func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
 	remName := remoteClusterID.ClusterName
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for network to the remote cluster %q", remName))
-	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsNetworkingEstablishedOrExternal, 1*time.Second)
+	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsNetworkingEstablishedOrDisabled, 1*time.Second)
 	if err != nil {
 		s.Fail(fmt.Sprintf("Failed establishing networking to the remote cluster %q: %s", remName, output.PrettyErr(err)))
 		return err
 	}
 	s.Success(fmt.Sprintf("Network established to the remote cluster %q", remName))
-	return nil
-}
-
-// ForOutgoingPeering waits until the status on the foreiglcusters resource states that the outgoing peering has been successfully
-// established or the timeout expires.
-func (w *Waiter) ForOutgoingPeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	remName := remoteClusterID.ClusterName
-	s := w.Printer.StartSpinner(fmt.Sprintf("Activating outgoing peering to the remote cluster %q", remName))
-	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsOutgoingJoined, 1*time.Second)
-	if err != nil {
-		s.Fail(fmt.Sprintf("Failed activating outgoing peering to the remote cluster %q: %s", remName, output.PrettyErr(err)))
-		return err
-	}
-	s.Success(fmt.Sprintf("Outgoing peering activated to the remote cluster %q", remName))
-	return nil
-}
-
-// ForIncomingPeering waits until the status on the foreiglcusters resource states that the incoming peering has been successfully
-// set to Yes or the timeout expires.
-func (w *Waiter) ForIncomingPeering(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	remName := remoteClusterID.ClusterName
-	s := w.Printer.StartSpinner(fmt.Sprintf("Activating incoming peering to the remote cluster %q", remName))
-	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsIncomingPeeringYes, 1*time.Second)
-	if err != nil {
-		s.Fail(fmt.Sprintf("Failed activating outgoing peering to the remote cluster %q: %s", remName, output.PrettyErr(err)))
-		return err
-	}
-	s.Success(fmt.Sprintf("Incoming peering activated to the remote cluster %q", remName))
 	return nil
 }
 

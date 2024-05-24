@@ -27,27 +27,6 @@ import (
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
-// UnjoinClusters disables incoming and outgoing peerings with available clusters.
-func UnjoinClusters(ctx context.Context, client dynamic.Interface) error {
-	foreign, err := getForeignList(client)
-	if err != nil {
-		return err
-	}
-	klog.Infof("Unjoin %v ForeignClusters", len(foreign.Items))
-
-	mutation := func(fc *discoveryV1alpha1.ForeignCluster) {
-		fc.Spec.IncomingPeeringEnabled = discoveryV1alpha1.PeeringEnabledNo
-		fc.Spec.OutgoingPeeringEnabled = discoveryV1alpha1.PeeringEnabledNo
-	}
-
-	for index := range foreign.Items {
-		if err := patchForeignCluster(ctx, mutation, &foreign.Items[index], client); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // patchForeignCluster patches the given foreign cluster applying the provided function.
 func patchForeignCluster(ctx context.Context, changeFunc func(*discoveryV1alpha1.ForeignCluster),
 	foreignCluster *discoveryV1alpha1.ForeignCluster, client dynamic.Interface) error {

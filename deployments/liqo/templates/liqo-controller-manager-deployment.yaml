@@ -136,7 +136,7 @@ spec:
           - --kubelet-ipam-server={{ .Values.networkManager.externalIPAM.url }}
           {{- else if not .Values.networking.internal }}
           - --kubelet-ipam-server=
-          - --disable-internal-network
+          - --networking-enabled=false
           {{- else }}
           - --kubelet-ipam-server={{ include "liqo.prefixedName" $netManagerConfig }}.{{ .Release.Namespace }}:6000
           {{- end }}

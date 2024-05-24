@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -164,11 +163,7 @@ var _ = BeforeSuite(func() {
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ForeignAuthURL:         "https://example.com",
-			ClusterIdentity:        discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID1, ClusterName: "remote-1"},
-			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID1, ClusterName: "remote-1"},
 		},
 	}
 
@@ -180,11 +175,7 @@ var _ = BeforeSuite(func() {
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ForeignAuthURL:         "https://example.com",
-			ClusterIdentity:        discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID2, ClusterName: "remote-2"},
-			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID2, ClusterName: "remote-2"},
 		},
 	}
 
