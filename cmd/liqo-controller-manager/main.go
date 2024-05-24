@@ -17,9 +17,7 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
-	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -68,7 +66,6 @@ import (
 	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
 	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
-	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
@@ -447,40 +444,27 @@ func main() {
 
 	// Configure the foreigncluster controller.
 	idManager := identitymanager.NewCertificateIdentityManager(ctx, mgr.GetClient(), clientset, mgr.GetConfig(), clusterIdentity, namespaceManager)
-	// configure the transports used for the interaction with the remote authentication service.
-	// Using the same transport allows to reuse the underlying TCP/TLS connections when contacting the same destinations,
-	// and reduce the overall handshake overhead, especially with high-latency links.
-	secureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute}
-	insecureTransport := &http.Transport{IdleConnTimeout: 1 * time.Minute, TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-	// populate the lists of ClusterRoles to bind in the different peering states
-	permissions, err := peeringroles.GetPeeringPermission(ctx, clientset)
-	if err != nil {
-		klog.Errorf("Unable to populate peering permission: %v", err)
-		os.Exit(1)
-	}
-
 	foreignClusterReconciler := &foreignclusteroperator.ForeignClusterReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		LiqoNamespace: *liqoNamespace,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 
-		ResyncPeriod:      *resyncPeriod,
-		HomeCluster:       clusterIdentity,
-		NetworkingEnabled: *networkingEnabled,
+		ResyncPeriod: *resyncPeriod,
 
-		NamespaceManager:  namespaceManager,
-		IdentityManager:   idManager,
-		PeeringPermission: *permissions,
+		LiqoNamespace:    *liqoNamespace,
+		HomeCluster:      clusterIdentity,
+		NamespaceManager: namespaceManager,
+		IdentityManager:  idManager,
 
-		SecureTransport:   secureTransport,
-		InsecureTransport: insecureTransport,
+		NetworkingEnabled:     *networkingEnabled,
+		AuthenticationEnabled: *authenticationEnabled,
+		OffloadingEnabled:     *offloadingEnabled,
 
 		ForeignClusters: sync.Map{},
 
 		APIServerCheckers: foreignclusteroperator.NewAPIServerCheckers(*foreignClusterPingInterval, *foreignClusterPingTimeout),
 	}
 	if err = foreignClusterReconciler.SetupWithManager(mgr, *foreignClusterWorkers); err != nil {
-		klog.Errorf("Unable to start the foreigncluster reconciler: %v", err)
+		klog.Errorf("Unable to setup the foreigncluster reconciler: %v", err)
 		os.Exit(1)
 	}
 

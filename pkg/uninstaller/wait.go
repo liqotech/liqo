@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 )
 
 // WaitForResources waits until existing peerings are disabled and associated resources are removed.
@@ -33,15 +34,15 @@ func WaitForResources(client dynamic.Interface, phase phase) error {
 	var wg sync.WaitGroup
 	deletionResult := make(chan *resultType, len(toCheck))
 	conditionResult := make(chan *resultType, ConditionsToCheck)
-	for _, resource := range toCheck {
-		if resource.phase == phase {
+	for i := range toCheck {
+		if toCheck[i].phase == phase {
 			wg.Add(1)
-			go WaitForEffectiveDeletion(client, resource, deletionResult, &wg, CheckDeletion)
+			go WaitForEffectiveDeletion(client, &toCheck[i], deletionResult, &wg, CheckDeletion)
 		}
 	}
 	if phase == PhaseUnpeering {
 		wg.Add(1)
-		go WaitForEffectiveDeletion(client, toCheckDeleted{}, conditionResult, &wg, CheckUnjoin)
+		go WaitForEffectiveDeletion(client, &toCheckDeleted{}, conditionResult, &wg, CheckUnjoin)
 	}
 	wg.Wait()
 
@@ -68,13 +69,14 @@ func WaitForResources(client dynamic.Interface, phase phase) error {
 }
 
 // WaitForEffectiveDeletion waits until toCheck resources are deleted.
-func WaitForEffectiveDeletion(client dynamic.Interface, toCheck toCheckDeleted, result chan *resultType, wg *sync.WaitGroup, funcCheck func(client dynamic.Interface, res *resultType, quit chan struct{}, toCheck toCheckDeleted)) {
+func WaitForEffectiveDeletion(client dynamic.Interface, toCheck *toCheckDeleted, result chan *resultType, wg *sync.WaitGroup,
+	funcCheck func(client dynamic.Interface, res *resultType, quit chan struct{}, toCheck *toCheckDeleted)) {
 	defer wg.Done()
 	ticker := time.NewTicker(TickerInterval)
 	timeout := time.NewTicker(TickerTimeout)
 	quit := make(chan struct{})
 	var res = &resultType{
-		Resource: toCheck,
+		Resource: ptr.Deref(toCheck, toCheckDeleted{}),
 		Success:  false,
 	}
 	for {
@@ -92,7 +94,8 @@ func WaitForEffectiveDeletion(client dynamic.Interface, toCheck toCheckDeleted, 
 	}
 }
 
-func CheckDeletion(client dynamic.Interface, res *resultType, quit chan struct{}, toCheck toCheckDeleted) {
+// CheckDeletion checks if the resources of a certain type have been deleted.
+func CheckDeletion(client dynamic.Interface, res *resultType, quit chan struct{}, toCheck *toCheckDeleted) {
 	value, wError := CheckObjectsDeletion(client, toCheck)
 	if value {
 		res.Success = true
@@ -106,7 +109,9 @@ func CheckDeletion(client dynamic.Interface, res *resultType, quit chan struct{}
 	klog.Infof("Waiting for %s instances with %s labels to be correctly deleted", toCheck.gvr.GroupResource(), printLabels)
 }
 
-func CheckUnjoin(client dynamic.Interface, res *resultType, quit chan struct{}, toCheck toCheckDeleted) {
+// CheckUnjoin checks if all peering are disabled.
+// TODO: refactor to check top-level resources.
+func CheckUnjoin(client dynamic.Interface, res *resultType, quit chan struct{}, _ *toCheckDeleted) {
 	foreignClusterList, err := getForeignList(client)
 	if err != nil {
 		close(quit)
@@ -114,7 +119,7 @@ func CheckUnjoin(client dynamic.Interface, res *resultType, quit chan struct{}, 
 
 	flag := checkPeeringsStatus(foreignClusterList)
 	if flag {
-		klog.Infof("All incoming or outgoing peering are disabled")
+		klog.Infof("All peering are disabled")
 		res.Success = true
 		close(quit)
 	}
@@ -122,7 +127,11 @@ func CheckUnjoin(client dynamic.Interface, res *resultType, quit chan struct{}, 
 
 // CheckObjectsDeletion verifies that objects of a certain type have been deleted or are not present on the server.
 // It returns true when this last condition is verified.
-func CheckObjectsDeletion(client dynamic.Interface, objectsToCheck toCheckDeleted) (bool, error) {
+func CheckObjectsDeletion(client dynamic.Interface, objectsToCheck *toCheckDeleted) (bool, error) {
+	if objectsToCheck == nil {
+		return true, nil
+	}
+
 	var (
 		objectList  *unstructured.UnstructuredList
 		err         error
