@@ -127,12 +127,9 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 
 	cmd.AddCommand(newInstallCommand(ctx, f))
 	cmd.AddCommand(newUninstallCommand(ctx, f))
-	cmd.AddCommand(newPeerCommand(ctx, f))
-	cmd.AddCommand(newUnpeerCommand(ctx, f))
 	cmd.AddCommand(newGenerateCommand(ctx, f))
 	cmd.AddCommand(newOffloadCommand(ctx, f))
 	cmd.AddCommand(newUnoffloadCommand(ctx, f))
-	cmd.AddCommand(newStatusCommand(ctx, f))
 	cmd.AddCommand(newMoveCommand(ctx, f))
 	cmd.AddCommand(newVersionCommand(ctx, f))
 	cmd.AddCommand(newDocsCommand(ctx))
