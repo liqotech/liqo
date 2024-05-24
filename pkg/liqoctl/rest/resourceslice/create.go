@@ -104,7 +104,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	namespace, err := o.getTenantNamespace(ctx)
 	if err != nil {
-		s.Fail("Unable to get tenant namespace: %v", output.PrettyErr(err))
+		s.Fail("Unable to get tenant namespace: ", output.PrettyErr(err))
 		return err
 	}
 
