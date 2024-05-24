@@ -218,6 +218,12 @@ spec:
                   type: string
                 description: NodeLabels contains the provider cluster labels.
                 type: object
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector contains the selector to be applied to offloaded
+                  pods.
+                type: object
               resources:
                 additionalProperties:
                   anyOf:
