@@ -98,7 +98,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Get the endpoints from the shadowendpointslice and remap them if necessary.
 	// If the networking module is disabled, we do not need to remap the endpoints.
 	remappedEndpoints := shadowEps.Spec.Template.Endpoints
-	if !foreigncluster.IsNetworkingDisabled(fc) {
+	if !foreigncluster.IsNetworkingModuleDisabled(fc) {
 		// remap the endpoints if the network configuration of the remote cluster overlaps with the local one
 		if err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, remappedEndpoints); err != nil {
 			klog.Errorf("an error occurred while remapping endpoints for shadowendpointslice %q: %v", nsName, err)

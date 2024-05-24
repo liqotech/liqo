@@ -18,7 +18,6 @@ import (
 	"context"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
@@ -28,9 +27,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
-	labelsutils "github.com/liqotech/liqo/pkg/utils/labels"
-	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
-	resourceutils "github.com/liqotech/liqo/pkg/utils/resources"
 )
 
 // ForgeTelemetryItem returns a Telemetry item with the current status of the cluster.
@@ -126,41 +122,8 @@ func (c *Builder) getPeeringInfo(ctx context.Context,
 
 	peeringInfo := PeeringInfo{
 		RemoteClusterID: foreignCluster.Spec.ClusterIdentity.ClusterID,
-		Method:          foreignCluster.Spec.PeeringType,
+		Role:            foreignCluster.Status.Role,
 		Latency:         latency,
-		Incoming: c.getPeeringDetails(ctx, foreignCluster,
-			discoveryv1alpha1.IncomingPeeringCondition,
-			labelsutils.LocalLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID)),
-		Outgoing: c.getPeeringDetails(ctx, foreignCluster,
-			discoveryv1alpha1.OutgoingPeeringCondition,
-			labelsutils.RemoteLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID)),
 	}
 	return peeringInfo
-}
-
-func (c *Builder) getPeeringDetails(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster,
-	condition discoveryv1alpha1.PeeringConditionType, selector labels.Selector) PeeringDetails {
-	enabled := peeringconditionsutils.GetStatus(foreignCluster,
-		condition) == discoveryv1alpha1.PeeringConditionStatusEstablished
-
-	var resources corev1.ResourceList
-	if enabled && foreignCluster.Status.TenantNamespace.Local != "" {
-		rl, err := liqogetters.ListResourceSlicesByLabel(ctx, c.Client,
-			foreignCluster.Status.TenantNamespace.Local, selector)
-		if err != nil {
-			klog.Errorf("unable to get resource slices for cluster %s: %v",
-				foreignCluster.Spec.ClusterIdentity.ClusterID, err)
-			return PeeringDetails{
-				Enabled:   enabled,
-				Resources: corev1.ResourceList{},
-			}
-		}
-		resources = resourceutils.SumResourceSlices(rl)
-	}
-
-	return PeeringDetails{
-		Enabled:   enabled,
-		Resources: resources,
-	}
 }
