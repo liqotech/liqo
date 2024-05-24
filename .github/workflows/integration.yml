@@ -9,6 +9,7 @@ on:
       - network-external
       - network-internal
       - auth
+      - offloading
   repository_dispatch:
     types:
       - test-command
