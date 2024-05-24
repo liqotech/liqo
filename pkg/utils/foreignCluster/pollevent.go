@@ -26,13 +26,6 @@ import (
 
 type fcEventChecker func(fc *discoveryv1alpha1.ForeignCluster) bool
 
-var (
-	// UnpeerChecker checks if the two clusters are unpeered.
-	UnpeerChecker fcEventChecker = func(fc *discoveryv1alpha1.ForeignCluster) bool {
-		return IsIncomingPeeringNone(fc) && IsOutgoingPeeringNone(fc)
-	}
-)
-
 // PollForEvent polls until the given events occurs on the foreign cluster corresponding to the identity.
 func PollForEvent(ctx context.Context, cl client.Client, identity *discoveryv1alpha1.ClusterIdentity,
 	checker fcEventChecker, interval time.Duration) error {
