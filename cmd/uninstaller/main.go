@@ -84,12 +84,13 @@ func main() {
 	}
 
 	// Trigger unjoin clusters
-	err = uninstaller.UnjoinClusters(ctx, client)
-	if err != nil {
-		klog.Errorf("Unable to unjoin from peered clusters: %s", err)
-		os.Exit(1)
-	}
-	klog.Info("Foreign Cluster unjoin operation has been correctly performed")
+	// TODO: handle unpeer of cluster
+	// err = uninstaller.UnjoinClusters(ctx, client)
+	// if err != nil {
+	// 	klog.Errorf("Unable to unjoin from peered clusters: %s", err)
+	// 	os.Exit(1)
+	// }
+	// klog.Info("Foreign Cluster unjoin operation has been correctly performed")
 
 	if err := uninstaller.WaitForResources(client, uninstaller.PhaseUnpeering); err != nil {
 		klog.Errorf("Unable to wait deletion of objects: %s", err)

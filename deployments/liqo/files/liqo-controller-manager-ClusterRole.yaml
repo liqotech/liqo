@@ -431,26 +431,6 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
-  - externalnetworks
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - externalnetworks/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - networking.liqo.io
-  resources:
   - firewallconfigurations
   verbs:
   - create
@@ -556,18 +536,6 @@ rules:
   - networking.liqo.io
   resources:
   - ips
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - publickeies
   verbs:
   - create
   - delete

@@ -17,7 +17,4 @@ package consts
 const (
 	// DefaultLiqoNamespace represents the default namespace where liqo is installed in.
 	DefaultLiqoNamespace = "liqo"
-
-	// AuthServiceName contains the name of the Liqo Authentication service.
-	AuthServiceName = "liqo-auth"
 )
