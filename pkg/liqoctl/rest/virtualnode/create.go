@@ -99,6 +99,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringSliceVar(&o.loadBalancerClasses, "load-balancer-classes",
 		[]string{}, "The load balancer classes offered by the remote cluster. The first one will be used as default")
 	cmd.Flags().StringToStringVar(&o.labels, "labels", map[string]string{}, "The labels to be added to the virtual node")
+	cmd.Flags().StringToStringVar(&o.nodeSelector, "node-selector", map[string]string{}, "The node selector to be applied to offloaded pods")
 
 	runtime.Must(cmd.MarkFlagRequired("cluster-id"))
 	runtime.Must(cmd.MarkFlagRequired("cluster-name"))
@@ -261,6 +262,7 @@ func (o *Options) forgeVirtualNodeOptions() (*forge.VirtualNodeOptions, error) {
 		IngressClasses:      ingressClasses,
 		LoadBalancerClasses: loadBalancerClasses,
 		NodeLabels:          o.labels,
+		NodeSelector:        o.nodeSelector,
 	}, nil
 }
 
