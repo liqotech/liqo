@@ -27,14 +27,15 @@ import (
 
 // VirtualNodeOptions contains the options to forge a VirtualNode resource.
 type VirtualNodeOptions struct {
-	KubeconfigSecretRef corev1.LocalObjectReference
-	CreateNode          bool
+	KubeconfigSecretRef corev1.LocalObjectReference `json:"kubeconfigSecretRef,omitempty"`
+	CreateNode          bool                        `json:"createNode,omitempty"`
 
-	ResourceList        corev1.ResourceList
+	ResourceList        corev1.ResourceList             `json:"resourceList,omitempty"`
 	StorageClasses      []authv1alpha1.StorageType      `json:"storageClasses,omitempty"`
 	IngressClasses      []authv1alpha1.IngressType      `json:"ingressClasses,omitempty"`
 	LoadBalancerClasses []authv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
-	NodeLabels          map[string]string
+	NodeLabels          map[string]string               `json:"nodeLabels,omitempty"`
+	NodeSelector        map[string]string               `json:"nodeSelector,omitempty"`
 }
 
 // VirtualNode forges a VirtualNode resource.
@@ -79,6 +80,14 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 	virtualNode.Spec.IngressClasses = opts.IngressClasses
 	virtualNode.Spec.LoadBalancerClasses = opts.LoadBalancerClasses
 
+	if len(opts.NodeSelector) > 0 {
+		if virtualNode.Spec.OffloadingPatch == nil {
+			virtualNode.Spec.OffloadingPatch = &vkv1alpha1.OffloadingPatch{}
+		}
+
+		virtualNode.Spec.OffloadingPatch.NodeSelector = opts.NodeSelector
+	}
+
 	return nil
 }
 
@@ -93,5 +102,6 @@ func VirtualNodeOptionsFromResourceSlice(resourceSlice *authv1alpha1.ResourceSli
 		IngressClasses:      resourceSlice.Status.IngressClasses,
 		LoadBalancerClasses: resourceSlice.Status.LoadBalancerClasses,
 		NodeLabels:          resourceSlice.Status.NodeLabels,
+		NodeSelector:        resourceSlice.Status.NodeSelector,
 	}
 }
