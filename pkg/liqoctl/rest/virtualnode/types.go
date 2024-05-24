@@ -39,6 +39,7 @@ type Options struct {
 	ingressClasses      []string
 	loadBalancerClasses []string
 	labels              map[string]string
+	nodeSelector        map[string]string
 }
 
 var _ rest.API = &Options{}
