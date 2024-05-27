@@ -17,6 +17,7 @@ package liqonodeprovider
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -47,7 +48,7 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 
 	var connInformerFactory dynamicinformer.DynamicSharedInformerFactory
 	if p.checkNetworkStatus {
-		connInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, namespace,
+		connInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, corev1.NamespaceAll,
 			func(opt *metav1.ListOptions) {
 				opt.LabelSelector = consts.RemoteClusterID + "=" + p.foreignClusterID
 			})
