@@ -15,6 +15,7 @@
 package wireguard
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -23,6 +24,38 @@ import (
 
 	"github.com/liqotech/liqo/pkg/gateway"
 )
+
+// WgImplementation represents the implementation of the wireguard interface.
+type WgImplementation string
+
+const (
+	// WgImplementationKernel represents the kernel implementation of the wireguard interface.
+	WgImplementationKernel WgImplementation = "kernel"
+	// WgImplementationUserspace represents the userspace implementation of the wireguard interface.
+	WgImplementationUserspace WgImplementation = "userspace"
+)
+
+// String returns the string representation of the wireguard implementation.
+func (wgi WgImplementation) String() string {
+	return string(wgi)
+}
+
+// Set parses the provided string into the wireguard implementation.
+func (wgi *WgImplementation) Set(s string) error {
+	if s == "" {
+		s = WgImplementationKernel.String()
+	}
+	if s != WgImplementationKernel.String() && s != WgImplementationUserspace.String() {
+		return fmt.Errorf("invalid wireguard implementation: %s (allowed values are: %s,%s)", s, WgImplementationKernel, WgImplementationUserspace)
+	}
+	*wgi = WgImplementation(s)
+	return nil
+}
+
+// Type returns the type of the wireguard implementation.
+func (wgi WgImplementation) Type() string {
+	return "string"
+}
 
 // Options contains the options for the wireguard interface.
 type Options struct {
@@ -39,6 +72,8 @@ type Options struct {
 	EndpointIPMutex *sync.Mutex
 
 	DNSCheckInterval time.Duration
+
+	Implementation WgImplementation
 }
 
 // NewOptions returns a new Options struct.

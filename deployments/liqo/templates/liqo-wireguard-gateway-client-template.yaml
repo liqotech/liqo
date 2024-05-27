@@ -80,11 +80,15 @@ spec:
                 - --endpoint-port={{"{{ .Spec.Endpoint.Port }}"}}
                 - --metrics-address=:8082
                 - --health-probe-bind-address=:8083
+                - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
                 securityContext:
                   capabilities:
                     add:
                     - NET_ADMIN
                     - NET_RAW
+                  {{ if .Values.networking.gatewayTemplates.wireguard.implementation | eq "userspace" }}
+                  privileged: true
+                  {{ end }}
               - name: geneve
                 image: {{ .Values.networking.gatewayTemplates.container.geneve.image.name }}{{ include "liqo.suffix" $geneveConfig }}:{{ include "liqo.version" $geneveConfig }}
                 imagePullPolicy: {{ .Values.pullPolicy }}
