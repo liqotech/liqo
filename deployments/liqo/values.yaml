@@ -52,6 +52,9 @@ networking:
   # These options are used to configure only the default templates and should not be considered
   # if a custom template is used.
   gatewayTemplates:
+    wireguard:
+      # -- Set the implementation used for the WireGuard connection. Possible values are "kernel" and "userspace".
+      implementation: "kernel"
     # -- Set the number of replicas for the gateway deployments
     replicas: 1
     # -- Set the options to configure the gateway ping used to check connection

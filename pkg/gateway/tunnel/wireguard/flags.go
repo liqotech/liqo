@@ -44,6 +44,9 @@ const (
 
 	// FlagNameDNSCheckInterval is the interval between two DNS checks.
 	FlagNameDNSCheckInterval FlagName = "dns-check-interval"
+
+	// FlagNameImplementation is the implementation of the wireguard interface.
+	FlagNameImplementation FlagName = "implementation"
 )
 
 // ClientRequiredFlags contains the list of the mandatory flags for the client mode.
@@ -59,6 +62,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.IntVar(&opts.EndpointPort, FlagNameEndpointPort.String(), 51820, "Endpoint port (client only)")
 
 	flagset.DurationVar(&opts.DNSCheckInterval, FlagNameDNSCheckInterval.String(), 5*time.Minute, "Interval between two DNS checks")
+
+	flagset.Var(&opts.Implementation, "implementation", "Implementation of the wireguard interface (kernel or userspace)")
 }
 
 // MarkFlagsRequired marks the flags as required.
