@@ -163,7 +163,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Create the wg-liqo interface and init the wireguard configuration depending on the mode (client/server).
-	if err := wireguard.InitWireguardLink(options); err != nil {
+	if err := wireguard.InitWireguardLink(cmd.Context(), options); err != nil {
 		return fmt.Errorf("unable to init wireguard link: %w", err)
 	}
 
