@@ -28,7 +28,7 @@ import (
 
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 

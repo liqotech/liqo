@@ -68,6 +68,7 @@ spec:
               clusterID:
                 description: ClusterID contains the id of the remote cluster targeted
                   by the created virtualKubelet.
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
               createNode:
                 default: true

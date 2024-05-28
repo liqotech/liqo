@@ -98,14 +98,11 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 								},
 							},
 						},
-						Offloading: discoveryv1alpha1.Module{
-							Enabled: true,
-							Conditions: []discoveryv1alpha1.Condition{
-								{
-									Type:   discoveryv1alpha1.OffloadingAPIServerStatusCondition,
-									Status: apiServerStatus,
-								},
-							},
+					},
+					Conditions: []discoveryv1alpha1.Condition{
+						{
+							Type:   discoveryv1alpha1.APIServerStatusCondition,
+							Status: apiServerStatus,
 						},
 					},
 				},

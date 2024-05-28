@@ -50,6 +50,7 @@ spec:
             properties:
               clusterID:
                 description: ClusterID is the id of the consumer cluster.
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
               csr:
                 description: CSR is the Certificate Signing Request of the tenant

@@ -64,32 +64,6 @@ func FakeControllerManagerDeployment(argsClusterLabels []string, networkEnabled 
 	}
 }
 
-// FakeLiqoAuthDeployment returns a fake liqo-auth deployment.
-func FakeLiqoAuthDeployment(addressOverride string) *appv1.Deployment {
-	containerArgs := []string{}
-	if addressOverride != "" {
-		containerArgs = append(containerArgs, "--advertise-api-server-address="+addressOverride)
-	}
-	return &appv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "liqo-auth",
-			Namespace: liqoconsts.DefaultLiqoNamespace,
-			Labels: map[string]string{
-				liqoconsts.K8sAppNameKey: liqoconsts.AuthAppName,
-			},
-		},
-		Spec: appv1.DeploymentSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Args: containerArgs},
-					},
-				},
-			},
-		},
-	}
-}
-
 // FakeForeignCluster returns a fake ForeignCluster.
 func FakeForeignCluster(
 	clusterID discoveryv1alpha1.ClusterID, tenantNamespace string) *discoveryv1alpha1.ForeignCluster {

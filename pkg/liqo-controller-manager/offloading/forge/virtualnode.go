@@ -22,6 +22,7 @@ import (
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
@@ -60,6 +61,7 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 		virtualNode.ObjectMeta.Labels = make(map[string]string)
 	}
 	virtualNode.ObjectMeta.Labels[discovery.ClusterIDLabel] = string(remoteClusterID)
+	virtualNode.ObjectMeta.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 
 	// VirtualNode spec
 

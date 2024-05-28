@@ -268,9 +268,13 @@ rules:
   resources:
   - foreignclusters/finalizers
   verbs:
+  - create
+  - delete
   - get
+  - list
   - patch
   - update
+  - watch
 - apiGroups:
   - discovery.liqo.io
   resources:
@@ -282,29 +286,6 @@ rules:
   - list
   - patch
   - update
-  - watch
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - resourcerequests
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - resourcerequests/status
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - list
   - watch
 - apiGroups:
   - ipam.liqo.io
@@ -416,14 +397,6 @@ rules:
   - networking.liqo.io
   resources:
   - connections
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - connections/status
   verbs:
   - get
   - list
@@ -686,29 +659,6 @@ rules:
   - list
   - patch
   - update
-  - watch
-- apiGroups:
-  - sharing.liqo.io
-  resources:
-  - resourceoffers
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - sharing.liqo.io
-  resources:
-  - resourceoffers/status
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - list
   - watch
 - apiGroups:
   - storage
