@@ -34,7 +34,7 @@ func GetVirtualKubeletDeployment(
 	ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode,
 	vkopts *vkforge.VirtualKubeletOpts) (*appsv1.Deployment, error) {
 	var deployList appsv1.DeploymentList
-	labels := vkforge.VirtualKubeletLabels(virtualNode, vkopts)
+	labels := vkforge.VirtualKubeletLabels(virtualNode, vkopts.ExtraLabels)
 	if err := cl.List(ctx, &deployList, client.MatchingLabels(labels)); err != nil {
 		klog.Error(err)
 		return nil, err
@@ -56,7 +56,7 @@ func GetVirtualKubeletDeployment(
 func CheckVirtualKubeletPodAbsence(ctx context.Context, cl client.Client,
 	vn *virtualkubeletv1alpha1.VirtualNode, vkopts *vkforge.VirtualKubeletOpts) error {
 	klog.Infof("[%v] checking virtual-kubelet pod absence", vn.Spec.ClusterID)
-	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn, vkopts)
+	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn, vkopts.ExtraLabels)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (f Flag) String() string {
 // A flag is not consistent if it is present in the VirtualKubelet args with a different value.
 func CheckVirtualKubeletFlagsConsistence(
 	ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1.VirtualNode, vkopts *vkforge.VirtualKubeletOpts, flags ...Flag) (bool, error) {
-	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn, vkopts)
+	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn, vkopts.ExtraLabels)
 	if err != nil {
 		return false, err
 	}

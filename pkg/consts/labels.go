@@ -26,9 +26,6 @@ const (
 	// K8sAppComponentKey = key of the label used to denote a deployed application component.
 	K8sAppComponentKey = "app.kubernetes.io/component"
 
-	// AuthAppName label value that denotes the name of the liqo-auth deployment.
-	AuthAppName = "auth"
-
 	// ControllerManagerAppName label value that denotes the name of the liqo-controller-manager deployment.
 	ControllerManagerAppName = "controller-manager"
 

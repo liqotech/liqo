@@ -57,6 +57,7 @@ spec:
                 type: string
               consumerClusterID:
                 description: ConsumerClusterID is the id of the consumer cluster.
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
               csr:
                 description: CSR is the Certificate Signing Request of the consumer
@@ -65,6 +66,7 @@ spec:
                 type: string
               providerClusterID:
                 description: ProviderClusterID is the id of the provider cluster.
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
               resources:
                 additionalProperties:
