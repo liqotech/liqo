@@ -27,13 +27,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // GetForeignClusterByID returns a ForeignCluster CR retrieving it by its clusterID.
 func GetForeignClusterByID(ctx context.Context, cl client.Client, clusterID discoveryv1alpha1.ClusterID) (*discoveryv1alpha1.ForeignCluster, error) {
 	lSelector := labels.SelectorFromSet(labels.Set{
-		discovery.ClusterIDLabel: string(clusterID),
+		consts.RemoteClusterID: string(clusterID),
 	})
 	// get the foreign cluster by clusterID label
 	foreignClusterList := discoveryv1alpha1.ForeignClusterList{}
@@ -50,7 +50,7 @@ func GetForeignClusterByID(ctx context.Context, cl client.Client, clusterID disc
 func GetForeignClusterByIDWithDynamicClient(ctx context.Context, dynClient dynamic.Interface, clusterID discoveryv1alpha1.ClusterID) (
 	*discoveryv1alpha1.ForeignCluster, error) {
 	lSelector := labels.SelectorFromSet(labels.Set{
-		discovery.ClusterIDLabel: string(clusterID),
+		consts.RemoteClusterID: string(clusterID),
 	})
 	unstr, err := dynClient.Resource(discoveryv1alpha1.ForeignClusterGroupVersionResource).List(ctx, metav1.ListOptions{
 		LabelSelector: lSelector.String()})

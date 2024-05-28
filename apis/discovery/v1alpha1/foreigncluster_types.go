@@ -18,13 +18,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ClusterID contains the unique identifier of a ForeignCluster.
+// ClusterID contains the unique identifier of a ForeignCluster. It must be a DNS (RFC 1123) compatible name.
+// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 type ClusterID string
 
 // ForeignClusterSpec defines the desired state of ForeignCluster.
 type ForeignClusterSpec struct {
 	// Foreign Cluster ID.
-	ClusterID ClusterID `json:"clusterID,omitempty"`
+	ClusterID ClusterID `json:"clusterID"`
 }
 
 // RoleType represents the role of a ForeignCluster.
@@ -46,6 +47,7 @@ const (
 type ForeignClusterStatus struct {
 	// Role of the ForeignCluster.
 	// +kubebuilder:validation:Enum="Consumer";"Provider";"ConsumerAndProvider";"Unknown"
+	// +kubebuilder:default="Unknown"
 	Role RoleType `json:"role"`
 
 	// Modules contains the configuration of the modules for this foreign cluster.
@@ -63,6 +65,9 @@ type ForeignClusterStatus struct {
 	// TenantNamespace names in the peered clusters
 	// +kubebuilder:validation:Optional
 	TenantNamespace TenantNamespaceType `json:"tenantNamespace"`
+
+	// Generic conditions related to the foreign cluster.
+	Conditions []Condition `json:"conditions,omitempty"`
 }
 
 // Modules contains the configuration of the modules for this foreign cluster.
@@ -85,6 +90,10 @@ type ConditionType string
 
 // These are valid type of Conditions.
 const (
+	// GENERIC
+	// APIServerStatusCondition shows the status of the API Server.
+	APIServerStatusCondition ConditionType = "APIServerStatus"
+
 	// NETWORKING
 	// NetworkConnectionStatusCondition shows the network connection status.
 	NetworkConnectionStatusCondition ConditionType = "NetworkConnectionStatus"
@@ -100,8 +109,6 @@ const (
 	AuthTenantStatusCondition ConditionType = "AuthTenantStatus"
 
 	// OFFLOADING
-	// OffloadingAPIServerStatusCondition shows the status of the API Server.
-	OffloadingAPIServerStatusCondition ConditionType = "OffloadingAPIServerStatus"
 	// OffloadingVirtualNodeStatusCondition shows the status of a Virtual Node.
 	OffloadingVirtualNodeStatusCondition ConditionType = "OffloadingVirtualNodeStatus"
 	// OffloadingNodeStatusCondition shows the status of a Node.
@@ -118,31 +125,25 @@ const (
 	ConditionStatusPending ConditionStatusType = "Pending"
 	// ConditionStatusEstablished indicates that the condition has been established.
 	ConditionStatusEstablished ConditionStatusType = "Established"
-	// ConditionStatusDisconnecting indicates that the condition is disconnecting.
-	ConditionStatusDisconnecting ConditionStatusType = "Disconnecting"
-	// ConditionStatusDenied indicates that the condition has been denied.
-	ConditionStatusDenied ConditionStatusType = "Denied"
 	// ConditionStatusError indicates that an error has occurred.
 	ConditionStatusError ConditionStatusType = "Error"
-	// ConditionStatusSuccess indicates that the condition is successful.
-	ConditionStatusSuccess ConditionStatusType = "Success"
-	// ConditionStatusExternal indicates that the condition is managed by an external component.
-	ConditionStatusExternal ConditionStatusType = "External"
 	// ConditionStatusReady indicates that the condition is ready.
 	ConditionStatusReady ConditionStatusType = "Ready"
 	// ConditionStatusNotReady indicates that the condition is not ready.
 	ConditionStatusNotReady ConditionStatusType = "NotReady"
-	// ConditionStatusSomeNotReady indicates that not all components of the conditons are ready.
+	// ConditionStatusSomeNotReady indicates that not all components of the conditions are ready.
 	ConditionStatusSomeNotReady ConditionStatusType = "SomeNotReady"
 )
 
 // Condition contains details about state of a.
 type Condition struct {
 	// Type of the condition.
-	// +kubebuilder:validation:Enum="NetworkConnectionStatus";"NetworkGatewayServerStatus";"NetworkGatewayClientStatus";"AuthIdentityControlPlaneStatus";"AuthTenantStatus";"OffloadingAPIServerStatus";"OffloadingVirtualNodeStatus";"OffloadingNodeStatus"
+	// +kubebuilder:validation:Enum="APIServerStatus";"NetworkConnectionStatus";"NetworkGatewayServerStatus";"NetworkGatewayClientStatus";"AuthIdentityControlPlaneStatus";"AuthTenantStatus";"OffloadingVirtualNodeStatus";"OffloadingNodeStatus"
+	//
+	//nolint:lll // ignore long lines given by Kubebuilder marker annotations
 	Type ConditionType `json:"type"`
 	// Status of the condition.
-	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting";"Denied";"Error";"Success";"External";"Ready";"NotReady";"SomeNotReady"
+	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Error";"Ready";"NotReady";"SomeNotReady"
 	// +kubebuilder:default="None"
 	Status ConditionStatusType `json:"status"`
 	// LastTransitionTime -> timestamp for when the condition last transitioned from one status to another.
