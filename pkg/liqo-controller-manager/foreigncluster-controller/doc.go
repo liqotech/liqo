@@ -12,9 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package consts
-
-const (
-	// ResourceOfferNameLabel is the label used to identify the related ResourceOffer.
-	ResourceOfferNameLabel = "resourceoffer.liqo.io/name"
-)
+// Package foreignclustercontroller implements the logic of the ForeignCluster controller
+package foreignclustercontroller

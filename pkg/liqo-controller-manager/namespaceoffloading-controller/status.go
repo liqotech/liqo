@@ -24,7 +24,7 @@ import (
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
 
 // enforceStatus realigns the status of the NamespaceOffloading, depending on that of the NamespaceMaps.
