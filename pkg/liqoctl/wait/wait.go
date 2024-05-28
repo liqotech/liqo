@@ -39,7 +39,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
 	"github.com/liqotech/liqo/pkg/utils"
-	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	getters "github.com/liqotech/liqo/pkg/utils/getters"
 )
 

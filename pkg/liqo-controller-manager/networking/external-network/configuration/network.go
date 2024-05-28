@@ -72,7 +72,7 @@ func CreateOrGetNetwork(ctx context.Context, cl client.Client, scheme *runtime.S
 		return nil, err
 	}
 	ns := cfg.Namespace
-	list, err := getters.ListNetworkByLabel(ctx, cl, ns, ls)
+	list, err := getters.ListNetworksByLabel(ctx, cl, ns, ls)
 	if err != nil {
 		return nil, err
 	}

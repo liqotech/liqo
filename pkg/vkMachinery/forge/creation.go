@@ -38,7 +38,7 @@ func VirtualKubeletName(virtualNode *virtualkubeletv1alpha1.VirtualNode) string 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
 func VirtualKubeletDeployment(homeCluster discoveryv1alpha1.ClusterID, virtualNode *virtualkubeletv1alpha1.VirtualNode,
 	opts *VirtualKubeletOpts) *appsv1.Deployment {
-	vkLabels := VirtualKubeletLabels(virtualNode, opts)
+	vkLabels := VirtualKubeletLabels(virtualNode, opts.ExtraLabels)
 	annotations := opts.ExtraAnnotations
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -63,8 +63,8 @@ func VirtualKubeletDeployment(homeCluster discoveryv1alpha1.ClusterID, virtualNo
 }
 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
-func VirtualKubeletLabels(virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) map[string]string {
-	return labels.Merge(labels.Merge(opts.ExtraLabels, vkMachinery.KubeletBaseLabels), map[string]string{
+func VirtualKubeletLabels(virtualNode *virtualkubeletv1alpha1.VirtualNode, extraLabels map[string]string) map[string]string {
+	return labels.Merge(labels.Merge(extraLabels, vkMachinery.KubeletBaseLabels), map[string]string{
 		discovery.ClusterIDLabel:   string(virtualNode.Spec.ClusterID),
 		discovery.VirtualNodeLabel: virtualNode.Name,
 	})

@@ -18,21 +18,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
-// IsNetworkingModuleDisabled checks if the liqo networking module is disabled.
-func IsNetworkingModuleDisabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
-	return !foreignCluster.Status.Modules.Networking.Enabled
-}
-
-// IsAuthenticationModuleDisabled checks if the liqo authentication module is disabled.
-func IsAuthenticationModuleDisabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
-	return !foreignCluster.Status.Modules.Authentication.Enabled
-}
-
-// IsOffloadingModuleDisabled checks if the liqo offloading module is disabled.
-func IsOffloadingModuleDisabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
-	return !foreignCluster.Status.Modules.Offloading.Enabled
-}
-
 // IsNetworkingEstablished checks if the networking is established.
 func IsNetworkingEstablished(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	curPhase := GetStatus(foreignCluster.Status.Modules.Networking.Conditions, discoveryv1alpha1.NetworkConnectionStatusCondition)
@@ -42,22 +27,27 @@ func IsNetworkingEstablished(foreignCluster *discoveryv1alpha1.ForeignCluster) b
 // IsAuthenticationEstablished checks if the authentication is established.
 func IsAuthenticationEstablished(_ *discoveryv1alpha1.ForeignCluster) bool {
 	// TODO: implement the function
-	return true
+	panic("not implemented")
 }
 
 // IsOffloadingEstablished checks if the offloading is established.
 func IsOffloadingEstablished(_ *discoveryv1alpha1.ForeignCluster) bool {
 	// TODO: implement the function
-	return true
+	panic("not implemented")
 }
 
 // IsNetworkingEstablishedOrDisabled checks if the networking is established or if the liqo networking module is disabled.
 func IsNetworkingEstablishedOrDisabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
-	return IsNetworkingEstablished(foreignCluster) || IsNetworkingModuleDisabled(foreignCluster)
+	return IsNetworkingEstablished(foreignCluster) || !IsNetworkingModuleEnabled(foreignCluster)
 }
 
-// IsAPIServerReady checks if the api server is ready.
-func IsAPIServerReady(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
-	curPhase := GetStatus(foreignCluster.Status.Modules.Offloading.Conditions, discoveryv1alpha1.OffloadingAPIServerStatusCondition)
-	return curPhase == discoveryv1alpha1.ConditionStatusEstablished
+// GetAPIServerStatus returns the status of the api server.
+func GetAPIServerStatus(foreignCluster *discoveryv1alpha1.ForeignCluster) discoveryv1alpha1.ConditionStatusType {
+	return GetStatus(foreignCluster.Status.Conditions, discoveryv1alpha1.APIServerStatusCondition)
+}
+
+// IsAPIServerReadyOrDisabled checks if the api server is ready or not applicable.
+func IsAPIServerReadyOrDisabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	curPhase := GetAPIServerStatus(foreignCluster)
+	return curPhase == discoveryv1alpha1.ConditionStatusEstablished || curPhase == discoveryv1alpha1.ConditionStatusNone
 }

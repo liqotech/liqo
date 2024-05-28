@@ -36,7 +36,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/util"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"

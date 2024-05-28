@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 type fcwh struct {
@@ -80,7 +80,7 @@ func (w *fcwhm) Handle(_ context.Context, req admission.Request) admission.Respo
 		if fc.ObjectMeta.Labels == nil {
 			fc.ObjectMeta.Labels = map[string]string{}
 		}
-		fc.ObjectMeta.Labels[discovery.ClusterIDLabel] = string(fc.Spec.ClusterID)
+		fc.ObjectMeta.Labels[consts.RemoteClusterID] = string(fc.Spec.ClusterID)
 	}
 
 	marshaledFc, err := json.Marshal(fc)

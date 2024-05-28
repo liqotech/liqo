@@ -36,7 +36,6 @@ import (
 
 // cluster-role
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowpods,verbs=get;list;watch
-// +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
 
 // Validator is the handler used by the Validating Webhook to validate shadow pods.

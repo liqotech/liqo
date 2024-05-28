@@ -85,6 +85,9 @@ func NewTenantReconciler(cl client.Client, scheme *runtime.Scheme, config *rest.
 // cluster-role
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants;tenants/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;deletecollection;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile manages the lifecycle of a Tenant.
 func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {

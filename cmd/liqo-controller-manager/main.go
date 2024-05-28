@@ -19,7 +19,6 @@ import (
 	"context"
 	"flag"
 	"os"
-	"sync"
 	"time"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -53,7 +52,7 @@ import (
 	"github.com/liqotech/liqo/pkg/ipam"
 	remoteresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/remoteresourceslice-controller"
 	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/virtualnodecreator-controller"
-	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
+	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreigncluster-controller"
 	nwforge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	offloadingipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/ipmapping"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/firewallconfiguration"
@@ -109,7 +108,6 @@ func main() {
 	var loadBalancerClasses argsutils.ClassNameList
 	var defaultNodeResources argsutils.ResourceMap
 	var addVirtualNodeTolerationOnOffloadedPods bool
-	var ipamClient ipam.IpamClient
 	var gatewayServerResources argsutils.StringList
 	var gatewayClientResources argsutils.StringList
 	var apiServerAddressOverride string
@@ -134,21 +132,29 @@ func main() {
 	liqoNamespace := flag.String("liqo-namespace", consts.DefaultLiqoNamespace,
 		"Name of the namespace where the liqo components are running")
 	foreignClusterWorkers := flag.Int("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
-	podcidr := flag.String("podcidr", "", "The CIDR to use for the pod network")
 	foreignClusterPingInterval := flag.Duration("foreign-cluster-ping-interval", 15*time.Second,
 		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
 	foreignClusterPingTimeout := flag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
 		"The timeout of the ForeignCluster API server readiness check")
-
-	// Ipam server endpoint
+	podcidr := flag.String("podcidr", "", "The CIDR to use for the pod network")
 	ipamServer := flag.String("ipam-server", "", "The address of the IPAM server (set to empty string to disable IPAM)")
 
-	// Resource sharing parameters
-	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
-		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
-	flag.Var(&ingressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
-	flag.Var(&loadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
-	flag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
+	// NETWORKING MODULE
+	flag.Var(&gatewayServerResources, "gateway-server-resources",
+		"The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
+	flag.Var(&gatewayClientResources, "gateway-client-resources",
+		"The list of resource types that implements the gateway client. They must be in the form <group>/<version>/<resource>")
+	wgGatewayServerClusterRoleName := flag.String("wg-gateway-server-cluster-role-name", "liqo-gateway",
+		"The name of the cluster role used by the wireguard gateway servers")
+	wgGatewayClientClusterRoleName := flag.String("wg-gateway-client-cluster-role-name", "liqo-gateway",
+		"The name of the cluster role used by the wireguard gateway clients")
+	fabricFullMasqueradeEnabled := flag.Bool("fabric-full-masquerade-enabled", false, "Enable the full masquerade on the fabric network")
+	gwmasqbypassEnabled := flag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
+	gatewayServiceType := flag.String("gateway-service-type", string(nwforge.DefaultGwServerServiceType), "The type of the gateway service")
+	gatewayServicePort := flag.Int("gateway-service-port", nwforge.DefaultGwServerPort, "The port of the gateway service")
+	gatewayMTU := flag.Int("gateway-mtu", nwforge.DefaultMTU, "The MTU of the gateway interface")
+	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
+	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
 
 	// AUTHENTICATION MODULE
 	flag.StringVar(&apiServerAddressOverride,
@@ -160,6 +166,12 @@ func main() {
 	flag.StringVar(&awsConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
 	flag.StringVar(&awsConfig.AwsRegion, "aws-region", "", "AWS region where the local cluster is running")
 	flag.StringVar(&awsConfig.AwsClusterName, "aws-cluster-name", "", "Name of the local EKS cluster")
+	// Resource sharing parameters
+	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
+		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
+	flag.Var(&ingressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
+	flag.Var(&loadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
+	flag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
 
 	// OFFLOADING MODULE
 	// VirtualKubelet parameters
@@ -198,23 +210,6 @@ func main() {
 	flag.BoolVar(&addVirtualNodeTolerationOnOffloadedPods, "add-virtual-node-toleration-on-offloaded-pods", false,
 		"Automatically add the virtual node toleration on offloaded pods")
 
-	// NETWORKING MODULE
-	flag.Var(&gatewayServerResources, "gateway-server-resources",
-		"The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
-	flag.Var(&gatewayClientResources, "gateway-client-resources",
-		"The list of resource types that implements the gateway client. They must be in the form <group>/<version>/<resource>")
-	wgGatewayServerClusterRoleName := flag.String("wg-gateway-server-cluster-role-name", "liqo-gateway",
-		"The name of the cluster role used by the wireguard gateway servers")
-	wgGatewayClientClusterRoleName := flag.String("wg-gateway-client-cluster-role-name", "liqo-gateway",
-		"The name of the cluster role used by the wireguard gateway clients")
-	fabricFullMasqueradeEnabled := flag.Bool("fabric-full-masquerade-enabled", false, "Enable the full masquerade on the fabric network")
-	gatewayServiceType := flag.String("gateway-service-type", string(nwforge.DefaultGwServerServiceType), "The type of the gateway service")
-	gatewayServicePort := flag.Int("gateway-service-port", nwforge.DefaultGwServerPort, "The port of the gateway service")
-	gatewayMTU := flag.Int("gateway-mtu", nwforge.DefaultMTU, "The MTU of the gateway interface")
-	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
-	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
-	gwmasqbypassEnabled := flag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
-
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
@@ -222,32 +217,25 @@ func main() {
 
 	log.SetLogger(klog.NewKlogr())
 
-	// Options for the virtual kubelet.
-	virtualKubeletOpts := &forge.VirtualKubeletOpts{
-		ContainerImage:       *kubeletImage,
-		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
-		ExtraLabels:          kubeletExtraLabels.StringMap,
-		ExtraArgs:            kubeletExtraArgs.StringList,
-		NodeExtraAnnotations: nodeExtraAnnotations,
-		NodeExtraLabels:      nodeExtraLabels,
-		RequestsCPU:          kubeletCPURequests.Quantity,
-		RequestsRAM:          kubeletRAMRequests.Quantity,
-		LimitsCPU:            kubeletCPULimits.Quantity,
-		LimitsRAM:            kubeletRAMLimits.Quantity,
-		IpamEndpoint:         *ipamServer,
-		MetricsAddress:       kubeletMetricsAddress,
-		MetricsEnabled:       kubeletMetricsEnabled,
-		ReflectorsWorkers:    reflectorsWorkers,
-		ReflectorsType:       reflectorsType,
-		LocalPodCIDR:         *podcidr,
-	}
-
 	clusterID := clusterIDFlags.ReadOrDie()
 
 	ctx := ctrl.SetupSignalHandler()
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
+	// Configure clients:
+
+	// clientset
+	clientset := kubernetes.NewForConfigOrDie(config)
+
+	// uncached client. Note: Use mgr.GetClient() to get the cached client used in controllers.
+	uncachedClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		klog.Errorf("unable to create the client: %s", err)
+		os.Exit(1)
+	}
+
+	// dynamic client
 	dynClient := dynamic.NewForConfigOrDie(config)
 	factory := &dynamicutils.RunnableFactory{
 		DynamicSharedInformerFactory: dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, 0, corev1.NamespaceAll, nil),
@@ -297,20 +285,73 @@ func main() {
 		os.Exit(1)
 	}
 
-	clientset := kubernetes.NewForConfigOrDie(config)
-
-	// Create an uncached client. Use mgr.GetClient() to get the cached client used in controllers.
-	uncachedClient, err := client.New(config, client.Options{Scheme: scheme})
-	if err != nil {
-		klog.Errorf("unable to create the client: %s", err)
-		os.Exit(1)
-	}
-
 	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
 
 	spv := shadowpodswh.NewValidator(mgr.GetClient(), *enableResourceValidation)
 
+	// Options for the virtual kubelet.
+	virtualKubeletOpts := &forge.VirtualKubeletOpts{
+		ContainerImage:       *kubeletImage,
+		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
+		ExtraLabels:          kubeletExtraLabels.StringMap,
+		ExtraArgs:            kubeletExtraArgs.StringList,
+		NodeExtraAnnotations: nodeExtraAnnotations,
+		NodeExtraLabels:      nodeExtraLabels,
+		RequestsCPU:          kubeletCPURequests.Quantity,
+		RequestsRAM:          kubeletRAMRequests.Quantity,
+		LimitsCPU:            kubeletCPULimits.Quantity,
+		LimitsRAM:            kubeletRAMLimits.Quantity,
+		IpamEndpoint:         *ipamServer,
+		MetricsAddress:       kubeletMetricsAddress,
+		MetricsEnabled:       kubeletMetricsEnabled,
+		ReflectorsWorkers:    reflectorsWorkers,
+		ReflectorsType:       reflectorsType,
+		LocalPodCIDR:         *podcidr,
+	}
+
 	// Setup operators for each module:
+
+	// NETWORKING MODULE
+	if *networkingEnabled {
+		// Connect to the IPAM server if specified.
+		var ipamClient ipam.IpamClient
+		if *ipamServer != "" {
+			klog.Infof("connecting to the IPAM server %q", *ipamServer)
+			dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			connection, err := grpc.DialContext(dialctx, *ipamServer,
+				grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+			cancel()
+			if err != nil {
+				klog.Errorf("failed to establish a connection to the IPAM %q", *ipamServer)
+				os.Exit(1)
+			}
+			ipamClient = ipam.NewIpamClient(connection)
+		}
+
+		if err := modules.SetupNetworkingModule(ctx, mgr, &modules.NetworkingOption{
+			DynClient:  dynClient,
+			Factory:    factory,
+			KubeClient: clientset,
+
+			LiqoNamespace:  *liqoNamespace,
+			LocalClusterID: clusterID,
+			IpamClient:     ipamClient,
+
+			GatewayServerResources:         gatewayServerResources.StringList,
+			GatewayClientResources:         gatewayClientResources.StringList,
+			WgGatewayServerClusterRoleName: *wgGatewayServerClusterRoleName,
+			WgGatewayClientClusterRoleName: *wgGatewayClientClusterRoleName,
+			GatewayServiceType:             corev1.ServiceType(*gatewayServiceType),
+			GatewayServicePort:             int32(*gatewayServicePort),
+			GatewayMTU:                     *gatewayMTU,
+			NetworkWorkers:                 *networkWorkers,
+			IPWorkers:                      *ipWorkers,
+			FabricFullMasquerade:           *fabricFullMasqueradeEnabled,
+			GwmasqbypassEnabled:            *gwmasqbypassEnabled,
+		}); err != nil {
+			klog.Fatalf("Unable to setup the networking module: %v", err)
+		}
+	}
 
 	// AUTHENTICATION MODULE
 	if *authenticationEnabled {
@@ -370,7 +411,7 @@ func main() {
 		}
 	}
 
-	// CROSS MODULE OPERATORS
+	// CROSS MODULE CONTROLLERS
 	if *authenticationEnabled && *offloadingEnabled {
 		// Configure controller that create virtualnodes from resourceslices.
 		// TODO: pass also virtualKubeletOpts.
@@ -379,46 +420,6 @@ func main() {
 		if err := vnCreatorReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to setup the virtualnodecreator reconciler: %v", err)
 			os.Exit(1)
-		}
-	}
-
-	if *networkingEnabled {
-		// Connect to the IPAM server if specified.
-		if *ipamServer != "" {
-			klog.Infof("connecting to the IPAM server %q", *ipamServer)
-			dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			connection, err := grpc.DialContext(dialctx, *ipamServer,
-				grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-			cancel()
-			if err != nil {
-				klog.Errorf("failed to establish a connection to the IPAM %q", *ipamServer)
-				os.Exit(1)
-			}
-			ipamClient = ipam.NewIpamClient(connection)
-		}
-
-		if err := modules.SetupNetworkingModule(ctx, mgr, &modules.NetworkingOption{
-			DynClient:  dynClient,
-			Factory:    factory,
-			KubeClient: clientset,
-
-			LiqoNamespace:  *liqoNamespace,
-			LocalClusterID: clusterID,
-			IpamClient:     ipamClient,
-
-			GatewayServerResources:         gatewayServerResources.StringList,
-			GatewayClientResources:         gatewayClientResources.StringList,
-			WgGatewayServerClusterRoleName: *wgGatewayServerClusterRoleName,
-			WgGatewayClientClusterRoleName: *wgGatewayClientClusterRoleName,
-			GatewayServiceType:             corev1.ServiceType(*gatewayServiceType),
-			GatewayServicePort:             int32(*gatewayServicePort),
-			GatewayMTU:                     *gatewayMTU,
-			NetworkWorkers:                 *networkWorkers,
-			IPWorkers:                      *ipWorkers,
-			FabricFullMasquerade:           *fabricFullMasqueradeEnabled,
-			GwmasqbypassEnabled:            *gwmasqbypassEnabled,
-		}); err != nil {
-			klog.Fatalf("Unable to setup the networking module: %v", err)
 		}
 	}
 
@@ -444,24 +445,16 @@ func main() {
 
 	// Configure the foreigncluster controller.
 	idManager := identitymanager.NewCertificateIdentityManager(ctx, mgr.GetClient(), clientset, mgr.GetConfig(), clusterID, namespaceManager)
-	foreignClusterReconciler := &foreignclusteroperator.ForeignClusterReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-
+	foreignClusterReconciler := &foreignclustercontroller.ForeignClusterReconciler{
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
 		ResyncPeriod: *resyncPeriod,
-
-		LiqoNamespace:    *liqoNamespace,
-		HomeCluster:      clusterID,
-		NamespaceManager: namespaceManager,
-		IdentityManager:  idManager,
 
 		NetworkingEnabled:     *networkingEnabled,
 		AuthenticationEnabled: *authenticationEnabled,
 		OffloadingEnabled:     *offloadingEnabled,
 
-		ForeignClusters: sync.Map{},
-
-		APIServerCheckers: foreignclusteroperator.NewAPIServerCheckers(*foreignClusterPingInterval, *foreignClusterPingTimeout),
+		APIServerCheckers: foreignclustercontroller.NewAPIServerCheckers(idManager, *foreignClusterPingInterval, *foreignClusterPingTimeout),
 	}
 	if err = foreignClusterReconciler.SetupWithManager(mgr, *foreignClusterWorkers); err != nil {
 		klog.Errorf("Unable to setup the foreigncluster reconciler: %v", err)
