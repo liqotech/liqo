@@ -54,7 +54,10 @@ spec:
             properties:
               clusterID:
                 description: Foreign Cluster ID.
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
+            required:
+            - clusterID
             type: object
           status:
             description: ForeignClusterStatus defines the observed state of ForeignCluster.
@@ -62,6 +65,53 @@ spec:
               apiServerUrl:
                 description: URL of the forign cluster's API server.
                 type: string
+              conditions:
+                description: Generic conditions related to the foreign cluster.
+                items:
+                  description: Condition contains details about state of a.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime -> timestamp for when the condition
+                        last transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message -> Human-readable message indicating details
+                        about the last status transition.
+                      type: string
+                    reason:
+                      description: Reason -> Machine-readable, UpperCamelCase text
+                        indicating the reason for the condition's last transition.
+                      type: string
+                    status:
+                      default: None
+                      description: Status of the condition.
+                      enum:
+                      - None
+                      - Pending
+                      - Established
+                      - Error
+                      - Ready
+                      - NotReady
+                      - SomeNotReady
+                      type: string
+                    type:
+                      description: Type of the condition.
+                      enum:
+                      - APIServerStatus
+                      - NetworkConnectionStatus
+                      - NetworkGatewayServerStatus
+                      - NetworkGatewayClientStatus
+                      - AuthIdentityControlPlaneStatus
+                      - AuthTenantStatus
+                      - OffloadingVirtualNodeStatus
+                      - OffloadingNodeStatus
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
               foreignProxyUrl:
                 description: |-
                   URL where to contact foreign proxy for the api server.
@@ -103,11 +153,7 @@ spec:
                               - None
                               - Pending
                               - Established
-                              - Disconnecting
-                              - Denied
                               - Error
-                              - Success
-                              - External
                               - Ready
                               - NotReady
                               - SomeNotReady
@@ -115,12 +161,12 @@ spec:
                             type:
                               description: Type of the condition.
                               enum:
+                              - APIServerStatus
                               - NetworkConnectionStatus
                               - NetworkGatewayServerStatus
                               - NetworkGatewayClientStatus
                               - AuthIdentityControlPlaneStatus
                               - AuthTenantStatus
-                              - OffloadingAPIServerStatus
                               - OffloadingVirtualNodeStatus
                               - OffloadingNodeStatus
                               type: string
@@ -168,11 +214,7 @@ spec:
                               - None
                               - Pending
                               - Established
-                              - Disconnecting
-                              - Denied
                               - Error
-                              - Success
-                              - External
                               - Ready
                               - NotReady
                               - SomeNotReady
@@ -180,12 +222,12 @@ spec:
                             type:
                               description: Type of the condition.
                               enum:
+                              - APIServerStatus
                               - NetworkConnectionStatus
                               - NetworkGatewayServerStatus
                               - NetworkGatewayClientStatus
                               - AuthIdentityControlPlaneStatus
                               - AuthTenantStatus
-                              - OffloadingAPIServerStatus
                               - OffloadingVirtualNodeStatus
                               - OffloadingNodeStatus
                               type: string
@@ -233,11 +275,7 @@ spec:
                               - None
                               - Pending
                               - Established
-                              - Disconnecting
-                              - Denied
                               - Error
-                              - Success
-                              - External
                               - Ready
                               - NotReady
                               - SomeNotReady
@@ -245,12 +283,12 @@ spec:
                             type:
                               description: Type of the condition.
                               enum:
+                              - APIServerStatus
                               - NetworkConnectionStatus
                               - NetworkGatewayServerStatus
                               - NetworkGatewayClientStatus
                               - AuthIdentityControlPlaneStatus
                               - AuthTenantStatus
-                              - OffloadingAPIServerStatus
                               - OffloadingVirtualNodeStatus
                               - OffloadingNodeStatus
                               type: string
@@ -272,6 +310,7 @@ spec:
                 - offloading
                 type: object
               role:
+                default: Unknown
                 description: Role of the ForeignCluster.
                 enum:
                 - Consumer
