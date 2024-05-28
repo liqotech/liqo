@@ -27,7 +27,6 @@ import (
 	"github.com/liqotech/liqo/pkg/ipam"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/client-operator"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
-	externalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/externalnetwork"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	externalnetworkroute "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/route"
 	serveroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/server-operator"
@@ -127,14 +126,6 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 		opts.DynClient, opts.Factory, mgr.GetScheme(), opts.GatewayClientResources)
 	if err := clientReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the clientReconciler: %v", err)
-		return err
-	}
-
-	externalNetworkReconciler := externalnetwork.NewExternalNetworkReconciler(
-		mgr.GetClient(), mgr.GetScheme(), opts.KubeClient, opts.LiqoNamespace, opts.LocalClusterIdentity,
-		opts.GatewayServiceType, opts.GatewayServicePort, opts.GatewayMTU)
-	if err := externalNetworkReconciler.SetupWithManager(mgr); err != nil {
-		klog.Errorf("Unable to start the externalNetworkReconciler: %v", err)
 		return err
 	}
 

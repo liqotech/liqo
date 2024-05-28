@@ -101,8 +101,8 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringToStringVar(&o.labels, "labels", map[string]string{}, "The labels to be added to the virtual node")
 	cmd.Flags().StringToStringVar(&o.nodeSelector, "node-selector", map[string]string{}, "The node selector to be applied to offloaded pods")
 
-	runtime.Must(cmd.MarkFlagRequired("cluster-id"))
-	runtime.Must(cmd.MarkFlagRequired("cluster-name"))
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-name"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,

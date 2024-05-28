@@ -11,7 +11,6 @@ require (
 	github.com/google/nftables v0.1.1-0.20240112203004-33ee8df9d8e2
 	github.com/google/uuid v1.6.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
-	github.com/gruntwork-io/gruntwork-cli v0.7.2
 	github.com/gruntwork-io/terratest v0.46.13
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mattn/go-isatty v0.0.20
