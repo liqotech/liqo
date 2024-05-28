@@ -19,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -44,11 +43,6 @@ func GetResourcesToReplicate() []Resource {
 		},
 		{
 			GroupVersionResource: authv1alpha1.ResourceSliceGroupVersionResource,
-			PeeringPhase:         consts.PeeringPhaseAuthenticated,
-			Ownership:            consts.OwnershipShared,
-		},
-		{
-			GroupVersionResource: networkingv1alpha1.ExternalNetworkGroupVersionResource,
 			PeeringPhase:         consts.PeeringPhaseAuthenticated,
 			Ownership:            consts.OwnershipShared,
 		},
