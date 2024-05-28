@@ -81,7 +81,6 @@ To do this, force delete all resources (look also in the tenant namespace) with 
 
 * `NamespaceMaps`
 * `ResourceSlices`
-* `ExternalNetworks`
 
 Make sure to also manually remove possible finalizers.
 At this point, you should be able to delete the ForeignCluster.
