@@ -15,12 +15,43 @@
 package foreigncluster
 
 import (
+	"slices"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
-// EnsureModuleCondition ensures the status for the given condition.
+// EnsureGenericCondition ensures the presence of a generic condition in the foreign cluster status.
+func EnsureGenericCondition(foreignCluster *discoveryv1alpha1.ForeignCluster,
+	conditionType discoveryv1alpha1.ConditionType,
+	status discoveryv1alpha1.ConditionStatusType,
+	reason, message string) {
+	for i := range foreignCluster.Status.Conditions {
+		cond := &foreignCluster.Status.Conditions[i]
+		if cond.Type == conditionType {
+			if cond.Status != status || reason != cond.Reason || message != cond.Message {
+				cond.Status = status
+				cond.LastTransitionTime = metav1.Now()
+				cond.Reason = reason
+				cond.Message = message
+			}
+			return
+		}
+	}
+
+	// if the type has not been found in the list, add it
+	foreignCluster.Status.Conditions = append(foreignCluster.Status.Conditions,
+		discoveryv1alpha1.Condition{
+			Type:               conditionType,
+			Status:             status,
+			LastTransitionTime: metav1.Now(),
+			Reason:             reason,
+			Message:            message,
+		})
+}
+
+// EnsureModuleCondition ensures the presence of a condition in the module.
 func EnsureModuleCondition(module *discoveryv1alpha1.Module,
 	conditionType discoveryv1alpha1.ConditionType,
 	status discoveryv1alpha1.ConditionStatusType,
@@ -47,6 +78,16 @@ func EnsureModuleCondition(module *discoveryv1alpha1.Module,
 			Reason:             reason,
 			Message:            message,
 		})
+}
+
+// DeleteGenericCondition ensure the absence of a generic condition in the foreign cluster status.
+func DeleteGenericCondition(foreignCluster *discoveryv1alpha1.ForeignCluster, conditionType discoveryv1alpha1.ConditionType) {
+	foreignCluster.Status.Conditions = deleteCondition(foreignCluster.Status.Conditions, conditionType)
+}
+
+// DeleteModuleCondition ensure the absence of a condition of the given type in the module.
+func DeleteModuleCondition(module *discoveryv1alpha1.Module, conditionType discoveryv1alpha1.ConditionType) {
+	module.Conditions = deleteCondition(module.Conditions, conditionType)
 }
 
 // GetStatus returns the status for the given condition. If the condition is not set, it returns the None status.
@@ -85,4 +126,11 @@ func findCondition(conditions []discoveryv1alpha1.Condition, conditionType disco
 		}
 	}
 	return nil
+}
+
+// deleteCondition deletes the condition with the given type from the list of conditions and returns the updated slice.
+func deleteCondition(conditions []discoveryv1alpha1.Condition, conditionType discoveryv1alpha1.ConditionType) []discoveryv1alpha1.Condition {
+	return slices.DeleteFunc(conditions, func(cond discoveryv1alpha1.Condition) bool {
+		return cond.Type == conditionType
+	})
 }

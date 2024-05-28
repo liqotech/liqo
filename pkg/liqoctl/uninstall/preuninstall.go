@@ -27,7 +27,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/errors"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
@@ -106,7 +106,7 @@ func (o *Options) preUninstall(ctx context.Context) error {
 	for i := range foreignClusterList.Items {
 		fc := &foreignClusterList.Items[i]
 
-		if foreignclusterutils.IsNetworkingEstablished(fc) {
+		if fcutils.IsNetworkingEstablished(fc) {
 			errMap.networking = append(errMap.networking, fc.Name)
 		}
 	}
