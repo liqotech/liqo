@@ -41,7 +41,7 @@ import (
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
-	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -94,12 +94,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	networkReady := foreigncluster.IsNetworkingEstablishedOrDisabled(fc)
 
 	// Check foreign API server status
-	apiServerReady := foreigncluster.IsAPIServerReady(fc)
+	apiServerReady := foreigncluster.IsAPIServerReadyOrDisabled(fc)
 
 	// Get the endpoints from the shadowendpointslice and remap them if necessary.
 	// If the networking module is disabled, we do not need to remap the endpoints.
 	remappedEndpoints := shadowEps.Spec.Template.Endpoints
-	if !foreigncluster.IsNetworkingModuleDisabled(fc) {
+	if foreigncluster.IsNetworkingModuleEnabled(fc) {
 		// remap the endpoints if the network configuration of the remote cluster overlaps with the local one
 		if err := MapEndpointsWithConfiguration(ctx, r.Client, clusterID, remappedEndpoints); err != nil {
 			klog.Errorf("an error occurred while remapping endpoints for shadowendpointslice %q: %v", nsName, err)
@@ -227,8 +227,8 @@ func (r *Reconciler) endpointsShouldBeUpdated(newObj, oldObj client.Object) bool
 	oldFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrDisabled(oldForeignCluster)
 	newFcNetworkReady := foreigncluster.IsNetworkingEstablishedOrDisabled(newForeignCluster)
 
-	oldFcAPIServerReady := foreigncluster.IsAPIServerReady(oldForeignCluster)
-	newFcAPIServerReady := foreigncluster.IsAPIServerReady(newForeignCluster)
+	oldFcAPIServerReady := foreigncluster.IsAPIServerReadyOrDisabled(oldForeignCluster)
+	newFcAPIServerReady := foreigncluster.IsAPIServerReadyOrDisabled(newForeignCluster)
 
 	// Reconcile if the network status or the API server status changed
 	return oldFcNetworkReady != newFcNetworkReady || oldFcAPIServerReady != newFcAPIServerReady

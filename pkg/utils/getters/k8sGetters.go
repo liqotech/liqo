@@ -423,6 +423,17 @@ func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector l
 	return &virtualNodes, err
 }
 
+// ListVirtualNodesByClusterID returns the list of virtual nodes for the given cluster id.
+func ListVirtualNodesByClusterID(ctx context.Context, cl client.Client, clusterID string) ([]virtualkubeletv1alpha1.VirtualNode, error) {
+	virtualNodes, err := ListVirtualNodesByLabels(ctx, cl, labels.SelectorFromSet(map[string]string{
+		consts.RemoteClusterID: clusterID,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return virtualNodes.Items, nil
+}
+
 // GetNodeFromVirtualNode returns the node object from the given virtual node name.
 func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode) (*corev1.Node, error) {
 	nodename := virtualNode.Name
@@ -456,9 +467,9 @@ func MapForeignClustersByLabel(ctx context.Context, cl client.Client,
 
 // ListVirtualKubeletPodsFromVirtualNode returns the list of pods running a VirtualNode's VirtualKubelet.
 func ListVirtualKubeletPodsFromVirtualNode(ctx context.Context, cl client.Client,
-	vn *virtualkubeletv1alpha1.VirtualNode, vkopt *vkforge.VirtualKubeletOpts) (*corev1.PodList, error) {
+	vn *virtualkubeletv1alpha1.VirtualNode, extraLabels map[string]string) (*corev1.PodList, error) {
 	list := &corev1.PodList{}
-	vklabels := vkforge.VirtualKubeletLabels(vn, vkopt)
+	vklabels := vkforge.VirtualKubeletLabels(vn, extraLabels)
 	err := cl.List(ctx, list, client.MatchingLabels(vklabels))
 	if err != nil {
 		return nil, err
@@ -533,8 +544,8 @@ func GetLiqoVersion(ctx context.Context, cl client.Client, liqoNamespace string)
 	return "", errors.New("retrieved an invalid liqo controller manager deployment")
 }
 
-// ListNetworkByLabel returns the Network resource with the given labels.
-func ListNetworkByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*ipamv1alpha1.NetworkList, error) {
+// ListNetworksByLabel returns the Network resource with the given labels.
+func ListNetworksByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*ipamv1alpha1.NetworkList, error) {
 	list := &ipamv1alpha1.NetworkList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
 	if err != nil {
