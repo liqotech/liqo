@@ -27,8 +27,6 @@ import (
 type Resource struct {
 	// GroupVersionResource contains the GVR of the resource to replicate.
 	GroupVersionResource schema.GroupVersionResource
-	// PeeringPhase contains the peering phase when this resource should be replicated.
-	PeeringPhase consts.PeeringPhase
 	// Ownership indicates the ownership over this resource.
 	Ownership consts.OwnershipType
 }
@@ -38,12 +36,10 @@ func GetResourcesToReplicate() []Resource {
 	return []Resource{
 		{
 			GroupVersionResource: vkv1alpha1.NamespaceMapGroupVersionResource,
-			PeeringPhase:         consts.PeeringPhaseAuthenticated,
 			Ownership:            consts.OwnershipShared,
 		},
 		{
 			GroupVersionResource: authv1alpha1.ResourceSliceGroupVersionResource,
-			PeeringPhase:         consts.PeeringPhaseAuthenticated,
 			Ownership:            consts.OwnershipShared,
 		},
 	}
