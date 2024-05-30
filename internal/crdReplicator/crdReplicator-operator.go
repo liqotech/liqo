@@ -17,7 +17,6 @@ package crdreplicator
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -54,7 +53,7 @@ type Controller struct {
 	client.Client
 	ClusterID discoveryv1alpha1.ClusterID
 
-	// RegisteredResources is a list of GVRs of resources to be replicated, with the associated peering phase when the replication has to occur.
+	// RegisteredResources is a list of GVRs of resources to be replicated.
 	RegisteredResources []resources.Resource
 
 	// ReflectionManager is the object managing the reflection towards remote clusters.
@@ -64,12 +63,6 @@ type Controller struct {
 
 	// IdentityReader is an interface to manage remote identities, and to get the rest config.
 	IdentityReader identitymanager.IdentityReader
-
-	peeringPhases      map[discoveryv1alpha1.ClusterID]consts.PeeringPhase
-	peeringPhasesMutex sync.RWMutex
-
-	networkingEnabled      map[discoveryv1alpha1.ClusterID]bool
-	networkingEnabledMutex sync.RWMutex
 }
 
 // cluster-role
@@ -133,37 +126,17 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		}
 	}
 
-	// Defer the function to start/stop the reflection of the different resources based on the peering status.
+	// Defer the function to start/stop the reflection of the different resources.
 	defer func() {
 		if err == nil {
 			err = c.enforceReflectionStatus(ctx, remoteClusterID, !secret.GetDeletionTimestamp().IsZero())
 		}
 	}()
 
-	// TODO: redefine peering phases.
-	currentPhase := consts.PeeringPhaseAuthenticated
-	// The remote identity is not yet available, hence it is not possible to continue.
-	if currentPhase == consts.PeeringPhaseNone {
-		klog.Infof("%sPeering phase not yet available for cluster %s", prefix, remoteClusterID)
-		return ctrl.Result{}, nil
-	}
-
 	// Add the finalizer to ensure the reflection is correctly stopped
 	if err := c.ensureFinalizer(ctx, &secret, controllerutil.AddFinalizer); err != nil {
 		klog.Errorf("An error occurred while adding the finalizer to %q: %v", req.NamespacedName, err)
 		return ctrl.Result{}, err
-	}
-
-	if oldPhase := c.getPeeringPhase(remoteClusterID); oldPhase != currentPhase {
-		klog.V(4).Infof("%sPeering phase changed: old: %v, new: %v", prefix, oldPhase, currentPhase)
-		c.setPeeringPhase(remoteClusterID, currentPhase)
-	}
-
-	// TODO: replication of NetworkConfig is not necessary with the new network. Refactor to support new networking module.
-	currentNetEnabled := true
-	if oldNetEnabled := c.getNetworkingEnabled(remoteClusterID); oldNetEnabled != currentNetEnabled {
-		klog.V(4).Infof("%sNetworking enabled status changed: old: %v, new %v", prefix, oldNetEnabled, currentNetEnabled)
-		c.setNetworkingEnabled(remoteClusterID, currentNetEnabled)
 	}
 
 	// Check if reflection towards the remote cluster has already been started.
@@ -182,9 +155,6 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 
 // SetupWithManager registers a new controller for identity Secrets.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
-	c.peeringPhases = make(map[discoveryv1alpha1.ClusterID]consts.PeeringPhase)
-	c.networkingEnabled = make(map[discoveryv1alpha1.ClusterID]bool)
-
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return false
@@ -273,13 +243,11 @@ func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterI
 		return nil
 	}
 
-	phase := c.getPeeringPhase(remoteClusterID)
-	networkingEnabled := c.getNetworkingEnabled(remoteClusterID)
 	for i := range c.RegisteredResources {
 		res := &c.RegisteredResources[i]
-		if !deleting && isReplicationEnabled(phase, networkingEnabled, res) && !reflector.ResourceStarted(res) {
+		if !deleting && !reflector.ResourceStarted(res) {
 			reflector.StartForResource(ctx, res)
-		} else if !isReplicationEnabled(phase, networkingEnabled, res) && reflector.ResourceStarted(res) {
+		} else if deleting && reflector.ResourceStarted(res) {
 			if err := reflector.StopForResource(res); err != nil {
 				return err
 			}
