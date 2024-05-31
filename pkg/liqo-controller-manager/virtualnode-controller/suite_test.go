@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -35,7 +35,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
@@ -56,8 +56,6 @@ const (
 	remoteClusterID2          = "899890-dsd-323"
 	remoteClusterName2        = "remote-2"
 	remoteClusterIDSimpleNode = "909030-sd-3231"
-	tenantNamespaceNameID1    = "liqo-tenant-namespace-1"
-	tenantNamespaceNameID2    = "liqo-tenant-namespace-2"
 	offloadingCluster1Label1  = "offloading.liqo.io/cluster-1"
 	offloadingCluster1Label2  = "offloading.liqo.io/AWS"
 	timeout                   = time.Second * 10
@@ -77,8 +75,7 @@ var (
 	simpleNode       *corev1.Node
 	tenantNamespace1 *corev1.Namespace
 	tenantNamespace2 *corev1.Namespace
-	foreignCluster1  *discoveryv1alpha1.ForeignCluster
-	foreignCluster2  *discoveryv1alpha1.ForeignCluster
+	namespaceManager tenantnamespace.Manager
 )
 
 func TestVirtualNode(t *testing.T) {
@@ -121,12 +118,15 @@ var _ = BeforeSuite(func() {
 	k8sClient = k8sManager.GetClient()
 	Expect(k8sClient).ToNot(BeNil())
 
+	namespaceManager = tenantnamespace.NewManager(kubernetes.NewForConfigOrDie(cfg))
+
 	vnr, err := NewVirtualNodeReconciler(ctx,
 		k8sClient,
 		scheme.Scheme,
 		k8sManager.GetEventRecorderFor("virtualnode-controller"),
 		localID,
 		&forge.VirtualKubeletOpts{},
+		namespaceManager,
 	)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -140,67 +140,11 @@ var _ = BeforeSuite(func() {
 
 	nms = &mapsv1alpha1.NamespaceMapList{}
 
-	tenantNamespace1 = &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: tenantNamespaceNameID1,
-		},
-	}
-
-	tenantNamespace2 = &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: tenantNamespaceNameID2,
-		},
-	}
-
-	foreignCluster1 = &discoveryv1alpha1.ForeignCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: remoteClusterID1,
-			Labels: map[string]string{
-				discovery.ClusterIDLabel: remoteClusterID1,
-			},
-		},
-		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ClusterID: remoteClusterID1,
-		},
-	}
-
-	foreignCluster2 = &discoveryv1alpha1.ForeignCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: remoteClusterID2,
-			Labels: map[string]string{
-				discovery.ClusterIDLabel: remoteClusterID2,
-			},
-		},
-		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ClusterID: remoteClusterID2,
-		},
-	}
-
-	// create the 2 tenant namespaces and the foreignClusters.
-	Expect(k8sClient.Create(ctx, foreignCluster1)).To(Succeed())
-	Expect(k8sClient.Create(ctx, foreignCluster2)).To(Succeed())
-	Expect(k8sClient.Create(ctx, tenantNamespace1)).To(Succeed())
-	Expect(k8sClient.Create(ctx, tenantNamespace2)).To(Succeed())
-
-	fc := &discoveryv1alpha1.ForeignCluster{}
-	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: remoteClusterID1}, fc)).To(Succeed())
-	fc.Status = discoveryv1alpha1.ForeignClusterStatus{
-		TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
-			Local:  tenantNamespaceNameID1,
-			Remote: "remote",
-		},
-	}
-	Expect(k8sClient.Status().Update(ctx, fc)).To(Succeed())
-
-	fc = &discoveryv1alpha1.ForeignCluster{}
-	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: remoteClusterID2}, fc)).To(Succeed())
-	fc.Status = discoveryv1alpha1.ForeignClusterStatus{
-		TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
-			Local:  tenantNamespaceNameID2,
-			Remote: "remote",
-		},
-	}
-	Expect(k8sClient.Status().Update(ctx, fc)).To(Succeed())
+	// create the 2 tenant namespace
+	tenantNamespace1, err = namespaceManager.CreateNamespace(ctx, remoteClusterID1)
+	Expect(err).ToNot(HaveOccurred())
+	tenantNamespace2, err = namespaceManager.CreateNamespace(ctx, remoteClusterID2)
+	Expect(err).ToNot(HaveOccurred())
 
 	simpleNode = &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{

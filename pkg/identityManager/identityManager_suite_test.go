@@ -84,7 +84,7 @@ var _ = BeforeSuite(func() {
 	}, string(remoteCluster))
 
 	var err error
-	cluster, mgr, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+	cluster, mgr, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds")})
 	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient = cluster.GetClient()
