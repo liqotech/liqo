@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -46,14 +46,14 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 	_, err := virtualNodeInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromVirtualNode))
 	runtime.Must(err)
 
-	var connInformerFactory dynamicinformer.DynamicSharedInformerFactory
+	var fcInformerFactory dynamicinformer.DynamicSharedInformerFactory
 	if p.checkNetworkStatus {
-		connInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, corev1.NamespaceAll,
+		fcInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, corev1.NamespaceAll,
 			func(opt *metav1.ListOptions) {
 				opt.LabelSelector = consts.RemoteClusterID + "=" + string(p.foreignClusterID)
 			})
-		connInformer := connInformerFactory.ForResource(networkingv1alpha1.ConnectionGroupVersionResource).Informer()
-		_, err := connInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromConnection))
+		fcInformer := fcInformerFactory.ForResource(discoveryv1alpha1.ForeignClusterGroupVersionResource).Informer()
+		_, err := fcInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromForeignCluster))
 		runtime.Must(err)
 	}
 
@@ -62,7 +62,7 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 		<-ready
 		go virtualNodeInformerFactory.Start(ctx.Done())
 		if p.checkNetworkStatus {
-			go connInformerFactory.Start(ctx.Done())
+			go fcInformerFactory.Start(ctx.Done())
 		}
 		klog.Info("Liqo informers started")
 	}()
