@@ -392,6 +392,7 @@ func main() {
 		opts := &modules.OffloadingOption{
 			Clientset:                   clientset,
 			LocalClusterID:              clusterID,
+			NamespaceManager:            namespaceManager,
 			VirtualKubeletOpts:          virtualKubeletOpts,
 			EnableStorage:               *enableStorage,
 			VirtualStorageClassName:     *virtualStorageClassName,
