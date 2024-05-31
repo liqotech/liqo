@@ -28,6 +28,7 @@ type Options struct {
 	remoteClusterID      args.ClusterIDFlags
 	namespaceManager     tenantnamespace.Manager
 	createNode           bool
+	disableNetworkCheck  bool
 	kubeconfigSecretName string
 	resourceSliceName    string
 

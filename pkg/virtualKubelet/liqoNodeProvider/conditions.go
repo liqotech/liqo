@@ -15,6 +15,8 @@
 package liqonodeprovider
 
 import (
+	"slices"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -138,4 +140,11 @@ func lookupConditionOrCreateUnknown(node *corev1.Node, desired corev1.NodeCondit
 	// The condition is not immediately added, as it would get copied and the subsequent changes would get lost.
 	// Instead, a boolean value is returned to specify it needs to be appended once all modifications are performed.
 	return unknownCondition(desired), false
+}
+
+// deleteCondition removes a condition from a list of conditions.
+func deleteCondition(node *corev1.Node, conditionType corev1.NodeConditionType) {
+	node.Status.Conditions = slices.DeleteFunc(node.Status.Conditions, func(cond corev1.NodeCondition) bool {
+		return cond.Type == conditionType
+	})
 }
