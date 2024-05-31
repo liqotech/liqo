@@ -66,7 +66,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting PublicKey resource, instead of applying it. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().Var(&o.RemoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 	cmd.Flags().BytesBase64Var(&o.PublicKey, "public-key", nil, "The public key to be used for the Gateway")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
@@ -82,7 +82,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
-	pubKey, err := forge.PublicKey(opts.Name, opts.Namespace, o.RemoteClusterID, o.PublicKey)
+	pubKey, err := forge.PublicKey(opts.Name, opts.Namespace, o.RemoteClusterID.GetClusterID(), o.PublicKey)
 	if err != nil {
 		opts.Printer.CheckErr(err)
 		return err
@@ -96,7 +96,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	s := opts.Printer.StartSpinner("Creating publickey")
 
 	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, pubKey, func() error {
-		return forge.MutatePublicKey(pubKey, o.RemoteClusterID, o.PublicKey)
+		return forge.MutatePublicKey(pubKey, o.RemoteClusterID.GetClusterID(), o.PublicKey)
 	})
 	if err != nil {
 		s.Fail("Unable to create publickey: %v", output.PrettyErr(err))

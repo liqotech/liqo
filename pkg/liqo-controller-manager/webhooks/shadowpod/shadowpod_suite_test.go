@@ -42,32 +42,27 @@ var (
 	scheme *runtime.Scheme
 	ctx    = context.Background()
 
-	testNamespace                     = "test-namespace"
-	testNamespace2                    = "test-namespace-2"
-	testNamespaceInvalid              = "test-namespace-invalid"
-	testShadowPodName                 = "test-shadowpod"
-	testShadowPodName2                = "test-shadowpod-2"
-	testShadowPodUID        types.UID = "test-shadowpod-uid"
-	testShadowPodUID2       types.UID = "test-shadowpod-uid-2"
-	testShadowPodUID3       types.UID = "test-shadowpod-uid-3"
-	testShadowPodUID4       types.UID = "test-shadowpod-uid-4"
-	testShadowPodUIDInvalid types.UID = "test-shadowpod-uid-invalid"
-	clusterID                         = "test-cluster-id"
-	clusterID2                        = "test-cluster-id-2"
-	clusterID3                        = "test-cluster-id-3"
-	clusterIDInvalid                  = "test-cluster-id-invalid"
-	clusterName                       = "test-cluster"
-	clusterName2                      = "test-cluster-2"
-	clusterName3                      = "test-cluster-3"
-	resourceCPU                       = 1000000
-	resourceMemory                    = 1000000
-	resourceQuota                     = forgeResourceList(int64(resourceCPU), int64(resourceMemory))
-	resourceQuota2                    = forgeResourceList(int64(resourceCPU/2), int64(resourceMemory/2))
-	resourceQuota4                    = forgeResourceList(int64(resourceCPU/4), int64(resourceMemory/4))
-	clusterIdentity                   = forgeClusterIdentity(clusterName, clusterID)
-	clusterIdentity2                  = forgeClusterIdentity(clusterName2, clusterID2)
-	foreignCluster                    = forgeForeignCluster(clusterName, clusterID)
-	foreignCluster2                   = forgeForeignCluster(clusterName2, clusterID2)
+	testNamespace                                       = "test-namespace"
+	testNamespace2                                      = "test-namespace-2"
+	testNamespaceInvalid                                = "test-namespace-invalid"
+	testShadowPodName                                   = "test-shadowpod"
+	testShadowPodName2                                  = "test-shadowpod-2"
+	testShadowPodUID        types.UID                   = "test-shadowpod-uid"
+	testShadowPodUID2       types.UID                   = "test-shadowpod-uid-2"
+	testShadowPodUID3       types.UID                   = "test-shadowpod-uid-3"
+	testShadowPodUID4       types.UID                   = "test-shadowpod-uid-4"
+	testShadowPodUIDInvalid types.UID                   = "test-shadowpod-uid-invalid"
+	clusterID               discoveryv1alpha1.ClusterID = "test-cluster-id"
+	clusterID2              discoveryv1alpha1.ClusterID = "test-cluster-id-2"
+	clusterID3              discoveryv1alpha1.ClusterID = "test-cluster-id-3"
+	clusterIDInvalid        discoveryv1alpha1.ClusterID = "test-cluster-id-invalid"
+	resourceCPU                                         = 1000000
+	resourceMemory                                      = 1000000
+	resourceQuota                                       = forgeResourceList(int64(resourceCPU), int64(resourceMemory))
+	resourceQuota2                                      = forgeResourceList(int64(resourceCPU/2), int64(resourceMemory/2))
+	resourceQuota4                                      = forgeResourceList(int64(resourceCPU/4), int64(resourceMemory/4))
+	foreignCluster                                      = forgeForeignCluster(clusterID)
+	foreignCluster2                                     = forgeForeignCluster(clusterID2)
 	// resourceOffer                     = forgeResourceOfferWithLabel(clusterName, tenantNamespace, clusterID)
 	// resourceOffer2                    = forgeResourceOfferWithLabel(clusterName2, tenantNamespace2, clusterID2)
 	fakeShadowPod  = forgeShadowPod(nsName.Name, nsName.Namespace, string(testShadowPodUID), clusterID)
@@ -106,12 +101,12 @@ func serializeShadowPod(sp *vkv1alpha1.ShadowPod) runtime.RawExtension {
 	return runtime.RawExtension{Raw: data}
 }
 
-func forgeNamespaceWithClusterID(clusterID string) *corev1.Namespace {
+func forgeNamespaceWithClusterID(clusterID discoveryv1alpha1.ClusterID) *corev1.Namespace {
 	return &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: testNamespace,
 			Labels: map[string]string{
-				consts.RemoteClusterID: clusterID,
+				consts.RemoteClusterID: string(clusterID),
 			},
 		},
 	}
@@ -145,26 +140,26 @@ func forgeResourceList(cpu, memory int64, gpu ...int64) *corev1.ResourceList {
 	return &resourceList
 }
 
-func forgeShadowPodWithClusterID(clusterID, namespace string) *vkv1alpha1.ShadowPod {
+func forgeShadowPodWithClusterID(clusterID discoveryv1alpha1.ClusterID, namespace string) *vkv1alpha1.ShadowPod {
 	return &vkv1alpha1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testShadowPodName,
 			Namespace: namespace,
 			Labels: map[string]string{
-				forge.LiqoOriginClusterIDKey: clusterID,
+				forge.LiqoOriginClusterIDKey: string(clusterID),
 			},
 		},
 	}
 }
 
-func forgeShadowPod(name, namespace, uid, clusterID string) *vkv1alpha1.ShadowPod {
+func forgeShadowPod(name, namespace, uid string, clusterID discoveryv1alpha1.ClusterID) *vkv1alpha1.ShadowPod {
 	return &vkv1alpha1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			UID:       types.UID(uid),
 			Labels: map[string]string{
-				forge.LiqoOriginClusterIDKey: clusterID,
+				forge.LiqoOriginClusterIDKey: string(clusterID),
 			},
 		},
 		Spec: vkv1alpha1.ShadowPodSpec{
@@ -190,7 +185,7 @@ func forgeShadowPodWithResourceLimits(containers, initContainer []containerResou
 			Namespace: testNamespace,
 			UID:       testShadowPodUID,
 			Labels: map[string]string{
-				forge.LiqoOriginClusterIDKey: clusterID,
+				forge.LiqoOriginClusterIDKey: string(clusterID),
 			},
 		},
 	}
@@ -253,25 +248,16 @@ func forgeShadowPodList(shadowPods ...*vkv1alpha1.ShadowPod) *vkv1alpha1.ShadowP
 // 	return ro
 // }
 
-func forgeForeignCluster(clustername, clusterID string) *discoveryv1alpha1.ForeignCluster {
+func forgeForeignCluster(clusterID discoveryv1alpha1.ClusterID) *discoveryv1alpha1.ForeignCluster {
 	return &discoveryv1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clustername,
+			Name: string(clusterID),
 			Labels: map[string]string{
-				discovery.ClusterIDLabel: clusterID,
+				discovery.ClusterIDLabel: string(clusterID),
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-				ClusterID:   clusterID,
-				ClusterName: clustername,
-			},
+			ClusterID: clusterID,
 		},
-	}
-}
-
-func forgeClusterIdentity(clustername, clusterid string) *discoveryv1alpha1.ClusterIdentity {
-	return &discoveryv1alpha1.ClusterIdentity{ClusterID: clusterid,
-		ClusterName: clustername,
 	}
 }

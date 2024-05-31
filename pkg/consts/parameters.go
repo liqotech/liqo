@@ -15,8 +15,6 @@
 package consts
 
 const (
-	// ClusterNameParameter is the name of the parameter specifying the cluster name.
-	ClusterNameParameter = "cluster-name"
 	// ClusterLabelsParameter is the name of the parameter specifying the cluster labels.
 	ClusterLabelsParameter = "cluster-labels"
 	// ReservedSubnetsParameter is the name of the parameter specifying the cluster's reserved subnets.

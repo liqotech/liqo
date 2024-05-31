@@ -30,12 +30,13 @@ import (
 )
 
 // DefaultConfigurationName returns the default name for a Configuration.
-func DefaultConfigurationName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
-	return remoteClusterIdentity.ClusterName
+func DefaultConfigurationName(remoteClusterID discoveryv1alpha1.ClusterID) string {
+	return string(remoteClusterID)
 }
 
 // Configuration forges a Configuration resource of a remote cluster.
-func Configuration(name, namespace, remoteClusterID, podCIDR, externalCIDR string) *networkingv1alpha1.Configuration {
+func Configuration(name, namespace string, remoteClusterID discoveryv1alpha1.ClusterID,
+	podCIDR, externalCIDR string) *networkingv1alpha1.Configuration {
 	conf := &networkingv1alpha1.Configuration{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1alpha1.ConfigurationKind,
@@ -45,7 +46,7 @@ func Configuration(name, namespace, remoteClusterID, podCIDR, externalCIDR strin
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				consts.RemoteClusterID: remoteClusterID,
+				consts.RemoteClusterID: string(remoteClusterID),
 			},
 		},
 	}
@@ -54,13 +55,13 @@ func Configuration(name, namespace, remoteClusterID, podCIDR, externalCIDR strin
 }
 
 // MutateConfiguration mutates a Configuration resource of a remote cluster.
-func MutateConfiguration(conf *networkingv1alpha1.Configuration, remoteClusterID, podCIDR, externalCIDR string) {
+func MutateConfiguration(conf *networkingv1alpha1.Configuration, remoteClusterID discoveryv1alpha1.ClusterID, podCIDR, externalCIDR string) {
 	conf.Kind = networkingv1alpha1.ConfigurationKind
 	conf.APIVersion = networkingv1alpha1.GroupVersion.String()
 	if conf.Labels == nil {
 		conf.Labels = make(map[string]string)
 	}
-	conf.Labels[consts.RemoteClusterID] = remoteClusterID
+	conf.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 	conf.Spec.Remote.CIDR.Pod = networkingv1alpha1.CIDR(podCIDR)
 	conf.Spec.Remote.CIDR.External = networkingv1alpha1.CIDR(externalCIDR)
 }
@@ -69,7 +70,7 @@ func MutateConfiguration(conf *networkingv1alpha1.Configuration, remoteClusterID
 // It retrieves the local configuration settings starting from the cluster identity and the IPAM storage.
 func ConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 	namespace, liqoNamespace string) (*networkingv1alpha1.Configuration, error) {
-	clusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, cl, liqoNamespace)
+	clusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, cl, liqoNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get cluster identity: %w", err)
 	}
@@ -90,9 +91,9 @@ func ConfigurationForRemoteCluster(ctx context.Context, cl client.Client,
 			APIVersion: networkingv1alpha1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: DefaultConfigurationName(&clusterIdentity),
+			Name: DefaultConfigurationName(clusterID),
 			Labels: map[string]string{
-				consts.RemoteClusterID: clusterIdentity.ClusterID,
+				consts.RemoteClusterID: string(clusterID),
 			},
 		},
 		Spec: networkingv1alpha1.ConfigurationSpec{

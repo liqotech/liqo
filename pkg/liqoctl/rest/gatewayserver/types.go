@@ -28,7 +28,7 @@ type Options struct {
 	createOptions *rest.CreateOptions
 	deleteOptions *rest.DeleteOptions
 
-	RemoteClusterID   string
+	RemoteClusterID   argsutils.ClusterIDFlags
 	GatewayType       string
 	TemplateName      string
 	TemplateNamespace string
@@ -66,7 +66,7 @@ func (o *Options) getForgeOptions() *forge.GwServerOptions {
 
 	return &forge.GwServerOptions{
 		KubeClient:        o.createOptions.KubeClient,
-		RemoteClusterID:   o.RemoteClusterID,
+		RemoteClusterID:   o.RemoteClusterID.GetClusterID(),
 		GatewayType:       o.GatewayType,
 		TemplateName:      o.TemplateName,
 		TemplateNamespace: o.TemplateNamespace,

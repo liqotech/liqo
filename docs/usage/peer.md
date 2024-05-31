@@ -45,7 +45,7 @@ This retrieves the information concerning the *provider* cluster (i.e., authenti
 An example of the resulting command is the following:
 
 ```bash
-liqoctl peer out-of-band <cluster-name> --auth-url <auth-url> \
+liqoctl peer out-of-band <cluster-id> --auth-url <auth-url> \
     --cluster-id <cluster-id> --auth-token <auth-token>
 ```
 
@@ -58,7 +58,7 @@ Pay attention to operate in the correct cluster, possibly adding the appropriate
 ```
 
 ```bash
-liqoctl --context=consumer peer out-of-band <cluster-name> --auth-url <auth-url> \
+liqoctl --context=consumer peer out-of-band <cluster-id> --auth-url <auth-url> \
     --cluster-id <cluster-id> --auth-token <auth-token>
 ```
 

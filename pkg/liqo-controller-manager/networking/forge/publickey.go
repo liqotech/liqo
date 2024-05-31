@@ -30,12 +30,12 @@ import (
 )
 
 // DefaultPublicKeyName returns the default name of a PublicKey.
-func DefaultPublicKeyName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
-	return remoteClusterIdentity.ClusterName
+func DefaultPublicKeyName(remoteClusterID discoveryv1alpha1.ClusterID) string {
+	return string(remoteClusterID)
 }
 
 // PublicKey forges a PublicKey.
-func PublicKey(name, namespace, remoteClusterID string, key []byte) (*networkingv1alpha1.PublicKey, error) {
+func PublicKey(name, namespace string, remoteClusterID discoveryv1alpha1.ClusterID, key []byte) (*networkingv1alpha1.PublicKey, error) {
 	pubKey := &networkingv1alpha1.PublicKey{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1alpha1.PublicKeyKind,
@@ -45,7 +45,7 @@ func PublicKey(name, namespace, remoteClusterID string, key []byte) (*networking
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				consts.RemoteClusterID:      remoteClusterID,
+				consts.RemoteClusterID:      string(remoteClusterID),
 				consts.GatewayResourceLabel: consts.GatewayResourceLabelValue,
 			},
 		},
@@ -58,7 +58,7 @@ func PublicKey(name, namespace, remoteClusterID string, key []byte) (*networking
 }
 
 // MutatePublicKey mutates a PublicKey.
-func MutatePublicKey(pubKey *networkingv1alpha1.PublicKey, remoteClusterID string, key []byte) error {
+func MutatePublicKey(pubKey *networkingv1alpha1.PublicKey, remoteClusterID discoveryv1alpha1.ClusterID, key []byte) error {
 	pubKey.Kind = networkingv1alpha1.PublicKeyKind
 	pubKey.APIVersion = networkingv1alpha1.GroupVersion.String()
 
@@ -66,7 +66,7 @@ func MutatePublicKey(pubKey *networkingv1alpha1.PublicKey, remoteClusterID strin
 		pubKey.Labels = make(map[string]string)
 	}
 
-	pubKey.Labels[consts.RemoteClusterID] = remoteClusterID
+	pubKey.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 	pubKey.Labels[consts.GatewayResourceLabel] = consts.GatewayResourceLabelValue
 
 	pubKey.Spec.PublicKey = key
@@ -77,7 +77,7 @@ func MutatePublicKey(pubKey *networkingv1alpha1.PublicKey, remoteClusterID strin
 // PublicKeyForRemoteCluster forges a PublicKey to be applied on a remote cluster.
 func PublicKeyForRemoteCluster(ctx context.Context, cl client.Client,
 	liqoNamespace, namespace, gatewayName, gatewayType string) (*networkingv1alpha1.PublicKey, error) {
-	clusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, cl, liqoNamespace)
+	clusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, cl, liqoNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get cluster identity: %w", err)
 	}
@@ -88,9 +88,9 @@ func PublicKeyForRemoteCluster(ctx context.Context, cl client.Client,
 			APIVersion: networkingv1alpha1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: DefaultPublicKeyName(&clusterIdentity),
+			Name: DefaultPublicKeyName(clusterID),
 			Labels: map[string]string{
-				consts.RemoteClusterID:      clusterIdentity.ClusterID,
+				consts.RemoteClusterID:      string(clusterID),
 				consts.GatewayResourceLabel: consts.GatewayResourceLabelValue,
 			},
 		},

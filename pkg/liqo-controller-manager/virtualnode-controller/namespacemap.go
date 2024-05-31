@@ -35,9 +35,9 @@ import (
 // ensureNamespaceMapPresence creates a new NamespaceMap associated with that virtual-node if it is not already present.
 func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, vn *virtualkubeletv1alpha1.VirtualNode) error {
 	l := map[string]string{
-		liqoconst.RemoteClusterID:             vn.Spec.ClusterIdentity.ClusterID,
+		liqoconst.RemoteClusterID:             string(vn.Spec.ClusterID),
 		liqoconst.ReplicationRequestedLabel:   strconv.FormatBool(true),
-		liqoconst.ReplicationDestinationLabel: vn.Spec.ClusterIdentity.ClusterID,
+		liqoconst.ReplicationDestinationLabel: string(vn.Spec.ClusterID),
 	}
 	nm, err := getters.GetNamespaceMapByLabel(ctx, r.Client, vn.Namespace, labels.SelectorFromSet(l))
 	if err != nil && !kerrors.IsNotFound(err) {
@@ -49,7 +49,7 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 	}
 
 	nm = &virtualkubeletv1alpha1.NamespaceMap{ObjectMeta: metav1.ObjectMeta{
-		Name: foreignclusterutils.UniqueName(vn.Spec.ClusterIdentity), Namespace: vn.Namespace}}
+		Name: foreignclusterutils.UniqueName(vn.Spec.ClusterID), Namespace: vn.Namespace}}
 
 	result, err := ctrlutils.CreateOrUpdate(ctx, r.Client, nm, func() error {
 		nm.Labels = labels.Merge(nm.Labels, l)
@@ -79,9 +79,9 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, v
 	}
 
 	namespaceMapList := &virtualkubeletv1alpha1.NamespaceMapList{}
-	virtualNodeRemoteClusterID := vn.Spec.ClusterIdentity.ClusterID
+	virtualNodeRemoteClusterID := vn.Spec.ClusterID
 	if err := r.List(ctx, namespaceMapList, client.InNamespace(vn.Namespace),
-		client.MatchingLabels{liqoconst.ReplicationDestinationLabel: virtualNodeRemoteClusterID}); err != nil {
+		client.MatchingLabels{liqoconst.ReplicationDestinationLabel: string(virtualNodeRemoteClusterID)}); err != nil {
 		klog.Errorf("unable to List NamespaceMaps of virtual node %q: %s", client.ObjectKeyFromObject(vn), err)
 		return err
 	}

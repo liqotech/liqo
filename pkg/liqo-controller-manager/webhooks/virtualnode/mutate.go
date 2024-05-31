@@ -34,7 +34,7 @@ func (w *vnwh) mutateVirtualNodeSpecTemplate(virtualNode *virtualkubeletv1alpha1
 	if virtualNode.Spec.Template == nil {
 		virtualNode.Spec.Template = &virtualkubeletv1alpha1.DeploymentTemplate{}
 	}
-	vkdep := vkforge.VirtualKubeletDeployment(w.clusterIdentity, virtualNode, w.virtualKubeletOptions)
+	vkdep := vkforge.VirtualKubeletDeployment(w.clusterID, virtualNode, w.virtualKubeletOptions)
 	virtualNode.Spec.Template.Spec = *vkdep.Spec.DeepCopy()
 	virtualNode.Spec.Template.ObjectMeta = *vkdep.ObjectMeta.DeepCopy()
 }

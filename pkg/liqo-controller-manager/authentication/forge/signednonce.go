@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -27,7 +28,7 @@ func GenerateSignedNonceSecretName() string {
 }
 
 // SignedNonce creates a new Secret object to store the nonce signed by the consumer cluster.
-func SignedNonce(remoteClusterID, tenantNamespace, nonce string) *corev1.Secret {
+func SignedNonce(remoteClusterID discoveryv1alpha1.ClusterID, tenantNamespace, nonce string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: corev1.SchemeGroupVersion.String(),
@@ -38,7 +39,7 @@ func SignedNonce(remoteClusterID, tenantNamespace, nonce string) *corev1.Secret 
 			Namespace: tenantNamespace,
 			Labels: map[string]string{
 				consts.SignedNonceSecretLabelKey: "true",
-				consts.RemoteClusterID:           remoteClusterID,
+				consts.RemoteClusterID:           string(remoteClusterID),
 			},
 		},
 		StringData: map[string]string{

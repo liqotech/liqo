@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
@@ -42,7 +43,7 @@ type LiqoNodeProvider struct {
 	lastAppliedTaints      []corev1.Taint
 
 	nodeName           string
-	foreignClusterID   string
+	foreignClusterID   discoveryv1alpha1.ClusterID
 	tenantNamespace    string
 	resyncPeriod       time.Duration
 	pingDisabled       bool
@@ -72,11 +73,11 @@ func (p *LiqoNodeProvider) Ping(ctx context.Context) error {
 
 	// Check the foreign API server status
 	if !foreignclusterutils.IsAPIServerReady(fc) {
-		return fmt.Errorf("[%s] API server readiness check failed", fc.Spec.ClusterIdentity.ClusterName)
+		return fmt.Errorf("[%s] API server readiness check failed", fc.Spec.ClusterID)
 	}
 
 	klog.V(4).Infof("[%s] API server readiness check completed successfully in %v",
-		fc.Spec.ClusterIdentity.ClusterName, time.Since(start))
+		fc.Spec.ClusterID, time.Since(start))
 	return nil
 }
 

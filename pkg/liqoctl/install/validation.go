@@ -28,15 +28,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 
+	discoverv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // validate validates the correctness of the different parameters.
 func (o *Options) validate(ctx context.Context) error {
-	if err := o.validateClusterName(); err != nil {
-		return fmt.Errorf("failed validating cluster name: %w", err)
+	if err := o.validateClusterID(); err != nil {
+		return fmt.Errorf("failed validating cluster id: %w", err)
 	}
-	o.Printer.Verbosef("Cluster name: %s\n", o.ClusterName)
+	o.Printer.Verbosef("Cluster id: %s\n", o.ClusterID)
 
 	if err := o.validateAPIServer(); err != nil {
 		return fmt.Errorf("failed validating API Server URL %q: %w", o.APIServer, err)
@@ -64,19 +65,19 @@ func (o *Options) validate(ctx context.Context) error {
 	return nil
 }
 
-// validateClusterName validates the provided cluster name, and generates it if necessary.
-func (o *Options) validateClusterName() (err error) {
+// validateClusterID validates the provided cluster id, and generates it if necessary.
+func (o *Options) validateClusterID() (err error) {
 	// If at this point the name is still empty, generate a new cluster name
-	if o.ClusterName == "" {
+	if o.ClusterID == "" {
 		randomName := namegenerator.NewNameGenerator(rand.Int63()).Generate() //nolint:gosec // don't need crypto/rand
-		o.ClusterName = strings.ReplaceAll(randomName, "_", "-")
-		o.Printer.Info.Printf("No cluster name specified. Generated: %q", o.ClusterName)
+		o.ClusterID = discoverv1alpha1.ClusterID(strings.ReplaceAll(randomName, "_", "-"))
+		o.Printer.Info.Printf("No cluster id specified. Generated: %q", o.ClusterID)
 	}
 
-	errs := validation.IsDNS1123Label(o.ClusterName)
+	errs := validation.IsDNS1123Label(string(o.ClusterID))
 	if len(errs) != 0 {
 		return fmt.Errorf(`the cluster name must be DNS-compatible (e.g., lowercase letters, numbers and hyphens) and
-		must be <= 63 characters. Try using 'liqoctl --cluster-name' to set another name and overcome this error`)
+		must be <= 63 characters. Try using 'liqoctl --cluster-id' to set another name and overcome this error`)
 	}
 
 	return nil

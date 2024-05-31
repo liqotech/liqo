@@ -83,7 +83,7 @@ You will now install Liqo on both clusters, using the following characterizing n
 You can install Liqo on the *Rome* cluster by launching:
 
 ```bash
-liqoctl install kind --cluster-name rome
+liqoctl install kind --cluster-id rome
 ```
 
 This command will generate the suitable configuration for your KinD cluster and then install Liqo.
@@ -91,7 +91,7 @@ This command will generate the suitable configuration for your KinD cluster and 
 Similarly, you can install Liqo on the *Milan* cluster by launching:
 
 ```bash
-liqoctl install kind --cluster-name milan --kubeconfig "$KUBECONFIG_MILAN"
+liqoctl install kind --cluster-id milan --kubeconfig "$KUBECONFIG_MILAN"
 ```
 
 On both clusters, you should see the following output:
