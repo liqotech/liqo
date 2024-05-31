@@ -80,6 +80,9 @@ type VirtualNodeSpec struct {
 	IngressClasses []authv1alpha1.IngressType `json:"ingressClasses,omitempty"`
 	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
 	LoadBalancerClasses []authv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
+	// DisableNetworkCheck disables the check the conditions of the liqo networking.
+	// If check is disabled, the network status will not be added to node conditions.
+	DisableNetworkCheck bool `json:"disableNetworkCheck,omitempty"`
 }
 
 // VirtualNodeConditionType represents different conditions that a virtualNode could assume.

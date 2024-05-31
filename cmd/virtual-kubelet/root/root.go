@@ -36,6 +36,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discovery1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -56,6 +57,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
+	_ = discovery1alpha1.AddToScheme(scheme)
 }
 
 const defaultVersion = "v1.25.0" // This should follow the version of k8s.io/kubernetes we are importing
