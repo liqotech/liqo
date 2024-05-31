@@ -39,6 +39,9 @@ func ForgeFakeVirtualNode(nameVirtualNode, tenantNamespaceName string,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameVirtualNode,
 			Namespace: tenantNamespaceName,
+			Labels: map[string]string{
+				liqoconst.RemoteClusterID: string(remoteClusterID),
+			},
 		},
 		Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
 			ClusterID: remoteClusterID,
@@ -82,9 +85,9 @@ var _ = Describe("VirtualNode controller", func() {
 	Context("Check if resources VirtualNodes and NamespaceMaps are correctly initialized", func() {
 
 		BeforeEach(func() {
-			virtualNode1 = ForgeFakeVirtualNode(nameVirtualNode1, tenantNamespaceNameID1, remoteClusterID1)
+			virtualNode1 = ForgeFakeVirtualNode(nameVirtualNode1, tenantNamespace1.Name, remoteClusterID1)
 
-			virtualNode2 = ForgeFakeVirtualNode(nameVirtualNode2, tenantNamespaceNameID2, remoteClusterID2)
+			virtualNode2 = ForgeFakeVirtualNode(nameVirtualNode2, tenantNamespace2.Name, remoteClusterID2)
 
 			time.Sleep(2 * time.Second)
 			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode1))
@@ -115,7 +118,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID1))
 			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID1),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace1.Name),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
@@ -124,7 +127,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID2))
 			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID2),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace2.Name),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return false
 				}
@@ -143,7 +146,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID1))
 			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID1),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace1.Name),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
@@ -171,7 +174,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterID2))
 			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID2),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace2.Name),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID2}); err != nil {
 					return false
 				}
@@ -234,7 +237,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 		It(fmt.Sprintf("Check regeneration of NamespaceMap associated to %s", remoteClusterID1), func() {
 
-			virtualNode1 = ForgeFakeVirtualNode(nameVirtualNode1, tenantNamespaceNameID1, remoteClusterID1)
+			virtualNode1 = ForgeFakeVirtualNode(nameVirtualNode1, tenantNamespace1.Name, remoteClusterID1)
 			By(fmt.Sprintf("Create the virtual-node '%s'", nameVirtualNode1))
 			Expect(k8sClient.Create(ctx, virtualNode1)).Should(Succeed())
 
@@ -255,7 +258,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get new NamespaceMap associated to: %s", remoteClusterID1))
 			Eventually(func() bool {
-				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespaceNameID1),
+				if err := k8sClient.List(ctx, nms, client.InNamespace(tenantNamespace1.Name),
 					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
 					return false
 				}
@@ -268,7 +271,6 @@ var _ = Describe("VirtualNode controller", func() {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1)
 				return apierrors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
-
 		})
 
 	})
