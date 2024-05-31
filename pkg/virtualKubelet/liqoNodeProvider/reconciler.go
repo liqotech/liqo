@@ -26,9 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/maps"
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
@@ -53,13 +54,13 @@ func (p *LiqoNodeProvider) reconcileNodeFromVirtualNode(event watch.Event) error
 	return nil
 }
 
-func (p *LiqoNodeProvider) reconcileNodeFromConnection(event watch.Event) error {
-	var connection networkingv1alpha1.Connection
+func (p *LiqoNodeProvider) reconcileNodeFromForeignCluster(event watch.Event) error {
+	var fc discoveryv1alpha1.ForeignCluster
 	unstruct, ok := event.Object.(*unstructured.Unstructured)
 	if !ok {
-		return errors.New("error in casting Connection")
+		return errors.New("error in casting ForeignCluster")
 	}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, &connection); err != nil {
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, &fc); err != nil {
 		klog.Error(err)
 		return err
 	}
@@ -67,7 +68,7 @@ func (p *LiqoNodeProvider) reconcileNodeFromConnection(event watch.Event) error 
 	if event.Type == watch.Deleted {
 		p.updateMutex.Lock()
 		defer p.updateMutex.Unlock()
-		klog.Infof("connection %v deleted", connection.Name)
+		klog.Infof("foreigncluster %v deleted", fc.Name)
 		p.networkReady = false
 		err := p.updateNode()
 		if err != nil {
@@ -76,8 +77,8 @@ func (p *LiqoNodeProvider) reconcileNodeFromConnection(event watch.Event) error 
 		return err
 	}
 
-	if err := p.updateFromConnection(&connection); err != nil {
-		klog.Errorf("node update from connection %v failed for reason %v; retry...", connection.Name, err)
+	if err := p.updateFromForeignCluster(&fc); err != nil {
+		klog.Errorf("node update from foreigncluster %v failed for reason %v; retry...", fc.Name, err)
 		return err
 	}
 	return nil
@@ -139,24 +140,27 @@ func (p *LiqoNodeProvider) updateFromVirtualNode(ctx context.Context,
 	return p.updateNode()
 }
 
-func (p *LiqoNodeProvider) updateFromConnection(connection *networkingv1alpha1.Connection) error {
+func (p *LiqoNodeProvider) updateFromForeignCluster(foreigncluster *discoveryv1alpha1.ForeignCluster) error {
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	p.networkReady = connection.Status.Value == networkingv1alpha1.Connected
+	p.networkModuleEnabled = fcutils.IsNetworkingModuleEnabled(foreigncluster)
+	p.networkReady = fcutils.IsNetworkingEstablished(foreigncluster)
 	return p.updateNode()
 }
 
 func (p *LiqoNodeProvider) updateNode() error {
 	resourcesReady := areResourcesReady(p.node.Status.Allocatable)
-	networkReady := p.networkReady || !p.checkNetworkStatus
+	networkReady := p.networkReady || !p.checkNetworkStatus || !p.networkModuleEnabled
 
 	UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && networkReady))
 	UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
 	UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
 	UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
-	if p.checkNetworkStatus {
+	if p.checkNetworkStatus && p.networkModuleEnabled {
 		UpdateNodeCondition(p.node, v1.NodeNetworkUnavailable, nodeNetworkUnavailableStatus(!networkReady))
+	} else if !p.networkModuleEnabled || !p.checkNetworkStatus {
+		deleteCondition(p.node, v1.NodeNetworkUnavailable)
 	}
 
 	p.onNodeChangeCallback(p.node.DeepCopy())
