@@ -184,29 +184,25 @@ func (spv *Validator) HandleDelete(ctx context.Context, req *admission.Request) 
 	}
 
 	// Check existence and get shadow pod origin Cluster ID label
-	clusterID, found := shadowpod.Labels[forge.LiqoOriginClusterIDKey]
+	tmp, found := shadowpod.Labels[forge.LiqoOriginClusterIDKey]
 	if !found {
 		klog.Warningf("Missing origin Cluster ID label on ShadowPod %q", shadowpod.Name)
 		return admission.Allowed("missing origin Cluster ID label")
 	}
+	clusterID := discoveryv1alpha1.ClusterID(tmp)
 
 	klog.V(5).Infof("ShadowPod %s decoded: UID: %s - clusterID %s", shadowpod.Name, shadowpod.GetUID(), clusterID)
 	if !spv.enableResourceValidation {
 		return admission.Allowed("")
 	}
 
-	clusterName := retrieveClusterName(ctx, spv.client, clusterID)
-
-	peeringInfo, found := spv.PeeringCache.getPeeringInfo(discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   clusterID,
-		ClusterName: clusterName,
-	})
+	peeringInfo, found := spv.PeeringCache.getPeeringInfo(clusterID)
 	if !found {
 		// If the PeeringInfo is not present in the Cache it means there are some cache consistency issues.
 		// The next refreshing process will align this issue.
 		// Anyway, the deletion process of shadowpods is always allowed.
-		klog.Warningf("PeeringInfo not found in cache for cluster %q", clusterName)
-		return admission.Allowed(fmt.Sprintf("Peering not found in cache for cluster %q", clusterName))
+		klog.Warningf("PeeringInfo not found in cache for cluster %q", clusterID)
+		return admission.Allowed(fmt.Sprintf("Peering not found in cache for cluster %q", clusterID))
 	}
 
 	err = peeringInfo.updateDeletion(shadowpod, *req.DryRun)
@@ -246,10 +242,10 @@ func (spv *Validator) DecodeShadowPod(obj runtime.RawExtension) (shadowpod *vkv1
 }
 
 func (spv *Validator) getShadowPodListByClusterID(ctx context.Context,
-	clusterID string) (shadowPodList *vkv1alpha1.ShadowPodList, err error) {
+	clusterID discoveryv1alpha1.ClusterID) (shadowPodList *vkv1alpha1.ShadowPodList, err error) {
 	shadowPodList = &vkv1alpha1.ShadowPodList{}
 	err = spv.client.List(ctx, shadowPodList, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(map[string]string{forge.LiqoOriginClusterIDKey: clusterID}),
+		LabelSelector: labels.SelectorFromSet(map[string]string{forge.LiqoOriginClusterIDKey: string(clusterID)}),
 	})
 	return
 }

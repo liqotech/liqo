@@ -265,8 +265,7 @@ func (gr *reflector) processNextWorkItem() bool {
 		metrics.ErrorsCounter.With(prometheus.Labels{
 			"namespace":          key.(types.NamespacedName).Namespace,
 			"reflector_resource": gr.name,
-			"cluster_id":         forge.RemoteCluster.ClusterID,
-			"cluster_name":       forge.RemoteCluster.ClusterName,
+			"cluster_id":         string(forge.RemoteCluster),
 			"node_name":          forge.LiqoNodeName,
 		}).Inc()
 
@@ -286,8 +285,7 @@ func (gr *reflector) processNextWorkItem() bool {
 	metrics.ItemsCounter.With(prometheus.Labels{
 		"namespace":          key.(types.NamespacedName).Namespace,
 		"reflector_resource": gr.name,
-		"cluster_id":         forge.RemoteCluster.ClusterID,
-		"cluster_name":       forge.RemoteCluster.ClusterName,
+		"cluster_id":         string(forge.RemoteCluster),
 		"node_name":          forge.LiqoNodeName,
 	}).Inc()
 

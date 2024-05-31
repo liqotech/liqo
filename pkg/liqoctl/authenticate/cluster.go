@@ -37,9 +37,9 @@ type Cluster struct {
 	localNamespaceManager tenantnamespace.Manager
 	Waiter                *wait.Waiter
 
-	LocalClusterIdentity  *discoveryv1alpha1.ClusterIdentity
-	RemoteClusterIdentity *discoveryv1alpha1.ClusterIdentity
-	TenantNamespace       string
+	LocalClusterID  discoveryv1alpha1.ClusterID
+	RemoteClusterID discoveryv1alpha1.ClusterID
+	TenantNamespace string
 }
 
 // NewCluster returns a new Cluster struct.
@@ -51,34 +51,34 @@ func NewCluster(local *factory.Factory) *Cluster {
 	}
 }
 
-// SetLocalClusterIdentity set the local cluster identity retrieving it from the Liqo configmaps.
-func (c *Cluster) SetLocalClusterIdentity(ctx context.Context) error {
-	s := c.local.Printer.StartSpinner("Retrieving cluster identity")
+// SetLocalClusterID set the local cluster id retrieving it from the Liqo configmaps.
+func (c *Cluster) SetLocalClusterID(ctx context.Context) error {
+	s := c.local.Printer.StartSpinner("Retrieving cluster id")
 
-	// Get cluster identity.
-	clusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, c.local.CRClient, c.local.LiqoNamespace)
+	// Get cluster id.
+	clusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, c.local.CRClient, c.local.LiqoNamespace)
 	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("An error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
 		return err
 	}
-	c.LocalClusterIdentity = &clusterIdentity
+	c.LocalClusterID = clusterID
 
-	s.Success("Cluster identity correctly retrieved")
+	s.Success("Cluster id correctly retrieved")
 
 	return nil
 }
 
-// EnsureTenantNamespace ensure the presence of the tenant namespace on the local cluster given a remote cluster identity.
-func (c *Cluster) EnsureTenantNamespace(ctx context.Context, remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) error {
+// EnsureTenantNamespace ensure the presence of the tenant namespace on the local cluster given a remote cluster id.
+func (c *Cluster) EnsureTenantNamespace(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Ensuring tenant namespace")
 
-	c.RemoteClusterIdentity = remoteClusterIdentity
+	c.RemoteClusterID = remoteClusterID
 
-	if _, err := c.localNamespaceManager.CreateNamespace(ctx, *c.RemoteClusterIdentity); err != nil {
+	if _, err := c.localNamespaceManager.CreateNamespace(ctx, c.RemoteClusterID); err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while ensuring tenant namespace: %v", output.PrettyErr(err)))
 		return err
 	}
-	c.TenantNamespace = tenantnamespace.GetNameForNamespace(*c.RemoteClusterIdentity)
+	c.TenantNamespace = tenantnamespace.GetNameForNamespace(c.RemoteClusterID)
 
 	s.Success("Tenant namespace correctly ensured")
 
@@ -92,20 +92,20 @@ func (c *Cluster) EnsureNonce(ctx context.Context) ([]byte, error) {
 
 	// Ensure the presence of the nonce secret.
 	s := c.local.Printer.StartSpinner("Ensuring nonce secret")
-	if err := authutils.EnsureNonceSecret(ctx, c.local.CRClient, c.RemoteClusterIdentity.ClusterID, c.TenantNamespace); err != nil {
+	if err := authutils.EnsureNonceSecret(ctx, c.local.CRClient, c.RemoteClusterID, c.TenantNamespace); err != nil {
 		s.Fail(fmt.Sprintf("Unable to create nonce secret: %v", output.PrettyErr(err)))
 		return nil, err
 	}
 	s.Success("Nonce secret ensured")
 
 	// Wait for secret to be filled with the nonce.
-	if err := c.Waiter.ForNonce(ctx, c.RemoteClusterIdentity.ClusterID, false); err != nil {
+	if err := c.Waiter.ForNonce(ctx, c.RemoteClusterID, false); err != nil {
 		return nil, err
 	}
 
 	// Retrieve nonce from secret.
 	s = c.local.Printer.StartSpinner("Retrieving nonce")
-	nonceValue, err := authutils.RetrieveNonce(ctx, c.local.CRClient, c.RemoteClusterIdentity.ClusterID)
+	nonceValue, err := authutils.RetrieveNonce(ctx, c.local.CRClient, c.RemoteClusterID)
 	if err != nil {
 		s.Fail(fmt.Sprintf("Unable to retrieve nonce: %v", output.PrettyErr(err)))
 		return nil, err
@@ -122,7 +122,7 @@ func (c *Cluster) EnsureSignedNonce(ctx context.Context, nonce []byte) ([]byte, 
 
 	// Ensure the presence of the signed nonce secret.
 	s := c.local.Printer.StartSpinner("Ensuring signed nonce")
-	err = authutils.EnsureSignedNonceSecret(ctx, c.local.CRClient, c.RemoteClusterIdentity.ClusterID, c.TenantNamespace, ptr.To(string(nonce)))
+	err = authutils.EnsureSignedNonceSecret(ctx, c.local.CRClient, c.RemoteClusterID, c.TenantNamespace, ptr.To(string(nonce)))
 	if err != nil {
 		s.Fail(fmt.Sprintf("Unable to ensure signed nonce secret: %v", err))
 		return nil, err
@@ -130,13 +130,13 @@ func (c *Cluster) EnsureSignedNonce(ctx context.Context, nonce []byte) ([]byte, 
 	s.Success("Signed nonce secret ensured")
 
 	// Wait for secret to be filled with the signed nonce.
-	if err := c.Waiter.ForSignedNonce(ctx, c.RemoteClusterIdentity.ClusterID, false); err != nil {
+	if err := c.Waiter.ForSignedNonce(ctx, c.RemoteClusterID, false); err != nil {
 		return nil, err
 	}
 
 	// Retrieve signed nonce from secret.
 	s = c.local.Printer.StartSpinner("Retrieving signed nonce")
-	signedNonceValue, err := authutils.RetrieveSignedNonce(ctx, c.local.CRClient, c.RemoteClusterIdentity.ClusterID)
+	signedNonceValue, err := authutils.RetrieveSignedNonce(ctx, c.local.CRClient, c.RemoteClusterID)
 	if err != nil {
 		s.Fail(fmt.Sprintf("Unable to retrieve signed nonce: %v", output.PrettyErr(err)))
 		return nil, err
@@ -149,7 +149,7 @@ func (c *Cluster) EnsureSignedNonce(ctx context.Context, nonce []byte) ([]byte, 
 // GenerateTenant generate the tenant resource to be applied on the provider cluster.
 func (c *Cluster) GenerateTenant(ctx context.Context, signedNonce []byte, proxyURL *string) (*authv1alpha1.Tenant, error) {
 	s := c.local.Printer.StartSpinner("Generating tenant")
-	tenant, err := authutils.GenerateTenant(ctx, c.local.CRClient, c.LocalClusterIdentity, c.local.LiqoNamespace, signedNonce, proxyURL)
+	tenant, err := authutils.GenerateTenant(ctx, c.local.CRClient, c.LocalClusterID, c.local.LiqoNamespace, signedNonce, proxyURL)
 	if err != nil {
 		s.Fail(fmt.Sprintf("Unable to generate tenant: %v", output.PrettyErr(err)))
 		return nil, err
@@ -171,7 +171,7 @@ func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1alpha1.Tenant)
 	s.Success("Tenant correctly applied on provider cluster")
 
 	// Wait for the tenant status to be updated.
-	if err := c.Waiter.ForTenantStatus(ctx, c.RemoteClusterIdentity.ClusterID); err != nil {
+	if err := c.Waiter.ForTenantStatus(ctx, c.RemoteClusterID); err != nil {
 		return err
 	}
 
@@ -182,7 +182,7 @@ func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1alpha1.Tenant)
 func (c *Cluster) GenerateIdentity(ctx context.Context, remoteTenantNamespace string) (*authv1alpha1.Identity, error) {
 	s := c.local.Printer.StartSpinner("Generating identity")
 	identity, err := authutils.GenerateIdentityControlPlane(ctx, c.local.CRClient,
-		c.RemoteClusterIdentity.ClusterID, remoteTenantNamespace, c.LocalClusterIdentity)
+		c.RemoteClusterID, remoteTenantNamespace, c.LocalClusterID)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while generating identity: %v", output.PrettyErr(err)))
 		return nil, err
@@ -204,7 +204,7 @@ func (c *Cluster) EnsureIdentity(ctx context.Context, identity *authv1alpha1.Ide
 	s.Success("Identity correctly applied on consumer cluster")
 
 	// Wait for the identity status to be updated.
-	if err := c.Waiter.ForIdentityStatus(ctx, c.RemoteClusterIdentity.ClusterID); err != nil {
+	if err := c.Waiter.ForIdentityStatus(ctx, c.RemoteClusterID); err != nil {
 		return err
 	}
 

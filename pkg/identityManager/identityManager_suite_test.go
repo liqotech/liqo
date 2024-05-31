@@ -43,8 +43,8 @@ var (
 
 	cluster       testutil.Cluster
 	k8sClient     kubernetes.Interface
-	localCluster  discoveryv1alpha1.ClusterIdentity
-	remoteCluster discoveryv1alpha1.ClusterIdentity
+	localCluster  discoveryv1alpha1.ClusterID
+	remoteCluster discoveryv1alpha1.ClusterID
 	mgr           manager.Manager
 
 	namespace *corev1.Namespace
@@ -75,19 +75,13 @@ var _ = BeforeSuite(func() {
 	certificateSecretData = make(map[string]string)
 	iamSecretData = make(map[string]string)
 
-	localCluster = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "local-cluster-id",
-		ClusterName: "local-cluster-name",
-	}
+	localCluster = discoveryv1alpha1.ClusterID("local-cluster-id")
+	remoteCluster = discoveryv1alpha1.ClusterID("remote-cluster-id")
 
-	remoteCluster = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "remote-cluster-id",
-		ClusterName: "remote-cluster-name",
-	}
 	notFoundError = kerrors.NewNotFound(schema.GroupResource{
 		Group:    "v1",
 		Resource: "secrets",
-	}, remoteCluster.ClusterID)
+	}, string(remoteCluster))
 
 	var err error
 	cluster, mgr, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})

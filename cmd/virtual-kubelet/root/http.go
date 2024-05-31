@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
@@ -71,7 +72,7 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 	mux := http.NewServeMux()
 
 	cl := kubernetes.NewForConfigOrDie(remoteConfig)
-	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.ClusterID)
+	attachMetricsRoutes(ctx, mux, cl.RESTClient(), cfg.HomeCluster.GetClusterID())
 
 	podRoutes := api.PodHandlerConfig{
 		RunInContainer:        handler.Exec,
@@ -108,7 +109,7 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 	return nil
 }
 
-func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface, localClusterID string) {
+func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface, localClusterID discoveryv1alpha1.ClusterID) {
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		klog.Infof("Received request for %s", r.RequestURI)
 

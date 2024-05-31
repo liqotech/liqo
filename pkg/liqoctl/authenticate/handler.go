@@ -46,23 +46,23 @@ func (o *Options) RunAuthenticate(ctx context.Context) error {
 
 	// Create and initialize cluster consumer.
 	consumer := NewCluster(o.LocalFactory)
-	if err := consumer.SetLocalClusterIdentity(ctx); err != nil {
+	if err := consumer.SetLocalClusterID(ctx); err != nil {
 		return err
 	}
 
 	// Create and initialize cluster provider.
 	provider := NewCluster(o.RemoteFactory)
-	if err := provider.SetLocalClusterIdentity(ctx); err != nil {
+	if err := provider.SetLocalClusterID(ctx); err != nil {
 		return err
 	}
 
 	// Ensure that the tenant namespace exists in the consumer cluster.
-	if err := consumer.EnsureTenantNamespace(ctx, provider.LocalClusterIdentity); err != nil {
+	if err := consumer.EnsureTenantNamespace(ctx, provider.LocalClusterID); err != nil {
 		return err
 	}
 
 	// Ensure that the tenant namespace exists in the provider cluster.
-	if err := provider.EnsureTenantNamespace(ctx, consumer.LocalClusterIdentity); err != nil {
+	if err := provider.EnsureTenantNamespace(ctx, consumer.LocalClusterID); err != nil {
 		return err
 	}
 

@@ -35,8 +35,8 @@ var TenantGroupVersionResource = GroupVersion.WithResource(TenantResource)
 
 // TenantSpec defines the desired state of Tenant.
 type TenantSpec struct {
-	// ClusterIdentity is the identity of the consumer cluster.
-	ClusterIdentity discoveryv1alpha1.ClusterIdentity `json:"clusterIdentity,omitempty"`
+	// ClusterID is the id of the consumer cluster.
+	ClusterID discoveryv1alpha1.ClusterID `json:"clusterID,omitempty"`
 	// PublicKey is the public key of the tenant cluster.
 	PublicKey []byte `json:"publicKey,omitempty"`
 	// CSR is the Certificate Signing Request of the tenant cluster.

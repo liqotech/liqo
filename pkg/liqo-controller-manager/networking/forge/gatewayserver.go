@@ -34,14 +34,14 @@ const (
 )
 
 // DefaultGatewayServerName returns the default name for a GatewayServer.
-func DefaultGatewayServerName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
-	return remoteClusterIdentity.ClusterName
+func DefaultGatewayServerName(remoteClusterID discoveryv1alpha1.ClusterID) string {
+	return string(remoteClusterID)
 }
 
 // GwServerOptions encapsulate the options to forge a GatewayServer.
 type GwServerOptions struct {
 	KubeClient        kubernetes.Interface
-	RemoteClusterID   string
+	RemoteClusterID   discoveryv1alpha1.ClusterID
 	GatewayType       string
 	TemplateName      string
 	TemplateNamespace string
@@ -63,7 +63,7 @@ func GatewayServer(name, namespace string, o *GwServerOptions) (*networkingv1alp
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				liqoconsts.RemoteClusterID: o.RemoteClusterID,
+				liqoconsts.RemoteClusterID: string(o.RemoteClusterID),
 			},
 		},
 	}
@@ -83,7 +83,7 @@ func MutateGatewayServer(gwServer *networkingv1alpha1.GatewayServer, o *GwServer
 	if gwServer.Labels == nil {
 		gwServer.Labels = make(map[string]string)
 	}
-	gwServer.Labels[liqoconsts.RemoteClusterID] = o.RemoteClusterID
+	gwServer.Labels[liqoconsts.RemoteClusterID] = string(o.RemoteClusterID)
 
 	// MTU
 	gwServer.Spec.MTU = o.MTU

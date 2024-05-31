@@ -27,10 +27,10 @@ import (
 type fcEventChecker func(fc *discoveryv1alpha1.ForeignCluster) bool
 
 // PollForEvent polls until the given events occurs on the foreign cluster corresponding to the identity.
-func PollForEvent(ctx context.Context, cl client.Client, identity *discoveryv1alpha1.ClusterIdentity,
+func PollForEvent(ctx context.Context, cl client.Client, id discoveryv1alpha1.ClusterID,
 	checker fcEventChecker, interval time.Duration) error {
 	err := wait.PollImmediateUntilWithContext(ctx, interval, func(ctx context.Context) (done bool, err error) {
-		fc, err := GetForeignClusterByID(ctx, cl, identity.ClusterID)
+		fc, err := GetForeignClusterByID(ctx, cl, id)
 		if err != nil {
 			return false, err
 		}

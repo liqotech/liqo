@@ -53,7 +53,7 @@ var _ = Describe("ShadowPod Description", func() {
 
 		spValidator = webhook.Admission{Handler: NewValidator(fakeClient, false)}.Handler.(*Validator)
 
-		peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+		peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 
 		spNamespacedName = types.NamespacedName{Name: testShadowPodName, Namespace: testNamespace}
 	})

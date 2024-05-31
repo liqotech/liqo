@@ -113,7 +113,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, nil
 	}
 
-	clusterID := tenant.Spec.ClusterIdentity.ClusterID
+	clusterID := tenant.Spec.ClusterID
 
 	// get the nonce for the tenant
 
@@ -143,7 +143,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	// check that the CSR is created with the same public key
 
 	if err = authentication.CheckCSRForControlPlane(
-		tenant.Spec.CSR, tenant.Spec.PublicKey, &tenant.Spec.ClusterIdentity); err != nil {
+		tenant.Spec.CSR, tenant.Spec.PublicKey, tenant.Spec.ClusterID); err != nil {
 		klog.Errorf("Invalid CSR for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "InvalidCSR", err.Error())
 		return ctrl.Result{}, nil
@@ -151,7 +151,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	// create the tenant namespace
 
-	tenantNamespace, err := r.NamespaceManager.CreateNamespace(ctx, tenant.Spec.ClusterIdentity)
+	tenantNamespace, err := r.NamespaceManager.CreateNamespace(ctx, tenant.Spec.ClusterID)
 	if err != nil {
 		klog.Errorf("Unable to create the TenantNamespace for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "TenantNamespaceCreationFailed", err.Error())
@@ -176,7 +176,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	// create the CSR and forge the AuthParams
 
 	authParams, err := r.IdentityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
-		Cluster:         &tenant.Spec.ClusterIdentity,
+		Cluster:         tenant.Spec.ClusterID,
 		TenantNamespace: tenant.Status.TenantNamespace,
 		IdentityType:    authv1alpha1.ControlPlaneIdentityType,
 		Name:            tenant.Name,
@@ -207,7 +207,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	// bind permissions
 
-	_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterIdentity, r.tenantClusterRoles...)
+	_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterID, r.tenantClusterRoles...)
 	if err != nil {
 		klog.Errorf("Unable to bind the ClusterRoles for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesBindingFailed", err.Error())
@@ -241,7 +241,7 @@ func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *authv1alpha1.Tenant) error {
 	// Delete binding of cluster roles
-	if err := r.NamespaceManager.UnbindClusterRoles(ctx, tenant.Spec.ClusterIdentity, tenantClusterRoles...); err != nil {
+	if err := r.NamespaceManager.UnbindClusterRoles(ctx, tenant.Spec.ClusterID, tenantClusterRoles...); err != nil {
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesUnbindingFailed", err.Error())
 		return err
 	}
@@ -249,7 +249,7 @@ func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *auth
 
 	// Delete all resourceslices related to the tenant
 	resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll,
-		liqolabels.RemoteLabelSelectorForCluster(tenant.Spec.ClusterIdentity.ClusterID))
+		liqolabels.RemoteLabelSelectorForCluster(string(tenant.Spec.ClusterID)))
 	if err != nil {
 		klog.Errorf("Failed to retrieve ResourceSlices for Tenant %q: %v", tenant.Name, err)
 		return err
@@ -265,7 +265,7 @@ func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *auth
 
 	// Delete all the namespacemaps related to the tenant
 	namespaceMaps, err := getters.ListNamespaceMapsByLabel(ctx, r.Client, corev1.NamespaceAll,
-		liqolabels.RemoteLabelSelectorForCluster(tenant.Spec.ClusterIdentity.ClusterID))
+		liqolabels.RemoteLabelSelectorForCluster(string(tenant.Spec.ClusterID)))
 	if err != nil {
 		klog.Errorf("Failed to retrieve NamespaceMaps for Tenant %q: %v", tenant.Name, err)
 		return err

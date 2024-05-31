@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
@@ -40,7 +40,7 @@ func GenerateRouteConfigurationName(cfg *networkingv1alpha1.Configuration) strin
 }
 
 // GetRemoteClusterID returns the remote cluster ID of the Configuration.
-func GetRemoteClusterID(cfg *networkingv1alpha1.Configuration) (string, error) {
+func GetRemoteClusterID(cfg *networkingv1alpha1.Configuration) (discoveryv1alpha1.ClusterID, error) {
 	if cfg.GetLabels() == nil {
 		return "", fmt.Errorf("configuration %s/%s has no labels", cfg.Namespace, cfg.Name)
 	}
@@ -48,7 +48,7 @@ func GetRemoteClusterID(cfg *networkingv1alpha1.Configuration) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("configuration %s/%s has no remote cluster ID label", cfg.Namespace, cfg.Name)
 	}
-	return remoteID, nil
+	return discoveryv1alpha1.ClusterID(remoteID), nil
 }
 
 // enforceRouteConfigurationPresence creates or updates a RouteConfiguration object.
@@ -93,7 +93,8 @@ func enforeRouteConfigurationPresence(ctx context.Context, cl client.Client, sch
 // forgeMutateRouteConfiguration mutates a RouteConfiguration object.
 func forgeMutateRouteConfiguration(cfg *networkingv1alpha1.Configuration,
 	routecfg *networkingv1alpha1.RouteConfiguration, scheme *runtime.Scheme,
-	remoteClusterID string, remoteInterfaceIP string, internalNodes *networkingv1alpha1.InternalNodeList) func() error {
+	remoteClusterID discoveryv1alpha1.ClusterID,
+	remoteInterfaceIP string, internalNodes *networkingv1alpha1.InternalNodeList) func() error {
 	return func() error {
 		var err error
 
@@ -101,7 +102,7 @@ func forgeMutateRouteConfiguration(cfg *networkingv1alpha1.Configuration,
 			return err
 		}
 
-		routecfg.ObjectMeta.Labels = gateway.ForgeRouteExternalTargetLabels(remoteClusterID)
+		routecfg.ObjectMeta.Labels = gateway.ForgeRouteExternalTargetLabels(string(remoteClusterID))
 
 		routecfg.Spec = networkingv1alpha1.RouteConfigurationSpec{
 			Table: networkingv1alpha1.Table{
@@ -139,13 +140,13 @@ func forgeMutateRouteConfiguration(cfg *networkingv1alpha1.Configuration,
 }
 
 // GetGatewayMode returns the mode of the Gateway related to the Configuration.
-func GetGatewayMode(ctx context.Context, cl client.Client, remoteClusterID string) (gateway.Mode, error) {
-	gwclient, err := getters.GetGatewayClientByClusterID(ctx, cl, &v1alpha1.ClusterIdentity{ClusterID: remoteClusterID})
+func GetGatewayMode(ctx context.Context, cl client.Client, remoteClusterID discoveryv1alpha1.ClusterID) (gateway.Mode, error) {
+	gwclient, err := getters.GetGatewayClientByClusterID(ctx, cl, remoteClusterID)
 	if err != nil && !kerrors.IsNotFound(err) {
 		return "", err
 	}
 
-	gwserver, err := getters.GetGatewayServerByClusterID(ctx, cl, &v1alpha1.ClusterIdentity{ClusterID: remoteClusterID})
+	gwserver, err := getters.GetGatewayServerByClusterID(ctx, cl, remoteClusterID)
 	if err != nil && !kerrors.IsNotFound(err) {
 		return "", err
 	}

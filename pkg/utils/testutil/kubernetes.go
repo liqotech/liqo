@@ -31,8 +31,7 @@ func FakeClusterIDConfigMap(namespace, clusterID, clusterName string) *corev1.Co
 			Labels: map[string]string{liqoconsts.K8sAppNameKey: liqoconsts.ClusterIDConfigMapNameLabelValue},
 		},
 		Data: map[string]string{
-			liqoconsts.ClusterIDConfigMapKey:   clusterID,
-			liqoconsts.ClusterNameConfigMapKey: clusterName,
+			liqoconsts.ClusterIDConfigMapKey: clusterID,
 		},
 	}
 }
