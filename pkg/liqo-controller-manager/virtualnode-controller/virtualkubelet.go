@@ -68,7 +68,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 
 	namespace := virtualNode.Namespace
 	name := virtualNode.Name
-	remoteClusterIdentity := virtualNode.Spec.ClusterIdentity
+	remoteClusterID := virtualNode.Spec.ClusterID
 	// create the base resources
 	vkServiceAccount := vkforge.VirtualKubeletServiceAccount(namespace, name)
 	var op controllerutil.OperationResult
@@ -79,9 +79,9 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 		return err
 	}
 	klog.V(5).Infof("[%v] ServiceAccount %s/%s reconciled: %s",
-		remoteClusterIdentity.ClusterName, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
+		remoteClusterID, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
 
-	vkClusterRoleBinding := vkforge.VirtualKubeletClusterRoleBinding(namespace, name, remoteClusterIdentity)
+	vkClusterRoleBinding := vkforge.VirtualKubeletClusterRoleBinding(namespace, name, remoteClusterID)
 	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding, func() error {
 		return nil
 	})
@@ -90,7 +90,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 	}
 
 	klog.V(5).Infof("[%v] ClusterRoleBinding %s reconciled: %s",
-		remoteClusterIdentity.ClusterName, vkClusterRoleBinding.Name, op)
+		remoteClusterID, vkClusterRoleBinding.Name, op)
 
 	// forge the virtual Kubelet Deployment
 	vkDeployment := appsv1.Deployment{
@@ -121,11 +121,11 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 		return err
 	}
 	klog.V(5).Infof("[%v] Deployment %s/%s reconciled: %s",
-		remoteClusterIdentity.ClusterName, vkDeployment.Namespace, vkDeployment.Name, op)
+		remoteClusterID, vkDeployment.Namespace, vkDeployment.Name, op)
 
 	if op == controllerutil.OperationResultCreated {
 		msg := fmt.Sprintf("[%v] Launching virtual-kubelet %s in namespace %v",
-			remoteClusterIdentity.ClusterName, vkDeployment.Name, namespace)
+			remoteClusterID, vkDeployment.Name, namespace)
 		klog.Info(msg)
 		r.EventsRecorder.Event(virtualNode, "Normal", "VkCreated", msg)
 	}
@@ -157,7 +157,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 		return err
 	}
 	if virtualKubeletDeployment != nil {
-		msg := fmt.Sprintf("[%v] Deleting virtual-kubelet in namespace %v", virtualNode.Spec.ClusterIdentity.ClusterID, virtualNode.Namespace)
+		msg := fmt.Sprintf("[%v] Deleting virtual-kubelet in namespace %v", virtualNode.Spec.ClusterID, virtualNode.Namespace)
 		klog.Info(msg)
 		r.EventsRecorder.Event(virtualNode, "Normal", "VkDeleted", msg)
 

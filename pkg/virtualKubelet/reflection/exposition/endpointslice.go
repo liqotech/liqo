@@ -361,7 +361,7 @@ func (ner *NamespacedEndpointSliceReflector) UnmapEndpointIPs(ctx context.Contex
 			// If the IPAM is not enabled we do not need to release the translation.
 		default:
 			// Interact with the IPAM to release the translation.
-			_, err := ner.ipamclient.UnmapEndpointIP(ctx, &ipam.UnmapRequest{ClusterID: forge.RemoteCluster.ClusterID, Ip: original})
+			_, err := ner.ipamclient.UnmapEndpointIP(ctx, &ipam.UnmapRequest{ClusterID: string(forge.RemoteCluster), Ip: original})
 			if err != nil {
 				klog.Errorf("Failed to release endpoint IP %v of EndpointSlice %q: %v", original, ner.LocalRef(endpointslice), err)
 				return fmt.Errorf("failed to release endpoint IP %v of EndpointSlice %q: %w", original, ner.LocalRef(endpointslice), err)

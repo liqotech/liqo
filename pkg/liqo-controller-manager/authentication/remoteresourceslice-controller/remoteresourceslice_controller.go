@@ -105,15 +105,15 @@ func (r *RemoteResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
-	if resourceSlice.Spec.ConsumerClusterIdentity == nil {
-		err = fmt.Errorf("ConsumerClusterIdentity not set")
+	if resourceSlice.Spec.ConsumerClusterID == nil {
+		err = fmt.Errorf("ConsumerClusterID not set")
 		klog.Errorf("Unable to ensure the remote certificate for the ResourceSlice %q: %s", req.NamespacedName, err)
 		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "RemoteCertificateFailed", err.Error())
 		return ctrl.Result{}, nil
 	}
 
 	// Get Tenant associated with the ResourceSlice.
-	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, resourceSlice.Spec.ConsumerClusterIdentity.ClusterID)
+	tenant, err := getters.GetTenantByClusterID(ctx, r.Client, *resourceSlice.Spec.ConsumerClusterID)
 	if err != nil {
 		klog.Errorf("Unable to get the Tenant for the ResourceSlice %q: %s", req.NamespacedName, err)
 		r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "TenantNotFound", err.Error())
@@ -159,7 +159,7 @@ func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.C
 
 	// forge the AuthParams
 	authParams, err := r.identityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
-		Cluster:         resourceSlice.Spec.ConsumerClusterIdentity,
+		Cluster:         *resourceSlice.Spec.ConsumerClusterID,
 		TenantNamespace: resourceSlice.Namespace,
 		IdentityType:    authv1alpha1.ResourceSliceIdentityType,
 		Name:            resourceSlice.Name,
@@ -264,12 +264,12 @@ func (r *RemoteResourceSliceReconciler) resourceSlicesEnquer() func(ctx context.
 			return nil
 		}
 
-		if tenant.Spec.ClusterIdentity.ClusterID == "" {
+		if tenant.Spec.ClusterID == "" {
 			klog.Infof("ClusterID not set for Tenant %q", tenant.Name)
 			return nil
 		}
 		resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll,
-			liqolabels.RemoteLabelSelectorForCluster(tenant.Spec.ClusterIdentity.ClusterID))
+			liqolabels.RemoteLabelSelectorForCluster(string(tenant.Spec.ClusterID)))
 		if err != nil {
 			klog.Errorf("Failed to retrieve ResourceSlices for Tenant %q: %v", tenant.Name, err)
 			return nil

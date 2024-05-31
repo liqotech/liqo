@@ -39,18 +39,18 @@ import (
 
 type tokenManager interface {
 	start(ctx context.Context)
-	mutateConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity, cnf *rest.Config) (*rest.Config, error)
+	mutateConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterID, cnf *rest.Config) (*rest.Config, error)
 }
 
 var _ tokenManager = &iamTokenManager{}
 
 type iamTokenManager struct {
 	client                    kubernetes.Interface
-	availableClusterIDSecrets map[string]types.NamespacedName
+	availableClusterIDSecrets map[discoveryv1alpha1.ClusterID]types.NamespacedName
 	availableTokenMutex       sync.Mutex
 
 	// TODO: the key cannot be the clusterID
-	tokenFiles map[string]string
+	tokenFiles map[discoveryv1alpha1.ClusterID]string
 }
 
 func (tokMan *iamTokenManager) start(ctx context.Context) {
@@ -60,10 +60,7 @@ func (tokMan *iamTokenManager) start(ctx context.Context) {
 			case <-time.NewTicker(10 * time.Minute).C:
 				klog.V(4).Info("Refreshing tokens...")
 				for remoteClusterID, namespacedName := range tokMan.availableClusterIDSecrets {
-					if err := tokMan.refreshToken(ctx, discoveryv1alpha1.ClusterIdentity{
-						ClusterID:   remoteClusterID,
-						ClusterName: remoteClusterID,
-					}, namespacedName); err != nil {
+					if err := tokMan.refreshToken(ctx, remoteClusterID, namespacedName); err != nil {
 						klog.Error(err)
 						continue
 					}
@@ -76,28 +73,28 @@ func (tokMan *iamTokenManager) start(ctx context.Context) {
 	}()
 }
 
-func (tokMan *iamTokenManager) refreshToken(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterIdentity,
+func (tokMan *iamTokenManager) refreshToken(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterID,
 	namespacedName types.NamespacedName) error {
 	secret, err := tokMan.client.CoreV1().Secrets(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("[%v] %v", remoteCluster.ClusterName, err)
+		klog.Errorf("[%v] %v", remoteCluster, err)
 		return err
 	}
 
 	tok, err := getIAMBearerToken(secret, remoteCluster)
 	if err != nil {
-		klog.Errorf("[%v] %v", remoteCluster.ClusterName, err)
+		klog.Errorf("[%v] %v", remoteCluster, err)
 		return err
 	}
 
 	if _, err = tokMan.storeToken(remoteCluster, tok); err != nil {
-		klog.Errorf("[%v] %v", remoteCluster.ClusterName, err)
+		klog.Errorf("[%v] %v", remoteCluster, err)
 		return err
 	}
 	return nil
 }
 
-func (tokMan *iamTokenManager) mutateConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity,
+func (tokMan *iamTokenManager) mutateConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterID,
 	cnf *rest.Config) (*rest.Config, error) {
 	tok, err := getIAMBearerToken(secret, remoteCluster)
 	if err != nil {
@@ -129,15 +126,15 @@ func (tokMan *iamTokenManager) mutateConfig(secret *v1.Secret, remoteCluster dis
 	return cnf, nil
 }
 
-func (tokMan *iamTokenManager) addClusterID(remoteCluster discoveryv1alpha1.ClusterIdentity, secret types.NamespacedName) {
+func (tokMan *iamTokenManager) addClusterID(remoteCluster discoveryv1alpha1.ClusterID, secret types.NamespacedName) {
 	tokMan.availableTokenMutex.Lock()
 	defer tokMan.availableTokenMutex.Unlock()
-	tokMan.availableClusterIDSecrets[remoteCluster.ClusterID] = secret
+	tokMan.availableClusterIDSecrets[remoteCluster] = secret
 }
 
-func (tokMan *iamTokenManager) storeToken(remoteCluster discoveryv1alpha1.ClusterIdentity, tok *token.Token) (string, error) {
+func (tokMan *iamTokenManager) storeToken(remoteCluster discoveryv1alpha1.ClusterID, tok *token.Token) (string, error) {
 	var err error
-	filename, found := tokMan.tokenFiles[remoteCluster.ClusterID]
+	filename, found := tokMan.tokenFiles[remoteCluster]
 	if found {
 		_, err = os.Stat(filename)
 	}
@@ -155,7 +152,7 @@ func (tokMan *iamTokenManager) storeToken(remoteCluster discoveryv1alpha1.Cluste
 		}
 
 		filename = file.Name()
-		tokMan.tokenFiles[remoteCluster.ClusterID] = filename
+		tokMan.tokenFiles[remoteCluster] = filename
 	}
 
 	err = os.WriteFile(filename, []byte(tok.Token), 0o600)
@@ -167,7 +164,7 @@ func (tokMan *iamTokenManager) storeToken(remoteCluster discoveryv1alpha1.Cluste
 	return filename, nil
 }
 
-func getIAMBearerToken(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity) (*token.Token, error) {
+func getIAMBearerToken(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterID) (*token.Token, error) {
 	region, err := getValue(secret, AwsRegionSecretKey, remoteCluster)
 	if err != nil {
 		klog.Error(err)
@@ -225,14 +222,14 @@ func getIAMBearerToken(secret *v1.Secret, remoteCluster discoveryv1alpha1.Cluste
 	return &tok, nil
 }
 
-func getValue(secret *v1.Secret, key string, remoteCluster discoveryv1alpha1.ClusterIdentity) ([]byte, error) {
+func getValue(secret *v1.Secret, key string, remoteCluster discoveryv1alpha1.ClusterID) ([]byte, error) {
 	value, ok := secret.Data[key]
 	if !ok {
 		klog.Errorf("key %v not found in secret %v/%v", key, secret.Namespace, secret.Name)
 		err := kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, remoteCluster.ClusterID)
+		}, string(remoteCluster))
 		return nil, err
 	}
 	return value, nil

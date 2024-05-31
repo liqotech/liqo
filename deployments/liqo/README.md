@@ -43,9 +43,8 @@
 | crdReplicator.pod.labels | object | `{}` | Labels for the crdReplicator pod. |
 | crdReplicator.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the crdReplicator pod. |
 | crdReplicator.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the crdReplicator pod. |
-| discovery.config.clusterIDOverride | string | `""` | Specify an unique ID (must be a valid uuidv4) for your cluster, instead of letting helm generate it automatically at install time. You can generate it using the command: `uuidgen` This field is needed when using tools such as ArgoCD, since the helm lookup function is not supported and a new value would be generated at each deployment. |
+| discovery.config.clusterID | string | `""` | Specify an unique ID for your cluster. This ID is used to identify your cluster in the peering process. |
 | discovery.config.clusterLabels | object | `{}` | A set of labels that characterizes the local cluster when exposed remotely as a virtual node. It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster. |
-| discovery.config.clusterName | string | `""` | Set a mnemonic name for your cluster. |
 | fabric.config.fullMasquerade | bool | `false` | Enabe/Disable the full masquerade mode for the fabric pod. It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP. Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic. IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster,  making impossible for a pod that receives the traffic to know the original source IP.  |
 | fabric.image.name | string | `"ghcr.io/liqotech/fabric"` | Image repository for the fabric pod. |
 | fabric.image.version | string | `""` | Custom version for the fabric image. If not specified, the global tag is used. |

@@ -54,12 +54,12 @@ func VirtualNode(name, namespace string) *vkv1alpha1.VirtualNode {
 
 // MutateVirtualNode mutates a VirtualNode resource.
 func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
-	remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity, opts *VirtualNodeOptions) error {
+	remoteClusterID discoveryv1alpha1.ClusterID, opts *VirtualNodeOptions) error {
 	// VirtualNode metadata
 	if virtualNode.ObjectMeta.Labels == nil {
 		virtualNode.ObjectMeta.Labels = make(map[string]string)
 	}
-	virtualNode.ObjectMeta.Labels[discovery.ClusterIDLabel] = remoteClusterIdentity.ClusterID
+	virtualNode.ObjectMeta.Labels[discovery.ClusterIDLabel] = string(remoteClusterID)
 
 	// VirtualNode spec
 
@@ -67,10 +67,10 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 	if virtualNode.Spec.Labels == nil {
 		virtualNode.Spec.Labels = make(map[string]string)
 	}
-	virtualNode.Spec.Labels[discovery.ClusterIDLabel] = remoteClusterIdentity.ClusterID
+	virtualNode.Spec.Labels[discovery.ClusterIDLabel] = string(remoteClusterID)
 	virtualNode.Spec.Labels = labels.Merge(virtualNode.Spec.Labels, opts.NodeLabels)
 
-	virtualNode.Spec.ClusterIdentity = remoteClusterIdentity
+	virtualNode.Spec.ClusterID = remoteClusterID
 	virtualNode.Spec.CreateNode = &opts.CreateNode
 	virtualNode.Spec.KubeconfigSecretRef = &opts.KubeconfigSecretRef
 	virtualNode.Spec.ResourceQuota = corev1.ResourceQuotaSpec{

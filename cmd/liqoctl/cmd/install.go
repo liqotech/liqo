@@ -59,8 +59,8 @@ based on the cluster configuration.
 Examples:
   $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
       --reserved-subnets 172.16.0.0/16,192.16.254.0/24
-or (configure the cluster name and labels)
-  $ {{ .Executable }} install --cluster-name engaged-weevil --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
+or (configure the cluster id and labels)
+  $ {{ .Executable }} install --cluster-id engaged-weevil --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
       --reserved-subnets 172.16.0.0/16,192.16.254.0/24 --cluster-labels region=europe,environment=staging
 or (configure the sharing percentage)
   $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 --sharing-percentage 50
@@ -100,6 +100,8 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 	defaultRepoURL := "https://github.com/liqotech/liqo"
 
+	var clusterIDFlag args.ClusterIDFlags
+
 	var cmd = &cobra.Command{
 		Use:     "install",
 		Aliases: []string{"upgrade"},
@@ -110,6 +112,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			singleClusterPersistentPreRun(cmd, f)
 
+			options.ClusterID = clusterIDFlag.GetClusterID()
 			options.ClusterLabels = clusterLabels.StringMap
 			options.SharingPercentage = sharingPercentage.Val
 			options.ReservedSubnets = reservedSubnets.StringList.StringList
@@ -146,7 +149,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 10*time.Minute,
 		"The timeout for the completion of the installation process")
 
-	cmd.PersistentFlags().StringVar(&options.ClusterName, "cluster-name", "", "The name identifying the cluster in Liqo")
+	cmd.PersistentFlags().Var(&clusterIDFlag, "cluster-id", "The id identifying the cluster in Liqo")
 	cmd.PersistentFlags().Var(&clusterLabels, "cluster-labels",
 		"The set of labels (i.e., key/value pairs, separated by comma) identifying the current cluster, and propagated to the virtual nodes")
 
@@ -167,7 +170,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&options.DisableAPIServerSanityChecks, "disable-api-server-sanity-check", false,
 		"Disable the sanity checks concerning the retrieved Kubernetes API server URL (default false)")
 	cmd.PersistentFlags().BoolVar(&options.SkipValidation, "skip-validation", false, "Skip the validation of the arguments "+
-		"(ClusterName, PodCIDR, ServiceCIDR). "+
+		"(PodCIDR, ServiceCIDR). "+
 		"This is useful when you are sure of what you are doing and the amount of pods and services in your cluster is very large (default false)")
 	cmd.PersistentFlags().BoolVar(&options.EnableMetrics, "enable-metrics", false, "Enable metrics exposition through prometheus (default false)")
 	cmd.PersistentFlags().BoolVar(&options.DisableTelemetry, "disable-telemetry", false,

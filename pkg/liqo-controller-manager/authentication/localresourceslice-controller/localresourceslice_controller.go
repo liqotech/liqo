@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	klog "k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,15 +39,15 @@ import (
 // NewLocalResourceSliceReconciler returns a new LocalResourceSliceReconciler.
 func NewLocalResourceSliceReconciler(cl client.Client, s *runtime.Scheme,
 	recorder record.EventRecorder, liqoNamespace string,
-	localClusterIdentity *discoveryv1alpha1.ClusterIdentity) *LocalResourceSliceReconciler {
+	localClusterID discoveryv1alpha1.ClusterID) *LocalResourceSliceReconciler {
 	return &LocalResourceSliceReconciler{
 		Client: cl,
 		Scheme: s,
 
 		eventRecorder: recorder,
 
-		liqoNamespace:        liqoNamespace,
-		localClusterIdentity: localClusterIdentity,
+		liqoNamespace:  liqoNamespace,
+		localClusterID: localClusterID,
 	}
 }
 
@@ -57,8 +58,8 @@ type LocalResourceSliceReconciler struct {
 
 	eventRecorder record.EventRecorder
 
-	liqoNamespace        string
-	localClusterIdentity *discoveryv1alpha1.ClusterIdentity
+	liqoNamespace  string
+	localClusterID discoveryv1alpha1.ClusterID
 }
 
 // cluster-role
@@ -79,12 +80,12 @@ func (r *LocalResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	if resourceSlice.Spec.ConsumerClusterIdentity == nil {
+	if resourceSlice.Spec.ConsumerClusterID == nil {
 		// Set the identity of the local cluster as the consumer identity.
-		resourceSlice.Spec.ConsumerClusterIdentity = r.localClusterIdentity.DeepCopy()
+		resourceSlice.Spec.ConsumerClusterID = ptr.To(r.localClusterID)
 	}
 
-	if resourceSlice.Spec.ProviderClusterIdentity == nil {
+	if resourceSlice.Spec.ProviderClusterID == nil {
 		// Get the identity from the Tenant.
 		tenantNamespace := resourceSlice.Namespace
 		var ns corev1.Namespace
@@ -108,7 +109,7 @@ func (r *LocalResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 
-		resourceSlice.Spec.ProviderClusterIdentity = identity.Spec.ClusterIdentity.DeepCopy()
+		resourceSlice.Spec.ProviderClusterID = ptr.To(identity.Spec.ClusterID)
 	}
 
 	// Get public and private keys of the local cluster.

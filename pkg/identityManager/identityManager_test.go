@@ -46,7 +46,7 @@ var _ = Describe("IdentityManager", func() {
 
 		It("Approve Signing Request", func() {
 			opts := &SigningRequestOptions{
-				Cluster:         &remoteCluster,
+				Cluster:         remoteCluster,
 				SigningRequest:  csrBytes,
 				IdentityType:    authv1alpha1.ControlPlaneIdentityType,
 				TenantNamespace: namespace.Name,
@@ -59,7 +59,7 @@ var _ = Describe("IdentityManager", func() {
 
 		It("Retrieve Remote Certificate", func() {
 			opts := &SigningRequestOptions{
-				Cluster:         &remoteCluster,
+				Cluster:         remoteCluster,
 				SigningRequest:  csrBytes,
 				IdentityType:    authv1alpha1.ControlPlaneIdentityType,
 				TenantNamespace: namespace.Name,

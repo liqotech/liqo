@@ -29,22 +29,22 @@ var _ identitymanager.IdentityReader = &IdentityReader{}
 
 // IdentityReader is a struct implementing an IdentityReader mock for testing purposes.
 type IdentityReader struct {
-	configs     map[string]*rest.Config
-	namespaces  map[string]string
-	secretNames map[string]string
+	configs     map[discoveryv1alpha1.ClusterID]*rest.Config
+	namespaces  map[discoveryv1alpha1.ClusterID]string
+	secretNames map[discoveryv1alpha1.ClusterID]string
 }
 
 // NewIdentityReader creates a new identityReader instance.
 func NewIdentityReader() *IdentityReader {
 	return &IdentityReader{
-		configs:     make(map[string]*rest.Config),
-		namespaces:  make(map[string]string),
-		secretNames: make(map[string]string),
+		configs:     make(map[discoveryv1alpha1.ClusterID]*rest.Config),
+		namespaces:  make(map[discoveryv1alpha1.ClusterID]string),
+		secretNames: make(map[discoveryv1alpha1.ClusterID]string),
 	}
 }
 
 // Add adds the associations about a remote cluster to the identityReader.
-func (i *IdentityReader) Add(clusterID, namespace, secretName string, restcfg *rest.Config) *IdentityReader {
+func (i *IdentityReader) Add(clusterID discoveryv1alpha1.ClusterID, namespace, secretName string, restcfg *rest.Config) *IdentityReader {
 	i.configs[clusterID] = restcfg
 	i.namespaces[clusterID] = namespace
 	i.secretNames[clusterID] = secretName
@@ -52,37 +52,37 @@ func (i *IdentityReader) Add(clusterID, namespace, secretName string, restcfg *r
 }
 
 // GetConfig retrieves the rest config associated with a remote cluster.
-func (i *IdentityReader) GetConfig(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (*rest.Config, error) {
-	if restcfg, found := i.configs[remoteCluster.ClusterID]; found {
+func (i *IdentityReader) GetConfig(remoteCluster discoveryv1alpha1.ClusterID, _ string) (*rest.Config, error) {
+	if restcfg, found := i.configs[remoteCluster]; found {
 		return restcfg, nil
 	}
-	return nil, fmt.Errorf("remote cluster ID %v not found", remoteCluster.ClusterID)
+	return nil, fmt.Errorf("remote cluster ID %v not found", remoteCluster)
 }
 
 // GetSecretNamespacedName retrieves the secret namespaced name associated with a remote cluster.
-func (i *IdentityReader) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity,
+func (i *IdentityReader) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterID,
 	_ string) (types.NamespacedName, error) {
-	if ns, found := i.namespaces[remoteCluster.ClusterID]; found {
-		if secretName, found := i.secretNames[remoteCluster.ClusterID]; found {
+	if ns, found := i.namespaces[remoteCluster]; found {
+		if secretName, found := i.secretNames[remoteCluster]; found {
 			return types.NamespacedName{
 				Namespace: ns,
 				Name:      secretName,
 			}, nil
 		}
-		return types.NamespacedName{}, fmt.Errorf("secret name for remote cluster ID %v not found", remoteCluster.ClusterID)
+		return types.NamespacedName{}, fmt.Errorf("secret name for remote cluster ID %v not found", remoteCluster)
 	}
-	return types.NamespacedName{}, fmt.Errorf("remote cluster ID %v not found", remoteCluster.ClusterID)
+	return types.NamespacedName{}, fmt.Errorf("remote cluster ID %v not found", remoteCluster)
 }
 
 // GetConfigFromSecret retrieves the rest config associated with a remote cluster.
-func (i *IdentityReader) GetConfigFromSecret(_ discoveryv1alpha1.ClusterIdentity, _ *corev1.Secret) (*rest.Config, error) {
+func (i *IdentityReader) GetConfigFromSecret(_ discoveryv1alpha1.ClusterID, _ *corev1.Secret) (*rest.Config, error) {
 	panic("implement me")
 }
 
 // GetRemoteTenantNamespace retrieves the tenant namespace associated with a remote cluster.
-func (i *IdentityReader) GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity, namespace string) (string, error) {
-	if namespace, found := i.namespaces[remoteCluster.ClusterID]; found {
+func (i *IdentityReader) GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterID, _ string) (string, error) {
+	if namespace, found := i.namespaces[remoteCluster]; found {
 		return namespace, nil
 	}
-	return "", fmt.Errorf("remote cluster ID %v not found", remoteCluster.ClusterID)
+	return "", fmt.Errorf("remote cluster ID %v not found", remoteCluster)
 }

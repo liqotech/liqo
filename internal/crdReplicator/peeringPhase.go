@@ -17,12 +17,13 @@ package crdreplicator
 import (
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // getPeeringPhase returns the peering phase for a cluster given its clusterID.
-func (c *Controller) getPeeringPhase(clusterID string) consts.PeeringPhase {
+func (c *Controller) getPeeringPhase(clusterID discoveryv1alpha1.ClusterID) consts.PeeringPhase {
 	c.peeringPhasesMutex.RLock()
 	defer c.peeringPhasesMutex.RUnlock()
 
@@ -33,7 +34,7 @@ func (c *Controller) getPeeringPhase(clusterID string) consts.PeeringPhase {
 }
 
 // setPeeringPhase sets the peering phase for a given clusterID.
-func (c *Controller) setPeeringPhase(clusterID string, phase consts.PeeringPhase) {
+func (c *Controller) setPeeringPhase(clusterID discoveryv1alpha1.ClusterID, phase consts.PeeringPhase) {
 	c.peeringPhasesMutex.Lock()
 	defer c.peeringPhasesMutex.Unlock()
 	c.peeringPhases[clusterID] = phase

@@ -18,23 +18,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ClusterID contains the unique identifier of a ForeignCluster.
+type ClusterID string
+
 // ForeignClusterSpec defines the desired state of ForeignCluster.
 type ForeignClusterSpec struct {
-	// Foreign Cluster Identity.
-	ClusterIdentity ClusterIdentity `json:"clusterIdentity,omitempty"`
-}
-
-// ClusterIdentity contains the information about a remote cluster (ID and Name).
-type ClusterIdentity struct {
-	// Foreign Cluster ID, this is a unique identifier of that cluster.
-	ClusterID string `json:"clusterID"`
-	// Foreign Cluster Name to be shown in GUIs.
-	ClusterName string `json:"clusterName"`
-}
-
-// String returns the ClusterName. It makes it possible to format ClusterIdentities with %s.
-func (i ClusterIdentity) String() string {
-	return i.ClusterName
+	// Foreign Cluster ID.
+	ClusterID ClusterID `json:"clusterID,omitempty"`
 }
 
 // RoleType represents the role of a ForeignCluster.
@@ -178,8 +168,7 @@ type TenantNamespaceType struct {
 
 // ForeignCluster is the Schema for the foreignclusters API.
 // +kubebuilder:printcolumn:name="Role",type=string,JSONPath=`.status.role`
-// +kubebuilder:printcolumn:name="ClusterID",type=string,priority=1,JSONPath=`.spec.clusterIdentity.clusterID`
-// +kubebuilder:printcolumn:name="ClusterName",type=string,priority=1,JSONPath=`.spec.clusterIdentity.clusterName`
+// +kubebuilder:printcolumn:name="ClusterID",type=string,priority=1,JSONPath=`.spec.clusterID`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type ForeignCluster struct {
 	metav1.TypeMeta   `json:",inline"`

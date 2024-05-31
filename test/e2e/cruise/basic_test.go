@@ -99,7 +99,7 @@ var _ = Describe("Liqo E2E", func() {
 						}
 
 						cluster1PodName, cluster2PodName := net.GetTesterName(
-							c.cluster1Context.Cluster.ClusterID, c.cluster2Context.Cluster.ClusterID)
+							c.cluster1Context.Cluster, c.cluster2Context.Cluster)
 
 						cluster1Opt := &net.TesterOpts{
 							Cluster:   c.cluster1Context.Cluster,
@@ -128,7 +128,7 @@ var _ = Describe("Liqo E2E", func() {
 
 						Eventually(func() error {
 							return net.ConnectivityCheckNodeToPod(ctx,
-								testContext.Clusters[0].NativeClient, testContext.Clusters[0].Cluster.ClusterID, cluster2PodName)
+								testContext.Clusters[0].NativeClient, testContext.Clusters[0].Cluster, cluster2PodName)
 						}, timeout, interval).Should(Succeed())
 					})
 				},
@@ -139,7 +139,7 @@ var _ = Describe("Liqo E2E", func() {
 				func(c connectivityTestcase) {
 					By("Deploy Tester Services", func() {
 						cluster1PodName, cluster2PodName := net.GetTesterName(
-							c.cluster1Context.Cluster.ClusterID, c.cluster2Context.Cluster.ClusterID)
+							c.cluster1Context.Cluster, c.cluster2Context.Cluster)
 
 						cluster1Opt := &net.TesterOpts{
 							Cluster:   c.cluster1Context.Cluster,

@@ -44,7 +44,6 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 	const (
 		shadowEpsNamespace string = "default"
 		shadowEpsName      string = "test-shadow-eps"
-		testFcName         string = "test-fc-name"
 		testFcID           string = "test-fc-id"
 	)
 
@@ -80,16 +79,13 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 
 			return &discoveryv1alpha1.ForeignCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: testFcName,
+					Name: testFcID,
 					Labels: map[string]string{
 						liqodiscovery.ClusterIDLabel: testFcID,
 					},
 				},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
-					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-						ClusterID:   testFcName,
-						ClusterName: testFcID,
-					},
+					ClusterID: discoveryv1alpha1.ClusterID(testFcID),
 				},
 				Status: discoveryv1alpha1.ForeignClusterStatus{
 					Modules: discoveryv1alpha1.Modules{
@@ -138,7 +134,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				Spec: vkv1alpha1.ShadowEndpointSliceSpec{
 					Template: vkv1alpha1.EndpointSliceTemplate{
 						Endpoints: []discoveryv1.Endpoint{{
-							NodeName: ptr.To(testFcName),
+							NodeName: ptr.To(testFcID),
 							Conditions: discoveryv1.EndpointConditions{
 								Ready: ready,
 							},

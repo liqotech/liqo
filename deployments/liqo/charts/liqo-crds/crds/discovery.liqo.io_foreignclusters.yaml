@@ -20,12 +20,8 @@ spec:
     - jsonPath: .status.role
       name: Role
       type: string
-    - jsonPath: .spec.clusterIdentity.clusterID
+    - jsonPath: .spec.clusterID
       name: ClusterID
-      priority: 1
-      type: string
-    - jsonPath: .spec.clusterIdentity.clusterName
-      name: ClusterName
       priority: 1
       type: string
     - jsonPath: .metadata.creationTimestamp
@@ -56,20 +52,9 @@ spec:
           spec:
             description: ForeignClusterSpec defines the desired state of ForeignCluster.
             properties:
-              clusterIdentity:
-                description: Foreign Cluster Identity.
-                properties:
-                  clusterID:
-                    description: Foreign Cluster ID, this is a unique identifier of
-                      that cluster.
-                    type: string
-                  clusterName:
-                    description: Foreign Cluster Name to be shown in GUIs.
-                    type: string
-                required:
-                - clusterID
-                - clusterName
-                type: object
+              clusterID:
+                description: Foreign Cluster ID.
+                type: string
             type: object
           status:
             description: ForeignClusterStatus defines the observed state of ForeignCluster.

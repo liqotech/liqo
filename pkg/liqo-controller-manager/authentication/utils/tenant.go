@@ -32,7 +32,7 @@ import (
 // It needs the local cluster identity to get the authentication keys and the signature
 // of the nonce given by the provider cluster to complete the authentication challenge.
 func GenerateTenant(ctx context.Context, cl client.Client,
-	localClusterIdentity *discoveryv1alpha1.ClusterIdentity, liqoNamespace string,
+	localClusterID discoveryv1alpha1.ClusterID, liqoNamespace string,
 	signature []byte, proxyURL *string) (*authv1alpha1.Tenant, error) {
 	// Get public and private keys of the local cluster.
 	privateKey, publicKey, err := authentication.GetClusterKeys(ctx, cl, liqoNamespace)
@@ -41,11 +41,11 @@ func GenerateTenant(ctx context.Context, cl client.Client,
 	}
 
 	// Generate a CSR for the remote cluster.
-	CSR, err := authentication.GenerateCSRForControlPlane(privateKey, localClusterIdentity.ClusterID)
+	CSR, err := authentication.GenerateCSRForControlPlane(privateKey, localClusterID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate CSR: %w", err)
 	}
 
 	// Forge tenant resource for the remote cluster.
-	return forge.TenantForRemoteCluster(*localClusterIdentity, publicKey, CSR, signature, proxyURL), nil
+	return forge.TenantForRemoteCluster(localClusterID, publicKey, CSR, signature, proxyURL), nil
 }

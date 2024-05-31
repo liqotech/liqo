@@ -36,7 +36,7 @@ func ForgeGatewayClient(name, namespace string, o *ForgeOptions) (*networkingv1a
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				liqoconsts.RemoteClusterID: o.RemoteClusterID,
+				liqoconsts.RemoteClusterID: string(o.RemoteClusterID),
 			},
 		},
 	}
@@ -56,7 +56,7 @@ func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *ForgeOpt
 	if gwClient.Labels == nil {
 		gwClient.Labels = make(map[string]string)
 	}
-	gwClient.Labels[liqoconsts.RemoteClusterID] = o.RemoteClusterID
+	gwClient.Labels[liqoconsts.RemoteClusterID] = string(o.RemoteClusterID)
 
 	// MTU
 	gwClient.Spec.MTU = o.MTU
@@ -88,6 +88,6 @@ func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *ForgeOpt
 }
 
 // DefaultGatewayClientName returns the default name for a GatewayClient.
-func DefaultGatewayClientName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
-	return remoteClusterIdentity.ClusterName
+func DefaultGatewayClientName(remoteClusterID discoveryv1alpha1.ClusterID) string {
+	return string(remoteClusterID)
 }

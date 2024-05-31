@@ -34,7 +34,7 @@ import (
 
 // TesterOpts contains to handle a connectivity tester pod.
 type TesterOpts struct {
-	Cluster   discoveryv1alpha1.ClusterIdentity
+	Cluster   discoveryv1alpha1.ClusterID
 	PodName   string
 	Offloaded bool
 }
@@ -73,10 +73,10 @@ func EnsureNetTesterPods(ctx context.Context, config *tester.ClusterContext, clu
 // CheckTesterPods retrieves the netTest pods and returns true if all the pods are up and ready.
 func CheckTesterPods(ctx context.Context,
 	homeClient, cluster1Client, cluster2Client kubernetes.Interface,
-	homeCluster discoveryv1alpha1.ClusterIdentity, cluster1, cluster2 *TesterOpts) bool {
+	homeCluster discoveryv1alpha1.ClusterID, cluster1, cluster2 *TesterOpts) bool {
 	// Note that UniqueName depends on the cluster name, so this may break if the remote cluster uses a different name
 	// than the one we pass as homeCluster
-	reflectedNamespace := TestNamespaceName + "-" + foreignclusterutils.UniqueName(&homeCluster)
+	reflectedNamespace := TestNamespaceName + "-" + foreignclusterutils.UniqueName(homeCluster)
 	if !util.IsPodUp(ctx, homeClient, TestNamespaceName, cluster1.PodName, util.PodLocal) ||
 		!util.IsPodUp(ctx, homeClient, TestNamespaceName, cluster2.PodName, util.PodLocal) {
 		return false
@@ -95,7 +95,7 @@ func CheckTesterPods(ctx context.Context,
 }
 
 // GetTesterName returns the names for the connectivity tester pods.
-func GetTesterName(clusterID1, clusterID2 string) (cluster1PodName, cluster2PodName string) {
+func GetTesterName(clusterID1, clusterID2 discoveryv1alpha1.ClusterID) (cluster1PodName, cluster2PodName string) {
 	return fmt.Sprintf("%v-%v-%v", podTesterLocalCl, clusterID1[:10], clusterID2[:10]),
 		fmt.Sprintf("%v-%v-%v", podTesterRemoteCl, clusterID1[:10], clusterID2[:10])
 }
@@ -107,7 +107,7 @@ func forgeTesterPod(image, namespace string, opts *TesterOpts) *v1.Pod {
 	if opts.Offloaded {
 		NodeAffinityOperator = v1.NodeSelectorOpIn
 		nodeSelector = map[string]string{
-			liqoconsts.RemoteClusterID: opts.Cluster.ClusterID,
+			liqoconsts.RemoteClusterID: string(opts.Cluster),
 		}
 	}
 

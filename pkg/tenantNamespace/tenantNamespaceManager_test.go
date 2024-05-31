@@ -62,10 +62,7 @@ var _ = Describe("TenantNamespace", func() {
 		_, ok := ns.Labels[discovery.TenantNamespaceLabel]
 		Expect(ok).To(BeTrue())
 
-		ns, err = namespaceManager.GetNamespace(ctx, discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   "unknown-cluster-id",
-			ClusterName: "unknown-cluster-name",
-		})
+		ns, err = namespaceManager.GetNamespace(ctx, "unknown-cluster-id")
 		Expect(err).NotTo(BeNil())
 		Expect(ns).To(BeNil())
 	})
@@ -80,10 +77,7 @@ var _ = Describe("TenantNamespace", func() {
 		BeforeEach(func() {
 			cnt++
 			clusterPrefix := fmt.Sprintf("test-permission-%v", cnt)
-			homeCluster = discoveryv1alpha1.ClusterIdentity{
-				ClusterID:   clusterPrefix + "-id",
-				ClusterName: clusterPrefix + "-name",
-			}
+			homeCluster = discoveryv1alpha1.ClusterID(clusterPrefix + "-id")
 			client = cluster.GetClient()
 
 			cr := &rbacv1.ClusterRole{
@@ -203,12 +197,12 @@ var _ = Describe("TenantNamespace", func() {
 
 })
 
-func checkRoleBinding(rb *rbacv1.RoleBinding, namespace string, homeCluster discoveryv1alpha1.ClusterIdentity,
+func checkRoleBinding(rb *rbacv1.RoleBinding, namespace string, homeCluster discoveryv1alpha1.ClusterID,
 	clusterRoleName string) {
 	Expect(rb.Namespace).To(Equal(namespace))
 	Expect(len(rb.Subjects)).To(Equal(1))
 	Expect(rb.Subjects[0].Kind).To(Equal(rbacv1.UserKind))
-	Expect(rb.Subjects[0].Name).To(Equal(homeCluster.ClusterID))
+	Expect(rb.Subjects[0].Name).To(Equal(homeCluster))
 	Expect(rb.RoleRef.Kind).To(Equal("ClusterRole"))
 	Expect(rb.RoleRef.Name).To(Equal(clusterRoleName))
 }

@@ -21,11 +21,13 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // MapEndpointsWithConfiguration maps the endpoints of the shadowendpointslice.
-func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client, clusterID string, endpoints []discoveryv1.Endpoint) error {
+func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
+	clusterID discoveryv1alpha1.ClusterID, endpoints []discoveryv1.Endpoint) error {
 	cfg, err := getters.GetConfigurationByClusterID(ctx, cl, clusterID)
 	if err != nil {
 		return err

@@ -70,7 +70,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting GatewayClient resource, instead of applying it. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().Var(&o.RemoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 	cmd.Flags().StringVar(&o.GatewayType, "type", DefaultGatewayType, "Type of Gateway Client. Default: wireguard")
 	cmd.Flags().StringVar(&o.TemplateName, "template-name", DefaultTemplateName, "Name of the Gateway Client template")
 	cmd.Flags().StringVar(&o.TemplateNamespace, "template-namespace", "", "Namespace of the Gateway Client template")

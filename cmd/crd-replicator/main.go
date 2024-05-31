@@ -27,6 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
@@ -45,7 +46,7 @@ func init() {
 }
 
 func main() {
-	clusterFlags := args.NewClusterIdentityFlags(true, nil)
+	clusterFlags := args.NewClusterIDFlags(true, nil)
 	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
 	workers := flag.Uint("workers", 1, "The number of workers managing the reflection of each remote cluster")
 
@@ -57,7 +58,7 @@ func main() {
 	log.SetLogger(klog.NewKlogr())
 
 	ctx := ctrl.SetupSignalHandler()
-	clusterIdentity := clusterFlags.ReadOrDie()
+	clusterID := clusterFlags.ReadOrDie()
 
 	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -76,21 +77,21 @@ func main() {
 
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 
-	reflectionManager := reflection.NewManager(dynClient, clusterIdentity.ClusterID, *workers, *resyncPeriod)
+	reflectionManager := reflection.NewManager(dynClient, clusterID, *workers, *resyncPeriod)
 	reflectionManager.Start(ctx, resources.GetResourcesToReplicate())
 
 	d := &crdreplicator.Controller{
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
-		ClusterID: clusterIdentity.ClusterID,
+		ClusterID: clusterID,
 
 		RegisteredResources: resources.GetResourcesToReplicate(),
 		ReflectionManager:   reflectionManager,
-		Reflectors:          make(map[string]*reflection.Reflector),
+		Reflectors:          make(map[discoveryv1alpha1.ClusterID]*reflection.Reflector),
 
 		IdentityReader: identitymanager.NewCertificateIdentityReader(ctx,
 			mgr.GetClient(), k8sClient, mgr.GetConfig(),
-			clusterIdentity, namespaceManager),
+			clusterID, namespaceManager),
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to setup the crdreplicator-operator")

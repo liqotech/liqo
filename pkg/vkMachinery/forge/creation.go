@@ -36,7 +36,7 @@ func VirtualKubeletName(virtualNode *virtualkubeletv1alpha1.VirtualNode) string 
 }
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(homeCluster *discoveryv1alpha1.ClusterIdentity, virtualNode *virtualkubeletv1alpha1.VirtualNode,
+func VirtualKubeletDeployment(homeCluster discoveryv1alpha1.ClusterID, virtualNode *virtualkubeletv1alpha1.VirtualNode,
 	opts *VirtualKubeletOpts) *appsv1.Deployment {
 	vkLabels := VirtualKubeletLabels(virtualNode, opts)
 	annotations := opts.ExtraAnnotations
@@ -65,25 +65,25 @@ func VirtualKubeletDeployment(homeCluster *discoveryv1alpha1.ClusterIdentity, vi
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
 func VirtualKubeletLabels(virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) map[string]string {
 	return labels.Merge(labels.Merge(opts.ExtraLabels, vkMachinery.KubeletBaseLabels), map[string]string{
-		discovery.ClusterIDLabel:   virtualNode.Spec.ClusterIdentity.ClusterID,
+		discovery.ClusterIDLabel:   string(virtualNode.Spec.ClusterID),
 		discovery.VirtualNodeLabel: virtualNode.Name,
 	})
 }
 
 // ClusterRoleLabels returns the labels to be set on a ClusterRoleBinding related to a VirtualKubelet.
-func ClusterRoleLabels(remoteClusterID string) map[string]string {
+func ClusterRoleLabels(remoteClusterID discoveryv1alpha1.ClusterID) map[string]string {
 	return labels.Merge(vkMachinery.ClusterRoleBindingLabels, map[string]string{
-		discovery.ClusterIDLabel: remoteClusterID,
+		discovery.ClusterIDLabel: string(remoteClusterID),
 	})
 }
 
 // VirtualKubeletClusterRoleBinding forges a ClusterRoleBinding for a VirtualKubelet.
 func VirtualKubeletClusterRoleBinding(kubeletNamespace, kubeletName string,
-	remoteCluster *discoveryv1alpha1.ClusterIdentity) *rbacv1.ClusterRoleBinding {
+	remoteCluster discoveryv1alpha1.ClusterID) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, kubeletName), 253),
-			Labels: ClusterRoleLabels(remoteCluster.ClusterID),
+			Labels: ClusterRoleLabels(remoteCluster),
 		},
 		Subjects: []rbacv1.Subject{
 			{Kind: "ServiceAccount", APIGroup: "", Name: kubeletName, Namespace: kubeletNamespace},

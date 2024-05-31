@@ -59,13 +59,13 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 
 		if match {
 			if err = addDesiredMapping(ctx, r.Client, nsoff.Namespace, r.remoteNamespaceName(nsoff),
-				clusterIDMap[virtualNodes.Items[i].Spec.ClusterIdentity.ClusterID]); err != nil {
+				clusterIDMap[string(virtualNodes.Items[i].Spec.ClusterID)]); err != nil {
 				returnErr = fmt.Errorf("failed to configure all desired mappings")
 			}
 		} else {
 			// Ensure old mappings are removed in case the cluster selector is updated.
 			if err = removeDesiredMapping(ctx, r.Client, nsoff.Namespace,
-				clusterIDMap[virtualNodes.Items[i].Spec.ClusterIdentity.ClusterID]); err != nil {
+				clusterIDMap[string(virtualNodes.Items[i].Spec.ClusterID)]); err != nil {
 				returnErr = fmt.Errorf("failed to configure all desired mappings")
 			}
 		}

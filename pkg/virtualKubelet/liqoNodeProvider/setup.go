@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -43,8 +44,8 @@ const (
 type InitConfig struct {
 	HomeConfig      *rest.Config
 	RemoteConfig    *rest.Config
-	HomeClusterID   string
-	RemoteClusterID string
+	HomeClusterID   discoveryv1alpha1.ClusterID
+	RemoteClusterID discoveryv1alpha1.ClusterID
 	Namespace       string
 
 	NodeName         string
@@ -91,7 +92,7 @@ func node(cfg *InitConfig) *corev1.Node {
 		corev1.LabelArchStable: architecture,
 
 		liqoconst.TypeLabel:       liqoconst.TypeNode,
-		liqoconst.RemoteClusterID: cfg.RemoteClusterID,
+		liqoconst.RemoteClusterID: string(cfg.RemoteClusterID),
 
 		corev1.LabelNodeExcludeBalancers: strconv.FormatBool(true),
 		labelNodeExcludeBalancersAlpha:   strconv.FormatBool(true),

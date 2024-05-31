@@ -36,6 +36,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -47,11 +48,11 @@ type Reflector struct {
 
 	manager        *Manager
 	localNamespace string
-	localClusterID string
+	localClusterID discoveryv1alpha1.ClusterID
 
 	remoteClient    dynamic.Interface
 	remoteNamespace string
-	remoteClusterID string
+	remoteClusterID discoveryv1alpha1.ClusterID
 
 	resources map[schema.GroupVersionResource]*reflectedResource
 
@@ -237,7 +238,7 @@ func (r *Reflector) eventHandlers(gvr schema.GroupVersionResource) cache.Resourc
 // remoteLabelSelector returns a function which configures the label selector targeting the resources reflected
 // by us in the given remote cluster.
 func (r *Reflector) remoteLabelSelector() labels.Selector {
-	req1, err := labels.NewRequirement(consts.ReplicationOriginLabel, selection.Equals, []string{r.localClusterID})
+	req1, err := labels.NewRequirement(consts.ReplicationOriginLabel, selection.Equals, []string{string(r.localClusterID)})
 	utilruntime.Must(err)
 	req2, err := labels.NewRequirement(consts.ReplicationStatusLabel, selection.Equals, []string{strconv.FormatBool(true)})
 	utilruntime.Must(err)

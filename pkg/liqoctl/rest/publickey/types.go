@@ -26,7 +26,7 @@ type Options struct {
 	generateOptions *rest.GenerateOptions
 	deleteOptions   *rest.DeleteOptions
 
-	RemoteClusterID string
+	RemoteClusterID argsutils.ClusterIDFlags
 	GatewayName     string
 	GatewayType     *argsutils.StringEnum
 	PublicKey       []byte

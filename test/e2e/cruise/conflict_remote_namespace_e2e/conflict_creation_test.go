@@ -123,7 +123,7 @@ var _ = Describe("Liqo E2E", func() {
 					return err
 				}
 				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
-				suffix := foreignclusterutils.UniqueName(&testContext.Clusters[remoteIndex].Cluster)
+				suffix := foreignclusterutils.UniqueName(testContext.Clusters[remoteIndex].Cluster)
 				if !ok || !strings.HasSuffix(value, suffix) {
 					return fmt.Errorf("the remote namespace has not the right Liqo annotation, found: %q, expected suffix: %q", value, suffix)
 				}

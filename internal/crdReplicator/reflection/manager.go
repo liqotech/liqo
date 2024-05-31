@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -46,12 +47,12 @@ type Manager struct {
 	handlers      map[schema.GroupVersionResource]map[string]func(key item)
 	handlersMutex sync.RWMutex
 
-	clusterID string
+	clusterID discoveryv1alpha1.ClusterID
 	workers   uint
 }
 
 // NewManager returns a new manager to start the reflection towards remote clusters.
-func NewManager(client dynamic.Interface, clusterID string, workersPerCluster uint, resync time.Duration) *Manager {
+func NewManager(client dynamic.Interface, clusterID discoveryv1alpha1.ClusterID, workersPerCluster uint, resync time.Duration) *Manager {
 	return &Manager{
 		client: client,
 		resync: resync,
@@ -85,7 +86,7 @@ func (m *Manager) Start(ctx context.Context, registeredResources []resources.Res
 }
 
 // NewForRemote returns a new reflector for a given remote cluster.
-func (m *Manager) NewForRemote(client dynamic.Interface, clusterID, localNamespace, remoteNamespace string) *Reflector {
+func (m *Manager) NewForRemote(client dynamic.Interface, clusterID discoveryv1alpha1.ClusterID, localNamespace, remoteNamespace string) *Reflector {
 	return &Reflector{
 		manager: m,
 
