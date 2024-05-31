@@ -25,7 +25,7 @@ type Options struct {
 	generateOptions *rest.GenerateOptions
 	deleteOptions   *rest.DeleteOptions
 
-	RemoteClusterID string
+	RemoteClusterID args.ClusterIDFlags
 	PodCIDR         args.CIDR
 	ExternalCIDR    args.CIDR
 	Wait            bool

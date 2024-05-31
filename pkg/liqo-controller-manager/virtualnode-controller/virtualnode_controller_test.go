@@ -33,17 +33,15 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
-func ForgeFakeVirtualNode(nameVirtualNode, tenantNamespaceName, remoteClusterID string) *virtualkubeletv1alpha1.VirtualNode {
+func ForgeFakeVirtualNode(nameVirtualNode, tenantNamespaceName string,
+	remoteClusterID discoveryv1alpha1.ClusterID) *virtualkubeletv1alpha1.VirtualNode {
 	return &virtualkubeletv1alpha1.VirtualNode{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameVirtualNode,
 			Namespace: tenantNamespaceName,
 		},
 		Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
-			ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
-				ClusterID:   remoteClusterID,
-				ClusterName: remoteClusterName1,
-			},
+			ClusterID: remoteClusterID,
 			Template: &virtualkubeletv1alpha1.DeploymentTemplate{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      nameVirtualNode,

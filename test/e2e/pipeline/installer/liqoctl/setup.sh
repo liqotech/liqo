@@ -67,7 +67,7 @@ do
 		# this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
-  COMMON_ARGS=(--cluster-name "cluster-${i}" --local-chart-path ./deployments/liqo
+  COMMON_ARGS=(--cluster-id "cluster-${i}" --local-chart-path ./deployments/liqo
     --version "${LIQO_VERSION}" --set controllerManager.config.enableResourceEnforcement=true --set "networking.securityMode=${SECURITY_MODE}")
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")

@@ -17,7 +17,9 @@ package gatewayclient
 import (
 	"k8s.io/client-go/kubernetes"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	rest "github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Default values for the gatewayclient command.
@@ -34,7 +36,7 @@ type Options struct {
 	createOptions *rest.CreateOptions
 	deleteOptions *rest.DeleteOptions
 
-	RemoteClusterID   string
+	RemoteClusterID   args.ClusterIDFlags
 	GatewayType       string
 	TemplateName      string
 	TemplateNamespace string
@@ -63,7 +65,7 @@ func (o *Options) APIOptions() *rest.APIOptions {
 // ForgeOptions encapsulate the options to forge a gatewayclient.
 type ForgeOptions struct {
 	KubeClient        kubernetes.Interface
-	RemoteClusterID   string
+	RemoteClusterID   discoveryv1alpha1.ClusterID
 	GatewayType       string
 	TemplateName      string
 	TemplateNamespace string
@@ -80,7 +82,7 @@ func (o *Options) getForgeOptions() *ForgeOptions {
 
 	return &ForgeOptions{
 		KubeClient:        o.createOptions.KubeClient,
-		RemoteClusterID:   o.RemoteClusterID,
+		RemoteClusterID:   o.RemoteClusterID.GetClusterID(),
 		GatewayType:       o.GatewayType,
 		TemplateName:      o.TemplateName,
 		TemplateNamespace: o.TemplateNamespace,

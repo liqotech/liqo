@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -52,7 +52,7 @@ const (
 type Controller struct {
 	Scheme *runtime.Scheme
 	client.Client
-	ClusterID string
+	ClusterID discoveryv1alpha1.ClusterID
 
 	// RegisteredResources is a list of GVRs of resources to be replicated, with the associated peering phase when the replication has to occur.
 	RegisteredResources []resources.Resource
@@ -60,15 +60,15 @@ type Controller struct {
 	// ReflectionManager is the object managing the reflection towards remote clusters.
 	ReflectionManager *reflection.Manager
 	// Reflectors is a map containing the reflectors towards each remote cluster.
-	Reflectors map[string]*reflection.Reflector
+	Reflectors map[discoveryv1alpha1.ClusterID]*reflection.Reflector
 
 	// IdentityReader is an interface to manage remote identities, and to get the rest config.
 	IdentityReader identitymanager.IdentityReader
 
-	peeringPhases      map[string]consts.PeeringPhase
+	peeringPhases      map[discoveryv1alpha1.ClusterID]consts.PeeringPhase
 	peeringPhasesMutex sync.RWMutex
 
-	networkingEnabled      map[string]bool
+	networkingEnabled      map[discoveryv1alpha1.ClusterID]bool
 	networkingEnabledMutex sync.RWMutex
 }
 
@@ -106,12 +106,9 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	}
 
 	// Extract remote cluster informations from the secret
-	remoteClusterID := secret.Labels[consts.RemoteClusterID]
+	remoteClusterID := discoveryv1alpha1.ClusterID(secret.Labels[consts.RemoteClusterID])
 	localTenantNamespace := secret.Namespace
 	remoteTenantNamespace := secret.Annotations[consts.RemoteTenantNamespaceAnnotKey]
-	if remoteClusterName, ok := secret.Annotations[consts.RemoteClusterName]; ok { // optional, only used for logging
-		prefix = fmt.Sprintf("[%s] ", remoteClusterName)
-	}
 
 	// examine DeletionTimestamp to determine if object is under deletion
 	if !secret.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -174,7 +171,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		return ctrl.Result{}, nil
 	}
 
-	config, err := c.IdentityReader.GetConfig(v1alpha1.ClusterIdentity{ClusterID: remoteClusterID}, localTenantNamespace)
+	config, err := c.IdentityReader.GetConfig(remoteClusterID, localTenantNamespace)
 	if err != nil {
 		klog.Errorf("%sUnable to retrieve config for clusterID %q: %v", prefix, remoteClusterID, err)
 		return ctrl.Result{}, nil
@@ -185,8 +182,8 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 
 // SetupWithManager registers a new controller for identity Secrets.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
-	c.peeringPhases = make(map[string]consts.PeeringPhase)
-	c.networkingEnabled = make(map[string]bool)
+	c.peeringPhases = make(map[discoveryv1alpha1.ClusterID]consts.PeeringPhase)
+	c.networkingEnabled = make(map[discoveryv1alpha1.ClusterID]bool)
 
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {
@@ -256,7 +253,7 @@ func (c *Controller) ensureFinalizer(ctx context.Context, secret *corev1.Secret,
 }
 
 func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config *rest.Config,
-	remoteClusterID, localNamespace, remoteNamespace string) error {
+	remoteClusterID discoveryv1alpha1.ClusterID, localNamespace, remoteNamespace string) error {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		klog.Errorf("%sUnable to create dynamic client for remote cluster: %v", remoteClusterID, err)
@@ -269,7 +266,7 @@ func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config
 	return nil
 }
 
-func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterID string, deleting bool) error {
+func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID, deleting bool) error {
 	reflector, found := c.Reflectors[remoteClusterID]
 	if !found {
 		// The reflector object has not yet been setup

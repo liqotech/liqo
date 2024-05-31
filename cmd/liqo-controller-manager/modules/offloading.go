@@ -50,7 +50,7 @@ import (
 // OffloadingOption defines the options to setup the offloading module.
 type OffloadingOption struct {
 	Clientset                   *kubernetes.Clientset
-	LocalClusterIdentity        *discoveryv1alpha1.ClusterIdentity
+	LocalClusterID              discoveryv1alpha1.ClusterID
 	VirtualKubeletOpts          *forge.VirtualKubeletOpts
 	EnableStorage               bool
 	VirtualStorageClassName     string
@@ -71,7 +71,7 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("virtualnode-controller"),
-		opts.LocalClusterIdentity,
+		opts.LocalClusterID,
 		opts.VirtualKubeletOpts,
 	)
 	if err != nil {
@@ -94,7 +94,7 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 	namespaceOffloadingReconciler := &nsoffctrl.NamespaceOffloadingReconciler{
 		Client:       mgr.GetClient(),
 		Recorder:     mgr.GetEventRecorderFor("namespaceoffloading-controller"),
-		LocalCluster: *opts.LocalClusterIdentity,
+		LocalCluster: opts.LocalClusterID,
 	}
 	if err = namespaceOffloadingReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the namespaceoffloading reconciler: %v", err)

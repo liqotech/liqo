@@ -29,7 +29,7 @@ import (
 
 // add the bindings for the remote clusterid for the given ClusterRoles
 // This method creates RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity,
+func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterID,
 	clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error) {
 	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
@@ -50,7 +50,7 @@ func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster 
 
 // remove the bindings for the remote clusterid for the given ClusterRoles
 // This method deletes RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity, clusterRoles ...string) error {
+func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterID, clusterRoles ...string) error {
 	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
 		klog.Error(err)
@@ -67,7 +67,7 @@ func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluste
 }
 
 // create a RoleBinding for the given clusterid in the given Namespace.
-func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity,
+func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster discoveryv1alpha1.ClusterID,
 	namespace *v1.Namespace, clusterRole *rbacv1.ClusterRole) (*rbacv1.RoleBinding, error) {
 	ownerRef := metav1.OwnerReference{
 		APIVersion: rbacv1.SchemeGroupVersion.String(),
@@ -90,7 +90,7 @@ func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster d
 			{
 				Kind:     rbacv1.UserKind,
 				APIGroup: rbacv1.GroupName,
-				Name:     cluster.ClusterID,
+				Name:     string(cluster),
 			},
 		},
 		RoleRef: rbacv1.RoleRef{

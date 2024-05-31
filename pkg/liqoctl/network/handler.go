@@ -23,6 +23,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
@@ -136,7 +137,7 @@ func (o *Options) RunReset(ctx context.Context) error {
 	}
 
 	// If the clusters are still connected through the gateways, disconnect them before removing network Configurations.
-	gwClient, err := cluster1.GetGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster2.clusterIdentity))
+	gwClient, err := cluster1.GetGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster2.clusterID))
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		return err
@@ -146,7 +147,7 @@ func (o *Options) RunReset(ctx context.Context) error {
 		}
 	}
 
-	gwServer, err := cluster2.GetGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster1.clusterIdentity))
+	gwServer, err := cluster2.GetGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster1.clusterID))
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		return err
@@ -157,12 +158,12 @@ func (o *Options) RunReset(ctx context.Context) error {
 	}
 
 	// Delete Configuration on cluster 1
-	if err := cluster1.DeleteConfiguration(ctx, configuration.DefaultConfigurationName(cluster2.clusterIdentity)); err != nil {
+	if err := cluster1.DeleteConfiguration(ctx, configuration.DefaultConfigurationName(cluster2.clusterID)); err != nil {
 		return err
 	}
 
 	// Delete Configuration on cluster 2
-	return cluster2.DeleteConfiguration(ctx, configuration.DefaultConfigurationName(cluster1.clusterIdentity))
+	return cluster2.DeleteConfiguration(ctx, configuration.DefaultConfigurationName(cluster1.clusterID))
 }
 
 // RunConnect connect two clusters using liqo networking.
@@ -183,19 +184,19 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Check if the Networking is initialized on cluster 1
-	if err := cluster1.CheckNetworkInitialized(ctx, cluster2.clusterIdentity); err != nil {
+	if err := cluster1.CheckNetworkInitialized(ctx, cluster2.clusterID); err != nil {
 		return err
 	}
 
 	// Check if the Networking is initialized on cluster 2
-	if err := cluster2.CheckNetworkInitialized(ctx, cluster1.clusterIdentity); err != nil {
+	if err := cluster2.CheckNetworkInitialized(ctx, cluster1.clusterID); err != nil {
 		return err
 	}
 
 	// Create gateway server on cluster 2
 	gwServer, err := cluster2.EnsureGatewayServer(ctx,
-		gatewayserver.DefaultGatewayServerName(cluster1.clusterIdentity),
-		o.newGatewayServerForgeOptions(o.RemoteFactory.KubeClient, cluster1.clusterIdentity.ClusterID))
+		gatewayserver.DefaultGatewayServerName(cluster1.clusterID),
+		o.newGatewayServerForgeOptions(o.RemoteFactory.KubeClient, cluster1.clusterID))
 	if err != nil {
 		return err
 	}
@@ -212,8 +213,8 @@ func (o *Options) RunConnect(ctx context.Context) error {
 
 	// Create gateway client on cluster 1
 	gwClient, err := cluster1.EnsureGatewayClient(ctx,
-		gatewayclient.DefaultGatewayClientName(cluster2.clusterIdentity),
-		o.newGatewayClientForgeOptions(o.LocalFactory.KubeClient, cluster2.clusterIdentity.ClusterID, gwServer.Status.Endpoint))
+		gatewayclient.DefaultGatewayClientName(cluster2.clusterID),
+		o.newGatewayClientForgeOptions(o.LocalFactory.KubeClient, cluster2.clusterID, gwServer.Status.Endpoint))
 	if err != nil {
 		return err
 	}
@@ -239,7 +240,7 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Create PublicKey of gateway server on cluster 1
-	if err := cluster1.EnsurePublicKey(ctx, cluster2.clusterIdentity, keyServer, gwClient); err != nil {
+	if err := cluster1.EnsurePublicKey(ctx, cluster2.clusterID, keyServer, gwClient); err != nil {
 		return err
 	}
 
@@ -254,17 +255,17 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Create PublicKey of gateway client on cluster 2
-	if err := cluster2.EnsurePublicKey(ctx, cluster1.clusterIdentity, keyClient, gwServer); err != nil {
+	if err := cluster2.EnsurePublicKey(ctx, cluster1.clusterID, keyClient, gwServer); err != nil {
 		return err
 	}
 
 	if o.Wait {
 		// Wait for Connections on both cluster to be created.
-		conn2, err := cluster2.Waiter.ForConnection(ctx, gwServer.Namespace, cluster1.clusterIdentity)
+		conn2, err := cluster2.Waiter.ForConnection(ctx, gwServer.Namespace, cluster1.clusterID)
 		if err != nil {
 			return err
 		}
-		conn1, err := cluster1.Waiter.ForConnection(ctx, gwClient.Namespace, cluster2.clusterIdentity)
+		conn1, err := cluster1.Waiter.ForConnection(ctx, gwClient.Namespace, cluster2.clusterID)
 		if err != nil {
 			return err
 		}
@@ -299,15 +300,16 @@ func (o *Options) RunDisconnect(ctx context.Context) error {
 	}
 
 	// Delete gateway client on cluster 1
-	if err := cluster1.DeleteGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster2.clusterIdentity)); err != nil {
+	if err := cluster1.DeleteGatewayClient(ctx, gatewayclient.DefaultGatewayClientName(cluster2.clusterID)); err != nil {
 		return err
 	}
 
 	// Delete gateway server on cluster 2
-	return cluster2.DeleteGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster1.clusterIdentity))
+	return cluster2.DeleteGatewayServer(ctx, gatewayserver.DefaultGatewayServerName(cluster1.clusterID))
 }
 
-func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID string) *gatewayserver.ForgeOptions {
+func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface,
+	remoteClusterID discoveryv1alpha1.ClusterID) *gatewayserver.ForgeOptions {
 	if o.ServerTemplateNamespace == "" {
 		o.ServerTemplateNamespace = o.LocalFactory.LiqoNamespace
 	}
@@ -327,7 +329,7 @@ func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, 
 	}
 }
 
-func (o *Options) newGatewayClientForgeOptions(kubeClient kubernetes.Interface, remoteClusterID string,
+func (o *Options) newGatewayClientForgeOptions(kubeClient kubernetes.Interface, remoteClusterID discoveryv1alpha1.ClusterID,
 	serverEndpoint *networkingv1alpha1.EndpointStatus) *gatewayclient.ForgeOptions {
 	if o.ClientTemplateNamespace == "" {
 		o.ClientTemplateNamespace = o.RemoteFactory.LiqoNamespace

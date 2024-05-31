@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
@@ -76,7 +75,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting ResourceSlice resource, instead of applying it. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.remoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().Var(&o.remoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 	cmd.Flags().StringVar(&o.class, "class", "default", "The class of the ResourceSlice")
 	cmd.Flags().StringVar(&o.cpu, "cpu", "", "The amount of CPU requested in the resource slice")
 	cmd.Flags().StringVar(&o.memory, "memory", "", "The amount of memory requested in the resource slice")
@@ -110,7 +109,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	resourceSlice := forge.ResourceSlice(opts.Name, namespace)
 	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, resourceSlice, func() error {
-		return forge.MutateResourceSlice(resourceSlice, o.remoteClusterID, &forge.ResourceSliceOptions{
+		return forge.MutateResourceSlice(resourceSlice, o.remoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
 			Class: authv1alpha1.ResourceSliceClass(o.class),
 			Resources: map[corev1.ResourceName]string{
 				corev1.ResourceCPU:    o.cpu,
@@ -145,7 +144,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 }
 
 func (o *Options) getTenantNamespace(ctx context.Context) (string, error) {
-	ns, err := o.namespaceManager.GetNamespace(ctx, discoveryv1alpha1.ClusterIdentity{ClusterID: o.remoteClusterID})
+	ns, err := o.namespaceManager.GetNamespace(ctx, o.remoteClusterID.GetClusterID())
 	switch {
 	case err == nil:
 		return ns.Name, nil
@@ -175,7 +174,7 @@ func (o *Options) output(ctx context.Context) error {
 	}
 
 	resourceSlice := forge.ResourceSlice(opts.Name, namespace)
-	err = forge.MutateResourceSlice(resourceSlice, o.remoteClusterID, &forge.ResourceSliceOptions{
+	err = forge.MutateResourceSlice(resourceSlice, o.remoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
 		Class: authv1alpha1.ResourceSliceClass(o.class),
 		Resources: map[corev1.ResourceName]string{
 			corev1.ResourceCPU:    o.cpu,

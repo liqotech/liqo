@@ -212,35 +212,27 @@ var _ = Describe("ParseArguments", func() {
 
 	Context("ClusterIdentity", func() {
 
-		type parseClusterIdentityTestCase struct {
+		type parseClusterIDTestCase struct {
 			args          []string
 			expectedError OmegaMatcher
 		}
 
-		DescribeTable("ClusterIdentity table",
-			func(c parseClusterIdentityTestCase) {
+		DescribeTable("ClusterID table",
+			func(c parseClusterIDTestCase) {
 				flagset := flag.NewFlagSet("test", flag.ContinueOnError)
-				flags := NewClusterIdentityFlags(true, flagset)
+				flags := NewClusterIDFlags(true, flagset)
 				Expect(flagset.Parse(c.args)).To(Succeed())
 				_, err := flags.Read()
 				Expect(err).To(c.expectedError)
 			},
 
-			Entry("no cluster ID", parseClusterIdentityTestCase{
-				args:          []string{"--cluster-name=foo"},
-				expectedError: HaveOccurred(),
-			}),
-			Entry("no cluster name", parseClusterIdentityTestCase{
+			Entry("no cluster name", parseClusterIDTestCase{
 				args:          []string{"--cluster-id=foo"},
 				expectedError: HaveOccurred(),
 			}),
 
-			Entry("invalid cluster ID", parseClusterIdentityTestCase{
-				args:          []string{"--cluster-id=Foo!", "--cluster-name=foo"},
-				expectedError: HaveOccurred(),
-			}),
-			Entry("invalid cluster name", parseClusterIdentityTestCase{
-				args:          []string{"--cluster-id=foo", "--cluster-name=Foo!"},
+			Entry("invalid cluster ID", parseClusterIDTestCase{
+				args:          []string{"--cluster-id=Foo!"},
 				expectedError: HaveOccurred(),
 			}),
 		)

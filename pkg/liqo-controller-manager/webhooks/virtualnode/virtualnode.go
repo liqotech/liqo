@@ -37,19 +37,19 @@ import (
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;update;patch
 
 type vnwh struct {
-	clusterIdentity       *discoveryv1alpha1.ClusterIdentity
+	clusterID             discoveryv1alpha1.ClusterID
 	virtualKubeletOptions *vkforge.VirtualKubeletOpts
 	client                client.Client
 	decoder               *admission.Decoder
 }
 
 // New returns a new VirtualNodeWebhook instance.
-func New(cl client.Client, clusterIdentity *discoveryv1alpha1.ClusterIdentity,
+func New(cl client.Client, clusterID discoveryv1alpha1.ClusterID,
 	virtualKubeletOptions *vkforge.VirtualKubeletOpts) *admission.Webhook {
 	return &admission.Webhook{Handler: &vnwh{
 		client:                cl,
 		decoder:               admission.NewDecoder(runtime.NewScheme()),
-		clusterIdentity:       clusterIdentity,
+		clusterID:             clusterID,
 		virtualKubeletOptions: virtualKubeletOptions,
 	}}
 }

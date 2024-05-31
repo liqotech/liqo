@@ -35,7 +35,7 @@ var (
 	ctx         context.Context
 	cancel      context.CancelFunc
 	cluster     testutil.Cluster
-	homeCluster discoveryv1alpha1.ClusterIdentity
+	homeCluster discoveryv1alpha1.ClusterID
 
 	namespaceManager Manager
 )
@@ -44,10 +44,7 @@ var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
 	ctx, cancel = context.WithCancel(context.Background())
 
-	homeCluster = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "home-cluster-id",
-		ClusterName: "home-cluster-name",
-	}
+	homeCluster = discoveryv1alpha1.ClusterID("home-cluster-id")
 
 	var err error
 	cluster, _, err = testutil.NewTestCluster([]string{

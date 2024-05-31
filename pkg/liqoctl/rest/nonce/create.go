@@ -68,16 +68,12 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting Nonce secret, with no additional output. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.clusterIdentity.ClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
-	cmd.Flags().StringVar(&o.clusterIdentity.ClusterName, "remote-cluster-name", "", "The name of the remote cluster")
+	cmd.Flags().Var(&o.clusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
-	runtime.Must(cmd.MarkFlagRequired("remote-cluster-name"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
-		o.createOptions.Factory, completion.NoLimit)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-name", completion.ClusterNames(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
 
 	return cmd
@@ -87,7 +83,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 	waiter := wait.NewWaiterFromFactory(opts.Factory)
 
-	tenantNs, err := o.namespaceManager.CreateNamespace(ctx, o.clusterIdentity)
+	tenantNs, err := o.namespaceManager.CreateNamespace(ctx, o.clusterID.GetClusterID())
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to create tenant namespace: %v", output.PrettyErr(err)))
 		return err
@@ -100,20 +96,20 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	// Ensure the presence of the nonce secret.
 	s := opts.Printer.StartSpinner("Creating nonce")
-	if err := authutils.EnsureNonceSecret(ctx, opts.CRClient, o.clusterIdentity.ClusterID, tenantNs.GetName()); err != nil {
+	if err := authutils.EnsureNonceSecret(ctx, opts.CRClient, o.clusterID.GetClusterID(), tenantNs.GetName()); err != nil {
 		s.Fail(fmt.Sprintf("Unable to create nonce secret: %v", output.PrettyErr(err)))
 		return err
 	}
 	s.Success("Nonce created")
 
 	// Wait for secret to be filled with the nonce.
-	if err := waiter.ForNonce(ctx, o.clusterIdentity.ClusterID, false); err != nil {
+	if err := waiter.ForNonce(ctx, o.clusterID.GetClusterID(), false); err != nil {
 		return err
 	}
 
 	// Retrieve nonce from secret.
 	s = opts.Printer.StartSpinner("Retrieving nonce")
-	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterIdentity.ClusterID)
+	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterID.GetClusterID())
 	if err != nil {
 		s.Fail(fmt.Sprintf("Unable to retrieve nonce: %v", output.PrettyErr(err)))
 		return err
@@ -137,7 +133,7 @@ func (o *Options) output(tenantNamespace string) error {
 	}
 
 	nonce := forge.Nonce(tenantNamespace)
-	if err := forge.MutateNonce(nonce, o.clusterIdentity.ClusterID); err != nil {
+	if err := forge.MutateNonce(nonce, o.clusterID.GetClusterID()); err != nil {
 		return err
 	}
 

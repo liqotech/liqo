@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -29,7 +30,7 @@ import (
 
 // EnsureNonceSecret ensures that a nonce secret exists in the tenant namespace.
 func EnsureNonceSecret(ctx context.Context, cl client.Client,
-	remoteClusterID, tenantNamespace string) error {
+	remoteClusterID discoveryv1alpha1.ClusterID, tenantNamespace string) error {
 	nonce := forge.Nonce(tenantNamespace)
 	_, err := controllerutil.CreateOrUpdate(ctx, cl, nonce, func() error {
 		return forge.MutateNonce(nonce, remoteClusterID)
@@ -45,7 +46,7 @@ func EnsureNonceSecret(ctx context.Context, cl client.Client,
 // If nonce is provided, create nonce secret in the tenant namespace and wait for it to be signed. Raise an error if there is
 // already a nonce secret in the tenant namespace.
 func EnsureSignedNonceSecret(ctx context.Context, cl client.Client,
-	remoteClusterID, tenantNamespace string, nonce *string) error {
+	remoteClusterID discoveryv1alpha1.ClusterID, tenantNamespace string, nonce *string) error {
 	nonceSecret, err := getters.GetSignedNonceSecretByClusterID(ctx, cl, remoteClusterID)
 	switch {
 	case errors.IsNotFound(err):
@@ -75,7 +76,7 @@ func EnsureSignedNonceSecret(ctx context.Context, cl client.Client,
 }
 
 // RetrieveNonce retrieves the nonce from the secret in the tenant namespace.
-func RetrieveNonce(ctx context.Context, cl client.Client, remoteClusterID string) ([]byte, error) {
+func RetrieveNonce(ctx context.Context, cl client.Client, remoteClusterID discoveryv1alpha1.ClusterID) ([]byte, error) {
 	nonce, err := getters.GetNonceSecretByClusterID(ctx, cl, remoteClusterID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get nonce secret: %w", err)
@@ -85,7 +86,7 @@ func RetrieveNonce(ctx context.Context, cl client.Client, remoteClusterID string
 }
 
 // RetrieveSignedNonce retrieves the signed nonce from the secret in the tenant namespace.
-func RetrieveSignedNonce(ctx context.Context, cl client.Client, remoteClusterID string) ([]byte, error) {
+func RetrieveSignedNonce(ctx context.Context, cl client.Client, remoteClusterID discoveryv1alpha1.ClusterID) ([]byte, error) {
 	secret, err := getters.GetSignedNonceSecretByClusterID(ctx, cl, remoteClusterID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get signed nonce secret: %w", err)

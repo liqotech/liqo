@@ -41,10 +41,10 @@ func GetVirtualKubeletDeployment(
 	}
 
 	if len(deployList.Items) == 0 {
-		klog.V(4).Infof("[%v] no VirtualKubelet deployment found", virtualNode.Spec.ClusterIdentity.ClusterID)
+		klog.V(4).Infof("[%v] no VirtualKubelet deployment found", virtualNode.Spec.ClusterID)
 		return nil, nil
 	} else if len(deployList.Items) > 1 {
-		err := fmt.Errorf("[%v] more than one VirtualKubelet deployment found", virtualNode.Spec.ClusterIdentity.ClusterID)
+		err := fmt.Errorf("[%v] more than one VirtualKubelet deployment found", virtualNode.Spec.ClusterID)
 		klog.Error(err)
 		return nil, err
 	}
@@ -55,14 +55,14 @@ func GetVirtualKubeletDeployment(
 // CheckVirtualKubeletPodAbsence checks if a VirtualNode's VirtualKubelet pods are absent.
 func CheckVirtualKubeletPodAbsence(ctx context.Context, cl client.Client,
 	vn *virtualkubeletv1alpha1.VirtualNode, vkopts *vkforge.VirtualKubeletOpts) error {
-	klog.Infof("[%v] checking virtual-kubelet pod absence", vn.Spec.ClusterIdentity.ClusterName)
+	klog.Infof("[%v] checking virtual-kubelet pod absence", vn.Spec.ClusterID)
 	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn, vkopts)
 	if err != nil {
 		return err
 	}
-	klog.Infof("[%v] found %v virtual-kubelet pods", vn.Spec.ClusterIdentity.ClusterName, len(list.Items))
+	klog.Infof("[%v] found %v virtual-kubelet pods", vn.Spec.ClusterID, len(list.Items))
 	if len(list.Items) != 0 {
-		return fmt.Errorf("[%v] found %v virtual-kubelet pods", vn.Spec.ClusterIdentity.ClusterName, len(list.Items))
+		return fmt.Errorf("[%v] found %v virtual-kubelet pods", vn.Spec.ClusterID, len(list.Items))
 	}
 	return nil
 }

@@ -229,24 +229,6 @@ func ClusterIDs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	return common(ctx, f, argsLimit, retriever)
 }
 
-// ClusterNames returns a function to autocomplete ForeignCluster cluster names.
-func ClusterNames(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
-	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var foreignClusters discoveryv1alpha1.ForeignClusterList
-		if err := f.CRClient.List(ctx, &foreignClusters); err != nil {
-			return nil, err
-		}
-
-		var names []string
-		for i := range foreignClusters.Items {
-			names = append(names, foreignClusters.Items[i].Spec.ClusterIdentity.ClusterName)
-		}
-		return names, nil
-	}
-
-	return common(ctx, f, argsLimit, retriever)
-}
-
 // Tenants returns a function to autocomplete Tenant names.
 func Tenants(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {

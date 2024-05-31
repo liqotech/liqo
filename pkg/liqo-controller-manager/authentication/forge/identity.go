@@ -23,8 +23,8 @@ import (
 )
 
 // ControlPlaneIdentityName forges the name of a ControlPlane Identity resource given the remote cluster name.
-func ControlPlaneIdentityName(remoteClusterName string) string {
-	return "controlplane-" + remoteClusterName
+func ControlPlaneIdentityName(remoteClusterID discoveryv1alpha1.ClusterID) string {
+	return "controlplane-" + string(remoteClusterID)
 }
 
 // ResourceSliceIdentityName forges the name of a ResourceSlice Identity.
@@ -33,10 +33,10 @@ func ResourceSliceIdentityName(resourceSlice *authv1alpha1.ResourceSlice) string
 }
 
 // IdentityForRemoteCluster forges a Identity resource to be applied on a remote cluster.
-func IdentityForRemoteCluster(name, namespace string, localClusterIdentity discoveryv1alpha1.ClusterIdentity,
+func IdentityForRemoteCluster(name, namespace string, localClusterID discoveryv1alpha1.ClusterID,
 	identityType authv1alpha1.IdentityType, authParams *authv1alpha1.AuthParams, defaultKubeConfigNs *string) *authv1alpha1.Identity {
 	identity := Identity(name, namespace)
-	MutateIdentity(identity, localClusterIdentity, identityType, authParams, defaultKubeConfigNs)
+	MutateIdentity(identity, localClusterID, identityType, authParams, defaultKubeConfigNs)
 
 	return identity
 }
@@ -56,17 +56,17 @@ func Identity(name, namespace string) *authv1alpha1.Identity {
 }
 
 // MutateIdentity mutates a Identity resource.
-func MutateIdentity(identity *authv1alpha1.Identity, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity,
+func MutateIdentity(identity *authv1alpha1.Identity, remoteClusterID discoveryv1alpha1.ClusterID,
 	identityType authv1alpha1.IdentityType, authParams *authv1alpha1.AuthParams, defaultKubeConfigNs *string) {
 	if identity.Labels == nil {
 		identity.Labels = map[string]string{}
 	}
-	identity.Labels[consts.RemoteClusterID] = remoteClusterIdentity.ClusterID
+	identity.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 
 	identity.Spec = authv1alpha1.IdentitySpec{
-		ClusterIdentity: remoteClusterIdentity,
-		Type:            identityType,
-		AuthParams:      *authParams,
-		Namespace:       defaultKubeConfigNs,
+		ClusterID:  remoteClusterID,
+		Type:       identityType,
+		AuthParams: *authParams,
+		Namespace:  defaultKubeConfigNs,
 	}
 }

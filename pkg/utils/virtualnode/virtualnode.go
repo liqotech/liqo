@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -52,7 +53,7 @@ func GetLabelSelectors(ctx context.Context, cl client.Client, vn *virtualkubelet
 	switch {
 	case errors.IsNotFound(err):
 		return labels.Merge(vn.Spec.Labels, labels.Set{
-			liqoconsts.RemoteClusterID:       vn.Spec.ClusterIdentity.ClusterID,
+			liqoconsts.RemoteClusterID:       string(vn.Spec.ClusterID),
 			liqoconsts.StorageAvailableLabel: strconv.FormatBool(len(vn.Spec.StorageClasses) == 0),
 		}), nil
 	case err != nil:
@@ -63,8 +64,8 @@ func GetLabelSelectors(ctx context.Context, cl client.Client, vn *virtualkubelet
 }
 
 // GetVirtualNodeClusterID returns the clusterID given a virtual node.
-func GetVirtualNodeClusterID(vn *virtualkubeletv1alpha1.VirtualNode) (string, bool) {
-	remoteClusterID := vn.Spec.ClusterIdentity.ClusterID
+func GetVirtualNodeClusterID(vn *virtualkubeletv1alpha1.VirtualNode) (discoveryv1alpha1.ClusterID, bool) {
+	remoteClusterID := vn.Spec.ClusterID
 	if remoteClusterID == "" {
 		return "", false
 	}

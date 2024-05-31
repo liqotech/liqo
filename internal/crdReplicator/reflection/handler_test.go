@@ -49,8 +49,8 @@ var _ = Describe("Handler tests", func() {
 		ctx    context.Context
 		cancel context.CancelFunc
 
-		localCluster  discoveryv1alpha1.ClusterIdentity
-		remoteCluster discoveryv1alpha1.ClusterIdentity
+		localCluster  discoveryv1alpha1.ClusterID
+		remoteCluster discoveryv1alpha1.ClusterID
 
 		gvr       schema.GroupVersionResource
 		ownership consts.OwnershipType
@@ -85,14 +85,8 @@ var _ = Describe("Handler tests", func() {
 			TypeMeta:   metav1.TypeMeta{APIVersion: vkv1alpha1.SchemeGroupVersion.String(), Kind: "NamespaceMap"},
 			ObjectMeta: metav1.ObjectMeta{Name: "not-existing", Namespace: "not-existing"}}
 
-		localCluster = discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   "local-cluster-id",
-			ClusterName: "local-cluster",
-		}
-		remoteCluster = discoveryv1alpha1.ClusterIdentity{
-			ClusterID:   "remote-cluster-id",
-			ClusterName: "remote-cluster",
-		}
+		localCluster = discoveryv1alpha1.ClusterID("local-cluster-id")
+		remoteCluster = discoveryv1alpha1.ClusterID("remote-cluster-id")
 	})
 
 	AfterEach(func() { cancel() })
@@ -113,8 +107,8 @@ var _ = Describe("Handler tests", func() {
 			remoteClient:    remote,
 			localNamespace:  localNamespace,
 			remoteNamespace: remoteNamespace,
-			localClusterID:  localCluster.ClusterID,
-			remoteClusterID: remoteCluster.ClusterID,
+			localClusterID:  localCluster,
+			remoteClusterID: remoteCluster,
 
 			resources: map[schema.GroupVersionResource]*reflectedResource{
 				gvr: {
@@ -163,7 +157,7 @@ var _ = Describe("Handler tests", func() {
 				Name: name, Namespace: localNamespace,
 				Labels: map[string]string{
 					consts.ReplicationRequestedLabel:   strconv.FormatBool(true),
-					consts.ReplicationDestinationLabel: reflector.remoteClusterID},
+					consts.ReplicationDestinationLabel: string(reflector.remoteClusterID)},
 				DeletionTimestamp: &metav1.Time{Time: time.Now()},
 				Finalizers:        []string{finalizer},
 			}
@@ -215,7 +209,7 @@ var _ = Describe("Handler tests", func() {
 				Name: name, Namespace: localNamespace,
 				Labels: map[string]string{
 					consts.ReplicationRequestedLabel:   strconv.FormatBool(true),
-					consts.ReplicationDestinationLabel: reflector.remoteClusterID,
+					consts.ReplicationDestinationLabel: string(reflector.remoteClusterID),
 					consts.LocalResourceOwnership:      "tester",
 					"foo":                              "bar"},
 			}
@@ -263,8 +257,8 @@ var _ = Describe("Handler tests", func() {
 			It("the labels should have been correctly replicated to the remote object", func() {
 				Expect(localAfter.Labels).To(Equal(localBefore.Labels))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationRequestedLabel, strconv.FormatBool(false)))
-				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationDestinationLabel, reflector.remoteClusterID))
-				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationOriginLabel, localCluster.ClusterID))
+				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationDestinationLabel, string(reflector.remoteClusterID)))
+				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationOriginLabel, string(localCluster)))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue(consts.ReplicationStatusLabel, strconv.FormatBool(true)))
 				Expect(remoteAfter.Labels).NotTo(HaveKey(consts.LocalResourceOwnership))
 				Expect(remoteAfter.Labels).To(HaveKeyWithValue("foo", "bar"))

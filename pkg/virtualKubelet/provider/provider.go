@@ -54,8 +54,8 @@ func init() {
 type InitConfig struct {
 	LocalConfig   *rest.Config
 	RemoteConfig  *rest.Config
-	LocalCluster  discoveryv1alpha1.ClusterIdentity
-	RemoteCluster discoveryv1alpha1.ClusterIdentity
+	LocalCluster  discoveryv1alpha1.ClusterID
+	RemoteCluster discoveryv1alpha1.ClusterID
 	Namespace     string
 
 	NodeName             string

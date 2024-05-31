@@ -56,7 +56,7 @@ func getDefaultLoadBalancerClass(loadBalancerClasses []authv1alpha1.LoadBalancer
 }
 
 func forgeVKContainers(
-	vkImage string, homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity, nodeName, vkNamespace string,
+	vkImage string, homeCluster, remoteCluster discoveryv1alpha1.ClusterID, nodeName, vkNamespace string,
 	storageClasses []authv1alpha1.StorageType, ingressClasses []authv1alpha1.IngressType,
 	loadBalancerClasses []authv1alpha1.LoadBalancerType,
 	opts *VirtualKubeletOpts) []v1.Container {
@@ -65,13 +65,11 @@ func forgeVKContainers(
 	}
 
 	args := []string{
-		stringifyArgument(string(ForeignClusterID), remoteCluster.ClusterID),
-		stringifyArgument(string(ForeignClusterName), remoteCluster.ClusterName),
+		stringifyArgument(string(ForeignClusterID), string(remoteCluster)),
 		stringifyArgument(string(NodeName), nodeName),
 		stringifyArgument(string(NodeIP), "$(POD_IP)"),
 		stringifyArgument(string(TenantNamespace), vkNamespace),
-		stringifyArgument(string(HomeClusterID), homeCluster.ClusterID),
-		stringifyArgument(string(HomeClusterName), homeCluster.ClusterName),
+		stringifyArgument(string(HomeClusterID), string(homeCluster)),
 		stringifyArgument(string(LocalPodCIDR), opts.LocalPodCIDR),
 	}
 
@@ -157,9 +155,9 @@ func forgeVKContainers(
 
 func forgeVKPodSpec(
 	vkNamespace string,
-	homeCluster *discoveryv1alpha1.ClusterIdentity, virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) v1.PodSpec {
+	homeCluster discoveryv1alpha1.ClusterID, virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) v1.PodSpec {
 	return v1.PodSpec{
-		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, virtualNode.Spec.ClusterIdentity,
+		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, virtualNode.Spec.ClusterID,
 			virtualNode.Name, vkNamespace, virtualNode.Spec.StorageClasses, virtualNode.Spec.IngressClasses,
 			virtualNode.Spec.LoadBalancerClasses, opts),
 		ServiceAccountName: virtualNode.Name,

@@ -153,7 +153,7 @@ var _ = Describe("Validating webhook", func() {
 
 		When("The ResourceOffer exists and the ShadowPod Description exists and is running", func() {
 			BeforeEach(func() {
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 				peeringInfo.addShadowPod(
 					createShadowPodDescription(testShadowPodName, testNamespace, testShadowPodUID, *resourceQuota))
 				spValidatorWithResources.PeeringCache.peeringInfo.Store(clusterID, peeringInfo)
@@ -172,7 +172,7 @@ var _ = Describe("Validating webhook", func() {
 		})
 		When("The ResourceOffer exists but the ShadowPod Description does not exist", func() {
 			BeforeEach(func() {
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 				spValidatorWithResources.PeeringCache.peeringInfo.Store(clusterID, peeringInfo)
 				containers = nil
 				containers = append(containers, containerResource{cpu: int64(resourceCPU), memory: int64(resourceMemory)})
@@ -193,7 +193,7 @@ var _ = Describe("Validating webhook", func() {
 			})
 			It("request is allowed with error (PeeringInfo not found)", func() {
 				Expect(response.Allowed).To(BeTrue())
-				Expect(response.Result.Message).To(Equal(fmt.Sprintf("Peering not found in cache for cluster %q", clusterName)))
+				Expect(response.Result.Message).To(Equal(fmt.Sprintf("Peering not found in cache for cluster %q", clusterID)))
 			})
 		})
 	})

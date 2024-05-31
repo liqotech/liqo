@@ -705,7 +705,7 @@ func (npr *NamespacedPodReflector) MapPodIP(ctx context.Context, info *PodInfo, 
 	}
 
 	// Cache miss -> we need to interact with the IPAM to request the translation.
-	response, err := npr.ipamclient.GetHomePodIP(ctx, &ipam.GetHomePodIPRequest{ClusterID: forge.RemoteCluster.ClusterID, Ip: original})
+	response, err := npr.ipamclient.GetHomePodIP(ctx, &ipam.GetHomePodIPRequest{ClusterID: string(forge.RemoteCluster), Ip: original})
 	if err != nil {
 		return "", fmt.Errorf("failed to translate pod IP %v: %w", original, err)
 	}

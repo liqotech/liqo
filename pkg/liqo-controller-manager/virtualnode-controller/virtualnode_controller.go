@@ -51,7 +51,7 @@ const (
 type VirtualNodeReconciler struct {
 	client.Client
 	Scheme                *runtime.Scheme
-	HomeClusterIdentity   *discoveryv1alpha1.ClusterIdentity
+	HomeClusterID         discoveryv1alpha1.ClusterID
 	VirtualKubeletOptions *vkforge.VirtualKubeletOpts
 	EventsRecorder        record.EventRecorder
 	dr                    *DeletionRoutine
@@ -62,12 +62,12 @@ func NewVirtualNodeReconciler(
 	ctx context.Context,
 	cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
-	hci *discoveryv1alpha1.ClusterIdentity, vko *vkforge.VirtualKubeletOpts,
+	hci discoveryv1alpha1.ClusterID, vko *vkforge.VirtualKubeletOpts,
 ) (*VirtualNodeReconciler, error) {
 	vnr := &VirtualNodeReconciler{
 		Client:                cl,
 		Scheme:                s,
-		HomeClusterIdentity:   hci,
+		HomeClusterID:         hci,
 		VirtualKubeletOptions: vko,
 		EventsRecorder:        er,
 	}

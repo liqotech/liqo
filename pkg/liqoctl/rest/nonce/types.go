@@ -15,9 +15,9 @@
 package nonce
 
 import (
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the nonce command.
@@ -26,7 +26,7 @@ type Options struct {
 	getOptions       *rest.GetOptions
 	namespaceManager tenantnamespace.Manager
 
-	clusterIdentity discoveryv1alpha1.ClusterIdentity
+	clusterID args.ClusterIDFlags
 }
 
 var _ rest.API = &Options{}

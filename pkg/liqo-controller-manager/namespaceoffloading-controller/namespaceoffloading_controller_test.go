@@ -163,7 +163,7 @@ var _ = Describe("Namespace controller", func() {
 		)
 
 		BeforeEach(func() {
-			remoteNamespaceName = fmt.Sprintf("%s-%s", namespaceName, foreignclusterutils.UniqueName(&localCluster))
+			remoteNamespaceName = fmt.Sprintf("%s-%s", namespaceName, foreignclusterutils.UniqueName(localCluster))
 			nsoff = &offv1alpha1.NamespaceOffloading{
 				ObjectMeta: metav1.ObjectMeta{Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: namespaceName},
 				Spec: offv1alpha1.NamespaceOffloadingSpec{

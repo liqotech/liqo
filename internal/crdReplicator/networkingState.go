@@ -14,15 +14,17 @@
 
 package crdreplicator
 
+import discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+
 // getNetworkingState returns the state of the networking for a cluster given its clusterID.
-func (c *Controller) getNetworkingEnabled(clusterID string) bool {
+func (c *Controller) getNetworkingEnabled(clusterID discoveryv1alpha1.ClusterID) bool {
 	c.networkingEnabledMutex.RLock()
 	defer c.networkingEnabledMutex.RUnlock()
 	return c.networkingEnabled[clusterID]
 }
 
 // setNetworkingState sets the networking state for a given clusterID.
-func (c *Controller) setNetworkingEnabled(clusterID string, enabled bool) {
+func (c *Controller) setNetworkingEnabled(clusterID discoveryv1alpha1.ClusterID, enabled bool) {
 	c.networkingEnabledMutex.RLock()
 	defer c.networkingEnabledMutex.RUnlock()
 	c.networkingEnabled[clusterID] = enabled

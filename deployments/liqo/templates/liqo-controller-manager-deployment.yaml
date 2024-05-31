@@ -75,7 +75,6 @@ spec:
         command: ["/usr/bin/liqo-controller-manager"]
         args:
           - --cluster-id=$(CLUSTER_ID)
-          - --cluster-name={{ .Values.discovery.config.clusterName }}
           - --liqo-namespace=$(POD_NAMESPACE)
           - --authentication-enabled={{ .Values.authentication.enabled }}
           - --offloading-enabled={{ .Values.offloading.enabled }}

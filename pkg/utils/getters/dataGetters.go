@@ -52,24 +52,15 @@ func RetrieveRemoteClusterIDFromNode(node *corev1.Node) (string, error) {
 	return remoteClusterID, nil
 }
 
-// RetrieveClusterIDFromConfigMap retrieves ClusterIdentity from a given configmap.
-func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (*discoveryv1alpha1.ClusterIdentity, error) {
+// RetrieveClusterIDFromConfigMap retrieves ClusterID from a given configmap.
+func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (discoveryv1alpha1.ClusterID, error) {
 	id, found := cm.Data[liqoconsts.ClusterIDConfigMapKey]
 	if !found {
-		return nil, fmt.Errorf("unable to get cluster ID: field {%s} not found in configmap {%s/%s}",
+		return "", fmt.Errorf("unable to get cluster ID: field {%s} not found in configmap {%s/%s}",
 			liqoconsts.ClusterIDConfigMapKey, cm.Namespace, cm.Name)
 	}
 
-	name, found := cm.Data[liqoconsts.ClusterNameConfigMapKey]
-	if !found {
-		return nil, fmt.Errorf("unable to get cluster name: field {%s} not found in configmap {%s/%s}",
-			liqoconsts.ClusterNameConfigMapKey, cm.Namespace, cm.Name)
-	}
-
-	return &discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   id,
-		ClusterName: name,
-	}, nil
+	return discoveryv1alpha1.ClusterID(id), nil
 }
 
 // RetrieveEndpointFromService retrieves an ip address and port from a given service object
@@ -181,7 +172,7 @@ func RetrieveNetworkConfiguration(ipamS *ipamv1alpha1.IpamStorage) (*NetworkConf
 func RetrieveClusterIDsFromVirtualNodes(virtualNodes *virtualkubeletv1alpha1.VirtualNodeList) []string {
 	clusterIDs := make(map[string]interface{})
 	for i := range virtualNodes.Items {
-		clusterIDs[virtualNodes.Items[i].Spec.ClusterIdentity.ClusterID] = nil
+		clusterIDs[string(virtualNodes.Items[i].Spec.ClusterID)] = nil
 	}
 	return maps.Keys(clusterIDs)
 }

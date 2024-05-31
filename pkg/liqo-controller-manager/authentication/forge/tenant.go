@@ -23,34 +23,34 @@ import (
 )
 
 // TenantForRemoteCluster forges a Tenant resource to be applied on a remote cluster.
-func TenantForRemoteCluster(localClusterIdentity discoveryv1alpha1.ClusterIdentity,
+func TenantForRemoteCluster(localClusterID discoveryv1alpha1.ClusterID,
 	publicKey, csr, signature []byte, proxyURL *string) *authv1alpha1.Tenant {
-	tenant := Tenant(localClusterIdentity)
-	MutateTenant(tenant, localClusterIdentity, publicKey, csr, signature, proxyURL)
+	tenant := Tenant(localClusterID)
+	MutateTenant(tenant, localClusterID, publicKey, csr, signature, proxyURL)
 
 	return tenant
 }
 
 // Tenant forges a Tenant resource.
-func Tenant(remoteClusterIdentity discoveryv1alpha1.ClusterIdentity) *authv1alpha1.Tenant {
+func Tenant(remoteClusterID discoveryv1alpha1.ClusterID) *authv1alpha1.Tenant {
 	return &authv1alpha1.Tenant{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: authv1alpha1.GroupVersion.String(),
 			Kind:       authv1alpha1.TenantKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: remoteClusterIdentity.ClusterName,
+			Name: string(remoteClusterID),
 		},
 	}
 }
 
 // MutateTenant mutates a Tenant resource.
-func MutateTenant(tenant *authv1alpha1.Tenant, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity,
+func MutateTenant(tenant *authv1alpha1.Tenant, remoteClusterID discoveryv1alpha1.ClusterID,
 	publicKey, csr, signature []byte, proxyURL *string) {
 	if tenant.Labels == nil {
 		tenant.Labels = map[string]string{}
 	}
-	tenant.Labels[consts.RemoteClusterID] = remoteClusterIdentity.ClusterID
+	tenant.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 
 	var proxyURLPtr *string
 	if proxyURL != nil && *proxyURL != "" {
@@ -58,10 +58,10 @@ func MutateTenant(tenant *authv1alpha1.Tenant, remoteClusterIdentity discoveryv1
 	}
 
 	tenant.Spec = authv1alpha1.TenantSpec{
-		ClusterIdentity: remoteClusterIdentity,
-		PublicKey:       publicKey,
-		CSR:             csr,
-		Signature:       signature,
-		ProxyURL:        proxyURLPtr,
+		ClusterID: remoteClusterID,
+		PublicKey: publicKey,
+		CSR:       csr,
+		Signature: signature,
+		ProxyURL:  proxyURLPtr,
 	}
 }

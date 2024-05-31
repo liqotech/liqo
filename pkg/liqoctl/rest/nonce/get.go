@@ -54,7 +54,7 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 		},
 	}
 
-	cmd.Flags().StringVar(&o.clusterIdentity.ClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().Var(&o.clusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 
@@ -67,7 +67,7 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 func (o *Options) handleGet(ctx context.Context) error {
 	opts := o.getOptions
 
-	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterIdentity.ClusterID)
+	nonceValue, err := authutils.RetrieveNonce(ctx, opts.CRClient, o.clusterID.GetClusterID())
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to retrieve nonce: %v", output.PrettyErr(err)))
 		return err

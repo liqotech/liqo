@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -92,7 +93,7 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	remoteClusterID := resourceSlice.Labels[consts.RemoteClusterID]
+	remoteClusterID := discoveryv1alpha1.ClusterID(resourceSlice.Labels[consts.RemoteClusterID])
 
 	// Get the associated Identity for the remote cluster.
 	identity, err := getters.GetIdentityFromResourceSlice(ctx, r.Client, remoteClusterID, resourceSlice.Name)
@@ -117,7 +118,7 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 	// CreateOrUpdate the VirtualNode.
 	virtualNode := forge.VirtualNode(resourceSlice.Name, resourceSlice.Namespace)
 	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, virtualNode, func() error {
-		if err := forge.MutateVirtualNode(virtualNode, &identity.Spec.ClusterIdentity, vnOpts); err != nil {
+		if err := forge.MutateVirtualNode(virtualNode, identity.Spec.ClusterID, vnOpts); err != nil {
 			return err
 		}
 		return controllerutil.SetControllerReference(&resourceSlice, virtualNode, r.Scheme)

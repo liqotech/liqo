@@ -49,7 +49,7 @@ func (fnl *FakeNodeLister) Get(name string) (*corev1.Node, error) {
 			Labels: map[string]string{},
 		}}
 	if name == LiqoNodeName {
-		n.Labels[consts.RemoteClusterID] = RemoteClusterID
+		n.Labels[consts.RemoteClusterID] = string(RemoteClusterID)
 	}
 	return n, nil
 }
@@ -156,7 +156,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Expect(output[0].Conditions.Terminating).To(BeNil())
 			})
 			It("should correctly translate and replicate the topology information", func() {
-				Expect(output[0].NodeName).To(PointTo(Equal(LocalClusterName)))
+				Expect(output[0].NodeName).To(PointTo(Equal(LocalClusterID)))
 				Expect(output[0].Zone).To(PointTo(Equal("target-zone")))
 			})
 			It("should correctly replicate the secondary fields", func() {
