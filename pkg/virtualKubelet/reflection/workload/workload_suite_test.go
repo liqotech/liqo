@@ -28,7 +28,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	vkalpha1scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
@@ -41,10 +40,8 @@ const (
 	LocalNamespace  = "local-namespace"
 	RemoteNamespace = "remote-namespace"
 
-	LocalClusterID    = "local-cluster-id"
-	LocalClusterName  = "local-cluster-name"
-	RemoteClusterID   = "remote-cluster-id"
-	RemoteClusterName = "remote-cluster-name"
+	LocalClusterID  = "local-cluster-id"
+	RemoteClusterID = "remote-cluster-id"
 
 	LiqoNodeName = "local-node"
 	LiqoNodeIP   = "1.1.1.1"
@@ -66,9 +63,7 @@ var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
 
 	Expect(os.Setenv("KUBERNETES_SERVICE_PORT", "8443")).To(Succeed())
-	local := discoveryv1alpha1.ClusterIdentity{ClusterID: LocalClusterID, ClusterName: LocalClusterName}
-	remote := discoveryv1alpha1.ClusterIdentity{ClusterID: RemoteClusterID, ClusterName: RemoteClusterName}
-	forge.Init(local, remote, LiqoNodeName, LiqoNodeIP)
+	forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP)
 })
 
 var _ = BeforeEach(func() {

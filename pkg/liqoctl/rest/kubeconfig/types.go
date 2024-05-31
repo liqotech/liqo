@@ -17,6 +17,7 @@ package kubeconfig
 import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the kubeconfig command.
@@ -25,7 +26,7 @@ type Options struct {
 
 	namespaceManager tenantnamespace.Manager
 	identityName     string
-	remoteClusterID  string
+	remoteClusterID  argsutils.ClusterIDFlags
 }
 
 var _ rest.API = &Options{}

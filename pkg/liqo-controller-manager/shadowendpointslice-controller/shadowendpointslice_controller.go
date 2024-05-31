@@ -39,6 +39,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -74,7 +75,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Get ForeignCluster associated with the shadowendpointslice
-	clusterID, ok := shadowEps.Labels[forge.LiqoOriginClusterIDKey]
+	clusterID, ok := utils.GetClusterIDFromLabelsWithKey(shadowEps.Labels, forge.LiqoOriginClusterIDKey)
 	if !ok {
 		klog.Errorf("shadowendpointslice %q has no label %q", nsName, forge.LiqoOriginClusterIDKey)
 		return ctrl.Result{}, fmt.Errorf("shadowendpointslice %q has no label %q", nsName, forge.LiqoOriginClusterIDKey)
@@ -184,7 +185,7 @@ func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.
 				return
 			}
 
-			clusterID := newForeignCluster.Spec.ClusterIdentity.ClusterID
+			clusterID := newForeignCluster.Spec.ClusterID
 			if clusterID == "" {
 				klog.Errorf("cluster-id not set on foreignCluster %v", newForeignCluster)
 				return
@@ -192,7 +193,7 @@ func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.
 
 			// List all shadowendpointslices with clusterID as origin
 			var shadowList vkv1alpha1.ShadowEndpointSliceList
-			if err := r.List(ctx, &shadowList, client.MatchingLabels{forge.LiqoOriginClusterIDKey: clusterID}); err != nil {
+			if err := r.List(ctx, &shadowList, client.MatchingLabels{forge.LiqoOriginClusterIDKey: string(clusterID)}); err != nil {
 				klog.Errorf("Unable to list shadowendpointslices")
 				return
 			}

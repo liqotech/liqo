@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -84,8 +83,8 @@ type Opts struct {
 	TenantNamespace      string
 	InformerResyncPeriod time.Duration
 
-	HomeCluster         discoveryv1alpha1.ClusterIdentity
-	ForeignCluster      discoveryv1alpha1.ClusterIdentity
+	HomeCluster         argsutils.ClusterIDFlags
+	ForeignCluster      argsutils.ClusterIDFlags
 	LiqoIpamServer      string
 	DisableIPReflection bool
 	LocalPodCIDR        string

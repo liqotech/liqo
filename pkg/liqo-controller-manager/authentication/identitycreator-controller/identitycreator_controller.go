@@ -39,15 +39,15 @@ import (
 // NewIdentityCreatorReconciler returns a new IdentityCreatorReconciler.
 func NewIdentityCreatorReconciler(cl client.Client, s *runtime.Scheme,
 	recorder record.EventRecorder, liqoNamespace string,
-	localClusterIdentity *discoveryv1alpha1.ClusterIdentity) *IdentityCreatorReconciler {
+	localClusterID discoveryv1alpha1.ClusterID) *IdentityCreatorReconciler {
 	return &IdentityCreatorReconciler{
 		Client: cl,
 		Scheme: s,
 
 		eventRecorder: recorder,
 
-		liqoNamespace:        liqoNamespace,
-		localClusterIdentity: localClusterIdentity,
+		liqoNamespace:  liqoNamespace,
+		localClusterID: localClusterID,
 	}
 }
 
@@ -58,8 +58,8 @@ type IdentityCreatorReconciler struct {
 
 	eventRecorder record.EventRecorder
 
-	liqoNamespace        string
-	localClusterIdentity *discoveryv1alpha1.ClusterIdentity
+	liqoNamespace  string
+	localClusterID discoveryv1alpha1.ClusterID
 }
 
 // cluster-role
@@ -95,7 +95,7 @@ func (r *IdentityCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// Create or update the Identity resource.
 	identity := forge.Identity(forge.ResourceSliceIdentityName(&resourceSlice), resourceSlice.Namespace)
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, identity, func() error {
-		forge.MutateIdentity(identity, *resourceSlice.Spec.ProviderClusterIdentity, authv1alpha1.ResourceSliceIdentityType,
+		forge.MutateIdentity(identity, *resourceSlice.Spec.ProviderClusterID, authv1alpha1.ResourceSliceIdentityType,
 			resourceSlice.Status.AuthParams, nil)
 		if identity.Labels == nil {
 			identity.Labels = make(map[string]string)

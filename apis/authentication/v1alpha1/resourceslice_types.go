@@ -46,10 +46,10 @@ const (
 
 // ResourceSliceSpec defines the desired state of ResourceSlice.
 type ResourceSliceSpec struct {
-	// ConsumerClusterIdentity is the identity of the consumer cluster.
-	ConsumerClusterIdentity *discoveryv1alpha1.ClusterIdentity `json:"consumerClusterIdentity,omitempty"`
-	// ProviderClusterIdentity is the identity of the provider cluster.
-	ProviderClusterIdentity *discoveryv1alpha1.ClusterIdentity `json:"providerClusterIdentity,omitempty"`
+	// ConsumerClusterID is the id of the consumer cluster.
+	ConsumerClusterID *discoveryv1alpha1.ClusterID `json:"consumerClusterID,omitempty"`
+	// ProviderClusterID is the id of the provider cluster.
+	ProviderClusterID *discoveryv1alpha1.ClusterID `json:"providerClusterID,omitempty"`
 	// Resources contains the slice of resources requested.
 	Resources corev1.ResourceList `json:"resources,omitempty"`
 	// Class contains the class of the ResourceSlice.

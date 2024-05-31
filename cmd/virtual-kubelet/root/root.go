@@ -76,10 +76,10 @@ func NewCommand(ctx context.Context, name string, c *Opts) *cobra.Command {
 }
 
 func runRootCommand(ctx context.Context, c *Opts) error {
-	if c.ForeignCluster.ClusterID == "" {
+	if c.ForeignCluster.GetClusterID() == "" {
 		return errors.New("cluster id is mandatory")
 	}
-	if c.ForeignCluster.ClusterName == "" {
+	if c.ForeignCluster.GetClusterID() == "" {
 		return errors.New("cluster name is mandatory")
 	}
 
@@ -99,7 +99,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	// Retrieve the remote restcfg
 	tenantNamespaceManager := tenantnamespace.NewManager(localClient) // Do not use the cached version, as leveraged only once.
-	identityManager := identitymanager.NewCertificateIdentityReader(ctx, cl, localClient, localConfig, c.HomeCluster, tenantNamespaceManager)
+	identityManager := identitymanager.NewCertificateIdentityReader(ctx, cl, localClient, localConfig,
+		c.HomeCluster.GetClusterID(), tenantNamespaceManager)
 
 	if c.RemoteKubeconfigSecretName == "" {
 		return fmt.Errorf("remote kubeconfig secret name is mandatory")
@@ -111,7 +112,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		}
 		return err
 	}
-	remoteConfig, err := identityManager.GetConfigFromSecret(c.ForeignCluster, secret)
+	remoteConfig, err := identityManager.GetConfigFromSecret(c.ForeignCluster.GetClusterID(), secret)
 	if err != nil {
 		return err
 	}
@@ -137,8 +138,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	podcfg := podprovider.InitConfig{
 		LocalConfig:   localConfig,
 		RemoteConfig:  remoteConfig,
-		LocalCluster:  c.HomeCluster,
-		RemoteCluster: c.ForeignCluster,
+		LocalCluster:  c.HomeCluster.GetClusterID(),
+		RemoteCluster: c.ForeignCluster.GetClusterID(),
 
 		Namespace: c.TenantNamespace,
 		NodeName:  c.NodeName,
@@ -216,8 +217,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	nodecfg := nodeprovider.InitConfig{
 		HomeConfig:      localConfig,
 		RemoteConfig:    remoteConfig,
-		HomeClusterID:   c.HomeCluster.ClusterID,
-		RemoteClusterID: c.ForeignCluster.ClusterID,
+		HomeClusterID:   c.HomeCluster.GetClusterID(),
+		RemoteClusterID: c.ForeignCluster.GetClusterID(),
 		Namespace:       c.TenantNamespace,
 
 		NodeName:         c.NodeName,

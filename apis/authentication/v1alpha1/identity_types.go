@@ -49,8 +49,8 @@ const (
 
 // IdentitySpec defines the desired state of Identity.
 type IdentitySpec struct {
-	// ClusterIdentity is the identity of the provider cluster.
-	ClusterIdentity discoveryv1alpha1.ClusterIdentity `json:"clusterIdentity,omitempty"`
+	// ClusterID is the identity of the provider cluster.
+	ClusterID discoveryv1alpha1.ClusterID `json:"clusterID,omitempty"`
 	// Type is the type of the identity.
 	// +kubebuilder:validation:Enum=ControlPlane;ResourceSlice
 	Type IdentityType `json:"type,omitempty"`

@@ -32,7 +32,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -146,7 +145,7 @@ var _ = Describe("NodeProvider", func() {
 
 			if c.connection != nil {
 				c.connection.Labels = map[string]string{
-					consts.RemoteClusterID: nodeProvider.foreignClusterID,
+					consts.RemoteClusterID: string(nodeProvider.foreignClusterID),
 				}
 				unstructConn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.connection)
 				Expect(err).To(BeNil())
@@ -184,9 +183,7 @@ var _ = Describe("NodeProvider", func() {
 					Namespace: kubeletNamespace,
 				},
 				Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
-					ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
-						ClusterID: "remote-id",
-					},
+					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
@@ -243,9 +240,7 @@ var _ = Describe("NodeProvider", func() {
 					Namespace: kubeletNamespace,
 				},
 				Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
-					ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
-						ClusterID: "remote-id",
-					},
+					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),

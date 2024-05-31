@@ -31,7 +31,7 @@ import (
 )
 
 // StoreIdentity stores the identity to authenticate with a remote cluster.
-func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterIdentity,
+func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterID,
 	namespace string, key []byte, remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -39,7 +39,7 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 			Namespace:    namespace,
 			Labels: map[string]string{
 				localIdentitySecretLabel:  "true",
-				discovery.ClusterIDLabel:  remoteCluster.ClusterID,
+				discovery.ClusterIDLabel:  string(remoteCluster),
 				CertificateAvailableLabel: "true",
 			},
 			Annotations: map[string]string{

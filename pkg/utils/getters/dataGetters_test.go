@@ -157,22 +157,21 @@ var _ = Describe("DataGetters", func() {
 
 	Describe("retrieval of clusterID from configmap", func() {
 		var (
-			clusterIdentity *discoveryv1alpha1.ClusterIdentity
-			err             error
-			cm              *corev1.ConfigMap
+			clusterID discoveryv1alpha1.ClusterID
+			err       error
+			cm        *corev1.ConfigMap
 		)
 
 		BeforeEach(func() {
 			cm = &corev1.ConfigMap{
 				Data: map[string]string{
-					liqoconst.ClusterIDConfigMapKey:   "113b9ab3-7ed8-4e00-9d81-0481b111a80d",
-					liqoconst.ClusterNameConfigMapKey: "cold-cherry",
+					liqoconst.ClusterIDConfigMapKey: "113b9ab3-7ed8-4e00-9d81-0481b111a80d",
 				},
 			}
 		})
 
 		JustBeforeEach(func() {
-			clusterIdentity, err = getters.RetrieveClusterIDFromConfigMap(cm)
+			clusterID, err = getters.RetrieveClusterIDFromConfigMap(cm)
 		})
 
 		Context("when cluster id is not set", func() {
@@ -182,19 +181,7 @@ var _ = Describe("DataGetters", func() {
 			})
 
 			It("should fail", func() {
-				Expect(clusterIdentity).Should(BeNil())
-				Expect(err).Should(HaveOccurred())
-			})
-		})
-
-		Context("when cluster name is not set", func() {
-			BeforeEach(func() {
-				delete(cm.Data, liqoconst.ClusterNameConfigMapKey)
-
-			})
-
-			It("should fail", func() {
-				Expect(clusterIdentity).Should(BeNil())
+				Expect(clusterID).Should(BeEmpty())
 				Expect(err).Should(HaveOccurred())
 			})
 		})
@@ -202,8 +189,7 @@ var _ = Describe("DataGetters", func() {
 		Context("when cluster identity is set", func() {
 			It("should fail", func() {
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(clusterIdentity.ClusterName).Should(Equal(cm.Data[liqoconst.ClusterNameConfigMapKey]))
-				Expect(clusterIdentity.ClusterID).Should(Equal(cm.Data[liqoconst.ClusterIDConfigMapKey]))
+				Expect(clusterID).Should(Equal(cm.Data[liqoconst.ClusterIDConfigMapKey]))
 			})
 		})
 

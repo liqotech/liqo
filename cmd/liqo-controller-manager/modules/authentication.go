@@ -39,7 +39,7 @@ import (
 type AuthOption struct {
 	IdentityProvider         identitymanager.IdentityProvider
 	NamespaceManager         tenantnamespace.Manager
-	LocalClusterIdentity     *discoveryv1alpha1.ClusterIdentity
+	LocalClusterID           discoveryv1alpha1.ClusterID
 	LiqoNamespace            string
 	APIServerAddressOverride string
 	CAOverrideB64            string
@@ -105,7 +105,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 	// Configure controller that fills the local resource slice.
 	localResourceSliceReconciler := localresourceslicecontroller.NewLocalResourceSliceReconciler(mgr.GetClient(),
 		mgr.GetScheme(), mgr.GetEventRecorderFor("localresourceslice-controller"),
-		opts.LiqoNamespace, opts.LocalClusterIdentity)
+		opts.LiqoNamespace, opts.LocalClusterID)
 	if err := localResourceSliceReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the local resource slice reconciler: %v", err)
 		return err
@@ -124,7 +124,7 @@ func SetupAuthenticationModule(ctx context.Context, mgr manager.Manager, uncache
 	// Configure controller that creates identity resources from resourceslices
 	identityCreatorReconciler := identitycreatorcontroller.NewIdentityCreatorReconciler(
 		mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("identitycreator-controller"),
-		opts.LiqoNamespace, opts.LocalClusterIdentity)
+		opts.LiqoNamespace, opts.LocalClusterID)
 	if err := identityCreatorReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to setup the identity creator reconciler: %v", err)
 		return err

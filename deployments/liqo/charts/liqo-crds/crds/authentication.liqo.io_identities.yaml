@@ -87,20 +87,9 @@ spec:
                     format: byte
                     type: string
                 type: object
-              clusterIdentity:
-                description: ClusterIdentity is the identity of the provider cluster.
-                properties:
-                  clusterID:
-                    description: Foreign Cluster ID, this is a unique identifier of
-                      that cluster.
-                    type: string
-                  clusterName:
-                    description: Foreign Cluster Name to be shown in GUIs.
-                    type: string
-                required:
-                - clusterID
-                - clusterName
-                type: object
+              clusterID:
+                description: ClusterID is the identity of the provider cluster.
+                type: string
               namespace:
                 description: Namespace is the namespace where to use the identity.
                 type: string

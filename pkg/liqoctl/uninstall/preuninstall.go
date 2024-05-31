@@ -179,10 +179,10 @@ func (o *Options) preUninstall(ctx context.Context) error {
 
 func addResourceToErrMap(obj client.Object, errMap *errorMap, foreignClusters *discoveryv1alpha1.ForeignClusterList) {
 	// Check if object is a networking resource associated with a remote cluster
-	clusterName, found := getRemoteClusterName(obj, foreignClusters)
+	clusterID, found := getRemoteClusterID(obj, foreignClusters)
 	if found {
-		if !slices.Contains(errMap.networking, clusterName) {
-			errMap.networking = append(errMap.networking, clusterName)
+		if !slices.Contains(errMap.networking, string(clusterID)) {
+			errMap.networking = append(errMap.networking, string(clusterID))
 		}
 		return
 	}
@@ -194,12 +194,13 @@ func addResourceToErrMap(obj client.Object, errMap *errorMap, foreignClusters *d
 	}
 }
 
-func getRemoteClusterName(obj client.Object, foreignClusters *discoveryv1alpha1.ForeignClusterList) (string, bool) {
+func getRemoteClusterID(obj client.Object, foreignClusters *discoveryv1alpha1.ForeignClusterList) (discoveryv1alpha1.ClusterID, bool) {
 	v, ok := obj.GetLabels()[consts.RemoteClusterID]
 	if ok && v != "" && foreignClusters != nil {
+		remoteID := discoveryv1alpha1.ClusterID(v)
 		for i := range foreignClusters.Items {
-			if foreignClusters.Items[i].Spec.ClusterIdentity.ClusterID == v {
-				return foreignClusters.Items[i].Spec.ClusterIdentity.ClusterName, true
+			if foreignClusters.Items[i].Spec.ClusterID == remoteID {
+				return foreignClusters.Items[i].Spec.ClusterID, true
 			}
 		}
 	}

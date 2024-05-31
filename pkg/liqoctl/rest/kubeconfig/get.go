@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -59,7 +58,7 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 		},
 	}
 
-	cmd.Flags().StringVar(&o.remoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().Var(&o.remoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 
@@ -72,7 +71,7 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 func (o *Options) handleGet(ctx context.Context) error {
 	opts := o.getOptions
 
-	namespace, err := o.namespaceManager.GetNamespace(ctx, v1alpha1.ClusterIdentity{ClusterID: o.remoteClusterID})
+	namespace, err := o.namespaceManager.GetNamespace(ctx, o.remoteClusterID.GetClusterID())
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to get tenant namespace: %v", output.PrettyErr(err)))
 		return err

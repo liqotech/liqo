@@ -58,22 +58,10 @@ var (
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	localCluster = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "local-cluster-id",
-		ClusterName: "local-cluster-name",
-	}
-	remoteCluster1 = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "remote-cluster-1-id",
-		ClusterName: "remote-cluster-1",
-	}
-	remoteCluster2 = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "remote-cluster-2-id",
-		ClusterName: "remote-cluster-2",
-	}
-	remoteCluster3 = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "remote-cluster-3-id",
-		ClusterName: "remote-cluster-3",
-	}
+	localCluster   discoveryv1alpha1.ClusterID = "local-cluster-id"
+	remoteCluster1 discoveryv1alpha1.ClusterID = "remote-cluster-1-id"
+	remoteCluster2 discoveryv1alpha1.ClusterID = "remote-cluster-2-id"
+	remoteCluster3 discoveryv1alpha1.ClusterID = "remote-cluster-3-id"
 
 	homeCfg        *rest.Config
 	cl             client.Client
@@ -112,15 +100,15 @@ var _ = BeforeSuite(func() {
 	SetDefaultConsistentlyDuration(500 * time.Millisecond)
 	SetDefaultEventuallyPollingInterval(50 * time.Millisecond)
 
-	ForgeNamespaceMap := func(cluster discoveryv1alpha1.ClusterIdentity) *vkv1alpha1.NamespaceMap {
+	ForgeNamespaceMap := func(cluster discoveryv1alpha1.ClusterID) *vkv1alpha1.NamespaceMap {
 		return &vkv1alpha1.NamespaceMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      cluster.ClusterName,
+				Name:      string(cluster),
 				Namespace: mapNamespaceName,
 				Labels: map[string]string{
 					liqoconst.ReplicationRequestedLabel:   "true",
-					liqoconst.RemoteClusterID:             cluster.ClusterID,
-					liqoconst.ReplicationDestinationLabel: cluster.ClusterID,
+					liqoconst.RemoteClusterID:             string(cluster),
+					liqoconst.ReplicationDestinationLabel: string(cluster),
 				},
 			},
 		}
@@ -185,15 +173,13 @@ var _ = BeforeSuite(func() {
 			Namespace: tenantNamespace1.Name,
 			Labels: map[string]string{
 				liqoconst.TypeLabel:                  liqoconst.TypeNode,
-				liqoconst.RemoteClusterID:            remoteCluster1.ClusterID,
+				liqoconst.RemoteClusterID:            string(remoteCluster1),
 				liqoconst.TopologyRegionClusterLabel: regionA,
 				liqoconst.ProviderClusterLabel:       providerAWS,
 			},
 		},
 		Spec: vkv1alpha1.VirtualNodeSpec{
-			ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
-				ClusterID: remoteCluster1.ClusterID,
-			},
+			ClusterID: remoteCluster1,
 		},
 	}
 
@@ -203,15 +189,13 @@ var _ = BeforeSuite(func() {
 			Namespace: tenantNamespace2.Name,
 			Labels: map[string]string{
 				liqoconst.TypeLabel:                  liqoconst.TypeNode,
-				liqoconst.RemoteClusterID:            remoteCluster2.ClusterID,
+				liqoconst.RemoteClusterID:            string(remoteCluster2),
 				liqoconst.TopologyRegionClusterLabel: regionB,
 				liqoconst.ProviderClusterLabel:       providerGKE,
 			},
 		},
 		Spec: vkv1alpha1.VirtualNodeSpec{
-			ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
-				ClusterID: remoteCluster2.ClusterID,
-			},
+			ClusterID: remoteCluster2,
 		},
 	}
 
@@ -221,15 +205,13 @@ var _ = BeforeSuite(func() {
 			Namespace: tenantNamespace3.Name,
 			Labels: map[string]string{
 				liqoconst.TypeLabel:                  liqoconst.TypeNode,
-				liqoconst.RemoteClusterID:            remoteCluster3.ClusterID,
+				liqoconst.RemoteClusterID:            string(remoteCluster3),
 				liqoconst.TopologyRegionClusterLabel: regionA,
 				liqoconst.ProviderClusterLabel:       providerGKE,
 			},
 		},
 		Spec: vkv1alpha1.VirtualNodeSpec{
-			ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
-				ClusterID: remoteCluster3.ClusterID,
-			},
+			ClusterID: remoteCluster3,
 		},
 	}
 
@@ -238,7 +220,7 @@ var _ = BeforeSuite(func() {
 			Name: virtualNode1Name,
 			Labels: map[string]string{
 				liqoconst.TypeLabel:                  liqoconst.TypeNode,
-				liqoconst.RemoteClusterID:            remoteCluster1.ClusterID,
+				liqoconst.RemoteClusterID:            string(remoteCluster1),
 				liqoconst.TopologyRegionClusterLabel: regionA,
 				liqoconst.ProviderClusterLabel:       providerAWS,
 			},
@@ -250,7 +232,7 @@ var _ = BeforeSuite(func() {
 			Name: virtualNode2Name,
 			Labels: map[string]string{
 				liqoconst.TypeLabel:                  liqoconst.TypeNode,
-				liqoconst.RemoteClusterID:            remoteCluster2.ClusterID,
+				liqoconst.RemoteClusterID:            string(remoteCluster2),
 				liqoconst.TopologyRegionClusterLabel: regionB,
 				liqoconst.ProviderClusterLabel:       providerGKE,
 			},
@@ -262,7 +244,7 @@ var _ = BeforeSuite(func() {
 			Name: virtualNode3Name,
 			Labels: map[string]string{
 				liqoconst.TypeLabel:                  liqoconst.TypeNode,
-				liqoconst.RemoteClusterID:            remoteCluster3.ClusterID,
+				liqoconst.RemoteClusterID:            string(remoteCluster3),
 				liqoconst.TopologyRegionClusterLabel: regionA,
 				liqoconst.ProviderClusterLabel:       providerGKE,
 			},

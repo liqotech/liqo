@@ -31,13 +31,13 @@ import (
 
 // ForgeTelemetryItem returns a Telemetry item with the current status of the cluster.
 func (c *Builder) ForgeTelemetryItem(ctx context.Context) (*Telemetry, error) {
-	clusterIdentity, err := utils.GetClusterIdentityWithControllerClient(ctx, c.Client, c.Namespace)
+	clusterID, err := utils.GetClusterIDWithControllerClient(ctx, c.Client, c.Namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Telemetry{
-		ClusterID:         clusterIdentity.ClusterID,
+		ClusterID:         clusterID,
 		LiqoVersion:       c.LiqoVersion,
 		KubernetesVersion: c.KubernetesVersion,
 		Provider:          c.getProvider(),
@@ -61,8 +61,8 @@ func (c *Builder) getNamespacesInfo(ctx context.Context) []NamespaceInfo {
 	nodeNameClusterIDMap := map[string]string{}
 	for i := range virtualNodes.Items {
 		virtualNode := &virtualNodes.Items[i]
-		clusterID := virtualNode.Spec.ClusterIdentity.ClusterID
-		nodeNameClusterIDMap[virtualNode.Name] = clusterID
+		clusterID := virtualNode.Spec.ClusterID
+		nodeNameClusterIDMap[virtualNode.Name] = string(clusterID)
 	}
 
 	namespaceInfoSlice := make([]NamespaceInfo, len(namespaceOffloadings.Items))
@@ -121,7 +121,7 @@ func (c *Builder) getPeeringInfo(ctx context.Context,
 	var latency time.Duration
 
 	peeringInfo := PeeringInfo{
-		RemoteClusterID: foreignCluster.Spec.ClusterIdentity.ClusterID,
+		RemoteClusterID: foreignCluster.Spec.ClusterID,
 		Role:            foreignCluster.Status.Role,
 		Latency:         latency,
 	}

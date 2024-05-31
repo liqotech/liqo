@@ -34,7 +34,7 @@ import (
 )
 
 // EnforceNamespace creates and returns a namespace. If it already exists, it just returns the namespace.
-func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster discoveryv1alpha1.ClusterIdentity,
+func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster discoveryv1alpha1.ClusterID,
 	name string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{

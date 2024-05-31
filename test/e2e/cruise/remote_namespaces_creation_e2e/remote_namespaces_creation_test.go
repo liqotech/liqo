@@ -69,7 +69,7 @@ var _ = Describe("Liqo E2E", func() {
 
 	BeforeEach(func() {
 		remoteTestNamespaceName = fmt.Sprintf("%s-%s", testNamespaceName,
-			foreignclusterutils.UniqueName(&testContext.Clusters[localIndex].Cluster))
+			foreignclusterutils.UniqueName(testContext.Clusters[localIndex].Cluster))
 
 		// Build the selector to consider only local NamespaceMaps.
 		metals := reflection.LocalResourcesLabelSelector()
@@ -148,7 +148,7 @@ var _ = Describe("Liqo E2E", func() {
 				}, timeout, interval).Should(BeNil())
 				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
 				Expect(ok).To(BeTrue())
-				Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(&testContext.Clusters[i].Cluster)))
+				Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(testContext.Clusters[i].Cluster)))
 			}
 
 			var oldUIDRemoteNamespace types.UID

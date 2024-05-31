@@ -42,28 +42,28 @@ const (
 
 // EventSuccessfulReflectionMsg returns the message for the event when the outgoing reflection completes successfully.
 func EventSuccessfulReflectionMsg() string {
-	return fmt.Sprintf("Successfully reflected object to cluster %q", RemoteCluster.ClusterName)
+	return fmt.Sprintf("Successfully reflected object to cluster %q", RemoteCluster)
 }
 
 // EventSuccessfulStatusReflectionMsg returns the message for the event when the incoming reflection completes successfully.
 func EventSuccessfulStatusReflectionMsg() string {
-	return fmt.Sprintf("Successfully reflected object status back from cluster %q", RemoteCluster.ClusterName)
+	return fmt.Sprintf("Successfully reflected object status back from cluster %q", RemoteCluster)
 }
 
 // EventFailedReflectionMsg returns the message for the event when the outgoing reflection fails due to an error.
 func EventFailedReflectionMsg(err error) string {
-	return fmt.Sprintf("Error reflecting object to cluster %q: %v", RemoteCluster.ClusterName, err)
+	return fmt.Sprintf("Error reflecting object to cluster %q: %v", RemoteCluster, err)
 }
 
 // EventFailedStatusReflectionMsg returns the message for the event when the incoming reflection fails due to an error.
 func EventFailedStatusReflectionMsg(err error) string {
-	return fmt.Sprintf("Error reflecting object status back from cluster %q: %v", RemoteCluster.ClusterName, err)
+	return fmt.Sprintf("Error reflecting object status back from cluster %q: %v", RemoteCluster, err)
 }
 
 // EventFailedReflectionAlreadyExistsMsg returns the message for the event when the reflection
 // has been aborted because the remote object already exists.
 func EventFailedReflectionAlreadyExistsMsg() string {
-	return fmt.Sprintf("Error reflecting object to cluster %q: remote object already exists", RemoteCluster.ClusterName)
+	return fmt.Sprintf("Error reflecting object to cluster %q: remote object already exists", RemoteCluster)
 }
 
 // EventFailedLabelsUpdateMsg returns the message for the event when it is impossible to update the labels of a local object.
@@ -78,20 +78,20 @@ func EventFailedDeletionMsg(err error) string {
 
 // EventReflectionDisabledMsg returns the message for the event when reflection is disabled for the given namespace.
 func EventReflectionDisabledMsg(namespace string) string {
-	return fmt.Sprintf("Reflection to cluster %q disabled for namespace %q", RemoteCluster.ClusterName, namespace)
+	return fmt.Sprintf("Reflection to cluster %q disabled for namespace %q", RemoteCluster, namespace)
 }
 
 // EventReflectionDisabledErrorMsg returns the message for the event when reflection is disabled for the given namespace, and an error occurs.
 func EventReflectionDisabledErrorMsg(namespace string, err error) string {
-	return fmt.Sprintf("Reflection to cluster %q disabled for namespace %q: error updating status: %v", RemoteCluster.ClusterName, namespace, err)
+	return fmt.Sprintf("Reflection to cluster %q disabled for namespace %q: error updating status: %v", RemoteCluster, namespace, err)
 }
 
 // EventObjectReflectionDisabledMsg returns the message for the event when reflection is disabled for a given resource.
 func EventObjectReflectionDisabledMsg(reflectionType consts.ReflectionType) string {
-	return fmt.Sprintf("Reflection to cluster %q disabled for the current object (policy: %q)", RemoteCluster.ClusterName, reflectionType)
+	return fmt.Sprintf("Reflection to cluster %q disabled for the current object (policy: %q)", RemoteCluster, reflectionType)
 }
 
 // EventSAReflectionDisabledMsg returns the message for the event when service account reflection is disabled.
 func EventSAReflectionDisabledMsg() string {
-	return fmt.Sprintf("Reflection to cluster %q disabled for secrets holding service account tokens", RemoteCluster.ClusterName)
+	return fmt.Sprintf("Reflection to cluster %q disabled for secrets holding service account tokens", RemoteCluster)
 }

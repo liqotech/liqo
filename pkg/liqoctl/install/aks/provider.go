@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
@@ -101,8 +102,8 @@ func (o *Options) Initialize(ctx context.Context) error {
 	o.Printer.Verbosef("VNET ResourceGroupName: %q", o.vnetResourceGroupName)
 
 	// if the cluster name has not been provided, we default it to the cloud provider resource name.
-	if o.ClusterName == "" {
-		o.ClusterName = o.resourceName
+	if o.ClusterID == "" {
+		o.ClusterID = discoveryv1alpha1.ClusterID(o.resourceName)
 	}
 
 	authorizer, err := auth.NewAuthorizerFromCLI()
