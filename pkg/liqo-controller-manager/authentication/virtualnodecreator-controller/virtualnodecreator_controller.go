@@ -113,7 +113,8 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Forge the VirtualNodeOptions from the ResourceSlice.
-	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name)
+	// TODO: handle createNode, nodeCheckNetwork bool from template/controller-manager
+	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name, true, false)
 
 	// CreateOrUpdate the VirtualNode.
 	virtualNode := forge.VirtualNode(resourceSlice.Name, resourceSlice.Namespace)

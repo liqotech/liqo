@@ -72,10 +72,11 @@ func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 		terminating:       false,
 		lastAppliedLabels: map[string]string{},
 
-		networkReady:       false,
-		resyncPeriod:       cfg.InformerResyncPeriod,
-		pingDisabled:       cfg.PingDisabled,
-		checkNetworkStatus: cfg.CheckNetworkStatus,
+		networkModuleEnabled: false,
+		networkReady:         false,
+		resyncPeriod:         cfg.InformerResyncPeriod,
+		pingDisabled:         cfg.PingDisabled,
+		checkNetworkStatus:   cfg.CheckNetworkStatus,
 
 		nodeName:         cfg.NodeName,
 		foreignClusterID: cfg.RemoteClusterID,

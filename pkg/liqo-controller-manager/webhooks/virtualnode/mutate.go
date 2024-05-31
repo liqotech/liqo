@@ -127,6 +127,7 @@ func mutateVKOptions(opts *vkforge.VirtualKubeletOpts, vn *virtualkubeletv1alpha
 func mutateSpecInTemplate(vn *virtualkubeletv1alpha1.VirtualNode) {
 	mutateSecretArg(vn)
 	mutateNodeCreate(vn)
+	mutateNodeCheckNetwork(vn)
 }
 
 // mutateSecretArg mutate the foreigncluster kubeconfig secret name in the virtual kubelet deployment.
@@ -166,4 +167,21 @@ func mutateNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
 	}
 
 	container.Args = append(container.Args, argCreateNode)
+}
+
+// mutateNodeCheckNetwork flag mutate the check network flag.
+func mutateNodeCheckNetwork(vn *virtualkubeletv1alpha1.VirtualNode) {
+	argCheckNetwork := fmt.Sprintf("%s=%s", vkforge.NodeCheckNetwork, strconv.FormatBool(!vn.Spec.DisableNetworkCheck))
+	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
+	for i, arg := range container.Args {
+		if strings.HasPrefix(arg, string(vkforge.NodeCheckNetwork)) {
+			if arg == argCheckNetwork {
+				return
+			}
+			container.Args[i] = argCheckNetwork
+			return
+		}
+	}
+
+	container.Args = append(container.Args, argCheckNetwork)
 }

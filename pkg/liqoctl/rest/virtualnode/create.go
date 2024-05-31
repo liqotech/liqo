@@ -83,6 +83,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().Var(&o.remoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 	cmd.Flags().BoolVar(&o.createNode, "create-node",
 		true, "Create a node to target the remote cluster (and schedule on it)")
+	cmd.Flags().BoolVar(&o.disableNetworkCheck, "disable-network-check", false, "Disable the network status check")
 	cmd.Flags().StringVar(&o.kubeconfigSecretName, "kubeconfig-secret-name",
 		"", "The name of the secret containing the kubeconfig of the remote cluster. Mutually exclusive with --resource-slice-name")
 	cmd.Flags().StringVar(&o.resourceSliceName, "resource-slice-name",
@@ -192,7 +193,7 @@ func (o *Options) forgeVirtualNodeOptionsFromResourceSlice(ctx context.Context,
 	}
 
 	// Forge the VirtualNodeOptions from the ResourceSlice.
-	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name)
+	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name, o.createNode, o.disableNetworkCheck)
 
 	return vnOpts, nil
 }

@@ -50,7 +50,8 @@ type LiqoNodeProvider struct {
 	pingDisabled       bool
 	checkNetworkStatus bool
 
-	networkReady bool
+	networkModuleEnabled bool
+	networkReady         bool
 
 	onNodeChangeCallback func(*corev1.Node)
 	updateMutex          sync.Mutex
