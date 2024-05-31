@@ -30,6 +30,7 @@ import (
 type VirtualNodeOptions struct {
 	KubeconfigSecretRef corev1.LocalObjectReference `json:"kubeconfigSecretRef,omitempty"`
 	CreateNode          bool                        `json:"createNode,omitempty"`
+	DisableNetworkCheck bool                        `json:"disableNetworkCheck,omitempty"`
 
 	ResourceList        corev1.ResourceList             `json:"resourceList,omitempty"`
 	StorageClasses      []authv1alpha1.StorageType      `json:"storageClasses,omitempty"`
@@ -74,6 +75,7 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 
 	virtualNode.Spec.ClusterID = remoteClusterID
 	virtualNode.Spec.CreateNode = &opts.CreateNode
+	virtualNode.Spec.DisableNetworkCheck = opts.DisableNetworkCheck
 	virtualNode.Spec.KubeconfigSecretRef = &opts.KubeconfigSecretRef
 	virtualNode.Spec.ResourceQuota = corev1.ResourceQuotaSpec{
 		Hard: opts.ResourceList,
@@ -94,10 +96,12 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 }
 
 // VirtualNodeOptionsFromResourceSlice extracts the VirtualNodeOptions from a ResourceSlice.
-func VirtualNodeOptionsFromResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, kubeconfigSecretName string) *VirtualNodeOptions {
+func VirtualNodeOptionsFromResourceSlice(resourceSlice *authv1alpha1.ResourceSlice,
+	kubeconfigSecretName string, createNode, disableNetworkCheck bool) *VirtualNodeOptions {
 	return &VirtualNodeOptions{
 		KubeconfigSecretRef: corev1.LocalObjectReference{Name: kubeconfigSecretName},
-		CreateNode:          true, // TODO: from template/controller-manager
+		CreateNode:          createNode,
+		DisableNetworkCheck: disableNetworkCheck,
 
 		ResourceList:        resourceSlice.Status.Resources,
 		StorageClasses:      resourceSlice.Status.StorageClasses,

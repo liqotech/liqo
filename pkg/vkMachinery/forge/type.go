@@ -84,4 +84,6 @@ const (
 	MetricsAddress VirtualKubeletOptsFlag = "--metrics-address"
 	// CreateNode is the flag used to specify if the node must be created.
 	CreateNode VirtualKubeletOptsFlag = "--create-node"
+	// NodeCheckNetwork is the flag used to specify if the network must be checked.
+	NodeCheckNetwork VirtualKubeletOptsFlag = "--node-check-network"
 )

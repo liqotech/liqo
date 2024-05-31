@@ -10,12 +10,6 @@
 {{- if not (or (has "--enable-apiserver-support" $vkargs ) (has "--enable-apiserver-support=true" $vkargs ) (has "--enable-apiserver-support=false" $vkargs )) }}
 {{- $vkargs = append $vkargs "--enable-apiserver-support=true" }}
 {{- end }}
-{{- /* Configure the appropriate flags if the networking module is disabled, if not overridden by the user */ -}}
-{{- if not .Values.networking.enabled }}
-{{- if not (or (has "--node-check-network" $vkargs ) (has "--node-check-network=true" $vkargs ) (has "--node-check-network=false" $vkargs )) }}
-{{- $vkargs = append $vkargs "--node-check-network=false" }}
-{{- end }}
-{{- end }}
 {{- /* Configure the appropriate flags if the IP reflection is disabled, if not overridden by the user */ -}}
 {{- if not .Values.networking.reflectIPs }}
 {{- if not (or (has "--disable-ip-reflection" $vkargs ) (has "--disable-ip-reflection=true" $vkargs ) (has "--disable-ip-reflection=false" $vkargs )) }}
