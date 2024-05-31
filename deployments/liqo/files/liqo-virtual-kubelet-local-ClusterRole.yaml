@@ -158,14 +158,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - networking.liqo.io
-  resources:
-  - connections
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - storage.k8s.io
   resources:
   - storageclasses

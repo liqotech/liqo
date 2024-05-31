@@ -77,7 +77,7 @@ func checkPeeringsStatus(foreign *discoveryV1alpha1.ForeignClusterList) bool {
 	var returnValue = true
 	for i := range foreign.Items {
 		item := &foreign.Items[i]
-		if fcutils.IsNetworkingEstablished(item) || fcutils.IsAuthenticationEstablished(item) || fcutils.IsOffloadingEstablished(item) {
+		if fcutils.IsNetworkingEstablished(item) {
 			returnValue = false
 		}
 	}
