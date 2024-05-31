@@ -44,7 +44,7 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 
 	// If the number of virtual nodes does not match that of namespacemaps, there is something wrong in the cluster.
 	if len(clusterIDs) != len(clusterIDMap) {
-		return fmt.Errorf("number of VirtualNodes (%d) does not match that of NamespaceMaps (%d)",
+		return fmt.Errorf("number of foreign clusters (%d) does not match that of NamespaceMaps (%d)",
 			len(clusterIDs), len(clusterIDMap))
 	}
 
