@@ -64,7 +64,7 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output format of the resulting Identity resource. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.remoteClusterID, "remote-cluster-id", "", "The ID of the remote cluster")
+	cmd.Flags().Var(&o.remoteClusterID, "remote-cluster-id", "The ID of the remote cluster")
 	cmd.Flags().StringVar(&o.remoteTenantNs, "remote-tenant-namespace", "", "The remote tenant namespace where the Identity will be applied")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
@@ -78,14 +78,14 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 func (o *Options) handleGenerate(ctx context.Context) error {
 	opts := o.generateOptions
 
-	localClusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, opts.CRClient, opts.LiqoNamespace)
+	localClusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, opts.CRClient, opts.LiqoNamespace)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
 		return err
 	}
 
 	// Forge Identity resource for the remote cluster and output it.
-	identity, err := authutils.GenerateIdentityControlPlane(ctx, opts.CRClient, o.remoteClusterID, o.remoteTenantNs, &localClusterIdentity)
+	identity, err := authutils.GenerateIdentityControlPlane(ctx, opts.CRClient, o.remoteClusterID.GetClusterID(), o.remoteTenantNs, localClusterID)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("an error occurred while generating identity: %v", output.PrettyErr(err)))
 		return err

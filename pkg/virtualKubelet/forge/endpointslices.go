@@ -71,7 +71,7 @@ func EndpointToBeReflected(endpoint *discoveryv1.Endpoint, localNodeClient corev
 	// - endpoints relative to the same remote cluster are not reflected, as the associated endpointslice is
 	//   already handled on the remote cluster by Kubernetes, due to the presence of the remote pod.
 	// - endpoints relative to (1) local cluster, (2) different remote clusters, or (3) external are reflected.
-	return !pointer.StringEqual(&epNodeClusterID, &RemoteCluster.ClusterID)
+	return epNodeClusterID != string(LocalCluster)
 }
 
 // RemoteShadowEndpointSlice forges the remote shadowendpointslice, given the local endpointslice.
@@ -124,7 +124,7 @@ func RemoteEndpointSliceEndpoints(locals []discoveryv1.Endpoint, localNodeClient
 			Conditions: conditions,
 			Hostname:   local.Hostname,
 			TargetRef:  RemoteEndpointTargetRef(local.TargetRef),
-			NodeName:   pointer.String(LocalCluster.ClusterName),
+			NodeName:   pointer.String(string(LocalCluster)),
 			Zone:       local.Zone,
 			Hints:      local.Hints,
 		}

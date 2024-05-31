@@ -17,6 +17,7 @@ package gatewayclient
 import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the gatewayclient command.
@@ -24,7 +25,7 @@ type Options struct {
 	createOptions *rest.CreateOptions
 	deleteOptions *rest.DeleteOptions
 
-	RemoteClusterID   string
+	RemoteClusterID   args.ClusterIDFlags
 	GatewayType       string
 	TemplateName      string
 	TemplateNamespace string
@@ -57,7 +58,7 @@ func (o *Options) getForgeOptions() *forge.GwClientOptions {
 
 	return &forge.GwClientOptions{
 		KubeClient:        o.createOptions.KubeClient,
-		RemoteClusterID:   o.RemoteClusterID,
+		RemoteClusterID:   o.RemoteClusterID.GetClusterID(),
 		GatewayType:       o.GatewayType,
 		TemplateName:      o.TemplateName,
 		TemplateNamespace: o.TemplateNamespace,

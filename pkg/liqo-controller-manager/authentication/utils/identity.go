@@ -29,8 +29,8 @@ import (
 // GenerateIdentityControlPlane generates an Identity resource of type ControlPlane to be
 // applied on the consumer cluster.
 func GenerateIdentityControlPlane(ctx context.Context, cl client.Client,
-	remoteClusterID, remoteTenantNamespace string,
-	localClusterIdentity *discoveryv1alpha1.ClusterIdentity) (*authv1alpha1.Identity, error) {
+	remoteClusterID discoveryv1alpha1.ClusterID, remoteTenantNamespace string,
+	localClusterID discoveryv1alpha1.ClusterID) (*authv1alpha1.Identity, error) {
 	// Get tenant with the given remote clusterID.
 	tenant, err := getters.GetTenantByClusterID(ctx, cl, remoteClusterID)
 	if err != nil {
@@ -51,8 +51,8 @@ func GenerateIdentityControlPlane(ctx context.Context, cl client.Client,
 
 		AwsConfig: tenant.Status.AuthParams.AwsConfig,
 	}
-	identity := forge.IdentityForRemoteCluster(forge.ControlPlaneIdentityName(localClusterIdentity.ClusterName), remoteTenantNamespace,
-		*localClusterIdentity, authv1alpha1.ControlPlaneIdentityType, &authParams, &tenant.Status.TenantNamespace)
+	identity := forge.IdentityForRemoteCluster(forge.ControlPlaneIdentityName(localClusterID), remoteTenantNamespace,
+		localClusterID, authv1alpha1.ControlPlaneIdentityType, &authParams, &tenant.Status.TenantNamespace)
 
 	return identity, nil
 }

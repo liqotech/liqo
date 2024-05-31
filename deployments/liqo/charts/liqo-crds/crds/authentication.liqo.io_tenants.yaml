@@ -48,20 +48,9 @@ spec:
           spec:
             description: TenantSpec defines the desired state of Tenant.
             properties:
-              clusterIdentity:
-                description: ClusterIdentity is the identity of the consumer cluster.
-                properties:
-                  clusterID:
-                    description: Foreign Cluster ID, this is a unique identifier of
-                      that cluster.
-                    type: string
-                  clusterName:
-                    description: Foreign Cluster Name to be shown in GUIs.
-                    type: string
-                required:
-                - clusterID
-                - clusterName
-                type: object
+              clusterID:
+                description: ClusterID is the id of the consumer cluster.
+                type: string
               csr:
                 description: CSR is the Certificate Signing Request of the tenant
                   cluster.

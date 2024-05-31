@@ -15,20 +15,10 @@
 package foreigncluster
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
-// UniqueName returns a user-friendly name that is unique *in the context of the current cluster*.
-// It depends on ClusterName, so the same cluster may have different UniqueNames in different clusters.
-//
-// Use it when reflecting resources on a remote cluster (see issue #966).
-func UniqueName(cluster *discoveryv1alpha1.ClusterIdentity) string {
-	// We add a unique suffix to the cluster name, built by taking part of the hash of the cluster ID.
-	idHash := sha256.Sum256([]byte(cluster.ClusterID))
-	// We want 6 chars, so we encode 3 bytes
-	idHashHex := hex.EncodeToString(idHash[:3])
-	return cluster.ClusterName + "-" + idHashHex
+// UniqueName returns a unique name for the given cluster.
+func UniqueName(cluster discoveryv1alpha1.ClusterID) string {
+	return string(cluster)
 }

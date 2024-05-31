@@ -85,7 +85,7 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(ctx co
 
 	// check that this certificate is related to this signing request
 	if !bytes.Equal(signingRequestSecret, options.SigningRequest) {
-		err = kerrors.NewBadRequest(fmt.Sprintf("the stored and the provided CSR for cluster %s does not match", options.Cluster.ClusterName))
+		err = kerrors.NewBadRequest(fmt.Sprintf("the stored and the provided CSR for cluster %s does not match", options.Cluster))
 		klog.Error(err)
 		return response, err
 	}
@@ -209,7 +209,7 @@ func (identityProvider *certificateIdentityProvider) storeRemoteCertificate(ctx 
 			secret.Labels = map[string]string{}
 		}
 		// TODO: move it to the other clusterID label?
-		secret.Labels[discovery.ClusterIDLabel] = options.Cluster.ClusterID
+		secret.Labels[discovery.ClusterIDLabel] = string(options.Cluster)
 
 		if secret.Data == nil {
 			secret.Data = map[string][]byte{}

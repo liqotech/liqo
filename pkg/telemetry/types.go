@@ -41,9 +41,9 @@ type PeeringDetails struct {
 
 // PeeringInfo contains information about a peering.
 type PeeringInfo struct {
-	RemoteClusterID string                     `json:"remoteClusterID"`
-	Role            discoveryv1alpha1.RoleType `json:"role,omitempty"`
-	Latency         time.Duration              `json:"latency,omitempty"`
+	RemoteClusterID discoveryv1alpha1.ClusterID `json:"remoteClusterID"`
+	Role            discoveryv1alpha1.RoleType  `json:"role,omitempty"`
+	Latency         time.Duration               `json:"latency,omitempty"`
 }
 
 // Telemetry contains information about the cluster.

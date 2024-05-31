@@ -70,7 +70,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output format of the resulting Configuration resource. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().Var(&o.RemoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 	cmd.Flags().Var(&o.PodCIDR, "pod-cidr", "The pod CIDR of the remote cluster")
 	cmd.Flags().Var(&o.ExternalCIDR, "external-cidr", "The external CIDR of the remote cluster")
 	cmd.Flags().BoolVar(&o.Wait, "wait", false, "Wait for the Configuration to be ready")
@@ -90,7 +90,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
 	conf := forge.Configuration(o.createOptions.Name, o.createOptions.Namespace,
-		o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
+		o.RemoteClusterID.GetClusterID(), o.PodCIDR.String(), o.ExternalCIDR.String())
 
 	if opts.OutputFormat != "" {
 		opts.Printer.CheckErr(o.output(conf))
@@ -99,7 +99,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	s := opts.Printer.StartSpinner("Creating configuration")
 	_, err := controllerutil.CreateOrUpdate(ctx, opts.CRClient, conf, func() error {
-		forge.MutateConfiguration(conf, o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
+		forge.MutateConfiguration(conf, o.RemoteClusterID.GetClusterID(), o.PodCIDR.String(), o.ExternalCIDR.String())
 		return nil
 	})
 	if err != nil {

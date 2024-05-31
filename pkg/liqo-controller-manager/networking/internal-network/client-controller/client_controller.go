@@ -26,10 +26,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
+	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -70,7 +72,7 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, fmt.Errorf("unable to initialize the IPAM: %w", err)
 	}
 
-	remoteClusterID, ok := gwClient.Labels[consts.RemoteClusterID]
+	remoteClusterID, ok := utils.GetClusterIDFromLabels(gwClient.Labels)
 	if !ok {
 		err = fmt.Errorf("remote cluster ID not found in the gateway client %q", req.NamespacedName)
 		klog.Error(err)
@@ -92,7 +94,7 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 }
 
 func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *networkingv1alpha1.GatewayClient,
-	configuration *networkingv1alpha1.Configuration, remoteClusterID string, ipam *fabricipam.IPAM) error {
+	configuration *networkingv1alpha1.Configuration, remoteClusterID discoveryv1alpha1.ClusterID, ipam *fabricipam.IPAM) error {
 	if configuration.Status.Remote == nil {
 		return fmt.Errorf("remote configuration not found for the gateway client %q", gwClient.Name)
 	}
@@ -111,7 +113,7 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 		if internalFabric.Labels == nil {
 			internalFabric.Labels = make(map[string]string)
 		}
-		internalFabric.Labels[consts.RemoteClusterID] = remoteClusterID
+		internalFabric.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 
 		internalFabric.Spec.MTU = gwClient.Spec.MTU
 

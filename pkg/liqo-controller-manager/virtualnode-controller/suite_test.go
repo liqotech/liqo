@@ -68,10 +68,7 @@ var (
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	localIdentity = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "local-ID",
-		ClusterName: "local-name",
-	}
+	localID discoveryv1alpha1.ClusterID = "local-ID"
 
 	nms *mapsv1alpha1.NamespaceMapList
 
@@ -128,7 +125,7 @@ var _ = BeforeSuite(func() {
 		k8sClient,
 		scheme.Scheme,
 		k8sManager.GetEventRecorderFor("virtualnode-controller"),
-		&localIdentity,
+		localID,
 		&forge.VirtualKubeletOpts{},
 	)
 	Expect(err).ToNot(HaveOccurred())
@@ -163,7 +160,7 @@ var _ = BeforeSuite(func() {
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID1, ClusterName: "remote-1"},
+			ClusterID: remoteClusterID1,
 		},
 	}
 
@@ -175,7 +172,7 @@ var _ = BeforeSuite(func() {
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID2, ClusterName: "remote-2"},
+			ClusterID: remoteClusterID2,
 		},
 	}
 

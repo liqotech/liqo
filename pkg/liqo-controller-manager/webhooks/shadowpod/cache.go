@@ -23,10 +23,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	fcutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // peeringCache is a cache that holds the peeringInfo for each peered cluster.
@@ -96,16 +95,16 @@ func (spv *Validator) refreshCache(ctx context.Context) (done bool, err error) {
 	spv.PeeringCache.peeringInfo.Range(
 		func(key, value interface{}) bool {
 			pi := value.(*peeringInfo)
-			clusterID := key.(string)
+			clusterID := discoveryv1alpha1.ClusterID(key.(string))
 			// Get the List of shadow pods running on the cluster
 			shadowPodList, err := spv.getShadowPodListByClusterID(ctx, clusterID)
 			if err != nil {
 				klog.Warning(err)
 				return true
 			}
-			klog.V(5).Infof("Found %d ShadowPods for cluster %q", len(shadowPodList.Items), pi.clusterIdentity.String())
+			klog.V(5).Infof("Found %d ShadowPods for cluster %q", len(shadowPodList.Items), pi.clusterID)
 			// Flush terminating ShadowPods and check the correct alignment between cluster and cache
-			klog.V(5).Infof("Aligning ShadowPods for cluster %q", pi.clusterIdentity.String())
+			klog.V(5).Infof("Aligning ShadowPods for cluster %q", pi.clusterID)
 			pi.alignTerminatingOrNotExistingShadowPods(shadowPodList)
 			return true
 		},
@@ -232,14 +231,5 @@ func (pi *peeringInfo) alignResourceOfferUpdates(resources corev1.ResourceList) 
 	pi.mu.Lock()
 	defer pi.mu.Unlock()
 	pi.updateQuotas(resources)
-	klog.V(4).Infof("Quota of PeeringInfo for cluster %q has been updated", pi.clusterIdentity.String())
-}
-
-func retrieveClusterName(ctx context.Context, c client.Client, clusterID string) string {
-	cluster, err := fcutils.GetForeignClusterByID(ctx, c, clusterID)
-	if err != nil {
-		klog.Warning(err)
-		return ""
-	}
-	return cluster.Spec.ClusterIdentity.ClusterName
+	klog.V(4).Infof("Quota of PeeringInfo for cluster %q has been updated", pi.clusterID)
 }

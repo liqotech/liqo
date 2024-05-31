@@ -30,11 +30,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // NewNonceSignerReconciler returns a new SecretReconciler.
@@ -79,7 +79,7 @@ func (r *NonceSignerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Check if the secret contains the remoteClusterID label.
-	remoteClusterID, ok := secret.Labels[consts.RemoteClusterID]
+	remoteClusterID, ok := utils.GetClusterIDFromLabels(secret.Labels)
 	if !ok {
 		klog.Infof("RemoteClusterID not found in secret %q", req.NamespacedName)
 		r.eventRecorder.Event(&secret, "Warning", "MissingRemoteClusterID", "RemoteClusterID not found in secret")
@@ -87,7 +87,7 @@ func (r *NonceSignerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Get the tenant namespace for the remote cluster.
-	tenantNamespace, err := r.namespaceManager.GetNamespace(ctx, discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID})
+	tenantNamespace, err := r.namespaceManager.GetNamespace(ctx, remoteClusterID)
 	if err != nil {
 		klog.Errorf("Unable to get tenant namespace for cluster %q: %s", remoteClusterID, err)
 		r.eventRecorder.Event(&secret, "Warning", "TenantNamespaceNotFound", "Unable to get tenant namespace")

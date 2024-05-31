@@ -35,10 +35,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.StringVar(&o.TenantNamespace, "tenant-namespace", o.TenantNamespace, "The tenant namespace associated with the remote cluster")
 	flags.DurationVar(&o.InformerResyncPeriod, "resync-period", o.InformerResyncPeriod, "The resync period for the informers")
 
-	flags.StringVar(&o.HomeCluster.ClusterID, "home-cluster-id", o.HomeCluster.ClusterID, "The ID of the home cluster")
-	flags.StringVar(&o.HomeCluster.ClusterName, "home-cluster-name", o.HomeCluster.ClusterName, "The name of the home cluster")
-	flags.StringVar(&o.ForeignCluster.ClusterID, "foreign-cluster-id", o.ForeignCluster.ClusterID, "The ID of the foreign cluster")
-	flags.StringVar(&o.ForeignCluster.ClusterName, "foreign-cluster-name", o.ForeignCluster.ClusterName, "The name of the foreign cluster")
+	flags.Var(&o.HomeCluster, "home-cluster-id", "The ID of the home cluster")
+	flags.Var(&o.ForeignCluster, "foreign-cluster-id", "The ID of the foreign cluster")
 	flags.StringVar(&o.LiqoIpamServer, "ipam-server", o.LiqoIpamServer,
 		"The address to contact the IPAM module (leave it empty to disable the IPAM module)")
 	flags.BoolVar(&o.DisableIPReflection, "disable-ip-reflection", o.DisableIPReflection,

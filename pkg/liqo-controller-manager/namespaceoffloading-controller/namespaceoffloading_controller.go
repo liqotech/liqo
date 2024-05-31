@@ -42,7 +42,7 @@ import (
 type NamespaceOffloadingReconciler struct {
 	client.Client
 	Recorder     record.EventRecorder
-	LocalCluster discoveryv1alpha1.ClusterIdentity
+	LocalCluster discoveryv1alpha1.ClusterID
 
 	// namespaces tracks the set of namespaces for which a NamespaceOffloading resource exists.
 	namespaces *syncset.SyncSet

@@ -17,8 +17,8 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.clusterIdentity.clusterName
-      name: Cluster Name
+    - jsonPath: .spec.clusterID
+      name: ClusterID
       type: string
     - jsonPath: .spec.createNode
       name: Create Node
@@ -65,21 +65,10 @@ spec:
                 description: Annotations contains the annotations to be added to the
                   virtual node.
                 type: object
-              clusterIdentity:
-                description: ClusterIdentity contains the identity of the remote cluster
-                  targeted by the created virtualKubelet.
-                properties:
-                  clusterID:
-                    description: Foreign Cluster ID, this is a unique identifier of
-                      that cluster.
-                    type: string
-                  clusterName:
-                    description: Foreign Cluster Name to be shown in GUIs.
-                    type: string
-                required:
-                - clusterID
-                - clusterName
-                type: object
+              clusterID:
+                description: ClusterID contains the id of the remote cluster targeted
+                  by the created virtualKubelet.
+                type: string
               createNode:
                 default: true
                 description: CreateNode indicates if a node to target the remote cluster

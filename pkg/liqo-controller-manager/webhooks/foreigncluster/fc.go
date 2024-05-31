@@ -76,11 +76,11 @@ func (w *fcwhm) Handle(_ context.Context, req admission.Request) admission.Respo
 	}
 
 	// Enforce the ClusterID label, to allow retrieving the foreign cluster by ID.
-	if fc.Spec.ClusterIdentity.ClusterID != "" {
+	if fc.Spec.ClusterID != "" {
 		if fc.ObjectMeta.Labels == nil {
 			fc.ObjectMeta.Labels = map[string]string{}
 		}
-		fc.ObjectMeta.Labels[discovery.ClusterIDLabel] = fc.Spec.ClusterIdentity.ClusterID
+		fc.ObjectMeta.Labels[discovery.ClusterIDLabel] = string(fc.Spec.ClusterID)
 	}
 
 	marshaledFc, err := json.Marshal(fc)
@@ -113,12 +113,8 @@ func (w *fcwhv) Handle(_ context.Context, req admission.Request) admission.Respo
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	if fcold.Spec.ClusterIdentity.ClusterID != "" && fcold.Spec.ClusterIdentity.ClusterID != fcnew.Spec.ClusterIdentity.ClusterID {
+	if fcold.Spec.ClusterID != "" && fcold.Spec.ClusterID != fcnew.Spec.ClusterID {
 		return admission.Denied("The ClusterID value cannot be modified after creation")
-	}
-
-	if fcold.Spec.ClusterIdentity.ClusterName != "" && fcold.Spec.ClusterIdentity.ClusterName != fcnew.Spec.ClusterIdentity.ClusterName {
-		return admission.Denied("The ClusterName value cannot be modified after creation")
 	}
 
 	return admission.Allowed("")

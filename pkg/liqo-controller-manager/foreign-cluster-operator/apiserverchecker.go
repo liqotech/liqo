@@ -37,7 +37,7 @@ const (
 
 // APIServerCheckers manage the foreign API server checker functions.
 type APIServerCheckers struct {
-	cancelFuncs  map[string]context.CancelFunc
+	cancelFuncs  map[discoveryv1alpha1.ClusterID]context.CancelFunc
 	mutex        sync.RWMutex
 	pingInterval time.Duration
 	pingTimeout  time.Duration
@@ -46,7 +46,7 @@ type APIServerCheckers struct {
 // NewAPIServerCheckers returns a new APIServerCheckers struct.
 func NewAPIServerCheckers(pingInterval, pingTimeout time.Duration) APIServerCheckers {
 	return APIServerCheckers{
-		cancelFuncs:  make(map[string]context.CancelFunc),
+		cancelFuncs:  make(map[discoveryv1alpha1.ClusterID]context.CancelFunc),
 		mutex:        sync.RWMutex{},
 		pingInterval: pingInterval,
 		pingTimeout:  pingTimeout,
@@ -58,8 +58,7 @@ func (r *ForeignClusterReconciler) handleAPIServerChecker(ctx context.Context,
 	r.APIServerCheckers.mutex.Lock()
 	defer r.APIServerCheckers.mutex.Unlock()
 
-	clusterName := foreignCluster.Spec.ClusterIdentity.ClusterName
-	clusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
+	clusterID := foreignCluster.Spec.ClusterID
 	checkerDisabled := r.APIServerCheckers.pingInterval == 0 // checker is disabled if the ping interval is 0
 
 	// If checker disabled, we consider the foreign API server as always ready.
@@ -73,10 +72,10 @@ func (r *ForeignClusterReconciler) handleAPIServerChecker(ctx context.Context,
 		// If the finalizer is present, remove it.
 		if controllerutil.ContainsFinalizer(foreignCluster, apiServerCheckerFinalizer) {
 			if err := r.ensureFinalizer(ctx, foreignCluster, controllerutil.RemoveFinalizer); err != nil {
-				klog.Errorf("An error occurred while removing the finalizer from %q: %v", clusterName, err)
+				klog.Errorf("An error occurred while removing the finalizer from %q: %v", clusterID, err)
 				return false, ctrl.Result{}, err
 			}
-			klog.Infof("Finalizer correctly removed from foreign cluster %q", clusterName)
+			klog.Infof("Finalizer correctly removed from foreign cluster %q", clusterID)
 			return false, ctrl.Result{Requeue: true}, nil
 		}
 
@@ -91,25 +90,25 @@ func (r *ForeignClusterReconciler) handleAPIServerChecker(ctx context.Context,
 	// - add finalizer to FC to prevent deletion if the routine is still running
 	if !checkerExists && foreignCluster.DeletionTimestamp.IsZero() {
 		// Get the discovery client of the foreign cluster
-		cfg, err := r.IdentityManager.GetConfig(foreignCluster.Spec.ClusterIdentity, foreignCluster.Status.TenantNamespace.Local)
+		cfg, err := r.IdentityManager.GetConfig(foreignCluster.Spec.ClusterID, foreignCluster.Status.TenantNamespace.Local)
 		if err != nil {
-			klog.Errorf("Error retrieving REST client of foreign cluster %q: %v", clusterName, err)
+			klog.Errorf("Error retrieving REST client of foreign cluster %q: %v", clusterID, err)
 			return false, ctrl.Result{}, err
 		}
 		discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(cfg)
 
 		// add the finalizer to the list and update it.
 		if err := r.ensureFinalizer(ctx, foreignCluster, controllerutil.AddFinalizer); err != nil {
-			klog.Errorf("An error occurred while adding the finalizer to %q: %v", clusterName, err)
+			klog.Errorf("An error occurred while adding the finalizer to %q: %v", clusterID, err)
 			return false, ctrl.Result{}, err
 		}
-		klog.Infof("Finalizer correctly added to foreign cluster %q", clusterName)
+		klog.Infof("Finalizer correctly added to foreign cluster %q", clusterID)
 
-		klog.Infof("Starting API server checker for foreign cluster %q", clusterName)
+		klog.Infof("Starting API server checker for foreign cluster %q", clusterID)
 		var contextChecker context.Context
 		contextChecker, stopChecker = context.WithCancel(context.Background())
 		r.APIServerCheckers.cancelFuncs[clusterID] = stopChecker
-		go r.runAPIServerChecker(contextChecker, clusterName, discoveryClient)
+		go r.runAPIServerChecker(contextChecker, clusterID, discoveryClient)
 
 		return false, ctrl.Result{Requeue: true}, nil
 	}
@@ -121,17 +120,17 @@ func (r *ForeignClusterReconciler) handleAPIServerChecker(ctx context.Context,
 	if !foreignCluster.DeletionTimestamp.IsZero() &&
 		(checkerExists || controllerutil.ContainsFinalizer(foreignCluster, apiServerCheckerFinalizer)) {
 		if checkerExists {
-			klog.Infof("Stopping API server checker for foreign cluster %q", clusterName)
+			klog.Infof("Stopping API server checker for foreign cluster %q", clusterID)
 			stopChecker()
 			delete(r.APIServerCheckers.cancelFuncs, clusterID)
 		}
 
 		// remove the finalizer from the list and update it.
 		if err := r.ensureFinalizer(ctx, foreignCluster, controllerutil.RemoveFinalizer); err != nil {
-			klog.Errorf("An error occurred while removing the finalizer from %q: %v", clusterName, err)
+			klog.Errorf("An error occurred while removing the finalizer from %q: %v", clusterID, err)
 			return false, ctrl.Result{}, err
 		}
-		klog.Infof("Finalizer correctly removed from foreign cluster %q", clusterName)
+		klog.Infof("Finalizer correctly removed from foreign cluster %q", clusterID)
 
 		return false, ctrl.Result{Requeue: true}, nil
 	}
@@ -151,7 +150,7 @@ func (r *ForeignClusterReconciler) ensureFinalizer(ctx context.Context, foreignC
 	return r.Client.Update(ctx, foreignCluster)
 }
 
-func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clusterName string,
+func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clusterID discoveryv1alpha1.ClusterID,
 	discoveryClient *discovery.DiscoveryClient) {
 	var fc = new(discoveryv1alpha1.ForeignCluster)
 	var oldStatus, newStatus discoveryv1alpha1.ConditionStatusType
@@ -162,16 +161,17 @@ func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clus
 	time.Sleep(2 * time.Second)
 
 	checkAndUpdateCallback := func(ctx context.Context) (done bool, err error) {
-		klog.V(5).Infof("[%s] checking foreign API server readiness", clusterName)
+		klog.V(5).Infof("[%s] checking foreign API server readiness", clusterID)
 
-		if r.Get(ctx, types.NamespacedName{Name: clusterName}, fc) != nil {
-			klog.Errorf("[%s] ForeignCluster not found", clusterName)
+		// TODO: this look like not correct, we need to get by label
+		if r.Get(ctx, types.NamespacedName{Name: string(clusterID)}, fc) != nil {
+			klog.Errorf("[%s] ForeignCluster not found", clusterID)
 			return false, nil
 		}
 
 		oldStatus = fcutils.GetStatus(fc.Status.Modules.Offloading.Conditions, discoveryv1alpha1.OffloadingAPIServerStatusCondition)
 
-		if r.isForeignAPIServerReady(ctx, discoveryClient, clusterName) {
+		if r.isForeignAPIServerReady(ctx, discoveryClient, clusterID) {
 			newStatus = discoveryv1alpha1.ConditionStatusEstablished
 			reason = apiServerReadyReason
 			message = apiServerReadyMessage
@@ -185,24 +185,25 @@ func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clus
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Offloading,
 				discoveryv1alpha1.OffloadingAPIServerStatusCondition, newStatus, reason, message)
 			if err := r.Status().Update(ctx, fc); err != nil {
-				klog.Errorf("[%s] error while updating foreign API server status: %v", clusterName, err)
+				klog.Errorf("[%s] error while updating foreign API server status: %v", clusterID, err)
 				return false, nil
 			}
-			klog.Infof("[%s] updated foreign API server status (from %s to %s)", clusterName, oldStatus, newStatus)
+			klog.Infof("[%s] updated foreign API server status (from %s to %s)", clusterID, oldStatus, newStatus)
 		}
 
 		return false, nil
 	}
 
-	klog.Infof("[%s] foreign API server readiness checker started", clusterName)
+	klog.Infof("[%s] foreign API server readiness checker started", clusterID)
 
 	// Ignore errors because only caused by context cancellation.
 	_ = wait.PollImmediateInfiniteWithContext(ctx, r.APIServerCheckers.pingInterval, checkAndUpdateCallback)
 
-	klog.Infof("[%s] foreign API server readiness checker stopped", clusterName)
+	klog.Infof("[%s] foreign API server readiness checker stopped", clusterID)
 }
 
-func (r *ForeignClusterReconciler) isForeignAPIServerReady(ctx context.Context, discoveryClient *discovery.DiscoveryClient, name string) bool {
+func (r *ForeignClusterReconciler) isForeignAPIServerReady(ctx context.Context, discoveryClient *discovery.DiscoveryClient,
+	id discoveryv1alpha1.ClusterID) bool {
 	pingCtx, cancel := context.WithTimeout(ctx, r.APIServerCheckers.pingTimeout)
 	defer cancel()
 
@@ -210,10 +211,10 @@ func (r *ForeignClusterReconciler) isForeignAPIServerReady(ctx context.Context, 
 
 	_, err := discoveryClient.RESTClient().Get().AbsPath("/livez").DoRaw(pingCtx)
 	if err != nil {
-		klog.Errorf("[%s] foreign API server readiness check failed: %v", name, err)
+		klog.Errorf("[%s] foreign API server readiness check failed: %v", id, err)
 		return false
 	}
 
-	klog.V(5).Infof("[%s] foreign API server readiness check completed successfully in %v", name, time.Since(start))
+	klog.V(5).Infof("[%s] foreign API server readiness check completed successfully in %v", id, time.Since(start))
 	return true
 }

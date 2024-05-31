@@ -47,8 +47,6 @@ type VirtualKubeletOptsFlag string
 const (
 	// ForeignClusterID is the flag used to specify the foreign cluster ID.
 	ForeignClusterID VirtualKubeletOptsFlag = "--foreign-cluster-id"
-	// ForeignClusterName is the flag used to specify the foreign cluster name.
-	ForeignClusterName VirtualKubeletOptsFlag = "--foreign-cluster-name"
 	//nolint:gosec // we are not using this flag to store sensitive data
 	// ForeignClusterKubeconfigSecretName is the flag used to specify the foreign cluster kubeconfig secret name.
 	ForeignClusterKubeconfigSecretName VirtualKubeletOptsFlag = "--foreign-kubeconfig-secret-name"
@@ -60,8 +58,6 @@ const (
 	TenantNamespace VirtualKubeletOptsFlag = "--tenant-namespace"
 	// HomeClusterID is the flag used to specify the home cluster ID.
 	HomeClusterID VirtualKubeletOptsFlag = "--home-cluster-id"
-	// HomeClusterName is the flag used to specify the home cluster name.
-	HomeClusterName VirtualKubeletOptsFlag = "--home-cluster-name"
 	// LocalPodCIDR is the flag used to specify the local pod CIDR.
 	LocalPodCIDR VirtualKubeletOptsFlag = "--local-podcidr"
 	// IpamEndpoint is the flag used to specify the IPAM endpoint.

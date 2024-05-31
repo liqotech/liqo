@@ -58,13 +58,13 @@ func (r *NamespaceOffloadingReconciler) remoteNamespaceName(nsoff *offv1alpha1.N
 	case offv1alpha1.EnforceSameNameMappingStrategyType:
 		return nsoff.Namespace
 	case offv1alpha1.DefaultNameMappingStrategyType:
-		return nsoff.Namespace + "-" + foreignclusterutils.UniqueName(&r.LocalCluster)
+		return nsoff.Namespace + "-" + foreignclusterutils.UniqueName(r.LocalCluster)
 	case offv1alpha1.SelectedNameMappingStrategyType:
 		return nsoff.Spec.RemoteNamespaceName
 	default:
 		klog.Errorf("NamespaceOffloading %q: unknown NamespaceMappingStrategy %q, falling back to %q",
 			klog.KObj(nsoff), nsoff.Spec.NamespaceMappingStrategy, offv1alpha1.DefaultNameMappingStrategyType)
-		return nsoff.Namespace + "-" + foreignclusterutils.UniqueName(&r.LocalCluster)
+		return nsoff.Namespace + "-" + foreignclusterutils.UniqueName(r.LocalCluster)
 	}
 }
 

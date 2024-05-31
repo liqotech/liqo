@@ -273,7 +273,7 @@ func (pr *PodReflector) KubernetesServiceIPGetter() func(ctx context.Context) (s
 		default:
 			// Otherwise we need to interact with the IPAM to retrieve the correct mapping.
 			response, err := pr.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{
-				ClusterID: forge.RemoteCluster.ClusterID, Ip: kubernetesService})
+				ClusterID: string(forge.RemoteCluster), Ip: kubernetesService})
 			if err != nil {
 				return "", err
 			}

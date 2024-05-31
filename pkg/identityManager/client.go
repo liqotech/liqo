@@ -31,11 +31,11 @@ import (
 
 // GetConfig gets a rest config from the secret, given the remote clusterID and (optionally) the namespace.
 // This rest config con be used to create a client to the remote cluster.
-func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.ClusterIdentity, _ string) (*rest.Config, error) {
+func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.ClusterID, _ string) (*rest.Config, error) {
 	ctx := context.TODO()
 
 	// Get Secret with ControlPlane Identity associated to the given remote cluster.
-	secret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, certManager.client, remoteCluster.ClusterID)
+	secret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, certManager.client, remoteCluster)
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +52,12 @@ func (certManager *identityManager) GetConfig(remoteCluster discoveryv1alpha1.Cl
 	return cnf, nil
 }
 
-func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterIdentity,
+func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterID,
 	_ string) (types.NamespacedName, error) {
 	ctx := context.TODO()
 
 	// Get Secret with ControlPlane Identity associated to the given remote cluster.
-	secret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, certManager.client, remoteCluster.ClusterID)
+	secret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, certManager.client, remoteCluster)
 	if err != nil {
 		return types.NamespacedName{}, err
 	}
@@ -66,7 +66,7 @@ func (certManager *identityManager) GetSecretNamespacedName(remoteCluster discov
 }
 
 // GetConfigFromSecret gets a rest config from a secret.
-func (certManager *identityManager) GetConfigFromSecret(remoteCluster discoveryv1alpha1.ClusterIdentity,
+func (certManager *identityManager) GetConfigFromSecret(remoteCluster discoveryv1alpha1.ClusterID,
 	secret *corev1.Secret) (*rest.Config, error) {
 	cnf, err := kubeconfig.BuildConfigFromSecret(secret)
 	if err != nil {
@@ -82,11 +82,11 @@ func (certManager *identityManager) GetConfigFromSecret(remoteCluster discoveryv
 
 // GetRemoteTenantNamespace returns the tenant namespace that
 // the remote cluster assigned to this peering.
-func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterIdentity, _ string) (string, error) {
+func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterID, _ string) (string, error) {
 	ctx := context.TODO()
 
 	// Get Secret with ControlPlane Identity associated to the given remote cluster.
-	secret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, certManager.client, remoteCluster.ClusterID)
+	secret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, certManager.client, remoteCluster)
 	if err != nil {
 		return "", err
 	}
@@ -101,6 +101,6 @@ func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster disco
 }
 
 func (certManager *identityManager) mutateIAMConfig(
-	secret *corev1.Secret, remoteCluster discoveryv1alpha1.ClusterIdentity, cnf *rest.Config) (*rest.Config, error) {
+	secret *corev1.Secret, remoteCluster discoveryv1alpha1.ClusterID, cnf *rest.Config) (*rest.Config, error) {
 	return certManager.iamTokenManager.mutateConfig(secret, remoteCluster, cnf)
 }

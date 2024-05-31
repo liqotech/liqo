@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -44,14 +45,14 @@ func ResourceSlice(name, namespace string) *authv1alpha1.ResourceSlice {
 }
 
 // MutateResourceSlice mutates a ResourceSlice resource.
-func MutateResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, remoteClusterID string,
+func MutateResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, remoteClusterID discoveryv1alpha1.ClusterID,
 	opts *ResourceSliceOptions, createVirtualNode bool) error {
 	if resourceSlice.Labels == nil {
 		resourceSlice.Labels = map[string]string{}
 	}
 	resourceSlice.Labels[consts.ReplicationRequestedLabel] = consts.ReplicationRequestedLabelValue
-	resourceSlice.Labels[consts.ReplicationDestinationLabel] = remoteClusterID
-	resourceSlice.Labels[consts.RemoteClusterID] = remoteClusterID
+	resourceSlice.Labels[consts.ReplicationDestinationLabel] = string(remoteClusterID)
+	resourceSlice.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 
 	if createVirtualNode {
 		if resourceSlice.Annotations == nil {

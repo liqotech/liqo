@@ -16,13 +16,14 @@ package identity
 
 import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the identity command.
 type Options struct {
 	generateOptions *rest.GenerateOptions
 
-	remoteClusterID string
+	remoteClusterID args.ClusterIDFlags
 	remoteTenantNs  string
 }
 

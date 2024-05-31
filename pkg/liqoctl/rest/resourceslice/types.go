@@ -17,6 +17,7 @@ package resourceslice
 import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the resourceslice command.
@@ -25,7 +26,7 @@ type Options struct {
 
 	namespaceManager tenantnamespace.Manager
 
-	remoteClusterID string
+	remoteClusterID args.ClusterIDFlags
 	class           string
 
 	cpu    string

@@ -130,7 +130,7 @@ func main() {
 
 	// Global parameters
 	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
-	clusterIdentityFlags := argsutils.NewClusterIdentityFlags(true, nil)
+	clusterIDFlags := argsutils.NewClusterIDFlags(true, nil)
 	liqoNamespace := flag.String("liqo-namespace", consts.DefaultLiqoNamespace,
 		"Name of the namespace where the liqo components are running")
 	foreignClusterWorkers := flag.Int("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
@@ -242,7 +242,7 @@ func main() {
 		LocalPodCIDR:         *podcidr,
 	}
 
-	clusterIdentity := clusterIdentityFlags.ReadOrDie()
+	clusterID := clusterIDFlags.ReadOrDie()
 
 	ctx := ctrl.SetupSignalHandler()
 
@@ -317,15 +317,15 @@ func main() {
 		var idProvider identitymanager.IdentityProvider
 		if awsConfig.IsEmpty() {
 			idProvider = identitymanager.NewCertificateIdentityProvider(ctx,
-				mgr.GetClient(), clientset, config, clusterIdentity, namespaceManager)
+				mgr.GetClient(), clientset, config, clusterID, namespaceManager)
 		} else {
 			idProvider = identitymanager.NewIAMIdentityProvider(ctx,
-				mgr.GetClient(), clientset, clusterIdentity, &awsConfig, namespaceManager)
+				mgr.GetClient(), clientset, clusterID, &awsConfig, namespaceManager)
 		}
 		opts := &modules.AuthOption{
 			IdentityProvider:         idProvider,
 			NamespaceManager:         namespaceManager,
-			LocalClusterIdentity:     &clusterIdentity,
+			LocalClusterID:           clusterID,
 			LiqoNamespace:            *liqoNamespace,
 			APIServerAddressOverride: apiServerAddressOverride,
 			CAOverrideB64:            caOverride,
@@ -350,7 +350,7 @@ func main() {
 	if *offloadingEnabled {
 		opts := &modules.OffloadingOption{
 			Clientset:                   clientset,
-			LocalClusterIdentity:        &clusterIdentity,
+			LocalClusterID:              clusterID,
 			VirtualKubeletOpts:          virtualKubeletOpts,
 			EnableStorage:               *enableStorage,
 			VirtualStorageClassName:     *virtualStorageClassName,
@@ -402,9 +402,9 @@ func main() {
 			Factory:    factory,
 			KubeClient: clientset,
 
-			LiqoNamespace:        *liqoNamespace,
-			LocalClusterIdentity: &clusterIdentity,
-			IpamClient:           ipamClient,
+			LiqoNamespace:  *liqoNamespace,
+			LocalClusterID: clusterID,
+			IpamClient:     ipamClient,
 
 			GatewayServerResources:         gatewayServerResources.StringList,
 			GatewayClientResources:         gatewayClientResources.StringList,
@@ -443,7 +443,7 @@ func main() {
 	}
 
 	// Configure the foreigncluster controller.
-	idManager := identitymanager.NewCertificateIdentityManager(ctx, mgr.GetClient(), clientset, mgr.GetConfig(), clusterIdentity, namespaceManager)
+	idManager := identitymanager.NewCertificateIdentityManager(ctx, mgr.GetClient(), clientset, mgr.GetConfig(), clusterID, namespaceManager)
 	foreignClusterReconciler := &foreignclusteroperator.ForeignClusterReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -451,7 +451,7 @@ func main() {
 		ResyncPeriod: *resyncPeriod,
 
 		LiqoNamespace:    *liqoNamespace,
-		HomeCluster:      clusterIdentity,
+		HomeCluster:      clusterID,
 		NamespaceManager: namespaceManager,
 		IdentityManager:  idManager,
 
@@ -474,7 +474,7 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), addVirtualNodeTolerationOnOffloadedPods))
-	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), &clusterIdentity, virtualKubeletOpts))
+	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), clusterID, virtualKubeletOpts))
 	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator())
 	mgr.GetWebhookServer().Register("/validate/networks", nwwh.NewValidator())
 	mgr.GetWebhookServer().Register("/validate/ips", ipwh.NewValidator())
