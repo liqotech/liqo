@@ -51,6 +51,7 @@ import (
 type OffloadingOption struct {
 	Clientset                   *kubernetes.Clientset
 	LocalClusterID              discoveryv1alpha1.ClusterID
+	NamespaceManager            tenantnamespace.Manager
 	VirtualKubeletOpts          *forge.VirtualKubeletOpts
 	EnableStorage               bool
 	VirtualStorageClassName     string
@@ -73,6 +74,7 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 		mgr.GetEventRecorderFor("virtualnode-controller"),
 		opts.LocalClusterID,
 		opts.VirtualKubeletOpts,
+		opts.NamespaceManager,
 	)
 	if err != nil {
 		klog.Errorf("Unable to create the virtualnode reconciler: %v", err)

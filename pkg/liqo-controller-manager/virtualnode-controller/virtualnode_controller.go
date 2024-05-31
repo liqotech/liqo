@@ -37,7 +37,10 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
@@ -55,6 +58,7 @@ type VirtualNodeReconciler struct {
 	VirtualKubeletOptions *vkforge.VirtualKubeletOpts
 	EventsRecorder        record.EventRecorder
 	dr                    *DeletionRoutine
+	namespaceManager      tenantnamespace.Manager
 }
 
 // NewVirtualNodeReconciler returns a new VirtualNodeReconciler.
@@ -63,6 +67,7 @@ func NewVirtualNodeReconciler(
 	cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
 	hci discoveryv1alpha1.ClusterID, vko *vkforge.VirtualKubeletOpts,
+	namespaceManager tenantnamespace.Manager,
 ) (*VirtualNodeReconciler, error) {
 	vnr := &VirtualNodeReconciler{
 		Client:                cl,
@@ -70,6 +75,7 @@ func NewVirtualNodeReconciler(
 		HomeClusterID:         hci,
 		VirtualKubeletOptions: vko,
 		EventsRecorder:        er,
+		namespaceManager:      namespaceManager,
 	}
 	var err error
 	vnr.dr, err = RunDeletionRoutine(ctx, vnr)
@@ -154,27 +160,35 @@ var deploymentHandler = &handler.Funcs{
 	},
 }
 
-var namespaceMapHandler = handler.EnqueueRequestsFromMapFunc(
-	func(ctx context.Context, o client.Object) []reconcile.Request {
-		nm, ok := o.(*virtualkubeletv1alpha1.NamespaceMap)
-		if !ok {
-			return []reconcile.Request{}
-		}
-		requests := []reconcile.Request{}
-		for _, ns := range nm.ObjectMeta.OwnerReferences {
-			if ns.Kind != virtualkubeletv1alpha1.VirtualNodeKind {
-				continue
+func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(
+		func(ctx context.Context, o client.Object) []reconcile.Request {
+			nm, ok := o.(*virtualkubeletv1alpha1.NamespaceMap)
+			if !ok {
+				return []reconcile.Request{}
 			}
-			requests = append(requests, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      ns.Name,
-					Namespace: nm.Namespace,
-				},
-			})
-		}
-		return requests
-	},
-)
+
+			if nm.Labels == nil || nm.Labels[consts.RemoteClusterID] == "" {
+				return []reconcile.Request{}
+			}
+			clusterID := nm.Labels[consts.RemoteClusterID]
+
+			// list virtualnode resources with the remote cluster ID label
+			virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, clusterID)
+			if err != nil {
+				klog.Errorf("unable to list virtualnodes with clusterID %s: %v", clusterID, err)
+				return []reconcile.Request{}
+			}
+
+			requests := []reconcile.Request{}
+			for i := range virtualnodes {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(&virtualnodes[i]),
+				})
+			}
+			return requests
+		})
+}
 
 // SetupWithManager register the VirtualNodeReconciler to the manager.
 func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -187,12 +201,8 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&virtualkubeletv1alpha1.VirtualNode{}).Watches(
-		&appsv1.Deployment{},
-		deploymentHandler,
-		builder.WithPredicates(deployPredicate),
-	).Watches(
-		&virtualkubeletv1alpha1.NamespaceMap{},
-		namespaceMapHandler,
-	).Complete(r)
+		For(&virtualkubeletv1alpha1.VirtualNode{}).
+		Watches(&appsv1.Deployment{}, deploymentHandler, builder.WithPredicates(deployPredicate)).
+		Watches(&virtualkubeletv1alpha1.NamespaceMap{}, r.enqueFromNamespaceMap()).
+		Complete(r)
 }
