@@ -52,8 +52,8 @@ type DeploymentTemplate struct {
 
 // VirtualNodeSpec defines the desired state of VirtualNode.
 type VirtualNodeSpec struct {
-	// ClusterIdentity contains the identity of the remote cluster targeted by the created virtualKubelet.
-	ClusterIdentity *discoveryv1alpha1.ClusterIdentity `json:"clusterIdentity,omitempty"`
+	// ClusterID contains the id of the remote cluster targeted by the created virtualKubelet.
+	ClusterID discoveryv1alpha1.ClusterID `json:"clusterID,omitempty"`
 	// Template contains the deployment of the created virtualKubelet.
 	// +optional
 	Template *DeploymentTemplate `json:"template,omitempty"`
@@ -136,7 +136,7 @@ type VirtualNodeStatus struct {
 // +genclient
 
 // VirtualNode is the Schema for the VirtualNodes API.
-// +kubebuilder:printcolumn:name="Cluster Name",type=string,JSONPath=`.spec.clusterIdentity.clusterName`
+// +kubebuilder:printcolumn:name="ClusterID",type=string,JSONPath=`.spec.clusterID`
 // +kubebuilder:printcolumn:name="Create Node",type=boolean,JSONPath=`.spec.createNode`
 // +kubebuilder:printcolumn:name="Node",type=string,JSONPath=`.status.conditions[?(@.type=="Node")].status`,priority=1
 // +kubebuilder:printcolumn:name="VirtualKubelet",type=string,JSONPath=`.status.conditions[?(@.type=="VirtualKubelet")].status`,priority=1

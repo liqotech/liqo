@@ -48,15 +48,15 @@ var _ = Describe("Meta forging", func() {
 					},
 					Entry("when no label is specified", nil, false),
 					Entry("when different labels are specified", map[string]string{"foo": "bar"}, false),
-					Entry("when only one label is specified", map[string]string{forge.LiqoOriginClusterIDKey: LocalClusterID}, false),
-					Entry("when only the other label is specified", map[string]string{forge.LiqoDestinationClusterIDKey: RemoteClusterID}, false),
+					Entry("when only one label is specified", map[string]string{forge.LiqoOriginClusterIDKey: string(LocalClusterID)}, false),
+					Entry("when only the other label is specified", map[string]string{forge.LiqoDestinationClusterIDKey: string(RemoteClusterID)}, false),
 					Entry("when both labels are specified, with incorrect values", map[string]string{
 						forge.LiqoOriginClusterIDKey:      "foo",
 						forge.LiqoDestinationClusterIDKey: "bar",
 					}, false),
 					Entry("when both labels are specified, with the correct values", map[string]string{
-						forge.LiqoOriginClusterIDKey:      LocalClusterID,
-						forge.LiqoDestinationClusterIDKey: RemoteClusterID,
+						forge.LiqoOriginClusterIDKey:      string(LocalClusterID),
+						forge.LiqoDestinationClusterIDKey: string(RemoteClusterID),
 					}, true),
 				)
 			}

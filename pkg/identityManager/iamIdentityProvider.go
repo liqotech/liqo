@@ -146,7 +146,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(ctx context.C
 
 	switch options.IdentityType {
 	case authv1alpha1.ControlPlaneIdentityType:
-		username = authentication.CommonNameControlPlaneCSR(options.Cluster.ClusterID)
+		username = authentication.CommonNameControlPlaneCSR(options.Cluster)
 		organization = authentication.OrganizationControlPlaneCSR()
 	case authv1alpha1.ResourceSliceIdentityType:
 		if options.ResourceSlice == nil {
@@ -174,7 +174,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(ctx context.C
 	klog.Infof("IAM username: %s", iamUsername)
 	tags := map[string]string{
 		localClusterIDTagKey:  identityProvider.localClusterID,
-		remoteClusterIDTagKey: options.Cluster.ClusterID,
+		remoteClusterIDTagKey: string(options.Cluster),
 		managedByTagKey:       managedByTagValue,
 		identityTypeTagKey:    string(options.IdentityType),
 	}
@@ -414,7 +414,7 @@ func (identityProvider *iamIdentityProvider) storeRemoteCertificate(ctx context.
 			secret.Labels = map[string]string{}
 		}
 		// TODO: move it to the other clusterID label?
-		secret.Labels[discovery.ClusterIDLabel] = options.Cluster.ClusterID
+		secret.Labels[discovery.ClusterIDLabel] = string(options.Cluster)
 
 		if secret.Data == nil {
 			secret.Data = map[string][]byte{}

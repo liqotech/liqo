@@ -175,7 +175,7 @@ func (npvcr *NamespacedPersistentVolumeClaimReflector) Handle(ctx context.Contex
 	// In addition, we use the provisionFunc to ensure the provisioning of the remote PVC.
 	state, err := npvcr.provisionClaimOperation(ctx, local,
 		func(c context.Context, options controller.ProvisionOptions) (*corev1.PersistentVolume, controller.ProvisioningState, error) {
-			if clusterID, found := utils.GetNodeClusterID(options.SelectedNode); !found || clusterID != forge.RemoteCluster.ClusterID {
+			if clusterID, found := utils.GetNodeClusterID(options.SelectedNode); !found || clusterID != string(forge.RemoteCluster) {
 				return nil, controller.ProvisioningFinished, &controller.IgnoredError{Reason: "this provisioner is not provisioning storage on that node"}
 			}
 

@@ -60,8 +60,8 @@ func NewWaiterFromFactory(f *factory.Factory) *Waiter {
 }
 
 // ForNetwork waits until the networking has been established with the remote cluster or the timeout expires.
-func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	remName := remoteClusterID.ClusterName
+func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+	remName := remoteClusterID
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for network to the remote cluster %q", remName))
 	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsNetworkingEstablishedOrDisabled, 1*time.Second)
 	if err != nil {
@@ -98,8 +98,8 @@ func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSli
 }
 
 // ForNode waits until the node has been added to the cluster or the timeout expires.
-func (w *Waiter) ForNode(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	remName := remoteClusterID.ClusterName
+func (w *Waiter) ForNode(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+	remName := remoteClusterID
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for node to be created for the remote cluster %q", remName))
 
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
@@ -281,11 +281,11 @@ func (w *Waiter) ForGatewayClientSecretRef(ctx context.Context, gwClient *networ
 
 // ForConnection waits until the Connection resource has been created.
 func (w *Waiter) ForConnection(ctx context.Context, namespace string,
-	remoteCluster *discoveryv1alpha1.ClusterIdentity) (*networkingv1alpha1.Connection, error) {
+	remoteCluster discoveryv1alpha1.ClusterID) (*networkingv1alpha1.Connection, error) {
 	s := w.Printer.StartSpinner("Waiting for Connection to be created")
 	var conn *networkingv1alpha1.Connection
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: remoteCluster.ClusterID}.AsSelector()
+		remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: string(remoteCluster)}.AsSelector()
 		connections, err := getters.ListConnectionsByLabel(ctx, w.CRClient, namespace, remoteClusterIDSelector)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
@@ -298,7 +298,7 @@ func (w *Waiter) ForConnection(ctx context.Context, namespace string,
 			conn = &connections.Items[0]
 			return true, nil
 		default:
-			return false, fmt.Errorf("more than one Connection resource found for remote cluster %q", remoteCluster.ClusterName)
+			return false, fmt.Errorf("more than one Connection resource found for remote cluster %q", remoteCluster)
 		}
 	})
 	if err != nil {
@@ -329,7 +329,7 @@ func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv
 }
 
 // ForNonce waits until the secret containing the nonce has been created or the timeout expires.
-func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID string, silent bool) error {
+func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID, silent bool) error {
 	var s *pterm.SpinnerPrinter
 
 	if !silent {
@@ -362,7 +362,7 @@ func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID string, silent bo
 }
 
 // ForSignedNonce waits until the signed nonce secret has been signed and returns the signature.
-func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID string, silent bool) error {
+func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID, silent bool) error {
 	var s *pterm.SpinnerPrinter
 
 	if !silent {
@@ -394,7 +394,7 @@ func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID string, sil
 }
 
 // ForTenantStatus waits until the tenant status has been updated or the timeout expires.
-func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID string) error {
+func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for tenant status to be filled")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		tenant, err := getters.GetTenantByClusterID(ctx, w.CRClient, remoteClusterID)
@@ -421,7 +421,7 @@ func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID string) er
 }
 
 // ForIdentityStatus waits until the identity status has been updated or the timeout expires.
-func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID string) error {
+func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for identity status to be filled")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		identity, err := getters.GetControlPlaneIdentityByClusterID(ctx, w.CRClient, remoteClusterID)

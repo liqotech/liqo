@@ -38,6 +38,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/util"
@@ -83,7 +84,7 @@ type Options struct {
 
 	Timeout time.Duration
 
-	ClusterName   string
+	ClusterID     discoveryv1alpha1.ClusterID
 	ClusterLabels map[string]string
 
 	APIServer         string
@@ -294,11 +295,12 @@ func (o *Options) initialize(ctx context.Context, provider Provider) error {
 	}
 
 	// Retrieve the cluster name used for previous installations, in case it was not specified.
-	if o.ClusterName == "" {
-		o.ClusterName, err = utils.GetClusterName(ctx, o.KubeClient, o.LiqoNamespace)
+	if o.ClusterID == "" {
+		tmp, err := utils.GetClusterID(ctx, o.KubeClient, o.LiqoNamespace)
 		if client.IgnoreNotFound(err) != nil {
 			return err
 		}
+		o.ClusterID = tmp
 	}
 
 	// Add a label stating the provider name.
@@ -361,7 +363,7 @@ func (o *Options) preProviderValues() map[string]interface{} {
 
 		"discovery": map[string]interface{}{
 			"config": map[string]interface{}{
-				"clusterName":   o.ClusterName,
+				"clusterID":     string(o.ClusterID),
 				"clusterLabels": util.GetInterfaceMap(o.ClusterLabels),
 			},
 		},

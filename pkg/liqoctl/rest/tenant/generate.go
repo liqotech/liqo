@@ -38,7 +38,7 @@ It signs the nonce provided by the remote cluster and generates the CSR.
 The Nonce can be provided as a flag or it can be retrieved from the secret in the tenant namespace (if existing).   
 
 Examples:
-  $ {{ .Executable }} generate tenant --remote-cluster-id remote-cluster-id --remote-cluster-name remote-cluster-name`
+  $ {{ .Executable }} generate tenant --remote-cluster-id remote-cluster-id`
 
 // Generate generates a Tenant.
 func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *cobra.Command {
@@ -68,17 +68,14 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output format of the resulting Tenant resource. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterID, "remote-cluster-id", "", "The ID of the remote cluster")
-	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterName, "remote-cluster-name", "", "The name of the remote cluster")
+	cmd.Flags().Var(&o.remoteClusterID, "remote-cluster-id", "The ID of the remote cluster")
 	cmd.Flags().StringVar(&o.nonce, "nonce", "", "The nonce to sign for the authentication with the remote cluster")
 	cmd.Flags().StringVar(&o.proxyURL, "proxy-url", "", "The URL of the proxy to use for the communication with the remote cluster")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
-	runtime.Must(cmd.MarkFlagRequired("remote-cluster-name"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx, o.generateOptions.Factory, completion.NoLimit)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-name", completion.ClusterNames(ctx, o.generateOptions.Factory, completion.NoLimit)))
 
 	return cmd
 }
@@ -88,39 +85,39 @@ func (o *Options) handleGenerate(ctx context.Context) error {
 	waiter := wait.NewWaiterFromFactory(opts.Factory)
 
 	// Ensure tenant namespace exists
-	tenantNs, err := o.namespaceManager.CreateNamespace(ctx, o.remoteClusterIdentity)
+	tenantNs, err := o.namespaceManager.CreateNamespace(ctx, o.remoteClusterID.GetClusterID())
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to create tenant namespace: %w", err))
 		return err
 	}
 
 	// Ensure the presence of the signed nonce secret.
-	err = authutils.EnsureSignedNonceSecret(ctx, opts.CRClient, o.remoteClusterIdentity.ClusterID, tenantNs.GetName(), &o.nonce)
+	err = authutils.EnsureSignedNonceSecret(ctx, opts.CRClient, o.remoteClusterID.GetClusterID(), tenantNs.GetName(), &o.nonce)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to ensure signed nonce secret: %w", err))
 	}
 
 	// Wait for secret to be filled with the signed nonce.
-	if err := waiter.ForSignedNonce(ctx, o.remoteClusterIdentity.ClusterID, true); err != nil {
+	if err := waiter.ForSignedNonce(ctx, o.remoteClusterID.GetClusterID(), true); err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to wait for nonce to be signed: %w", err))
 		return err
 	}
 
 	// Retrieve signed nonce from secret.
-	signedNonce, err := authutils.RetrieveSignedNonce(ctx, opts.CRClient, o.remoteClusterIdentity.ClusterID)
+	signedNonce, err := authutils.RetrieveSignedNonce(ctx, opts.CRClient, o.remoteClusterID.GetClusterID())
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to retrieve signed nonce: %w", err))
 		return err
 	}
 
 	// Forge tenant resource for the remote cluster and output it.
-	localClusterIdentity, err := liqoutils.GetClusterIdentityWithControllerClient(ctx, opts.CRClient, opts.LiqoNamespace)
+	localClusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, opts.CRClient, opts.LiqoNamespace)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster identity: %v", output.PrettyErr(err)))
 		return err
 	}
 
-	tenant, err := authutils.GenerateTenant(ctx, opts.CRClient, &localClusterIdentity, opts.LiqoNamespace, signedNonce, &o.proxyURL)
+	tenant, err := authutils.GenerateTenant(ctx, opts.CRClient, localClusterID, opts.LiqoNamespace, signedNonce, &o.proxyURL)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to generate tenant: %w", err))
 		return err

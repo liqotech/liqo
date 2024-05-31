@@ -85,7 +85,7 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 	localUnstr := &unstructured.Unstructured{Object: tmp}
 
 	// Check if the resource has the expected destination cluster
-	if remoteClusterID, ok := localUnstr.GetLabels()[consts.ReplicationDestinationLabel]; !ok || remoteClusterID != r.remoteClusterID {
+	if remoteClusterID, ok := localUnstr.GetLabels()[consts.ReplicationDestinationLabel]; !ok || remoteClusterID != string(r.remoteClusterID) {
 		klog.Warningf("[%v] Resource %v with name %q has a mismatching destination cluster ID: %v",
 			r.remoteClusterID, key.gvr, key.name, remoteClusterID)
 		// Do not return an error, since retrying would be pointless
@@ -329,7 +329,7 @@ func (r *Reflector) mutateLabelsForRemote(labels map[string]string) map[string]s
 	// setting replication status to true
 	labels[consts.ReplicationStatusLabel] = strconv.FormatBool(true)
 	// setting originID i.e clusterID of home cluster
-	labels[consts.ReplicationOriginLabel] = r.localClusterID
+	labels[consts.ReplicationOriginLabel] = string(r.localClusterID)
 
 	// delete the ownership label if any.
 	delete(labels, consts.LocalResourceOwnership)

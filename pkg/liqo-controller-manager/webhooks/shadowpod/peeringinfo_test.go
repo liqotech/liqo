@@ -53,7 +53,7 @@ var _ = Describe("Peering Info", func() {
 
 		cache = spValidator.PeeringCache
 
-		peeringInfoTest = createPeeringInfo(*clusterIdentity, *resourceQuota)
+		peeringInfoTest = createPeeringInfo(clusterID, *resourceQuota)
 
 		containers = []containerResource{{cpu: int64(resourceCPU), memory: int64(resourceMemory)}}
 
@@ -62,12 +62,12 @@ var _ = Describe("Peering Info", func() {
 
 	Describe("Get or Create a PeeringInfo", func() {
 		JustBeforeEach(func() {
-			peeringInfo = cache.getOrCreatePeeringInfo(*clusterIdentity, *resourceQuota)
+			peeringInfo = cache.getOrCreatePeeringInfo(clusterID, *resourceQuota)
 		})
 
 		When("The Peering Info exists", func() {
 			BeforeEach(func() {
-				cache.peeringInfo.Store(clusterID, createPeeringInfo(*clusterIdentity, *forgeResourceList(int64(resourceCPU*2), int64(resourceMemory*2))))
+				cache.peeringInfo.Store(clusterID, createPeeringInfo(clusterID, *forgeResourceList(int64(resourceCPU*2), int64(resourceMemory*2))))
 			})
 			It("should return a peering info", func() {
 				Expect(peeringInfo).To(Equal(peeringInfoTest))
@@ -82,12 +82,12 @@ var _ = Describe("Peering Info", func() {
 
 	Describe("Get a PeeringInfo", func() {
 		JustBeforeEach(func() {
-			peeringInfo, found = cache.getPeeringInfo(*clusterIdentity)
+			peeringInfo, found = cache.getPeeringInfo(clusterID)
 		})
 
 		When("The Peering Info exists", func() {
 			BeforeEach(func() {
-				cache.peeringInfo.Store(clusterID, createPeeringInfo(*clusterIdentity, *resourceQuota))
+				cache.peeringInfo.Store(clusterID, createPeeringInfo(clusterID, *resourceQuota))
 			})
 			It("should return a peering info and found is true", func() {
 				Expect(found).To(BeTrue())
@@ -110,7 +110,7 @@ var _ = Describe("Peering Info", func() {
 		When("resources are available", func() {
 			BeforeEach(func() {
 				spd = createShadowPodDescription(testShadowPodName, testNamespace, testShadowPodUID, *resourceQuota)
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 			})
 			It("should not return any error", func() {
 				Expect(err).To(BeNil())
@@ -119,7 +119,7 @@ var _ = Describe("Peering Info", func() {
 		When("CPU resources are not available", func() {
 			BeforeEach(func() {
 				resourceQuotaLower := forgeResourceList(int64(resourceCPU/2), int64(resourceMemory))
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuotaLower)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuotaLower)
 				spd = createShadowPodDescription(testShadowPodName, testNamespace, testShadowPodUID, *resourceQuota)
 				freeQuota := peeringInfo.getFreeQuota()
 				errTest = fmt.Errorf("peering %s quota usage exceeded - free %s / requested %s",
@@ -131,7 +131,7 @@ var _ = Describe("Peering Info", func() {
 		})
 		When("A requested resource quota is not defined for a specific peering", func() {
 			BeforeEach(func() {
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 				resourcesWithGpu := forgeResourceList(int64(resourceCPU), int64(resourceMemory), 1000)
 				spd = createShadowPodDescription(testShadowPodName, testNamespace, testShadowPodUID, *resourcesWithGpu)
 				errTest = fmt.Errorf("nvidia.com/gpu quota limit not found for this peering")
@@ -151,7 +151,7 @@ var _ = Describe("Peering Info", func() {
 		When("resources are available and dryRun flag is false", func() {
 			BeforeEach(func() {
 				dryRun = false
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 			})
 			It("should not return any error and available resources will be decremented", func() {
 				Expect(err).To(BeNil())
@@ -162,7 +162,7 @@ var _ = Describe("Peering Info", func() {
 		When("resources are available and dryRun flag is true", func() {
 			BeforeEach(func() {
 				dryRun = true
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 			})
 			It("should not return any error and available resources will not be decremented", func() {
 				Expect(err).To(BeNil())
@@ -175,7 +175,7 @@ var _ = Describe("Peering Info", func() {
 			BeforeEach(func() {
 				dryRun = false
 				resourceQuotaLower := forgeResourceList(int64(resourceCPU/2), int64(resourceMemory))
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuotaLower)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuotaLower)
 			})
 			It("should return an error and available resources will not be decremented", func() {
 				Expect(err).ToNot(BeNil())
@@ -186,7 +186,7 @@ var _ = Describe("Peering Info", func() {
 			BeforeEach(func() {
 				dryRun = true
 				resourceQuotaLower := forgeResourceList(int64(resourceCPU/2), int64(resourceMemory))
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuotaLower)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuotaLower)
 			})
 			It("should return an error and available resources will not be decremented", func() {
 				Expect(err).ToNot(BeNil())
@@ -203,7 +203,7 @@ var _ = Describe("Peering Info", func() {
 		When("Shadow pod description exists and dryRun flag is false", func() {
 			BeforeEach(func() {
 				dryRun = false
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 				peeringInfo.addShadowPod(createShadowPodDescription(testShadowPodName, testNamespace, testShadowPodUID, *resourceQuota))
 			})
 			It("should not return any error and available resources will be incremented", func() {
@@ -215,7 +215,7 @@ var _ = Describe("Peering Info", func() {
 		When("Shadow pod description exists and dryRun flag is true", func() {
 			BeforeEach(func() {
 				dryRun = true
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 				peeringInfo.addShadowPod(createShadowPodDescription(testShadowPodName, testNamespace, testShadowPodUID, *resourceQuota))
 			})
 			It("should not return any error and available resources will not be incremented", func() {
@@ -226,7 +226,7 @@ var _ = Describe("Peering Info", func() {
 		})
 		When("Shadow pod description does not exist", func() {
 			BeforeEach(func() {
-				peeringInfo = createPeeringInfo(*clusterIdentity, *resourceQuota)
+				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
 			})
 			It("should return an error", func() {
 				Expect(err).ToNot(BeNil())

@@ -30,11 +30,11 @@ import (
 
 // PeeringInfo is the struct that holds the information about the peering with a remote cluster.
 type peeringInfo struct {
-	clusterIdentity discoveryv1alpha1.ClusterIdentity
-	shadowPods      map[string]*Description
-	totalQuota      corev1.ResourceList
-	usedQuota       corev1.ResourceList
-	mu              sync.RWMutex
+	clusterID  discoveryv1alpha1.ClusterID
+	shadowPods map[string]*Description
+	totalQuota corev1.ResourceList
+	usedQuota  corev1.ResourceList
+	mu         sync.RWMutex
 }
 
 /**
@@ -42,21 +42,21 @@ type peeringInfo struct {
  */
 
 // createPeeringInfo creates a new PeeringInfo struct.
-func createPeeringInfo(clusterIdentity discoveryv1alpha1.ClusterIdentity, resources corev1.ResourceList) *peeringInfo {
+func createPeeringInfo(clusterID discoveryv1alpha1.ClusterID, resources corev1.ResourceList) *peeringInfo {
 	return &peeringInfo{
-		clusterIdentity: clusterIdentity,
-		shadowPods:      map[string]*Description{},
-		totalQuota:      resources,
-		usedQuota:       generateQuotaPattern(resources),
+		clusterID:  clusterID,
+		shadowPods: map[string]*Description{},
+		totalQuota: resources,
+		usedQuota:  generateQuotaPattern(resources),
 	}
 }
 
-// getOrCreatePeeringInfo returns the PeeringInfo struct for the given clusterIdentity. If it doesn't exist, it creates a new one.
-func (pc *peeringCache) getOrCreatePeeringInfo(clusterIdentity discoveryv1alpha1.ClusterIdentity, roQuota corev1.ResourceList) *peeringInfo {
-	pi, found := pc.peeringInfo.LoadOrStore(clusterIdentity.ClusterID, createPeeringInfo(clusterIdentity, roQuota))
+// getOrCreatePeeringInfo returns the PeeringInfo struct for the given clusterID. If it doesn't exist, it creates a new one.
+func (pc *peeringCache) getOrCreatePeeringInfo(clusterID discoveryv1alpha1.ClusterID, roQuota corev1.ResourceList) *peeringInfo {
+	pi, found := pc.peeringInfo.LoadOrStore(clusterID, createPeeringInfo(clusterID, roQuota))
 	if !found {
-		klog.V(4).Infof("PeeringInfo not found for cluster %q, created...", clusterIdentity.String())
-		klog.V(5).Infof("New Quota limits for cluster %q %s", clusterIdentity.String(), quotaFormatter(pi.(*peeringInfo).totalQuota))
+		klog.V(4).Infof("PeeringInfo not found for cluster %q, created...", clusterID)
+		klog.V(5).Infof("New Quota limits for cluster %q %s", clusterID, quotaFormatter(pi.(*peeringInfo).totalQuota))
 		return pi.(*peeringInfo)
 	}
 	pi.(*peeringInfo).alignResourceOfferUpdates(roQuota)
@@ -64,8 +64,8 @@ func (pc *peeringCache) getOrCreatePeeringInfo(clusterIdentity discoveryv1alpha1
 }
 
 // getPeeringInfo returns the PeeringInfo struct for the given clusterIdentity. If it doesn't exist, it returns nil.
-func (pc *peeringCache) getPeeringInfo(clusterIdentity discoveryv1alpha1.ClusterIdentity) (*peeringInfo, bool) {
-	pi, found := pc.peeringInfo.Load(clusterIdentity.ClusterID)
+func (pc *peeringCache) getPeeringInfo(clusterID discoveryv1alpha1.ClusterID) (*peeringInfo, bool) {
+	pi, found := pc.peeringInfo.Load(clusterID)
 	if !found {
 		return nil, found
 	}
@@ -89,7 +89,7 @@ func (pi *peeringInfo) subUsedResources(resources corev1.ResourceList) {
 			prevUsed.Sub(val)
 			// Check if there are some used quota problems. It should never be Negative
 			if prevUsed.Cmp(zero) == -1 {
-				klog.Warningf("Cache consistency problems: peering %q used quota is less than zero", pi.clusterIdentity)
+				klog.Warningf("Cache consistency problems: peering %q used quota is less than zero", pi.clusterID)
 			}
 			pi.usedQuota[key] = prevUsed
 		}
@@ -133,18 +133,18 @@ func (pi *peeringInfo) testAndUpdateCreation(ctx context.Context, c client.Clien
 
 	klog.V(5).Infof("ShadowPod resource limits %s", quotaFormatter(spd.quota))
 
-	klog.V(5).Infof("Cluster %q total quota %s", pi.clusterIdentity, quotaFormatter(pi.totalQuota))
-	klog.V(5).Infof("Cluster %q used quota %s", pi.clusterIdentity, quotaFormatter(pi.usedQuota))
-	klog.V(5).Infof("Cluster %q free quota %s", pi.clusterIdentity, quotaFormatter(pi.getFreeQuota()))
+	klog.V(5).Infof("Cluster %q total quota %s", pi.clusterID, quotaFormatter(pi.totalQuota))
+	klog.V(5).Infof("Cluster %q used quota %s", pi.clusterID, quotaFormatter(pi.usedQuota))
+	klog.V(5).Infof("Cluster %q free quota %s", pi.clusterID, quotaFormatter(pi.getFreeQuota()))
 
 	if err := pi.checkResources(spd); err != nil {
 		return err
 	}
 	if !dryRun {
 		pi.addShadowPod(spd)
-		klog.V(5).Infof("Cluster %q updated total quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.totalQuota))
-		klog.V(5).Infof("Cluster %q updated used quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.usedQuota))
-		klog.V(5).Infof("Cluster %q updated free quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.getFreeQuota()))
+		klog.V(5).Infof("Cluster %q updated total quota %s", pi.clusterID, quotaFormatter(pi.totalQuota))
+		klog.V(5).Infof("Cluster %q updated used quota %s", pi.clusterID, quotaFormatter(pi.usedQuota))
+		klog.V(5).Infof("Cluster %q updated free quota %s", pi.clusterID, quotaFormatter(pi.getFreeQuota()))
 	}
 	return nil
 }
@@ -160,15 +160,15 @@ func (pi *peeringInfo) updateDeletion(sp *vkv1alpha1.ShadowPod, dryRun bool) err
 
 	klog.V(5).Infof("ShadowPod resource limits %s", quotaFormatter(spd.quota))
 
-	klog.V(5).Infof("Cluster %q total quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.totalQuota))
-	klog.V(5).Infof("Cluster %q used quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.usedQuota))
-	klog.V(5).Infof("Cluster %q free quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.getFreeQuota()))
+	klog.V(5).Infof("Cluster %q total quota %s", pi.clusterID, quotaFormatter(pi.totalQuota))
+	klog.V(5).Infof("Cluster %q used quota %s", pi.clusterID, quotaFormatter(pi.usedQuota))
+	klog.V(5).Infof("Cluster %q free quota %s", pi.clusterID, quotaFormatter(pi.getFreeQuota()))
 
 	if !dryRun {
 		pi.terminateShadowPod(spd)
-		klog.V(5).Infof("Cluster %q updated total quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.totalQuota))
-		klog.V(5).Infof("Cluster %q updated used quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.usedQuota))
-		klog.V(5).Infof("Cluster %q updated free quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.getFreeQuota()))
+		klog.V(5).Infof("Cluster %q updated total quota %s", pi.clusterID, quotaFormatter(pi.totalQuota))
+		klog.V(5).Infof("Cluster %q updated used quota %s", pi.clusterID, quotaFormatter(pi.usedQuota))
+		klog.V(5).Infof("Cluster %q updated free quota %s", pi.clusterID, quotaFormatter(pi.getFreeQuota()))
 	}
 
 	return nil
@@ -190,9 +190,9 @@ func (pi *peeringInfo) checkResources(spd *Description) error {
 }
 
 func (pi *peeringInfo) updateQuotas(newQuota corev1.ResourceList) {
-	klog.V(5).Infof("Cluster %q old total quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.totalQuota))
+	klog.V(5).Infof("Cluster %q old total quota %s", pi.clusterID, quotaFormatter(pi.totalQuota))
 	pi.totalQuota = newQuota.DeepCopy()
-	klog.V(5).Infof("Cluster %q new total quota %s", pi.clusterIdentity.String(), quotaFormatter(pi.totalQuota))
+	klog.V(5).Infof("Cluster %q new total quota %s", pi.clusterID, quotaFormatter(pi.totalQuota))
 }
 
 func generateQuotaPattern(quota corev1.ResourceList) corev1.ResourceList {

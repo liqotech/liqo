@@ -28,7 +28,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -39,10 +38,8 @@ const (
 	LocalNamespace  = "local-namespace"
 	RemoteNamespace = "remote-namespace"
 
-	LocalClusterID    = "local-cluster-id"
-	LocalClusterName  = "local-cluster-name"
-	RemoteClusterID   = "remote-cluster-id"
-	RemoteClusterName = "remote-cluster-name"
+	LocalClusterID  = "local-cluster-id"
+	RemoteClusterID = "remote-cluster-id"
 
 	LiqoNodeName = "local-node"
 	LiqoNodeIP   = "1.1.1.1"
@@ -79,9 +76,7 @@ var _ = BeforeSuite(func() {
 	_, err = client.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: RemoteNamespace}}, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
 
-	local := discoveryv1alpha1.ClusterIdentity{ClusterID: LocalClusterID, ClusterName: LocalClusterName}
-	remote := discoveryv1alpha1.ClusterIdentity{ClusterID: RemoteClusterID, ClusterName: RemoteClusterName}
-	forge.Init(local, remote, LiqoNodeName, LiqoNodeIP)
+	forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP)
 })
 
 var _ = BeforeEach(func() { ctx, cancel = context.WithCancel(context.Background()) })

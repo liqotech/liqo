@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -46,10 +45,10 @@ The VirtualNode resource is used to represent a remote cluster in the local clus
 
 Examples:
   $ {{ .Executable }} create virtualnode my-cluster --cluster-id remote-cluster-id \
-  --cluster-name remote-cluster-name --kubeconfig-secret-name my-cluster-kubeconfig
+  --kubeconfig-secret-name my-cluster-kubeconfig
   Or, if creating a VirtualNode from a ResourceSlice:
   $ {{ .Executable }} create virtualnode my-cluster --cluster-id remote-cluster-id \
-  --cluster-name remote-cluster-name --resource-slice-name my-resourceslice`
+  --resource-slice-name my-resourceslice`
 
 // Create creates a VirtualNode.
 func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobra.Command {
@@ -80,9 +79,8 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting VirtualNode resource, instead of applying it. Supported formats: json, yaml")
 
-	// TODO: check validity of both cluster-id and cluster-name
-	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
-	cmd.Flags().StringVar(&o.remoteClusterIdentity.ClusterName, "remote-cluster-name", "", "The cluster name of the remote cluster")
+	// TODO: check validity of cluster-id
+	cmd.Flags().Var(&o.remoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 	cmd.Flags().BoolVar(&o.createNode, "create-node",
 		true, "Create a node to target the remote cluster (and schedule on it)")
 	cmd.Flags().StringVar(&o.kubeconfigSecretName, "kubeconfig-secret-name",
@@ -102,12 +100,9 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().StringToStringVar(&o.nodeSelector, "node-selector", map[string]string{}, "The node selector to be applied to offloaded pods")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
-	runtime.Must(cmd.MarkFlagRequired("remote-cluster-name"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
-		o.createOptions.Factory, completion.NoLimit)))
-	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-name", completion.ClusterNames(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("kubeconfig-secret-name", completion.KubeconfigSecretNames(ctx,
 		o.createOptions.Factory, completion.NoLimit, options.Namespace, authv1alpha1.ResourceSliceIdentityType)))
@@ -157,7 +152,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	virtualNode := forge.VirtualNode(opts.Name, tenantNamespace)
 	if _, err := controllerutil.CreateOrUpdate(ctx, opts.CRClient, virtualNode, func() error {
-		return forge.MutateVirtualNode(virtualNode, &o.remoteClusterIdentity, vnOpts)
+		return forge.MutateVirtualNode(virtualNode, o.remoteClusterID.GetClusterID(), vnOpts)
 	}); err != nil {
 		s.Fail("Unable to create virtual node: %v", output.PrettyErr(err))
 		return err
@@ -167,7 +162,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	if virtualNode.Spec.CreateNode != nil && *virtualNode.Spec.CreateNode {
 		waiter := wait.NewWaiterFromFactory(opts.Factory)
 		// TODO: we cannot use the cluster identity here. Review in offloading refactor.
-		if err := waiter.ForNode(ctx, virtualNode.Spec.ClusterIdentity); err != nil {
+		if err := waiter.ForNode(ctx, virtualNode.Spec.ClusterID); err != nil {
 			opts.Printer.CheckErr(err)
 			return err
 		}
@@ -185,7 +180,7 @@ func (o *Options) forgeVirtualNodeOptionsFromResourceSlice(ctx context.Context,
 	}
 
 	// Get the associated Identity for the remote cluster.
-	identity, err := getters.GetIdentityFromResourceSlice(ctx, cl, o.remoteClusterIdentity.ClusterID, o.resourceSliceName)
+	identity, err := getters.GetIdentityFromResourceSlice(ctx, cl, o.remoteClusterID.GetClusterID(), o.resourceSliceName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get the Identity associated to resourceslice %q: %w", o.resourceSliceName, err)
 	}
@@ -267,12 +262,12 @@ func (o *Options) forgeVirtualNodeOptions() (*forge.VirtualNodeOptions, error) {
 }
 
 func (o *Options) getTenantNamespace(ctx context.Context) (string, error) {
-	ns, err := o.namespaceManager.GetNamespace(ctx, discoveryv1alpha1.ClusterIdentity{ClusterID: o.remoteClusterIdentity.ClusterID})
+	ns, err := o.namespaceManager.GetNamespace(ctx, o.remoteClusterID.GetClusterID())
 	switch {
 	case err == nil:
 		return ns.Name, nil
 	case apierrors.IsNotFound(err):
-		return "", fmt.Errorf("tenant namespace not found for cluster %q", o.remoteClusterIdentity.ClusterID)
+		return "", fmt.Errorf("tenant namespace not found for cluster %q", o.remoteClusterID.GetClusterID())
 	default:
 		return "", err
 	}
@@ -292,7 +287,7 @@ func (o *Options) output(name, namespace string, vnOpts *forge.VirtualNodeOption
 	}
 
 	virtualNode := forge.VirtualNode(name, namespace)
-	if err := forge.MutateVirtualNode(virtualNode, &o.remoteClusterIdentity, vnOpts); err != nil {
+	if err := forge.MutateVirtualNode(virtualNode, o.remoteClusterID.GetClusterID(), vnOpts); err != nil {
 		return err
 	}
 

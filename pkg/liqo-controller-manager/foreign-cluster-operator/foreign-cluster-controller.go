@@ -83,7 +83,7 @@ type ForeignClusterReconciler struct {
 	ResyncPeriod time.Duration
 
 	LiqoNamespace    string
-	HomeCluster      discoveryv1alpha1.ClusterIdentity
+	HomeCluster      discoveryv1alpha1.ClusterID
 	NamespaceManager tenantnamespace.Manager
 	IdentityManager  identitymanager.IdentityManager
 

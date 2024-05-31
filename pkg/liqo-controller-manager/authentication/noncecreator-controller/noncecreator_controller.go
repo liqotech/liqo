@@ -31,9 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // NonceCreatorReconciler manage Nonces lifecycle.
@@ -84,14 +84,14 @@ func (r *NonceCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	clusterID, ok := secret.Labels[consts.RemoteClusterID]
+	clusterID, ok := utils.GetClusterIDFromLabels(secret.Labels)
 	if !ok {
 		klog.Infof("ClusterID not found in secret %q", req.NamespacedName)
 		r.EventRecorder.Event(secret, "Warning", "MissingClusterID", "ClusterID not found in secret")
 		return ctrl.Result{}, nil
 	}
 
-	tenantNamespace, err := r.NamespaceManager.GetNamespace(ctx, discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID})
+	tenantNamespace, err := r.NamespaceManager.GetNamespace(ctx, clusterID)
 	if err != nil {
 		klog.Errorf("Unable to get tenant namespace for cluster %q: %s", clusterID, err)
 		r.EventRecorder.Event(secret, "Warning", "TenantNamespaceNotFound", "Unable to get tenant namespace")

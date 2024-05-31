@@ -92,14 +92,14 @@ func FakeLiqoAuthDeployment(addressOverride string) *appv1.Deployment {
 
 // FakeForeignCluster returns a fake ForeignCluster.
 func FakeForeignCluster(
-	clusterIdentity discoveryv1alpha1.ClusterIdentity, tenantNamespace string) *discoveryv1alpha1.ForeignCluster {
+	clusterID discoveryv1alpha1.ClusterID, tenantNamespace string) *discoveryv1alpha1.ForeignCluster {
 	return &discoveryv1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterIdentity.ClusterName,
+			Name:      string(clusterID),
 			Namespace: tenantNamespace,
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ClusterIdentity: clusterIdentity,
+			ClusterID: clusterID,
 		},
 		Status: discoveryv1alpha1.ForeignClusterStatus{
 			APIServerURL: ForeignAPIServerURL,

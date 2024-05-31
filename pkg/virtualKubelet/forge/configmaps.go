@@ -49,7 +49,7 @@ func LocalConfigMapName(remote string) string {
 // RemoteConfigMapName forges the name for the reflected configmap, remapping the one of the root CA to prevent collisions.
 func RemoteConfigMapName(local string) string {
 	if local == RootCAConfigMapName {
-		return RootCAConfigMapName + "." + LocalCluster.ClusterID[0:5]
+		return RootCAConfigMapName + "." + string(LocalCluster)[0:5]
 	}
 
 	return local
