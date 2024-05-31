@@ -18,6 +18,7 @@ import (
 	"context"
 	"strconv"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -39,21 +40,29 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 		liqoconst.ReplicationRequestedLabel:   strconv.FormatBool(true),
 		liqoconst.ReplicationDestinationLabel: string(vn.Spec.ClusterID),
 	}
-	nm, err := getters.GetNamespaceMapByLabel(ctx, r.Client, vn.Namespace, labels.SelectorFromSet(l))
+	nm, err := getters.GetNamespaceMapByLabel(ctx, r.Client, corev1.NamespaceAll, labels.SelectorFromSet(l))
 	if err != nil && !kerrors.IsNotFound(err) {
 		klog.Errorf("%s -> unable to retrieve NamespaceMap %q", err, nm.Name)
 		return err
 	} else if err == nil {
-		klog.V(4).Infof("NamespaceMap %q already exists in namespace %s", nm.Name, nm.Namespace)
+		klog.V(4).Infof("NamespaceMap %q already exists", nm.Name)
 		return nil
 	}
 
+	nmNamespace, err := r.namespaceManager.GetNamespace(ctx, vn.Spec.ClusterID)
+	if err != nil {
+		klog.Errorf("%s -> unable to retrieve tenant namespace for cluster %q", err, vn.Spec.ClusterID)
+		return err
+	}
+
 	nm = &virtualkubeletv1alpha1.NamespaceMap{ObjectMeta: metav1.ObjectMeta{
-		Name: foreignclusterutils.UniqueName(vn.Spec.ClusterID), Namespace: vn.Namespace}}
+		Name:      foreignclusterutils.UniqueName(vn.Spec.ClusterID),
+		Namespace: nmNamespace.Name,
+	}}
 
 	result, err := ctrlutils.CreateOrUpdate(ctx, r.Client, nm, func() error {
 		nm.Labels = labels.Merge(nm.Labels, l)
-		return ctrlutils.SetControllerReference(vn, nm, r.Scheme)
+		return nil
 	})
 
 	if err != nil {
@@ -67,32 +76,32 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 
 // removeAssociatedNamespaceMaps forces the deletion of virtual-node's NamespaceMaps before deleting it.
 func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, vn *virtualkubeletv1alpha1.VirtualNode) error {
-	// The deletion timestamp is automatically set on the NamespaceMaps associated with the virtual-node,
-	// it's only necessary to wait until the NamespaceMaps are deleted.
-	virtualNodesList, err := getters.ListVirtualNodesByLabels(ctx, r.Client, labels.Everything())
-	if err != nil {
-		klog.Errorf("unable to List VirtualNodes: %s", err)
-		return err
-	}
-	if len(virtualNodesList.Items) != 1 {
-		return nil
-	}
-
 	namespaceMapList := &virtualkubeletv1alpha1.NamespaceMapList{}
 	virtualNodeRemoteClusterID := vn.Spec.ClusterID
-	if err := r.List(ctx, namespaceMapList, client.InNamespace(vn.Namespace),
+	if err := r.List(ctx, namespaceMapList, client.InNamespace(corev1.NamespaceAll),
 		client.MatchingLabels{liqoconst.ReplicationDestinationLabel: string(virtualNodeRemoteClusterID)}); err != nil {
 		klog.Errorf("unable to List NamespaceMaps of virtual node %q: %s", client.ObjectKeyFromObject(vn), err)
 		return err
 	}
 
 	for i := range namespaceMapList.Items {
-		if namespaceMapList.Items[i].GetDeletionTimestamp().IsZero() {
-			if err := r.Delete(ctx, &namespaceMapList.Items[i]); err != nil {
-				klog.Errorf("%s -> unable to delete the NamespaceMap %q", err, namespaceMapList.Items[i].Name)
-			}
+		nm := &namespaceMapList.Items[i]
+
+		// Retrieve all the VirtualNodes associated with the NamespaceMap.
+		virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, string(virtualNodeRemoteClusterID))
+		if err != nil {
+			klog.Errorf("%s -> unable to retrieve VirtualNodes for clusterID %q", err, virtualNodeRemoteClusterID)
+			return err
 		}
-		klog.Infof("NamespaceMap %q successfully deleted", namespaceMapList.Items[i].Name)
+
+		// Delete the NamespaceMap only if there is only one VirtualNode remaining, which will be deleted in this routine.
+		if len(virtualNodes) == 1 && nm.GetDeletionTimestamp().IsZero() {
+			if err := client.IgnoreNotFound(r.Delete(ctx, nm)); err != nil {
+				klog.Errorf("%s -> unable to delete the NamespaceMap %q", err, nm.Name)
+				return err
+			}
+			klog.Infof("Ensured NamespaceMap %q absence", nm.Name)
+		}
 	}
 
 	return nil
