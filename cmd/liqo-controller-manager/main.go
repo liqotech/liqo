@@ -411,7 +411,9 @@ func main() {
 		}
 	}
 
-	// CROSS MODULE CONTROLLERS
+	// CROSS MODULE OPERATORS
+
+	// AUTHENTICATION MODULE & OFFLOADING MODULE
 	if *authenticationEnabled && *offloadingEnabled {
 		// Configure controller that create virtualnodes from resourceslices.
 		// TODO: pass also virtualKubeletOpts.
@@ -423,24 +425,27 @@ func main() {
 		}
 	}
 
-	offloadedPodReconciler := offloadingipmapping.NewOffloadedPodReconciler(
-		mgr.GetClient(),
-		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("offloadedpod-controller"),
-	)
-	if err := offloadedPodReconciler.SetupWithManager(mgr); err != nil {
-		klog.Errorf("Unable to start the offloadedPod reconciler: %v", err)
-		os.Exit(1)
-	}
+	// OFFLOADING MODULE & NETWORKING MODULE
+	if *offloadingEnabled && *networkingEnabled {
+		offloadedPodReconciler := offloadingipmapping.NewOffloadedPodReconciler(
+			mgr.GetClient(),
+			mgr.GetScheme(),
+			mgr.GetEventRecorderFor("offloadedpod-controller"),
+		)
+		if err := offloadedPodReconciler.SetupWithManager(mgr); err != nil {
+			klog.Errorf("Unable to start the offloadedPod reconciler: %v", err)
+			os.Exit(1)
+		}
 
-	configurationReconciler := offloadingipmapping.NewConfigurationReconciler(
-		mgr.GetClient(),
-		mgr.GetScheme(),
-		mgr.GetEventRecorderFor("configuration-controller"),
-	)
-	if err := configurationReconciler.SetupWithManager(mgr); err != nil {
-		klog.Errorf("Unable to start the configuration reconciler: %v", err)
-		os.Exit(1)
+		configurationReconciler := offloadingipmapping.NewConfigurationReconciler(
+			mgr.GetClient(),
+			mgr.GetScheme(),
+			mgr.GetEventRecorderFor("configuration-controller"),
+		)
+		if err := configurationReconciler.SetupWithManager(mgr); err != nil {
+			klog.Errorf("Unable to start the configuration reconciler: %v", err)
+			os.Exit(1)
+		}
 	}
 
 	// Configure the foreigncluster controller.
