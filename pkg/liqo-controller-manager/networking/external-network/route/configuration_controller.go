@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
+	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -110,7 +110,7 @@ func (r *ConfigurationReconciler) configurationEnqueuerByRemoteID() handler.MapF
 			klog.Errorf("unable to get the labels of gateway %s", obj.GetName())
 			return nil
 		}
-		remoteID, ok := labels[consts.RemoteClusterID]
+		remoteID, ok := utils.GetClusterIDFromLabels(labels)
 		if !ok {
 			klog.Errorf("unable to get the remote cluster ID from the labels of gateway %s", obj.GetName())
 			return nil

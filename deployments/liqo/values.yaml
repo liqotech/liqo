@@ -451,12 +451,8 @@ crdReplicator:
 
 discovery:
   config:
-    # -- Specify an unique ID (must be a valid uuidv4) for your cluster, instead of letting helm generate it automatically at install time.
-    # You can generate it using the command: `uuidgen`
-    # This field is needed when using tools such as ArgoCD, since the helm lookup function is not supported and a new value would be generated at each deployment.
-    clusterIDOverride: ""
-    # -- Set a mnemonic name for your cluster.
-    clusterName: ""
+    # -- Specify an unique ID for your cluster. This ID is used to identify your cluster in the peering process.
+    clusterID: ""
     # -- A set of labels that characterizes the local cluster when exposed remotely as a virtual node.
     # It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster.
     clusterLabels: {}

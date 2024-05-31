@@ -12,22 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tenantnamespace
+package utils
 
 import (
-	"context"
-
-	v1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// Manager provides the methods to handle the creation and
-// the management of tenant namespaces.
-type Manager interface {
-	CreateNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterID) (*v1.Namespace, error)
-	GetNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterID) (*v1.Namespace, error)
-	BindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterID, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
-	UnbindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterID, clusterRoles ...string) error
+// GetClusterIDFromLabels returns the clusterID from the given labels.
+func GetClusterIDFromLabels(labels map[string]string) (discoveryv1alpha1.ClusterID, bool) {
+	return GetClusterIDFromLabelsWithKey(labels, consts.RemoteClusterID)
+}
+
+// GetClusterIDFromLabelsWithKey returns the clusterID from the given labels with the given key.
+func GetClusterIDFromLabelsWithKey(labels map[string]string, key string) (discoveryv1alpha1.ClusterID, bool) {
+	if labels == nil {
+		return "", false
+	}
+	tmp, ok := labels[key]
+	if !ok {
+		return "", false
+	}
+	return discoveryv1alpha1.ClusterID(tmp), true
 }

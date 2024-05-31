@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -38,11 +39,11 @@ import (
 var _ = Describe("Manager tests", func() {
 
 	const (
-		localNamespace  = "foo"
-		remoteNamespace = "bar"
-		localClusterID  = "local-id"
-		remoteClusterID = "remote-id"
-		workers         = 2
+		localNamespace                              = "foo"
+		remoteNamespace                             = "bar"
+		localClusterID  discoveryv1alpha1.ClusterID = "local-id"
+		remoteClusterID discoveryv1alpha1.ClusterID = "remote-id"
+		workers                                     = 2
 	)
 
 	var (
@@ -134,7 +135,7 @@ var _ = Describe("Manager tests", func() {
 			obj.SetName(objName)
 			obj.SetLabels(map[string]string{
 				consts.ReplicationRequestedLabel:   strconv.FormatBool(true),
-				consts.ReplicationDestinationLabel: remoteClusterID,
+				consts.ReplicationDestinationLabel: string(remoteClusterID),
 			})
 			_, err := local.Resource(objGVR).Namespace(objNamespace).Create(ctx, obj, metav1.CreateOptions{})
 			return err

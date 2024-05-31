@@ -50,7 +50,7 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 	if p.checkNetworkStatus {
 		connInformerFactory = dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, corev1.NamespaceAll,
 			func(opt *metav1.ListOptions) {
-				opt.LabelSelector = consts.RemoteClusterID + "=" + p.foreignClusterID
+				opt.LabelSelector = consts.RemoteClusterID + "=" + string(p.foreignClusterID)
 			})
 		connInformer := connInformerFactory.ForResource(networkingv1alpha1.ConnectionGroupVersionResource).Informer()
 		_, err := connInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromConnection))

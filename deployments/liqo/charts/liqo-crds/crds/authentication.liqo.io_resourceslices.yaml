@@ -55,41 +55,17 @@ spec:
               class:
                 description: Class contains the class of the ResourceSlice.
                 type: string
-              consumerClusterIdentity:
-                description: ConsumerClusterIdentity is the identity of the consumer
-                  cluster.
-                properties:
-                  clusterID:
-                    description: Foreign Cluster ID, this is a unique identifier of
-                      that cluster.
-                    type: string
-                  clusterName:
-                    description: Foreign Cluster Name to be shown in GUIs.
-                    type: string
-                required:
-                - clusterID
-                - clusterName
-                type: object
+              consumerClusterID:
+                description: ConsumerClusterID is the id of the consumer cluster.
+                type: string
               csr:
                 description: CSR is the Certificate Signing Request of the consumer
                   cluster.
                 format: byte
                 type: string
-              providerClusterIdentity:
-                description: ProviderClusterIdentity is the identity of the provider
-                  cluster.
-                properties:
-                  clusterID:
-                    description: Foreign Cluster ID, this is a unique identifier of
-                      that cluster.
-                    type: string
-                  clusterName:
-                    description: Foreign Cluster Name to be shown in GUIs.
-                    type: string
-                required:
-                - clusterID
-                - clusterName
-                type: object
+              providerClusterID:
+                description: ProviderClusterID is the id of the provider cluster.
+                type: string
               resources:
                 additionalProperties:
                   anyOf:

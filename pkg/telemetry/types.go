@@ -41,20 +41,20 @@ type PeeringDetails struct {
 
 // PeeringInfo contains information about a peering.
 type PeeringInfo struct {
-	RemoteClusterID string                     `json:"remoteClusterID"`
-	Role            discoveryv1alpha1.RoleType `json:"role,omitempty"`
-	Latency         time.Duration              `json:"latency,omitempty"`
+	RemoteClusterID discoveryv1alpha1.ClusterID `json:"remoteClusterID"`
+	Role            discoveryv1alpha1.RoleType  `json:"role,omitempty"`
+	Latency         time.Duration               `json:"latency,omitempty"`
 }
 
 // Telemetry contains information about the cluster.
 type Telemetry struct {
-	ClusterID         string          `json:"clusterID"`
-	LiqoVersion       string          `json:"liqoVersion,omitempty"`
-	KubernetesVersion string          `json:"kubernetesVersion,omitempty"`
-	SecurityMode      string          `json:"securityMode,omitempty"`
-	Provider          string          `json:"provider,omitempty"`
-	PeeringInfo       []PeeringInfo   `json:"peeringInfo,omitempty"`
-	NamespacesInfo    []NamespaceInfo `json:"namespacesInfo,omitempty"`
+	ClusterID         discoveryv1alpha1.ClusterID `json:"clusterID"`
+	LiqoVersion       string                      `json:"liqoVersion,omitempty"`
+	KubernetesVersion string                      `json:"kubernetesVersion,omitempty"`
+	SecurityMode      string                      `json:"securityMode,omitempty"`
+	Provider          string                      `json:"provider,omitempty"`
+	PeeringInfo       []PeeringInfo               `json:"peeringInfo,omitempty"`
+	NamespacesInfo    []NamespaceInfo             `json:"namespacesInfo,omitempty"`
 }
 
 // Builder is the constructor for the Telemetry struct.

@@ -49,9 +49,9 @@ type NetworkingOption struct {
 	Factory    *dynamicutils.RunnableFactory
 	KubeClient kubernetes.Interface
 
-	LiqoNamespace        string
-	LocalClusterIdentity *discoveryv1alpha1.ClusterIdentity
-	IpamClient           ipam.IpamClient
+	LiqoNamespace  string
+	LocalClusterID discoveryv1alpha1.ClusterID
+	IpamClient     ipam.IpamClient
 
 	GatewayServerResources         []string
 	GatewayClientResources         []string

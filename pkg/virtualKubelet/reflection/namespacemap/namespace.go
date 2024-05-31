@@ -44,7 +44,7 @@ type Handler struct {
 // NewHandler creates a new NamespaceMapEventHandler.
 func NewHandler(localLiqoClient liqoclient.Interface, namespace string, resyncPeriod time.Duration) *Handler {
 	localLiqoNamespaceMapTweakListOptions := func(opts *metav1.ListOptions) {
-		opts.LabelSelector = labels.Set(map[string]string{liqoconst.RemoteClusterID: forge.RemoteCluster.ClusterID}).String()
+		opts.LabelSelector = labels.Set(map[string]string{liqoconst.RemoteClusterID: string(forge.RemoteCluster)}).String()
 	}
 	localLiqoInformerFactory := liqoinformers.NewSharedInformerFactoryWithOptions(localLiqoClient, resyncPeriod,
 		liqoinformers.WithNamespace(namespace),

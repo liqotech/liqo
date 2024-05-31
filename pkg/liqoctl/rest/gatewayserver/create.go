@@ -71,7 +71,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting GatewayServer resource, instead of applying it. Supported formats: json, yaml")
 
-	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
+	cmd.Flags().Var(&o.RemoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
 	cmd.Flags().StringVar(&o.GatewayType, "type", forge.DefaultGwServerType,
 		"Type of Gateway Server. Leave empty to use default Liqo implementation of WireGuard")
 	cmd.Flags().StringVar(&o.TemplateName, "template-name", forge.DefaultGwServerTemplateName, "Name of the Gateway Server template")

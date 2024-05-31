@@ -15,9 +15,9 @@
 package tenant
 
 import (
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the tenant command.
@@ -25,9 +25,9 @@ type Options struct {
 	generateOptions  *rest.GenerateOptions
 	namespaceManager tenantnamespace.Manager
 
-	remoteClusterIdentity discoveryv1alpha1.ClusterIdentity
-	nonce                 string
-	proxyURL              string
+	remoteClusterID args.ClusterIDFlags
+	nonce           string
+	proxyURL        string
 }
 
 var _ rest.API = &Options{}

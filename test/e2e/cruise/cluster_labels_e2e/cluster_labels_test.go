@@ -109,7 +109,7 @@ var _ = Describe("Liqo E2E", func() {
 			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
 				virtualNode := &corev1.Node{}
 				liqoPrefix := "liqo"
-				virtualNodeName := fmt.Sprintf("%s-%s", liqoPrefix, cluster.Cluster.ClusterName)
+				virtualNodeName := fmt.Sprintf("%s-%s", liqoPrefix, cluster.Cluster)
 				for i := range testContext.Clusters {
 					if i == index {
 						continue
@@ -170,12 +170,12 @@ var _ = Describe("Liqo E2E", func() {
 				remoteClusterID := virtualNodesList.Items[i].Labels[liqoconst.RemoteClusterID]
 
 				var cl kubernetes.Interface
-				var identity discoveryv1alpha1.ClusterIdentity
+				var id discoveryv1alpha1.ClusterID
 				for j := range testContext.Clusters {
 					cluster := &testContext.Clusters[j]
-					if cluster.Cluster.ClusterID == remoteClusterID {
+					if string(cluster.Cluster) == remoteClusterID {
 						cl = cluster.NativeClient
-						identity = cluster.Cluster
+						id = cluster.Cluster
 						break
 					}
 				}
@@ -193,7 +193,7 @@ var _ = Describe("Liqo E2E", func() {
 
 					value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
 					Expect(ok).To(BeTrue())
-					Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(&identity)))
+					Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(id)))
 				} else {
 					// Check if the remote namespace does not exists.
 					By(fmt.Sprintf(" 5 - Checking that no remote namespace is created inside cluster '%s'", remoteClusterID))

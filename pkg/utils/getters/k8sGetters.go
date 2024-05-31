@@ -175,11 +175,11 @@ func GetPodByLabel(ctx context.Context, cl client.Client, ns string, lSelector l
 }
 
 // ListNodesByClusterID returns the node list that matches the given cluster id.
-func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID *discoveryv1alpha1.ClusterIdentity) (*corev1.NodeList, error) {
+func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID discoveryv1alpha1.ClusterID) (*corev1.NodeList, error) {
 	list := new(corev1.NodeList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
-			consts.RemoteClusterID: clusterID.ClusterID,
+			consts.RemoteClusterID: string(clusterID),
 		}),
 	}); err != nil {
 		return nil, err
@@ -190,18 +190,18 @@ func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID *disc
 
 	switch len(list.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(nodeGR, clusterID.ClusterID)
+		return nil, kerrors.NewNotFound(nodeGR, string(clusterID))
 	default:
 		return list, nil
 	}
 }
 
 // GetNonceSecretByClusterID returns the secret containing the nonce to be signed by the consumer cluster.
-func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID string) (*corev1.Secret, error) {
+func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID discoveryv1alpha1.ClusterID) (*corev1.Secret, error) {
 	var secrets corev1.SecretList
 	if err := cl.List(ctx, &secrets, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
-			consts.RemoteClusterID:     remoteClusterID,
+			consts.RemoteClusterID:     string(remoteClusterID),
 			consts.NonceSecretLabelKey: "true",
 		}),
 	}); err != nil {
@@ -210,7 +210,7 @@ func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClus
 
 	switch len(secrets.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), remoteClusterID)
+		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), string(remoteClusterID))
 	case 1:
 		return &secrets.Items[0], nil
 	default:
@@ -219,10 +219,10 @@ func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClus
 }
 
 // GetSignedNonceSecretByClusterID returns the secret containing the nonce signed by the consumer cluster.
-func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID string) (*corev1.Secret, error) {
+func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID discoveryv1alpha1.ClusterID) (*corev1.Secret, error) {
 	var secrets corev1.SecretList
 	if err := cl.List(ctx, &secrets, client.MatchingLabels{
-		consts.RemoteClusterID:           remoteClusterID,
+		consts.RemoteClusterID:           string(remoteClusterID),
 		consts.SignedNonceSecretLabelKey: "true",
 	}); err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remo
 
 	switch len(secrets.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), remoteClusterID)
+		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), string(remoteClusterID))
 	case 1:
 		return &secrets.Items[0], nil
 	default:
@@ -239,11 +239,11 @@ func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remo
 }
 
 // GetTenantByClusterID returns the Tenant resource for the given cluster id.
-func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID string) (*authv1alpha1.Tenant, error) {
+func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID discoveryv1alpha1.ClusterID) (*authv1alpha1.Tenant, error) {
 	list := new(authv1alpha1.TenantList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
-			consts.RemoteClusterID: clusterID,
+			consts.RemoteClusterID: string(clusterID),
 		}),
 	}); err != nil {
 		return nil, err
@@ -251,7 +251,7 @@ func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID strin
 
 	switch len(list.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(authv1alpha1.TenantGroupResource, clusterID)
+		return nil, kerrors.NewNotFound(authv1alpha1.TenantGroupResource, string(clusterID))
 	case 1:
 		return &list.Items[0], nil
 	default:
@@ -261,11 +261,12 @@ func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID strin
 }
 
 // GetControlPlaneIdentityByClusterID returns the Identity of type ControlPlane for the given cluster id.
-func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client, clusterID string) (*authv1alpha1.Identity, error) {
+func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client,
+	clusterID discoveryv1alpha1.ClusterID) (*authv1alpha1.Identity, error) {
 	list := new(authv1alpha1.IdentityList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
-			consts.RemoteClusterID: clusterID,
+			consts.RemoteClusterID: string(clusterID),
 		}),
 	}); err != nil {
 		return nil, err
@@ -284,18 +285,19 @@ func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client, c
 		}
 	}
 	if !found {
-		return nil, kerrors.NewNotFound(authv1alpha1.IdentityGroupResource, clusterID)
+		return nil, kerrors.NewNotFound(authv1alpha1.IdentityGroupResource, string(clusterID))
 	}
 
 	return controlPlaneIdentity, nil
 }
 
 // GetResourceSliceIdentitiesByClusterID returns the list of Identities of type ResourceSlice for the given cluster id.
-func GetResourceSliceIdentitiesByClusterID(ctx context.Context, cl client.Client, clusterID string) ([]authv1alpha1.Identity, error) {
+func GetResourceSliceIdentitiesByClusterID(ctx context.Context, cl client.Client,
+	clusterID discoveryv1alpha1.ClusterID) ([]authv1alpha1.Identity, error) {
 	list := new(authv1alpha1.IdentityList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
-			consts.RemoteClusterID: clusterID,
+			consts.RemoteClusterID: string(clusterID),
 		}),
 	}); err != nil {
 		return nil, err
@@ -312,7 +314,8 @@ func GetResourceSliceIdentitiesByClusterID(ctx context.Context, cl client.Client
 }
 
 // GetIdentityFromResourceSlice returns the Identity of type ResourceSlice for the given cluster id and resourceslice name.
-func GetIdentityFromResourceSlice(ctx context.Context, cl client.Client, clusterID, resourceSliceName string) (*authv1alpha1.Identity, error) {
+func GetIdentityFromResourceSlice(ctx context.Context, cl client.Client,
+	clusterID discoveryv1alpha1.ClusterID, resourceSliceName string) (*authv1alpha1.Identity, error) {
 	identities, err := GetResourceSliceIdentitiesByClusterID(ctx, cl, clusterID)
 	if err != nil {
 		return nil, err
@@ -324,16 +327,17 @@ func GetIdentityFromResourceSlice(ctx context.Context, cl client.Client, cluster
 		}
 	}
 
-	return nil, kerrors.NewNotFound(authv1alpha1.IdentityGroupResource, clusterID)
+	return nil, kerrors.NewNotFound(authv1alpha1.IdentityGroupResource, string(clusterID))
 }
 
 // GetControlPlaneKubeconfigSecretByClusterID returns the Secret containing the Kubeconfig of
 // a ControlPlane Identity given the cluster id.
-func GetControlPlaneKubeconfigSecretByClusterID(ctx context.Context, cl client.Client, clusterID string) (*corev1.Secret, error) {
+func GetControlPlaneKubeconfigSecretByClusterID(ctx context.Context, cl client.Client,
+	clusterID discoveryv1alpha1.ClusterID) (*corev1.Secret, error) {
 	list := new(corev1.SecretList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
-			consts.RemoteClusterID:      clusterID,
+			consts.RemoteClusterID:      string(clusterID),
 			consts.IdentityTypeLabelKey: string(authv1alpha1.ControlPlaneIdentityType),
 		}),
 	}); err != nil {
@@ -342,7 +346,7 @@ func GetControlPlaneKubeconfigSecretByClusterID(ctx context.Context, cl client.C
 
 	switch len(list.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), clusterID)
+		return nil, kerrors.NewNotFound(corev1.Resource(string(corev1.ResourceSecrets)), string(clusterID))
 	case 1:
 		return &list.Items[0], nil
 	default:
@@ -422,7 +426,7 @@ func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector l
 // GetNodeFromVirtualNode returns the node object from the given virtual node name.
 func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode) (*corev1.Node, error) {
 	nodename := virtualNode.Name
-	nodes, err := ListNodesByClusterID(ctx, cl, virtualNode.Spec.ClusterIdentity)
+	nodes, err := ListNodesByClusterID(ctx, cl, virtualNode.Spec.ClusterID)
 	if err != nil {
 		return nil, err
 	}
@@ -625,8 +629,9 @@ func ListConfigurationsByLabel(ctx context.Context, cl client.Client, lSelector 
 }
 
 // GetConfigurationByClusterID returns the Configuration resource with the given clusterID.
-func GetConfigurationByClusterID(ctx context.Context, cl client.Client, clusterID string) (*networkingv1alpha1.Configuration, error) {
-	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: clusterID}.AsSelector()
+func GetConfigurationByClusterID(ctx context.Context, cl client.Client,
+	clusterID discoveryv1alpha1.ClusterID) (*networkingv1alpha1.Configuration, error) {
+	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: string(clusterID)}.AsSelector()
 	configurations, err := ListConfigurationsInNamespaceByLabel(ctx, cl, corev1.NamespaceAll, remoteClusterIDSelector)
 	if err != nil {
 		return nil, err
@@ -672,10 +677,10 @@ func GetConnectionByClusterID(ctx context.Context, cl client.Client, clusterID s
 
 // GetGatewayServerByClusterID returns the GatewayServer resource with the given clusterID.
 func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) (*networkingv1alpha1.GatewayServer, error) {
+	remoteClusterID discoveryv1alpha1.ClusterID) (*networkingv1alpha1.GatewayServer, error) {
 	var gwServers networkingv1alpha1.GatewayServerList
 	if err := cl.List(ctx, &gwServers, client.MatchingLabels{
-		consts.RemoteClusterID: remoteClusterIdentity.ClusterID,
+		consts.RemoteClusterID: string(remoteClusterID),
 	}); err != nil {
 		return nil, err
 	}
@@ -686,16 +691,16 @@ func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
 	case 1:
 		return &gwServers.Items[0], nil
 	default:
-		return nil, fmt.Errorf("multiple GatewayServers found for ForeignCluster %s", remoteClusterIdentity.ClusterID)
+		return nil, fmt.Errorf("multiple GatewayServers found for ForeignCluster %s", remoteClusterID)
 	}
 }
 
 // GetGatewayClientByClusterID returns the GatewayClient resource with the given clusterID.
 func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) (*networkingv1alpha1.GatewayClient, error) {
+	remoteClusterID discoveryv1alpha1.ClusterID) (*networkingv1alpha1.GatewayClient, error) {
 	var gwClients networkingv1alpha1.GatewayClientList
 	if err := cl.List(ctx, &gwClients, client.MatchingLabels{
-		consts.RemoteClusterID: remoteClusterIdentity.ClusterID,
+		consts.RemoteClusterID: string(remoteClusterID),
 	}); err != nil {
 		return nil, err
 	}
@@ -706,7 +711,7 @@ func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
 	case 1:
 		return &gwClients.Items[0], nil
 	default:
-		return nil, fmt.Errorf("multiple GatewayClients found for ForeignCluster %s", remoteClusterIdentity.ClusterID)
+		return nil, fmt.Errorf("multiple GatewayClients found for ForeignCluster %s", remoteClusterID)
 	}
 }
 
