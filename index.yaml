@@ -17,6 +17,21 @@ entries:
     - https://github.com/liqotech/liqo/releases/download/v0.11.0-rc.2/liqo-v0.11.0-rc.2.tgz
     version: v0.11.0-rc.2
   - apiVersion: v2
+    appVersion: v0.11.0-rc.2
+    created: "2024-06-03T15:58:31.385846323Z"
+    dependencies:
+    - name: liqo-crds
+      repository: file://./charts/liqo-crds
+      version: 0.1.0
+    description: A Helm chart for Liqo
+    digest: 16dcdd925e257c19e19e70b5adfea8161eac29c892671b0aab5860278a8e8580
+    icon: https://liqo.io/imgs/favicon.svg
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v0.11.0-rc.2/liqo-v0.11.0-rc.2.tgz
+    version: v0.11.0-rc.2
+  - apiVersion: v2
     appVersion: v0.11.0-rc.1
     created: "2024-05-09T10:56:10.003861043Z"
     dependencies:
@@ -378,4 +393,4 @@ entries:
     urls:
     - https://github.com/liqotech/liqo/releases/download/v0.2/liqo-v0.2.tgz
     version: v0.2
-generated: "2024-06-03T10:03:04.21930008Z"
+generated: "2024-06-03T15:58:31.386110286Z"
