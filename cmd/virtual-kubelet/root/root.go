@@ -143,9 +143,10 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		LocalCluster:  c.HomeCluster.GetClusterID(),
 		RemoteCluster: c.ForeignCluster.GetClusterID(),
 
-		Namespace: c.TenantNamespace,
-		NodeName:  c.NodeName,
-		NodeIP:    c.NodeIP,
+		Namespace:     c.TenantNamespace,
+		LiqoNamespace: c.LiqoNamespace,
+		NodeName:      c.NodeName,
+		NodeIP:        c.NodeIP,
 
 		LiqoIpamServer:       c.LiqoIpamServer,
 		DisableIPReflection:  c.DisableIPReflection,

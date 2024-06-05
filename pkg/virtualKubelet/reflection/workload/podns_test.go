@@ -51,8 +51,6 @@ import (
 var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 	Describe("pod handling", func() {
-		const PodName = "name"
-
 		var (
 			reflector  manager.NamespacedReflector
 			client     *fake.Clientset
@@ -79,7 +77,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				Type:       root.DefaultReflectorsTypes[generic.Pod],
 			}
 			rfl := workload.NewPodReflector(nil, metricsFactory, ipam,
-				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", ""}, &reflectorConfig)
+				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", "", fakeAPIServerRemapping("")}, &reflectorConfig)
 			rfl.Start(ctx, options.New(client, factory.Core().V1().Pods()).WithEventBroadcaster(broadcaster))
 			reflector = rfl.NewNamespaced(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).WithLiqoLocal(liqoClient, liqoFactory).

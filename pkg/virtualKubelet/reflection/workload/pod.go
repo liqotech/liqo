@@ -16,9 +16,7 @@ package workload
 
 import (
 	"context"
-	"errors"
 	"io"
-	"os"
 	"sync"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
@@ -97,6 +95,8 @@ type PodReflectorConfig struct {
 	DisableIPReflection bool
 	HomeAPIServerHost   string
 	HomeAPIServerPort   string
+
+	KubernetesServiceIPMapper func(context.Context) (string, error)
 }
 
 // FallbackPodReflector handles the "orphan" pods outside the managed namespaces.
@@ -235,7 +235,8 @@ func (pr *PodReflector) Stats(ctx context.Context) (*statsv1alpha1.Summary, erro
 	var err error
 
 	pr.handlers.Range(func(_, handler interface{}) bool {
-		stats, err := handler.(NamespacedPodHandler).Stats(ctx)
+		var stats []statsv1alpha1.PodStats
+		stats, err = handler.(NamespacedPodHandler).Stats(ctx)
 		pods = append(pods, stats...)
 		return err == nil
 	})
@@ -261,25 +262,12 @@ func (pr *PodReflector) KubernetesServiceIPGetter() func(ctx context.Context) (s
 			return address, nil
 		}
 
-		kubernetesService := os.Getenv("KUBERNETES_SERVICE_HOST")
-		if kubernetesService == "" {
-			return "", errors.New("failed to retrieve the kubernetes.default IP from KUBERNETES_SERVICE_HOST")
+		var err error
+		address, err = pr.config.KubernetesServiceIPMapper(ctx)
+		if err != nil {
+			return "", err
 		}
 
-		switch pr.ipamclient.(type) {
-		case nil:
-			// If the IPAM is not enabled, then the kubernetes.default IP is the one retrieved from the environment variable.
-			address = kubernetesService
-		default:
-			// Otherwise we need to interact with the IPAM to retrieve the correct mapping.
-			response, err := pr.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{
-				ClusterID: string(forge.RemoteCluster), Ip: kubernetesService})
-			if err != nil {
-				return "", err
-			}
-
-			address = response.Ip
-		}
 		return address, nil
 	}
 }

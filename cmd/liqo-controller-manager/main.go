@@ -70,6 +70,7 @@ import (
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
+	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/ips"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
@@ -307,6 +308,7 @@ func main() {
 		ReflectorsWorkers:    reflectorsWorkers,
 		ReflectorsType:       reflectorsType,
 		LocalPodCIDR:         *podcidr,
+		LiqoNamespace:        *liqoNamespace,
 	}
 
 	// Setup operators for each module:
@@ -444,6 +446,12 @@ func main() {
 		)
 		if err := configurationReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to start the configuration reconciler: %v", err)
+			os.Exit(1)
+		}
+
+		// enforce IP remapping for the API Server
+		if err := ipamips.EnforceAPIServerIPRemapping(ctx, uncachedClient, *liqoNamespace); err != nil {
+			klog.Errorf("Unable to enforce the API Server IP remapping: %v", err)
 			os.Exit(1)
 		}
 	}
