@@ -31,9 +31,9 @@ import (
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // NewLocalResourceSliceReconciler returns a new LocalResourceSliceReconciler.
@@ -86,30 +86,27 @@ func (r *LocalResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	if resourceSlice.Spec.ProviderClusterID == nil {
-		// Get the identity from the Tenant.
-		tenantNamespace := resourceSlice.Namespace
-		var ns corev1.Namespace
-		if err := r.Get(ctx, client.ObjectKey{Name: tenantNamespace}, &ns); err != nil {
-			klog.Errorf("unable to get Namespace %q: %v", tenantNamespace, err)
-			r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "FailedGetNamespace", err.Error())
-			return ctrl.Result{}, err
-		}
+		if resourceSlice.Labels != nil && resourceSlice.Labels[consts.RemoteClusterID] != "" {
+			resourceSlice.Spec.ProviderClusterID = ptr.To(discoveryv1alpha1.ClusterID(resourceSlice.Labels[consts.RemoteClusterID]))
+		} else {
+			// If there is no label, get the identity from the Tenant namespace.
+			tenantNamespace := resourceSlice.Namespace
+			var ns corev1.Namespace
+			if err := r.Get(ctx, client.ObjectKey{Name: tenantNamespace}, &ns); err != nil {
+				klog.Errorf("unable to get Namespace %q: %v", tenantNamespace, err)
+				r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "FailedGetNamespace", err.Error())
+				return ctrl.Result{}, err
+			}
 
-		clusterID, err := tenantnamespace.GetClusterIDFromTenantNamespace(&ns)
-		if err != nil {
-			klog.Errorf("unable to get ClusterID from Namespace %q: %v", tenantNamespace, err)
-			r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "FailedGetClusterID", err.Error())
-			return ctrl.Result{}, err
-		}
+			clusterID, err := tenantnamespace.GetClusterIDFromTenantNamespace(&ns)
+			if err != nil {
+				klog.Errorf("unable to get ClusterID from Namespace %q: %v", tenantNamespace, err)
+				r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "FailedGetClusterID", err.Error())
+				return ctrl.Result{}, err
+			}
 
-		identity, err := getters.GetControlPlaneIdentityByClusterID(ctx, r.Client, clusterID)
-		if err != nil {
-			klog.Errorf("unable to get Control Plane Identity by ClusterID %q: %v", clusterID, err)
-			r.eventRecorder.Event(&resourceSlice, corev1.EventTypeWarning, "FailedGetControlPlaneIdentity", err.Error())
-			return ctrl.Result{}, err
+			resourceSlice.Spec.ProviderClusterID = ptr.To(clusterID)
 		}
-
-		resourceSlice.Spec.ProviderClusterID = ptr.To(identity.Spec.ClusterID)
 	}
 
 	// Get public and private keys of the local cluster.
