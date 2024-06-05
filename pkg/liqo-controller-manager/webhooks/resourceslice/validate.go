@@ -78,6 +78,19 @@ func (w *rswhv) Handle(_ context.Context, req admission.Request) admission.Respo
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
+	// can't change remoteclusterID label
+	oldRemoteClusterID, oldRemoteClusterIDFound := rsold.Labels[consts.RemoteClusterID]
+	newRemoteClusterID, newRemoteClusterIDFound := rsnew.Labels[consts.RemoteClusterID]
+
+	switch {
+	case oldRemoteClusterIDFound && newRemoteClusterIDFound && oldRemoteClusterID != newRemoteClusterID:
+		return admission.Denied("can't change the remoteClusterID label")
+	case oldRemoteClusterIDFound && !newRemoteClusterIDFound:
+		return admission.Denied("can't delete the remoteClusterID label")
+	case !oldRemoteClusterIDFound && newRemoteClusterIDFound:
+		return admission.Denied("can't add the remoteClusterID label")
+	}
+
 	// control plane users can't change/delete/add the CordonResourceAnnotation
 	oldCordonAnnotationValue, oldCordonAnnotationFound := rsold.Annotations[consts.CordonResourceAnnotation]
 	newCordonAnnotationValue, newCordonAnnotationFound := rsnew.Annotations[consts.CordonResourceAnnotation]

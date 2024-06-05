@@ -16,6 +16,7 @@ package identitycreatorcontroller
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -90,6 +91,18 @@ func (r *IdentityCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			r.eventRecorder.Event(&resourceSlice, corev1.EventTypeNormal, "IdentityDeleted", "Identity deleted")
 		}
 		return ctrl.Result{}, nil
+	}
+
+	if resourceSlice.Spec.ProviderClusterID == nil {
+		err := fmt.Errorf("ResourceSlice %q has no ProviderClusterID", req.NamespacedName)
+		klog.Error(err)
+		return ctrl.Result{}, err
+	}
+
+	if resourceSlice.Status.AuthParams == nil {
+		err := fmt.Errorf("ResourceSlice %q has no AuthParams", req.NamespacedName)
+		klog.Error(err)
+		return ctrl.Result{}, err
 	}
 
 	// Create or update the Identity resource.
