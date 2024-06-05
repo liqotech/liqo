@@ -93,8 +93,8 @@ Before continuing, you should export the following variables with some informati
 export AKS_RESOURCE_GROUP=resource-group
 # The name of AKS cluster resource on Azure
 export AKS_RESOURCE_NAME=cluster-name
-# The name of the subscription associated with the AKS cluster
-export AKS_SUBSCRIPTION_ID=subscription-name
+# The id of the subscription associated with the AKS cluster
+export AKS_SUBSCRIPTION_ID=subscription-id
 ```
 
 ```{admonition} Note
@@ -108,7 +108,7 @@ Liqo can be installed on an AKS cluster with the following command:
 ```bash
 liqoctl install aks --resource-group-name "${AKS_RESOURCE_GROUP}" \
         --resource-name "${AKS_RESOURCE_NAME}" \
-        --subscription-name "${AKS_SUBSCRIPTION_ID}"
+        --subscription-id "${AKS_SUBSCRIPTION_ID}"
 ```
 
 The name of the cluster will be equal to the one specified in the `--resource-name` parameter.
