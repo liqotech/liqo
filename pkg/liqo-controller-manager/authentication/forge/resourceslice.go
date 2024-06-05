@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -67,8 +68,9 @@ func MutateResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, remoteCluste
 	}
 
 	resourceSlice.Spec = authv1alpha1.ResourceSliceSpec{
-		Class:     opts.Class,
-		Resources: rl,
+		Class:             opts.Class,
+		ProviderClusterID: ptr.To(remoteClusterID),
+		Resources:         rl,
 	}
 	return nil
 }
