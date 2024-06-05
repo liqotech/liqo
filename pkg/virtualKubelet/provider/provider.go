@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -57,6 +58,7 @@ type InitConfig struct {
 	LocalCluster  discoveryv1alpha1.ClusterID
 	RemoteCluster discoveryv1alpha1.ClusterID
 	Namespace     string
+	LiqoNamespace string
 
 	NodeName             string
 	NodeIP               string
@@ -130,6 +132,23 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		DisableIPReflection: cfg.DisableIPReflection,
 		HomeAPIServerHost:   cfg.HomeAPIServerHost,
 		HomeAPIServerPort:   cfg.HomeAPIServerPort,
+		KubernetesServiceIPMapper: func(ctx context.Context) (string, error) {
+			ip, err := localLiqoClient.IpamV1alpha1().IPs(cfg.LiqoNamespace).Get(ctx, "api-server", metav1.GetOptions{})
+			if err != nil {
+				return "", err
+			}
+
+			if ip.Status.IPMappings == nil {
+				return "", errors.New("no IP mappings found for the API server")
+			}
+
+			v, ok := ip.Status.IPMappings[string(cfg.RemoteCluster)]
+			if !ok {
+				return "", errors.New("no IP mapping found for the remote cluster API server")
+			}
+
+			return string(v), nil
+		},
 	}
 
 	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, &podReflectorConfig, cfg.ReflectorsConfigs[generic.Pod])
