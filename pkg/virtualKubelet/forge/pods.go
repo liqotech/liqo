@@ -43,8 +43,8 @@ const (
 	// This constant is taken from kubernetes/kubernetes (plugin/pkg/admission/serviceaccount/admission.go).
 	ServiceAccountVolumeName = "kube-api-access-"
 
-	// kubernetesAPIService is the DNS name associated with the service targeting the Kubernetes API.
-	kubernetesAPIService = "kubernetes.default"
+	// KubernetesAPIService is the DNS name associated with the service targeting the Kubernetes API.
+	KubernetesAPIService = "kubernetes.default"
 )
 
 // APIServerSupportType is the enum type representing which type of API Server support is enabled,
@@ -443,7 +443,7 @@ func RemoteContainerEnvVariablesAPIServerSupport(envs []corev1.EnvVar, saName, h
 			envs[i].ValueFrom = nil
 		}
 	}
-	actualKubernetesAPIService := kubernetesAPIService
+	actualKubernetesAPIService := KubernetesAPIService
 	actualKubernetesAPIServicePort := KubernetesServicePort
 	if homeAPIServerHost != "" && homeAPIServerPort != "" {
 		actualKubernetesAPIService = homeAPIServerHost
@@ -468,7 +468,7 @@ func RemoteContainerEnvVariablesAPIServerSupport(envs []corev1.EnvVar, saName, h
 // service to enable offloaded containers to contact back the local API server, instead of the remote one.
 func RemoteHostAliasesAPIServerSupport(aliases []corev1.HostAlias, retriever KubernetesServiceIPGetter) []corev1.HostAlias {
 	return append(aliases, corev1.HostAlias{
-		IP: retriever(), Hostnames: []string{kubernetesAPIService, kubernetesAPIService + ".svc"}})
+		IP: retriever(), Hostnames: []string{KubernetesAPIService, KubernetesAPIService + ".svc"}})
 }
 
 // RemoteTolerations forges the tolerations for a reflected pod.

@@ -81,6 +81,7 @@ type Opts struct {
 	// PodName to use when holding the virtual-kubelet lease
 	PodName              string
 	TenantNamespace      string
+	LiqoNamespace        string
 	InformerResyncPeriod time.Duration
 
 	HomeCluster         argsutils.ClusterIDFlags
@@ -138,6 +139,7 @@ func NewOpts() *Opts {
 		NodeName:             DefaultNodeName,
 		PodName:              os.Getenv("POD_NAME"),
 		TenantNamespace:      corev1.NamespaceDefault,
+		LiqoNamespace:        consts.DefaultLiqoNamespace,
 		InformerResyncPeriod: DefaultInformerResyncPeriod,
 
 		DisableIPReflection: false,

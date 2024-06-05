@@ -39,6 +39,7 @@ type VirtualKubeletOpts struct {
 	ReflectorsWorkers    map[string]*uint
 	ReflectorsType       map[string]*string
 	LocalPodCIDR         string
+	LiqoNamespace        string
 }
 
 // VirtualKubeletOptsFlag defines the custom options flags associated with the virtual kubelet deployment forging.
@@ -56,6 +57,8 @@ const (
 	NodeIP VirtualKubeletOptsFlag = "--node-ip"
 	// TenantNamespace is the flag used to specify the tenant namespace.
 	TenantNamespace VirtualKubeletOptsFlag = "--tenant-namespace"
+	// LiqoNamespace is the flag used to specify the Liqo namespace.
+	LiqoNamespace VirtualKubeletOptsFlag = "--liqo-namespace"
 	// HomeClusterID is the flag used to specify the home cluster ID.
 	HomeClusterID VirtualKubeletOptsFlag = "--home-cluster-id"
 	// LocalPodCIDR is the flag used to specify the local pod CIDR.
