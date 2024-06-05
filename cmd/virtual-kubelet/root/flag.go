@@ -33,6 +33,7 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 		"Secret name to use for connecting to the remote Kubernetes API server")
 	flags.StringVar(&o.NodeName, "nodename", o.NodeName, "The name of the node registered by the virtual kubelet")
 	flags.StringVar(&o.TenantNamespace, "tenant-namespace", o.TenantNamespace, "The tenant namespace associated with the remote cluster")
+	flags.StringVar(&o.LiqoNamespace, "liqo-namespace", o.LiqoNamespace, "The namespace where Liqo is installed")
 	flags.DurationVar(&o.InformerResyncPeriod, "resync-period", o.InformerResyncPeriod, "The resync period for the informers")
 
 	flags.Var(&o.HomeCluster, "home-cluster-id", "The ID of the home cluster")
