@@ -16,7 +16,6 @@ package workload_test
 
 import (
 	"context"
-	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -49,7 +48,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 				Type:       root.DefaultReflectorsTypes[generic.Pod],
 			}
 			reflector := workload.NewPodReflector(nil, nil, nil,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", ""}, &reflectorConfig)
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping("")}, &reflectorConfig)
 			Expect(reflector).ToNot(BeNil())
 			Expect(reflector.Reflector).ToNot(BeNil())
 		})
@@ -71,13 +70,13 @@ var _ = Describe("Pod Reflection Tests", func() {
 				Type:       root.DefaultReflectorsTypes[generic.Pod],
 			}
 			reflector := workload.NewPodReflector(nil, metricsFactory, ipam,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", ""}, &reflectorConfig)
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping("192.168.200.1")}, &reflectorConfig)
 			kubernetesServiceIPGetter = reflector.KubernetesServiceIPGetter()
 		})
 
 		JustBeforeEach(func() { output, err = kubernetesServiceIPGetter(ctx) })
 
-		Context("the KUBERNETES_SERVICE_HOST variable is correctly set", func() {
+		Context("the IP resource is correctly set", func() {
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 			It("should return the correct IP address", func() { Expect(output).To(BeIdenticalTo("192.168.200.1")) })
 
@@ -90,11 +89,6 @@ var _ = Describe("Pod Reflection Tests", func() {
 				It("should succeed (i.e., use the cached values)", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("should return the same translations", func() { Expect(output).To(BeIdenticalTo("192.168.200.1")) })
 			})
-		})
-
-		Context("the KUBERNETES_SERVICE_HOST variable not set", func() {
-			BeforeEach(func() { os.Unsetenv("KUBERNETES_SERVICE_HOST") })
-			It("should return an error", func() { Expect(err).To(HaveOccurred()) })
 		})
 	})
 
@@ -123,7 +117,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 				Type:       root.DefaultReflectorsTypes[generic.Pod],
 			}
 			reflector = workload.NewPodReflector(nil, nil, nil,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", ""}, &reflectorConfig)
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping("")}, &reflectorConfig)
 
 			opts := options.New(client, factory.Core().V1().Pods()).
 				WithHandlerFactory(FakeEventHandler).
