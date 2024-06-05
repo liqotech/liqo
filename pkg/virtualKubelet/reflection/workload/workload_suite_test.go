@@ -50,6 +50,12 @@ const (
 var (
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	fakeAPIServerRemapping = func(ip string) func(ctx context.Context) (string, error) {
+		return func(ctx context.Context) (string, error) {
+			return ip, nil
+		}
+	}
 )
 
 func TestService(t *testing.T) {

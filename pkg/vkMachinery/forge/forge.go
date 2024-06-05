@@ -69,6 +69,7 @@ func forgeVKContainers(
 		stringifyArgument(string(NodeName), nodeName),
 		stringifyArgument(string(NodeIP), "$(POD_IP)"),
 		stringifyArgument(string(TenantNamespace), vkNamespace),
+		stringifyArgument(string(LiqoNamespace), opts.LiqoNamespace),
 		stringifyArgument(string(HomeClusterID), string(homeCluster)),
 		stringifyArgument(string(LocalPodCIDR), opts.LocalPodCIDR),
 	}

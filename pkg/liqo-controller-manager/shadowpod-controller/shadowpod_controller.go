@@ -16,6 +16,7 @@ package shadowpodctrl
 
 import (
 	"context"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,9 +33,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
+	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/ips"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 // Reconciler reconciles a ShadowPod object.
@@ -105,6 +110,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
+	remoteClusterID, ok := utils.GetClusterIDFromLabelsWithKey(shadowPod.Labels, forge.LiqoOriginClusterIDKey)
+	if !ok {
+		klog.Errorf("unable to get remote cluster ID from shadowpod %q", klog.KObj(&shadowPod))
+		return ctrl.Result{}, nil
+	}
+
 	// ...Else, a brand new Pod must be created, based on the shadowpod.
 	newPod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -114,6 +125,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Annotations: shadowPod.Annotations,
 		},
 		Spec: shadowPod.Spec.Pod,
+	}
+
+	// Mutate PodSpec
+	if err := r.mutatePodSpec(ctx, &newPod.Spec, remoteClusterID); err != nil {
+		klog.Errorf("unable to mutate pod spec for shadowpod %q: %v", klog.KObj(&shadowPod), err)
+		return ctrl.Result{}, err
 	}
 
 	utilruntime.Must(ctrl.SetControllerReference(&shadowPod, &newPod, r.Scheme))
@@ -142,4 +159,34 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 		Owns(&corev1.Pod{}, builder.WithPredicates(reconciledPredicates)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
+}
+
+func (r *Reconciler) mutatePodSpec(ctx context.Context,
+	podSpec *corev1.PodSpec, remoteClusterID discoveryv1alpha1.ClusterID) error {
+	if len(podSpec.HostAliases) == 0 {
+		return nil
+	}
+
+	for i := range podSpec.HostAliases {
+		if !slices.Contains(podSpec.HostAliases[i].Hostnames, forge.KubernetesAPIService) {
+			continue
+		}
+
+		// If the HostAliases contains the kubernetes service hostname, it must be replaced with the remapped IP.
+
+		ip := podSpec.HostAliases[i].IP
+
+		// Get the remapped IP for the Kubernetes service.
+		rIP, err := ipamips.MapAddressWithConfiguration(ctx, r.Client, remoteClusterID, ip)
+		if err != nil {
+			return err
+		}
+
+		// Update the HostAliases with the remapped IP.
+		podSpec.HostAliases[i].IP = rIP
+
+		return nil
+	}
+
+	return nil
 }
