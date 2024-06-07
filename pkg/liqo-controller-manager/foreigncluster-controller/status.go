@@ -274,7 +274,7 @@ func (r *ForeignClusterReconciler) handleOffloadingModuleStatus(ctx context.Cont
 
 	for i := range virtualNodes {
 		// Check if all the VirtualKubelet pods are ready.
-		vkPods, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, r.Client, &virtualNodes[i], nil)
+		vkPods, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, r.Client, &virtualNodes[i])
 		if err != nil {
 			klog.Errorf("an error occurred while listing VirtualKubelet pods for VirtualNode %q: %s", virtualNodes[i].GetName(), err)
 			return err

@@ -376,8 +376,6 @@ ipam:
     # -- The URL of the external IPAM.
     url: ""
   internal:
-    # -- Use the default Liqo IPAM.
-    enabled: true
     image:
       # -- Image repository for the IPAM pod.
       name: "ghcr.io/liqotech/ipam"

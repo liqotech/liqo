@@ -30,6 +30,8 @@ type Interface interface {
 	ShadowPods() ShadowPodInformer
 	// VirtualNodes returns a VirtualNodeInformer.
 	VirtualNodes() VirtualNodeInformer
+	// VkOptionsTemplates returns a VkOptionsTemplateInformer.
+	VkOptionsTemplates() VkOptionsTemplateInformer
 }
 
 type version struct {
@@ -61,4 +63,9 @@ func (v *version) ShadowPods() ShadowPodInformer {
 // VirtualNodes returns a VirtualNodeInformer.
 func (v *version) VirtualNodes() VirtualNodeInformer {
 	return &virtualNodeInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// VkOptionsTemplates returns a VkOptionsTemplateInformer.
+func (v *version) VkOptionsTemplates() VkOptionsTemplateInformer {
+	return &vkOptionsTemplateInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

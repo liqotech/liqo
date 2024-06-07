@@ -83,6 +83,10 @@ type VirtualNodeSpec struct {
 	// DisableNetworkCheck disables the check the conditions of the liqo networking.
 	// If check is disabled, the network status will not be added to node conditions.
 	DisableNetworkCheck bool `json:"disableNetworkCheck,omitempty"`
+	// VkOptionsTemplateRef contains the namespaced reference to the VkOptionsTemplate.
+	// If not set, the default template installed with Liqo will be used.
+	// +optional
+	VkOptionsTemplateRef *corev1.ObjectReference `json:"vkOptionsTemplateRef,omitempty"`
 }
 
 // VirtualNodeConditionType represents different conditions that a virtualNode could assume.

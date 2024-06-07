@@ -781,3 +781,11 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - vkoptionstemplates
+  verbs:
+  - get
+  - list
+  - watch

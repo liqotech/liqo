@@ -63,8 +63,6 @@ import (
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/ips"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
-	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 var (
@@ -86,19 +84,11 @@ func init() {
 
 func main() {
 	var clusterLabels argsutils.StringMap
-	var kubeletExtraAnnotations, kubeletExtraLabels argsutils.StringMap
-	var kubeletExtraArgs argsutils.StringList
-	var nodeExtraAnnotations, nodeExtraLabels argsutils.StringMap
-	var kubeletCPURequests, kubeletCPULimits argsutils.Quantity
-	var kubeletRAMRequests, kubeletRAMLimits argsutils.Quantity
-	var kubeletMetricsAddress string
-	var kubeletMetricsEnabled bool
 	var labelsNotReflected argsutils.StringList
 	var annotationsNotReflected argsutils.StringList
 	var ingressClasses argsutils.ClassNameList
 	var loadBalancerClasses argsutils.ClassNameList
 	var defaultNodeResources argsutils.ResourceMap
-	var addVirtualNodeTolerationOnOffloadedPods bool
 	var gatewayServerResources argsutils.StringList
 	var gatewayClientResources argsutils.StringList
 	var apiServerAddressOverride string
@@ -127,10 +117,9 @@ func main() {
 		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
 	foreignClusterPingTimeout := flag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
 		"The timeout of the ForeignCluster API server readiness check")
-	podcidr := flag.String("podcidr", "", "The CIDR to use for the pod network")
-	ipamServer := flag.String("ipam-server", "", "The address of the IPAM server (set to empty string to disable IPAM)")
 
 	// NETWORKING MODULE
+	ipamServer := flag.String("ipam-server", "", "The address of the IPAM server (set to empty string to disable IPAM)")
 	flag.Var(&gatewayServerResources, "gateway-server-resources",
 		"The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
 	flag.Var(&gatewayClientResources, "gateway-client-resources",
@@ -165,23 +154,8 @@ func main() {
 	flag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
 
 	// OFFLOADING MODULE
-	// VirtualKubelet parameters
-	kubeletImage := flag.String("kubelet-image", "ghcr.io/liqotech/virtual-kubelet", "The image of the virtual kubelet to be deployed")
-	flag.Var(&kubeletExtraAnnotations, "kubelet-extra-annotations", "Extra annotations to add to the Virtual Kubelet Deployments and Pods")
-	flag.Var(&kubeletExtraLabels, "kubelet-extra-labels", "Extra labels to add to the Virtual Kubelet Deployments and Pods")
-	flag.Var(&kubeletExtraArgs, "kubelet-extra-args", "Extra arguments to add to the Virtual Kubelet Deployments and Pods")
-	flag.Var(&kubeletCPURequests, "kubelet-cpu-requests", "CPU requests assigned to the Virtual Kubelet Pod")
-	flag.Var(&kubeletCPULimits, "kubelet-cpu-limits", "CPU limits assigned to the Virtual Kubelet Pod")
-	flag.Var(&kubeletRAMRequests, "kubelet-ram-requests", "RAM requests assigned to the Virtual Kubelet Pod")
-	flag.Var(&kubeletRAMLimits, "kubelet-ram-limits", "RAM limits assigned to the Virtual Kubelet Pod")
-	flag.StringVar(&kubeletMetricsAddress, "kubelet-metrics-address", vkMachinery.MetricsAddress, "The address the kubelet metrics endpoint binds to")
-	flag.BoolVar(&kubeletMetricsEnabled, "kubelet-metrics-enabled", false, "Enable the kubelet metrics endpoint")
-	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
-	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
 	flag.Var(&labelsNotReflected, "labels-not-reflected", "List of labels (key) that must not be reflected")
 	flag.Var(&annotationsNotReflected, "annotations-not-reflected", "List of annotations (key) that must not be reflected")
-	reflectorsWorkers := modules.SetReflectorsWorkers()
-	reflectorsType := modules.SetReflectorsType()
 	// Storage Provisioner parameters
 	enableStorage := flag.Bool("enable-storage", false, "enable the liqo virtual storage class")
 	virtualStorageClassName := flag.String("virtual-storage-class-name", "liqo", "Name of the virtual storage class")
@@ -193,9 +167,6 @@ func main() {
 	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
 	shadowEndpointSliceWorkers := flag.Int("shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
-	// Resource enforcement parameters
-	flag.BoolVar(&addVirtualNodeTolerationOnOffloadedPods, "add-virtual-node-toleration-on-offloaded-pods", false,
-		"Automatically add the virtual node toleration on offloaded pods")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -273,26 +244,6 @@ func main() {
 	}
 
 	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
-
-	// Options for the virtual kubelet.
-	virtualKubeletOpts := &forge.VirtualKubeletOpts{
-		ContainerImage:       *kubeletImage,
-		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
-		ExtraLabels:          kubeletExtraLabels.StringMap,
-		ExtraArgs:            kubeletExtraArgs.StringList,
-		NodeExtraAnnotations: nodeExtraAnnotations,
-		NodeExtraLabels:      nodeExtraLabels,
-		RequestsCPU:          kubeletCPURequests.Quantity,
-		RequestsRAM:          kubeletRAMRequests.Quantity,
-		LimitsCPU:            kubeletCPULimits.Quantity,
-		LimitsRAM:            kubeletRAMLimits.Quantity,
-		MetricsAddress:       kubeletMetricsAddress,
-		MetricsEnabled:       kubeletMetricsEnabled,
-		ReflectorsWorkers:    reflectorsWorkers,
-		ReflectorsType:       reflectorsType,
-		LocalPodCIDR:         *podcidr,
-		LiqoNamespace:        *liqoNamespace,
-	}
 
 	// Setup operators for each module:
 
@@ -378,7 +329,6 @@ func main() {
 			Clientset:                   clientset,
 			LocalClusterID:              clusterID,
 			NamespaceManager:            namespaceManager,
-			VirtualKubeletOpts:          virtualKubeletOpts,
 			EnableStorage:               *enableStorage,
 			VirtualStorageClassName:     *virtualStorageClassName,
 			RealStorageClassName:        *realStorageClassName,
@@ -400,7 +350,6 @@ func main() {
 	// AUTHENTICATION MODULE & OFFLOADING MODULE
 	if *authenticationEnabled && *offloadingEnabled {
 		// Configure controller that create virtualnodes from resourceslices.
-		// TODO: pass also virtualKubeletOpts.
 		vnCreatorReconciler := virtualnodecreatorcontroller.NewVirtualNodeCreatorReconciler(
 			mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("virtualnodecreator-controller"))
 		if err := vnCreatorReconciler.SetupWithManager(mgr); err != nil {
