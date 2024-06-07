@@ -38,8 +38,6 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 
 	flags.Var(&o.HomeCluster, "home-cluster-id", "The ID of the home cluster")
 	flags.Var(&o.ForeignCluster, "foreign-cluster-id", "The ID of the foreign cluster")
-	flags.StringVar(&o.LiqoIpamServer, "ipam-server", o.LiqoIpamServer,
-		"The address to contact the IPAM module (leave it empty to disable the IPAM module)")
 	flags.BoolVar(&o.DisableIPReflection, "disable-ip-reflection", o.DisableIPReflection,
 		"Disable the IP reflection for the offloaded pods")
 	flags.StringVar(&o.LocalPodCIDR, "local-podcidr", o.LocalPodCIDR, "The CIDR used for the local pods")

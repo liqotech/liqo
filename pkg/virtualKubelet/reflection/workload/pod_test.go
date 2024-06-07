@@ -30,8 +30,8 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
-	fakeipam "github.com/liqotech/liqo/pkg/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -47,8 +47,8 @@ var _ = Describe("Pod Reflection Tests", func() {
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[generic.Pod],
 			}
-			reflector := workload.NewPodReflector(nil, nil, nil,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping("")}, &reflectorConfig)
+			reflector := workload.NewPodReflector(nil, nil,
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping(""), nil}, &reflectorConfig)
 			Expect(reflector).ToNot(BeNil())
 			Expect(reflector.Reflector).ToNot(BeNil())
 		})
@@ -63,14 +63,31 @@ var _ = Describe("Pod Reflection Tests", func() {
 		)
 
 		BeforeEach(func() {
-			ipam := fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
 			reflectorConfig := generic.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[generic.Pod],
 			}
-			reflector := workload.NewPodReflector(nil, metricsFactory, ipam,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping("192.168.200.1")}, &reflectorConfig)
+			reflector := workload.NewPodReflector(nil, metricsFactory,
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "",
+					fakeAPIServerRemapping("192.168.200.1"), &networkingv1alpha1.Configuration{
+						Spec: networkingv1alpha1.ConfigurationSpec{
+							Remote: networkingv1alpha1.ClusterConfig{
+								CIDR: networkingv1alpha1.ClusterConfigCIDR{
+									Pod:      "192.168.200.0/24",
+									External: "192.168.100.0/24",
+								},
+							},
+						},
+						Status: networkingv1alpha1.ConfigurationStatus{
+							Remote: &networkingv1alpha1.ClusterConfig{
+								CIDR: networkingv1alpha1.ClusterConfigCIDR{
+									Pod:      "192.168.201.0/24",
+									External: "192.168.101.0/24",
+								},
+							},
+						},
+					}}, &reflectorConfig)
 			kubernetesServiceIPGetter = reflector.KubernetesServiceIPGetter()
 		})
 
@@ -116,8 +133,8 @@ var _ = Describe("Pod Reflection Tests", func() {
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[generic.Pod],
 			}
-			reflector = workload.NewPodReflector(nil, nil, nil,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping("")}, &reflectorConfig)
+			reflector = workload.NewPodReflector(nil, nil,
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping(""), nil}, &reflectorConfig)
 
 			opts := options.New(client, factory.Core().V1().Pods()).
 				WithHandlerFactory(FakeEventHandler).
