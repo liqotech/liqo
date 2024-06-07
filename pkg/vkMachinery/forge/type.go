@@ -14,33 +14,6 @@
 
 package forge
 
-import (
-	"k8s.io/apimachinery/pkg/api/resource"
-
-	argsutils "github.com/liqotech/liqo/pkg/utils/args"
-)
-
-// VirtualKubeletOpts defines the custom options associated with the virtual kubelet deployment forging.
-type VirtualKubeletOpts struct {
-	// ContainerImage contains the virtual kubelet image name and tag.
-	ContainerImage       string
-	ExtraAnnotations     map[string]string
-	ExtraLabels          map[string]string
-	ExtraArgs            []string
-	NodeExtraAnnotations argsutils.StringMap
-	NodeExtraLabels      argsutils.StringMap
-	RequestsCPU          resource.Quantity
-	LimitsCPU            resource.Quantity
-	RequestsRAM          resource.Quantity
-	LimitsRAM            resource.Quantity
-	MetricsEnabled       bool
-	MetricsAddress       string
-	ReflectorsWorkers    map[string]*uint
-	ReflectorsType       map[string]*string
-	LocalPodCIDR         string
-	LiqoNamespace        string
-}
-
 // VirtualKubeletOptsFlag defines the custom options flags associated with the virtual kubelet deployment forging.
 type VirtualKubeletOptsFlag string
 
