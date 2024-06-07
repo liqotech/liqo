@@ -62,6 +62,15 @@ var (
 	// ShadowEndpointSliceGroupVersionResource is groupResourceVersion used to register these objects.
 	ShadowEndpointSliceGroupVersionResource = SchemeGroupVersion.WithResource(ShadowEndpointSliceResource)
 
+	// VkOptionsTemplateResource is the resource name used to register the VkOptionsTemplate CRD.
+	VkOptionsTemplateResource = "vkoptionstemplates"
+
+	// VkOptionsTemplateGroupResource is group resource used to register these objects.
+	VkOptionsTemplateGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: VkOptionsTemplateResource}
+
+	// VkOptionsTemplateGroupVersionResource is groupResourceVersion used to register these objects.
+	VkOptionsTemplateGroupVersionResource = SchemeGroupVersion.WithResource(VkOptionsTemplateResource)
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 

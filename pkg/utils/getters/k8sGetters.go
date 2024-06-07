@@ -467,9 +467,9 @@ func MapForeignClustersByLabel(ctx context.Context, cl client.Client,
 
 // ListVirtualKubeletPodsFromVirtualNode returns the list of pods running a VirtualNode's VirtualKubelet.
 func ListVirtualKubeletPodsFromVirtualNode(ctx context.Context, cl client.Client,
-	vn *virtualkubeletv1alpha1.VirtualNode, extraLabels map[string]string) (*corev1.PodList, error) {
+	vn *virtualkubeletv1alpha1.VirtualNode) (*corev1.PodList, error) {
 	list := &corev1.PodList{}
-	vklabels := vkforge.VirtualKubeletLabels(vn, extraLabels)
+	vklabels := vkforge.VirtualKubeletLabels(vn)
 	err := cl.List(ctx, list, client.MatchingLabels(vklabels))
 	if err != nil {
 		return nil, err
