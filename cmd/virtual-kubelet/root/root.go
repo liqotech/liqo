@@ -37,12 +37,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discovery1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/leaderelection"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	metrics "github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
@@ -58,6 +60,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
 	_ = discovery1alpha1.AddToScheme(scheme)
+	_ = networkingv1alpha1.AddToScheme(scheme)
 }
 
 const defaultVersion = "v1.25.0" // This should follow the version of k8s.io/kubernetes we are importing
@@ -136,6 +139,12 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
+	// TODO: make it fail if the network is enabled, do not retrieve if the network is not enabled
+	netConfiguration, err := getters.GetConfigurationByClusterID(ctx, cl, c.ForeignCluster.GetClusterID())
+	if err != nil {
+		klog.V(4).Infof("Unable to get network configuration: %v", err)
+	}
+
 	// Initialize the pod provider
 	podcfg := podprovider.InitConfig{
 		LocalConfig:   localConfig,
@@ -148,7 +157,6 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		NodeName:      c.NodeName,
 		NodeIP:        c.NodeIP,
 
-		LiqoIpamServer:       c.LiqoIpamServer,
 		DisableIPReflection:  c.DisableIPReflection,
 		LocalPodCIDR:         c.LocalPodCIDR,
 		InformerResyncPeriod: c.InformerResyncPeriod,
@@ -169,6 +177,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		HomeAPIServerPort: c.HomeAPIServerPort,
 
 		OffloadingPatch: vn.Spec.OffloadingPatch,
+
+		NetConfiguration: netConfiguration,
 	}
 
 	eb := record.NewBroadcaster()

@@ -37,8 +37,8 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -83,8 +83,7 @@ type PodReflector struct {
 	remoteRESTConfig     *rest.Config
 	remoteMetricsFactory MetricsFactory
 
-	ipamclient ipam.IpamClient
-	handlers   sync.Map /* implicit signature: map[string]NamespacedPodHandler */
+	handlers sync.Map /* implicit signature: map[string]NamespacedPodHandler */
 
 	config *PodReflectorConfig
 }
@@ -97,6 +96,7 @@ type PodReflectorConfig struct {
 	HomeAPIServerPort   string
 
 	KubernetesServiceIPMapper func(context.Context) (string, error)
+	NetConfiguration          *networkingv1alpha1.Configuration
 }
 
 // FallbackPodReflector handles the "orphan" pods outside the managed namespaces.
@@ -116,13 +116,11 @@ func (pr *PodReflector) String() string {
 func NewPodReflector(
 	remoteRESTConfig *rest.Config, /* required to establish the connection to implement `kubectl exec` */
 	remoteMetricsFactory MetricsFactory, /* required to retrieve the pod metrics from the remote cluster */
-	ipamclient ipam.IpamClient, /* required to translate the remote IP addresses to the corresponding local ones */
 	podReflectorconfig *PodReflectorConfig,
 	reflectorConfig *generic.ReflectorConfig) *PodReflector {
 	reflector := &PodReflector{
 		remoteRESTConfig:     remoteRESTConfig,
 		remoteMetricsFactory: remoteMetricsFactory,
-		ipamclient:           ipamclient,
 		config:               podReflectorconfig,
 	}
 
@@ -159,7 +157,6 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 		remoteRESTConfig: pr.remoteRESTConfig,
 		remoteMetrics:    pr.remoteMetricsFactory(opts.RemoteNamespace),
 
-		ipamclient:                pr.ipamclient,
 		config:                    pr.config,
 		kubernetesServiceIPGetter: pr.KubernetesServiceIPGetter(),
 	}
