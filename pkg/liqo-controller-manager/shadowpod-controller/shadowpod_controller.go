@@ -177,7 +177,7 @@ func (r *Reconciler) mutatePodSpec(ctx context.Context,
 		ip := podSpec.HostAliases[i].IP
 
 		// Get the remapped IP for the Kubernetes service.
-		rIP, err := ipamips.MapAddressWithConfiguration(ctx, r.Client, remoteClusterID, ip)
+		rIP, err := ipamips.MapAddress(ctx, r.Client, remoteClusterID, ip)
 		if err != nil {
 			return err
 		}

@@ -77,9 +77,6 @@ const (
 	// PodAntiAffinityPresetKey is the annotation key used to express an anti-affinity preset to apply to offloaded pods.
 	PodAntiAffinityPresetKey = "liqo.io/anti-affinity-preset"
 
-	// VKSkipUnmapIPAnnotationKey is the annotation key used to tell the VK to skip the unmapping of the IP as already managed by another entity.
-	VKSkipUnmapIPAnnotationKey = "liqo.io/vk-skip-unmap-ip"
-
 	// PodAntiAffinityPresetValueSoft is the annotation value corresponding to the "soft" anti-affinity preset (i.e., preferred).
 	PodAntiAffinityPresetValueSoft = "soft"
 

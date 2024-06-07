@@ -85,10 +85,7 @@ func mutateVKOptionsMetadata(opts *vkforge.VirtualKubeletOpts, meta *metav1.Obje
 
 func mutateVKOptionsFlags(opts *vkforge.VirtualKubeletOpts, container *corev1.Container) {
 	for _, arg := range container.Args {
-		if found := strings.HasPrefix(arg, string(vkforge.IpamEndpoint)); found {
-			value := strings.TrimPrefix(arg, string(vkforge.IpamEndpoint))
-			opts.IpamEndpoint = strings.TrimLeft(value, " ")
-		} else if found := strings.HasPrefix(arg, string(vkforge.NodeExtraAnnotations)); found {
+		if found := strings.HasPrefix(arg, string(vkforge.NodeExtraAnnotations)); found {
 			value := strings.TrimPrefix(arg, string(vkforge.NodeExtraAnnotations))
 			annotations := strings.TrimLeft(value, " ")
 			for _, annotation := range strings.Split(annotations, ",") {

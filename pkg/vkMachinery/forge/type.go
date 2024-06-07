@@ -33,7 +33,6 @@ type VirtualKubeletOpts struct {
 	LimitsCPU            resource.Quantity
 	RequestsRAM          resource.Quantity
 	LimitsRAM            resource.Quantity
-	IpamEndpoint         string
 	MetricsEnabled       bool
 	MetricsAddress       string
 	ReflectorsWorkers    map[string]*uint
@@ -63,8 +62,6 @@ const (
 	HomeClusterID VirtualKubeletOptsFlag = "--home-cluster-id"
 	// LocalPodCIDR is the flag used to specify the local pod CIDR.
 	LocalPodCIDR VirtualKubeletOptsFlag = "--local-podcidr"
-	// IpamEndpoint is the flag used to specify the IPAM endpoint.
-	IpamEndpoint VirtualKubeletOptsFlag = "--ipam-server"
 	// EnableStorage is the flag used to enable the storage.
 	EnableStorage VirtualKubeletOptsFlag = "--enable-storage"
 	// RemoteRealStorageClassName is the flag used to specify the remote real storage class name.

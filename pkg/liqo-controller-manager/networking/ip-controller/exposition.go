@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // handleAssociatedService creates, updates or deletes the service associated to the IP.
@@ -53,7 +52,6 @@ func (r *IPReconciler) handleAssociatedService(ctx context.Context, ip *ipamv1al
 	}}
 	epsMutateFn := func() error {
 		eps.SetLabels(labels.Merge(eps.GetLabels(), labels.Set{discoveryv1.LabelServiceName: svc.Name}))
-		eps.SetAnnotations(labels.Merge(eps.GetAnnotations(), labels.Set{consts.VKSkipUnmapIPAnnotationKey: "true"}))
 		eps.AddressType = discoveryv1.AddressTypeIPv4
 		eps.Endpoints = []discoveryv1.Endpoint{
 			{

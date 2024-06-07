@@ -302,7 +302,6 @@ func main() {
 		RequestsRAM:          kubeletRAMRequests.Quantity,
 		LimitsCPU:            kubeletCPULimits.Quantity,
 		LimitsRAM:            kubeletRAMLimits.Quantity,
-		IpamEndpoint:         *ipamServer,
 		MetricsAddress:       kubeletMetricsAddress,
 		MetricsEnabled:       kubeletMetricsEnabled,
 		ReflectorsWorkers:    reflectorsWorkers,
