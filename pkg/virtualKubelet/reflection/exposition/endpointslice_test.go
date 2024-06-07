@@ -39,7 +39,6 @@ import (
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	"github.com/liqotech/liqo/pkg/consts"
-	fakeipam "github.com/liqotech/liqo/pkg/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
@@ -59,7 +58,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[generic.EndpointSlice],
 			}
-			Expect(exposition.NewEndpointSliceReflector(nil, localPodCIDR, &reflectorConfig)).ToNot(BeNil())
+			Expect(exposition.NewEndpointSliceReflector(localPodCIDR, &reflectorConfig)).ToNot(BeNil())
 		})
 	})
 
@@ -71,7 +70,6 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			err            error
 			reflector      manager.NamespacedReflector
 			reflectionType consts.ReflectionType
-			ipam           *fakeipam.IPAMClient
 			liqoClient     liqoclient.Interface
 
 			local  discoveryv1.EndpointSlice
@@ -152,10 +150,9 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		})
 
 		JustBeforeEach(func() {
-			ipam = fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
-			reflector = exposition.NewNamespacedEndpointSliceReflector(ipam, localPodCIDR)(options.NewNamespaced().
+			reflector = exposition.NewNamespacedEndpointSliceReflector(localPodCIDR)(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
 				WithLiqoLocal(liqoClient, liqoFactory).
 				WithRemote(RemoteNamespace, client, factory).
@@ -407,13 +404,6 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					// The IPAMClient is configured to return an error if the same translation is requested twice.
 					It("should succeed (i.e., use the cached values)", func() { Expect(err).ToNot(HaveOccurred()) })
 					It("should return the same translations", func() { Expect(output).To(ConsistOf("192.168.200.25", "192.168.200.43")) })
-				})
-
-				When("releasing a different set of IP addresses", func() {
-					JustBeforeEach(func() {
-						err = reflector.(*exposition.NamespacedEndpointSliceReflector).UnmapEndpointIPs(ctx, "whatever")
-					})
-					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				})
 			})
 		})
