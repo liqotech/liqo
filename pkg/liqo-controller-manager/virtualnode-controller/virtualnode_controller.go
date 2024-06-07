@@ -42,7 +42,6 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
-	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 const (
@@ -53,12 +52,12 @@ const (
 // VirtualNodeReconciler manage NamespaceMap lifecycle.
 type VirtualNodeReconciler struct {
 	client.Client
-	Scheme                *runtime.Scheme
-	HomeClusterID         discoveryv1alpha1.ClusterID
-	VirtualKubeletOptions *vkforge.VirtualKubeletOpts
-	EventsRecorder        record.EventRecorder
-	dr                    *DeletionRoutine
-	namespaceManager      tenantnamespace.Manager
+	Scheme         *runtime.Scheme
+	EventsRecorder record.EventRecorder
+
+	HomeClusterID    discoveryv1alpha1.ClusterID
+	namespaceManager tenantnamespace.Manager
+	dr               *DeletionRoutine
 }
 
 // NewVirtualNodeReconciler returns a new VirtualNodeReconciler.
@@ -66,16 +65,16 @@ func NewVirtualNodeReconciler(
 	ctx context.Context,
 	cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
-	hci discoveryv1alpha1.ClusterID, vko *vkforge.VirtualKubeletOpts,
+	hci discoveryv1alpha1.ClusterID,
 	namespaceManager tenantnamespace.Manager,
 ) (*VirtualNodeReconciler, error) {
 	vnr := &VirtualNodeReconciler{
-		Client:                cl,
-		Scheme:                s,
-		HomeClusterID:         hci,
-		VirtualKubeletOptions: vko,
-		EventsRecorder:        er,
-		namespaceManager:      namespaceManager,
+		Client:         cl,
+		Scheme:         s,
+		EventsRecorder: er,
+
+		HomeClusterID:    hci,
+		namespaceManager: namespaceManager,
 	}
 	var err error
 	vnr.dr, err = RunDeletionRoutine(ctx, vnr)
@@ -91,6 +90,7 @@ func NewVirtualNodeReconciler(
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes/status,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes/finalizers,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
 

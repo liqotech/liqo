@@ -47,3 +47,11 @@ type VirtualNodeListerExpansion interface{}
 // VirtualNodeNamespaceListerExpansion allows custom methods to be added to
 // VirtualNodeNamespaceLister.
 type VirtualNodeNamespaceListerExpansion interface{}
+
+// VkOptionsTemplateListerExpansion allows custom methods to be added to
+// VkOptionsTemplateLister.
+type VkOptionsTemplateListerExpansion interface{}
+
+// VkOptionsTemplateNamespaceListerExpansion allows custom methods to be added to
+// VkOptionsTemplateNamespaceLister.
+type VkOptionsTemplateNamespaceListerExpansion interface{}
