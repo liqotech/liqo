@@ -50,8 +50,8 @@ import (
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
 	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/ipam"
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
+	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/ips"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -94,8 +94,7 @@ type NamespacedPodReflector struct {
 	remoteRESTConfig *rest.Config
 	remoteMetrics    metricsv1beta1.PodMetricsInterface
 
-	ipamclient ipam.IpamClient
-	config     *PodReflectorConfig
+	config *PodReflectorConfig
 
 	kubernetesServiceIPGetter func(context.Context) (string, error)
 	pods                      sync.Map /* implicit signature: map[string]*PodInfo */
@@ -374,12 +373,11 @@ func (npr *NamespacedPodReflector) HandleStatus(ctx context.Context, local, remo
 	// Wrap the address translation logic, so that we do not have to handle errors in the forge logic.
 	var terr error
 	var translator func(string) string
-	switch npr.ipamclient.(type) {
-	case nil:
+	if npr.config.NetConfiguration == nil {
 		translator = func(original string) string {
 			return original
 		}
-	default:
+	} else {
 		translator = func(original string) (translation string) {
 			translation, terr = npr.MapPodIP(ctx, info, original)
 			return translation
@@ -705,13 +703,13 @@ func (npr *NamespacedPodReflector) MapPodIP(ctx context.Context, info *PodInfo, 
 	}
 
 	// Cache miss -> we need to interact with the IPAM to request the translation.
-	response, err := npr.ipamclient.GetHomePodIP(ctx, &ipam.GetHomePodIPRequest{ClusterID: string(forge.RemoteCluster), Ip: original})
+	translated, err := ipamips.MapAddressWithConfiguration(npr.config.NetConfiguration, original)
 	if err != nil {
 		return "", fmt.Errorf("failed to translate pod IP %v: %w", original, err)
 	}
 
 	info.OriginalIP = original
-	info.TranslatedIP = response.GetHomeIP()
+	info.TranslatedIP = translated
 	klog.V(6).Infof("Translated remote pod IP %v to local %v", original, info.TranslatedIP)
 
 	return info.TranslatedIP, nil
