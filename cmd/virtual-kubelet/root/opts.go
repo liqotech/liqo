@@ -86,7 +86,6 @@ type Opts struct {
 
 	HomeCluster         argsutils.ClusterIDFlags
 	ForeignCluster      argsutils.ClusterIDFlags
-	LiqoIpamServer      string
 	DisableIPReflection bool
 	LocalPodCIDR        string
 

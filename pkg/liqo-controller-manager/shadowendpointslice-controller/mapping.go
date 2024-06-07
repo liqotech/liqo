@@ -31,7 +31,7 @@ func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
 		for j := range endpoints[i].Addresses {
 			addr := endpoints[i].Addresses[j]
 
-			rAddr, err := ipamips.MapAddressWithConfiguration(ctx, cl, clusterID, addr)
+			rAddr, err := ipamips.MapAddress(ctx, cl, clusterID, addr)
 			if err != nil {
 				return err
 			}

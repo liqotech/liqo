@@ -64,17 +64,23 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 	return nil
 }
 
-// MapAddressWithConfiguration maps the address with the network configuration of the cluster.
-func MapAddressWithConfiguration(ctx context.Context, cl client.Client,
+// MapAddress maps the address with the network configuration of the cluster.
+func MapAddress(ctx context.Context, cl client.Client,
 	clusterID discoveryv1alpha1.ClusterID, address string) (string, error) {
 	cfg, err := getters.GetConfigurationByClusterID(ctx, cl, clusterID)
 	if err != nil {
 		return "", err
 	}
 
+	return MapAddressWithConfiguration(cfg, address)
+}
+
+// MapAddressWithConfiguration maps the address with the network configuration of the cluster.
+func MapAddressWithConfiguration(cfg *networkingv1alpha1.Configuration, address string) (string, error) {
 	var (
 		podnet, podnetMapped, extnet, extnetMapped *net.IPNet
 		podNetMaskLen, extNetMaskLen               int
+		err                                        error
 	)
 
 	podNeedsRemap := cfg.Spec.Remote.CIDR.Pod.String() != cfg.Status.Remote.CIDR.Pod.String()
