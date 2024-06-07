@@ -31,6 +31,7 @@ type Options struct {
 	disableNetworkCheck  bool
 	kubeconfigSecretName string
 	resourceSliceName    string
+	vkOptionsTemplate    string
 
 	cpu    string
 	memory string

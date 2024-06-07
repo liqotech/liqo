@@ -24,54 +24,61 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 // cluster-role
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=vkoptionstemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
 type vnwh struct {
+	client  client.Client
+	decoder *admission.Decoder
+
 	clusterID             discoveryv1alpha1.ClusterID
-	virtualKubeletOptions *vkforge.VirtualKubeletOpts
-	client                client.Client
-	decoder               *admission.Decoder
+	localPodCIDR          string
+	liqoNamespace         string
+	vkOptsDefaultTemplate *corev1.ObjectReference
 }
 
 // New returns a new VirtualNodeWebhook instance.
-func New(cl client.Client, clusterID discoveryv1alpha1.ClusterID,
-	virtualKubeletOptions *vkforge.VirtualKubeletOpts) *admission.Webhook {
+func New(cl client.Client, clusterID discoveryv1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
+	vkOptsDefaultTemplate *corev1.ObjectReference) *admission.Webhook {
 	return &admission.Webhook{Handler: &vnwh{
-		client:                cl,
-		decoder:               admission.NewDecoder(runtime.NewScheme()),
+		client:  cl,
+		decoder: admission.NewDecoder(runtime.NewScheme()),
+
 		clusterID:             clusterID,
-		virtualKubeletOptions: virtualKubeletOptions,
+		localPodCIDR:          localPodCIDR,
+		liqoNamespace:         liqoNamespace,
+		vkOptsDefaultTemplate: vkOptsDefaultTemplate,
 	}}
 }
 
-// DecodeVirtualNode decodes the pod from the incoming request.
+// DecodeVirtualNode decodes the virtualnode from the incoming request.
 func (w *vnwh) DecodeVirtualNode(obj runtime.RawExtension) (*virtualkubeletv1alpha1.VirtualNode, error) {
 	var virtualnode virtualkubeletv1alpha1.VirtualNode
 	err := w.decoder.DecodeRaw(obj, &virtualnode)
 	return &virtualnode, err
 }
 
-// CreatePatchResponse creates an admission response with the given pod.
+// CreatePatchResponse creates an admission response with the given virtualnode.
 func (w *vnwh) CreatePatchResponse(req *admission.Request, virtualnode *virtualkubeletv1alpha1.VirtualNode) admission.Response {
-	marshaledPod, err := json.Marshal(virtualnode)
+	marshaledVn, err := json.Marshal(virtualnode)
 	if err != nil {
-		klog.Errorf("Failed encoding pod in admission response: %v", err)
+		klog.Errorf("Failed encoding virtualnode in admission response: %v", err)
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledPod)
+	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledVn)
 }
 
 // Handle implements the virtualnode mutating webhook logic.
@@ -81,7 +88,7 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 	_ = ctx
 	virtualnode, err := w.DecodeVirtualNode(req.Object)
 	if err != nil {
-		klog.Errorf("Failed decoding Pod object: %v", err)
+		klog.Errorf("Failed decoding virtualnode object: %v", err)
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
@@ -93,19 +100,27 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 			klog.Errorf("Failed checking node duplicate: %v", err)
 			return admission.Denied(err.Error())
 		}
-		mutateVKOptions(w.virtualKubeletOptions, virtualnode)
-		w.initVirtualNode(virtualnode)
+
+		// Get the VirtualKubeletOptions from the VirtualNode Spec if specified,
+		// otherwise use the default template passed to the webhook.
+		vkOptsRef := w.vkOptsDefaultTemplate
+		if virtualnode.Spec.VkOptionsTemplateRef != nil {
+			vkOptsRef = virtualnode.Spec.VkOptionsTemplateRef
+		}
+		nsName := types.NamespacedName{Namespace: vkOptsRef.Namespace, Name: vkOptsRef.Name}
+		var vkOpts virtualkubeletv1alpha1.VkOptionsTemplate
+		if err = w.client.Get(ctx, nsName, &vkOpts); err != nil {
+			klog.Errorf("Failed getting VkOptionsTemplate %q: %v", nsName, err)
+			return admission.Denied(err.Error())
+		}
+
+		overrideVKOptionsFromExistingVirtualNode(&vkOpts, virtualnode)
+		w.initVirtualNodeDeployment(virtualnode, &vkOpts)
 	}
 
 	mutateSpecInTemplate(virtualnode)
 
-	marshaledVn, err := json.Marshal(virtualnode)
-	if err != nil {
-		klog.Errorf("Failed encoding pod in admission response: %v", err)
-		return admission.Errored(http.StatusInternalServerError, err)
-	}
-
-	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledVn)
+	return w.CreatePatchResponse(&req, virtualnode)
 }
 
 // checkNodeDubplicate checks if the node already exists in the cluster.

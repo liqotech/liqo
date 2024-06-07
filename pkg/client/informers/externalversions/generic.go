@@ -65,6 +65,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().ShadowPods().Informer()}, nil
 	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("virtualnodes"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().VirtualNodes().Informer()}, nil
+	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("vkoptionstemplates"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().VkOptionsTemplates().Informer()}, nil
 
 	}
 

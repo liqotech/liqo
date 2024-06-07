@@ -1,26 +1,5 @@
----
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook" "version" .Values.webhook.image.version) .) -}}
-{{- $kubeletConfig :=  (merge (dict "name" "virtual-kubelet" "module" "virtualkubelet" "version" .Values.virtualKubelet.image.version) .) -}}
-{{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
-{{- $awsConfig := (merge (dict "name" "aws-config" "module" "aws-config") .) -}}
-
-{{- $vkargs := .Values.virtualKubelet.extra.args }}
-{{- /* Enable the API support if not overridden by the user */ -}}
-{{- if not (or (has "--enable-apiserver-support" $vkargs ) (has "--enable-apiserver-support=true" $vkargs ) (has "--enable-apiserver-support=false" $vkargs )) }}
-{{- $vkargs = append $vkargs "--enable-apiserver-support=true" }}
-{{- end }}
-{{- /* Configure the appropriate flags if the IP reflection is disabled, if not overridden by the user */ -}}
-{{- if not .Values.networking.reflectIPs }}
-{{- if not (or (has "--disable-ip-reflection" $vkargs ) (has "--disable-ip-reflection=true" $vkargs ) (has "--disable-ip-reflection=false" $vkargs )) }}
-{{- $vkargs = append $vkargs "--disable-ip-reflection" }}
-{{- end }}
-{{- end }}
-{{- /* Configure the appropriate certificate generation approach on EKS clusters, if not overridden by the user */ -}}
-{{- if .Values.authentication.awsConfig.accessKeyId }}
-{{- if not (or (has "--certificate-type=kubelet" $vkargs ) (has "--certificate-type=aws" $vkargs ) (has "--certificate-type=self-signed" $vkargs )) }}
-{{- $vkargs = append $vkargs "--certificate-type=aws" }}
-{{- end }}
-{{- end }}
+{{- $kubeletConfig := (merge (dict "name" "virtual-kubelet" "module" "virtualkubelet" "version" .Values.virtualKubelet.image.version) .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -67,70 +46,25 @@ spec:
         name: {{ $webhookConfig.name }}
         command: ["/usr/bin/webhook"]
         args:
+          - --webhook-port={{ .Values.webhook.port }}
+          {{- if gt .Values.webhook.replicas 1.0 }}
+          - --enable-leader-election=true
+          {{- end }}
           - --cluster-id=$(CLUSTER_ID)
           - --liqo-namespace=$(POD_NAMESPACE)
-          {{- if not .Values.offloading.runtimeClass.enable }}
-          - --add-virtual-node-toleration-on-offloaded-pods
-          {{- end }}
-          - --kubelet-image={{ .Values.virtualKubelet.image.name }}{{ include "liqo.suffix" $kubeletConfig }}:{{ include "liqo.version" $kubeletConfig }}
-          {{- if .Values.virtualKubelet.metrics.enabled }}
-          - --kubelet-metrics-address=:{{ .Values.virtualKubelet.metrics.port }}
-          - --kubelet-metrics-enabled={{ .Values.virtualKubelet.metrics.enabled }}
-          {{- else }}
-          {{- end }}
           - --podcidr={{ .Values.ipam.podCIDR }}
-          - --webhook-port={{ .Values.webhook.port }}
+          - --vk-options-default-template={{ .Release.Namespace }}/{{ printf "%s-default" $kubeletConfig.name }}
           {{- if .Values.controllerManager.config.enableResourceEnforcement }}
           - --enable-resource-enforcement
           {{- end }}
-          {{- if .Values.virtualKubelet.extra.annotations }}
-          {{- $d := dict "commandName" "--kubelet-extra-annotations" "dictionary" .Values.virtualKubelet.extra.annotations }}
-          {{- include "liqo.concatenateMap" $d | nindent 10 }}
-          {{- end }}
-          {{- if .Values.virtualKubelet.extra.labels }}
-          {{- $d := dict "commandName" "--kubelet-extra-labels" "dictionary" .Values.virtualKubelet.extra.labels }}
-          {{- include "liqo.concatenateMap" $d | nindent 10 }}
-          {{- end }}
-          {{- if ge (len $vkargs) 1 }}
-          {{- $d := dict "commandName" "--kubelet-extra-args" "list" $vkargs }}
-          {{- include "liqo.concatenateList" $d | nindent 10 }}
-          {{- end }}
-          {{- if .Values.virtualKubelet.virtualNode.extra.annotations }}
-          {{- $d := dict "commandName" "--node-extra-annotations" "dictionary" .Values.virtualKubelet.virtualNode.extra.annotations }}
-          {{- include "liqo.concatenateMap" $d | nindent 10 }}
-          {{- end }}
-          {{- if .Values.virtualKubelet.virtualNode.extra.labels }}
-          {{- $d := dict "commandName" "--node-extra-labels" "dictionary" .Values.virtualKubelet.virtualNode.extra.labels }}
-          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- if not .Values.offloading.runtimeClass.enable }}
+          - --add-virtual-node-toleration-on-offloaded-pods
           {{- end }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
           {{- end }}
           {{- if .Values.webhook.pod.extraArgs }}
           {{- toYaml .Values.webhook.pod.extraArgs | nindent 10 }}
-          {{- end }}
-          {{- if gt .Values.webhook.replicas 1.0 }}
-          - --enable-leader-election=true
-          {{- end }}
-          {{- /* virtual kubelet pod containers' requests */ -}}
-          {{- range $resource, $value := .Values.virtualKubelet.extra.resources.requests }}
-          {{- if eq $resource "cpu" }}
-          - --kubelet-cpu-requests={{ $value }}
-          {{- else if eq $resource "memory" }}
-          - --kubelet-ram-requests={{ $value }}
-          {{- else }}
-          {{ fail (printf "Unsupported resource type \"%s\" for virtual kubelet containers' requests" $resource) }}
-          {{- end }}
-          {{- end }}
-          {{- /* virtual kubelet pod containers' limits */ -}}
-          {{- range $resource, $value := .Values.virtualKubelet.extra.resources.limits }}
-          {{- if eq $resource "cpu" }}
-          - --kubelet-cpu-limits={{ $value }}
-          {{- else if eq $resource "memory" }}
-          - --kubelet-ram-limits={{ $value }}
-          {{- else }}
-          {{ fail (printf "Unsupported resource type \"%s\" for virtual kubelet containers' limits" $resource) }}
-          {{- end }}
           {{- end }}
         env:
           - name: CLUSTER_ID

@@ -120,8 +120,7 @@ func waitPodForDelete(ctx context.Context, cl client.Client, pod *corev1.Pod) er
 		klog.Infof("Drain node %s -> pod %v/%v waiting for deletion", pod.Spec.NodeName, pod.Namespace, pod.Name)
 		updatedPod := &corev1.Pod{}
 		err := cl.Get(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: pod.Name}, updatedPod)
-		if kerrors.IsNotFound(err) || (updatedPod != nil &&
-			pod.ObjectMeta.UID != updatedPod.ObjectMeta.UID) {
+		if kerrors.IsNotFound(err) || pod.ObjectMeta.UID != updatedPod.ObjectMeta.UID {
 			klog.Infof("Drain node %s -> pod %v/%v successfully deleted", pod.Spec.NodeName, pod.Namespace, pod.Name)
 			return true, nil
 		}

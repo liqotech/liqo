@@ -152,7 +152,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 // It checks if the VirtualKubelet Pods have been deleted.
 func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 	ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
-	virtualKubeletDeployment, err := vkutils.GetVirtualKubeletDeployment(ctx, r.Client, virtualNode, r.VirtualKubeletOptions)
+	virtualKubeletDeployment, err := vkutils.GetVirtualKubeletDeployment(ctx, r.Client, virtualNode)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 		}
 	}
 
-	if err := vkutils.CheckVirtualKubeletPodAbsence(ctx, r.Client, virtualNode, r.VirtualKubeletOptions); err != nil {
+	if err := vkutils.CheckVirtualKubeletPodAbsence(ctx, r.Client, virtualNode); err != nil {
 		return err
 	}
 
