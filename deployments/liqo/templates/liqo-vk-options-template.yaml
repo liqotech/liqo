@@ -1,0 +1,72 @@
+{{- $kubeletConfig := (merge (dict "name" "virtual-kubelet" "module" "virtualkubelet" "version" .Values.virtualKubelet.image.version) .) -}}
+
+{{- $vkargs := .Values.virtualKubelet.extra.args }}
+{{- /* Enable the API support if not overridden by the user */ -}}
+{{- if not (or (has "--enable-apiserver-support" $vkargs ) (has "--enable-apiserver-support=true" $vkargs ) (has "--enable-apiserver-support=false" $vkargs )) }}
+{{- $vkargs = append $vkargs "--enable-apiserver-support=true" }}
+{{- end }}
+{{- /* Configure the appropriate flags if the IP reflection is disabled, if not overridden by the user */ -}}
+{{- if not .Values.networking.reflectIPs }}
+{{- if not (or (has "--disable-ip-reflection" $vkargs ) (has "--disable-ip-reflection=true" $vkargs ) (has "--disable-ip-reflection=false" $vkargs )) }}
+{{- $vkargs = append $vkargs "--disable-ip-reflection" }}
+{{- end }}
+{{- end }}
+{{- /* Configure the appropriate certificate generation approach on EKS clusters, if not overridden by the user */ -}}
+{{- if .Values.authentication.awsConfig.accessKeyId }}
+{{- if not (or (has "--certificate-type=kubelet" $vkargs ) (has "--certificate-type=aws" $vkargs ) (has "--certificate-type=self-signed" $vkargs )) }}
+{{- $vkargs = append $vkargs "--certificate-type=aws" }}
+{{- end }}
+{{- end }}
+
+apiVersion: virtualkubelet.liqo.io/v1alpha1
+kind: VkOptionsTemplate
+metadata:
+  name: {{ printf "%s-default" $kubeletConfig.name }}
+  labels:
+    {{- include "liqo.labels" $kubeletConfig | nindent 4 }}
+spec:
+  containerImage: {{ .Values.virtualKubelet.image.name }}{{ include "liqo.suffix" $kubeletConfig }}:{{ include "liqo.version" $kubeletConfig }}
+  metricsEnabled: {{ .Values.virtualKubelet.metrics.enabled }}
+  {{- if .Values.virtualKubelet.metrics.enabled }}
+  metricsAddress: :{{ .Values.virtualKubelet.metrics.port }}
+  {{- end }}
+  reflectorsWorkers:
+    pod: {{ .Values.offloading.reflection.pod.workers }}
+    service: {{ .Values.offloading.reflection.service.workers }}
+    endpointslice: {{ .Values.offloading.reflection.endpointslice.workers }}
+    ingress: {{ .Values.offloading.reflection.ingress.workers }}
+    configmap: {{ .Values.offloading.reflection.configmap.workers }}
+    secret: {{ .Values.offloading.reflection.secret.workers }}
+    serviceaccount: {{ .Values.offloading.reflection.serviceaccount.workers }}
+    persistentvolumeclaim: {{ .Values.offloading.reflection.persistentvolumeclaim.workers }}
+    event: {{ .Values.offloading.reflection.event.workers }}
+  reflectorsType:
+    service: {{ .Values.offloading.reflection.service.type }}
+    ingress: {{ .Values.offloading.reflection.ingress.type }}
+    configmap: {{ .Values.offloading.reflection.configmap.type }}
+    secret: {{ .Values.offloading.reflection.secret.type }}
+    event: {{ .Values.offloading.reflection.event.type }}
+  {{- if .Values.virtualKubelet.extra.resources }}
+  resources:
+    {{- toYaml .Values.virtualKubelet.extra.resources | nindent 4 }}
+  {{- end }}
+  {{- if ge (len $vkargs) 1 }}
+  extraArgs:
+    {{- toYaml $vkargs | nindent 4 }}
+  {{- end }}
+  {{- if .Values.virtualKubelet.extra.annotations }}
+  extraAnnotations:
+    {{- toYaml .Values.virtualKubelet.extra.annotations | nindent 4 }}
+  {{- end }}
+  {{- if .Values.virtualKubelet.extra.labels }}
+  extraLabels:
+    {{- toYaml .Values.virtualKubelet.extra.labels | nindent 4 }}
+  {{- end }}
+  {{- if .Values.virtualKubelet.virtualNode.extra.annotations }}
+  nodeExtraAnnotations:
+    {{- toYaml .Values.virtualKubelet.virtualNode.extra.annotations | nindent 4 }}
+  {{- end }}
+  {{- if .Values.virtualKubelet.virtualNode.extra.labels }}
+  nodeExtraLabels:
+    {{- toYaml .Values.virtualKubelet.virtualNode.extra.labels | nindent 4 }}
+  {{- end }}

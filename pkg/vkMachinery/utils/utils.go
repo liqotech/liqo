@@ -30,11 +30,10 @@ import (
 )
 
 // GetVirtualKubeletDeployment returns the VirtualKubelet Deployment of a VirtualNode.
-func GetVirtualKubeletDeployment(
-	ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	vkopts *vkforge.VirtualKubeletOpts) (*appsv1.Deployment, error) {
+func GetVirtualKubeletDeployment(ctx context.Context, cl client.Client,
+	virtualNode *virtualkubeletv1alpha1.VirtualNode) (*appsv1.Deployment, error) {
 	var deployList appsv1.DeploymentList
-	labels := vkforge.VirtualKubeletLabels(virtualNode, vkopts.ExtraLabels)
+	labels := vkforge.VirtualKubeletLabels(virtualNode)
 	if err := cl.List(ctx, &deployList, client.MatchingLabels(labels)); err != nil {
 		klog.Error(err)
 		return nil, err
@@ -53,10 +52,9 @@ func GetVirtualKubeletDeployment(
 }
 
 // CheckVirtualKubeletPodAbsence checks if a VirtualNode's VirtualKubelet pods are absent.
-func CheckVirtualKubeletPodAbsence(ctx context.Context, cl client.Client,
-	vn *virtualkubeletv1alpha1.VirtualNode, vkopts *vkforge.VirtualKubeletOpts) error {
+func CheckVirtualKubeletPodAbsence(ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1.VirtualNode) error {
 	klog.Infof("[%v] checking virtual-kubelet pod absence", vn.Spec.ClusterID)
-	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn, vkopts.ExtraLabels)
+	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn)
 	if err != nil {
 		return err
 	}
@@ -83,8 +81,8 @@ func (f Flag) String() string {
 // It returns true if all the flags are consistent, false otherwise.
 // A flag is not consistent if it is present in the VirtualKubelet args with a different value.
 func CheckVirtualKubeletFlagsConsistence(
-	ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1.VirtualNode, vkopts *vkforge.VirtualKubeletOpts, flags ...Flag) (bool, error) {
-	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn, vkopts.ExtraLabels)
+	ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1.VirtualNode, flags ...Flag) (bool, error) {
+	list, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, cl, vn)
 	if err != nil {
 		return false, err
 	}

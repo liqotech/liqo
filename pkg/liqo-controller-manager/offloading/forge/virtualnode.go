@@ -28,9 +28,10 @@ import (
 
 // VirtualNodeOptions contains the options to forge a VirtualNode resource.
 type VirtualNodeOptions struct {
-	KubeconfigSecretRef corev1.LocalObjectReference `json:"kubeconfigSecretRef,omitempty"`
-	CreateNode          bool                        `json:"createNode,omitempty"`
-	DisableNetworkCheck bool                        `json:"disableNetworkCheck,omitempty"`
+	KubeconfigSecretRef  corev1.LocalObjectReference `json:"kubeconfigSecretRef,omitempty"`
+	CreateNode           bool                        `json:"createNode,omitempty"`
+	DisableNetworkCheck  bool                        `json:"disableNetworkCheck,omitempty"`
+	VkOptionsTemplateRef *corev1.ObjectReference     `json:"vkOptionsTemplateRef,omitempty"`
 
 	ResourceList        corev1.ResourceList             `json:"resourceList,omitempty"`
 	StorageClasses      []authv1alpha1.StorageType      `json:"storageClasses,omitempty"`
@@ -77,6 +78,7 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 	virtualNode.Spec.CreateNode = &opts.CreateNode
 	virtualNode.Spec.DisableNetworkCheck = opts.DisableNetworkCheck
 	virtualNode.Spec.KubeconfigSecretRef = &opts.KubeconfigSecretRef
+	virtualNode.Spec.VkOptionsTemplateRef = opts.VkOptionsTemplateRef
 	virtualNode.Spec.ResourceQuota = corev1.ResourceQuotaSpec{
 		Hard: opts.ResourceList,
 	}
@@ -97,11 +99,12 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 
 // VirtualNodeOptionsFromResourceSlice extracts the VirtualNodeOptions from a ResourceSlice.
 func VirtualNodeOptionsFromResourceSlice(resourceSlice *authv1alpha1.ResourceSlice,
-	kubeconfigSecretName string, createNode, disableNetworkCheck bool) *VirtualNodeOptions {
+	kubeconfigSecretName string, createNode, disableNetworkCheck bool, vkOptionsTemplateRef *corev1.ObjectReference) *VirtualNodeOptions {
 	return &VirtualNodeOptions{
-		KubeconfigSecretRef: corev1.LocalObjectReference{Name: kubeconfigSecretName},
-		CreateNode:          createNode,
-		DisableNetworkCheck: disableNetworkCheck,
+		KubeconfigSecretRef:  corev1.LocalObjectReference{Name: kubeconfigSecretName},
+		CreateNode:           createNode,
+		DisableNetworkCheck:  disableNetworkCheck,
+		VkOptionsTemplateRef: vkOptionsTemplateRef,
 
 		ResourceList:        resourceSlice.Status.Resources,
 		StorageClasses:      resourceSlice.Status.StorageClasses,

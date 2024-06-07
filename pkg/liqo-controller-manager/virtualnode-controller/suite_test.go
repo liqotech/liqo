@@ -37,7 +37,6 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
-	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -125,7 +124,6 @@ var _ = BeforeSuite(func() {
 		scheme.Scheme,
 		k8sManager.GetEventRecorderFor("virtualnode-controller"),
 		localID,
-		&forge.VirtualKubeletOpts{},
 		namespaceManager,
 	)
 	Expect(err).ToNot(HaveOccurred())
