@@ -21,6 +21,7 @@ import (
 
 	"github.com/pterm/pterm"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -97,29 +98,27 @@ func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSli
 	return nil
 }
 
-// ForNode waits until the node has been added to the cluster or the timeout expires.
-func (w *Waiter) ForNode(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
-	remName := remoteClusterID
-	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for node to be created for the remote cluster %q", remName))
+// ForNodeReady waits until the node has been added to the cluster and is Ready, or the timeout expires.
+func (w *Waiter) ForNodeReady(ctx context.Context, nodeName string) error {
+	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for node %s to be Ready", nodeName))
 
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
-		nodes, err := getters.ListNodesByClusterID(ctx, w.CRClient, remoteClusterID)
-		if err != nil {
+		var node corev1.Node
+		if err := w.CRClient.Get(ctx, client.ObjectKey{Name: nodeName}, &node); err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
 
-		for i := range nodes.Items {
-			if !utils.IsNodeReady(&nodes.Items[i]) {
-				return false, nil
-			}
+		if !utils.IsNodeReady(&node) {
+			return false, nil
 		}
+
 		return true, nil
 	})
 	if err != nil {
-		s.Fail(fmt.Sprintf("Failed waiting for node to be created for remote cluster %q: %s", remName, output.PrettyErr(err)))
+		s.Fail(fmt.Sprintf("Failed waiting for node %s to be Ready: %s", nodeName, output.PrettyErr(err)))
 		return err
 	}
-	s.Success(fmt.Sprintf("Node created for remote cluster %q", remName))
+	s.Success(fmt.Sprintf("Node %s is Ready", nodeName))
 	return nil
 }
 

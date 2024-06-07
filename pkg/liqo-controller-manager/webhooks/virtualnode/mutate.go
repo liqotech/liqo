@@ -15,10 +15,10 @@
 package virtualnode
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -26,98 +26,118 @@ import (
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
-func (w *vnwh) initVirtualNode(virtualNode *virtualkubeletv1alpha1.VirtualNode) {
-	w.mutateVirtualNodeSpecTemplate(virtualNode)
+func (w *vnwh) initVirtualNodeDeployment(vn *virtualkubeletv1alpha1.VirtualNode, opts *virtualkubeletv1alpha1.VkOptionsTemplate) {
+	if vn.Spec.Template == nil {
+		vn.Spec.Template = &virtualkubeletv1alpha1.DeploymentTemplate{}
+	}
+	vkdep := vkforge.VirtualKubeletDeployment(w.clusterID, w.localPodCIDR, w.liqoNamespace, vn, opts)
+	vn.Spec.Template.Spec = *vkdep.Spec.DeepCopy()
+	vn.Spec.Template.ObjectMeta = *vkdep.ObjectMeta.DeepCopy()
 }
 
-func (w *vnwh) mutateVirtualNodeSpecTemplate(virtualNode *virtualkubeletv1alpha1.VirtualNode) {
-	if virtualNode.Spec.Template == nil {
-		virtualNode.Spec.Template = &virtualkubeletv1alpha1.DeploymentTemplate{}
-	}
-	vkdep := vkforge.VirtualKubeletDeployment(w.clusterID, virtualNode, w.virtualKubeletOptions)
-	virtualNode.Spec.Template.Spec = *vkdep.Spec.DeepCopy()
-	virtualNode.Spec.Template.ObjectMeta = *vkdep.ObjectMeta.DeepCopy()
-}
-
-func mutateVKOptionsResources(opts *vkforge.VirtualKubeletOpts, res *corev1.ResourceRequirements) {
-	if res == nil {
-		return
-	}
-	if res.Limits != nil {
-		if res.Limits.Cpu() != nil {
-			opts.LimitsCPU = res.Limits.Cpu().DeepCopy()
-		}
-		if res.Limits.Memory() != nil {
-			opts.LimitsRAM = res.Limits.Memory().DeepCopy()
-		}
-	}
-	if res.Requests != nil {
-		if res.Requests.Cpu() != nil {
-			opts.RequestsCPU = res.Requests.Cpu().DeepCopy()
-		}
-		if res.Requests.Memory() != nil {
-			opts.RequestsRAM = res.Requests.Memory().DeepCopy()
-		}
-	}
-}
-
-func mutateVKOptionsMetadata(opts *vkforge.VirtualKubeletOpts, meta *metav1.ObjectMeta) {
-	if meta == nil {
-		return
-	}
-	if meta.Labels != nil {
-		if opts.ExtraLabels == nil {
-			opts.ExtraLabels = make(map[string]string)
-		}
-		for k, v := range meta.Labels {
-			opts.ExtraLabels[k] = v
-		}
-	}
-	if meta.Annotations != nil {
-		if opts.ExtraAnnotations == nil {
-			opts.ExtraAnnotations = make(map[string]string)
-		}
-		for k, v := range meta.Annotations {
-			opts.ExtraAnnotations[k] = v
-		}
-	}
-}
-
-func mutateVKOptionsFlags(opts *vkforge.VirtualKubeletOpts, container *corev1.Container) {
-	for _, arg := range container.Args {
-		if found := strings.HasPrefix(arg, string(vkforge.NodeExtraAnnotations)); found {
-			value := strings.TrimPrefix(arg, string(vkforge.NodeExtraAnnotations))
-			annotations := strings.TrimLeft(value, " ")
-			for _, annotation := range strings.Split(annotations, ",") {
-				vk := strings.Split(annotation, "=")
-				opts.NodeExtraAnnotations.StringMap[vk[0]] = vk[1]
-			}
-		} else if found := strings.HasPrefix(arg, string(vkforge.NodeExtraLabels)); found {
-			value := strings.TrimPrefix(arg, string(vkforge.NodeExtraLabels))
-			labels := strings.TrimLeft(value, " ")
-			for _, label := range strings.Split(labels, ",") {
-				vk := strings.Split(label, "=")
-				opts.NodeExtraLabels.StringMap[vk[0]] = vk[1]
-			}
-		} else if found := strings.HasPrefix(arg, string(vkforge.MetricsEnabled)); found {
-			opts.MetricsEnabled = found
-		} else if found := strings.HasPrefix(arg, string(vkforge.MetricsAddress)); found {
-			value := strings.TrimPrefix(arg, string(vkforge.MetricsAddress))
-			opts.MetricsAddress = strings.TrimLeft(value, " ")
-		}
-	}
-}
-
-func mutateVKOptions(opts *vkforge.VirtualKubeletOpts, vn *virtualkubeletv1alpha1.VirtualNode) {
+func overrideVKOptionsFromExistingVirtualNode(opts *virtualkubeletv1alpha1.VkOptionsTemplate, vn *virtualkubeletv1alpha1.VirtualNode) {
 	if vn.Spec.Template == nil {
 		return
 	}
-	mutateVKOptionsMetadata(opts, &vn.Spec.Template.ObjectMeta)
-	if len(vn.Spec.Template.Spec.Template.Spec.Containers) == 1 {
-		container := vn.Spec.Template.Spec.Template.Spec.Containers[0]
-		opts.ContainerImage = container.Image
-		mutateVKOptionsResources(opts, &container.Resources)
-		mutateVKOptionsFlags(opts, &container)
+
+	overrideVKOptionsMetadata(opts, &vn.Spec.Template.ObjectMeta)
+	overrideVKOptionsSpec(opts, &vn.Spec.Template.Spec)
+}
+
+func overrideVKOptionsSpec(opts *virtualkubeletv1alpha1.VkOptionsTemplate, depSpec *appsv1.DeploymentSpec) {
+	if len(depSpec.Template.Spec.Containers) == 0 {
+		return
+	}
+
+	container := depSpec.Template.Spec.Containers[0]
+	if container.Image != "" {
+		opts.Spec.ContainerImage = container.Image
+	}
+	overrideVKOptionsResources(opts, &container.Resources)
+	overrideVKOptionsArgs(opts, container.Args)
+}
+
+func overrideVKOptionsMetadata(opts *virtualkubeletv1alpha1.VkOptionsTemplate, depMeta *metav1.ObjectMeta) {
+	if depMeta == nil {
+		return
+	}
+	if depMeta.Labels != nil {
+		if opts.Spec.ExtraLabels == nil {
+			opts.Spec.ExtraLabels = make(map[string]string)
+		}
+		for k, v := range depMeta.Labels {
+			opts.Spec.ExtraLabels[k] = v
+		}
+	}
+	if depMeta.Annotations != nil {
+		if opts.Spec.ExtraAnnotations == nil {
+			opts.Spec.ExtraAnnotations = make(map[string]string)
+		}
+		for k, v := range depMeta.Annotations {
+			opts.Spec.ExtraAnnotations[k] = v
+		}
+	}
+}
+
+func overrideVKOptionsResources(opts *virtualkubeletv1alpha1.VkOptionsTemplate, res *corev1.ResourceRequirements) {
+	if res == nil {
+		return
+	}
+
+	if res.Limits != nil {
+		for k, v := range res.Limits {
+			if opts.Spec.Resources.Limits == nil {
+				opts.Spec.Resources.Limits = make(corev1.ResourceList)
+			}
+			opts.Spec.Resources.Limits[k] = v.DeepCopy()
+		}
+	}
+	if res.Requests != nil {
+		for k, v := range res.Requests {
+			if opts.Spec.Resources.Requests == nil {
+				opts.Spec.Resources.Requests = make(corev1.ResourceList)
+			}
+			opts.Spec.Resources.Requests[k] = v.DeepCopy()
+		}
+	}
+}
+
+func overrideVKOptionsArgs(opts *virtualkubeletv1alpha1.VkOptionsTemplate, args []string) {
+	for i := range args {
+		k, v := vkforge.DestringifyArgument(args[i])
+		switch k {
+		case string(vkforge.NodeExtraAnnotations):
+			for _, annotation := range strings.Split(v, ",") {
+				vk := strings.Split(annotation, "=")
+				if opts.Spec.NodeExtraAnnotations == nil {
+					opts.Spec.NodeExtraAnnotations = make(map[string]string)
+				}
+				opts.Spec.NodeExtraAnnotations[vk[0]] = vk[1]
+			}
+		case string(vkforge.NodeExtraLabels):
+			if opts.Spec.NodeExtraLabels == nil {
+				opts.Spec.NodeExtraLabels = make(map[string]string)
+			}
+			for _, label := range strings.Split(v, ",") {
+				vk := strings.Split(label, "=")
+				opts.Spec.NodeExtraLabels[vk[0]] = vk[1]
+			}
+		case string(vkforge.MetricsEnabled):
+			opts.Spec.MetricsEnabled = true
+		case string(vkforge.MetricsAddress):
+			opts.Spec.MetricsAddress = v
+		}
+	}
+
+	for i := range opts.Spec.ExtraArgs {
+		extraArgKey, _ := vkforge.DestringifyArgument(opts.Spec.ExtraArgs[i])
+		for j := range args {
+			argKey, _ := vkforge.DestringifyArgument(args[j])
+			if extraArgKey == argKey {
+				opts.Spec.ExtraArgs[i] = args[j]
+				break
+			}
+		}
 	}
 }
 
@@ -133,7 +153,7 @@ func mutateSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
 	if ksref == nil {
 		return
 	}
-	argSecret := fmt.Sprintf("%s=%s", vkforge.ForeignClusterKubeconfigSecretName, ksref.Name)
+	argSecret := vkforge.StringifyArgument(string(vkforge.ForeignClusterKubeconfigSecretName), ksref.Name)
 	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
 
 	for i, arg := range container.Args {
@@ -151,7 +171,7 @@ func mutateSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
 
 // mutateNodeCreate mutate the creation of the remote cluster node.
 func mutateNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
-	argCreateNode := fmt.Sprintf("%s=%s", vkforge.CreateNode, strconv.FormatBool(*vn.Spec.CreateNode))
+	argCreateNode := vkforge.StringifyArgument(string(vkforge.CreateNode), strconv.FormatBool(*vn.Spec.CreateNode))
 	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
 	for i, arg := range container.Args {
 		if strings.HasPrefix(arg, string(vkforge.CreateNode)) {
@@ -168,7 +188,7 @@ func mutateNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
 
 // mutateNodeCheckNetwork flag mutate the check network flag.
 func mutateNodeCheckNetwork(vn *virtualkubeletv1alpha1.VirtualNode) {
-	argCheckNetwork := fmt.Sprintf("%s=%s", vkforge.NodeCheckNetwork, strconv.FormatBool(!vn.Spec.DisableNetworkCheck))
+	argCheckNetwork := vkforge.StringifyArgument(string(vkforge.NodeCheckNetwork), strconv.FormatBool(!vn.Spec.DisableNetworkCheck))
 	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
 	for i, arg := range container.Args {
 		if strings.HasPrefix(arg, string(vkforge.NodeCheckNetwork)) {

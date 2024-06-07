@@ -25,46 +25,47 @@ import (
 	"k8s.io/utils/strings"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 // VirtualKubeletName returns the name of the virtual-kubelet.
-func VirtualKubeletName(virtualNode *virtualkubeletv1alpha1.VirtualNode) string {
+func VirtualKubeletName(virtualNode *vkv1alpha1.VirtualNode) string {
 	return "vk-" + virtualNode.Name
 }
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(homeCluster discoveryv1alpha1.ClusterID, virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	opts *VirtualKubeletOpts) *appsv1.Deployment {
-	vkLabels := VirtualKubeletLabels(virtualNode, opts.ExtraLabels)
-	annotations := opts.ExtraAnnotations
+func VirtualKubeletDeployment(homeCluster discoveryv1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
+	virtualNode *vkv1alpha1.VirtualNode, opts *vkv1alpha1.VkOptionsTemplate) *appsv1.Deployment {
+	matchLabels := VirtualKubeletLabels(virtualNode) // these are the minimum set of labels used as selector
+	depLabels := labels.Merge(opts.Spec.ExtraLabels, matchLabels)
+	depAnnotations := opts.Spec.ExtraAnnotations
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        VirtualKubeletName(virtualNode),
 			Namespace:   virtualNode.Namespace,
-			Labels:      vkLabels,
-			Annotations: annotations,
+			Labels:      depLabels,
+			Annotations: depAnnotations,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: vkLabels,
+				MatchLabels: matchLabels,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      vkLabels,
-					Annotations: annotations,
+					Labels:      depLabels,
+					Annotations: depAnnotations,
 				},
-				Spec: forgeVKPodSpec(virtualNode.Namespace, homeCluster, virtualNode, opts),
+				Spec: forgeVKPodSpec(virtualNode.Namespace, homeCluster, localPodCIDR, liqoNamespace, virtualNode, opts),
 			},
 		},
 	}
 }
 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
-func VirtualKubeletLabels(virtualNode *virtualkubeletv1alpha1.VirtualNode, extraLabels map[string]string) map[string]string {
-	return labels.Merge(labels.Merge(extraLabels, vkMachinery.KubeletBaseLabels), map[string]string{
+func VirtualKubeletLabels(virtualNode *vkv1alpha1.VirtualNode) map[string]string {
+	return labels.Merge(vkMachinery.KubeletBaseLabels, map[string]string{
 		discovery.ClusterIDLabel:   string(virtualNode.Spec.ClusterID),
 		discovery.VirtualNodeLabel: virtualNode.Name,
 	})
