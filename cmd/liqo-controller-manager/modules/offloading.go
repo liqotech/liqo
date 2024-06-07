@@ -43,7 +43,6 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/csr"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
-	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 // OffloadingOption defines the options to setup the offloading module.
@@ -51,7 +50,6 @@ type OffloadingOption struct {
 	Clientset                   *kubernetes.Clientset
 	LocalClusterID              discoveryv1alpha1.ClusterID
 	NamespaceManager            tenantnamespace.Manager
-	VirtualKubeletOpts          *forge.VirtualKubeletOpts
 	EnableStorage               bool
 	VirtualStorageClassName     string
 	RealStorageClassName        string
@@ -70,7 +68,6 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 		mgr.GetScheme(),
 		mgr.GetEventRecorderFor("virtualnode-controller"),
 		opts.LocalClusterID,
-		opts.VirtualKubeletOpts,
 		opts.NamespaceManager,
 	)
 	if err != nil {

@@ -88,6 +88,8 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		"", "The name of the secret containing the kubeconfig of the remote cluster. Mutually exclusive with --resource-slice-name")
 	cmd.Flags().StringVar(&o.resourceSliceName, "resource-slice-name",
 		"", "The name of the resourceslice to be used to create the virtual node. Mutually exclusive with --kubeconfig-secret-name")
+	cmd.Flags().StringVar(&o.vkOptionsTemplate, "vk-options-template",
+		"", "Namespaced name of the virtual-kubelet options template. Leave empty to use the default template installed with Liqo")
 	cmd.Flags().StringVar(&o.cpu, "cpu", "2", "The amount of CPU available in the virtual node")
 	cmd.Flags().StringVar(&o.memory, "memory", "4Gi", "The amount of memory available in the virtual node")
 	cmd.Flags().StringVar(&o.pods, "pods", "110", "The amount of pods available in the virtual node")
@@ -127,15 +129,24 @@ func (o *Options) handleCreate(ctx context.Context) error {
 		return err
 	}
 
+	var vkOptionsTemplateRef *corev1.ObjectReference
+	if o.vkOptionsTemplate != "" {
+		vkOptionsTemplateRef, err = args.GetObjectRefFromNamespacedName(o.vkOptionsTemplate)
+		if err != nil {
+			opts.Printer.CheckErr(fmt.Errorf("--vk-options-template is not a valid namespaced name: %w", err))
+			return err
+		}
+	}
+
 	// Check that exactly one between kubeconfigSecretName and resourceSliceName is set and forge Virtual Node options respectively
 	// using command-line flags or the retrieved resourceslice.
 	switch {
 	case o.kubeconfigSecretName != "" && o.resourceSliceName != "":
 		err = fmt.Errorf("only one of --kubeconfig-secret-name and --resource-slice-name can be specified at the same time")
 	case o.resourceSliceName != "":
-		vnOpts, err = o.forgeVirtualNodeOptionsFromResourceSlice(ctx, opts.CRClient, tenantNamespace)
+		vnOpts, err = o.forgeVirtualNodeOptionsFromResourceSlice(ctx, opts.CRClient, tenantNamespace, vkOptionsTemplateRef)
 	case o.kubeconfigSecretName != "":
-		vnOpts, err = o.forgeVirtualNodeOptions()
+		vnOpts, err = o.forgeVirtualNodeOptions(vkOptionsTemplateRef)
 	default:
 		err = fmt.Errorf("exactly one of --kubeconfig-secret-name and --resource-slice-name must be specified")
 	}
@@ -155,15 +166,14 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	if _, err := controllerutil.CreateOrUpdate(ctx, opts.CRClient, virtualNode, func() error {
 		return forge.MutateVirtualNode(virtualNode, o.remoteClusterID.GetClusterID(), vnOpts)
 	}); err != nil {
-		s.Fail("Unable to create virtual node: %v", output.PrettyErr(err))
+		s.Fail("Unable to create virtual node: ", output.PrettyErr(err))
 		return err
 	}
 	s.Success("Virtual node created")
 
 	if virtualNode.Spec.CreateNode != nil && *virtualNode.Spec.CreateNode {
 		waiter := wait.NewWaiterFromFactory(opts.Factory)
-		// TODO: we cannot use the cluster identity here. Review in offloading refactor.
-		if err := waiter.ForNode(ctx, virtualNode.Spec.ClusterID); err != nil {
+		if err := waiter.ForNodeReady(ctx, virtualNode.Name); err != nil {
 			opts.Printer.CheckErr(err)
 			return err
 		}
@@ -173,7 +183,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 }
 
 func (o *Options) forgeVirtualNodeOptionsFromResourceSlice(ctx context.Context,
-	cl client.Client, tenantNamespace string) (*forge.VirtualNodeOptions, error) {
+	cl client.Client, tenantNamespace string, vkOptionsTemplateRef *corev1.ObjectReference) (*forge.VirtualNodeOptions, error) {
 	// Get the associated ResourceSlice.
 	var resourceSlice authv1alpha1.ResourceSlice
 	if err := cl.Get(ctx, client.ObjectKey{Name: o.resourceSliceName, Namespace: tenantNamespace}, &resourceSlice); err != nil {
@@ -193,12 +203,13 @@ func (o *Options) forgeVirtualNodeOptionsFromResourceSlice(ctx context.Context,
 	}
 
 	// Forge the VirtualNodeOptions from the ResourceSlice.
-	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name, o.createNode, o.disableNetworkCheck)
+	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice,
+		kubeconfigSecret.Name, o.createNode, o.disableNetworkCheck, vkOptionsTemplateRef)
 
 	return vnOpts, nil
 }
 
-func (o *Options) forgeVirtualNodeOptions() (*forge.VirtualNodeOptions, error) {
+func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectReference) (*forge.VirtualNodeOptions, error) {
 	cpuQnt, err := resource.ParseQuantity(o.cpu)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse cpu quantity: %w", err)
@@ -246,8 +257,10 @@ func (o *Options) forgeVirtualNodeOptions() (*forge.VirtualNodeOptions, error) {
 	}
 
 	return &forge.VirtualNodeOptions{
-		KubeconfigSecretRef: corev1.LocalObjectReference{Name: o.kubeconfigSecretName},
-		CreateNode:          o.createNode,
+		KubeconfigSecretRef:  corev1.LocalObjectReference{Name: o.kubeconfigSecretName},
+		CreateNode:           o.createNode,
+		DisableNetworkCheck:  o.disableNetworkCheck,
+		VkOptionsTemplateRef: vkOptionsTemplateRef,
 
 		ResourceList: corev1.ResourceList{
 			corev1.ResourceCPU:    cpuQnt,

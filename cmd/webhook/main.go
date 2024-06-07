@@ -39,7 +39,6 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/cmd/liqo-controller-manager/modules"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/firewallconfiguration"
 	fcwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/foreigncluster"
@@ -56,8 +55,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
-	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 var (
@@ -76,15 +73,6 @@ func init() {
 }
 
 func main() {
-	var kubeletExtraAnnotations, kubeletExtraLabels argsutils.StringMap
-	var kubeletExtraArgs argsutils.StringList
-	var nodeExtraAnnotations, nodeExtraLabels argsutils.StringMap
-	var kubeletCPURequests, kubeletCPULimits argsutils.Quantity
-	var kubeletRAMRequests, kubeletRAMLimits argsutils.Quantity
-	var kubeletMetricsAddress string
-	var kubeletMetricsEnabled bool
-	var addVirtualNodeTolerationOnOffloadedPods bool
-
 	// Manager flags
 	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
@@ -96,29 +84,12 @@ func main() {
 	liqoNamespace := flag.String("liqo-namespace", consts.DefaultLiqoNamespace,
 		"Name of the namespace where the liqo components are running")
 	podcidr := flag.String("podcidr", "", "The CIDR to use for the pod network")
-
-	// OFFLOADING MODULE
-	// VirtualKubelet parameters
-	kubeletImage := flag.String("kubelet-image", "ghcr.io/liqotech/virtual-kubelet", "The image of the virtual kubelet to be deployed")
-	flag.Var(&kubeletExtraAnnotations, "kubelet-extra-annotations", "Extra annotations to add to the Virtual Kubelet Deployments and Pods")
-	flag.Var(&kubeletExtraLabels, "kubelet-extra-labels", "Extra labels to add to the Virtual Kubelet Deployments and Pods")
-	flag.Var(&kubeletExtraArgs, "kubelet-extra-args", "Extra arguments to add to the Virtual Kubelet Deployments and Pods")
-	flag.Var(&kubeletCPURequests, "kubelet-cpu-requests", "CPU requests assigned to the Virtual Kubelet Pod")
-	flag.Var(&kubeletCPULimits, "kubelet-cpu-limits", "CPU limits assigned to the Virtual Kubelet Pod")
-	flag.Var(&kubeletRAMRequests, "kubelet-ram-requests", "RAM requests assigned to the Virtual Kubelet Pod")
-	flag.Var(&kubeletRAMLimits, "kubelet-ram-limits", "RAM limits assigned to the Virtual Kubelet Pod")
-	flag.StringVar(&kubeletMetricsAddress, "kubelet-metrics-address", vkMachinery.MetricsAddress, "The address the kubelet metrics endpoint binds to")
-	flag.BoolVar(&kubeletMetricsEnabled, "kubelet-metrics-enabled", false, "Enable the kubelet metrics endpoint")
-	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
-	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
-	reflectorsWorkers := modules.SetReflectorsWorkers()
-	reflectorsType := modules.SetReflectorsType()
-	// Resource enforcement parameters
+	vkOptsDefaultTemplate := flag.String("vk-options-default-template", "", "Namespaced name of the virtual-kubelet options template")
 	enableResourceValidation := flag.Bool("enable-resource-enforcement", false,
 		"Enforce offerer-side that offloaded pods do not exceed offered resources (based on container limits)")
 	refreshInterval := flag.Duration("resource-validator-refresh-interval",
 		5*time.Minute, "The interval at which the resource validator cache is refreshed")
-	flag.BoolVar(&addVirtualNodeTolerationOnOffloadedPods, "add-virtual-node-toleration-on-offloaded-pods", false,
+	addVirtualNodeTolerationOnOffloadedPods := flag.Bool("add-virtual-node-toleration-on-offloaded-pods", false,
 		"Automatically add the virtual node toleration on offloaded pods")
 
 	liqoerrors.InitFlags(nil)
@@ -181,23 +152,10 @@ func main() {
 	}
 
 	// Options for the virtual kubelet.
-	virtualKubeletOpts := &forge.VirtualKubeletOpts{
-		ContainerImage:       *kubeletImage,
-		ExtraAnnotations:     kubeletExtraAnnotations.StringMap,
-		ExtraLabels:          kubeletExtraLabels.StringMap,
-		ExtraArgs:            kubeletExtraArgs.StringList,
-		NodeExtraAnnotations: nodeExtraAnnotations,
-		NodeExtraLabels:      nodeExtraLabels,
-		RequestsCPU:          kubeletCPURequests.Quantity,
-		RequestsRAM:          kubeletRAMRequests.Quantity,
-		LimitsCPU:            kubeletCPULimits.Quantity,
-		LimitsRAM:            kubeletRAMLimits.Quantity,
-		MetricsAddress:       kubeletMetricsAddress,
-		MetricsEnabled:       kubeletMetricsEnabled,
-		ReflectorsWorkers:    reflectorsWorkers,
-		ReflectorsType:       reflectorsType,
-		LocalPodCIDR:         *podcidr,
-		LiqoNamespace:        *liqoNamespace,
+	vkOptsDefaultTemplateRef, err := argsutils.GetObjectRefFromNamespacedName(*vkOptsDefaultTemplate)
+	if err != nil {
+		klog.Errorf("Invalid namespaced name for virtual-kubelet options template %s: %v", *vkOptsDefaultTemplate, err)
+		os.Exit(1)
 	}
 
 	// Register the webhooks.
@@ -206,8 +164,9 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/mutate/shadowpods", shadowpodswh.NewMutator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
-	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), addVirtualNodeTolerationOnOffloadedPods))
-	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), clusterID, virtualKubeletOpts))
+	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), *addVirtualNodeTolerationOnOffloadedPods))
+	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(
+		mgr.GetClient(), clusterID, *podcidr, *liqoNamespace, vkOptsDefaultTemplateRef))
 	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator())
 	mgr.GetWebhookServer().Register("/validate/networks", nwwh.NewValidator())
 	mgr.GetWebhookServer().Register("/validate/ips", ipwh.NewValidator())
