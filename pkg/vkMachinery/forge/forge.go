@@ -74,10 +74,6 @@ func forgeVKContainers(
 		stringifyArgument(string(LocalPodCIDR), opts.LocalPodCIDR),
 	}
 
-	if opts.IpamEndpoint != "" {
-		args = append(args, stringifyArgument(string(IpamEndpoint), opts.IpamEndpoint))
-	}
-
 	if len(storageClasses) > 0 {
 		args = append(args, string(EnableStorage),
 			stringifyArgument(string(RemoteRealStorageClassName),
