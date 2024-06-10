@@ -88,6 +88,7 @@ jobs:
         - crd-replicator
         - ipam
         - liqo-controller-manager
+        - webhook
         - uninstaller
         - virtual-kubelet
         - metric-agent

@@ -35,6 +35,8 @@ import (
 
 // cluster-role
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
 type vnwh struct {
 	clusterID             discoveryv1alpha1.ClusterID
