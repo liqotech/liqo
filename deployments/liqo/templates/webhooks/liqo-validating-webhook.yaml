@@ -1,4 +1,3 @@
-{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 
 apiVersion: admissionregistration.k8s.io/v1
@@ -14,7 +13,7 @@ webhooks:
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/foreign-cluster"
         port: {{ .Values.webhook.port }}
@@ -31,7 +30,7 @@ webhooks:
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/namespace-offloading"
         port: {{ .Values.webhook.port }}
@@ -48,7 +47,7 @@ webhooks:
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/shadowpods"
         port: {{ .Values.webhook.port }}
@@ -65,7 +64,7 @@ webhooks:
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/networks"
         port: {{ .Values.webhook.port }}
@@ -82,7 +81,7 @@ webhooks:
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/ips"
         port: {{ .Values.webhook.port }}
@@ -99,7 +98,7 @@ webhooks:
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/firewallconfigurations"
         port: {{ .Values.webhook.port }}
@@ -116,7 +115,7 @@ webhooks:
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/routeconfigurations"
         port: {{ .Values.webhook.port }}
@@ -133,7 +132,7 @@ webhooks:
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/resourceslices"
         port: {{ .Values.webhook.port }}

@@ -271,23 +271,23 @@ func NewMutator(c client.Client) *webhook.Admission {
 // Handle is the function in charge of handling the webhook mutating request about the creation, update and deletion of shadowpods.
 //
 //nolint:gocritic // the signature of this method is imposed by controller runtime.
-func (spm *Mutator) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (spm *Mutator) Handle(_ context.Context, req admission.Request) admission.Response {
 	klog.V(4).Infof("Operation: %s", req.Operation)
 
 	switch req.Operation {
 	case admissionv1.Create:
-		return spm.HandleCreate(ctx, &req)
+		return spm.HandleCreate(&req)
 	case admissionv1.Delete:
-		return spm.HandleDelete(ctx, &req)
+		return spm.HandleDelete()
 	case admissionv1.Update:
-		return spm.HandleUpdate(ctx, &req)
+		return spm.HandleUpdate(&req)
 	default:
 		return admission.Errored(http.StatusBadRequest, fmt.Errorf("unsupported operation %s", req.Operation))
 	}
 }
 
 // HandleCreate is the function in charge of handling Creation requests.
-func (spm *Mutator) HandleCreate(ctx context.Context, req *admission.Request) admission.Response {
+func (spm *Mutator) HandleCreate(req *admission.Request) admission.Response {
 	sp, err := decodeShadowPod(spm.decoder, req.Object)
 	if err != nil {
 		klog.Errorf("Failed decoding shadow pod: %v", err)
@@ -316,7 +316,7 @@ func (spm *Mutator) HandleCreate(ctx context.Context, req *admission.Request) ad
 }
 
 // HandleUpdate is the function in charge of handling Update requests.
-func (spm *Mutator) HandleUpdate(ctx context.Context, req *admission.Request) admission.Response {
+func (spm *Mutator) HandleUpdate(req *admission.Request) admission.Response {
 	oldSp, err := decodeShadowPod(spm.decoder, req.OldObject)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
@@ -359,11 +359,11 @@ func (spm *Mutator) HandleUpdate(ctx context.Context, req *admission.Request) ad
 }
 
 // HandleDelete is the function in charge of handling Deletion requests.
-func (spm *Mutator) HandleDelete(ctx context.Context, req *admission.Request) admission.Response {
+func (spm *Mutator) HandleDelete() admission.Response {
 	return admission.Allowed("")
 }
 
-func extractCreatorInfo(sp *vkv1alpha1.ShadowPod, userInfo *authenticationv1.UserInfo) (resourceSliceName string, clusterID string, err error) {
+func extractCreatorInfo(sp *vkv1alpha1.ShadowPod, userInfo *authenticationv1.UserInfo) (resourceSliceName, clusterID string, err error) {
 	// Check existence and get shadow pod origin Cluster ID label
 	clusterIDLabel, found := sp.Labels[forge.LiqoOriginClusterIDKey]
 	if !found {
