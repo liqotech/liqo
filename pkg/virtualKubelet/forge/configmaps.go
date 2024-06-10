@@ -49,8 +49,18 @@ func LocalConfigMapName(remote string) string {
 // RemoteConfigMapName forges the name for the reflected configmap, remapping the one of the root CA to prevent collisions.
 func RemoteConfigMapName(local string) string {
 	if local == RootCAConfigMapName {
-		return RootCAConfigMapName + "." + string(LocalCluster)[0:5]
+		name := RootCAConfigMapName + "." + string(LocalCluster)[0:5]
+		// if the last character is not alphanumeric, we add a random alphanumeric character to avoid issues with k8s
+		if !isAlphanumeric(name[len(name)-1]) {
+			name += "a"
+		}
+
+		return name
 	}
 
 	return local
+}
+
+func isAlphanumeric(char byte) bool {
+	return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9')
 }
