@@ -322,6 +322,45 @@ controllerManager:
       labels: {}
 
 webhook:
+  # -- The number of webhook instances to run, which can be increased for active/passive high availability.
+  replicas: 1
+  pod:
+    # -- Annotations for the webhook pod.
+    annotations: {}
+    # -- Labels for the webhook pod.
+    labels: {}
+    # -- Extra arguments for the webhook pod.
+    extraArgs: []
+    # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the webhook pod.
+    resources:
+      limits: {}
+      requests: {}
+    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the webhook pod.
+    priorityClassName: ""
+  image:
+    # -- Image repository for the webhook pod.
+    name: "ghcr.io/liqotech/webhook"
+    # -- Custom version for the webhook image. If not specified, the global tag is used.
+    version: ""
+  metrics:
+    # -- Service used to expose metrics.
+    service:
+      # -- Labels for the metrics service.
+      labels: {}
+      # -- Annotations for the metrics service.
+      annotations: {}
+    serviceMonitor:
+      # -- Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator
+      # runs in your cluster
+      enabled: false
+      # -- Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval
+      # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
+      interval: ""
+      # -- Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout
+      # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
+      scrapeTimeout: ""
+      # -- Labels for the gateway servicemonitor.
+      labels: {}
   # -- TCP port the webhook server binds to.
   port: 9443
   # -- Webhook failure policy, either Ignore or Fail.
