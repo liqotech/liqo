@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -179,7 +180,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(ctx context.C
 		identityTypeTagKey:    string(options.IdentityType),
 	}
 	if options.IdentityType == authv1alpha1.ResourceSliceIdentityType {
-		tags[resourceSliceTagKey] = options.ResourceSlice.Name
+		tags[consts.ResourceSliceNameLabelKey] = options.ResourceSlice.Name
 	}
 
 	userArn, err := identityProvider.ensureIamUser(ctx, iamSvc, iamUsername, tags)
