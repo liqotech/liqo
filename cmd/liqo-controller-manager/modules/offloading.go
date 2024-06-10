@@ -40,7 +40,6 @@ import (
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnode-controller"
-	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/csr"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -58,11 +57,9 @@ type OffloadingOption struct {
 	RealStorageClassName        string
 	StorageNamespace            string
 	EnableNodeFailureController bool
-	SPV                         *shadowpodswh.Validator
 	ShadowPodWorkers            int
 	ShadowEndpointSliceWorkers  int
 	ResyncPeriod                time.Duration
-	RefreshInterval             time.Duration
 }
 
 // SetupOffloadingModule setup the offloading module and initializes its controllers.
@@ -146,10 +143,6 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 			return strings.HasPrefix(csr.Spec.Username, fmt.Sprintf("system:serviceaccount:%v-", tenantnamespace.NamePrefix))
 		}))
 	csrWatcher.Start(ctx)
-	if err := mgr.Add(manager.RunnableFunc(opts.SPV.CacheRefresher(opts.RefreshInterval))); err != nil {
-		klog.Errorf("Unable to add the resource validator cache refresher to the manager: %v", err)
-		return err
-	}
 
 	podStatusReconciler := &podstatusctrl.PodStatusReconciler{
 		Client: mgr.GetClient(),
