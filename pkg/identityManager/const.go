@@ -29,7 +29,6 @@ const (
 	managedByTagKey       = "liqo.io/managed-by"
 	managedByTagValue     = "liqo"
 	identityTypeTagKey    = consts.IdentityTypeLabelKey
-	resourceSliceTagKey   = "liqo.io/resource-slice"
 )
 
 const (
