@@ -233,6 +233,7 @@ func main() {
 	gatewayProxy := flag.Bool("gateway-proxy", gatewayserver.DefaultProxy, "Enable the proxy on the gateway")
 	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
 	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
+	gwmasqbypassEnabled := flag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -557,6 +558,7 @@ func main() {
 			NetworkWorkers:                 *networkWorkers,
 			IPWorkers:                      *ipWorkers,
 			FabricFullMasquerade:           *fabricFullMasqueradeEnabled,
+			GwmasqbypassEnabled:            *gwmasqbypassEnabled,
 		}); err != nil {
 			klog.Fatalf("Unable to setup the networking module: %v", err)
 		}

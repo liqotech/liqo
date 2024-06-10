@@ -319,6 +319,11 @@ fabric:
     # IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster, 
     # making impossible for a pod that receives the traffic to know the original source IP. 
     fullMasquerade: false
+    # -- Enable/Disable the masquerade bypass for the gateway pods.
+    # It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled.
+    # This is useful in scenarios where CNIs masquerade the traffic from pod to nodes.
+    # For example this is required when using the Azure CNI or Kindnet.
+    gatewayMasqueradeBypass: false
 
 crdReplicator:
   pod:
