@@ -196,5 +196,20 @@
 | virtualKubelet.virtualNode.extra.annotations | object | `{}` | Extra annotations for the virtual node. |
 | virtualKubelet.virtualNode.extra.labels | object | `{}` | Extra labels for the virtual node. |
 | webhook.failurePolicy | string | `"Fail"` | Webhook failure policy, either Ignore or Fail. |
+| webhook.image.name | string | `"ghcr.io/liqotech/webhook"` | Image repository for the webhook pod. |
+| webhook.image.version | string | `""` | Custom version for the webhook image. If not specified, the global tag is used. |
+| webhook.metrics.service | object | `{"annotations":{},"labels":{}}` | Service used to expose metrics. |
+| webhook.metrics.service.annotations | object | `{}` | Annotations for the metrics service. |
+| webhook.metrics.service.labels | object | `{}` | Labels for the metrics service. |
+| webhook.metrics.serviceMonitor.enabled | bool | `false` | Enable/Disable a Prometheus servicemonitor. Turn on this flag when the Prometheus Operator runs in your cluster |
+| webhook.metrics.serviceMonitor.interval | string | `""` | Customize service monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
+| webhook.metrics.serviceMonitor.labels | object | `{}` | Labels for the gateway servicemonitor. |
+| webhook.metrics.serviceMonitor.scrapeTimeout | string | `""` | Customize service monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | webhook.patch.image | string | `"k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1"` | Image used for the patch jobs to manage certificates. |
+| webhook.pod.annotations | object | `{}` | Annotations for the webhook pod. |
+| webhook.pod.extraArgs | list | `[]` | Extra arguments for the webhook pod. |
+| webhook.pod.labels | object | `{}` | Labels for the webhook pod. |
+| webhook.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the webhook pod. |
+| webhook.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the webhook pod. |
 | webhook.port | int | `9443` | TCP port the webhook server binds to. |
+| webhook.replicas | int | `1` | The number of webhook instances to run, which can be increased for active/passive high availability. |

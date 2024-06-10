@@ -55,16 +55,6 @@ import (
 	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreigncluster-controller"
 	nwforge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	offloadingipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/ipmapping"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/firewallconfiguration"
-	fcwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/foreigncluster"
-	ipwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/ip"
-	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
-	nwwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/network"
-	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
-	resourceslicewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/resourceslice"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/routeconfiguration"
-	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
-	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
@@ -204,10 +194,6 @@ func main() {
 	shadowEndpointSliceWorkers := flag.Int("shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
 	// Resource enforcement parameters
-	enableResourceValidation := flag.Bool("enable-resource-enforcement", false,
-		"Enforce offerer-side that offloaded pods do not exceed offered resources (based on container limits)")
-	refreshInterval := flag.Duration("resource-validator-refresh-interval",
-		5*time.Minute, "The interval at which the resource validator cache is refreshed")
 	flag.BoolVar(&addVirtualNodeTolerationOnOffloadedPods, "add-virtual-node-toleration-on-offloaded-pods", false,
 		"Automatically add the virtual node toleration on offloaded pods")
 
@@ -287,8 +273,6 @@ func main() {
 	}
 
 	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
-
-	spv := shadowpodswh.NewValidator(mgr.GetClient(), *enableResourceValidation)
 
 	// Options for the virtual kubelet.
 	virtualKubeletOpts := &forge.VirtualKubeletOpts{
@@ -400,11 +384,9 @@ func main() {
 			RealStorageClassName:        *realStorageClassName,
 			StorageNamespace:            *storageNamespace,
 			EnableNodeFailureController: *enableNodeFailureController,
-			SPV:                         spv,
 			ShadowPodWorkers:            *shadowPodWorkers,
 			ShadowEndpointSliceWorkers:  *shadowEndpointSliceWorkers,
 			ResyncPeriod:                *resyncPeriod,
-			RefreshInterval:             *refreshInterval,
 		}
 
 		if err := modules.SetupOffloadingModule(ctx, mgr, opts); err != nil {
@@ -449,11 +431,25 @@ func main() {
 			os.Exit(1)
 		}
 
-		// enforce IP remapping for the API Server
-		if err := ipamips.EnforceAPIServerIPRemapping(ctx, uncachedClient, *liqoNamespace); err != nil {
-			klog.Errorf("Unable to enforce the API Server IP remapping: %v", err)
-			os.Exit(1)
-		}
+		go func() {
+			maxRetries := 5
+			for {
+				// enforce IP remapping for the API Server
+				err := ipamips.EnforceAPIServerIPRemapping(ctx, uncachedClient, *liqoNamespace)
+				if err == nil {
+					break
+				}
+
+				klog.Errorf("Unable to enforce the API Server IP remapping: %v, retrying...", err)
+
+				time.Sleep(10 * time.Second)
+
+				maxRetries--
+				if maxRetries == 0 {
+					os.Exit(1)
+				}
+			}
+		}()
 	}
 
 	// Configure the foreigncluster controller.
@@ -473,21 +469,6 @@ func main() {
 		klog.Errorf("Unable to setup the foreigncluster reconciler: %v", err)
 		os.Exit(1)
 	}
-
-	// Register the webhooks.
-	mgr.GetWebhookServer().Register("/validate/foreign-cluster", fcwh.NewValidator())
-	mgr.GetWebhookServer().Register("/mutate/foreign-cluster", fcwh.NewMutator())
-	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
-	mgr.GetWebhookServer().Register("/mutate/shadowpods", shadowpodswh.NewMutator(mgr.GetClient()))
-	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
-	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), addVirtualNodeTolerationOnOffloadedPods))
-	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), clusterID, virtualKubeletOpts))
-	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator())
-	mgr.GetWebhookServer().Register("/validate/networks", nwwh.NewValidator())
-	mgr.GetWebhookServer().Register("/validate/ips", ipwh.NewValidator())
-	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", firewallconfiguration.NewValidator(mgr.GetClient()))
-	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", firewallconfiguration.NewMutator())
-	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routeconfiguration.NewValidator(mgr.GetClient()))
 
 	// Start the manager.
 	klog.Info("starting manager as controller manager")
