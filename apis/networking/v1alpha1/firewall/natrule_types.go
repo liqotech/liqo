@@ -14,6 +14,8 @@
 
 package firewall
 
+import corev1 "k8s.io/api/core/v1"
+
 // NatType is the type of the NAT rule.
 type NatType string
 
@@ -39,4 +41,7 @@ type NatRule struct {
 	NatType NatType `json:"natType"`
 	// To is the IP to be used for the NAT translation.
 	To *string `json:"to,omitempty"`
+	// TargetRef is the reference to the target object of the rule.
+	// It is optional and it can be used for custom purposes.
+	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
 }

@@ -139,7 +139,11 @@ func run(cmd *cobra.Command, _ []string) error {
 		mgr.GetScheme(),
 		options.PodName,
 		mgr.GetEventRecorderFor("firewall-controller"),
-		[]labels.Set{fabric.ForgeFirewallTargetLabels(), remapping.ForgeFirewallTargetLabelsIPMappingFabric()},
+		[]labels.Set{
+			fabric.ForgeFirewallTargetLabels(),
+			remapping.ForgeFirewallTargetLabelsIPMappingFabric(),
+			fabric.ForgeFirewallTargetLabelsSingleNode(options.NodeName),
+		},
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create firewall configuration reconciler: %w", err)
