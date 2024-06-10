@@ -34,6 +34,7 @@ import (
 	wggatewaycontrollers "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/wireguard"
 	internalclientcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/client-controller"
 	internalconfigurationcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/configuration-controller"
+	gwmasqbypass "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/gw-masq-bypass"
 	internalfabriccontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/internalfabric-controller"
 	nodecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/node-controller"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/route"
@@ -64,6 +65,7 @@ type NetworkingOption struct {
 	NetworkWorkers                 int
 	IPWorkers                      int
 	FabricFullMasquerade           bool
+	GwmasqbypassEnabled            bool
 }
 
 // SetupNetworkingModule setup the networking module and initializes its controllers .
@@ -199,6 +201,21 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 	if err := remappingReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the remappingReconciler: %v", err)
 		return err
+	}
+
+	if opts.GwmasqbypassEnabled {
+		gwmasqbypassReconciler := gwmasqbypass.NewPodReconciler(
+			mgr.GetClient(),
+			mgr.GetScheme(),
+			mgr.GetEventRecorderFor("gw-masq-bypass-controller"),
+			&gwmasqbypass.Options{
+				Namespace: opts.LiqoNamespace,
+			},
+		)
+		if err := gwmasqbypassReconciler.SetupWithManager(mgr); err != nil {
+			klog.Errorf("Unable to start the gw-masq-bypass reconciler: %v", err)
+			return err
+		}
 	}
 
 	return nil
