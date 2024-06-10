@@ -28,6 +28,23 @@ webhooks:
     namespaceSelector:
       matchLabels:
         liqo.io/scheduling-enabled: "true"
+  - name: shadowpod.mutate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/mutate/shadowpods"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["CREATE", "UPDATE", "DELETE"]
+        apiGroups: ["virtualkubelet.liqo.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["shadowpods"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
   - name: fc.mutate.liqo.io
     admissionReviewVersions:
       - v1
