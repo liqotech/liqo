@@ -16,15 +16,18 @@ package shadowpod
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	admissionv1 "k8s.io/api/admission/v1"
+	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -81,7 +84,7 @@ func (spv *Validator) Handle(ctx context.Context, req admission.Request) admissi
 
 // HandleCreate is the function in charge of handling Creation requests.
 func (spv *Validator) HandleCreate(ctx context.Context, req *admission.Request) admission.Response {
-	shadowpod, err := spv.DecodeShadowPod(req.Object)
+	shadowpod, err := decodeShadowPod(spv.decoder, req.Object)
 	if err != nil {
 		klog.Errorf("Failed decoding shadow pod: %v", err)
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
@@ -139,12 +142,12 @@ func (spv *Validator) HandleCreate(ctx context.Context, req *admission.Request) 
 
 // HandleUpdate is the function in charge of handling Update requests.
 func (spv *Validator) HandleUpdate(ctx context.Context, req *admission.Request) admission.Response {
-	shadowpod, err := spv.DecodeShadowPod(req.Object)
+	shadowpod, err := decodeShadowPod(spv.decoder, req.Object)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
 	}
 
-	oldShadowpod, err := spv.DecodeShadowPod(req.OldObject)
+	oldShadowpod, err := decodeShadowPod(spv.decoder, req.OldObject)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
 	}
@@ -177,7 +180,7 @@ func (spv *Validator) HandleUpdate(ctx context.Context, req *admission.Request) 
 
 // HandleDelete is the function in charge of handling Deletion requests.
 func (spv *Validator) HandleDelete(ctx context.Context, req *admission.Request) admission.Response {
-	shadowpod, err := spv.DecodeShadowPod(req.OldObject)
+	shadowpod, err := decodeShadowPod(spv.decoder, req.OldObject)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
 	}
@@ -233,10 +236,10 @@ func (spv *Validator) validateShadowPodClusterID(ctx context.Context, ns, spClus
 	return http.StatusOK, nil
 }
 
-// DecodeShadowPod decodes a shadow pod from a given runtime object.
-func (spv *Validator) DecodeShadowPod(obj runtime.RawExtension) (shadowpod *vkv1alpha1.ShadowPod, err error) {
+// decodeShadowPod decodes a shadow pod from a given runtime object.
+func decodeShadowPod(decoder *admission.Decoder, obj runtime.RawExtension) (shadowpod *vkv1alpha1.ShadowPod, err error) {
 	shadowpod = &vkv1alpha1.ShadowPod{}
-	err = spv.decoder.DecodeRaw(obj, shadowpod)
+	err = decoder.DecodeRaw(obj, shadowpod)
 	return
 }
 
@@ -246,5 +249,142 @@ func (spv *Validator) getShadowPodListByClusterID(ctx context.Context,
 	err = spv.client.List(ctx, shadowPodList, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{forge.LiqoOriginClusterIDKey: string(clusterID)}),
 	})
+	return
+}
+
+var _ webhook.AdmissionHandler = &Mutator{}
+
+// Mutator is the handler used by the Mutating Webhook to mutate shadow pods.
+type Mutator struct {
+	client  client.Client
+	decoder *admission.Decoder
+}
+
+// NewMutator creates a new shadow pod mutator.
+func NewMutator(c client.Client) *webhook.Admission {
+	return &webhook.Admission{Handler: &Mutator{
+		client:  c,
+		decoder: admission.NewDecoder(runtime.NewScheme()),
+	}}
+}
+
+// Handle is the function in charge of handling the webhook mutating request about the creation, update and deletion of shadowpods.
+//
+//nolint:gocritic // the signature of this method is imposed by controller runtime.
+func (spm *Mutator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	klog.V(4).Infof("Operation: %s", req.Operation)
+
+	switch req.Operation {
+	case admissionv1.Create:
+		return spm.HandleCreate(ctx, &req)
+	case admissionv1.Delete:
+		return spm.HandleDelete(ctx, &req)
+	case admissionv1.Update:
+		return spm.HandleUpdate(ctx, &req)
+	default:
+		return admission.Errored(http.StatusBadRequest, fmt.Errorf("unsupported operation %s", req.Operation))
+	}
+}
+
+// HandleCreate is the function in charge of handling Creation requests.
+func (spm *Mutator) HandleCreate(ctx context.Context, req *admission.Request) admission.Response {
+	sp, err := decodeShadowPod(spm.decoder, req.Object)
+	if err != nil {
+		klog.Errorf("Failed decoding shadow pod: %v", err)
+		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
+	}
+
+	resourceSliceName, clusterID, err := extractCreatorInfo(sp, &req.UserInfo)
+	if err != nil {
+		klog.Warningf("Failed extracting creator info: %v", err)
+		return admission.Denied(err.Error())
+	}
+
+	if sp.Labels == nil {
+		sp.Labels = map[string]string{}
+	}
+	sp.Labels[consts.RemoteClusterID] = clusterID
+	sp.Labels[consts.ResourceSliceNameLabelKey] = resourceSliceName
+
+	marshaledShadowPod, err := json.Marshal(sp)
+	if err != nil {
+		klog.Errorf("Failed marshaling ShadowPod object: %v", err)
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledShadowPod)
+}
+
+// HandleUpdate is the function in charge of handling Update requests.
+func (spm *Mutator) HandleUpdate(ctx context.Context, req *admission.Request) admission.Response {
+	oldSp, err := decodeShadowPod(spm.decoder, req.OldObject)
+	if err != nil {
+		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
+	}
+
+	sp, err := decodeShadowPod(spm.decoder, req.Object)
+	if err != nil {
+		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
+	}
+
+	oldResourceSliceName, oldClusterID, err := extractCreatorInfo(oldSp, &req.UserInfo)
+	if err != nil {
+		klog.Warningf("Failed extracting creator info: %v", err)
+		return admission.Denied(err.Error())
+	}
+
+	resourceSliceName, clusterID, err := extractCreatorInfo(sp, &req.UserInfo)
+	if err != nil {
+		klog.Warningf("Failed extracting creator info: %v", err)
+		return admission.Denied(err.Error())
+	}
+
+	if oldResourceSliceName != resourceSliceName || oldClusterID != clusterID {
+		return admission.Denied("resource slice name or cluster ID cannot be modified")
+	}
+
+	if sp.Labels == nil {
+		sp.Labels = map[string]string{}
+	}
+	sp.Labels[consts.RemoteClusterID] = clusterID
+	sp.Labels[consts.ResourceSliceNameLabelKey] = resourceSliceName
+
+	marshaledShadowPod, err := json.Marshal(sp)
+	if err != nil {
+		klog.Errorf("Failed marshaling ShadowPod object: %v", err)
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledShadowPod)
+}
+
+// HandleDelete is the function in charge of handling Deletion requests.
+func (spm *Mutator) HandleDelete(ctx context.Context, req *admission.Request) admission.Response {
+	return admission.Allowed("")
+}
+
+func extractCreatorInfo(sp *vkv1alpha1.ShadowPod, userInfo *authenticationv1.UserInfo) (resourceSliceName string, clusterID string, err error) {
+	// Check existence and get shadow pod origin Cluster ID label
+	clusterIDLabel, found := sp.Labels[forge.LiqoOriginClusterIDKey]
+	if !found {
+		return "", "", fmt.Errorf("missing origin Cluster ID label")
+	}
+
+	resourceSliceName = userInfo.Username
+	if resourceSliceName == "" {
+		return "", "", fmt.Errorf("missing resource slice name")
+	}
+
+	if len(userInfo.Groups) == 0 {
+		return "", "", fmt.Errorf("missing groups")
+	}
+	clusterID = userInfo.Groups[0]
+	if clusterID == "" {
+		return "", "", fmt.Errorf("missing cluster ID")
+	}
+
+	if clusterID != clusterIDLabel {
+		return "", "", fmt.Errorf("shadowpod Cluster ID label is different from the cluster ID")
+	}
 	return
 }

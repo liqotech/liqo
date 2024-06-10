@@ -478,6 +478,7 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/foreign-cluster", fcwh.NewValidator())
 	mgr.GetWebhookServer().Register("/mutate/foreign-cluster", fcwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
+	mgr.GetWebhookServer().Register("/mutate/shadowpods", shadowpodswh.NewMutator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/validate/namespace-offloading", nsoffwh.New())
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), addVirtualNodeTolerationOnOffloadedPods))
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(mgr.GetClient(), clusterID, virtualKubeletOpts))
