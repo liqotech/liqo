@@ -39,7 +39,7 @@ func GenerateCSRForResourceSlice(key ed25519.PrivateKey,
 
 // CommonNameResourceSliceCSR returns the common name for a resource slice CSR.
 func CommonNameResourceSliceCSR(resourceSlice *authv1alpha1.ResourceSlice) string {
-	return fmt.Sprintf("%s-%s", *resourceSlice.Spec.ConsumerClusterID, resourceSlice.Name)
+	return resourceSlice.Name
 }
 
 // OrganizationResourceSliceCSR returns the organization for a resource slice CSR.
