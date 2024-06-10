@@ -20,20 +20,40 @@ import (
 )
 
 const (
-	// FirewallCategoryTargetValue is the value used by the firewallconfiguration controller to reconcile only resources related to netwok fabric.
+	// FirewallCategoryTargetValue is the value used by the firewallconfiguration controller
+	// to reconcile only resources related to netwok fabric.
 	FirewallCategoryTargetValue = "fabric"
+	// FirewallSubCategoryTargetAllNodesValue is the value used by the firewallconfiguration controller
+	// to reconcile only resources related to netwok fabric on all nodes.
+	FirewallSubCategoryTargetAllNodesValue = "all-nodes"
+	// FirewallSubCategoryTargetSingleNodeValue is the value used by the firewallconfiguration controller
+	// to reconcile only resources related to netwok fabric on a specific node.
+	FirewallSubCategoryTargetSingleNodeValue = "single-node"
 	// RouteCategoryTargetValue is the value used by the routecontroller to reconcile only resources related to network fabric.
 	RouteCategoryTargetValue = "fabric"
 )
 
-// ForgeFirewallTargetLabels returns the labels used by the firewallconfiguration controller to reconcile only resources related to network fabric.
+// ForgeFirewallTargetLabels returns the labels used by the firewallconfiguration controller
+// to reconcile only resources related to network fabric.
 func ForgeFirewallTargetLabels() map[string]string {
 	return map[string]string{
-		firewall.FirewallCategoryTargetKey: FirewallCategoryTargetValue,
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValue,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetAllNodesValue,
 	}
 }
 
-// ForgeRouteTargetLabels returns the labels used by the routecontroller to reconcile only resources related to network fabric.
+// ForgeFirewallTargetLabelsSingleNode returns the labels used by the firewallconfiguration controller
+// to reconcile only resources related to network fabric on a specific node.
+func ForgeFirewallTargetLabelsSingleNode(nodeName string) map[string]string {
+	return map[string]string{
+		firewall.FirewallCategoryTargetKey:    FirewallCategoryTargetValue,
+		firewall.FirewallSubCategoryTargetKey: FirewallSubCategoryTargetSingleNodeValue,
+		firewall.FirewallUniqueTargetKey:      nodeName,
+	}
+}
+
+// ForgeRouteTargetLabels returns the labels used by the routecontroller
+// to reconcile only resources related to network fabric.
 func ForgeRouteTargetLabels() map[string]string {
 	return map[string]string{
 		route.RouteCategoryTargetKey: RouteCategoryTargetValue,
