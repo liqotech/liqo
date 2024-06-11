@@ -25,10 +25,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 var _ = Describe("Webhook Cache", func() {
 	var (
+		err            error
 		spValidator    *Validator
 		fakeShadowPod3 *vkv1alpha1.ShadowPod
 		fakeShadowPod4 *vkv1alpha1.ShadowPod
@@ -42,9 +44,11 @@ var _ = Describe("Webhook Cache", func() {
 
 	BeforeEach(func() {
 
-		Skip("Skipping test")
-
-		fakeClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(fakeShadowPod, fakeShadowPod2, foreignCluster).Build()
+		fakeClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+			fakeShadowPod, fakeShadowPod2,
+			foreignCluster,
+			quota, quota2,
+		).Build()
 
 		spValidator = webhook.Admission{Handler: NewValidator(fakeClient, true)}.Handler.(*Validator)
 
@@ -54,27 +58,27 @@ var _ = Describe("Webhook Cache", func() {
 
 	})
 
-	// Describe("Initialize Cache", func() {
-	// 	JustBeforeEach(func() {
-	// 		err = spValidator.initializeCache(ctx)
-	// 	})
+	Describe("Initialize Cache", func() {
+		JustBeforeEach(func() {
+			err = spValidator.initializeCache(ctx)
+		})
 
-	// 	When("Align existing ResourceOffers and ShadowPod", func() {
-	// 		It("should align correctly the cache info", func() {
-	// 			Expect(err).ToNot(HaveOccurred())
-	// 			pi, found := fakeCache.peeringInfo.Load(clusterID)
-	// 			Expect(found).To(BeTrue())
-	// 			sp1 := pi.(*peeringInfo).shadowPods[nsName.String()]
-	// 			sp2 := pi.(*peeringInfo).shadowPods[nsName2.String()]
-	// 			Expect(sp1).ToNot(BeNil())
-	// 			Expect(sp2).ToNot(BeNil())
-	// 			peering = pi.(*peeringInfo)
-	// 			Expect(peering.usedQuota.Cpu().Value()).To(Equal(resourceQuota2.Cpu().Value()))
-	// 			Expect(peering.usedQuota.Memory().Value()).To(Equal(resourceQuota2.Memory().Value()))
-	// 			Expect(fakeCache.ready).To(BeTrue())
-	// 		})
-	// 	})
-	// })
+		When("Align existing Quotas and ShadowPods", func() {
+			It("should align correctly the cache info", func() {
+				Expect(err).ToNot(HaveOccurred())
+				pi, found := fakeCache.peeringInfo.Load(userName)
+				Expect(found).To(BeTrue())
+				sp1 := pi.(*peeringInfo).shadowPods[nsName.String()]
+				sp2 := pi.(*peeringInfo).shadowPods[nsName2.String()]
+				Expect(sp1).ToNot(BeNil())
+				Expect(sp2).ToNot(BeNil())
+				peering = pi.(*peeringInfo)
+				Expect(peering.usedQuota.Cpu().Value()).To(Equal(resourceQuota2.Cpu().Value()))
+				Expect(peering.usedQuota.Memory().Value()).To(Equal(resourceQuota2.Memory().Value()))
+				Expect(fakeCache.ready).To(BeTrue())
+			})
+		})
+	})
 
 	Describe("Align existing ShadowPod", func() {
 		JustBeforeEach(func() {
@@ -85,7 +89,7 @@ var _ = Describe("Webhook Cache", func() {
 			BeforeEach(func() {
 				spList = forgeShadowPodList(fakeShadowPod, fakeShadowPod2)
 				sp1 := createShadowPodDescription(testShadowPodName, testNamespace, testShadowPodUID, *resourceQuota4)
-				peering = createPeeringInfo(clusterID, *resourceQuota)
+				peering = createPeeringInfo(userName, *resourceQuota)
 				peering.addShadowPod(sp1)
 			})
 			It("should align correctly the peering info", func() {
@@ -110,7 +114,7 @@ var _ = Describe("Webhook Cache", func() {
 				sp4 := createShadowPodDescription(testShadowPodName+"-4", testNamespace, testShadowPodUID+"-4", *resourceQuota4)
 				sp4.creationTimestamp = time.Now().Add(time.Duration(-40) * time.Second)
 				sp5 := createShadowPodDescription(testShadowPodName+"-5", testNamespace, testShadowPodUID+"-5", *resourceQuota4)
-				peering = createPeeringInfo(clusterID, *resourceQuota)
+				peering = createPeeringInfo(userName, *resourceQuota)
 				peering.addShadowPod(sp1)
 				peering.addShadowPod(sp3)
 				peering.addShadowPod(sp4)
@@ -132,17 +136,17 @@ var _ = Describe("Webhook Cache", func() {
 		})
 	})
 
-	Describe("Check alignment ResourceOffer - PeeringInfo", func() {
+	Describe("Check alignment Quota - PeeringInfo", func() {
 		JustBeforeEach(func() {
-			_ = spValidator.checkAlignmentResourceOfferPeeringInfo(ctx)
+			_ = spValidator.checkAlignmentQuotaPeeringInfo(ctx)
 		})
 
-		When("Some ResourceOffer are not yet aligned in cache or any PeeringInfo have not anymore corresponding ResourceOffer in the system", func() {
+		When("Some Quota are not yet aligned in cache or any PeeringInfo have not anymore corresponding Quota in the system", func() {
 			BeforeEach(func() {
 				errClient = spvClient.Create(ctx, foreignCluster2)
 				Expect(errClient).ToNot(HaveOccurred())
-				fakeShadowPod3 = forgeShadowPod(nsName3.Name, nsName3.Namespace, string(testShadowPodUID3), clusterID2)
-				fakeShadowPod4 = forgeShadowPod(nsName4.Name, nsName4.Namespace, string(testShadowPodUID4), clusterID2)
+				fakeShadowPod3 = forgeShadowPod(nsName3.Name, nsName3.Namespace, string(testShadowPodUID3), userName2)
+				fakeShadowPod4 = forgeShadowPod(nsName4.Name, nsName4.Namespace, string(testShadowPodUID4), userName2)
 				errClient = spvClient.Create(ctx, fakeShadowPod3)
 				Expect(errClient).ToNot(HaveOccurred())
 				errClient = spvClient.Create(ctx, fakeShadowPod4)
@@ -151,35 +155,38 @@ var _ = Describe("Webhook Cache", func() {
 				sp2 := createShadowPodDescription(testShadowPodName2, testNamespace, testShadowPodUID2, *resourceQuota4)
 				sp5 := createShadowPodDescription(testShadowPodName+"-5", testNamespace+"-3", testShadowPodUID+"-5", *resourceQuota4)
 				sp6 := createShadowPodDescription(testShadowPodName+"-6", testNamespace+"-3", testShadowPodUID+"-6", *resourceQuota4)
-				peering = createPeeringInfo(clusterID, *resourceQuota)
-				peeringToBeDeleted := createPeeringInfo(clusterID3, *resourceQuota)
+				peering = createPeeringInfo(userName, *resourceQuota)
+				peeringToBeDeleted := createPeeringInfo(userName3, *resourceQuota)
 				peering.addShadowPod(sp1)
 				peering.addShadowPod(sp2)
 				peeringToBeDeleted.addShadowPod(sp5)
 				peeringToBeDeleted.addShadowPod(sp6)
-				fakeCache.peeringInfo.Store(clusterID, peering)
-				fakeCache.peeringInfo.Store(clusterID3, peeringToBeDeleted)
+				fakeCache.peeringInfo.Store(userName, peering)
+				fakeCache.peeringInfo.Store(userName3, peeringToBeDeleted)
 
-				spList, _ = spValidator.getShadowPodListByClusterID(ctx, clusterID)
+				spList, errClient = getters.ListShadowPodsByCreator(ctx, spvClient, userName)
+				Expect(errClient).ToNot(HaveOccurred())
 				Expect(spList.Items).To(HaveLen(2))
-				spList, _ = spValidator.getShadowPodListByClusterID(ctx, clusterID2)
+				spList, errClient = getters.ListShadowPodsByCreator(ctx, spvClient, userName2)
+				Expect(errClient).ToNot(HaveOccurred())
 				Expect(spList.Items).To(HaveLen(2))
-				spList, _ = spValidator.getShadowPodListByClusterID(ctx, clusterID3)
+				spList, errClient = getters.ListShadowPodsByCreator(ctx, spvClient, userName3)
+				Expect(errClient).ToNot(HaveOccurred())
 				Expect(spList.Items).To(HaveLen(0))
 
-				_, ok := fakeCache.getPeeringInfo(clusterID)
+				_, ok := fakeCache.getPeeringInfo(userName)
 				Expect(ok).To(BeTrue())
-				_, ok = fakeCache.getPeeringInfo(clusterID2)
+				_, ok = fakeCache.getPeeringInfo(userName2)
 				Expect(ok).To(BeFalse())
-				_, ok = fakeCache.getPeeringInfo(clusterID3)
+				_, ok = fakeCache.getPeeringInfo(userName3)
 				Expect(ok).To(BeTrue())
 			})
 			It("should correctly add and/or delete PeeringInfo and corresponding ShadowPods from cache", func() {
-				_, ok := fakeCache.getPeeringInfo(clusterID)
+				_, ok := fakeCache.getPeeringInfo(userName)
 				Expect(ok).To(BeTrue())
-				peering, ok = fakeCache.getPeeringInfo(clusterID2)
+				peering, ok = fakeCache.getPeeringInfo(userName2)
 				Expect(ok).To(BeTrue())
-				_, ok = fakeCache.getPeeringInfo(clusterID3)
+				_, ok = fakeCache.getPeeringInfo(userName3)
 				Expect(ok).To(BeFalse())
 				Expect(peering.shadowPods[nsName3.String()]).ToNot(BeNil())
 				Expect(peering.shadowPods[nsName4.String()]).ToNot(BeNil())
