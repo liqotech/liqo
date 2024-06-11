@@ -40,6 +40,9 @@ const (
 	// ResourceSliceNameLabelKey is the label key used to store the name of the resource slice.
 	ResourceSliceNameLabelKey = "liqo.io/resourceslice-name"
 
+	// CreatorLabelKey is the label key used to store the creator of a resource.
+	CreatorLabelKey = "liqo.io/creator-user"
+
 	// CreateVirtualNodeAnnotation is the value of the annotation that enables the creation of a virtual node.
 	CreateVirtualNodeAnnotation = "liqo.io/create-virtual-node"
 
