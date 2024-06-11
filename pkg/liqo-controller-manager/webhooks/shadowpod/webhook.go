@@ -23,16 +23,15 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	pod "github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -40,6 +39,7 @@ import (
 // cluster-role
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowpods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=quotas,verbs=get;list;watch
 
 // Validator is the handler used by the Validating Webhook to validate shadow pods.
 type Validator struct {
@@ -111,31 +111,30 @@ func (spv *Validator) HandleCreate(ctx context.Context, req *admission.Request) 
 		return admission.Allowed("")
 	}
 
-	// TODO: implement the resource validation with the ResourceSlices
-	// // Check existence and get resource offer by Cluster ID label
-	// resourceoffer, err := liqogetters.GetResourceOfferByLabel(ctx, spv.client, corev1.NamespaceAll,
-	// 	liqolabels.LocalLabelSelectorForCluster(clusterID))
-	// if err != nil {
-	// 	newErr := fmt.Errorf("error getting resource offer by label: %w", err)
-	// 	klog.Error(newErr)
-	// 	return admission.Errored(http.StatusInternalServerError, newErr)
-	// }
+	if shadowpod.Labels == nil {
+		return admission.Denied("missing creator label")
+	}
+	creatorName, found := shadowpod.Labels[consts.CreatorLabelKey]
+	if !found {
+		return admission.Denied("missing creator label")
+	}
 
-	// clusterName := retrieveClusterName(ctx, spv.client, clusterID)
+	quota, err := getters.GetQuotaByUser(ctx, spv.client, creatorName)
+	if err != nil {
+		klog.Warningf("Failed getting quota for user %s: %v", creatorName, err)
+		return admission.Denied("failed getting quota")
+	}
 
-	// klog.V(5).Infof("ResourceOffer found for cluster %q with Quota %s",
-	// 	clusterName, quotaFormatter(resourceoffer.Spec.ResourceQuota.Hard))
+	klog.V(5).Infof("Quota found for user %q with %s",
+		creatorName, quotaFormatter(quota.Spec.Resources))
 
-	// peeringInfo := spv.PeeringCache.getOrCreatePeeringInfo(discoveryv1alpha1.ClusterIdentity{
-	// 	ClusterID:   clusterID,
-	// 	ClusterName: clusterName,
-	// }, resourceoffer.Spec.ResourceQuota.Hard)
+	peeringInfo := spv.PeeringCache.getOrCreatePeeringInfo(creatorName, quota.Spec.Resources)
 
-	// err = peeringInfo.testAndUpdateCreation(ctx, spv.client, shadowpod, *req.DryRun)
-	// if err != nil {
-	// 	klog.Warning(err)
-	// 	return admission.Denied(err.Error())
-	// }
+	err = peeringInfo.testAndUpdateCreation(ctx, spv.client, shadowpod, *req.DryRun)
+	if err != nil {
+		klog.Warning(err)
+		return admission.Denied(err.Error())
+	}
 
 	return admission.Allowed("")
 }
@@ -185,26 +184,24 @@ func (spv *Validator) HandleDelete(ctx context.Context, req *admission.Request) 
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
 	}
 
-	// Check existence and get shadow pod origin Cluster ID label
-	tmp, found := shadowpod.Labels[forge.LiqoOriginClusterIDKey]
+	creatorName, found := shadowpod.Labels[consts.CreatorLabelKey]
 	if !found {
-		klog.Warningf("Missing origin Cluster ID label on ShadowPod %q", shadowpod.Name)
-		return admission.Allowed("missing origin Cluster ID label")
+		klog.Warningf("Missing creator label on ShadowPod %q", shadowpod.Name)
+		return admission.Denied("missing creator label")
 	}
-	clusterID := discoveryv1alpha1.ClusterID(tmp)
 
-	klog.V(5).Infof("ShadowPod %s decoded: UID: %s - clusterID %s", shadowpod.Name, shadowpod.GetUID(), clusterID)
 	if !spv.enableResourceValidation {
 		return admission.Allowed("")
 	}
 
-	peeringInfo, found := spv.PeeringCache.getPeeringInfo(clusterID)
+	// TODO: use the creator label to get the user
+	peeringInfo, found := spv.PeeringCache.getPeeringInfo(creatorName)
 	if !found {
 		// If the PeeringInfo is not present in the Cache it means there are some cache consistency issues.
 		// The next refreshing process will align this issue.
 		// Anyway, the deletion process of shadowpods is always allowed.
-		klog.Warningf("PeeringInfo not found in cache for cluster %q", clusterID)
-		return admission.Allowed(fmt.Sprintf("Peering not found in cache for cluster %q", clusterID))
+		klog.Warningf("PeeringInfo not found in cache for user %q", creatorName)
+		return admission.Allowed(fmt.Sprintf("Peering not found in cache for user %q", creatorName))
 	}
 
 	err = peeringInfo.updateDeletion(shadowpod, *req.DryRun)
@@ -240,15 +237,6 @@ func (spv *Validator) validateShadowPodClusterID(ctx context.Context, ns, spClus
 func decodeShadowPod(decoder *admission.Decoder, obj runtime.RawExtension) (shadowpod *vkv1alpha1.ShadowPod, err error) {
 	shadowpod = &vkv1alpha1.ShadowPod{}
 	err = decoder.DecodeRaw(obj, shadowpod)
-	return
-}
-
-func (spv *Validator) getShadowPodListByClusterID(ctx context.Context,
-	clusterID discoveryv1alpha1.ClusterID) (shadowPodList *vkv1alpha1.ShadowPodList, err error) {
-	shadowPodList = &vkv1alpha1.ShadowPodList{}
-	err = spv.client.List(ctx, shadowPodList, &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(map[string]string{forge.LiqoOriginClusterIDKey: string(clusterID)}),
-	})
 	return
 }
 
@@ -294,7 +282,7 @@ func (spm *Mutator) HandleCreate(req *admission.Request) admission.Response {
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
 	}
 
-	resourceSliceName, clusterID, err := extractCreatorInfo(sp, &req.UserInfo)
+	creatorName, err := extractCreatorInfo(&req.UserInfo)
 	if err != nil {
 		klog.Warningf("Failed extracting creator info: %v", err)
 		return admission.Denied(err.Error())
@@ -303,8 +291,7 @@ func (spm *Mutator) HandleCreate(req *admission.Request) admission.Response {
 	if sp.Labels == nil {
 		sp.Labels = map[string]string{}
 	}
-	sp.Labels[consts.RemoteClusterID] = clusterID
-	sp.Labels[consts.ResourceSliceNameLabelKey] = resourceSliceName
+	sp.Labels[consts.CreatorLabelKey] = creatorName
 
 	marshaledShadowPod, err := json.Marshal(sp)
 	if err != nil {
@@ -327,27 +314,28 @@ func (spm *Mutator) HandleUpdate(req *admission.Request) admission.Response {
 		return admission.Errored(http.StatusInternalServerError, fmt.Errorf("failed decoding of ShadowPod: %w", err))
 	}
 
-	oldResourceSliceName, oldClusterID, err := extractCreatorInfo(oldSp, &req.UserInfo)
+	if oldSp.Labels == nil {
+		return admission.Denied("missing creator name")
+	}
+	oldCreatorName, ok := oldSp.Labels[consts.CreatorLabelKey]
+	if !ok {
+		return admission.Denied("missing creator name")
+	}
+
+	creatorName, err := extractCreatorInfo(&req.UserInfo)
 	if err != nil {
 		klog.Warningf("Failed extracting creator info: %v", err)
 		return admission.Denied(err.Error())
 	}
 
-	resourceSliceName, clusterID, err := extractCreatorInfo(sp, &req.UserInfo)
-	if err != nil {
-		klog.Warningf("Failed extracting creator info: %v", err)
-		return admission.Denied(err.Error())
-	}
-
-	if oldResourceSliceName != resourceSliceName || oldClusterID != clusterID {
-		return admission.Denied("resource slice name or cluster ID cannot be modified")
+	if oldCreatorName != creatorName {
+		return admission.Denied("creator name cannot be modified")
 	}
 
 	if sp.Labels == nil {
 		sp.Labels = map[string]string{}
 	}
-	sp.Labels[consts.RemoteClusterID] = clusterID
-	sp.Labels[consts.ResourceSliceNameLabelKey] = resourceSliceName
+	sp.Labels[consts.CreatorLabelKey] = creatorName
 
 	marshaledShadowPod, err := json.Marshal(sp)
 	if err != nil {
@@ -363,28 +351,11 @@ func (spm *Mutator) HandleDelete() admission.Response {
 	return admission.Allowed("")
 }
 
-func extractCreatorInfo(sp *vkv1alpha1.ShadowPod, userInfo *authenticationv1.UserInfo) (resourceSliceName, clusterID string, err error) {
-	// Check existence and get shadow pod origin Cluster ID label
-	clusterIDLabel, found := sp.Labels[forge.LiqoOriginClusterIDKey]
-	if !found {
-		return "", "", fmt.Errorf("missing origin Cluster ID label")
+func extractCreatorInfo(userInfo *authenticationv1.UserInfo) (creatorName string, err error) {
+	creatorName = userInfo.Username
+	if creatorName == "" {
+		return "", fmt.Errorf("missing creator name")
 	}
 
-	resourceSliceName = userInfo.Username
-	if resourceSliceName == "" {
-		return "", "", fmt.Errorf("missing resource slice name")
-	}
-
-	if len(userInfo.Groups) == 0 {
-		return "", "", fmt.Errorf("missing groups")
-	}
-	clusterID = userInfo.Groups[0]
-	if clusterID == "" {
-		return "", "", fmt.Errorf("missing cluster ID")
-	}
-
-	if clusterID != clusterIDLabel {
-		return "", "", fmt.Errorf("shadowpod Cluster ID label is different from the cluster ID")
-	}
 	return
 }
