@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
@@ -42,36 +43,41 @@ var (
 	scheme *runtime.Scheme
 	ctx    = context.Background()
 
-	testNamespace                                       = "test-namespace"
-	testNamespace2                                      = "test-namespace-2"
-	testNamespaceInvalid                                = "test-namespace-invalid"
-	testShadowPodName                                   = "test-shadowpod"
-	testShadowPodName2                                  = "test-shadowpod-2"
-	testShadowPodUID        types.UID                   = "test-shadowpod-uid"
-	testShadowPodUID2       types.UID                   = "test-shadowpod-uid-2"
-	testShadowPodUID3       types.UID                   = "test-shadowpod-uid-3"
-	testShadowPodUID4       types.UID                   = "test-shadowpod-uid-4"
-	testShadowPodUIDInvalid types.UID                   = "test-shadowpod-uid-invalid"
-	clusterID               discoveryv1alpha1.ClusterID = "test-cluster-id"
-	clusterID2              discoveryv1alpha1.ClusterID = "test-cluster-id-2"
-	clusterID3              discoveryv1alpha1.ClusterID = "test-cluster-id-3"
-	clusterIDInvalid        discoveryv1alpha1.ClusterID = "test-cluster-id-invalid"
-	resourceCPU                                         = 1000000
-	resourceMemory                                      = 1000000
-	resourceQuota                                       = forgeResourceList(int64(resourceCPU), int64(resourceMemory))
-	resourceQuota2                                      = forgeResourceList(int64(resourceCPU/2), int64(resourceMemory/2))
-	resourceQuota4                                      = forgeResourceList(int64(resourceCPU/4), int64(resourceMemory/4))
-	foreignCluster                                      = forgeForeignCluster(clusterID)
-	foreignCluster2                                     = forgeForeignCluster(clusterID2)
-	// resourceOffer                     = forgeResourceOfferWithLabel(clusterName, tenantNamespace, clusterID)
-	// resourceOffer2                    = forgeResourceOfferWithLabel(clusterName2, tenantNamespace2, clusterID2)
-	fakeShadowPod  = forgeShadowPod(nsName.Name, nsName.Namespace, string(testShadowPodUID), clusterID)
-	fakeShadowPod2 = forgeShadowPod(nsName2.Name, nsName2.Namespace, string(testShadowPodUID2), clusterID)
-	nsName         = types.NamespacedName{Name: testShadowPodName, Namespace: testNamespace}
-	nsName2        = types.NamespacedName{Name: testShadowPodName2, Namespace: testNamespace}
-	nsName3        = types.NamespacedName{Name: testShadowPodName + "-3", Namespace: testNamespace2}
-	nsName4        = types.NamespacedName{Name: testShadowPodName + "-4", Namespace: testNamespace2}
-	freeQuotaZero  = &corev1.ResourceList{
+	tenantNamespace                   = "tenant-namespace"
+	tenantNamespace2                  = "tenant-namespace-2"
+	testNamespace                     = "test-namespace"
+	testNamespace2                    = "test-namespace-2"
+	testNamespaceInvalid              = "test-namespace-invalid"
+	testShadowPodName                 = "test-shadowpod"
+	testShadowPodName2                = "test-shadowpod-2"
+	testShadowPodUID        types.UID = "test-shadowpod-uid"
+	testShadowPodUID2       types.UID = "test-shadowpod-uid-2"
+	testShadowPodUID3       types.UID = "test-shadowpod-uid-3"
+	testShadowPodUID4       types.UID = "test-shadowpod-uid-4"
+	testShadowPodUIDInvalid types.UID = "test-shadowpod-uid-invalid"
+	clusterID                         = discoveryv1alpha1.ClusterID("test-cluster-id")
+	clusterID2                        = discoveryv1alpha1.ClusterID("test-cluster-id-2")
+	clusterIDInvalid                  = discoveryv1alpha1.ClusterID("test-cluster-id-invalid")
+	userName                string    = "test-user-name"
+	userName2               string    = "test-user-name-2"
+	userName3               string    = "test-user-name-3"
+	userNameInvalid         string    = "test-user-name-invalid"
+	resourceCPU                       = 1000000
+	resourceMemory                    = 1000000
+	resourceQuota                     = forgeResourceList(int64(resourceCPU), int64(resourceMemory))
+	resourceQuota2                    = forgeResourceList(int64(resourceCPU/2), int64(resourceMemory/2))
+	resourceQuota4                    = forgeResourceList(int64(resourceCPU/4), int64(resourceMemory/4))
+	foreignCluster                    = forgeForeignCluster(clusterID)
+	foreignCluster2                   = forgeForeignCluster(clusterID2)
+	quota                             = forgeQuotaWithLabel(tenantNamespace, string(clusterID), userName)
+	quota2                            = forgeQuotaWithLabel(tenantNamespace2, string(clusterID2), userName2)
+	fakeShadowPod                     = forgeShadowPod(nsName.Name, nsName.Namespace, string(testShadowPodUID), userName)
+	fakeShadowPod2                    = forgeShadowPod(nsName2.Name, nsName2.Namespace, string(testShadowPodUID2), userName)
+	nsName                            = types.NamespacedName{Name: testShadowPodName, Namespace: testNamespace}
+	nsName2                           = types.NamespacedName{Name: testShadowPodName2, Namespace: testNamespace}
+	nsName3                           = types.NamespacedName{Name: testShadowPodName + "-3", Namespace: testNamespace2}
+	nsName4                           = types.NamespacedName{Name: testShadowPodName + "-4", Namespace: testNamespace2}
+	freeQuotaZero                     = &corev1.ResourceList{
 		corev1.ResourceCPU:    *resource.NewQuantity(0, resource.DecimalSI),
 		corev1.ResourceMemory: *resource.NewQuantity(0, resource.DecimalSI),
 	}
@@ -88,6 +94,7 @@ var _ = BeforeSuite(func() {
 	Expect(vkv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(corev1.AddToScheme(scheme)).To(Succeed())
 	Expect(discoveryv1alpha1.AddToScheme(scheme)).To(Succeed())
+	Expect(offloadingv1alpha1.AddToScheme(scheme)).To(Succeed())
 })
 
 func TestShadowpod(t *testing.T) {
@@ -140,26 +147,27 @@ func forgeResourceList(cpu, memory int64, gpu ...int64) *corev1.ResourceList {
 	return &resourceList
 }
 
-func forgeShadowPodWithClusterID(clusterID discoveryv1alpha1.ClusterID, namespace string) *vkv1alpha1.ShadowPod {
+func forgeShadowPodWithClusterID(clusterID discoveryv1alpha1.ClusterID, userName, namespace string) *vkv1alpha1.ShadowPod {
 	return &vkv1alpha1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testShadowPodName,
 			Namespace: namespace,
 			Labels: map[string]string{
 				forge.LiqoOriginClusterIDKey: string(clusterID),
+				consts.CreatorLabelKey:       userName,
 			},
 		},
 	}
 }
 
-func forgeShadowPod(name, namespace, uid string, clusterID discoveryv1alpha1.ClusterID) *vkv1alpha1.ShadowPod {
+func forgeShadowPod(name, namespace, uid, creatorName string) *vkv1alpha1.ShadowPod {
 	return &vkv1alpha1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			UID:       types.UID(uid),
 			Labels: map[string]string{
-				forge.LiqoOriginClusterIDKey: string(clusterID),
+				consts.CreatorLabelKey: creatorName,
 			},
 		},
 		Spec: vkv1alpha1.ShadowPodSpec{
@@ -186,6 +194,7 @@ func forgeShadowPodWithResourceLimits(containers, initContainer []containerResou
 			UID:       testShadowPodUID,
 			Labels: map[string]string{
 				forge.LiqoOriginClusterIDKey: string(clusterID),
+				consts.CreatorLabelKey:       userName,
 			},
 		},
 	}
@@ -226,27 +235,27 @@ func forgeShadowPodList(shadowPods ...*vkv1alpha1.ShadowPod) *vkv1alpha1.ShadowP
 	return spList
 }
 
-// func forgeResourceOfferWithLabel(clustername, namespace, clusterID string) *sharingv1alpha1.ResourceOffer {
-// 	ro := &sharingv1alpha1.ResourceOffer{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:      clustername,
-// 			Namespace: namespace,
-// 		},
-// 		Spec: sharingv1alpha1.ResourceOfferSpec{
-// 			ResourceQuota: corev1.ResourceQuotaSpec{
-// 				Hard: *forgeResourceList(int64(resourceCPU), int64(resourceMemory)),
-// 			},
-// 		},
-// 	}
-// 	if clusterID != "" {
-// 		ro.Labels = map[string]string{
-// 			discovery.ClusterIDLabel:           clusterID,
-// 			consts.ReplicationDestinationLabel: clusterID,
-// 			consts.ReplicationRequestedLabel:   "true",
-// 		}
-// 	}
-// 	return ro
-// }
+func forgeQuotaWithLabel(namespace, clusterID, userName string) *offloadingv1alpha1.Quota {
+	q := &offloadingv1alpha1.Quota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      userName,
+			Namespace: namespace,
+		},
+		Spec: offloadingv1alpha1.QuotaSpec{
+			User:      userName,
+			Resources: *forgeResourceList(int64(resourceCPU), int64(resourceMemory)),
+		},
+	}
+	if clusterID != "" && userName != "" {
+		q.Labels = map[string]string{
+			discovery.ClusterIDLabel:           clusterID,
+			consts.ReplicationDestinationLabel: clusterID,
+			consts.ReplicationRequestedLabel:   "true",
+			consts.CreatorLabelKey:             userName,
+		}
+	}
+	return q
+}
 
 func forgeForeignCluster(clusterID discoveryv1alpha1.ClusterID) *discoveryv1alpha1.ForeignCluster {
 	return &discoveryv1alpha1.ForeignCluster{

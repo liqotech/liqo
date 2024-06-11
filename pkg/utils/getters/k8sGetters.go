@@ -395,6 +395,33 @@ func GetKubeconfigSecretFromIdentity(ctx context.Context, cl client.Client, iden
 	return &kubeconfigSecret, nil
 }
 
+// ListShadowPodsByCreator returns the list of ShadowPods created by the given user.
+func ListShadowPodsByCreator(ctx context.Context, cl client.Client, creator string) (*virtualkubeletv1alpha1.ShadowPodList, error) {
+	list := new(virtualkubeletv1alpha1.ShadowPodList)
+	if err := cl.List(ctx, list, client.MatchingLabels{consts.CreatorLabelKey: creator}); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// GetQuotaByUser returns the list of Quotas for the given user.
+func GetQuotaByUser(ctx context.Context, cl client.Client,
+	user string) (*offloadingv1alpha1.Quota, error) {
+	var quotas offloadingv1alpha1.QuotaList
+	err := cl.List(ctx, &quotas, &client.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range quotas.Items {
+		if quotas.Items[i].Spec.User == user {
+			return &quotas.Items[i], nil
+		}
+	}
+
+	return nil, kerrors.NewNotFound(offloadingv1alpha1.QuotaGroupResource, user)
+}
+
 // GetOffloadingByNamespace returns the NamespaceOffloading resource for the given namespace.
 func GetOffloadingByNamespace(ctx context.Context, cl client.Client, namespace string) (*offloadingv1alpha1.NamespaceOffloading, error) {
 	var nsOffloading offloadingv1alpha1.NamespaceOffloading
