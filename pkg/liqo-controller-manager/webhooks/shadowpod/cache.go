@@ -24,8 +24,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // peeringCache is a cache that holds the peeringInfo for each peered cluster.
@@ -47,38 +48,29 @@ func (spv *Validator) CacheRefresher(interval time.Duration) func(ctx context.Co
 }
 
 func (spv *Validator) initializeCache(ctx context.Context) (err error) {
-	// resourceOfferList := sharing.ResourceOfferList{}
-	// if err := spv.client.List(ctx, &resourceOfferList, &client.ListOptions{LabelSelector: liqolabels.LocalLabelSelector()}); err != nil {
-	// 	return err
-	// }
-	// klog.Infof("Cache initialization started")
-	// for i := range resourceOfferList.Items {
-	// 	ro := &resourceOfferList.Items[i]
-	// 	clusterID := ro.Labels[discovery.ClusterIDLabel]
-	// 	if clusterID == "" {
-	// 		klog.Warningf("ResourceOffer %s/%s has no cluster id", ro.Namespace, ro.Name)
-	// 		continue
-	// 	}
-	// 	clusterName := retrieveClusterName(ctx, spv.client, clusterID)
-	// 	klog.V(4).Infof("Generating PeeringInfo in cache for corresponding ResourceOffer %s", klog.KObj(ro))
-	// 	pi := createPeeringInfo(discoveryv1alpha1.ClusterIdentity{
-	// 		ClusterID:   clusterID,
-	// 		ClusterName: clusterName,
-	// 	}, ro.Spec.ResourceQuota.Hard)
+	quotaList := offloadingv1alpha1.QuotaList{}
+	if err := spv.client.List(ctx, &quotaList); err != nil {
+		return err
+	}
+	klog.Infof("Cache initialization started")
+	for i := range quotaList.Items {
+		q := &quotaList.Items[i]
+		klog.V(4).Infof("Generating PeeringInfo in cache for corresponding Quota %s", klog.KObj(q))
+		pi := createPeeringInfo(q.Spec.User, q.Spec.Resources)
 
-	// 	// Get the List of shadow pods running on the cluster with a given clusterID
-	// 	shadowPodList, err := spv.getShadowPodListByClusterID(ctx, clusterID)
-	// 	if err != nil {
-	// 		return err
-	// 	}
+		// Get the List of shadow pods running on the cluster with a given creator
+		shadowPodList, err := getters.ListShadowPodsByCreator(ctx, spv.client, q.Spec.User)
+		if err != nil {
+			return err
+		}
 
-	// 	klog.V(5).Infof("Found %d ShadowPods running on cluster %s", len(shadowPodList.Items), pi.clusterIdentity.String())
-	// 	pi.alignExistingShadowPods(shadowPodList)
+		klog.V(5).Infof("Found %d ShadowPods running for user %s", len(shadowPodList.Items), q.Spec.User)
+		pi.alignExistingShadowPods(shadowPodList)
 
-	// 	spv.PeeringCache.peeringInfo.Store(clusterID, pi)
-	// }
-	// klog.Infof("Cache initialization completed. Found %d peered clusters", len(resourceOfferList.Items))
-	// spv.PeeringCache.ready = true
+		spv.PeeringCache.peeringInfo.Store(q.Spec.User, pi)
+	}
+	klog.Infof("Cache initialization completed. Found %d Quotas", len(quotaList.Items))
+	spv.PeeringCache.ready = true
 	return nil
 }
 
@@ -95,23 +87,22 @@ func (spv *Validator) refreshCache(ctx context.Context) (done bool, err error) {
 	spv.PeeringCache.peeringInfo.Range(
 		func(key, value interface{}) bool {
 			pi := value.(*peeringInfo)
-			clusterID := discoveryv1alpha1.ClusterID(key.(string))
-			// Get the List of shadow pods running on the cluster
-			shadowPodList, err := spv.getShadowPodListByClusterID(ctx, clusterID)
+			// Get the List of shadow pods running for a given creator
+			shadowPodList, err := getters.ListShadowPodsByCreator(ctx, spv.client, pi.userName)
 			if err != nil {
 				klog.Warning(err)
 				return true
 			}
-			klog.V(5).Infof("Found %d ShadowPods for cluster %q", len(shadowPodList.Items), pi.clusterID)
-			// Flush terminating ShadowPods and check the correct alignment between cluster and cache
-			klog.V(5).Infof("Aligning ShadowPods for cluster %q", pi.clusterID)
+			klog.V(5).Infof("Found %d ShadowPods for user %q", len(shadowPodList.Items), pi.userName)
+			// Flush terminating ShadowPods and check the correct alignment between users and cache
+			klog.V(5).Infof("Aligning ShadowPods for user %q", pi.userName)
 			pi.alignTerminatingOrNotExistingShadowPods(shadowPodList)
 			return true
 		},
 	)
 
-	klog.V(5).Infof("Aligning ResourceOffers - PeeringInfo")
-	if err := spv.checkAlignmentResourceOfferPeeringInfo(ctx); err != nil {
+	klog.V(5).Infof("Aligning Quotas - PeeringInfo")
+	if err := spv.checkAlignmentQuotaPeeringInfo(ctx); err != nil {
 		klog.Error(err)
 		return false, nil
 	}
@@ -175,61 +166,54 @@ func (pi *peeringInfo) checkAndAddShadowPods(shadowPod *vkv1alpha1.ShadowPod, ns
 	return
 }
 
-func (spv *Validator) checkAlignmentResourceOfferPeeringInfo(ctx context.Context) error {
-	// resourceOfferList := sharing.ResourceOfferList{}
-	// roMap := make(map[string]struct{})
+func (spv *Validator) checkAlignmentQuotaPeeringInfo(ctx context.Context) error {
+	quotaList := offloadingv1alpha1.QuotaList{}
+	quotaMap := make(map[string]struct{})
 
-	// // Get the List of resource offers
-	// if err := spv.client.List(ctx, &resourceOfferList, &client.ListOptions{LabelSelector: liqolabels.LocalLabelSelector()}); err != nil {
-	// 	return err
-	// }
+	// Get the List of quotas
+	if err := spv.client.List(ctx, &quotaList); err != nil {
+		return err
+	}
 
-	// // Check if there are new ResourceOffers in the system snapshot
-	// for i := range resourceOfferList.Items {
-	// 	ro := &resourceOfferList.Items[i]
-	// 	clusterID := ro.Labels[discovery.ClusterIDLabel]
-	// 	if clusterID == "" {
-	// 		return fmt.Errorf("ResourceOffer %q has no cluster id", ro.Name)
-	// 	}
-	// 	clusterName := retrieveClusterName(ctx, spv.client, clusterID)
-	// 	// Populating a map of valid  and existing ResourceOffers in the system snapshot
-	// 	roMap[clusterID] = struct{}{}
+	// Check if there are new Quotas in the system snapshot
+	for i := range quotaList.Items {
+		quota := &quotaList.Items[i]
+		// Populating a map of valid and existing Quotas in the system snapshot
+		quotaMap[quota.Spec.User] = struct{}{}
 
-	// 	// Check if the ResourceOffer is not present in the cache
-	// 	if newPI, found := spv.PeeringCache.peeringInfo.LoadOrStore(clusterID, createPeeringInfo(discoveryv1alpha1.ClusterIdentity{
-	// 		ClusterID:   clusterID,
-	// 		ClusterName: clusterName,
-	// 	}, ro.Spec.ResourceQuota.Hard)); !found {
-	// 		klog.V(4).Infof("ResourceOffer %q not found in cache, adding it", clusterName)
-	// 		// Get the List of ShadowPods running on the cluster
-	// 		shadowPodList, err := spv.getShadowPodListByClusterID(ctx, clusterID)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		klog.V(5).Infof("Found %d ShadowPods running on cluster %s", len(shadowPodList.Items), newPI.(*peeringInfo).clusterIdentity.String())
-	// 		newPI.(*peeringInfo).alignExistingShadowPods(shadowPodList)
-	// 	}
-	// }
+		// Check if the Quota is not present in the cache
+		if newPI, found := spv.PeeringCache.peeringInfo.LoadOrStore(quota.Spec.User,
+			createPeeringInfo(quota.Spec.User, quota.Spec.Resources)); !found {
+			klog.V(4).Infof("Quota for user %q not found in cache, adding it", quota.Spec.User)
+			// Get the List of ShadowPods running for a given creator
+			shadowPodList, err := getters.ListShadowPodsByCreator(ctx, spv.client, quota.Spec.User)
+			if err != nil {
+				return err
+			}
+			klog.V(5).Infof("Found %d ShadowPods running for user %s", len(shadowPodList.Items), quota.Spec.User)
+			newPI.(*peeringInfo).alignExistingShadowPods(shadowPodList)
+		}
+	}
 
-	// // Check if PeeringInfos still have corresponding ResourceOffers
-	// spv.PeeringCache.peeringInfo.Range(
-	// 	func(key, value interface{}) bool {
-	// 		peeringInfo := value.(*peeringInfo)
-	// 		clusterID := key.(string)
-	// 		// If the corresponding ResourceOffer is not present anymore, remove the PeeringInfo from the cache
-	// 		if _, found := roMap[clusterID]; !found {
-	// 			klog.V(4).Infof("ResourceOffer %q not found in system snapshot, removing it from cache", peeringInfo.clusterIdentity.String())
-	// 			spv.PeeringCache.peeringInfo.Delete(clusterID)
-	// 		}
-	// 		return true
-	// 	},
-	// )
+	// Check if PeeringInfos still have corresponding Quotas
+	spv.PeeringCache.peeringInfo.Range(
+		func(key, value interface{}) bool {
+			peeringInfo := value.(*peeringInfo)
+			userName := key.(string)
+			// If the corresponding Quota is not present anymore, remove the PeeringInfo from the cache
+			if _, found := quotaMap[userName]; !found {
+				klog.V(4).Infof("Quota for user %q not found in system snapshot, removing it from cache", peeringInfo.userName)
+				spv.PeeringCache.peeringInfo.Delete(userName)
+			}
+			return true
+		},
+	)
 	return nil
 }
 
-func (pi *peeringInfo) alignResourceOfferUpdates(resources corev1.ResourceList) {
+func (pi *peeringInfo) alignQuotaUpdates(resources corev1.ResourceList) {
 	pi.mu.Lock()
 	defer pi.mu.Unlock()
 	pi.updateQuotas(resources)
-	klog.V(4).Infof("Quota of PeeringInfo for cluster %q has been updated", pi.clusterID)
+	klog.V(4).Infof("Quota of PeeringInfo for user %q has been updated", pi.userName)
 }

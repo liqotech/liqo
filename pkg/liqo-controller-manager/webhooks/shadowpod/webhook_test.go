@@ -35,6 +35,7 @@ import (
 var _ = Describe("Validating webhook", func() {
 
 	var (
+		errClient                error
 		spValidator              *Validator
 		spValidatorWithResources *Validator
 		request                  admission.Request
@@ -42,6 +43,7 @@ var _ = Describe("Validating webhook", func() {
 		fakeNewShadowPod         *vkv1alpha1.ShadowPod
 		fakeNamespace            *corev1.Namespace
 		fakeClient               client.Client
+		spvClient                client.Client
 		containers               []containerResource
 		peeringInfo              *peeringInfo
 	)
@@ -51,7 +53,7 @@ var _ = Describe("Validating webhook", func() {
 		fakeNamespace = forgeNamespaceWithClusterID(clusterID)
 
 		fakeClient = fake.NewClientBuilder().WithScheme(scheme).
-			WithObjects(fakeNamespace, foreignCluster).
+			WithObjects(fakeNamespace, foreignCluster, quota, quota2).
 			WithStatusSubresource(
 				&discoveryv1alpha1.ForeignCluster{},
 				&vkv1alpha1.ShadowPod{}).
@@ -64,6 +66,8 @@ var _ = Describe("Validating webhook", func() {
 		spValidatorWithResources.PeeringCache = &peeringCache{
 			ready: true,
 		}
+
+		spvClient = spValidatorWithResources.client
 	})
 
 	Describe("Validating ShadowPod without resource validation", func() {
@@ -73,7 +77,7 @@ var _ = Describe("Validating webhook", func() {
 
 		When("the shadowpod has an invalid clusterID label", func() {
 			BeforeEach(func() {
-				fakeNewShadowPod = forgeShadowPodWithClusterID(clusterIDInvalid, testNamespace)
+				fakeNewShadowPod = forgeShadowPodWithClusterID(clusterIDInvalid, userNameInvalid, testNamespace)
 				request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
 			})
 			It("should return a forbidden response", func() {
@@ -83,7 +87,7 @@ var _ = Describe("Validating webhook", func() {
 		})
 		When("the shadowpod has a valid clusterID label", func() {
 			BeforeEach(func() {
-				fakeNewShadowPod = forgeShadowPodWithClusterID(clusterID, testNamespace)
+				fakeNewShadowPod = forgeShadowPodWithClusterID(clusterID, userName, testNamespace)
 				request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
 			})
 			It("should admit the request", func() {
@@ -92,7 +96,7 @@ var _ = Describe("Validating webhook", func() {
 		})
 		When("the shadowpod namespace not exists", func() {
 			BeforeEach(func() {
-				fakeNewShadowPod = forgeShadowPodWithClusterID(clusterID, testNamespaceInvalid)
+				fakeNewShadowPod = forgeShadowPodWithClusterID(clusterID, userName, testNamespaceInvalid)
 				request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
 			})
 			It("should return a bad request response", func() {
@@ -102,61 +106,61 @@ var _ = Describe("Validating webhook", func() {
 		})
 	})
 
-	// Describe("Handle creation ShadowPod with resource validation", func() {
-	// 	JustBeforeEach(func() {
-	// 		response = spValidatorWithResources.Handle(ctx, request)
-	// 	})
+	Describe("Handle creation ShadowPod with resource validation", func() {
+		JustBeforeEach(func() {
+			response = spValidatorWithResources.Handle(ctx, request)
+		})
 
-	// 	When("The ResourceOffer exists and required ShadowPod resource limits are available", func() {
-	// 		BeforeEach(func() {
-	// 			containers = nil
-	// 			containers = append(containers, containerResource{cpu: int64(resourceCPU), memory: int64(resourceMemory)})
-	// 			fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
-	// 			request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
-	// 		})
-	// 		It("request is allowed", func() {
-	// 			Expect(response.Allowed).To(BeTrue())
-	// 		})
-	// 	})
-	// 	When("The ResourceOffer exists but required ShadowPod resource limits are not available", func() {
-	// 		BeforeEach(func() {
-	// 			containers = nil
-	// 			containers = append(containers, containerResource{cpu: int64(resourceCPU * 2), memory: int64(resourceMemory)})
-	// 			fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
-	// 			request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
-	// 		})
-	// 		It("request is denied with error 403", func() {
-	// 			Expect(response.Allowed).To(BeFalse())
-	// 			Expect(response.Result.Code).To(BeNumerically("==", http.StatusForbidden))
-	// 		})
-	// 	})
-	// 	When("The ResourceOffer does not exist", func() {
-	// 		BeforeEach(func() {
-	// 			errClient = spvClient.Delete(ctx, forgeResourceOfferWithLabel(clusterName, tenantNamespace, clusterID))
-	// 			Expect(errClient).ToNot(HaveOccurred())
-	// 			containers = nil
-	// 			containers = append(containers, containerResource{cpu: int64(resourceCPU * 2), memory: int64(resourceMemory)})
-	// 			fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
-	// 			request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
-	// 		})
-	// 		It("request is denied with error 500", func() {
-	// 			Expect(response.Allowed).To(BeFalse())
-	// 			Expect(response.Result.Code).To(BeNumerically("==", http.StatusInternalServerError))
-	// 		})
-	// 	})
-	// })
+		When("The Quota exists and required ShadowPod resource limits are available", func() {
+			BeforeEach(func() {
+				containers = nil
+				containers = append(containers, containerResource{cpu: int64(resourceCPU), memory: int64(resourceMemory)})
+				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+				request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
+			})
+			It("request is allowed", func() {
+				Expect(response.Allowed).To(BeTrue())
+			})
+		})
+		When("The Quota exists but required ShadowPod resource limits are not available", func() {
+			BeforeEach(func() {
+				containers = nil
+				containers = append(containers, containerResource{cpu: int64(resourceCPU * 2), memory: int64(resourceMemory)})
+				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+				request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
+			})
+			It("request is denied with error 403", func() {
+				Expect(response.Allowed).To(BeFalse())
+				Expect(response.Result.Code).To(BeNumerically("==", http.StatusForbidden))
+			})
+		})
+		When("The Quota does not exist", func() {
+			BeforeEach(func() {
+				errClient = spvClient.Delete(ctx, forgeQuotaWithLabel(tenantNamespace, string(clusterID), userName))
+				Expect(errClient).ToNot(HaveOccurred())
+				containers = nil
+				containers = append(containers, containerResource{cpu: int64(resourceCPU * 2), memory: int64(resourceMemory)})
+				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+				request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
+			})
+			It("request is denied with error 403", func() {
+				Expect(response.Allowed).To(BeFalse())
+				Expect(response.Result.Code).To(BeNumerically("==", http.StatusForbidden))
+			})
+		})
+	})
 
 	Describe("Handle deletion ShadowPod with resource validation", func() {
 		JustBeforeEach(func() {
 			response = spValidatorWithResources.Handle(ctx, request)
 		})
 
-		When("The ResourceOffer exists and the ShadowPod Description exists and is running", func() {
+		When("The Quota exists and the ShadowPod Description exists and is running", func() {
 			BeforeEach(func() {
-				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
+				peeringInfo = createPeeringInfo(userName, *resourceQuota)
 				peeringInfo.addShadowPod(
 					createShadowPodDescription(testShadowPodName, testNamespace, testShadowPodUID, *resourceQuota))
-				spValidatorWithResources.PeeringCache.peeringInfo.Store(clusterID, peeringInfo)
+				spValidatorWithResources.PeeringCache.peeringInfo.Store(userName, peeringInfo)
 				containers = nil
 				containers = append(containers, containerResource{cpu: int64(resourceCPU), memory: int64(resourceMemory)})
 				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
@@ -170,10 +174,10 @@ var _ = Describe("Validating webhook", func() {
 				Expect(peeringInfo.shadowPods[ns.String()].running).To(BeFalse())
 			})
 		})
-		When("The ResourceOffer exists but the ShadowPod Description does not exist", func() {
+		When("The Quota exists but the ShadowPod Description does not exist", func() {
 			BeforeEach(func() {
-				peeringInfo = createPeeringInfo(clusterID, *resourceQuota)
-				spValidatorWithResources.PeeringCache.peeringInfo.Store(clusterID, peeringInfo)
+				peeringInfo = createPeeringInfo(userName, *resourceQuota)
+				spValidatorWithResources.PeeringCache.peeringInfo.Store(userName, peeringInfo)
 				containers = nil
 				containers = append(containers, containerResource{cpu: int64(resourceCPU), memory: int64(resourceMemory)})
 				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
@@ -193,7 +197,7 @@ var _ = Describe("Validating webhook", func() {
 			})
 			It("request is allowed with error (PeeringInfo not found)", func() {
 				Expect(response.Allowed).To(BeTrue())
-				Expect(response.Result.Message).To(Equal(fmt.Sprintf("Peering not found in cache for cluster %q", clusterID)))
+				Expect(response.Result.Message).To(Equal(fmt.Sprintf("Peering not found in cache for user %q", userName)))
 			})
 		})
 	})
