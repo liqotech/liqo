@@ -116,7 +116,7 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 
 		overrideVKOptionsFromExistingVirtualNode(&vkOpts, virtualnode)
 		w.initVirtualNodeDeployment(virtualnode, &vkOpts)
-		mutateOffloadingPatch(virtualnode, &vkOpts)
+		mutateSpec(virtualnode, &vkOpts)
 	}
 
 	mutateSpecInTemplate(virtualnode)
