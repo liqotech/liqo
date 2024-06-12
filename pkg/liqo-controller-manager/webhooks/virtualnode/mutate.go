@@ -15,6 +15,7 @@
 package virtualnode
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,22 @@ func (w *vnwh) initVirtualNodeDeployment(vn *virtualkubeletv1alpha1.VirtualNode,
 	vkdep := vkforge.VirtualKubeletDeployment(w.clusterID, w.localPodCIDR, w.liqoNamespace, vn, opts)
 	vn.Spec.Template.Spec = *vkdep.Spec.DeepCopy()
 	vn.Spec.Template.ObjectMeta = *vkdep.ObjectMeta.DeepCopy()
+}
+
+func mutateOffloadingPatch(vn *virtualkubeletv1alpha1.VirtualNode, opts *virtualkubeletv1alpha1.VkOptionsTemplate) {
+	// Add labels not reflected from opts if not already present in the VN OffloadingPatch.
+	for i := range opts.Spec.LabelsNotReflected {
+		if !slices.Contains(vn.Spec.OffloadingPatch.LabelsNotReflected, opts.Spec.LabelsNotReflected[i]) {
+			vn.Spec.OffloadingPatch.LabelsNotReflected = append(vn.Spec.OffloadingPatch.LabelsNotReflected, opts.Spec.LabelsNotReflected[i])
+		}
+	}
+
+	// Add annotations not reflected from opts if not already present in the VN OffloadingPatch.
+	for i := range opts.Spec.AnnotationsNotReflected {
+		if !slices.Contains(vn.Spec.OffloadingPatch.AnnotationsNotReflected, opts.Spec.AnnotationsNotReflected[i]) {
+			vn.Spec.OffloadingPatch.AnnotationsNotReflected = append(vn.Spec.OffloadingPatch.AnnotationsNotReflected, opts.Spec.AnnotationsNotReflected[i])
+		}
+	}
 }
 
 func overrideVKOptionsFromExistingVirtualNode(opts *virtualkubeletv1alpha1.VkOptionsTemplate, vn *virtualkubeletv1alpha1.VirtualNode) {
