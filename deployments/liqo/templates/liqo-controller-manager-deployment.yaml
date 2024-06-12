@@ -84,14 +84,6 @@ spec:
           {{- include "liqo.concatenateGroupVersionResources" $d | nindent 10 }}
           {{- $d := dict "commandName" "--gateway-client-resources" "list" .Values.networking.clientResources }}
           {{- include "liqo.concatenateGroupVersionResources" $d | nindent 10 }}
-          {{- if .Values.offloading.reflection.skip.labels }}
-          {{- $d := dict "commandName" "--labels-not-reflected" "list" .Values.offloading.reflection.skip.labels }}
-          {{- include "liqo.concatenateList" $d | nindent 10 }}
-          {{- end }}
-          {{- if .Values.offloading.reflection.skip.annotations }}
-          {{- $d := dict "commandName" "--annotations-not-reflected" "list" .Values.offloading.reflection.skip.annotations }}
-          {{- include "liqo.concatenateList" $d | nindent 10 }}
-          {{- end }}
           {{- if .Values.networking.enabled }}
           {{- if .Values.ipam.external.enabled }}
           - --ipam-server={{ .Values.ipam.external.url }}
