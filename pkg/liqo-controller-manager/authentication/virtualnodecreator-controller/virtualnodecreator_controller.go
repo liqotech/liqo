@@ -113,13 +113,12 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Forge the VirtualNodeOptions from the ResourceSlice.
-	// TODO: handle createNode, nodeCheckNetwork, lab/ann not reflected from template/controller-manager
-	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name, true, false, nil)
+	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name, nil)
 
 	// CreateOrUpdate the VirtualNode.
 	virtualNode := forge.VirtualNode(resourceSlice.Name, resourceSlice.Namespace)
 	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, virtualNode, func() error {
-		if err := forge.MutateVirtualNode(virtualNode, identity.Spec.ClusterID, vnOpts); err != nil {
+		if err := forge.MutateVirtualNode(virtualNode, identity.Spec.ClusterID, vnOpts, nil, nil); err != nil {
 			return err
 		}
 		return controllerutil.SetControllerReference(&resourceSlice, virtualNode, r.Scheme)
