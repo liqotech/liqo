@@ -155,6 +155,15 @@ offloading:
     pods: "110"
     # -- The amount of ephemeral storage to reserve for a virtual node targeting this cluster.
     ephemeralStorage: "20Gi"
+  # -- Enable/Disable the creation of a k8s node for each VirtualNode.
+  # This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode 
+  # by setting the "createNode" field in the resource Spec.
+  createNode: true
+  # -- Enable/Disable the check of the liqo networking for virtual nodes.
+  # If check is disabled, the network status will not be added to node conditions.
+  # This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode 
+  # by setting the "disableNetworkCheck" field in the resource Spec.
+  disableNetworkCheck: false
   runtimeClass:
     enable: false
     # -- Name of the runtime class to use for offloading.
