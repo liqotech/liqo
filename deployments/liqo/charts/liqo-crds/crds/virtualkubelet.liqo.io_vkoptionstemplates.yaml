@@ -44,6 +44,10 @@ spec:
           spec:
             description: VkOptionsTemplateSpec defines the desired state of VkOptionsTemplate.
             properties:
+              annotationsNotReflected:
+                items:
+                  type: string
+                type: array
               containerImage:
                 type: string
               extraAnnotations:
@@ -58,6 +62,10 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              labelsNotReflected:
+                items:
+                  type: string
+                type: array
               metricsAddress:
                 type: string
               metricsEnabled:
