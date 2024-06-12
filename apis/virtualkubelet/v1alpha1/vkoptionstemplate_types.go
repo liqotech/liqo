@@ -21,19 +21,19 @@ import (
 
 // VkOptionsTemplateSpec defines the desired state of VkOptionsTemplate.
 type VkOptionsTemplateSpec struct {
-	ContainerImage       string                      `json:"containerImage"`
-	MetricsEnabled       bool                        `json:"metricsEnabled"`
-	MetricsAddress       string                      `json:"metricsAddress,omitempty"`
-	ReflectorsWorkers    map[string]uint             `json:"reflectorsWorkers"`
-	ReflectorsType       map[string]string           `json:"reflectorsType"`
-	Resources            corev1.ResourceRequirements `json:"resources,omitempty"`
-	ExtraArgs            []string                    `json:"extraArgs,omitempty"`
-	ExtraAnnotations     map[string]string           `json:"extraAnnotations,omitempty"`
-	ExtraLabels          map[string]string           `json:"extraLabels,omitempty"`
-	NodeExtraAnnotations map[string]string           `json:"nodeExtraAnnotations,omitempty"`
-	NodeExtraLabels      map[string]string           `json:"nodeExtraLabels,omitempty"`
-	// TODO: labelsNotReflected
-	// TODO: annotationsNotReflected
+	ContainerImage          string                      `json:"containerImage"`
+	MetricsEnabled          bool                        `json:"metricsEnabled"`
+	MetricsAddress          string                      `json:"metricsAddress,omitempty"`
+	LabelsNotReflected      []string                    `json:"labelsNotReflected,omitempty"`
+	AnnotationsNotReflected []string                    `json:"annotationsNotReflected,omitempty"`
+	ReflectorsWorkers       map[string]uint             `json:"reflectorsWorkers"`
+	ReflectorsType          map[string]string           `json:"reflectorsType"`
+	Resources               corev1.ResourceRequirements `json:"resources,omitempty"`
+	ExtraArgs               []string                    `json:"extraArgs,omitempty"`
+	ExtraAnnotations        map[string]string           `json:"extraAnnotations,omitempty"`
+	ExtraLabels             map[string]string           `json:"extraLabels,omitempty"`
+	NodeExtraAnnotations    map[string]string           `json:"nodeExtraAnnotations,omitempty"`
+	NodeExtraLabels         map[string]string           `json:"nodeExtraLabels,omitempty"`
 }
 
 // +kubebuilder:object:root=true
