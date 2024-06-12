@@ -29,8 +29,6 @@ import (
 // VirtualNodeOptions contains the options to forge a VirtualNode resource.
 type VirtualNodeOptions struct {
 	KubeconfigSecretRef  corev1.LocalObjectReference `json:"kubeconfigSecretRef,omitempty"`
-	CreateNode           bool                        `json:"createNode,omitempty"`
-	DisableNetworkCheck  bool                        `json:"disableNetworkCheck,omitempty"`
 	VkOptionsTemplateRef *corev1.ObjectReference     `json:"vkOptionsTemplateRef,omitempty"`
 
 	ResourceList        corev1.ResourceList             `json:"resourceList,omitempty"`
@@ -57,7 +55,7 @@ func VirtualNode(name, namespace string) *vkv1alpha1.VirtualNode {
 
 // MutateVirtualNode mutates a VirtualNode resource.
 func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
-	remoteClusterID discoveryv1alpha1.ClusterID, opts *VirtualNodeOptions) error {
+	remoteClusterID discoveryv1alpha1.ClusterID, opts *VirtualNodeOptions, createNode, disableNetworkCheck *bool) error {
 	// VirtualNode metadata
 	if virtualNode.ObjectMeta.Labels == nil {
 		virtualNode.ObjectMeta.Labels = make(map[string]string)
@@ -73,10 +71,13 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 	}
 	virtualNode.Spec.Labels[discovery.ClusterIDLabel] = string(remoteClusterID)
 	virtualNode.Spec.Labels = labels.Merge(virtualNode.Spec.Labels, opts.NodeLabels)
-
 	virtualNode.Spec.ClusterID = remoteClusterID
-	virtualNode.Spec.CreateNode = &opts.CreateNode
-	virtualNode.Spec.DisableNetworkCheck = opts.DisableNetworkCheck
+	if createNode != nil {
+		virtualNode.Spec.CreateNode = createNode
+	}
+	if disableNetworkCheck != nil {
+		virtualNode.Spec.DisableNetworkCheck = disableNetworkCheck
+	}
 	virtualNode.Spec.KubeconfigSecretRef = &opts.KubeconfigSecretRef
 	virtualNode.Spec.VkOptionsTemplateRef = opts.VkOptionsTemplateRef
 	virtualNode.Spec.ResourceQuota = corev1.ResourceQuotaSpec{
@@ -99,11 +100,9 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 
 // VirtualNodeOptionsFromResourceSlice extracts the VirtualNodeOptions from a ResourceSlice.
 func VirtualNodeOptionsFromResourceSlice(resourceSlice *authv1alpha1.ResourceSlice,
-	kubeconfigSecretName string, createNode, disableNetworkCheck bool, vkOptionsTemplateRef *corev1.ObjectReference) *VirtualNodeOptions {
+	kubeconfigSecretName string, vkOptionsTemplateRef *corev1.ObjectReference) *VirtualNodeOptions {
 	return &VirtualNodeOptions{
 		KubeconfigSecretRef:  corev1.LocalObjectReference{Name: kubeconfigSecretName},
-		CreateNode:           createNode,
-		DisableNetworkCheck:  disableNetworkCheck,
 		VkOptionsTemplateRef: vkOptionsTemplateRef,
 
 		ResourceList:        resourceSlice.Status.Resources,

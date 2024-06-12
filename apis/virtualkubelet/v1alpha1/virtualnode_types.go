@@ -60,8 +60,10 @@ type VirtualNodeSpec struct {
 	// OffloadingPatch contains the information to target a groups of node on the remote cluster.
 	OffloadingPatch *OffloadingPatch `json:"offloadingPatch,omitempty"`
 	// CreateNode indicates if a node to target the remote cluster (and schedule on it) has to be created.
-	// +kubebuilder:default:=true
 	CreateNode *bool `json:"createNode,omitempty"`
+	// DisableNetworkCheck disables the check of the liqo networking.
+	// If check is disabled, the network status will not be added to node conditions.
+	DisableNetworkCheck *bool `json:"disableNetworkCheck,omitempty"`
 	// KubeconfigSecretRef contains the reference to the secret containing the kubeconfig to access the remote cluster.
 	KubeconfigSecretRef *corev1.LocalObjectReference `json:"kubeconfigSecretRef,omitempty"`
 	// Images is the list of the images already stored in the cluster.
@@ -80,9 +82,6 @@ type VirtualNodeSpec struct {
 	IngressClasses []authv1alpha1.IngressType `json:"ingressClasses,omitempty"`
 	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
 	LoadBalancerClasses []authv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
-	// DisableNetworkCheck disables the check the conditions of the liqo networking.
-	// If check is disabled, the network status will not be added to node conditions.
-	DisableNetworkCheck bool `json:"disableNetworkCheck,omitempty"`
 	// VkOptionsTemplateRef contains the namespaced reference to the VkOptionsTemplate.
 	// If not set, the default template installed with Liqo will be used.
 	// +optional
