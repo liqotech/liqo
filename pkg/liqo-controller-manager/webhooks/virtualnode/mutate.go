@@ -36,7 +36,22 @@ func (w *vnwh) initVirtualNodeDeployment(vn *virtualkubeletv1alpha1.VirtualNode,
 	vn.Spec.Template.ObjectMeta = *vkdep.ObjectMeta.DeepCopy()
 }
 
+func mutateSpec(vn *virtualkubeletv1alpha1.VirtualNode, opts *virtualkubeletv1alpha1.VkOptionsTemplate) {
+	if vn.Spec.CreateNode == nil {
+		vn.Spec.CreateNode = &opts.Spec.CreateNode
+	}
+	if vn.Spec.DisableNetworkCheck == nil {
+		vn.Spec.DisableNetworkCheck = &opts.Spec.DisableNetworkCheck
+	}
+
+	mutateOffloadingPatch(vn, opts)
+}
+
 func mutateOffloadingPatch(vn *virtualkubeletv1alpha1.VirtualNode, opts *virtualkubeletv1alpha1.VkOptionsTemplate) {
+	if vn.Spec.OffloadingPatch == nil {
+		vn.Spec.OffloadingPatch = &virtualkubeletv1alpha1.OffloadingPatch{}
+	}
+
 	// Add labels not reflected from opts if not already present in the VN OffloadingPatch.
 	for i := range opts.Spec.LabelsNotReflected {
 		if !slices.Contains(vn.Spec.OffloadingPatch.LabelsNotReflected, opts.Spec.LabelsNotReflected[i]) {
@@ -205,7 +220,7 @@ func mutateNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
 
 // mutateNodeCheckNetwork flag mutate the check network flag.
 func mutateNodeCheckNetwork(vn *virtualkubeletv1alpha1.VirtualNode) {
-	argCheckNetwork := vkforge.StringifyArgument(string(vkforge.NodeCheckNetwork), strconv.FormatBool(!vn.Spec.DisableNetworkCheck))
+	argCheckNetwork := vkforge.StringifyArgument(string(vkforge.NodeCheckNetwork), strconv.FormatBool(!*vn.Spec.DisableNetworkCheck))
 	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
 	for i, arg := range container.Args {
 		if strings.HasPrefix(arg, string(vkforge.NodeCheckNetwork)) {
