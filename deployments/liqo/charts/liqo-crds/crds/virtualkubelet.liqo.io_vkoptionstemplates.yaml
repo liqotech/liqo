@@ -50,6 +50,10 @@ spec:
                 type: array
               containerImage:
                 type: string
+              createNode:
+                type: boolean
+              disableNetworkCheck:
+                type: boolean
               extraAnnotations:
                 additionalProperties:
                   type: string
@@ -143,6 +147,8 @@ spec:
                 type: object
             required:
             - containerImage
+            - createNode
+            - disableNetworkCheck
             - metricsEnabled
             - reflectorsType
             - reflectorsWorkers
