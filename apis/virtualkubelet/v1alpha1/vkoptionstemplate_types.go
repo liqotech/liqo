@@ -21,6 +21,8 @@ import (
 
 // VkOptionsTemplateSpec defines the desired state of VkOptionsTemplate.
 type VkOptionsTemplateSpec struct {
+	CreateNode              bool                        `json:"createNode"`
+	DisableNetworkCheck     bool                        `json:"disableNetworkCheck"`
 	ContainerImage          string                      `json:"containerImage"`
 	MetricsEnabled          bool                        `json:"metricsEnabled"`
 	MetricsAddress          string                      `json:"metricsAddress,omitempty"`

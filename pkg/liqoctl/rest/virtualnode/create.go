@@ -164,7 +164,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	virtualNode := forge.VirtualNode(opts.Name, tenantNamespace)
 	if _, err := controllerutil.CreateOrUpdate(ctx, opts.CRClient, virtualNode, func() error {
-		return forge.MutateVirtualNode(virtualNode, o.remoteClusterID.GetClusterID(), vnOpts)
+		return forge.MutateVirtualNode(virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck)
 	}); err != nil {
 		s.Fail("Unable to create virtual node: ", output.PrettyErr(err))
 		return err
@@ -203,8 +203,7 @@ func (o *Options) forgeVirtualNodeOptionsFromResourceSlice(ctx context.Context,
 	}
 
 	// Forge the VirtualNodeOptions from the ResourceSlice.
-	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice,
-		kubeconfigSecret.Name, o.createNode, o.disableNetworkCheck, vkOptionsTemplateRef)
+	vnOpts := forge.VirtualNodeOptionsFromResourceSlice(&resourceSlice, kubeconfigSecret.Name, vkOptionsTemplateRef)
 
 	return vnOpts, nil
 }
@@ -258,8 +257,6 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 
 	return &forge.VirtualNodeOptions{
 		KubeconfigSecretRef:  corev1.LocalObjectReference{Name: o.kubeconfigSecretName},
-		CreateNode:           o.createNode,
-		DisableNetworkCheck:  o.disableNetworkCheck,
 		VkOptionsTemplateRef: vkOptionsTemplateRef,
 
 		ResourceList: corev1.ResourceList{
@@ -301,7 +298,7 @@ func (o *Options) output(name, namespace string, vnOpts *forge.VirtualNodeOption
 	}
 
 	virtualNode := forge.VirtualNode(name, namespace)
-	if err := forge.MutateVirtualNode(virtualNode, o.remoteClusterID.GetClusterID(), vnOpts); err != nil {
+	if err := forge.MutateVirtualNode(virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck); err != nil {
 		return err
 	}
 
