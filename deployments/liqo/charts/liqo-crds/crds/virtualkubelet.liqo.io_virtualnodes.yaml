@@ -71,13 +71,12 @@ spec:
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
               createNode:
-                default: true
                 description: CreateNode indicates if a node to target the remote cluster
                   (and schedule on it) has to be created.
                 type: boolean
               disableNetworkCheck:
                 description: |-
-                  DisableNetworkCheck disables the check the conditions of the liqo networking.
+                  DisableNetworkCheck disables the check of the liqo networking.
                   If check is disabled, the network status will not be added to node conditions.
                 type: boolean
               images:
