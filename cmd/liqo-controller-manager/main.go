@@ -84,8 +84,6 @@ func init() {
 
 func main() {
 	var clusterLabels argsutils.StringMap
-	var labelsNotReflected argsutils.StringList
-	var annotationsNotReflected argsutils.StringList
 	var ingressClasses argsutils.ClassNameList
 	var loadBalancerClasses argsutils.ClassNameList
 	var defaultNodeResources argsutils.ResourceMap
@@ -154,8 +152,6 @@ func main() {
 	flag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
 
 	// OFFLOADING MODULE
-	flag.Var(&labelsNotReflected, "labels-not-reflected", "List of labels (key) that must not be reflected")
-	flag.Var(&annotationsNotReflected, "annotations-not-reflected", "List of annotations (key) that must not be reflected")
 	// Storage Provisioner parameters
 	enableStorage := flag.Bool("enable-storage", false, "enable the liqo virtual storage class")
 	virtualStorageClassName := flag.String("virtual-storage-class-name", "liqo", "Name of the virtual storage class")

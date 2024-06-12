@@ -30,6 +30,14 @@ spec:
   {{- if .Values.virtualKubelet.metrics.enabled }}
   metricsAddress: :{{ .Values.virtualKubelet.metrics.port }}
   {{- end }}
+  {{- if ge (len .Values.offloading.reflection.skip.labels) 1 }}
+  labelsNotReflected:
+    {{- toYaml .Values.offloading.reflection.skip.labels | nindent 4 }}
+  {{- end }}
+  {{- if ge (len .Values.offloading.reflection.skip.annotations) 1 }}
+  annotationsNotReflected:
+    {{- toYaml .Values.offloading.reflection.skip.annotations | nindent 4 }}
+  {{- end }}
   reflectorsWorkers:
     pod: {{ .Values.offloading.reflection.pod.workers }}
     service: {{ .Values.offloading.reflection.service.workers }}
