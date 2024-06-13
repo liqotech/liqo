@@ -73,11 +73,10 @@ func getForeignList(client dynamic.Interface) (*discoveryV1alpha1.ForeignCluster
 
 // checkPeeringsStatus verifies if the cluster has any active peerings with foreign clusters.
 func checkPeeringsStatus(foreign *discoveryV1alpha1.ForeignClusterList) bool {
-	// TODO: review the implementation
 	var returnValue = true
 	for i := range foreign.Items {
 		item := &foreign.Items[i]
-		if fcutils.IsNetworkingEstablished(item) {
+		if fcutils.IsNetworkingModuleEnabled(item) || fcutils.IsAuthenticationModuleEnabled(item) || fcutils.IsOffloadingModuleEnabled(item) {
 			returnValue = false
 		}
 	}
