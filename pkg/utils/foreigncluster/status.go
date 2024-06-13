@@ -24,18 +24,6 @@ func IsNetworkingEstablished(foreignCluster *discoveryv1alpha1.ForeignCluster) b
 	return curPhase == discoveryv1alpha1.ConditionStatusEstablished
 }
 
-// IsAuthenticationEstablished checks if the authentication is established.
-func IsAuthenticationEstablished(_ *discoveryv1alpha1.ForeignCluster) bool {
-	// TODO: implement the function
-	panic("not implemented")
-}
-
-// IsOffloadingEstablished checks if the offloading is established.
-func IsOffloadingEstablished(_ *discoveryv1alpha1.ForeignCluster) bool {
-	// TODO: implement the function
-	panic("not implemented")
-}
-
 // IsNetworkingEstablishedOrDisabled checks if the networking is established or if the liqo networking module is disabled.
 func IsNetworkingEstablishedOrDisabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	return IsNetworkingEstablished(foreignCluster) || !IsNetworkingModuleEnabled(foreignCluster)

@@ -130,8 +130,3 @@ func ComponentLabelSelector(name, component string) labels.Selector {
 func ControllerManagerLabelSelector() labels.Selector {
 	return ComponentLabelSelector("controller-manager", "controller-manager")
 }
-
-// DiscoveryLabelSelector returns the label selector associated with the discovery components.
-func DiscoveryLabelSelector() labels.Selector {
-	return ComponentLabelSelector("discovery", "discovery")
-}

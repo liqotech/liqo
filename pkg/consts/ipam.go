@@ -39,6 +39,11 @@ const (
 	// NetworkTypeReserved is the constant representing a network of type reserved subnet.
 	NetworkTypeReserved NetworkType = "reserved"
 
+	// IPTypeLabelKey is the label key used to indicate the type of an IP.
+	IPTypeLabelKey = "ipam.liqo.io/ip-type"
+	// IPTypeAPIServer is the constant representing an IP of type APIServer.
+	IPTypeAPIServer = "api-server"
+
 	// DefaultCIDRValue is the default value for a string that contains a CIDR.
 	DefaultCIDRValue = "None"
 )
