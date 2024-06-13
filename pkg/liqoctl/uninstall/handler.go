@@ -42,6 +42,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 var liqoGroupVersions = []schema.GroupVersion{
@@ -67,7 +68,7 @@ func (o *Options) Run(ctx context.Context) error {
 	defer cancel()
 
 	s := o.Printer.StartSpinner("Running pre-uninstall checks")
-	if err := o.preUninstall(ctx); err != nil {
+	if err := utils.PreUninstall(ctx, o.CRClient); err != nil {
 		s.Fail("Pre-uninstall checks failed: ", output.PrettyErr(err))
 		return err
 	}
