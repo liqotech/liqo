@@ -110,7 +110,6 @@ func CheckDeletion(client dynamic.Interface, res *resultType, quit chan struct{}
 }
 
 // CheckUnjoin checks if all peering are disabled.
-// TODO: refactor to check top-level resources.
 func CheckUnjoin(client dynamic.Interface, res *resultType, quit chan struct{}, _ *toCheckDeleted) {
 	foreignClusterList, err := getForeignList(client)
 	if err != nil {

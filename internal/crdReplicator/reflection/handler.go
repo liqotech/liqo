@@ -330,6 +330,8 @@ func (r *Reflector) mutateLabelsForRemote(labels map[string]string) map[string]s
 	labels[consts.ReplicationStatusLabel] = strconv.FormatBool(true)
 	// setting originID i.e clusterID of home cluster
 	labels[consts.ReplicationOriginLabel] = string(r.localClusterID)
+	// setting the right remote cluster ID
+	labels[consts.RemoteClusterID] = string(r.localClusterID)
 
 	// delete the ownership label if any.
 	delete(labels, consts.LocalResourceOwnership)
