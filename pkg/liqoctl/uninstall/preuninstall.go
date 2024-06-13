@@ -21,6 +21,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -29,43 +30,31 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/errors"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
+	ipsutils "github.com/liqotech/liqo/pkg/utils/ipam/ips"
 )
 
 type errorMap struct {
-	outgoingPeering []string
-	incomingPeering []string
-	networking      []string
-	offloading      []string
-	generic         []string
+	networking     []string
+	authentication []string
+	offloading     []string
+	namespaces     []string
+	generic        []string
 }
 
 func newErrorMap() errorMap {
 	return errorMap{
-		outgoingPeering: []string{},
-		incomingPeering: []string{},
-		networking:      []string{},
-		offloading:      []string{},
-		generic:         []string{},
+		networking:     []string{},
+		authentication: []string{},
+		offloading:     []string{},
+		namespaces:     []string{},
+		generic:        []string{},
 	}
 }
 
 func (em *errorMap) getError() error {
 	str := ""
 	hasErr := false
-	if len(em.outgoingPeering) > 0 {
-		str += "\ndisable outgoing peering for clusters:\n"
-		for _, fc := range em.outgoingPeering {
-			str += fmt.Sprintf("- %s\n", fc)
-		}
-		hasErr = true
-	}
-	if len(em.incomingPeering) > 0 {
-		str += "\ndisable incoming peering for clusters:\n"
-		for _, fc := range em.incomingPeering {
-			str += fmt.Sprintf("- %s\n", fc)
-		}
-		hasErr = true
-	}
+
 	if len(em.networking) > 0 {
 		str += "\ndisable networking for clusters:\n"
 		for _, fc := range em.networking {
@@ -73,13 +62,31 @@ func (em *errorMap) getError() error {
 		}
 		hasErr = true
 	}
+
+	if len(em.authentication) > 0 {
+		str += "\ndisable authentication for clusters:\n"
+		for i := range em.authentication {
+			str += fmt.Sprintf("- %s\n", em.authentication[i])
+		}
+		hasErr = true
+	}
+
 	if len(em.offloading) > 0 {
-		str += "\ndisable offloading for namespaces:\n"
+		str += "\ndisable offloading for clusters:\n"
 		for _, fc := range em.offloading {
 			str += fmt.Sprintf("- %s\n", fc)
 		}
 		hasErr = true
 	}
+
+	if len(em.namespaces) > 0 {
+		str += "\nunoffload the following namespaces:\n"
+		for i := range em.namespaces {
+			str += fmt.Sprintf("- %s\n", em.namespaces[i])
+		}
+		hasErr = true
+	}
+
 	if len(em.generic) > 0 {
 		str += "\nremove the following resources:\n"
 		for i := range em.generic {
@@ -106,8 +113,16 @@ func (o *Options) preUninstall(ctx context.Context) error {
 	for i := range foreignClusterList.Items {
 		fc := &foreignClusterList.Items[i]
 
-		if fcutils.IsNetworkingEstablished(fc) {
-			errMap.networking = append(errMap.networking, fc.Name)
+		if fcutils.IsNetworkingModuleEnabled(fc) {
+			errMap.networking = append(errMap.networking, string(fc.Spec.ClusterID))
+		}
+
+		if fcutils.IsAuthenticationModuleEnabled(fc) {
+			errMap.authentication = append(errMap.authentication, string(fc.Spec.ClusterID))
+		}
+
+		if fcutils.IsOffloadingModuleEnabled(fc) {
+			errMap.offloading = append(errMap.offloading, string(fc.Spec.ClusterID))
 		}
 	}
 
@@ -118,7 +133,7 @@ func (o *Options) preUninstall(ctx context.Context) error {
 	}
 	for i := range namespaceOffloadings.Items {
 		offloading := &namespaceOffloadings.Items[i]
-		errMap.offloading = append(errMap.offloading, offloading.Namespace)
+		errMap.namespaces = append(errMap.namespaces, offloading.Namespace)
 	}
 
 	// Search for Configuration resources
@@ -127,7 +142,7 @@ func (o *Options) preUninstall(ctx context.Context) error {
 		return err
 	}
 	for i := range configurations.Items {
-		addResourceToErrMap(&configurations.Items[i], &errMap, &foreignClusterList)
+		errMap.networking = addResourceToErrMap(&configurations.Items[i], &errMap, errMap.networking, &foreignClusterList)
 	}
 
 	// Search for GatewayServer resources
@@ -136,7 +151,7 @@ func (o *Options) preUninstall(ctx context.Context) error {
 		return err
 	}
 	for i := range gatewayServers.Items {
-		addResourceToErrMap(&gatewayServers.Items[i], &errMap, &foreignClusterList)
+		errMap.networking = addResourceToErrMap(&gatewayServers.Items[i], &errMap, errMap.networking, &foreignClusterList)
 	}
 
 	// Search for GatewayClient resources
@@ -145,7 +160,7 @@ func (o *Options) preUninstall(ctx context.Context) error {
 		return err
 	}
 	for i := range gatewayClients.Items {
-		addResourceToErrMap(&gatewayClients.Items[i], &errMap, &foreignClusterList)
+		errMap.networking = addResourceToErrMap(&gatewayClients.Items[i], &errMap, errMap.networking, &foreignClusterList)
 	}
 
 	// Search for IP resources
@@ -154,8 +169,13 @@ func (o *Options) preUninstall(ctx context.Context) error {
 		return err
 	}
 	for i := range ips.Items {
+		// These IPs will be handled by the uninstaller job
+		if ipsutils.IsAPIServerIP(&ips.Items[i]) {
+			continue
+		}
+
 		if len(ips.Items[i].GetFinalizers()) > 0 {
-			addResourceToErrMap(&ips.Items[i], &errMap, &foreignClusterList)
+			errMap.networking = addResourceToErrMap(&ips.Items[i], &errMap, errMap.networking, &foreignClusterList)
 		}
 	}
 
@@ -170,24 +190,39 @@ func (o *Options) preUninstall(ctx context.Context) error {
 			continue
 		}
 		if len(networks.Items[i].GetFinalizers()) > 0 {
-			addResourceToErrMap(&networks.Items[i], &errMap, &foreignClusterList)
+			errMap.networking = addResourceToErrMap(&networks.Items[i], &errMap, errMap.networking, &foreignClusterList)
 		}
+	}
+
+	// Search for ResourceSlice resources
+	var resourceSlices authv1alpha1.ResourceSliceList
+	if err := errors.IgnoreNoMatchError(o.CRClient.List(ctx, &resourceSlices)); err != nil {
+		return err
+	}
+	for i := range resourceSlices.Items {
+		errMap.authentication = addResourceToErrMap(&resourceSlices.Items[i], &errMap, errMap.authentication, &foreignClusterList)
 	}
 
 	return errMap.getError()
 }
 
-func addResourceToErrMap(obj client.Object, errMap *errorMap, foreignClusters *discoveryv1alpha1.ForeignClusterList) {
-	// Check if object is a networking resource associated with a remote cluster
+func addResourceToErrMap(obj client.Object, errMap *errorMap, errList []string, foreignClusters *discoveryv1alpha1.ForeignClusterList) []string {
+	// Check if object is a resource associated with a remote cluster
 	clusterID, found := getRemoteClusterID(obj, foreignClusters)
 	if found {
-		if !slices.Contains(errMap.networking, string(clusterID)) {
-			errMap.networking = append(errMap.networking, string(clusterID))
+		if !slices.Contains(errList, string(clusterID)) {
+			errList = append(errList, string(clusterID))
 		}
-		return
+		return errList
 	}
 
-	// Add generic resource to error map
+	// If resource is not associated to any cluster, add the object to the generic error list
+	addGenericToErrMap(obj, errMap)
+
+	return errList
+}
+
+func addGenericToErrMap(obj client.Object, errMap *errorMap) {
 	name := fmt.Sprintf("%s: %s/%s", obj.GetObjectKind().GroupVersionKind().GroupKind(), obj.GetNamespace(), obj.GetName())
 	if !slices.Contains(errMap.generic, name) {
 		errMap.generic = append(errMap.generic, name)
