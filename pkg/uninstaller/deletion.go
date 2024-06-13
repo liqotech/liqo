@@ -16,64 +16,14 @@ package uninstaller
 
 import (
 	"context"
-	"encoding/json"
 
-	"gomodules.xyz/jsonpatch/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/klog/v2"
 
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
-
-// patchForeignCluster patches the given foreign cluster applying the provided function.
-func patchForeignCluster(ctx context.Context, changeFunc func(*discoveryV1alpha1.ForeignCluster),
-	foreignCluster *discoveryV1alpha1.ForeignCluster, client dynamic.Interface) error {
-	original, err := json.Marshal(foreignCluster)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	mutated := foreignCluster.DeepCopy()
-	changeFunc(mutated)
-
-	target, err := json.Marshal(mutated)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	ops, err := jsonpatch.CreatePatch(original, target)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	if len(ops) == 0 {
-		// this avoids an empty patch of the foreign cluster
-		return nil
-	}
-
-	bytes, err := json.Marshal(ops)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	r1 := client.Resource(discoveryV1alpha1.ForeignClusterGroupVersionResource)
-	_, err = r1.Patch(ctx, mutated.Name, types.JSONPatchType, bytes, metav1.PatchOptions{})
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	return nil
-}
 
 // DeleteAllForeignClusters deletes all ForeignCluster resources.
 func DeleteAllForeignClusters(ctx context.Context, client dynamic.Interface) error {
@@ -81,23 +31,6 @@ func DeleteAllForeignClusters(ctx context.Context, client dynamic.Interface) err
 	err := r1.DeleteCollection(ctx,
 		metav1.DeleteOptions{TypeMeta: metav1.TypeMeta{}}, metav1.ListOptions{TypeMeta: metav1.TypeMeta{}})
 	return err
-}
-
-// DeleteVirtualNodes deletes all VirtualNode resources.
-func DeleteVirtualNodes(ctx context.Context, client dynamic.Interface) error {
-	r1 := client.Resource(virtualkubeletv1alpha1.VirtualNodeGroupVersionResource)
-	unstructured, err := r1.List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, item := range unstructured.Items {
-		if err := r1.Namespace(item.GetNamespace()).Delete(ctx, item.GetName(), metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // DeleteInternalNodes deletes all InternalNode resources.
