@@ -33,6 +33,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
@@ -119,7 +120,7 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		HomeAPIServerHost:   cfg.HomeAPIServerHost,
 		HomeAPIServerPort:   cfg.HomeAPIServerPort,
 		KubernetesServiceIPMapper: func(ctx context.Context) (string, error) {
-			ip, err := localLiqoClient.IpamV1alpha1().IPs(cfg.LiqoNamespace).Get(ctx, "api-server", metav1.GetOptions{})
+			ip, err := localLiqoClient.IpamV1alpha1().IPs(cfg.LiqoNamespace).Get(ctx, consts.IPTypeAPIServer, metav1.GetOptions{})
 			if err != nil {
 				return "", err
 			}

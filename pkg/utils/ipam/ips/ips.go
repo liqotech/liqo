@@ -27,6 +27,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -43,7 +44,7 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 
 	ip := &ipamv1alpha1.IP{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "api-server",
+			Name:      consts.IPTypeAPIServer,
 			Namespace: liqoNamespace,
 		},
 	}
@@ -53,6 +54,7 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 		}
 
 		ip.Labels[remapping.IPCategoryTargetKey] = remapping.IPCategoryTargetValueMapping
+		ip.Labels[consts.IPTypeLabelKey] = consts.IPTypeAPIServer
 
 		ip.Spec.IP = networkingv1alpha1.IP(k8sSvc.Spec.ClusterIP)
 
@@ -62,6 +64,12 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 	}
 
 	return nil
+}
+
+// IsAPIServerIP checks if the resource is an IP of type API server.
+func IsAPIServerIP(ip *ipamv1alpha1.IP) bool {
+	ipType, ok := ip.Labels[consts.IPTypeLabelKey]
+	return ok && ipType == consts.IPTypeAPIServer
 }
 
 // MapAddress maps the address with the network configuration of the cluster.
