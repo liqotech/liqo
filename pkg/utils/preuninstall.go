@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package uninstall
+package utils
 
 import (
 	"context"
@@ -101,9 +101,10 @@ func (em *errorMap) getError() error {
 	return nil
 }
 
-func (o *Options) preUninstall(ctx context.Context) error {
+// PreUninstall checks if there are resources that need to be removed before uninstalling Liqo.
+func PreUninstall(ctx context.Context, cl client.Client) error {
 	var foreignClusterList discoveryv1alpha1.ForeignClusterList
-	if err := errors.IgnoreNoMatchError(o.CRClient.List(ctx, &foreignClusterList)); err != nil {
+	if err := errors.IgnoreNoMatchError(cl.List(ctx, &foreignClusterList)); err != nil {
 		return err
 	}
 
@@ -128,7 +129,7 @@ func (o *Options) preUninstall(ctx context.Context) error {
 
 	// Search for NamespaceOffloading resources
 	var namespaceOffloadings offloadingv1alpha1.NamespaceOffloadingList
-	if err := errors.IgnoreNoMatchError(o.CRClient.List(ctx, &namespaceOffloadings)); err != nil {
+	if err := errors.IgnoreNoMatchError(cl.List(ctx, &namespaceOffloadings)); err != nil {
 		return err
 	}
 	for i := range namespaceOffloadings.Items {
@@ -136,36 +137,27 @@ func (o *Options) preUninstall(ctx context.Context) error {
 		errMap.namespaces = append(errMap.namespaces, offloading.Namespace)
 	}
 
+	// Search for ResourceSlice resources
+	var resourceSlices authv1alpha1.ResourceSliceList
+	if err := errors.IgnoreNoMatchError(cl.List(ctx, &resourceSlices)); err != nil {
+		return err
+	}
+	for i := range resourceSlices.Items {
+		errMap.authentication = addResourceToErrMap(&resourceSlices.Items[i], &errMap, errMap.authentication, &foreignClusterList)
+	}
+
 	// Search for Configuration resources
 	var configurations networkingv1alpha1.ConfigurationList
-	if err := errors.IgnoreNoMatchError(o.CRClient.List(ctx, &configurations)); err != nil {
+	if err := errors.IgnoreNoMatchError(cl.List(ctx, &configurations)); err != nil {
 		return err
 	}
 	for i := range configurations.Items {
 		errMap.networking = addResourceToErrMap(&configurations.Items[i], &errMap, errMap.networking, &foreignClusterList)
 	}
 
-	// Search for GatewayServer resources
-	var gatewayServers networkingv1alpha1.GatewayServerList
-	if err := errors.IgnoreNoMatchError(o.CRClient.List(ctx, &gatewayServers)); err != nil {
-		return err
-	}
-	for i := range gatewayServers.Items {
-		errMap.networking = addResourceToErrMap(&gatewayServers.Items[i], &errMap, errMap.networking, &foreignClusterList)
-	}
-
-	// Search for GatewayClient resources
-	var gatewayClients networkingv1alpha1.GatewayClientList
-	if err := errors.IgnoreNoMatchError(o.CRClient.List(ctx, &gatewayClients)); err != nil {
-		return err
-	}
-	for i := range gatewayClients.Items {
-		errMap.networking = addResourceToErrMap(&gatewayClients.Items[i], &errMap, errMap.networking, &foreignClusterList)
-	}
-
 	// Search for IP resources
 	var ips ipamv1alpha1.IPList
-	if err := errors.IgnoreNoMatchError(o.CRClient.List(ctx, &ips)); err != nil {
+	if err := errors.IgnoreNoMatchError(cl.List(ctx, &ips)); err != nil {
 		return err
 	}
 	for i := range ips.Items {
@@ -181,7 +173,7 @@ func (o *Options) preUninstall(ctx context.Context) error {
 
 	// Search for Network resources
 	var networks ipamv1alpha1.NetworkList
-	if err := errors.IgnoreNoMatchError(o.CRClient.List(ctx, &networks)); err != nil {
+	if err := errors.IgnoreNoMatchError(cl.List(ctx, &networks)); err != nil {
 		return err
 	}
 	for i := range networks.Items {
@@ -192,15 +184,6 @@ func (o *Options) preUninstall(ctx context.Context) error {
 		if len(networks.Items[i].GetFinalizers()) > 0 {
 			errMap.networking = addResourceToErrMap(&networks.Items[i], &errMap, errMap.networking, &foreignClusterList)
 		}
-	}
-
-	// Search for ResourceSlice resources
-	var resourceSlices authv1alpha1.ResourceSliceList
-	if err := errors.IgnoreNoMatchError(o.CRClient.List(ctx, &resourceSlices)); err != nil {
-		return err
-	}
-	for i := range resourceSlices.Items {
-		errMap.authentication = addResourceToErrMap(&resourceSlices.Items[i], &errMap, errMap.authentication, &foreignClusterList)
 	}
 
 	return errMap.getError()
