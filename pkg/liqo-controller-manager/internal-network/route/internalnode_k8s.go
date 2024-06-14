@@ -140,7 +140,7 @@ func forgeFirewallConfigurationForwardChainRule(internalnode *networkingv1alpha1
 			{
 				Op: firewall.MatchOperationEq,
 				IP: &firewall.MatchIP{
-					Position: firewall.MatchIPPositionSrc,
+					Position: firewall.MatchPositionSrc,
 					Value:    nodePortSrcIP,
 				},
 			},
@@ -177,7 +177,7 @@ func forgeFirewallConfigurationPreroutingChainRule(nodePortSrcIP string) firewal
 			{
 				Op: firewall.MatchOperationEq,
 				IP: &firewall.MatchIP{
-					Position: firewall.MatchIPPositionDst,
+					Position: firewall.MatchPositionDst,
 					Value:    nodePortSrcIP,
 				},
 			},

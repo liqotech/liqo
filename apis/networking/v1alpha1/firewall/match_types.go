@@ -24,14 +24,14 @@ const (
 	MatchOperationNeq MatchOperation = "neq"
 )
 
-// MatchIPPosition is the position of the IP in the packet.
-type MatchIPPosition string
+// MatchPosition is the position of the IP in the packet.
+type MatchPosition string
 
 const (
-	// MatchIPPositionSrc is the position of the IP in the packet.
-	MatchIPPositionSrc MatchIPPosition = "src"
-	// MatchIPPositionDst is the position of the IP in the packet.
-	MatchIPPositionDst MatchIPPosition = "dst"
+	// MatchPositionSrc is the position of the IP in the packet.
+	MatchPositionSrc MatchPosition = "src"
+	// MatchPositionDst is the position of the IP in the packet.
+	MatchPositionDst MatchPosition = "dst"
 )
 
 // MatchDevPosition is the position of the device in the packet.
@@ -44,14 +44,34 @@ const (
 	MatchDevPositionOut MatchDevPosition = "out"
 )
 
+// L4Proto is the protocol of the packet.
+type L4Proto string
+
+const (
+	// L4ProtoTCP is the protocol of the packet.
+	L4ProtoTCP L4Proto = "tcp"
+	// L4ProtoUDP is the protocol of the packet.
+	L4ProtoUDP L4Proto = "udp"
+)
+
 // MatchIP is an IP to be matched.
 // +kubebuilder:object:generate=true
 type MatchIP struct {
-	// Value is the IP or a SUbnet to be matched.
+	// Value is the IP or a Subnet to be matched.
 	Value string `json:"value"`
 	// Position is the position of the IP in the packet.
 	// +kubebuilder:validation:Enum=src;dst
-	Position MatchIPPosition `json:"position"`
+	Position MatchPosition `json:"position"`
+}
+
+// MatchPort is a port to be matched.
+// +kubebuilder:object:generate=true
+type MatchPort struct {
+	// Value is the port or a range (eg. 3000-4000) to be matched.
+	Value string `json:"value"`
+	// Position is the position of the port in the packet.
+	// +kubebuilder:validation:Enum=src;dst
+	Position MatchPosition `json:"position"`
 }
 
 // MatchDev is a device to be matched.
@@ -64,16 +84,26 @@ type MatchDev struct {
 	Position MatchDevPosition `json:"position"`
 }
 
+// MatchProto is a protocol to be matched.
+// +kubebuilder:object:generate=true
+type MatchProto struct {
+	// Value is the protocol to be matched.
+	// +kubebuilder:validation:Enum=tcp;udp
+	Value L4Proto `json:"value"`
+}
+
 // Match is a match to be applied to a rule.
 // +kubebuilder:object:generate=true
-// +kubebuilder:validation:MaxProperties=2
-// +kubebuilder:validation:MinProperties=2
 type Match struct {
 	// Op is the operation of the match.
 	// +kubebuilder:validation:Enum=eq;neq
 	Op MatchOperation `json:"op"`
 	// IP contains the options to match an IP or a Subnet.
 	IP *MatchIP `json:"ip,omitempty"`
+	// Port contains the options to match a port.
+	Port *MatchPort `json:"port,omitempty"`
+	// Proto contains the options to match a protocol.
+	Proto *MatchProto `json:"proto,omitempty"`
 	// Dev contains the options to match a device.
 	Dev *MatchDev `json:"dev,omitempty"`
 }
