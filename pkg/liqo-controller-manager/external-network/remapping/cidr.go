@@ -152,7 +152,7 @@ func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configurati
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
 						Value:    remoteRemapCIDR,
-						Position: firewall.MatchIPPositionDst,
+						Position: firewall.MatchPositionDst,
 					},
 				},
 				{
@@ -203,7 +203,7 @@ func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1alpha1.Configurati
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
 						Value:    localCIDR,
-						Position: firewall.MatchIPPositionSrc,
+						Position: firewall.MatchPositionSrc,
 					},
 				},
 				{
