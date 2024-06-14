@@ -107,8 +107,6 @@ spec:
                                     items:
                                       description: Match is a match to be applied
                                         to a rule.
-                                      maxProperties: 2
-                                      minProperties: 2
                                       properties:
                                         dev:
                                           description: Dev contains the options to
@@ -141,7 +139,7 @@ spec:
                                               - dst
                                               type: string
                                             value:
-                                              description: Value is the IP or a SUbnet
+                                              description: Value is the IP or a Subnet
                                                 to be matched.
                                               type: string
                                           required:
@@ -155,6 +153,39 @@ spec:
                                           - eq
                                           - neq
                                           type: string
+                                        port:
+                                          description: Port contains the options to
+                                            match a port.
+                                          properties:
+                                            position:
+                                              description: Position is the position
+                                                of the port in the packet.
+                                              enum:
+                                              - src
+                                              - dst
+                                              type: string
+                                            value:
+                                              description: Value is the port or a
+                                                range (eg. 3000-4000) to be matched.
+                                              type: string
+                                          required:
+                                          - position
+                                          - value
+                                          type: object
+                                        proto:
+                                          description: Proto contains the options
+                                            to match a protocol.
+                                          properties:
+                                            value:
+                                              description: Value is the protocol to
+                                                be matched.
+                                              enum:
+                                              - tcp
+                                              - udp
+                                              type: string
+                                          required:
+                                          - value
+                                          type: object
                                       required:
                                       - op
                                       type: object
@@ -185,8 +216,6 @@ spec:
                                     items:
                                       description: Match is a match to be applied
                                         to a rule.
-                                      maxProperties: 2
-                                      minProperties: 2
                                       properties:
                                         dev:
                                           description: Dev contains the options to
@@ -219,7 +248,7 @@ spec:
                                               - dst
                                               type: string
                                             value:
-                                              description: Value is the IP or a SUbnet
+                                              description: Value is the IP or a Subnet
                                                 to be matched.
                                               type: string
                                           required:
@@ -233,6 +262,39 @@ spec:
                                           - eq
                                           - neq
                                           type: string
+                                        port:
+                                          description: Port contains the options to
+                                            match a port.
+                                          properties:
+                                            position:
+                                              description: Position is the position
+                                                of the port in the packet.
+                                              enum:
+                                              - src
+                                              - dst
+                                              type: string
+                                            value:
+                                              description: Value is the port or a
+                                                range (eg. 3000-4000) to be matched.
+                                              type: string
+                                          required:
+                                          - position
+                                          - value
+                                          type: object
+                                        proto:
+                                          description: Proto contains the options
+                                            to match a protocol.
+                                          properties:
+                                            value:
+                                              description: Value is the protocol to
+                                                be matched.
+                                              enum:
+                                              - tcp
+                                              - udp
+                                              type: string
+                                          required:
+                                          - value
+                                          type: object
                                       required:
                                       - op
                                       type: object
