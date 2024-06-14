@@ -172,7 +172,7 @@ func enforceFirewallConfigurationMasqChains(fwcfg *networkingv1alpha1.FirewallCo
 	ensureFirewallConfigurationMasqSNATRules(fwcfg, ip)
 }
 
-func containsNATRule(rules []firewall.NatRule, to string, pos firewall.MatchIPPosition) bool {
+func containsNATRule(rules []firewall.NatRule, to string, pos firewall.MatchPosition) bool {
 	for i := range rules {
 		if rules[i].To != nil && *rules[i].To == to {
 			for j := range rules[i].Match {
@@ -196,7 +196,7 @@ func GetFirstIPFromMapping(ipMapping map[string]networkingv1alpha1.IP) string {
 func ensureFirewallConfigurationDNATRules(fwcfg *networkingv1alpha1.FirewallConfiguration,
 	ip *ipamv1alpha1.IP) {
 	rules := &fwcfg.Spec.Table.Chains[0].Rules
-	if !containsNATRule(rules.NatRules, ip.Spec.IP.String(), firewall.MatchIPPositionDst) {
+	if !containsNATRule(rules.NatRules, ip.Spec.IP.String(), firewall.MatchPositionDst) {
 		rules.NatRules = append(rules.NatRules, firewall.NatRule{
 			NatType: firewall.NatTypeDestination,
 			To:      ptr.To(ip.Spec.IP.String()),
@@ -205,7 +205,7 @@ func ensureFirewallConfigurationDNATRules(fwcfg *networkingv1alpha1.FirewallConf
 				{
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
-						Position: firewall.MatchIPPositionDst,
+						Position: firewall.MatchPositionDst,
 						Value:    GetFirstIPFromMapping(ip.Status.IPMappings),
 					},
 				},
@@ -217,7 +217,7 @@ func ensureFirewallConfigurationDNATRules(fwcfg *networkingv1alpha1.FirewallConf
 func ensureFirewallConfigurationSNATRules(fwcfg *networkingv1alpha1.FirewallConfiguration,
 	ip *ipamv1alpha1.IP) {
 	rules := &fwcfg.Spec.Table.Chains[1].Rules
-	if !containsNATRule(rules.NatRules, ip.Spec.IP.String(), firewall.MatchIPPositionSrc) {
+	if !containsNATRule(rules.NatRules, ip.Spec.IP.String(), firewall.MatchPositionSrc) {
 		rules.NatRules = append(rules.NatRules, firewall.NatRule{
 			NatType: firewall.NatTypeSource,
 			To:      ptr.To(ip.Spec.IP.String()),
@@ -226,7 +226,7 @@ func ensureFirewallConfigurationSNATRules(fwcfg *networkingv1alpha1.FirewallConf
 				{
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
-						Position: firewall.MatchIPPositionSrc,
+						Position: firewall.MatchPositionSrc,
 						Value:    GetFirstIPFromMapping(ip.Status.IPMappings),
 					},
 				},
@@ -239,7 +239,7 @@ func containsNatRuleMasquerade(rules []firewall.NatRule, dst string) bool {
 	for i := range rules {
 		if rules[i].To == nil && rules[i].NatType == firewall.NatTypeMasquerade {
 			for j := range rules[i].Match {
-				if rules[i].Match[j].IP != nil && rules[i].Match[j].IP.Position == firewall.MatchIPPositionDst &&
+				if rules[i].Match[j].IP != nil && rules[i].Match[j].IP.Position == firewall.MatchPositionDst &&
 					rules[i].Match[j].IP.Value == dst {
 					return true
 				}
@@ -259,7 +259,7 @@ func ensureFirewallConfigurationMasqSNATRules(fwcfg *networkingv1alpha1.Firewall
 				{
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
-						Position: firewall.MatchIPPositionDst,
+						Position: firewall.MatchPositionDst,
 						Value:    ip.Spec.IP.String(),
 					},
 				},

@@ -106,14 +106,14 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration, opts *Options) 
 				{
 					Op: firewallapi.MatchOperationEq,
 					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchIPPositionDst,
+						Position: firewallapi.MatchPositionDst,
 						Value:    cfg.Status.Remote.CIDR.Pod.String(),
 					},
 				},
 				{
 					Op: firewallapi.MatchOperationEq,
 					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchIPPositionSrc,
+						Position: firewallapi.MatchPositionSrc,
 						Value:    cfg.Spec.Local.CIDR.Pod.String(),
 					},
 				},
@@ -129,7 +129,7 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration, opts *Options) 
 			{
 				Op: firewallapi.MatchOperationEq,
 				IP: &firewallapi.MatchIP{
-					Position: firewallapi.MatchIPPositionDst,
+					Position: firewallapi.MatchPositionDst,
 					Value:    cfg.Status.Remote.CIDR.Pod.String(),
 				},
 			},
@@ -141,7 +141,7 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration, opts *Options) 
 		natrules[1].Match = append(natrules[1].Match, firewallapi.Match{
 			Op: firewallapi.MatchOperationNeq,
 			IP: &firewallapi.MatchIP{
-				Position: firewallapi.MatchIPPositionSrc,
+				Position: firewallapi.MatchPositionSrc,
 				Value:    cfg.Spec.Local.CIDR.Pod.String(),
 			},
 		})
@@ -155,14 +155,14 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration, opts *Options) 
 				{
 					Op: firewallapi.MatchOperationEq,
 					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchIPPositionDst,
+						Position: firewallapi.MatchPositionDst,
 						Value:    cfg.Status.Remote.CIDR.External.String(),
 					},
 				},
 				{
 					Op: firewallapi.MatchOperationEq,
 					IP: &firewallapi.MatchIP{
-						Position: firewallapi.MatchIPPositionSrc,
+						Position: firewallapi.MatchPositionSrc,
 						Value:    cfg.Spec.Local.CIDR.Pod.String(),
 					},
 				},
@@ -178,7 +178,7 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration, opts *Options) 
 			{
 				Op: firewallapi.MatchOperationEq,
 				IP: &firewallapi.MatchIP{
-					Position: firewallapi.MatchIPPositionDst,
+					Position: firewallapi.MatchPositionDst,
 					Value:    cfg.Status.Remote.CIDR.External.String(),
 				},
 			},
@@ -190,7 +190,7 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration, opts *Options) 
 		natrules[3].Match = append(natrules[3].Match, firewallapi.Match{
 			Op: firewallapi.MatchOperationNeq,
 			IP: &firewallapi.MatchIP{
-				Position: firewallapi.MatchIPPositionSrc,
+				Position: firewallapi.MatchPositionSrc,
 				Value:    cfg.Spec.Local.CIDR.Pod.String(),
 			},
 		})
