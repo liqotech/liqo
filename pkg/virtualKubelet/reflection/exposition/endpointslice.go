@@ -39,7 +39,6 @@ import (
 	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
 	ipamv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
 	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -72,7 +71,7 @@ type NamespacedEndpointSliceReflector struct {
 }
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
-func NewEndpointSliceReflector(localPodCIDR string, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
+func NewEndpointSliceReflector(localPodCIDR string, reflectorConfig *vkv1alpha1.ReflectorConfig) manager.Reflector {
 	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(localPodCIDR),
 		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
@@ -155,7 +154,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 			return err
 		}
 		if skipReflection {
-			if ner.GetReflectionType() == consts.DenyList {
+			if ner.GetReflectionType() == vkv1alpha1.DenyList {
 				klog.Infof("Skipping reflection of local EndpointSlice %q as marked with the skip annotation", ner.LocalRef(name))
 			} else { // AllowList
 				klog.Infof("Skipping reflection of local EndpointSlice %q as not marked with the allow annotation", ner.LocalRef(name))
