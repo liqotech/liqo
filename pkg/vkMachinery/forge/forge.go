@@ -25,6 +25,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
@@ -101,8 +102,8 @@ func forgeVKContainers(
 				getDefaultLoadBalancerClass(loadBalancerClasses).LoadBalancerClassName))
 	}
 
-	args = appendArgsReflectorsWorkers(args, opts.Spec.ReflectorsWorkers)
-	args = appendArgsReflectorsType(args, opts.Spec.ReflectorsType)
+	args = appendArgsReflectorsWorkers(args, opts.Spec.ReflectorsConfig)
+	args = appendArgsReflectorsType(args, opts.Spec.ReflectorsConfig)
 
 	if extraAnnotations := opts.Spec.NodeExtraAnnotations; len(extraAnnotations) != 0 {
 		stringifiedMap := argsutils.StringMap{StringMap: extraAnnotations}.String()
@@ -175,18 +176,36 @@ func forgeVKPodSpec(vkNamespace string, homeCluster discoveryv1alpha1.ClusterID,
 	}
 }
 
-func appendArgsReflectorsWorkers(args []string, reflectorsWorkers map[string]uint) []string {
-	for resource, value := range reflectorsWorkers {
-		key := fmt.Sprintf("--%s-reflection-workers", resource)
-		args = append(args, StringifyArgument(key, strconv.Itoa(int(value))))
+func appendArgsReflectorsWorkers(args []string, reflectorsConfig map[string]vkv1alpha1.ReflectorConfig) []string {
+	if reflectorsConfig == nil {
+		return args
 	}
+
+	for _, resource := range resources.Reflectors {
+		reflector, ok := reflectorsConfig[string(resource)]
+		if !ok {
+			continue
+		}
+		key := fmt.Sprintf("--%s-reflection-workers", resource)
+		args = append(args, StringifyArgument(key, strconv.Itoa(int(reflector.NumWorkers))))
+	}
+
 	return args
 }
 
-func appendArgsReflectorsType(args []string, reflectorsType map[string]string) []string {
-	for resource, value := range reflectorsType {
-		key := fmt.Sprintf("--%s-reflection-type", resource)
-		args = append(args, StringifyArgument(key, value))
+func appendArgsReflectorsType(args []string, reflectorsConfig map[string]vkv1alpha1.ReflectorConfig) []string {
+	if reflectorsConfig == nil {
+		return args
 	}
+
+	for _, resource := range resources.ReflectorsCustomizableType {
+		reflector, ok := reflectorsConfig[string(resource)]
+		if !ok {
+			continue
+		}
+		key := fmt.Sprintf("--%s-reflection-type", resource)
+		args = append(args, StringifyArgument(key, string(reflector.Type)))
+	}
+
 	return args
 }
