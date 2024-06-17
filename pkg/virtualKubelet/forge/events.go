@@ -17,7 +17,7 @@ package forge
 import (
 	"fmt"
 
-	"github.com/liqotech/liqo/pkg/consts"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 const (
@@ -87,7 +87,7 @@ func EventReflectionDisabledErrorMsg(namespace string, err error) string {
 }
 
 // EventObjectReflectionDisabledMsg returns the message for the event when reflection is disabled for a given resource.
-func EventObjectReflectionDisabledMsg(reflectionType consts.ReflectionType) string {
+func EventObjectReflectionDisabledMsg(reflectionType vkv1alpha1.ReflectionType) string {
 	return fmt.Sprintf("Reflection to cluster %q disabled for the current object (policy: %q)", RemoteCluster, reflectionType)
 }
 

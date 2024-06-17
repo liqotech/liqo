@@ -40,22 +40,30 @@ spec:
   annotationsNotReflected:
     {{- toYaml .Values.offloading.reflection.skip.annotations | nindent 4 }}
   {{- end }}
-  reflectorsWorkers:
-    pod: {{ .Values.offloading.reflection.pod.workers }}
-    service: {{ .Values.offloading.reflection.service.workers }}
-    endpointslice: {{ .Values.offloading.reflection.endpointslice.workers }}
-    ingress: {{ .Values.offloading.reflection.ingress.workers }}
-    configmap: {{ .Values.offloading.reflection.configmap.workers }}
-    secret: {{ .Values.offloading.reflection.secret.workers }}
-    serviceaccount: {{ .Values.offloading.reflection.serviceaccount.workers }}
-    persistentvolumeclaim: {{ .Values.offloading.reflection.persistentvolumeclaim.workers }}
-    event: {{ .Values.offloading.reflection.event.workers }}
-  reflectorsType:
-    service: {{ .Values.offloading.reflection.service.type }}
-    ingress: {{ .Values.offloading.reflection.ingress.type }}
-    configmap: {{ .Values.offloading.reflection.configmap.type }}
-    secret: {{ .Values.offloading.reflection.secret.type }}
-    event: {{ .Values.offloading.reflection.event.type }}
+  reflectorsConfig:
+    pod: 
+      workers: {{ .Values.offloading.reflection.pod.workers }}
+    service:
+      workers: {{ .Values.offloading.reflection.service.workers }}
+      type: {{ .Values.offloading.reflection.service.type }}
+    endpointslice:
+      workers: {{ .Values.offloading.reflection.endpointslice.workers }}
+    ingress:
+      workers: {{ .Values.offloading.reflection.ingress.workers }}
+      type: {{ .Values.offloading.reflection.ingress.type }}
+    configmap:
+      workers: {{ .Values.offloading.reflection.configmap.workers }}
+      type: {{ .Values.offloading.reflection.configmap.type }}
+    secret:
+      workers: {{ .Values.offloading.reflection.secret.workers }}
+      type: {{ .Values.offloading.reflection.secret.type }}
+    serviceaccount:
+      workers: {{ .Values.offloading.reflection.serviceaccount.workers }}
+    persistentvolumeclaim:
+      workers: {{ .Values.offloading.reflection.persistentvolumeclaim.workers }}
+    event:
+      workers: {{ .Values.offloading.reflection.event.workers }}
+      type: {{ .Values.offloading.reflection.event.type }}
   {{- if .Values.virtualKubelet.extra.resources }}
   resources:
     {{- toYaml .Values.virtualKubelet.extra.resources | nindent 4 }}
