@@ -26,7 +26,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/liqotech/liqo/pkg/consts"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -51,7 +51,7 @@ type NamespacedSecretReflector struct {
 }
 
 // NewSecretReflector builds a SecretReflector.
-func NewSecretReflector(enableSAReflection bool, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
+func NewSecretReflector(enableSAReflection bool, reflectorConfig *vkv1alpha1.ReflectorConfig) manager.Reflector {
 	return generic.NewReflector(SecretReflectorName, NewNamespacedSecretReflector(enableSAReflection),
 		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
@@ -120,7 +120,7 @@ func (nsr *NamespacedSecretReflector) Handle(ctx context.Context, name string) e
 			return err
 		}
 		if skipReflection {
-			if nsr.GetReflectionType() == consts.DenyList {
+			if nsr.GetReflectionType() == vkv1alpha1.DenyList {
 				klog.Infof("Skipping reflection of local Secret %q as marked with the skip annotation", nsr.LocalRef(name))
 			} else { // AllowList
 				klog.Infof("Skipping reflection of local Secret %q as not marked with the allow annotation", nsr.LocalRef(name))

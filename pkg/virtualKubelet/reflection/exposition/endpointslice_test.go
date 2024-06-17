@@ -42,9 +42,9 @@ import (
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 const (
@@ -54,9 +54,9 @@ const (
 var _ = Describe("EndpointSlice Reflection Tests", func() {
 	Describe("the NewEndpointSliceReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
-				Type:       root.DefaultReflectorsTypes[generic.EndpointSlice],
+				Type:       root.DefaultReflectorsTypes[resources.EndpointSlice],
 			}
 			Expect(exposition.NewEndpointSliceReflector(localPodCIDR, &reflectorConfig)).ToNot(BeNil())
 		})
@@ -69,7 +69,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		var (
 			err            error
 			reflector      manager.NamespacedReflector
-			reflectionType consts.ReflectionType
+			reflectionType vkv1alpha1.ReflectionType
 			liqoClient     liqoclient.Interface
 
 			local  discoveryv1.EndpointSlice
@@ -137,7 +137,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			liqoClient = liqoclientfake.NewSimpleClientset()
 			local = discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: LocalNamespace}}
 			remote = vkv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
-			reflectionType = root.DefaultReflectorsTypes[generic.Service] // reflection type inherited from the service reflector
+			reflectionType = root.DefaultReflectorsTypes[resources.Service] // reflection type inherited from the service reflector
 		})
 
 		AfterEach(func() {
@@ -293,7 +293,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 			When("the reflection type is AllowList", func() {
 				BeforeEach(func() {
-					reflectionType = consts.AllowList
+					reflectionType = vkv1alpha1.AllowList
 				})
 
 				When("the local object does exist, and the associated service has the allow annotation", func() {
@@ -346,7 +346,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			When("the reflection is forced with the allow or skip annotation", func() {
 				When("the reflection is deny, but the object has the allow annotation", func() {
 					BeforeEach(func() {
-						reflectionType = consts.DenyList
+						reflectionType = vkv1alpha1.DenyList
 						local.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
 						local.AddressType = discoveryv1.AddressTypeIPv4
 						CreateEndpointSlice(&local)
@@ -361,7 +361,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 				When("the reflection is allow, but the object has the skip annotation", func() {
 					BeforeEach(func() {
-						reflectionType = consts.AllowList
+						reflectionType = vkv1alpha1.AllowList
 						local.SetAnnotations(map[string]string{consts.SkipReflectionAnnotationKey: "whatever"})
 						local.AddressType = discoveryv1.AddressTypeIPv4
 						CreateEndpointSlice(&local)

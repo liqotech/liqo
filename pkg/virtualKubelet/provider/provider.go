@@ -28,25 +28,26 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	"k8s.io/utils/ptr"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/namespacemap"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/storage"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
 func init() {
-	utilruntime.Must(vkalpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(vkv1alpha1.AddToScheme(scheme.Scheme))
 }
 
 // InitConfig is the config passed to initialize the LiqoPodProvider.
@@ -64,7 +65,7 @@ type InitConfig struct {
 	LocalPodCIDR         string
 	InformerResyncPeriod time.Duration
 
-	ReflectorsConfigs map[generic.ResourceReflected]*generic.ReflectorConfig
+	ReflectorsConfigs map[resources.ResourceReflected]vkv1alpha1.ReflectorConfig
 
 	EnableAPIServerSupport          bool
 	EnableStorage                   bool
@@ -79,7 +80,7 @@ type InitConfig struct {
 	HomeAPIServerHost string
 	HomeAPIServerPort string
 
-	OffloadingPatch *vkalpha1.OffloadingPatch
+	OffloadingPatch *vkv1alpha1.OffloadingPatch
 
 	NetConfiguration *networkingv1alpha1.Configuration // only available if network module is enabled
 }
@@ -139,24 +140,25 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		NetConfiguration: cfg.NetConfiguration,
 	}
 
-	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, &podReflectorConfig, cfg.ReflectorsConfigs[generic.Pod])
+	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, &podReflectorConfig, ptr.To(cfg.ReflectorsConfigs[resources.Pod]))
 
 	forgingOpts := forge.NewForgingOpts(cfg.OffloadingPatch)
 
 	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb, &forgingOpts).
 		With(podreflector).
-		With(exposition.NewServiceReflector(cfg.ReflectorsConfigs[generic.Service], cfg.EnableLoadBalancer, cfg.RemoteRealLoadBalancerClassName)).
-		With(exposition.NewIngressReflector(cfg.ReflectorsConfigs[generic.Ingress], cfg.EnableIngress, cfg.RemoteRealIngressClassName)).
-		With(configuration.NewConfigMapReflector(cfg.ReflectorsConfigs[generic.ConfigMap])).
-		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, cfg.ReflectorsConfigs[generic.Secret])).
-		With(configuration.NewServiceAccountReflector(apiServerSupport == forge.APIServerSupportTokenAPI, cfg.ReflectorsConfigs[generic.ServiceAccount])).
+		With(exposition.NewServiceReflector(ptr.To(cfg.ReflectorsConfigs[resources.Service]), cfg.EnableLoadBalancer, cfg.RemoteRealLoadBalancerClassName)).
+		With(exposition.NewIngressReflector(ptr.To(cfg.ReflectorsConfigs[resources.Ingress]), cfg.EnableIngress, cfg.RemoteRealIngressClassName)).
+		With(configuration.NewConfigMapReflector(ptr.To(cfg.ReflectorsConfigs[resources.ConfigMap]))).
+		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, ptr.To(cfg.ReflectorsConfigs[resources.Secret]))).
+		With(configuration.NewServiceAccountReflector(apiServerSupport == forge.APIServerSupportTokenAPI,
+			ptr.To(cfg.ReflectorsConfigs[resources.ServiceAccount]))).
 		With(storage.NewPersistentVolumeClaimReflector(cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName,
-			cfg.EnableStorage, cfg.ReflectorsConfigs[generic.PersistentVolumeClaim])).
-		With(event.NewEventReflector(cfg.ReflectorsConfigs[generic.Event])).
+			cfg.EnableStorage, ptr.To(cfg.ReflectorsConfigs[resources.PersistentVolumeClaim]))).
+		With(event.NewEventReflector(ptr.To(cfg.ReflectorsConfigs[resources.Event]))).
 		WithNamespaceHandler(namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod))
 
 	if !cfg.DisableIPReflection {
-		reflectionManager.With(exposition.NewEndpointSliceReflector(cfg.LocalPodCIDR, cfg.ReflectorsConfigs[generic.EndpointSlice]))
+		reflectionManager.With(exposition.NewEndpointSliceReflector(cfg.LocalPodCIDR, ptr.To(cfg.ReflectorsConfigs[resources.EndpointSlice])))
 	}
 
 	reflectionManager.Start(ctx)
