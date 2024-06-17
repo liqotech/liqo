@@ -31,21 +31,22 @@ import (
 	"k8s.io/utils/trace"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
 var _ = Describe("Pod Reflection Tests", func() {
 	Describe("the NewPodReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.Pod],
+				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
 			reflector := workload.NewPodReflector(nil, nil,
 				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping(""), nil}, &reflectorConfig)
@@ -64,9 +65,9 @@ var _ = Describe("Pod Reflection Tests", func() {
 
 		BeforeEach(func() {
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.Pod],
+				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
 			reflector := workload.NewPodReflector(nil, metricsFactory,
 				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "",
@@ -129,9 +130,9 @@ var _ = Describe("Pod Reflection Tests", func() {
 			client = fake.NewSimpleClientset(&local)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.Pod],
+				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
 			reflector = workload.NewPodReflector(nil, nil,
 				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping(""), nil}, &reflectorConfig)

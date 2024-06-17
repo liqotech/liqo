@@ -22,9 +22,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 const (
@@ -46,28 +47,28 @@ const (
 )
 
 // DefaultReflectorsWorkers contains the default number of workers for each reflected resource.
-var DefaultReflectorsWorkers = map[generic.ResourceReflected]uint{
-	generic.Pod:                   10,
-	generic.Service:               3,
-	generic.EndpointSlice:         10,
-	generic.Ingress:               3,
-	generic.ConfigMap:             3,
-	generic.Secret:                3,
-	generic.ServiceAccount:        3,
-	generic.PersistentVolumeClaim: 3,
-	generic.Event:                 3,
+var DefaultReflectorsWorkers = map[resources.ResourceReflected]uint{
+	resources.Pod:                   10,
+	resources.Service:               3,
+	resources.EndpointSlice:         10,
+	resources.Ingress:               3,
+	resources.ConfigMap:             3,
+	resources.Secret:                3,
+	resources.ServiceAccount:        3,
+	resources.PersistentVolumeClaim: 3,
+	resources.Event:                 3,
 }
 
 // DefaultReflectorsTypes contains the default type of reflection for each reflected resource.
-var DefaultReflectorsTypes = map[generic.ResourceReflected]consts.ReflectionType{
-	generic.Pod:                   consts.CustomLiqo,
-	generic.Service:               consts.DenyList,
-	generic.Ingress:               consts.DenyList,
-	generic.ConfigMap:             consts.DenyList,
-	generic.Secret:                consts.DenyList,
-	generic.ServiceAccount:        consts.CustomLiqo,
-	generic.PersistentVolumeClaim: consts.CustomLiqo,
-	generic.Event:                 consts.DenyList,
+var DefaultReflectorsTypes = map[resources.ResourceReflected]vkv1alpha1.ReflectionType{
+	resources.Pod:                   vkv1alpha1.CustomLiqo,
+	resources.Service:               vkv1alpha1.DenyList,
+	resources.Ingress:               vkv1alpha1.DenyList,
+	resources.ConfigMap:             vkv1alpha1.DenyList,
+	resources.Secret:                vkv1alpha1.DenyList,
+	resources.ServiceAccount:        vkv1alpha1.CustomLiqo,
+	resources.PersistentVolumeClaim: vkv1alpha1.CustomLiqo,
+	resources.Event:                 vkv1alpha1.DenyList,
 }
 
 // Opts stores all the options for configuring the root virtual-kubelet command.
@@ -163,18 +164,18 @@ func NewOpts() *Opts {
 }
 
 func initReflectionWorkers() map[string]*uint {
-	reflectionWorkers := make(map[string]*uint, len(generic.Reflectors))
-	for i := range generic.Reflectors {
-		resource := &generic.Reflectors[i]
+	reflectionWorkers := make(map[string]*uint, len(resources.Reflectors))
+	for i := range resources.Reflectors {
+		resource := &resources.Reflectors[i]
 		reflectionWorkers[string(*resource)] = pointer.Uint(DefaultReflectorsWorkers[*resource])
 	}
 	return reflectionWorkers
 }
 
 func initReflectionType() map[string]*string {
-	reflectionType := make(map[string]*string, len(generic.ReflectorsCustomizableType))
-	for i := range generic.ReflectorsCustomizableType {
-		resource := &generic.ReflectorsCustomizableType[i]
+	reflectionType := make(map[string]*string, len(resources.ReflectorsCustomizableType))
+	for i := range resources.ReflectorsCustomizableType {
+		resource := &resources.ReflectorsCustomizableType[i]
 		reflectionType[string(*resource)] = pointer.String(string(DefaultReflectorsTypes[*resource]))
 	}
 	return reflectionType
