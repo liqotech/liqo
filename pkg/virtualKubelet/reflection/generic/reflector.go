@@ -33,7 +33,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
-	"github.com/liqotech/liqo/pkg/consts"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/leaderelection"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -67,7 +67,7 @@ type reflector struct {
 	fallbackFactory   FallbackReflectorFactoryFunc
 
 	concurrencyMode ConcurrencyMode
-	reflectionType  consts.ReflectionType
+	reflectionType  vkv1alpha1.ReflectionType
 }
 
 // String returns the name of the reflector.
@@ -85,39 +85,9 @@ const (
 	ConcurrencyModeAll ConcurrencyMode = "all"
 )
 
-// ResourceReflected represents a resource that can be reflected.
-type ResourceReflected string
-
-// List of all resources that can be reflected.
-const (
-	Pod                   ResourceReflected = "pod"
-	Service               ResourceReflected = "service"
-	EndpointSlice         ResourceReflected = "endpointslice"
-	Ingress               ResourceReflected = "ingress"
-	ConfigMap             ResourceReflected = "configmap"
-	Secret                ResourceReflected = "secret"
-	ServiceAccount        ResourceReflected = "serviceaccount"
-	PersistentVolumeClaim ResourceReflected = "persistentvolumeclaim"
-	Event                 ResourceReflected = "event"
-)
-
-// Reflectors is the list of all resources that can be reflected.
-var Reflectors = []ResourceReflected{Pod, Service, EndpointSlice, Ingress, ConfigMap, Secret, ServiceAccount, PersistentVolumeClaim, Event}
-
-// ReflectorsCustomizableType is the list of resources for which the reflection type can be customized.
-var ReflectorsCustomizableType = []ResourceReflected{Service, Ingress, ConfigMap, Secret, Event}
-
-// ReflectorConfig contains configuration parameters of the reflector.
-type ReflectorConfig struct {
-	// Number of workers for the reflector.
-	NumWorkers uint
-	// Type of reflection.
-	Type consts.ReflectionType
-}
-
 // NewReflector returns a new reflector to implement the reflection towards a remote clusters, of a dummy one if no workers are specified.
 func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
-	workers uint, reflectionType consts.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
+	workers uint, reflectionType vkv1alpha1.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
 	if workers == 0 {
 		// Return a dummy reflector in case no workers are specified, to avoid starting the working queue and registering the infromers.
 		return &dummyreflector{name: name}
@@ -128,7 +98,7 @@ func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallba
 
 // newReflector returns a new reflector to implement the reflection towards a remote clusters.
 func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
-	workers uint, reflectionType consts.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
+	workers uint, reflectionType vkv1alpha1.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
 	return &reflector{
 		name:    name,
 		workers: workers,

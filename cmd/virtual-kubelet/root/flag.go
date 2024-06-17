@@ -23,7 +23,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 // InstallFlags configures the virtual kubelet flags.
@@ -101,8 +101,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 
 // setReflectorsWorkers sets the flags for the number of workers used by the reflectors.
 func setReflectorsWorkers(flags *pflag.FlagSet, o *Opts) {
-	for i := range generic.Reflectors {
-		resource := &generic.Reflectors[i]
+	for i := range resources.Reflectors {
+		resource := &resources.Reflectors[i]
 		stringFlag := fmt.Sprintf("%s-reflection-workers", *resource)
 		defaultValue := *o.ReflectorsWorkers[string(*resource)]
 		usage := fmt.Sprintf("The number of workers used for the %s reflector", *resource)
@@ -112,8 +112,8 @@ func setReflectorsWorkers(flags *pflag.FlagSet, o *Opts) {
 
 // setReflectorsType sets the flags for the type of reflection used by the reflectors.
 func setReflectorsType(flags *pflag.FlagSet, o *Opts) {
-	for i := range generic.ReflectorsCustomizableType {
-		resource := &generic.ReflectorsCustomizableType[i]
+	for i := range resources.ReflectorsCustomizableType {
+		resource := &resources.ReflectorsCustomizableType[i]
 		stringFlag := fmt.Sprintf("%s-reflection-type", *resource)
 		defaultValue := *o.ReflectorsType[string(*resource)]
 		usage := fmt.Sprintf("The type of reflection used for the %s reflector", *resource)

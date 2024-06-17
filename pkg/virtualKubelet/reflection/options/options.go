@@ -24,9 +24,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -91,7 +91,7 @@ type NamespacedOpts struct {
 	HandlerFactory func(Keyer, ...EventFilter) cache.ResourceEventHandler
 
 	ForgingOpts    *forge.ForgingOpts
-	ReflectionType consts.ReflectionType
+	ReflectionType vkv1alpha1.ReflectionType
 }
 
 // NewNamespaced returns a new NamespacedOpts object.
@@ -154,7 +154,7 @@ func (ro *NamespacedOpts) WithForgingOpts(opts *forge.ForgingOpts) *NamespacedOp
 }
 
 // WithReflectionType configures the reflection type of the NamespacedOpts.
-func (ro *NamespacedOpts) WithReflectionType(reflectionType consts.ReflectionType) *NamespacedOpts {
+func (ro *NamespacedOpts) WithReflectionType(reflectionType vkv1alpha1.ReflectionType) *NamespacedOpts {
 	ro.ReflectionType = reflectionType
 	return ro
 }
