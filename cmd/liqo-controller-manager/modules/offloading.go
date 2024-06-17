@@ -16,7 +16,6 @@ package modules
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -30,7 +29,6 @@ import (
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
@@ -42,7 +40,6 @@ import (
 	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnode-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/csr"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 )
 
 // OffloadingOption defines the options to setup the offloading module.
@@ -162,30 +159,4 @@ func SetupOffloadingModule(ctx context.Context, mgr manager.Manager, opts *Offlo
 	}
 
 	return nil
-}
-
-// SetReflectorsWorkers sets the flags for the number of workers used by the reflectors.
-func SetReflectorsWorkers() map[string]*uint {
-	reflectorsWorkers := make(map[string]*uint, len(generic.Reflectors))
-	for i := range generic.Reflectors {
-		resource := &generic.Reflectors[i]
-		stringFlag := fmt.Sprintf("%s-reflection-workers", *resource)
-		defaultValue := root.DefaultReflectorsWorkers[*resource]
-		usage := fmt.Sprintf("The number of workers used for the %s reflector", *resource)
-		reflectorsWorkers[string(*resource)] = flag.Uint(stringFlag, defaultValue, usage)
-	}
-	return reflectorsWorkers
-}
-
-// SetReflectorsType sets the flags for the type of reflection used by the reflectors.
-func SetReflectorsType() map[string]*string {
-	reflectorsType := make(map[string]*string, len(generic.ReflectorsCustomizableType))
-	for i := range generic.ReflectorsCustomizableType {
-		resource := &generic.ReflectorsCustomizableType[i]
-		stringFlag := fmt.Sprintf("%s-reflection-type", *resource)
-		defaultValue := string(root.DefaultReflectorsTypes[*resource])
-		usage := fmt.Sprintf("The type of reflection used for the %s reflector", *resource)
-		reflectorsType[string(*resource)] = flag.String(stringFlag, defaultValue, usage)
-	}
-	return reflectorsType
 }

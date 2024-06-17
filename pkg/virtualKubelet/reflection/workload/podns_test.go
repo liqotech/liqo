@@ -42,9 +42,9 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
@@ -68,9 +68,9 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 			broadcaster := record.NewBroadcaster()
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.Pod],
+				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
 			rfl := workload.NewPodReflector(nil, metricsFactory,
 				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", "", fakeAPIServerRemapping(""),

@@ -82,13 +82,20 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
-              reflectorsType:
+              reflectorsConfig:
                 additionalProperties:
-                  type: string
-                type: object
-              reflectorsWorkers:
-                additionalProperties:
-                  type: integer
+                  description: ReflectorConfig contains configuration parameters of
+                    the reflector.
+                  properties:
+                    type:
+                      description: Type of reflection.
+                      type: string
+                    workers:
+                      description: Number of workers for the reflector.
+                      type: integer
+                  required:
+                  - workers
+                  type: object
                 type: object
               resources:
                 description: ResourceRequirements describes the compute resource requirements.
@@ -150,8 +157,6 @@ spec:
             - createNode
             - disableNetworkCheck
             - metricsEnabled
-            - reflectorsType
-            - reflectorsWorkers
             type: object
         type: object
     served: true
