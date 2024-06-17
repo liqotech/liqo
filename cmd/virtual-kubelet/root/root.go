@@ -38,8 +38,7 @@ import (
 
 	discovery1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/leaderelection"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -49,7 +48,7 @@ import (
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	metrics "github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 var (
@@ -58,7 +57,7 @@ var (
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
+	_ = vkv1alpha1.AddToScheme(scheme)
 	_ = discovery1alpha1.AddToScheme(scheme)
 	_ = networkingv1alpha1.AddToScheme(scheme)
 }
@@ -133,7 +132,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	// Get virtual node
 	vnName := os.Getenv("VIRTUALNODE_NAME")
 	ns := os.Getenv("POD_NAMESPACE")
-	var vn virtualkubeletv1alpha1.VirtualNode
+	var vn vkv1alpha1.VirtualNode
 	if err := cl.Get(ctx, client.ObjectKey{Name: vnName, Namespace: ns}, &vn); err != nil {
 		klog.Errorf("Unable to get virtual node: %v", err)
 		return err
@@ -328,31 +327,31 @@ func getVersion(config *rest.Config) string {
 	return version.GitVersion
 }
 
-func isReflectionTypeNotCustomizable(resource generic.ResourceReflected) bool {
-	return resource == generic.Pod || resource == generic.ServiceAccount || resource == generic.PersistentVolumeClaim
+func isReflectionTypeNotCustomizable(resource resources.ResourceReflected) bool {
+	return resource == resources.Pod || resource == resources.ServiceAccount || resource == resources.PersistentVolumeClaim
 }
 
-func getReflectorsConfigs(c *Opts) (map[generic.ResourceReflected]*generic.ReflectorConfig, error) {
-	reflectorsConfigs := make(map[generic.ResourceReflected]*generic.ReflectorConfig)
-	for i := range generic.Reflectors {
-		resource := &generic.Reflectors[i]
+func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]vkv1alpha1.ReflectorConfig, error) {
+	reflectorsConfigs := make(map[resources.ResourceReflected]vkv1alpha1.ReflectorConfig)
+	for i := range resources.Reflectors {
+		resource := &resources.Reflectors[i]
 		numWorkers := *c.ReflectorsWorkers[string(*resource)]
-		var reflectionType consts.ReflectionType
+		var reflectionType vkv1alpha1.ReflectionType
 		if isReflectionTypeNotCustomizable(*resource) {
 			reflectionType = DefaultReflectorsTypes[*resource]
 		} else {
-			if *resource == generic.EndpointSlice {
+			if *resource == resources.EndpointSlice {
 				// the endpointslice reflector inherits the reflection type from the service reflector.
-				reflectionType = consts.ReflectionType(*c.ReflectorsType[string(generic.Service)])
+				reflectionType = vkv1alpha1.ReflectionType(*c.ReflectorsType[string(resources.Service)])
 			} else {
-				reflectionType = consts.ReflectionType(*c.ReflectorsType[string(*resource)])
+				reflectionType = vkv1alpha1.ReflectionType(*c.ReflectorsType[string(*resource)])
 			}
-			if reflectionType != consts.DenyList && reflectionType != consts.AllowList {
+			if reflectionType != vkv1alpha1.DenyList && reflectionType != vkv1alpha1.AllowList {
 				return nil, fmt.Errorf("reflection type %q is not valid for resource %s. Ammitted values: %q, %q",
-					reflectionType, *resource, consts.DenyList, consts.AllowList)
+					reflectionType, *resource, vkv1alpha1.DenyList, vkv1alpha1.AllowList)
 			}
 		}
-		reflectorsConfigs[*resource] = &generic.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
+		reflectorsConfigs[*resource] = vkv1alpha1.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
 	}
 	return reflectorsConfigs, nil
 }

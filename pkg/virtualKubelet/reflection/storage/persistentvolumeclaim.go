@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqostorageprovisioner "github.com/liqotech/liqo/pkg/liqo-controller-manager/storageprovisioner"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -69,10 +70,10 @@ type NamespacedPersistentVolumeClaimReflector struct {
 
 // NewPersistentVolumeClaimReflector returns a new PersistentVolumeClaimReflector instance.
 func NewPersistentVolumeClaimReflector(virtualStorageClassName, remoteRealStorageClassName string,
-	storageEnabled bool, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
+	storageEnabled bool, reflectorConfig *vkv1alpha1.ReflectorConfig) manager.Reflector {
 	return generic.NewReflector(PersistentVolumeClaimReflectorName,
 		NewNamespacedPersistentVolumeClaimReflector(virtualStorageClassName, remoteRealStorageClassName, storageEnabled),
-		generic.WithoutFallback(), reflectorConfig.NumWorkers, consts.CustomLiqo, generic.ConcurrencyModeLeader)
+		generic.WithoutFallback(), reflectorConfig.NumWorkers, vkv1alpha1.CustomLiqo, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedPersistentVolumeClaimReflector returns a function generating NamespacedPersistentVolumeClaimReflector instances.

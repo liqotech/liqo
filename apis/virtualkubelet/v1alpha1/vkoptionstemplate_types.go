@@ -28,8 +28,7 @@ type VkOptionsTemplateSpec struct {
 	MetricsAddress          string                      `json:"metricsAddress,omitempty"`
 	LabelsNotReflected      []string                    `json:"labelsNotReflected,omitempty"`
 	AnnotationsNotReflected []string                    `json:"annotationsNotReflected,omitempty"`
-	ReflectorsWorkers       map[string]uint             `json:"reflectorsWorkers"`
-	ReflectorsType          map[string]string           `json:"reflectorsType"`
+	ReflectorsConfig        map[string]ReflectorConfig  `json:"reflectorsConfig,omitempty"`
 	Resources               corev1.ResourceRequirements `json:"resources,omitempty"`
 	ExtraArgs               []string                    `json:"extraArgs,omitempty"`
 	ExtraAnnotations        map[string]string           `json:"extraAnnotations,omitempty"`
@@ -37,6 +36,26 @@ type VkOptionsTemplateSpec struct {
 	NodeExtraAnnotations    map[string]string           `json:"nodeExtraAnnotations,omitempty"`
 	NodeExtraLabels         map[string]string           `json:"nodeExtraLabels,omitempty"`
 }
+
+// ReflectorConfig contains configuration parameters of the reflector.
+type ReflectorConfig struct {
+	// Number of workers for the reflector.
+	NumWorkers uint `json:"workers"`
+	// Type of reflection.
+	Type ReflectionType `json:"type,omitempty"`
+}
+
+// ReflectionType is the type of reflection.
+type ReflectionType string
+
+const (
+	// AllowList reflects only the resources with a specific annotation.
+	AllowList ReflectionType = "AllowList"
+	// DenyList reflects all the resources excluding the ones with a specific annotation.
+	DenyList ReflectionType = "DenyList"
+	// CustomLiqo reflects the resources following the custom Liqo logic.
+	CustomLiqo ReflectionType = "CustomLiqo"
+)
 
 // +kubebuilder:object:root=true
 // +genclient
