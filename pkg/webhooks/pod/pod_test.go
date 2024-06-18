@@ -26,9 +26,9 @@ import (
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod/testutils"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
+	"github.com/liqotech/liqo/pkg/webhooks/pod/testutils"
 )
 
 func TestWebhookManager(t *testing.T) {
