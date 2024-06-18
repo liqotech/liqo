@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ips
+package mapping
 
 import (
 	"context"
@@ -64,12 +64,6 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 	}
 
 	return nil
-}
-
-// IsAPIServerIP checks if the resource is an IP of type API server.
-func IsAPIServerIP(ip *ipamv1alpha1.IP) bool {
-	ipType, ok := ip.Labels[consts.IPTypeLabelKey]
-	return ok && ipType == consts.IPTypeAPIServer
 }
 
 // MapAddress maps the address with the network configuration of the cluster.

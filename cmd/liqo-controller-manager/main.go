@@ -60,7 +60,7 @@ import (
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
-	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/ips"
+	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
