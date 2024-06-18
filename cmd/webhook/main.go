@@ -40,19 +40,19 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/firewallconfiguration"
-	fcwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/foreigncluster"
-	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
-	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
-	resourceslicewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/resourceslice"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/routeconfiguration"
-	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
-	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
+	fwcfgwh "github.com/liqotech/liqo/pkg/webhooks/firewallconfiguration"
+	fcwh "github.com/liqotech/liqo/pkg/webhooks/foreigncluster"
+	nsoffwh "github.com/liqotech/liqo/pkg/webhooks/namespaceoffloading"
+	podwh "github.com/liqotech/liqo/pkg/webhooks/pod"
+	resourceslicewh "github.com/liqotech/liqo/pkg/webhooks/resourceslice"
+	routecfgwh "github.com/liqotech/liqo/pkg/webhooks/routeconfiguration"
+	shadowpodswh "github.com/liqotech/liqo/pkg/webhooks/shadowpod"
+	virtualnodewh "github.com/liqotech/liqo/pkg/webhooks/virtualnode"
 )
 
 var (
@@ -165,9 +165,9 @@ func main() {
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(
 		mgr.GetClient(), clusterID, *podcidr, *liqoNamespace, vkOptsDefaultTemplateRef))
 	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator())
-	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", firewallconfiguration.NewValidator(mgr.GetClient()))
-	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", firewallconfiguration.NewMutator())
-	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routeconfiguration.NewValidator(mgr.GetClient()))
+	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", fwcfgwh.NewValidator(mgr.GetClient()))
+	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", fwcfgwh.NewMutator())
+	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routecfgwh.NewValidator(mgr.GetClient()))
 
 	// Start the manager.
 	klog.Info("starting webhooks manager")
