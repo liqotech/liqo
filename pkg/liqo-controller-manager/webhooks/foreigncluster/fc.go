@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -36,22 +35,10 @@ type fcwh struct {
 type fcwhm struct {
 	fcwh
 }
-type fcwhv struct {
-	fcwh
-}
 
 // NewMutator returns a new ForeignCluster mutating webhook.
 func NewMutator() *webhook.Admission {
 	return &webhook.Admission{Handler: &fcwhm{
-		fcwh: fcwh{
-			decoder: admission.NewDecoder(runtime.NewScheme()),
-		},
-	}}
-}
-
-// NewValidator returns a new ForeignCluster validating webhook.
-func NewValidator() *webhook.Admission {
-	return &webhook.Admission{Handler: &fcwhv{
 		fcwh: fcwh{
 			decoder: admission.NewDecoder(runtime.NewScheme()),
 		},
@@ -90,32 +77,4 @@ func (w *fcwhm) Handle(_ context.Context, req admission.Request) admission.Respo
 	}
 
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledFc)
-}
-
-// Handle implements the ForeignCluster validating webhook logic.
-//
-//nolint:gocritic // The signature of this method is imposed by controller runtime.
-func (w *fcwhv) Handle(_ context.Context, req admission.Request) admission.Response {
-	if req.Operation != admissionv1.Update {
-		return admission.Allowed("")
-	}
-
-	// In case of updates, prevent the mutation of the PeeringType field.
-	fcnew, err := w.DecodeForeignCluster(req.Object)
-	if err != nil {
-		klog.Errorf("Failed decoding ForeignCluster object: %v", err)
-		return admission.Errored(http.StatusBadRequest, err)
-	}
-
-	fcold, err := w.DecodeForeignCluster(req.OldObject)
-	if err != nil {
-		klog.Errorf("Failed decoding ForeignCluster object: %v", err)
-		return admission.Errored(http.StatusBadRequest, err)
-	}
-
-	if fcold.Spec.ClusterID != "" && fcold.Spec.ClusterID != fcnew.Spec.ClusterID {
-		return admission.Denied("The ClusterID value cannot be modified after creation")
-	}
-
-	return admission.Allowed("")
 }
