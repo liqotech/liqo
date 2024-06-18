@@ -53,8 +53,11 @@ spec:
             properties:
               cidr:
                 description: CIDR is the desired CIDR for the remote cluster.
-                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                format: cidr
                 type: string
+                x-kubernetes-validations:
+                - message: CIDR field is immutable
+                  rule: self == oldSelf
             required:
             - cidr
             type: object
@@ -63,7 +66,7 @@ spec:
             properties:
               cidr:
                 description: CIDR is the remapped CIDR for the remote cluster.
-                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                format: cidr
                 type: string
             type: object
         required:
