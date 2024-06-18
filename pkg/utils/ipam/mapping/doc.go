@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ips contains utility functions to deal with resources of the IP IPAM API.
-package ips
+// Package mapping contains utility functions to deal with the mapping of IPs.
+package mapping
