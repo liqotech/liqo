@@ -42,9 +42,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/firewallconfiguration"
 	fcwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/foreigncluster"
-	ipwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/ip"
 	nsoffwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/namespaceoffloading"
-	nwwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/network"
 	podwh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/pod"
 	resourceslicewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/resourceslice"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/routeconfiguration"
@@ -159,7 +157,6 @@ func main() {
 	}
 
 	// Register the webhooks.
-	mgr.GetWebhookServer().Register("/validate/foreign-cluster", fcwh.NewValidator())
 	mgr.GetWebhookServer().Register("/mutate/foreign-cluster", fcwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/shadowpods", &webhook.Admission{Handler: spv})
 	mgr.GetWebhookServer().Register("/mutate/shadowpods", shadowpodswh.NewMutator(mgr.GetClient()))
@@ -168,8 +165,6 @@ func main() {
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(
 		mgr.GetClient(), clusterID, *podcidr, *liqoNamespace, vkOptsDefaultTemplateRef))
 	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator())
-	mgr.GetWebhookServer().Register("/validate/networks", nwwh.NewValidator())
-	mgr.GetWebhookServer().Register("/validate/ips", ipwh.NewValidator())
 	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", firewallconfiguration.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", firewallconfiguration.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routeconfiguration.NewValidator(mgr.GetClient()))

@@ -47,6 +47,7 @@ type ServiceTemplate struct {
 // IPSpec defines a local IP.
 type IPSpec struct {
 	// IP is the local IP.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="IP field is immutable"
 	IP networkingv1alpha1.IP `json:"ip"`
 	// ServiceTemplate contains the template to create the associated service (and endpointslice) for the IP endopoint.
 	// If empty the creation of the service is disabled (default).
