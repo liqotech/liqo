@@ -56,6 +56,9 @@ spec:
                 description: Foreign Cluster ID.
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
+                x-kubernetes-validations:
+                - message: ClusterID field is immutable
+                  rule: self == oldSelf
             required:
             - clusterID
             type: object

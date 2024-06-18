@@ -38,6 +38,7 @@ var (
 // NetworkSpec defines the desired state of Network.
 type NetworkSpec struct {
 	// CIDR is the desired CIDR for the remote cluster.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="CIDR field is immutable"
 	CIDR v1alpha1networking.CIDR `json:"cidr"`
 }
 
