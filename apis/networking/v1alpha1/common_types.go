@@ -18,9 +18,7 @@ package v1alpha1
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // CIDR defines a syntax validated CIDR.
-// +kubebuilder:validation:Pattern=`^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$`
-//
-//nolint:lll // ignore long lines given by Kubebuilder marker annotations.
+// +kubebuilder:validation:Format=cidr
 type CIDR string
 
 func (c CIDR) String() string {
@@ -28,7 +26,7 @@ func (c CIDR) String() string {
 }
 
 // IP defines a syntax validated IP.
-// +kubebuilder:validation:Pattern=`^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$`
+// +kubebuilder:validation:Format=ipv4
 type IP string
 
 func (i IP) String() string {

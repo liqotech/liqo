@@ -7,23 +7,6 @@ metadata:
   labels:
     {{- include "liqo.labels" $webhookConfig | nindent 4 }}
 webhooks:
-  - name: fc.validate.liqo.io
-    admissionReviewVersions:
-      - v1
-      - v1beta1
-    clientConfig:
-      service:
-        name: {{ include "liqo.prefixedName" $webhookConfig }}
-        namespace: {{ .Release.Namespace }}
-        path: "/validate/foreign-cluster"
-        port: {{ .Values.webhook.port }}
-    rules:
-      - operations: ["UPDATE"]
-        apiGroups: ["discovery.liqo.io"]
-        apiVersions: ["v1alpha1"]
-        resources: ["foreignclusters"]
-    sideEffects: None
-    failurePolicy: {{ .Values.webhook.failurePolicy }}
   - name: nsoff.validate.liqo.io
     admissionReviewVersions:
       - v1
@@ -56,40 +39,6 @@ webhooks:
         apiGroups: ["virtualkubelet.liqo.io"]
         apiVersions: ["v1alpha1"]
         resources: ["shadowpods"]
-    sideEffects: None
-    failurePolicy: {{ .Values.webhook.failurePolicy }}
-  - name: network.validate.liqo.io
-    admissionReviewVersions:
-      - v1
-      - v1beta1
-    clientConfig:
-      service:
-        name: {{ include "liqo.prefixedName" $webhookConfig }}
-        namespace: {{ .Release.Namespace }}
-        path: "/validate/networks"
-        port: {{ .Values.webhook.port }}
-    rules:
-      - operations: ["CREATE", "UPDATE"]
-        apiGroups: ["ipam.liqo.io"]
-        apiVersions: ["v1alpha1"]
-        resources: ["networks"]
-    sideEffects: None
-    failurePolicy: {{ .Values.webhook.failurePolicy }}
-  - name: ip.validate.liqo.io
-    admissionReviewVersions:
-      - v1
-      - v1beta1
-    clientConfig:
-      service:
-        name: {{ include "liqo.prefixedName" $webhookConfig }}
-        namespace: {{ .Release.Namespace }}
-        path: "/validate/ips"
-        port: {{ .Values.webhook.port }}
-    rules:
-      - operations: ["CREATE", "UPDATE"]
-        apiGroups: ["ipam.liqo.io"]
-        apiVersions: ["v1alpha1"]
-        resources: ["ips"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
   - name: firewallconfiguration.validate.liqo.io
