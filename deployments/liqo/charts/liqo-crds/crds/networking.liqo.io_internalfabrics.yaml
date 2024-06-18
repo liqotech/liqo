@@ -53,7 +53,7 @@ spec:
             properties:
               gatewayIP:
                 description: GatewayIP is the IP of the gateway pod.
-                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                format: ipv4
                 type: string
               interface:
                 description: Interface contains the information about network interfaces.
@@ -64,7 +64,7 @@ spec:
                     properties:
                       ip:
                         description: IP is the IP of the interface added to the gateway.
-                        pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                        format: ipv4
                         type: string
                     required:
                     - ip
@@ -93,7 +93,7 @@ spec:
                   through the gateway.
                 items:
                   description: CIDR defines a syntax validated CIDR.
-                  pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                  format: cidr
                   type: string
                 type: array
             required:
