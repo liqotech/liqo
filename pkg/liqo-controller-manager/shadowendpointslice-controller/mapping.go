@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/ips"
+	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 )
 
 // MapEndpointsWithConfiguration maps the endpoints of the shadowendpointslice.

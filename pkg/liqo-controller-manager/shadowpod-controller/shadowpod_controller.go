@@ -38,7 +38,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
-	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/ips"
+	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
