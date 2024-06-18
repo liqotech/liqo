@@ -54,8 +54,11 @@ spec:
             properties:
               ip:
                 description: IP is the local IP.
-                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                format: ipv4
                 type: string
+                x-kubernetes-validations:
+                - message: IP field is immutable
+                  rule: self == oldSelf
               masquerade:
                 description: |-
                   Masquerade is a flag to enable masquerade for the local IP on nodes.
@@ -432,7 +435,7 @@ spec:
               ipMappings:
                 additionalProperties:
                   description: IP defines a syntax validated IP.
-                  pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                  format: ipv4
                   type: string
                 description: IPMappings contains the mapping of the local IP for each
                   remote cluster.

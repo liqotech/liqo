@@ -60,7 +60,7 @@ spec:
                       properties:
                         dst:
                           description: Dst is the destination of the Rule.
-                          pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                          format: cidr
                           type: string
                         fwmark:
                           description: FwMark is the firewall mark of the Rule.
@@ -82,11 +82,11 @@ spec:
                                 type: string
                               dst:
                                 description: Dst is the destination of the RouteConfiguration.
-                                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                                format: cidr
                                 type: string
                               gw:
                                 description: Gw is the gateway of the RouteConfiguration.
-                                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                                format: ipv4
                                 type: string
                               onlink:
                                 description: Onlink enables the onlink falg inside
@@ -103,7 +103,7 @@ spec:
                                 type: string
                               src:
                                 description: Src is the source of the RouteConfiguration.
-                                pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])$
+                                format: ipv4
                                 type: string
                               targetRef:
                                 description: |-
@@ -157,7 +157,7 @@ spec:
                           type: array
                         src:
                           description: Src is the source of the Rule.
-                          pattern: ^(([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\.){3}([1-9]{0,1}[0-9]{0,2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$
+                          format: cidr
                           type: string
                         targetRef:
                           description: |-
