@@ -30,7 +30,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/errors"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
-	ipsutils "github.com/liqotech/liqo/pkg/utils/ipam/ips"
 )
 
 type errorMap struct {
@@ -162,7 +161,7 @@ func PreUninstall(ctx context.Context, cl client.Client) error {
 	}
 	for i := range ips.Items {
 		// These IPs will be handled by the uninstaller job
-		if ipsutils.IsAPIServerIP(&ips.Items[i]) {
+		if ipamutils.IsAPIServerIP(&ips.Items[i]) {
 			continue
 		}
 
