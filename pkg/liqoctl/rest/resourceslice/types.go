@@ -22,18 +22,16 @@ import (
 
 // Options encapsulates the arguments of the resourceslice command.
 type Options struct {
-	createOptions *rest.CreateOptions
+	CreateOptions *rest.CreateOptions
 
-	namespaceManager tenantnamespace.Manager
+	NamespaceManager           tenantnamespace.Manager
+	RemoteClusterID            args.ClusterIDFlags
+	Class                      string
+	DisableVirtualNodeCreation bool
 
-	remoteClusterID args.ClusterIDFlags
-	class           string
-
-	cpu    string
-	memory string
-	pods   string
-
-	disableVirtualNodeCreation bool
+	CPU    string
+	Memory string
+	Pods   string
 }
 
 var _ rest.API = &Options{}

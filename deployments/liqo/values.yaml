@@ -115,21 +115,6 @@ networking:
       # This is useful in scenarios where CNIs masquerade the traffic from pod to nodes.
       # For example this is required when using the Azure CNI or Kindnet.
       gatewayMasqueradeBypass: false
-peering:
-  # -- Set the default configuration for the networking resources created during the peering process
-  networking:
-    # -- Set the options for gateways
-    gateway:
-      # -- Set the MTU
-      mtu: 1340
-      # -- Set the options to configure the gateway server
-      server:
-        # -- Set the options to configure the server service
-        service:
-          # -- Set the port of the service
-          port: 51820
-          # -- Set the type of the service
-          type: LoadBalancer
 
 authentication:
   # -- Enable/Disable the authentication module.
