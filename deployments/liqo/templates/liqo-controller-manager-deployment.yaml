@@ -81,9 +81,6 @@ spec:
           {{- end }}
           - --fabric-full-masquerade-enabled={{ .Values.networking.fabric.config.fullMasquerade }}
           - --gateway-masquerade-bypass-enabled={{ .Values.networking.fabric.config.gatewayMasqueradeBypass }}
-          - --gateway-service-type={{ .Values.peering.networking.gateway.server.service.type }}
-          - --gateway-service-port={{ .Values.peering.networking.gateway.server.service.port }}
-          - --gateway-mtu={{ .Values.peering.networking.gateway.mtu }}
           {{- $d := dict "commandName" "--gateway-server-resources" "list" .Values.networking.serverResources }}
           {{- include "liqo.concatenateGroupVersionResources" $d | nindent 10 }}
           {{- $d := dict "commandName" "--gateway-client-resources" "list" .Values.networking.clientResources }}
