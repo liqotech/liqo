@@ -41,7 +41,7 @@ import (
 	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/remapping"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
