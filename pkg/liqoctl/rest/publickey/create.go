@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
@@ -81,7 +82,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
-	pubKey, err := ForgePublicKey(opts.Name, opts.Namespace, o.RemoteClusterID, o.PublicKey)
+	pubKey, err := forge.PublicKey(opts.Name, opts.Namespace, o.RemoteClusterID, o.PublicKey)
 	if err != nil {
 		opts.Printer.CheckErr(err)
 		return err
@@ -95,7 +96,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	s := opts.Printer.StartSpinner("Creating publickey")
 
 	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, pubKey, func() error {
-		return MutatePublicKey(pubKey, o.RemoteClusterID, o.PublicKey)
+		return forge.MutatePublicKey(pubKey, o.RemoteClusterID, o.PublicKey)
 	})
 	if err != nil {
 		s.Fail("Unable to create publickey: %v", output.PrettyErr(err))

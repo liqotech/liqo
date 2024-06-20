@@ -28,13 +28,11 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/gateway/forge"
+	gwforge "github.com/liqotech/liqo/pkg/gateway/forge"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
@@ -125,7 +123,7 @@ func (c *Cluster) SetNamespaces(ctx context.Context) error {
 func (c *Cluster) SetLocalConfiguration(ctx context.Context) error {
 	// Get network configuration.
 	s := c.local.Printer.StartSpinner("Retrieving network configuration")
-	conf, err := configuration.ForgeConfigurationForRemoteCluster(ctx, c.local.CRClient, c.local.Namespace, c.local.LiqoNamespace)
+	conf, err := forge.ConfigurationForRemoteCluster(ctx, c.local.CRClient, c.local.Namespace, c.local.LiqoNamespace)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while retrieving network configuration: %v", output.PrettyErr(err)))
 		return err
@@ -167,7 +165,7 @@ func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterIden
 	s := c.local.Printer.StartSpinner("Checking network is initialized correctly")
 
 	confReady, err := configuration.IsConfigurationStatusSet(ctx, c.local.CRClient,
-		configuration.DefaultConfigurationName(remoteClusterIdentity), c.local.Namespace)
+		forge.DefaultConfigurationName(remoteClusterIdentity), c.local.Namespace)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		s.Fail(fmt.Sprintf("An error occurred while checking network Configuration: %v", output.PrettyErr(err)))
@@ -234,9 +232,9 @@ func endpointHasChanged(endpoint *networkingv1alpha1.Endpoint, service *corev1.S
 }
 
 // EnsureGatewayServer create or updates a GatewayServer.
-func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *gatewayserver.ForgeOptions) (*networkingv1alpha1.GatewayServer, error) {
+func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *forge.GwServerOptions) (*networkingv1alpha1.GatewayServer, error) {
 	s := c.local.Printer.StartSpinner("Setting up gateway server")
-	gwServer, err := gatewayserver.ForgeGatewayServer(name, c.local.Namespace, opts)
+	gwServer, err := forge.GatewayServer(name, c.local.Namespace, opts)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while forging gateway server: %v", output.PrettyErr(err)))
 		return nil, err
@@ -245,7 +243,7 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *ga
 	// If the forged server endpoint has different parameters from the existing server service (if present),
 	// we delete the existing gateway server so that the client can correctly connect to the new endpoint.
 	var service corev1.Service
-	svcNsName := types.NamespacedName{Namespace: gwServer.Namespace, Name: forge.GatewayResourceName(gwServer.Name)}
+	svcNsName := types.NamespacedName{Namespace: gwServer.Namespace, Name: gwforge.GatewayResourceName(gwServer.Name)}
 	err = c.local.CRClient.Get(ctx, svcNsName, &service)
 	if client.IgnoreNotFound(err) != nil {
 		s.Fail(fmt.Sprintf("An error occurred while retrieving gateway server service: %v", output.PrettyErr(err)))
@@ -262,7 +260,7 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *ga
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, gwServer, func() error {
-		return gatewayserver.MutateGatewayServer(gwServer, opts)
+		return forge.MutateGatewayServer(gwServer, opts)
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while setting up gateway server: %v", output.PrettyErr(err)))
@@ -274,15 +272,15 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *ga
 }
 
 // EnsureGatewayClient create or updates a GatewayClient.
-func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *gatewayclient.ForgeOptions) (*networkingv1alpha1.GatewayClient, error) {
+func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *forge.GwClientOptions) (*networkingv1alpha1.GatewayClient, error) {
 	s := c.local.Printer.StartSpinner("Setting up gateway client")
-	gwClient, err := gatewayclient.ForgeGatewayClient(name, c.local.Namespace, opts)
+	gwClient, err := forge.GatewayClient(name, c.local.Namespace, opts)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while forging gateway client: %v", output.PrettyErr(err)))
 		return nil, err
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, gwClient, func() error {
-		return gatewayclient.MutateGatewayClient(gwClient, opts)
+		return forge.MutateGatewayClient(gwClient, opts)
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while setting up gateway client: %v", output.PrettyErr(err)))
@@ -297,14 +295,14 @@ func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *ga
 func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity,
 	key []byte, ownerGateway metav1.Object) error {
 	s := c.local.Printer.StartSpinner("Creating public key")
-	pubKey, err := publickey.ForgePublicKey(publickey.DefaultPublicKeyName(remoteClusterIdentity), c.local.Namespace,
+	pubKey, err := forge.PublicKey(forge.DefaultPublicKeyName(remoteClusterIdentity), c.local.Namespace,
 		remoteClusterIdentity.ClusterID, key)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while forging public key: %v", output.PrettyErr(err)))
 		return err
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, c.local.CRClient, pubKey, func() error {
-		if err := publickey.MutatePublicKey(pubKey, remoteClusterIdentity.ClusterID, key); err != nil {
+		if err := forge.MutatePublicKey(pubKey, remoteClusterIdentity.ClusterID, key); err != nil {
 			return err
 		}
 		return controllerutil.SetOwnerReference(ownerGateway, pubKey, c.local.CRClient.Scheme())

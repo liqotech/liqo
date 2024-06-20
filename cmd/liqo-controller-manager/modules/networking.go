@@ -61,7 +61,6 @@ type NetworkingOption struct {
 	GatewayServiceType             corev1.ServiceType
 	GatewayServicePort             int32
 	GatewayMTU                     int
-	GatewayProxy                   bool
 	NetworkWorkers                 int
 	IPWorkers                      int
 	FabricFullMasquerade           bool
@@ -133,7 +132,7 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 
 	externalNetworkReconciler := externalnetwork.NewExternalNetworkReconciler(
 		mgr.GetClient(), mgr.GetScheme(), opts.KubeClient, opts.LiqoNamespace, opts.LocalClusterIdentity,
-		opts.GatewayServiceType, opts.GatewayServicePort, opts.GatewayMTU, opts.GatewayProxy)
+		opts.GatewayServiceType, opts.GatewayServicePort, opts.GatewayMTU)
 	if err := externalNetworkReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the externalNetworkReconciler: %v", err)
 		return err

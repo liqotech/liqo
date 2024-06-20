@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
@@ -71,7 +72,7 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 func (o *Options) handleGenerate(ctx context.Context) error {
 	opts := o.generateOptions
 
-	pubKey, err := ForgePublicKeyForRemoteCluster(ctx, opts.CRClient, opts.LiqoNamespace, opts.Namespace, o.GatewayName, o.GatewayType.Value)
+	pubKey, err := forge.PublicKeyForRemoteCluster(ctx, opts.CRClient, opts.LiqoNamespace, opts.Namespace, o.GatewayName, o.GatewayType.Value)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to forge PublicKey for remote cluster %q: %w", o.RemoteClusterID, err))
 		return err
