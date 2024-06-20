@@ -33,6 +33,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/create"
 	"github.com/liqotech/liqo/pkg/liqoctl/delete"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/generate"
 	"github.com/liqotech/liqo/pkg/liqoctl/get"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
@@ -135,20 +136,20 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 
 	cmd.AddCommand(newInstallCommand(ctx, f))
 	cmd.AddCommand(newUninstallCommand(ctx, f))
-	cmd.AddCommand(newGenerateCommand(ctx, f))
+	cmd.AddCommand(newPeerCommand(ctx, f))
 	cmd.AddCommand(newOffloadCommand(ctx, f))
 	cmd.AddCommand(newUnoffloadCommand(ctx, f))
 	cmd.AddCommand(newMoveCommand(ctx, f))
 	cmd.AddCommand(newVersionCommand(ctx, f))
 	cmd.AddCommand(newDocsCommand(ctx))
 	cmd.AddCommand(newNetworkCommand(ctx, f))
-	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(newAuthenticateCommand(ctx, f))
 	cmd.AddCommand(newActivateCommand(ctx, f))
 	cmd.AddCommand(newCordonCommand(ctx, f))
 	cmd.AddCommand(newUncordonCommand(ctx, f))
 	cmd.AddCommand(newDrainCommand(ctx, f))
 	cmd.AddCommand(create.NewCreateCommand(ctx, liqoResources, f))
+	cmd.AddCommand(generate.NewGenerateCommand(ctx, liqoResources, f))
 	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(delete.NewDeleteCommand(ctx, liqoResources, f))
 
