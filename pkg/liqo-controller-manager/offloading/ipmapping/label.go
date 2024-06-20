@@ -17,7 +17,7 @@ package ipmapping
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/remapping"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 )
 
 const (
