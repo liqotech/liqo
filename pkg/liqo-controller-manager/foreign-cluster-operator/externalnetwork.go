@@ -26,7 +26,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -43,7 +43,7 @@ func (r *ForeignClusterReconciler) ensureExternalNetwork(ctx context.Context, fc
 
 	localNamespace := fc.Status.TenantNamespace.Local
 
-	conf, err := configuration.ForgeConfigurationForRemoteCluster(ctx, r.Client, localNamespace, r.LiqoNamespace)
+	conf, err := forge.ConfigurationForRemoteCluster(ctx, r.Client, localNamespace, r.LiqoNamespace)
 	if err != nil {
 		klog.Error(err)
 		return err

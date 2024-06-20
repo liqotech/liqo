@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gatewayclient
+package forge
 
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -25,8 +26,32 @@ import (
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
 )
 
-// ForgeGatewayClient forges a GatewayClient.
-func ForgeGatewayClient(name, namespace string, o *ForgeOptions) (*networkingv1alpha1.GatewayClient, error) {
+// Default values for the GatewayClient.
+const (
+	DefaultGwClientType         = "networking.liqo.io/v1alpha1/wggatewayclienttemplates"
+	DefaultGwClientTemplateName = "wireguard-client"
+)
+
+// DefaultGatewayClientName returns the default name for a GatewayClient.
+func DefaultGatewayClientName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
+	return remoteClusterIdentity.ClusterName
+}
+
+// GwClientOptions encapsulate the options to forge a GatewayClient.
+type GwClientOptions struct {
+	KubeClient        kubernetes.Interface
+	RemoteClusterID   string
+	GatewayType       string
+	TemplateName      string
+	TemplateNamespace string
+	MTU               int
+	Addresses         []string
+	Port              int32
+	Protocol          string
+}
+
+// GatewayClient forges a GatewayClient.
+func GatewayClient(name, namespace string, o *GwClientOptions) (*networkingv1alpha1.GatewayClient, error) {
 	gwClient := &networkingv1alpha1.GatewayClient{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1alpha1.GatewayClientKind,
@@ -48,7 +73,7 @@ func ForgeGatewayClient(name, namespace string, o *ForgeOptions) (*networkingv1a
 }
 
 // MutateGatewayClient mutates a GatewayClient.
-func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *ForgeOptions) error {
+func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *GwClientOptions) error {
 	// Metadata
 	gwClient.Kind = networkingv1alpha1.GatewayClientKind
 	gwClient.APIVersion = networkingv1alpha1.GroupVersion.String()
@@ -85,9 +110,4 @@ func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *ForgeOpt
 	}
 
 	return nil
-}
-
-// DefaultGatewayClientName returns the default name for a GatewayClient.
-func DefaultGatewayClientName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
-	return remoteClusterIdentity.ClusterName
 }

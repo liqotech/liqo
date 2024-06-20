@@ -32,10 +32,8 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/getters"
 )
 
 // ExternalNetworkReconciler manage ExternalNetwork lifecycle.
@@ -50,14 +48,13 @@ type ExternalNetworkReconciler struct {
 	ServiceType corev1.ServiceType
 	Port        int32
 	MTU         int
-	Proxy       bool
 }
 
 // NewExternalNetworkReconciler returns a new ExternalNetworkReconciler.
 func NewExternalNetworkReconciler(cl client.Client, s *runtime.Scheme,
 	kubeClient kubernetes.Interface, liqoNamespace string,
 	homeCluster *discoveryv1alpha1.ClusterIdentity,
-	serviceType corev1.ServiceType, port int32, mtu int, proxy bool) *ExternalNetworkReconciler {
+	serviceType corev1.ServiceType, port int32, mtu int) *ExternalNetworkReconciler {
 	return &ExternalNetworkReconciler{
 		Client: cl,
 		Scheme: s,
@@ -69,7 +66,6 @@ func NewExternalNetworkReconciler(cl client.Client, s *runtime.Scheme,
 		ServiceType: serviceType,
 		Port:        port,
 		MTU:         mtu,
-		Proxy:       proxy,
 	}
 }
 
@@ -152,7 +148,7 @@ func (r *ExternalNetworkReconciler) handleLocalExternalNetwork(ctx context.Conte
 		return fmt.Errorf("no SecretRef found for GatewayClient %q", gw.Name)
 	}
 	var pubKey []byte
-	if pubKey, err = publickey.ExtractKeyFromSecretRef(ctx, r.Client, gw.Status.SecretRef); err != nil {
+	if pubKey, err = getters.ExtractKeyFromSecretRef(ctx, r.Client, gw.Status.SecretRef); err != nil {
 		return err
 	}
 	extNet.Spec.PublicKey = pubKey
@@ -164,7 +160,7 @@ func (r *ExternalNetworkReconciler) handleRemoteExternalNetwork(ctx context.Cont
 	extNet *networkingv1alpha1.ExternalNetwork) error {
 	extNet.Status.ClusterIdentity = r.HomeCluster.DeepCopy()
 
-	cnf, err := configuration.ForgeConfigurationForRemoteCluster(ctx, r.Client, extNet.Namespace, r.LiqoNamespace)
+	cnf, err := forge.ConfigurationForRemoteCluster(ctx, r.Client, extNet.Namespace, r.LiqoNamespace)
 	if err != nil {
 		klog.Errorf("Unable to forge the local configuration: %s", err)
 		return err
@@ -195,7 +191,7 @@ func (r *ExternalNetworkReconciler) handleRemoteExternalNetwork(ctx context.Cont
 		return fmt.Errorf("no SecretRef found for GatewayServer %q", gw.Name)
 	}
 	var pubKey []byte
-	if pubKey, err = publickey.ExtractKeyFromSecretRef(ctx, r.Client, gw.Status.SecretRef); err != nil {
+	if pubKey, err = getters.ExtractKeyFromSecretRef(ctx, r.Client, gw.Status.SecretRef); err != nil {
 		return err
 	}
 	extNet.Status.PublicKey = pubKey
@@ -238,13 +234,13 @@ func (r *ExternalNetworkReconciler) ensurePublicKey(ctx context.Context,
 		key = extNet.Spec.PublicKey
 	}
 
-	pubKey, err := publickey.ForgePublicKey(publickey.DefaultPublicKeyName(getIdentity(extNet, isLocal)), extNet.Namespace, clusterID, key)
+	pubKey, err := forge.PublicKey(forge.DefaultPublicKeyName(getIdentity(extNet, isLocal)), extNet.Namespace, clusterID, key)
 	if err != nil {
 		return err
 	}
 
 	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, pubKey, func() error {
-		if err = publickey.MutatePublicKey(pubKey, clusterID, key); err != nil {
+		if err = forge.MutatePublicKey(pubKey, clusterID, key); err != nil {
 			return err
 		}
 		return controllerutil.SetControllerReference(extNet, pubKey, r.Scheme)
@@ -271,11 +267,11 @@ func (r *ExternalNetworkReconciler) ensureGatewayClient(ctx context.Context,
 		return nil, fmt.Errorf("no remote ClusterID found for ExternalNetwork %q", extNet.Name)
 	}
 
-	opts := &gatewayclient.ForgeOptions{
+	opts := &forge.GwClientOptions{
 		KubeClient:        r.KubeClient,
 		RemoteClusterID:   remoteClusterID,
-		GatewayType:       gatewayclient.DefaultGatewayType,
-		TemplateName:      gatewayclient.DefaultTemplateName,
+		GatewayType:       forge.DefaultGwClientType,
+		TemplateName:      forge.DefaultGwClientTemplateName,
 		TemplateNamespace: r.LiqoNamespace,
 		MTU:               r.MTU,
 		Addresses:         extNet.Status.ServerEndpoint.Addresses,
@@ -286,13 +282,13 @@ func (r *ExternalNetworkReconciler) ensureGatewayClient(ctx context.Context,
 	} else {
 		opts.Protocol = string(corev1.ProtocolTCP)
 	}
-	gwClient, err := gatewayclient.ForgeGatewayClient(gatewayclient.DefaultGatewayClientName(getIdentity(extNet, true)), extNet.Namespace, opts)
+	gwClient, err := forge.GatewayClient(forge.DefaultGatewayClientName(getIdentity(extNet, true)), extNet.Namespace, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, gwClient, func() error {
-		if err = gatewayclient.MutateGatewayClient(gwClient, opts); err != nil {
+		if err = forge.MutateGatewayClient(gwClient, opts); err != nil {
 			return err
 		}
 		return controllerutil.SetControllerReference(extNet, gwClient, r.Scheme)
@@ -330,24 +326,23 @@ func (r *ExternalNetworkReconciler) ensureGatewayServer(ctx context.Context,
 		return nil, fmt.Errorf("no remote ClusterID found for ExternalNetwork %q", extNet.Name)
 	}
 
-	opts := &gatewayserver.ForgeOptions{
+	opts := &forge.GwServerOptions{
 		KubeClient:        r.KubeClient,
 		RemoteClusterID:   remoteClusterID,
-		GatewayType:       gatewayserver.DefaultGatewayType,
-		TemplateName:      gatewayserver.DefaultTemplateName,
+		GatewayType:       forge.DefaultGwServerType,
+		TemplateName:      forge.DefaultGwServerTemplateName,
 		TemplateNamespace: r.LiqoNamespace,
 		ServiceType:       r.ServiceType,
 		MTU:               r.MTU,
 		Port:              r.Port,
-		Proxy:             r.Proxy,
 	}
-	gwServer, err := gatewayserver.ForgeGatewayServer(gatewayserver.DefaultGatewayServerName(getIdentity(extNet, false)), extNet.Namespace, opts)
+	gwServer, err := forge.GatewayServer(forge.DefaultGatewayServerName(getIdentity(extNet, false)), extNet.Namespace, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, gwServer, func() error {
-		if err = gatewayserver.MutateGatewayServer(gwServer, opts); err != nil {
+		if err = forge.MutateGatewayServer(gwServer, opts); err != nil {
 			return err
 		}
 		return controllerutil.SetControllerReference(extNet, gwServer, r.Scheme)
@@ -360,7 +355,7 @@ func (r *ExternalNetworkReconciler) ensureGatewayServer(ctx context.Context,
 func (r *ExternalNetworkReconciler) ensureConfiguration(ctx context.Context, extNet *networkingv1alpha1.ExternalNetwork, isLocal bool) error {
 	cnf := &networkingv1alpha1.Configuration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      configuration.DefaultConfigurationName(getIdentity(extNet, isLocal)),
+			Name:      forge.DefaultConfigurationName(getIdentity(extNet, isLocal)),
 			Namespace: extNet.Namespace,
 		},
 	}
