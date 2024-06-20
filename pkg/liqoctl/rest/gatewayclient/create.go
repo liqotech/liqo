@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	forge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
@@ -71,14 +72,14 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		"Output the resulting GatewayClient resource, instead of applying it. Supported formats: json, yaml")
 
 	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
-	cmd.Flags().StringVar(&o.GatewayType, "type", DefaultGatewayType, "Type of Gateway Client. Default: wireguard")
-	cmd.Flags().StringVar(&o.TemplateName, "template-name", DefaultTemplateName, "Name of the Gateway Client template")
+	cmd.Flags().StringVar(&o.GatewayType, "type", forge.DefaultGwClientType, "Type of Gateway Client. Default: wireguard")
+	cmd.Flags().StringVar(&o.TemplateName, "template-name", forge.DefaultGwClientTemplateName, "Name of the Gateway Client template")
 	cmd.Flags().StringVar(&o.TemplateNamespace, "template-namespace", "", "Namespace of the Gateway Client template")
-	cmd.Flags().IntVar(&o.MTU, "mtu", DefaultMTU, "MTU of Gateway Client")
+	cmd.Flags().IntVar(&o.MTU, "mtu", forge.DefaultMTU, "MTU of Gateway Client")
 	cmd.Flags().StringSliceVar(&o.Addresses, "addresses", []string{}, "Addresses of Gateway Server")
 	cmd.Flags().Int32Var(&o.Port, "port", 0, "Port of Gateway Server")
-	cmd.Flags().StringVar(&o.Protocol, "protocol", DefaultProtocol, "Gateway Protocol")
-	cmd.Flags().BoolVar(&o.Wait, "wait", DefaultWait, "Wait for the Gateway Client to be ready")
+	cmd.Flags().StringVar(&o.Protocol, "protocol", forge.DefaultProtocol, "Gateway Protocol")
+	cmd.Flags().BoolVar(&o.Wait, "wait", false, "Wait for the Gateway Client to be ready")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 	runtime.Must(cmd.MarkFlagRequired("addresses"))
@@ -94,7 +95,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
-	gwClient, err := ForgeGatewayClient(opts.Name, opts.Namespace, o.getForgeOptions())
+	gwClient, err := forge.GatewayClient(opts.Name, opts.Namespace, o.getForgeOptions())
 	if err != nil {
 		opts.Printer.CheckErr(err)
 		return err
@@ -108,7 +109,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	s := opts.Printer.StartSpinner("Creating gatewayclient")
 
 	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, gwClient, func() error {
-		return MutateGatewayClient(gwClient, o.getForgeOptions())
+		return forge.MutateGatewayClient(gwClient, o.getForgeOptions())
 	})
 	if err != nil {
 		s.Fail("Unable to create gatewayclient: %v", output.PrettyErr(err))

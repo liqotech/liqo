@@ -22,12 +22,11 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/network"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
 )
 
 const liqoctlNetworkLongHelp = `Manage liqo networking.`
@@ -150,34 +149,33 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 	}
 
 	// Server flags
-	cmd.Flags().StringVar(&options.ServerGatewayType, "server-type", gatewayserver.DefaultGatewayType,
+	cmd.Flags().StringVar(&options.ServerGatewayType, "server-type", forge.DefaultGwServerType,
 		"Type of Gateway Server. Leave empty to use default Liqo implementation of WireGuard")
-	cmd.Flags().StringVar(&options.ServerTemplateName, "server-template-name", gatewayserver.DefaultTemplateName,
+	cmd.Flags().StringVar(&options.ServerTemplateName, "server-template-name", forge.DefaultGwServerTemplateName,
 		"Name of the Gateway Server template")
 	cmd.Flags().StringVar(&options.ServerTemplateNamespace, "server-template-namespace", "",
 		"Namespace of the Gateway Server template")
 	cmd.Flags().Var(options.ServerServiceType, "server-service-type",
-		fmt.Sprintf("Service type of the Gateway Server. Default: %s", gatewayserver.DefaultServiceType))
-	cmd.Flags().Int32Var(&options.ServerPort, "server-port", gatewayserver.DefaultPort,
-		fmt.Sprintf("Port of the Gateway Server. Default: %d", gatewayserver.DefaultPort))
+		fmt.Sprintf("Service type of the Gateway Server. Default: %s", forge.DefaultGwServerServiceType))
+	cmd.Flags().Int32Var(&options.ServerPort, "server-port", forge.DefaultGwServerPort,
+		fmt.Sprintf("Port of the Gateway Server. Default: %d", forge.DefaultGwServerPort))
 	cmd.Flags().Int32Var(&options.ServerNodePort, "node-port", 0,
 		"Force the NodePort of the Gateway Server. Leave empty to let Kubernetes allocate a random NodePort")
 	cmd.Flags().StringVar(&options.ServerLoadBalancerIP, "load-balancer-ip", "",
 		"Force LoadBalancer IP of the Gateway Server. Leave empty to use the one provided by the LoadBalancer provider")
 
 	// Client flags
-	cmd.Flags().StringVar(&options.ClientGatewayType, "client-type", gatewayclient.DefaultGatewayType,
+	cmd.Flags().StringVar(&options.ClientGatewayType, "client-type", forge.DefaultGwClientType,
 		"Type of Gateway Client. Leave empty to use default Liqo implementation of WireGuard")
-	cmd.Flags().StringVar(&options.ClientTemplateName, "client-template-name", gatewayclient.DefaultTemplateName,
+	cmd.Flags().StringVar(&options.ClientTemplateName, "client-template-name", forge.DefaultGwClientTemplateName,
 		"Name of the Gateway Client template")
 	cmd.Flags().StringVar(&options.ClientTemplateNamespace, "client-template-namespace", "",
 		"Namespace of the Gateway Client template")
 
 	// Common flags
-	cmd.Flags().IntVar(&options.MTU, "mtu", gatewayserver.DefaultMTU,
-		fmt.Sprintf("MTU of the Gateway server and client. Default: %d", gatewayserver.DefaultMTU))
+	cmd.Flags().IntVar(&options.MTU, "mtu", forge.DefaultMTU,
+		fmt.Sprintf("MTU of the Gateway server and client. Default: %d", forge.DefaultMTU))
 	cmd.Flags().BoolVar(&options.DisableSharingKeys, "disable-sharing-keys", false, "Disable the sharing of public keys between the two clusters")
-	cmd.Flags().BoolVar(&options.Proxy, "proxy", gatewayserver.DefaultProxy, "Enable proxy for the Gateway Server")
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("server-service-type", completion.Enumeration(options.ServerServiceType.Allowed)))
 
