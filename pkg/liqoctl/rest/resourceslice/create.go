@@ -50,7 +50,7 @@ Examples:
 func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobra.Command {
 	outputFormat := args.NewEnum([]string{"json", "yaml"}, "")
 
-	o.createOptions = options
+	o.CreateOptions = options
 
 	cmd := &cobra.Command{
 		Use:     "resourceslice",
@@ -62,38 +62,39 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		PreRun: func(cmd *cobra.Command, args []string) {
 			options.OutputFormat = outputFormat.Value
 			options.Name = args[0]
-			o.createOptions = options
+			o.CreateOptions = options
 
-			o.namespaceManager = tenantnamespace.NewManager(options.Factory.KubeClient)
+			o.NamespaceManager = tenantnamespace.NewManager(options.Factory.KubeClient)
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			output.ExitOnErr(o.handleCreate(ctx))
+			output.ExitOnErr(o.HandleCreate(ctx))
 		},
 	}
 
 	cmd.Flags().VarP(outputFormat, "output", "o",
 		"Output the resulting ResourceSlice resource, instead of applying it. Supported formats: json, yaml")
 
-	cmd.Flags().Var(&o.remoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
-	cmd.Flags().StringVar(&o.class, "class", "default", "The class of the ResourceSlice")
-	cmd.Flags().StringVar(&o.cpu, "cpu", "", "The amount of CPU requested in the resource slice")
-	cmd.Flags().StringVar(&o.memory, "memory", "", "The amount of memory requested in the resource slice")
-	cmd.Flags().StringVar(&o.pods, "pods", "", "The amount of pods requested in the resource slice")
-	cmd.Flags().BoolVar(&o.disableVirtualNodeCreation, "no-virtual-node", false,
+	cmd.Flags().Var(&o.RemoteClusterID, "remote-cluster-id", "The cluster ID of the remote cluster")
+	cmd.Flags().StringVar(&o.Class, "class", "default", "The class of the ResourceSlice")
+	cmd.Flags().StringVar(&o.CPU, "cpu", "", "The amount of CPU requested in the resource slice")
+	cmd.Flags().StringVar(&o.Memory, "memory", "", "The amount of memory requested in the resource slice")
+	cmd.Flags().StringVar(&o.Pods, "pods", "", "The amount of pods requested in the resource slice")
+	cmd.Flags().BoolVar(&o.DisableVirtualNodeCreation, "no-virtual-node", false,
 		"Prevent the automatic creation of a VirtualNode for the ResourceSlice. Default: false")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 
 	runtime.Must(cmd.RegisterFlagCompletionFunc("output", completion.Enumeration(outputFormat.Allowed)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
-		o.createOptions.Factory, completion.NoLimit)))
+		o.CreateOptions.Factory, completion.NoLimit)))
 
 	return cmd
 }
 
-func (o *Options) handleCreate(ctx context.Context) error {
-	opts := o.createOptions
+// HandleCreate implements the logic to create a ResourceSlice resource.
+func (o *Options) HandleCreate(ctx context.Context) error {
+	opts := o.CreateOptions
 	if opts.OutputFormat != "" {
 		opts.Printer.CheckErr(o.output(ctx))
 		return nil
@@ -109,14 +110,14 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	resourceSlice := forge.ResourceSlice(opts.Name, namespace)
 	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, resourceSlice, func() error {
-		return forge.MutateResourceSlice(resourceSlice, o.remoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
-			Class: authv1alpha1.ResourceSliceClass(o.class),
+		return forge.MutateResourceSlice(resourceSlice, o.RemoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
+			Class: authv1alpha1.ResourceSliceClass(o.Class),
 			Resources: map[corev1.ResourceName]string{
-				corev1.ResourceCPU:    o.cpu,
-				corev1.ResourceMemory: o.memory,
-				corev1.ResourcePods:   o.pods,
+				corev1.ResourceCPU:    o.CPU,
+				corev1.ResourceMemory: o.Memory,
+				corev1.ResourcePods:   o.Pods,
 			},
-		}, !o.disableVirtualNodeCreation)
+		}, !o.DisableVirtualNodeCreation)
 	})
 	if err != nil {
 		s.Fail("Unable to create ResourceSlice: %v", output.PrettyErr(err))
@@ -144,12 +145,12 @@ func (o *Options) handleCreate(ctx context.Context) error {
 }
 
 func (o *Options) getTenantNamespace(ctx context.Context) (string, error) {
-	ns, err := o.namespaceManager.GetNamespace(ctx, o.remoteClusterID.GetClusterID())
+	ns, err := o.NamespaceManager.GetNamespace(ctx, o.RemoteClusterID.GetClusterID())
 	switch {
 	case err == nil:
 		return ns.Name, nil
 	case apierrors.IsNotFound(err):
-		return "", fmt.Errorf("tenant namespace not found for cluster %q", o.remoteClusterID)
+		return "", fmt.Errorf("tenant namespace not found for cluster %q", o.RemoteClusterID)
 	default:
 		return "", err
 	}
@@ -157,7 +158,7 @@ func (o *Options) getTenantNamespace(ctx context.Context) (string, error) {
 
 // output implements the logic to output the generated ResourceSlice resource.
 func (o *Options) output(ctx context.Context) error {
-	opts := o.createOptions
+	opts := o.CreateOptions
 	var printer printers.ResourcePrinter
 	switch opts.OutputFormat {
 	case "yaml":
@@ -174,14 +175,14 @@ func (o *Options) output(ctx context.Context) error {
 	}
 
 	resourceSlice := forge.ResourceSlice(opts.Name, namespace)
-	err = forge.MutateResourceSlice(resourceSlice, o.remoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
-		Class: authv1alpha1.ResourceSliceClass(o.class),
+	err = forge.MutateResourceSlice(resourceSlice, o.RemoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
+		Class: authv1alpha1.ResourceSliceClass(o.Class),
 		Resources: map[corev1.ResourceName]string{
-			corev1.ResourceCPU:    o.cpu,
-			corev1.ResourceMemory: o.memory,
-			corev1.ResourcePods:   o.pods,
+			corev1.ResourceCPU:    o.CPU,
+			corev1.ResourceMemory: o.Memory,
+			corev1.ResourcePods:   o.Pods,
 		},
-	}, !o.disableVirtualNodeCreation)
+	}, !o.DisableVirtualNodeCreation)
 	if err != nil {
 		return err
 	}

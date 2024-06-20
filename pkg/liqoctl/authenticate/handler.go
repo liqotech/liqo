@@ -25,9 +25,7 @@ import (
 type Options struct {
 	LocalFactory  *factory.Factory
 	RemoteFactory *factory.Factory
-
-	Timeout time.Duration
-	Wait    bool
+	Timeout       time.Duration
 
 	ProxyURL string
 }

@@ -17,13 +17,10 @@ package modules
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/ipam"
 	clientoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/client-operator"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
@@ -45,21 +42,16 @@ import (
 
 // NetworkingOption defines the options to setup the Networking module.
 type NetworkingOption struct {
-	DynClient  dynamic.Interface
-	Factory    *dynamicutils.RunnableFactory
-	KubeClient kubernetes.Interface
+	DynClient dynamic.Interface
+	Factory   *dynamicutils.RunnableFactory
 
-	LiqoNamespace  string
-	LocalClusterID discoveryv1alpha1.ClusterID
-	IpamClient     ipam.IpamClient
+	LiqoNamespace string
+	IpamClient    ipam.IpamClient
 
 	GatewayServerResources         []string
 	GatewayClientResources         []string
 	WgGatewayServerClusterRoleName string
 	WgGatewayClientClusterRoleName string
-	GatewayServiceType             corev1.ServiceType
-	GatewayServicePort             int32
-	GatewayMTU                     int
 	NetworkWorkers                 int
 	IPWorkers                      int
 	FabricFullMasquerade           bool
