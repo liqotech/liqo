@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package generate
 
 import (
 	"context"
@@ -23,17 +23,21 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 )
 
-func newGenerateCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "generate",
-		Short: "Generate data/commands to perform additional operations",
-		Long:  "Generate data/commands to perform additional operations.",
-		Args:  cobra.NoArgs,
-	}
-
+// NewGenerateCommand returns the cobra command for the generate subcommand.
+func NewGenerateCommand(ctx context.Context, liqoResources []rest.APIProvider, f *factory.Factory) *cobra.Command {
 	options := &rest.GenerateOptions{
 		Factory: f,
 	}
+
+	cmd := &cobra.Command{
+		Use:   "generate",
+		Short: "Generate Liqo resources",
+		Long:  "Generate Liqo resources.",
+		Args:  cobra.NoArgs,
+	}
+
+	f.AddNamespaceFlag(cmd.PersistentFlags())
+	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
 	for _, r := range liqoResources {
 		api := r()
@@ -43,9 +47,6 @@ func newGenerateCommand(ctx context.Context, f *factory.Factory) *cobra.Command 
 			cmd.AddCommand(api.Generate(ctx, options))
 		}
 	}
-
-	f.AddNamespaceFlag(cmd.PersistentFlags())
-	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
 	return cmd
 }

@@ -53,7 +53,6 @@ import (
 	remoteresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/remoteresourceslice-controller"
 	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/virtualnodecreator-controller"
 	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreigncluster-controller"
-	nwforge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	offloadingipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/ipmapping"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -128,9 +127,6 @@ func main() {
 		"The name of the cluster role used by the wireguard gateway clients")
 	fabricFullMasqueradeEnabled := flag.Bool("fabric-full-masquerade-enabled", false, "Enable the full masquerade on the fabric network")
 	gwmasqbypassEnabled := flag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
-	gatewayServiceType := flag.String("gateway-service-type", string(nwforge.DefaultGwServerServiceType), "The type of the gateway service")
-	gatewayServicePort := flag.Int("gateway-service-port", nwforge.DefaultGwServerPort, "The port of the gateway service")
-	gatewayMTU := flag.Int("gateway-mtu", nwforge.DefaultMTU, "The MTU of the gateway interface")
 	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
 	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
 
@@ -261,21 +257,16 @@ func main() {
 		}
 
 		if err := modules.SetupNetworkingModule(ctx, mgr, &modules.NetworkingOption{
-			DynClient:  dynClient,
-			Factory:    factory,
-			KubeClient: clientset,
+			DynClient: dynClient,
+			Factory:   factory,
 
-			LiqoNamespace:  *liqoNamespace,
-			LocalClusterID: clusterID,
-			IpamClient:     ipamClient,
+			LiqoNamespace: *liqoNamespace,
+			IpamClient:    ipamClient,
 
 			GatewayServerResources:         gatewayServerResources.StringList,
 			GatewayClientResources:         gatewayClientResources.StringList,
 			WgGatewayServerClusterRoleName: *wgGatewayServerClusterRoleName,
 			WgGatewayClientClusterRoleName: *wgGatewayClientClusterRoleName,
-			GatewayServiceType:             corev1.ServiceType(*gatewayServiceType),
-			GatewayServicePort:             int32(*gatewayServicePort),
-			GatewayMTU:                     *gatewayMTU,
 			NetworkWorkers:                 *networkWorkers,
 			IPWorkers:                      *ipWorkers,
 			FabricFullMasquerade:           *fabricFullMasqueradeEnabled,
