@@ -59,7 +59,6 @@ func newAuthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 	}
 
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 2*time.Minute, "Timeout for completion")
-	cmd.PersistentFlags().BoolVar(&options.Wait, "wait", false, "Wait for completion")
 
 	options.LocalFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	options.RemoteFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
