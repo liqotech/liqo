@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration"
+	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 )
 
 // ConfigurationReconciler manage Configuration lifecycle.

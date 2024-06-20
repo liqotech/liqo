@@ -39,7 +39,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
-	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
+	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
 )
 
