@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gatewayserver
+package forge
 
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -24,8 +25,35 @@ import (
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
 )
 
-// ForgeGatewayServer forges a GatewayServer.
-func ForgeGatewayServer(name, namespace string, o *ForgeOptions) (*networkingv1alpha1.GatewayServer, error) {
+// Default values for the GatewayServer.
+const (
+	DefaultGwServerType         = "networking.liqo.io/v1alpha1/wggatewayservertemplates"
+	DefaultGwServerTemplateName = "wireguard-server"
+	DefaultGwServerServiceType  = corev1.ServiceTypeLoadBalancer
+	DefaultGwServerPort         = 51820
+)
+
+// DefaultGatewayServerName returns the default name for a GatewayServer.
+func DefaultGatewayServerName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
+	return remoteClusterIdentity.ClusterName
+}
+
+// GwServerOptions encapsulate the options to forge a GatewayServer.
+type GwServerOptions struct {
+	KubeClient        kubernetes.Interface
+	RemoteClusterID   string
+	GatewayType       string
+	TemplateName      string
+	TemplateNamespace string
+	ServiceType       corev1.ServiceType
+	MTU               int
+	Port              int32
+	NodePort          *int32
+	LoadBalancerIP    *string
+}
+
+// GatewayServer forges a GatewayServer.
+func GatewayServer(name, namespace string, o *GwServerOptions) (*networkingv1alpha1.GatewayServer, error) {
 	gwServer := &networkingv1alpha1.GatewayServer{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1alpha1.GatewayServerKind,
@@ -47,7 +75,7 @@ func ForgeGatewayServer(name, namespace string, o *ForgeOptions) (*networkingv1a
 }
 
 // MutateGatewayServer mutates a GatewayServer.
-func MutateGatewayServer(gwServer *networkingv1alpha1.GatewayServer, o *ForgeOptions) error {
+func MutateGatewayServer(gwServer *networkingv1alpha1.GatewayServer, o *GwServerOptions) error {
 	// Metadata
 	gwServer.Kind = networkingv1alpha1.GatewayServerKind
 	gwServer.APIVersion = networkingv1alpha1.GroupVersion.String()
@@ -89,9 +117,4 @@ func MutateGatewayServer(gwServer *networkingv1alpha1.GatewayServer, o *ForgeOpt
 	}
 
 	return nil
-}
-
-// DefaultGatewayServerName returns the default name for a GatewayServer.
-func DefaultGatewayServerName(remoteClusterIdentity *discoveryv1alpha1.ClusterIdentity) string {
-	return remoteClusterIdentity.ClusterName
 }

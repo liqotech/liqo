@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
@@ -88,7 +89,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
-	conf := ForgeConfiguration(o.createOptions.Name, o.createOptions.Namespace,
+	conf := forge.Configuration(o.createOptions.Name, o.createOptions.Namespace,
 		o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
 
 	if opts.OutputFormat != "" {
@@ -98,7 +99,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	s := opts.Printer.StartSpinner("Creating configuration")
 	_, err := controllerutil.CreateOrUpdate(ctx, opts.CRClient, conf, func() error {
-		MutateConfiguration(conf, o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
+		forge.MutateConfiguration(conf, o.RemoteClusterID, o.PodCIDR.String(), o.ExternalCIDR.String())
 		return nil
 	})
 	if err != nil {

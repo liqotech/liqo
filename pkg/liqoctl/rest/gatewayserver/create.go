@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
@@ -71,19 +72,18 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		"Output the resulting GatewayServer resource, instead of applying it. Supported formats: json, yaml")
 
 	cmd.Flags().StringVar(&o.RemoteClusterID, "remote-cluster-id", "", "The cluster ID of the remote cluster")
-	cmd.Flags().StringVar(&o.GatewayType, "type", DefaultGatewayType,
+	cmd.Flags().StringVar(&o.GatewayType, "type", forge.DefaultGwServerType,
 		"Type of Gateway Server. Leave empty to use default Liqo implementation of WireGuard")
-	cmd.Flags().StringVar(&o.TemplateName, "template-name", DefaultTemplateName, "Name of the Gateway Server template")
+	cmd.Flags().StringVar(&o.TemplateName, "template-name", forge.DefaultGwServerTemplateName, "Name of the Gateway Server template")
 	cmd.Flags().StringVar(&o.TemplateNamespace, "template-namespace", "", "Namespace of the Gateway Server template")
-	cmd.Flags().Var(o.ServiceType, "service-type", fmt.Sprintf("Service type of Gateway Server. Default: %s", DefaultServiceType))
-	cmd.Flags().IntVar(&o.MTU, "mtu", DefaultMTU, "MTU of Gateway Server")
-	cmd.Flags().Int32Var(&o.Port, "port", DefaultPort, "Port of Gateway Server")
+	cmd.Flags().Var(o.ServiceType, "service-type", fmt.Sprintf("Service type of Gateway Server. Default: %s", forge.DefaultGwServerServiceType))
+	cmd.Flags().IntVar(&o.MTU, "mtu", forge.DefaultMTU, "MTU of Gateway Server")
+	cmd.Flags().Int32Var(&o.Port, "port", forge.DefaultGwServerPort, "Port of Gateway Server")
 	cmd.Flags().Int32Var(&o.NodePort, "node-port", 0,
 		"Force the NodePort of the Gateway Server. Leave empty to let Kubernetes allocate a random NodePort")
 	cmd.Flags().StringVar(&o.LoadBalancerIP, "load-balancer-ip", "",
 		"Force LoadBalancer IP of the Gateway Server. Leave empty to use the one provided by the LoadBalancer provider")
-	cmd.Flags().BoolVar(&o.Proxy, "proxy", DefaultProxy, "Enable proxy for the Gateway Server")
-	cmd.Flags().BoolVar(&o.Wait, "wait", DefaultWait, "Wait for the Gateway Server to be ready")
+	cmd.Flags().BoolVar(&o.Wait, "wait", false, "Wait for the Gateway Server to be ready")
 
 	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
 
@@ -98,7 +98,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
-	gwServer, err := ForgeGatewayServer(opts.Name, opts.Namespace, o.getForgeOptions())
+	gwServer, err := forge.GatewayServer(opts.Name, opts.Namespace, o.getForgeOptions())
 	if err != nil {
 		opts.Printer.CheckErr(err)
 		return err
@@ -112,7 +112,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	s := opts.Printer.StartSpinner("Creating gatewayserver")
 
 	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, gwServer, func() error {
-		return MutateGatewayServer(gwServer, o.getForgeOptions())
+		return forge.MutateGatewayServer(gwServer, o.getForgeOptions())
 	})
 	if err != nil {
 		s.Fail("Unable to create gatewayserver: %v", output.PrettyErr(err))

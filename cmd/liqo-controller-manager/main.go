@@ -63,6 +63,7 @@ import (
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceoffloading-controller"
+	nwforge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	nodefailurectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/nodefailure-controller"
 	offloadingipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/ipmapping"
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/podstatus-controller"
@@ -82,7 +83,6 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/routeconfiguration"
 	shadowpodswh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/shadowpod"
 	virtualnodewh "github.com/liqotech/liqo/pkg/liqo-controller-manager/webhooks/virtualnode"
-	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -227,10 +227,9 @@ func main() {
 	wgGatewayClientClusterRoleName := flag.String("wg-gateway-client-cluster-role-name", "liqo-gateway",
 		"The name of the cluster role used by the wireguard gateway clients")
 	fabricFullMasqueradeEnabled := flag.Bool("fabric-full-masquerade-enabled", false, "Enable the full masquerade on the fabric network")
-	gatewayServiceType := flag.String("gateway-service-type", string(gatewayserver.DefaultServiceType), "The type of the gateway service")
-	gatewayServicePort := flag.Int("gateway-service-port", gatewayserver.DefaultPort, "The port of the gateway service")
-	gatewayMTU := flag.Int("gateway-mtu", gatewayserver.DefaultMTU, "The MTU of the gateway interface")
-	gatewayProxy := flag.Bool("gateway-proxy", gatewayserver.DefaultProxy, "Enable the proxy on the gateway")
+	gatewayServiceType := flag.String("gateway-service-type", string(nwforge.DefaultGwServerServiceType), "The type of the gateway service")
+	gatewayServicePort := flag.Int("gateway-service-port", nwforge.DefaultGwServerPort, "The port of the gateway service")
+	gatewayMTU := flag.Int("gateway-mtu", nwforge.DefaultMTU, "The MTU of the gateway interface")
 	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
 	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
 	gwmasqbypassEnabled := flag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
@@ -554,7 +553,6 @@ func main() {
 			GatewayServiceType:             corev1.ServiceType(*gatewayServiceType),
 			GatewayServicePort:             int32(*gatewayServicePort),
 			GatewayMTU:                     *gatewayMTU,
-			GatewayProxy:                   *gatewayProxy,
 			NetworkWorkers:                 *networkWorkers,
 			IPWorkers:                      *ipWorkers,
 			FabricFullMasquerade:           *fabricFullMasqueradeEnabled,
