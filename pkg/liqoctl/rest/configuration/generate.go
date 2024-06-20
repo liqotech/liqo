@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
@@ -63,7 +64,7 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 func (o *Options) handleGenerate(ctx context.Context) error {
 	opts := o.generateOptions
 
-	conf, err := ForgeConfigurationForRemoteCluster(ctx, opts.CRClient, opts.Namespace, opts.LiqoNamespace)
+	conf, err := forge.ConfigurationForRemoteCluster(ctx, opts.CRClient, opts.Namespace, opts.LiqoNamespace)
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to forge local configuration: %w", err))
 		return err

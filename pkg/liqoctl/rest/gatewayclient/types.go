@@ -15,18 +15,8 @@
 package gatewayclient
 
 import (
-	"k8s.io/client-go/kubernetes"
-
-	rest "github.com/liqotech/liqo/pkg/liqoctl/rest"
-)
-
-// Default values for the gatewayclient command.
-const (
-	DefaultGatewayType  = "networking.liqo.io/v1alpha1/wggatewayclienttemplates"
-	DefaultTemplateName = "wireguard-client"
-	DefaultMTU          = 1340
-	DefaultProtocol     = "UDP"
-	DefaultWait         = false
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest"
 )
 
 // Options encapsulates the arguments of the gatewayclient command.
@@ -60,25 +50,12 @@ func (o *Options) APIOptions() *rest.APIOptions {
 	}
 }
 
-// ForgeOptions encapsulate the options to forge a gatewayclient.
-type ForgeOptions struct {
-	KubeClient        kubernetes.Interface
-	RemoteClusterID   string
-	GatewayType       string
-	TemplateName      string
-	TemplateNamespace string
-	MTU               int
-	Addresses         []string
-	Port              int32
-	Protocol          string
-}
-
-func (o *Options) getForgeOptions() *ForgeOptions {
+func (o *Options) getForgeOptions() *forge.GwClientOptions {
 	if o.TemplateNamespace == "" {
 		o.TemplateNamespace = o.createOptions.LiqoNamespace
 	}
 
-	return &ForgeOptions{
+	return &forge.GwClientOptions{
 		KubeClient:        o.createOptions.KubeClient,
 		RemoteClusterID:   o.RemoteClusterID,
 		GatewayType:       o.GatewayType,
