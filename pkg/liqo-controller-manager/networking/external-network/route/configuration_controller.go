@@ -32,7 +32,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/configuration"
+	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 

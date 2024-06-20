@@ -28,8 +28,8 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/fabricipam"
+	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 

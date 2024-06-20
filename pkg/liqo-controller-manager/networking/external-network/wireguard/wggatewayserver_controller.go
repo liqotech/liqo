@@ -40,7 +40,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
-	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
+	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
 )
