@@ -33,7 +33,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
+	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 )
 

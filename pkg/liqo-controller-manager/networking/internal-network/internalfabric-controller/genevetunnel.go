@@ -27,7 +27,7 @@ import (
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/internal-network/id"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/id"
 )
 
 func geneveTunnelName(internalFabric *networkingv1alpha1.InternalFabric, internalNode *networkingv1alpha1.InternalNode) string {

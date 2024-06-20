@@ -23,7 +23,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
-	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/external-network/utils"
+	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 )
 
 // Default values for the GatewayClient.
