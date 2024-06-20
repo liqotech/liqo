@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,7 +60,7 @@ func NewOptions(localFactory *factory.Factory) *Options {
 	return &Options{
 		LocalFactory: localFactory,
 		ServerServiceType: argsutils.NewEnum(
-			[]string{string(v1.ServiceTypeLoadBalancer), string(v1.ServiceTypeNodePort)}, string(forge.DefaultGwServerServiceType)),
+			[]string{string(corev1.ServiceTypeLoadBalancer), string(corev1.ServiceTypeNodePort)}, string(forge.DefaultGwServerServiceType)),
 	}
 }
 
@@ -307,7 +307,7 @@ func (o *Options) RunDisconnect(ctx context.Context) error {
 
 func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID discoveryv1alpha1.ClusterID) *forge.GwServerOptions {
 	if o.ServerTemplateNamespace == "" {
-		o.ServerTemplateNamespace = o.LocalFactory.LiqoNamespace
+		o.ServerTemplateNamespace = o.RemoteFactory.LiqoNamespace
 	}
 
 	return &forge.GwServerOptions{
@@ -316,7 +316,7 @@ func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, 
 		GatewayType:       o.ServerGatewayType,
 		TemplateName:      o.ServerTemplateName,
 		TemplateNamespace: o.ServerTemplateNamespace,
-		ServiceType:       v1.ServiceType(o.ServerServiceType.Value),
+		ServiceType:       corev1.ServiceType(o.ServerServiceType.Value),
 		MTU:               o.MTU,
 		Port:              o.ServerPort,
 		NodePort:          ptr.To(o.ServerNodePort),
@@ -327,7 +327,7 @@ func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, 
 func (o *Options) newGatewayClientForgeOptions(kubeClient kubernetes.Interface, remoteClusterID discoveryv1alpha1.ClusterID,
 	serverEndpoint *networkingv1alpha1.EndpointStatus) *forge.GwClientOptions {
 	if o.ClientTemplateNamespace == "" {
-		o.ClientTemplateNamespace = o.RemoteFactory.LiqoNamespace
+		o.ClientTemplateNamespace = o.LocalFactory.LiqoNamespace
 	}
 
 	return &forge.GwClientOptions{
