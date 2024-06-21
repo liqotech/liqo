@@ -45,7 +45,6 @@ spec:
               - --liqo-version={{ include "liqo.version" . }}
               - --kubernetes-version={{ .Capabilities.KubeVersion.GitVersion }}
               - --namespace={{ .Release.Namespace }}
-              - --security-mode={{ .Values.networking.securityMode }}
               {{- if .Values.discovery.config.clusterLabels }}
               {{- $d := dict "commandName" "--cluster-labels" "dictionary" .Values.discovery.config.clusterLabels }}
               {{- include "liqo.concatenateMap" $d | nindent 14 }}
