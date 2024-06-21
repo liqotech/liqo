@@ -28,8 +28,6 @@ networking:
   enabled: true
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
-  # -- Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation" 
-  securityMode: "FullPodToPod"
   # -- Set the list of resources that implement the GatewayServer
   serverResources:
     - apiVersion: networking.liqo.io/v1alpha1
