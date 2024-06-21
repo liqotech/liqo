@@ -28,15 +28,6 @@ networking:
   enabled: true
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
-  # -- Iptables configuration tuning.
-  iptables:
-    # -- Select the iptables mode to use. Possible values are "legacy" and "nf_tables".
-    mode: "nf_tables"
-  # -- Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces.
-  # The value is used by the gateway and route operators.
-  # The default value is configured to ensure correct behavior regardless of the combination of the underlying environments
-  # (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops.
-  mtu: 1340
   # -- Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation" 
   securityMode: "FullPodToPod"
   # -- Set the list of resources that implement the GatewayServer
@@ -73,7 +64,6 @@ networking:
         allocateLoadBalancerNodePorts: ""
         # -- Annotations for the server service.
         annotations:  
-          "service.beta.kubernetes.io/aws-load-balancer-type": "nlb"
           # -- Override the default address where your network gateway service is available.
           # You should configure it if the network gateway is behind a reverse proxy or NAT.
           # liqo.io/override-address: "10.43.12.182"
@@ -99,7 +89,39 @@ networking:
           name: "ghcr.io/liqotech/gateway/geneve"
           # -- Custom version for the geneve image. If not specified, the global tag is used.
           version: ""
-
+  fabric:
+    pod:
+      # -- Annotations for the fabric pod.
+      annotations: {}
+      # -- Labels for the fabric pod.
+      labels: {}
+      # -- Extra arguments for the fabric pod.
+      extraArgs: []
+      # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the fabric pod.
+      resources:
+        limits: {}
+        requests: {}
+      # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the fabric pod.
+      priorityClassName: ""
+    image:
+      # -- Image repository for the fabric pod.
+      name: "ghcr.io/liqotech/fabric"
+      # -- Custom version for the fabric image. If not specified, the global tag is used.
+      version: ""
+    # -- Extra tolerations for the fabric daemonset.
+    tolerations: []
+    config:
+      # -- Enabe/Disable the full masquerade mode for the fabric pod.
+      # It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP.
+      # Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic.
+      # IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster, 
+      # making impossible for a pod that receives the traffic to know the original source IP. 
+      fullMasquerade: false
+      # -- Enable/Disable the masquerade bypass for the gateway pods.
+      # It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled.
+      # This is useful in scenarios where CNIs masquerade the traffic from pod to nodes.
+      # For example this is required when using the Azure CNI or Kindnet.
+      gatewayMasqueradeBypass: false
 peering:
   # -- Set the default configuration for the networking resources created during the peering process
   networking:
@@ -290,40 +312,6 @@ ipam:
   # Network pools are used to map a cluster network into another one in order to prevent conflicts.
   # Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
   additionalPools: []
-
-fabric:
-  pod:
-    # -- Annotations for the fabric pod.
-    annotations: {}
-    # -- Labels for the fabric pod.
-    labels: {}
-    # -- Extra arguments for the fabric pod.
-    extraArgs: []
-    # -- Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the fabric pod.
-    resources:
-      limits: {}
-      requests: {}
-    # -- PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the fabric pod.
-    priorityClassName: ""
-  image:
-    # -- Image repository for the fabric pod.
-    name: "ghcr.io/liqotech/fabric"
-    # -- Custom version for the fabric image. If not specified, the global tag is used.
-    version: ""
-  # -- Extra tolerations for the fabric daemonset.
-  tolerations: []
-  config:
-    # -- Enabe/Disable the full masquerade mode for the fabric pod.
-    # It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP.
-    # Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic.
-    # IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster, 
-    # making impossible for a pod that receives the traffic to know the original source IP. 
-    fullMasquerade: false
-    # -- Enable/Disable the masquerade bypass for the gateway pods.
-    # It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled.
-    # This is useful in scenarios where CNIs masquerade the traffic from pod to nodes.
-    # For example this is required when using the Azure CNI or Kindnet.
-    gatewayMasqueradeBypass: false
 
 crdReplicator:
   pod:
