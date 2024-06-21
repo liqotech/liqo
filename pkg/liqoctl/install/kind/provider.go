@@ -63,9 +63,11 @@ func (o *Options) Values() map[string]interface{} {
 			},
 		},
 
-		"gateway": map[string]interface{}{
-			"service": map[string]interface{}{
-				"type": string(corev1.ServiceTypeNodePort),
+		"networking": map[string]interface{}{
+			"fabric": map[string]interface{}{
+				"config": map[string]interface{}{
+					"gatewayMasqueradeBypass": true,
+				},
 			},
 		},
 	}
