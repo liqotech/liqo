@@ -144,6 +144,13 @@ func (o *Options) Values() map[string]interface{} {
 				},
 			},
 		},
+		"networking": map[string]interface{}{
+			"fabric": map[string]interface{}{
+				"config": map[string]interface{}{
+					"gatewayMasqueradeBypass": "true",
+				},
+			},
+		},
 	}
 }
 
@@ -169,7 +176,7 @@ func (o *Options) parseClusterOutput(ctx context.Context, cluster *containerserv
 		o.APIServer = *cluster.PrivateFQDN
 	case cluster.Fqdn != nil:
 		o.APIServer = *cluster.Fqdn
-	case len(o.fqdn) > 0:
+	case o.fqdn != "":
 		o.APIServer = o.fqdn
 	default:
 		return fmt.Errorf("failed to retrieve cluster APIServer FQDN, is the cluster running?")

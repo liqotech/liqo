@@ -95,8 +95,8 @@ spec:
           {{- if not .Values.offloading.runtimeClass.enable }}
           - --add-virtual-node-toleration-on-offloaded-pods
           {{- end }}
-          - --fabric-full-masquerade-enabled={{ .Values.fabric.config.fullMasquerade }}
-          - --gateway-masquerade-bypass-enabled={{ .Values.fabric.config.gatewayMasqueradeBypass }}
+          - --fabric-full-masquerade-enabled={{ .Values.networking.fabric.config.fullMasquerade }}
+          - --gateway-masquerade-bypass-enabled={{ .Values.networking.fabric.config.gatewayMasqueradeBypass }}
           - --gateway-service-type={{ .Values.peering.networking.gateway.server.service.type }}
           - --gateway-service-port={{ .Values.peering.networking.gateway.server.service.port }}
           - --gateway-mtu={{ .Values.peering.networking.gateway.mtu }}
