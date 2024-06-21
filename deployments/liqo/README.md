@@ -87,16 +87,6 @@
 | discovery.pod.labels | object | `{}` | Labels for the discovery pod. |
 | discovery.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the discovery pod. |
 | discovery.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the discovery pod. |
-| fabric.config.fullMasquerade | bool | `false` | Enabe/Disable the full masquerade mode for the fabric pod. It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP. Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic. IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster,  making impossible for a pod that receives the traffic to know the original source IP.  |
-| fabric.config.gatewayMasqueradeBypass | bool | `false` | Enable/Disable the masquerade bypass for the gateway pods. It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled. This is useful in scenarios where CNIs masquerade the traffic from pod to nodes. For example this is required when using the Azure CNI or Kindnet. |
-| fabric.image.name | string | `"ghcr.io/liqotech/fabric"` | Image repository for the fabric pod. |
-| fabric.image.version | string | `""` | Custom version for the fabric image. If not specified, the global tag is used. |
-| fabric.pod.annotations | object | `{}` | Annotations for the fabric pod. |
-| fabric.pod.extraArgs | list | `[]` | Extra arguments for the fabric pod. |
-| fabric.pod.labels | object | `{}` | Labels for the fabric pod. |
-| fabric.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the fabric pod. |
-| fabric.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the fabric pod. |
-| fabric.tolerations | list | `[]` | Extra tolerations for the fabric daemonset. |
 | fullnameOverride | string | `""` | Override the standard full name used by Helm and associated to Kubernetes/Liqo resources. |
 | ipam.additionalPools | list | `[]` | Set of additional network pools to perform the automatic address mapping in Liqo. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
 | ipam.external.enabled | bool | `false` | Use an external IPAM to allocate the IP addresses for the pods. Enabling it will disable the internal IPAM. |
@@ -129,7 +119,17 @@
 | nameOverride | string | `""` | Override the standard name used by Helm and associated to Kubernetes/Liqo resources. |
 | networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
 | networking.enabled | bool | `true` | Use the default Liqo networking module. |
-| networking.gatewayTemplates | object | `{"container":{"gateway":{"image":{"name":"ghcr.io/liqotech/gateway","version":""}},"geneve":{"image":{"name":"ghcr.io/liqotech/gateway/geneve","version":""}},"wireguard":{"image":{"name":"ghcr.io/liqotech/gateway/wireguard","version":""}}},"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1,"server":{"service":{"allocateLoadBalancerNodePorts":"","annotations":{"service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}}},"wireguard":{"implementation":"kernel"}}` | Set the options for the default gateway (server/client) templates. The default templates use a WireGuard implementation to connect the gateway of the clusters. These options are used to configure only the default templates and should not be considered if a custom template is used. |
+| networking.fabric.config.fullMasquerade | bool | `false` | Enabe/Disable the full masquerade mode for the fabric pod. It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP. Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic. IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster,  making impossible for a pod that receives the traffic to know the original source IP.  |
+| networking.fabric.config.gatewayMasqueradeBypass | bool | `false` | Enable/Disable the masquerade bypass for the gateway pods. It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled. This is useful in scenarios where CNIs masquerade the traffic from pod to nodes. For example this is required when using the Azure CNI or Kindnet. |
+| networking.fabric.image.name | string | `"ghcr.io/liqotech/fabric"` | Image repository for the fabric pod. |
+| networking.fabric.image.version | string | `""` | Custom version for the fabric image. If not specified, the global tag is used. |
+| networking.fabric.pod.annotations | object | `{}` | Annotations for the fabric pod. |
+| networking.fabric.pod.extraArgs | list | `[]` | Extra arguments for the fabric pod. |
+| networking.fabric.pod.labels | object | `{}` | Labels for the fabric pod. |
+| networking.fabric.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the fabric pod. |
+| networking.fabric.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the fabric pod. |
+| networking.fabric.tolerations | list | `[]` | Extra tolerations for the fabric daemonset. |
+| networking.gatewayTemplates | object | `{"container":{"gateway":{"image":{"name":"ghcr.io/liqotech/gateway","version":""}},"geneve":{"image":{"name":"ghcr.io/liqotech/gateway/geneve","version":""}},"wireguard":{"image":{"name":"ghcr.io/liqotech/gateway/wireguard","version":""}}},"ping":{"interval":"2s","lossThreshold":5,"updateStatusInterval":"10s"},"replicas":1,"server":{"service":{"allocateLoadBalancerNodePorts":"","annotations":null}},"wireguard":{"implementation":"kernel"}}` | Set the options for the default gateway (server/client) templates. The default templates use a WireGuard implementation to connect the gateway of the clusters. These options are used to configure only the default templates and should not be considered if a custom template is used. |
 | networking.gatewayTemplates.container.gateway.image.name | string | `"ghcr.io/liqotech/gateway"` | Image repository for the gateway container. |
 | networking.gatewayTemplates.container.gateway.image.version | string | `""` | Custom version for the gateway image. If not specified, the global tag is used. |
 | networking.gatewayTemplates.container.geneve.image.name | string | `"ghcr.io/liqotech/gateway/geneve"` | Image repository for the geneve container. |
@@ -141,14 +141,11 @@
 | networking.gatewayTemplates.ping.lossThreshold | int | `5` | Set the number of consecutive pings that must fail to consider the connection as lost |
 | networking.gatewayTemplates.ping.updateStatusInterval | string | `"10s"` | Set the interval at which the connection resource status is updated |
 | networking.gatewayTemplates.replicas | int | `1` | Set the number of replicas for the gateway deployments |
-| networking.gatewayTemplates.server | object | `{"service":{"allocateLoadBalancerNodePorts":"","annotations":{"service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}}}` | Set the options to configure the gateway server |
-| networking.gatewayTemplates.server.service | object | `{"allocateLoadBalancerNodePorts":"","annotations":{"service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}}` | Set the options to configure the server service |
+| networking.gatewayTemplates.server | object | `{"service":{"allocateLoadBalancerNodePorts":"","annotations":null}}` | Set the options to configure the gateway server |
+| networking.gatewayTemplates.server.service | object | `{"allocateLoadBalancerNodePorts":"","annotations":null}` | Set the options to configure the server service |
 | networking.gatewayTemplates.server.service.allocateLoadBalancerNodePorts | string | `""` | Set to "false" if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature). |
-| networking.gatewayTemplates.server.service.annotations | object | `{"service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations for the server service. |
+| networking.gatewayTemplates.server.service.annotations | string | `nil` | Annotations for the server service. |
 | networking.gatewayTemplates.wireguard.implementation | string | `"kernel"` | Set the implementation used for the WireGuard connection. Possible values are "kernel" and "userspace". |
-| networking.iptables | object | `{"mode":"nf_tables"}` | Iptables configuration tuning. |
-| networking.iptables.mode | string | `"nf_tables"` | Select the iptables mode to use. Possible values are "legacy" and "nf_tables". |
-| networking.mtu | int | `1340` | Set the MTU for the interfaces managed by liqo: vxlan, tunnel and veth interfaces. The value is used by the gateway and route operators. The default value is configured to ensure correct behavior regardless of the combination of the underlying environments (e.g., cloud providers). This guarantees improved compatibility at the cost of possible limited performance drops. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.securityMode | string | `"FullPodToPod"` | Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation"  |
 | networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |

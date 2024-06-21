@@ -123,10 +123,19 @@ func (o *Options) Initialize(ctx context.Context) error {
 // Values returns the customized provider-specifc values file parameters.
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"gateway": map[string]interface{}{
-			"service": map[string]interface{}{
-				"annotations": map[string]interface{}{
-					"service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+		"networking": map[string]interface{}{
+			"gatewayTemplates": map[string]interface{}{
+				"server": map[string]interface{}{
+					"service": map[string]interface{}{
+						"annotations": map[string]interface{}{
+							"service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+						},
+					},
+				},
+			},
+			"fabric": map[string]interface{}{
+				"config": map[string]interface{}{
+					"fullMasquerade": true,
 				},
 			},
 		},
