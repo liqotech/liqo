@@ -44,7 +44,6 @@ func (c *Builder) ForgeTelemetryItem(ctx context.Context) (*Telemetry, error) {
 		ClusterID:         clusterIdentity.ClusterID,
 		LiqoVersion:       c.LiqoVersion,
 		KubernetesVersion: c.KubernetesVersion,
-		SecurityMode:      c.SecurityMode,
 		Provider:          c.getProvider(),
 		PeeringInfo:       c.getPeeringInfoSlice(ctx),
 		NamespacesInfo:    c.getNamespacesInfo(ctx),

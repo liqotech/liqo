@@ -37,7 +37,6 @@ subtrees:
       - file: usage/disable-networking.md
       - file: usage/inter-cluster-network.md
       - file: usage/service-continuity.md
-      - file: usage/security-modes.md
 
   - caption: Contributing
     entries:
