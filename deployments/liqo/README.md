@@ -147,7 +147,6 @@
 | networking.gatewayTemplates.server.service.annotations | string | `nil` | Annotations for the server service. |
 | networking.gatewayTemplates.wireguard.implementation | string | `"kernel"` | Set the implementation used for the WireGuard connection. Possible values are "kernel" and "userspace". |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
-| networking.securityMode | string | `"FullPodToPod"` | Select the mode to enforce security on connectivity among clusters. Possible values are "FullPodToPod" and "IntraClusterTrafficSegregation"  |
 | networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |
 | offloading.runtimeClass.annotations | object | `{}` | Annotations for the runtime class. |
 | offloading.runtimeClass.enable | bool | `false` |  |

@@ -69,7 +69,6 @@ func main() {
 	namespace := flag.String("namespace", "liqo", "the namespace where liqo is deployed")
 	liqoVersion := flag.String("liqo-version", "", "the liqo version")
 	kubernetesVersion := flag.String("kubernetes-version", "", "the kubernetes version")
-	securityMode := flag.String("security-mode", "", "the security mode of the cluster")
 	dryRun := flag.Bool("dry-run", false, "if true, do not send the telemetry item and print it on stdout")
 	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
@@ -101,7 +100,6 @@ func main() {
 		Namespace:         *namespace,
 		LiqoVersion:       *liqoVersion,
 		KubernetesVersion: *kubernetesVersion,
-		SecurityMode:      *securityMode,
 		ClusterLabels:     clusterLabels.StringMap,
 	}
 
