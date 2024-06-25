@@ -41,6 +41,13 @@ spec:
           spec:
             description: QuotaSpec defines the desired state of Quota.
             properties:
+              limitsEnforcement:
+                description: LimitsEnforcement defines how the quota is enforced.
+                enum:
+                - Hard
+                - Soft
+                - None
+                type: string
               resources:
                 additionalProperties:
                   anyOf:
@@ -52,6 +59,7 @@ spec:
                 type: object
               user:
                 description: User is the user for which the quota is defined.
+                minLength: 1
                 type: string
             required:
             - resources

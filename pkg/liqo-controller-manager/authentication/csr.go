@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -39,7 +40,22 @@ func GenerateCSRForResourceSlice(key ed25519.PrivateKey,
 
 // CommonNameResourceSliceCSR returns the common name for a resource slice CSR.
 func CommonNameResourceSliceCSR(resourceSlice *authv1alpha1.ResourceSlice) string {
-	return resourceSlice.Name
+	// hash the clusterID and take the first 6 chars
+	// to avoid too long common names
+	// this is not a security measure, just a way to keep the common name short
+	// and unique
+
+	clusterID := resourceSlice.Spec.ConsumerClusterID
+	if clusterID == nil {
+		// this should never happen
+		panic("resource slice without consumer cluster ID")
+	}
+
+	hash := sha256.New()
+	hash.Write([]byte(*clusterID))
+	h := hash.Sum(nil)
+
+	return fmt.Sprintf("%s-%x", resourceSlice.Name, h[:6])
 }
 
 // OrganizationResourceSliceCSR returns the organization for a resource slice CSR.
