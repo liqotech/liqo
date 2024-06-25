@@ -53,6 +53,7 @@ spec:
           - --networking-enabled={{ .Values.networking.enabled }}
           - --authentication-enabled={{ .Values.authentication.enabled }}
           - --offloading-enabled={{ .Values.offloading.enabled }}
+          - --default-limits-enforcement={{ .Values.controllerManager.config.defaultLimitsEnforcement }}
           {{- $d := dict "commandName" "--default-node-resources" "dictionary" .Values.offloading.defaultNodeResources -}}
           {{- include "liqo.concatenateMap" $d | nindent 10 }}
           {{- if .Values.authentication.awsConfig.accessKeyId }}
