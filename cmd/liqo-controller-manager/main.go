@@ -54,6 +54,7 @@ import (
 	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/virtualnodecreator-controller"
 	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreigncluster-controller"
 	offloadingipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/ipmapping"
+	quotacreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/quotacreator-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
@@ -114,6 +115,8 @@ func main() {
 		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
 	foreignClusterPingTimeout := flag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
 		"The timeout of the ForeignCluster API server readiness check")
+	defaultLimitsEnforcement := flag.String("default-limits-enforcement", string(offloadingv1alpha1.NoLimitsEnforcement),
+		"The default limits enforcement policy for the offloading module")
 
 	// NETWORKING MODULE
 	ipamServer := flag.String("ipam-server", "", "The address of the IPAM server (set to empty string to disable IPAM)")
@@ -341,6 +344,15 @@ func main() {
 			mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("virtualnodecreator-controller"))
 		if err := vnCreatorReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to setup the virtualnodecreator reconciler: %v", err)
+			os.Exit(1)
+		}
+
+		// Configure controller that create quotas from resourceslices.
+		quotaCreatorReconciler := quotacreatorcontroller.NewQuotaCreatorReconciler(
+			mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("quotacreator-controller"),
+			offloadingv1alpha1.LimitsEnforcement(*defaultLimitsEnforcement))
+		if err := quotaCreatorReconciler.SetupWithManager(mgr); err != nil {
+			klog.Errorf("Unable to setup the quotacreator reconciler: %v", err)
 			os.Exit(1)
 		}
 	}
