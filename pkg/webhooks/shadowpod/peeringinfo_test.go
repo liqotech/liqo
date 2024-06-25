@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -145,7 +146,7 @@ var _ = Describe("Peering Info", func() {
 
 	Describe("Test and update creation", func() {
 		JustBeforeEach(func() {
-			err = peeringInfo.testAndUpdateCreation(ctx, fakeClient, shadowPod, dryRun)
+			err = peeringInfo.testAndUpdateCreation(ctx, fakeClient, shadowPod, offloadingv1alpha1.SoftLimitsEnforcement, dryRun)
 		})
 
 		When("resources are available and dryRun flag is false", func() {
