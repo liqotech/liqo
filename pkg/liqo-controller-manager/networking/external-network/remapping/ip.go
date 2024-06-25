@@ -28,13 +28,22 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	"github.com/liqotech/liqo/pkg/consts"
 )
+
+func generateNatMappingIPGwName(ip *ipamv1alpha1.IP) string {
+	return fmt.Sprintf("%s%s", generateNatMappingIPPrefix(ip), TableIPMappingGwName)
+}
+
+func generateNatMappingIPFabricName(ip *ipamv1alpha1.IP) string {
+	return fmt.Sprintf("%s%s", generateNatMappingIPPrefix(ip), TableIPMappingFabricName)
+}
 
 // CreateOrUpdateNatMappingIP creates or updates the NAT mapping for an IP.
 func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv1alpha1.IP) error {
 	fwcfg := &networkingv1alpha1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      TableIPMappingGwName,
+			Name:      generateNatMappingIPGwName(ip),
 			Namespace: ip.Namespace,
 		},
 	}
@@ -46,7 +55,7 @@ func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv
 	if ip.Spec.Masquerade != nil && *ip.Spec.Masquerade {
 		fwcfgMasq := &networkingv1alpha1.FirewallConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      TableIPMappingFabricName,
+				Name:      generateNatMappingIPFabricName(ip),
 				Namespace: ip.Namespace,
 			},
 		}
@@ -62,15 +71,41 @@ func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv
 // DeleteNatMappingIP deletes the NAT mapping for an IP.
 func DeleteNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv1alpha1.IP) error {
 	var fwcfg networkingv1alpha1.FirewallConfiguration
-	err := cl.Get(ctx, client.ObjectKey{Name: TableIPMappingGwName, Namespace: ip.Namespace}, &fwcfg)
+
+	err := cl.Get(ctx, client.ObjectKey{Name: generateNatMappingIPGwName(ip), Namespace: ip.Namespace}, &fwcfg)
 	switch {
 	case errors.IsNotFound(err):
 		return nil
 	case err != nil:
-		return fmt.Errorf("unable to get the firewall configuration %s/%s: %w", ip.Namespace, TableIPMappingGwName, err)
+		return fmt.Errorf("unable to get the firewall configuration %s/%s: %w", ip.Namespace, generateNatMappingIPGwName(ip), err)
 	}
 
-	err = cl.Update(ctx, cleanFirewallConfiguration(&fwcfg, ip))
+	err = deleteNatMappingIPWithFirewallconfiguration(ctx, cl, ip, &fwcfg)
+	if err != nil {
+		return err
+	}
+
+	// When the IP resource map and IP from the outside of the cluster
+	// we need to insert a masquerade rule on the node, in order to
+	// allow the traffic to return.
+	if ip.Spec.Masquerade != nil && *ip.Spec.Masquerade {
+		err = cl.Get(ctx, client.ObjectKey{Name: generateNatMappingIPFabricName(ip), Namespace: ip.Namespace}, &fwcfg)
+		if err != nil {
+			return fmt.Errorf("unable to get the firewall configuration %s/%s: %w", ip.Namespace, generateNatMappingIPFabricName(ip), err)
+		}
+
+		err = deleteNatMappingIPWithFirewallconfiguration(ctx, cl, ip, &fwcfg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deleteNatMappingIPWithFirewallconfiguration deletes the NAT mapping for an IP in a specific firewallconfiguration.
+func deleteNatMappingIPWithFirewallconfiguration(ctx context.Context, cl client.Client,
+	ip *ipamv1alpha1.IP, fwcfg *networkingv1alpha1.FirewallConfiguration) error {
+	err := cl.Update(ctx, cleanFirewallConfiguration(fwcfg, ip))
 	switch {
 	case errors.IsNotFound(err):
 		return nil
@@ -78,7 +113,7 @@ func DeleteNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv1alpha1.
 		return fmt.Errorf("unable to update the firewall configuration %q: %w", fwcfg.Name, err)
 	}
 
-	return deleteFirewallConfiguration(ctx, cl, &fwcfg)
+	return deleteFirewallConfiguration(ctx, cl, fwcfg)
 }
 
 func cleanFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) *networkingv1alpha1.FirewallConfiguration {
@@ -126,14 +161,14 @@ func mutateFirewallConfigurationMasquerade(fwcfg *networkingv1alpha1.FirewallCon
 
 func enforceFirewallConfigurationSpec(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
 	table := &fwcfg.Spec.Table
-	table.Name = ptr.To(fmt.Sprintf("%s-%s", TableIPMappingGwName, fwcfg.Namespace))
+	table.Name = ptr.To(fmt.Sprintf("%s-%s", generateNatMappingIPGwName(ip), fwcfg.Namespace))
 	table.Family = ptr.To(firewall.TableFamilyIPv4)
 	enforceFirewallConfigurationChains(fwcfg, ip)
 }
 
 func enforceFirewallConfigurationMasqSpec(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
 	table := &fwcfg.Spec.Table
-	table.Name = ptr.To(fmt.Sprintf("%s-%s", TableIPMappingFabricName, fwcfg.Namespace))
+	table.Name = ptr.To(fmt.Sprintf("%s-%s", generateNatMappingIPFabricName(ip), fwcfg.Namespace))
 	table.Family = ptr.To(firewall.TableFamilyIPv4)
 	enforceFirewallConfigurationMasqChains(fwcfg, ip)
 }
@@ -266,4 +301,14 @@ func ensureFirewallConfigurationMasqSNATRules(fwcfg *networkingv1alpha1.Firewall
 			},
 		})
 	}
+}
+
+func generateNatMappingIPPrefix(ip *ipamv1alpha1.IP) string {
+	if ip.Labels == nil {
+		return ""
+	}
+	if v, ok := ip.Labels[consts.RemoteClusterID]; ok {
+		return fmt.Sprintf("%s-", v)
+	}
+	return ""
 }
