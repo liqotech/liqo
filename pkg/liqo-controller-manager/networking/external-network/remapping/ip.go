@@ -183,7 +183,7 @@ func enforceFirewallConfigurationChains(fwcfg *networkingv1alpha1.FirewallConfig
 	chainPre.Type = ptr.To(firewall.ChainTypeNAT)
 	chainPre.Hook = &firewall.ChainHookPrerouting
 	chainPre.Priority = ptr.To(firewall.ChainPriorityNATDest)
-	ensureFirewallConfigurationDNATRules(fwcfg, ip)
+	ensureFirewallConfigurationDNATRules(&chainPre.Rules, ip)
 
 	chainPost := &fwcfg.Spec.Table.Chains[1]
 	chainPost.Name = &PostroutingChainName
@@ -191,20 +191,28 @@ func enforceFirewallConfigurationChains(fwcfg *networkingv1alpha1.FirewallConfig
 	chainPost.Type = ptr.To(firewall.ChainTypeNAT)
 	chainPost.Hook = &firewall.ChainHookPostrouting
 	chainPost.Priority = ptr.To(firewall.ChainPriorityNATSource)
-	ensureFirewallConfigurationSNATRules(fwcfg, ip)
+	ensureFirewallConfigurationSNATRules(&chainPost.Rules, ip)
 }
 
 func enforceFirewallConfigurationMasqChains(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
-	if fwcfg.Spec.Table.Chains == nil || len(fwcfg.Spec.Table.Chains) != 1 {
-		fwcfg.Spec.Table.Chains = make([]firewall.Chain, 1)
+	if fwcfg.Spec.Table.Chains == nil || len(fwcfg.Spec.Table.Chains) != 2 {
+		fwcfg.Spec.Table.Chains = make([]firewall.Chain, 2)
 	}
-	rulePost := &fwcfg.Spec.Table.Chains[0]
-	rulePost.Name = &PostroutingChainName
-	rulePost.Policy = ptr.To(firewall.ChainPolicyAccept)
-	rulePost.Type = ptr.To(firewall.ChainTypeNAT)
-	rulePost.Hook = &firewall.ChainHookPostrouting
-	rulePost.Priority = ptr.To(firewall.ChainPriorityNATSource - 1)
-	ensureFirewallConfigurationMasqSNATRules(fwcfg, ip)
+	chainPre := &fwcfg.Spec.Table.Chains[0]
+	chainPre.Name = &PreroutingChainName
+	chainPre.Policy = ptr.To(firewall.ChainPolicyAccept)
+	chainPre.Type = ptr.To(firewall.ChainTypeNAT)
+	chainPre.Hook = &firewall.ChainHookPrerouting
+	chainPre.Priority = ptr.To(firewall.ChainPriorityNATDest)
+	ensureFirewallConfigurationDNATRules(&chainPre.Rules, ip)
+
+	chainPost := &fwcfg.Spec.Table.Chains[1]
+	chainPost.Name = &PostroutingChainName
+	chainPost.Policy = ptr.To(firewall.ChainPolicyAccept)
+	chainPost.Type = ptr.To(firewall.ChainTypeNAT)
+	chainPost.Hook = &firewall.ChainHookPostrouting
+	chainPost.Priority = ptr.To(firewall.ChainPriorityNATSource - 1)
+	ensureFirewallConfigurationMasqSNATRules(&chainPost.Rules, ip)
 }
 
 func containsNATRule(rules []firewall.NatRule, to string, pos firewall.MatchPosition) bool {
@@ -228,9 +236,7 @@ func GetFirstIPFromMapping(ipMapping map[string]networkingv1alpha1.IP) string {
 	return ""
 }
 
-func ensureFirewallConfigurationDNATRules(fwcfg *networkingv1alpha1.FirewallConfiguration,
-	ip *ipamv1alpha1.IP) {
-	rules := &fwcfg.Spec.Table.Chains[0].Rules
+func ensureFirewallConfigurationDNATRules(rules *firewall.RulesSet, ip *ipamv1alpha1.IP) {
 	if !containsNATRule(rules.NatRules, ip.Spec.IP.String(), firewall.MatchPositionDst) {
 		rules.NatRules = append(rules.NatRules, firewall.NatRule{
 			NatType: firewall.NatTypeDestination,
@@ -249,9 +255,7 @@ func ensureFirewallConfigurationDNATRules(fwcfg *networkingv1alpha1.FirewallConf
 	}
 }
 
-func ensureFirewallConfigurationSNATRules(fwcfg *networkingv1alpha1.FirewallConfiguration,
-	ip *ipamv1alpha1.IP) {
-	rules := &fwcfg.Spec.Table.Chains[1].Rules
+func ensureFirewallConfigurationSNATRules(rules *firewall.RulesSet, ip *ipamv1alpha1.IP) {
 	if !containsNATRule(rules.NatRules, ip.Spec.IP.String(), firewall.MatchPositionSrc) {
 		rules.NatRules = append(rules.NatRules, firewall.NatRule{
 			NatType: firewall.NatTypeSource,
@@ -284,11 +288,11 @@ func containsNatRuleMasquerade(rules []firewall.NatRule, dst string) bool {
 	return false
 }
 
-func ensureFirewallConfigurationMasqSNATRules(fwcfg *networkingv1alpha1.FirewallConfiguration,
+func ensureFirewallConfigurationMasqSNATRules(rules *firewall.RulesSet,
 	ip *ipamv1alpha1.IP) {
-	rules := &fwcfg.Spec.Table.Chains[0].Rules
 	if !containsNatRuleMasquerade(rules.NatRules, ip.Spec.IP.String()) {
 		rules.NatRules = append(rules.NatRules, firewall.NatRule{
+			Name:    ptr.To(ip.Name),
 			NatType: firewall.NatTypeMasquerade,
 			Match: []firewall.Match{
 				{
