@@ -160,7 +160,7 @@ func (pi *peeringInfo) checkAndAddShadowPods(shadowPod *vkv1alpha1.ShadowPod, ns
 	_, found = pi.shadowPods[nsname.String()]
 	if !found {
 		// Errors are intentionally ignored here.
-		spQuota, _ := getQuotaFromShadowPod(shadowPod, false)
+		spQuota, _ := getQuotaFromShadowPod(shadowPod, offloadingv1alpha1.NoLimitsEnforcement)
 		pi.addShadowPod(createShadowPodDescription(shadowPod.GetName(), shadowPod.GetNamespace(), shadowPod.GetUID(), *spQuota))
 	}
 	return
