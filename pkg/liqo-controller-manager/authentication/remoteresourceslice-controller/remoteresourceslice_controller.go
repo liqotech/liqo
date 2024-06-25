@@ -215,6 +215,9 @@ func (r *RemoteResourceSliceReconciler) handleResourcesStatus(ctx context.Contex
 		for k, v := range r.sliceStatusOptions.DefaultResourceQuantity {
 			resourceSlice.Status.Resources[k] = findOrDefault(k, v)
 		}
+		for k, v := range resourceSlice.Spec.Resources {
+			resourceSlice.Status.Resources[k] = v
+		}
 
 		resourceSlice.Status.StorageClasses, err = getStorageClasses(ctx, r.Client, r.sliceStatusOptions)
 		if err != nil {
