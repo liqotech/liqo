@@ -130,7 +130,7 @@ func (spv *Validator) HandleCreate(ctx context.Context, req *admission.Request) 
 
 	peeringInfo := spv.PeeringCache.getOrCreatePeeringInfo(creatorName, quota.Spec.Resources)
 
-	err = peeringInfo.testAndUpdateCreation(ctx, spv.client, shadowpod, *req.DryRun)
+	err = peeringInfo.testAndUpdateCreation(ctx, spv.client, shadowpod, quota.Spec.LimitsEnforcement, *req.DryRun)
 	if err != nil {
 		klog.Warning(err)
 		return admission.Denied(err.Error())
