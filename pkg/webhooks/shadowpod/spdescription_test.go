@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -61,7 +62,8 @@ var _ = Describe("ShadowPod Description", func() {
 	Describe("Get or Create a ShadowPod Description", func() {
 		JustBeforeEach(func() {
 			containers = append(containers, containerResource{cpu: 100, memory: 100})
-			spDescription, err = peeringInfo.getOrCreateShadowPodDescription(ctx, spValidator.client, forgeShadowPodWithResourceLimits(containers, nil))
+			spDescription, err = peeringInfo.getOrCreateShadowPodDescription(ctx, spValidator.client,
+				forgeShadowPodWithResourceLimits(containers, nil), offloadingv1alpha1.SoftLimitsEnforcement)
 		})
 
 		When("The ShadowPod Description does not exist", func() {
@@ -157,7 +159,7 @@ var _ = Describe("ShadowPod Description", func() {
 
 	Describe("Get Quota from a ShadowPod", func() {
 		JustBeforeEach(func() {
-			quota, err = getQuotaFromShadowPod(shadowPod, true)
+			quota, err = getQuotaFromShadowPod(shadowPod, offloadingv1alpha1.SoftLimitsEnforcement)
 		})
 
 		When("at least one ShadowPod container has not cpu or memory limits defined", func() {
