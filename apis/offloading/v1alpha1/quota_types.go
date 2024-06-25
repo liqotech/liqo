@@ -19,10 +19,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// LimitsEnforcement defines how the quota is enforced.
+type LimitsEnforcement string
+
+const (
+	// HardLimitsEnforcement means that the quota is enforced with hard limits (limits == requests).
+	HardLimitsEnforcement LimitsEnforcement = "Hard"
+	// SoftLimitsEnforcement means that the quota is enforced with soft limits (requests <= limits).
+	SoftLimitsEnforcement LimitsEnforcement = "Soft"
+	// NoLimitsEnforcement means that the quota is not enforced.
+	NoLimitsEnforcement LimitsEnforcement = "None"
+)
+
 // QuotaSpec defines the desired state of Quota.
 type QuotaSpec struct {
 	// User is the user for which the quota is defined.
+	// +kubebuilder:validation:MinLength=1
 	User string `json:"user"`
+	// LimitsEnforcement defines how the quota is enforced.
+	// +kubebuilder:validation:Enum=Hard;Soft;None
+	LimitsEnforcement LimitsEnforcement `json:"limitsEnforcement,omitempty"`
 	// Resources contains the list of resources and their limits.
 	Resources corev1.ResourceList `json:"resources"`
 }
