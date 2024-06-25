@@ -24,6 +24,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -121,11 +122,12 @@ func (pi *peeringInfo) removeShadowPod(spd *Description) {
 	delete(pi.shadowPods, spd.namespacedName.String())
 }
 
-func (pi *peeringInfo) testAndUpdateCreation(ctx context.Context, c client.Client, sp *vkv1alpha1.ShadowPod, dryRun bool) error {
+func (pi *peeringInfo) testAndUpdateCreation(ctx context.Context, c client.Client,
+	sp *vkv1alpha1.ShadowPod, limitsEnforcement offloadingv1alpha1.LimitsEnforcement, dryRun bool) error {
 	pi.mu.Lock()
 	defer pi.mu.Unlock()
 
-	spd, err := pi.getOrCreateShadowPodDescription(ctx, c, sp)
+	spd, err := pi.getOrCreateShadowPodDescription(ctx, c, sp, limitsEnforcement)
 	if err != nil {
 		return err
 	}

@@ -25,6 +25,7 @@ import (
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -47,9 +48,10 @@ func createShadowPodDescription(name, namespace string, uid types.UID, resources
 	}
 }
 
-func (pi *peeringInfo) getOrCreateShadowPodDescription(ctx context.Context, c client.Client, sp *vkv1alpha1.ShadowPod) (*Description, error) {
+func (pi *peeringInfo) getOrCreateShadowPodDescription(ctx context.Context, c client.Client,
+	sp *vkv1alpha1.ShadowPod, limitsEnforcement offloadingv1alpha1.LimitsEnforcement) (*Description, error) {
 	nsname := types.NamespacedName{Name: sp.Name, Namespace: sp.Namespace}
-	spQuota, err := getQuotaFromShadowPod(sp, true)
+	spQuota, err := getQuotaFromShadowPod(sp, limitsEnforcement)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +99,8 @@ func checkShadowPodExistence(ctx context.Context, spvclient client.Client, names
 	return fmt.Errorf("ShadowPod still exists in the system")
 }
 
-func getQuotaFromShadowPod(shadowpod *vkv1alpha1.ShadowPod, validate bool) (*corev1.ResourceList, error) {
+func getQuotaFromShadowPod(shadowpod *vkv1alpha1.ShadowPod,
+	limitsEnforcement offloadingv1alpha1.LimitsEnforcement) (*corev1.ResourceList, error) {
 	conResources := corev1.ResourceList{}
 	initConResources := corev1.ResourceList{}
 
@@ -124,9 +127,21 @@ func getQuotaFromShadowPod(shadowpod *vkv1alpha1.ShadowPod, validate bool) (*cor
 			} else {
 				conResources[key] = value.DeepCopy()
 			}
+
+			if limitsEnforcement == offloadingv1alpha1.HardLimitsEnforcement {
+				req := shadowpod.Spec.Pod.Containers[i].Resources.Requests[key]
+				lim := shadowpod.Spec.Pod.Containers[i].Resources.Limits[key]
+				if req.Cmp(lim) != 0 {
+					return nil, fmt.Errorf("%s limits and requests are not equal for container %s",
+						key, shadowpod.Spec.Pod.Containers[i].Name)
+				}
+			}
 		}
 		// If the container has no CPU or Memory limits defined and this kind of validation is required, an error is returned
-		if (!cpuFlag || !memoryFlag) && validate {
+		if limitsEnforcement == offloadingv1alpha1.NoLimitsEnforcement {
+			continue
+		}
+		if !cpuFlag || !memoryFlag {
 			return nil, fmt.Errorf("CPU and/or memory limits not set for container %s", shadowpod.Spec.Pod.Containers[i].Name)
 		}
 	}
@@ -150,9 +165,21 @@ func getQuotaFromShadowPod(shadowpod *vkv1alpha1.ShadowPod, validate bool) (*cor
 			} else {
 				initConResources[key] = value.DeepCopy()
 			}
+
+			if limitsEnforcement == offloadingv1alpha1.HardLimitsEnforcement {
+				req := shadowpod.Spec.Pod.InitContainers[i].Resources.Requests[key]
+				lim := shadowpod.Spec.Pod.InitContainers[i].Resources.Limits[key]
+				if req.Cmp(lim) != 0 {
+					return nil, fmt.Errorf("%s limits and requests are not equal for container %s",
+						key, shadowpod.Spec.Pod.InitContainers[i].Name)
+				}
+			}
 		}
 		// If the init container has no CPU or Memory limits defined and this kind of validation is required, an error is returned
-		if (!cpuFlag || !memoryFlag) && validate {
+		if limitsEnforcement == offloadingv1alpha1.NoLimitsEnforcement {
+			continue
+		}
+		if !cpuFlag || !memoryFlag {
 			return nil, fmt.Errorf("CPU and/or memory limits not set for initContainer %s",
 				shadowpod.Spec.Pod.InitContainers[i].Name)
 		}
