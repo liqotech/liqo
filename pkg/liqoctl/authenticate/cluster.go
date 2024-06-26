@@ -33,37 +33,36 @@ import (
 
 // Cluster contains the information about a cluster.
 type Cluster struct {
-	local                 *factory.Factory
+	local  *factory.Factory
+	waiter *wait.Waiter
+
 	localNamespaceManager tenantnamespace.Manager
-	Waiter                *wait.Waiter
 
 	LocalClusterID  discoveryv1alpha1.ClusterID
 	RemoteClusterID discoveryv1alpha1.ClusterID
+
 	TenantNamespace string
 }
 
 // NewCluster returns a new Cluster struct.
 func NewCluster(local *factory.Factory) *Cluster {
 	return &Cluster{
-		local:                 local,
+		local:  local,
+		waiter: wait.NewWaiterFromFactory(local),
+
 		localNamespaceManager: tenantnamespace.NewManager(local.KubeClient),
-		Waiter:                wait.NewWaiterFromFactory(local),
 	}
 }
 
 // SetLocalClusterID set the local cluster id retrieving it from the Liqo configmaps.
 func (c *Cluster) SetLocalClusterID(ctx context.Context) error {
-	s := c.local.Printer.StartSpinner("Retrieving cluster id")
-
-	// Get cluster id.
+	// Get local cluster id.
 	clusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, c.local.CRClient, c.local.LiqoNamespace)
 	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
+		c.local.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
 		return err
 	}
 	c.LocalClusterID = clusterID
-
-	s.Success("Cluster id correctly retrieved")
 
 	return nil
 }
@@ -99,7 +98,7 @@ func (c *Cluster) EnsureNonce(ctx context.Context) ([]byte, error) {
 	s.Success("Nonce secret ensured")
 
 	// Wait for secret to be filled with the nonce.
-	if err := c.Waiter.ForNonce(ctx, c.RemoteClusterID, false); err != nil {
+	if err := c.waiter.ForNonce(ctx, c.RemoteClusterID, false); err != nil {
 		return nil, err
 	}
 
@@ -130,7 +129,7 @@ func (c *Cluster) EnsureSignedNonce(ctx context.Context, nonce []byte) ([]byte, 
 	s.Success("Signed nonce secret ensured")
 
 	// Wait for secret to be filled with the signed nonce.
-	if err := c.Waiter.ForSignedNonce(ctx, c.RemoteClusterID, false); err != nil {
+	if err := c.waiter.ForSignedNonce(ctx, c.RemoteClusterID, false); err != nil {
 		return nil, err
 	}
 
@@ -171,7 +170,7 @@ func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1alpha1.Tenant)
 	s.Success("Tenant correctly applied on provider cluster")
 
 	// Wait for the tenant status to be updated.
-	if err := c.Waiter.ForTenantStatus(ctx, c.RemoteClusterID); err != nil {
+	if err := c.waiter.ForTenantStatus(ctx, c.RemoteClusterID); err != nil {
 		return err
 	}
 
@@ -204,7 +203,7 @@ func (c *Cluster) EnsureIdentity(ctx context.Context, identity *authv1alpha1.Ide
 	s.Success("Identity correctly applied on consumer cluster")
 
 	// Wait for the identity status to be updated.
-	if err := c.Waiter.ForIdentityStatus(ctx, c.RemoteClusterID); err != nil {
+	if err := c.waiter.ForIdentityStatus(ctx, c.RemoteClusterID); err != nil {
 		return err
 	}
 

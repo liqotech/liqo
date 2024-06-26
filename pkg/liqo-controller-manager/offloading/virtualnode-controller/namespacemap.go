@@ -88,7 +88,7 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, v
 		nm := &namespaceMapList.Items[i]
 
 		// Retrieve all the VirtualNodes associated with the NamespaceMap.
-		virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, string(virtualNodeRemoteClusterID))
+		virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, virtualNodeRemoteClusterID)
 		if err != nil {
 			klog.Errorf("%s -> unable to retrieve VirtualNodes for clusterID %q", err, virtualNodeRemoteClusterID)
 			return err

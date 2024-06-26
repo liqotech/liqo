@@ -174,7 +174,7 @@ func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
 			clusterID := nm.Labels[consts.RemoteClusterID]
 
 			// list virtualnode resources with the remote cluster ID label
-			virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, clusterID)
+			virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, discoveryv1alpha1.ClusterID(clusterID))
 			if err != nil {
 				klog.Errorf("unable to list virtualnodes with clusterID %s: %v", clusterID, err)
 				return []reconcile.Request{}

@@ -20,33 +20,33 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/authenticate"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/unauthenticate"
 )
 
-const liqoctlAuthenticateLongHelp = `Authenticate with a provider cluster.
+const liqoctlUnauthenticateLongHelp = `Unauthenticate a pair of consumer and provider clusters.
 
-This command allows a consumer cluster to communicate with a remote provider cluster
-to obtain slices of resources from. At the end of the process, the consumer cluster will
-be able to replicate ResourceSlices resources to the provider cluster, and to receive
-an associated Identity to consume the provided resources. 
+This command deletes all authentication resources on both consumer and provider clusters.
+In the consumer cluster, it deletes the control plane Identity.
+In the provider cluster, it deletes the Tenant.
+The execution is prevented if any ResourceSlice or VirtualNode associated with the provider cluster is found.
 
 Examples:
-  $ {{ .Executable }} authenticate --remote-kubeconfig <provider>
+  $ {{ .Executable }} unauthenticate --remote-kubeconfig <provider>
 `
 
-// newAuthenticateCommand represents the authenticate command.
-func newAuthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
-	options := authenticate.NewOptions(f)
+// newUnauthenticateCommand represents the unauthenticate command.
+func newUnauthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := unauthenticate.NewOptions(f)
 	options.RemoteFactory = factory.NewForRemote()
 
 	var cmd = &cobra.Command{
-		Use:     "authenticate",
-		Aliases: []string{"auth"},
-		Short:   "Authenticate with a provider cluster",
-		Long:    WithTemplate(liqoctlAuthenticateLongHelp),
+		Use:     "unauthenticate",
+		Aliases: []string{"unauth"},
+		Short:   "Unauthenticate a pair of consumer and provider clusters",
+		Long:    WithTemplate(liqoctlUnauthenticateLongHelp),
 		Args:    cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -54,11 +54,12 @@ func newAuthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			output.ExitOnErr(options.RunAuthenticate(ctx))
+			output.ExitOnErr(options.RunUnauthenticate(ctx))
 		},
 	}
 
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 2*time.Minute, "Timeout for completion")
+	cmd.PersistentFlags().BoolVar(&options.Wait, "wait", true, "Wait for the unauthentication to complete")
 
 	options.LocalFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	options.RemoteFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
@@ -70,8 +71,6 @@ func newAuthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		completion.Namespaces(ctx, options.LocalFactory, completion.NoLimit)))
 	options.LocalFactory.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("remote-namespace",
 		completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
-
-	cmd.Flags().StringVar(&options.ProxyURL, "proxy-url", "", "The URL of the proxy to use for the communication with the remote cluster")
 
 	return cmd
 }
