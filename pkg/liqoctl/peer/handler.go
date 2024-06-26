@@ -36,8 +36,7 @@ import (
 type Options struct {
 	LocalFactory  *factory.Factory
 	RemoteFactory *factory.Factory
-
-	Timeout time.Duration
+	Timeout       time.Duration
 
 	// Networking options
 	NetworkingDisabled bool
@@ -66,7 +65,7 @@ func NewOptions(localFactory *factory.Factory) *Options {
 	}
 }
 
-// RunPeer implements the peer out-of-band command.
+// RunPeer implements the peer command.
 func (o *Options) RunPeer(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()

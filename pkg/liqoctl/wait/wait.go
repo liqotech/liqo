@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
@@ -39,6 +40,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	getters "github.com/liqotech/liqo/pkg/utils/getters"
@@ -50,13 +52,16 @@ type Waiter struct {
 	Printer *output.Printer
 	// crClient is the controller runtime client.
 	CRClient client.Client
+	// kubeClient is a Kubernetes clientset for interacting with the base Kubernetes APIs.
+	KubeClient kubernetes.Interface
 }
 
 // NewWaiterFromFactory creates a new Waiter object from the given factory.
 func NewWaiterFromFactory(f *factory.Factory) *Waiter {
 	return &Waiter{
-		Printer:  f.Printer,
-		CRClient: f.CRClient,
+		Printer:    f.Printer,
+		CRClient:   f.CRClient,
+		KubeClient: f.KubeClient,
 	}
 }
 
@@ -439,5 +444,57 @@ func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID discover
 		return err
 	}
 	s.Success("Identity status is filled")
+	return nil
+}
+
+// ForTenantNamespaceAbsence waits until the tenant namespace has been deleted or the timeout expires.
+func (w *Waiter) ForTenantNamespaceAbsence(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+	s := w.Printer.StartSpinner("Waiting for tenant namespace to be deleted")
+	namespaceManager := tenantnamespace.NewManager(w.KubeClient)
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		_, tmpErr := namespaceManager.GetNamespace(ctx, remoteClusterID)
+		return apierrors.IsNotFound(tmpErr), client.IgnoreNotFound(tmpErr)
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for tenant namespace to be deleted: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Ensured tenant namespace absence")
+	return nil
+}
+
+// ForResourceSlicesAbsence waits until the resource slices with the given selector have been deleted or the timeout expires.
+func (w *Waiter) ForResourceSlicesAbsence(ctx context.Context, namespace string, selector labels.Selector) error {
+	s := w.Printer.StartSpinner("Waiting for resource slices to be deleted")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		resourceSlices, err := getters.ListResourceSlicesByLabel(ctx, w.CRClient, namespace, selector)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+		return len(resourceSlices) == 0, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for resource slices to be deleted: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Ensured resourceslices absence")
+	return nil
+}
+
+// ForVirtualNodesAbsence waits until the virtual nodes with the given selector have been deleted or the timeout expires.
+func (w *Waiter) ForVirtualNodesAbsence(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+	s := w.Printer.StartSpinner("Waiting for virtual nodes to be deleted")
+	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, w.CRClient, remoteClusterID)
+		if err != nil {
+			return false, client.IgnoreNotFound(err)
+		}
+		return len(virtualNodes) == 0, nil
+	})
+	if err != nil {
+		s.Fail(fmt.Sprintf("Failed waiting for virtual nodes to be deleted: %s", output.PrettyErr(err)))
+		return err
+	}
+	s.Success("Ensured virtualnodes absence")
 	return nil
 }
