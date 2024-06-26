@@ -248,7 +248,7 @@ func (r *ForeignClusterReconciler) handleOffloadingModuleStatus(ctx context.Cont
 	clusterID := fc.Spec.ClusterID
 
 	// Get VirtualNodes for this cluster
-	virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, string(clusterID))
+	virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, clusterID)
 	if err != nil {
 		klog.Errorf("an error occurred while listing VirtualNodes for the ForeignCluster %q: %s", clusterID, err)
 		return err
