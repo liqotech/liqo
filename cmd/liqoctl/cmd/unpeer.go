@@ -20,45 +20,52 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/authenticate"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/unpeer"
 )
 
-const liqoctlAuthenticateLongHelp = `Authenticate with a provider cluster.
+const liqoctlUnpeerLongHelp = `Disable a peering towards a remote provider cluster.
 
-This command allows a consumer cluster to communicate with a remote provider cluster
-to obtain slices of resources from. At the end of the process, the consumer cluster will
-be able to replicate ResourceSlices resources to the provider cluster, and to receive
-an associated Identity to consume the provided resources. 
+Depending on the approach adopted to initially establish the peering towards a
+remote cluster, the corresponding unpeer command performs the symmetrical
+operations to tear the peering down.
+
+This command disables a peering towards a remote provider cluster, causing
+virtual nodes and associated resourceslices to be destroyed, and all
+offloaded workloads to be rescheduled. The Identity and Tenant are respectively
+removed from the consumer and provider clusters, and the networking between the
+two clusters is destroyed.
+
+The reverse peering, if any, is preserved, and the remote cluster can continue 
+offloading workloads to its virtual node representing the local cluster.
 
 Examples:
-  $ {{ .Executable }} authenticate --remote-kubeconfig <provider>
+  $ {{ .Executable }} unpeer --remote-kubeconfig <provider>
 `
 
-// newAuthenticateCommand represents the authenticate command.
-func newAuthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
-	options := authenticate.NewOptions(f)
+func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
+	options := unpeer.NewOptions(f)
 	options.RemoteFactory = factory.NewForRemote()
 
-	var cmd = &cobra.Command{
-		Use:     "authenticate",
-		Aliases: []string{"auth"},
-		Short:   "Authenticate with a provider cluster",
-		Long:    WithTemplate(liqoctlAuthenticateLongHelp),
-		Args:    cobra.NoArgs,
+	cmd := &cobra.Command{
+		Use:   "unpeer",
+		Short: "Disable a peering towards a remote provider cluster",
+		Long:  WithTemplate(liqoctlUnpeerLongHelp),
+		Args:  cobra.NoArgs,
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			twoClustersPersistentPreRun(cmd, options.LocalFactory, options.RemoteFactory, factory.WithScopedPrinter)
 		},
 
 		Run: func(cmd *cobra.Command, args []string) {
-			output.ExitOnErr(options.RunAuthenticate(ctx))
+			output.ExitOnErr(options.RunUnpeer(ctx))
 		},
 	}
 
-	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 2*time.Minute, "Timeout for completion")
+	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for unpeering completion")
+	cmd.PersistentFlags().BoolVar(&options.Wait, "wait", true, "Wait for resource to be deleted before returning")
 
 	options.LocalFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	options.RemoteFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
@@ -70,8 +77,6 @@ func newAuthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 		completion.Namespaces(ctx, options.LocalFactory, completion.NoLimit)))
 	options.LocalFactory.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("remote-namespace",
 		completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
-
-	cmd.Flags().StringVar(&options.ProxyURL, "proxy-url", "", "The URL of the proxy to use for the communication with the remote cluster")
 
 	return cmd
 }

@@ -40,80 +40,90 @@ import (
 
 // Cluster contains the information about a cluster.
 type Cluster struct {
-	local                  *factory.Factory
-	remote                 *factory.Factory
+	local  *factory.Factory
+	remote *factory.Factory
+	waiter *wait.Waiter
+
 	localNamespaceManager  tenantnamespace.Manager
 	remoteNamespaceManager tenantnamespace.Manager
-	Waiter                 *wait.Waiter
 
-	clusterID discoveryv1alpha1.ClusterID
+	localClusterID  discoveryv1alpha1.ClusterID
+	remoteClusterID discoveryv1alpha1.ClusterID
 
 	networkConfiguration *networkingv1alpha1.Configuration
 }
 
 // NewCluster returns a new Cluster struct.
-func NewCluster(local, remote *factory.Factory) *Cluster {
-	return &Cluster{
-		local:                  local,
-		remote:                 remote,
+func NewCluster(ctx context.Context, local, remote *factory.Factory, createTenantNs bool) (*Cluster, error) {
+	cluster := Cluster{
+		local:  local,
+		remote: remote,
+		waiter: wait.NewWaiterFromFactory(local),
+
 		localNamespaceManager:  tenantnamespace.NewManager(local.KubeClient),
 		remoteNamespaceManager: tenantnamespace.NewManager(remote.KubeClient),
-		Waiter:                 wait.NewWaiterFromFactory(local),
-	}
-}
-
-// Init initializes the cluster struct.
-func (c *Cluster) Init(ctx context.Context) error {
-	// Set cluster id.
-	if err := c.SetClusterID(ctx); err != nil {
-		return err
 	}
 
-	// Set local and remote namespaces.
-	return c.SetNamespaces(ctx)
+	if err := cluster.SetClusterIDs(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := cluster.SetNamespaces(ctx, createTenantNs); err != nil {
+		return nil, err
+	}
+
+	return &cluster, nil
 }
 
-// SetClusterID set cluster identities of both local and remote clusters retrieving it from the Liqo configmaps.
-func (c *Cluster) SetClusterID(ctx context.Context) error {
-	// Get cluster id.
-	s := c.local.Printer.StartSpinner("Retrieving cluster id")
-
+// SetClusterIDs set the local and remote cluster id retrieving it from the Liqo configmaps.
+func (c *Cluster) SetClusterIDs(ctx context.Context) error {
+	// Get local cluster id.
 	clusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, c.local.CRClient, c.local.LiqoNamespace)
 	if err != nil {
-		s.Fail(fmt.Sprintf("An error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
+		c.local.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
 		return err
 	}
-	c.clusterID = clusterID
+	c.localClusterID = clusterID
 
-	s.Success("Cluster id correctly retrieved")
+	// Get remote cluster id.
+	clusterID, err = liqoutils.GetClusterIDWithControllerClient(ctx, c.remote.CRClient, c.remote.LiqoNamespace)
+	if err != nil {
+		c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving cluster id: %v", output.PrettyErr(err)))
+		return err
+	}
+	c.remoteClusterID = clusterID
 
 	return nil
 }
 
-// SetNamespaces sets the local and remote namespaces to the liqo-tenants namespaces (creating them if necessary),
+// SetNamespaces sets the local and remote namespaces to the liqo-tenants namespaces (creating them if specified),
 // unless the user has explicitly set custom namespaces with the `--namespace` and/or `--remote-namespace` flags.
 // All the external network resources will be created in these namespaces in their respective clusters.
-func (c *Cluster) SetNamespaces(ctx context.Context) error {
-	remoteClusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, c.remote.CRClient, c.remote.LiqoNamespace)
-	if err != nil {
-		return err
-	}
-	if c.local.Namespace == "" || c.local.Namespace == corev1.NamespaceDefault {
-		if _, err := c.localNamespaceManager.CreateNamespace(ctx, remoteClusterID); err != nil {
+func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error {
+	if c.localClusterID == "" || c.remoteClusterID == "" {
+		if err := c.SetClusterIDs(ctx); err != nil {
 			return err
 		}
-		c.local.Namespace = tenantnamespace.GetNameForNamespace(remoteClusterID)
 	}
 
-	localClusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, c.local.CRClient, c.local.LiqoNamespace)
-	if err != nil {
-		return err
-	}
-	if c.remote.Namespace == "" || c.remote.Namespace == corev1.NamespaceDefault {
-		if _, err := c.remoteNamespaceManager.CreateNamespace(ctx, localClusterID); err != nil {
-			return err
+	if c.local.Namespace == "" || c.local.Namespace == corev1.NamespaceDefault {
+		if createTenantNs {
+			if _, err := c.localNamespaceManager.CreateNamespace(ctx, c.remoteClusterID); err != nil {
+				c.local.Printer.CheckErr(fmt.Errorf("an error occurred while creating tenant namespace: %v", output.PrettyErr(err)))
+				return err
+			}
 		}
-		c.remote.Namespace = tenantnamespace.GetNameForNamespace(localClusterID)
+		c.local.Namespace = tenantnamespace.GetNameForNamespace(c.remoteClusterID)
+	}
+
+	if c.remote.Namespace == "" || c.remote.Namespace == corev1.NamespaceDefault {
+		if createTenantNs {
+			if _, err := c.remoteNamespaceManager.CreateNamespace(ctx, c.localClusterID); err != nil {
+				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while creating tenant namespace: %v", output.PrettyErr(err)))
+				return err
+			}
+		}
+		c.remote.Namespace = tenantnamespace.GetNameForNamespace(c.localClusterID)
 	}
 
 	return nil
@@ -326,13 +336,18 @@ func (c *Cluster) DeleteConfiguration(ctx context.Context, name string) error {
 			Namespace: c.local.Namespace,
 		},
 	}
+
 	err := c.local.CRClient.Delete(ctx, conf)
-	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("An error occurred while deleting network configuration: %v", output.PrettyErr(err)))
+	switch {
+	case client.IgnoreNotFound(err) != nil:
+		s.Fail("An error occurred while deleting network configuration: ", output.PrettyErr(err))
 		return err
+	case apierrors.IsNotFound(err):
+		s.Success("Network configuration already deleted")
+	default:
+		s.Success("Network configuration correctly deleted")
 	}
 
-	s.Success("Network configuration correctly deleted")
 	return nil
 }
 
@@ -346,13 +361,18 @@ func (c *Cluster) DeleteGatewayServer(ctx context.Context, name string) error {
 			Namespace: c.local.Namespace,
 		},
 	}
+
 	err := c.local.CRClient.Delete(ctx, gwServer)
-	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("An error occurred while deleting gateway server: %v", output.PrettyErr(err)))
+	switch {
+	case client.IgnoreNotFound(err) != nil:
+		s.Fail("An error occurred while deleting gateway server: ", output.PrettyErr(err))
 		return err
+	case apierrors.IsNotFound(err):
+		s.Success("Gateway server already deleted")
+	default:
+		s.Success("Gateway server correctly deleted")
 	}
 
-	s.Success("Gateway server correctly deleted")
 	return nil
 }
 
@@ -366,12 +386,17 @@ func (c *Cluster) DeleteGatewayClient(ctx context.Context, name string) error {
 			Namespace: c.local.Namespace,
 		},
 	}
+
 	err := c.local.CRClient.Delete(ctx, gwClient)
-	if client.IgnoreNotFound(err) != nil {
-		s.Fail(fmt.Sprintf("An error occurred while deleting gateway client: %v", output.PrettyErr(err)))
+	switch {
+	case client.IgnoreNotFound(err) != nil:
+		s.Fail("An error occurred while deleting gateway client: ", output.PrettyErr(err))
 		return err
+	case apierrors.IsNotFound(err):
+		s.Success("Gateway client already deleted")
+	default:
+		s.Success("Gateway client correctly deleted")
 	}
 
-	s.Success("Gateway client correctly deleted")
 	return nil
 }

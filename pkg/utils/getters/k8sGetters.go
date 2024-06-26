@@ -451,9 +451,10 @@ func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector l
 }
 
 // ListVirtualNodesByClusterID returns the list of virtual nodes for the given cluster id.
-func ListVirtualNodesByClusterID(ctx context.Context, cl client.Client, clusterID string) ([]virtualkubeletv1alpha1.VirtualNode, error) {
+func ListVirtualNodesByClusterID(ctx context.Context, cl client.Client,
+	remoteClusterID discoveryv1alpha1.ClusterID) ([]virtualkubeletv1alpha1.VirtualNode, error) {
 	virtualNodes, err := ListVirtualNodesByLabels(ctx, cl, labels.SelectorFromSet(map[string]string{
-		consts.RemoteClusterID: clusterID,
+		consts.RemoteClusterID: string(remoteClusterID),
 	}))
 	if err != nil {
 		return nil, err
