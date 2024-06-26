@@ -21,7 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
@@ -70,14 +69,14 @@ func (o *Options) RunInit(ctx context.Context) error {
 	defer cancel()
 
 	// Create and initialize cluster 1.
-	cluster1 := NewCluster(o.LocalFactory, o.RemoteFactory)
-	if err := cluster1.Init(ctx); err != nil {
+	cluster1, err := NewCluster(ctx, o.LocalFactory, o.RemoteFactory, true)
+	if err != nil {
 		return err
 	}
 
 	// Create and initialize cluster 2.
-	cluster2 := NewCluster(o.RemoteFactory, o.LocalFactory)
-	if err := cluster2.Init(ctx); err != nil {
+	cluster2, err := NewCluster(ctx, o.RemoteFactory, o.LocalFactory, true)
+	if err != nil {
 		return err
 	}
 
@@ -103,12 +102,12 @@ func (o *Options) RunInit(ctx context.Context) error {
 
 	if o.Wait {
 		// Wait for cluster 1 to be ready.
-		if err := cluster1.Waiter.ForConfiguration(ctx, cluster2.networkConfiguration); err != nil {
+		if err := cluster1.waiter.ForConfiguration(ctx, cluster2.networkConfiguration); err != nil {
 			return err
 		}
 
 		// Wait for cluster 2 to be ready.
-		if err := cluster2.Waiter.ForConfiguration(ctx, cluster1.networkConfiguration); err != nil {
+		if err := cluster2.waiter.ForConfiguration(ctx, cluster1.networkConfiguration); err != nil {
 			return err
 		}
 	}
@@ -117,50 +116,40 @@ func (o *Options) RunInit(ctx context.Context) error {
 }
 
 // RunReset reset the liqo networking between two clusters.
+// If the clusters are still connected through the gateways, it deletes them before removing network Configurations.
 func (o *Options) RunReset(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
 	// Create and initialize cluster 1.
-	cluster1 := NewCluster(o.LocalFactory, o.RemoteFactory)
-	if err := cluster1.Init(ctx); err != nil {
+	cluster1, err := NewCluster(ctx, o.LocalFactory, o.RemoteFactory, false)
+	if err != nil {
 		return err
 	}
 
 	// Create and initialize cluster 2.
-	cluster2 := NewCluster(o.RemoteFactory, o.LocalFactory)
-	if err := cluster2.Init(ctx); err != nil {
+	cluster2, err := NewCluster(ctx, o.RemoteFactory, o.LocalFactory, false)
+	if err != nil {
 		return err
 	}
 
-	// If the clusters are still connected through the gateways, disconnect them before removing network Configurations.
-	gwClient, err := cluster1.GetGatewayClient(ctx, forge.DefaultGatewayClientName(cluster2.clusterID))
-	switch {
-	case client.IgnoreNotFound(err) != nil:
+	// Delete gateway client on cluster 1
+	if err := cluster1.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster2.localClusterID)); err != nil {
 		return err
-	case err == nil:
-		if err := cluster1.DeleteGatewayClient(ctx, gwClient.Name); err != nil {
-			return err
-		}
 	}
 
-	gwServer, err := cluster2.GetGatewayServer(ctx, forge.DefaultGatewayServerName(cluster1.clusterID))
-	switch {
-	case client.IgnoreNotFound(err) != nil:
+	// Delete gateway server on cluster 2
+	if err := cluster2.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster1.localClusterID)); err != nil {
 		return err
-	case err == nil:
-		if err := cluster2.DeleteGatewayServer(ctx, gwServer.Name); err != nil {
-			return err
-		}
 	}
 
 	// Delete Configuration on cluster 1
-	if err := cluster1.DeleteConfiguration(ctx, forge.DefaultConfigurationName(cluster2.clusterID)); err != nil {
+	if err := cluster1.DeleteConfiguration(ctx, forge.DefaultConfigurationName(cluster2.localClusterID)); err != nil {
 		return err
 	}
 
 	// Delete Configuration on cluster 2
-	return cluster2.DeleteConfiguration(ctx, forge.DefaultConfigurationName(cluster1.clusterID))
+	return cluster2.DeleteConfiguration(ctx, forge.DefaultConfigurationName(cluster1.localClusterID))
 }
 
 // RunConnect connect two clusters using liqo networking.
@@ -169,55 +158,55 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	defer cancel()
 
 	// Create and initialize cluster 1.
-	cluster1 := NewCluster(o.LocalFactory, o.RemoteFactory)
-	if err := cluster1.Init(ctx); err != nil {
+	cluster1, err := NewCluster(ctx, o.LocalFactory, o.RemoteFactory, true)
+	if err != nil {
 		return err
 	}
 
 	// Create and initialize cluster 2.
-	cluster2 := NewCluster(o.RemoteFactory, o.LocalFactory)
-	if err := cluster2.Init(ctx); err != nil {
+	cluster2, err := NewCluster(ctx, o.RemoteFactory, o.LocalFactory, true)
+	if err != nil {
 		return err
 	}
 
 	// Check if the Networking is initialized on cluster 1
-	if err := cluster1.CheckNetworkInitialized(ctx, cluster2.clusterID); err != nil {
+	if err := cluster1.CheckNetworkInitialized(ctx, cluster2.localClusterID); err != nil {
 		return err
 	}
 
 	// Check if the Networking is initialized on cluster 2
-	if err := cluster2.CheckNetworkInitialized(ctx, cluster1.clusterID); err != nil {
+	if err := cluster2.CheckNetworkInitialized(ctx, cluster1.localClusterID); err != nil {
 		return err
 	}
 
 	// Create gateway server on cluster 2
 	gwServer, err := cluster2.EnsureGatewayServer(ctx,
-		forge.DefaultGatewayServerName(cluster1.clusterID),
-		o.newGatewayServerForgeOptions(o.RemoteFactory.KubeClient, cluster1.clusterID))
+		forge.DefaultGatewayServerName(cluster1.localClusterID),
+		o.newGatewayServerForgeOptions(o.RemoteFactory.KubeClient, cluster1.localClusterID))
 	if err != nil {
 		return err
 	}
 
 	// Wait for the gateway pod to be ready
-	if err := cluster2.Waiter.ForGatewayPodReady(ctx, gwServer); err != nil {
+	if err := cluster2.waiter.ForGatewayPodReady(ctx, gwServer); err != nil {
 		return err
 	}
 
 	// Wait for the endpoint status of the gateway server to be set
-	if err := cluster2.Waiter.ForGatewayServerStatusEndpoint(ctx, gwServer); err != nil {
+	if err := cluster2.waiter.ForGatewayServerStatusEndpoint(ctx, gwServer); err != nil {
 		return err
 	}
 
 	// Create gateway client on cluster 1
 	gwClient, err := cluster1.EnsureGatewayClient(ctx,
-		forge.DefaultGatewayClientName(cluster2.clusterID),
-		o.newGatewayClientForgeOptions(o.LocalFactory.KubeClient, cluster2.clusterID, gwServer.Status.Endpoint))
+		forge.DefaultGatewayClientName(cluster2.localClusterID),
+		o.newGatewayClientForgeOptions(o.LocalFactory.KubeClient, cluster2.localClusterID, gwServer.Status.Endpoint))
 	if err != nil {
 		return err
 	}
 
 	// Wait for the gateway pod to be ready
-	if err := cluster1.Waiter.ForGatewayPodReady(ctx, gwClient); err != nil {
+	if err := cluster1.waiter.ForGatewayPodReady(ctx, gwClient); err != nil {
 		return err
 	}
 
@@ -227,7 +216,7 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Wait for gateway server to set secret reference (containing the server public key) in the status
-	err = cluster2.Waiter.ForGatewayServerSecretRef(ctx, gwServer)
+	err = cluster2.waiter.ForGatewayServerSecretRef(ctx, gwServer)
 	if err != nil {
 		return err
 	}
@@ -237,12 +226,12 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Create PublicKey of gateway server on cluster 1
-	if err := cluster1.EnsurePublicKey(ctx, cluster2.clusterID, keyServer, gwClient); err != nil {
+	if err := cluster1.EnsurePublicKey(ctx, cluster2.localClusterID, keyServer, gwClient); err != nil {
 		return err
 	}
 
 	// Wait for gateway client to set secret reference (containing the client public key) in the status
-	err = cluster1.Waiter.ForGatewayClientSecretRef(ctx, gwClient)
+	err = cluster1.waiter.ForGatewayClientSecretRef(ctx, gwClient)
 	if err != nil {
 		return err
 	}
@@ -252,26 +241,26 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Create PublicKey of gateway client on cluster 2
-	if err := cluster2.EnsurePublicKey(ctx, cluster1.clusterID, keyClient, gwServer); err != nil {
+	if err := cluster2.EnsurePublicKey(ctx, cluster1.localClusterID, keyClient, gwServer); err != nil {
 		return err
 	}
 
 	if o.Wait {
 		// Wait for Connections on both cluster to be created.
-		conn2, err := cluster2.Waiter.ForConnection(ctx, gwServer.Namespace, cluster1.clusterID)
+		conn2, err := cluster2.waiter.ForConnection(ctx, gwServer.Namespace, cluster1.localClusterID)
 		if err != nil {
 			return err
 		}
-		conn1, err := cluster1.Waiter.ForConnection(ctx, gwClient.Namespace, cluster2.clusterID)
+		conn1, err := cluster1.waiter.ForConnection(ctx, gwClient.Namespace, cluster2.localClusterID)
 		if err != nil {
 			return err
 		}
 
 		// Wait for Connections on both cluster cluster to be established
-		if err := cluster1.Waiter.ForConnectionEstablished(ctx, conn1); err != nil {
+		if err := cluster1.waiter.ForConnectionEstablished(ctx, conn1); err != nil {
 			return err
 		}
-		if err := cluster2.Waiter.ForConnectionEstablished(ctx, conn2); err != nil {
+		if err := cluster2.waiter.ForConnectionEstablished(ctx, conn2); err != nil {
 			return err
 		}
 	}
@@ -285,24 +274,24 @@ func (o *Options) RunDisconnect(ctx context.Context) error {
 	defer cancel()
 
 	// Create and initialize cluster 1.
-	cluster1 := NewCluster(o.LocalFactory, o.RemoteFactory)
-	if err := cluster1.Init(ctx); err != nil {
+	cluster1, err := NewCluster(ctx, o.LocalFactory, o.RemoteFactory, false)
+	if err != nil {
 		return err
 	}
 
 	// Create and initialize cluster 2.
-	cluster2 := NewCluster(o.RemoteFactory, o.LocalFactory)
-	if err := cluster2.Init(ctx); err != nil {
+	cluster2, err := NewCluster(ctx, o.RemoteFactory, o.LocalFactory, false)
+	if err != nil {
 		return err
 	}
 
 	// Delete gateway client on cluster 1
-	if err := cluster1.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster2.clusterID)); err != nil {
+	if err := cluster1.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster2.localClusterID)); err != nil {
 		return err
 	}
 
 	// Delete gateway server on cluster 2
-	return cluster2.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster1.clusterID))
+	return cluster2.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster1.localClusterID))
 }
 
 func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID discoveryv1alpha1.ClusterID) *forge.GwServerOptions {
