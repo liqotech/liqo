@@ -378,13 +378,10 @@ func (o *Options) preProviderValues() map[string]interface{} {
 			"reservedSubnets": util.GetInterfaceSlice(o.ReservedSubnets),
 		},
 
-		"gateway": map[string]interface{}{
-			"replicas": float64(replicas),
-			"metrics": map[string]interface{}{
+		"metrics": map[string]interface{}{
+			"enabled": o.EnableMetrics,
+			"prometheusOperator": map[string]interface{}{
 				"enabled": o.EnableMetrics,
-				"serviceMonitor": map[string]interface{}{
-					"enabled": o.EnableMetrics,
-				},
 			},
 		},
 

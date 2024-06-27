@@ -30,7 +30,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -68,7 +68,7 @@ func enforeRouteConfigurationPresence(ctx context.Context, cl client.Client, sch
 		return nil
 	}
 
-	remoteInterfaceIP, err := common.GetRemoteInterfaceIP(mode)
+	remoteInterfaceIP, err := tunnel.GetRemoteInterfaceIP(mode)
 	if err != nil {
 		return err
 	}

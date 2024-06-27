@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 27,
+  "id": 28,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -55,6 +55,7 @@
           },
           "decimals": 0,
           "mappings": [],
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -107,27 +108,31 @@
         "orientation": "vertical",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": "",
           "values": false
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.4.7",
+      "pluginVersion": "10.2.0",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "disableTextWrap": false,
           "editorMode": "builder",
           "exemplar": false,
-          "expr": "label_replace(sum(liqo_peer_is_connected), \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(label_replace(sum(liqo_peer_is_connected), \"pod\", \"\", \"\", \"\"), \"instance\", \"\", \"\", \"\")",
           "format": "time_series",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
           "legendFormat": "__auto",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "useBackend": false
         }
       ],
       "title": "Connected clusters",
@@ -179,7 +184,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.4.7",
+      "pluginVersion": "10.2.0",
       "targets": [
         {
           "datasource": {
@@ -211,6 +216,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -224,6 +230,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -282,11 +289,15 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "label_replace(rate(liqo_peer_receive_bytes_total[$__rate_interval]), \"pod\", \"\", \"\", \"\") * 8",
+          "expr": "label_replace(label_replace(rate(liqo_peer_receive_bytes_total[$__rate_interval]), \"pod\", \"\", \"\", \"\"), \"instance\", \"\", \"\", \"\") * 8",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
           "legendFormat": "{{cluster_name}}",
           "range": true,
-          "refId": "Received"
+          "refId": "Received",
+          "useBackend": false
         }
       ],
       "title": "Received cross-cluster throughput",
@@ -304,6 +315,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -317,6 +329,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -372,12 +385,16 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "label_replace(rate(liqo_peer_transmit_bytes_total[$__rate_interval]), \"pod\", \"\", \"\", \"\") * 8",
+          "expr": "label_replace(label_replace(rate(liqo_peer_transmit_bytes_total[$__rate_interval]), \"pod\", \"\", \"\", \"\"), \"instance\", \"\", \"\", \"\") * 8",
+          "fullMetaSearch": false,
           "hide": false,
+          "includeNullMetadata": true,
           "legendFormat": "{{cluster_name}}",
           "range": true,
-          "refId": "Transmitted"
+          "refId": "Transmitted",
+          "useBackend": false
         }
       ],
       "title": "Transmitted cross-cluster throughput ",
@@ -433,7 +450,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.4.7",
+      "pluginVersion": "10.2.0",
       "targets": [
         {
           "datasource": {
@@ -526,7 +543,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.4.7",
+      "pluginVersion": "10.2.0",
       "targets": [
         {
           "datasource": {
@@ -559,6 +576,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -572,6 +590,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -627,23 +646,31 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "label_replace(rate(liqo_peer_receive_bytes_total{cluster_id=\"$clusterid\"}[$__rate_interval]) * 8, \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(label_replace(rate(liqo_peer_receive_bytes_total{cluster_id=\"$clusterid\"}[$__rate_interval]), \"pod\", \"\", \"\", \"\"), \"instance\", \"\", \"\", \"\") * 8",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
           "legendFormat": "Received",
           "range": true,
-          "refId": "Received"
+          "refId": "Received",
+          "useBackend": false
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "label_replace(rate(liqo_peer_transmit_bytes_total{cluster_id=\"$clusterid\"}[$__rate_interval]) * 8, \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(label_replace(rate(liqo_peer_transmit_bytes_total{cluster_id=\"$clusterid\"}[$__rate_interval]), \"pod\", \"\", \"\", \"\"), \"instance\", \"\", \"\", \"(.*)\") * 8",
+          "fullMetaSearch": false,
           "hide": false,
+          "includeNullMetadata": true,
           "legendFormat": "Transmitted",
           "range": true,
-          "refId": "Transmitted"
+          "refId": "Transmitted",
+          "useBackend": false
         }
       ],
       "title": "Cross-cluster throughput",
@@ -695,18 +722,22 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.4.7",
+      "pluginVersion": "10.2.0",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "label_replace(liqo_peer_latency_us{cluster_id=\"$clusterid\"}, \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(label_replace(sum(liqo_peer_latency_us{cluster_id=\"$clusterid\"}), \"pod\", \"\", \"\", \"\"), \"instance\", \"\", \"\", \"\")",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
           "legendFormat": "Latency",
           "range": true,
-          "refId": "Average Latency"
+          "refId": "Average Latency",
+          "useBackend": false
         }
       ],
       "title": "Average latency (RTT)",
@@ -725,6 +756,7 @@
             "mode": "fixed"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -738,6 +770,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -793,11 +826,15 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "liqo_peer_latency_us{cluster_id=\"$clusterid\"}",
+          "expr": "sum(liqo_peer_latency_us{cluster_id=\"$clusterid\"})",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
           "legendFormat": "Latency",
           "range": true,
-          "refId": "Latency"
+          "refId": "Latency",
+          "useBackend": false
         }
       ],
       "title": "Latency (RTT)",
@@ -805,16 +842,15 @@
     }
   ],
   "refresh": "5s",
-  "schemaVersion": 36,
-  "style": "dark",
+  "schemaVersion": 38,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "prometheus",
-          "value": "prometheus"
+          "value": "P1809F7CD0C75ACF3"
         },
         "hide": 0,
         "includeAll": false,
@@ -866,6 +902,6 @@
   "timezone": "Europe/Rome",
   "title": "Liqo Network",
   "uid": "FRjx_kV4z",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

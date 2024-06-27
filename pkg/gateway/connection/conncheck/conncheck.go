@@ -107,7 +107,7 @@ func (c *ConnChecker) RunSender(clusterID string) {
 
 	klog.Infof("conncheck sender %q starting against %q", clusterID, sender.raddr.IP.String())
 
-	if err := wait.PollUntilContextCancel(sender.Ctx, c.opts.PingInterval, false, func(ctx context.Context) (done bool, err error) {
+	if err := wait.PollUntilContextCancel(sender.Ctx, c.opts.PingInterval, false, func(_ context.Context) (done bool, err error) {
 		err = c.senders[clusterID].SendPing()
 		if err != nil {
 			klog.Warningf("failed to send ping: %s", err)

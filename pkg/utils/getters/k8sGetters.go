@@ -714,6 +714,24 @@ func GetConnectionByClusterID(ctx context.Context, cl client.Client, clusterID s
 	}
 }
 
+// GetConnectionByClusterIDInNamespace returns the Connection resource with the given clusterID in the given namespace.
+func GetConnectionByClusterIDInNamespace(ctx context.Context, cl client.Client, clusterID, namespace string) (*networkingv1alpha1.Connection, error) {
+	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: clusterID}.AsSelector()
+	connections, err := ListConnectionsByLabel(ctx, cl, namespace, remoteClusterIDSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	switch len(connections.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(networkingv1alpha1.ConnectionGroupResource, networkingv1alpha1.ConnectionResource)
+	case 1:
+		return &connections.Items[0], nil
+	default:
+		return nil, fmt.Errorf("multiple Connections found for ForeignCluster %s", clusterID)
+	}
+}
+
 // GetGatewayServerByClusterID returns the GatewayServer resource with the given clusterID.
 func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
 	remoteClusterID discoveryv1alpha1.ClusterID) (*networkingv1alpha1.GatewayServer, error) {
