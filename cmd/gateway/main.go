@@ -110,7 +110,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
 		Metrics: server.Options{
-			BindAddress: "0", // Metrics are exposed by "connection" container.
+			BindAddress: connoptions.GwOptions.MetricsAddress,
 		},
 		HealthProbeBindAddress: connoptions.GwOptions.ProbeAddr,
 		LeaderElection:         connoptions.GwOptions.LeaderElection,

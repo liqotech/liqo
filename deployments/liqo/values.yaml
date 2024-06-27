@@ -10,6 +10,14 @@ nameOverride: ""
 # -- Override the standard full name used by Helm and associated to Kubernetes/Liqo resources.
 fullnameOverride: ""
 
+metrics:
+  # -- Enable/Disable the metrics server in every liqo component.
+  enabled: false
+  prometheusOperator:
+    # -- Enable/Disable the creation of a Prometheus servicemonitor/podmonitor for the metrics servers.
+    # Turn on this flag when the Prometheus Operator runs in your cluster.
+    enabled: false
+
 apiServer:
   # -- The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP).
   address: ""
