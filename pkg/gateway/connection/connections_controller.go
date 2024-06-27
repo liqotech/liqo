@@ -32,7 +32,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
 
 // cluster-role
@@ -82,7 +82,7 @@ func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	switch r.Options.PingEnabled {
 	case true:
-		remoteIP, err := common.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
+		remoteIP, err := tunnel.GetRemoteInterfaceIP(r.Options.GwOptions.Mode)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to get the remote interface IP: %w", err)
 		}

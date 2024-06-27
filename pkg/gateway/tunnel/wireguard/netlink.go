@@ -30,7 +30,6 @@ import (
 
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
-	"github.com/liqotech/liqo/pkg/gateway/tunnel/common"
 )
 
 // InitWireguardLink inits the Wireguard interface.
@@ -48,13 +47,13 @@ func InitWireguardLink(ctx context.Context, options *Options) error {
 		return fmt.Errorf("cannot create Wireguard interface: %w", err)
 	}
 
-	link, err := common.GetLink(tunnel.TunnelInterfaceName)
+	link, err := tunnel.GetLink(tunnel.TunnelInterfaceName)
 	if err != nil {
 		return fmt.Errorf("cannot get Wireguard interface: %w", err)
 	}
 
-	klog.Infof("Setting up Wireguard interface %q with IP %q", tunnel.TunnelInterfaceName, common.GetInterfaceIP(options.GwOptions.Mode))
-	if err := common.AddAddress(link, common.GetInterfaceIP(options.GwOptions.Mode)); err != nil {
+	klog.Infof("Setting up Wireguard interface %q with IP %q", tunnel.TunnelInterfaceName, tunnel.GetInterfaceIP(options.GwOptions.Mode))
+	if err := tunnel.AddAddress(link, tunnel.GetInterfaceIP(options.GwOptions.Mode)); err != nil {
 		return err
 	}
 
@@ -146,7 +145,7 @@ func createLinkUserspace(ctx context.Context, _ *Options) error {
 }
 
 func existsLink() (bool, error) {
-	_, err := common.GetLink(tunnel.TunnelInterfaceName)
+	_, err := tunnel.GetLink(tunnel.TunnelInterfaceName)
 	if err != nil {
 		if errors.As(err, &netlink.LinkNotFoundError{}) {
 			return false, nil
