@@ -31,7 +31,7 @@ import (
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	namespacemapctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespacemap-controller"
+	namespacemapctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/namespacemap-controller"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
