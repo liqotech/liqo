@@ -74,6 +74,8 @@
 | metricAgent.pod.labels | object | `{}` | Labels for the metricAgent pod. |
 | metricAgent.pod.priorityClassName | string | `""` | PriorityClassName (https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority) for the metricAgent pod. |
 | metricAgent.pod.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the metricAgent pod. |
+| metrics.enabled | bool | `false` | Enable/Disable the metrics server in every liqo component. |
+| metrics.prometheusOperator.enabled | bool | `false` | Enable/Disable the creation of a Prometheus servicemonitor/podmonitor for the metrics servers. Turn on this flag when the Prometheus Operator runs in your cluster. |
 | nameOverride | string | `""` | Override the standard name used by Helm and associated to Kubernetes/Liqo resources. |
 | networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
 | networking.enabled | bool | `true` | Use the default Liqo networking module. |
