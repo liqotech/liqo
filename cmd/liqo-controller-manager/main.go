@@ -51,10 +51,10 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/ipam"
 	remoteresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/remoteresourceslice-controller"
-	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/virtualnodecreator-controller"
 	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreigncluster-controller"
-	offloadingipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/ipmapping"
+	ipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/ipmapping"
 	quotacreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/quotacreator-controller"
+	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnodecreator-controller"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
@@ -359,7 +359,7 @@ func main() {
 
 	// OFFLOADING MODULE & NETWORKING MODULE
 	if *offloadingEnabled && *networkingEnabled {
-		offloadedPodReconciler := offloadingipmapping.NewOffloadedPodReconciler(
+		offloadedPodReconciler := ipmapping.NewOffloadedPodReconciler(
 			mgr.GetClient(),
 			mgr.GetScheme(),
 			mgr.GetEventRecorderFor("offloadedpod-controller"),
@@ -369,7 +369,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		configurationReconciler := offloadingipmapping.NewConfigurationReconciler(
+		configurationReconciler := ipmapping.NewConfigurationReconciler(
 			mgr.GetClient(),
 			mgr.GetScheme(),
 			mgr.GetEventRecorderFor("configuration-controller"),
