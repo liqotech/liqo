@@ -108,7 +108,7 @@ func (r *Receiver) InitPeer(clusterID string, updateCallback UpdateFunc) error {
 // Run starts the receiver.
 func (r *Receiver) Run(ctx context.Context) {
 	klog.Infof("conncheck receiver: started")
-	err := wait.PollUntilContextCancel(ctx, time.Duration(0), false, func(ctx context.Context) (done bool, err error) {
+	err := wait.PollUntilContextCancel(ctx, time.Duration(0), false, func(_ context.Context) (done bool, err error) {
 		n, raddr, err := r.conn.ReadFromUDP(r.buff)
 		if err != nil {
 			klog.Errorf("conncheck receiver: failed to read from %s: %v", raddr.String(), err)
@@ -144,7 +144,7 @@ func (r *Receiver) RunDisconnectObserver(ctx context.Context) {
 	klog.Infof("conncheck receiver disconnect checker: started")
 	// Ignore errors because only caused by context cancellation.
 	err := wait.PollUntilContextCancel(ctx, time.Duration(r.opts.PingLossThreshold)*r.opts.PingInterval/10, true,
-		func(ctx context.Context) (done bool, err error) {
+		func(_ context.Context) (done bool, err error) {
 			r.m.Lock()
 			defer r.m.Unlock()
 			for id, peer := range r.peers {

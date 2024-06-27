@@ -64,7 +64,9 @@ spec:
                 - --node-name={{"$(NODE_NAME)"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
+                {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8080
+                {{- end }}
                 - --health-probe-bind-address=:8081
                 - --ping-enabled=true
                 - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
@@ -72,6 +74,11 @@ spec:
                 - --ping-update-status-interval={{ .Values.networking.gatewayTemplates.ping.updateStatusInterval }}
                 {{- if gt .Values.networking.gatewayTemplates.replicas 1.0 }}
                 - --leader-election=true
+                {{- end }}
+                {{- if .Values.metrics.enabled }}
+                ports:
+                - containerPort: 8080
+                  name: gw-metrics
                 {{- end }}
                 env:
                 - name: NODE_NAME
@@ -95,9 +102,16 @@ spec:
                 - --mode=server
                 - --mtu={{"{{ .Spec.MTU }}"}}
                 - --listen-port={{"{{ .Spec.Endpoint.Port }}"}}
+                {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8082
+                {{- end }}
                 - --health-probe-bind-address=:8083
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
+                {{- if .Values.metrics.enabled }}
+                ports:
+                - containerPort: 8082
+                  name: wg-metrics
+                {{- end }}
                 securityContext:
                   capabilities:
                     add:
@@ -116,9 +130,16 @@ spec:
                 - --node-name={{"$(NODE_NAME)"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
+                {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8084
+                {{- end }}
                 - --health-probe-bind-address=:8085
                 - --enable-arp=true
+                {{- if .Values.metrics.enabled }}
+                ports:
+                - containerPort: 8084
+                  name: gv-metrics
+                {{- end }}
                 env:
                 - name: NODE_NAME
                   valueFrom:

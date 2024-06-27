@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
@@ -165,6 +166,19 @@ func run(cmd *cobra.Command, _ []string) error {
 	// Create the wg-liqo interface and init the wireguard configuration depending on the mode (client/server).
 	if err := wireguard.InitWireguardLink(cmd.Context(), options); err != nil {
 		return fmt.Errorf("unable to init wireguard link: %w", err)
+	}
+
+	// Create the Prometheus collector and register it inside the controller-runtime metrics server.
+	promcollect, err := wireguard.NewPrometheusCollector(mgr.GetClient(), &wireguard.MetricsOptions{
+		RemoteClusterID:  options.GwOptions.RemoteClusterID,
+		Namespace:        options.GwOptions.Namespace,
+		WgImplementation: options.Implementation,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create prometheus collector: %w", err)
+	}
+	if err := metrics.Registry.Register(promcollect); err != nil {
+		return fmt.Errorf("unable to register prometheus collector: %w", err)
 	}
 
 	// Start the manager.
