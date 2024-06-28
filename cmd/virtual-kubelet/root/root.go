@@ -36,13 +36,14 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discovery1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/leaderelection"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
@@ -58,7 +59,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = vkv1alpha1.AddToScheme(scheme)
-	_ = discovery1alpha1.AddToScheme(scheme)
+	_ = discoveryv1alpha1.AddToScheme(scheme)
 	_ = networkingv1alpha1.AddToScheme(scheme)
 }
 
@@ -138,10 +139,19 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
-	// TODO: make it fail if the network is enabled, do not retrieve if the network is not enabled
-	netConfiguration, err := getters.GetConfigurationByClusterID(ctx, cl, c.ForeignCluster.GetClusterID())
+	foreignCluster, err := fcutils.GetForeignClusterByID(ctx, cl, c.ForeignCluster.GetClusterID())
 	if err != nil {
-		klog.V(4).Infof("Unable to get network configuration: %v", err)
+		klog.Errorf("Unable to get foreign cluster: %v", err)
+		return err
+	}
+
+	var netConfiguration *networkingv1alpha1.Configuration
+	if fcutils.IsNetworkingModuleEnabled(foreignCluster) {
+		netConfiguration, err = getters.GetConfigurationByClusterID(ctx, cl, c.ForeignCluster.GetClusterID())
+		if err != nil {
+			klog.Errorf("Unable to get network configuration: %v", err)
+			return err
+		}
 	}
 
 	// Initialize the pod provider
