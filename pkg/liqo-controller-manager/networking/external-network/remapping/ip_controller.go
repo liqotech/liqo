@@ -17,7 +17,6 @@ package remapping
 import (
 	"context"
 	"fmt"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,8 +86,8 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	}
 
 	if ip.Status.IPMappings == nil || len(ip.Status.IPMappings) == 0 {
-		klog.Warningf("IP %s has no IP mappings yet, retrying...", req.String())
-		return ctrl.Result{RequeueAfter: time.Second}, nil
+		klog.Warningf("IP %s has no IP mappings yet", req.String())
+		return ctrl.Result{}, nil
 	}
 
 	if err := CreateOrUpdateNatMappingIP(ctx, r.Client, ip); err != nil {

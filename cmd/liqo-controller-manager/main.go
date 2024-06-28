@@ -388,13 +388,18 @@ func main() {
 					break
 				}
 
-				klog.Errorf("Unable to enforce the API Server IP remapping: %v, retrying...", err)
-
-				time.Sleep(10 * time.Second)
+				klog.V(3).Infof("Unable to enforce the API Server IP remapping: %v, retrying...", err)
 
 				maxRetries--
 				if maxRetries == 0 {
+					klog.Errorf("Unable to enforce the API Server IP remapping: %v", err)
 					os.Exit(1)
+				}
+
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(10 * time.Second):
 				}
 			}
 		}()

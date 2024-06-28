@@ -37,7 +37,7 @@ func (c *Builder) ForgeTelemetryItem(ctx context.Context) (*Telemetry, error) {
 	}
 
 	return &Telemetry{
-		ClusterID:         clusterID,
+		ClusterID:         string(clusterID),
 		LiqoVersion:       c.LiqoVersion,
 		KubernetesVersion: c.KubernetesVersion,
 		Provider:          c.getProvider(),
