@@ -313,7 +313,7 @@ controllerManager:
     # -- It enforces offerer-side that offloaded pods do not exceed offered resources (based on container limits).
     # This feature is suggested to be enabled when consumer-side enforcement is not sufficient.
     # It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set).
-    enableResourceEnforcement: false
+    enableResourceEnforcement: true
     # -- It enforces offerer-side that offloaded pods do not exceed offered limits.
     # This feature is suggested to be enabled when consumer-side enforcement is not sufficient.
     # It has the same tradeoffs of resource quotas (i.e, it requires all offloaded pods to have resource limits set).
