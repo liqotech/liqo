@@ -467,8 +467,13 @@ func RemoteContainerEnvVariablesAPIServerSupport(envs []corev1.EnvVar, saName, h
 // RemoteHostAliasesAPIServerSupport forges the host aliases to override the IP address associated with the kubernetes.default
 // service to enable offloaded containers to contact back the local API server, instead of the remote one.
 func RemoteHostAliasesAPIServerSupport(aliases []corev1.HostAlias, retriever KubernetesServiceIPGetter) []corev1.HostAlias {
+	address := retriever()
+	if address == "" {
+		return aliases
+	}
+
 	return append(aliases, corev1.HostAlias{
-		IP: retriever(), Hostnames: []string{KubernetesAPIService, KubernetesAPIService + ".svc"}})
+		IP: address, Hostnames: []string{KubernetesAPIService, KubernetesAPIService + ".svc"}})
 }
 
 // RemoteTolerations forges the tolerations for a reflected pod.

@@ -319,6 +319,10 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 
 	// Wrap the kubernetes service remapped IP retrieval, so that we do not have to handle errors in the forge logic.
 	ipGetter := func() (ip string) {
+		if npr.config.NetConfiguration == nil {
+			return ""
+		}
+
 		ip, kserr = npr.kubernetesServiceIPGetter(ctx)
 		return ip
 	}
