@@ -77,9 +77,6 @@ spec:
           {{- if .Values.apiServer.trustedCA }}
           - --trusted-ca
           {{- end }}
-          {{- if not .Values.offloading.runtimeClass.enable }}
-          - --add-virtual-node-toleration-on-offloaded-pods
-          {{- end }}
           - --fabric-full-masquerade-enabled={{ .Values.networking.fabric.config.fullMasquerade }}
           - --gateway-masquerade-bypass-enabled={{ .Values.networking.fabric.config.gatewayMasqueradeBypass }}
           {{- $d := dict "commandName" "--gateway-server-resources" "list" .Values.networking.serverResources }}
