@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -39,7 +39,7 @@ import (
 // NewLocalResourceSliceReconciler returns a new LocalResourceSliceReconciler.
 func NewLocalResourceSliceReconciler(cl client.Client, s *runtime.Scheme,
 	recorder record.EventRecorder, liqoNamespace string,
-	localClusterID discoveryv1alpha1.ClusterID) *LocalResourceSliceReconciler {
+	localClusterID liqov1alpha1.ClusterID) *LocalResourceSliceReconciler {
 	return &LocalResourceSliceReconciler{
 		Client: cl,
 		Scheme: s,
@@ -59,7 +59,7 @@ type LocalResourceSliceReconciler struct {
 	eventRecorder record.EventRecorder
 
 	liqoNamespace  string
-	localClusterID discoveryv1alpha1.ClusterID
+	localClusterID liqov1alpha1.ClusterID
 }
 
 // cluster-role
@@ -87,7 +87,7 @@ func (r *LocalResourceSliceReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	if resourceSlice.Spec.ProviderClusterID == nil {
 		if resourceSlice.Labels != nil && resourceSlice.Labels[consts.RemoteClusterID] != "" {
-			resourceSlice.Spec.ProviderClusterID = ptr.To(discoveryv1alpha1.ClusterID(resourceSlice.Labels[consts.RemoteClusterID]))
+			resourceSlice.Spec.ProviderClusterID = ptr.To(liqov1alpha1.ClusterID(resourceSlice.Labels[consts.RemoteClusterID]))
 		} else {
 			// If there is no label, get the identity from the Tenant namespace.
 			tenantNamespace := resourceSlice.Namespace

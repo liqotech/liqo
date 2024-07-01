@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -64,7 +64,7 @@ func GetLabelSelectors(ctx context.Context, cl client.Client, vn *virtualkubelet
 }
 
 // GetVirtualNodeClusterID returns the clusterID given a virtual node.
-func GetVirtualNodeClusterID(vn *virtualkubeletv1alpha1.VirtualNode) (discoveryv1alpha1.ClusterID, bool) {
+func GetVirtualNodeClusterID(vn *virtualkubeletv1alpha1.VirtualNode) (liqov1alpha1.ClusterID, bool) {
 	remoteClusterID := vn.Spec.ClusterID
 	if remoteClusterID == "" {
 		return "", false

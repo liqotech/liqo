@@ -20,14 +20,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 
-	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 )
 
 // DeleteAllForeignClusters deletes all ForeignCluster resources.
 func DeleteAllForeignClusters(ctx context.Context, client dynamic.Interface) error {
-	r1 := client.Resource(discoveryV1alpha1.ForeignClusterGroupVersionResource)
+	r1 := client.Resource(liqov1alpha1.ForeignClusterGroupVersionResource)
 	err := r1.DeleteCollection(ctx,
 		metav1.DeleteOptions{TypeMeta: metav1.TypeMeta{}}, metav1.ListOptions{TypeMeta: metav1.TypeMeta{}})
 	return err

@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -52,7 +52,7 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 			func(opt *metav1.ListOptions) {
 				opt.LabelSelector = consts.RemoteClusterID + "=" + string(p.foreignClusterID)
 			})
-		fcInformer := fcInformerFactory.ForResource(discoveryv1alpha1.ForeignClusterGroupVersionResource).Informer()
+		fcInformer := fcInformerFactory.ForResource(liqov1alpha1.ForeignClusterGroupVersionResource).Informer()
 		_, err := fcInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromForeignCluster))
 		runtime.Must(err)
 	}

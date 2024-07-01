@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
@@ -30,12 +30,12 @@ import (
 )
 
 // DefaultConfigurationName returns the default name for a Configuration.
-func DefaultConfigurationName(remoteClusterID discoveryv1alpha1.ClusterID) string {
+func DefaultConfigurationName(remoteClusterID liqov1alpha1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
 // Configuration forges a Configuration resource of a remote cluster.
-func Configuration(name, namespace string, remoteClusterID discoveryv1alpha1.ClusterID,
+func Configuration(name, namespace string, remoteClusterID liqov1alpha1.ClusterID,
 	podCIDR, externalCIDR string) *networkingv1alpha1.Configuration {
 	conf := &networkingv1alpha1.Configuration{
 		TypeMeta: metav1.TypeMeta{
@@ -55,7 +55,7 @@ func Configuration(name, namespace string, remoteClusterID discoveryv1alpha1.Clu
 }
 
 // MutateConfiguration mutates a Configuration resource of a remote cluster.
-func MutateConfiguration(conf *networkingv1alpha1.Configuration, remoteClusterID discoveryv1alpha1.ClusterID, podCIDR, externalCIDR string) {
+func MutateConfiguration(conf *networkingv1alpha1.Configuration, remoteClusterID liqov1alpha1.ClusterID, podCIDR, externalCIDR string) {
 	conf.Kind = networkingv1alpha1.ConfigurationKind
 	conf.APIVersion = networkingv1alpha1.GroupVersion.String()
 	if conf.Labels == nil {

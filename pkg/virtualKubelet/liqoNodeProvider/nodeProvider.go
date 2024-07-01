@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
 
@@ -44,7 +44,7 @@ type LiqoNodeProvider struct {
 	lastAppliedTaints      []corev1.Taint
 
 	nodeName           string
-	foreignClusterID   discoveryv1alpha1.ClusterID
+	foreignClusterID   liqov1alpha1.ClusterID
 	tenantNamespace    string
 	resyncPeriod       time.Duration
 	pingDisabled       bool
@@ -76,9 +76,9 @@ func (p *LiqoNodeProvider) Ping(ctx context.Context) error {
 	} else if err == nil {
 		cond := foreignclusterutils.GetAPIServerStatus(fc)
 		switch {
-		case cond == discoveryv1alpha1.ConditionStatusNone:
+		case cond == liqov1alpha1.ConditionStatusNone:
 			err = p.pingWithClient(ctx)
-		case cond != discoveryv1alpha1.ConditionStatusEstablished:
+		case cond != liqov1alpha1.ConditionStatusEstablished:
 			err = fmt.Errorf("API server is not ready")
 		}
 	}

@@ -23,7 +23,7 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -40,6 +40,6 @@ var _ = BeforeSuite(func() {
 	Expect(corev1.AddToScheme(scheme.Scheme)).To(Succeed())
 	Expect(discoveryv1.AddToScheme(scheme.Scheme)).To(Succeed())
 	Expect(vkv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(discoveryv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(liqov1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 	Expect(networkingv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 })

@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -69,7 +69,7 @@ var (
 			phase: PhaseUnpeering,
 		},
 		{
-			gvr:           discoveryv1alpha1.ForeignClusterGroupVersionResource,
+			gvr:           liqov1alpha1.ForeignClusterGroupVersionResource,
 			labelSelector: metav1.LabelSelector{},
 			phase:         PhaseCleanup,
 		},

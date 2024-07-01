@@ -25,13 +25,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // StoreIdentity stores the identity to authenticate with a remote cluster.
-func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterID,
+func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteCluster liqov1alpha1.ClusterID,
 	namespace string, key []byte, remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -39,7 +39,7 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 			Namespace:    namespace,
 			Labels: map[string]string{
 				localIdentitySecretLabel:  "true",
-				discovery.ClusterIDLabel:  string(remoteCluster),
+				consts.ClusterIDLabel:     string(remoteCluster),
 				CertificateAvailableLabel: "true",
 			},
 			Annotations: map[string]string{

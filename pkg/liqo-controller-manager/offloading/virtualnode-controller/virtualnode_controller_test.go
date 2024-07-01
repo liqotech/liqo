@@ -28,13 +28,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 func ForgeFakeVirtualNode(nameVirtualNode, tenantNamespaceName string,
-	remoteClusterID discoveryv1alpha1.ClusterID) *virtualkubeletv1alpha1.VirtualNode {
+	remoteClusterID liqov1alpha1.ClusterID) *virtualkubeletv1alpha1.VirtualNode {
 	return &virtualkubeletv1alpha1.VirtualNode{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameVirtualNode,

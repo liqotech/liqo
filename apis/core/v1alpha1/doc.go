@@ -12,14 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package discovery
-
-const (
-	// TenantNamespaceLabel used to mark the tenant namespaces.
-	TenantNamespaceLabel = "discovery.liqo.io/tenant-namespace"
-
-	// ClusterIDLabel used as key to indicate which cluster a resource is referenced to.
-	ClusterIDLabel = "discovery.liqo.io/cluster-id"
-	// VirtualNodeLabel used to mark the virtual nodes.
-	VirtualNodeLabel = "discovery.liqo.io/virtual-node"
-)
+// Package v1alpha1 contains API Schema definitions for the core v1alpha1 API group
+package v1alpha1

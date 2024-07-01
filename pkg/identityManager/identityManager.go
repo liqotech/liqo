@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/csr"
 )
@@ -38,7 +38,7 @@ type identityManager struct {
 
 	client           client.Client
 	k8sClient        kubernetes.Interface
-	localCluster     discoveryv1alpha1.ClusterID
+	localCluster     liqov1alpha1.ClusterID
 	namespaceManager tenantnamespace.Manager
 
 	iamTokenManager tokenManager
@@ -46,14 +46,14 @@ type identityManager struct {
 
 // NewCertificateIdentityReader gets a new certificate identity reader.
 func NewCertificateIdentityReader(ctx context.Context, cl client.Client, k8sClient kubernetes.Interface, cnf *rest.Config,
-	localCluster discoveryv1alpha1.ClusterID, namespaceManager tenantnamespace.Manager) IdentityReader {
+	localCluster liqov1alpha1.ClusterID, namespaceManager tenantnamespace.Manager) IdentityReader {
 	return NewCertificateIdentityManager(ctx, cl, k8sClient, cnf, localCluster, namespaceManager)
 }
 
 // NewCertificateIdentityManager gets a new certificate identity manager.
 func NewCertificateIdentityManager(ctx context.Context,
 	cl client.Client, k8sClient kubernetes.Interface, cnf *rest.Config,
-	localCluster discoveryv1alpha1.ClusterID, namespaceManager tenantnamespace.Manager) IdentityManager {
+	localCluster liqov1alpha1.ClusterID, namespaceManager tenantnamespace.Manager) IdentityManager {
 	idProvider := &certificateIdentityProvider{
 		namespaceManager: namespaceManager,
 		k8sClient:        k8sClient,
@@ -67,7 +67,7 @@ func NewCertificateIdentityManager(ctx context.Context,
 // NewCertificateIdentityProvider gets a new certificate identity approver.
 func NewCertificateIdentityProvider(ctx context.Context, cl client.Client, k8sClient kubernetes.Interface,
 	cnf *rest.Config,
-	localCluster discoveryv1alpha1.ClusterID, namespaceManager tenantnamespace.Manager) IdentityProvider {
+	localCluster liqov1alpha1.ClusterID, namespaceManager tenantnamespace.Manager) IdentityProvider {
 	req, err := labels.NewRequirement(remoteTenantCSRLabel, selection.Exists, []string{})
 	utilruntime.Must(err)
 
@@ -86,7 +86,7 @@ func NewCertificateIdentityProvider(ctx context.Context, cl client.Client, k8sCl
 
 // NewIAMIdentityProvider gets a new identity approver to handle IAM identities.
 func NewIAMIdentityProvider(ctx context.Context, cl client.Client, k8sClient kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterID, localAwsConfig *LocalAwsConfig,
+	localCluster liqov1alpha1.ClusterID, localAwsConfig *LocalAwsConfig,
 	namespaceManager tenantnamespace.Manager) IdentityProvider {
 	idProvider := &iamIdentityProvider{
 		localAwsConfig: localAwsConfig,
@@ -101,13 +101,13 @@ func NewIAMIdentityProvider(ctx context.Context, cl client.Client, k8sClient kub
 
 func newIdentityManager(ctx context.Context,
 	cl client.Client, k8sClient kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterID,
+	localCluster liqov1alpha1.ClusterID,
 	namespaceManager tenantnamespace.Manager,
 	idProvider IdentityProvider) *identityManager {
 	iamTokenManager := &iamTokenManager{
 		client:                    k8sClient,
-		availableClusterIDSecrets: map[discoveryv1alpha1.ClusterID]types.NamespacedName{},
-		tokenFiles:                map[discoveryv1alpha1.ClusterID]string{},
+		availableClusterIDSecrets: map[liqov1alpha1.ClusterID]types.NamespacedName{},
+		tokenFiles:                map[liqov1alpha1.ClusterID]string{},
 	}
 	iamTokenManager.start(ctx)
 

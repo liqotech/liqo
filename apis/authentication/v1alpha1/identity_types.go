@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // IdentityResource is the name of the identity resources.
@@ -50,7 +50,7 @@ const (
 // IdentitySpec defines the desired state of Identity.
 type IdentitySpec struct {
 	// ClusterID is the identity of the provider cluster.
-	ClusterID discoveryv1alpha1.ClusterID `json:"clusterID,omitempty"`
+	ClusterID liqov1alpha1.ClusterID `json:"clusterID,omitempty"`
 	// Type is the type of the identity.
 	// +kubebuilder:validation:Enum=ControlPlane;ResourceSlice
 	Type IdentityType `json:"type,omitempty"`

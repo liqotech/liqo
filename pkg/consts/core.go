@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package discovery contains structures, interfaces and utility functions useful for
-// the discovery component.
-package discovery
+package consts
+
+const (
+	// TenantNamespaceLabel used to mark the tenant namespaces.
+	TenantNamespaceLabel = "liqo.io/tenant-namespace"
+
+	// ClusterIDLabel used as key to indicate which cluster a resource is referenced to.
+	ClusterIDLabel = "liqo.io/cluster-id"
+	// VirtualNodeLabel used to mark the virtual nodes.
+	VirtualNodeLabel = "liqo.io/virtual-node"
+)
