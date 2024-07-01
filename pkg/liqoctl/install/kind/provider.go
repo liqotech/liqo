@@ -17,8 +17,6 @@ package kind
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
 )
@@ -57,12 +55,6 @@ func (o *Options) Initialize(ctx context.Context) error {
 // Values returns the customized provider-specifc values file parameters.
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"auth": map[string]interface{}{
-			"service": map[string]interface{}{
-				"type": string(corev1.ServiceTypeNodePort),
-			},
-		},
-
 		"networking": map[string]interface{}{
 			"fabric": map[string]interface{}{
 				"config": map[string]interface{}{
