@@ -10,6 +10,7 @@ on:
       - network-internal
       - auth
       - offloading
+      - release
   repository_dispatch:
     types:
       - test-command
