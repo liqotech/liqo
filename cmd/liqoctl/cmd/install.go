@@ -21,7 +21,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/aks"
@@ -175,8 +174,6 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&options.EnableMetrics, "enable-metrics", false, "Enable metrics exposition through prometheus (default false)")
 	cmd.PersistentFlags().BoolVar(&options.DisableTelemetry, "disable-telemetry", false,
 		"Disable the anonymous and aggregated Liqo telemetry collection (default false)")
-	cmd.PersistentFlags().Var(options.ExtServiceType, "service-type", "Override the used service type for liqo-auth and liqo-gateway")
-	f.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("service-type", completion.Enumeration(options.ExtServiceType.Allowed)))
 
 	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
