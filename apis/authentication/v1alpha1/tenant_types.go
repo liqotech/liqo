@@ -18,7 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // TenantResource is the name of the tenant resources.
@@ -36,7 +36,7 @@ var TenantGroupVersionResource = GroupVersion.WithResource(TenantResource)
 // TenantSpec defines the desired state of Tenant.
 type TenantSpec struct {
 	// ClusterID is the id of the consumer cluster.
-	ClusterID discoveryv1alpha1.ClusterID `json:"clusterID,omitempty"`
+	ClusterID liqov1alpha1.ClusterID `json:"clusterID,omitempty"`
 	// PublicKey is the public key of the tenant cluster.
 	PublicKey []byte `json:"publicKey,omitempty"`
 	// CSR is the Certificate Signing Request of the tenant cluster.

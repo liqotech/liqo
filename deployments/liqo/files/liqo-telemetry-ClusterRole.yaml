@@ -10,7 +10,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - core.liqo.io
   resources:
   - foreignclusters
   verbs:

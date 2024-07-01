@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -66,7 +66,7 @@ func NewWaiterFromFactory(f *factory.Factory) *Waiter {
 }
 
 // ForNetwork waits until the networking has been established with the remote cluster or the timeout expires.
-func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
 	remName := remoteClusterID
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for network to the remote cluster %q", remName))
 	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsNetworkingEstablishedOrDisabled, 1*time.Second)
@@ -285,7 +285,7 @@ func (w *Waiter) ForGatewayClientSecretRef(ctx context.Context, gwClient *networ
 
 // ForConnection waits until the Connection resource has been created.
 func (w *Waiter) ForConnection(ctx context.Context, namespace string,
-	remoteCluster discoveryv1alpha1.ClusterID) (*networkingv1alpha1.Connection, error) {
+	remoteCluster liqov1alpha1.ClusterID) (*networkingv1alpha1.Connection, error) {
 	s := w.Printer.StartSpinner("Waiting for Connection to be created")
 	var conn *networkingv1alpha1.Connection
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
@@ -333,7 +333,7 @@ func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv
 }
 
 // ForNonce waits until the secret containing the nonce has been created or the timeout expires.
-func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID, silent bool) error {
+func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID, silent bool) error {
 	var s *pterm.SpinnerPrinter
 
 	if !silent {
@@ -366,7 +366,7 @@ func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID discoveryv1alpha1
 }
 
 // ForSignedNonce waits until the signed nonce secret has been signed and returns the signature.
-func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID, silent bool) error {
+func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID, silent bool) error {
 	var s *pterm.SpinnerPrinter
 
 	if !silent {
@@ -398,7 +398,7 @@ func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID discoveryv1
 }
 
 // ForTenantStatus waits until the tenant status has been updated or the timeout expires.
-func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for tenant status to be filled")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		tenant, err := getters.GetTenantByClusterID(ctx, w.CRClient, remoteClusterID)
@@ -425,7 +425,7 @@ func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID discoveryv
 }
 
 // ForIdentityStatus waits until the identity status has been updated or the timeout expires.
-func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for identity status to be filled")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		identity, err := getters.GetControlPlaneIdentityByClusterID(ctx, w.CRClient, remoteClusterID)
@@ -448,7 +448,7 @@ func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID discover
 }
 
 // ForTenantNamespaceAbsence waits until the tenant namespace has been deleted or the timeout expires.
-func (w *Waiter) ForTenantNamespaceAbsence(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+func (w *Waiter) ForTenantNamespaceAbsence(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for tenant namespace to be deleted")
 	namespaceManager := tenantnamespace.NewManager(w.KubeClient)
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
@@ -482,7 +482,7 @@ func (w *Waiter) ForResourceSlicesAbsence(ctx context.Context, namespace string,
 }
 
 // ForVirtualNodesAbsence waits until the virtual nodes with the given selector have been deleted or the timeout expires.
-func (w *Waiter) ForVirtualNodesAbsence(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+func (w *Waiter) ForVirtualNodesAbsence(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for virtual nodes to be deleted")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, w.CRClient, remoteClusterID)

@@ -38,7 +38,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/util"
@@ -84,7 +84,7 @@ type Options struct {
 
 	Timeout time.Duration
 
-	ClusterID     discoveryv1alpha1.ClusterID
+	ClusterID     liqov1alpha1.ClusterID
 	ClusterLabels map[string]string
 
 	APIServer         string

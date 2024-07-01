@@ -27,14 +27,14 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 )
 
 // EnforceNamespace creates and returns a namespace. If it already exists, it just returns the namespace.
-func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster discoveryv1alpha1.ClusterID,
+func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster liqov1alpha1.ClusterID,
 	name string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{

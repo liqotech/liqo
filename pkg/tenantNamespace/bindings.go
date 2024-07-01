@@ -24,12 +24,12 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // add the bindings for the remote clusterid for the given ClusterRoles
 // This method creates RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterID,
+func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID,
 	clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error) {
 	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
@@ -50,7 +50,7 @@ func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster 
 
 // remove the bindings for the remote clusterid for the given ClusterRoles
 // This method deletes RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterID, clusterRoles ...string) error {
+func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID, clusterRoles ...string) error {
 	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
 		klog.Error(err)
@@ -67,7 +67,7 @@ func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluste
 }
 
 // create a RoleBinding for the given clusterid in the given Namespace.
-func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster discoveryv1alpha1.ClusterID,
+func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster liqov1alpha1.ClusterID,
 	namespace *v1.Namespace, clusterRole *rbacv1.ClusterRole) (*rbacv1.RoleBinding, error) {
 	ownerRef := metav1.OwnerReference{
 		APIVersion: rbacv1.SchemeGroupVersion.String(),

@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -93,7 +93,7 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	remoteClusterID := discoveryv1alpha1.ClusterID(resourceSlice.Labels[consts.RemoteClusterID])
+	remoteClusterID := liqov1alpha1.ClusterID(resourceSlice.Labels[consts.RemoteClusterID])
 
 	// Get the associated Identity for the remote cluster.
 	identity, err := getters.GetIdentityFromResourceSlice(ctx, r.Client, remoteClusterID, resourceSlice.Name)

@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -35,7 +35,7 @@ var (
 	ctx         context.Context
 	cancel      context.CancelFunc
 	cluster     testutil.Cluster
-	homeCluster discoveryv1alpha1.ClusterID
+	homeCluster liqov1alpha1.ClusterID
 
 	namespaceManager Manager
 )
@@ -44,7 +44,7 @@ var _ = BeforeSuite(func() {
 	testutil.LogsToGinkgoWriter()
 	ctx, cancel = context.WithCancel(context.Background())
 
-	homeCluster = discoveryv1alpha1.ClusterID("home-cluster-id")
+	homeCluster = liqov1alpha1.ClusterID("home-cluster-id")
 
 	var err error
 	cluster, _, err = testutil.NewTestCluster([]string{

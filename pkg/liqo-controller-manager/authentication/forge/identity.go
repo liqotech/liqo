@@ -18,12 +18,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // ControlPlaneIdentityName forges the name of a ControlPlane Identity resource given the remote cluster name.
-func ControlPlaneIdentityName(remoteClusterID discoveryv1alpha1.ClusterID) string {
+func ControlPlaneIdentityName(remoteClusterID liqov1alpha1.ClusterID) string {
 	return "controlplane-" + string(remoteClusterID)
 }
 
@@ -33,7 +33,7 @@ func ResourceSliceIdentityName(resourceSlice *authv1alpha1.ResourceSlice) string
 }
 
 // IdentityForRemoteCluster forges a Identity resource to be applied on a remote cluster.
-func IdentityForRemoteCluster(name, namespace string, localClusterID discoveryv1alpha1.ClusterID,
+func IdentityForRemoteCluster(name, namespace string, localClusterID liqov1alpha1.ClusterID,
 	identityType authv1alpha1.IdentityType, authParams *authv1alpha1.AuthParams, defaultKubeConfigNs *string) *authv1alpha1.Identity {
 	identity := Identity(name, namespace)
 	MutateIdentity(identity, localClusterID, identityType, authParams, defaultKubeConfigNs)
@@ -56,7 +56,7 @@ func Identity(name, namespace string) *authv1alpha1.Identity {
 }
 
 // MutateIdentity mutates a Identity resource.
-func MutateIdentity(identity *authv1alpha1.Identity, remoteClusterID discoveryv1alpha1.ClusterID,
+func MutateIdentity(identity *authv1alpha1.Identity, remoteClusterID liqov1alpha1.ClusterID,
 	identityType authv1alpha1.IdentityType, authParams *authv1alpha1.AuthParams, defaultKubeConfigNs *string) {
 	if identity.Labels == nil {
 		identity.Labels = map[string]string{}

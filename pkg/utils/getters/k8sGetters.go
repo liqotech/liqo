@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -175,7 +175,7 @@ func GetPodByLabel(ctx context.Context, cl client.Client, ns string, lSelector l
 }
 
 // ListNodesByClusterID returns the node list that matches the given cluster id.
-func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID discoveryv1alpha1.ClusterID) (*corev1.NodeList, error) {
+func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID liqov1alpha1.ClusterID) (*corev1.NodeList, error) {
 	list := new(corev1.NodeList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -197,7 +197,7 @@ func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID disco
 }
 
 // GetNonceSecretByClusterID returns the secret containing the nonce to be signed by the consumer cluster.
-func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID discoveryv1alpha1.ClusterID) (*corev1.Secret, error) {
+func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID liqov1alpha1.ClusterID) (*corev1.Secret, error) {
 	var secrets corev1.SecretList
 	if err := cl.List(ctx, &secrets, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -219,7 +219,7 @@ func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClus
 }
 
 // GetSignedNonceSecretByClusterID returns the secret containing the nonce signed by the consumer cluster.
-func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID discoveryv1alpha1.ClusterID) (*corev1.Secret, error) {
+func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID liqov1alpha1.ClusterID) (*corev1.Secret, error) {
 	var secrets corev1.SecretList
 	if err := cl.List(ctx, &secrets, client.MatchingLabels{
 		consts.RemoteClusterID:           string(remoteClusterID),
@@ -239,7 +239,7 @@ func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remo
 }
 
 // GetTenantByClusterID returns the Tenant resource for the given cluster id.
-func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID discoveryv1alpha1.ClusterID) (*authv1alpha1.Tenant, error) {
+func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID liqov1alpha1.ClusterID) (*authv1alpha1.Tenant, error) {
 	list := new(authv1alpha1.TenantList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -262,7 +262,7 @@ func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID disco
 
 // GetControlPlaneIdentityByClusterID returns the Identity of type ControlPlane for the given cluster id.
 func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client,
-	clusterID discoveryv1alpha1.ClusterID) (*authv1alpha1.Identity, error) {
+	clusterID liqov1alpha1.ClusterID) (*authv1alpha1.Identity, error) {
 	list := new(authv1alpha1.IdentityList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -293,7 +293,7 @@ func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client,
 
 // GetResourceSliceIdentitiesByClusterID returns the list of Identities of type ResourceSlice for the given cluster id.
 func GetResourceSliceIdentitiesByClusterID(ctx context.Context, cl client.Client,
-	clusterID discoveryv1alpha1.ClusterID) ([]authv1alpha1.Identity, error) {
+	clusterID liqov1alpha1.ClusterID) ([]authv1alpha1.Identity, error) {
 	list := new(authv1alpha1.IdentityList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -315,7 +315,7 @@ func GetResourceSliceIdentitiesByClusterID(ctx context.Context, cl client.Client
 
 // GetIdentityFromResourceSlice returns the Identity of type ResourceSlice for the given cluster id and resourceslice name.
 func GetIdentityFromResourceSlice(ctx context.Context, cl client.Client,
-	clusterID discoveryv1alpha1.ClusterID, resourceSliceName string) (*authv1alpha1.Identity, error) {
+	clusterID liqov1alpha1.ClusterID, resourceSliceName string) (*authv1alpha1.Identity, error) {
 	identities, err := GetResourceSliceIdentitiesByClusterID(ctx, cl, clusterID)
 	if err != nil {
 		return nil, err
@@ -333,7 +333,7 @@ func GetIdentityFromResourceSlice(ctx context.Context, cl client.Client,
 // GetControlPlaneKubeconfigSecretByClusterID returns the Secret containing the Kubeconfig of
 // a ControlPlane Identity given the cluster id.
 func GetControlPlaneKubeconfigSecretByClusterID(ctx context.Context, cl client.Client,
-	clusterID discoveryv1alpha1.ClusterID) (*corev1.Secret, error) {
+	clusterID liqov1alpha1.ClusterID) (*corev1.Secret, error) {
 	list := new(corev1.SecretList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -452,7 +452,7 @@ func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector l
 
 // ListVirtualNodesByClusterID returns the list of virtual nodes for the given cluster id.
 func ListVirtualNodesByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID discoveryv1alpha1.ClusterID) ([]virtualkubeletv1alpha1.VirtualNode, error) {
+	remoteClusterID liqov1alpha1.ClusterID) ([]virtualkubeletv1alpha1.VirtualNode, error) {
 	virtualNodes, err := ListVirtualNodesByLabels(ctx, cl, labels.SelectorFromSet(map[string]string{
 		consts.RemoteClusterID: string(remoteClusterID),
 	}))
@@ -481,9 +481,9 @@ func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *
 
 // MapForeignClustersByLabel returns a map of foreign clusters indexed their names.
 func MapForeignClustersByLabel(ctx context.Context, cl client.Client,
-	lSelector labels.Selector) (map[string]discoveryv1alpha1.ForeignCluster, error) {
-	result := make(map[string]discoveryv1alpha1.ForeignCluster)
-	list := new(discoveryv1alpha1.ForeignClusterList)
+	lSelector labels.Selector) (map[string]liqov1alpha1.ForeignCluster, error) {
+	result := make(map[string]liqov1alpha1.ForeignCluster)
+	list := new(liqov1alpha1.ForeignClusterList)
 	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
 		return nil, err
 	}
@@ -669,7 +669,7 @@ func ListConfigurationsByLabel(ctx context.Context, cl client.Client, lSelector 
 
 // GetConfigurationByClusterID returns the Configuration resource with the given clusterID.
 func GetConfigurationByClusterID(ctx context.Context, cl client.Client,
-	clusterID discoveryv1alpha1.ClusterID) (*networkingv1alpha1.Configuration, error) {
+	clusterID liqov1alpha1.ClusterID) (*networkingv1alpha1.Configuration, error) {
 	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: string(clusterID)}.AsSelector()
 	configurations, err := ListConfigurationsInNamespaceByLabel(ctx, cl, corev1.NamespaceAll, remoteClusterIDSelector)
 	if err != nil {
@@ -716,7 +716,7 @@ func GetConnectionByClusterID(ctx context.Context, cl client.Client, clusterID s
 
 // GetGatewayServerByClusterID returns the GatewayServer resource with the given clusterID.
 func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID discoveryv1alpha1.ClusterID) (*networkingv1alpha1.GatewayServer, error) {
+	remoteClusterID liqov1alpha1.ClusterID) (*networkingv1alpha1.GatewayServer, error) {
 	var gwServers networkingv1alpha1.GatewayServerList
 	if err := cl.List(ctx, &gwServers, client.MatchingLabels{
 		consts.RemoteClusterID: string(remoteClusterID),
@@ -736,7 +736,7 @@ func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
 
 // GetGatewayClientByClusterID returns the GatewayClient resource with the given clusterID.
 func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID discoveryv1alpha1.ClusterID) (*networkingv1alpha1.GatewayClient, error) {
+	remoteClusterID liqov1alpha1.ClusterID) (*networkingv1alpha1.GatewayClient, error) {
 	var gwClients networkingv1alpha1.GatewayClientList
 	if err := cl.List(ctx, &gwClients, client.MatchingLabels{
 		consts.RemoteClusterID: string(remoteClusterID),

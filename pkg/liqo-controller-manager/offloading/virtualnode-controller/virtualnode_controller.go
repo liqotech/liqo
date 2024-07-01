@@ -35,10 +35,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
@@ -55,7 +54,7 @@ type VirtualNodeReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 
-	HomeClusterID    discoveryv1alpha1.ClusterID
+	HomeClusterID    liqov1alpha1.ClusterID
 	namespaceManager tenantnamespace.Manager
 	dr               *DeletionRoutine
 }
@@ -65,7 +64,7 @@ func NewVirtualNodeReconciler(
 	ctx context.Context,
 	cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
-	hci discoveryv1alpha1.ClusterID,
+	hci liqov1alpha1.ClusterID,
 	namespaceManager tenantnamespace.Manager,
 ) (*VirtualNodeReconciler, error) {
 	vnr := &VirtualNodeReconciler{
@@ -142,7 +141,7 @@ func enqueFromDeployment(dep *appsv1.Deployment, rli workqueue.RateLimitingInter
 	rli.Add(
 		reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      dep.Labels[discovery.VirtualNodeLabel],
+				Name:      dep.Labels[consts.VirtualNodeLabel],
 				Namespace: dep.Namespace,
 			},
 		},
@@ -174,7 +173,7 @@ func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
 			clusterID := nm.Labels[consts.RemoteClusterID]
 
 			// list virtualnode resources with the remote cluster ID label
-			virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, discoveryv1alpha1.ClusterID(clusterID))
+			virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, liqov1alpha1.ClusterID(clusterID))
 			if err != nil {
 				klog.Errorf("unable to list virtualnodes with clusterID %s: %v", clusterID, err)
 				return []reconcile.Request{}

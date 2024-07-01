@@ -20,14 +20,14 @@ import (
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // Manager provides the methods to handle the creation and
 // the management of tenant namespaces.
 type Manager interface {
-	CreateNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterID) (*v1.Namespace, error)
-	GetNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterID) (*v1.Namespace, error)
-	BindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterID, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
-	UnbindClusterRoles(ctx context.Context, cluster discoveryv1alpha1.ClusterID, clusterRoles ...string) error
+	CreateNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*v1.Namespace, error)
+	GetNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*v1.Namespace, error)
+	BindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
+	UnbindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID, clusterRoles ...string) error
 }

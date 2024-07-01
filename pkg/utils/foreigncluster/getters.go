@@ -26,17 +26,17 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // GetForeignClusterByID returns a ForeignCluster CR retrieving it by its clusterID.
-func GetForeignClusterByID(ctx context.Context, cl client.Client, clusterID discoveryv1alpha1.ClusterID) (*discoveryv1alpha1.ForeignCluster, error) {
+func GetForeignClusterByID(ctx context.Context, cl client.Client, clusterID liqov1alpha1.ClusterID) (*liqov1alpha1.ForeignCluster, error) {
 	lSelector := labels.SelectorFromSet(labels.Set{
 		consts.RemoteClusterID: string(clusterID),
 	})
 	// get the foreign cluster by clusterID label
-	foreignClusterList := discoveryv1alpha1.ForeignClusterList{}
+	foreignClusterList := liqov1alpha1.ForeignClusterList{}
 	if err := cl.List(ctx, &foreignClusterList, &client.ListOptions{
 		LabelSelector: lSelector,
 	}); err != nil {
@@ -47,18 +47,18 @@ func GetForeignClusterByID(ctx context.Context, cl client.Client, clusterID disc
 }
 
 // GetForeignClusterByIDWithDynamicClient returns a ForeignCluster CR retrieving it by its clusterID, using the dynamic interface.
-func GetForeignClusterByIDWithDynamicClient(ctx context.Context, dynClient dynamic.Interface, clusterID discoveryv1alpha1.ClusterID) (
-	*discoveryv1alpha1.ForeignCluster, error) {
+func GetForeignClusterByIDWithDynamicClient(ctx context.Context, dynClient dynamic.Interface, clusterID liqov1alpha1.ClusterID) (
+	*liqov1alpha1.ForeignCluster, error) {
 	lSelector := labels.SelectorFromSet(labels.Set{
 		consts.RemoteClusterID: string(clusterID),
 	})
-	unstr, err := dynClient.Resource(discoveryv1alpha1.ForeignClusterGroupVersionResource).List(ctx, metav1.ListOptions{
+	unstr, err := dynClient.Resource(liqov1alpha1.ForeignClusterGroupVersionResource).List(ctx, metav1.ListOptions{
 		LabelSelector: lSelector.String()})
 	if err != nil {
 		return nil, err
 	}
 
-	foreignClusterList := discoveryv1alpha1.ForeignClusterList{}
+	foreignClusterList := liqov1alpha1.ForeignClusterList{}
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstr.UnstructuredContent(), &foreignClusterList)
 	if err != nil {
 		return nil, err
@@ -67,11 +67,11 @@ func GetForeignClusterByIDWithDynamicClient(ctx context.Context, dynClient dynam
 	return getForeignCluster(&foreignClusterList, clusterID)
 }
 
-func getForeignCluster(foreignClusterList *discoveryv1alpha1.ForeignClusterList,
-	clusterID discoveryv1alpha1.ClusterID) (*discoveryv1alpha1.ForeignCluster, error) {
+func getForeignCluster(foreignClusterList *liqov1alpha1.ForeignClusterList,
+	clusterID liqov1alpha1.ClusterID) (*liqov1alpha1.ForeignCluster, error) {
 	switch len(foreignClusterList.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(discoveryv1alpha1.ForeignClusterGroupResource, fmt.Sprintf("foreign cluster with ID %s", clusterID))
+		return nil, kerrors.NewNotFound(liqov1alpha1.ForeignClusterGroupResource, fmt.Sprintf("foreign cluster with ID %s", clusterID))
 	case 1:
 		return &foreignClusterList.Items[0], nil
 	default:
@@ -81,7 +81,7 @@ func getForeignCluster(foreignClusterList *discoveryv1alpha1.ForeignClusterList,
 
 // GetOlderForeignCluster returns the ForeignCluster from the list with the older creationTimestamp.
 func GetOlderForeignCluster(
-	foreignClusterList *discoveryv1alpha1.ForeignClusterList) (foreignCluster *discoveryv1alpha1.ForeignCluster) {
+	foreignClusterList *liqov1alpha1.ForeignClusterList) (foreignCluster *liqov1alpha1.ForeignCluster) {
 	var olderTime *metav1.Time
 	for i := range foreignClusterList.Items {
 		fc := &foreignClusterList.Items[i]
@@ -94,7 +94,7 @@ func GetOlderForeignCluster(
 }
 
 // GetLocalTenantNamespaceName gets the name of the local tenant namespace associated with a specific peering (remoteClusterID).
-func GetLocalTenantNamespaceName(ctx context.Context, cl client.Client, remoteCluster discoveryv1alpha1.ClusterID) (string, error) {
+func GetLocalTenantNamespaceName(ctx context.Context, cl client.Client, remoteCluster liqov1alpha1.ClusterID) (string, error) {
 	fc, err := GetForeignClusterByID(ctx, cl, remoteCluster)
 	if err != nil {
 		klog.Errorf("%s -> unable to get foreignCluster associated with the cluster '%s'", err, remoteCluster)
@@ -111,7 +111,7 @@ func GetLocalTenantNamespaceName(ctx context.Context, cl client.Client, remoteCl
 }
 
 // GetRemoteTenantNamespaceName gets the name of the remote tenant namespace associated with a specific peering (remoteClusterID).
-func GetRemoteTenantNamespaceName(ctx context.Context, cl client.Client, remoteClusterID discoveryv1alpha1.ClusterID) (string, error) {
+func GetRemoteTenantNamespaceName(ctx context.Context, cl client.Client, remoteClusterID liqov1alpha1.ClusterID) (string, error) {
 	fc, err := GetForeignClusterByID(ctx, cl, remoteClusterID)
 	if err != nil {
 		klog.Errorf("%s -> unable to get foreignCluster associated with the clusterID '%s'", err, remoteClusterID)

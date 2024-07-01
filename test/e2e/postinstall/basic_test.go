@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -75,7 +75,7 @@ var _ = Describe("Liqo E2E", func() {
 					var tenantNsList *corev1.NamespaceList
 					Eventually(func() []corev1.Namespace {
 						namespaceLabel := map[string]string{}
-						namespaceLabel[discovery.TenantNamespaceLabel] = "true"
+						namespaceLabel[consts.TenantNamespaceLabel] = "true"
 						var err error
 						tenantNsList, err = cluster.NativeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
 							LabelSelector: labels.SelectorFromSet(namespaceLabel).String(),

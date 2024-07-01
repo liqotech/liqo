@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -222,9 +223,9 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 		return nil, fmt.Errorf("unable to parse pod quantity: %w", err)
 	}
 
-	storageClasses := make([]authv1alpha1.StorageType, len(o.storageClasses))
+	storageClasses := make([]liqov1alpha1.StorageType, len(o.storageClasses))
 	for i, storageClass := range o.storageClasses {
-		sc := authv1alpha1.StorageType{
+		sc := liqov1alpha1.StorageType{
 			StorageClassName: storageClass,
 		}
 		if i == 0 {
@@ -233,9 +234,9 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 		storageClasses[i] = sc
 	}
 
-	ingressClasses := make([]authv1alpha1.IngressType, len(o.ingressClasses))
+	ingressClasses := make([]liqov1alpha1.IngressType, len(o.ingressClasses))
 	for i, ingressClass := range o.ingressClasses {
-		ic := authv1alpha1.IngressType{
+		ic := liqov1alpha1.IngressType{
 			IngressClassName: ingressClass,
 		}
 		if i == 0 {
@@ -244,9 +245,9 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 		ingressClasses[i] = ic
 	}
 
-	loadBalancerClasses := make([]authv1alpha1.LoadBalancerType, len(o.loadBalancerClasses))
+	loadBalancerClasses := make([]liqov1alpha1.LoadBalancerType, len(o.loadBalancerClasses))
 	for i, loadBalancerClass := range o.loadBalancerClasses {
-		lbc := authv1alpha1.LoadBalancerType{
+		lbc := liqov1alpha1.LoadBalancerType{
 			LoadBalancerClassName: loadBalancerClass,
 		}
 		if i == 0 {

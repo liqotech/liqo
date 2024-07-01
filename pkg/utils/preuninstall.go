@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -102,7 +102,7 @@ func (em *errorMap) getError() error {
 
 // PreUninstall checks if there are resources that need to be removed before uninstalling Liqo.
 func PreUninstall(ctx context.Context, cl client.Client) error {
-	var foreignClusterList discoveryv1alpha1.ForeignClusterList
+	var foreignClusterList liqov1alpha1.ForeignClusterList
 	if err := errors.IgnoreNoMatchError(cl.List(ctx, &foreignClusterList)); err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func PreUninstall(ctx context.Context, cl client.Client) error {
 	return errMap.getError()
 }
 
-func addResourceToErrMap(obj client.Object, errMap *errorMap, errList []string, foreignClusters *discoveryv1alpha1.ForeignClusterList) []string {
+func addResourceToErrMap(obj client.Object, errMap *errorMap, errList []string, foreignClusters *liqov1alpha1.ForeignClusterList) []string {
 	// Check if object is a resource associated with a remote cluster
 	clusterID, found := getRemoteClusterID(obj, foreignClusters)
 	if found {
@@ -211,10 +211,10 @@ func addGenericToErrMap(obj client.Object, errMap *errorMap) {
 	}
 }
 
-func getRemoteClusterID(obj client.Object, foreignClusters *discoveryv1alpha1.ForeignClusterList) (discoveryv1alpha1.ClusterID, bool) {
+func getRemoteClusterID(obj client.Object, foreignClusters *liqov1alpha1.ForeignClusterList) (liqov1alpha1.ClusterID, bool) {
 	v, ok := obj.GetLabels()[consts.RemoteClusterID]
 	if ok && v != "" && foreignClusters != nil {
-		remoteID := discoveryv1alpha1.ClusterID(v)
+		remoteID := liqov1alpha1.ClusterID(v)
 		for i := range foreignClusters.Items {
 			if foreignClusters.Items[i].Spec.ClusterID == remoteID {
 				return foreignClusters.Items[i].Spec.ClusterID, true

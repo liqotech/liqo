@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -104,7 +104,7 @@ func (c *Builder) getNamespaceInfo(ctx context.Context,
 }
 
 func (c *Builder) getPeeringInfoSlice(ctx context.Context) []PeeringInfo {
-	var foreignClusterList discoveryv1alpha1.ForeignClusterList
+	var foreignClusterList liqov1alpha1.ForeignClusterList
 	err := c.Client.List(ctx, &foreignClusterList)
 	runtime.Must(err)
 
@@ -117,7 +117,7 @@ func (c *Builder) getPeeringInfoSlice(ctx context.Context) []PeeringInfo {
 }
 
 func (c *Builder) getPeeringInfo(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) PeeringInfo {
+	foreignCluster *liqov1alpha1.ForeignCluster) PeeringInfo {
 	var latency time.Duration
 
 	peeringInfo := PeeringInfo{

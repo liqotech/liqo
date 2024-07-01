@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -44,8 +44,8 @@ const (
 type InitConfig struct {
 	HomeConfig      *rest.Config
 	RemoteConfig    *rest.Config
-	HomeClusterID   discoveryv1alpha1.ClusterID
-	RemoteClusterID discoveryv1alpha1.ClusterID
+	HomeClusterID   liqov1alpha1.ClusterID
+	RemoteClusterID liqov1alpha1.ClusterID
 	Namespace       string
 
 	NodeName         string

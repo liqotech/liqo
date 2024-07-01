@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/util"
@@ -170,7 +170,7 @@ var _ = Describe("Liqo E2E", func() {
 				remoteClusterID := virtualNodesList.Items[i].Labels[liqoconst.RemoteClusterID]
 
 				var cl kubernetes.Interface
-				var id discoveryv1alpha1.ClusterID
+				var id liqov1alpha1.ClusterID
 				for j := range testContext.Clusters {
 					cluster := &testContext.Clusters[j]
 					if string(cluster.Cluster) == remoteClusterID {

@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // ResourceSliceResource is the name of the resourceSlice resources.
@@ -47,9 +47,9 @@ const (
 // ResourceSliceSpec defines the desired state of ResourceSlice.
 type ResourceSliceSpec struct {
 	// ConsumerClusterID is the id of the consumer cluster.
-	ConsumerClusterID *discoveryv1alpha1.ClusterID `json:"consumerClusterID,omitempty"`
+	ConsumerClusterID *liqov1alpha1.ClusterID `json:"consumerClusterID,omitempty"`
 	// ProviderClusterID is the id of the provider cluster.
-	ProviderClusterID *discoveryv1alpha1.ClusterID `json:"providerClusterID,omitempty"`
+	ProviderClusterID *liqov1alpha1.ClusterID `json:"providerClusterID,omitempty"`
 	// Resources contains the slice of resources requested.
 	Resources corev1.ResourceList `json:"resources,omitempty"`
 	// Class contains the class of the ResourceSlice.
@@ -104,11 +104,11 @@ type ResourceSliceStatus struct {
 	// AuthParams contains the authentication parameters for the resources given by the provider cluster.
 	AuthParams *AuthParams `json:"authParams,omitempty"`
 	// StorageClasses contains the list of the storage classes offered by the cluster.
-	StorageClasses []StorageType `json:"storageClasses,omitempty"`
+	StorageClasses []liqov1alpha1.StorageType `json:"storageClasses,omitempty"`
 	// IngressClasses contains the list of the ingress classes offered by the cluster.
-	IngressClasses []IngressType `json:"ingressClasses,omitempty"`
+	IngressClasses []liqov1alpha1.IngressType `json:"ingressClasses,omitempty"`
 	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
-	LoadBalancerClasses []LoadBalancerType `json:"loadBalancerClasses,omitempty"`
+	LoadBalancerClasses []liqov1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 	// NodeLabels contains the provider cluster labels.
 	NodeLabels map[string]string `json:"nodeLabels,omitempty"`
 	// NodeSelector contains the selector to be applied to offloaded pods.

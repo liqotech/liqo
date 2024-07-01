@@ -118,15 +118,7 @@ rules:
   verbs:
   - create
 - apiGroups:
-  - discovery.k8s.io
-  resources:
-  - endpointslices
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - discovery.liqo.io
+  - core.liqo.io
   resources:
   - foreignclusters
   verbs:
@@ -134,9 +126,17 @@ rules:
   - list
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - core.liqo.io
   resources:
   - foreignclusters/status
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
   verbs:
   - get
   - list

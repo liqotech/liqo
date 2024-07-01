@@ -15,50 +15,50 @@
 package foreigncluster
 
 import (
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // EnableModuleNetworking enables the networking module.
-func EnableModuleNetworking(foreignCluster *discoveryv1alpha1.ForeignCluster) {
+func EnableModuleNetworking(foreignCluster *liqov1alpha1.ForeignCluster) {
 	foreignCluster.Status.Modules.Networking.Enabled = true
 }
 
 // EnableModuleAuthentication enables the authentication module.
-func EnableModuleAuthentication(foreignCluster *discoveryv1alpha1.ForeignCluster) {
+func EnableModuleAuthentication(foreignCluster *liqov1alpha1.ForeignCluster) {
 	foreignCluster.Status.Modules.Authentication.Enabled = true
 }
 
 // EnableModuleOffloading enables the offloading module.
-func EnableModuleOffloading(foreignCluster *discoveryv1alpha1.ForeignCluster) {
+func EnableModuleOffloading(foreignCluster *liqov1alpha1.ForeignCluster) {
 	foreignCluster.Status.Modules.Offloading.Enabled = true
 }
 
 // DisableModuleNetworking disables the networking module.
-func DisableModuleNetworking(foreignCluster *discoveryv1alpha1.ForeignCluster) {
+func DisableModuleNetworking(foreignCluster *liqov1alpha1.ForeignCluster) {
 	foreignCluster.Status.Modules.Networking.Enabled = false
 }
 
 // DisableModuleAuthentication disables the authentication module.
-func DisableModuleAuthentication(foreignCluster *discoveryv1alpha1.ForeignCluster) {
+func DisableModuleAuthentication(foreignCluster *liqov1alpha1.ForeignCluster) {
 	foreignCluster.Status.Modules.Authentication.Enabled = false
 }
 
 // DisableModuleOffloading disables the offloading module.
-func DisableModuleOffloading(foreignCluster *discoveryv1alpha1.ForeignCluster) {
+func DisableModuleOffloading(foreignCluster *liqov1alpha1.ForeignCluster) {
 	foreignCluster.Status.Modules.Offloading.Enabled = false
 }
 
 // IsNetworkingModuleEnabled checks if the networking module is enabled.
-func IsNetworkingModuleEnabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+func IsNetworkingModuleEnabled(foreignCluster *liqov1alpha1.ForeignCluster) bool {
 	return foreignCluster.Status.Modules.Networking.Enabled
 }
 
 // IsAuthenticationModuleEnabled checks if the authentication module is enabled.
-func IsAuthenticationModuleEnabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+func IsAuthenticationModuleEnabled(foreignCluster *liqov1alpha1.ForeignCluster) bool {
 	return foreignCluster.Status.Modules.Authentication.Enabled
 }
 
 // IsOffloadingModuleEnabled checks if the offloading module is enabled.
-func IsOffloadingModuleEnabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+func IsOffloadingModuleEnabled(foreignCluster *liqov1alpha1.ForeignCluster) bool {
 	return foreignCluster.Status.Modules.Offloading.Enabled
 }

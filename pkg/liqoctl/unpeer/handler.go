@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/network"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -37,8 +37,8 @@ type Options struct {
 	Timeout time.Duration
 	Wait    bool
 
-	consumerClusterID discoveryv1alpha1.ClusterID
-	providerClusterID discoveryv1alpha1.ClusterID
+	consumerClusterID liqov1alpha1.ClusterID
+	providerClusterID liqov1alpha1.ClusterID
 }
 
 // NewOptions returns a new Options struct.
