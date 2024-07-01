@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -162,7 +162,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 }
 
 func (r *Reconciler) mutatePodSpec(ctx context.Context,
-	podSpec *corev1.PodSpec, remoteClusterID discoveryv1alpha1.ClusterID) error {
+	podSpec *corev1.PodSpec, remoteClusterID liqov1alpha1.ClusterID) error {
 	if len(podSpec.HostAliases) == 0 {
 		return nil
 	}

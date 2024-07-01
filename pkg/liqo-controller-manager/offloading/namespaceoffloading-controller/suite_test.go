@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
@@ -58,10 +58,10 @@ var (
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	localCluster   discoveryv1alpha1.ClusterID = "local-cluster-id"
-	remoteCluster1 discoveryv1alpha1.ClusterID = "remote-cluster-1-id"
-	remoteCluster2 discoveryv1alpha1.ClusterID = "remote-cluster-2-id"
-	remoteCluster3 discoveryv1alpha1.ClusterID = "remote-cluster-3-id"
+	localCluster   liqov1alpha1.ClusterID = "local-cluster-id"
+	remoteCluster1 liqov1alpha1.ClusterID = "remote-cluster-1-id"
+	remoteCluster2 liqov1alpha1.ClusterID = "remote-cluster-2-id"
+	remoteCluster3 liqov1alpha1.ClusterID = "remote-cluster-3-id"
 
 	homeCfg        *rest.Config
 	cl             client.Client
@@ -100,7 +100,7 @@ var _ = BeforeSuite(func() {
 	SetDefaultConsistentlyDuration(500 * time.Millisecond)
 	SetDefaultEventuallyPollingInterval(50 * time.Millisecond)
 
-	ForgeNamespaceMap := func(cluster discoveryv1alpha1.ClusterID) *vkv1alpha1.NamespaceMap {
+	ForgeNamespaceMap := func(cluster liqov1alpha1.ClusterID) *vkv1alpha1.NamespaceMap {
 		return &vkv1alpha1.NamespaceMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      string(cluster),

@@ -20,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 )
 
@@ -41,9 +41,9 @@ type PeeringDetails struct {
 
 // PeeringInfo contains information about a peering.
 type PeeringInfo struct {
-	RemoteClusterID discoveryv1alpha1.ClusterID `json:"remoteClusterID"`
-	Role            discoveryv1alpha1.RoleType  `json:"role,omitempty"`
-	Latency         time.Duration               `json:"latency,omitempty"`
+	RemoteClusterID liqov1alpha1.ClusterID `json:"remoteClusterID"`
+	Role            liqov1alpha1.RoleType  `json:"role,omitempty"`
+	Latency         time.Duration          `json:"latency,omitempty"`
 }
 
 // Telemetry contains information about the cluster.

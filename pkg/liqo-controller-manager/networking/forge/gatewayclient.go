@@ -20,7 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
@@ -33,14 +33,14 @@ const (
 )
 
 // DefaultGatewayClientName returns the default name for a GatewayClient.
-func DefaultGatewayClientName(remoteClusterID discoveryv1alpha1.ClusterID) string {
+func DefaultGatewayClientName(remoteClusterID liqov1alpha1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
 // GwClientOptions encapsulate the options to forge a GatewayClient.
 type GwClientOptions struct {
 	KubeClient        kubernetes.Interface
-	RemoteClusterID   discoveryv1alpha1.ClusterID
+	RemoteClusterID   liqov1alpha1.ClusterID
 	GatewayType       string
 	TemplateName      string
 	TemplateNamespace string

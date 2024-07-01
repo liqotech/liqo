@@ -21,8 +21,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
@@ -40,7 +39,7 @@ func DestringifyArgument(arg string) (key, value string) {
 	return split[0], split[1]
 }
 
-func getDefaultStorageClass(storageClasses []authv1alpha1.StorageType) authv1alpha1.StorageType {
+func getDefaultStorageClass(storageClasses []liqov1alpha1.StorageType) liqov1alpha1.StorageType {
 	for _, storageClass := range storageClasses {
 		if storageClass.Default {
 			return storageClass
@@ -49,7 +48,7 @@ func getDefaultStorageClass(storageClasses []authv1alpha1.StorageType) authv1alp
 	return storageClasses[0]
 }
 
-func getDefaultIngressClass(ingressClasses []authv1alpha1.IngressType) authv1alpha1.IngressType {
+func getDefaultIngressClass(ingressClasses []liqov1alpha1.IngressType) liqov1alpha1.IngressType {
 	for _, ingressClass := range ingressClasses {
 		if ingressClass.Default {
 			return ingressClass
@@ -58,7 +57,7 @@ func getDefaultIngressClass(ingressClasses []authv1alpha1.IngressType) authv1alp
 	return ingressClasses[0]
 }
 
-func getDefaultLoadBalancerClass(loadBalancerClasses []authv1alpha1.LoadBalancerType) authv1alpha1.LoadBalancerType {
+func getDefaultLoadBalancerClass(loadBalancerClasses []liqov1alpha1.LoadBalancerType) liqov1alpha1.LoadBalancerType {
 	for _, loadBalancerClass := range loadBalancerClasses {
 		if loadBalancerClass.Default {
 			return loadBalancerClass
@@ -68,9 +67,9 @@ func getDefaultLoadBalancerClass(loadBalancerClasses []authv1alpha1.LoadBalancer
 }
 
 func forgeVKContainers(
-	homeCluster, remoteCluster discoveryv1alpha1.ClusterID,
+	homeCluster, remoteCluster liqov1alpha1.ClusterID,
 	nodeName, vkNamespace, localPodCIDR, liqoNamespace string,
-	storageClasses []authv1alpha1.StorageType, ingressClasses []authv1alpha1.IngressType, loadBalancerClasses []authv1alpha1.LoadBalancerType,
+	storageClasses []liqov1alpha1.StorageType, ingressClasses []liqov1alpha1.IngressType, loadBalancerClasses []liqov1alpha1.LoadBalancerType,
 	opts *vkv1alpha1.VkOptionsTemplate) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -164,7 +163,7 @@ func forgeVKContainers(
 	}
 }
 
-func forgeVKPodSpec(vkNamespace string, homeCluster discoveryv1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
+func forgeVKPodSpec(vkNamespace string, homeCluster liqov1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
 	virtualNode *vkv1alpha1.VirtualNode, opts *vkv1alpha1.VkOptionsTemplate) v1.PodSpec {
 	return v1.PodSpec{
 		Containers: forgeVKContainers(

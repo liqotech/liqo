@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
@@ -42,7 +42,7 @@ import (
 type NamespaceOffloadingReconciler struct {
 	client.Client
 	Recorder     record.EventRecorder
-	LocalCluster discoveryv1alpha1.ClusterID
+	LocalCluster liqov1alpha1.ClusterID
 
 	// namespaces tracks the set of namespaces for which a NamespaceOffloading resource exists.
 	namespaces *syncset.SyncSet

@@ -240,19 +240,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - discovery.k8s.io
-  resources:
-  - endpointslices
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - discovery.liqo.io
+  - core.liqo.io
   resources:
   - foreignclusters
   verbs:
@@ -264,7 +252,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - core.liqo.io
   resources:
   - foreignclusters/finalizers
   verbs:
@@ -276,9 +264,21 @@ rules:
   - update
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - core.liqo.io
   resources:
   - foreignclusters/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
   verbs:
   - create
   - delete

@@ -32,7 +32,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -49,8 +49,8 @@ var _ = Describe("Handler tests", func() {
 		ctx    context.Context
 		cancel context.CancelFunc
 
-		localCluster  discoveryv1alpha1.ClusterID
-		remoteCluster discoveryv1alpha1.ClusterID
+		localCluster  liqov1alpha1.ClusterID
+		remoteCluster liqov1alpha1.ClusterID
 
 		gvr       schema.GroupVersionResource
 		ownership consts.OwnershipType
@@ -85,8 +85,8 @@ var _ = Describe("Handler tests", func() {
 			TypeMeta:   metav1.TypeMeta{APIVersion: vkv1alpha1.SchemeGroupVersion.String(), Kind: "NamespaceMap"},
 			ObjectMeta: metav1.ObjectMeta{Name: "not-existing", Namespace: "not-existing"}}
 
-		localCluster = discoveryv1alpha1.ClusterID("local-cluster-id")
-		remoteCluster = discoveryv1alpha1.ClusterID("remote-cluster-id")
+		localCluster = liqov1alpha1.ClusterID("local-cluster-id")
+		remoteCluster = liqov1alpha1.ClusterID("remote-cluster-id")
 	})
 
 	AfterEach(func() { cancel() })

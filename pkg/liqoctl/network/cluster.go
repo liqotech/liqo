@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	gwforge "github.com/liqotech/liqo/pkg/gateway/forge"
@@ -47,8 +47,8 @@ type Cluster struct {
 	localNamespaceManager  tenantnamespace.Manager
 	remoteNamespaceManager tenantnamespace.Manager
 
-	localClusterID  discoveryv1alpha1.ClusterID
-	remoteClusterID discoveryv1alpha1.ClusterID
+	localClusterID  liqov1alpha1.ClusterID
+	remoteClusterID liqov1alpha1.ClusterID
 
 	networkConfiguration *networkingv1alpha1.Configuration
 }
@@ -171,7 +171,7 @@ func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1alph
 }
 
 // CheckNetworkInitialized checks if the network is initialized correctly.
-func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Checking network is initialized correctly")
 
 	confReady, err := configuration.IsConfigurationStatusSet(ctx, c.local.CRClient,
@@ -302,7 +302,7 @@ func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *fo
 }
 
 // EnsurePublicKey create or updates a PublicKey.
-func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID,
+func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID,
 	key []byte, ownerGateway metav1.Object) error {
 	s := c.local.Printer.StartSpinner("Creating public key")
 	pubKey, err := forge.PublicKey(forge.DefaultPublicKeyName(remoteClusterID), c.local.Namespace,

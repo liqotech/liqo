@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -68,7 +68,7 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 
 // MapAddress maps the address with the network configuration of the cluster.
 func MapAddress(ctx context.Context, cl client.Client,
-	clusterID discoveryv1alpha1.ClusterID, address string) (string, error) {
+	clusterID liqov1alpha1.ClusterID, address string) (string, error) {
 	cfg, err := getters.GetConfigurationByClusterID(ctx, cl, clusterID)
 	if err != nil {
 		return "", err

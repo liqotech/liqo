@@ -25,27 +25,3 @@ type AuthParams struct {
 }
 
 // TODO: move in a common package api
-
-// StorageType defines the type of storage offered by a resource offer.
-type StorageType struct {
-	// StorageClassName indicates the name of the storage class.
-	StorageClassName string `json:"storageClassName"`
-	// Default indicates whether this storage class is the default storage class for Liqo.
-	Default bool `json:"default,omitempty"`
-}
-
-// IngressType defines the type of ingress offered by a resource offer.
-type IngressType struct {
-	// IngressClassName indicates the name of the ingress class.
-	IngressClassName string `json:"ingressClassName"`
-	// Default indicates whether this ingress class is the default ingress class for Liqo.
-	Default bool `json:"default,omitempty"`
-}
-
-// LoadBalancerType defines the type of load balancer offered by a resource offer.
-type LoadBalancerType struct {
-	// LoadBalancerClassName indicates the name of the load balancer class.
-	LoadBalancerClassName string `json:"loadBalancerClassName"`
-	// Default indicates whether this load balancer class is the default load balancer class for Liqo.
-	Default bool `json:"default,omitempty"`
-}

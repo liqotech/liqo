@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -157,7 +157,7 @@ var _ = Describe("DataGetters", func() {
 
 	Describe("retrieval of clusterID from configmap", func() {
 		var (
-			clusterID discoveryv1alpha1.ClusterID
+			clusterID liqov1alpha1.ClusterID
 			err       error
 			cm        *corev1.ConfigMap
 		)

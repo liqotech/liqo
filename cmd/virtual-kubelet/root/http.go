@@ -38,7 +38,7 @@ import (
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
@@ -109,7 +109,7 @@ func setupHTTPServer(ctx context.Context, handler workload.PodHandler, localClie
 	return nil
 }
 
-func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface, localClusterID discoveryv1alpha1.ClusterID) {
+func attachMetricsRoutes(ctx context.Context, mux *http.ServeMux, cl rest.Interface, localClusterID liqov1alpha1.ClusterID) {
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		klog.Infof("Received request for %s", r.RequestURI)
 

@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -29,8 +29,8 @@ import (
 // GenerateIdentityControlPlane generates an Identity resource of type ControlPlane to be
 // applied on the consumer cluster.
 func GenerateIdentityControlPlane(ctx context.Context, cl client.Client,
-	remoteClusterID discoveryv1alpha1.ClusterID, remoteTenantNamespace string,
-	localClusterID discoveryv1alpha1.ClusterID) (*authv1alpha1.Identity, error) {
+	remoteClusterID liqov1alpha1.ClusterID, remoteTenantNamespace string,
+	localClusterID liqov1alpha1.ClusterID) (*authv1alpha1.Identity, error) {
 	// Get tenant with the given remote clusterID.
 	tenant, err := getters.GetTenantByClusterID(ctx, cl, remoteClusterID)
 	if err != nil {
