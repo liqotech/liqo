@@ -19,13 +19,13 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // EnsureGenericCondition ensures the presence of a generic condition in the foreign cluster status.
-func EnsureGenericCondition(foreignCluster *discoveryv1alpha1.ForeignCluster,
-	conditionType discoveryv1alpha1.ConditionType,
-	status discoveryv1alpha1.ConditionStatusType,
+func EnsureGenericCondition(foreignCluster *liqov1alpha1.ForeignCluster,
+	conditionType liqov1alpha1.ConditionType,
+	status liqov1alpha1.ConditionStatusType,
 	reason, message string) {
 	for i := range foreignCluster.Status.Conditions {
 		cond := &foreignCluster.Status.Conditions[i]
@@ -42,7 +42,7 @@ func EnsureGenericCondition(foreignCluster *discoveryv1alpha1.ForeignCluster,
 
 	// if the type has not been found in the list, add it
 	foreignCluster.Status.Conditions = append(foreignCluster.Status.Conditions,
-		discoveryv1alpha1.Condition{
+		liqov1alpha1.Condition{
 			Type:               conditionType,
 			Status:             status,
 			LastTransitionTime: metav1.Now(),
@@ -52,9 +52,9 @@ func EnsureGenericCondition(foreignCluster *discoveryv1alpha1.ForeignCluster,
 }
 
 // EnsureModuleCondition ensures the presence of a condition in the module.
-func EnsureModuleCondition(module *discoveryv1alpha1.Module,
-	conditionType discoveryv1alpha1.ConditionType,
-	status discoveryv1alpha1.ConditionStatusType,
+func EnsureModuleCondition(module *liqov1alpha1.Module,
+	conditionType liqov1alpha1.ConditionType,
+	status liqov1alpha1.ConditionStatusType,
 	reason, message string) {
 	for i := range module.Conditions {
 		cond := &module.Conditions[i]
@@ -71,7 +71,7 @@ func EnsureModuleCondition(module *discoveryv1alpha1.Module,
 
 	// if the type has not been found in the list, add it
 	module.Conditions = append(module.Conditions,
-		discoveryv1alpha1.Condition{
+		liqov1alpha1.Condition{
 			Type:               conditionType,
 			Status:             status,
 			LastTransitionTime: metav1.Now(),
@@ -81,26 +81,26 @@ func EnsureModuleCondition(module *discoveryv1alpha1.Module,
 }
 
 // DeleteGenericCondition ensure the absence of a generic condition in the foreign cluster status.
-func DeleteGenericCondition(foreignCluster *discoveryv1alpha1.ForeignCluster, conditionType discoveryv1alpha1.ConditionType) {
+func DeleteGenericCondition(foreignCluster *liqov1alpha1.ForeignCluster, conditionType liqov1alpha1.ConditionType) {
 	foreignCluster.Status.Conditions = deleteCondition(foreignCluster.Status.Conditions, conditionType)
 }
 
 // DeleteModuleCondition ensure the absence of a condition of the given type in the module.
-func DeleteModuleCondition(module *discoveryv1alpha1.Module, conditionType discoveryv1alpha1.ConditionType) {
+func DeleteModuleCondition(module *liqov1alpha1.Module, conditionType liqov1alpha1.ConditionType) {
 	module.Conditions = deleteCondition(module.Conditions, conditionType)
 }
 
 // GetStatus returns the status for the given condition. If the condition is not set, it returns the None status.
-func GetStatus(conditions []discoveryv1alpha1.Condition, conditionType discoveryv1alpha1.ConditionType) discoveryv1alpha1.ConditionStatusType {
+func GetStatus(conditions []liqov1alpha1.Condition, conditionType liqov1alpha1.ConditionType) liqov1alpha1.ConditionStatusType {
 	cond := findCondition(conditions, conditionType)
 	if cond != nil {
 		return cond.Status
 	}
-	return discoveryv1alpha1.ConditionStatusNone
+	return liqov1alpha1.ConditionStatusNone
 }
 
 // GetReason returns the reason for the given condition. If the condition is not set, it returns an empty string.
-func GetReason(conditions []discoveryv1alpha1.Condition, conditionType discoveryv1alpha1.ConditionType) string {
+func GetReason(conditions []liqov1alpha1.Condition, conditionType liqov1alpha1.ConditionType) string {
 	cond := findCondition(conditions, conditionType)
 	if cond != nil {
 		return cond.Reason
@@ -109,7 +109,7 @@ func GetReason(conditions []discoveryv1alpha1.Condition, conditionType discovery
 }
 
 // GetMessage returns the message for the given condition. If the condition is not set, it returns an empty string.
-func GetMessage(conditions []discoveryv1alpha1.Condition, conditionType discoveryv1alpha1.ConditionType) string {
+func GetMessage(conditions []liqov1alpha1.Condition, conditionType liqov1alpha1.ConditionType) string {
 	cond := findCondition(conditions, conditionType)
 	if cond != nil {
 		return cond.Message
@@ -118,7 +118,7 @@ func GetMessage(conditions []discoveryv1alpha1.Condition, conditionType discover
 }
 
 // findCondition returns a condition given its type.
-func findCondition(conditions []discoveryv1alpha1.Condition, conditionType discoveryv1alpha1.ConditionType) *discoveryv1alpha1.Condition {
+func findCondition(conditions []liqov1alpha1.Condition, conditionType liqov1alpha1.ConditionType) *liqov1alpha1.Condition {
 	for i := range conditions {
 		cond := &conditions[i]
 		if cond.Type == conditionType {
@@ -129,8 +129,8 @@ func findCondition(conditions []discoveryv1alpha1.Condition, conditionType disco
 }
 
 // deleteCondition deletes the condition with the given type from the list of conditions and returns the updated slice.
-func deleteCondition(conditions []discoveryv1alpha1.Condition, conditionType discoveryv1alpha1.ConditionType) []discoveryv1alpha1.Condition {
-	return slices.DeleteFunc(conditions, func(cond discoveryv1alpha1.Condition) bool {
+func deleteCondition(conditions []liqov1alpha1.Condition, conditionType liqov1alpha1.ConditionType) []liqov1alpha1.Condition {
+	return slices.DeleteFunc(conditions, func(cond liqov1alpha1.Condition) bool {
 		return cond.Type == conditionType
 	})
 }

@@ -25,7 +25,7 @@ import (
 	"google.golang.org/api/option"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
@@ -151,7 +151,7 @@ func (o *Options) parseClusterOutput(cluster *container.Cluster) {
 
 	// if the cluster name has not been provided, we default it to the cloud provider resource name.
 	if o.ClusterID == "" {
-		o.ClusterID = discoveryv1alpha1.ClusterID(cluster.Name)
+		o.ClusterID = liqov1alpha1.ClusterID(cluster.Name)
 	}
 
 	o.ClusterLabels[consts.TopologyRegionClusterLabel] = cluster.Location

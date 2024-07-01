@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
@@ -52,7 +52,7 @@ type ClusterContext struct {
 	Config           *rest.Config
 	NativeClient     *kubernetes.Clientset
 	ControllerClient client.Client
-	Cluster          discoveryv1alpha1.ClusterID
+	Cluster          liqov1alpha1.ClusterID
 	KubeconfigPath   string
 	HomeCluster      bool
 }
@@ -157,7 +157,7 @@ func getScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = offv1alpha1.AddToScheme(scheme)
-	_ = discoveryv1alpha1.AddToScheme(scheme)
+	_ = liqov1alpha1.AddToScheme(scheme)
 	_ = ipamv1alpha1.AddToScheme(scheme)
 	_ = virtualKubeletv1alpha1.AddToScheme(scheme)
 	return scheme

@@ -30,7 +30,7 @@ import (
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 	"k8s.io/utils/ptr"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
@@ -54,8 +54,8 @@ func init() {
 type InitConfig struct {
 	LocalConfig   *rest.Config
 	RemoteConfig  *rest.Config
-	LocalCluster  discoveryv1alpha1.ClusterID
-	RemoteCluster discoveryv1alpha1.ClusterID
+	LocalCluster  liqov1alpha1.ClusterID
+	RemoteCluster liqov1alpha1.ClusterID
 	Namespace     string
 	LiqoNamespace string
 

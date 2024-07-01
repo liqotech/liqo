@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
@@ -55,7 +55,7 @@ func (p *LiqoNodeProvider) reconcileNodeFromVirtualNode(event watch.Event) error
 }
 
 func (p *LiqoNodeProvider) reconcileNodeFromForeignCluster(event watch.Event) error {
-	var fc discoveryv1alpha1.ForeignCluster
+	var fc liqov1alpha1.ForeignCluster
 	unstruct, ok := event.Object.(*unstructured.Unstructured)
 	if !ok {
 		return errors.New("error in casting ForeignCluster")
@@ -140,7 +140,7 @@ func (p *LiqoNodeProvider) updateFromVirtualNode(ctx context.Context,
 	return p.updateNode()
 }
 
-func (p *LiqoNodeProvider) updateFromForeignCluster(foreigncluster *discoveryv1alpha1.ForeignCluster) error {
+func (p *LiqoNodeProvider) updateFromForeignCluster(foreigncluster *liqov1alpha1.ForeignCluster) error {
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 

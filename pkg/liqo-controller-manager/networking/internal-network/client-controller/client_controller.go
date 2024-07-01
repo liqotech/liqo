@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
@@ -94,7 +94,7 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 }
 
 func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *networkingv1alpha1.GatewayClient,
-	configuration *networkingv1alpha1.Configuration, remoteClusterID discoveryv1alpha1.ClusterID, ipam *fabricipam.IPAM) error {
+	configuration *networkingv1alpha1.Configuration, remoteClusterID liqov1alpha1.ClusterID, ipam *fabricipam.IPAM) error {
 	if configuration.Status.Remote == nil {
 		return fmt.Errorf("remote configuration not found for the gateway client %q", gwClient.Name)
 	}

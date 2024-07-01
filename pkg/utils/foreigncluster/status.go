@@ -15,27 +15,27 @@
 package foreigncluster
 
 import (
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // IsNetworkingEstablished checks if the networking is established.
-func IsNetworkingEstablished(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
-	curPhase := GetStatus(foreignCluster.Status.Modules.Networking.Conditions, discoveryv1alpha1.NetworkConnectionStatusCondition)
-	return curPhase == discoveryv1alpha1.ConditionStatusEstablished
+func IsNetworkingEstablished(foreignCluster *liqov1alpha1.ForeignCluster) bool {
+	curPhase := GetStatus(foreignCluster.Status.Modules.Networking.Conditions, liqov1alpha1.NetworkConnectionStatusCondition)
+	return curPhase == liqov1alpha1.ConditionStatusEstablished
 }
 
 // IsNetworkingEstablishedOrDisabled checks if the networking is established or if the liqo networking module is disabled.
-func IsNetworkingEstablishedOrDisabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+func IsNetworkingEstablishedOrDisabled(foreignCluster *liqov1alpha1.ForeignCluster) bool {
 	return IsNetworkingEstablished(foreignCluster) || !IsNetworkingModuleEnabled(foreignCluster)
 }
 
 // GetAPIServerStatus returns the status of the api server.
-func GetAPIServerStatus(foreignCluster *discoveryv1alpha1.ForeignCluster) discoveryv1alpha1.ConditionStatusType {
-	return GetStatus(foreignCluster.Status.Conditions, discoveryv1alpha1.APIServerStatusCondition)
+func GetAPIServerStatus(foreignCluster *liqov1alpha1.ForeignCluster) liqov1alpha1.ConditionStatusType {
+	return GetStatus(foreignCluster.Status.Conditions, liqov1alpha1.APIServerStatusCondition)
 }
 
 // IsAPIServerReadyOrDisabled checks if the api server is ready or not applicable.
-func IsAPIServerReadyOrDisabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+func IsAPIServerReadyOrDisabled(foreignCluster *liqov1alpha1.ForeignCluster) bool {
 	curPhase := GetAPIServerStatus(foreignCluster)
-	return curPhase == discoveryv1alpha1.ConditionStatusEstablished || curPhase == discoveryv1alpha1.ConditionStatusNone
+	return curPhase == liqov1alpha1.ConditionStatusEstablished || curPhase == liqov1alpha1.ConditionStatusNone
 }

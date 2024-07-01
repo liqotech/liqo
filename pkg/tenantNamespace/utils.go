@@ -19,23 +19,23 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // GetClusterIDFromTenantNamespace returns the cluster ID of the cluster that owns the given tenant namespace.
-func GetClusterIDFromTenantNamespace(namespace *corev1.Namespace) (discoveryv1alpha1.ClusterID, error) {
+func GetClusterIDFromTenantNamespace(namespace *corev1.Namespace) (liqov1alpha1.ClusterID, error) {
 	if namespace.Labels == nil {
 		return "", fmt.Errorf("namespace %s has no labels", namespace.Name)
 	}
 
-	if _, ok := namespace.Labels[discovery.TenantNamespaceLabel]; !ok {
+	if _, ok := namespace.Labels[consts.TenantNamespaceLabel]; !ok {
 		return "", fmt.Errorf("namespace %s is not a tenant namespace", namespace.Name)
 	}
 
-	if _, ok := namespace.Labels[discovery.ClusterIDLabel]; !ok {
+	if _, ok := namespace.Labels[consts.ClusterIDLabel]; !ok {
 		return "", fmt.Errorf("namespace %s has no cluster ID label", namespace.Name)
 	}
 
-	return discoveryv1alpha1.ClusterID(namespace.Labels[discovery.ClusterIDLabel]), nil
+	return liqov1alpha1.ClusterID(namespace.Labels[consts.ClusterIDLabel]), nil
 }

@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	authutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -38,8 +38,8 @@ type Cluster struct {
 
 	localNamespaceManager tenantnamespace.Manager
 
-	LocalClusterID  discoveryv1alpha1.ClusterID
-	RemoteClusterID discoveryv1alpha1.ClusterID
+	LocalClusterID  liqov1alpha1.ClusterID
+	RemoteClusterID liqov1alpha1.ClusterID
 
 	TenantNamespace string
 }
@@ -68,7 +68,7 @@ func (c *Cluster) SetLocalClusterID(ctx context.Context) error {
 }
 
 // EnsureTenantNamespace ensure the presence of the tenant namespace on the local cluster given a remote cluster id.
-func (c *Cluster) EnsureTenantNamespace(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID) error {
+func (c *Cluster) EnsureTenantNamespace(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Ensuring tenant namespace")
 
 	c.RemoteClusterID = remoteClusterID

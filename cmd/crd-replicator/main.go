@@ -27,7 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
@@ -87,7 +87,7 @@ func main() {
 
 		RegisteredResources: resources.GetResourcesToReplicate(),
 		ReflectionManager:   reflectionManager,
-		Reflectors:          make(map[discoveryv1alpha1.ClusterID]*reflection.Reflector),
+		Reflectors:          make(map[liqov1alpha1.ClusterID]*reflection.Reflector),
 
 		IdentityReader: identitymanager.NewCertificateIdentityReader(ctx,
 			mgr.GetClient(), k8sClient, mgr.GetConfig(),

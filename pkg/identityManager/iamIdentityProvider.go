@@ -38,7 +38,6 @@ import (
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 )
@@ -415,7 +414,7 @@ func (identityProvider *iamIdentityProvider) storeRemoteCertificate(ctx context.
 			secret.Labels = map[string]string{}
 		}
 		// TODO: move it to the other clusterID label?
-		secret.Labels[discovery.ClusterIDLabel] = string(options.Cluster)
+		secret.Labels[consts.ClusterIDLabel] = string(options.Cluster)
 
 		if secret.Data == nil {
 			secret.Data = map[string][]byte{}

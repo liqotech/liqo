@@ -18,7 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -42,7 +42,7 @@ func Nonce(tenantNamespace string) *corev1.Secret {
 }
 
 // MutateNonce sets the nonce labels and data.
-func MutateNonce(nonce *corev1.Secret, remoteClusterID discoveryv1alpha1.ClusterID) error {
+func MutateNonce(nonce *corev1.Secret, remoteClusterID liqov1alpha1.ClusterID) error {
 	if nonce.Labels == nil {
 		nonce.Labels = make(map[string]string)
 	}

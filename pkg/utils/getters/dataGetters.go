@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
@@ -53,14 +53,14 @@ func RetrieveRemoteClusterIDFromNode(node *corev1.Node) (string, error) {
 }
 
 // RetrieveClusterIDFromConfigMap retrieves ClusterID from a given configmap.
-func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (discoveryv1alpha1.ClusterID, error) {
+func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (liqov1alpha1.ClusterID, error) {
 	id, found := cm.Data[liqoconsts.ClusterIDConfigMapKey]
 	if !found {
 		return "", fmt.Errorf("unable to get cluster ID: field {%s} not found in configmap {%s/%s}",
 			liqoconsts.ClusterIDConfigMapKey, cm.Namespace, cm.Name)
 	}
 
-	return discoveryv1alpha1.ClusterID(id), nil
+	return liqov1alpha1.ClusterID(id), nil
 }
 
 // RetrieveEndpointFromService retrieves an ip address and port from a given service object

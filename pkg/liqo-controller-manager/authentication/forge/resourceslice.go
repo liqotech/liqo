@@ -21,7 +21,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -46,7 +46,7 @@ func ResourceSlice(name, namespace string) *authv1alpha1.ResourceSlice {
 }
 
 // MutateResourceSlice mutates a ResourceSlice resource.
-func MutateResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, remoteClusterID discoveryv1alpha1.ClusterID,
+func MutateResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, remoteClusterID liqov1alpha1.ClusterID,
 	opts *ResourceSliceOptions, createVirtualNode bool) error {
 	if resourceSlice.Labels == nil {
 		resourceSlice.Labels = map[string]string{}

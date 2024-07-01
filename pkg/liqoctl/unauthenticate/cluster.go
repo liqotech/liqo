@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -40,7 +40,7 @@ type Cluster struct {
 
 	tenantNamespaceManager tenantnamespace.Manager
 
-	localClusterID discoveryv1alpha1.ClusterID
+	localClusterID liqov1alpha1.ClusterID
 }
 
 // NewCluster returns a new Cluster struct.
@@ -67,7 +67,7 @@ func (c *Cluster) SetLocalClusterID(ctx context.Context) error {
 }
 
 // CheckLeftoverResourceSlices checks if there are any ResourceSlice associated with the provider cluster.
-func (c *Cluster) CheckLeftoverResourceSlices(ctx context.Context, providerClusterID discoveryv1alpha1.ClusterID) error {
+func (c *Cluster) CheckLeftoverResourceSlices(ctx context.Context, providerClusterID liqov1alpha1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Checking for leftover ResourceSlices")
 
 	rsSelector := labels.Set{
@@ -94,7 +94,7 @@ func (c *Cluster) CheckLeftoverResourceSlices(ctx context.Context, providerClust
 }
 
 // DeleteControlPlaneIdentity deletes the control plane Identity on a consumer cluster given the provider cluster id.
-func (c *Cluster) DeleteControlPlaneIdentity(ctx context.Context, providerClusterID discoveryv1alpha1.ClusterID) error {
+func (c *Cluster) DeleteControlPlaneIdentity(ctx context.Context, providerClusterID liqov1alpha1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Deleting identity control plane")
 
 	identity, err := getters.GetControlPlaneIdentityByClusterID(ctx, c.local.CRClient, providerClusterID)
@@ -116,7 +116,7 @@ func (c *Cluster) DeleteControlPlaneIdentity(ctx context.Context, providerCluste
 }
 
 // DeleteTenant deletes a tenant on a provider cluster given the consumer cluster id.
-func (c *Cluster) DeleteTenant(ctx context.Context, consumerClusterID discoveryv1alpha1.ClusterID) error {
+func (c *Cluster) DeleteTenant(ctx context.Context, consumerClusterID liqov1alpha1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Deleting tenant")
 
 	tenant, err := getters.GetTenantByClusterID(ctx, c.local.CRClient, consumerClusterID)
@@ -138,7 +138,7 @@ func (c *Cluster) DeleteTenant(ctx context.Context, consumerClusterID discoveryv
 }
 
 // DeleteTenantNamespace deletes a tenant namespace given the remote cluster id.
-func (c *Cluster) DeleteTenantNamespace(ctx context.Context, remoteClusterID discoveryv1alpha1.ClusterID, waitForActualDeletion bool) error {
+func (c *Cluster) DeleteTenantNamespace(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID, waitForActualDeletion bool) error {
 	s := c.local.Printer.StartSpinner("Deleting tenant namespace")
 
 	tenantNamespace, err := c.tenantNamespaceManager.GetNamespace(ctx, remoteClusterID)
