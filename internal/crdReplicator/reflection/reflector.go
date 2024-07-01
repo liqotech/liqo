@@ -36,7 +36,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -48,11 +48,11 @@ type Reflector struct {
 
 	manager        *Manager
 	localNamespace string
-	localClusterID discoveryv1alpha1.ClusterID
+	localClusterID liqov1alpha1.ClusterID
 
 	remoteClient    dynamic.Interface
 	remoteNamespace string
-	remoteClusterID discoveryv1alpha1.ClusterID
+	remoteClusterID liqov1alpha1.ClusterID
 
 	resources map[schema.GroupVersionResource]*reflectedResource
 

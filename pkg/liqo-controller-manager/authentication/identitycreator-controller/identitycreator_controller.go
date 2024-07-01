@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -40,7 +40,7 @@ import (
 // NewIdentityCreatorReconciler returns a new IdentityCreatorReconciler.
 func NewIdentityCreatorReconciler(cl client.Client, s *runtime.Scheme,
 	recorder record.EventRecorder, liqoNamespace string,
-	localClusterID discoveryv1alpha1.ClusterID) *IdentityCreatorReconciler {
+	localClusterID liqov1alpha1.ClusterID) *IdentityCreatorReconciler {
 	return &IdentityCreatorReconciler{
 		Client: cl,
 		Scheme: s,
@@ -60,7 +60,7 @@ type IdentityCreatorReconciler struct {
 	eventRecorder record.EventRecorder
 
 	liqoNamespace  string
-	localClusterID discoveryv1alpha1.ClusterID
+	localClusterID liqov1alpha1.ClusterID
 }
 
 // cluster-role

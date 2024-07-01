@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -65,7 +65,7 @@ var (
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	localID discoveryv1alpha1.ClusterID = "local-ID"
+	localID liqov1alpha1.ClusterID = "local-ID"
 
 	nms *mapsv1alpha1.NamespaceMapList
 
@@ -104,7 +104,7 @@ var _ = BeforeSuite(func() {
 	err = mapsv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = discoveryv1alpha1.AddToScheme(scheme.Scheme)
+	err = liqov1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	// +kubebuilder:scaffold:scheme
 

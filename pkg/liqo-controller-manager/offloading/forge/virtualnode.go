@@ -20,10 +20,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // VirtualNodeOptions contains the options to forge a VirtualNode resource.
@@ -32,9 +31,9 @@ type VirtualNodeOptions struct {
 	VkOptionsTemplateRef *corev1.ObjectReference     `json:"vkOptionsTemplateRef,omitempty"`
 
 	ResourceList        corev1.ResourceList             `json:"resourceList,omitempty"`
-	StorageClasses      []authv1alpha1.StorageType      `json:"storageClasses,omitempty"`
-	IngressClasses      []authv1alpha1.IngressType      `json:"ingressClasses,omitempty"`
-	LoadBalancerClasses []authv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
+	StorageClasses      []liqov1alpha1.StorageType      `json:"storageClasses,omitempty"`
+	IngressClasses      []liqov1alpha1.IngressType      `json:"ingressClasses,omitempty"`
+	LoadBalancerClasses []liqov1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 	NodeLabels          map[string]string               `json:"nodeLabels,omitempty"`
 	NodeSelector        map[string]string               `json:"nodeSelector,omitempty"`
 }
@@ -55,12 +54,12 @@ func VirtualNode(name, namespace string) *vkv1alpha1.VirtualNode {
 
 // MutateVirtualNode mutates a VirtualNode resource.
 func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
-	remoteClusterID discoveryv1alpha1.ClusterID, opts *VirtualNodeOptions, createNode, disableNetworkCheck *bool) error {
+	remoteClusterID liqov1alpha1.ClusterID, opts *VirtualNodeOptions, createNode, disableNetworkCheck *bool) error {
 	// VirtualNode metadata
 	if virtualNode.ObjectMeta.Labels == nil {
 		virtualNode.ObjectMeta.Labels = make(map[string]string)
 	}
-	virtualNode.ObjectMeta.Labels[discovery.ClusterIDLabel] = string(remoteClusterID)
+	virtualNode.ObjectMeta.Labels[consts.ClusterIDLabel] = string(remoteClusterID)
 	virtualNode.ObjectMeta.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 
 	// VirtualNode spec
@@ -69,7 +68,7 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 	if virtualNode.Spec.Labels == nil {
 		virtualNode.Spec.Labels = make(map[string]string)
 	}
-	virtualNode.Spec.Labels[discovery.ClusterIDLabel] = string(remoteClusterID)
+	virtualNode.Spec.Labels[consts.ClusterIDLabel] = string(remoteClusterID)
 	virtualNode.Spec.Labels = labels.Merge(virtualNode.Spec.Labels, opts.NodeLabels)
 	virtualNode.Spec.ClusterID = remoteClusterID
 	if createNode != nil {

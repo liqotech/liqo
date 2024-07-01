@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/getters"
@@ -30,12 +30,12 @@ import (
 )
 
 // DefaultPublicKeyName returns the default name of a PublicKey.
-func DefaultPublicKeyName(remoteClusterID discoveryv1alpha1.ClusterID) string {
+func DefaultPublicKeyName(remoteClusterID liqov1alpha1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
 // PublicKey forges a PublicKey.
-func PublicKey(name, namespace string, remoteClusterID discoveryv1alpha1.ClusterID, key []byte) (*networkingv1alpha1.PublicKey, error) {
+func PublicKey(name, namespace string, remoteClusterID liqov1alpha1.ClusterID, key []byte) (*networkingv1alpha1.PublicKey, error) {
 	pubKey := &networkingv1alpha1.PublicKey{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1alpha1.PublicKeyKind,
@@ -58,7 +58,7 @@ func PublicKey(name, namespace string, remoteClusterID discoveryv1alpha1.Cluster
 }
 
 // MutatePublicKey mutates a PublicKey.
-func MutatePublicKey(pubKey *networkingv1alpha1.PublicKey, remoteClusterID discoveryv1alpha1.ClusterID, key []byte) error {
+func MutatePublicKey(pubKey *networkingv1alpha1.PublicKey, remoteClusterID liqov1alpha1.ClusterID, key []byte) error {
 	pubKey.Kind = networkingv1alpha1.PublicKeyKind
 	pubKey.APIVersion = networkingv1alpha1.GroupVersion.String()
 

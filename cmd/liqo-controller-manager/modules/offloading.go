@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/sig-storage-lib-external-provisioner/v7/controller"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/namespacemap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/namespaceoffloading-controller"
@@ -45,7 +45,7 @@ import (
 // OffloadingOption defines the options to setup the offloading module.
 type OffloadingOption struct {
 	Clientset                   *kubernetes.Clientset
-	LocalClusterID              discoveryv1alpha1.ClusterID
+	LocalClusterID              liqov1alpha1.ClusterID
 	NamespaceManager            tenantnamespace.Manager
 	EnableStorage               bool
 	VirtualStorageClassName     string

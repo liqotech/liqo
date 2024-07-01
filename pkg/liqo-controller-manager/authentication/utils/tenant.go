@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 )
@@ -32,7 +32,7 @@ import (
 // It needs the local cluster identity to get the authentication keys and the signature
 // of the nonce given by the provider cluster to complete the authentication challenge.
 func GenerateTenant(ctx context.Context, cl client.Client,
-	localClusterID discoveryv1alpha1.ClusterID, liqoNamespace string,
+	localClusterID liqov1alpha1.ClusterID, liqoNamespace string,
 	signature []byte, proxyURL *string) (*authv1alpha1.Tenant, error) {
 	// Get public and private keys of the local cluster.
 	privateKey, publicKey, err := authentication.GetClusterKeys(ctx, cl, liqoNamespace)

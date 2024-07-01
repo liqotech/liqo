@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -55,7 +55,7 @@ var _ = Describe("Validating webhook", func() {
 		fakeClient = fake.NewClientBuilder().WithScheme(scheme).
 			WithObjects(fakeNamespace, foreignCluster, quota, quota2).
 			WithStatusSubresource(
-				&discoveryv1alpha1.ForeignCluster{},
+				&liqov1alpha1.ForeignCluster{},
 				&vkv1alpha1.ShadowPod{}).
 			Build()
 

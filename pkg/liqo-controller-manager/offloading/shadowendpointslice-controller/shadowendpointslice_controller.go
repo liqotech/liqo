@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -55,8 +55,8 @@ type Reconciler struct {
 
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowendpointslices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch
 
 // Reconcile ShadowEndpointSlices objects.
@@ -179,7 +179,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.EventHandler {
 	return &handler.Funcs{
 		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
-			newForeignCluster, ok := ue.ObjectNew.(*discoveryv1alpha1.ForeignCluster)
+			newForeignCluster, ok := ue.ObjectNew.(*liqov1alpha1.ForeignCluster)
 			if !ok {
 				klog.Errorf("object %v is not a ForeignCluster", ue.ObjectNew)
 				return
@@ -212,13 +212,13 @@ func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.
 }
 
 func (r *Reconciler) endpointsShouldBeUpdated(newObj, oldObj client.Object) bool {
-	oldForeignCluster, ok := oldObj.(*discoveryv1alpha1.ForeignCluster)
+	oldForeignCluster, ok := oldObj.(*liqov1alpha1.ForeignCluster)
 	if !ok {
 		klog.Errorf("object %v is not a ForeignCluster", oldObj)
 		return false
 	}
 
-	newForeignCluster, ok := newObj.(*discoveryv1alpha1.ForeignCluster)
+	newForeignCluster, ok := newObj.(*liqov1alpha1.ForeignCluster)
 	if !ok {
 		klog.Errorf("object %v is not a ForeignCluster", newObj)
 		return false
@@ -247,7 +247,7 @@ func (r *Reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, wor
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&vkv1alpha1.ShadowEndpointSlice{}).
 		Owns(&discoveryv1.EndpointSlice{}).
-		Watches(&discoveryv1alpha1.ForeignCluster{},
+		Watches(&liqov1alpha1.ForeignCluster{},
 			r.getForeignClusterEventHandler(ctx), builder.WithPredicates(fcPredicates)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)

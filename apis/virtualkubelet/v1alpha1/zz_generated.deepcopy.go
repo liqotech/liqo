@@ -19,7 +19,7 @@
 package v1alpha1
 
 import (
-	authenticationv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	corev1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/discovery/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -566,17 +566,17 @@ func (in *VirtualNodeSpec) DeepCopyInto(out *VirtualNodeSpec) {
 	}
 	if in.StorageClasses != nil {
 		in, out := &in.StorageClasses, &out.StorageClasses
-		*out = make([]authenticationv1alpha1.StorageType, len(*in))
+		*out = make([]corev1alpha1.StorageType, len(*in))
 		copy(*out, *in)
 	}
 	if in.IngressClasses != nil {
 		in, out := &in.IngressClasses, &out.IngressClasses
-		*out = make([]authenticationv1alpha1.IngressType, len(*in))
+		*out = make([]corev1alpha1.IngressType, len(*in))
 		copy(*out, *in)
 	}
 	if in.LoadBalancerClasses != nil {
 		in, out := &in.LoadBalancerClasses, &out.LoadBalancerClasses
-		*out = make([]authenticationv1alpha1.LoadBalancerType, len(*in))
+		*out = make([]corev1alpha1.LoadBalancerType, len(*in))
 		copy(*out, *in)
 	}
 	if in.VkOptionsTemplateRef != nil {

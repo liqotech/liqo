@@ -26,8 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 var _ = Describe("TenantNamespace", func() {
@@ -40,7 +40,7 @@ var _ = Describe("TenantNamespace", func() {
 		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-")).To(BeTrue())
 		Expect(ns.Labels).NotTo(BeNil())
 
-		_, ok := ns.Labels[discovery.TenantNamespaceLabel]
+		_, ok := ns.Labels[consts.TenantNamespaceLabel]
 		Expect(ok).To(BeTrue())
 
 		By("Checking the namespace can be correctly retrieved")
@@ -59,7 +59,7 @@ var _ = Describe("TenantNamespace", func() {
 		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-")).To(BeTrue())
 		Expect(ns.Labels).NotTo(BeNil())
 
-		_, ok := ns.Labels[discovery.TenantNamespaceLabel]
+		_, ok := ns.Labels[consts.TenantNamespaceLabel]
 		Expect(ok).To(BeTrue())
 
 		ns, err = namespaceManager.GetNamespace(ctx, "unknown-cluster-id")
@@ -77,7 +77,7 @@ var _ = Describe("TenantNamespace", func() {
 		BeforeEach(func() {
 			cnt++
 			clusterPrefix := fmt.Sprintf("test-permission-%v", cnt)
-			homeCluster = discoveryv1alpha1.ClusterID(clusterPrefix + "-id")
+			homeCluster = liqov1alpha1.ClusterID(clusterPrefix + "-id")
 			client = cluster.GetClient()
 
 			cr := &rbacv1.ClusterRole{
@@ -197,7 +197,7 @@ var _ = Describe("TenantNamespace", func() {
 
 })
 
-func checkRoleBinding(rb *rbacv1.RoleBinding, namespace string, homeCluster discoveryv1alpha1.ClusterID,
+func checkRoleBinding(rb *rbacv1.RoleBinding, namespace string, homeCluster liqov1alpha1.ClusterID,
 	clusterRoleName string) {
 	Expect(rb.Namespace).To(Equal(namespace))
 	Expect(len(rb.Subjects)).To(Equal(1))
