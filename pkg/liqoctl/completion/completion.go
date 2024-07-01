@@ -214,13 +214,13 @@ func ClusterIDs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 		var namespaces corev1.NamespaceList
 		if err := f.CRClient.List(ctx, &namespaces,
 			client.MatchingLabels{consts.TenantNamespaceLabel: "true"},
-			client.HasLabels{consts.ClusterIDLabel}); err != nil {
+			client.HasLabels{consts.RemoteClusterID}); err != nil {
 			return nil, err
 		}
 
 		var ids []string
 		for i := range namespaces.Items {
-			ids = append(ids, namespaces.Items[i].Labels[consts.ClusterIDLabel])
+			ids = append(ids, namespaces.Items[i].Labels[consts.RemoteClusterID])
 		}
 		return ids, nil
 	}

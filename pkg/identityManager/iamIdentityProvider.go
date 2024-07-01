@@ -413,8 +413,7 @@ func (identityProvider *iamIdentityProvider) storeRemoteCertificate(ctx context.
 		if secret.Labels == nil {
 			secret.Labels = map[string]string{}
 		}
-		// TODO: move it to the other clusterID label?
-		secret.Labels[consts.ClusterIDLabel] = string(options.Cluster)
+		secret.Labels[consts.RemoteClusterID] = string(options.Cluster)
 
 		if secret.Data == nil {
 			secret.Data = map[string][]byte{}

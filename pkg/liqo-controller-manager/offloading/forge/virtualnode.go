@@ -59,7 +59,6 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 	if virtualNode.ObjectMeta.Labels == nil {
 		virtualNode.ObjectMeta.Labels = make(map[string]string)
 	}
-	virtualNode.ObjectMeta.Labels[consts.ClusterIDLabel] = string(remoteClusterID)
 	virtualNode.ObjectMeta.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 
 	// VirtualNode spec
@@ -68,7 +67,7 @@ func MutateVirtualNode(virtualNode *vkv1alpha1.VirtualNode,
 	if virtualNode.Spec.Labels == nil {
 		virtualNode.Spec.Labels = make(map[string]string)
 	}
-	virtualNode.Spec.Labels[consts.ClusterIDLabel] = string(remoteClusterID)
+	virtualNode.Spec.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 	virtualNode.Spec.Labels = labels.Merge(virtualNode.Spec.Labels, opts.NodeLabels)
 	virtualNode.Spec.ClusterID = remoteClusterID
 	if createNode != nil {

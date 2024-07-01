@@ -23,5 +23,3 @@ type AuthParams struct {
 
 	AwsConfig *AwsConfig `json:"awsConfig,omitempty"`
 }
-
-// TODO: move in a common package api
