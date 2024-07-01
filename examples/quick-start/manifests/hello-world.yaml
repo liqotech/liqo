@@ -7,7 +7,7 @@ metadata:
 spec:
   containers:
     - name: nginx
-      image: nginxdemos/hello
+      image: nginx
       imagePullPolicy: IfNotPresent
       ports:
         - containerPort: 80
@@ -31,7 +31,7 @@ metadata:
 spec:
   containers:
     - name: nginx
-      image: nginxdemos/hello
+      image: nginx
       imagePullPolicy: IfNotPresent
       ports:
         - containerPort: 80
