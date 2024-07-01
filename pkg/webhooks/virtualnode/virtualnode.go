@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -43,14 +43,14 @@ type vnwh struct {
 	client  client.Client
 	decoder *admission.Decoder
 
-	clusterID             discoveryv1alpha1.ClusterID
+	clusterID             liqov1alpha1.ClusterID
 	localPodCIDR          string
 	liqoNamespace         string
 	vkOptsDefaultTemplate *corev1.ObjectReference
 }
 
 // New returns a new VirtualNodeWebhook instance.
-func New(cl client.Client, clusterID discoveryv1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
+func New(cl client.Client, clusterID liqov1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
 	vkOptsDefaultTemplate *corev1.ObjectReference) *admission.Webhook {
 	return &admission.Webhook{Handler: &vnwh{
 		client:  cl,

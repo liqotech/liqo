@@ -44,7 +44,7 @@ type NamespaceMapReconciler struct {
 // cluster-role
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;watch;list;update;patch;create;delete
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps/finalizers,verbs=get;update;patch
 

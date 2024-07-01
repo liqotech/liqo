@@ -32,13 +32,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -46,7 +45,7 @@ import (
 )
 
 var liqoGroupVersions = []schema.GroupVersion{
-	discoveryv1alpha1.GroupVersion,
+	liqov1alpha1.GroupVersion,
 	offv1alpha1.GroupVersion,
 	virtualKubeletv1alpha1.SchemeGroupVersion,
 	networkingv1alpha1.GroupVersion,
@@ -159,7 +158,7 @@ func (o *Options) deleteLiqoNamespaces(ctx context.Context) error {
 	// we list them all and then delete them one by one to avoid the error
 	// "the server does not allow this method on the requested resource"
 	if err := o.CRClient.List(ctx, &nsList, client.MatchingLabels{
-		discovery.TenantNamespaceLabel: "true",
+		consts.TenantNamespaceLabel: "true",
 	}); err != nil {
 		return err
 	}

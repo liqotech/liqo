@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
-	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -57,14 +57,14 @@ func AnnotateControllerManagerDeployment(ctx context.Context, client dynamic.Int
 }
 
 // getForeignList retrieve the list of available ForeignCluster and return it as a ForeignClusterList object.
-func getForeignList(client dynamic.Interface) (*discoveryV1alpha1.ForeignClusterList, error) {
-	r1 := client.Resource(discoveryV1alpha1.ForeignClusterGroupVersionResource)
+func getForeignList(client dynamic.Interface) (*liqov1alpha1.ForeignClusterList, error) {
+	r1 := client.Resource(liqov1alpha1.ForeignClusterGroupVersionResource)
 	t, err := r1.Namespace("").List(context.TODO(), metav1.ListOptions{TypeMeta: metav1.TypeMeta{}})
 	if err != nil {
 		return nil, err
 	}
 	klog.V(5).Info("Getting ForeignClusters list")
-	var foreign *discoveryV1alpha1.ForeignClusterList
+	var foreign *liqov1alpha1.ForeignClusterList
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.UnstructuredContent(), &foreign); err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func getForeignList(client dynamic.Interface) (*discoveryV1alpha1.ForeignCluster
 }
 
 // checkPeeringsStatus verifies if the cluster has any active peerings with foreign clusters.
-func checkPeeringsStatus(foreign *discoveryV1alpha1.ForeignClusterList) bool {
+func checkPeeringsStatus(foreign *liqov1alpha1.ForeignClusterList) bool {
 	var returnValue = true
 	for i := range foreign.Items {
 		item := &foreign.Items[i]

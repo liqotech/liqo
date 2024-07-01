@@ -22,30 +22,30 @@ import (
 	"k8s.io/client-go/rest"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 )
 
 // IdentityReader provides the interface to retrieve the identities for the remote clusters.
 type IdentityReader interface {
-	GetConfig(remoteCluster discoveryv1alpha1.ClusterID, namespace string) (*rest.Config, error)
-	GetConfigFromSecret(remoteCluster discoveryv1alpha1.ClusterID, secret *corev1.Secret) (*rest.Config, error)
-	GetRemoteTenantNamespace(remoteCluster discoveryv1alpha1.ClusterID, namespace string) (string, error)
-	GetSecretNamespacedName(remoteCluster discoveryv1alpha1.ClusterID, namespace string) (types.NamespacedName, error)
+	GetConfig(remoteCluster liqov1alpha1.ClusterID, namespace string) (*rest.Config, error)
+	GetConfigFromSecret(remoteCluster liqov1alpha1.ClusterID, secret *corev1.Secret) (*rest.Config, error)
+	GetRemoteTenantNamespace(remoteCluster liqov1alpha1.ClusterID, namespace string) (string, error)
+	GetSecretNamespacedName(remoteCluster liqov1alpha1.ClusterID, namespace string) (types.NamespacedName, error)
 }
 
 // IdentityManager interface provides the methods to manage identities for the remote clusters.
 type IdentityManager interface {
 	IdentityReader
 
-	StoreIdentity(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterID, namespace string, key []byte,
+	StoreIdentity(ctx context.Context, remoteCluster liqov1alpha1.ClusterID, namespace string, key []byte,
 		remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error
 }
 
 // SigningRequestOptions contains the options to handle a signing request.
 type SigningRequestOptions struct {
-	Cluster         discoveryv1alpha1.ClusterID
+	Cluster         liqov1alpha1.ClusterID
 	TenantNamespace string
 	IdentityType    authv1alpha1.IdentityType
 	Name            string

@@ -34,23 +34,23 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/aws-iam-authenticator/pkg/token"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 type tokenManager interface {
 	start(ctx context.Context)
-	mutateConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterID, cnf *rest.Config) (*rest.Config, error)
+	mutateConfig(secret *v1.Secret, remoteCluster liqov1alpha1.ClusterID, cnf *rest.Config) (*rest.Config, error)
 }
 
 var _ tokenManager = &iamTokenManager{}
 
 type iamTokenManager struct {
 	client                    kubernetes.Interface
-	availableClusterIDSecrets map[discoveryv1alpha1.ClusterID]types.NamespacedName
+	availableClusterIDSecrets map[liqov1alpha1.ClusterID]types.NamespacedName
 	availableTokenMutex       sync.Mutex
 
 	// TODO: the key cannot be the clusterID
-	tokenFiles map[discoveryv1alpha1.ClusterID]string
+	tokenFiles map[liqov1alpha1.ClusterID]string
 }
 
 func (tokMan *iamTokenManager) start(ctx context.Context) {
@@ -73,7 +73,7 @@ func (tokMan *iamTokenManager) start(ctx context.Context) {
 	}()
 }
 
-func (tokMan *iamTokenManager) refreshToken(ctx context.Context, remoteCluster discoveryv1alpha1.ClusterID,
+func (tokMan *iamTokenManager) refreshToken(ctx context.Context, remoteCluster liqov1alpha1.ClusterID,
 	namespacedName types.NamespacedName) error {
 	secret, err := tokMan.client.CoreV1().Secrets(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
 	if err != nil {
@@ -94,7 +94,7 @@ func (tokMan *iamTokenManager) refreshToken(ctx context.Context, remoteCluster d
 	return nil
 }
 
-func (tokMan *iamTokenManager) mutateConfig(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterID,
+func (tokMan *iamTokenManager) mutateConfig(secret *v1.Secret, remoteCluster liqov1alpha1.ClusterID,
 	cnf *rest.Config) (*rest.Config, error) {
 	tok, err := getIAMBearerToken(secret, remoteCluster)
 	if err != nil {
@@ -126,13 +126,13 @@ func (tokMan *iamTokenManager) mutateConfig(secret *v1.Secret, remoteCluster dis
 	return cnf, nil
 }
 
-func (tokMan *iamTokenManager) addClusterID(remoteCluster discoveryv1alpha1.ClusterID, secret types.NamespacedName) {
+func (tokMan *iamTokenManager) addClusterID(remoteCluster liqov1alpha1.ClusterID, secret types.NamespacedName) {
 	tokMan.availableTokenMutex.Lock()
 	defer tokMan.availableTokenMutex.Unlock()
 	tokMan.availableClusterIDSecrets[remoteCluster] = secret
 }
 
-func (tokMan *iamTokenManager) storeToken(remoteCluster discoveryv1alpha1.ClusterID, tok *token.Token) (string, error) {
+func (tokMan *iamTokenManager) storeToken(remoteCluster liqov1alpha1.ClusterID, tok *token.Token) (string, error) {
 	var err error
 	filename, found := tokMan.tokenFiles[remoteCluster]
 	if found {
@@ -164,7 +164,7 @@ func (tokMan *iamTokenManager) storeToken(remoteCluster discoveryv1alpha1.Cluste
 	return filename, nil
 }
 
-func getIAMBearerToken(secret *v1.Secret, remoteCluster discoveryv1alpha1.ClusterID) (*token.Token, error) {
+func getIAMBearerToken(secret *v1.Secret, remoteCluster liqov1alpha1.ClusterID) (*token.Token, error) {
 	region, err := getValue(secret, AwsRegionSecretKey, remoteCluster)
 	if err != nil {
 		klog.Error(err)
@@ -222,7 +222,7 @@ func getIAMBearerToken(secret *v1.Secret, remoteCluster discoveryv1alpha1.Cluste
 	return &tok, nil
 }
 
-func getValue(secret *v1.Secret, key string, remoteCluster discoveryv1alpha1.ClusterID) ([]byte, error) {
+func getValue(secret *v1.Secret, key string, remoteCluster liqov1alpha1.ClusterID) ([]byte, error) {
 	value, ok := secret.Data[key]
 	if !ok {
 		klog.Errorf("key %v not found in secret %v/%v", key, secret.Namespace, secret.Name)

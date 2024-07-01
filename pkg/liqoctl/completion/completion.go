@@ -25,12 +25,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	utilsvirtualnode "github.com/liqotech/liqo/pkg/utils/virtualnode"
 )
@@ -194,7 +193,7 @@ func parseLabelSelectors(labelset map[string]int, max int) []string {
 // ForeignClusters returns a function to autocomplete ForeignCluster names.
 func ForeignClusters(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var foreignClusters discoveryv1alpha1.ForeignClusterList
+		var foreignClusters liqov1alpha1.ForeignClusterList
 		if err := f.CRClient.List(ctx, &foreignClusters); err != nil {
 			return nil, err
 		}
@@ -214,14 +213,14 @@ func ClusterIDs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
 		var namespaces corev1.NamespaceList
 		if err := f.CRClient.List(ctx, &namespaces,
-			client.MatchingLabels{discovery.TenantNamespaceLabel: "true"},
-			client.HasLabels{discovery.ClusterIDLabel}); err != nil {
+			client.MatchingLabels{consts.TenantNamespaceLabel: "true"},
+			client.HasLabels{consts.ClusterIDLabel}); err != nil {
 			return nil, err
 		}
 
 		var ids []string
 		for i := range namespaces.Items {
-			ids = append(ids, namespaces.Items[i].Labels[discovery.ClusterIDLabel])
+			ids = append(ids, namespaces.Items[i].Labels[consts.ClusterIDLabel])
 		}
 		return ids, nil
 	}

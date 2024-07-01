@@ -26,7 +26,7 @@ import (
 	"fmt"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // CSRChecker is a function that checks a CSR.
@@ -64,12 +64,12 @@ func OrganizationResourceSliceCSR(resourceSlice *authv1alpha1.ResourceSlice) str
 }
 
 // GenerateCSRForControlPlane generates a new CSR given a private key and a subject.
-func GenerateCSRForControlPlane(key ed25519.PrivateKey, clusterID discoveryv1alpha1.ClusterID) (csrBytes []byte, err error) {
+func GenerateCSRForControlPlane(key ed25519.PrivateKey, clusterID liqov1alpha1.ClusterID) (csrBytes []byte, err error) {
 	return generateCSR(key, CommonNameControlPlaneCSR(clusterID), OrganizationControlPlaneCSR())
 }
 
 // CommonNameControlPlaneCSR returns the common name for a control plane CSR.
-func CommonNameControlPlaneCSR(clusterID discoveryv1alpha1.ClusterID) string {
+func CommonNameControlPlaneCSR(clusterID liqov1alpha1.ClusterID) string {
 	return string(clusterID)
 }
 
@@ -89,7 +89,7 @@ func IsControlPlaneUser(groups []string) bool {
 }
 
 // CheckCSRForControlPlane checks a CSR for a control plane.
-func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID discoveryv1alpha1.ClusterID) error {
+func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1alpha1.ClusterID) error {
 	return checkCSR(csr, publicKey,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameControlPlaneCSR(remoteClusterID) {

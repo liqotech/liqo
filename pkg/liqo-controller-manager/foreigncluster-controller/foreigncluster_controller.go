@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -59,9 +59,9 @@ type ForeignClusterReconciler struct {
 }
 
 // clusterRole
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters/finalizers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=connections,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayservers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayclients,verbs=get;list;watch
@@ -79,7 +79,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	ctx = trace.ContextWithTrace(ctx, tracer)
 	defer tracer.LogIfLong(traceutils.LongThreshold())
 
-	var foreignCluster discoveryv1alpha1.ForeignCluster
+	var foreignCluster liqov1alpha1.ForeignCluster
 	if err := r.Get(ctx, req.NamespacedName, &foreignCluster); err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("foreignCluster %q not found", req.Name)
@@ -169,7 +169,7 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers in
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&discoveryv1alpha1.ForeignCluster{}, builder.WithPredicates(foreignClusterPredicate)).
+		For(&liqov1alpha1.ForeignCluster{}, builder.WithPredicates(foreignClusterPredicate)).
 		Watches(&networkingv1alpha1.Connection{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		Watches(&networkingv1alpha1.GatewayServer{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		Watches(&networkingv1alpha1.GatewayClient{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
@@ -203,14 +203,14 @@ func (r *ForeignClusterReconciler) foreignclusterEnqueuer(ctx context.Context, o
 	case errors.IsNotFound(err):
 		// Create ForeignCluster
 		klog.V(4).Infof("creating foreigncluster %q", clusterID)
-		fc = &discoveryv1alpha1.ForeignCluster{
+		fc = &liqov1alpha1.ForeignCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: string(clusterID),
 				Labels: map[string]string{
 					consts.RemoteClusterID: string(clusterID),
 				},
 			},
-			Spec: discoveryv1alpha1.ForeignClusterSpec{
+			Spec: liqov1alpha1.ForeignClusterSpec{
 				ClusterID: clusterID,
 			},
 		}

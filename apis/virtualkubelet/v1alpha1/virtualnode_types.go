@@ -19,8 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
 
 // Affinity contains the affinity and anti-affinity rules for the virtual node.
@@ -53,7 +52,7 @@ type DeploymentTemplate struct {
 // VirtualNodeSpec defines the desired state of VirtualNode.
 type VirtualNodeSpec struct {
 	// ClusterID contains the id of the remote cluster targeted by the created virtualKubelet.
-	ClusterID discoveryv1alpha1.ClusterID `json:"clusterID,omitempty"`
+	ClusterID liqov1alpha1.ClusterID `json:"clusterID,omitempty"`
 	// Template contains the deployment of the created virtualKubelet.
 	// +optional
 	Template *DeploymentTemplate `json:"template,omitempty"`
@@ -77,11 +76,11 @@ type VirtualNodeSpec struct {
 	// Taints contains the taints to be added to the virtual node.
 	Taints []corev1.Taint `json:"taints,omitempty"`
 	// StorageClasses contains the list of the storage classes offered by the cluster.
-	StorageClasses []authv1alpha1.StorageType `json:"storageClasses,omitempty"`
+	StorageClasses []liqov1alpha1.StorageType `json:"storageClasses,omitempty"`
 	// IngressClasses contains the list of the ingress classes offered by the cluster.
-	IngressClasses []authv1alpha1.IngressType `json:"ingressClasses,omitempty"`
+	IngressClasses []liqov1alpha1.IngressType `json:"ingressClasses,omitempty"`
 	// LoadBalancerClasses contains the list of the load balancer classes offered by the cluster.
-	LoadBalancerClasses []authv1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
+	LoadBalancerClasses []liqov1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
 	// VkOptionsTemplateRef contains the namespaced reference to the VkOptionsTemplate.
 	// If not set, the default template installed with Liqo will be used.
 	// +optional

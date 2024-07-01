@@ -32,11 +32,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	liqodiscovery "github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -63,45 +62,45 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 
 		testShadowEps *vkv1alpha1.ShadowEndpointSlice
 		testEps       *discoveryv1.EndpointSlice
-		testFc        *discoveryv1alpha1.ForeignCluster
+		testFc        *liqov1alpha1.ForeignCluster
 		testConf      *networkingv1alpha1.Configuration
 
-		newFc = func(networkReady, apiServerReady bool) *discoveryv1alpha1.ForeignCluster {
-			networkStatus := discoveryv1alpha1.ConditionStatusEstablished
+		newFc = func(networkReady, apiServerReady bool) *liqov1alpha1.ForeignCluster {
+			networkStatus := liqov1alpha1.ConditionStatusEstablished
 			if !networkReady {
-				networkStatus = discoveryv1alpha1.ConditionStatusError
+				networkStatus = liqov1alpha1.ConditionStatusError
 			}
 
-			apiServerStatus := discoveryv1alpha1.ConditionStatusEstablished
+			apiServerStatus := liqov1alpha1.ConditionStatusEstablished
 			if !apiServerReady {
-				apiServerStatus = discoveryv1alpha1.ConditionStatusError
+				apiServerStatus = liqov1alpha1.ConditionStatusError
 			}
 
-			return &discoveryv1alpha1.ForeignCluster{
+			return &liqov1alpha1.ForeignCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: testFcID,
 					Labels: map[string]string{
-						liqodiscovery.ClusterIDLabel: testFcID,
+						consts.ClusterIDLabel: testFcID,
 					},
 				},
-				Spec: discoveryv1alpha1.ForeignClusterSpec{
-					ClusterID: discoveryv1alpha1.ClusterID(testFcID),
+				Spec: liqov1alpha1.ForeignClusterSpec{
+					ClusterID: liqov1alpha1.ClusterID(testFcID),
 				},
-				Status: discoveryv1alpha1.ForeignClusterStatus{
-					Modules: discoveryv1alpha1.Modules{
-						Networking: discoveryv1alpha1.Module{
+				Status: liqov1alpha1.ForeignClusterStatus{
+					Modules: liqov1alpha1.Modules{
+						Networking: liqov1alpha1.Module{
 							Enabled: true,
-							Conditions: []discoveryv1alpha1.Condition{
+							Conditions: []liqov1alpha1.Condition{
 								{
-									Type:   discoveryv1alpha1.NetworkConnectionStatusCondition,
+									Type:   liqov1alpha1.NetworkConnectionStatusCondition,
 									Status: networkStatus,
 								},
 							},
 						},
 					},
-					Conditions: []discoveryv1alpha1.Condition{
+					Conditions: []liqov1alpha1.Condition{
 						{
-							Type:   discoveryv1alpha1.APIServerStatusCondition,
+							Type:   liqov1alpha1.APIServerStatusCondition,
 							Status: apiServerStatus,
 						},
 					},

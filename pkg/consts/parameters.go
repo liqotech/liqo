@@ -17,12 +17,6 @@ package consts
 const (
 	// ClusterLabelsParameter is the name of the parameter specifying the cluster labels.
 	ClusterLabelsParameter = "cluster-labels"
-	// ReservedSubnetsParameter is the name of the parameter specifying the cluster's reserved subnets.
-	ReservedSubnetsParameter = "reserved-subnets"
-	// EnableLanDiscoveryParameter is the name of the parameter specifying whether the lan discovery is enabled.
-	EnableLanDiscoveryParameter = "enable-lan-discovery"
-	// GenerateNameParameter is the name of the parameter specifying whether to generate a random name for the cluster.
-	GenerateNameParameter = "generate-name"
 
 	// NotApplicable is a constant used to represent a not applicable value.
 	NotApplicable = "N/A"
