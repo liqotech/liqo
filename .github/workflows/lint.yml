@@ -24,7 +24,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6.0.1
         with:
           only-new-issues: true
-          version: v1.55.1
+          version: v1.59.1
           args: --timeout=900s
 
   gomodtidy:
