@@ -80,7 +80,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: testFcID,
 					Labels: map[string]string{
-						consts.ClusterIDLabel: testFcID,
+						consts.RemoteClusterID: testFcID,
 					},
 				},
 				Spec: liqov1alpha1.ForeignClusterSpec{

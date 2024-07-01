@@ -247,7 +247,7 @@ func forgeQuotaWithLabel(namespace, clusterID, userName string) *offloadingv1alp
 	}
 	if clusterID != "" && userName != "" {
 		q.Labels = map[string]string{
-			consts.ClusterIDLabel:              clusterID,
+			consts.RemoteClusterID:             clusterID,
 			consts.ReplicationDestinationLabel: clusterID,
 			consts.ReplicationRequestedLabel:   "true",
 			consts.CreatorLabelKey:             userName,
@@ -261,7 +261,7 @@ func forgeForeignCluster(clusterID liqov1alpha1.ClusterID) *liqov1alpha1.Foreign
 		ObjectMeta: metav1.ObjectMeta{
 			Name: string(clusterID),
 			Labels: map[string]string{
-				consts.ClusterIDLabel: string(clusterID),
+				consts.RemoteClusterID: string(clusterID),
 			},
 		},
 		Spec: liqov1alpha1.ForeignClusterSpec{
