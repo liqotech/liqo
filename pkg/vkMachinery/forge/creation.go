@@ -66,7 +66,7 @@ func VirtualKubeletDeployment(homeCluster liqov1alpha1.ClusterID, localPodCIDR, 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
 func VirtualKubeletLabels(virtualNode *vkv1alpha1.VirtualNode) map[string]string {
 	return labels.Merge(vkMachinery.KubeletBaseLabels, map[string]string{
-		consts.ClusterIDLabel:   string(virtualNode.Spec.ClusterID),
+		consts.RemoteClusterID:  string(virtualNode.Spec.ClusterID),
 		consts.VirtualNodeLabel: virtualNode.Name,
 	})
 }
@@ -74,7 +74,7 @@ func VirtualKubeletLabels(virtualNode *vkv1alpha1.VirtualNode) map[string]string
 // ClusterRoleLabels returns the labels to be set on a ClusterRoleBinding related to a VirtualKubelet.
 func ClusterRoleLabels(remoteClusterID liqov1alpha1.ClusterID) map[string]string {
 	return labels.Merge(vkMachinery.ClusterRoleBindingLabels, map[string]string{
-		consts.ClusterIDLabel: string(remoteClusterID),
+		consts.RemoteClusterID: string(remoteClusterID),
 	})
 }
 
