@@ -18,8 +18,6 @@ const (
 	// TenantNamespaceLabel used to mark the tenant namespaces.
 	TenantNamespaceLabel = "liqo.io/tenant-namespace"
 
-	// ClusterIDLabel used as key to indicate which cluster a resource is referenced to.
-	ClusterIDLabel = "liqo.io/cluster-id"
 	// VirtualNodeLabel used to mark the virtual nodes.
 	VirtualNodeLabel = "liqo.io/virtual-node"
 )
