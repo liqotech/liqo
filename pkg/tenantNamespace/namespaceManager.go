@@ -103,7 +103,7 @@ func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster l
 		ObjectMeta: metav1.ObjectMeta{
 			Name: GetNameForNamespace(cluster),
 			Labels: map[string]string{
-				consts.ClusterIDLabel:       string(cluster),
+				consts.RemoteClusterID:      string(cluster),
 				consts.TenantNamespaceLabel: "true",
 			},
 		},
@@ -121,7 +121,7 @@ func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster l
 
 // GetNamespace gets a Tenant Namespace given the clusterid.
 func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*v1.Namespace, error) {
-	req, err := labels.NewRequirement(consts.ClusterIDLabel, selection.Equals, []string{string(cluster)})
+	req, err := labels.NewRequirement(consts.RemoteClusterID, selection.Equals, []string{string(cluster)})
 	utilruntime.Must(err)
 
 	namespaces, err := nm.listNamespaces(ctx, labels.NewSelector().Add(*req))

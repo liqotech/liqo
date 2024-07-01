@@ -39,7 +39,7 @@ func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteClu
 			Namespace:    namespace,
 			Labels: map[string]string{
 				localIdentitySecretLabel:  "true",
-				consts.ClusterIDLabel:     string(remoteCluster),
+				consts.RemoteClusterID:    string(remoteCluster),
 				CertificateAvailableLabel: "true",
 			},
 			Annotations: map[string]string{

@@ -33,9 +33,9 @@ func GetClusterIDFromTenantNamespace(namespace *corev1.Namespace) (liqov1alpha1.
 		return "", fmt.Errorf("namespace %s is not a tenant namespace", namespace.Name)
 	}
 
-	if _, ok := namespace.Labels[consts.ClusterIDLabel]; !ok {
+	if _, ok := namespace.Labels[consts.RemoteClusterID]; !ok {
 		return "", fmt.Errorf("namespace %s has no cluster ID label", namespace.Name)
 	}
 
-	return liqov1alpha1.ClusterID(namespace.Labels[consts.ClusterIDLabel]), nil
+	return liqov1alpha1.ClusterID(namespace.Labels[consts.RemoteClusterID]), nil
 }
