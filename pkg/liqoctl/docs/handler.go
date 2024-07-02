@@ -37,7 +37,7 @@ type Options struct {
 }
 
 // Run implements the docs command.
-func (o *Options) Run(ctx context.Context) error {
+func (o *Options) Run(_ context.Context) error {
 	switch o.DocTypeString {
 	case "markdown":
 		if o.GenerateHeaders {

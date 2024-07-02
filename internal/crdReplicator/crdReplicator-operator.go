@@ -156,7 +156,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 // SetupWithManager registers a new controller for identity Secrets.
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 	resourceToBeProccesedPredicate := predicate.Funcs{
-		DeleteFunc: func(e event.DeleteEvent) bool {
+		DeleteFunc: func(_ event.DeleteEvent) bool {
 			return false
 		},
 	}

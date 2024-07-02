@@ -45,11 +45,11 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 		Long:    liqoctlGetNonceLongHelp,
 		Args:    cobra.NoArgs,
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			o.getOptions = options
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(o.handleGet(ctx))
 		},
 	}

@@ -71,7 +71,7 @@ func newUncordonTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Tenants(ctx, f, 1),
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			options.Name = args[0]
 			output.ExitOnErr(options.RunUncordonTenant(ctx))
 		},
@@ -95,11 +95,11 @@ func newUncordonResourceSliceCommand(ctx context.Context, f *factory.Factory) *c
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.ResourceSlices(ctx, f, 1),
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.Printer.AskConfirm("uncordon", options.SkipConfirm))
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			options.Name = args[0]
 			output.ExitOnErr(options.RunUncordonResourceSlice(ctx))
 		},
