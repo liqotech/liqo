@@ -87,6 +87,9 @@ do
   mkdir -p "${TMPDIR}/kubeconfigs"
   clusterctl get kubeconfig -n "$TARGET_NAMESPACE" "${CAPI_CLUSTER_NAME}${i}" > "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
+  CURRENT_CONTEXT=$("${KUBECTL}" config current-context --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}")
+  "${KUBECTL}" config set contexts."${CURRENT_CONTEXT}".namespace default --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+
   echo "Installing ${CNI} for cluster ${CLUSTER_NAME}${i}"
   "install_${CNI}" "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 

@@ -27,12 +27,12 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-for i in $(seq 1 "${CLUSTER_NUMBER}");
-do
-  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+CONSUMER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
 
-  for foreignCluster in $(${KUBECTL} get foreignclusters.discovery.liqo.io --no-headers -o custom-columns=":metadata.name");
-  do
-    "${LIQOCTL}" unpeer out-of-band "${foreignCluster}" --skip-confirm
-  done;
+for i in $(seq 2 "${CLUSTER_NUMBER}");
+do
+  export KUBECONFIG="${CONSUMER_KUBECONFIG}"
+  export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+
+  "${LIQOCTL}" unpeer --kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}" --skip-confirm
 done;
