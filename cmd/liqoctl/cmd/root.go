@@ -154,6 +154,7 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(generate.NewGenerateCommand(ctx, liqoResources, f))
 	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(delete.NewDeleteCommand(ctx, liqoResources, f))
+	cmd.AddCommand(newTestCommand(ctx, f))
 
 	return cmd
 }

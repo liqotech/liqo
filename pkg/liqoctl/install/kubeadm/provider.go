@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
-	"github.com/liqotech/liqo/pkg/liqoctl/util"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 var _ install.Provider = (*Options)(nil)
@@ -80,8 +80,8 @@ func (o *Options) Initialize(ctx context.Context) error {
 	}
 
 	command := cm.Items[0].Spec.Containers[0].Command
-	o.PodCIDR = util.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, command, defaultPodCIDR)
-	o.ServiceCIDR = util.ExtractValuesFromArgumentListOrDefault(serviceCIDRParameterFilter, command, defaultServiceCIDR)
+	o.PodCIDR = utils.ExtractValuesFromArgumentListOrDefault(podCIDRParameterFilter, command, defaultPodCIDR)
+	o.ServiceCIDR = utils.ExtractValuesFromArgumentListOrDefault(serviceCIDRParameterFilter, command, defaultServiceCIDR)
 
 	return nil
 }
