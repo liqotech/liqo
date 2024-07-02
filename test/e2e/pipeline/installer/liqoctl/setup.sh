@@ -95,5 +95,4 @@ for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
   "${KUBECTL}" wait --for=condition=Ready pods --all -n liqo
-  "${LIQOCTL}" status --verbose
 done;
