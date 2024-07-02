@@ -39,7 +39,7 @@ import (
 	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
 	ipamv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
 	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -266,8 +266,9 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPFromIPResource(origina
 	}
 	for i := range ips {
 		if ips[i].Spec.IP.String() == original {
+			remappedIP := ipamutils.GetRemappedIP(ips[i])
 			if len(ips[i].Status.IPMappings) > 0 {
-				return remapping.GetFirstIPFromMapping(ips[i].Status.IPMappings), nil
+				return remappedIP.String(), nil
 			}
 			return "", fmt.Errorf("resource IP %s has not been mapped yet", ips[i].Name)
 		}

@@ -29,6 +29,7 @@ import (
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
 	"github.com/liqotech/liqo/pkg/consts"
+	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
 
 func generateNatMappingIPGwName(ip *ipamv1alpha1.IP) string {
@@ -228,16 +229,9 @@ func containsNATRule(rules []firewall.NatRule, to string, pos firewall.MatchPosi
 	return false
 }
 
-// GetFirstIPFromMapping returns the first IP from the IP mapping.
-func GetFirstIPFromMapping(ipMapping map[string]networkingv1alpha1.IP) string {
-	for _, ip := range ipMapping {
-		return ip.String()
-	}
-	return ""
-}
-
 func ensureFirewallConfigurationDNATRules(rules *firewall.RulesSet, ip *ipamv1alpha1.IP) {
 	if !containsNATRule(rules.NatRules, ip.Spec.IP.String(), firewall.MatchPositionDst) {
+		remappedIP := ipamutils.GetRemappedIP(ip)
 		rules.NatRules = append(rules.NatRules, firewall.NatRule{
 			NatType: firewall.NatTypeDestination,
 			To:      ptr.To(ip.Spec.IP.String()),
@@ -247,7 +241,7 @@ func ensureFirewallConfigurationDNATRules(rules *firewall.RulesSet, ip *ipamv1al
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
 						Position: firewall.MatchPositionDst,
-						Value:    GetFirstIPFromMapping(ip.Status.IPMappings),
+						Value:    remappedIP.String(),
 					},
 				},
 			},
@@ -256,6 +250,7 @@ func ensureFirewallConfigurationDNATRules(rules *firewall.RulesSet, ip *ipamv1al
 }
 
 func ensureFirewallConfigurationSNATRules(rules *firewall.RulesSet, ip *ipamv1alpha1.IP) {
+	remappedIP := ipamutils.GetRemappedIP(ip)
 	if !containsNATRule(rules.NatRules, ip.Spec.IP.String(), firewall.MatchPositionSrc) {
 		rules.NatRules = append(rules.NatRules, firewall.NatRule{
 			NatType: firewall.NatTypeSource,
@@ -266,7 +261,7 @@ func ensureFirewallConfigurationSNATRules(rules *firewall.RulesSet, ip *ipamv1al
 					Op: firewall.MatchOperationEq,
 					IP: &firewall.MatchIP{
 						Position: firewall.MatchPositionSrc,
-						Value:    GetFirstIPFromMapping(ip.Status.IPMappings),
+						Value:    remappedIP.String(),
 					},
 				},
 			},
