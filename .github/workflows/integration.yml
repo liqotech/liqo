@@ -9,7 +9,6 @@ on:
     types:
       - test-command
       - build-command
-
 jobs:
   configure:
     name: Preliminary configuration
@@ -39,9 +38,13 @@ jobs:
           echo "master=false" >> $GITHUB_OUTPUT
           echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
           echo "commit-ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
-        else
+        elif [ "${{ github.ref_name }}" == "master" ]; then
           echo "master=true" >> $GITHUB_OUTPUT
           echo "architectures=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+        else
+          echo "master=false" >> $GITHUB_OUTPUT
+          echo "architectures=linux/amd64" >> $GITHUB_OUTPUT
           echo "commit-ref=${{ github.sha }}" >> $GITHUB_OUTPUT
         fi
 
@@ -76,19 +79,21 @@ jobs:
       fail-fast: false
       matrix:
         component:
-        - auth-service
         - cert-creator
         - crd-replicator
+        - ipam
         - liqo-controller-manager
-        - discovery
-        - liqonet
+        - webhook
         - uninstaller
         - virtual-kubelet
         - metric-agent
         - telemetry
         - proxy
+        - gateway
+        - gateway/wireguard
+        - gateway/geneve
+        - fabric
     steps:
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3.0.0
         with:
