@@ -95,6 +95,8 @@ type Printer struct {
 	BulletList *pterm.BulletListPrinter
 	Section    *pterm.SectionPrinter
 	Paragraph  *pterm.ParagraphPrinter
+	Logger     *pterm.Logger
+	Table      *pterm.TablePrinter
 	verbose    bool
 }
 
@@ -271,22 +273,22 @@ func newPrinter(scope string, color pterm.Color, scoped, verbose bool) *Printer 
 		verbose: verbose,
 		Info: generic.WithPrefix(pterm.Prefix{
 			Text:  "INFO",
-			Style: pterm.NewStyle(pterm.FgDarkGray),
+			Style: pterm.NewStyle(pterm.FgDarkGray, pterm.Bold),
 		}),
 
 		Success: generic.WithPrefix(pterm.Prefix{
 			Text:  "INFO",
-			Style: pterm.NewStyle(pterm.FgGreen),
+			Style: pterm.NewStyle(pterm.FgGreen, pterm.Bold),
 		}),
 
 		Warning: generic.WithPrefix(pterm.Prefix{
 			Text:  "WARN",
-			Style: pterm.NewStyle(pterm.FgYellow),
+			Style: pterm.NewStyle(pterm.FgYellow, pterm.Bold),
 		}),
 
 		Error: generic.WithPrefix(pterm.Prefix{
 			Text:  "ERRO",
-			Style: pterm.NewStyle(pterm.FgRed),
+			Style: pterm.NewStyle(pterm.FgRed, pterm.Bold),
 		}),
 	}
 
@@ -315,6 +317,10 @@ func newPrinter(scope string, color pterm.Color, scoped, verbose bool) *Printer 
 	printer.Paragraph = &pterm.ParagraphPrinter{
 		MaxWidth: boxWidth - len(pterm.RemoveColorFromString(printer.Error.Prefix.Text)) - 3,
 	}
+
+	printer.Logger = pterm.DefaultLogger.WithTime(false)
+
+	printer.Table = pterm.DefaultTable.WithHasHeader().WithBoxed()
 
 	return printer
 }
