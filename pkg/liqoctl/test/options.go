@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipam
+package test
 
 import (
-	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 )
 
-// IsAPIServerIP checks if the resource is an IP of type API server.
-func IsAPIServerIP(ip *ipamv1alpha1.IP) bool {
-	ipType, ok := ip.Labels[consts.IPTypeLabelKey]
-	return ok && ipType == consts.IPTypeAPIServer
+// NewOptions returns a new Options struct.
+func NewOptions(f *factory.Factory) *Options {
+	return &Options{
+		LocalFactory: f,
+	}
 }
 
-// GetRemappedIP returns the remapped IP of the given IP resource.
-func GetRemappedIP(ip *ipamv1alpha1.IP) networkingv1alpha1.IP {
-	for _, ipremapped := range ip.Status.IPMappings {
-		return ipremapped
-	}
-	return ""
+// Options contains the options for the test commands.
+type Options struct {
+	LocalFactory *factory.Factory
+
+	Verbose  bool
+	FailFast bool
 }

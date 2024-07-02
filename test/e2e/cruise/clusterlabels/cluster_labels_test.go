@@ -34,7 +34,7 @@ import (
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/util"
+	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/utils"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/test/e2e/testconsts"

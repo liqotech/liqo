@@ -12,5 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package util contains common definition and utils used across liqoctl
-package util
+package utils
+
+import "fmt"
+
+// ManageResults manages the results of the checks.
+func ManageResults(failfast bool, err error, ok bool,
+	successCount, errorCount int32) (successCountTot, errorCountTot int32, errReturn error) {
+	if err != nil {
+		errorCount++
+		if failfast {
+			return successCount, errorCount, err
+		}
+		return successCount, errorCount, nil
+	}
+
+	if !ok {
+		errorCount++
+		if failfast {
+			return successCount, errorCount, fmt.Errorf("check failed")
+		}
+		return successCount, errorCount, nil
+	}
+
+	successCount++
+	return successCount, errorCount, nil
+}
