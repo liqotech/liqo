@@ -70,7 +70,7 @@ func common(ctx context.Context, f *factory.Factory, argsLimit int, retrieve ret
 
 // Enumeration returns a function to autocomplete enumeration values.
 func Enumeration(values []string) FnType {
-	return func(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 		return values, cobra.ShellCompDirectiveNoFileComp
 	}
 }
