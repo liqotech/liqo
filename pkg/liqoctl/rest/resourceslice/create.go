@@ -59,7 +59,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		Long:    liqoctlCreateResourceSliceLongHelp,
 		Args:    cobra.ExactArgs(1),
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, args []string) {
 			options.OutputFormat = outputFormat.Value
 			options.Name = args[0]
 			o.CreateOptions = options
@@ -67,7 +67,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 			o.NamespaceManager = tenantnamespace.NewManager(options.Factory.KubeClient)
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(o.HandleCreate(ctx))
 		},
 	}

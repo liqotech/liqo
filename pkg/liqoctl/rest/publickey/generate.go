@@ -43,12 +43,12 @@ func (o *Options) Generate(ctx context.Context, options *rest.GenerateOptions) *
 		Long:    liqoctlGeneratePuclicKeyHelp,
 		Args:    cobra.NoArgs,
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			options.OutputFormat = outputFormat.Value
 			o.generateOptions = options
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(o.handleGenerate(ctx))
 		},
 	}

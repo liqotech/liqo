@@ -170,7 +170,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 // SetupWithManager monitors IP resources.
 func (r *IPReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, workers int) error {
 	// List all IP resources and enqueue them.
-	enqueuer := func(_ context.Context, obj client.Object) []reconcile.Request {
+	enqueuer := func(_ context.Context, _ client.Object) []reconcile.Request {
 		var ipList ipamv1alpha1.IPList
 		if err := r.List(ctx, &ipList); err != nil {
 			klog.Errorf("error while listing IPs: %v", err)
