@@ -37,6 +37,7 @@ func NewCreateCommand(ctx context.Context, liqoResources []rest.APIProvider, f *
 	}
 
 	f.AddNamespaceFlag(cmd.PersistentFlags())
+	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
 	for _, r := range liqoResources {
 		api := r()

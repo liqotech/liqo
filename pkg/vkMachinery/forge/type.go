@@ -14,40 +14,12 @@
 
 package forge
 
-import (
-	"k8s.io/apimachinery/pkg/api/resource"
-
-	argsutils "github.com/liqotech/liqo/pkg/utils/args"
-)
-
-// VirtualKubeletOpts defines the custom options associated with the virtual kubelet deployment forging.
-type VirtualKubeletOpts struct {
-	// ContainerImage contains the virtual kubelet image name and tag.
-	ContainerImage       string
-	ExtraAnnotations     map[string]string
-	ExtraLabels          map[string]string
-	ExtraArgs            []string
-	NodeExtraAnnotations argsutils.StringMap
-	NodeExtraLabels      argsutils.StringMap
-	RequestsCPU          resource.Quantity
-	LimitsCPU            resource.Quantity
-	RequestsRAM          resource.Quantity
-	LimitsRAM            resource.Quantity
-	IpamEndpoint         string
-	MetricsEnabled       bool
-	MetricsAddress       string
-	ReflectorsWorkers    map[string]*uint
-	ReflectorsType       map[string]*string
-}
-
 // VirtualKubeletOptsFlag defines the custom options flags associated with the virtual kubelet deployment forging.
 type VirtualKubeletOptsFlag string
 
 const (
 	// ForeignClusterID is the flag used to specify the foreign cluster ID.
 	ForeignClusterID VirtualKubeletOptsFlag = "--foreign-cluster-id"
-	// ForeignClusterName is the flag used to specify the foreign cluster name.
-	ForeignClusterName VirtualKubeletOptsFlag = "--foreign-cluster-name"
 	//nolint:gosec // we are not using this flag to store sensitive data
 	// ForeignClusterKubeconfigSecretName is the flag used to specify the foreign cluster kubeconfig secret name.
 	ForeignClusterKubeconfigSecretName VirtualKubeletOptsFlag = "--foreign-kubeconfig-secret-name"
@@ -57,12 +29,12 @@ const (
 	NodeIP VirtualKubeletOptsFlag = "--node-ip"
 	// TenantNamespace is the flag used to specify the tenant namespace.
 	TenantNamespace VirtualKubeletOptsFlag = "--tenant-namespace"
+	// LiqoNamespace is the flag used to specify the Liqo namespace.
+	LiqoNamespace VirtualKubeletOptsFlag = "--liqo-namespace"
 	// HomeClusterID is the flag used to specify the home cluster ID.
 	HomeClusterID VirtualKubeletOptsFlag = "--home-cluster-id"
-	// HomeClusterName is the flag used to specify the home cluster name.
-	HomeClusterName VirtualKubeletOptsFlag = "--home-cluster-name"
-	// IpamEndpoint is the flag used to specify the IPAM endpoint.
-	IpamEndpoint VirtualKubeletOptsFlag = "--ipam-server"
+	// LocalPodCIDR is the flag used to specify the local pod CIDR.
+	LocalPodCIDR VirtualKubeletOptsFlag = "--local-podcidr"
 	// EnableStorage is the flag used to enable the storage.
 	EnableStorage VirtualKubeletOptsFlag = "--enable-storage"
 	// RemoteRealStorageClassName is the flag used to specify the remote real storage class name.
@@ -85,4 +57,6 @@ const (
 	MetricsAddress VirtualKubeletOptsFlag = "--metrics-address"
 	// CreateNode is the flag used to specify if the node must be created.
 	CreateNode VirtualKubeletOptsFlag = "--create-node"
+	// NodeCheckNetwork is the flag used to specify if the network must be checked.
+	NodeCheckNetwork VirtualKubeletOptsFlag = "--node-check-network"
 )

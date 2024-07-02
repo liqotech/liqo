@@ -20,9 +20,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // NamespaceInfo contains information about an offloaded namespace.
@@ -42,12 +41,9 @@ type PeeringDetails struct {
 
 // PeeringInfo contains information about a peering.
 type PeeringInfo struct {
-	RemoteClusterID string                        `json:"remoteClusterID"`
-	Method          discoveryv1alpha1.PeeringType `json:"method,omitempty"`
-	DiscoveryType   discovery.Type                `json:"discoveryType,omitempty"`
-	Latency         time.Duration                 `json:"latency,omitempty"`
-	Incoming        PeeringDetails                `json:"incoming"`
-	Outgoing        PeeringDetails                `json:"outgoing"`
+	RemoteClusterID liqov1alpha1.ClusterID `json:"remoteClusterID"`
+	Role            liqov1alpha1.RoleType  `json:"role,omitempty"`
+	Latency         time.Duration          `json:"latency,omitempty"`
 }
 
 // Telemetry contains information about the cluster.
@@ -55,7 +51,6 @@ type Telemetry struct {
 	ClusterID         string          `json:"clusterID"`
 	LiqoVersion       string          `json:"liqoVersion,omitempty"`
 	KubernetesVersion string          `json:"kubernetesVersion,omitempty"`
-	SecurityMode      string          `json:"securityMode,omitempty"`
 	Provider          string          `json:"provider,omitempty"`
 	PeeringInfo       []PeeringInfo   `json:"peeringInfo,omitempty"`
 	NamespacesInfo    []NamespaceInfo `json:"namespacesInfo,omitempty"`
@@ -68,5 +63,4 @@ type Builder struct {
 	LiqoVersion       string
 	KubernetesVersion string
 	ClusterLabels     map[string]string
-	SecurityMode      string
 }

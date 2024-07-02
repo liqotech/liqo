@@ -29,22 +29,23 @@ import (
 	"k8s.io/utils/trace"
 	ctrclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 var _ = Describe("Event Reflection Tests", func() {
 	Describe("the NewEventReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
-				Type:       root.DefaultReflectorsTypes[generic.Event],
+				Type:       root.DefaultReflectorsTypes[resources.Event],
 			}
 			Expect(event.NewEventReflector(&reflectorConfig)).ToNot(BeNil())
 		})
@@ -55,7 +56,7 @@ var _ = Describe("Event Reflection Tests", func() {
 
 		var (
 			reflector      manager.NamespacedReflector
-			reflectionType consts.ReflectionType
+			reflectionType vkv1alpha1.ReflectionType
 
 			local, remote                             corev1.Event
 			involvedObjectLocal, involvedObjectRemote ctrclient.Object
@@ -145,7 +146,7 @@ var _ = Describe("Event Reflection Tests", func() {
 		BeforeEach(func() {
 			local = corev1.Event{ObjectMeta: metav1.ObjectMeta{Name: EventName, Namespace: LocalNamespace}}
 			remote = corev1.Event{ObjectMeta: metav1.ObjectMeta{Name: EventName, Namespace: RemoteNamespace}}
-			reflectionType = root.DefaultReflectorsTypes[generic.Event]
+			reflectionType = root.DefaultReflectorsTypes[resources.Event]
 		})
 
 		AfterEach(func() {
@@ -255,7 +256,7 @@ var _ = Describe("Event Reflection Tests", func() {
 
 		When("the reflection type is AllowList", func() {
 			BeforeEach(func() {
-				reflectionType = consts.AllowList
+				reflectionType = vkv1alpha1.AllowList
 			})
 
 			When("the remote object does exist, but does not have the allow annotation", func() {

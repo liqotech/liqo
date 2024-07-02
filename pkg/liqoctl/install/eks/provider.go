@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
 
@@ -85,8 +86,8 @@ func (o *Options) Initialize(ctx context.Context) error {
 	o.Printer.Verbosef("EKS ClusterName: %q", o.eksClusterName)
 
 	// if the cluster name has not been provided, we default it to the cloud provider resource name.
-	if o.ClusterName == "" {
-		o.ClusterName = o.eksClusterName
+	if o.ClusterID == "" {
+		o.ClusterID = liqov1alpha1.ClusterID(o.eksClusterName)
 	}
 
 	o.Printer.Verbosef("Liqo IAM username: %q", o.iamUser.userName)
@@ -123,19 +124,30 @@ func (o *Options) Initialize(ctx context.Context) error {
 // Values returns the customized provider-specifc values file parameters.
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"gateway": map[string]interface{}{
-			"service": map[string]interface{}{
-				"annotations": map[string]interface{}{
-					"service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+		"networking": map[string]interface{}{
+			"gatewayTemplates": map[string]interface{}{
+				"server": map[string]interface{}{
+					"service": map[string]interface{}{
+						"annotations": map[string]interface{}{
+							"service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+						},
+					},
+				},
+			},
+			"fabric": map[string]interface{}{
+				"config": map[string]interface{}{
+					"fullMasquerade": true,
 				},
 			},
 		},
 
-		"awsConfig": map[string]interface{}{
-			"accessKeyId":     o.iamUser.accessKeyID,
-			"secretAccessKey": o.iamUser.secretAccessKey,
-			"region":          o.region,
-			"clusterName":     o.eksClusterName,
+		"authentication": map[string]interface{}{
+			"awsConfig": map[string]interface{}{
+				"accessKeyId":     o.iamUser.accessKeyID,
+				"secretAccessKey": o.iamUser.secretAccessKey,
+				"region":          o.region,
+				"clusterName":     o.eksClusterName,
+			},
 		},
 	}
 }

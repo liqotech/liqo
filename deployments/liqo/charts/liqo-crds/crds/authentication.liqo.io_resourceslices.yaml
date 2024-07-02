@@ -1,0 +1,238 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+  name: resourceslices.authentication.liqo.io
+spec:
+  group: authentication.liqo.io
+  names:
+    categories:
+    - liqo
+    kind: ResourceSlice
+    listKind: ResourceSliceList
+    plural: resourceslices
+    singular: resourceslice
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .status.conditions[?(@.type=="Authentication")].status
+      name: Authentication
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Resources")].status
+      name: Resources
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ResourceSlice represents a slice of resources given by the provider
+          cluster to the consumer cluster.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ResourceSliceSpec defines the desired state of ResourceSlice.
+            properties:
+              class:
+                description: Class contains the class of the ResourceSlice.
+                type: string
+              consumerClusterID:
+                description: ConsumerClusterID is the id of the consumer cluster.
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                type: string
+              csr:
+                description: CSR is the Certificate Signing Request of the consumer
+                  cluster.
+                format: byte
+                type: string
+              providerClusterID:
+                description: ProviderClusterID is the id of the provider cluster.
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                type: string
+              resources:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: Resources contains the slice of resources requested.
+                type: object
+            type: object
+          status:
+            description: ResourceSliceStatus defines the observed state of ResourceSlice.
+            properties:
+              authParams:
+                description: AuthParams contains the authentication parameters for
+                  the resources given by the provider cluster.
+                properties:
+                  apiServer:
+                    type: string
+                  awsConfig:
+                    description: AwsConfig contains the AWS configuration and access
+                      key for the Liqo user and the current EKS cluster.
+                    properties:
+                      awsAccessKeyID:
+                        type: string
+                      awsClusterName:
+                        type: string
+                      awsRegion:
+                        type: string
+                      awsSecretAccessKey:
+                        type: string
+                      awsUserArn:
+                        type: string
+                    required:
+                    - awsAccessKeyID
+                    - awsClusterName
+                    - awsRegion
+                    - awsSecretAccessKey
+                    - awsUserArn
+                    type: object
+                  ca:
+                    format: byte
+                    type: string
+                  proxyURL:
+                    type: string
+                  signedCRT:
+                    format: byte
+                    type: string
+                type: object
+              conditions:
+                description: Conditions contains the conditions of the ResourceSlice.
+                items:
+                  description: ResourceSliceCondition contains details about the status
+                    of the provided ResourceSlice.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime -> timestamp for when the condition
+                        last transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message -> Human-readable message indicating details
+                        about the last status transition.
+                      type: string
+                    reason:
+                      description: Reason -> Machine-readable, UpperCamelCase text
+                        indicating the reason for the condition's last transition.
+                      type: string
+                    status:
+                      description: Status of the condition.
+                      enum:
+                      - Accepted
+                      - Denied
+                      type: string
+                    type:
+                      description: Type of the condition.
+                      enum:
+                      - Authentication
+                      - Resources
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              ingressClasses:
+                description: IngressClasses contains the list of the ingress classes
+                  offered by the cluster.
+                items:
+                  description: IngressType defines the type of ingress offered by
+                    a resource offer.
+                  properties:
+                    default:
+                      description: Default indicates whether this ingress class is
+                        the default ingress class for Liqo.
+                      type: boolean
+                    ingressClassName:
+                      description: IngressClassName indicates the name of the ingress
+                        class.
+                      type: string
+                  required:
+                  - ingressClassName
+                  type: object
+                type: array
+              loadBalancerClasses:
+                description: LoadBalancerClasses contains the list of the load balancer
+                  classes offered by the cluster.
+                items:
+                  description: LoadBalancerType defines the type of load balancer
+                    offered by a resource offer.
+                  properties:
+                    default:
+                      description: Default indicates whether this load balancer class
+                        is the default load balancer class for Liqo.
+                      type: boolean
+                    loadBalancerClassName:
+                      description: LoadBalancerClassName indicates the name of the
+                        load balancer class.
+                      type: string
+                  required:
+                  - loadBalancerClassName
+                  type: object
+                type: array
+              nodeLabels:
+                additionalProperties:
+                  type: string
+                description: NodeLabels contains the provider cluster labels.
+                type: object
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector contains the selector to be applied to offloaded
+                  pods.
+                type: object
+              resources:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: Resources contains the slice of resources accepted.
+                type: object
+              storageClasses:
+                description: StorageClasses contains the list of the storage classes
+                  offered by the cluster.
+                items:
+                  description: StorageType defines the type of storage offered by
+                    a resource offer.
+                  properties:
+                    default:
+                      description: Default indicates whether this storage class is
+                        the default storage class for Liqo.
+                      type: boolean
+                    storageClassName:
+                      description: StorageClassName indicates the name of the storage
+                        class.
+                      type: string
+                  required:
+                  - storageClassName
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

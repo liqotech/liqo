@@ -1,0 +1,9 @@
+{{- $controlPlaneConfig := (merge (dict "name" "remote-controlplane" "module" "authentication") .) -}}
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $controlPlaneConfig }}
+  labels:
+    {{- include "liqo.labels" $controlPlaneConfig | nindent 4 }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $controlPlaneConfig))) }}

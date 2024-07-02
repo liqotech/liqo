@@ -35,15 +35,14 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/strvals"
-	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/util"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils"
-	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Provider defines the interface for an install provider.
@@ -71,10 +70,11 @@ type Options struct {
 	RepoURL   string
 	ChartPath string
 
-	OverrideValues      []string
-	OverrideValuesFiles []string
-	chartValues         map[string]interface{}
-	tmpDir              string
+	OverrideValues       []string
+	OverrideStringValues []string
+	OverrideValuesFiles  []string
+	chartValues          map[string]interface{}
+	tmpDir               string
 
 	DryRun           bool
 	OnlyOutputValues bool
@@ -82,7 +82,7 @@ type Options struct {
 
 	Timeout time.Duration
 
-	ClusterName   string
+	ClusterID     liqov1alpha1.ClusterID
 	ClusterLabels map[string]string
 
 	APIServer         string
@@ -95,8 +95,6 @@ type Options struct {
 	ServiceCIDR     string
 	ReservedSubnets []string
 
-	ExtServiceType *args.StringEnum
-
 	DisableAPIServerSanityChecks bool
 	DisableAPIServerDefaulting   bool
 	SkipValidation               bool
@@ -107,10 +105,6 @@ func NewOptions(f *factory.Factory, commandName string) *Options {
 	return &Options{
 		CommandName: commandName,
 		Factory:     f,
-		ExtServiceType: args.NewEnumWithVoidDefault([]string{
-			string(corev1.ServiceTypeClusterIP),
-			string(corev1.ServiceTypeNodePort),
-			string(corev1.ServiceTypeLoadBalancer)}),
 	}
 }
 
@@ -182,6 +176,14 @@ func (o *Options) Run(ctx context.Context, provider Provider) error {
 	for _, value := range o.OverrideValues {
 		if err := strvals.ParseInto(value, values); err != nil {
 			err := fmt.Errorf("failed parsing --set data: %w", err)
+			s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
+			return err
+		}
+	}
+
+	for _, value := range o.OverrideStringValues {
+		if err := strvals.ParseIntoString(value, values); err != nil {
+			err := fmt.Errorf("failed parsing --set-string data: %w", err)
 			s.Fail("Error generating installation parameters: ", output.PrettyErr(err))
 			return err
 		}
@@ -285,11 +287,12 @@ func (o *Options) initialize(ctx context.Context, provider Provider) error {
 	}
 
 	// Retrieve the cluster name used for previous installations, in case it was not specified.
-	if o.ClusterName == "" {
-		o.ClusterName, err = utils.GetClusterName(ctx, o.KubeClient, o.LiqoNamespace)
+	if o.ClusterID == "" {
+		tmp, err := utils.GetClusterID(ctx, o.KubeClient, o.LiqoNamespace)
 		if client.IgnoreNotFound(err) != nil {
 			return err
 		}
+		o.ClusterID = tmp
 	}
 
 	// Add a label stating the provider name.
@@ -352,34 +355,25 @@ func (o *Options) preProviderValues() map[string]interface{} {
 
 		"discovery": map[string]interface{}{
 			"config": map[string]interface{}{
-				"clusterName":   o.ClusterName,
+				"clusterID":     string(o.ClusterID),
 				"clusterLabels": util.GetInterfaceMap(o.ClusterLabels),
 			},
 		},
 
 		"controllerManager": map[string]interface{}{
 			"replicas": float64(replicas),
-			"config": map[string]interface{}{
-				// The value is converted to float64 to match the type returned by the helm client.
-				"resourceSharingPercentage": float64(o.SharingPercentage),
-			},
 		},
 
-		"networkManager": map[string]interface{}{
-			"config": map[string]interface{}{
-				"podCIDR":         o.PodCIDR,
-				"serviceCIDR":     o.ServiceCIDR,
-				"reservedSubnets": util.GetInterfaceSlice(o.ReservedSubnets),
-			},
+		"ipam": map[string]interface{}{
+			"podCIDR":         o.PodCIDR,
+			"serviceCIDR":     o.ServiceCIDR,
+			"reservedSubnets": util.GetInterfaceSlice(o.ReservedSubnets),
 		},
 
-		"gateway": map[string]interface{}{
-			"replicas": float64(replicas),
-			"metrics": map[string]interface{}{
+		"metrics": map[string]interface{}{
+			"enabled": o.EnableMetrics,
+			"prometheusOperator": map[string]interface{}{
 				"enabled": o.EnableMetrics,
-				"serviceMonitor": map[string]interface{}{
-					"enabled": o.EnableMetrics,
-				},
 			},
 		},
 
@@ -399,20 +393,7 @@ func (o *Options) preProviderValues() map[string]interface{} {
 }
 
 func (o *Options) postProviderValues() map[string]interface{} {
-	values := map[string]interface{}{}
-	if o.ExtServiceType.Value != "" {
-		values["gateway"] = map[string]interface{}{
-			"service": map[string]interface{}{
-				"type": o.ExtServiceType.Value,
-			},
-		}
-		values["auth"] = map[string]interface{}{
-			"service": map[string]interface{}{
-				"type": o.ExtServiceType.Value,
-			},
-		}
-	}
-	return values
+	return map[string]interface{}{}
 }
 
 func (o *Options) valuesFiles() (map[string]interface{}, error) {

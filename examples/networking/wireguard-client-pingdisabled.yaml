@@ -1,0 +1,99 @@
+apiVersion: networking.liqo.io/v1alpha1
+kind: WgGatewayClientTemplate
+metadata:
+  name: wireguard-client-pingdisabled
+  # namespace: liqo # or custom namespace
+spec:
+  objectKind:
+    apiVersion: networking.liqo.io/v1alpha1
+    kind: WgGatewayClient
+  template:
+    metadata:
+      labels:
+        networking.liqo.io/component: gateway
+      name: '{{ .Name }}'
+      namespace: '{{ .Namespace }}'
+    spec:
+      deployment:
+        metadata:
+          labels:
+            networking.liqo.io/component: gateway
+          name: '{{ .Name }}'
+          namespace: '{{ .Namespace }}'
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: '{{ .Name }}'
+              networking.liqo.io/component: gateway
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: '{{ .Name }}'
+                networking.liqo.io/component: gateway
+              name: '{{ .Name }}'
+              namespace: '{{ .Namespace }}'
+            spec:
+              containers:
+              - args:
+                - --name={{ .Name }}
+                - --namespace={{ .Namespace }}
+                - --remote-cluster-id={{ .ClusterID }}
+                - --gateway-uid={{ .GatewayUID }}
+                - --mode=client
+                - --metrics-address=:8080
+                - --health-probe-bind-address=:8081
+                - --ping-enabled=false
+                image: ghcr.io/liqotech/gateway:<VERSION>
+                imagePullPolicy: IfNotPresent
+                name: gateway
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+                  privileged: true
+              - args:
+                - --name={{ .Name }}
+                - --namespace={{ .Namespace }}
+                - --remote-cluster-id={{ .ClusterID }}
+                - --gateway-uid={{ .GatewayUID }}
+                - --mode=client
+                - --mtu={{ .Spec.MTU }}
+                - --endpoint-address={{ index .Spec.Endpoint.Addresses 0 }}
+                - --endpoint-port={{ .Spec.Endpoint.Port }}
+                - --metrics-address=:8082
+                - --health-probe-bind-address=:8083
+                image: ghcr.io/liqotech/gateway/wireguard:<VERSION>
+                imagePullPolicy: IfNotPresent
+                name: wireguard
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+              - args:
+                - --name={{ .Name }}
+                - --namespace={{ .Namespace }}
+                - --remote-cluster-id={{ .ClusterID }}
+                - --node-name=$(NODE_NAME)
+                - --gateway-uid={{ .GatewayUID }}
+                - --mode=server
+                - --metrics-address=:8084
+                - --health-probe-bind-address=:8085
+                - --enable-arp=true
+                env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+                image: ghcr.io/liqotech/gateway/geneve:<VERSION>
+                imagePullPolicy: IfNotPresent
+                name: geneve
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+              serviceAccount: '{{ .Name }}'
+              serviceAccountName: '{{ .Name }}'

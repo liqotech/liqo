@@ -1,0 +1,145 @@
+{{- $templateConfig := (merge (dict "name" "wireguard-server-eks" "module" "networking") .) -}}
+{{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking" "version" .Values.networking.gatewayTemplates.container.gateway.image.version) .) -}}
+{{- $wireguardConfig := (merge (dict "name" "gateway-wireguard" "module" "networking" "version" .Values.networking.gatewayTemplates.container.wireguard.image.version) .) -}}
+{{- $geneveConfig := (merge (dict "name" "gateway-geneve" "module" "networking" "version" .Values.networking.gatewayTemplates.container.geneve.image.version) .) -}}
+
+{{- if .Values.networking.enabled }}
+
+apiVersion: networking.liqo.io/v1alpha1
+kind: WgGatewayServerTemplate
+metadata:
+  name: {{ $templateConfig.name  }}
+  labels:
+    {{- include "liqo.labels" $templateConfig | nindent 4 }}
+spec:
+  objectKind:
+    apiVersion: networking.liqo.io/v1alpha1
+    kind: WgGatewayServer
+  template:
+    metadata:
+      {{- include "liqo.metadataTemplate" $templateConfig | nindent 6 }}
+    spec:
+      service:
+        metadata:
+          {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
+          {{- if .Values.networking.gatewayTemplates.server.service.annotations }}
+          annotations:
+            {{- toYaml .Values.networking.gatewayTemplates.server.service.annotations | nindent 12 }}
+            service.beta.kubernetes.io/aws-load-balancer-type: external
+            service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "80"
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: TCP 
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold: "3"
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: "3"
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "10"
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"   
+            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+          {{- end }}
+        spec:
+          selector:
+            {{- include "liqo.labelsTemplate" $templateConfig | nindent 12 }}
+          type: "{{"{{ .Spec.Endpoint.ServiceType }}"}}"
+          ports:
+          - port: "{{"{{ .Spec.Endpoint.Port }}"}}"
+            protocol: UDP
+            targetPort: "{{"{{ .Spec.Endpoint.Port }}"}}"
+          {{- if .Values.networking.gatewayTemplates.server.service.allocateLoadBalancerNodePorts }}
+          allocateLoadBalancerNodePorts: {{ .Values.networking.gatewayTemplates.server.service.allocateLoadBalancerNodePorts }}
+          {{- end }}
+      deployment:
+        metadata:
+          {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
+        spec:
+          replicas: {{ .Values.networking.gatewayTemplates.replicas }}
+          strategy:
+            type: Recreate
+          selector:
+            matchLabels:
+              {{- include "liqo.labelsTemplate" $templateConfig | nindent 14 }}
+          template:
+            metadata:
+              {{- include "liqo.metadataTemplate" $templateConfig | nindent 14 }}
+            spec:
+              serviceAccount: "{{"{{ .Name }}"}}"
+              serviceAccountName: "{{"{{ .Name }}"}}"
+              containers:
+              - name: gateway
+                image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
+                imagePullPolicy: {{ .Values.pullPolicy }}
+                args:
+                - --name={{"{{ .Name }}"}}
+                - --namespace={{"{{ .Namespace }}"}}
+                - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --node-name={{"$(NODE_NAME)"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
+                - --mode=server
+                - --metrics-address=:8080
+                - --health-probe-bind-address=:8081
+                - --ping-enabled=true
+                - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
+                - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
+                - --ping-update-status-interval={{ .Values.networking.gatewayTemplates.ping.updateStatusInterval }}
+                {{- if gt .Values.networking.gatewayTemplates.replicas 1.0 }}
+                - --leader-election=true
+                {{- end }}
+                env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+                securityContext:
+                  privileged: true
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+              - name: wireguard
+                image: {{ .Values.networking.gatewayTemplates.container.wireguard.image.name }}{{ include "liqo.suffix" $wireguardConfig }}:{{ include "liqo.version" $wireguardConfig }}
+                imagePullPolicy: {{ .Values.pullPolicy }}
+                args:
+                - --name={{"{{ .Name }}"}}
+                - --namespace={{"{{ .Namespace }}"}}
+                - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
+                - --mode=server
+                - --mtu={{"{{ .Spec.MTU }}"}}
+                - --listen-port={{"{{ .Spec.Endpoint.Port }}"}}
+                - --metrics-address=:8082
+                - --health-probe-bind-address=:8083
+                - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+                  {{ if .Values.networking.gatewayTemplates.wireguard.implementation | eq "userspace" }}
+                  privileged: true
+                  {{ end }}
+              - name: geneve
+                image: {{ .Values.networking.gatewayTemplates.container.geneve.image.name }}{{ include "liqo.suffix" $geneveConfig }}:{{ include "liqo.version" $geneveConfig }}
+                imagePullPolicy: {{ .Values.pullPolicy }}
+                args:
+                - --name={{"{{ .Name }}"}}
+                - --namespace={{"{{ .Namespace }}"}}
+                - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --node-name={{"$(NODE_NAME)"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
+                - --mode=server
+                - --metrics-address=:8084
+                - --health-probe-bind-address=:8085
+                - --enable-arp=true
+                env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+              - name: tcp-healthcheck
+                image: nginx
+              # Uncomment to set a priorityClassName
+              # priorityClassName: ""
+{{- end }}

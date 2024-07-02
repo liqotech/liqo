@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package generate contains the logic that handle the generate-add-command command in liqoctl
+// Package generate contains the implementation of the 'generate' command
 package generate

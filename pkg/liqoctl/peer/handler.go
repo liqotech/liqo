@@ -16,97 +16,166 @@ package peer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
+	corev1 "k8s.io/api/core/v1"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	nwforge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
+	"github.com/liqotech/liqo/pkg/liqoctl/authenticate"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
-	"github.com/liqotech/liqo/pkg/liqoctl/wait"
+	"github.com/liqotech/liqo/pkg/liqoctl/network"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/resourceslice"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	liqoutils "github.com/liqotech/liqo/pkg/utils"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the peer command.
 type Options struct {
-	*factory.Factory
+	LocalFactory  *factory.Factory
+	RemoteFactory *factory.Factory
+	Timeout       time.Duration
 
-	ClusterName string
-	Timeout     time.Duration
-	Incoming    bool
+	// Networking options
+	NetworkingDisabled bool
+	ServerServiceType  *argsutils.StringEnum
+	ServerPort         int32
+	MTU                int
+
+	// Authentication options
+	CreateResourceSlice bool
+	ResourceSliceClass  string
+	ProxyURL            string
+
+	// Offloading options
+	CreateVirtualNode bool
+	CPU               string
+	Memory            string
+	Pods              string
 }
 
-// Run implements the peer out-of-band command.
-func (o *Options) Run(ctx context.Context) error {
+// NewOptions returns a new Options struct.
+func NewOptions(localFactory *factory.Factory) *Options {
+	return &Options{
+		LocalFactory: localFactory,
+		ServerServiceType: argsutils.NewEnum(
+			[]string{string(corev1.ServiceTypeLoadBalancer), string(corev1.ServiceTypeNodePort)}, string(nwforge.DefaultGwServerServiceType)),
+	}
+}
+
+// RunPeer implements the peer command.
+func (o *Options) RunPeer(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
-	s := o.Printer.StartSpinner("Processing cluster peering")
-
-	remoteClusterID, err := o.peer(ctx)
-	if err != nil {
-		s.Fail(err.Error())
-		return err
-	}
-
-	if o.Incoming {
-		o.Printer.Success.Println("Incoming peering enabled")
-		if err = o.Wait(ctx, remoteClusterID); err != nil {
+	// Ensure networking
+	if !o.NetworkingDisabled {
+		if err := ensureNetworking(ctx, o); err != nil {
+			o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to ensure networking: %w", err))
 			return err
 		}
-		return nil
 	}
 
-	s.Success("Peering enabled")
-
-	if err = o.Wait(ctx, remoteClusterID); err != nil {
+	// Ensure authentication
+	if err := ensureAuthentication(ctx, o); err != nil {
+		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to ensure authentication: %w", err))
 		return err
 	}
 
-	o.Printer.Success.Println("Peering successfully established")
+	// Ensure offloading
+	if o.CreateResourceSlice {
+		if err := ensureOffloading(ctx, o); err != nil {
+			o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to ensure offloading: %w", err))
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (o *Options) peer(ctx context.Context) (*discoveryv1alpha1.ClusterIdentity, error) {
-	var fc discoveryv1alpha1.ForeignCluster
-	if err := o.CRClient.Get(ctx, types.NamespacedName{
-		Name: o.ClusterName,
-	}, &fc); err != nil {
-		return nil, err
+func ensureNetworking(ctx context.Context, o *Options) error {
+	networkOptions := network.Options{
+		LocalFactory:  o.LocalFactory,
+		RemoteFactory: o.RemoteFactory,
+
+		Timeout: o.Timeout,
+		Wait:    true,
+
+		ServerGatewayType:       nwforge.DefaultGwServerType,
+		ServerTemplateName:      nwforge.DefaultGwServerTemplateName,
+		ServerTemplateNamespace: o.RemoteFactory.LiqoNamespace,
+		ServerServiceType:       o.ServerServiceType,
+		ServerPort:              o.ServerPort,
+		ServerNodePort:          0,
+		ServerLoadBalancerIP:    "",
+
+		ClientGatewayType:       nwforge.DefaultGwClientType,
+		ClientTemplateName:      nwforge.DefaultGwClientTemplateName,
+		ClientTemplateNamespace: o.LocalFactory.LiqoNamespace,
+
+		MTU:                o.MTU,
+		DisableSharingKeys: false,
 	}
 
-	if o.Incoming {
-		fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
-	} else {
-		fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+	if err := networkOptions.RunInit(ctx); err != nil {
+		return err
 	}
 
-	return &fc.Spec.ClusterIdentity, retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		return o.CRClient.Update(ctx, &fc)
-	})
+	if err := networkOptions.RunConnect(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-// Wait waits for the peering to the remote cluster to be fully enabled.
-func (o *Options) Wait(ctx context.Context, remoteClusterID *discoveryv1alpha1.ClusterIdentity) error {
-	waiter := wait.NewWaiterFromFactory(o.Factory)
+func ensureAuthentication(ctx context.Context, o *Options) error {
+	authOptions := authenticate.Options{
+		LocalFactory:  o.LocalFactory,
+		RemoteFactory: o.RemoteFactory,
+		Timeout:       o.Timeout,
 
-	if o.Incoming {
-		if err := waiter.ForIncomingPeering(ctx, remoteClusterID); err != nil {
-			return err
-		}
-		return nil
+		ProxyURL: o.ProxyURL,
 	}
 
-	if err := waiter.ForAuth(ctx, remoteClusterID); err != nil {
+	if err := authOptions.RunAuthenticate(ctx); err != nil {
 		return err
 	}
 
-	if err := waiter.ForOutgoingPeering(ctx, remoteClusterID); err != nil {
+	return nil
+}
+
+func ensureOffloading(ctx context.Context, o *Options) error {
+	providerClusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, o.RemoteFactory.CRClient, o.RemoteFactory.LiqoNamespace)
+	if err != nil {
 		return err
 	}
 
-	if err := waiter.ForNetwork(ctx, remoteClusterID); err != nil {
+	providerClusterIDFlag := argsutils.ClusterIDFlags{}
+	if err := providerClusterIDFlag.Set(string(providerClusterID)); err != nil {
 		return err
 	}
 
-	return waiter.ForNode(ctx, remoteClusterID)
+	rsOptions := resourceslice.Options{
+		CreateOptions: &rest.CreateOptions{
+			Factory: o.LocalFactory,
+			Name:    string(providerClusterID),
+		},
+
+		NamespaceManager:           tenantnamespace.NewManager(o.LocalFactory.KubeClient),
+		RemoteClusterID:            providerClusterIDFlag,
+		Class:                      o.ResourceSliceClass,
+		DisableVirtualNodeCreation: !o.CreateVirtualNode,
+
+		CPU:    o.CPU,
+		Memory: o.Memory,
+		Pods:   o.Pods,
+	}
+
+	if err := rsOptions.HandleCreate(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -10,6 +10,17 @@ rules:
   - update
   - watch
 - apiGroups:
+  - authentication.liqo.io
+  resources:
+  - resourceslices
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - ""
   resources:
   - events
@@ -25,7 +36,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - core.liqo.io
   resources:
   - foreignclusters
   verbs:
@@ -37,20 +48,59 @@ rules:
   - update
   - watch
 - apiGroups:
-  - net.liqo.io
+  - ipam.liqo.io
   resources:
-  - networkconfigs
+  - ipamstorages
   verbs:
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
-  - net.liqo.io
+  - ipam.liqo.io
   resources:
-  - tunnelendpoints
+  - ips
   verbs:
+  - delete
   - get
   - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.liqo.io
+  resources:
+  - networks
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - configurations
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalnodes
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - offloading.liqo.io
@@ -59,4 +109,15 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - virtualnodes
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch

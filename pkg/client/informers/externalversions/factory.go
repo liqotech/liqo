@@ -28,6 +28,7 @@ import (
 
 	versioned "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/liqotech/liqo/pkg/client/informers/externalversions/internalinterfaces"
+	ipam "github.com/liqotech/liqo/pkg/client/informers/externalversions/ipam"
 	virtualkubelet "github.com/liqotech/liqo/pkg/client/informers/externalversions/virtualkubelet"
 )
 
@@ -252,7 +253,12 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
+	Ipam() ipam.Interface
 	Virtualkubelet() virtualkubelet.Interface
+}
+
+func (f *sharedInformerFactory) Ipam() ipam.Interface {
+	return ipam.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Virtualkubelet() virtualkubelet.Interface {

@@ -17,9 +17,6 @@ package consts
 // OwnershipType indicates the type of ownership over a resource.
 type OwnershipType string
 
-// ReflectionType is the type of reflection.
-type ReflectionType string
-
 const (
 	// OwnershipLocal indicates that the resource is owned by the local cluster.
 	OwnershipLocal OwnershipType = "Local"
@@ -28,13 +25,6 @@ const (
 	// - the spec of the resource is owned by the local cluster.
 	// - the status by the remote cluster.
 	OwnershipShared OwnershipType = "Shared"
-
-	// AllowList reflects only the resources with a specific annotation.
-	AllowList ReflectionType = "AllowList"
-	// DenyList reflects all the resources excluding the ones with a specific annotation.
-	DenyList ReflectionType = "DenyList"
-	// CustomLiqo reflects the resources following the custom Liqo logic.
-	CustomLiqo ReflectionType = "CustomLiqo"
 
 	// ReplicationRequestedLabel is the key of a label indicating whether the given resource should be replicated remotely.
 	ReplicationRequestedLabel = "liqo.io/replication"

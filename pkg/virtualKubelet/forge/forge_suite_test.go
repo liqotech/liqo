@@ -21,17 +21,15 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 const (
-	LocalClusterID    = "local-cluster-id"
-	LocalClusterName  = "local-cluster-name"
-	RemoteClusterID   = "remote-cluster-id"
-	RemoteClusterName = "remote-cluster-name"
-	LiqoNodeName      = "local-node"
-	LiqoNodeIP        = "1.1.1.1"
+	LocalClusterID  liqov1alpha1.ClusterID = "local-cluster-id"
+	RemoteClusterID liqov1alpha1.ClusterID = "remote-cluster-id"
+	LiqoNodeName                           = "local-node"
+	LiqoNodeIP                             = "1.1.1.1"
 )
 
 func TestForge(t *testing.T) {
@@ -42,7 +40,5 @@ func TestForge(t *testing.T) {
 var _ = BeforeEach(func() {
 	Expect(os.Setenv("KUBERNETES_SERVICE_PORT", "8443")).To(Succeed())
 
-	local := discoveryv1alpha1.ClusterIdentity{ClusterID: LocalClusterID, ClusterName: LocalClusterName}
-	remote := discoveryv1alpha1.ClusterIdentity{ClusterID: RemoteClusterID, ClusterName: RemoteClusterName}
-	forge.Init(local, remote, LiqoNodeName, LiqoNodeIP)
+	forge.Init(LocalClusterID, RemoteClusterID, LiqoNodeName, LiqoNodeIP)
 })

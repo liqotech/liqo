@@ -33,7 +33,7 @@ import (
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -69,7 +69,7 @@ var _ = Describe("Liqo E2E", func() {
 
 	BeforeEach(func() {
 		remoteTestNamespaceName = fmt.Sprintf("%s-%s", testNamespaceName,
-			foreignclusterutils.UniqueName(&testContext.Clusters[localIndex].Cluster))
+			foreignclusterutils.UniqueName(testContext.Clusters[localIndex].Cluster))
 
 		// Build the selector to consider only local NamespaceMaps.
 		metals := reflection.LocalResourcesLabelSelector()
@@ -148,7 +148,7 @@ var _ = Describe("Liqo E2E", func() {
 				}, timeout, interval).Should(BeNil())
 				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
 				Expect(ok).To(BeTrue())
-				Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(&testContext.Clusters[i].Cluster)))
+				Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(testContext.Clusters[i].Cluster)))
 			}
 
 			var oldUIDRemoteNamespace types.UID

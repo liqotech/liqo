@@ -31,11 +31,16 @@ updates:
       interval: "daily"
 
   - package-ecosystem: "docker"
-    directory: "/build/liqonet"
+    directory: "/build/proxy"
     schedule:
       interval: "daily"
 
   - package-ecosystem: "docker"
-    directory: "/build/proxy"
+    directory: "/build/gateway"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "docker"
+    directory: "/build/gateway/wireguard"
     schedule:
       interval: "daily"

@@ -14,13 +14,13 @@
 
 package identitymanager
 
-const defaultOrganization = "liqo.io"
+import "github.com/liqotech/liqo/pkg/consts"
 
 const (
-	localIdentitySecretLabel = "discovery.liqo.io/local-identity"
-	remoteTenantCSRLabel     = "discovery.liqo.io/remote-tenant-csr"
+	localIdentitySecretLabel = "liqo.io/local-identity" //nolint:gosec // not a credential
+	remoteTenantCSRLabel     = "liqo.io/remote-tenant-csr"
 	// CertificateAvailableLabel is the label used to identify the secrets containing a certificate.
-	CertificateAvailableLabel = "discovery.liqo.io/certificate-available"
+	CertificateAvailableLabel = "liqo.io/certificate-available"
 )
 
 const (
@@ -28,10 +28,11 @@ const (
 	remoteClusterIDTagKey = "liqo.io/remote-cluster-id"
 	managedByTagKey       = "liqo.io/managed-by"
 	managedByTagValue     = "liqo"
+	identityTypeTagKey    = consts.IdentityTypeLabelKey
 )
 
 const (
-	certificateExpireTimeAnnotation = "discovery.liqo.io/certificate-expire-time"
+	certificateExpireTimeAnnotation = "liqo.io/certificate-expire-time"
 )
 
 const (
@@ -47,9 +48,14 @@ const (
 	apiServerCaSecretKey  = "apiServerCa"
 	namespaceSecretKey    = "namespace"
 
-	awsAccessKeyIDSecretKey     = "awsAccessKeyID"
-	awsSecretAccessKeySecretKey = "awsSecretAccessKey"
-	awsRegionSecretKey          = "awsRegion"
-	awsEKSClusterIDSecretKey    = "awsEksClusterID" //nolint:gosec // not a credential
-	awsIAMUserArnSecretKey      = "awsIamUserArn"   //nolint:gosec // not a credential
+	// AwsAccessKeyIDSecretKey is the key used for the AWS access key ID inside the secret.
+	AwsAccessKeyIDSecretKey = "awsAccessKeyID"
+	// AwsSecretAccessKeySecretKey is the key used for the AWS secret access key inside the secret.
+	AwsSecretAccessKeySecretKey = "awsSecretAccessKey"
+	// AwsRegionSecretKey is the key used for the AWS region inside the secret.
+	AwsRegionSecretKey = "awsRegion"
+	// AwsEKSClusterIDSecretKey is the key used for the AWS EKS cluster ID inside the secret.
+	AwsEKSClusterIDSecretKey = "awsEksClusterID" //nolint:gosec // not a credential
+	// AwsIAMUserArnSecretKey is the key used for the AWS IAM user ARN inside the secret.
+	AwsIAMUserArnSecretKey = "awsIamUserArn" //nolint:gosec // not a credential
 )

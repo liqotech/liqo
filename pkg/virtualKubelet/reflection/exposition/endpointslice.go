@@ -17,6 +17,7 @@ package exposition
 import (
 	"context"
 	"fmt"
+	"net"
 	"reflect"
 	"sync"
 
@@ -36,9 +37,9 @@ import (
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
+	ipamv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
 	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/ipam"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -62,28 +63,34 @@ type NamespacedEndpointSliceReflector struct {
 	localEndpointSlices              discoveryv1listers.EndpointSliceNamespaceLister
 	remoteShadowEndpointSlices       vkv1alpha1listers.ShadowEndpointSliceNamespaceLister
 	remoteShadowEndpointSlicesClient vkv1alpha1clients.ShadowEndpointSliceInterface
+	localIPs                         ipamv1alpha1listers.IPNamespaceLister
 
-	ipamclient   ipam.IpamClient
+	localPodCIDR *net.IPNet
+
 	translations sync.Map
 }
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
-func NewEndpointSliceReflector(ipamclient ipam.IpamClient, reflectorConfig *generic.ReflectorConfig) manager.Reflector {
-	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(ipamclient),
+func NewEndpointSliceReflector(localPodCIDR string, reflectorConfig *vkv1alpha1.ReflectorConfig) manager.Reflector {
+	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(localPodCIDR),
 		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
 
 // NewNamespacedEndpointSliceReflector returns a function generating NamespacedEndpointSliceReflector instances.
-func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*options.NamespacedOpts) manager.NamespacedReflector {
+func NewNamespacedEndpointSliceReflector(localPodCIDR string) func(*options.NamespacedOpts) manager.NamespacedReflector {
 	return func(opts *options.NamespacedOpts) manager.NamespacedReflector {
 		localNode := opts.LocalFactory.Core().V1().Nodes()
 		localServices := opts.LocalFactory.Core().V1().Services()
 		localEndpointSlices := opts.LocalFactory.Discovery().V1().EndpointSlices()
+		localIPs := opts.LocalLiqoFactory.Ipam().V1alpha1().IPs()
 		remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowEndpointSlices()
 
 		_, err := localEndpointSlices.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		utilruntime.Must(err)
 		_, err = remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
+		utilruntime.Must(err)
+
+		_, podCIDR, err := net.ParseCIDR(localPodCIDR)
 		utilruntime.Must(err)
 
 		ner := &NamespacedEndpointSliceReflector{
@@ -93,7 +100,8 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 			localEndpointSlices:              localEndpointSlices.Lister().EndpointSlices(opts.LocalNamespace),
 			remoteShadowEndpointSlices:       remoteShadow.Lister().ShadowEndpointSlices(opts.RemoteNamespace),
 			remoteShadowEndpointSlicesClient: opts.RemoteLiqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(opts.RemoteNamespace),
-			ipamclient:                       ipamclient,
+			localIPs:                         localIPs.Lister().IPs(opts.LocalNamespace),
+			localPodCIDR:                     podCIDR,
 		}
 
 		// Enqueue all existing remote EndpointSlices in case the local Service has the "skip-reflection" annotation, to ensure they are also deleted.
@@ -146,7 +154,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 			return err
 		}
 		if skipReflection {
-			if ner.GetReflectionType() == consts.DenyList {
+			if ner.GetReflectionType() == vkv1alpha1.DenyList {
 				klog.Infof("Skipping reflection of local EndpointSlice %q as marked with the skip annotation", ner.LocalRef(name))
 			} else { // AllowList
 				klog.Infof("Skipping reflection of local EndpointSlice %q as not marked with the allow annotation", ner.LocalRef(name))
@@ -165,11 +173,6 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 
 	// The local endpointslice does no longer exist. Ensure it is also absent from the remote cluster.
 	if !localExists {
-		// Release the address translations
-		if err := ner.UnmapEndpointIPs(ctx, name); err != nil {
-			return err
-		}
-
 		defer tracer.Step("Ensured the absence of the remote object")
 		if remoteExists {
 			klog.V(4).Infof("Deleting remote shadowendpointslice %q, since local %q does no longer exist", ner.RemoteRef(name), ner.LocalRef(name))
@@ -189,7 +192,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 		}
 
 		var translations []string
-		translations, terr = ner.MapEndpointIPs(ctx, name, originals)
+		translations, terr = ner.MapEndpointIPs(name, originals)
 		return translations
 	}
 
@@ -255,9 +258,27 @@ func (ner *NamespacedEndpointSliceReflector) ShouldUpdateShadowEndpointSlice(ctx
 		!reflect.DeepEqual(remote.Spec.Template.Ports, target.Spec.Template.Ports)
 }
 
+// MapEndpointIPFromIPResource maps an IP string using an IP resource.
+func (ner *NamespacedEndpointSliceReflector) MapEndpointIPFromIPResource(original string) (string, error) {
+	ips, err := ner.localIPs.List(labels.Everything())
+	if err != nil {
+		return "", fmt.Errorf("failed to list IPs: %w", err)
+	}
+	for i := range ips {
+		if ips[i].Spec.IP.String() == original {
+			if len(ips[i].Status.IPMappings) > 0 {
+				return remapping.GetFirstIPFromMapping(ips[i].Status.IPMappings), nil
+			}
+			return "", fmt.Errorf("resource IP %s has not been mapped yet", ips[i].Name)
+		}
+	}
+	return original, fmt.Errorf("resource IP %s not found", original)
+}
+
 // MapEndpointIPs maps the local set of addresses to the corresponding remote ones.
-func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context, endpointslice string, originals []string) ([]string, error) {
+func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(endpointslice string, originals []string) ([]string, error) {
 	var translations []string
+	var err error
 
 	// Retrieve the cache for the given endpointslice. The cache is not synchronized,
 	// since we are guaranteed to be the only ones operating on this object.
@@ -269,19 +290,17 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context,
 		translation, found := cache[original]
 
 		if !found {
-			switch ner.ipamclient.(type) {
-			case nil:
-				// If the IPAM is not enabled we just use the original IP.
-				translation = original
-			default:
+			if !ner.localPodCIDR.Contains(net.ParseIP(original)) {
 				// Cache miss -> we need to interact with the IPAM to request the translation.
-				response, err := ner.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{ClusterID: forge.RemoteCluster.ClusterID, Ip: original})
+				translation, err = ner.MapEndpointIPFromIPResource(original)
 				if err != nil {
 					return nil, fmt.Errorf("failed to translate endpoint IP %v: %w", original, err)
 				}
-				translation = response.GetIp()
-				cache[original] = translation
+			} else {
+				// If the IP is in the local podCIDR we don't need to ask  for a translation.
+				translation = original
 			}
+			cache[original] = translation
 		}
 
 		translations = append(translations, translation)
@@ -289,42 +308,6 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context,
 	}
 
 	return translations, nil
-}
-
-// UnmapEndpointIPs unmaps the local set of addresses for the given endpointslice and releases the corresponding remote ones.
-func (ner *NamespacedEndpointSliceReflector) UnmapEndpointIPs(ctx context.Context, endpointslice string) error {
-	// Retrieve the cache for the given endpointslice. The cache is not synchronized,
-	// since we are guaranteed to be the only ones operating on this object.
-	ucache, found := ner.translations.Load(endpointslice)
-	if !found {
-		klog.V(4).Infof("Mappings from local EndpointSlice %q to remote %q already released",
-			ner.LocalRef(endpointslice), ner.RemoteRef(endpointslice))
-		return nil
-	}
-
-	cache := ucache.(map[string]string)
-	for original, translation := range cache {
-		switch ner.ipamclient.(type) {
-		case nil:
-			// If the IPAM is not enabled we do not need to release the translation.
-		default:
-			// Interact with the IPAM to release the translation.
-			_, err := ner.ipamclient.UnmapEndpointIP(ctx, &ipam.UnmapRequest{ClusterID: forge.RemoteCluster.ClusterID, Ip: original})
-			if err != nil {
-				klog.Errorf("Failed to release endpoint IP %v of EndpointSlice %q: %v", original, ner.LocalRef(endpointslice), err)
-				return fmt.Errorf("failed to release endpoint IP %v of EndpointSlice %q: %w", original, ner.LocalRef(endpointslice), err)
-			}
-		}
-
-		// Remove the object from our local cache, to avoid retrying to free it again if an error occurs with the subsequent entries.
-		klog.V(6).Infof("Released mapping from local endpoint IP %v to remote %v of EndpointSlice %q", original, translation, ner.LocalRef(endpointslice))
-		delete(cache, original)
-	}
-
-	// Remove the cache for this endpointslice.
-	ner.translations.Delete(endpointslice)
-	klog.V(4).Infof("Released mappings from local EndpointSlice %q to remote %q", ner.LocalRef(endpointslice), ner.RemoteRef(endpointslice))
-	return nil
 }
 
 // ShouldSkipReflection returns whether the reflection of the given object should be skipped.

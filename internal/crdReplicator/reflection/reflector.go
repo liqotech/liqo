@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -35,6 +36,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -46,11 +48,11 @@ type Reflector struct {
 
 	manager        *Manager
 	localNamespace string
-	localClusterID string
+	localClusterID liqov1alpha1.ClusterID
 
 	remoteClient    dynamic.Interface
 	remoteNamespace string
-	remoteClusterID string
+	remoteClusterID liqov1alpha1.ClusterID
 
 	resources map[schema.GroupVersionResource]*reflectedResource
 
@@ -182,6 +184,13 @@ func (r *Reflector) stopForResource(gvr schema.GroupVersionResource) error {
 	// Check if any object is still present in the local or in the remote cluster
 	for key, lister := range map[string]cache.GenericNamespaceLister{"local": rs.local, "remote": rs.remote} {
 		objects, err := lister.List(labels.Everything())
+
+		if key == "remote" && apierrors.IsForbidden(err) {
+			// The remote cluster has probably removed the necessary permissions to operate on reflected resources, let's ignore the error
+			klog.Infof("[%v] Cannot list %v objects in the remote cluster (permission removed by provider).", r.remoteClusterID, gvr)
+			continue
+		}
+
 		if err != nil {
 			klog.Errorf("[%v] Failed to stop reflection of %v: %v", r.remoteClusterID, gvr, err)
 			return err
@@ -229,7 +238,7 @@ func (r *Reflector) eventHandlers(gvr schema.GroupVersionResource) cache.Resourc
 // remoteLabelSelector returns a function which configures the label selector targeting the resources reflected
 // by us in the given remote cluster.
 func (r *Reflector) remoteLabelSelector() labels.Selector {
-	req1, err := labels.NewRequirement(consts.ReplicationOriginLabel, selection.Equals, []string{r.localClusterID})
+	req1, err := labels.NewRequirement(consts.ReplicationOriginLabel, selection.Equals, []string{string(r.localClusterID)})
 	utilruntime.Must(err)
 	req2, err := labels.NewRequirement(consts.ReplicationStatusLabel, selection.Equals, []string{strconv.FormatBool(true)})
 	utilruntime.Must(err)
@@ -251,4 +260,9 @@ func ReplicatedResourcesLabelSelector() metav1.LabelSelector {
 			},
 		},
 	}
+}
+
+// IsReplicated returns whether the given object is replicated by the CRD replicator.
+func IsReplicated(obj metav1.Object) bool {
+	return obj.GetLabels()[consts.ReplicationStatusLabel] == strconv.FormatBool(true)
 }

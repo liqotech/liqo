@@ -1,0 +1,117 @@
+{{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook" "version" .Values.webhook.image.version) .) -}}
+{{- $kubeletConfig := (merge (dict "name" "virtual-kubelet" "module" "virtualkubelet" "version" .Values.virtualKubelet.image.version) .) -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    {{- include "liqo.labels" $webhookConfig | nindent 4 }}
+  name: {{ include "liqo.prefixedName" $webhookConfig }}
+spec:
+  replicas: {{ .Values.webhook.replicas }}
+  selector:
+    matchLabels:
+      {{- include "liqo.selectorLabels" $webhookConfig | nindent 6 }}
+  template:
+    metadata:
+    {{- if .Values.webhook.pod.annotations }}
+      annotations:
+      {{- toYaml .Values.webhook.pod.annotations | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- include "liqo.labels" $webhookConfig | nindent 8 }}
+      {{- if .Values.webhook.pod.labels }}
+        {{- toYaml .Values.webhook.pod.labels | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if gt .Values.webhook.replicas 1.0 }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  {{- include "liqo.selectorLabels" $webhookConfig | nindent 18 }}
+              topologyKey: kubernetes.io/hostname
+      {{- end }}
+      securityContext:
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
+      serviceAccountName: {{ include "liqo.prefixedName" $webhookConfig }}
+      containers:
+      - image: {{ .Values.webhook.image.name }}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
+        imagePullPolicy: {{ .Values.pullPolicy }}
+        securityContext:
+          {{- include "liqo.containerSecurityContext" . | nindent 10 }}
+        name: {{ $webhookConfig.name }}
+        command: ["/usr/bin/webhook"]
+        args:
+          - --webhook-port={{ .Values.webhook.port }}
+          {{- if gt .Values.webhook.replicas 1.0 }}
+          - --enable-leader-election=true
+          {{- end }}
+          - --cluster-id=$(CLUSTER_ID)
+          - --liqo-namespace=$(POD_NAMESPACE)
+          - --podcidr={{ .Values.ipam.podCIDR }}
+          - --vk-options-default-template={{ .Release.Namespace }}/{{ printf "%s-default" $kubeletConfig.name }}
+          {{- if .Values.controllerManager.config.enableResourceEnforcement }}
+          - --enable-resource-enforcement
+          {{- end }}
+          {{- if not .Values.offloading.runtimeClass.enable }}
+          - --add-virtual-node-toleration-on-offloaded-pods
+          {{- end }}
+          {{- if .Values.common.extraArgs }}
+          {{- toYaml .Values.common.extraArgs | nindent 10 }}
+          {{- end }}
+          {{- if .Values.webhook.pod.extraArgs }}
+          {{- toYaml .Values.webhook.pod.extraArgs | nindent 10 }}
+          {{- end }}
+        env:
+          - name: CLUSTER_ID
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "liqo.clusterIdConfig" . }}
+                key: CLUSTER_ID
+          - name: POD_NAMESPACE
+            valueFrom:
+             fieldRef:
+               fieldPath: metadata.namespace
+        resources: {{- toYaml .Values.webhook.pod.resources | nindent 10 }}
+        volumeMounts:
+          - name: webhook-certs
+            mountPath: /tmp/k8s-webhook-server/serving-certs/
+            readOnly: true
+        ports:
+        - name: webhook
+          containerPort: {{ .Values.webhook.port }}
+          protocol: TCP
+        - name: healthz
+          containerPort: 8081
+          protocol: TCP
+        - name: metrics
+          containerPort: 8080
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: healthz
+      volumes:
+      - name: webhook-certs
+        secret:
+          secretName: {{ include "liqo.prefixedName" $webhookConfig }}-certs
+          defaultMode: 420
+      {{- if ((.Values.common).nodeSelector) }}
+      nodeSelector:
+      {{- toYaml .Values.common.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if ((.Values.common).tolerations) }}
+      tolerations:
+      {{- toYaml .Values.common.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if ((.Values.common).affinity) }}
+      affinity:
+      {{- toYaml .Values.common.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.webhook.pod.priorityClassName }}
+      priorityClassName: {{ .Values.webhook.pod.priorityClassName }}
+      {{- end }}

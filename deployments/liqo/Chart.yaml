@@ -2,6 +2,10 @@ apiVersion: v2
 name: liqo
 description: A Helm chart for Liqo
 icon:  https://liqo.io/imgs/favicon.svg
+dependencies:
+  - name: liqo-crds
+    version: 0.1.0
+    repository: file://./charts/liqo-crds
 
 # A chart can be either an 'application' or a 'library' chart.
 #
@@ -15,9 +19,5 @@ type: application
 
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
-version: "0.1"
-
-# This is the version number of the application being deployed. This version number should be
-# incremented each time you make changes to the application.
-# AppVersion is commented by default. Uncomment it or add it as extra-args to helm package if you want to release a new Liqo version
-# appVersion:
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
+version: 0.1.0

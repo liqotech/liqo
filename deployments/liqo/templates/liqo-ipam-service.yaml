@@ -1,0 +1,25 @@
+{{- if and (.Values.networking.enabled) (not .Values.ipam.external.enabled) }}
+
+{{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
+{{- $ha := (gt .Values.ipam.internal.replicas 1.0) -}}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $ipamConfig }}
+  labels:
+    {{- include "liqo.labels" $ipamConfig | nindent 4 }}
+spec:
+  # This service is made to be consumed within the cluster.
+  type: ClusterIP
+  ports:
+    - name: ipam-api
+      port: 6000
+      protocol: TCP
+  selector:
+    {{- include "liqo.selectorLabels" $ipamConfig | nindent 4 }}
+    {{- if $ha }}
+    leaderelection.liqo.io/leader: "true"
+    {{- end }}
+
+{{- end }}

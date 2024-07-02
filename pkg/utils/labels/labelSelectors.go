@@ -39,28 +39,6 @@ var (
 		},
 	}
 
-	// GatewayServiceLabelSelector selector used to get the gateway service.
-	GatewayServiceLabelSelector = metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			{
-				Key:      liqoconst.GatewayServiceLabelKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{liqoconst.GatewayServiceLabelValue},
-			},
-		},
-	}
-
-	// WireGuardSecretLabelSelector selector used to get the WireGuard secret.
-	WireGuardSecretLabelSelector = metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			{
-				Key:      liqoconst.KeysLabel,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{liqoconst.DriverName},
-			},
-		},
-	}
-
 	// ClusterIDConfigMapLabelSelector selector used to get the cluster id configmap.
 	ClusterIDConfigMapLabelSelector = metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
@@ -72,28 +50,6 @@ var (
 		},
 	}
 
-	// NetworkManagerPodLabelSelector selector used to get the Network Manager Pod.
-	NetworkManagerPodLabelSelector = metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			{
-				Key:      liqoconst.K8sAppNameKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{liqoconst.NetworkManagerAppName},
-			},
-		},
-	}
-
-	// AuthServiceLabelSelector selector used to get the auth service.
-	AuthServiceLabelSelector = metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			{
-				Key:      liqoconst.K8sAppNameKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{liqoconst.AuthAppName},
-			},
-		},
-	}
-
 	// ProxyServiceLabelSelector selector used to get the gateway service.
 	ProxyServiceLabelSelector = metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
@@ -101,6 +57,27 @@ var (
 				Key:      liqoconst.K8sAppNameKey,
 				Operator: metav1.LabelSelectorOpIn,
 				Values:   []string{liqoconst.APIServerProxyAppName},
+			},
+		},
+	}
+
+	// GatewayResourceLabelSelector selector is used to get resources related to a gateway.
+	GatewayResourceLabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      liqoconst.GatewayResourceLabel,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{liqoconst.GatewayResourceLabelValue},
+			},
+		},
+	}
+
+	// ResourceForRemoteClusterLabelSelector selector is used to get resources related to a remote cluster.
+	ResourceForRemoteClusterLabelSelector = metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      liqoconst.RemoteClusterID,
+				Operator: metav1.LabelSelectorOpExists,
 			},
 		},
 	}
@@ -152,19 +129,4 @@ func ComponentLabelSelector(name, component string) labels.Selector {
 // ControllerManagerLabelSelector returns the label selector associated with the controller-manager components.
 func ControllerManagerLabelSelector() labels.Selector {
 	return ComponentLabelSelector("controller-manager", "controller-manager")
-}
-
-// DiscoveryLabelSelector returns the label selector associated with the discovery components.
-func DiscoveryLabelSelector() labels.Selector {
-	return ComponentLabelSelector("discovery", "discovery")
-}
-
-// GatewayLabelSelector returns the label selector associated with the gateway components.
-func GatewayLabelSelector() labels.Selector {
-	return ComponentLabelSelector("gateway", "networking")
-}
-
-// RouteLabelSelector returns the label selector associated with the route components.
-func RouteLabelSelector() labels.Selector {
-	return ComponentLabelSelector("route", "networking")
 }

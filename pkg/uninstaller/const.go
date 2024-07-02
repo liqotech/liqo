@@ -21,8 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -59,16 +60,6 @@ const (
 var (
 	toCheck = []toCheckDeleted{
 		{
-			gvr:           netv1alpha1.TunnelEndpointGroupVersionResource,
-			labelSelector: metav1.LabelSelector{},
-			phase:         PhaseUnpeering,
-		},
-		{
-			gvr:           netv1alpha1.NetworkConfigGroupVersionResource,
-			labelSelector: metav1.LabelSelector{},
-			phase:         PhaseUnpeering,
-		},
-		{
 			gvr: corev1.SchemeGroupVersion.WithResource("nodes"),
 			labelSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -78,12 +69,32 @@ var (
 			phase: PhaseUnpeering,
 		},
 		{
-			gvr:           discoveryv1alpha1.ForeignClusterGroupVersionResource,
+			gvr:           liqov1alpha1.ForeignClusterGroupVersionResource,
 			labelSelector: metav1.LabelSelector{},
 			phase:         PhaseCleanup,
 		},
 		{
 			gvr:           offloadingv1alpha1.NamespaceOffloadingGroupVersionResource,
+			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseCleanup,
+		},
+		{
+			gvr:           networkingv1alpha1.InternalNodeGroupVersionResource,
+			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseCleanup,
+		},
+		{
+			gvr:           ipamv1alpha1.NetworkGroupVersionResource,
+			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseCleanup,
+		},
+		{
+			gvr:           ipamv1alpha1.IPGroupVersionResource,
+			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseCleanup,
+		},
+		{
+			gvr:           ipamv1alpha1.IpamStorageGroupVersionResource,
 			labelSelector: metav1.LabelSelector{},
 			phase:         PhaseCleanup,
 		},

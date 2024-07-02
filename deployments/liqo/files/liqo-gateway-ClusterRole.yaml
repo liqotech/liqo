@@ -1,5 +1,14 @@
 rules:
 - apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+- apiGroups:
   - ""
   resources:
   - events
@@ -14,105 +23,128 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - nodes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods/status
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - discovery.k8s.io
-  resources:
-  - endpointslices
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - discovery.k8s.io
-  resources:
-  - endpointslices/endpoints
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - discovery.k8s.io
-  resources:
-  - endpointslices/endpoints/addresses
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - natmappings
+  - secrets
   verbs:
   - create
   - delete
   - get
   - list
-  - patch
   - update
-  - watch
 - apiGroups:
-  - net.liqo.io
+  - networking.liqo.io
   resources:
-  - tunnelendpoints
+  - connections
   verbs:
   - create
   - delete
   - get
   - list
-  - patch
   - update
   - watch
 - apiGroups:
-  - net.liqo.io
+  - networking.liqo.io
   resources:
-  - tunnelendpoints/status
+  - connections/status
   verbs:
   - get
   - patch
   - update
 - apiGroups:
-  - offloading.liqo.io
+  - networking.liqo.io
   resources:
-  - namespaceoffloadings
+  - firewallconfigurations
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - firewallconfigurations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - firewallconfigurations/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - genevetunnels
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalfabrics
   verbs:
   - get
   - list
   - watch
 - apiGroups:
-  - virtualkubelet.liqo.io
+  - networking.liqo.io
   resources:
-  - virtualnodes
+  - internalnodes
   verbs:
   - get
   - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalnodes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - publickeies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - routeconfigurations
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - routeconfigurations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - routeconfigurations/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
   - watch

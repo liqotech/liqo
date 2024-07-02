@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package peer contains the logic to enable a peering towards a remote cluster.
+// Package peer contains the logic to enable a peering towards a remote provider cluster.
 package peer

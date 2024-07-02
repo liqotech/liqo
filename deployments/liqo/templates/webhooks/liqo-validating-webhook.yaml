@@ -1,4 +1,3 @@
-{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 
 apiVersion: admissionregistration.k8s.io/v1
@@ -8,30 +7,13 @@ metadata:
   labels:
     {{- include "liqo.labels" $webhookConfig | nindent 4 }}
 webhooks:
-  - name: fc.validate.liqo.io
-    admissionReviewVersions:
-      - v1
-      - v1beta1
-    clientConfig:
-      service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
-        namespace: {{ .Release.Namespace }}
-        path: "/validate/foreign-cluster"
-        port: {{ .Values.webhook.port }}
-    rules:
-      - operations: ["UPDATE"]
-        apiGroups: ["discovery.liqo.io"]
-        apiVersions: ["v1alpha1"]
-        resources: ["foreignclusters"]
-    sideEffects: None
-    failurePolicy: {{ .Values.webhook.failurePolicy }}
   - name: nsoff.validate.liqo.io
     admissionReviewVersions:
       - v1
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/namespace-offloading"
         port: {{ .Values.webhook.port }}
@@ -48,7 +30,7 @@ webhooks:
       - v1beta1
     clientConfig:
       service:
-        name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/validate/shadowpods"
         port: {{ .Values.webhook.port }}
@@ -57,5 +39,56 @@ webhooks:
         apiGroups: ["virtualkubelet.liqo.io"]
         apiVersions: ["v1alpha1"]
         resources: ["shadowpods"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
+  - name: firewallconfiguration.validate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/validate/firewallconfigurations"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["networking.liqo.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["firewallconfigurations"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
+  - name: routeconfiguration.validate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/validate/routeconfigurations"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["networking.liqo.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["routeconfigurations"]
+    sideEffects: None
+    failurePolicy: {{ .Values.webhook.failurePolicy }}
+  - name: resourceslice.validate.liqo.io
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      service:
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
+        namespace: {{ .Release.Namespace }}
+        path: "/validate/resourceslices"
+        port: {{ .Values.webhook.port }}
+    rules:
+      - operations: ["UPDATE"]
+        apiGroups: ["authentication.liqo.io"]
+        apiVersions: ["v1alpha1"]
+        resources: ["resourceslices"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}

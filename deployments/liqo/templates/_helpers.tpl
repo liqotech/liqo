@@ -34,7 +34,9 @@ Create chart name and version as used by the chart label.
 Create version used to select the liqo version to be installed .
 */}}
 {{- define "liqo.version" -}}
-{{- if .Values.tag }}
+{{- if .version }}
+{{- .version }}
+{{- else if .Values.tag }}
 {{- .Values.tag }}
 {{- else if .Chart.AppVersion }}
 {{- .Chart.AppVersion }}
@@ -49,7 +51,7 @@ The suffix added to the Liqo images, to identify CI builds.
 {{- define "liqo.suffix" -}}
 {{/* https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string */}}
 {{- $semverregex := "^v(?P<major>0|[1-9]\\d*)\\.(?P<minor>0|[1-9]\\d*)\\.(?P<patch>0|[1-9]\\d*)(?:-(?P<prerelease>(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$" }}
-{{- if or (eq .Values.tag "") (mustRegexMatch $semverregex .Values.tag) }}
+{{- if or (eq .Values.tag "") (mustRegexMatch $semverregex .Values.tag) (.version) }}
 {{- print "" }}
 {{- else }}
 {{- print "-ci" }}
@@ -77,6 +79,37 @@ app.kubernetes.io/part-of: {{ quote (include "liqo.name" .) }}
 {{- end }}
 
 {{/*
+Common metadata for Gateway Templates
+*/}}
+{{- define "liqo.metadataTemplate" -}}
+name: {{ quote "{{ .Name }}" }}
+namespace: {{ quote "{{ .Namespace }}" }}
+labels:
+{{ include "liqo.labelsTemplate" . | indent 2 }}
+{{- end }}
+
+{{/*
+Common Labels for Gateway Templates
+*/}}
+{{- define "liqo.labelsTemplate" -}}
+{{ include "liqo.selectorLabelsTemplate" . }}
+helm.sh/chart: {{ quote (include "liqo.chart" .) }}
+app.kubernetes.io/version: {{ quote (include "liqo.version" .) }}
+app.kubernetes.io/managed-by: {{ quote .Release.Service }}
+networking.liqo.io/component: "gateway"
+{{- end }}
+
+{{/*
+Selector labels template, it accepts a dict which contains fields "name" and "module"
+*/}}
+{{- define "liqo.selectorLabelsTemplate" -}}
+app.kubernetes.io/name: {{ quote "{{ .Name }}" }}
+app.kubernetes.io/instance: {{ quote (printf "%s-%s" .Release.Name "{{ .Name }}") }}
+app.kubernetes.io/component: {{ quote .module }}
+app.kubernetes.io/part-of: {{ quote (include "liqo.name" .) }}
+{{- end }}
+
+{{/*
 Create a name prefixed with the chart name, it accepts a dict which contains the field "name".
 */}}
 {{- define "liqo.prefixedName" -}}
@@ -98,22 +131,6 @@ Create the file name of a cluster role starting from a prefix, it accepts a dict
 {{- end }}
 
 {{/*
-Gateway pod labels.
-If you change any value here, please make sure that you change it also in the source code.
-*/}}
-{{- define "liqo.gatewayPodLabels" -}}
-net.liqo.io/gateway: "standby"
-{{- end }}
-
-{{/*
-Label selector used by the gateway service to select the right gateway pod.
-If you change any value here, please make sure that you change it also in the source code.
-*/}}
-{{- define "liqo.gatewaySelector" -}}
-net.liqo.io/gateway: "active"
-{{- end }}
-
-{{/*
 Auth pod labels
 */}}
 {{- define "liqo.authServiceLabels" -}}
@@ -132,13 +149,6 @@ Webhook pod labels
 */}}
 {{- define "liqo.webhookServiceLabels" -}}
 webhook.liqo.io/backend: "liqo-webhook"
-{{- end }}
-
-{{/*
-Gateway service labels
-*/}}
-{{- define "liqo.gatewayServiceLabels" -}}
-net.liqo.io/gateway: "true"
 {{- end }}
 
 {{/*
@@ -183,6 +193,18 @@ Concatenates a values list into a string in the form "--commandName=val1;default
 {{- $res = print $res ";default" -}}
 {{- end -}}
 {{- $res = print $res "," -}}
+{{- end -}}
+- {{ trimSuffix "," $res }}
+{{- end -}}
+
+
+{{/*
+Concatenates a values list of groupVersionResources into a string in the form "--commandName=group1/version1/resource1,group2/version2/resource2"
+*/}}
+{{- define "liqo.concatenateGroupVersionResources" -}}
+{{- $res := print .commandName "=" -}}
+{{- range $val := .list -}}
+{{- $res = print $res $val.apiVersion "/" $val.resource "," -}}
 {{- end -}}
 - {{ trimSuffix "," $res }}
 {{- end -}}

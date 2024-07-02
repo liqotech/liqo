@@ -16,13 +16,11 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -30,41 +28,44 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	"k8s.io/utils/ptr"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	vkalpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
-	"github.com/liqotech/liqo/pkg/liqonet/ipam"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/configuration"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/event"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/namespacemap"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/storage"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
 func init() {
-	utilruntime.Must(vkalpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(vkv1alpha1.AddToScheme(scheme.Scheme))
 }
 
 // InitConfig is the config passed to initialize the LiqoPodProvider.
 type InitConfig struct {
 	LocalConfig   *rest.Config
 	RemoteConfig  *rest.Config
-	LocalCluster  discoveryv1alpha1.ClusterIdentity
-	RemoteCluster discoveryv1alpha1.ClusterIdentity
+	LocalCluster  liqov1alpha1.ClusterID
+	RemoteCluster liqov1alpha1.ClusterID
 	Namespace     string
+	LiqoNamespace string
 
 	NodeName             string
 	NodeIP               string
-	LiqoIpamServer       string
 	DisableIPReflection  bool
+	LocalPodCIDR         string
 	InformerResyncPeriod time.Duration
 
-	ReflectorsConfigs map[generic.ResourceReflected]*generic.ReflectorConfig
+	ReflectorsConfigs map[resources.ResourceReflected]vkv1alpha1.ReflectorConfig
 
 	EnableAPIServerSupport          bool
 	EnableStorage                   bool
@@ -79,7 +80,9 @@ type InitConfig struct {
 	HomeAPIServerHost string
 	HomeAPIServerPort string
 
-	OffloadingPatch *vkalpha1.OffloadingPatch
+	OffloadingPatch *vkv1alpha1.OffloadingPatch
+
+	NetConfiguration *networkingv1alpha1.Configuration // only available if network module is enabled
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -97,18 +100,6 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 	remoteClient := kubernetes.NewForConfigOrDie(cfg.RemoteConfig)
 	remoteLiqoClient := liqoclient.NewForConfigOrDie(cfg.RemoteConfig)
 	remoteMetricsClient := metrics.NewForConfigOrDie(cfg.RemoteConfig).MetricsV1beta1().PodMetricses
-
-	var ipamClient ipam.IpamClient
-	if cfg.LiqoIpamServer != "" && !cfg.DisableIPReflection {
-		dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		connection, err := grpc.DialContext(dialctx, cfg.LiqoIpamServer,
-			grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-		cancel()
-		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("failed to establish a connection to the IPAM %q", cfg.LiqoIpamServer))
-		}
-		ipamClient = ipam.NewIpamClient(connection)
-	}
 
 	apiServerSupport := forge.APIServerSupportDisabled
 	if cfg.EnableAPIServerSupport {
@@ -129,26 +120,45 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig, eb record.EventBroadc
 		DisableIPReflection: cfg.DisableIPReflection,
 		HomeAPIServerHost:   cfg.HomeAPIServerHost,
 		HomeAPIServerPort:   cfg.HomeAPIServerPort,
+		KubernetesServiceIPMapper: func(ctx context.Context) (string, error) {
+			ip, err := localLiqoClient.IpamV1alpha1().IPs(cfg.LiqoNamespace).Get(ctx, consts.IPTypeAPIServer, metav1.GetOptions{})
+			if err != nil {
+				return "", err
+			}
+
+			if ip.Status.IPMappings == nil {
+				return "", errors.New("no IP mappings found for the API server")
+			}
+
+			v, ok := ip.Status.IPMappings[string(cfg.RemoteCluster)]
+			if !ok {
+				return "", errors.New("no IP mapping found for the remote cluster API server")
+			}
+
+			return string(v), nil
+		},
+		NetConfiguration: cfg.NetConfiguration,
 	}
 
-	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, ipamClient, &podReflectorConfig, cfg.ReflectorsConfigs[generic.Pod])
+	podreflector := workload.NewPodReflector(cfg.RemoteConfig, remoteMetricsClient, &podReflectorConfig, ptr.To(cfg.ReflectorsConfigs[resources.Pod]))
 
 	forgingOpts := forge.NewForgingOpts(cfg.OffloadingPatch)
 
 	reflectionManager := manager.New(localClient, remoteClient, localLiqoClient, remoteLiqoClient, cfg.InformerResyncPeriod, eb, &forgingOpts).
 		With(podreflector).
-		With(exposition.NewServiceReflector(cfg.ReflectorsConfigs[generic.Service], cfg.EnableLoadBalancer, cfg.RemoteRealLoadBalancerClassName)).
-		With(exposition.NewIngressReflector(cfg.ReflectorsConfigs[generic.Ingress], cfg.EnableIngress, cfg.RemoteRealIngressClassName)).
-		With(configuration.NewConfigMapReflector(cfg.ReflectorsConfigs[generic.ConfigMap])).
-		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, cfg.ReflectorsConfigs[generic.Secret])).
-		With(configuration.NewServiceAccountReflector(apiServerSupport == forge.APIServerSupportTokenAPI, cfg.ReflectorsConfigs[generic.ServiceAccount])).
+		With(exposition.NewServiceReflector(ptr.To(cfg.ReflectorsConfigs[resources.Service]), cfg.EnableLoadBalancer, cfg.RemoteRealLoadBalancerClassName)).
+		With(exposition.NewIngressReflector(ptr.To(cfg.ReflectorsConfigs[resources.Ingress]), cfg.EnableIngress, cfg.RemoteRealIngressClassName)).
+		With(configuration.NewConfigMapReflector(ptr.To(cfg.ReflectorsConfigs[resources.ConfigMap]))).
+		With(configuration.NewSecretReflector(apiServerSupport == forge.APIServerSupportLegacy, ptr.To(cfg.ReflectorsConfigs[resources.Secret]))).
+		With(configuration.NewServiceAccountReflector(apiServerSupport == forge.APIServerSupportTokenAPI,
+			ptr.To(cfg.ReflectorsConfigs[resources.ServiceAccount]))).
 		With(storage.NewPersistentVolumeClaimReflector(cfg.VirtualStorageClassName, cfg.RemoteRealStorageClassName,
-			cfg.EnableStorage, cfg.ReflectorsConfigs[generic.PersistentVolumeClaim])).
-		With(event.NewEventReflector(cfg.ReflectorsConfigs[generic.Event])).
+			cfg.EnableStorage, ptr.To(cfg.ReflectorsConfigs[resources.PersistentVolumeClaim]))).
+		With(event.NewEventReflector(ptr.To(cfg.ReflectorsConfigs[resources.Event]))).
 		WithNamespaceHandler(namespacemap.NewHandler(localLiqoClient, cfg.Namespace, cfg.InformerResyncPeriod))
 
 	if !cfg.DisableIPReflection {
-		reflectionManager.With(exposition.NewEndpointSliceReflector(ipamClient, cfg.ReflectorsConfigs[generic.EndpointSlice]))
+		reflectionManager.With(exposition.NewEndpointSliceReflector(cfg.LocalPodCIDR, ptr.To(cfg.ReflectorsConfigs[resources.EndpointSlice])))
 	}
 
 	reflectionManager.Start(ctx)

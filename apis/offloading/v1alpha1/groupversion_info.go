@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package v1alpha1 contains API Schema definitions for the offloading v1alpha1 API group
 // +kubebuilder:object:generate=true
 // +groupName=offloading.liqo.io
+
 package v1alpha1
 
 import (
@@ -29,11 +29,20 @@ var (
 	// NamespaceOffloadingResource is the resource name used to register the NamespaceOffloading CRD.
 	NamespaceOffloadingResource = "namespaceoffloadings"
 
-	// GroupResource is group and resource used to register these objects.
-	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: NamespaceOffloadingResource}
+	// NamespaceOffloadingGroupResource is group and resource used to register these objects.
+	NamespaceOffloadingGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: NamespaceOffloadingResource}
 
 	// NamespaceOffloadingGroupVersionResource is the group version resource used to register the NamespaceOffloading CRD.
 	NamespaceOffloadingGroupVersionResource = GroupVersion.WithResource(NamespaceOffloadingResource)
+
+	// QuotaResource is the resource name used to register the Quota CRD.
+	QuotaResource = "quotas"
+
+	// QuotaGroupResource is group and resource used to register these objects.
+	QuotaGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: QuotaResource}
+
+	// QuotaGroupVersionResource is the group version resource used to register the Quota CRD.
+	QuotaGroupVersionResource = GroupVersion.WithResource(QuotaResource)
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

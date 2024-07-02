@@ -21,14 +21,25 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/utils/pod"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
-func getDefaultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharingv1alpha1.StorageType {
+// StringifyArgument returns a string representation of the key-value pair.
+func StringifyArgument(key, value string) string {
+	return fmt.Sprintf("%s=%s", key, value)
+}
+
+// DestringifyArgument returns the key and the value of the string representation of the key-value pair.
+func DestringifyArgument(arg string) (key, value string) {
+	split := strings.SplitN(arg, "=", 2)
+	return split[0], split[1]
+}
+
+func getDefaultStorageClass(storageClasses []liqov1alpha1.StorageType) liqov1alpha1.StorageType {
 	for _, storageClass := range storageClasses {
 		if storageClass.Default {
 			return storageClass
@@ -37,7 +48,7 @@ func getDefaultStorageClass(storageClasses []sharingv1alpha1.StorageType) sharin
 	return storageClasses[0]
 }
 
-func getDefaultIngressClass(ingressClasses []sharingv1alpha1.IngressType) sharingv1alpha1.IngressType {
+func getDefaultIngressClass(ingressClasses []liqov1alpha1.IngressType) liqov1alpha1.IngressType {
 	for _, ingressClass := range ingressClasses {
 		if ingressClass.Default {
 			return ingressClass
@@ -46,7 +57,7 @@ func getDefaultIngressClass(ingressClasses []sharingv1alpha1.IngressType) sharin
 	return ingressClasses[0]
 }
 
-func getDefaultLoadBalancerClass(loadBalancerClasses []sharingv1alpha1.LoadBalancerType) sharingv1alpha1.LoadBalancerType {
+func getDefaultLoadBalancerClass(loadBalancerClasses []liqov1alpha1.LoadBalancerType) liqov1alpha1.LoadBalancerType {
 	for _, loadBalancerClass := range loadBalancerClasses {
 		if loadBalancerClass.Default {
 			return loadBalancerClass
@@ -56,61 +67,59 @@ func getDefaultLoadBalancerClass(loadBalancerClasses []sharingv1alpha1.LoadBalan
 }
 
 func forgeVKContainers(
-	vkImage string, homeCluster, remoteCluster *discoveryv1alpha1.ClusterIdentity, nodeName, vkNamespace string,
-	storageClasses []sharingv1alpha1.StorageType, ingressClasses []sharingv1alpha1.IngressType,
-	loadBalancerClasses []sharingv1alpha1.LoadBalancerType,
-	opts *VirtualKubeletOpts) []v1.Container {
+	homeCluster, remoteCluster liqov1alpha1.ClusterID,
+	nodeName, vkNamespace, localPodCIDR, liqoNamespace string,
+	storageClasses []liqov1alpha1.StorageType, ingressClasses []liqov1alpha1.IngressType, loadBalancerClasses []liqov1alpha1.LoadBalancerType,
+	opts *vkv1alpha1.VkOptionsTemplate) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
 
 	args := []string{
-		stringifyArgument(string(ForeignClusterID), remoteCluster.ClusterID),
-		stringifyArgument(string(ForeignClusterName), remoteCluster.ClusterName),
-		stringifyArgument(string(NodeName), nodeName),
-		stringifyArgument(string(NodeIP), "$(POD_IP)"),
-		stringifyArgument(string(TenantNamespace), vkNamespace),
-		stringifyArgument(string(HomeClusterID), homeCluster.ClusterID),
-		stringifyArgument(string(HomeClusterName), homeCluster.ClusterName),
-	}
-
-	if opts.IpamEndpoint != "" {
-		args = append(args, stringifyArgument(string(IpamEndpoint), opts.IpamEndpoint))
+		StringifyArgument(string(ForeignClusterID), string(remoteCluster)),
+		StringifyArgument(string(NodeName), nodeName),
+		StringifyArgument(string(NodeIP), "$(POD_IP)"),
+		StringifyArgument(string(TenantNamespace), vkNamespace),
+		StringifyArgument(string(LiqoNamespace), liqoNamespace),
+		StringifyArgument(string(HomeClusterID), string(homeCluster)),
+		StringifyArgument(string(LocalPodCIDR), localPodCIDR),
 	}
 
 	if len(storageClasses) > 0 {
 		args = append(args, string(EnableStorage),
-			stringifyArgument(string(RemoteRealStorageClassName),
+			StringifyArgument(string(RemoteRealStorageClassName),
 				getDefaultStorageClass(storageClasses).StorageClassName))
 	}
 	if len(ingressClasses) > 0 {
 		args = append(args, string(EnableIngress),
-			stringifyArgument(string(RemoteRealIngressClassName),
+			StringifyArgument(string(RemoteRealIngressClassName),
 				getDefaultIngressClass(ingressClasses).IngressClassName))
 	}
 	if len(loadBalancerClasses) > 0 {
 		args = append(args, string(EnableLoadBalancer),
-			stringifyArgument(string(RemoteRealLoadBalancerClassName),
+			StringifyArgument(string(RemoteRealLoadBalancerClassName),
 				getDefaultLoadBalancerClass(loadBalancerClasses).LoadBalancerClassName))
 	}
 
-	args = appendArgsReflectorsWorkers(args, opts.ReflectorsWorkers)
-	args = appendArgsReflectorsType(args, opts.ReflectorsType)
+	args = appendArgsReflectorsWorkers(args, opts.Spec.ReflectorsConfig)
+	args = appendArgsReflectorsType(args, opts.Spec.ReflectorsConfig)
 
-	if extraAnnotations := opts.NodeExtraAnnotations.StringMap; len(extraAnnotations) != 0 {
-		args = append(args, stringifyArgument(string(NodeExtraAnnotations), opts.NodeExtraAnnotations.String()))
+	if extraAnnotations := opts.Spec.NodeExtraAnnotations; len(extraAnnotations) != 0 {
+		stringifiedMap := argsutils.StringMap{StringMap: extraAnnotations}.String()
+		args = append(args, StringifyArgument(string(NodeExtraAnnotations), stringifiedMap))
 	}
-	if extraLabels := opts.NodeExtraLabels.StringMap; len(extraLabels) != 0 {
-		args = append(args, stringifyArgument(string(NodeExtraLabels), opts.NodeExtraLabels.String()))
+	if extraLabels := opts.Spec.NodeExtraLabels; len(extraLabels) != 0 {
+		stringifiedMap := argsutils.StringMap{StringMap: extraLabels}.String()
+		args = append(args, StringifyArgument(string(NodeExtraLabels), stringifiedMap))
 	}
 
-	args = append(args, opts.ExtraArgs...)
+	args = append(args, opts.Spec.ExtraArgs...)
 
 	containerPorts := []v1.ContainerPort{}
-	args = append(args, stringifyArgument(string(MetricsEnabled), strconv.FormatBool(opts.MetricsEnabled)))
-	if opts.MetricsEnabled {
-		args = append(args, stringifyArgument(string(MetricsAddress), opts.MetricsAddress))
-		metrAddrSplit := strings.Split(opts.MetricsAddress, ":")
+	args = append(args, StringifyArgument(string(MetricsEnabled), strconv.FormatBool(opts.Spec.MetricsEnabled)))
+	if opts.Spec.MetricsEnabled {
+		args = append(args, StringifyArgument(string(MetricsAddress), opts.Spec.MetricsAddress))
+		metrAddrSplit := strings.Split(opts.Spec.MetricsAddress, ":")
 		metricsPort, err := strconv.ParseInt(metrAddrSplit[len(metrAddrSplit)-1], 10, 32)
 		if err != nil {
 			metrAddrSplit := strings.Split(vk.MetricsAddress, ":")
@@ -127,8 +136,8 @@ func forgeVKContainers(
 	return []v1.Container{
 		{
 			Name:      vk.ContainerName,
-			Resources: pod.ForgeContainerResources(opts.RequestsCPU, opts.LimitsCPU, opts.RequestsRAM, opts.LimitsRAM),
-			Image:     vkImage,
+			Resources: opts.Spec.Resources,
+			Image:     opts.Spec.ContainerImage,
 			Command:   command,
 			Args:      args,
 			Env: []v1.EnvVar{
@@ -154,33 +163,48 @@ func forgeVKContainers(
 	}
 }
 
-func forgeVKPodSpec(
-	vkNamespace string,
-	homeCluster *discoveryv1alpha1.ClusterIdentity, virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) v1.PodSpec {
+func forgeVKPodSpec(vkNamespace string, homeCluster liqov1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
+	virtualNode *vkv1alpha1.VirtualNode, opts *vkv1alpha1.VkOptionsTemplate) v1.PodSpec {
 	return v1.PodSpec{
-		Containers: forgeVKContainers(opts.ContainerImage, homeCluster, virtualNode.Spec.ClusterIdentity,
-			virtualNode.Name, vkNamespace, virtualNode.Spec.StorageClasses, virtualNode.Spec.IngressClasses,
-			virtualNode.Spec.LoadBalancerClasses, opts),
+		Containers: forgeVKContainers(
+			homeCluster, virtualNode.Spec.ClusterID,
+			virtualNode.Name, vkNamespace, localPodCIDR, liqoNamespace,
+			virtualNode.Spec.StorageClasses, virtualNode.Spec.IngressClasses, virtualNode.Spec.LoadBalancerClasses,
+			opts),
 		ServiceAccountName: virtualNode.Name,
 	}
 }
 
-func stringifyArgument(key, value string) string {
-	return fmt.Sprintf("%s=%s", key, value)
-}
-
-func appendArgsReflectorsWorkers(args []string, reflectorsWorkers map[string]*uint) []string {
-	for resource, value := range reflectorsWorkers {
-		key := fmt.Sprintf("--%s-reflection-workers", resource)
-		args = append(args, stringifyArgument(key, strconv.Itoa(int(*value))))
+func appendArgsReflectorsWorkers(args []string, reflectorsConfig map[string]vkv1alpha1.ReflectorConfig) []string {
+	if reflectorsConfig == nil {
+		return args
 	}
+
+	for _, resource := range resources.Reflectors {
+		reflector, ok := reflectorsConfig[string(resource)]
+		if !ok {
+			continue
+		}
+		key := fmt.Sprintf("--%s-reflection-workers", resource)
+		args = append(args, StringifyArgument(key, strconv.Itoa(int(reflector.NumWorkers))))
+	}
+
 	return args
 }
 
-func appendArgsReflectorsType(args []string, reflectorsType map[string]*string) []string {
-	for resource, value := range reflectorsType {
-		key := fmt.Sprintf("--%s-reflection-type", resource)
-		args = append(args, stringifyArgument(key, *value))
+func appendArgsReflectorsType(args []string, reflectorsConfig map[string]vkv1alpha1.ReflectorConfig) []string {
+	if reflectorsConfig == nil {
+		return args
 	}
+
+	for _, resource := range resources.ReflectorsCustomizableType {
+		reflector, ok := reflectorsConfig[string(resource)]
+		if !ok {
+			continue
+		}
+		key := fmt.Sprintf("--%s-reflection-type", resource)
+		args = append(args, StringifyArgument(key, string(reflector.Type)))
+	}
+
 	return args
 }

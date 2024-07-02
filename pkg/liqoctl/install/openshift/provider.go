@@ -70,14 +70,6 @@ func (o *Options) Initialize(ctx context.Context) error {
 // Values returns the customized provider-specifc values file parameters.
 func (o *Options) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"route": map[string]interface{}{
-			"pod": map[string]interface{}{
-				"extraArgs": []interface{}{
-					"--route.vxlan-vtep-port=5050",
-				},
-			},
-		},
-
 		"openshiftConfig": map[string]interface{}{
 			"enable": true,
 		},

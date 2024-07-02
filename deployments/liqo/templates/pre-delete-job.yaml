@@ -1,4 +1,4 @@
-{{- $predelete := (merge (dict "name" "pre-delete" "module" "pre-delete") .) -}}
+{{- $predelete := (merge (dict "name" "pre-delete" "module" "pre-delete"  "version" .Values.uninstaller.image.version) .) -}}
 
 apiVersion: batch/v1
 kind: Job
@@ -28,7 +28,7 @@ spec:
       serviceAccountName: {{ include "liqo.prefixedName" $predelete}}
       containers:
       - name: pre-delete-job
-        image: {{ .Values.uninstaller.imageName }}{{ include "liqo.suffix" $predelete }}:{{ include "liqo.version" $predelete }}
+        image: {{ .Values.uninstaller.image.name }}{{ include "liqo.suffix" $predelete }}:{{ include "liqo.version" $predelete }}
         securityContext:
           {{- include "liqo.containerSecurityContext" . | nindent 10 }}
         command: ["/usr/bin/uninstaller"]

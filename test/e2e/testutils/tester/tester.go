@@ -29,12 +29,10 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
@@ -47,7 +45,6 @@ type Tester struct {
 	// ClustersNumber represents the number of available clusters
 	ClustersNumber   int
 	OverlappingCIDRs bool
-	SecurityMode     consts.SecurityModeType
 }
 
 // ClusterContext encapsulate all information and objects used to access a test cluster.
@@ -55,7 +52,7 @@ type ClusterContext struct {
 	Config           *rest.Config
 	NativeClient     *kubernetes.Clientset
 	ControllerClient client.Client
-	Cluster          discoveryv1alpha1.ClusterIdentity
+	Cluster          liqov1alpha1.ClusterID
 	KubeconfigPath   string
 	HomeCluster      bool
 }
@@ -105,7 +102,6 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 	TmpDir := testutils.GetEnvironmentVariableOrDie(testconsts.KubeconfigDirVarName)
 
 	overlappingCIDRsString := testutils.GetEnvironmentVariableOrDie(testconsts.OverlappingCIDRsEnvVar)
-	securityModeString := testutils.GetEnvironmentVariableOrDie(testconsts.SecurityModeEnvVar)
 
 	// Here is necessary to add the controller runtime clients.
 	scheme := getScheme()
@@ -113,7 +109,6 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 	tester = &Tester{
 		Namespace:        namespace,
 		OverlappingCIDRs: strings.EqualFold(overlappingCIDRsString, "true"),
-		SecurityMode:     consts.SecurityModeType(securityModeString),
 	}
 
 	tester.ClustersNumber, err = getClusterNumberFromEnv()
@@ -133,7 +128,7 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 			HomeCluster:    i == 1,
 		}
 		c.NativeClient = kubernetes.NewForConfigOrDie(c.Config)
-		c.Cluster, err = utils.GetClusterIdentityWithNativeClient(ctx, c.NativeClient, namespace)
+		c.Cluster, err = utils.GetClusterIDWithNativeClient(ctx, c.NativeClient, namespace)
 		if err != nil && !ignoreClusterIDError {
 			return nil, err
 		}
@@ -162,9 +157,8 @@ func getScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = offv1alpha1.AddToScheme(scheme)
-	_ = discoveryv1alpha1.AddToScheme(scheme)
-	_ = netv1alpha1.AddToScheme(scheme)
-	_ = sharingv1alpha1.AddToScheme(scheme)
+	_ = liqov1alpha1.AddToScheme(scheme)
+	_ = ipamv1alpha1.AddToScheme(scheme)
 	_ = virtualKubeletv1alpha1.AddToScheme(scheme)
 	return scheme
 }

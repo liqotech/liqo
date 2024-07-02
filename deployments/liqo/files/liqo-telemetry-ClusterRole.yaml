@@ -10,17 +10,9 @@ rules:
   - list
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - core.liqo.io
   resources:
   - foreignclusters
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - tunnelendpoints
   verbs:
   - get
   - list
@@ -29,14 +21,6 @@ rules:
   - offloading.liqo.io
   resources:
   - namespaceoffloadings
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - sharing.liqo.io
-  resources:
-  - resourceoffers
   verbs:
   - get
   - list

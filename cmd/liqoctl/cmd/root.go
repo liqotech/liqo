@@ -33,7 +33,18 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/create"
 	"github.com/liqotech/liqo/pkg/liqoctl/delete"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
+	"github.com/liqotech/liqo/pkg/liqoctl/generate"
+	"github.com/liqotech/liqo/pkg/liqoctl/get"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/configuration"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayclient"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/gatewayserver"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/identity"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/kubeconfig"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/nonce"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/publickey"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/resourceslice"
+	"github.com/liqotech/liqo/pkg/liqoctl/rest/tenant"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest/virtualnode"
 )
 
@@ -41,6 +52,15 @@ var liqoctl string
 
 var liqoResources = []rest.APIProvider{
 	virtualnode.VirtualNode,
+	configuration.Configuration,
+	gatewayserver.GatewayServer,
+	gatewayclient.GatewayClient,
+	publickey.PublicKey,
+	tenant.Tenant,
+	nonce.Nonce,
+	identity.Identity,
+	resourceslice.ResourceSlice,
+	kubeconfig.Kubeconfig,
 }
 
 func init() {
@@ -118,15 +138,23 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(newUninstallCommand(ctx, f))
 	cmd.AddCommand(newPeerCommand(ctx, f))
 	cmd.AddCommand(newUnpeerCommand(ctx, f))
-	cmd.AddCommand(newGenerateCommand(ctx, f))
+	cmd.AddCommand(newNetworkCommand(ctx, f))
+	cmd.AddCommand(newAuthenticateCommand(ctx, f))
+	cmd.AddCommand(newUnauthenticateCommand(ctx, f))
 	cmd.AddCommand(newOffloadCommand(ctx, f))
 	cmd.AddCommand(newUnoffloadCommand(ctx, f))
-	cmd.AddCommand(newStatusCommand(ctx, f))
 	cmd.AddCommand(newMoveCommand(ctx, f))
 	cmd.AddCommand(newVersionCommand(ctx, f))
 	cmd.AddCommand(newDocsCommand(ctx))
+	cmd.AddCommand(newActivateCommand(ctx, f))
+	cmd.AddCommand(newCordonCommand(ctx, f))
+	cmd.AddCommand(newUncordonCommand(ctx, f))
+	cmd.AddCommand(newDrainCommand(ctx, f))
 	cmd.AddCommand(create.NewCreateCommand(ctx, liqoResources, f))
+	cmd.AddCommand(generate.NewGenerateCommand(ctx, liqoResources, f))
+	cmd.AddCommand(get.NewGetCommand(ctx, liqoResources, f))
 	cmd.AddCommand(delete.NewDeleteCommand(ctx, liqoResources, f))
+
 	return cmd
 }
 

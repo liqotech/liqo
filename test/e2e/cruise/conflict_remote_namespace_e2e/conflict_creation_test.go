@@ -31,7 +31,7 @@ import (
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -123,7 +123,7 @@ var _ = Describe("Liqo E2E", func() {
 					return err
 				}
 				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
-				suffix := foreignclusterutils.UniqueName(&testContext.Clusters[remoteIndex].Cluster)
+				suffix := foreignclusterutils.UniqueName(testContext.Clusters[remoteIndex].Cluster)
 				if !ok || !strings.HasSuffix(value, suffix) {
 					return fmt.Errorf("the remote namespace has not the right Liqo annotation, found: %q, expected suffix: %q", value, suffix)
 				}

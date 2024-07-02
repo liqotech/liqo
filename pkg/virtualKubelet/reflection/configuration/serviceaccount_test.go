@@ -34,6 +34,7 @@ import (
 	"k8s.io/utils/pointer"
 	"k8s.io/utils/trace"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -41,14 +42,15 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 var _ = Describe("ServiceAccount Reflection", func() {
 	Describe("NewServiceAccountReflector", func() {
 		It("should create a non-nil reflector", func() {
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
-				Type:       root.DefaultReflectorsTypes[generic.ServiceAccount],
+				Type:       root.DefaultReflectorsTypes[resources.ServiceAccount],
 			}
 			Expect(configuration.NewServiceAccountReflector(true, &reflectorConfig)).NotTo(BeNil())
 		})
@@ -139,9 +141,9 @@ var _ = Describe("ServiceAccount Reflection", func() {
 		JustBeforeEach(func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 			secretsLister = factory.Core().V1().Secrets().Lister().Secrets(RemoteNamespace)
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.ServiceAccount],
+				Type:       root.DefaultReflectorsTypes[resources.ServiceAccount],
 			}
 			rfl := configuration.NewServiceAccountReflector(true, &reflectorConfig).(*configuration.ServiceAccountReflector)
 			rfl.Start(ctx, options.New(client, factory.Core().V1().Pods()))
@@ -363,9 +365,9 @@ var _ = Describe("ServiceAccount Reflection", func() {
 		JustBeforeEach(func() {
 			client := fake.NewSimpleClientset(&local)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.ServiceAccount],
+				Type:       root.DefaultReflectorsTypes[resources.ServiceAccount],
 			}
 			rfl := configuration.NewServiceAccountReflector(true, &reflectorConfig).(*configuration.ServiceAccountReflector)
 			opts := options.New(client, factory.Core().V1().Pods()).

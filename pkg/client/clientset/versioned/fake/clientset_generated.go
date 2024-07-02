@@ -24,6 +24,8 @@ import (
 	"k8s.io/client-go/testing"
 
 	clientset "github.com/liqotech/liqo/pkg/client/clientset/versioned"
+	ipamv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/ipam/v1alpha1"
+	fakeipamv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/ipam/v1alpha1/fake"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
 	fakevirtualkubeletv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1/fake"
 )
@@ -77,6 +79,11 @@ var (
 	_ clientset.Interface = &Clientset{}
 	_ testing.FakeClient  = &Clientset{}
 )
+
+// IpamV1alpha1 retrieves the IpamV1alpha1Client
+func (c *Clientset) IpamV1alpha1() ipamv1alpha1.IpamV1alpha1Interface {
+	return &fakeipamv1alpha1.FakeIpamV1alpha1{Fake: &c.Fake}
+}
 
 // VirtualkubeletV1alpha1 retrieves the VirtualkubeletV1alpha1Client
 func (c *Clientset) VirtualkubeletV1alpha1() virtualkubeletv1alpha1.VirtualkubeletV1alpha1Interface {

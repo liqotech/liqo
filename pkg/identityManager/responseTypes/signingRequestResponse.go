@@ -14,11 +14,6 @@
 
 package responsetypes
 
-import (
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/iam"
-)
-
 // SigningRequestResponseType indicates the type for a signign request response.
 type SigningRequestResponseType string
 
@@ -32,10 +27,13 @@ const (
 
 // AwsIdentityResponse contains the information about the created IAM user and the EKS cluster.
 type AwsIdentityResponse struct {
-	IamUserArn string
-	AccessKey  *iam.AccessKey
-	EksCluster *eks.Cluster
-	Region     string
+	IamUserArn                         string
+	AccessKeyID                        string
+	SecretAccessKey                    string
+	EksClusterName                     string
+	EksClusterEndpoint                 string
+	EksClusterCertificateAuthorityData []byte
+	Region                             string
 }
 
 // SigningRequestResponse contains the response from an Indentity Provider.

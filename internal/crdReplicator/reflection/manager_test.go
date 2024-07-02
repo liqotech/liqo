@@ -30,7 +30,8 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -38,11 +39,11 @@ import (
 var _ = Describe("Manager tests", func() {
 
 	const (
-		localNamespace  = "foo"
-		remoteNamespace = "bar"
-		localClusterID  = "local-id"
-		remoteClusterID = "remote-id"
-		workers         = 2
+		localNamespace                         = "foo"
+		remoteNamespace                        = "bar"
+		localClusterID  liqov1alpha1.ClusterID = "local-id"
+		remoteClusterID liqov1alpha1.ClusterID = "remote-id"
+		workers                                = 2
 	)
 
 	var (
@@ -54,7 +55,7 @@ var _ = Describe("Manager tests", func() {
 	BeforeEach(func() {
 		scheme := runtime.NewScheme()
 		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-		utilruntime.Must(netv1alpha1.AddToScheme(scheme))
+		utilruntime.Must(vkv1alpha1.AddToScheme(scheme))
 
 		local = fake.NewSimpleDynamicClient(scheme)
 		remote = fake.NewSimpleDynamicClient(scheme)
@@ -114,12 +115,12 @@ var _ = Describe("Manager tests", func() {
 
 		BeforeEach(func() {
 			ctx, cancel = context.WithCancel(context.Background())
-			gvr = netv1alpha1.NetworkConfigGroupVersionResource
+			gvr = vkv1alpha1.NamespaceMapGroupVersionResource
 			res = []resources.Resource{{GroupVersionResource: gvr}}
 
 			objNamespace = localNamespace
-			objGVK = netv1alpha1.GroupVersion.WithKind("NetworkConfig")
-			objGVR = netv1alpha1.NetworkConfigGroupVersionResource
+			objGVK = vkv1alpha1.SchemeGroupVersion.WithKind("NamespaceMap")
+			objGVR = vkv1alpha1.NamespaceMapGroupVersionResource
 
 			skipCreation = false
 			receiver = make(chan item, 1)
@@ -127,14 +128,14 @@ var _ = Describe("Manager tests", func() {
 
 		AfterEach(func() { cancel() })
 
-		CreateNetworkConfig := func() error {
+		CreateReplicatedResource := func() error {
 			obj := &unstructured.Unstructured{}
 			obj.SetGroupVersionKind(objGVK)
 			obj.SetNamespace(objNamespace)
 			obj.SetName(objName)
 			obj.SetLabels(map[string]string{
 				consts.ReplicationRequestedLabel:   strconv.FormatBool(true),
-				consts.ReplicationDestinationLabel: remoteClusterID,
+				consts.ReplicationDestinationLabel: string(remoteClusterID),
 			})
 			_, err := local.Resource(objGVR).Namespace(objNamespace).Create(ctx, obj, metav1.CreateOptions{})
 			return err
@@ -144,14 +145,14 @@ var _ = Describe("Manager tests", func() {
 			return func() {
 				JustBeforeEach(func() {
 					if alreadyPresent && !skipCreation {
-						Expect(CreateNetworkConfig()).To(Succeed())
+						Expect(CreateReplicatedResource()).To(Succeed())
 					}
 
 					manager.Start(ctx, res)
 					manager.registerHandler(gvr, localNamespace, func(key item) { receiver <- key })
 
 					if !alreadyPresent && !skipCreation {
-						Expect(CreateNetworkConfig()).To(Succeed())
+						Expect(CreateReplicatedResource()).To(Succeed())
 					}
 				})
 
@@ -166,7 +167,7 @@ var _ = Describe("Manager tests", func() {
 							JustBeforeEach(func() {
 								manager.unregisterHandler(gvr, localNamespace)
 								// Create the object only once the handler has been unregistered, to prevent race conditions.
-								Expect(CreateNetworkConfig()).To(Succeed())
+								Expect(CreateReplicatedResource()).To(Succeed())
 							})
 							It("should not trigger the handler", func() { Consistently(receiver).ShouldNot(Receive()) })
 						})
@@ -175,8 +176,8 @@ var _ = Describe("Manager tests", func() {
 
 				When("the object matches the namespace but not the GVR of the registered handler", func() {
 					BeforeEach(func() {
-						objGVK = netv1alpha1.GroupVersion.WithKind("TunnelEndpoint")
-						objGVR = netv1alpha1.TunnelEndpointGroupVersionResource
+						objGVK = vkv1alpha1.SchemeGroupVersion.WithKind(vkv1alpha1.VirtualNodeKind)
+						objGVR = vkv1alpha1.VirtualNodeGroupVersionResource
 					})
 					It("should not trigger the handler", func() { Consistently(receiver).ShouldNot(Receive()) })
 				})

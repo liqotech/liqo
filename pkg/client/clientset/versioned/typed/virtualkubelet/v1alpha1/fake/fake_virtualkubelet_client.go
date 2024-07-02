@@ -43,6 +43,10 @@ func (c *FakeVirtualkubeletV1alpha1) VirtualNodes(namespace string) v1alpha1.Vir
 	return &FakeVirtualNodes{c, namespace}
 }
 
+func (c *FakeVirtualkubeletV1alpha1) VkOptionsTemplates(namespace string) v1alpha1.VkOptionsTemplateInterface {
+	return &FakeVkOptionsTemplates{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeVirtualkubeletV1alpha1) RESTClient() rest.Interface {

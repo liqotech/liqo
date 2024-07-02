@@ -18,34 +18,28 @@ import (
 	"context"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
-	labelsutils "github.com/liqotech/liqo/pkg/utils/labels"
-	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
 // ForgeTelemetryItem returns a Telemetry item with the current status of the cluster.
 func (c *Builder) ForgeTelemetryItem(ctx context.Context) (*Telemetry, error) {
-	clusterIdentity, err := utils.GetClusterIdentityWithControllerClient(ctx, c.Client, c.Namespace)
+	clusterID, err := utils.GetClusterIDWithControllerClient(ctx, c.Client, c.Namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Telemetry{
-		ClusterID:         clusterIdentity.ClusterID,
+		ClusterID:         string(clusterID),
 		LiqoVersion:       c.LiqoVersion,
 		KubernetesVersion: c.KubernetesVersion,
-		SecurityMode:      c.SecurityMode,
 		Provider:          c.getProvider(),
 		PeeringInfo:       c.getPeeringInfoSlice(ctx),
 		NamespacesInfo:    c.getNamespacesInfo(ctx),
@@ -67,8 +61,8 @@ func (c *Builder) getNamespacesInfo(ctx context.Context) []NamespaceInfo {
 	nodeNameClusterIDMap := map[string]string{}
 	for i := range virtualNodes.Items {
 		virtualNode := &virtualNodes.Items[i]
-		clusterID := virtualNode.Spec.ClusterIdentity.ClusterID
-		nodeNameClusterIDMap[virtualNode.Name] = clusterID
+		clusterID := virtualNode.Spec.ClusterID
+		nodeNameClusterIDMap[virtualNode.Name] = string(clusterID)
 	}
 
 	namespaceInfoSlice := make([]NamespaceInfo, len(namespaceOffloadings.Items))
@@ -110,7 +104,7 @@ func (c *Builder) getNamespaceInfo(ctx context.Context,
 }
 
 func (c *Builder) getPeeringInfoSlice(ctx context.Context) []PeeringInfo {
-	var foreignClusterList discoveryv1alpha1.ForeignClusterList
+	var foreignClusterList liqov1alpha1.ForeignClusterList
 	err := c.Client.List(ctx, &foreignClusterList)
 	runtime.Must(err)
 
@@ -123,66 +117,13 @@ func (c *Builder) getPeeringInfoSlice(ctx context.Context) []PeeringInfo {
 }
 
 func (c *Builder) getPeeringInfo(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) PeeringInfo {
-	discoveryType := discovery.ManualDiscovery
-	if v, ok := foreignCluster.Labels[discovery.DiscoveryTypeLabel]; ok {
-		discoveryType = discovery.Type(v)
-	}
-
+	foreignCluster *liqov1alpha1.ForeignCluster) PeeringInfo {
 	var latency time.Duration
-	tunnel, err := liqogetters.GetTunnelEndpoint(ctx, c.Client,
-		&foreignCluster.Spec.ClusterIdentity, foreignCluster.Status.TenantNamespace.Local)
-	switch {
-	case apierrors.IsNotFound(err):
-		// do nothing
-	case err != nil:
-		klog.Errorf("unable to get tunnel endpoint for cluster %q: %v", foreignCluster.Spec.ClusterIdentity.ClusterName, err)
-	default:
-		latency, err = time.ParseDuration(tunnel.Status.Connection.Latency.Value)
-		if err != nil {
-			klog.Errorf("unable to parse latency for cluster %q: %v", foreignCluster.Spec.ClusterIdentity.ClusterName, err)
-		}
-	}
 
 	peeringInfo := PeeringInfo{
-		RemoteClusterID: foreignCluster.Spec.ClusterIdentity.ClusterID,
-		Method:          foreignCluster.Spec.PeeringType,
-		DiscoveryType:   discoveryType,
+		RemoteClusterID: foreignCluster.Spec.ClusterID,
+		Role:            foreignCluster.Status.Role,
 		Latency:         latency,
-		Incoming: c.getPeeringDetails(ctx, foreignCluster,
-			discoveryv1alpha1.IncomingPeeringCondition,
-			labelsutils.LocalLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID)),
-		Outgoing: c.getPeeringDetails(ctx, foreignCluster,
-			discoveryv1alpha1.OutgoingPeeringCondition,
-			labelsutils.RemoteLabelSelectorForCluster(foreignCluster.Spec.ClusterIdentity.ClusterID)),
 	}
 	return peeringInfo
-}
-
-func (c *Builder) getPeeringDetails(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster,
-	condition discoveryv1alpha1.PeeringConditionType, selector labels.Selector) PeeringDetails {
-	enabled := peeringconditionsutils.GetStatus(foreignCluster,
-		condition) == discoveryv1alpha1.PeeringConditionStatusEstablished
-
-	var resources corev1.ResourceList
-	if enabled && foreignCluster.Status.TenantNamespace.Local != "" {
-		offer, err := liqogetters.GetResourceOfferByLabel(ctx, c.Client,
-			foreignCluster.Status.TenantNamespace.Local,
-			selector)
-		if err != nil {
-			klog.Errorf("unable to get resource offer for cluster %s: %v",
-				foreignCluster.Spec.ClusterIdentity.ClusterID, err)
-			return PeeringDetails{
-				Enabled:   enabled,
-				Resources: corev1.ResourceList{},
-			}
-		}
-		resources = offer.Spec.ResourceQuota.Hard
-	}
-
-	return PeeringDetails{
-		Enabled:   enabled,
-		Resources: resources,
-	}
 }

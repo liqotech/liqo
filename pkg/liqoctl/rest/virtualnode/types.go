@@ -15,8 +15,9 @@
 package virtualnode
 
 import (
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the virtualnode command.
@@ -24,16 +25,23 @@ type Options struct {
 	createOptions *rest.CreateOptions
 	deleteOptions *rest.DeleteOptions
 
-	remoteClusterIdentity discoveryv1alpha1.ClusterIdentity
-	createNode            bool
-	kubeconfigSecretName  string
+	remoteClusterID      args.ClusterIDFlags
+	namespaceManager     tenantnamespace.Manager
+	createNode           bool
+	disableNetworkCheck  bool
+	kubeconfigSecretName string
+	resourceSliceName    string
+	vkOptionsTemplate    string
 
 	cpu    string
 	memory string
 	pods   string
 
-	storageClasses []string
-	labels         map[string]string
+	storageClasses      []string
+	ingressClasses      []string
+	loadBalancerClasses []string
+	labels              map[string]string
+	nodeSelector        map[string]string
 }
 
 var _ rest.API = &Options{}

@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
@@ -101,8 +102,8 @@ func (o *Options) Initialize(ctx context.Context) error {
 	o.Printer.Verbosef("VNET ResourceGroupName: %q", o.vnetResourceGroupName)
 
 	// if the cluster name has not been provided, we default it to the cloud provider resource name.
-	if o.ClusterName == "" {
-		o.ClusterName = o.resourceName
+	if o.ClusterID == "" {
+		o.ClusterID = liqov1alpha1.ClusterID(o.resourceName)
 	}
 
 	authorizer, err := auth.NewAuthorizerFromCLI()
@@ -144,6 +145,13 @@ func (o *Options) Values() map[string]interface{} {
 				},
 			},
 		},
+		"networking": map[string]interface{}{
+			"fabric": map[string]interface{}{
+				"config": map[string]interface{}{
+					"gatewayMasqueradeBypass": true,
+				},
+			},
+		},
 	}
 }
 
@@ -169,7 +177,7 @@ func (o *Options) parseClusterOutput(ctx context.Context, cluster *containerserv
 		o.APIServer = *cluster.PrivateFQDN
 	case cluster.Fqdn != nil:
 		o.APIServer = *cluster.Fqdn
-	case len(o.fqdn) > 0:
+	case o.fqdn != "":
 		o.APIServer = o.fqdn
 	default:
 		return fmt.Errorf("failed to retrieve cluster APIServer FQDN, is the cluster running?")

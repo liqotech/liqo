@@ -1,0 +1,138 @@
+{{- $templateConfig := (merge (dict "name" "wireguard-client" "module" "networking") .) -}}
+{{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking" "version" .Values.networking.gatewayTemplates.container.gateway.image.version) .) -}}
+{{- $wireguardConfig := (merge (dict "name" "gateway-wireguard" "module" "networking" "version" .Values.networking.gatewayTemplates.container.wireguard.image.version) .) -}}
+{{- $geneveConfig := (merge (dict "name" "gateway-geneve" "module" "networking" "version" .Values.networking.gatewayTemplates.container.geneve.image.version) .) -}}
+
+{{- if .Values.networking.enabled }}
+
+apiVersion: networking.liqo.io/v1alpha1
+kind: WgGatewayClientTemplate
+metadata:
+  name: {{ $templateConfig.name  }}
+  labels:
+    {{- include "liqo.labels" $templateConfig | nindent 4 }}
+spec:
+  objectKind:
+    apiVersion: networking.liqo.io/v1alpha1
+    kind: WgGatewayClient
+  template:
+    metadata:
+      {{- include "liqo.metadataTemplate" $templateConfig | nindent 6 }}
+    spec:
+      deployment:
+        metadata:
+          {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
+        spec:
+          replicas: {{ .Values.networking.gatewayTemplates.replicas }}
+          strategy:
+            type: Recreate
+          selector:
+            matchLabels:
+              {{- include "liqo.labelsTemplate" $templateConfig | nindent 14 }}
+          template:
+            metadata:
+              {{- include "liqo.metadataTemplate" $templateConfig | nindent 14 }}
+            spec:
+              serviceAccount: "{{"{{ .Name }}"}}"
+              serviceAccountName: "{{"{{ .Name }}"}}"
+              containers:
+              - name: gateway
+                image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
+                imagePullPolicy: {{ .Values.pullPolicy }}
+                args:
+                - --name={{"{{ .Name }}"}}
+                - --namespace={{"{{ .Namespace }}"}}
+                - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
+                - --node-name={{"$(NODE_NAME)"}}
+                - --mode=client
+                {{- if .Values.metrics.enabled }}
+                - --metrics-address=:8080
+                {{- end }}
+                - --health-probe-bind-address=:8081
+                - --ping-enabled=true
+                - --ping-loss-threshold={{ .Values.networking.gatewayTemplates.ping.lossThreshold }}
+                - --ping-interval={{ .Values.networking.gatewayTemplates.ping.interval }}
+                - --ping-update-status-interval={{ .Values.networking.gatewayTemplates.ping.updateStatusInterval }}
+                {{- if gt .Values.networking.gatewayTemplates.replicas 1.0 }}
+                - --leader-election=true
+                {{- end }}
+                {{- if .Values.metrics.enabled }}
+                ports:
+                - containerPort: 8080
+                  name: gw-metrics
+                {{- end }}
+                env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+                securityContext:
+                  privileged: true
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+              - name: wireguard
+                image: {{ .Values.networking.gatewayTemplates.container.wireguard.image.name }}{{ include "liqo.suffix" $wireguardConfig }}:{{ include "liqo.version" $wireguardConfig }}
+                imagePullPolicy: {{ .Values.pullPolicy }}
+                args:
+                - --name={{"{{ .Name }}"}}
+                - --namespace={{"{{ .Namespace }}"}}
+                - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
+                - --mode=client
+                - --mtu={{"{{ .Spec.MTU }}"}}
+                - --endpoint-address={{"{{ index .Spec.Endpoint.Addresses 0 }}"}}
+                - --endpoint-port={{"{{ .Spec.Endpoint.Port }}"}}
+                {{- if .Values.metrics.enabled }}
+                - --metrics-address=:8082
+                {{- end }}
+                - --health-probe-bind-address=:8083
+                - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
+                {{- if .Values.metrics.enabled }}
+                ports:
+                - containerPort: 8082
+                  name: wg-metrics
+                {{- end }}
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+                  {{ if .Values.networking.gatewayTemplates.wireguard.implementation | eq "userspace" }}
+                  privileged: true
+                  {{ end }}
+              - name: geneve
+                image: {{ .Values.networking.gatewayTemplates.container.geneve.image.name }}{{ include "liqo.suffix" $geneveConfig }}:{{ include "liqo.version" $geneveConfig }}
+                imagePullPolicy: {{ .Values.pullPolicy }}
+                args:
+                - --name={{"{{ .Name }}"}}
+                - --namespace={{"{{ .Namespace }}"}}
+                - --remote-cluster-id={{"{{ .ClusterID }}"}}
+                - --gateway-uid={{"{{ .GatewayUID }}"}}
+                - --node-name={{"$(NODE_NAME)"}}
+                - --mode=server
+                {{- if .Values.metrics.enabled }}
+                - --metrics-address=:8084
+                {{- end }}
+                - --health-probe-bind-address=:8085
+                - --enable-arp=true
+                {{- if .Values.metrics.enabled }}
+                ports:
+                - containerPort: 8084
+                  name: gv-metrics
+                {{- end }} 
+                env:
+                - name: NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+              # Uncomment to set a priorityClassName
+              # priorityClassName: ""
+{{- end }}

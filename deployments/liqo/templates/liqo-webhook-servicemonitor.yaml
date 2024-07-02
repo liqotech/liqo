@@ -1,0 +1,26 @@
+{{- $webhookMetricsConfig := (merge (dict "name" "webhook-metrics" "module" "webhook") .) -}}
+
+{{- if .Values.webhook.metrics.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "liqo.prefixedName" $webhookMetricsConfig }}
+  labels:
+    {{- include "liqo.labels" $webhookMetricsConfig | nindent 4 }}
+    {{- if .Values.webhook.metrics.serviceMonitor.labels }}
+      {{- toYaml .Values.webhook.metrics.serviceMonitor.labels | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "liqo.labels" $webhookMetricsConfig | nindent 6 }}
+  endpoints:
+  - port: metrics
+    {{- with .Values.webhook.metrics.serviceMonitor.interval }}
+    interval: {{ . }}
+    {{- end }}
+    {{- with .Values.webhook.metrics.serviceMonitor.scrapeTimeout }}
+    scrapeTimeout: {{ . }}
+    {{- end }}
+{{- end }}

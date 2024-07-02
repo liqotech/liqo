@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/consts"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -45,13 +45,13 @@ var _ = Describe("NamespacedReflector tests", func() {
 			nsrfl          NamespacedReflector
 			ready          bool
 			forgingOpts    *forge.ForgingOpts
-			reflectionType consts.ReflectionType
+			reflectionType vkv1alpha1.ReflectionType
 		)
 
 		BeforeEach(func() {
 			ready = false
 			forgingOpts = &forge.ForgingOpts{}
-			reflectionType = consts.CustomLiqo
+			reflectionType = vkv1alpha1.CustomLiqo
 		})
 
 		JustBeforeEach(func() {

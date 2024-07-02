@@ -23,7 +23,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 // InstallFlags configures the virtual kubelet flags.
@@ -33,16 +33,14 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 		"Secret name to use for connecting to the remote Kubernetes API server")
 	flags.StringVar(&o.NodeName, "nodename", o.NodeName, "The name of the node registered by the virtual kubelet")
 	flags.StringVar(&o.TenantNamespace, "tenant-namespace", o.TenantNamespace, "The tenant namespace associated with the remote cluster")
+	flags.StringVar(&o.LiqoNamespace, "liqo-namespace", o.LiqoNamespace, "The namespace where Liqo is installed")
 	flags.DurationVar(&o.InformerResyncPeriod, "resync-period", o.InformerResyncPeriod, "The resync period for the informers")
 
-	flags.StringVar(&o.HomeCluster.ClusterID, "home-cluster-id", o.HomeCluster.ClusterID, "The ID of the home cluster")
-	flags.StringVar(&o.HomeCluster.ClusterName, "home-cluster-name", o.HomeCluster.ClusterName, "The name of the home cluster")
-	flags.StringVar(&o.ForeignCluster.ClusterID, "foreign-cluster-id", o.ForeignCluster.ClusterID, "The ID of the foreign cluster")
-	flags.StringVar(&o.ForeignCluster.ClusterName, "foreign-cluster-name", o.ForeignCluster.ClusterName, "The name of the foreign cluster")
-	flags.StringVar(&o.LiqoIpamServer, "ipam-server", o.LiqoIpamServer,
-		"The address to contact the IPAM module (leave it empty to disable the IPAM module)")
+	flags.Var(&o.HomeCluster, "home-cluster-id", "The ID of the home cluster")
+	flags.Var(&o.ForeignCluster, "foreign-cluster-id", "The ID of the foreign cluster")
 	flags.BoolVar(&o.DisableIPReflection, "disable-ip-reflection", o.DisableIPReflection,
 		"Disable the IP reflection for the offloaded pods")
+	flags.StringVar(&o.LocalPodCIDR, "local-podcidr", o.LocalPodCIDR, "The CIDR used for the local pods")
 
 	flags.StringVar(&o.NodeIP, "node-ip", o.NodeIP, "The IP address of the virtual kubelet pod, and assigned to the virtual node as internal address")
 	flags.Var(o.CertificateType, "certificate-type", "The type of virtual kubelet server certificate to generate, among kubelet, aws, self-signed")
@@ -103,8 +101,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 
 // setReflectorsWorkers sets the flags for the number of workers used by the reflectors.
 func setReflectorsWorkers(flags *pflag.FlagSet, o *Opts) {
-	for i := range generic.Reflectors {
-		resource := &generic.Reflectors[i]
+	for i := range resources.Reflectors {
+		resource := &resources.Reflectors[i]
 		stringFlag := fmt.Sprintf("%s-reflection-workers", *resource)
 		defaultValue := *o.ReflectorsWorkers[string(*resource)]
 		usage := fmt.Sprintf("The number of workers used for the %s reflector", *resource)
@@ -114,8 +112,8 @@ func setReflectorsWorkers(flags *pflag.FlagSet, o *Opts) {
 
 // setReflectorsType sets the flags for the type of reflection used by the reflectors.
 func setReflectorsType(flags *pflag.FlagSet, o *Opts) {
-	for i := range generic.ReflectorsCustomizableType {
-		resource := &generic.ReflectorsCustomizableType[i]
+	for i := range resources.ReflectorsCustomizableType {
+		resource := &resources.ReflectorsCustomizableType[i]
 		stringFlag := fmt.Sprintf("%s-reflection-type", *resource)
 		defaultValue := *o.ReflectorsType[string(*resource)]
 		usage := fmt.Sprintf("The type of reflection used for the %s reflector", *resource)

@@ -48,6 +48,73 @@ rules:
   - update
   - watch
 - apiGroups:
+  - authentication.liqo.io
+  resources:
+  - identities
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - identities
+  - identities/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - resourceslices
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - resourceslices
+  - resourceslices/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - tenants
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - tenants
+  - tenants/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - certificates.k8s.io
   resources:
   - certificatesigningrequests
@@ -78,6 +145,14 @@ rules:
 - apiGroups:
   - certificates.k8s.io
   resourceNames:
+  - kubernetes.io/kube-apiserver-client
+  resources:
+  - signers
+  verbs:
+  - approve
+- apiGroups:
+  - certificates.k8s.io
+  resourceNames:
   - kubernetes.io/kubelet-serving
   resources:
   - signers
@@ -101,6 +176,7 @@ rules:
   - namespaces
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
@@ -154,7 +230,43 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - serviceaccounts
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.liqo.io
+  resources:
+  - foreignclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.liqo.io
+  resources:
+  - foreignclusters/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.liqo.io
+  resources:
+  - foreignclusters/status
   verbs:
   - create
   - delete
@@ -176,9 +288,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - ipam.liqo.io
   resources:
-  - foreignclusters
+  - ips
   verbs:
   - create
   - delete
@@ -188,26 +300,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - ipam.liqo.io
   resources:
-  - foreignclusters/finalizers
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - foreignclusters/finalizers
-  - foreignclusters/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - foreignclusters/status
+  - ips/finalizers
   verbs:
   - create
   - delete
@@ -217,78 +312,285 @@ rules:
   - update
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - ipam.liqo.io
   resources:
-  - resourcerequests
+  - ips/status
   verbs:
   - create
   - delete
-  - deletecollection
   - get
   - list
   - patch
   - update
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - ipam.liqo.io
   resources:
-  - resourcerequests/finalizers
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - resourcerequests/finalizers
-  - resourcerequests/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - resourcerequests/status
+  - networks
   verbs:
   - create
   - delete
-  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.liqo.io
+  resources:
+  - networks/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ipam.liqo.io
+  resources:
+  - networks/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - servicemonitors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - configurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - configurations/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - connections
+  verbs:
+  - get
   - list
   - watch
 - apiGroups:
-  - metrics.liqo.io
+  - networking.liqo.io
   resources:
-  - scrape
-  - scrape/metrics
+  - firewallconfigurations
   verbs:
-  - get
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - networkconfigs
-  verbs:
-  - '*'
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - networkconfigs/status
-  verbs:
-  - '*'
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - tunnelendpoints
-  verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
-  - net.liqo.io
+  - networking.liqo.io
   resources:
-  - tunnelendpoints/status
+  - firewallconfigurations/status
   verbs:
   - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - gatewayclients
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - gatewayclients/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - gatewayservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - gatewayservers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - genevetunnels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalfabrics
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalfabrics/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - internalnodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - ips
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - routeconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayclients
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayclients/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayclienttemplates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayservers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - wggatewayservertemplates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -322,13 +624,24 @@ rules:
   - update
   - watch
 - apiGroups:
+  - offloading.liqo.io
+  resources:
+  - quotas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
   verbs:
   - create
   - delete
-  - deletecollection
   - get
   - list
   - patch
@@ -360,38 +673,12 @@ rules:
   - update
   - watch
 - apiGroups:
-  - sharing.liqo.io
+  - storage
   resources:
-  - resourceoffers
+  - storageclasses
   verbs:
-  - create
-  - delete
-  - deletecollection
   - get
   - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - sharing.liqo.io
-  resources:
-  - resourceoffers/finalizers
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - sharing.liqo.io
-  resources:
-  - resourceoffers/status
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - get
-  - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - storage.k8s.io

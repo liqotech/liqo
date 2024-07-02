@@ -26,9 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/maps"
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
@@ -53,20 +54,21 @@ func (p *LiqoNodeProvider) reconcileNodeFromVirtualNode(event watch.Event) error
 	return nil
 }
 
-func (p *LiqoNodeProvider) reconcileNodeFromTep(event watch.Event) error {
-	var tep netv1alpha1.TunnelEndpoint
+func (p *LiqoNodeProvider) reconcileNodeFromForeignCluster(event watch.Event) error {
+	var fc liqov1alpha1.ForeignCluster
 	unstruct, ok := event.Object.(*unstructured.Unstructured)
 	if !ok {
-		return errors.New("error in casting tunnel endpoint: recreate watcher")
+		return errors.New("error in casting ForeignCluster")
 	}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, &tep); err != nil {
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, &fc); err != nil {
 		klog.Error(err)
 		return err
 	}
+
 	if event.Type == watch.Deleted {
 		p.updateMutex.Lock()
 		defer p.updateMutex.Unlock()
-		klog.Infof("tunnelEndpoint %v deleted", tep.Name)
+		klog.Infof("foreigncluster %v deleted", fc.Name)
 		p.networkReady = false
 		err := p.updateNode()
 		if err != nil {
@@ -75,11 +77,10 @@ func (p *LiqoNodeProvider) reconcileNodeFromTep(event watch.Event) error {
 		return err
 	}
 
-	if err := p.updateFromTep(&tep); err != nil {
-		klog.Errorf("node update from tunnelEndpoint %v failed for reason %v; retry...", tep.Name, err)
+	if err := p.updateFromForeignCluster(&fc); err != nil {
+		klog.Errorf("node update from foreigncluster %v failed for reason %v; retry...", fc.Name, err)
 		return err
 	}
-	klog.Info("correctly set pod CIDR from tunnel endpoint")
 	return nil
 }
 
@@ -139,29 +140,27 @@ func (p *LiqoNodeProvider) updateFromVirtualNode(ctx context.Context,
 	return p.updateNode()
 }
 
-func (p *LiqoNodeProvider) updateFromTep(tep *netv1alpha1.TunnelEndpoint) error {
+func (p *LiqoNodeProvider) updateFromForeignCluster(foreigncluster *liqov1alpha1.ForeignCluster) error {
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	// if tep is not connected yet, return
-	if tep.Status.Connection.Status != netv1alpha1.Connected {
-		p.networkReady = false
-		return p.updateNode()
-	}
-	p.networkReady = true
+	p.networkModuleEnabled = fcutils.IsNetworkingModuleEnabled(foreigncluster)
+	p.networkReady = fcutils.IsNetworkingEstablished(foreigncluster)
 	return p.updateNode()
 }
 
 func (p *LiqoNodeProvider) updateNode() error {
 	resourcesReady := areResourcesReady(p.node.Status.Allocatable)
-	networkReady := p.networkReady || !p.checkNetworkStatus
+	networkReady := p.networkReady || !p.checkNetworkStatus || !p.networkModuleEnabled
 
 	UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && networkReady))
 	UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
 	UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
 	UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
-	if p.checkNetworkStatus {
+	if p.checkNetworkStatus && p.networkModuleEnabled {
 		UpdateNodeCondition(p.node, v1.NodeNetworkUnavailable, nodeNetworkUnavailableStatus(!networkReady))
+	} else if !p.networkModuleEnabled || !p.checkNetworkStatus {
+		deleteCondition(p.node, v1.NodeNetworkUnavailable)
 	}
 
 	p.onNodeChangeCallback(p.node.DeepCopy())

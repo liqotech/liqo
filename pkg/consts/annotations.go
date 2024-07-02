@@ -35,4 +35,14 @@ const (
 	// in the remote cluster. This annotation requires the API server support to be "remote" for the pod and the
 	// remote service account to be created.
 	RemoteServiceAccountNameAnnotation = "liqo.io/remote-service-account-name"
+
+	// LabelsTemplateAnnotationKey contains a cache to store labels keys that belongs to a template.
+	LabelsTemplateAnnotationKey = "liqo.io/template-labels"
+	// AnnotsTemplateAnnotationKey contains a cache to store annotations keys that belongs to a template.
+	AnnotsTemplateAnnotationKey = "liqo.io/template-annotations"
+
+	// UninstallingAnnotationKey is the annotation used to signal liqo is being uninstalled.
+	UninstallingAnnotationKey = "liqo.io/uninstalling"
+	// UninstallingAnnotationValue is the value of the annotation used to signal liqo is being uninstalled.
+	UninstallingAnnotationValue = "true"
 )

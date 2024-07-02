@@ -19,10 +19,10 @@ Liqo implements two different reflection policies:
 * ***DenyList***: reflects all the resources available in the liqo-enabled namespaces, excluding the ones with the `liqo.io/skip-reflection` annotation.
 * ***AllowList***: do not reflect any resource in the liqo-enabled namespaces, but the ones with the `liqo.io/allow-reflection` annotation.
 
-You can configure the preferred reflection policy for each resource type through the Helm value `reflection.<resource>.type`:
+You can configure the preferred reflection policy for each resource type through the Helm value `offloading.reflection.<resource>.type`:
 
 ```bash
-liqoctl install ... --set "reflection.secret.type=AllowList"
+liqoctl install ... --set "offloading.reflection.secret.type=AllowList"
 ```
 
 ````{warning}
@@ -34,11 +34,11 @@ liqoctl install ... --set "reflection.secret.type=AllowList"
 ````
 
 ````{admonition} Note
-The number of workers to use for the reflection of a given type of resource is customizable through the Helm value `reflection.<resource>.workers`.
+The number of workers to use for the reflection of a given type of resource is customizable through the Helm value `offloading.reflection.<resource>.workers`.
 Additionally, you can set the number of workers to 0 to **completely disable the reflection** of a given type of resource (e.g., *Secrets*) towards remote clusters:
 
 ```bash
-liqoctl install ... --set "reflection.secret.workers=0"
+liqoctl install ... --set "offloading.reflection.secret.workers=0"
 ```
 ````
 
@@ -49,7 +49,7 @@ liqoctl install ... --set "reflection.secret.workers=0"
 In some cases, it could be useful to **not propagate** to the remote clusters some labels/annotations present on reflected resources.
 This can be useful to avoid reflecting labels/annotations that lead to conflicts between the local and remote resources (e.g., the ones added by cloud providers and that are tied to the configuration of the hosting cluster), thus **preventing infinite reconciliations** of the reflected resource.
 
-You can disable the reflection of custom labels and annotations by configuring at install-time respectively the Helm values `reflection.skip.labels` and `reflection.skip.annotations` with the list of **keys** that must not be reflected.
+You can disable the reflection of custom labels and annotations by configuring at install-time respectively the Helm values `offloading.reflection.skip.labels` and `offloading.reflection.skip.annotations` with the list of **keys** that must not be reflected.
 To modify the list of not-reflected labels/annotations if Liqo is already installed you can either:
 
 * Patch the individual virtual nodes fields `spec.offloadingPatch.labelsNotReflected` and `spec.offloadingPatch.annotationsNotReflected`.

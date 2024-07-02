@@ -1,31 +1,7 @@
----
-{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
+{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager" "version" .Values.controllerManager.image.version) .) -}}
 {{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
-{{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
-
-{{- $vkargs := .Values.virtualKubelet.extra.args }}
-{{- /* Enable the API support if not overridden by the user */ -}}
-{{- if not (or (has "--enable-apiserver-support" $vkargs ) (has "--enable-apiserver-support=true" $vkargs ) (has "--enable-apiserver-support=false" $vkargs )) }}
-{{- $vkargs = append $vkargs "--enable-apiserver-support=true" }}
-{{- end }}
-{{- /* Configure the appropriate flags if the internal networking is disabled, if not overridden by the user */ -}}
-{{- if not .Values.networking.internal }}
-{{- if not (or (has "--node-check-network" $vkargs ) (has "--node-check-network=true" $vkargs ) (has "--node-check-network=false" $vkargs )) }}
-{{- $vkargs = append $vkargs "--node-check-network=false" }}
-{{- end }}
-{{- end }}
-{{- /* Configure the appropriate flags if the IP reflection is disabled, if not overridden by the user */ -}}
-{{- if not .Values.networking.reflectIPs }}
-{{- if not (or (has "--disable-ip-reflection" $vkargs ) (has "--disable-ip-reflection=true" $vkargs ) (has "--disable-ip-reflection=false" $vkargs )) }}
-{{- $vkargs = append $vkargs "--disable-ip-reflection" }}
-{{- end }}
-{{- end }}
-{{- /* Configure the appropriate certificate generation approach on EKS clusters, if not overridden by the user */ -}}
-{{- if .Values.awsConfig.accessKeyId }}
-{{- if not (or (has "--certificate-type=kubelet" $vkargs ) (has "--certificate-type=aws" $vkargs ) (has "--certificate-type=self-signed" $vkargs )) }}
-{{- $vkargs = append $vkargs "--certificate-type=aws" }}
-{{- end }}
-{{- end }}
+{{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam") .) -}}
+{{- $awsConfig := (merge (dict "name" "aws-config" "module" "aws-config") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -65,7 +41,7 @@ spec:
         {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
       containers:
-      - image: {{ .Values.controllerManager.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+      - image: {{ .Values.controllerManager.image.name }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
         imagePullPolicy: {{ .Values.pullPolicy }}
         securityContext:
           {{- include "liqo.containerSecurityContext" . | nindent 10 }}
@@ -73,50 +49,47 @@ spec:
         command: ["/usr/bin/liqo-controller-manager"]
         args:
           - --cluster-id=$(CLUSTER_ID)
-          - --cluster-name={{ .Values.discovery.config.clusterName }}
           - --liqo-namespace=$(POD_NAMESPACE)
-          - --enable-incoming-peering={{ .Values.discovery.config.incomingPeeringEnabled }}
-          - --resource-sharing-percentage={{ .Values.controllerManager.config.resourceSharingPercentage }}
-          - --pod-reflection-workers={{ .Values.reflection.pod.workers }}
-          - --service-reflection-workers={{ .Values.reflection.service.workers }}
-          - --endpointslice-reflection-workers={{ .Values.reflection.endpointslice.workers }}
-          - --ingress-reflection-workers={{ .Values.reflection.ingress.workers }}
-          - --configmap-reflection-workers={{ .Values.reflection.configmap.workers }}
-          - --secret-reflection-workers={{ .Values.reflection.secret.workers }}
-          - --serviceaccount-reflection-workers={{ .Values.reflection.serviceaccount.workers }}
-          - --persistentvolumeclaim-reflection-workers={{ .Values.reflection.persistentvolumeclaim.workers }}
-          - --event-reflection-workers={{ .Values.reflection.event.workers }}
-          - --service-reflection-type={{ .Values.reflection.service.type }}
-          - --ingress-reflection-type={{ .Values.reflection.ingress.type }}
-          - --configmap-reflection-type={{ .Values.reflection.configmap.type }}
-          - --secret-reflection-type={{ .Values.reflection.secret.type }}
-          - --event-reflection-type={{ .Values.reflection.event.type }}
-          {{- if not .Values.offloading.runtimeClass.enable }}
-          - --add-virtual-node-toleration-on-offloaded-pods
+          - --networking-enabled={{ .Values.networking.enabled }}
+          - --authentication-enabled={{ .Values.authentication.enabled }}
+          - --offloading-enabled={{ .Values.offloading.enabled }}
+          - --default-limits-enforcement={{ .Values.controllerManager.config.defaultLimitsEnforcement }}
+          {{- $d := dict "commandName" "--default-node-resources" "dictionary" .Values.offloading.defaultNodeResources -}}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- if .Values.authentication.awsConfig.accessKeyId }}
+          - --aws-access-key-id=$(ACCESS_KEY_ID)
           {{- end }}
-          {{- if .Values.reflection.skip.labels }}
-          {{- $d := dict "commandName" "--labels-not-reflected" "list" .Values.reflection.skip.labels }}
-          {{- include "liqo.concatenateList" $d | nindent 10 }}
+          {{- if .Values.authentication.awsConfig.secretAccessKey }}
+          - --aws-secret-access-key=$(SECRET_ACCESS_KEY)
           {{- end }}
-          {{- if .Values.reflection.skip.annotations }}
-          {{- $d := dict "commandName" "--annotations-not-reflected" "list" .Values.reflection.skip.annotations }}
-          {{- include "liqo.concatenateList" $d | nindent 10 }}
+          {{- if .Values.authentication.awsConfig.region }}
+          - --aws-region={{ .Values.authentication.awsConfig.region }}
           {{- end }}
-          - --kubelet-image={{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
-          {{- if .Values.virtualKubelet.metrics.enabled }}
-          - --kubelet-metrics-address=:{{ .Values.virtualKubelet.metrics.port }}
-          - --kubelet-metrics-enabled={{ .Values.virtualKubelet.metrics.enabled }}
+          {{- if .Values.authentication.awsConfig.clusterName }}
+          - --aws-cluster-name={{ .Values.authentication.awsConfig.clusterName }}
+          {{- end }}
+          {{- if .Values.apiServer.address }}
+          - --api-server-address-override={{ .Values.apiServer.address }}
+          {{- end }}
+          {{- if .Values.apiServer.ca }}
+          - --ca-override={{ .Values.apiServer.ca }}
+          {{- end }}
+          {{- if .Values.apiServer.trustedCA }}
+          - --trusted-ca
+          {{- end }}
+          - --fabric-full-masquerade-enabled={{ .Values.networking.fabric.config.fullMasquerade }}
+          - --gateway-masquerade-bypass-enabled={{ .Values.networking.fabric.config.gatewayMasqueradeBypass }}
+          {{- $d := dict "commandName" "--gateway-server-resources" "list" .Values.networking.serverResources }}
+          {{- include "liqo.concatenateGroupVersionResources" $d | nindent 10 }}
+          {{- $d := dict "commandName" "--gateway-client-resources" "list" .Values.networking.clientResources }}
+          {{- include "liqo.concatenateGroupVersionResources" $d | nindent 10 }}
+          {{- if .Values.networking.enabled }}
+          {{- if .Values.ipam.external.enabled }}
+          - --ipam-server={{ .Values.ipam.external.url }}
           {{- else }}
+          - --ipam-server={{ include "liqo.prefixedName" $ipamConfig }}.{{ .Release.Namespace }}:6000
           {{- end }}
-          {{- if .Values.networkManager.externalIPAM.enabled }}
-          - --kubelet-ipam-server={{ .Values.networkManager.externalIPAM.url }}
-          {{- else if not .Values.networking.internal }}
-          - --kubelet-ipam-server=
-          - --disable-internal-network
-          {{- else }}
-          - --kubelet-ipam-server={{ include "liqo.prefixedName" $netManagerConfig }}.{{ .Release.Namespace }}:6000
           {{- end }}
-          - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
           - --enable-storage={{ .Values.storage.enable }}
           - --webhook-port={{ .Values.webhook.port }}
           {{- if .Values.storage.enable }}
@@ -124,35 +97,12 @@ spec:
           - --real-storage-class-name={{ .Values.storage.realStorageClassName }}
           - --storage-namespace={{ .Values.storage.storageNamespace }}
           {{- end }}
-          {{- $d := dict "commandName" "--ingress-classes" "list" .Values.reflection.ingress.ingressClasses }}
+          {{- $d := dict "commandName" "--ingress-classes" "list" .Values.offloading.reflection.ingress.ingressClasses }}
           {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
-          {{- $d := dict "commandName" "--load-balancer-classes" "list" .Values.reflection.service.loadBalancerClasses }}
+          {{- $d := dict "commandName" "--load-balancer-classes" "list" .Values.offloading.reflection.service.loadBalancerClasses }}
           {{- include "liqo.concatenateListDefault" $d | nindent 10 }}
-          {{- if .Values.controllerManager.config.enableResourceEnforcement }}
-          - --enable-resource-enforcement
-          {{- end }}
           {{- if .Values.controllerManager.config.enableNodeFailureController }}
           - --enable-node-failure-controller
-          {{- end }}
-          {{- if .Values.virtualKubelet.extra.annotations }}
-          {{- $d := dict "commandName" "--kubelet-extra-annotations" "dictionary" .Values.virtualKubelet.extra.annotations }}
-          {{- include "liqo.concatenateMap" $d | nindent 10 }}
-          {{- end }}
-          {{- if .Values.virtualKubelet.extra.labels }}
-          {{- $d := dict "commandName" "--kubelet-extra-labels" "dictionary" .Values.virtualKubelet.extra.labels }}
-          {{- include "liqo.concatenateMap" $d | nindent 10 }}
-          {{- end }}
-          {{- if ge (len $vkargs) 1 }}
-          {{- $d := dict "commandName" "--kubelet-extra-args" "list" $vkargs }}
-          {{- include "liqo.concatenateList" $d | nindent 10 }}
-          {{- end }}
-          {{- if .Values.virtualKubelet.virtualNode.extra.annotations }}
-          {{- $d := dict "commandName" "--node-extra-annotations" "dictionary" .Values.virtualKubelet.virtualNode.extra.annotations }}
-          {{- include "liqo.concatenateMap" $d | nindent 10 }}
-          {{- end }}
-          {{- if .Values.virtualKubelet.virtualNode.extra.labels }}
-          {{- $d := dict "commandName" "--node-extra-labels" "dictionary" .Values.virtualKubelet.virtualNode.extra.labels }}
-          {{- include "liqo.concatenateMap" $d | nindent 10 }}
           {{- end }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
@@ -167,32 +117,6 @@ spec:
           {{- if gt .Values.controllerManager.replicas 1.0 }}
           - --enable-leader-election=true
           {{- end }}
-          {{- /* virtual kubelet pod containers' requests */ -}}
-          {{- range $resource, $value := .Values.virtualKubelet.extra.resources.requests }}
-          {{- if eq $resource "cpu" }}
-          - --kubelet-cpu-requests={{ $value }}
-          {{- else if eq $resource "memory" }}
-          - --kubelet-ram-requests={{ $value }}
-          {{- else }}
-          {{ fail (printf "Unsupported resource type \"%s\" for virtual kubelet containers' requests" $resource) }}
-          {{- end }}
-          {{- end }}
-          {{- /* virtual kubelet pod containers' limits */ -}}
-          {{- range $resource, $value := .Values.virtualKubelet.extra.resources.limits }}
-          {{- if eq $resource "cpu" }}
-          - --kubelet-cpu-limits={{ $value }}
-          {{- else if eq $resource "memory" }}
-          - --kubelet-ram-limits={{ $value }}
-          {{- else }}
-          {{ fail (printf "Unsupported resource type \"%s\" for virtual kubelet containers' limits" $resource) }}
-          {{- end }}
-          {{- end }}
-          {{- if .Values.controllerManager.config.resourcePluginAddress }}
-          - --resource-plugin-address={{ .Values.controllerManager.config.resourcePluginAddress }}
-          - --offer-update-threshold-percentage={{ .Values.controllerManager.config.offerUpdateThresholdPercentage | default 0 }}
-          {{- else }}
-          - --offer-update-threshold-percentage={{ .Values.controllerManager.config.offerUpdateThresholdPercentage | default 5 }}
-          {{- end }}
         env:
           - name: CLUSTER_ID
             valueFrom:
@@ -203,6 +127,32 @@ spec:
             valueFrom:
              fieldRef:
                fieldPath: metadata.namespace
+          {{- if .Values.authentication.awsConfig.accessKeyId }}
+          - name: ACCESS_KEY_ID
+            valueFrom:
+              {{- if .Values.authentication.awsConfig.useExistingSecret }}
+              secretKeyRef:
+                name: {{ .Values.authentication.awsConfig.accessKeyId.secretKeyRef.name }}
+                key: {{ .Values.authentication.awsConfig.accessKeyId.secretKeyRef.key }}
+              {{- else }}
+              secretKeyRef:
+                name: {{ include "liqo.prefixedName" $awsConfig }}
+                key: ACCESS_KEY_ID
+              {{- end }}
+          {{- end }}
+          {{- if .Values.authentication.awsConfig.secretAccessKey }}
+          - name: SECRET_ACCESS_KEY
+            valueFrom:
+              {{- if .Values.authentication.awsConfig.useExistingSecret }}
+              secretKeyRef:
+                name: {{ .Values.authentication.awsConfig.secretAccessKey.secretKeyRef.name }}
+                key: {{ .Values.authentication.awsConfig.secretAccessKey.secretKeyRef.key }}
+              {{- else }}
+              secretKeyRef:
+                name: {{ include "liqo.prefixedName" $awsConfig }}
+                key: SECRET_ACCESS_KEY
+              {{- end }}
+          {{- end }}
         resources: {{- toYaml .Values.controllerManager.pod.resources | nindent 10 }}
         volumeMounts:
           - name: webhook-certs

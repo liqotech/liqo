@@ -31,15 +31,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/util"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
-	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
@@ -86,8 +83,7 @@ var _ = Describe("Liqo E2E", func() {
 		}
 	)
 
-	Context("Assert that labels inserted at installation time are in the right resources: ControllerManager args,"+
-		" resourceOffer and virtualNodes", func() {
+	Context("Assert that labels inserted at installation time are in the right resources: ControllerManager args", func() {
 
 		DescribeTable(" 1 - Check labels presence in the ControllerManager arguments for every cluster", util.DescribeTableArgs(
 			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
@@ -107,39 +103,13 @@ var _ = Describe("Liqo E2E", func() {
 			getTableEntries()...,
 		)...)
 
-		DescribeTable(" 2 - Check labels presence in the ResourceOffer resources for every cluster", util.DescribeTableArgs(
-			// In every Local Tenant Namespace there must be the ResourceOffer sent by the cluster under examination
-			// with the expected labels in the field ResourceOffer.Spec.Labels.
-			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
-				resourceOffer := &sharingv1alpha1.ResourceOffer{}
-				// For every peering get the resourceOffer sent by the cluster under examination.
-				for i := range testContext.Clusters {
-					if i == index {
-						continue
-					}
-
-					By("Retrieving the ResourceOffers created by the cluster under examination")
-					Eventually(func() (err error) {
-						resourceOffer, err = liqogetters.GetResourceOfferByLabel(ctx, cluster.ControllerClient, metav1.NamespaceAll,
-							liqolabels.LocalLabelSelectorForCluster(testContext.Clusters[i].Cluster.ClusterID))
-						return err
-					}, timeout, interval).Should(Succeed())
-
-					for key, value := range clusterLabels {
-						Expect(resourceOffer.Spec.Labels).To(HaveKeyWithValue(key, value))
-					}
-				}
-			},
-			getTableEntries()...,
-		)...)
-
-		DescribeTable(" 3 - Check labels presence on the virtual nodes for every cluster", util.DescribeTableArgs(
+		DescribeTable(" 2 - Check labels presence on the virtual nodes for every cluster", util.DescribeTableArgs(
 			// Each virtual node representing the cluster under examination in the remote clusters must have the
 			// expected labels.
 			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
 				virtualNode := &corev1.Node{}
 				liqoPrefix := "liqo"
-				virtualNodeName := fmt.Sprintf("%s-%s", liqoPrefix, cluster.Cluster.ClusterName)
+				virtualNodeName := fmt.Sprintf("%s-%s", liqoPrefix, cluster.Cluster)
 				for i := range testContext.Clusters {
 					if i == index {
 						continue
@@ -200,12 +170,12 @@ var _ = Describe("Liqo E2E", func() {
 				remoteClusterID := virtualNodesList.Items[i].Labels[liqoconst.RemoteClusterID]
 
 				var cl kubernetes.Interface
-				var identity discoveryv1alpha1.ClusterIdentity
+				var id liqov1alpha1.ClusterID
 				for j := range testContext.Clusters {
 					cluster := &testContext.Clusters[j]
-					if cluster.Cluster.ClusterID == remoteClusterID {
+					if string(cluster.Cluster) == remoteClusterID {
 						cl = cluster.NativeClient
-						identity = cluster.Cluster
+						id = cluster.Cluster
 						break
 					}
 				}
@@ -223,7 +193,7 @@ var _ = Describe("Liqo E2E", func() {
 
 					value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]
 					Expect(ok).To(BeTrue())
-					Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(&identity)))
+					Expect(value).To(HaveSuffix(foreignclusterutils.UniqueName(id)))
 				} else {
 					// Check if the remote namespace does not exists.
 					By(fmt.Sprintf(" 5 - Checking that no remote namespace is created inside cluster '%s'", remoteClusterID))

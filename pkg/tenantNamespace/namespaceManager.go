@@ -28,9 +28,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
 
 type namespaceLister func(ctx context.Context, selector labels.Selector) (ret []*v1.Namespace, err error)
@@ -65,7 +65,7 @@ func NewManager(client kubernetes.Interface) Manager {
 func NewCachedManager(ctx context.Context, client kubernetes.Interface) Manager {
 	// Here, we create a new namepace lister, so that it is possible to perform cached get/list operations.
 	// The informer factory is configured with an appropriate filter to cache only tenant namespaces.
-	req, err := labels.NewRequirement(discovery.TenantNamespaceLabel, selection.Exists, []string{})
+	req, err := labels.NewRequirement(consts.TenantNamespaceLabel, selection.Exists, []string{})
 	utilruntime.Must(err)
 
 	factory := informers.NewSharedInformerFactoryWithOptions(client, 0, informers.WithTweakListOptions(
@@ -87,7 +87,7 @@ func NewCachedManager(ctx context.Context, client kubernetes.Interface) Manager 
 
 // CreateNamespace creates a new Tenant Namespace given the clusterid
 // This method is idempotent, multiple calls of it will not lead to multiple namespace creations.
-func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity) (ns *v1.Namespace, err error) {
+func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (ns *v1.Namespace, err error) {
 	// Let immediately check if the namespace already exists, since this might be cached and thus fast
 	if ns, err = nm.GetNamespace(ctx, cluster); err == nil {
 		return ns, nil
@@ -103,8 +103,8 @@ func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster d
 		ObjectMeta: metav1.ObjectMeta{
 			Name: GetNameForNamespace(cluster),
 			Labels: map[string]string{
-				discovery.ClusterIDLabel:       cluster.ClusterID,
-				discovery.TenantNamespaceLabel: "true",
+				consts.RemoteClusterID:      string(cluster),
+				consts.TenantNamespaceLabel: "true",
 			},
 		},
 	}
@@ -115,13 +115,13 @@ func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster d
 		return nil, err
 	}
 
-	klog.V(4).Infof("Namespace %v created for the remote cluster %v", ns.Name, cluster.ClusterName)
+	klog.V(4).Infof("Namespace %v created for the remote cluster %v", ns.Name, cluster)
 	return ns, nil
 }
 
 // GetNamespace gets a Tenant Namespace given the clusterid.
-func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster discoveryv1alpha1.ClusterIdentity) (*v1.Namespace, error) {
-	req, err := labels.NewRequirement(discovery.ClusterIDLabel, selection.Equals, []string{cluster.ClusterID})
+func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*v1.Namespace, error) {
+	req, err := labels.NewRequirement(consts.RemoteClusterID, selection.Equals, []string{string(cluster)})
 	utilruntime.Must(err)
 
 	namespaces, err := nm.listNamespaces(ctx, labels.NewSelector().Add(*req))
@@ -136,7 +136,7 @@ func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster disc
 		klog.V(4).Info(err)
 		return nil, err
 	} else if nItems > 1 {
-		err = fmt.Errorf("multiple tenant namespaces found for clusterid %v", cluster.ClusterName)
+		err = fmt.Errorf("multiple tenant namespaces found for clusterid %v", cluster)
 		klog.Error(err)
 		return nil, err
 	}
@@ -144,6 +144,6 @@ func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster disc
 }
 
 // GetNameForNamespace given a cluster identity it returns the name of the tenant namespace for the cluster.
-func GetNameForNamespace(cluster discoveryv1alpha1.ClusterIdentity) string {
-	return fmt.Sprintf("%s-%s", NamePrefix, foreignclusterutils.UniqueName(&cluster))
+func GetNameForNamespace(cluster liqov1alpha1.ClusterID) string {
+	return fmt.Sprintf("%s-%s", NamePrefix, foreignclusterutils.UniqueName(cluster))
 }

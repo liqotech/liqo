@@ -28,32 +28,37 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"k8s.io/utils/trace"
 
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	"github.com/liqotech/liqo/pkg/consts"
-	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
+)
+
+const (
+	localPodCIDR string = "192.168.0.0/16"
 )
 
 var _ = Describe("EndpointSlice Reflection Tests", func() {
 	Describe("the NewEndpointSliceReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
-				Type:       root.DefaultReflectorsTypes[generic.EndpointSlice],
+				Type:       root.DefaultReflectorsTypes[resources.EndpointSlice],
 			}
-			Expect(exposition.NewEndpointSliceReflector(nil, &reflectorConfig)).ToNot(BeNil())
+			Expect(exposition.NewEndpointSliceReflector(localPodCIDR, &reflectorConfig)).ToNot(BeNil())
 		})
 	})
 
@@ -64,8 +69,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		var (
 			err            error
 			reflector      manager.NamespacedReflector
-			reflectionType consts.ReflectionType
-			ipam           *fakeipam.IPAMClient
+			reflectionType vkv1alpha1.ReflectionType
 			liqoClient     liqoclient.Interface
 
 			local  discoveryv1.EndpointSlice
@@ -97,6 +101,20 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			return svc
 		}
 
+		CreateIP := func(name, namespace, ip, remappedIP string) *ipamv1alpha1.IP {
+			ipamIP := &ipamv1alpha1.IP{ObjectMeta: metav1.ObjectMeta{Name: name}, Spec: ipamv1alpha1.IPSpec{IP: networkingv1alpha1.IP(ip)}}
+			ipamIP, err = liqoClient.IpamV1alpha1().IPs(namespace).Create(ctx, ipamIP, metav1.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			ipamIP.Status = ipamv1alpha1.IPStatus{
+				IPMappings: map[string]networkingv1alpha1.IP{
+					RemoteClusterID: networkingv1alpha1.IP(remappedIP),
+				},
+			}
+			ipamIP, err = liqoClient.IpamV1alpha1().IPs(namespace).UpdateStatus(ctx, ipamIP, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			return ipamIP
+		}
+
 		WhenBodyRemoteShouldNotExist := func(createRemote bool) func() {
 			return func() {
 				BeforeEach(func() {
@@ -119,7 +137,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			liqoClient = liqoclientfake.NewSimpleClientset()
 			local = discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: LocalNamespace}}
 			remote = vkv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
-			reflectionType = root.DefaultReflectorsTypes[generic.Service] // reflection type inherited from the service reflector
+			reflectionType = root.DefaultReflectorsTypes[resources.Service] // reflection type inherited from the service reflector
 		})
 
 		AfterEach(func() {
@@ -132,11 +150,11 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		})
 
 		JustBeforeEach(func() {
-			ipam = fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 			liqoFactory := liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
-			reflector = exposition.NewNamespacedEndpointSliceReflector(ipam)(options.NewNamespaced().
+			reflector = exposition.NewNamespacedEndpointSliceReflector(localPodCIDR)(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).
+				WithLiqoLocal(liqoClient, liqoFactory).
 				WithRemote(RemoteNamespace, client, factory).
 				WithLiqoRemote(liqoClient, liqoFactory).
 				WithHandlerFactory(FakeEventHandler).
@@ -166,10 +184,12 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 					local.SetAnnotations(map[string]string{"bar": "baz", FakeNotReflectedAnnotKey: "true"})
 					local.AddressType = discoveryv1.AddressTypeIPv4
 					local.Endpoints = []discoveryv1.Endpoint{{
-						NodeName:  pointer.String(LocalClusterNodeName),
-						Addresses: []string{"192.168.0.25", "192.168.0.43"},
+						NodeName:  ptr.To(LocalClusterNodeName),
+						Addresses: []string{"10.168.0.25", "10.168.0.43"},
 					}}
 					CreateEndpointSlice(&local)
+					CreateIP("ip1", LocalNamespace, "10.168.0.25", "192.168.200.25")
+					CreateIP("ip2", LocalNamespace, "10.168.0.43", "192.168.200.43")
 				})
 
 				When("the remote object does not exist", func() {
@@ -273,7 +293,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 			When("the reflection type is AllowList", func() {
 				BeforeEach(func() {
-					reflectionType = consts.AllowList
+					reflectionType = vkv1alpha1.AllowList
 				})
 
 				When("the local object does exist, and the associated service has the allow annotation", func() {
@@ -326,7 +346,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			When("the reflection is forced with the allow or skip annotation", func() {
 				When("the reflection is deny, but the object has the allow annotation", func() {
 					BeforeEach(func() {
-						reflectionType = consts.DenyList
+						reflectionType = vkv1alpha1.DenyList
 						local.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
 						local.AddressType = discoveryv1.AddressTypeIPv4
 						CreateEndpointSlice(&local)
@@ -341,7 +361,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 				When("the reflection is allow, but the object has the skip annotation", func() {
 					BeforeEach(func() {
-						reflectionType = consts.AllowList
+						reflectionType = vkv1alpha1.AllowList
 						local.SetAnnotations(map[string]string{consts.SkipReflectionAnnotationKey: "whatever"})
 						local.AddressType = discoveryv1.AddressTypeIPv4
 						CreateEndpointSlice(&local)
@@ -359,12 +379,17 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				err           error
 			)
 
-			BeforeEach(func() { input = []string{"192.168.0.25", "192.168.0.43"} })
+			BeforeEach(func() {
+				input = []string{"10.168.0.25", "10.168.0.43"}
+
+				CreateIP("ip1", LocalNamespace, "10.168.0.25", "192.168.200.25")
+				CreateIP("ip2", LocalNamespace, "10.168.0.43", "192.168.200.43")
+			})
 
 			When("translating a set of IP addresses", func() {
 				JustBeforeEach(func() {
 					output, err = reflector.(*exposition.NamespacedEndpointSliceReflector).
-						MapEndpointIPs(ctx, EndpointSliceName, input)
+						MapEndpointIPs(EndpointSliceName, input)
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
@@ -373,31 +398,12 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				When("translating again the same set of IP addresses", func() {
 					JustBeforeEach(func() {
 						output, err = reflector.(*exposition.NamespacedEndpointSliceReflector).
-							MapEndpointIPs(ctx, EndpointSliceName, input)
+							MapEndpointIPs(EndpointSliceName, input)
 					})
 
 					// The IPAMClient is configured to return an error if the same translation is requested twice.
 					It("should succeed (i.e., use the cached values)", func() { Expect(err).ToNot(HaveOccurred()) })
 					It("should return the same translations", func() { Expect(output).To(ConsistOf("192.168.200.25", "192.168.200.43")) })
-				})
-
-				When("releasing the same set of IP addresses", func() {
-					JustBeforeEach(func() {
-						err = reflector.(*exposition.NamespacedEndpointSliceReflector).UnmapEndpointIPs(ctx, EndpointSliceName)
-					})
-
-					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-					It("should have released the translations", func() {
-						Expect(ipam.IsEndpointTranslated("192.168.0.25")).To(BeFalse())
-						Expect(ipam.IsEndpointTranslated("192.168.0.43")).To(BeFalse())
-					})
-				})
-
-				When("releasing a different set of IP addresses", func() {
-					JustBeforeEach(func() {
-						err = reflector.(*exposition.NamespacedEndpointSliceReflector).UnmapEndpointIPs(ctx, "whatever")
-					})
-					It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				})
 			})
 		})

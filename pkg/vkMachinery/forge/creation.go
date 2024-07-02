@@ -24,66 +24,67 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/utils/strings"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 // VirtualKubeletName returns the name of the virtual-kubelet.
-func VirtualKubeletName(virtualNode *virtualkubeletv1alpha1.VirtualNode) string {
+func VirtualKubeletName(virtualNode *vkv1alpha1.VirtualNode) string {
 	return "vk-" + virtualNode.Name
 }
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(homeCluster *discoveryv1alpha1.ClusterIdentity, virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	opts *VirtualKubeletOpts) *appsv1.Deployment {
-	vkLabels := VirtualKubeletLabels(virtualNode, opts)
-	annotations := opts.ExtraAnnotations
+func VirtualKubeletDeployment(homeCluster liqov1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
+	virtualNode *vkv1alpha1.VirtualNode, opts *vkv1alpha1.VkOptionsTemplate) *appsv1.Deployment {
+	matchLabels := VirtualKubeletLabels(virtualNode) // these are the minimum set of labels used as selector
+	depLabels := labels.Merge(opts.Spec.ExtraLabels, matchLabels)
+	depAnnotations := opts.Spec.ExtraAnnotations
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        VirtualKubeletName(virtualNode),
 			Namespace:   virtualNode.Namespace,
-			Labels:      vkLabels,
-			Annotations: annotations,
+			Labels:      depLabels,
+			Annotations: depAnnotations,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: vkLabels,
+				MatchLabels: matchLabels,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      vkLabels,
-					Annotations: annotations,
+					Labels:      depLabels,
+					Annotations: depAnnotations,
 				},
-				Spec: forgeVKPodSpec(virtualNode.Namespace, homeCluster, virtualNode, opts),
+				Spec: forgeVKPodSpec(virtualNode.Namespace, homeCluster, localPodCIDR, liqoNamespace, virtualNode, opts),
 			},
 		},
 	}
 }
 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
-func VirtualKubeletLabels(virtualNode *virtualkubeletv1alpha1.VirtualNode, opts *VirtualKubeletOpts) map[string]string {
-	return labels.Merge(labels.Merge(opts.ExtraLabels, vkMachinery.KubeletBaseLabels), map[string]string{
-		discovery.ClusterIDLabel:   virtualNode.Spec.ClusterIdentity.ClusterID,
-		discovery.VirtualNodeLabel: virtualNode.Name,
+func VirtualKubeletLabels(virtualNode *vkv1alpha1.VirtualNode) map[string]string {
+	return labels.Merge(vkMachinery.KubeletBaseLabels, map[string]string{
+		consts.RemoteClusterID:  string(virtualNode.Spec.ClusterID),
+		consts.VirtualNodeLabel: virtualNode.Name,
 	})
 }
 
 // ClusterRoleLabels returns the labels to be set on a ClusterRoleBinding related to a VirtualKubelet.
-func ClusterRoleLabels(remoteClusterID string) map[string]string {
+func ClusterRoleLabels(remoteClusterID liqov1alpha1.ClusterID) map[string]string {
 	return labels.Merge(vkMachinery.ClusterRoleBindingLabels, map[string]string{
-		discovery.ClusterIDLabel: remoteClusterID,
+		consts.RemoteClusterID: string(remoteClusterID),
 	})
 }
 
 // VirtualKubeletClusterRoleBinding forges a ClusterRoleBinding for a VirtualKubelet.
 func VirtualKubeletClusterRoleBinding(kubeletNamespace, kubeletName string,
-	remoteCluster *discoveryv1alpha1.ClusterIdentity) *rbacv1.ClusterRoleBinding {
+	remoteCluster liqov1alpha1.ClusterID) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, kubeletName), 253),
-			Labels: ClusterRoleLabels(remoteCluster.ClusterID),
+			Labels: ClusterRoleLabels(remoteCluster),
 		},
 		Subjects: []rbacv1.Subject{
 			{Kind: "ServiceAccount", APIGroup: "", Name: kubeletName, Namespace: kubeletNamespace},

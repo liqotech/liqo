@@ -20,17 +20,16 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/iam"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -43,9 +42,10 @@ var (
 	cancel context.CancelFunc
 
 	cluster       testutil.Cluster
-	client        kubernetes.Interface
-	localCluster  discoveryv1alpha1.ClusterIdentity
-	remoteCluster discoveryv1alpha1.ClusterIdentity
+	k8sClient     kubernetes.Interface
+	localCluster  liqov1alpha1.ClusterID
+	remoteCluster liqov1alpha1.ClusterID
+	mgr           manager.Manager
 
 	namespace *corev1.Namespace
 
@@ -75,29 +75,26 @@ var _ = BeforeSuite(func() {
 	certificateSecretData = make(map[string]string)
 	iamSecretData = make(map[string]string)
 
-	localCluster = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "local-cluster-id",
-		ClusterName: "local-cluster-name",
-	}
+	localCluster = liqov1alpha1.ClusterID("local-cluster-id")
+	remoteCluster = liqov1alpha1.ClusterID("remote-cluster-id")
 
-	remoteCluster = discoveryv1alpha1.ClusterIdentity{
-		ClusterID:   "remote-cluster-id",
-		ClusterName: "remote-cluster-name",
-	}
 	notFoundError = kerrors.NewNotFound(schema.GroupResource{
 		Group:    "v1",
 		Resource: "secrets",
-	}, remoteCluster.ClusterID)
+	}, string(remoteCluster))
 
 	var err error
-	cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+	cluster, mgr, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds")})
 	Expect(err).ToNot(HaveOccurred())
 
-	client = cluster.GetClient()
+	k8sClient = cluster.GetClient()
+	cnf := cluster.GetCfg()
+	cl, err := client.New(cnf, client.Options{})
+	Expect(err).ToNot(HaveOccurred())
 
-	namespaceManager = tenantnamespace.NewManager(client)
-	identityMan = NewCertificateIdentityManager(cluster.GetClient(), localCluster, namespaceManager)
-	identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), localCluster, namespaceManager)
+	namespaceManager = tenantnamespace.NewManager(k8sClient)
+	identityMan = NewCertificateIdentityManager(ctx, cl, cluster.GetClient(), cluster.GetCfg(), localCluster, namespaceManager)
+	identityProvider = NewCertificateIdentityProvider(ctx, cl, cluster.GetClient(), cluster.GetCfg(), localCluster, namespaceManager)
 
 	namespace, err = namespaceManager.CreateNamespace(ctx, remoteCluster)
 	Expect(err).ToNot(HaveOccurred())
@@ -107,7 +104,7 @@ var _ = BeforeSuite(func() {
 
 	// Certificate Secret Section
 	apiServerConfig := apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
-	Expect(apiServerConfig.Complete(cluster.GetCfg(), client)).To(Succeed())
+	Expect(apiServerConfig.Complete(cluster.GetCfg(), cl)).To(Succeed())
 
 	signingIdentityResponse := responsetypes.SigningRequestResponse{
 		ResponseType: responsetypes.SigningRequestResponseCertificate,
@@ -132,30 +129,24 @@ var _ = BeforeSuite(func() {
 	signingIAMResponse = responsetypes.SigningRequestResponse{
 		ResponseType: responsetypes.SigningRequestResponseIAM,
 		AwsIdentityResponse: responsetypes.AwsIdentityResponse{
-			IamUserArn: "arn:example",
-			AccessKey: &iam.AccessKey{
-				AccessKeyId:     aws.String("key"),
-				SecretAccessKey: aws.String("secret"),
-			},
-			EksCluster: &eks.Cluster{
-				Name:     aws.String("clustername"),
-				Endpoint: aws.String("https://example.com"),
-				CertificateAuthority: &eks.Certificate{
-					Data: aws.String("cert"),
-				},
-			},
-			Region: "region",
+			IamUserArn:                         "arn:example",
+			AccessKeyID:                        "key",
+			SecretAccessKey:                    "secret",
+			EksClusterName:                     "clustername",
+			EksClusterEndpoint:                 "https://example.com",
+			EksClusterCertificateAuthorityData: []byte("cert"),
+			Region:                             "region",
 		},
 	}
 
 	iamIdentityResponse, err = auth.NewCertificateIdentityResponse(
 		"remoteNamespace", &signingIAMResponse, apiServerConfig)
 	Expect(err).ToNot(HaveOccurred())
-	iamSecretData[awsAccessKeyIDSecretKey] = iamIdentityResponse.AWSIdentityInfo.AccessKeyID
-	iamSecretData[awsSecretAccessKeySecretKey] = iamIdentityResponse.AWSIdentityInfo.SecretAccessKey
-	iamSecretData[awsRegionSecretKey] = iamIdentityResponse.AWSIdentityInfo.Region
-	iamSecretData[awsEKSClusterIDSecretKey] = iamIdentityResponse.AWSIdentityInfo.EKSClusterID
-	iamSecretData[awsIAMUserArnSecretKey] = iamIdentityResponse.AWSIdentityInfo.IAMUserArn
+	iamSecretData[AwsAccessKeyIDSecretKey] = iamIdentityResponse.AWSIdentityInfo.AccessKeyID
+	iamSecretData[AwsSecretAccessKeySecretKey] = iamIdentityResponse.AWSIdentityInfo.SecretAccessKey
+	iamSecretData[AwsRegionSecretKey] = iamIdentityResponse.AWSIdentityInfo.Region
+	iamSecretData[AwsEKSClusterIDSecretKey] = iamIdentityResponse.AWSIdentityInfo.EKSClusterID
+	iamSecretData[AwsIAMUserArnSecretKey] = iamIdentityResponse.AWSIdentityInfo.IAMUserArn
 	iamSecretData[APIServerURLSecretKey] = iamIdentityResponse.APIServerURL
 	apiServerCa, err = base64.StdEncoding.DecodeString(iamIdentityResponse.APIServerCA)
 	Expect(err).ToNot(HaveOccurred())

@@ -4,7 +4,6 @@ run:
     - "zz_generated.*.go"
   skip-dirs:
     - "pkg/client"
-    - "pkg/liqonet/ipset/kubernetes"
 
 linters-settings:
   exhaustive:
@@ -153,3 +152,4 @@ issues:
     - path: _test\.go
       linters:
         - whitespace
+        - revive  # it does not allow dot imports (e.g. . "github.com/onsi/ginkgo")

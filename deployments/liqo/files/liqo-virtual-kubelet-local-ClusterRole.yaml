@@ -118,6 +118,22 @@ rules:
   verbs:
   - create
 - apiGroups:
+  - core.liqo.io
+  resources:
+  - foreignclusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - core.liqo.io
+  resources:
+  - foreignclusters/status
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices
@@ -126,25 +142,9 @@ rules:
   - list
   - watch
 - apiGroups:
-  - discovery.liqo.io
+  - ipam.liqo.io
   resources:
-  - foreignclusters
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - foreignclusters/status
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - tunnelendpoints
+  - ips
   verbs:
   - get
   - list
@@ -153,6 +153,14 @@ rules:
   - networking.k8s.io
   resources:
   - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - configurations
   verbs:
   - get
   - list

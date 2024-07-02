@@ -20,36 +20,26 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 var _ = Describe("DataGetters", func() {
 	var (
-		clusterIP  = "10.1.1.1"
-		nodeIPAddr = "192.168.0.162"
-		port       = corev1.ServicePort{
-			Name:     "wireguard",
+		clusterIP = "10.1.1.1"
+		port      = corev1.ServicePort{
+			Name:     "test",
 			Protocol: corev1.ProtocolUDP,
 			Port:     5871,
 			NodePort: 32444,
 		}
 		loadBalancerIP   = "10.0.0.1"
-		loadBalancerHost = "testingWGEndpoint"
+		loadBalancerHost = "testingEndpoint"
 
 		svcTemplate = &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					liqoconst.GatewayServiceLabelKey: liqoconst.GatewayServiceLabelValue,
-				},
-				Annotations: map[string]string{
-					liqoconst.GatewayServiceAnnotationKey: nodeIPAddr,
-				},
-			},
 			Spec: corev1.ServiceSpec{
 				Ports:     []corev1.ServicePort{port},
 				Type:      corev1.ServiceTypeClusterIP,
@@ -85,76 +75,6 @@ var _ = Describe("DataGetters", func() {
 			It("should return empty ip address", func() { Expect(epIP).Should(BeEmpty()) })
 			It("should return empty port", func() { Expect(epPort).Should(BeEmpty()) })
 		}
-
-		Context("retrieval of WireGuard endpoint from service object", func() {
-			JustBeforeEach(func() {
-				epIP, epPort, err = getters.RetrieveWGEPFromService(service, liqoconst.GatewayServiceAnnotationKey, port.Name)
-			})
-
-			Context("service is of type NodePort", func() {
-				BeforeEach(func() { service.Spec.Type = corev1.ServiceTypeNodePort })
-
-				Context("when ip of the node has not been added as annotation to the service", func() {
-					BeforeEach(func() { delete(service.Annotations, liqoconst.GatewayServiceAnnotationKey) })
-					checksOnFailure()
-				})
-
-				Context("when port with given name does not exist", func() {
-					BeforeEach(func() { service.Spec.Ports = nil })
-					checksOnFailure()
-				})
-
-				Context("when node port has not been set", func() {
-					BeforeEach(func() { service.Spec.Ports[0].NodePort = 0 })
-					checksOnFailure()
-				})
-
-				Context("when service is ready", func() {
-					It("should return nil", func() { Expect(err).ShouldNot(HaveOccurred()) })
-					It("should return correct ip address", func() { Expect(epIP).To(Equal(nodeIPAddr)) })
-					It("should return correct port number", func() { Expect(epPort).To(Equal(strconv.FormatInt(int64(port.NodePort), 10))) })
-				})
-			})
-
-			Context("service is of type LoadBalancer", func() {
-				BeforeEach(func() { service.Spec.Type = corev1.ServiceTypeLoadBalancer })
-				Context("when the LoadBalancer IP has not been set", func() {
-					BeforeEach(func() { service.Status.LoadBalancer.Ingress = nil })
-					checksOnFailure()
-				})
-
-				Context("when port with given name does not exist", func() {
-					BeforeEach(func() { service.Spec.Ports = nil })
-					checksOnFailure()
-				})
-
-				Context("when neither ip address nor host has been set", func() {
-					BeforeEach(func() {
-						service.Status.LoadBalancer.Ingress[0].Hostname = ""
-						service.Status.LoadBalancer.Ingress[0].IP = ""
-					})
-					checksOnFailure()
-				})
-
-				Context("when only the ip address has been set", func() {
-					BeforeEach(func() { service.Status.LoadBalancer.Ingress[0].Hostname = "" })
-					It("should return nil", func() { Expect(err).ShouldNot(HaveOccurred()) })
-					It("should return correct ip address", func() { Expect(epIP).Should(Equal(loadBalancerIP)) })
-					It("should return correct port number", func() { Expect(epPort).To(Equal(strconv.FormatInt(int64(port.Port), 10))) })
-				})
-
-				Context("when only the hostname has been set", func() {
-					BeforeEach(func() { service.Status.LoadBalancer.Ingress[0].IP = "" })
-					It("should return nil", func() { Expect(err).ShouldNot(HaveOccurred()) })
-					It("should return correct ip address", func() { Expect(epIP).Should(Equal(loadBalancerHost)) })
-					It("should return correct port number", func() { Expect(epPort).To(Equal(strconv.FormatInt(int64(port.Port), 10))) })
-				})
-			})
-
-			Context("service is neither of type NodePort nor LoadBalancer", func() {
-				checksOnFailure()
-			})
-		})
 
 		Context("retrieval of endpoint from service object", func() {
 			JustBeforeEach(func() {
@@ -235,62 +155,23 @@ var _ = Describe("DataGetters", func() {
 
 	})
 
-	Describe("testing retrieval of WireGuard public Key from secret object", func() {
-		var (
-			secret     *corev1.Secret
-			correctKey = "cHVibGljLWtleS1vZi10aGUtY29ycmVjdC1sZW5ndGg="
-			wrongKey   = "incorrect key"
-		)
-
-		BeforeEach(func() {
-			secret = &corev1.Secret{
-				Data: map[string][]byte{liqoconst.PublicKey: []byte(correctKey)},
-			}
-		})
-
-		Context("when key with given name does not exist", func() {
-			It("should return nil", func() {
-				delete(secret.Data, liqoconst.PublicKey)
-				_, err := getters.RetrieveWGPubKeyFromSecret(secret, liqoconst.PublicKey)
-				Expect(err).NotTo(Succeed())
-			})
-		})
-
-		Context("when key is wrong format", func() {
-			It("should return err", func() {
-				secret.Data[liqoconst.PublicKey] = []byte(wrongKey)
-				_, err := getters.RetrieveWGPubKeyFromSecret(secret, liqoconst.PublicKey)
-				Expect(err).NotTo(Succeed())
-			})
-		})
-
-		Context("when key exists", func() {
-			It("should return nil", func() {
-				key, err := getters.RetrieveWGPubKeyFromSecret(secret, liqoconst.PublicKey)
-				Expect(err).To(Succeed())
-				Expect(key.String()).To(Equal(correctKey))
-			})
-		})
-	})
-
 	Describe("retrieval of clusterID from configmap", func() {
 		var (
-			clusterIdentity *discoveryv1alpha1.ClusterIdentity
-			err             error
-			cm              *corev1.ConfigMap
+			clusterID liqov1alpha1.ClusterID
+			err       error
+			cm        *corev1.ConfigMap
 		)
 
 		BeforeEach(func() {
 			cm = &corev1.ConfigMap{
 				Data: map[string]string{
-					liqoconst.ClusterIDConfigMapKey:   "113b9ab3-7ed8-4e00-9d81-0481b111a80d",
-					liqoconst.ClusterNameConfigMapKey: "cold-cherry",
+					liqoconst.ClusterIDConfigMapKey: "113b9ab3-7ed8-4e00-9d81-0481b111a80d",
 				},
 			}
 		})
 
 		JustBeforeEach(func() {
-			clusterIdentity, err = getters.RetrieveClusterIDFromConfigMap(cm)
+			clusterID, err = getters.RetrieveClusterIDFromConfigMap(cm)
 		})
 
 		Context("when cluster id is not set", func() {
@@ -300,19 +181,7 @@ var _ = Describe("DataGetters", func() {
 			})
 
 			It("should fail", func() {
-				Expect(clusterIdentity).Should(BeNil())
-				Expect(err).Should(HaveOccurred())
-			})
-		})
-
-		Context("when cluster name is not set", func() {
-			BeforeEach(func() {
-				delete(cm.Data, liqoconst.ClusterNameConfigMapKey)
-
-			})
-
-			It("should fail", func() {
-				Expect(clusterIdentity).Should(BeNil())
+				Expect(clusterID).Should(BeEmpty())
 				Expect(err).Should(HaveOccurred())
 			})
 		})
@@ -320,8 +189,7 @@ var _ = Describe("DataGetters", func() {
 		Context("when cluster identity is set", func() {
 			It("should fail", func() {
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(clusterIdentity.ClusterName).Should(Equal(cm.Data[liqoconst.ClusterNameConfigMapKey]))
-				Expect(clusterIdentity.ClusterID).Should(Equal(cm.Data[liqoconst.ClusterIDConfigMapKey]))
+				Expect(clusterID).Should(Equal(cm.Data[liqoconst.ClusterIDConfigMapKey]))
 			})
 		})
 
@@ -329,7 +197,7 @@ var _ = Describe("DataGetters", func() {
 
 	Describe("retrieval of network configuration from ipamstorage", func() {
 		var (
-			ipamStorage  *netv1alpha1.IpamStorage
+			ipamStorage  *ipamv1alpha1.IpamStorage
 			resNets      = []string{"10.1.0.0/16", "192.168.0.0/16"}
 			podCIDR      = "10.200.0.0/16"
 			serviceCIDR  = "10.150.2.0/24"
@@ -344,8 +212,8 @@ var _ = Describe("DataGetters", func() {
 		}
 
 		BeforeEach(func() {
-			ipamStorage = &netv1alpha1.IpamStorage{
-				Spec: netv1alpha1.IpamSpec{
+			ipamStorage = &ipamv1alpha1.IpamStorage{
+				Spec: ipamv1alpha1.IpamSpec{
 					ReservedSubnets: resNets,
 					ExternalCIDR:    externalCIDR,
 					PodCIDR:         podCIDR,

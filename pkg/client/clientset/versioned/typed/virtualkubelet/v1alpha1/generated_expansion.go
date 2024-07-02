@@ -23,3 +23,5 @@ type ShadowEndpointSliceExpansion interface{}
 type ShadowPodExpansion interface{}
 
 type VirtualNodeExpansion interface{}
+
+type VkOptionsTemplateExpansion interface{}

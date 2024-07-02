@@ -1,0 +1,26 @@
+---
+{{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking" ) .) -}}
+
+{{- if and (.Values.networking.enabled) (.Values.metrics.enabled) (.Values.metrics.prometheusOperator.enabled) }}
+
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: gateway
+  labels:
+    {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+spec:
+  podMetricsEndpoints:
+    - port: gw-metrics
+      path: /metrics
+    - port: wg-metrics
+      path: /metrics
+    - port: gv-metrics
+      path: /metrics
+  selector:
+    matchLabels:
+      networking.liqo.io/component: gateway
+  namespaceSelector:
+    any: true
+    
+{{- end }}

@@ -16,7 +16,6 @@ package workload_test
 
 import (
 	"context"
-	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -31,25 +30,26 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
-	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
 var _ = Describe("Pod Reflection Tests", func() {
 	Describe("the NewPodReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.Pod],
+				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
-			reflector := workload.NewPodReflector(nil, nil, nil,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", ""}, &reflectorConfig)
+			reflector := workload.NewPodReflector(nil, nil,
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping(""), nil}, &reflectorConfig)
 			Expect(reflector).ToNot(BeNil())
 			Expect(reflector.Reflector).ToNot(BeNil())
 		})
@@ -64,20 +64,37 @@ var _ = Describe("Pod Reflection Tests", func() {
 		)
 
 		BeforeEach(func() {
-			ipam := fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.Pod],
+				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
-			reflector := workload.NewPodReflector(nil, metricsFactory, ipam,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", ""}, &reflectorConfig)
+			reflector := workload.NewPodReflector(nil, metricsFactory,
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "",
+					fakeAPIServerRemapping("192.168.200.1"), &networkingv1alpha1.Configuration{
+						Spec: networkingv1alpha1.ConfigurationSpec{
+							Remote: networkingv1alpha1.ClusterConfig{
+								CIDR: networkingv1alpha1.ClusterConfigCIDR{
+									Pod:      "192.168.200.0/24",
+									External: "192.168.100.0/24",
+								},
+							},
+						},
+						Status: networkingv1alpha1.ConfigurationStatus{
+							Remote: &networkingv1alpha1.ClusterConfig{
+								CIDR: networkingv1alpha1.ClusterConfigCIDR{
+									Pod:      "192.168.201.0/24",
+									External: "192.168.101.0/24",
+								},
+							},
+						},
+					}}, &reflectorConfig)
 			kubernetesServiceIPGetter = reflector.KubernetesServiceIPGetter()
 		})
 
 		JustBeforeEach(func() { output, err = kubernetesServiceIPGetter(ctx) })
 
-		Context("the KUBERNETES_SERVICE_HOST variable is correctly set", func() {
+		Context("the IP resource is correctly set", func() {
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 			It("should return the correct IP address", func() { Expect(output).To(BeIdenticalTo("192.168.200.1")) })
 
@@ -90,11 +107,6 @@ var _ = Describe("Pod Reflection Tests", func() {
 				It("should succeed (i.e., use the cached values)", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("should return the same translations", func() { Expect(output).To(BeIdenticalTo("192.168.200.1")) })
 			})
-		})
-
-		Context("the KUBERNETES_SERVICE_HOST variable not set", func() {
-			BeforeEach(func() { os.Unsetenv("KUBERNETES_SERVICE_HOST") })
-			It("should return an error", func() { Expect(err).To(HaveOccurred()) })
 		})
 	})
 
@@ -118,12 +130,12 @@ var _ = Describe("Pod Reflection Tests", func() {
 			client = fake.NewSimpleClientset(&local)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.Pod],
+				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
-			reflector = workload.NewPodReflector(nil, nil, nil,
-				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", ""}, &reflectorConfig)
+			reflector = workload.NewPodReflector(nil, nil,
+				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "", fakeAPIServerRemapping(""), nil}, &reflectorConfig)
 
 			opts := options.New(client, factory.Core().V1().Pods()).
 				WithHandlerFactory(FakeEventHandler).

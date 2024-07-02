@@ -1,0 +1,99 @@
+{{- if and (.Values.networking.enabled) (not .Values.ipam.external.enabled) }}
+
+{{- $ipamConfig := (merge (dict "name" "ipam" "module" "ipam" "version" .Values.ipam.internal.image.version) .) -}}
+{{- $ha := (gt .Values.ipam.internal.replicas 1.0) -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "liqo.prefixedName" $ipamConfig }}
+  labels:
+  {{- include "liqo.labels" $ipamConfig | nindent 4 }}
+spec:
+  replicas: {{ .Values.ipam.internal.replicas }}
+  selector:
+    matchLabels:
+      {{- include "liqo.selectorLabels" $ipamConfig | nindent 6 }}
+  template:
+    metadata:
+    {{- if .Values.ipam.internal.pod.annotations }}
+      annotations:
+        {{- toYaml .Values.ipam.internal.pod.annotations | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- include "liqo.labels" $ipamConfig | nindent 8 }}
+        {{- if .Values.ipam.internal.pod.labels }}
+          {{- toYaml .Values.ipam.internal.pod.labels | nindent 8 }}
+        {{- end }}
+    spec:
+      securityContext:
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
+      serviceAccountName: {{ include "liqo.prefixedName" $ipamConfig }}
+      containers:
+        - image: {{ .Values.ipam.internal.image.name }}{{ include "liqo.suffix" $ipamConfig }}:{{ include "liqo.version" $ipamConfig }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
+          name: {{ $ipamConfig.name }}
+          command: ["/usr/bin/ipam"]
+          ports:
+            - name: ipam-api
+              containerPort: 6000
+          {{- if not $ha }}
+          livenessProbe:
+            grpc:
+              port: 6000
+            initialDelaySeconds: 1
+          readinessProbe:
+            grpc:
+              port: 6000
+          {{- end }}
+          args:
+            - --pod-cidr={{ .Values.ipam.podCIDR }}
+            - --service-cidr={{ .Values.ipam.serviceCIDR }}
+            {{- if $ha }}
+            - --lease-enabled=true
+            {{- end }}
+            {{- if .Values.ipam.reservedSubnets }}
+            {{- $d := dict "commandName" "--reserved-pools" "list" .Values.ipam.reservedSubnets }}
+            {{- include "liqo.concatenateList" $d | nindent 12 }}
+            {{- end }}
+            {{- if .Values.ipam.additionalPools }}
+            {{- $d := dict "commandName" "--additional-pools" "list" .Values.ipam.additionalPools }}
+            {{- include "liqo.concatenateList" $d | nindent 12 }}
+            {{- end }}
+            {{- if .Values.common.extraArgs }}
+            {{- toYaml .Values.common.extraArgs | nindent 12 }}
+            {{- end }}
+            {{- if .Values.ipam.internal.pod.extraArgs }}
+            {{- toYaml .Values.ipam.internal.pod.extraArgs | nindent 12 }}
+            {{- end }}
+          env:
+          - name: POD_NAME
+            valueFrom:
+             fieldRef:
+               fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+             fieldRef:
+               fieldPath: metadata.namespace
+          - name: DEPLOYMENT_NAME
+            value: {{ include "liqo.prefixedName" $ipamConfig }}
+          resources: {{- toYaml .Values.ipam.internal.pod.resources | nindent 12 }}
+      {{- if ((.Values.common).nodeSelector) }}
+      nodeSelector:
+      {{- toYaml .Values.common.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if ((.Values.common).tolerations) }}
+      tolerations:
+      {{- toYaml .Values.common.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if ((.Values.common).affinity) }}
+      affinity:
+      {{- toYaml .Values.common.affinity | nindent 8 }}
+      {{- end }}
+      {{- if .Values.ipam.internal.pod.priorityClassName }}
+      priorityClassName: {{ .Values.ipam.internal.pod.priorityClassName }}
+      {{- end }}
+
+{{- end }}

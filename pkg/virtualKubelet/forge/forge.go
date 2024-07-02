@@ -21,7 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -29,10 +29,10 @@ import (
 const ReflectionFieldManager = "reflection.liqo.io"
 
 var (
-	// LocalCluster -> the cluster identity associated with the local cluster.
-	LocalCluster discoveryv1alpha1.ClusterIdentity
-	// RemoteCluster -> the cluster identity associated with the remote cluster.
-	RemoteCluster discoveryv1alpha1.ClusterIdentity
+	// LocalCluster -> the cluster id associated with the local cluster.
+	LocalCluster liqov1alpha1.ClusterID
+	// RemoteCluster -> the cluster id associated with the remote cluster.
+	RemoteCluster liqov1alpha1.ClusterID
 
 	// LiqoNodeName -> the name of the node associated with the current virtual-kubelet.
 	LiqoNodeName string
@@ -46,7 +46,7 @@ var (
 )
 
 // Init initializes the forging logic.
-func Init(localCluster, remoteCluster discoveryv1alpha1.ClusterIdentity, nodeName, nodeIP string) {
+func Init(localCluster, remoteCluster liqov1alpha1.ClusterID, nodeName, nodeIP string) {
 	LocalCluster = localCluster
 	RemoteCluster = remoteCluster
 

@@ -40,8 +40,8 @@ Liqo can be installed on a Kubeadm cluster with the following command:
 liqoctl install kubeadm
 ```
 
-The name of the cluster is automatically generated, then used during the peering and offloading processes.
-Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+The id of the cluster is automatically generated, then used during the peering and offloading processes.
+Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
 
 ```{admonition} Service Type
 By default, the **kubeadm** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
@@ -63,8 +63,8 @@ Liqo can be installed on an OpenShift Container Platform (OCP) cluster with the 
 liqoctl install openshift
 ```
 
-The name of the cluster is automatically generated, then used during the peering and offloading processes.
-Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+The id of the cluster is automatically generated, then used during the peering and offloading processes.
+Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
 
 ```{admonition} Service Type
 By default, the **openshift** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
@@ -111,8 +111,8 @@ liqoctl install aks --resource-group-name "${AKS_RESOURCE_GROUP}" \
         --subscription-id "${AKS_SUBSCRIPTION_ID}"
 ```
 
-The name of the cluster will be equal to the one specified in the `--resource-name` parameter.
-Alternatively, you can manually set a different name with the `--cluster-name` *liqoctl* flag.
+The id of the cluster will be equal to the one specified in the `--resource-name` parameter.
+Alternatively, you can manually set a different name with the `--cluster-id` *liqoctl* flag.
 
 ```{admonition} Note
 If you are running an [AKS private cluster](https://learn.microsoft.com/en-us/azure/aks/private-clusters), you may need to set the `--disable-api-server-sanity-check` *liqoctl* flag, since the API Server in your kubeconfig may be different from the one retrieved from the Azure APIs.
@@ -214,8 +214,8 @@ liqoctl install eks --eks-cluster-region=${EKS_CLUSTER_REGION} \
         --eks-cluster-name=${EKS_CLUSTER_NAME}
 ```
 
-The name of the cluster will be equal to the one specified in the `--eks-cluster-name` parameter.
-Alternatively, you can manually set a different name with the `--cluster-name` *liqoctl* flag.
+The id of the cluster will be equal to the one specified in the `--eks-cluster-name` parameter.
+Alternatively, you can manually set a different id with the `--cluster-id` *liqoctl* flag.
 
 ```{admonition} Service Type
 By default, the **EKS** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
@@ -324,8 +324,8 @@ liqoctl install gke --project-id ${GKE_PROJECT_ID} \
     --credentials-path ${GKE_SERVICE_ACCOUNT_PATH}
 ```
 
-The name of the cluster will be equal to the one defined in GCP.
-Alternatively, you can manually set a different name with the `--cluster-name` *liqoctl* flag.
+The id of the cluster will be equal to the one defined in GCP.
+Alternatively, you can manually set a different id with the `--cluster-id` *liqoctl* flag.
 
 ```{admonition} Service Type
 By default, the **GKE** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
@@ -351,8 +351,8 @@ liqoctl install k3s
 You may additionally set the `--api-server-url` flag to override the Kubernetes API Server address used by remote clusters to contact the local one.
 This operation is necessary in case the default address (`https://<control-plane-node-ip>:6443`) is unsuitable (e.g., the node IP is externally remapped).
 
-The name of the cluster is automatically generated, then used during the peering and offloading processes.
-Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+The id of the cluster is automatically generated, then used during the peering and offloading processes.
+Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
 
 ```{admonition} Service Type
 By default, the **k3s** provider exposes *liqo-auth* and *liqo-gateway* with **NodePort** services.
@@ -370,8 +370,8 @@ Liqo can be installed on a KinD cluster with the following command:
 liqoctl install kind
 ```
 
-The name of the cluster is automatically generated, then used during the peering and offloading processes.
-Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+The id of the cluster is automatically generated, then used during the peering and offloading processes.
+Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
 ```{admonition} Service Type
 By default, the **kind** provider exposes *liqo-auth* and *liqo-gateway* with **NodePort** services.
 To change this behavior, check the [network flags](NetworkFlags).
@@ -397,8 +397,8 @@ liqoctl install --api-server-url=<API-SERVER-URL> \
       --pod-cidr=<POD-CIDR> --service-cidr=<SERVICE-CIDR>
 ```
 
-The name of the cluster is automatically generated, then used during the peering and offloading processes.
-Alternatively, you can manually specify a desired name with the `--cluster-name` flag.
+The id of the cluster is automatically generated, then used during the peering and offloading processes.
+Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
 
 ```{admonition} Service Type
 By default, liqoctl exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
@@ -450,8 +450,8 @@ The main global flags, besides those concerning the installation of [development
 
 The main control plane flags include:
 
-* `--cluster-name`: configures a **name identifying the cluster** in Liqo.
-This name is propagated to remote clusters during the peering process, and used to identify the corresponding virtual nodes and the Liqo resources used in the peering process. Additionally, the cluster name is used as part of the suffix to ensure namespace names uniqueness during the offloading process. In case a cluster name is not specified, it is defaulted to that of the cluster in the cloud provider, if any, or it is automatically generated.
+* `--cluster-id`: configures a **name identifying the cluster** in Liqo.
+This id is propagated to remote clusters during the peering process, and used to identify the corresponding virtual nodes and the Liqo resources used in the peering process. Additionally, the cluster id is used as part of the suffix to ensure namespace names uniqueness during the offloading process. In case a cluster name is not specified, it is defaulted to that of the cluster in the cloud provider, if any, or it is automatically generated.
 * `--cluster-labels`: a set of **labels** (i.e., key/value pairs) **identifying the cluster in Liqo** (e.g., geographical region, Kubernetes distribution, cloud provider, ...) and automatically propagated during the peering process to the corresponding virtual nodes.
 These labels can be used later to **restrict workload offloading to a subset of clusters**, as detailed in the [namespace offloading usage section](/usage/namespace-offloading).
 * `--sharing-percentage`: the maximum percentage of available **cluster resources** that could be shared with remote clusters. This is the Liqo's default behavior, which can be changed by deploying a custom [resource plugin](https://github.com/liqotech/liqo-resource-plugins).

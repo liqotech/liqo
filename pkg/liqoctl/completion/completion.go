@@ -24,10 +24,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	utilsvirtualnode "github.com/liqotech/liqo/pkg/utils/virtualnode"
 )
@@ -191,7 +193,7 @@ func parseLabelSelectors(labelset map[string]int, max int) []string {
 // ForeignClusters returns a function to autocomplete ForeignCluster names.
 func ForeignClusters(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var foreignClusters discoveryv1alpha1.ForeignClusterList
+		var foreignClusters liqov1alpha1.ForeignClusterList
 		if err := f.CRClient.List(ctx, &foreignClusters); err != nil {
 			return nil, err
 		}
@@ -209,14 +211,16 @@ func ForeignClusters(ctx context.Context, f *factory.Factory, argsLimit int) FnT
 // ClusterIDs returns a function to autocomplete ForeignCluster cluster IDs.
 func ClusterIDs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var foreignClusters discoveryv1alpha1.ForeignClusterList
-		if err := f.CRClient.List(ctx, &foreignClusters); err != nil {
+		var namespaces corev1.NamespaceList
+		if err := f.CRClient.List(ctx, &namespaces,
+			client.MatchingLabels{consts.TenantNamespaceLabel: "true"},
+			client.HasLabels{consts.RemoteClusterID}); err != nil {
 			return nil, err
 		}
 
 		var ids []string
-		for i := range foreignClusters.Items {
-			ids = append(ids, foreignClusters.Items[i].Spec.ClusterIdentity.ClusterID)
+		for i := range namespaces.Items {
+			ids = append(ids, namespaces.Items[i].Labels[consts.RemoteClusterID])
 		}
 		return ids, nil
 	}
@@ -224,17 +228,35 @@ func ClusterIDs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	return common(ctx, f, argsLimit, retriever)
 }
 
-// ClusterNames returns a function to autocomplete ForeignCluster cluster names.
-func ClusterNames(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+// Tenants returns a function to autocomplete Tenant names.
+func Tenants(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var foreignClusters discoveryv1alpha1.ForeignClusterList
-		if err := f.CRClient.List(ctx, &foreignClusters); err != nil {
+		var tenants authv1alpha1.TenantList
+		if err := f.CRClient.List(ctx, &tenants); err != nil {
 			return nil, err
 		}
 
 		var names []string
-		for i := range foreignClusters.Items {
-			names = append(names, foreignClusters.Items[i].Spec.ClusterIdentity.ClusterName)
+		for i := range tenants.Items {
+			names = append(names, tenants.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// ResourceSlices returns a function to autocomplete ResourceSlice names.
+func ResourceSlices(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var resourceSlices authv1alpha1.ResourceSliceList
+		if err := f.CRClient.List(ctx, &resourceSlices); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range resourceSlices.Items {
+			names = append(names, resourceSlices.Items[i].Name)
 		}
 		return names, nil
 	}
@@ -243,20 +265,38 @@ func ClusterNames(ctx context.Context, f *factory.Factory, argsLimit int) FnType
 }
 
 // KubeconfigSecretNames returns a function to autocomplete kubeconfig secret names.
-func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit int, namespace string, identityType authv1alpha1.IdentityType) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
 		matchingLabels := client.MatchingLabels{
-			identitymanager.CertificateAvailableLabel: "true",
+			consts.IdentityTypeLabelKey: string(identityType),
 		}
 
 		var secrets corev1.SecretList
-		if err := f.CRClient.List(ctx, &secrets, client.InNamespace(f.Namespace), matchingLabels); err != nil {
+		if err := f.CRClient.List(ctx, &secrets, client.InNamespace(namespace), matchingLabels); err != nil {
 			return nil, err
 		}
 
 		var names []string
 		for i := range secrets.Items {
 			names = append(names, secrets.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// ResourceSliceNames returns a function to autocomplete ResourceSlice names.
+func ResourceSliceNames(ctx context.Context, f *factory.Factory, argsLimit int, namespace string) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var resourceSlices authv1alpha1.ResourceSliceList
+		if err := f.CRClient.List(ctx, &resourceSlices, client.InNamespace(namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range resourceSlices.Items {
+			names = append(names, resourceSlices.Items[i].Name)
 		}
 		return names, nil
 	}
@@ -275,6 +315,105 @@ func PVCs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 		var names []string
 		for i := range pvcs.Items {
 			names = append(names, pvcs.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// Gateways returns a function to autocomplete Gateway (server or client) names.
+func Gateways(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var names []string
+
+		var gwServers networkingv1alpha1.GatewayServerList
+		if err := f.CRClient.List(ctx, &gwServers, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+		for i := range gwServers.Items {
+			names = append(names, gwServers.Items[i].Name)
+		}
+
+		var gwClients networkingv1alpha1.GatewayClientList
+		if err := f.CRClient.List(ctx, &gwClients, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+		for i := range gwClients.Items {
+			names = append(names, gwClients.Items[i].Name)
+		}
+
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// GatewayServers returns a function to autocomplete GatewayServers names.
+func GatewayServers(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var gwServers networkingv1alpha1.GatewayServerList
+		if err := f.CRClient.List(ctx, &gwServers, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range gwServers.Items {
+			names = append(names, gwServers.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// GatewayClients returns a function to autocomplete GatewayClients names.
+func GatewayClients(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var gwClients networkingv1alpha1.GatewayClientList
+		if err := f.CRClient.List(ctx, &gwClients, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range gwClients.Items {
+			names = append(names, gwClients.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// PublicKeys returns a function to autocomplete PublicKeys names.
+func PublicKeys(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var publicKeys networkingv1alpha1.PublicKeyList
+		if err := f.CRClient.List(ctx, &publicKeys, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range publicKeys.Items {
+			names = append(names, publicKeys.Items[i].Name)
+		}
+		return names, nil
+	}
+
+	return common(ctx, f, argsLimit, retriever)
+}
+
+// Configurations returns a function to autocomplete Configurations names.
+func Configurations(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
+	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
+		var configurations networkingv1alpha1.ConfigurationList
+		if err := f.CRClient.List(ctx, &configurations, client.InNamespace(f.Namespace)); err != nil {
+			return nil, err
+		}
+
+		var names []string
+		for i := range configurations.Items {
+			names = append(names, configurations.Items[i].Name)
 		}
 		return names, nil
 	}

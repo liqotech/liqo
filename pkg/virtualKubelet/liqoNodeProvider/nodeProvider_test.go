@@ -32,8 +32,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -72,7 +71,9 @@ var _ = Describe("NodeProvider", func() {
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
 
-		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testutil.NewTestCluster([]string{
+			filepath.Join("..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+		})
 		Expect(err).To(BeNil())
 
 		client := kubernetes.NewForConfigOrDie(cluster.GetCfg())
@@ -98,7 +99,7 @@ var _ = Describe("NodeProvider", func() {
 
 		nodeProvider.NotifyNodeStatus(ctx, func(node *v1.Node) {
 			nodeChan <- node
-			client.CoreV1().Nodes().UpdateStatus(ctx, node, metav1.UpdateOptions{})
+			_, _ = client.CoreV1().Nodes().UpdateStatus(ctx, node, metav1.UpdateOptions{})
 		})
 
 		ready := nodeProvider.StartProvider(ctx)
@@ -117,7 +118,7 @@ var _ = Describe("NodeProvider", func() {
 
 	type nodeProviderTestcase struct {
 		virtualNode        *virtualkubeletv1alpha1.VirtualNode
-		tunnelEndpoint     *netv1alpha1.TunnelEndpoint
+		connection         *networkingv1alpha1.Connection
 		expectedConditions []types.GomegaMatcher
 	}
 
@@ -142,21 +143,21 @@ var _ = Describe("NodeProvider", func() {
 				Expect(err).To(BeNil())
 			}
 
-			if c.tunnelEndpoint != nil {
-				c.tunnelEndpoint.Labels = map[string]string{
-					consts.ClusterIDLabelName: nodeProvider.foreignClusterID,
+			if c.connection != nil {
+				c.connection.Labels = map[string]string{
+					consts.RemoteClusterID: string(nodeProvider.foreignClusterID),
 				}
-				unstructTep, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.tunnelEndpoint)
+				unstructConn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.connection)
 				Expect(err).To(BeNil())
-				unstruct, err := dynClient.Resource(netv1alpha1.TunnelEndpointGroupVersionResource).
+				unstruct, err := dynClient.Resource(networkingv1alpha1.ConnectionGroupVersionResource).
 					Namespace(kubeletNamespace).Create(ctx, &unstructured.Unstructured{
-					Object: unstructTep,
+					Object: unstructConn,
 				}, metav1.CreateOptions{})
 				Expect(err).To(BeNil())
 
-				unstruct.Object["status"] = unstructTep["status"]
+				unstruct.Object["status"] = unstructConn["status"]
 
-				_, err = dynClient.Resource(netv1alpha1.TunnelEndpointGroupVersionResource).
+				_, err = dynClient.Resource(networkingv1alpha1.ConnectionGroupVersionResource).
 					Namespace(kubeletNamespace).UpdateStatus(ctx, unstruct, metav1.UpdateOptions{})
 				Expect(err).To(BeNil())
 			}
@@ -182,9 +183,7 @@ var _ = Describe("NodeProvider", func() {
 					Namespace: kubeletNamespace,
 				},
 				Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
-					ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
-						ClusterID: "remote-id",
-					},
+					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
@@ -193,7 +192,7 @@ var _ = Describe("NodeProvider", func() {
 					},
 				},
 			},
-			tunnelEndpoint: nil,
+			connection: nil,
 			expectedConditions: []types.GomegaMatcher{
 				ConditionMatcher(v1.NodeReady, v1.ConditionFalse),
 				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionFalse),
@@ -203,24 +202,22 @@ var _ = Describe("NodeProvider", func() {
 			},
 		}),
 
-		Entry("update from TunnelEndpoint", nodeProviderTestcase{
+		Entry("update from Connection", nodeProviderTestcase{
 			virtualNode: nil,
-			tunnelEndpoint: &netv1alpha1.TunnelEndpoint{
+			connection: &networkingv1alpha1.Connection{
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "TunnelEndpoint",
-					APIVersion: netv1alpha1.GroupVersion.String(),
+					Kind:       networkingv1alpha1.ConnectionKind,
+					APIVersion: networkingv1alpha1.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "tep",
+					Name:      "conn",
 					Namespace: kubeletNamespace,
 				},
-				Spec: netv1alpha1.TunnelEndpointSpec{
-					BackendConfig: map[string]string{},
+				Spec: networkingv1alpha1.ConnectionSpec{
+					Type: networkingv1alpha1.ConnectionTypeServer,
 				},
-				Status: netv1alpha1.TunnelEndpointStatus{
-					Connection: netv1alpha1.Connection{
-						Status: netv1alpha1.Connected,
-					},
+				Status: networkingv1alpha1.ConnectionStatus{
+					Value: networkingv1alpha1.Connected,
 				},
 			},
 			expectedConditions: []types.GomegaMatcher{
@@ -243,9 +240,7 @@ var _ = Describe("NodeProvider", func() {
 					Namespace: kubeletNamespace,
 				},
 				Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
-					ClusterIdentity: &discoveryv1alpha1.ClusterIdentity{
-						ClusterID: "remote-id",
-					},
+					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
 							v1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
@@ -254,22 +249,20 @@ var _ = Describe("NodeProvider", func() {
 					},
 				},
 			},
-			tunnelEndpoint: &netv1alpha1.TunnelEndpoint{
+			connection: &networkingv1alpha1.Connection{
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "TunnelEndpoint",
-					APIVersion: netv1alpha1.GroupVersion.String(),
+					Kind:       networkingv1alpha1.ConnectionKind,
+					APIVersion: networkingv1alpha1.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "tep",
+					Name:      "conn",
 					Namespace: kubeletNamespace,
 				},
-				Spec: netv1alpha1.TunnelEndpointSpec{
-					BackendConfig: map[string]string{},
+				Spec: networkingv1alpha1.ConnectionSpec{
+					Type: networkingv1alpha1.ConnectionTypeServer,
 				},
-				Status: netv1alpha1.TunnelEndpointStatus{
-					Connection: netv1alpha1.Connection{
-						Status: netv1alpha1.Connected,
-					},
+				Status: networkingv1alpha1.ConnectionStatus{
+					Value: networkingv1alpha1.Connected,
 				},
 			},
 			expectedConditions: []types.GomegaMatcher{

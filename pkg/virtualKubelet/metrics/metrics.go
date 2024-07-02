@@ -34,7 +34,7 @@ var (
 
 // Init initializes the metrics. If no error occurs or no item is processed, the corresponding metric is not exported.
 func init() {
-	var MetricsLabels = []string{"namespace", "reflector_resource", "cluster_id", "cluster_name", "node_name"}
+	var MetricsLabels = []string{"namespace", "reflector_resource", "cluster_id", "node_name"}
 
 	ErrorsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{

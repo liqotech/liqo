@@ -33,37 +33,31 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
 	"github.com/liqotech/liqo/pkg/consts"
-	fakeipam "github.com/liqotech/liqo/pkg/liqonet/ipam/fake"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/workload"
 )
 
 var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 	Describe("pod handling", func() {
-		const PodName = "name"
-
 		var (
 			reflector  manager.NamespacedReflector
 			client     *fake.Clientset
 			liqoClient liqoclient.Interface
-
-			ipam *fakeipam.IPAMClient
 		)
 
 		BeforeEach(func() {
-			ipam = fakeipam.NewIPAMClient("192.168.200.0/24", "192.168.201.0/24", true)
-
 			client = fake.NewSimpleClientset()
 			liqoClient = liqoclientfake.NewSimpleClientset()
 		})
@@ -74,12 +68,30 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 			broadcaster := record.NewBroadcaster()
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
-				Type:       root.DefaultReflectorsTypes[generic.Pod],
+				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
-			rfl := workload.NewPodReflector(nil, metricsFactory, ipam,
-				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", ""}, &reflectorConfig)
+			rfl := workload.NewPodReflector(nil, metricsFactory,
+				&workload.PodReflectorConfig{forge.APIServerSupportTokenAPI, false, "", "", fakeAPIServerRemapping(""),
+					&networkingv1alpha1.Configuration{
+						Spec: networkingv1alpha1.ConfigurationSpec{
+							Remote: networkingv1alpha1.ClusterConfig{
+								CIDR: networkingv1alpha1.ClusterConfigCIDR{
+									Pod:      "192.168.200.0/24",
+									External: "192.168.100.0/24",
+								},
+							},
+						},
+						Status: networkingv1alpha1.ConfigurationStatus{
+							Remote: &networkingv1alpha1.ClusterConfig{
+								CIDR: networkingv1alpha1.ClusterConfigCIDR{
+									Pod:      "192.168.201.0/24",
+									External: "192.168.101.0/24",
+								},
+							},
+						},
+					}}, &reflectorConfig)
 			rfl.Start(ctx, options.New(client, factory.Core().V1().Pods()).WithEventBroadcaster(broadcaster))
 			reflector = rfl.NewNamespaced(options.NewNamespaced().
 				WithLocal(LocalNamespace, client, factory).WithLiqoLocal(liqoClient, liqoFactory).
@@ -368,7 +380,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				remote = &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: RemoteNamespace, UID: "uuid"},
 					Status: corev1.PodStatus{
-						Phase: corev1.PodRunning, PodIP: "192.168.0.25",
+						Phase: corev1.PodRunning, PodIP: "192.168.200.25",
 						ContainerStatuses: []corev1.ContainerStatus{{RestartCount: 1}},
 						Conditions:        []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
 					},
@@ -518,7 +530,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 				err           error
 			)
 
-			BeforeEach(func() { input = "192.168.0.25"; podinfo = workload.PodInfo{} })
+			BeforeEach(func() { input = "192.168.200.25"; podinfo = workload.PodInfo{} })
 
 			When("translating a remote to a local address", func() {
 				JustBeforeEach(func() {

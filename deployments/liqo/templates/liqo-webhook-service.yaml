@@ -1,0 +1,41 @@
+{{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $webhookConfig }}
+  labels:
+    {{- include "liqo.labels" $webhookConfig | nindent 4 }}
+spec:
+  selector:
+    {{- include "liqo.selectorLabels" $webhookConfig | nindent 4 }}
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.webhook.port }}
+    targetPort: webhook
+
+---
+{{- $webhookMetricsConfig := (merge (dict "name" "webhook-metrics" "module" "webhook") .) -}}
+
+{{- if .Values.webhook.metrics.serviceMonitor.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $webhookMetricsConfig }}
+  annotations:
+    {{- if .Values.webhook.metrics.service.annotations }}
+      {{- toYaml .Values.webhook.metrics.service.annotations | nindent 4 }}
+    {{- end}}
+  labels:
+    {{- include "liqo.labels" $webhookMetricsConfig | nindent 4 }}
+    {{- if .Values.webhook.metrics.service.labels }}
+      {{- toYaml .Values.webhook.metrics.service.labels | nindent 4 }}
+    {{- end}}
+spec:
+  selector:
+    {{- include "liqo.selectorLabels" $webhookConfig | nindent 4 }}
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: metrics
+{{- end }}

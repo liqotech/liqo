@@ -138,4 +138,4 @@ jobs:
       uses: WyriHaximus/github-action-helm3@v4
       with:
         exec:
-          helm lint ./deployments/liqo --with-subcharts --set tag=fakeversion --set discovery.config.clusterName=fakename
+          helm lint ./deployments/liqo --with-subcharts --set tag=fakeversion

@@ -36,17 +36,20 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	"github.com/liqotech/liqo/pkg/leaderelection"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/leaderelection"
 	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	metrics "github.com/liqotech/liqo/pkg/virtualKubelet/metrics"
 	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 var (
@@ -55,10 +58,13 @@ var (
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
+	_ = vkv1alpha1.AddToScheme(scheme)
+	_ = liqov1alpha1.AddToScheme(scheme)
+	_ = networkingv1alpha1.AddToScheme(scheme)
 }
 
 const defaultVersion = "v1.25.0" // This should follow the version of k8s.io/kubernetes we are importing
+const leaderElectorName = "virtual-kubelet-leader-election"
 
 // NewCommand creates a new top-level command.
 // This command is used to start the virtual-kubelet daemon.
@@ -75,10 +81,10 @@ func NewCommand(ctx context.Context, name string, c *Opts) *cobra.Command {
 }
 
 func runRootCommand(ctx context.Context, c *Opts) error {
-	if c.ForeignCluster.ClusterID == "" {
+	if c.ForeignCluster.GetClusterID() == "" {
 		return errors.New("cluster id is mandatory")
 	}
-	if c.ForeignCluster.ClusterName == "" {
+	if c.ForeignCluster.GetClusterID() == "" {
 		return errors.New("cluster name is mandatory")
 	}
 
@@ -89,10 +95,17 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 
 	restcfg.SetRateLimiter(localConfig)
 	localClient := kubernetes.NewForConfigOrDie(localConfig)
+	cl, err := client.New(localConfig, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return err
+	}
 
 	// Retrieve the remote restcfg
 	tenantNamespaceManager := tenantnamespace.NewManager(localClient) // Do not use the cached version, as leveraged only once.
-	identityManager := identitymanager.NewCertificateIdentityReader(localClient, c.HomeCluster, tenantNamespaceManager)
+	identityManager := identitymanager.NewCertificateIdentityReader(ctx, cl, localClient, localConfig,
+		c.HomeCluster.GetClusterID(), tenantNamespaceManager)
 
 	if c.RemoteKubeconfigSecretName == "" {
 		return fmt.Errorf("remote kubeconfig secret name is mandatory")
@@ -104,21 +117,15 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		}
 		return err
 	}
-	remoteConfig, err := identityManager.GetConfigFromSecret(secret)
-	if err != nil {
-		return err
-	}
-
-	reflectorsConfigs, err := getReflectorsConfigs(c)
+	remoteConfig, err := identityManager.GetConfigFromSecret(c.ForeignCluster.GetClusterID(), secret)
 	if err != nil {
 		return err
 	}
 
 	restcfg.SetRateLimiter(remoteConfig)
 
-	cl, err := client.New(localConfig, client.Options{
-		Scheme: scheme,
-	})
+	// Get reflectors configurations
+	reflectorsConfigs, err := getReflectorsConfigs(c)
 	if err != nil {
 		return err
 	}
@@ -126,25 +133,41 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	// Get virtual node
 	vnName := os.Getenv("VIRTUALNODE_NAME")
 	ns := os.Getenv("POD_NAMESPACE")
-	var vn virtualkubeletv1alpha1.VirtualNode
+	var vn vkv1alpha1.VirtualNode
 	if err := cl.Get(ctx, client.ObjectKey{Name: vnName, Namespace: ns}, &vn); err != nil {
 		klog.Errorf("Unable to get virtual node: %v", err)
 		return err
+	}
+
+	foreignCluster, err := fcutils.GetForeignClusterByID(ctx, cl, c.ForeignCluster.GetClusterID())
+	if err != nil {
+		klog.Errorf("Unable to get foreign cluster: %v", err)
+		return err
+	}
+
+	var netConfiguration *networkingv1alpha1.Configuration
+	if fcutils.IsNetworkingModuleEnabled(foreignCluster) {
+		netConfiguration, err = getters.GetConfigurationByClusterID(ctx, cl, c.ForeignCluster.GetClusterID())
+		if err != nil {
+			klog.Errorf("Unable to get network configuration: %v", err)
+			return err
+		}
 	}
 
 	// Initialize the pod provider
 	podcfg := podprovider.InitConfig{
 		LocalConfig:   localConfig,
 		RemoteConfig:  remoteConfig,
-		LocalCluster:  c.HomeCluster,
-		RemoteCluster: c.ForeignCluster,
+		LocalCluster:  c.HomeCluster.GetClusterID(),
+		RemoteCluster: c.ForeignCluster.GetClusterID(),
 
-		Namespace: c.TenantNamespace,
-		NodeName:  c.NodeName,
-		NodeIP:    c.NodeIP,
+		Namespace:     c.TenantNamespace,
+		LiqoNamespace: c.LiqoNamespace,
+		NodeName:      c.NodeName,
+		NodeIP:        c.NodeIP,
 
-		LiqoIpamServer:       c.LiqoIpamServer,
 		DisableIPReflection:  c.DisableIPReflection,
+		LocalPodCIDR:         c.LocalPodCIDR,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 
 		ReflectorsConfigs: reflectorsConfigs,
@@ -163,6 +186,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		HomeAPIServerPort: c.HomeAPIServerPort,
 
 		OffloadingPatch: vn.Spec.OffloadingPatch,
+
+		NetConfiguration: netConfiguration,
 	}
 
 	eb := record.NewBroadcaster()
@@ -173,23 +198,32 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
-	leaderelectionOpts := leaderelection.Opts{
-		Enabled:         c.VirtualKubeletLeaseEnabled,
-		PodName:         c.PodName,
-		TenantNamespace: c.TenantNamespace,
-		LeaseDuration:   c.VirtualKubeletLeaseLeaseDuration,
-		RenewDeadline:   c.VirtualKubeletLeaseRenewDeadline,
-		RetryPeriod:     c.VirtualKubeletLeaseRetryPeriod,
-	}
-	if err := leaderelection.InitAndRun(ctx, leaderelectionOpts, localConfig, eb, func() {
+	initCallback := func() {
 		klog.Infof("Starting informer resync")
 		if err := podProvider.Resync(); err != nil {
 			klog.Errorf("Error during resync for pod provider: %s", err)
 			return
 		}
 		klog.Infof("Resync informer completed")
-	}); err != nil {
-		return err
+	}
+
+	// The leader election avoids that multiple virtual node targeting the same cluster reflect some resources.
+	if c.VirtualKubeletLeaseEnabled {
+		leaderelectionOpts := &leaderelection.Opts{
+			PodName:           c.PodName,
+			Namespace:         c.TenantNamespace,
+			LeaderElectorName: leaderElectorName,
+			LeaseDuration:     c.VirtualKubeletLeaseLeaseDuration,
+			RenewDeadline:     c.VirtualKubeletLeaseRenewDeadline,
+			RetryPeriod:       c.VirtualKubeletLeaseRetryPeriod,
+			InitCallback:      initCallback,
+			StopCallback:      nil,
+		}
+		leaderElector, err := leaderelection.Init(leaderelectionOpts, localConfig, eb)
+		if err != nil {
+			return err
+		}
+		go leaderelection.Run(ctx, leaderElector)
 	}
 
 	err = setupHTTPServer(ctx, podProvider.PodHandler(), localClient, remoteConfig, c)
@@ -205,8 +239,8 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	nodecfg := nodeprovider.InitConfig{
 		HomeConfig:      localConfig,
 		RemoteConfig:    remoteConfig,
-		HomeClusterID:   c.HomeCluster.ClusterID,
-		RemoteClusterID: c.ForeignCluster.ClusterID,
+		HomeClusterID:   c.HomeCluster.GetClusterID(),
+		RemoteClusterID: c.ForeignCluster.GetClusterID(),
 		Namespace:       c.TenantNamespace,
 
 		NodeName:         c.NodeName,
@@ -274,7 +308,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		go func() {
 			if err := nodeRunner.Run(ctx); err != nil {
 				klog.Error(err, "error in pod controller running")
-				panic(nil)
+				panic(err)
 			}
 		}()
 
@@ -303,31 +337,31 @@ func getVersion(config *rest.Config) string {
 	return version.GitVersion
 }
 
-func isReflectionTypeNotCustomizable(resource generic.ResourceReflected) bool {
-	return resource == generic.Pod || resource == generic.ServiceAccount || resource == generic.PersistentVolumeClaim
+func isReflectionTypeNotCustomizable(resource resources.ResourceReflected) bool {
+	return resource == resources.Pod || resource == resources.ServiceAccount || resource == resources.PersistentVolumeClaim
 }
 
-func getReflectorsConfigs(c *Opts) (map[generic.ResourceReflected]*generic.ReflectorConfig, error) {
-	reflectorsConfigs := make(map[generic.ResourceReflected]*generic.ReflectorConfig)
-	for i := range generic.Reflectors {
-		resource := &generic.Reflectors[i]
+func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]vkv1alpha1.ReflectorConfig, error) {
+	reflectorsConfigs := make(map[resources.ResourceReflected]vkv1alpha1.ReflectorConfig)
+	for i := range resources.Reflectors {
+		resource := &resources.Reflectors[i]
 		numWorkers := *c.ReflectorsWorkers[string(*resource)]
-		var reflectionType consts.ReflectionType
+		var reflectionType vkv1alpha1.ReflectionType
 		if isReflectionTypeNotCustomizable(*resource) {
 			reflectionType = DefaultReflectorsTypes[*resource]
 		} else {
-			if *resource == generic.EndpointSlice {
+			if *resource == resources.EndpointSlice {
 				// the endpointslice reflector inherits the reflection type from the service reflector.
-				reflectionType = consts.ReflectionType(*c.ReflectorsType[string(generic.Service)])
+				reflectionType = vkv1alpha1.ReflectionType(*c.ReflectorsType[string(resources.Service)])
 			} else {
-				reflectionType = consts.ReflectionType(*c.ReflectorsType[string(*resource)])
+				reflectionType = vkv1alpha1.ReflectionType(*c.ReflectorsType[string(*resource)])
 			}
-			if reflectionType != consts.DenyList && reflectionType != consts.AllowList {
+			if reflectionType != vkv1alpha1.DenyList && reflectionType != vkv1alpha1.AllowList {
 				return nil, fmt.Errorf("reflection type %q is not valid for resource %s. Ammitted values: %q, %q",
-					reflectionType, *resource, consts.DenyList, consts.AllowList)
+					reflectionType, *resource, vkv1alpha1.DenyList, vkv1alpha1.AllowList)
 			}
 		}
-		reflectorsConfigs[*resource] = &generic.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
+		reflectorsConfigs[*resource] = vkv1alpha1.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
 	}
 	return reflectorsConfigs, nil
 }

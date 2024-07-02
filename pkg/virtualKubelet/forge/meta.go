@@ -35,8 +35,8 @@ const (
 // ReflectionLabels returns the labels assigned to the objects reflected from the local to the remote cluster.
 func ReflectionLabels() labels.Set {
 	return map[string]string{
-		LiqoOriginClusterIDKey:      LocalCluster.ClusterID,
-		LiqoDestinationClusterIDKey: RemoteCluster.ClusterID,
+		LiqoOriginClusterIDKey:      string(LocalCluster),
+		LiqoDestinationClusterIDKey: string(RemoteCluster),
 	}
 }
 

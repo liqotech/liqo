@@ -15,13 +15,16 @@
 package mapper
 
 import (
+	"errors"
 	"net/http"
 
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -29,10 +32,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
@@ -55,7 +59,7 @@ func LiqoMapperProvider(scheme *runtime.Scheme, additionalGroupVersions ...schem
 		}
 
 		for _, gv := range additionalGroupVersions {
-			if err = addGroup(dClient, gv, mapper); err != nil {
+			if err = addGroup(dClient, gv, mapper, GroupRequired); err != nil {
 				klog.Error(err)
 				return nil, err
 			}
@@ -70,46 +74,77 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	var err error
 
 	// Liqo groups
-	if err = addGroup(dClient, discoveryv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, liqov1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, netv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, virtualKubeletv1alpha1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, sharingv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, offv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, virtualKubeletv1alpha1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, ipamv1alpha1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, offv1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, networkingv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
+		return err
+	}
+	if err = addGroup(dClient, authv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
 
 	// Kubernetes groups
-	if err = addGroup(dClient, corev1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, corev1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, appsv1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, appsv1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, rbacv1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, rbacv1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, discoveryv1.SchemeGroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, discoveryv1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	return addGroup(dClient, storagev1.SchemeGroupVersion, mapper)
+	if err = addGroup(dClient, storagev1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
+		return err
+	}
+
+	// Prometheus operator group
+	if err = addGroup(dClient, monitoringv1.SchemeGroupVersion, mapper, GroupOptional); err != nil {
+		return err
+	}
+
+	mapper.Add(schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1",
+		Kind:    "List",
+	}, meta.RESTScopeRoot)
+	return nil
 }
 
+const (
+	// GroupRequired is used to specify that a group is required by the mapper.
+	GroupRequired = true
+	// GroupOptional is used to specify that a group is optional for the mapper.
+	GroupOptional = false
+)
+
 // add all the resources in the specified groupVersion to the mapper.
-func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersion, mapper *meta.DefaultRESTMapper) error {
+func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersion,
+	mapper *meta.DefaultRESTMapper, required bool) error {
 	res, err := dClient.ServerResourcesForGroupVersion(groupVersion.String())
-	if err != nil {
+	var dErr *apierrors.StatusError
+	switch {
+	case errors.As(err, &dErr) && !required:
+		// ignore error, and do not add the group to the mapper, the CRD is not available.
+		return nil
+	case err != nil:
 		klog.Error(err)
 		return err
 	}
-	for _, apiRes := range res.APIResources {
+	for i := range res.APIResources {
+		apiRes := &res.APIResources[i]
 		var scope meta.RESTScope
 		if apiRes.Namespaced {
 			scope = meta.RESTScopeNamespace
@@ -120,6 +155,11 @@ func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersi
 			Group:   groupVersion.Group,
 			Version: groupVersion.Version,
 			Kind:    apiRes.Kind,
+		}, scope)
+		mapper.Add(schema.GroupVersionKind{
+			Group:   groupVersion.Group,
+			Version: groupVersion.Version,
+			Kind:    apiRes.Kind + "List",
 		}, scope)
 	}
 	return nil

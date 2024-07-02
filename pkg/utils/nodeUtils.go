@@ -15,10 +15,54 @@
 package utils
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
+
+var preferOrder = []corev1.NodeAddressType{
+	corev1.NodeExternalDNS,
+	corev1.NodeExternalIP,
+	corev1.NodeInternalDNS,
+	corev1.NodeInternalIP,
+	corev1.NodeHostName,
+}
+
+// GetAddressFromNodeList returns an address from a Node pool.
+func GetAddressFromNodeList(nodes []corev1.Node) (string, error) {
+	for _, addrType := range preferOrder {
+		for i := range nodes {
+			addr, err := getAddressByType(&nodes[i], addrType)
+			if err != nil {
+				klog.V(4).Info(err.Error())
+				continue
+			}
+
+			klog.V(4).Infof("found address %v with type %v", addr, addrType)
+			return addr, nil
+		}
+	}
+	return "", fmt.Errorf("no address found")
+}
+
+// GetAddress returns an address for a Node.
+func GetAddress(node *corev1.Node) (string, error) {
+	return GetAddressFromNodeList([]corev1.Node{
+		*node,
+	})
+}
+
+func getAddressByType(node *corev1.Node, addrType corev1.NodeAddressType) (string, error) {
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == addrType {
+			return addr.Address, nil
+		}
+	}
+	return "", fmt.Errorf("no address with type %v found in node %v", addrType, node.Name)
+}
 
 // IsNodeReady returns true if the passed node has the NodeReady condition = True, false otherwise.
 func IsNodeReady(node *corev1.Node) bool {

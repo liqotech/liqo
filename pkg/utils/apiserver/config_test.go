@@ -22,9 +22,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/liqotech/liqo/pkg/utils/apiserver"
 )
@@ -66,7 +66,7 @@ var _ = Describe("The API server configuration", func() {
 		var (
 			config  apiserver.Config
 			restcfg rest.Config
-			client  kubernetes.Interface
+			cl      client.Client
 
 			err error
 		)
@@ -77,10 +77,10 @@ var _ = Describe("The API server configuration", func() {
 			config = apiserver.Config{Address: "foo.bar:8080"}
 
 			restcfg.CAData = []byte(caData)
-			client = fake.NewSimpleClientset()
+			cl = fake.NewFakeClient()
 		})
 
-		JustBeforeEach(func() { err = config.Complete(&restcfg, client) })
+		JustBeforeEach(func() { err = config.Complete(&restcfg, cl) })
 
 		When("the TrustedCA is not set", func() {
 			BeforeEach(func() { config.TrustedCA = false })

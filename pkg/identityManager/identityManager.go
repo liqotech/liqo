@@ -23,8 +23,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/csr"
 )
@@ -34,92 +36,84 @@ var _ IdentityManager = &identityManager{}
 type identityManager struct {
 	IdentityProvider
 
-	client           kubernetes.Interface
-	localCluster     discoveryv1alpha1.ClusterIdentity
+	client           client.Client
+	k8sClient        kubernetes.Interface
+	localCluster     liqov1alpha1.ClusterID
 	namespaceManager tenantnamespace.Manager
 
 	iamTokenManager tokenManager
 }
 
 // NewCertificateIdentityReader gets a new certificate identity reader.
-func NewCertificateIdentityReader(client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity, namespaceManager tenantnamespace.Manager) IdentityReader {
-	return NewCertificateIdentityManager(client, localCluster, namespaceManager)
+func NewCertificateIdentityReader(ctx context.Context, cl client.Client, k8sClient kubernetes.Interface, cnf *rest.Config,
+	localCluster liqov1alpha1.ClusterID, namespaceManager tenantnamespace.Manager) IdentityReader {
+	return NewCertificateIdentityManager(ctx, cl, k8sClient, cnf, localCluster, namespaceManager)
 }
 
 // NewCertificateIdentityManager gets a new certificate identity manager.
-func NewCertificateIdentityManager(client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity, namespaceManager tenantnamespace.Manager) IdentityManager {
+func NewCertificateIdentityManager(ctx context.Context,
+	cl client.Client, k8sClient kubernetes.Interface, cnf *rest.Config,
+	localCluster liqov1alpha1.ClusterID, namespaceManager tenantnamespace.Manager) IdentityManager {
 	idProvider := &certificateIdentityProvider{
 		namespaceManager: namespaceManager,
-		client:           client,
+		k8sClient:        k8sClient,
+		cl:               cl,
+		cnf:              cnf,
 	}
 
-	return newIdentityManager(client, localCluster, namespaceManager, idProvider)
+	return newIdentityManager(ctx, cl, k8sClient, localCluster, namespaceManager, idProvider)
 }
 
 // NewCertificateIdentityProvider gets a new certificate identity approver.
-func NewCertificateIdentityProvider(ctx context.Context, client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity, namespaceManager tenantnamespace.Manager) IdentityProvider {
+func NewCertificateIdentityProvider(ctx context.Context, cl client.Client, k8sClient kubernetes.Interface,
+	cnf *rest.Config,
+	localCluster liqov1alpha1.ClusterID, namespaceManager tenantnamespace.Manager) IdentityProvider {
 	req, err := labels.NewRequirement(remoteTenantCSRLabel, selection.Exists, []string{})
 	utilruntime.Must(err)
 
-	csrWatcher := csr.NewWatcher(client, 0, labels.NewSelector().Add(*req), fields.Everything())
+	csrWatcher := csr.NewWatcher(k8sClient, 0, labels.NewSelector().Add(*req), fields.Everything())
 	csrWatcher.Start(ctx)
 	idProvider := &certificateIdentityProvider{
 		namespaceManager: namespaceManager,
-		client:           client,
+		k8sClient:        k8sClient,
+		cl:               cl,
+		cnf:              cnf,
 		csrWatcher:       csrWatcher,
 	}
 
-	return newIdentityManager(client, localCluster, namespaceManager, idProvider)
-}
-
-// NewIAMIdentityReader gets a new identity reader to handle IAM identities.
-func NewIAMIdentityReader(client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *AwsConfig,
-	namespaceManager tenantnamespace.Manager) IdentityManager {
-	return NewIAMIdentityManager(client, localCluster, awsConfig, namespaceManager)
-}
-
-// NewIAMIdentityManager gets a new identity manager to handle IAM identities.
-func NewIAMIdentityManager(client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *AwsConfig,
-	namespaceManager tenantnamespace.Manager) IdentityManager {
-	idProvider := &iamIdentityProvider{
-		awsConfig: awsConfig,
-		client:    client,
-	}
-
-	return newIdentityManager(client, localCluster, namespaceManager, idProvider)
+	return newIdentityManager(ctx, cl, k8sClient, localCluster, namespaceManager, idProvider)
 }
 
 // NewIAMIdentityProvider gets a new identity approver to handle IAM identities.
-func NewIAMIdentityProvider(client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity, awsConfig *AwsConfig,
+func NewIAMIdentityProvider(ctx context.Context, cl client.Client, k8sClient kubernetes.Interface,
+	localCluster liqov1alpha1.ClusterID, localAwsConfig *LocalAwsConfig,
 	namespaceManager tenantnamespace.Manager) IdentityProvider {
 	idProvider := &iamIdentityProvider{
-		awsConfig:      awsConfig,
-		client:         client,
-		localClusterID: localCluster.ClusterID,
+		localAwsConfig: localAwsConfig,
+		localClusterID: string(localCluster),
+		cl:             cl,
 	}
 
-	return newIdentityManager(client, localCluster, namespaceManager, idProvider)
+	utilruntime.Must(idProvider.init(ctx))
+
+	return newIdentityManager(ctx, cl, k8sClient, localCluster, namespaceManager, idProvider)
 }
 
-func newIdentityManager(client kubernetes.Interface,
-	localCluster discoveryv1alpha1.ClusterIdentity,
+func newIdentityManager(ctx context.Context,
+	cl client.Client, k8sClient kubernetes.Interface,
+	localCluster liqov1alpha1.ClusterID,
 	namespaceManager tenantnamespace.Manager,
 	idProvider IdentityProvider) *identityManager {
 	iamTokenManager := &iamTokenManager{
-		client:                    client,
-		availableClusterIDSecrets: map[string]types.NamespacedName{},
-		tokenFiles:                map[string]string{},
+		client:                    k8sClient,
+		availableClusterIDSecrets: map[liqov1alpha1.ClusterID]types.NamespacedName{},
+		tokenFiles:                map[liqov1alpha1.ClusterID]string{},
 	}
-	iamTokenManager.start(context.TODO())
+	iamTokenManager.start(ctx)
 
 	return &identityManager{
-		client:           client,
+		client:           cl,
+		k8sClient:        k8sClient,
 		localCluster:     localCluster,
 		namespaceManager: namespaceManager,
 

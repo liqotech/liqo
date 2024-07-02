@@ -31,24 +31,26 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 var liqoGroupVersions = []schema.GroupVersion{
-	discoveryv1alpha1.GroupVersion,
-	netv1alpha1.GroupVersion,
+	liqov1alpha1.GroupVersion,
 	offv1alpha1.GroupVersion,
-	sharingv1alpha1.GroupVersion,
 	virtualKubeletv1alpha1.SchemeGroupVersion,
+	networkingv1alpha1.GroupVersion,
+	ipamv1alpha1.SchemeGroupVersion,
+	authv1alpha1.GroupVersion,
 }
 
 // Options encapsulates the arguments of the uninstall command.
@@ -65,7 +67,7 @@ func (o *Options) Run(ctx context.Context) error {
 	defer cancel()
 
 	s := o.Printer.StartSpinner("Running pre-uninstall checks")
-	if err := o.preUninstall(ctx); err != nil {
+	if err := utils.PreUninstall(ctx, o.CRClient); err != nil {
 		s.Fail("Pre-uninstall checks failed: ", output.PrettyErr(err))
 		return err
 	}
@@ -156,7 +158,7 @@ func (o *Options) deleteLiqoNamespaces(ctx context.Context) error {
 	// we list them all and then delete them one by one to avoid the error
 	// "the server does not allow this method on the requested resource"
 	if err := o.CRClient.List(ctx, &nsList, client.MatchingLabels{
-		discovery.TenantNamespaceLabel: "true",
+		consts.TenantNamespaceLabel: "true",
 	}); err != nil {
 		return err
 	}

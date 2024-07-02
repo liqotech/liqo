@@ -122,7 +122,7 @@ function install_liqo() {
     shift 2
     labels="$*"
 
-    fail_on_error "liqoctl install kind --cluster-name $cluster_name \
+    fail_on_error "liqoctl install kind --cluster-id $cluster_name \
         --cluster-labels=$(join_by , "${labels[@]}") \
         --kubeconfig $kubeconfig" "Failed to install liqo on cluster \"$cluster_name\""
 
@@ -149,7 +149,7 @@ function install_liqo_k3d() {
 
     api_server_address=$(kubectl get nodes --kubeconfig "$kubeconfig" --selector=node-role.kubernetes.io/master -o jsonpath='{$.items[*].status.addresses[?(@.type=="InternalIP")].address}')
 
-    fail_on_error "liqoctl install k3s --cluster-name $cluster_name \
+    fail_on_error "liqoctl install k3s --cluster-id $cluster_name \
         --cluster-labels=$(join_by , "${labels[@]}") \
         --pod-cidr $pod_cidr \
         --service-cidr $service_cidr \

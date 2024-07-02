@@ -21,12 +21,14 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
 
 // LiqoNodeProvider is a node provider that manages the Liqo resources.
@@ -42,13 +44,14 @@ type LiqoNodeProvider struct {
 	lastAppliedTaints      []corev1.Taint
 
 	nodeName           string
-	foreignClusterID   string
+	foreignClusterID   liqov1alpha1.ClusterID
 	tenantNamespace    string
 	resyncPeriod       time.Duration
 	pingDisabled       bool
 	checkNetworkStatus bool
 
-	networkReady bool
+	networkModuleEnabled bool
+	networkReady         bool
 
 	onNodeChangeCallback func(*corev1.Node)
 	updateMutex          sync.Mutex
@@ -60,28 +63,37 @@ func (p *LiqoNodeProvider) Ping(ctx context.Context) error {
 		return nil
 	}
 
+	var err error
+
 	start := time.Now()
 	klog.V(4).Infof("Checking whether the remote API server is ready")
 
 	// Get the foreigncluster using the given clusterID
 	fc, err := foreignclusterutils.GetForeignClusterByIDWithDynamicClient(ctx, p.dynClient, p.foreignClusterID)
+	if apierrors.IsNotFound(err) {
+		// If the foreigncluster is not found, ping directly the remote API server as fallback.
+		err = p.pingWithClient(ctx)
+	} else if err == nil {
+		cond := foreignclusterutils.GetAPIServerStatus(fc)
+		switch {
+		case cond == liqov1alpha1.ConditionStatusNone:
+			err = p.pingWithClient(ctx)
+		case cond != liqov1alpha1.ConditionStatusEstablished:
+			err = fmt.Errorf("API server is not ready")
+		}
+	}
+
 	if err != nil {
-		klog.Error(err)
-		return err
+		return fmt.Errorf("[%s] API server readiness check failed: %w", p.foreignClusterID, err)
 	}
 
-	// Check the foreign API server status
-	if !foreignclusterutils.IsAPIServerReady(fc) {
-		return fmt.Errorf("[%s] API server readiness check failed", fc.Spec.ClusterIdentity.ClusterName)
-	}
+	klog.V(4).Infof("[%s] API server readiness check completed successfully in %v", p.foreignClusterID, time.Since(start))
 
-	klog.V(4).Infof("[%s] API server readiness check completed successfully in %v",
-		fc.Spec.ClusterIdentity.ClusterName, time.Since(start))
 	return nil
 }
 
 // NotifyNodeStatus implements the NodeProvider interface.
-func (p *LiqoNodeProvider) NotifyNodeStatus(ctx context.Context, f func(*corev1.Node)) {
+func (p *LiqoNodeProvider) NotifyNodeStatus(_ context.Context, f func(*corev1.Node)) {
 	p.onNodeChangeCallback = f
 }
 
@@ -95,4 +107,12 @@ func (p *LiqoNodeProvider) IsTerminating() bool {
 // GetNode returns the node managed by the provider.
 func (p *LiqoNodeProvider) GetNode() *corev1.Node {
 	return p.node
+}
+
+func (p *LiqoNodeProvider) pingWithClient(ctx context.Context) error {
+	_, err := p.remoteDiscoveryClient.RESTClient().Get().AbsPath("/livez").DoRaw(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
 }

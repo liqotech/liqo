@@ -28,22 +28,23 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 var _ = Describe("Service Reflection Tests", func() {
 	Describe("the NewServiceReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
-				Type:       root.DefaultReflectorsTypes[generic.Service],
+				Type:       root.DefaultReflectorsTypes[resources.Service],
 			}
 			Expect(exposition.NewServiceReflector(&reflectorConfig, false, "")).ToNot(BeNil())
 		})
@@ -54,7 +55,7 @@ var _ = Describe("Service Reflection Tests", func() {
 
 		var (
 			reflector      manager.NamespacedReflector
-			reflectionType consts.ReflectionType
+			reflectionType vkv1alpha1.ReflectionType
 
 			local, remote corev1.Service
 			err           error
@@ -93,7 +94,7 @@ var _ = Describe("Service Reflection Tests", func() {
 		BeforeEach(func() {
 			local = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: LocalNamespace}}
 			remote = corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: ServiceName, Namespace: RemoteNamespace}}
-			reflectionType = root.DefaultReflectorsTypes[generic.Service]
+			reflectionType = root.DefaultReflectorsTypes[resources.Service]
 		})
 
 		AfterEach(func() {
@@ -208,7 +209,7 @@ var _ = Describe("Service Reflection Tests", func() {
 
 		When("the reflection type is AllowList", func() {
 			BeforeEach(func() {
-				reflectionType = consts.AllowList
+				reflectionType = vkv1alpha1.AllowList
 			})
 
 			When("the local object does exist, but does not have the allow annotation", func() {

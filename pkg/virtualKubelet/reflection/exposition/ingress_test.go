@@ -27,22 +27,23 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
+	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 )
 
 var _ = Describe("Ingress Reflection Tests", func() {
 	Describe("the NewIngressReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := generic.ReflectorConfig{
+			reflectorConfig := vkv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
-				Type:       root.DefaultReflectorsTypes[generic.Ingress],
+				Type:       root.DefaultReflectorsTypes[resources.Ingress],
 			}
 			Expect(exposition.NewIngressReflector(&reflectorConfig, false, "")).ToNot(BeNil())
 		})
@@ -53,7 +54,7 @@ var _ = Describe("Ingress Reflection Tests", func() {
 
 		var (
 			reflector      manager.NamespacedReflector
-			reflectionType consts.ReflectionType
+			reflectionType vkv1alpha1.ReflectionType
 
 			local, remote netv1.Ingress
 			err           error
@@ -105,7 +106,7 @@ var _ = Describe("Ingress Reflection Tests", func() {
 		BeforeEach(func() {
 			local = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: LocalNamespace}}
 			remote = netv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: IngressName, Namespace: RemoteNamespace}}
-			reflectionType = root.DefaultReflectorsTypes[generic.Ingress]
+			reflectionType = root.DefaultReflectorsTypes[resources.Ingress]
 		})
 
 		AfterEach(func() {
@@ -217,7 +218,7 @@ var _ = Describe("Ingress Reflection Tests", func() {
 
 		When("the reflection type is AllowList", func() {
 			BeforeEach(func() {
-				reflectionType = consts.AllowList
+				reflectionType = vkv1alpha1.AllowList
 			})
 
 			When("the local object does exist, but does not have the allow annotation", func() {
