@@ -238,10 +238,10 @@ func (r *Reconciler) endpointsShouldBeUpdated(newObj, oldObj client.Object) bool
 func (r *Reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, workers int) error {
 	// Trigger a reconciliation only for Update Events on NetworkStatus of the ForeignCluster.
 	fcPredicates := predicate.Funcs{
-		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(_ event.DeleteEvent) bool { return false },
+		CreateFunc:  func(_ event.CreateEvent) bool { return false },
 		UpdateFunc:  func(e event.UpdateEvent) bool { return r.endpointsShouldBeUpdated(e.ObjectNew, e.ObjectOld) },
-		GenericFunc: func(e event.GenericEvent) bool { return false },
+		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).

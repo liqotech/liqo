@@ -45,12 +45,12 @@ func (o *Options) Delete(ctx context.Context, options *rest.DeleteOptions) *cobr
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.PublicKeys(ctx, o.deleteOptions.Factory, 1),
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, args []string) {
 			options.Name = args[0]
 			o.deleteOptions = options
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(o.handleDelete(ctx))
 		},
 	}
