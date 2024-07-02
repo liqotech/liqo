@@ -114,19 +114,19 @@ func MapAddressWithConfiguration(cfg *networkingv1alpha1.Configuration, address 
 
 	paddr := net.ParseIP(address)
 	if podNeedsRemap && podnet.Contains(paddr) {
-		return remapMask(paddr, *podnetMapped, podNetMaskLen).String(), nil
+		return RemapMask(paddr, *podnetMapped, podNetMaskLen).String(), nil
 	}
 	if extNeedsRemap && extnet.Contains(paddr) {
-		return remapMask(paddr, *extnetMapped, extNetMaskLen).String(), nil
+		return RemapMask(paddr, *extnetMapped, extNetMaskLen).String(), nil
 	}
 
 	return address, nil
 }
 
-// remapMask remaps the mask of the address.
+// RemapMask remaps the mask of the address.
 // Consider that net.IP is always a slice of 16 bytes (big-endian).
 // The mask is a slice of 4 or 16 bytes (big-endian).
-func remapMask(addr net.IP, mask net.IPNet, maskLen int) net.IP {
+func RemapMask(addr net.IP, mask net.IPNet, maskLen int) net.IP {
 	maskLenBytes := maskLen / 8
 	for i := 0; i < maskLenBytes; i++ {
 		// i+(len(addr)-len(mask.IP)) allows to start from the rightmost byte of the address.

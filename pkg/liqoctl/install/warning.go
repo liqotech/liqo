@@ -20,7 +20,7 @@ import (
 	"github.com/pterm/pterm"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/liqotech/liqo/pkg/liqoctl/util"
+	"github.com/liqotech/liqo/pkg/liqoctl/utils"
 )
 
 type warner interface {
@@ -48,7 +48,7 @@ func (sw *serviceWarner) check(values map[string]interface{}) (bool, error) {
 	components := []string{"gateway", "auth"}
 
 	for _, component := range components {
-		if value, err = util.ExtractValuesFromNestedMaps(values, component, "service", "type"); err != nil {
+		if value, err = utils.ExtractValuesFromNestedMaps(values, component, "service", "type"); err != nil {
 			return false, err
 		}
 

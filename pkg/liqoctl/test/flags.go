@@ -12,24 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ipam
+package test
 
 import (
-	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/spf13/pflag"
 )
 
-// IsAPIServerIP checks if the resource is an IP of type API server.
-func IsAPIServerIP(ip *ipamv1alpha1.IP) bool {
-	ipType, ok := ip.Labels[consts.IPTypeLabelKey]
-	return ok && ipType == consts.IPTypeAPIServer
-}
+// FlagNames contains the names of the flags.
+type FlagNames string
 
-// GetRemappedIP returns the remapped IP of the given IP resource.
-func GetRemappedIP(ip *ipamv1alpha1.IP) networkingv1alpha1.IP {
-	for _, ipremapped := range ip.Status.IPMappings {
-		return ipremapped
-	}
-	return ""
+const (
+	// FlagNamesVerbose is the flag name for the verbose output.
+	FlagNamesVerbose FlagNames = "verbose"
+	// FlagNamesFailFast is the flag name for the fail-fast option.
+	FlagNamesFailFast FlagNames = "fail-fast"
+)
+
+// AddFlags adds the flags to the flag set.
+func (o *Options) AddFlags(fs *pflag.FlagSet) {
+	fs.BoolVarP(&o.Verbose, string(FlagNamesVerbose), "v", false, "Verbose output")
+	fs.BoolVar(&o.FailFast, string(FlagNamesFailFast), false, "Stop the test as soon as an error is encountered")
 }
