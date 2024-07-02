@@ -55,11 +55,11 @@ func newUnpeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Long:  WithTemplate(liqoctlUnpeerLongHelp),
 		Args:  cobra.NoArgs,
 
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			twoClustersPersistentPreRun(cmd, options.LocalFactory, options.RemoteFactory, factory.WithScopedPrinter)
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.RunUnpeer(ctx))
 		},
 	}

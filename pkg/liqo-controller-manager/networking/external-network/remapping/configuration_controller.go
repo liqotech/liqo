@@ -64,8 +64,8 @@ func NewRemappingReconciler(cl client.Client, s *runtime.Scheme, er record.Event
 
 // Reconcile manage Configuration resources.
 func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	configuration := &networkingv1alpha1.Configuration{}
-	if err := r.Client.Get(ctx, req.NamespacedName, configuration); err != nil {
+	conf := &networkingv1alpha1.Configuration{}
+	if err := r.Client.Get(ctx, req.NamespacedName, conf); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no configuration %s", req.String())
 			return ctrl.Result{}, nil
@@ -74,15 +74,15 @@ func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	klog.V(4).Infof("Reconciling configuration %q", req.NamespacedName)
 
-	if configuration.Spec.Remote.CIDR.Pod != configuration.Status.Remote.CIDR.Pod {
-		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, configuration,
+	if conf.Spec.Remote.CIDR.Pod != conf.Status.Remote.CIDR.Pod {
+		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf,
 			r.Scheme, PodCIDR); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	if configuration.Spec.Remote.CIDR.External != configuration.Status.Remote.CIDR.External {
-		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, configuration,
+	if conf.Spec.Remote.CIDR.External != conf.Status.Remote.CIDR.External {
+		if err := CreateOrUpdateNatMappingCIDR(ctx, r.Client, r.Options, conf,
 			r.Scheme, ExternalCIDR); err != nil {
 			return ctrl.Result{}, err
 		}

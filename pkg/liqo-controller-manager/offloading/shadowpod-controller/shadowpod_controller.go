@@ -149,10 +149,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 	// Trigger a reconciliation only for Delete and Update Events.
 	reconciledPredicates := predicate.Funcs{
-		DeleteFunc:  func(e event.DeleteEvent) bool { return true },
-		CreateFunc:  func(e event.CreateEvent) bool { return false },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return true },
-		GenericFunc: func(e event.GenericEvent) bool { return false },
+		DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
+		CreateFunc:  func(_ event.CreateEvent) bool { return false },
+		UpdateFunc:  func(_ event.UpdateEvent) bool { return true },
+		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&vkv1alpha1.ShadowPod{}).

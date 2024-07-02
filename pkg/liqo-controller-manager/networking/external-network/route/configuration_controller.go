@@ -63,8 +63,8 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme,
 // Reconcile manage Configurations.
 func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	configuration := &networkingv1alpha1.Configuration{}
-	if err = r.Get(ctx, req.NamespacedName, configuration); err != nil {
+	conf := &networkingv1alpha1.Configuration{}
+	if err = r.Get(ctx, req.NamespacedName, conf); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no configuration %s", req.String())
 			return ctrl.Result{}, nil
@@ -74,7 +74,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	klog.V(4).Infof("Reconciling configuration %s", req.String())
 
-	return ctrl.Result{}, enforeRouteConfigurationPresence(ctx, r.Client, r.Scheme, configuration)
+	return ctrl.Result{}, enforeRouteConfigurationPresence(ctx, r.Client, r.Scheme, conf)
 }
 
 // SetupWithManager register the ConfigurationReconciler to the manager.
