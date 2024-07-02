@@ -53,14 +53,14 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		Long:    liqoctlCreateNonceLongHelp,
 		Args:    cobra.NoArgs,
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			options.OutputFormat = outputFormat.Value
 			o.createOptions = options
 
 			o.namespaceManager = tenantnamespace.NewManager(options.KubeClient)
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(o.handleCreate(ctx))
 		},
 	}

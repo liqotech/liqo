@@ -1,9 +1,5 @@
 run:
   timeout: 10m
-  skip-files:
-    - "zz_generated.*.go"
-  skip-dirs:
-    - "pkg/client"
 
 linters-settings:
   exhaustive:
@@ -58,11 +54,13 @@ linters-settings:
   goimports:
     local-prefixes: github.com/liqotech/liqo
   govet:
-    check-shadowing: true
+    enable:
+      - shadow
+      - nilness
+      - nilfunc
   misspell:
     locale: US
   nolintlint:
-    allow-leading-space: true # don't require machine-readable nolint directives (i.e. with no leading space)
     allow-unused: false # report any unused nolint directives
     require-explanation: true # require an explanation for nolint directives
     require-specific: true # require nolint directives to be specific about which linter is being skipped
@@ -153,3 +151,9 @@ issues:
       linters:
         - whitespace
         - revive  # it does not allow dot imports (e.g. . "github.com/onsi/ginkgo")
+
+  exclude-files:
+    - "zz_generated.*.go"
+  
+  exclude-dirs:
+    - "pkg/client"

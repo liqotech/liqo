@@ -20,7 +20,7 @@ import (
 
 	"github.com/virtual-kubelet/virtual-kubelet/node"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -167,7 +167,7 @@ func initReflectionWorkers() map[string]*uint {
 	reflectionWorkers := make(map[string]*uint, len(resources.Reflectors))
 	for i := range resources.Reflectors {
 		resource := &resources.Reflectors[i]
-		reflectionWorkers[string(*resource)] = pointer.Uint(DefaultReflectorsWorkers[*resource])
+		reflectionWorkers[string(*resource)] = ptr.To(DefaultReflectorsWorkers[*resource])
 	}
 	return reflectionWorkers
 }
@@ -176,7 +176,7 @@ func initReflectionType() map[string]*string {
 	reflectionType := make(map[string]*string, len(resources.ReflectorsCustomizableType))
 	for i := range resources.ReflectorsCustomizableType {
 		resource := &resources.ReflectorsCustomizableType[i]
-		reflectionType[string(*resource)] = pointer.String(string(DefaultReflectorsTypes[*resource]))
+		reflectionType[string(*resource)] = ptr.To(string(DefaultReflectorsTypes[*resource]))
 	}
 	return reflectionType
 }

@@ -149,7 +149,7 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 	}
 
 	return handler.Funcs{
-		CreateFunc: func(_ context.Context, ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
+		CreateFunc: func(_ context.Context, _ event.CreateEvent, rli workqueue.RateLimitingInterface) {
 			// Enqueue an event for all known NamespaceOffloadings.
 			r.namespaces.ForEach(func(namespace string) { enqueue(rli, namespace) })
 		},
@@ -171,7 +171,7 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 				}
 			}
 		},
-		DeleteFunc: func(_ context.Context, de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+		DeleteFunc: func(_ context.Context, _ event.DeleteEvent, rli workqueue.RateLimitingInterface) {
 			// Enqueue an event for all known NamespaceOffloadings.
 			r.namespaces.ForEach(func(namespace string) { enqueue(rli, namespace) })
 		},
@@ -179,7 +179,7 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 }
 
 func (r *NamespaceOffloadingReconciler) enqueueAll() handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, _ client.Object) []reconcile.Request {
 		var nsolist offv1alpha1.NamespaceOffloadingList
 		if err := r.Client.List(ctx, &nsolist); err != nil {
 			klog.Errorf("Failed to retrieve NamespaceOffloadingList: %v", err)

@@ -49,11 +49,11 @@ func newUnauthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 		Long:    WithTemplate(liqoctlUnauthenticateLongHelp),
 		Args:    cobra.NoArgs,
 
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			twoClustersPersistentPreRun(cmd, options.LocalFactory, options.RemoteFactory, factory.WithScopedPrinter)
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.RunUnauthenticate(ctx))
 		},
 	}

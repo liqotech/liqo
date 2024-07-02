@@ -60,7 +60,7 @@ func newActivateTenantCommand(ctx context.Context, f *factory.Factory) *cobra.Co
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Tenants(ctx, f, 1),
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			options.Name = args[0]
 			output.ExitOnErr(options.RunActivateTenant(ctx))
 		},

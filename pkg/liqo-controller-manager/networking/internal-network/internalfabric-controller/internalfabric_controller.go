@@ -100,7 +100,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 // SetupWithManager register the InternalFabricReconciler to the manager.
 func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	internalNodeEnqueuer := handler.EnqueueRequestsFromMapFunc(
-		func(ctx context.Context, obj client.Object) []reconcile.Request {
+		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
 			var internalFabricList networkingv1alpha1.InternalFabricList

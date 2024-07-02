@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 -   repo: https://github.com/golangci/golangci-lint
-    rev: v1.55.1
+    rev: v1.59.1
     hooks:
     - id: golangci-lint
       name: golangci-lint

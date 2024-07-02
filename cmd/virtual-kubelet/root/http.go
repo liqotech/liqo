@@ -169,7 +169,7 @@ func newCertificateRetriever(kubeClient kubernetes.Interface, signer, nodeName s
 	}
 
 	mgr, err := certificate.NewManager(&certificate.Config{
-		ClientsetFn: func(current *tls.Certificate) (kubernetes.Interface, error) {
+		ClientsetFn: func(_ *tls.Certificate) (kubernetes.Interface, error) {
 			return kubeClient, nil
 		},
 		GetTemplate: getTemplate,

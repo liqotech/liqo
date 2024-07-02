@@ -24,7 +24,7 @@ import (
 )
 
 // FakeClusterIDConfigMap returns a fake ClusterID ConfigMap.
-func FakeClusterIDConfigMap(namespace, clusterID, clusterName string) *corev1.ConfigMap {
+func FakeClusterIDConfigMap(namespace, clusterID string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace, Name: "whatever",

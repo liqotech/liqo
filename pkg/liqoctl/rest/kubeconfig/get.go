@@ -47,13 +47,13 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 		Long:    liqoctlGetKubeconfigLongHelp,
 		Args:    cobra.ExactArgs(1),
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, args []string) {
 			o.getOptions = options
 			o.identityName = args[0]
 			o.namespaceManager = tenantnamespace.NewManager(options.KubeClient)
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(o.handleGet(ctx))
 		},
 	}

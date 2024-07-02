@@ -56,13 +56,13 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 		Long:    liqoctlCreateConfigurationLongHelp,
 		Args:    cobra.ExactArgs(1),
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, args []string) {
 			options.OutputFormat = outputFormat.Value
 			options.Name = args[0]
 			o.createOptions = options
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(o.handleCreate(ctx))
 		},
 	}

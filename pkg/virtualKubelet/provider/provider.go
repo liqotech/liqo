@@ -175,13 +175,13 @@ func (p *LiqoProvider) PodHandler() workload.PodHandler {
 }
 
 func isSATokenAPISupport(localClient kubernetes.Interface) (bool, error) {
-	resources, err := localClient.Discovery().ServerResourcesForGroupVersion(corev1.SchemeGroupVersion.String())
+	res, err := localClient.Discovery().ServerResourcesForGroupVersion(corev1.SchemeGroupVersion.String())
 	if err != nil {
 		return false, err
 	}
 
-	for i := range resources.APIResources {
-		if resources.APIResources[i].Name == "serviceaccounts/token" {
+	for i := range res.APIResources {
+		if res.APIResources[i].Name == "serviceaccounts/token" {
 			return true, nil
 		}
 	}

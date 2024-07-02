@@ -73,7 +73,7 @@ func NewCommand(ctx context.Context, name string, c *Opts) *cobra.Command {
 		Use:   name,
 		Short: name + " implements the Liqo Virtual Kubelet logic.",
 		Long:  name + " implements the Liqo Virtual Kubelet logic.",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return runRootCommand(ctx, c)
 		},
 	}
@@ -268,7 +268,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 			node.WithNodeEnableLeaseV1(localClient.CoordinationV1().Leases(corev1.NamespaceNodeLease), int32(c.NodeLeaseDuration.Seconds())),
 			node.WithNodePingInterval(c.NodePingInterval), node.WithNodePingTimeout(c.NodePingTimeout),
 			node.WithNodeStatusUpdateErrorHandler(
-				func(ctx context.Context, err error) error {
+				func(ctx context.Context, _ error) error {
 					klog.Info("node setting up")
 					newNode := nodeProvider.GetNode().DeepCopy()
 					newNode.ResourceVersion = ""
@@ -322,13 +322,13 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 }
 
 func getVersion(config *rest.Config) string {
-	client, err := discovery.NewDiscoveryClientForConfig(config)
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultVersion, err)
 		return defaultVersion
 	}
 
-	version, err := client.ServerVersion()
+	version, err := discoveryClient.ServerVersion()
 	if err != nil {
 		klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultVersion, err)
 		return defaultVersion

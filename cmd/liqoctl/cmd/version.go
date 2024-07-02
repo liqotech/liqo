@@ -42,7 +42,7 @@ func newVersionCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Long:  WithTemplate(liqoctlVersionLongHelp),
 		Args:  cobra.NoArgs,
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.Run(ctx))
 		},
 	}

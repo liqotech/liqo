@@ -81,7 +81,7 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 }
 
 // Initialize performs the initialization tasks to retrieve the provider-specific parameters.
-func (o *Options) Initialize(ctx context.Context) error {
+func (o *Options) Initialize(_ context.Context) error {
 	o.Printer.Verbosef("EKS Region: %q", o.region)
 	o.Printer.Verbosef("EKS ClusterName: %q", o.eksClusterName)
 

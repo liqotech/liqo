@@ -58,7 +58,7 @@ func newNetworkCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Long:  WithTemplate(liqoctlNetworkLongHelp),
 		Args:  cobra.NoArgs,
 
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			twoClustersPersistentPreRun(cmd, options.LocalFactory, options.RemoteFactory, factory.WithScopedPrinter)
 		},
 	}
@@ -99,7 +99,7 @@ func newNetworkInitCommand(ctx context.Context, options *network.Options) *cobra
 		Long:  WithTemplate(liqoctlNetworkInitLongHelp),
 		Args:  cobra.NoArgs,
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			err := options.RunInit(ctx)
 			if err != nil {
 				options.LocalFactory.Printer.CheckErr(
@@ -119,11 +119,11 @@ func newNetworkResetCommand(ctx context.Context, options *network.Options) *cobr
 		Long:  WithTemplate(liqoctlNetworkResetLongHelp),
 		Args:  cobra.NoArgs,
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.LocalFactory.Printer.AskConfirm("reset", options.LocalFactory.SkipConfirm))
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.RunReset(ctx))
 		},
 	}
@@ -138,7 +138,7 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 		Long:  WithTemplate(liqoctlNetworConnectLongHelp),
 		Args:  cobra.NoArgs,
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			err := options.RunConnect(ctx)
 			if err != nil {
 				options.LocalFactory.Printer.CheckErr(
@@ -189,11 +189,11 @@ func newNetworkDisconnectCommand(ctx context.Context, options *network.Options) 
 		Long:  WithTemplate(liqoctlNetworkDisconnectLongHelp),
 		Args:  cobra.NoArgs,
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.LocalFactory.Printer.AskConfirm("disconnect", options.LocalFactory.SkipConfirm))
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.RunDisconnect(ctx))
 		},
 	}
