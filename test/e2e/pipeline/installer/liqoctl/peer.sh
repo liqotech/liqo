@@ -26,27 +26,12 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-for i in $(seq 1 "${CLUSTER_NUMBER}")
+for i in $(seq 2 "${CLUSTER_NUMBER}")
 do
-  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  ADD_COMMAND=$(${LIQOCTL} generate peer-command --only-command)
+  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
+  export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
-  for j in $(seq 1 "${CLUSTER_NUMBER}");
-  do
-    if [[ $i -ne $j ]]
-    then
-      export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${j}"
-      set +e
-      retries=0
-      until eval "${ADD_COMMAND}" || [ $retries -eq 5 ]; do
-        echo "Failed to add cluster ${j} to cluster ${i}. Retrying in 5 seconds..."
-        sleep 5
-        retries=$((retries + 1))
-      done
-      set -e
-      "${LIQOCTL}" status peer "cluster-${i}" --verbose
-    fi
-  done
+  "${LIQOCTL}" peer --kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}" --server-service-type NodePort
 
   # Sleep a bit, to avoid generating a race condition with the
   # authentication process triggered by the incoming peering.
