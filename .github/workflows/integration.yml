@@ -5,12 +5,6 @@ on:
       - 'v*'
     branches:
       - master
-      - network-general
-      - network-external
-      - network-internal
-      - auth
-      - offloading
-      - release
   repository_dispatch:
     types:
       - test-command
