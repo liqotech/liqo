@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -52,8 +53,11 @@ var _ = Describe("Liqo E2E", func() {
 			for index := range testContext.Clusters {
 				PodsUpAndRunningTableEntries = append(PodsUpAndRunningTableEntries, Entry("Pods UP on cluster "+fmt.Sprintf("%d", index+1),
 					testContext.Clusters[index], namespace))
-				VirtualNodesTableEntries = append(VirtualNodesTableEntries, Entry("VirtualNodes are Ready on cluster "+fmt.Sprintf("%d", index+1),
-					testContext.Clusters[index]))
+				// Check if the virtual nodes are ready only on consumer clusters
+				if fcutils.IsConsumer(testContext.Clusters[index].Role) {
+					VirtualNodesTableEntries = append(VirtualNodesTableEntries, Entry("VirtualNodes are Ready on cluster "+fmt.Sprintf("%d", index+1),
+						testContext.Clusters[index]))
+				}
 			}
 
 			DescribeTable("Liqo pods are up and running", util.DescribeTableArgs(
@@ -82,13 +86,14 @@ var _ = Describe("Liqo E2E", func() {
 						})
 						Expect(err).ToNot(HaveOccurred())
 						return tenantNsList.Items
-					}, timeout, interval).Should(HaveLen(testContext.ClustersNumber - 1))
+					}, timeout, interval).Should(HaveLen(util.NumTenantNamespaces(
+						cluster.NumPeeredConsumers, cluster.NumPeeredProviders, cluster.Role)))
 
 					for _, tenantNs := range tenantNsList.Items {
 						Eventually(func() bool {
 							readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.NativeClient, tenantNs.Name)
 							klog.Infof("Tenant pods status: %d ready, %d not ready", len(readyPods), len(notReadyPods))
-							return err == nil && len(notReadyPods) == 0 && len(readyPods) == 2
+							return err == nil && len(notReadyPods) == 0 && len(readyPods) == util.NumPodsInTenantNs(true, cluster.Role)
 						}, timeout, interval).Should(BeTrue())
 					}
 				},
