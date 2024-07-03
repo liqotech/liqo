@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
@@ -56,10 +57,21 @@ var _ = Describe("Liqo E2E", func() {
 			DescribeTable("Liqo Uninstall Check", util.DescribeTableArgs(
 				func(homeCluster tester.ClusterContext, namespace string) {
 					Eventually(func() error {
-						return NoPods(homeCluster.NativeClient, testContext.Namespace)
+						tenantNsList, err := homeCluster.NativeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
+							LabelSelector: labels.SelectorFromSet(labels.Set{
+								liqoconst.TenantNamespaceLabel: "true",
+							}).String(),
+						})
+						Expect(err).ToNot(HaveOccurred())
+
+						namespaces := []string{testContext.Namespace}
+						for _, ns := range tenantNsList.Items {
+							namespaces = append(namespaces, ns.Name)
+						}
+						return NoPods(ctx, homeCluster.NativeClient, namespaces)
 					}, timeout, interval).ShouldNot(HaveOccurred())
 					Eventually(func() error {
-						return NoJoined(homeCluster.NativeClient)
+						return NoJoined(ctx, homeCluster.NativeClient)
 					}, timeout, interval).ShouldNot(HaveOccurred())
 				},
 				uninstalledTableEntries...,
@@ -68,20 +80,22 @@ var _ = Describe("Liqo E2E", func() {
 	})
 })
 
-func NoPods(clientset *kubernetes.Clientset, namespace string) error {
-	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-	if len(pods.Items) > 0 {
-		return fmt.Errorf("There are still running pods in Liqo namespace")
+func NoPods(ctx context.Context, clientset *kubernetes.Clientset, namespaces []string) error {
+	for _, namespace := range namespaces {
+		pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		if len(pods.Items) > 0 {
+			return fmt.Errorf("There are still running pods in namespace %s", namespace)
+		}
 	}
 	return nil
 }
 
-func NoJoined(clientset *kubernetes.Clientset) error {
-	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+func NoJoined(ctx context.Context, clientset *kubernetes.Clientset) error {
+	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%v=%v", liqoconst.TypeLabel, liqoconst.TypeNode),
 	})
 	if err != nil {
