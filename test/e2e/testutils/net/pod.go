@@ -96,8 +96,8 @@ func CheckTesterPods(ctx context.Context,
 
 // GetTesterName returns the names for the connectivity tester pods.
 func GetTesterName(clusterID1, clusterID2 liqov1alpha1.ClusterID) (cluster1PodName, cluster2PodName string) {
-	return fmt.Sprintf("%v-%v-%v", podTesterLocalCl, clusterID1[:10], clusterID2[:10]),
-		fmt.Sprintf("%v-%v-%v", podTesterRemoteCl, clusterID1[:10], clusterID2[:10])
+	return fmt.Sprintf("%v-%v-%v", podTesterLocalCl, clusterID1, clusterID2),
+		fmt.Sprintf("%v-%v-%v", podTesterRemoteCl, clusterID1, clusterID2)
 }
 
 // forgeTesterPod deploys the Remote pod of the test.
