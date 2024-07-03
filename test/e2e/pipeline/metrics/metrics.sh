@@ -25,18 +25,15 @@ WORKDIR=$(dirname "$FILEPATH")
 # shellcheck source=../utils.sh
 source "$WORKDIR/../utils.sh"
 
-for i in $(seq 1 "${CLUSTER_NUMBER}")
+export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1" # consumer cluster
+
+for i in $(seq 2 "${CLUSTER_NUMBER}")
 do
-  for j in $(seq 1 "${CLUSTER_NUMBER}")
-  do
-    if [ "$i" -ne "$j" ]
-    then
-      export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-      if ! waitandretry 5s 12 "$KUBECTL top node liqo-cluster-${j}";
-      then
-          echo "Failed to get metrics from liqo-cluster-${j} in cluster liqo-cluster-${i}"
-          exit 1
-      fi
-    fi
-  done
+  provider_cluster="cluster-${i}"
+  virtualnode=$provider_cluster
+  if ! waitandretry 5s 12 "$KUBECTL top node ${virtualnode}";
+  then
+      echo "Failed to get metrics from virtual node ${virtualnode} in cluster ${provider_cluster}"
+      exit 1
+  fi
 done
