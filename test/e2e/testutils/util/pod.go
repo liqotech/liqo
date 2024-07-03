@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 )
 
@@ -70,6 +72,32 @@ func ArePodsUp(ctx context.Context, clientset kubernetes.Interface, namespace st
 		ready = append(ready, pods.Items[index].Name)
 	}
 	return ready, notReady, nil
+}
+
+// NumPodsInTenantNs returns the number of pods that should be present in a tenant namespace.
+func NumPodsInTenantNs(networkingEnabled bool, role liqov1alpha1.RoleType) int {
+	count := 0
+	// If the network is enabled, it should have the gateway pod.
+	if networkingEnabled {
+		count++
+	}
+	// If the cluster is a consumer, it should have the virtual-kubelet pod.
+	if fcutils.IsConsumer(role) {
+		count++
+	}
+	return count
+}
+
+// NumTenantNamespaces returns the number of tenant namespaces that should be present in a cluster.
+func NumTenantNamespaces(numPeeredConsumers, numPeeredProviders int, role liqov1alpha1.RoleType) int {
+	switch {
+	case fcutils.IsConsumer(role):
+		return numPeeredProviders
+	case fcutils.IsProvider(role):
+		return numPeeredConsumers
+	default:
+		return 0
+	}
 }
 
 // ResourceRequirements returns the default resource requirements for a pod during tests.

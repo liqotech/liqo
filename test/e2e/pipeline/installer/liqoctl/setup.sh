@@ -14,7 +14,6 @@
 # LIQOCTL               -> the path where liqoctl is stored
 # KUBECTL               -> the path where kubectl is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
-# SECURITY_MODE         -> the security mode to use
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
 set -e           # Fail in case of error
@@ -53,7 +52,6 @@ function get_cluster_labels() {
 }
 
 LIQO_VERSION="${LIQO_VERSION:-$(git rev-parse HEAD)}"
-SECURITY_MODE="${SECURITY_MODE:-"FullPodToPod"}"
 
 export SERVICE_CIDR=10.100.0.0/16
 export POD_CIDR=10.200.0.0/16
@@ -68,7 +66,7 @@ do
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
   COMMON_ARGS=(--cluster-id "cluster-${i}" --local-chart-path ./deployments/liqo
-    --version "${LIQO_VERSION}" --set controllerManager.config.enableResourceEnforcement=true --set "networking.securityMode=${SECURITY_MODE}")
+    --version "${LIQO_VERSION}" --set controllerManager.config.enableResourceEnforcement=true)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi
@@ -77,7 +75,7 @@ do
   fi
   if [[ "${INFRA}" == "cluster-api" ]]; then
     LIQO_PROVIDER="kubeadm"
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --set auth.service.type=NodePort --set peering.networking.gateway.server.service.type=NodePort )
+    COMMON_ARGS=("${COMMON_ARGS[@]}")
   else
     LIQO_PROVIDER="${INFRA}"
   fi
