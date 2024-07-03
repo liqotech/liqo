@@ -33,21 +33,21 @@ func SetRole(foreignCluster *liqov1alpha1.ForeignCluster, consumer, provider boo
 }
 
 // IsProvider checks if a foreign cluster is a provider.
-func IsProvider(foreignCluster *liqov1alpha1.ForeignCluster) bool {
-	return foreignCluster.Status.Role == liqov1alpha1.ProviderRole || foreignCluster.Status.Role == liqov1alpha1.ConsumerAndProviderRole
+func IsProvider(role liqov1alpha1.RoleType) bool {
+	return role == liqov1alpha1.ProviderRole || role == liqov1alpha1.ConsumerAndProviderRole
 }
 
 // IsConsumer checks if a foreign cluster is a consumer.
-func IsConsumer(foreignCluster *liqov1alpha1.ForeignCluster) bool {
-	return foreignCluster.Status.Role == liqov1alpha1.ConsumerRole || foreignCluster.Status.Role == liqov1alpha1.ConsumerAndProviderRole
+func IsConsumer(role liqov1alpha1.RoleType) bool {
+	return role == liqov1alpha1.ConsumerRole || role == liqov1alpha1.ConsumerAndProviderRole
 }
 
 // IsConsumerAndProvider checks if a foreign cluster is both a consumer and a provider.
-func IsConsumerAndProvider(foreignCluster *liqov1alpha1.ForeignCluster) bool {
-	return foreignCluster.Status.Role == liqov1alpha1.ConsumerAndProviderRole
+func IsConsumerAndProvider(role liqov1alpha1.RoleType) bool {
+	return role == liqov1alpha1.ConsumerAndProviderRole
 }
 
 // IsUnknown checks if a foreign cluster has an unknown role.
-func IsUnknown(foreignCluster *liqov1alpha1.ForeignCluster) bool {
-	return foreignCluster.Status.Role == liqov1alpha1.UnknownRole
+func IsUnknown(role liqov1alpha1.RoleType) bool {
+	return role == liqov1alpha1.UnknownRole
 }
