@@ -20,7 +20,6 @@ const (
 	ClusterNumberVarKey    = "CLUSTER_NUMBER"
 	KubeconfigDirVarName   = "KUBECONFIGDIR"
 	OverlappingCIDRsEnvVar = "POD_CIDR_OVERLAPPING"
-	SecurityModeEnvVar     = "SECURITY_MODE"
 )
 
 // LiqoTestNamespaceLabels is a set of labels that has to be attached to test namespaces to simplify garbage collection.

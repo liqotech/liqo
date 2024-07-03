@@ -249,7 +249,6 @@ E2E_TARGETS = e2e-dir \
 # export INFRA=kind
 # export LIQOCTL=${BINDIR}/liqoctl
 # export POD_CIDR_OVERLAPPING=false
-# export SECURITY_MODE=FullPodToPod
 # export TEMPLATE_FILE=cluster-templates.yaml.tmpl
 
 # Run e2e tests
