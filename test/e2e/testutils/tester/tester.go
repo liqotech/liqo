@@ -49,12 +49,15 @@ type Tester struct {
 
 // ClusterContext encapsulate all information and objects used to access a test cluster.
 type ClusterContext struct {
-	Config           *rest.Config
-	NativeClient     *kubernetes.Clientset
-	ControllerClient client.Client
-	Cluster          liqov1alpha1.ClusterID
-	KubeconfigPath   string
-	HomeCluster      bool
+	Config             *rest.Config
+	NativeClient       *kubernetes.Clientset
+	ControllerClient   client.Client
+	Cluster            liqov1alpha1.ClusterID
+	KubeconfigPath     string
+	HomeCluster        bool
+	Role               liqov1alpha1.RoleType
+	NumPeeredConsumers int
+	NumPeeredProviders int
 }
 
 // Environment variable.
@@ -135,6 +138,18 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 
 		controllerClient := testutils.GetControllerClient(scheme, c.Config)
 		c.ControllerClient = controllerClient
+
+		// The topology is one consumer (the first cluster) peered with multiple provider (the remaining clusters).
+		// TODO: test also topology with multiple consumers peered with a single provider.
+		if i == 1 {
+			c.Role = liqov1alpha1.ConsumerRole
+			c.NumPeeredConsumers = 0
+			c.NumPeeredProviders = tester.ClustersNumber - 1
+		} else {
+			c.Role = liqov1alpha1.ProviderRole
+			c.NumPeeredConsumers = 1
+			c.NumPeeredProviders = 0
+		}
 
 		tester.Clusters = append(tester.Clusters, c)
 	}
