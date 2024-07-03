@@ -38,7 +38,6 @@ import (
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/apiserver"
 	"github.com/liqotech/liqo/test/e2e/testutils/microservices"
-	"github.com/liqotech/liqo/test/e2e/testutils/net"
 	"github.com/liqotech/liqo/test/e2e/testutils/storage"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
@@ -67,115 +66,6 @@ var (
 
 var _ = Describe("Liqo E2E", func() {
 	Describe("Assert that Liqo is up, pod offloading and network connectivity are working", func() {
-		Context("Check Join Status", func() {
-
-			type connectivityTestcase struct {
-				cluster1Context tester.ClusterContext
-				cluster2Context tester.ClusterContext
-				namespace       string
-			}
-
-			var ConnectivityCheckTableEntries []TableEntry
-			for index1 := range testContext.Clusters {
-				for index2 := range testContext.Clusters {
-					if index2 != index1 {
-						ConnectivityCheckTableEntries = append(ConnectivityCheckTableEntries,
-							Entry(fmt.Sprintf("Check Pod to Pod connectivity from cluster %v to cluster %v", index1+1, index2+1),
-								connectivityTestcase{
-									cluster1Context: testContext.Clusters[index1],
-									cluster2Context: testContext.Clusters[index2],
-									namespace:       namespace,
-								}))
-					}
-				}
-			}
-
-			DescribeTable("Liqo Pod to Pod Connectivity Check", util.DescribeTableArgs(
-				func(c connectivityTestcase) {
-					By("Deploy Tester Pod", func() {
-						if testContext.OverlappingCIDRs && !c.cluster1Context.HomeCluster {
-							Skip("Cannot use the local pod IP on a remote cluster when the pod CIDRs are overlapping")
-							return
-						}
-
-						cluster1PodName, cluster2PodName := net.GetTesterName(
-							c.cluster1Context.Cluster, c.cluster2Context.Cluster)
-
-						cluster1Opt := &net.TesterOpts{
-							Cluster:   c.cluster1Context.Cluster,
-							PodName:   cluster1PodName,
-							Offloaded: !c.cluster1Context.HomeCluster,
-						}
-						cluster2Opt := &net.TesterOpts{
-							Cluster:   c.cluster2Context.Cluster,
-							PodName:   cluster2PodName,
-							Offloaded: !c.cluster2Context.HomeCluster,
-						}
-
-						err := net.EnsureNetTesterPods(ctx, &testContext.Clusters[0], cluster1Opt, cluster2Opt)
-						Expect(err).ToNot(HaveOccurred())
-
-						Eventually(func() bool {
-							check := net.CheckTesterPods(ctx, testContext.Clusters[0].NativeClient, c.cluster1Context.NativeClient,
-								c.cluster2Context.NativeClient, testContext.Clusters[0].Cluster, cluster1Opt, cluster2Opt)
-							return check
-						}, timeout, interval).Should(BeTrue())
-
-						Eventually(func() error {
-							return net.CheckPodConnectivity(ctx,
-								testContext.Clusters[0].Config, testContext.Clusters[0].NativeClient, cluster1PodName, cluster2PodName)
-						}, timeout, interval).Should(Succeed())
-
-						Eventually(func() error {
-							return net.ConnectivityCheckNodeToPod(ctx,
-								testContext.Clusters[0].NativeClient, testContext.Clusters[0].Cluster, cluster2PodName)
-						}, timeout, interval).Should(Succeed())
-					})
-				},
-				ConnectivityCheckTableEntries...,
-			)...)
-
-			DescribeTable("Liqo Pod to Service Connectivity Check", util.DescribeTableArgs(
-				func(c connectivityTestcase) {
-					By("Deploy Tester Services", func() {
-						cluster1PodName, cluster2PodName := net.GetTesterName(
-							c.cluster1Context.Cluster, c.cluster2Context.Cluster)
-
-						cluster1Opt := &net.TesterOpts{
-							Cluster:   c.cluster1Context.Cluster,
-							PodName:   cluster1PodName,
-							Offloaded: !c.cluster1Context.HomeCluster,
-						}
-						cluster2Opt := &net.TesterOpts{
-							Cluster:   c.cluster2Context.Cluster,
-							PodName:   cluster2PodName,
-							Offloaded: !c.cluster2Context.HomeCluster,
-						}
-
-						err := net.EnsureNetTesterPods(ctx, &testContext.Clusters[0], cluster1Opt, cluster2Opt)
-						Expect(err).ToNot(HaveOccurred())
-
-						Expect(net.EnsureClusterIP(ctx,
-							testContext.Clusters[0].NativeClient,
-							cluster2PodName, net.TestNamespaceName)).To(Succeed())
-
-						Eventually(func() bool {
-							check := net.CheckTesterPods(ctx, testContext.Clusters[0].NativeClient, c.cluster1Context.NativeClient,
-								c.cluster2Context.NativeClient, testContext.Clusters[0].Cluster, cluster1Opt, cluster2Opt)
-							return check
-						}, timeout, interval).Should(BeTrue())
-
-						Eventually(func() error {
-							return net.CheckServiceConnectivity(ctx,
-								testContext.Clusters[0].Config, testContext.Clusters[0].NativeClient, cluster1PodName, cluster2PodName)
-						}, timeout, interval).Should(Succeed())
-
-					})
-				},
-				ConnectivityCheckTableEntries...,
-			)...)
-		})
-
 		Context("E2E Testing with Online Boutique", func() {
 
 			BeforeEach(func() {

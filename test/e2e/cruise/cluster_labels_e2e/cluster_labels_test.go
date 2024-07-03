@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
@@ -69,9 +70,13 @@ var _ = Describe("Liqo E2E", func() {
 		longTimeout = 2 * time.Minute
 		localIndex  = 0
 
-		getTableEntries = func() []TableEntry {
+		getTableEntries = func(role *liqov1alpha1.RoleType) []TableEntry {
 			res := []TableEntry{}
 			for i := 0; i < 4; i++ {
+				// If the role is specified, check only the clusters that match the role.
+				if role != nil && testContext.Clusters[i].Role != *role {
+					continue
+				}
 				res = append(res, Entry(
 					fmt.Sprintf("Check the labels of the cluster %v", i+1),
 					testContext.Clusters[i],
@@ -90,8 +95,8 @@ var _ = Describe("Liqo E2E", func() {
 				args, err := liqoctlutil.RetrieveLiqoControllerManagerDeploymentArgs(ctx, cluster.ControllerClient, "liqo")
 				Expect(err).ToNot(HaveOccurred())
 
-				val, ok := liqoctlutil.ExtractValuesFromArgumentList("--cluster-labels", args)
-				Expect(ok).To(BeTrue())
+				val, err := liqoctlutil.ExtractValuesFromArgumentList("--cluster-labels", args)
+				Expect(err).To(Succeed())
 
 				labels := argsutils.StringMap{}
 				Expect(labels.Set(val)).To(Succeed())
@@ -100,18 +105,22 @@ var _ = Describe("Liqo E2E", func() {
 					Expect(labels.StringMap).To(HaveKeyWithValue(key, value))
 				}
 			},
-			getTableEntries()...,
+			getTableEntries(nil)...,
 		)...)
 
 		DescribeTable(" 2 - Check labels presence on the virtual nodes for every cluster", util.DescribeTableArgs(
 			// Each virtual node representing the cluster under examination in the remote clusters must have the
 			// expected labels.
-			func(cluster tester.ClusterContext, index int, clusterLabels map[string]string) {
+			func(provider tester.ClusterContext, index int, clusterLabels map[string]string) {
 				virtualNode := &corev1.Node{}
-				liqoPrefix := "liqo"
-				virtualNodeName := fmt.Sprintf("%s-%s", liqoPrefix, cluster.Cluster)
+				virtualNodeName := string(provider.Cluster)
 				for i := range testContext.Clusters {
+					// Skip cluster under examination.
 					if i == index {
+						continue
+					}
+					// Skip clusters that are not consumers since there is no virtual node.
+					if testContext.Clusters[i].Role != liqov1alpha1.ConsumerRole {
 						continue
 					}
 					Eventually(func() error {
@@ -122,9 +131,8 @@ var _ = Describe("Liqo E2E", func() {
 						Expect(virtualNode.Labels).To(HaveKeyWithValue(key, value))
 					}
 				}
-
 			},
-			getTableEntries()...,
+			getTableEntries(ptr.To(liqov1alpha1.ProviderRole))...,
 		)...)
 
 	})
