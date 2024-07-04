@@ -1,4 +1,5 @@
 {{- $virtualKubeletConfig := (merge (dict "name" "virtual-kubelet-remote" "module" "virtualkubelet") .) -}}
+{{- $virtualKubeletConfigClusterWide := (merge (dict "name" "virtual-kubelet-remote-clusterwide" "module" "virtualkubelet") .) -}}
 
 # to be enabled with the creation of the Tenant Namespace,
 # this ClusterRole has the basic permissions to give to a remote cluster
@@ -9,3 +10,13 @@ metadata:
   labels:
     {{- include "liqo.labels" $virtualKubeletConfig | nindent 4 }}
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $virtualKubeletConfig))) }}
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $virtualKubeletConfigClusterWide }}
+  labels:
+    {{- include "liqo.labels" $virtualKubeletConfigClusterWide | nindent 4 }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $virtualKubeletConfigClusterWide))) }}

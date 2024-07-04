@@ -69,7 +69,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 			options.Name = args[0]
 			o.createOptions = options
 
-			o.namespaceManager = tenantnamespace.NewManager(options.KubeClient)
+			o.namespaceManager = tenantnamespace.NewManager(options.KubeClient, options.CRClient.Scheme())
 		},
 
 		Run: func(_ *cobra.Command, _ []string) {

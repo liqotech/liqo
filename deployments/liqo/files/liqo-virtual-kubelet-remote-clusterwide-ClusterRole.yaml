@@ -1,0 +1,9 @@
+rules:
+- apiGroups:
+  - metrics.liqo.io
+  resources:
+  - scrape/metrics
+  verbs:
+  - get
+  - list
+  - watch

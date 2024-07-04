@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
@@ -144,12 +143,6 @@ func (handler *metricHandler) metricHTTP(w http.ResponseWriter, req *http.Reques
 		path = path + "/" + subpath
 	}
 
-	if !handler.isValidClusterID(clusterID) {
-		klog.Errorf("invalid clusterID: %s", clusterID)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	if !handler.isValidPath(path) {
 		klog.Errorf("invalid path: %s", path)
 		w.WriteHeader(http.StatusBadRequest)
@@ -169,11 +162,6 @@ func (handler *metricHandler) metricHTTP(w http.ResponseWriter, req *http.Reques
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	metrics.Write(w)
-}
-
-func (handler *metricHandler) isValidClusterID(clusterID string) bool {
-	_, err := uuid.Parse(clusterID)
-	return err == nil
 }
 
 func (handler *metricHandler) isValidPath(path string) bool {
