@@ -64,7 +64,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 			options.Name = args[0]
 			o.CreateOptions = options
 
-			o.NamespaceManager = tenantnamespace.NewManager(options.Factory.KubeClient)
+			o.NamespaceManager = tenantnamespace.NewManager(options.Factory.KubeClient, options.Factory.CRClient.Scheme())
 		},
 
 		Run: func(_ *cobra.Command, _ []string) {
@@ -138,6 +138,7 @@ func (o *Options) HandleCreate(ctx context.Context) error {
 	resourcesCondition := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeResources)
 	if resourcesCondition == nil || resourcesCondition.Status != authv1alpha1.ResourceSliceConditionAccepted {
 		opts.Printer.Warning.Printfln("ResourceSlice resources not accepted. The provider cluster may have cordoned the tenant or the resourceslice")
+		return nil
 	}
 	opts.Printer.Success.Printfln("ResourceSlice resources: %s", resourcesCondition.Status)
 

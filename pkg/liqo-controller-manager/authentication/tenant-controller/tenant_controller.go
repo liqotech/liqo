@@ -43,6 +43,10 @@ var (
 	tenantClusterRoles = []string{
 		"liqo-remote-controlplane",
 	}
+
+	tenantClusterRolesClusterWide = []string{
+		"liqo-virtual-kubelet-remote-clusterwide",
+	}
 )
 
 // TenantReconciler manages the lifecycle of a Tenant.
@@ -59,7 +63,8 @@ type TenantReconciler struct {
 	CAOverride               []byte
 	TrustedCA                bool
 
-	tenantClusterRoles []*rbacv1.ClusterRole
+	tenantClusterRoles            []*rbacv1.ClusterRole
+	tenantClusterRolesClusterWide []*rbacv1.ClusterRole
 }
 
 // NewTenantReconciler creates a new TenantReconciler.
@@ -210,10 +215,19 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	// bind permissions
 
-	_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterID, r.tenantClusterRoles...)
+	_, err = r.NamespaceManager.BindClusterRoles(ctx, tenant.Spec.ClusterID,
+		tenant, r.tenantClusterRoles...)
 	if err != nil {
 		klog.Errorf("Unable to bind the ClusterRoles for the Tenant %q: %s", req.Name, err)
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesBindingFailed", err.Error())
+		return ctrl.Result{}, err
+	}
+
+	_, err = r.NamespaceManager.BindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID,
+		tenant, r.tenantClusterRolesClusterWide...)
+	if err != nil {
+		klog.Errorf("Unable to bind the ClusterRolesClusterWide for the Tenant %q: %s", req.Name, err)
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideBindingFailed", err.Error())
 		return ctrl.Result{}, err
 	}
 
@@ -231,6 +245,18 @@ func (r *TenantReconciler) ensureSetup(ctx context.Context) error {
 			r.tenantClusterRoles[i] = role
 		}
 	}
+
+	if r.tenantClusterRolesClusterWide == nil || len(r.tenantClusterRolesClusterWide) == 0 {
+		r.tenantClusterRolesClusterWide = make([]*rbacv1.ClusterRole, len(tenantClusterRolesClusterWide))
+		for i, roleName := range tenantClusterRolesClusterWide {
+			role := &rbacv1.ClusterRole{}
+			if err := r.Get(ctx, client.ObjectKey{Name: roleName}, role); err != nil {
+				return err
+			}
+			r.tenantClusterRolesClusterWide[i] = role
+		}
+	}
+
 	return nil
 }
 
@@ -243,6 +269,13 @@ func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *authv1alpha1.Tenant) error {
+	// Delete binding of cluster roles cluster wide
+	if err := r.NamespaceManager.UnbindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID,
+		tenantClusterRolesClusterWide...); err != nil {
+		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesClusterWideUnbindingFailed", err.Error())
+		return err
+	}
+
 	// Delete binding of cluster roles
 	if err := r.NamespaceManager.UnbindClusterRoles(ctx, tenant.Spec.ClusterID, tenantClusterRoles...); err != nil {
 		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "ClusterRolesUnbindingFailed", err.Error())

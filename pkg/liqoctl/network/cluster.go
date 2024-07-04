@@ -60,8 +60,8 @@ func NewCluster(ctx context.Context, local, remote *factory.Factory, createTenan
 		remote: remote,
 		waiter: wait.NewWaiterFromFactory(local),
 
-		localNamespaceManager:  tenantnamespace.NewManager(local.KubeClient),
-		remoteNamespaceManager: tenantnamespace.NewManager(remote.KubeClient),
+		localNamespaceManager:  tenantnamespace.NewManager(local.KubeClient, local.CRClient.Scheme()),
+		remoteNamespaceManager: tenantnamespace.NewManager(remote.KubeClient, remote.CRClient.Scheme()),
 	}
 
 	if err := cluster.SetClusterIDs(ctx); err != nil {

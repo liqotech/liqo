@@ -49,7 +49,7 @@ func NewCluster(local *factory.Factory) *Cluster {
 		local:  local,
 		waiter: wait.NewWaiterFromFactory(local),
 
-		tenantNamespaceManager: tenantnamespace.NewManager(local.KubeClient),
+		tenantNamespaceManager: tenantnamespace.NewManager(local.KubeClient, local.CRClient.Scheme()),
 	}
 }
 

@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 11,
+  "id": 29,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -40,7 +40,7 @@
       "panels": [],
       "repeat": "clusterName",
       "repeatDirection": "h",
-      "title": "Virtual-kubelet:$clusterName",
+      "title": "Virtual-kubelet:$clusterid",
       "type": "row"
     },
     {
@@ -79,6 +79,7 @@
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -86,9 +87,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.4",
+      "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": {
@@ -96,7 +99,7 @@
             "uid": "${dataSource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by(resource_type) (liqo_virtual_kubelet_reflection_item_counter{cluster_name=\"$clusterName\", exported_namespace=~\"^$namespace\"}), \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(sum by(resource_type) (liqo_virtual_kubelet_reflection_item_counter{cluster_id=\"$clusterid\", exported_namespace=~\"^$namespace\"}), \"pod\", \"\", \"\", \"\")",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -117,6 +120,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -130,6 +134,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -211,7 +216,7 @@
             "uid": "${dataSource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum(increase(liqo_virtual_kubelet_reflection_item_counter{cluster_name=\"$clusterName\", exported_namespace=~\"^$namespace\"}[$__rate_interval])), \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(sum(increase(liqo_virtual_kubelet_reflection_item_counter{cluster_id=\"$clusterid\", exported_namespace=~\"^$namespace\"}[$__rate_interval])), \"pod\", \"\", \"\", \"\")",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -268,6 +273,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -275,9 +281,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.4",
+      "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": {
@@ -285,7 +293,7 @@
             "uid": "${dataSource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by(resource_type) (liqo_virtual_kubelet_reflection_error_counter{cluster_name=\"$clusterName\", exported_namespace=~\"^$namespace\"}), \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(sum by(resource_type) (liqo_virtual_kubelet_reflection_error_counter{cluster_id=\"$clusterid\", exported_namespace=~\"^$namespace\"}), \"pod\", \"\", \"\", \"\")",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -330,6 +338,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -337,9 +346,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.4",
+      "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": {
@@ -347,7 +358,7 @@
             "uid": "${dataSource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by(reflector_resource) (liqo_virtual_kubelet_reflection_item_counter{cluster_name=\"$clusterName\", exported_namespace=~\"^$namespace\"}), \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(sum by(reflector_resource) (liqo_virtual_kubelet_reflection_item_counter{cluster_id=\"$clusterid\", exported_namespace=~\"^$namespace\"}), \"pod\", \"\", \"\", \"\")",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -368,6 +379,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "Item",
@@ -381,6 +393,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -441,7 +454,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "label_replace(sum by(reflector_resource) (increase(liqo_virtual_kubelet_reflection_item_counter{cluster_name=\"$clusterName\", exported_namespace=~\"^$namespace\"}[$__rate_interval])), \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(sum by(reflector_resource) (increase(liqo_virtual_kubelet_reflection_item_counter{cluster_id=\"$clusterid\", exported_namespace=~\"^$namespace\"}[$__rate_interval])), \"pod\", \"\", \"\", \"\")",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -487,6 +500,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -494,9 +508,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.2.4",
+      "pluginVersion": "11.1.0",
       "targets": [
         {
           "datasource": {
@@ -504,7 +520,7 @@
             "uid": "${dataSource}"
           },
           "editorMode": "code",
-          "expr": "label_replace(sum by(reflector_resource) (liqo_virtual_kubelet_reflection_error_counter{cluster_name=\"$clusterName\", exported_namespace=~\"^$namespace\"}), \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(sum by(reflector_resource) (liqo_virtual_kubelet_reflection_error_counter{cluster_id=\"$clusterid\", exported_namespace=~\"^$namespace\"}), \"pod\", \"\", \"\", \"\")",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -525,6 +541,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "Error",
@@ -538,6 +555,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -595,7 +613,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "label_replace(sum by(reflector_resource) (increase(liqo_virtual_kubelet_reflection_error_counter{cluster_name=\"$clusterName\", exported_namespace=~\"^$namespace\"}[$__rate_interval])), \"pod\", \"\", \"\", \"\")",
+          "expr": "label_replace(sum by(reflector_resource) (increase(liqo_virtual_kubelet_reflection_error_counter{cluster_id=\"$clusterid\", exported_namespace=~\"^$namespace\"}[$__rate_interval])), \"pod\", \"\", \"\", \"\")",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -607,16 +625,15 @@
     }
   ],
   "refresh": "5s",
-  "schemaVersion": 37,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "Prometheus",
-          "value": "Prometheus"
+          "value": "prometheus"
         },
         "hide": 0,
         "includeAll": false,
@@ -632,23 +649,24 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "milan",
-          "value": "milan"
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": {
           "type": "prometheus",
           "uid": "${dataSource}"
         },
-        "definition": "label_values(liqo_virtual_kubelet_reflection_item_counter, cluster_name)",
+        "definition": "label_values(liqo_virtual_kubelet_reflection_item_counter,cluster_id)",
         "hide": 0,
         "includeAll": true,
         "multi": false,
-        "name": "clusterName",
+        "name": "clusterid",
         "options": [],
         "query": {
-          "query": "label_values(liqo_virtual_kubelet_reflection_item_counter, cluster_name)",
-          "refId": "StandardVariableQuery"
+          "qryType": 1,
+          "query": "label_values(liqo_virtual_kubelet_reflection_item_counter,cluster_id)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
         "regex": "",
@@ -659,8 +677,8 @@
       {
         "current": {
           "selected": true,
-          "text": "liqo-demo",
-          "value": "liqo-demo"
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": {
           "type": "prometheus",
@@ -692,6 +710,6 @@
   "timezone": "",
   "title": "Liqo Virtual-Kubelet",
   "uid": "EdazI-yVy",
-  "version": 35,
+  "version": 1,
   "weekStart": ""
 }

@@ -52,7 +52,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	namespaceManager = NewCachedManager(ctx, cluster.GetClient())
+	namespaceManager = NewCachedManager(ctx, cluster.GetClient(), nil)
 })
 
 var _ = AfterSuite(func() {

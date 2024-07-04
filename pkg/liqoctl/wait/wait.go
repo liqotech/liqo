@@ -450,7 +450,7 @@ func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID liqov1al
 // ForTenantNamespaceAbsence waits until the tenant namespace has been deleted or the timeout expires.
 func (w *Waiter) ForTenantNamespaceAbsence(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for tenant namespace to be deleted")
-	namespaceManager := tenantnamespace.NewManager(w.KubeClient)
+	namespaceManager := tenantnamespace.NewManager(w.KubeClient, w.CRClient.Scheme())
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		_, tmpErr := namespaceManager.GetNamespace(ctx, remoteClusterID)
 		return apierrors.IsNotFound(tmpErr), client.IgnoreNotFound(tmpErr)

@@ -2,6 +2,7 @@
 {{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking") .) -}}
 {{- $virtualKubeletConfigLocal := (merge (dict "name" "virtual-kubelet-local" "module" "virtualkubelet") .) -}}
 {{- $virtualKubeletConfigRemote := (merge (dict "name" "virtual-kubelet-remote" "module" "virtualkubelet") .) -}}
+{{- $virtualKubeletConfigRemoteClusterwide := (merge (dict "name" "virtual-kubelet-remote-clusterwide" "module" "virtualkubelet") .) -}}
 {{- $controlPlaneConfig := (merge (dict "name" "remote-controlplane" "module" "authentication") .) -}}
 
 apiVersion: v1
@@ -76,6 +77,23 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: {{ include "liqo.prefixedName" $virtualKubeletConfigRemote }}
+---
+# The controller-manager needs to be also granted the remote virtual kubelet permissions,
+# as it needs to create the necessary role binding in reflected namespaces.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}-grant-virtual-kubelet-remote-clusterwide
+  labels:
+    {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo.prefixedName" $virtualKubeletConfigRemoteClusterwide }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
