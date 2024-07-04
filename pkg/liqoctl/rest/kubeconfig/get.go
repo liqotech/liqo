@@ -50,7 +50,7 @@ func (o *Options) Get(ctx context.Context, options *rest.GetOptions) *cobra.Comm
 		PreRun: func(_ *cobra.Command, args []string) {
 			o.getOptions = options
 			o.identityName = args[0]
-			o.namespaceManager = tenantnamespace.NewManager(options.KubeClient)
+			o.namespaceManager = tenantnamespace.NewManager(options.KubeClient, options.CRClient.Scheme())
 		},
 
 		Run: func(_ *cobra.Command, _ []string) {

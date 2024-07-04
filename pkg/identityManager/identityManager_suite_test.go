@@ -92,7 +92,7 @@ var _ = BeforeSuite(func() {
 	cl, err := client.New(cnf, client.Options{})
 	Expect(err).ToNot(HaveOccurred())
 
-	namespaceManager = tenantnamespace.NewManager(k8sClient)
+	namespaceManager = tenantnamespace.NewManager(k8sClient, cl.Scheme())
 	identityMan = NewCertificateIdentityManager(ctx, cl, cluster.GetClient(), cluster.GetCfg(), localCluster, namespaceManager)
 	identityProvider = NewCertificateIdentityProvider(ctx, cl, cluster.GetClient(), cluster.GetCfg(), localCluster, namespaceManager)
 

@@ -180,8 +180,6 @@
 | virtualKubelet.extra.resources | object | `{"limits":{},"requests":{}}` | Resource requests and limits (https://kubernetes.io/docs/user-guide/compute-resources/) for the virtual kubelet pod. |
 | virtualKubelet.image.name | string | `"ghcr.io/liqotech/virtual-kubelet"` | Image repository for the virtual kubelet pod. |
 | virtualKubelet.image.version | string | `""` | Custom version for the virtual kubelet image. If not specified, the global tag is used. |
-| virtualKubelet.metrics.enabled | bool | `false` | Enable/Disable to expose metrics about virtual kubelet resources. |
-| virtualKubelet.metrics.podMonitor.enabled | bool | `false` | Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator runs in your cluster; otherwise simply export the port above as an external endpoint. |
 | virtualKubelet.metrics.podMonitor.interval | string | `""` | Setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
 | virtualKubelet.metrics.podMonitor.labels | object | `{}` | Labels for the virtualkubelet podmonitor. |
 | virtualKubelet.metrics.podMonitor.scrapeTimeout | string | `""` | Setup pod monitor scrape timeout. If empty, Prometheus uses the global scrape timeout (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint). |
