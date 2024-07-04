@@ -19,6 +19,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 )
@@ -28,6 +29,10 @@ import (
 type Manager interface {
 	CreateNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*v1.Namespace, error)
 	GetNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*v1.Namespace, error)
-	BindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
+	BindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID,
+		owner metav1.Object, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
 	UnbindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID, clusterRoles ...string) error
+	BindClusterRolesClusterWide(ctx context.Context, cluster liqov1alpha1.ClusterID,
+		owner metav1.Object, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.ClusterRoleBinding, error)
+	UnbindClusterRolesClusterWide(ctx context.Context, cluster liqov1alpha1.ClusterID, clusterRoles ...string) error
 }

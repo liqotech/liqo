@@ -22,6 +22,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
@@ -38,10 +39,11 @@ type namespaceLister func(ctx context.Context, selector labels.Selector) (ret []
 type tenantNamespaceManager struct {
 	client         kubernetes.Interface
 	listNamespaces namespaceLister
+	scheme         *runtime.Scheme
 }
 
 // NewManager creates a new TenantNamespaceManager object.
-func NewManager(client kubernetes.Interface) Manager {
+func NewManager(client kubernetes.Interface, scheme *runtime.Scheme) Manager {
 	listNamespaces := func(ctx context.Context, selector labels.Selector) (ret []*v1.Namespace, err error) {
 		ns, err := client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 		if err != nil {
@@ -58,11 +60,12 @@ func NewManager(client kubernetes.Interface) Manager {
 	return &tenantNamespaceManager{
 		client:         client,
 		listNamespaces: listNamespaces,
+		scheme:         scheme,
 	}
 }
 
 // NewCachedManager creates a new TenantNamespaceManager object, supporting cached retrieval of namespaces for increased efficiency.
-func NewCachedManager(ctx context.Context, client kubernetes.Interface) Manager {
+func NewCachedManager(ctx context.Context, client kubernetes.Interface, scheme *runtime.Scheme) Manager {
 	// Here, we create a new namepace lister, so that it is possible to perform cached get/list operations.
 	// The informer factory is configured with an appropriate filter to cache only tenant namespaces.
 	req, err := labels.NewRequirement(consts.TenantNamespaceLabel, selection.Exists, []string{})
@@ -82,6 +85,7 @@ func NewCachedManager(ctx context.Context, client kubernetes.Interface) Manager 
 	return &tenantNamespaceManager{
 		client:         client,
 		listNamespaces: listNamespaces,
+		scheme:         scheme,
 	}
 }
 

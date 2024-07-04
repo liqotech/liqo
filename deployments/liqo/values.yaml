@@ -576,14 +576,9 @@ virtualKubelet:
       # -- Extra labels for the virtual node.
       labels: {}
   metrics:
-    # -- Enable/Disable to expose metrics about virtual kubelet resources.
-    enabled: false
     # -- Port used to expose metrics.
     port: 5872
     podMonitor:
-      # -- Enable/Disable the creation of a Prometheus podmonitor. Turn on this flag when the Prometheus Operator
-      # runs in your cluster; otherwise simply export the port above as an external endpoint.
-      enabled: false
       # -- Setup pod monitor requests interval. If empty, Prometheus uses the global scrape interval
       # (https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint).
       interval: ""

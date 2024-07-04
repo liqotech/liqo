@@ -238,7 +238,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset)
+	namespaceManager := tenantnamespace.NewCachedManager(ctx, clientset, scheme)
 
 	// Setup operators for each module:
 
