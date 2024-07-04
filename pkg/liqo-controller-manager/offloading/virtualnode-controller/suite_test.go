@@ -117,7 +117,7 @@ var _ = BeforeSuite(func() {
 	k8sClient = k8sManager.GetClient()
 	Expect(k8sClient).ToNot(BeNil())
 
-	namespaceManager = tenantnamespace.NewManager(kubernetes.NewForConfigOrDie(cfg))
+	namespaceManager = tenantnamespace.NewManager(kubernetes.NewForConfigOrDie(cfg), k8sClient.Scheme())
 
 	vnr, err := NewVirtualNodeReconciler(ctx,
 		k8sClient,

@@ -66,7 +66,7 @@ do
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
   COMMON_ARGS=(--cluster-id "cluster-${i}" --local-chart-path ./deployments/liqo
-    --version "${LIQO_VERSION}" --set controllerManager.config.enableResourceEnforcement=true)
+    --version "${LIQO_VERSION}" --set metrics.enabled=true)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi

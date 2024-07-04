@@ -163,7 +163,7 @@ func ensureOffloading(ctx context.Context, o *Options) error {
 			Name:    string(providerClusterID),
 		},
 
-		NamespaceManager:           tenantnamespace.NewManager(o.LocalFactory.KubeClient),
+		NamespaceManager:           tenantnamespace.NewManager(o.LocalFactory.KubeClient, o.LocalFactory.CRClient.Scheme()),
 		RemoteClusterID:            providerClusterIDFlag,
 		Class:                      o.ResourceSliceClass,
 		DisableVirtualNodeCreation: !o.CreateVirtualNode,

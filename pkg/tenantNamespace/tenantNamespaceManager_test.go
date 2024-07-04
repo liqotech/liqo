@@ -125,7 +125,7 @@ var _ = Describe("TenantNamespace", func() {
 
 			It("Bind ClusterRole", func() {
 				var err error
-				rb, err = namespaceManager.BindClusterRoles(ctx, homeCluster, clusterRoles[0])
+				rb, err = namespaceManager.BindClusterRoles(ctx, homeCluster, nil, clusterRoles[0])
 				Expect(err).To(BeNil())
 				Expect(rb).NotTo(BeNil())
 				Expect(len(rb)).To(Equal(1))
@@ -141,7 +141,7 @@ var _ = Describe("TenantNamespace", func() {
 
 			It("Bind Multiple ClusterRoles", func() {
 				var err error
-				rb, err = namespaceManager.BindClusterRoles(ctx, homeCluster, clusterRoles...)
+				rb, err = namespaceManager.BindClusterRoles(ctx, homeCluster, nil, clusterRoles...)
 				Expect(err).To(BeNil())
 				Expect(rb).NotTo(BeNil())
 				Expect(len(rb)).To(Equal(len(clusterRoles)))
@@ -166,13 +166,13 @@ var _ = Describe("TenantNamespace", func() {
 
 			It("Bind Multiple Times", func() {
 				var err error
-				rb, err = namespaceManager.BindClusterRoles(ctx, homeCluster, clusterRoles[0])
+				rb, err = namespaceManager.BindClusterRoles(ctx, homeCluster, nil, clusterRoles[0])
 				Expect(err).To(BeNil())
 				Expect(rb).NotTo(BeNil())
 				Expect(len(rb)).To(BeNumerically("==", 1))
 
 				// bind twice the same cluster role
-				rb, err = namespaceManager.BindClusterRoles(ctx, homeCluster, clusterRoles[0])
+				rb, err = namespaceManager.BindClusterRoles(ctx, homeCluster, nil, clusterRoles[0])
 				Expect(err).To(BeNil())
 				Expect(rb).NotTo(BeNil())
 				Expect(len(rb)).To(BeNumerically("==", 1))
@@ -202,7 +202,7 @@ func checkRoleBinding(rb *rbacv1.RoleBinding, namespace string, homeCluster liqo
 	Expect(rb.Namespace).To(Equal(namespace))
 	Expect(len(rb.Subjects)).To(Equal(1))
 	Expect(rb.Subjects[0].Kind).To(Equal(rbacv1.UserKind))
-	Expect(rb.Subjects[0].Name).To(Equal(homeCluster))
+	Expect(rb.Subjects[0].Name).To(Equal(string(homeCluster)))
 	Expect(rb.RoleRef.Kind).To(Equal("ClusterRole"))
 	Expect(rb.RoleRef.Name).To(Equal(clusterRoleName))
 }

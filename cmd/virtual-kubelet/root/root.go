@@ -103,7 +103,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	}
 
 	// Retrieve the remote restcfg
-	tenantNamespaceManager := tenantnamespace.NewManager(localClient) // Do not use the cached version, as leveraged only once.
+	tenantNamespaceManager := tenantnamespace.NewManager(localClient, cl.Scheme()) // Do not use the cached version, as leveraged only once.
 	identityManager := identitymanager.NewCertificateIdentityReader(ctx, cl, localClient, localConfig,
 		c.HomeCluster.GetClusterID(), tenantNamespaceManager)
 

@@ -1,5 +1,6 @@
 {{- $kubeletMetricsConfig := (merge (dict "name" "virtual-kubelet" "module" "virtual-kubelet") .) -}}
-{{- if .Values.virtualKubelet.metrics.podMonitor.enabled }}
+
+{{- if and (.Values.offloading.enabled) (.Values.metrics.enabled) (.Values.metrics.prometheusOperator.enabled) }}
 
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
