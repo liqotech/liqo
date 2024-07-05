@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +33,7 @@ import (
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 )
 
@@ -92,6 +94,13 @@ func (r *QuotaCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		quota.Spec.User = userName
 		quota.Spec.LimitsEnforcement = r.DefaultLimitsEnforcement
 		quota.Spec.Resources = resourceSlice.Status.Resources.DeepCopy()
+
+		if hasToBeCordoned(resourceSlice) {
+			quota.Spec.Cordoned = ptr.To(true)
+		} else {
+			quota.Spec.Cordoned = nil
+		}
+
 		return controllerutil.SetControllerReference(resourceSlice, &quota, r.Scheme)
 	})
 	if err != nil {
@@ -100,6 +109,23 @@ func (r *QuotaCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func hasToBeCordoned(resourceSlice *authv1alpha1.ResourceSlice) bool {
+	if resourceSlice.Annotations == nil {
+		return false
+	}
+	isFalse := func(v string) bool {
+		return v == "false" || v == "False" || v == "0"
+	}
+
+	v, ok := resourceSlice.Annotations[consts.CordonResourceAnnotation]
+	sliceCordoned := ok && !isFalse(v)
+
+	v, ok = resourceSlice.Annotations[consts.CordonTenantAnnotation]
+	tenantCordoned := ok && !isFalse(v)
+
+	return sliceCordoned || tenantCordoned
 }
 
 // SetupWithManager register the QuotaCreatorReconciler to the manager.
