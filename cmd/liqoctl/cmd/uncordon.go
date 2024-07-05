@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
@@ -108,6 +109,10 @@ func newUncordonResourceSliceCommand(ctx context.Context, f *factory.Factory) *c
 	options.Factory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 
 	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for uncordon completion")
+	cmd.Flags().Var(&options.ClusterID, "remote-cluster-id", "ClusterID of the ResourceSlice to uncordon")
+
+	runtime.Must(cmd.MarkFlagRequired("remote-cluster-id"))
+	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx, f, completion.NoLimit)))
 
 	return cmd
 }

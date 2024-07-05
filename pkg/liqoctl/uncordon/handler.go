@@ -25,13 +25,16 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Options encapsulates the arguments of the uncordon command.
 type Options struct {
 	*factory.Factory
 
-	Name string
+	Name      string
+	ClusterID argsutils.ClusterIDFlags
 
 	Timeout time.Duration
 }
@@ -75,8 +78,16 @@ func (o *Options) RunUncordonResourceSlice(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
+	namespaceManager := tenantnamespace.NewManager(o.Factory.KubeClient, o.Factory.CRClient.Scheme())
+
+	ns, err := namespaceManager.GetNamespace(ctx, o.ClusterID.GetClusterID())
+	if err != nil {
+		o.Printer.CheckErr(fmt.Errorf("unable to get tenant namespace: %v", output.PrettyErr(err)))
+		return err
+	}
+
 	var rs authv1alpha1.ResourceSlice
-	if err := o.CRClient.Get(ctx, client.ObjectKey{Name: o.Name}, &rs); err != nil {
+	if err := o.CRClient.Get(ctx, client.ObjectKey{Name: o.Name, Namespace: ns.Name}, &rs); err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to get ResourceSlice: %v", output.PrettyErr(err)))
 		return err
 	}

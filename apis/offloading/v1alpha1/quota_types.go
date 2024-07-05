@@ -41,6 +41,8 @@ type QuotaSpec struct {
 	LimitsEnforcement LimitsEnforcement `json:"limitsEnforcement,omitempty"`
 	// Resources contains the list of resources and their limits.
 	Resources corev1.ResourceList `json:"resources"`
+	// Cordoned indicates if the user is cordoned.
+	Cordoned *bool `json:"cordoned,omitempty"`
 }
 
 // +kubebuilder:object:root=true
