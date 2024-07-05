@@ -38,7 +38,7 @@ import (
 
 const (
 	// clustersRequired is the number of clusters required in this E2E test.
-	clustersRequired = 4
+	clustersRequired = 3
 	// testNamespaceName is the name of the test namespace for this test.
 	testNamespaceName = "test-namespace-conflict"
 	// testName is the name of this E2E test.
