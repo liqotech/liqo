@@ -57,7 +57,8 @@ type TenantCondition string
 const (
 	// TenantConditionActive indicates that the tenant is active: it can consume resources and negotiate new ones.
 	TenantConditionActive TenantCondition = "Active"
-	// TenantConditionCordoned indicates that the tenant is cordoned: it can consume existing resources but can't negotiate new ones.
+	// TenantConditionCordoned indicates that the tenant is cordoned: the existing resources are preserved (and cordoned),
+	// but no new ones can be negotiated.
 	TenantConditionCordoned TenantCondition = "Cordoned"
 	// TenantConditionDrained indicates that the tenant is drained: it can't consume resources nor negotiate new ones.
 	TenantConditionDrained TenantCondition = "Drained"
