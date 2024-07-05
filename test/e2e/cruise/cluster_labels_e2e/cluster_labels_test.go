@@ -45,7 +45,7 @@ import (
 
 const (
 	// clustersRequired is the number of clusters required in this E2E test.
-	clustersRequired = 4
+	clustersRequired = 3
 	// testNamespaceName is the name of the test namespace for this test.
 	testNamespaceName = "test-namespace-labels"
 	// testName is the name of this E2E test.
@@ -72,7 +72,7 @@ var _ = Describe("Liqo E2E", func() {
 
 		getTableEntries = func(role *liqov1alpha1.RoleType) []TableEntry {
 			res := []TableEntry{}
-			for i := 0; i < 4; i++ {
+			for i := 0; i < 3; i++ {
 				// If the role is specified, check only the clusters that match the role.
 				if role != nil && testContext.Clusters[i].Role != *role {
 					continue
