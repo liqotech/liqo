@@ -41,6 +41,9 @@ spec:
           spec:
             description: QuotaSpec defines the desired state of Quota.
             properties:
+              cordoned:
+                description: Cordoned indicates if the user is cordoned.
+                type: boolean
               limitsEnforcement:
                 description: LimitsEnforcement defines how the quota is enforced.
                 enum:
