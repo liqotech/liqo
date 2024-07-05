@@ -128,6 +128,11 @@ func (spv *Validator) HandleCreate(ctx context.Context, req *admission.Request) 
 	klog.V(5).Infof("Quota found for user %q with %s",
 		creatorName, quotaFormatter(quota.Spec.Resources))
 
+	if quota.Spec.Cordoned != nil && *quota.Spec.Cordoned {
+		klog.Warningf("User %q is cordoned", creatorName)
+		return admission.Denied("user is cordoned")
+	}
+
 	peeringInfo := spv.PeeringCache.getOrCreatePeeringInfo(creatorName, quota.Spec.Resources)
 
 	err = peeringInfo.testAndUpdateCreation(ctx, spv.client, shadowpod, quota.Spec.LimitsEnforcement, *req.DryRun)

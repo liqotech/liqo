@@ -48,4 +48,7 @@ const (
 
 	// CordonResourceAnnotation is the value of the annotation that enables the cordon of a resource.
 	CordonResourceAnnotation = "liqo.io/cordon"
+
+	// CordonTenantAnnotation is the value of the annotation that enables the cordon of a tenant.
+	CordonTenantAnnotation = "liqo.io/cordon-tenant"
 )

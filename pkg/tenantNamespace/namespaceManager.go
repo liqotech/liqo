@@ -128,7 +128,10 @@ func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster liqo
 	req, err := labels.NewRequirement(consts.RemoteClusterID, selection.Equals, []string{string(cluster)})
 	utilruntime.Must(err)
 
-	namespaces, err := nm.listNamespaces(ctx, labels.NewSelector().Add(*req))
+	req2, err := labels.NewRequirement(consts.TenantNamespaceLabel, selection.Exists, []string{})
+	utilruntime.Must(err)
+
+	namespaces, err := nm.listNamespaces(ctx, labels.NewSelector().Add(*req).Add(*req2))
 	if err != nil {
 		klog.Error(err)
 		return nil, err

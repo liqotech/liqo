@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	authgetters "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/getters"
@@ -113,12 +114,23 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	// If the Tenant is drained we remove the binding of cluster roles used to replicate resources and
 	// delete all replicated resources.
-	if tenant.Spec.TenantCondition == authv1alpha1.TenantConditionDrained {
+	switch tenant.Spec.TenantCondition {
+	case authv1alpha1.TenantConditionDrained:
 		if err := r.handleTenantDrained(ctx, tenant); err != nil {
 			klog.Errorf("Unable to handle drained Tenant %q: %s", req.Name, err)
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
+	case authv1alpha1.TenantConditionCordoned:
+		if err := r.handleTenantCordoned(ctx, tenant); err != nil {
+			klog.Errorf("Unable to handle cordoned Tenant %q: %s", req.Name, err)
+			return ctrl.Result{}, err
+		}
+	default:
+		if err := r.handleTenantUncordoned(ctx, tenant); err != nil {
+			klog.Errorf("Unable to handle uncordoned Tenant %q: %s", req.Name, err)
+			return ctrl.Result{}, err
+		}
 	}
 
 	clusterID := tenant.Spec.ClusterID
@@ -266,6 +278,61 @@ func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&authv1alpha1.Tenant{}).
 		Owns(&corev1.Namespace{}).
 		Complete(r)
+}
+
+func (r *TenantReconciler) handleTenantCordoned(ctx context.Context, tenant *authv1alpha1.Tenant) error {
+	// Cordon all the resourceslices related to the tenant
+	resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll,
+		liqolabels.RemoteLabelSelectorForCluster(string(tenant.Spec.ClusterID)))
+	if err != nil {
+		klog.Errorf("Failed to retrieve ResourceSlices for Tenant %q: %v", tenant.Name, err)
+		return err
+	}
+
+	for i := range resSlices {
+		rs := &resSlices[i]
+		if rs.Annotations == nil {
+			rs.Annotations = make(map[string]string)
+		}
+		rs.Annotations[consts.CordonTenantAnnotation] = "true"
+
+		if err := r.Client.Update(ctx, rs); err != nil {
+			klog.Errorf("Failed to update ResourceSlice %q for Tenant %q: %v", client.ObjectKeyFromObject(rs), tenant.Name, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *TenantReconciler) handleTenantUncordoned(ctx context.Context, tenant *authv1alpha1.Tenant) error {
+	// Uncordon all the resourceslices related to the tenant
+	resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll,
+		liqolabels.RemoteLabelSelectorForCluster(string(tenant.Spec.ClusterID)))
+	if err != nil {
+		klog.Errorf("Failed to retrieve ResourceSlices for Tenant %q: %v", tenant.Name, err)
+		return err
+	}
+
+	for i := range resSlices {
+		rs := &resSlices[i]
+		if rs.Annotations == nil {
+			continue
+		}
+		_, ok := rs.Annotations[consts.CordonTenantAnnotation]
+		if !ok {
+			continue
+		}
+
+		delete(rs.Annotations, consts.CordonTenantAnnotation)
+
+		if err := r.Client.Update(ctx, rs); err != nil {
+			klog.Errorf("Failed to update ResourceSlice %q for Tenant %q: %v", client.ObjectKeyFromObject(rs), tenant.Name, err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *authv1alpha1.Tenant) error {
