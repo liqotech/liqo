@@ -40,7 +40,7 @@ import (
 
 const (
 	// clustersRequired is the number of clusters required in this E2E test.
-	clustersRequired = 4
+	clustersRequired = 2
 	// testNamespaceName is the name of the test namespace for this test.
 	testNamespaceName = "test-namespace-creation"
 	// testName is the name of this E2E test.
@@ -61,7 +61,7 @@ var _ = Describe("Liqo E2E", func() {
 		timeout     = 10 * time.Second
 		localIndex  = 0
 		// index of the cluster on which the remote namespace is deleted to test the recreation process.
-		remoteIndex = 2
+		remoteIndex = 1
 
 		remoteTestNamespaceName string
 		localSelector           client.MatchingLabelsSelector
