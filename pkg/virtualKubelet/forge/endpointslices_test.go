@@ -156,7 +156,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 				Expect(output[0].Conditions.Terminating).To(BeNil())
 			})
 			It("should correctly translate and replicate the topology information", func() {
-				Expect(output[0].NodeName).To(PointTo(Equal(LocalClusterID)))
+				Expect(output[0].NodeName).To(PointTo(Equal(string(LocalClusterID))))
 				Expect(output[0].Zone).To(PointTo(Equal("target-zone")))
 			})
 			It("should correctly replicate the secondary fields", func() {

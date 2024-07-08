@@ -66,16 +66,24 @@ func FakeControllerManagerDeployment(argsClusterLabels []string, networkEnabled 
 
 // FakeForeignCluster returns a fake ForeignCluster.
 func FakeForeignCluster(
-	clusterID liqov1alpha1.ClusterID, tenantNamespace string) *liqov1alpha1.ForeignCluster {
+	clusterID liqov1alpha1.ClusterID, modules *liqov1alpha1.Modules) *liqov1alpha1.ForeignCluster {
 	return &liqov1alpha1.ForeignCluster{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       liqov1alpha1.ForeignClusterKind,
+			APIVersion: liqov1alpha1.ForeignClusterGroupVersionResource.GroupVersion().String(),
+		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      string(clusterID),
-			Namespace: tenantNamespace,
+			Name: string(clusterID),
+			Labels: map[string]string{
+				liqoconsts.RemoteClusterID: string(clusterID),
+			},
 		},
 		Spec: liqov1alpha1.ForeignClusterSpec{
 			ClusterID: clusterID,
 		},
 		Status: liqov1alpha1.ForeignClusterStatus{
+			Modules:      *modules,
+			Role:         liqov1alpha1.UnknownRole,
 			APIServerURL: ForeignAPIServerURL,
 		},
 	}

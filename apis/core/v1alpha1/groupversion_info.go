@@ -32,6 +32,9 @@ var (
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 
+	// ForeignClusterKind is the resource name used to register the ForeignCluster CRD.
+	ForeignClusterKind = "ForeignCluster"
+
 	// ForeignClusterResource is the resource name used to register the ForeignCluster CRD.
 	ForeignClusterResource = "foreignclusters"
 

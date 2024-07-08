@@ -33,10 +33,10 @@ var _ = Describe("Meta forging", func() {
 		Describe("the ReflectionLabels function", func() {
 			It("should set exactly two labels", func() { Expect(forge.ReflectionLabels()).To(HaveLen(2)) })
 			It("should set the origin cluster label", func() {
-				Expect(forge.ReflectionLabels()).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
+				Expect(forge.ReflectionLabels()).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, string(LocalClusterID)))
 			})
 			It("should set the destination cluster label", func() {
-				Expect(forge.ReflectionLabels()).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+				Expect(forge.ReflectionLabels()).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, string(RemoteClusterID)))
 			})
 		})
 
@@ -99,8 +99,8 @@ var _ = Describe("Meta forging", func() {
 
 		It("should correctly set the labels", func() {
 			// Check whether the reflection labels are present
-			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
-			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, string(LocalClusterID)))
+			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, string(RemoteClusterID)))
 			// Check whether the local labels are present (higher precedence if a remote label matches)
 			Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
 			// Check whether the remote labels are present
