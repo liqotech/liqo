@@ -51,7 +51,9 @@ exclude_patterns = ['_build', '_legacy', 'Thumbs.db', '.DS_Store', 'README.md', 
 
 linkcheck_ignore = [
     r'http://localhost:\d+/?',  # Localhost links
-    'https://github.com/virtual-kubelet/virtual-kubelet#liqo-provider'  # This anchor is not found by the linter, but it works
+    'https://github.com/virtual-kubelet/virtual-kubelet#liqo-provider',  # This anchor is not found by the linter, but it works
+    'https://www.wireguard.com/', # knwon recurrent error 500
+    'https://medium.com/', # often rate-limited
 ]
 
 
