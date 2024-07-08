@@ -33,12 +33,14 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowpod-controller"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 var _ = Describe("Reconcile", func() {
 	const (
 		shadowPodNamespace string = "default"
 		shadowPodName      string = "test-shadow-pod"
+		remoteID           string = "remote-id"
 	)
 
 	var (
@@ -68,8 +70,9 @@ var _ = Describe("Reconcile", func() {
 				Name:      shadowPodName,
 				Namespace: shadowPodNamespace,
 				Labels: map[string]string{
-					"label1-key": "label1-value",
-					"label2-key": "label2-value",
+					forge.LiqoOriginClusterIDKey: remoteID,
+					"label1-key":                 "label1-value",
+					"label2-key":                 "label2-value",
 				},
 				Annotations: map[string]string{
 					"annotation1-key": "annotation1-value",
@@ -93,8 +96,9 @@ var _ = Describe("Reconcile", func() {
 				Name:      shadowPodName,
 				Namespace: shadowPodNamespace,
 				Labels: map[string]string{
-					"label1-key": "label1-value",
-					"label2-key": "label2-value",
+					forge.LiqoOriginClusterIDKey: remoteID,
+					"label1-key":                 "label1-value",
+					"label2-key":                 "label2-value",
 				},
 				Annotations: map[string]string{
 					"annotation1-key": "annotation1-value",
@@ -133,6 +137,7 @@ var _ = Describe("Reconcile", func() {
 		}
 
 		res, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
 		klog.Flush()
 	})
 

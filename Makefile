@@ -24,11 +24,7 @@ test: unit e2e
 
 # Check if test image exists
 test-container:
-ifeq (, $(shell docker image ls | grep liqo-test))
-	@{ \
-	docker build -t liqo-test -f build/liqo-test/Dockerfile . ; \
-	}
-endif
+	docker build -t liqo-test -f build/liqo-test/Dockerfile .
 
 # Run unit tests
 # Run with: make unit PACKAGE_PATH="package path" , to run tests on a single package.

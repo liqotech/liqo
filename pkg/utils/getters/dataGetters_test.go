@@ -189,7 +189,7 @@ var _ = Describe("DataGetters", func() {
 		Context("when cluster identity is set", func() {
 			It("should fail", func() {
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(clusterID).Should(Equal(cm.Data[liqoconst.ClusterIDConfigMapKey]))
+				Expect(string(clusterID)).Should(Equal(cm.Data[liqoconst.ClusterIDConfigMapKey]))
 			})
 		})
 

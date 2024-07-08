@@ -119,8 +119,9 @@ var _ = BeforeSuite(func() {
 
 	homeClusterEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
+			filepath.Join("..", "..", "..", "..", "deployments", "liqo", "charts", "liqo-crds", "crds"),
 		},
+		ErrorIfCRDPathMissing: true,
 	}
 
 	var err error

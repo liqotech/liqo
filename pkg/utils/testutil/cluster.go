@@ -55,7 +55,8 @@ func NewTestCluster(crdPath []string) (Cluster, manager.Manager, error) {
 	cluster := Cluster{}
 
 	cluster.env = &envtest.Environment{
-		CRDDirectoryPaths: crdPath,
+		CRDDirectoryPaths:     crdPath,
+		ErrorIfCRDPathMissing: true,
 	}
 
 	/*
