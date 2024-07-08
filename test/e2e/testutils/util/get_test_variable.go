@@ -15,8 +15,10 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	ginkgo "github.com/onsi/ginkgo/v2"
@@ -80,4 +82,11 @@ func DescribeTableArgs(itBody interface{}, entries ...ginkgo.TableEntry) []inter
 		tmp = append(tmp, entry)
 	}
 	return tmp
+}
+
+// GetNameNamespaceTest returns the name of the namespace where resources for the test are created.
+func GetNameNamespaceTest(testName string) string {
+	// lowercase all and substitute all "_"	with "-"
+	testName = strings.ReplaceAll(strings.ToLower(testName), "_", "-")
+	return fmt.Sprintf("liqo-test-%s", testName)
 }

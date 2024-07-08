@@ -46,10 +46,39 @@ import (
 const (
 	// clustersRequired is the number of clusters required in this E2E test.
 	clustersRequired = 3
-	// testNamespaceName is the name of the test namespace for this test.
-	testNamespaceName = "test-namespace-labels"
 	// testName is the name of this E2E test.
-	testName = "E2E_CLUSTER_LABELS"
+	testName = "CLUSTER_LABELS"
+)
+
+var (
+	ctx         = context.Background()
+	testContext = tester.GetTester(ctx)
+	interval    = 1 * time.Second
+	// shortTimeout is used for Consistently statement.
+	shortTimeout = 5 * time.Second
+	timeout      = 10 * time.Second
+	// longTimeout is used in situations that may take longer to be performed.
+	longTimeout = 2 * time.Minute
+	// namespaceName is the name of the test namespace for this test.
+	namespaceName = util.GetNameNamespaceTest(testName)
+	localIndex    = 0
+
+	getTableEntries = func(role *liqov1alpha1.RoleType) []TableEntry {
+		res := []TableEntry{}
+		for i := 0; i < 3; i++ {
+			// If the role is specified, check only the clusters that match the role.
+			if role != nil && testContext.Clusters[i].Role != *role {
+				continue
+			}
+			res = append(res, Entry(
+				fmt.Sprintf("Check the labels of the cluster %v", i+1),
+				testContext.Clusters[i],
+				i,
+				util.GetClusterLabels(i),
+			))
+		}
+		return res
+	}
 )
 
 func TestE2E(t *testing.T) {
@@ -59,35 +88,6 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = Describe("Liqo E2E", func() {
-	var (
-		ctx         = context.Background()
-		testContext = tester.GetTester(ctx)
-		interval    = 1 * time.Second
-		// shortTimeout is used for Consistently statement
-		shortTimeout = 5 * time.Second
-		timeout      = 10 * time.Second
-		// longTimeout is used in situations that may take longer to be performed
-		longTimeout = 2 * time.Minute
-		localIndex  = 0
-
-		getTableEntries = func(role *liqov1alpha1.RoleType) []TableEntry {
-			res := []TableEntry{}
-			for i := 0; i < 3; i++ {
-				// If the role is specified, check only the clusters that match the role.
-				if role != nil && testContext.Clusters[i].Role != *role {
-					continue
-				}
-				res = append(res, Entry(
-					fmt.Sprintf("Check the labels of the cluster %v", i+1),
-					testContext.Clusters[i],
-					i,
-					util.GetClusterLabels(i),
-				))
-			}
-			return res
-		}
-	)
-
 	Context("Assert that labels inserted at installation time are in the right resources: ControllerManager args", func() {
 
 		DescribeTable(" 1 - Check labels presence in the ControllerManager arguments for every cluster", util.DescribeTableArgs(
@@ -152,12 +152,12 @@ var _ = Describe("Liqo E2E", func() {
 			By(" 1 - Creating the local namespace without the NamespaceOffloading resource")
 			Eventually(func() error {
 				_, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
-					testContext.Clusters[localIndex].Cluster, testNamespaceName)
+					testContext.Clusters[localIndex].Cluster, namespaceName)
 				return err
 			}, timeout, interval).Should(BeNil())
 
 			By(" 2 - Create the NamespaceOffloading resource associated with the previously created namespace")
-			Expect(util.OffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, testNamespaceName,
+			Expect(util.OffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, namespaceName,
 				"--namespace-mapping-strategy", "EnforceSameName", "--pod-offloading-strategy", "LocalAndRemote",
 				"--selector", metav1.FormatLabelSelector(&selector))).To(Succeed())
 
@@ -167,7 +167,7 @@ var _ = Describe("Liqo E2E", func() {
 				return testContext.Clusters[localIndex].ControllerClient.List(ctx, virtualNodesList,
 					client.MatchingLabels{liqoconst.TypeLabel: liqoconst.TypeNode})
 			}, timeout, interval).Should(BeNil())
-			Expect(len(virtualNodesList.Items)).To(Equal(clustersRequired - 1))
+			Expect(len(virtualNodesList.Items)).To(Equal(testContext.Clusters[localIndex].NumPeeredProviders))
 
 			By(" 4 - Checking the remote clusters on which the remote namespaces are created")
 			for i := range virtualNodesList.Items {
@@ -195,7 +195,7 @@ var _ = Describe("Liqo E2E", func() {
 					namespace := &corev1.Namespace{}
 
 					Eventually(func() error {
-						namespace, err = cl.CoreV1().Namespaces().Get(ctx, testNamespaceName, metav1.GetOptions{})
+						namespace, err = cl.CoreV1().Namespaces().Get(ctx, namespaceName, metav1.GetOptions{})
 						return err
 					}, timeout, interval).Should(BeNil())
 
@@ -206,7 +206,7 @@ var _ = Describe("Liqo E2E", func() {
 					// Check if the remote namespace does not exists.
 					By(fmt.Sprintf(" 5 - Checking that no remote namespace is created inside cluster '%s'", remoteClusterID))
 					Consistently(func() metav1.StatusReason {
-						_, err = cl.CoreV1().Namespaces().Get(ctx, testNamespaceName, metav1.GetOptions{})
+						_, err = cl.CoreV1().Namespaces().Get(ctx, namespaceName, metav1.GetOptions{})
 						return apierrors.ReasonForError(err)
 					}, shortTimeout, interval).Should(Equal(metav1.StatusReasonNotFound))
 				}
@@ -221,7 +221,7 @@ var _ = Describe("Liqo E2E", func() {
 			namespaceOffloading := &offloadingv1alpha1.NamespaceOffloading{}
 			Eventually(func() metav1.StatusReason {
 				err := testContext.Clusters[localIndex].ControllerClient.Get(ctx,
-					types.NamespacedName{Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: testNamespaceName},
+					types.NamespacedName{Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: namespaceName},
 					namespaceOffloading)
 				_ = testContext.Clusters[localIndex].ControllerClient.Delete(ctx, namespaceOffloading)
 				return apierrors.ReasonForError(err)
@@ -236,9 +236,17 @@ var _ = Describe("Liqo E2E", func() {
 				}
 				Eventually(func() metav1.StatusReason {
 					return apierrors.ReasonForError(testContext.Clusters[i].ControllerClient.Get(ctx,
-						types.NamespacedName{Name: testNamespaceName}, namespace))
+						types.NamespacedName{Name: namespaceName}, namespace))
 				}, timeout, interval).Should(Equal(metav1.StatusReasonNotFound))
 			}
 		})
 	})
+})
+
+var _ = AfterSuite(func() {
+	for i := range testContext.Clusters {
+		Eventually(func() error {
+			return util.EnsureNamespaceDeletion(ctx, testContext.Clusters[i].NativeClient, namespaceName)
+		}, timeout, interval).Should(Succeed())
+	}
 })
