@@ -274,4 +274,4 @@ metrics:
 	${PWD}/test/e2e/pipeline/metrics/metrics.sh
 
 e2e/%:
-	go test ${PWD}/test/$@/... -count=1 -timeout=20m
+	go test ${PWD}/test/$@/... -count=1 -timeout=20m -p=1
