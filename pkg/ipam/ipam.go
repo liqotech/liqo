@@ -421,7 +421,10 @@ func (liqoIPAM *IPAM) GetOrSetExternalCIDR(ctx context.Context, getOrSetExtCIDRR
 	}
 	r, err := liqoIPAM.ipam.AcquireSpecificIP(ctx, externalCIDR, unknownSourceIP)
 	if err != nil {
-		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot acquire the UnknownSourceIP: %w", err)
+		if !errors.Is(err, goipam.ErrAlreadyAllocated) {
+			return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot acquire the UnknownSourceIP: %w", err)
+		}
+		r = &goipam.IP{IP: netip.MustParseAddr(unknownSourceIP)}
 	}
 	if r == nil {
 		return &GetOrSetExtCIDRResponse{}, fmt.Errorf("cannot acquire the UnknownSourceIP: nil response")

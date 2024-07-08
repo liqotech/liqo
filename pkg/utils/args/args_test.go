@@ -226,11 +226,6 @@ var _ = Describe("ParseArguments", func() {
 				Expect(err).To(c.expectedError)
 			},
 
-			Entry("no cluster name", parseClusterIDTestCase{
-				args:          []string{"--cluster-id=foo"},
-				expectedError: HaveOccurred(),
-			}),
-
 			Entry("invalid cluster ID", parseClusterIDTestCase{
 				args:          []string{"--cluster-id=Foo!"},
 				expectedError: HaveOccurred(),

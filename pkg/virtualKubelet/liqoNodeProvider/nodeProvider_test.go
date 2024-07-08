@@ -32,9 +32,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -117,8 +116,8 @@ var _ = Describe("NodeProvider", func() {
 	})
 
 	type nodeProviderTestcase struct {
+		foreignCluster     *liqov1alpha1.ForeignCluster
 		virtualNode        *offloadingv1alpha1.VirtualNode
-		connection         *networkingv1alpha1.Connection
 		expectedConditions []types.GomegaMatcher
 	}
 
@@ -143,22 +142,19 @@ var _ = Describe("NodeProvider", func() {
 				Expect(err).To(BeNil())
 			}
 
-			if c.connection != nil {
-				c.connection.Labels = map[string]string{
-					consts.RemoteClusterID: string(nodeProvider.foreignClusterID),
-				}
-				unstructConn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.connection)
+			if c.foreignCluster != nil {
+				unstructConn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.foreignCluster)
 				Expect(err).To(BeNil())
-				unstruct, err := dynClient.Resource(networkingv1alpha1.ConnectionGroupVersionResource).
-					Namespace(kubeletNamespace).Create(ctx, &unstructured.Unstructured{
-					Object: unstructConn,
-				}, metav1.CreateOptions{})
+				unstruct, err := dynClient.Resource(liqov1alpha1.ForeignClusterGroupVersionResource).
+					Create(ctx, &unstructured.Unstructured{
+						Object: unstructConn,
+					}, metav1.CreateOptions{})
 				Expect(err).To(BeNil())
 
 				unstruct.Object["status"] = unstructConn["status"]
 
-				_, err = dynClient.Resource(networkingv1alpha1.ConnectionGroupVersionResource).
-					Namespace(kubeletNamespace).UpdateStatus(ctx, unstruct, metav1.UpdateOptions{})
+				_, err = dynClient.Resource(liqov1alpha1.ForeignClusterGroupVersionResource).
+					UpdateStatus(ctx, unstruct, metav1.UpdateOptions{})
 				Expect(err).To(BeNil())
 			}
 
@@ -172,7 +168,18 @@ var _ = Describe("NodeProvider", func() {
 			}, timeout, interval).Should(ContainElements(c.expectedConditions))
 		},
 
-		Entry("update from VirtualNode", nodeProviderTestcase{
+		Entry("Networking disabled, Offloading Enabled", nodeProviderTestcase{
+			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1alpha1.Modules{
+				Offloading: liqov1alpha1.Module{
+					Enabled: true,
+				},
+				Networking: liqov1alpha1.Module{
+					Enabled: false,
+				},
+				Authentication: liqov1alpha1.Module{
+					Enabled: true,
+				},
+			}),
 			virtualNode: &offloadingv1alpha1.VirtualNode{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "VirtualNode",
@@ -192,34 +199,53 @@ var _ = Describe("NodeProvider", func() {
 					},
 				},
 			},
-			connection: nil,
 			expectedConditions: []types.GomegaMatcher{
-				ConditionMatcher(v1.NodeReady, v1.ConditionFalse),
+				ConditionMatcher(v1.NodeReady, v1.ConditionTrue),
 				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionFalse),
 				ConditionMatcher(v1.NodeDiskPressure, v1.ConditionFalse),
 				ConditionMatcher(v1.NodePIDPressure, v1.ConditionFalse),
+			},
+		}),
+
+		Entry("Networking enabled (disconnected), Offloading disabled ", nodeProviderTestcase{
+			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1alpha1.Modules{
+				Offloading: liqov1alpha1.Module{
+					Enabled: false,
+				},
+				Networking: liqov1alpha1.Module{
+					Enabled: true,
+				},
+				Authentication: liqov1alpha1.Module{
+					Enabled: false,
+				},
+			}),
+			virtualNode: nil,
+			expectedConditions: []types.GomegaMatcher{
+				ConditionMatcher(v1.NodeReady, v1.ConditionFalse),
+				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionTrue),
+				ConditionMatcher(v1.NodeDiskPressure, v1.ConditionTrue),
+				ConditionMatcher(v1.NodePIDPressure, v1.ConditionTrue),
 				ConditionMatcher(v1.NodeNetworkUnavailable, v1.ConditionTrue),
 			},
 		}),
 
-		Entry("update from Connection", nodeProviderTestcase{
+		Entry("Networking enabled (connected), Offloading disabled ", nodeProviderTestcase{
+			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1alpha1.Modules{
+				Offloading: liqov1alpha1.Module{
+					Enabled: false,
+				},
+				Networking: liqov1alpha1.Module{
+					Enabled: true,
+					Conditions: []liqov1alpha1.Condition{{
+						Type:   liqov1alpha1.NetworkConnectionStatusCondition,
+						Status: liqov1alpha1.ConditionStatusEstablished,
+					}},
+				},
+				Authentication: liqov1alpha1.Module{
+					Enabled: false,
+				},
+			}),
 			virtualNode: nil,
-			connection: &networkingv1alpha1.Connection{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       networkingv1alpha1.ConnectionKind,
-					APIVersion: networkingv1alpha1.GroupVersion.String(),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "conn",
-					Namespace: kubeletNamespace,
-				},
-				Spec: networkingv1alpha1.ConnectionSpec{
-					Type: networkingv1alpha1.ConnectionTypeServer,
-				},
-				Status: networkingv1alpha1.ConnectionStatus{
-					Value: networkingv1alpha1.Connected,
-				},
-			},
 			expectedConditions: []types.GomegaMatcher{
 				ConditionMatcher(v1.NodeReady, v1.ConditionFalse),
 				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionTrue),
@@ -229,7 +255,22 @@ var _ = Describe("NodeProvider", func() {
 			},
 		}),
 
-		Entry("update from both", nodeProviderTestcase{
+		Entry("Networking enabled (connected), Offloading enabled", nodeProviderTestcase{
+			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1alpha1.Modules{
+				Offloading: liqov1alpha1.Module{
+					Enabled: true,
+				},
+				Networking: liqov1alpha1.Module{
+					Enabled: true,
+					Conditions: []liqov1alpha1.Condition{{
+						Type:   liqov1alpha1.NetworkConnectionStatusCondition,
+						Status: liqov1alpha1.ConditionStatusEstablished,
+					}},
+				},
+				Authentication: liqov1alpha1.Module{
+					Enabled: true,
+				},
+			}),
 			virtualNode: &offloadingv1alpha1.VirtualNode{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "VirtualNode",
@@ -247,22 +288,6 @@ var _ = Describe("NodeProvider", func() {
 							v1.ResourceMemory: *resource.NewQuantity(3, resource.DecimalSI),
 						},
 					},
-				},
-			},
-			connection: &networkingv1alpha1.Connection{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       networkingv1alpha1.ConnectionKind,
-					APIVersion: networkingv1alpha1.GroupVersion.String(),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "conn",
-					Namespace: kubeletNamespace,
-				},
-				Spec: networkingv1alpha1.ConnectionSpec{
-					Type: networkingv1alpha1.ConnectionTypeServer,
-				},
-				Status: networkingv1alpha1.ConnectionStatus{
-					Value: networkingv1alpha1.Connected,
 				},
 			},
 			expectedConditions: []types.GomegaMatcher{

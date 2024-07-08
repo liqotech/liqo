@@ -742,7 +742,7 @@ var _ = Describe("Ipam", func() {
 						ClusterID: clusterID1,
 					})
 				Expect(err).To(BeNil())
-				Expect(response.GetHomeIP()).To(Equal(ip))
+				Expect(response.GetHomeIP()).To(Equal(ip.String()))
 			})
 		})
 		Context(`When the remote Pod CIDR has been remapped by home cluster

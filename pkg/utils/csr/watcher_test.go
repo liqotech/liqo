@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/liqotech/liqo/pkg/utils/testutil"
+	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
 var _ = Describe("Watcher functions", func() {
@@ -94,6 +95,9 @@ var _ = Describe("Watcher functions", func() {
 		JustAfterEach(func() {
 			watcherCancel()
 			Expect(client.CertificatesV1().CertificateSigningRequests().Delete(ctx, input.Name, v1.DeleteOptions{})).To(Succeed())
+			Eventually(func() error {
+				return util.Second(client.CertificatesV1().CertificateSigningRequests().Get(ctx, input.Name, v1.GetOptions{}))
+			}).Should(testutil.BeNotFound())
 		})
 
 		When("the RetrieveCertificate function is executed", func() {

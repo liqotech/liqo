@@ -59,8 +59,8 @@ var _ = Describe("ConfigMaps Forging", func() {
 
 		It("should correctly set the labels", func() {
 			Expect(output.Labels).To(HaveKeyWithValue("foo", "bar"))
-			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, LocalClusterID))
-			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, RemoteClusterID))
+			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoOriginClusterIDKey, string(LocalClusterID)))
+			Expect(output.Labels).To(HaveKeyWithValue(forge.LiqoDestinationClusterIDKey, string(RemoteClusterID)))
 			Expect(output.Labels).ToNot(HaveKey(testutil.FakeNotReflectedLabelKey))
 		})
 
