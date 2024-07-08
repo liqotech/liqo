@@ -56,8 +56,17 @@ func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster liqo
 	return ns, nil
 }
 
-// EnsureNamespaceDeletion wrap the deletion of a namespace.
-func EnsureNamespaceDeletion(ctx context.Context, cl kubernetes.Interface, labelSelector map[string]string) error {
+// EnsureNamespaceDeletion deletes the namespace with the given name.
+func EnsureNamespaceDeletion(ctx context.Context, cl kubernetes.Interface, name string) error {
+	err := cl.CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{})
+	if kerrors.IsNotFound(err) {
+		return nil
+	}
+	return fmt.Errorf("still deleting namespace %s", name)
+}
+
+// EnsureNamespacesDeletionWithSelector wrap the deletion of namespaces matching the given labelSelector.
+func EnsureNamespacesDeletionWithSelector(ctx context.Context, cl kubernetes.Interface, labelSelector map[string]string) error {
 	namespaceList, err := cl.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labelSelector).String(),
 	})
