@@ -52,7 +52,7 @@ type WgGatewayClientStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=wgc;wggc
 // +kubebuilder:subresource:status
 
 // WgGatewayClient defines a wireguard gateway client that needs to point to a remote wireguard gateway server.

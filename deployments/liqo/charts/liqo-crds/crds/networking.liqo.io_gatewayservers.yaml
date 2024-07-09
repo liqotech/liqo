@@ -13,6 +13,9 @@ spec:
     kind: GatewayServer
     listKind: GatewayServerList
     plural: gatewayservers
+    shortNames:
+    - gws
+    - gwserver
     singular: gatewayserver
   scope: Namespaced
   versions:

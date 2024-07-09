@@ -13,6 +13,11 @@ spec:
     kind: VirtualNode
     listKind: VirtualNodeList
     plural: virtualnodes
+    shortNames:
+    - vn
+    - vnode
+    - virno
+    - vno
     singular: virtualnode
   scope: Namespaced
   versions:
@@ -23,6 +28,9 @@ spec:
     - jsonPath: .spec.createNode
       name: Create Node
       type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     - jsonPath: .status.conditions[?(@.type=="Node")].status
       name: Node
       priority: 1
@@ -31,9 +39,6 @@ spec:
       name: VirtualKubelet
       priority: 1
       type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:

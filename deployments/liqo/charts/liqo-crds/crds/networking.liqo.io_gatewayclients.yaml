@@ -13,6 +13,9 @@ spec:
     kind: GatewayClient
     listKind: GatewayClientList
     plural: gatewayclients
+    shortNames:
+    - gwc
+    - gwclient
     singular: gatewayclient
   scope: Namespaced
   versions:

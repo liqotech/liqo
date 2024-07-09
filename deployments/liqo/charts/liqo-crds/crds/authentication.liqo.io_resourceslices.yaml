@@ -13,19 +13,21 @@ spec:
     kind: ResourceSlice
     listKind: ResourceSliceList
     plural: resourceslices
+    shortNames:
+    - rslice
     singular: resourceslice
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
     - jsonPath: .status.conditions[?(@.type=="Authentication")].status
       name: Authentication
       type: string
     - jsonPath: .status.conditions[?(@.type=="Resources")].status
       name: Resources
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:

@@ -13,6 +13,9 @@ spec:
     kind: InternalNode
     listKind: InternalNodeList
     plural: internalnodes
+    shortNames:
+    - in
+    - inode
     singular: internalnode
   scope: Cluster
   versions:

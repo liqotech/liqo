@@ -136,16 +136,16 @@ type VirtualNodeStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=vn;vnode;virno;vno
 // +kubebuilder:subresource:status
 // +genclient
-
-// VirtualNode is the Schema for the VirtualNodes API.
 // +kubebuilder:printcolumn:name="ClusterID",type=string,JSONPath=`.spec.clusterID`
 // +kubebuilder:printcolumn:name="Create Node",type=boolean,JSONPath=`.spec.createNode`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:printcolumn:name="Node",type=string,JSONPath=`.status.conditions[?(@.type=="Node")].status`,priority=1
 // +kubebuilder:printcolumn:name="VirtualKubelet",type=string,JSONPath=`.status.conditions[?(@.type=="VirtualKubelet")].status`,priority=1
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+
+// VirtualNode is the Schema for the VirtualNodes API.
 type VirtualNode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
