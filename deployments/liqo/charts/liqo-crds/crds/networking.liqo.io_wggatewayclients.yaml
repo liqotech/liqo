@@ -13,6 +13,9 @@ spec:
     kind: WgGatewayClient
     listKind: WgGatewayClientList
     plural: wggatewayclients
+    shortNames:
+    - wgc
+    - wggc
     singular: wggatewayclient
   scope: Namespaced
   versions:

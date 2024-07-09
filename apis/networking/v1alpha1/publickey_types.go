@@ -44,7 +44,7 @@ type PublicKeySpec struct {
 // Waiting for this fix https://github.com/kubernetes-sigs/kubebuilder/pull/3408
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo,path=publickeies
+// +kubebuilder:resource:categories=liqo,path=publickeies,shortName=pk;pkies;pkey
 
 // PublicKey contains a public key data required by some interconnection technologies.
 type PublicKey struct {

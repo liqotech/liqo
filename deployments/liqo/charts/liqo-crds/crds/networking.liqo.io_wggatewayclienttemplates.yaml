@@ -13,6 +13,9 @@ spec:
     kind: WgGatewayClientTemplate
     listKind: WgGatewayClientTemplateList
     plural: wggatewayclienttemplates
+    shortNames:
+    - wggct
+    - wgct
     singular: wggatewayclienttemplate
   scope: Namespaced
   versions:

@@ -8,9 +8,15 @@ metadata:
 spec:
   group: virtualkubelet.liqo.io
   names:
+    categories:
+    - liqo
     kind: ShadowEndpointSlice
     listKind: ShadowEndpointSliceList
     plural: shadowendpointslices
+    shortNames:
+    - shes
+    - sheps
+    - seps
     singular: shadowendpointslice
   scope: Namespaced
   versions:

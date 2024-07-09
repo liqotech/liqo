@@ -13,6 +13,8 @@ spec:
     kind: Connection
     listKind: ConnectionList
     plural: connections
+    shortNames:
+    - conn
     singular: connection
   scope: Namespaced
   versions:
@@ -20,16 +22,16 @@ spec:
     - jsonPath: .spec.type
       name: Type
       type: string
-    - jsonPath: .status.latency.value
-      name: Latency
-      priority: 1
-      type: string
     - jsonPath: .status.value
       name: Status
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
+    - jsonPath: .status.latency.value
+      name: Latency
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:

@@ -58,10 +58,11 @@ const (
 )
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:categories=liqo,shortName=vkot;vkopt
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +genclient
 
 // VkOptionsTemplate is the Schema with the options to configure the VirtualKubelet deployment.
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type VkOptionsTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

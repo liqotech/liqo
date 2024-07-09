@@ -13,6 +13,9 @@ spec:
     kind: WgGatewayServerTemplate
     listKind: WgGatewayServerTemplateList
     plural: wggatewayservertemplates
+    shortNames:
+    - wggst
+    - wgst
     singular: wggatewayservertemplate
   scope: Namespaced
   versions:

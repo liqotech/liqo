@@ -94,7 +94,7 @@ type GatewayServerStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=gws;gwserver
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Template Kind",type=string,JSONPath=`.spec.serverTemplateRef.kind`, priority=1
 // +kubebuilder:printcolumn:name="Template Name",type=string,JSONPath=`.spec.serverTemplateRef.name`

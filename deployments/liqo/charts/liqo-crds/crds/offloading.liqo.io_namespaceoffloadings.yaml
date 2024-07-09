@@ -14,7 +14,10 @@ spec:
     listKind: NamespaceOffloadingList
     plural: namespaceoffloadings
     shortNames:
+    - nso
     - nsof
+    - nsoff
+    - nsoffloading
     singular: namespaceoffloading
   scope: Namespaced
   versions:

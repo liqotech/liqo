@@ -13,6 +13,8 @@ spec:
     kind: GeneveTunnel
     listKind: GeneveTunnelList
     plural: genevetunnels
+    shortNames:
+    - gvtn
     singular: genevetunnel
   scope: Namespaced
   versions:

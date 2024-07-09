@@ -13,6 +13,9 @@ spec:
     kind: WgGatewayServer
     listKind: WgGatewayServerList
     plural: wggatewayservers
+    shortNames:
+    - wgs
+    - wggs
     singular: wggatewayserver
   scope: Namespaced
   versions:
