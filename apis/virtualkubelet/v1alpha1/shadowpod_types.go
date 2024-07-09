@@ -34,12 +34,13 @@ type ShadowPodStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:categories=liqo,shortName=shp;shpod
 // +kubebuilder:subresource:status
 // +genclient
-
-// ShadowPod is the Schema for the Shadowpods API.
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+
+// ShadowPod is the Schema for the Shadowpods API.
 type ShadowPod struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

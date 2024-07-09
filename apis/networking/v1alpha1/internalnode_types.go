@@ -77,7 +77,7 @@ type InternalNodeStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster,categories=liqo
+// +kubebuilder:resource:scope=Cluster,categories=liqo,shortName=in;inode
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Node IP Local",type=string,JSONPath=`.status.nodeIP.local`
 // +kubebuilder:printcolumn:name="Node IP Remote",type=string,JSONPath=`.status.nodeIP.remote`

@@ -13,16 +13,18 @@ spec:
     kind: Tenant
     listKind: TenantList
     plural: tenants
+    shortNames:
+    - tn
     singular: tenant
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
     - jsonPath: .spec.tenantCondition
       name: Condition
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:

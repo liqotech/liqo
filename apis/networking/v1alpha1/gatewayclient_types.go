@@ -56,7 +56,7 @@ type GatewayClientStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=gwc;gwclient
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Template Kind",type=string,JSONPath=`.spec.clientTemplateRef.kind`, priority=1
 // +kubebuilder:printcolumn:name="Template Name",type=string,JSONPath=`.spec.clientTemplateRef.name`

@@ -13,6 +13,9 @@ spec:
     kind: InternalFabric
     listKind: InternalFabricList
     plural: internalfabrics
+    shortNames:
+    - if
+    - ifabric
     singular: internalfabric
   scope: Namespaced
   versions:

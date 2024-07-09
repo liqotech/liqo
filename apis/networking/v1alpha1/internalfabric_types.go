@@ -68,7 +68,7 @@ type InternalFabricSpec struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=if;ifabric
 // +kubebuilder:printcolumn:name="Gateway IP",type=string,JSONPath=`.spec.gatewayIP`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 

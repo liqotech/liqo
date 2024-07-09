@@ -13,19 +13,22 @@ spec:
     kind: Identity
     listKind: IdentityList
     plural: identities
+    shortNames:
+    - id
     singular: identity
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
     - jsonPath: .spec.type
       name: Type
       type: string
     - jsonPath: .status.kubeconfigSecretRef.name
       name: KubeconfigSecret
+      priority: 1
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
