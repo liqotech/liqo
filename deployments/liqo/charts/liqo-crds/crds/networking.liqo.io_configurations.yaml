@@ -13,20 +13,21 @@ spec:
     kind: Configuration
     listKind: ConfigurationList
     plural: configurations
+    shortNames:
+    - conf
     singular: configuration
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .metadata.labels.liqo\.io/remote-cluster-id
-      name: ClusterID
-      priority: 1
-      type: string
     - jsonPath: .spec.remote.cidr.pod
       name: 'Desired Pod CIDR '
       type: string
     - jsonPath: .status.remote.cidr.pod
       name: Remapped Pod CIDR
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     - jsonPath: .spec.remote.cidr.external
       name: Desired External CIDR
       priority: 1
@@ -35,9 +36,10 @@ spec:
       name: Remapped External CIDR
       priority: 1
       type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
+    - jsonPath: .metadata.labels.liqo\.io/remote-cluster-id
+      name: ClusterID
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:

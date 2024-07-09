@@ -46,7 +46,7 @@ type GeneveTunnelSpec struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=gvtn
 
 // GeneveTunnel contains the settings about a geneve tunnel.
 // It links an InternalNode to an InternalFabric.

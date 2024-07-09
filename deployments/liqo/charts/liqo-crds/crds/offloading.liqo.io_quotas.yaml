@@ -13,10 +13,26 @@ spec:
     kind: Quota
     listKind: QuotaList
     plural: quotas
+    shortNames:
+    - qt
     singular: quota
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.limitsEnforcement
+      name: Enforcement
+      type: string
+    - jsonPath: .spec.cordoned
+      name: Cordoned
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .spec.user
+      name: User
+      priority: 1
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Quota is the Schema for the quota API.
@@ -73,3 +89,4 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}

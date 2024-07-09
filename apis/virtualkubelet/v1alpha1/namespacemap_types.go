@@ -57,13 +57,13 @@ type NamespaceMapStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=nm;nsmap
 // +kubebuilder:subresource:status
 // +genclient
-
-// NamespaceMap is the Schema for the namespacemaps API.
 // +kubebuilder:printcolumn:name="Local",type=string,JSONPath=`.metadata.labels.liqo\.io/replication`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+
+// NamespaceMap is the Schema for the namespacemaps API.
 type NamespaceMap struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -13,6 +13,8 @@ spec:
     kind: Network
     listKind: NetworkList
     plural: networks
+    shortNames:
+    - net
     singular: network
   scope: Namespaced
   versions:

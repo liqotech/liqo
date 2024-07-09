@@ -68,11 +68,11 @@ type IdentityStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=id
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
-// +kubebuilder:printcolumn:name="KubeconfigSecret",type=string,JSONPath=`.status.kubeconfigSecretRef.name`
+// +kubebuilder:printcolumn:name="KubeconfigSecret",type=string,JSONPath=`.status.kubeconfigSecretRef.name`,priority=1
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Identity contains the information to operate in a remote cluster.
 type Identity struct {

@@ -13,6 +13,11 @@ spec:
     kind: RouteConfiguration
     listKind: RouteConfigurationList
     plural: routeconfigurations
+    shortNames:
+    - rcnf
+    - rcnfg
+    - rcfg
+    - routecfg
     singular: routeconfiguration
   scope: Namespaced
   versions:

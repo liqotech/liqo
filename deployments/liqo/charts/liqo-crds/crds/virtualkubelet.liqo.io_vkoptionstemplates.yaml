@@ -8,9 +8,14 @@ metadata:
 spec:
   group: virtualkubelet.liqo.io
   names:
+    categories:
+    - liqo
     kind: VkOptionsTemplate
     listKind: VkOptionsTemplateList
     plural: vkoptionstemplates
+    shortNames:
+    - vkot
+    - vkopt
     singular: vkoptionstemplate
   scope: Namespaced
   versions:

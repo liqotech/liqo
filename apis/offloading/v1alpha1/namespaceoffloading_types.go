@@ -147,7 +147,7 @@ type NamespaceOffloadingStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:shortName="nsof",categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=nso;nsof;nsoff;nsoffloading
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="NamespaceMappingStrategy",type=string,JSONPath=`.spec.namespaceMappingStrategy`
 // +kubebuilder:printcolumn:name="PodOffloadingStrategy",type=string,JSONPath=`.spec.podOffloadingStrategy`

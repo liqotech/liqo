@@ -13,6 +13,10 @@ spec:
     kind: PublicKey
     listKind: PublicKeyList
     plural: publickeies
+    shortNames:
+    - pk
+    - pkies
+    - pkey
     singular: publickey
   scope: Namespaced
   versions:
