@@ -49,7 +49,7 @@ type NetworkStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=net
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Desired CIDR",type=string,JSONPath=`.spec.cidr`
 // +kubebuilder:printcolumn:name="Remapped CIDR",type=string,JSONPath=`.status.cidr`

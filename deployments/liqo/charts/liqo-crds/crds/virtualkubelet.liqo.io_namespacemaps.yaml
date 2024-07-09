@@ -13,6 +13,9 @@ spec:
     kind: NamespaceMap
     listKind: NamespaceMapList
     plural: namespacemaps
+    shortNames:
+    - nm
+    - nsmap
     singular: namespacemap
   scope: Namespaced
   versions:

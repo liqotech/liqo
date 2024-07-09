@@ -32,7 +32,7 @@ type ShadowEndpointSliceSpec struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=shadowendpointslices
+// +kubebuilder:resource:categories=liqo,shortName=shes;sheps;seps
 // +genclient
 
 // ShadowEndpointSlice is the Schema for the ShadowEndpointSlices API.

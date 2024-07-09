@@ -69,8 +69,8 @@ type IPStatus struct {
 // +kubebuilder:resource:categories=liqo
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Local IP",type=string,JSONPath=`.spec.ip`
-// +kubebuilder:printcolumn:name="Remapped IPs",type=string,JSONPath=`.status.ipMappings`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Remapped IPs",type=string,JSONPath=`.status.ipMappings`,priority=1
 // +genclient
 
 // IP is the Schema for the IP API.

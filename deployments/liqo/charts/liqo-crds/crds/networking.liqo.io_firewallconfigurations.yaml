@@ -13,6 +13,10 @@ spec:
     kind: FirewallConfiguration
     listKind: FirewallConfigurationList
     plural: firewallconfigurations
+    shortNames:
+    - fw
+    - fwconfig
+    - fwcfg
     singular: firewallconfiguration
   scope: Namespaced
   versions:

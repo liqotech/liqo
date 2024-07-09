@@ -165,13 +165,13 @@ type TenantNamespaceType struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster,categories=liqo
+// +kubebuilder:resource:scope=Cluster,categories=liqo,shortName=fc
 // +kubebuilder:subresource:status
-
-// ForeignCluster is the Schema for the foreignclusters API.
 // +kubebuilder:printcolumn:name="Role",type=string,JSONPath=`.status.role`
 // +kubebuilder:printcolumn:name="ClusterID",type=string,priority=1,JSONPath=`.spec.clusterID`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+
+// ForeignCluster is the Schema for the foreignclusters API.
 type ForeignCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

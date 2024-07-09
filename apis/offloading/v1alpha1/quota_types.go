@@ -46,7 +46,11 @@ type QuotaSpec struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories=liqo
+// +kubebuilder:resource:categories=liqo,shortName=qt
+// +kubebuilder:printcolumn:name="Enforcement",type=string,JSONPath=`.spec.limitsEnforcement`
+// +kubebuilder:printcolumn:name="Cordoned",type=boolean,JSONPath=`.spec.cordoned`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="User",type=string,JSONPath=`.spec.user`,priority=1
 
 // Quota is the Schema for the quota API.
 type Quota struct {
