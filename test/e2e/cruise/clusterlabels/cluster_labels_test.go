@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -39,6 +38,7 @@ import (
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
+	"github.com/liqotech/liqo/test/e2e/testutils/config"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -53,12 +53,10 @@ const (
 var (
 	ctx         = context.Background()
 	testContext = tester.GetTester(ctx)
-	interval    = 1 * time.Second
+	interval    = config.Interval
 	// shortTimeout is used for Consistently statement.
-	shortTimeout = 5 * time.Second
-	timeout      = 10 * time.Second
-	// longTimeout is used in situations that may take longer to be performed.
-	longTimeout = 2 * time.Minute
+	shortTimeout = config.TimeoutConsistently
+	timeout      = config.Timeout
 	// namespaceName is the name of the test namespace for this test.
 	namespaceName = util.GetNameNamespaceTest(testName)
 	localIndex    = 0
@@ -225,7 +223,7 @@ var _ = Describe("Liqo E2E", func() {
 					namespaceOffloading)
 				_ = testContext.Clusters[localIndex].ControllerClient.Delete(ctx, namespaceOffloading)
 				return apierrors.ReasonForError(err)
-			}, longTimeout, interval).Should(Equal(metav1.StatusReasonNotFound))
+			}, timeout, interval).Should(Equal(metav1.StatusReasonNotFound))
 
 			// When the NamespaceOffloading resource is really deleted the remote namespaces must be already deleted.
 			By(" 2 - Checking that all remote namespaces are deleted")
