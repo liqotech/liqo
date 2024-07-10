@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -117,7 +117,7 @@ func NewPodReflector(
 	remoteRESTConfig *rest.Config, /* required to establish the connection to implement `kubectl exec` */
 	remoteMetricsFactory MetricsFactory, /* required to retrieve the pod metrics from the remote cluster */
 	podReflectorconfig *PodReflectorConfig,
-	reflectorConfig *vkv1alpha1.ReflectorConfig) *PodReflector {
+	reflectorConfig *offloadingv1alpha1.ReflectorConfig) *PodReflector {
 	reflector := &PodReflector{
 		remoteRESTConfig:     remoteRESTConfig,
 		remoteMetricsFactory: remoteMetricsFactory,
@@ -125,7 +125,7 @@ func NewPodReflector(
 	}
 
 	genericReflector := generic.NewReflector(PodReflectorName, reflector.NewNamespaced, reflector.NewFallback,
-		reflectorConfig.NumWorkers, vkv1alpha1.CustomLiqo, generic.ConcurrencyModeAll)
+		reflectorConfig.NumWorkers, offloadingv1alpha1.CustomLiqo, generic.ConcurrencyModeAll)
 	reflector.Reflector = genericReflector
 	return reflector
 }
@@ -136,7 +136,7 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 	remote := opts.RemoteFactory.Core().V1().Pods()
 	_, err = remote.Informer().AddEventHandler(opts.HandlerFactory(RemoteShadowNamespacedKeyer(opts.LocalNamespace, forge.LiqoNodeName)))
 	utilruntime.Must(err)
-	remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowPods()
+	remoteShadow := opts.RemoteLiqoFactory.Offloading().V1alpha1().ShadowPods()
 	_, err = remoteShadow.Informer().AddEventHandler(opts.HandlerFactory(RemoteShadowNamespacedKeyer(opts.LocalNamespace, forge.LiqoNodeName)))
 	utilruntime.Must(err)
 	remoteSecrets := opts.RemoteFactory.Core().V1().Secrets()
@@ -151,7 +151,7 @@ func (pr *PodReflector) NewNamespaced(opts *options.NamespacedOpts) manager.Name
 
 		localPodsClient:        opts.LocalClient.CoreV1().Pods(opts.LocalNamespace),
 		remotePodsClient:       opts.RemoteClient.CoreV1().Pods(opts.RemoteNamespace),
-		remoteShadowPodsClient: opts.RemoteLiqoClient.VirtualkubeletV1alpha1().ShadowPods(opts.RemoteNamespace),
+		remoteShadowPodsClient: opts.RemoteLiqoClient.OffloadingV1alpha1().ShadowPods(opts.RemoteNamespace),
 
 		remoteRESTClient: opts.RemoteClient.CoreV1().RESTClient(),
 		remoteRESTConfig: pr.remoteRESTConfig,

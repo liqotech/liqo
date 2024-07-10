@@ -20,7 +20,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	mapsv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 )
 
 const (

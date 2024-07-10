@@ -27,7 +27,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -55,7 +55,7 @@ type NamespacedIngressReflector struct {
 }
 
 // NewIngressReflector returns a new IngressReflector instance.
-func NewIngressReflector(reflectorConfig *vkv1alpha1.ReflectorConfig,
+func NewIngressReflector(reflectorConfig *offloadingv1alpha1.ReflectorConfig,
 	enableIngress bool, remoteRealIngressClassName string) manager.Reflector {
 	return generic.NewReflector(IngressReflectorName, NewNamespacedIngressReflector(enableIngress, remoteRealIngressClassName),
 		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
@@ -113,7 +113,7 @@ func (nir *NamespacedIngressReflector) Handle(ctx context.Context, name string) 
 			return err
 		}
 		if skipReflection {
-			if nir.GetReflectionType() == vkv1alpha1.DenyList {
+			if nir.GetReflectionType() == offloadingv1alpha1.DenyList {
 				klog.Infof("Skipping reflection of local Ingress %q as marked with the skip annotation", nir.LocalRef(name))
 			} else { // AllowList
 				klog.Infof("Skipping reflection of local Ingress %q as not marked with the allow annotation", nir.LocalRef(name))

@@ -23,30 +23,83 @@ import (
 )
 
 var (
-	// GroupVersion is group version used to register these objects.
-	GroupVersion = schema.GroupVersion{Group: "offloading.liqo.io", Version: "v1alpha1"}
+	// SchemeGroupVersion is group version used to register these objects.
+	SchemeGroupVersion = schema.GroupVersion{Group: "offloading.liqo.io", Version: "v1alpha1"}
 
 	// NamespaceOffloadingResource is the resource name used to register the NamespaceOffloading CRD.
 	NamespaceOffloadingResource = "namespaceoffloadings"
 
 	// NamespaceOffloadingGroupResource is group and resource used to register these objects.
-	NamespaceOffloadingGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: NamespaceOffloadingResource}
+	NamespaceOffloadingGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: NamespaceOffloadingResource}
 
 	// NamespaceOffloadingGroupVersionResource is the group version resource used to register the NamespaceOffloading CRD.
-	NamespaceOffloadingGroupVersionResource = GroupVersion.WithResource(NamespaceOffloadingResource)
+	NamespaceOffloadingGroupVersionResource = SchemeGroupVersion.WithResource(NamespaceOffloadingResource)
 
 	// QuotaResource is the resource name used to register the Quota CRD.
 	QuotaResource = "quotas"
 
 	// QuotaGroupResource is group and resource used to register these objects.
-	QuotaGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: QuotaResource}
+	QuotaGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: QuotaResource}
 
 	// QuotaGroupVersionResource is the group version resource used to register the Quota CRD.
-	QuotaGroupVersionResource = GroupVersion.WithResource(QuotaResource)
+	QuotaGroupVersionResource = SchemeGroupVersion.WithResource(QuotaResource)
+
+	// NamespaceMapResource is the resource name used to register the NamespaceMap CRD.
+	NamespaceMapResource = "namespacemaps"
+
+	// NamespaceMapGroupResource is group resource used to register these objects.
+	NamespaceMapGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: NamespaceMapResource}
+
+	// NamespaceMapGroupVersionResource is groupResourceVersion used to register these objects.
+	NamespaceMapGroupVersionResource = SchemeGroupVersion.WithResource(NamespaceMapResource)
+
+	// VirtualNodeKind is the kind name used to register the VirtualNode CRD.
+	VirtualNodeKind = "VirtualNode"
+
+	// VirtualNodeResource is the resource name used to register the VirtualNode CRD.
+	VirtualNodeResource = "virtualnodes"
+
+	// VirtualNodeGroupResource is group resource used to register these objects.
+	VirtualNodeGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: VirtualNodeResource}
+
+	// VirtualNodeGroupVersionResource is groupResourceVersion used to register these objects.
+	VirtualNodeGroupVersionResource = SchemeGroupVersion.WithResource(VirtualNodeResource)
+
+	// ShadowPodResource is the resource name used to register the ShadowPod CRD.
+	ShadowPodResource = "shadowpods"
+
+	// ShadowPodGroupResource is group resource used to register these objects.
+	ShadowPodGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: ShadowPodResource}
+
+	// ShadowPodGroupVersionResource is groupResourceVersion used to register these objects.
+	ShadowPodGroupVersionResource = SchemeGroupVersion.WithResource(ShadowPodResource)
+
+	// ShadowEndpointSliceResource is the resource name used to register the ShadowEndpointSlice CRD.
+	ShadowEndpointSliceResource = "shadowendpointslices"
+
+	// ShadowEndpointSliceGroupResource is group resource used to register these objects.
+	ShadowEndpointSliceGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: ShadowEndpointSliceResource}
+
+	// ShadowEndpointSliceGroupVersionResource is groupResourceVersion used to register these objects.
+	ShadowEndpointSliceGroupVersionResource = SchemeGroupVersion.WithResource(ShadowEndpointSliceResource)
+
+	// VkOptionsTemplateResource is the resource name used to register the VkOptionsTemplate CRD.
+	VkOptionsTemplateResource = "vkoptionstemplates"
+
+	// VkOptionsTemplateGroupResource is group resource used to register these objects.
+	VkOptionsTemplateGroupResource = schema.GroupResource{Group: SchemeGroupVersion.Group, Resource: VkOptionsTemplateResource}
+
+	// VkOptionsTemplateGroupVersionResource is groupResourceVersion used to register these objects.
+	VkOptionsTemplateGroupVersionResource = SchemeGroupVersion.WithResource(VkOptionsTemplateResource)
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
+	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
+
+// Resource takes an unqualified resource and returns a Group qualified GroupResource.
+func Resource(resource string) schema.GroupResource {
+	return SchemeGroupVersion.WithResource(resource).GroupResource()
+}

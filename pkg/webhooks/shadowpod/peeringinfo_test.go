@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 var _ = Describe("Peering Info", func() {
@@ -40,7 +39,7 @@ var _ = Describe("Peering Info", func() {
 		err                          error
 		errTest                      error
 		fakeClient                   client.Client
-		shadowPod                    *vkv1alpha1.ShadowPod
+		shadowPod                    *offloadingv1alpha1.ShadowPod
 		containers                   []containerResource
 	)
 

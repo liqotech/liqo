@@ -32,7 +32,6 @@ import (
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
@@ -73,17 +72,17 @@ var (
 	tenantNamespace2 *corev1.Namespace
 	tenantNamespace3 *corev1.Namespace
 
-	virtualNode1 *vkv1alpha1.VirtualNode
-	virtualNode2 *vkv1alpha1.VirtualNode
-	virtualNode3 *vkv1alpha1.VirtualNode
+	virtualNode1 *offv1alpha1.VirtualNode
+	virtualNode2 *offv1alpha1.VirtualNode
+	virtualNode3 *offv1alpha1.VirtualNode
 
 	node1 *corev1.Node
 	node2 *corev1.Node
 	node3 *corev1.Node
 
-	nm1 *vkv1alpha1.NamespaceMap
-	nm2 *vkv1alpha1.NamespaceMap
-	nm3 *vkv1alpha1.NamespaceMap
+	nm1 *offv1alpha1.NamespaceMap
+	nm2 *offv1alpha1.NamespaceMap
+	nm3 *offv1alpha1.NamespaceMap
 
 	namespace *corev1.Namespace
 	nsoff     *offv1alpha1.NamespaceOffloading
@@ -100,8 +99,8 @@ var _ = BeforeSuite(func() {
 	SetDefaultConsistentlyDuration(500 * time.Millisecond)
 	SetDefaultEventuallyPollingInterval(50 * time.Millisecond)
 
-	ForgeNamespaceMap := func(cluster liqov1alpha1.ClusterID) *vkv1alpha1.NamespaceMap {
-		return &vkv1alpha1.NamespaceMap{
+	ForgeNamespaceMap := func(cluster liqov1alpha1.ClusterID) *offv1alpha1.NamespaceMap {
+		return &offv1alpha1.NamespaceMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      string(cluster),
 				Namespace: mapNamespaceName,
@@ -134,7 +133,7 @@ var _ = BeforeSuite(func() {
 	err = corev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = vkv1alpha1.AddToScheme(scheme.Scheme)
+	err = offv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = offv1alpha1.AddToScheme(scheme.Scheme)
@@ -167,7 +166,7 @@ var _ = BeforeSuite(func() {
 	tenantNamespace2 = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "tenant-namespace-2"}}
 	tenantNamespace3 = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "tenant-namespace-3"}}
 
-	virtualNode1 = &vkv1alpha1.VirtualNode{
+	virtualNode1 = &offv1alpha1.VirtualNode{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      virtualNode1Name,
 			Namespace: tenantNamespace1.Name,
@@ -178,12 +177,12 @@ var _ = BeforeSuite(func() {
 				liqoconst.ProviderClusterLabel:       providerAWS,
 			},
 		},
-		Spec: vkv1alpha1.VirtualNodeSpec{
+		Spec: offv1alpha1.VirtualNodeSpec{
 			ClusterID: remoteCluster1,
 		},
 	}
 
-	virtualNode2 = &vkv1alpha1.VirtualNode{
+	virtualNode2 = &offv1alpha1.VirtualNode{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      virtualNode2Name,
 			Namespace: tenantNamespace2.Name,
@@ -194,12 +193,12 @@ var _ = BeforeSuite(func() {
 				liqoconst.ProviderClusterLabel:       providerGKE,
 			},
 		},
-		Spec: vkv1alpha1.VirtualNodeSpec{
+		Spec: offv1alpha1.VirtualNodeSpec{
 			ClusterID: remoteCluster2,
 		},
 	}
 
-	virtualNode3 = &vkv1alpha1.VirtualNode{
+	virtualNode3 = &offv1alpha1.VirtualNode{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      virtualNode3Name,
 			Namespace: tenantNamespace3.Name,
@@ -210,7 +209,7 @@ var _ = BeforeSuite(func() {
 				liqoconst.ProviderClusterLabel:       providerGKE,
 			},
 		},
-		Spec: vkv1alpha1.VirtualNodeSpec{
+		Spec: offv1alpha1.VirtualNodeSpec{
 			ClusterID: remoteCluster3,
 		},
 	}

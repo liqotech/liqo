@@ -34,7 +34,7 @@ import (
 	"k8s.io/utils/trace"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
@@ -68,7 +68,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 			broadcaster := record.NewBroadcaster()
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
@@ -109,13 +109,13 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 			var (
 				local, remote corev1.Pod
-				shadow        vkv1alpha1.ShadowPod
+				shadow        offloadingv1alpha1.ShadowPod
 				err           error
 			)
 
 			WhenBodyRemoteNotManagedByReflection := func() func() {
 				return func() {
-					var shadowBefore *vkv1alpha1.ShadowPod
+					var shadowBefore *offloadingv1alpha1.ShadowPod
 
 					BeforeEach(func() {
 						shadowBefore = CreateShadowPod(liqoClient, &shadow)
@@ -132,7 +132,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 			BeforeEach(func() {
 				local = corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: LocalNamespace}}
 				remote = corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: RemoteNamespace}}
-				shadow = vkv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: RemoteNamespace}}
+				shadow = offloadingv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: PodName, Namespace: RemoteNamespace}}
 			})
 
 			JustBeforeEach(func() {
@@ -151,7 +151,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 						It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 						It("the remote object should not be created", func() {
-							_, err = liqoClient.VirtualkubeletV1alpha1().ShadowPods(RemoteNamespace).Get(ctx, PodName, metav1.GetOptions{})
+							_, err = liqoClient.OffloadingV1alpha1().ShadowPods(RemoteNamespace).Get(ctx, PodName, metav1.GetOptions{})
 							Expect(GetShadowPodError(liqoClient, RemoteNamespace, PodName)).To(BeNotFound())
 						})
 					}
@@ -360,7 +360,7 @@ var _ = Describe("Namespaced Pod Reflection Tests", func() {
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("should remove the remote shadow pod (if present)", func() {
-					_, err = liqoClient.VirtualkubeletV1alpha1().ShadowPods(RemoteNamespace).Get(ctx, PodName, metav1.GetOptions{})
+					_, err = liqoClient.OffloadingV1alpha1().ShadowPods(RemoteNamespace).Get(ctx, PodName, metav1.GetOptions{})
 					Expect(GetShadowPodError(liqoClient, RemoteNamespace, PodName)).To(BeNotFound())
 				})
 			})

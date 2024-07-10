@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -51,7 +51,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	Expect(corev1.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(vkv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(offloadingv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())

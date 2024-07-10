@@ -31,7 +31,7 @@ import (
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -58,7 +58,7 @@ func NewVirtualNodeCreatorReconciler(cl client.Client, s *runtime.Scheme, record
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices,verbs=get;list;watch
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=identities,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;delete;create;update;patch
@@ -142,7 +142,7 @@ func (r *VirtualNodeCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&authv1alpha1.ResourceSlice{}, builder.WithPredicates(predicate.And(localResSliceFilter, withConditionsAccepeted()))).
-		Owns(&vkv1alpha1.VirtualNode{}).
+		Owns(&offloadingv1alpha1.VirtualNode{}).
 		Owns(&authv1alpha1.Identity{}).
 		Complete(r)
 }

@@ -23,7 +23,7 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 
 	v1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 )
 
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
@@ -56,17 +56,17 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	case v1alpha1.SchemeGroupVersion.WithResource("ips"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ipam().V1alpha1().IPs().Informer()}, nil
 
-		// Group=virtualkubelet.liqo.io, Version=v1alpha1
-	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("namespacemaps"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().NamespaceMaps().Informer()}, nil
-	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("shadowendpointslices"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().ShadowEndpointSlices().Informer()}, nil
-	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("shadowpods"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().ShadowPods().Informer()}, nil
-	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("virtualnodes"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().VirtualNodes().Informer()}, nil
-	case virtualkubeletv1alpha1.SchemeGroupVersion.WithResource("vkoptionstemplates"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Virtualkubelet().V1alpha1().VkOptionsTemplates().Informer()}, nil
+		// Group=offloading, Version=v1alpha1
+	case offloadingv1alpha1.SchemeGroupVersion.WithResource("namespacemaps"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1alpha1().NamespaceMaps().Informer()}, nil
+	case offloadingv1alpha1.SchemeGroupVersion.WithResource("shadowendpointslices"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1alpha1().ShadowEndpointSlices().Informer()}, nil
+	case offloadingv1alpha1.SchemeGroupVersion.WithResource("shadowpods"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1alpha1().ShadowPods().Informer()}, nil
+	case offloadingv1alpha1.SchemeGroupVersion.WithResource("virtualnodes"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1alpha1().VirtualNodes().Informer()}, nil
+	case offloadingv1alpha1.SchemeGroupVersion.WithResource("vkoptionstemplates"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Offloading().V1alpha1().VkOptionsTemplates().Informer()}, nil
 
 	}
 

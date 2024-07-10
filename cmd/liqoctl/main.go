@@ -29,14 +29,12 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqocmd "github.com/liqotech/liqo/cmd/liqoctl/cmd"
 )
 
 func init() {
 	utilruntime.Must(liqov1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(virtualkubeletv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(authv1alpha1.AddToScheme(scheme.Scheme))

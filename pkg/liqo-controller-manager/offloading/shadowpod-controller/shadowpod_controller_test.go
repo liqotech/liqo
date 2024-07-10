@@ -30,7 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowpod-controller"
 )
@@ -53,8 +53,8 @@ var _ = Describe("Reconcile", func() {
 		err    error
 		buffer *bytes.Buffer
 
-		testShadowPod        vkv1alpha1.ShadowPod
-		testShadowPodSuccess vkv1alpha1.ShadowPod
+		testShadowPod        offloadingv1alpha1.ShadowPod
+		testShadowPodSuccess offloadingv1alpha1.ShadowPod
 		testPod              corev1.Pod
 	)
 
@@ -63,7 +63,7 @@ var _ = Describe("Reconcile", func() {
 		buffer = &bytes.Buffer{}
 		klog.SetOutput(buffer)
 
-		testShadowPod = vkv1alpha1.ShadowPod{
+		testShadowPod = offloadingv1alpha1.ShadowPod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      shadowPodName,
 				Namespace: shadowPodNamespace,
@@ -76,7 +76,7 @@ var _ = Describe("Reconcile", func() {
 					"annotation2-key": "annotation2-value",
 				},
 			},
-			Spec: vkv1alpha1.ShadowPodSpec{
+			Spec: offloadingv1alpha1.ShadowPodSpec{
 				Pod: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:  "nginx",
@@ -84,11 +84,11 @@ var _ = Describe("Reconcile", func() {
 					},
 				}},
 			},
-			Status: vkv1alpha1.ShadowPodStatus{
+			Status: offloadingv1alpha1.ShadowPodStatus{
 				Phase: corev1.PodUnknown,
 			},
 		}
-		testShadowPodSuccess = vkv1alpha1.ShadowPod{
+		testShadowPodSuccess = offloadingv1alpha1.ShadowPod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      shadowPodName,
 				Namespace: shadowPodNamespace,
@@ -101,7 +101,7 @@ var _ = Describe("Reconcile", func() {
 					"annotation2-key": "annotation2-value",
 				},
 			},
-			Spec: vkv1alpha1.ShadowPodSpec{
+			Spec: offloadingv1alpha1.ShadowPodSpec{
 				Pod: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:  "nginx",
@@ -109,7 +109,7 @@ var _ = Describe("Reconcile", func() {
 					},
 				}},
 			},
-			Status: vkv1alpha1.ShadowPodStatus{
+			Status: offloadingv1alpha1.ShadowPodStatus{
 				Phase: corev1.PodSucceeded,
 			},
 		}
@@ -233,6 +233,6 @@ var _ = Describe("Reconcile", func() {
 })
 
 func deleteAllShadowPodsAndPods(ctx context.Context, ns string) {
-	Expect(k8sClient.DeleteAllOf(ctx, &vkv1alpha1.ShadowPod{}, client.InNamespace(ns))).Should(Succeed())
+	Expect(k8sClient.DeleteAllOf(ctx, &offloadingv1alpha1.ShadowPod{}, client.InNamespace(ns))).Should(Succeed())
 	Expect(k8sClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace(ns))).Should(Succeed())
 }

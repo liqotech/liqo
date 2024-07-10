@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
@@ -45,8 +45,8 @@ type NamespaceMapReconciler struct {
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;watch;list;update;patch;create;delete
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps/finalizers,verbs=get;update;patch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps,verbs=get;watch;list;update;patch;create;delete
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps/finalizers,verbs=get;update;patch
 
 // needed to approve the certificates
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;list;watch
@@ -59,7 +59,7 @@ type NamespaceMapReconciler struct {
 // Reconcile adds/removes NamespaceMap finalizer, and checks differences
 // between DesiredMapping and CurrentMapping in order to create/delete the Namespaces if it is necessary.
 func (r *NamespaceMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	namespaceMap := &vkv1alpha1.NamespaceMap{}
+	namespaceMap := &offloadingv1alpha1.NamespaceMap{}
 	if err := r.Get(ctx, req.NamespacedName, namespaceMap); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("NamespaceMap %q does not exist anymore", klog.KRef(req.Namespace, req.Name))
@@ -110,7 +110,7 @@ func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&vkv1alpha1.NamespaceMap{}, builder.WithPredicates(filter)).
+		For(&offloadingv1alpha1.NamespaceMap{}, builder.WithPredicates(filter)).
 		// It is not possible to use Owns, since a namespaced object cannot own a non-namespaced one,
 		// and cross namespace owners are disallowed by design.
 		// https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/.

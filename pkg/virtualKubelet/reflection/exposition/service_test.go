@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -42,7 +42,7 @@ import (
 var _ = Describe("Service Reflection Tests", func() {
 	Describe("the NewServiceReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[resources.Service],
 			}
@@ -55,7 +55,7 @@ var _ = Describe("Service Reflection Tests", func() {
 
 		var (
 			reflector      manager.NamespacedReflector
-			reflectionType vkv1alpha1.ReflectionType
+			reflectionType offloadingv1alpha1.ReflectionType
 
 			local, remote corev1.Service
 			err           error
@@ -209,7 +209,7 @@ var _ = Describe("Service Reflection Tests", func() {
 
 		When("the reflection type is AllowList", func() {
 			BeforeEach(func() {
-				reflectionType = vkv1alpha1.AllowList
+				reflectionType = offloadingv1alpha1.AllowList
 			})
 
 			When("the local object does exist, but does not have the allow annotation", func() {

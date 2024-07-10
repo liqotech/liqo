@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	vkalpha1scheme "github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -97,14 +97,14 @@ func GetPodError(client kubernetes.Interface, namespace, name string) error {
 	return errpod
 }
 
-func GetShadowPod(client liqoclient.Interface, namespace, name string) *vkv1alpha1.ShadowPod {
-	pod, errpod := client.VirtualkubeletV1alpha1().ShadowPods(namespace).Get(ctx, name, metav1.GetOptions{})
+func GetShadowPod(client liqoclient.Interface, namespace, name string) *offloadingv1alpha1.ShadowPod {
+	pod, errpod := client.OffloadingV1alpha1().ShadowPods(namespace).Get(ctx, name, metav1.GetOptions{})
 	ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
 	return pod
 }
 
 func GetShadowPodError(client liqoclient.Interface, namespace, name string) error {
-	_, errpod := client.VirtualkubeletV1alpha1().ShadowPods(namespace).Get(ctx, name, metav1.GetOptions{})
+	_, errpod := client.OffloadingV1alpha1().ShadowPods(namespace).Get(ctx, name, metav1.GetOptions{})
 	return errpod
 }
 
@@ -114,8 +114,8 @@ func CreatePod(client kubernetes.Interface, pod *corev1.Pod) *corev1.Pod {
 	return pod
 }
 
-func CreateShadowPod(client liqoclient.Interface, pod *vkv1alpha1.ShadowPod) *vkv1alpha1.ShadowPod {
-	pod, errpod := client.VirtualkubeletV1alpha1().ShadowPods(pod.GetNamespace()).Create(ctx, pod, metav1.CreateOptions{})
+func CreateShadowPod(client liqoclient.Interface, pod *offloadingv1alpha1.ShadowPod) *offloadingv1alpha1.ShadowPod {
+	pod, errpod := client.OffloadingV1alpha1().ShadowPods(pod.GetNamespace()).Create(ctx, pod, metav1.CreateOptions{})
 	ExpectWithOffset(1, errpod).ToNot(HaveOccurred())
 	return pod
 }

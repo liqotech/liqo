@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -62,7 +62,7 @@ func TestService(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	utilruntime.Must(vkv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme.Scheme))
 
 	testutil.LogsToGinkgoWriter()

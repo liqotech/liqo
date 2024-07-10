@@ -23,7 +23,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -75,18 +75,18 @@ func EndpointToBeReflected(endpoint *discoveryv1.Endpoint, localNodeClient corev
 }
 
 // RemoteShadowEndpointSlice forges the remote shadowendpointslice, given the local endpointslice.
-func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *vkv1alpha1.ShadowEndpointSlice,
+func RemoteShadowEndpointSlice(local *discoveryv1.EndpointSlice, remote *offloadingv1alpha1.ShadowEndpointSlice,
 	localNodeClient corev1listers.NodeLister, targetNamespace string, translator EndpointTranslator,
-	forgingOpts *ForgingOpts) *vkv1alpha1.ShadowEndpointSlice {
+	forgingOpts *ForgingOpts) *offloadingv1alpha1.ShadowEndpointSlice {
 	if remote == nil {
 		// The remote is nil if not already created.
-		remote = &vkv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
+		remote = &offloadingv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
 	}
 
-	return &vkv1alpha1.ShadowEndpointSlice{
+	return &offloadingv1alpha1.ShadowEndpointSlice{
 		ObjectMeta: RemoteEndpointSliceObjectMeta(&local.ObjectMeta, &remote.ObjectMeta, forgingOpts),
-		Spec: vkv1alpha1.ShadowEndpointSliceSpec{
-			Template: vkv1alpha1.EndpointSliceTemplate{
+		Spec: offloadingv1alpha1.ShadowEndpointSliceSpec{
+			Template: offloadingv1alpha1.EndpointSliceTemplate{
 				AddressType: local.AddressType,
 				Endpoints:   RemoteEndpointSliceEndpoints(local.Endpoints, localNodeClient, translator),
 				Ports:       RemoteEndpointSlicePorts(local.Ports),

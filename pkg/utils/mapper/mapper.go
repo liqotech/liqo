@@ -37,7 +37,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 // LiqoMapper is a function that returns a RESTMapper for the resources used by Liqo.
@@ -77,10 +76,7 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	if err = addGroup(dClient, liqov1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, virtualKubeletv1alpha1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
-		return err
-	}
-	if err = addGroup(dClient, offv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
+	if err = addGroup(dClient, offv1alpha1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
 	if err = addGroup(dClient, ipamv1alpha1.SchemeGroupVersion, mapper, GroupRequired); err != nil {

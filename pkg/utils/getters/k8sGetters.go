@@ -38,7 +38,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
@@ -64,27 +63,27 @@ func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, lSelector labe
 
 // GetNamespaceMapByLabel returns the NamespaceMapping with the given labels.
 func GetNamespaceMapByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) (*virtualkubeletv1alpha1.NamespaceMap, error) {
-	var namespaceMapList virtualkubeletv1alpha1.NamespaceMapList
+	ns string, lSelector labels.Selector) (*offloadingv1alpha1.NamespaceMap, error) {
+	var namespaceMapList offloadingv1alpha1.NamespaceMapList
 	if err := cl.List(ctx, &namespaceMapList, client.MatchingLabelsSelector{Selector: lSelector}, client.InNamespace(ns)); err != nil {
 		return nil, err
 	}
 
 	switch len(namespaceMapList.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(virtualkubeletv1alpha1.NamespaceMapGroupResource, virtualkubeletv1alpha1.NamespaceMapResource)
+		return nil, kerrors.NewNotFound(offloadingv1alpha1.NamespaceMapGroupResource, offloadingv1alpha1.NamespaceMapResource)
 	case 1:
 		return &namespaceMapList.Items[0], nil
 	default:
 		return nil, fmt.Errorf("multiple resources of type %q found for label selector %q,"+
-			" when only one was expected", virtualkubeletv1alpha1.NamespaceMapGroupResource.String(), lSelector.String())
+			" when only one was expected", offloadingv1alpha1.NamespaceMapGroupResource.String(), lSelector.String())
 	}
 }
 
 // ListNamespaceMapsByLabel returns the NamespaceMaps that match the given label selector.
 func ListNamespaceMapsByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) ([]virtualkubeletv1alpha1.NamespaceMap, error) {
-	var namespaceMapList virtualkubeletv1alpha1.NamespaceMapList
+	ns string, lSelector labels.Selector) ([]offloadingv1alpha1.NamespaceMap, error) {
+	var namespaceMapList offloadingv1alpha1.NamespaceMapList
 	if err := cl.List(ctx, &namespaceMapList, client.MatchingLabelsSelector{Selector: lSelector}, client.InNamespace(ns)); err != nil {
 		return nil, err
 	}
@@ -396,8 +395,8 @@ func GetKubeconfigSecretFromIdentity(ctx context.Context, cl client.Client, iden
 }
 
 // ListShadowPodsByCreator returns the list of ShadowPods created by the given user.
-func ListShadowPodsByCreator(ctx context.Context, cl client.Client, creator string) (*virtualkubeletv1alpha1.ShadowPodList, error) {
-	list := new(virtualkubeletv1alpha1.ShadowPodList)
+func ListShadowPodsByCreator(ctx context.Context, cl client.Client, creator string) (*offloadingv1alpha1.ShadowPodList, error) {
+	list := new(offloadingv1alpha1.ShadowPodList)
 	if err := cl.List(ctx, list, client.MatchingLabels{consts.CreatorLabelKey: creator}); err != nil {
 		return nil, err
 	}
@@ -444,15 +443,15 @@ func ListOffloadedPods(ctx context.Context, cl client.Client, namespace string) 
 }
 
 // ListVirtualNodesByLabels returns the list of virtual nodes.
-func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector labels.Selector) (*virtualkubeletv1alpha1.VirtualNodeList, error) {
-	var virtualNodes virtualkubeletv1alpha1.VirtualNodeList
+func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector labels.Selector) (*offloadingv1alpha1.VirtualNodeList, error) {
+	var virtualNodes offloadingv1alpha1.VirtualNodeList
 	err := cl.List(ctx, &virtualNodes, &client.ListOptions{LabelSelector: lSelector})
 	return &virtualNodes, err
 }
 
 // ListVirtualNodesByClusterID returns the list of virtual nodes for the given cluster id.
 func ListVirtualNodesByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID liqov1alpha1.ClusterID) ([]virtualkubeletv1alpha1.VirtualNode, error) {
+	remoteClusterID liqov1alpha1.ClusterID) ([]offloadingv1alpha1.VirtualNode, error) {
 	virtualNodes, err := ListVirtualNodesByLabels(ctx, cl, labels.SelectorFromSet(map[string]string{
 		consts.RemoteClusterID: string(remoteClusterID),
 	}))
@@ -463,7 +462,7 @@ func ListVirtualNodesByClusterID(ctx context.Context, cl client.Client,
 }
 
 // GetNodeFromVirtualNode returns the node object from the given virtual node name.
-func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *virtualkubeletv1alpha1.VirtualNode) (*corev1.Node, error) {
+func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *offloadingv1alpha1.VirtualNode) (*corev1.Node, error) {
 	nodename := virtualNode.Name
 	nodes, err := ListNodesByClusterID(ctx, cl, virtualNode.Spec.ClusterID)
 	if err != nil {
@@ -495,7 +494,7 @@ func MapForeignClustersByLabel(ctx context.Context, cl client.Client,
 
 // ListVirtualKubeletPodsFromVirtualNode returns the list of pods running a VirtualNode's VirtualKubelet.
 func ListVirtualKubeletPodsFromVirtualNode(ctx context.Context, cl client.Client,
-	vn *virtualkubeletv1alpha1.VirtualNode) (*corev1.PodList, error) {
+	vn *offloadingv1alpha1.VirtualNode) (*corev1.PodList, error) {
 	list := &corev1.PodList{}
 	vklabels := vkforge.VirtualKubeletLabels(vn)
 	err := cl.List(ctx, list, client.MatchingLabels(vklabels))
