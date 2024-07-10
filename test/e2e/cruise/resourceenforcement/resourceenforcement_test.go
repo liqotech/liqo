@@ -32,6 +32,7 @@ import (
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/test/e2e/testutils/config"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -52,9 +53,9 @@ func TestE2E(t *testing.T) {
 var (
 	ctx                 = context.Background()
 	testContext         = tester.GetTester(ctx)
-	interval            = 3 * time.Second
-	timeout             = 5 * time.Minute
-	consistentlyTimeout = 30 * time.Second
+	interval            = config.Interval
+	timeout             = config.Timeout
+	consistentlyTimeout = config.TimeoutConsistently
 	namespaceName       = util.GetNameNamespaceTest(testName)
 
 	sliceName       = "resourceenforcement"
