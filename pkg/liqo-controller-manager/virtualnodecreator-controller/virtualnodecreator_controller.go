@@ -121,6 +121,10 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		if err := forge.MutateVirtualNode(virtualNode, identity.Spec.ClusterID, vnOpts, nil, nil); err != nil {
 			return err
 		}
+		if virtualNode.Labels == nil {
+			virtualNode.Labels = map[string]string{}
+		}
+		virtualNode.Labels[consts.ResourceSliceNameLabelKey] = resourceSlice.Name
 		return controllerutil.SetControllerReference(&resourceSlice, virtualNode, r.Scheme)
 	}); err != nil {
 		klog.Errorf("Unable to create or update the VirtualNode for resourceslice %q: %s", req.NamespacedName, err)

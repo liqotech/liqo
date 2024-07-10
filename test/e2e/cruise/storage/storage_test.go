@@ -59,7 +59,7 @@ var (
 )
 
 var _ = Describe("Liqo E2E", func() {
-	Context("E2E Storage Testing", func() {
+	Context("Storage Testing", func() {
 		var (
 			replica1Name = fmt.Sprintf("%v-1", storage.StatefulSetName)
 			options      *k8s.KubectlOptions

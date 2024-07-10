@@ -162,7 +162,7 @@ func main() {
 	mgr.GetWebhookServer().Register("/mutate/pod", podwh.New(mgr.GetClient(), *addVirtualNodeTolerationOnOffloadedPods))
 	mgr.GetWebhookServer().Register("/mutate/virtualnodes", virtualnodewh.New(
 		mgr.GetClient(), clusterID, *podcidr, *liqoNamespace, vkOptsDefaultTemplateRef))
-	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator())
+	mgr.GetWebhookServer().Register("/validate/resourceslices", resourceslicewh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", fwcfgwh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", fwcfgwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routecfgwh.NewValidator(mgr.GetClient()))
