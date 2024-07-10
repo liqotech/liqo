@@ -54,7 +54,7 @@ var (
 )
 
 var _ = Describe("Liqo E2E", func() {
-	Context("E2E API server interaction Testing", func() {
+	Context("API server interaction Testing", func() {
 		const (
 			retries             = 60
 			sleepBetweenRetries = 1 * time.Second
