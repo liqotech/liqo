@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/discovery"
 
 	"github.com/liqotech/liqo/test/e2e/testutils/apiserver"
+	"github.com/liqotech/liqo/test/e2e/testutils/config"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -47,8 +48,8 @@ func TestE2E(t *testing.T) {
 var (
 	ctx           = context.Background()
 	testContext   = tester.GetTester(ctx)
-	interval      = 3 * time.Second
-	timeout       = 5 * time.Minute
+	interval      = config.Interval
+	timeout       = config.Timeout
 	namespaceName = util.GetNameNamespaceTest(testName)
 )
 

@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -34,6 +33,7 @@ import (
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
+	"github.com/liqotech/liqo/test/e2e/testutils/config"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -48,8 +48,8 @@ const (
 var (
 	ctx         = context.Background()
 	testContext = tester.GetTester(ctx)
-	interval    = 1 * time.Second
-	timeout     = 10 * time.Second
+	interval    = config.Interval
+	timeout     = config.Timeout
 	localIndex  = 0
 	// index of the cluster on which the remote namespace is deleted to test the recreation process.
 	remoteIndex         = 1
