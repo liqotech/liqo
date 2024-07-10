@@ -92,7 +92,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - virtualkubelet.liqo.io
+  - offloading.liqo.io
   resources:
   - shadowendpointslices
   verbs:
@@ -104,7 +104,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - virtualkubelet.liqo.io
+  - offloading.liqo.io
   resources:
   - shadowpods
   verbs:

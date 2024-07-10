@@ -23,20 +23,20 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
-func (w *vnwh) initVirtualNodeDeployment(vn *virtualkubeletv1alpha1.VirtualNode, opts *virtualkubeletv1alpha1.VkOptionsTemplate) {
+func (w *vnwh) initVirtualNodeDeployment(vn *offloadingv1alpha1.VirtualNode, opts *offloadingv1alpha1.VkOptionsTemplate) {
 	if vn.Spec.Template == nil {
-		vn.Spec.Template = &virtualkubeletv1alpha1.DeploymentTemplate{}
+		vn.Spec.Template = &offloadingv1alpha1.DeploymentTemplate{}
 	}
 	vkdep := vkforge.VirtualKubeletDeployment(w.clusterID, w.localPodCIDR, w.liqoNamespace, vn, opts)
 	vn.Spec.Template.Spec = *vkdep.Spec.DeepCopy()
 	vn.Spec.Template.ObjectMeta = *vkdep.ObjectMeta.DeepCopy()
 }
 
-func mutateSpec(vn *virtualkubeletv1alpha1.VirtualNode, opts *virtualkubeletv1alpha1.VkOptionsTemplate) {
+func mutateSpec(vn *offloadingv1alpha1.VirtualNode, opts *offloadingv1alpha1.VkOptionsTemplate) {
 	if vn.Spec.CreateNode == nil {
 		vn.Spec.CreateNode = &opts.Spec.CreateNode
 	}
@@ -47,9 +47,9 @@ func mutateSpec(vn *virtualkubeletv1alpha1.VirtualNode, opts *virtualkubeletv1al
 	mutateOffloadingPatch(vn, opts)
 }
 
-func mutateOffloadingPatch(vn *virtualkubeletv1alpha1.VirtualNode, opts *virtualkubeletv1alpha1.VkOptionsTemplate) {
+func mutateOffloadingPatch(vn *offloadingv1alpha1.VirtualNode, opts *offloadingv1alpha1.VkOptionsTemplate) {
 	if vn.Spec.OffloadingPatch == nil {
-		vn.Spec.OffloadingPatch = &virtualkubeletv1alpha1.OffloadingPatch{}
+		vn.Spec.OffloadingPatch = &offloadingv1alpha1.OffloadingPatch{}
 	}
 
 	// Add labels not reflected from opts if not already present in the VN OffloadingPatch.
@@ -67,7 +67,7 @@ func mutateOffloadingPatch(vn *virtualkubeletv1alpha1.VirtualNode, opts *virtual
 	}
 }
 
-func overrideVKOptionsFromExistingVirtualNode(opts *virtualkubeletv1alpha1.VkOptionsTemplate, vn *virtualkubeletv1alpha1.VirtualNode) {
+func overrideVKOptionsFromExistingVirtualNode(opts *offloadingv1alpha1.VkOptionsTemplate, vn *offloadingv1alpha1.VirtualNode) {
 	if vn.Spec.Template == nil {
 		return
 	}
@@ -76,7 +76,7 @@ func overrideVKOptionsFromExistingVirtualNode(opts *virtualkubeletv1alpha1.VkOpt
 	overrideVKOptionsSpec(opts, &vn.Spec.Template.Spec)
 }
 
-func overrideVKOptionsSpec(opts *virtualkubeletv1alpha1.VkOptionsTemplate, depSpec *appsv1.DeploymentSpec) {
+func overrideVKOptionsSpec(opts *offloadingv1alpha1.VkOptionsTemplate, depSpec *appsv1.DeploymentSpec) {
 	if len(depSpec.Template.Spec.Containers) == 0 {
 		return
 	}
@@ -89,7 +89,7 @@ func overrideVKOptionsSpec(opts *virtualkubeletv1alpha1.VkOptionsTemplate, depSp
 	overrideVKOptionsArgs(opts, container.Args)
 }
 
-func overrideVKOptionsMetadata(opts *virtualkubeletv1alpha1.VkOptionsTemplate, depMeta *metav1.ObjectMeta) {
+func overrideVKOptionsMetadata(opts *offloadingv1alpha1.VkOptionsTemplate, depMeta *metav1.ObjectMeta) {
 	if depMeta == nil {
 		return
 	}
@@ -111,7 +111,7 @@ func overrideVKOptionsMetadata(opts *virtualkubeletv1alpha1.VkOptionsTemplate, d
 	}
 }
 
-func overrideVKOptionsResources(opts *virtualkubeletv1alpha1.VkOptionsTemplate, res *corev1.ResourceRequirements) {
+func overrideVKOptionsResources(opts *offloadingv1alpha1.VkOptionsTemplate, res *corev1.ResourceRequirements) {
 	if res == nil {
 		return
 	}
@@ -134,7 +134,7 @@ func overrideVKOptionsResources(opts *virtualkubeletv1alpha1.VkOptionsTemplate, 
 	}
 }
 
-func overrideVKOptionsArgs(opts *virtualkubeletv1alpha1.VkOptionsTemplate, args []string) {
+func overrideVKOptionsArgs(opts *offloadingv1alpha1.VkOptionsTemplate, args []string) {
 	for i := range args {
 		k, v := vkforge.DestringifyArgument(args[i])
 		switch k {
@@ -173,14 +173,14 @@ func overrideVKOptionsArgs(opts *virtualkubeletv1alpha1.VkOptionsTemplate, args 
 	}
 }
 
-func mutateSpecInTemplate(vn *virtualkubeletv1alpha1.VirtualNode) {
+func mutateSpecInTemplate(vn *offloadingv1alpha1.VirtualNode) {
 	mutateSecretArg(vn)
 	mutateNodeCreate(vn)
 	mutateNodeCheckNetwork(vn)
 }
 
 // mutateSecretArg mutate the foreigncluster kubeconfig secret name in the virtual kubelet deployment.
-func mutateSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
+func mutateSecretArg(vn *offloadingv1alpha1.VirtualNode) {
 	ksref := vn.Spec.KubeconfigSecretRef
 	if ksref == nil {
 		return
@@ -202,7 +202,7 @@ func mutateSecretArg(vn *virtualkubeletv1alpha1.VirtualNode) {
 }
 
 // mutateNodeCreate mutate the creation of the remote cluster node.
-func mutateNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
+func mutateNodeCreate(vn *offloadingv1alpha1.VirtualNode) {
 	argCreateNode := vkforge.StringifyArgument(string(vkforge.CreateNode), strconv.FormatBool(*vn.Spec.CreateNode))
 	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
 	for i, arg := range container.Args {
@@ -219,7 +219,7 @@ func mutateNodeCreate(vn *virtualkubeletv1alpha1.VirtualNode) {
 }
 
 // mutateNodeCheckNetwork flag mutate the check network flag.
-func mutateNodeCheckNetwork(vn *virtualkubeletv1alpha1.VirtualNode) {
+func mutateNodeCheckNetwork(vn *offloadingv1alpha1.VirtualNode) {
 	argCheckNetwork := vkforge.StringifyArgument(string(vkforge.NodeCheckNetwork), strconv.FormatBool(!*vn.Spec.DisableNetworkCheck))
 	container := &vn.Spec.Template.Spec.Template.Spec.Containers[0]
 	for i, arg := range container.Args {

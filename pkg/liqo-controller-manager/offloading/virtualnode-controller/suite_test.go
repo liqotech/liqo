@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -67,10 +67,10 @@ var (
 
 	localID liqov1alpha1.ClusterID = "local-ID"
 
-	nms *mapsv1alpha1.NamespaceMapList
+	nms *offloadingv1alpha1.NamespaceMapList
 
-	virtualNode1     *mapsv1alpha1.VirtualNode
-	virtualNode2     *mapsv1alpha1.VirtualNode
+	virtualNode1     *offloadingv1alpha1.VirtualNode
+	virtualNode2     *offloadingv1alpha1.VirtualNode
 	simpleNode       *corev1.Node
 	tenantNamespace1 *corev1.Namespace
 	tenantNamespace2 *corev1.Namespace
@@ -101,7 +101,7 @@ var _ = BeforeSuite(func() {
 	err = corev1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = mapsv1alpha1.AddToScheme(scheme.Scheme)
+	err = offloadingv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = liqov1alpha1.AddToScheme(scheme.Scheme)
@@ -136,7 +136,7 @@ var _ = BeforeSuite(func() {
 		Expect(err).ToNot(HaveOccurred())
 	}()
 
-	nms = &mapsv1alpha1.NamespaceMapList{}
+	nms = &offloadingv1alpha1.NamespaceMapList{}
 
 	// create the 2 tenant namespace
 	tenantNamespace1, err = namespaceManager.CreateNamespace(ctx, remoteClusterID1)

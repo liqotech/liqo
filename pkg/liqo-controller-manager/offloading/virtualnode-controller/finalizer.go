@@ -20,10 +20,10 @@ import (
 	"k8s.io/klog/v2"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 )
 
-func (r *VirtualNodeReconciler) ensureVirtualNodeFinalizerPresence(ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
+func (r *VirtualNodeReconciler) ensureVirtualNodeFinalizerPresence(ctx context.Context, virtualNode *offloadingv1alpha1.VirtualNode) error {
 	ctrlutil.AddFinalizer(virtualNode, virtualNodeControllerFinalizer)
 	if err := r.Client.Update(ctx, virtualNode); err != nil {
 		klog.Errorf("unable to add the finalizer to the virtual-node: %s", err)
@@ -32,7 +32,7 @@ func (r *VirtualNodeReconciler) ensureVirtualNodeFinalizerPresence(ctx context.C
 	return nil
 }
 
-func (r *VirtualNodeReconciler) removeVirtualNodeFinalizer(ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
+func (r *VirtualNodeReconciler) removeVirtualNodeFinalizer(ctx context.Context, virtualNode *offloadingv1alpha1.VirtualNode) error {
 	ctrlutil.RemoveFinalizer(virtualNode, virtualNodeControllerFinalizer)
 	klog.Infof("Removing finalizer %s from virtual-node %s", virtualNodeControllerFinalizer, virtualNode.Name)
 	return r.Client.Update(ctx, virtualNode)

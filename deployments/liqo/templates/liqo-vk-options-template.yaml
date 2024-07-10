@@ -18,7 +18,7 @@
 {{- end }}
 {{- end }}
 
-apiVersion: virtualkubelet.liqo.io/v1alpha1
+apiVersion: offloading.liqo.io/v1alpha1
 kind: VkOptionsTemplate
 metadata:
   name: {{ printf "%s-default" $kubeletConfig.name }}

@@ -35,10 +35,10 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
-	vkv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1alpha1"
 	ipamv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/ipam/v1alpha1"
-	vkv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/virtualkubelet/v1alpha1"
+	offloadingv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1alpha1"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -61,8 +61,8 @@ type NamespacedEndpointSliceReflector struct {
 	localNodeClient                  corev1listers.NodeLister
 	localServices                    corev1listers.ServiceNamespaceLister
 	localEndpointSlices              discoveryv1listers.EndpointSliceNamespaceLister
-	remoteShadowEndpointSlices       vkv1alpha1listers.ShadowEndpointSliceNamespaceLister
-	remoteShadowEndpointSlicesClient vkv1alpha1clients.ShadowEndpointSliceInterface
+	remoteShadowEndpointSlices       offloadingv1alpha1listers.ShadowEndpointSliceNamespaceLister
+	remoteShadowEndpointSlicesClient offloadingv1alpha1clients.ShadowEndpointSliceInterface
 	localIPs                         ipamv1alpha1listers.IPNamespaceLister
 
 	localPodCIDR *net.IPNet
@@ -71,7 +71,7 @@ type NamespacedEndpointSliceReflector struct {
 }
 
 // NewEndpointSliceReflector returns a new EndpointSliceReflector instance.
-func NewEndpointSliceReflector(localPodCIDR string, reflectorConfig *vkv1alpha1.ReflectorConfig) manager.Reflector {
+func NewEndpointSliceReflector(localPodCIDR string, reflectorConfig *offloadingv1alpha1.ReflectorConfig) manager.Reflector {
 	return generic.NewReflector(EndpointSliceReflectorName, NewNamespacedEndpointSliceReflector(localPodCIDR),
 		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
@@ -83,7 +83,7 @@ func NewNamespacedEndpointSliceReflector(localPodCIDR string) func(*options.Name
 		localServices := opts.LocalFactory.Core().V1().Services()
 		localEndpointSlices := opts.LocalFactory.Discovery().V1().EndpointSlices()
 		localIPs := opts.LocalLiqoFactory.Ipam().V1alpha1().IPs()
-		remoteShadow := opts.RemoteLiqoFactory.Virtualkubelet().V1alpha1().ShadowEndpointSlices()
+		remoteShadow := opts.RemoteLiqoFactory.Offloading().V1alpha1().ShadowEndpointSlices()
 
 		_, err := localEndpointSlices.Informer().AddEventHandler(opts.HandlerFactory(generic.NamespacedKeyer(opts.LocalNamespace)))
 		utilruntime.Must(err)
@@ -99,7 +99,7 @@ func NewNamespacedEndpointSliceReflector(localPodCIDR string) func(*options.Name
 			localServices:                    localServices.Lister().Services(opts.LocalNamespace),
 			localEndpointSlices:              localEndpointSlices.Lister().EndpointSlices(opts.LocalNamespace),
 			remoteShadowEndpointSlices:       remoteShadow.Lister().ShadowEndpointSlices(opts.RemoteNamespace),
-			remoteShadowEndpointSlicesClient: opts.RemoteLiqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(opts.RemoteNamespace),
+			remoteShadowEndpointSlicesClient: opts.RemoteLiqoClient.OffloadingV1alpha1().ShadowEndpointSlices(opts.RemoteNamespace),
 			localIPs:                         localIPs.Lister().IPs(opts.LocalNamespace),
 			localPodCIDR:                     podCIDR,
 		}
@@ -154,7 +154,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 			return err
 		}
 		if skipReflection {
-			if ner.GetReflectionType() == vkv1alpha1.DenyList {
+			if ner.GetReflectionType() == offloadingv1alpha1.DenyList {
 				klog.Infof("Skipping reflection of local EndpointSlice %q as marked with the skip annotation", ner.LocalRef(name))
 			} else { // AllowList
 				klog.Infof("Skipping reflection of local EndpointSlice %q as not marked with the allow annotation", ner.LocalRef(name))
@@ -249,7 +249,7 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 
 // ShouldUpdateShadowEndpointSlice checks whether it is necessary to update the remote shadowendpointslice, based on the forged one.
 func (ner *NamespacedEndpointSliceReflector) ShouldUpdateShadowEndpointSlice(ctx context.Context,
-	remote, target *vkv1alpha1.ShadowEndpointSlice) bool {
+	remote, target *offloadingv1alpha1.ShadowEndpointSlice) bool {
 	defer trace.FromContext(ctx).Step("Checked whether a shadowendpointslice update was needed")
 	return !labels.Equals(remote.GetLabels(), target.GetLabels()) ||
 		!labels.Equals(remote.GetAnnotations(), target.GetAnnotations()) ||
@@ -369,7 +369,7 @@ func (ner *NamespacedEndpointSliceReflector) List() ([]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	listSeps, err := virtualkubelet.List[virtualkubelet.Lister[*vkv1alpha1.ShadowEndpointSlice], *vkv1alpha1.ShadowEndpointSlice](
+	listSeps, err := virtualkubelet.List[virtualkubelet.Lister[*offloadingv1alpha1.ShadowEndpointSlice], *offloadingv1alpha1.ShadowEndpointSlice](
 		ner.remoteShadowEndpointSlices,
 	)
 	if err != nil {

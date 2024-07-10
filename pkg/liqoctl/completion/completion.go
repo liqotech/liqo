@@ -28,7 +28,6 @@ import (
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	utilsvirtualnode "github.com/liqotech/liqo/pkg/utils/virtualnode"
@@ -132,7 +131,7 @@ func Nodes(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 // VirtualNodes returns a function to autocomplete virtual node names.
 func VirtualNodes(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var virtualNodes virtualkubeletv1alpha1.VirtualNodeList
+		var virtualNodes offloadingv1alpha1.VirtualNodeList
 		if err := f.CRClient.List(ctx, &virtualNodes, client.InNamespace(f.Namespace)); err != nil {
 			return nil, err
 		}
@@ -152,7 +151,7 @@ func LabelsSelector(ctx context.Context, f *factory.Factory, argsLimit int) FnTy
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
 		// labelsCounter contains a 'key=value' string as key and the number of times it appears as value.
 		labelsCounter := map[string]int{}
-		var virtualNodes virtualkubeletv1alpha1.VirtualNodeList
+		var virtualNodes offloadingv1alpha1.VirtualNodeList
 		if err := f.CRClient.List(ctx, &virtualNodes); err != nil {
 			return nil, err
 		}

@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 	vkutils "github.com/liqotech/liqo/pkg/vkMachinery/utils"
@@ -41,12 +41,12 @@ const offloadingPatchHashAnnotation = "liqo.io/offloading-patch-hash"
 
 // createVirtualKubeletDeployment creates the VirtualKubelet Deployment.
 func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
-	ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) (err error) {
-	var nodeStatusInitial virtualkubeletv1alpha1.VirtualNodeConditionStatusType
+	ctx context.Context, virtualNode *offloadingv1alpha1.VirtualNode) (err error) {
+	var nodeStatusInitial offloadingv1alpha1.VirtualNodeConditionStatusType
 	if *virtualNode.Spec.CreateNode {
-		nodeStatusInitial = virtualkubeletv1alpha1.CreatingConditionStatusType
+		nodeStatusInitial = offloadingv1alpha1.CreatingConditionStatusType
 	} else {
-		nodeStatusInitial = virtualkubeletv1alpha1.NoneConditionStatusType
+		nodeStatusInitial = offloadingv1alpha1.NoneConditionStatusType
 	}
 	defer func() {
 		if interr := r.Client.Status().Update(ctx, virtualNode); interr != nil {
@@ -59,10 +59,10 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 
 	ForgeCondition(virtualNode,
 		VnConditionMap{
-			virtualkubeletv1alpha1.VirtualKubeletConditionType: VnCondition{
-				Status: virtualkubeletv1alpha1.CreatingConditionStatusType,
+			offloadingv1alpha1.VirtualKubeletConditionType: VnCondition{
+				Status: offloadingv1alpha1.CreatingConditionStatusType,
 			},
-			virtualkubeletv1alpha1.NodeConditionType: VnCondition{Status: nodeStatusInitial},
+			offloadingv1alpha1.NodeConditionType: VnCondition{Status: nodeStatusInitial},
 		},
 	)
 
@@ -132,16 +132,16 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 
 	ForgeCondition(virtualNode,
 		VnConditionMap{
-			virtualkubeletv1alpha1.VirtualKubeletConditionType: VnCondition{
-				Status: virtualkubeletv1alpha1.RunningConditionStatusType,
+			offloadingv1alpha1.VirtualKubeletConditionType: VnCondition{
+				Status: offloadingv1alpha1.RunningConditionStatusType,
 			},
 		})
 
 	if *virtualNode.Spec.CreateNode {
 		ForgeCondition(virtualNode,
 			VnConditionMap{
-				virtualkubeletv1alpha1.NodeConditionType: VnCondition{
-					Status: virtualkubeletv1alpha1.RunningConditionStatusType,
+				offloadingv1alpha1.NodeConditionType: VnCondition{
+					Status: offloadingv1alpha1.RunningConditionStatusType,
 				},
 			})
 	}
@@ -151,7 +151,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentPresence(
 // ensureVirtualKubeletDeploymentAbsence deletes the VirtualKubelet Deployment.
 // It checks if the VirtualKubelet Pods have been deleted.
 func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
-	ctx context.Context, virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
+	ctx context.Context, virtualNode *offloadingv1alpha1.VirtualNode) error {
 	virtualKubeletDeployment, err := vkutils.GetVirtualKubeletDeployment(ctx, r.Client, virtualNode)
 	if err != nil {
 		return err
@@ -187,7 +187,7 @@ func (r *VirtualNodeReconciler) ensureVirtualKubeletDeploymentAbsence(
 	return nil
 }
 
-func offloadingPatchHash(offloadingPatch *virtualkubeletv1alpha1.OffloadingPatch) (string, error) {
+func offloadingPatchHash(offloadingPatch *offloadingv1alpha1.OffloadingPatch) (string, error) {
 	if offloadingPatch == nil {
 		return "", nil
 	}

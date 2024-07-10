@@ -32,7 +32,6 @@ import (
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	testutil "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -90,7 +89,6 @@ type containerResource struct {
 var _ = BeforeSuite(func() {
 	scheme = runtime.NewScheme()
 	testutil.LogsToGinkgoWriter()
-	Expect(vkv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(corev1.AddToScheme(scheme)).To(Succeed())
 	Expect(liqov1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(offloadingv1alpha1.AddToScheme(scheme)).To(Succeed())
@@ -101,7 +99,7 @@ func TestShadowpod(t *testing.T) {
 	RunSpecs(t, "Shadowpod Suite")
 }
 
-func serializeShadowPod(sp *vkv1alpha1.ShadowPod) runtime.RawExtension {
+func serializeShadowPod(sp *offloadingv1alpha1.ShadowPod) runtime.RawExtension {
 	data, err := json.Marshal(sp)
 	Expect(err).ToNot(HaveOccurred())
 	return runtime.RawExtension{Raw: data}
@@ -118,7 +116,7 @@ func forgeNamespaceWithClusterID(clusterID liqov1alpha1.ClusterID) *corev1.Names
 	}
 }
 
-func forgeRequest(op admissionv1.Operation, newShadowPod, oldShadowPod *vkv1alpha1.ShadowPod) admission.Request {
+func forgeRequest(op admissionv1.Operation, newShadowPod, oldShadowPod *offloadingv1alpha1.ShadowPod) admission.Request {
 	req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{Operation: op}}
 	if oldShadowPod != nil {
 		req.OldObject = serializeShadowPod(oldShadowPod)
@@ -146,8 +144,8 @@ func forgeResourceList(cpu, memory int64, gpu ...int64) *corev1.ResourceList {
 	return &resourceList
 }
 
-func forgeShadowPodWithClusterID(clusterID liqov1alpha1.ClusterID, userName, namespace string) *vkv1alpha1.ShadowPod {
-	return &vkv1alpha1.ShadowPod{
+func forgeShadowPodWithClusterID(clusterID liqov1alpha1.ClusterID, userName, namespace string) *offloadingv1alpha1.ShadowPod {
+	return &offloadingv1alpha1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testShadowPodName,
 			Namespace: namespace,
@@ -159,8 +157,8 @@ func forgeShadowPodWithClusterID(clusterID liqov1alpha1.ClusterID, userName, nam
 	}
 }
 
-func forgeShadowPod(name, namespace, uid, creatorName string) *vkv1alpha1.ShadowPod {
-	return &vkv1alpha1.ShadowPod{
+func forgeShadowPod(name, namespace, uid, creatorName string) *offloadingv1alpha1.ShadowPod {
+	return &offloadingv1alpha1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -169,7 +167,7 @@ func forgeShadowPod(name, namespace, uid, creatorName string) *vkv1alpha1.Shadow
 				consts.CreatorLabelKey: creatorName,
 			},
 		},
-		Spec: vkv1alpha1.ShadowPodSpec{
+		Spec: offloadingv1alpha1.ShadowPodSpec{
 			Pod: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
@@ -185,8 +183,8 @@ func forgeShadowPod(name, namespace, uid, creatorName string) *vkv1alpha1.Shadow
 	}
 }
 
-func forgeShadowPodWithResourceLimits(containers, initContainer []containerResource) *vkv1alpha1.ShadowPod {
-	sp := &vkv1alpha1.ShadowPod{
+func forgeShadowPodWithResourceLimits(containers, initContainer []containerResource) *offloadingv1alpha1.ShadowPod {
+	sp := &offloadingv1alpha1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testShadowPodName,
 			Namespace: testNamespace,
@@ -224,8 +222,8 @@ func forgeShadowPodWithResourceLimits(containers, initContainer []containerResou
 	return sp
 }
 
-func forgeShadowPodList(shadowPods ...*vkv1alpha1.ShadowPod) *vkv1alpha1.ShadowPodList {
-	spList := &vkv1alpha1.ShadowPodList{}
+func forgeShadowPodList(shadowPods ...*offloadingv1alpha1.ShadowPod) *offloadingv1alpha1.ShadowPodList {
+	spList := &offloadingv1alpha1.ShadowPodList{}
 
 	for _, sp := range shadowPods {
 		spList.Items = append(spList.Items, *sp)

@@ -21,11 +21,11 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 )
 
 // Removes right entry from one NamespaceMap, if present.
-func removeDesiredMapping(ctx context.Context, c client.Client, localName string, nm *mapsv1alpha1.NamespaceMap) error {
+func removeDesiredMapping(ctx context.Context, c client.Client, localName string, nm *offloadingv1alpha1.NamespaceMap) error {
 	if nm.Spec.DesiredMapping == nil {
 		klog.V(4).Infof("NamespaceMap %q does not contain any entry", nm.GetName())
 		return nil
@@ -43,7 +43,7 @@ func removeDesiredMapping(ctx context.Context, c client.Client, localName string
 }
 
 // Removes right entries from more than one NamespaceMap (it depends on len(nms)).
-func removeDesiredMappings(ctx context.Context, c client.Client, localName string, nms map[string]*mapsv1alpha1.NamespaceMap) error {
+func removeDesiredMappings(ctx context.Context, c client.Client, localName string, nms map[string]*offloadingv1alpha1.NamespaceMap) error {
 	errorCondition := false
 	for _, nm := range nms {
 		if err := removeDesiredMapping(ctx, c, localName, nm); err != nil {
@@ -58,7 +58,7 @@ func removeDesiredMappings(ctx context.Context, c client.Client, localName strin
 }
 
 // Adds right entry on one NamespaceMap, if it isn't already there.
-func addDesiredMapping(ctx context.Context, c client.Client, localName, remoteName string, nm *mapsv1alpha1.NamespaceMap) error {
+func addDesiredMapping(ctx context.Context, c client.Client, localName, remoteName string, nm *offloadingv1alpha1.NamespaceMap) error {
 	if nm.Spec.DesiredMapping == nil {
 		nm.Spec.DesiredMapping = map[string]string{}
 	}

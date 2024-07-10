@@ -31,7 +31,7 @@ import (
 	"k8s.io/utils/trace"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -44,7 +44,7 @@ import (
 var _ = Describe("Pod Reflection Tests", func() {
 	Describe("the NewPodReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
@@ -65,7 +65,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 
 		BeforeEach(func() {
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
@@ -130,7 +130,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 			client = fake.NewSimpleClientset(&local)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}

@@ -27,7 +27,7 @@ import (
 	"k8s.io/klog/v2"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/pkg/utils/maps"
@@ -36,7 +36,7 @@ import (
 
 func (p *LiqoNodeProvider) reconcileNodeFromVirtualNode(event watch.Event) error {
 	ctx := context.Background()
-	var virtualNode virtualkubeletv1alpha1.VirtualNode
+	var virtualNode offloadingv1alpha1.VirtualNode
 	unstruct, ok := event.Object.(*unstructured.Unstructured)
 	if !ok {
 		return errors.New("error in casting VirtualNode")
@@ -86,7 +86,7 @@ func (p *LiqoNodeProvider) reconcileNodeFromForeignCluster(event watch.Event) er
 
 // updateFromVirtualNode gets and updates the node status accordingly.
 func (p *LiqoNodeProvider) updateFromVirtualNode(ctx context.Context,
-	virtualNode *virtualkubeletv1alpha1.VirtualNode) error {
+	virtualNode *offloadingv1alpha1.VirtualNode) error {
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 

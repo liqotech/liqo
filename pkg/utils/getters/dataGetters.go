@@ -26,7 +26,7 @@ import (
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -169,7 +169,7 @@ func RetrieveNetworkConfiguration(ipamS *ipamv1alpha1.IpamStorage) (*NetworkConf
 }
 
 // RetrieveClusterIDsFromVirtualNodes returns the remote cluster IDs in a list of VirtualNodes avoiding duplicates.
-func RetrieveClusterIDsFromVirtualNodes(virtualNodes *virtualkubeletv1alpha1.VirtualNodeList) []string {
+func RetrieveClusterIDsFromVirtualNodes(virtualNodes *offloadingv1alpha1.VirtualNodeList) []string {
 	clusterIDs := make(map[string]interface{})
 	for i := range virtualNodes.Items {
 		clusterIDs[string(virtualNodes.Items[i].Spec.ClusterID)] = nil

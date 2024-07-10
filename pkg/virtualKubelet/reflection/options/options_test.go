@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
@@ -133,7 +133,7 @@ var _ = Describe("Options", func() {
 			factory        informers.SharedInformerFactory
 			liqoFactory    liqoinformers.SharedInformerFactory
 			broadcaster    record.EventBroadcaster
-			reflectionType vkv1alpha1.ReflectionType
+			reflectionType offloadingv1alpha1.ReflectionType
 			forgingOpts    *forge.ForgingOpts
 		)
 
@@ -143,7 +143,7 @@ var _ = Describe("Options", func() {
 			factory = informers.NewSharedInformerFactory(client, 10*time.Hour)
 			liqoFactory = liqoinformers.NewSharedInformerFactory(liqoClient, 10*time.Hour)
 			broadcaster = record.NewBroadcaster()
-			reflectionType = vkv1alpha1.CustomLiqo
+			reflectionType = offloadingv1alpha1.CustomLiqo
 			forgingOpts = &forge.ForgingOpts{}
 		})
 

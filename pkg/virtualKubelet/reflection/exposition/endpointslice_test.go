@@ -33,7 +33,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
@@ -54,7 +54,7 @@ const (
 var _ = Describe("EndpointSlice Reflection Tests", func() {
 	Describe("the NewEndpointSliceReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[resources.EndpointSlice],
 			}
@@ -69,11 +69,11 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		var (
 			err            error
 			reflector      manager.NamespacedReflector
-			reflectionType vkv1alpha1.ReflectionType
+			reflectionType offloadingv1alpha1.ReflectionType
 			liqoClient     liqoclient.Interface
 
 			local  discoveryv1.EndpointSlice
-			remote vkv1alpha1.ShadowEndpointSlice
+			remote offloadingv1alpha1.ShadowEndpointSlice
 		)
 
 		CreateEndpointSlice := func(epslice *discoveryv1.EndpointSlice) *discoveryv1.EndpointSlice {
@@ -82,14 +82,14 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			return epslice
 		}
 
-		GetShadowEndpointSlice := func(namespace string) *vkv1alpha1.ShadowEndpointSlice {
-			epslice, errepslice := liqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(namespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
+		GetShadowEndpointSlice := func(namespace string) *offloadingv1alpha1.ShadowEndpointSlice {
+			epslice, errepslice := liqoClient.OffloadingV1alpha1().ShadowEndpointSlices(namespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
 			Expect(errepslice).ToNot(HaveOccurred())
 			return epslice
 		}
 
-		CreateShadowEndpointSlice := func(epslice *vkv1alpha1.ShadowEndpointSlice) *vkv1alpha1.ShadowEndpointSlice {
-			epslice, errepslice := liqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(epslice.GetNamespace()).
+		CreateShadowEndpointSlice := func(epslice *offloadingv1alpha1.ShadowEndpointSlice) *offloadingv1alpha1.ShadowEndpointSlice {
+			epslice, errepslice := liqoClient.OffloadingV1alpha1().ShadowEndpointSlices(epslice.GetNamespace()).
 				Create(ctx, epslice, metav1.CreateOptions{})
 			Expect(errepslice).ToNot(HaveOccurred())
 			return epslice
@@ -127,7 +127,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("the remote object should not be present", func() {
-					_, err = liqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(RemoteNamespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
+					_, err = liqoClient.OffloadingV1alpha1().ShadowEndpointSlices(RemoteNamespace).Get(ctx, EndpointSliceName, metav1.GetOptions{})
 					Expect(err).To(BeNotFound())
 				})
 			}
@@ -136,14 +136,14 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 		BeforeEach(func() {
 			liqoClient = liqoclientfake.NewSimpleClientset()
 			local = discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: LocalNamespace}}
-			remote = vkv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
+			remote = offloadingv1alpha1.ShadowEndpointSlice{ObjectMeta: metav1.ObjectMeta{Name: EndpointSliceName, Namespace: RemoteNamespace}}
 			reflectionType = root.DefaultReflectorsTypes[resources.Service] // reflection type inherited from the service reflector
 		})
 
 		AfterEach(func() {
 			Expect(client.DiscoveryV1().EndpointSlices(LocalNamespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
-			Expect(liqoClient.VirtualkubeletV1alpha1().ShadowEndpointSlices(RemoteNamespace).
+			Expect(liqoClient.OffloadingV1alpha1().ShadowEndpointSlices(RemoteNamespace).
 				DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})).To(Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
 			Expect(client.CoreV1().Services(LocalNamespace).Delete(ctx, ServiceName, metav1.DeleteOptions{})).To(
 				Or(BeNil(), WithTransform(kerrors.IsNotFound, BeTrue())))
@@ -246,7 +246,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 				})
 
 				When("the remote object already exists, but is not managed by the reflection", func() {
-					var remoteBefore *vkv1alpha1.ShadowEndpointSlice
+					var remoteBefore *offloadingv1alpha1.ShadowEndpointSlice
 
 					BeforeEach(func() {
 						remote.Spec.Template.AddressType = discoveryv1.AddressTypeIPv4
@@ -293,7 +293,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 			When("the reflection type is AllowList", func() {
 				BeforeEach(func() {
-					reflectionType = vkv1alpha1.AllowList
+					reflectionType = offloadingv1alpha1.AllowList
 				})
 
 				When("the local object does exist, and the associated service has the allow annotation", func() {
@@ -346,7 +346,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 			When("the reflection is forced with the allow or skip annotation", func() {
 				When("the reflection is deny, but the object has the allow annotation", func() {
 					BeforeEach(func() {
-						reflectionType = vkv1alpha1.DenyList
+						reflectionType = offloadingv1alpha1.DenyList
 						local.SetAnnotations(map[string]string{consts.AllowReflectionAnnotationKey: "whatever"})
 						local.AddressType = discoveryv1.AddressTypeIPv4
 						CreateEndpointSlice(&local)
@@ -361,7 +361,7 @@ var _ = Describe("EndpointSlice Reflection Tests", func() {
 
 				When("the reflection is allow, but the object has the skip annotation", func() {
 					BeforeEach(func() {
-						reflectionType = vkv1alpha1.AllowList
+						reflectionType = offloadingv1alpha1.AllowList
 						local.SetAnnotations(map[string]string{consts.SkipReflectionAnnotationKey: "whatever"})
 						local.AddressType = discoveryv1.AddressTypeIPv4
 						CreateEndpointSlice(&local)
