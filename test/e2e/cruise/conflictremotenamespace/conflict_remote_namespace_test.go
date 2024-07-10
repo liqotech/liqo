@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,6 +31,7 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
+	"github.com/liqotech/liqo/test/e2e/testutils/config"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -46,8 +46,8 @@ const (
 var (
 	ctx           = context.Background()
 	testContext   = tester.GetTester(ctx)
-	interval      = 1 * time.Second
-	timeout       = 10 * time.Second
+	interval      = config.Interval
+	timeout       = config.Timeout
 	localIndex    = 0
 	namespaceName = util.GetNameNamespaceTest(testName)
 
