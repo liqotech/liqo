@@ -95,7 +95,7 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 	if req.Operation == admissionv1.Create {
 		// VirtualNode name and the created Node have the same name.
 		// This checks if the Node already exists in the cluster to avoid duplicates.
-		err := checkNodeDubplicate(ctx, w, virtualnode)
+		err := checkNodeDuplicate(ctx, w, virtualnode)
 		if err != nil {
 			klog.Errorf("Failed checking node duplicate: %v", err)
 			return admission.Denied(err.Error())
@@ -124,8 +124,8 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 	return w.CreatePatchResponse(&req, virtualnode)
 }
 
-// checkNodeDubplicate checks if the node already exists in the cluster.
-func checkNodeDubplicate(ctx context.Context, w *vnwh, virtualnode *offloadingv1alpha1.VirtualNode) error {
+// checkNodeDuplicate checks if the node already exists in the cluster.
+func checkNodeDuplicate(ctx context.Context, w *vnwh, virtualnode *offloadingv1alpha1.VirtualNode) error {
 	node := &corev1.Node{}
 	err := w.client.Get(ctx, client.ObjectKey{Name: virtualnode.Name}, node)
 	if err != nil {

@@ -86,7 +86,7 @@ webhooks:
         path: "/validate/resourceslices"
         port: {{ .Values.webhook.port }}
     rules:
-      - operations: ["UPDATE"]
+      - operations: ["CREATE", "UPDATE"]
         apiGroups: ["authentication.liqo.io"]
         apiVersions: ["v1alpha1"]
         resources: ["resourceslices"]

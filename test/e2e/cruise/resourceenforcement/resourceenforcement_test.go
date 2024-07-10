@@ -105,7 +105,7 @@ var (
 )
 
 var _ = Describe("Liqo E2E", func() {
-	Context("E2E Resource Enforcement", func() {
+	Context("Resource Enforcement", func() {
 
 		var (
 			deploymentName = "nginx"
