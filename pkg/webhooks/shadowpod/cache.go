@@ -25,7 +25,6 @@ import (
 	"k8s.io/klog/v2"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -110,7 +109,7 @@ func (spv *Validator) refreshCache(ctx context.Context) (done bool, err error) {
 	return false, nil
 }
 
-func (pi *peeringInfo) alignTerminatingOrNotExistingShadowPods(shadowPodList *vkv1alpha1.ShadowPodList) {
+func (pi *peeringInfo) alignTerminatingOrNotExistingShadowPods(shadowPodList *offloadingv1alpha1.ShadowPodList) {
 	pi.mu.Lock()
 	defer pi.mu.Unlock()
 	spMap := make(map[string]struct{})
@@ -144,7 +143,7 @@ func (pi *peeringInfo) alignTerminatingShadowPodDescriptions(spMap map[string]st
 	}
 }
 
-func (pi *peeringInfo) alignExistingShadowPods(shadowPodList *vkv1alpha1.ShadowPodList) {
+func (pi *peeringInfo) alignExistingShadowPods(shadowPodList *offloadingv1alpha1.ShadowPodList) {
 	pi.mu.Lock()
 	defer pi.mu.Unlock()
 	for i := range shadowPodList.Items {
@@ -156,7 +155,7 @@ func (pi *peeringInfo) alignExistingShadowPods(shadowPodList *vkv1alpha1.ShadowP
 	}
 }
 
-func (pi *peeringInfo) checkAndAddShadowPods(shadowPod *vkv1alpha1.ShadowPod, nsname types.NamespacedName) (found bool) {
+func (pi *peeringInfo) checkAndAddShadowPods(shadowPod *offloadingv1alpha1.ShadowPod, nsname types.NamespacedName) (found bool) {
 	_, found = pi.shadowPods[nsname.String()]
 	if !found {
 		// Errors are intentionally ignored here.

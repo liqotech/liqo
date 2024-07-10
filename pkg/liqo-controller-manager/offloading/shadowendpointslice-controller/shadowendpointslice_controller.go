@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
@@ -53,7 +53,7 @@ type Reconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowendpointslices,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowendpointslices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters/status,verbs=get;list;watch
@@ -64,7 +64,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	nsName := req.NamespacedName
 	klog.V(4).Infof("reconcile shadowendpointslice %q", nsName)
 
-	var shadowEps vkv1alpha1.ShadowEndpointSlice
+	var shadowEps offloadingv1alpha1.ShadowEndpointSlice
 	if err := r.Get(ctx, nsName, &shadowEps); err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("shadowendpointslice %q not found", nsName)
@@ -192,7 +192,7 @@ func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.
 			}
 
 			// List all shadowendpointslices with clusterID as origin
-			var shadowList vkv1alpha1.ShadowEndpointSliceList
+			var shadowList offloadingv1alpha1.ShadowEndpointSliceList
 			if err := r.List(ctx, &shadowList, client.MatchingLabels{forge.LiqoOriginClusterIDKey: string(clusterID)}); err != nil {
 				klog.Errorf("Unable to list shadowendpointslices")
 				return
@@ -245,7 +245,7 @@ func (r *Reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, wor
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&vkv1alpha1.ShadowEndpointSlice{}).
+		For(&offloadingv1alpha1.ShadowEndpointSlice{}).
 		Owns(&discoveryv1.EndpointSlice{}).
 		Watches(&liqov1alpha1.ForeignCluster{},
 			r.getForeignClusterEventHandler(ctx), builder.WithPredicates(fcPredicates)).

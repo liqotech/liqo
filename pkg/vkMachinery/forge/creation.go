@@ -25,19 +25,19 @@ import (
 	"k8s.io/utils/strings"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 // VirtualKubeletName returns the name of the virtual-kubelet.
-func VirtualKubeletName(virtualNode *vkv1alpha1.VirtualNode) string {
+func VirtualKubeletName(virtualNode *offloadingv1alpha1.VirtualNode) string {
 	return "vk-" + virtualNode.Name
 }
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
 func VirtualKubeletDeployment(homeCluster liqov1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
-	virtualNode *vkv1alpha1.VirtualNode, opts *vkv1alpha1.VkOptionsTemplate) *appsv1.Deployment {
+	virtualNode *offloadingv1alpha1.VirtualNode, opts *offloadingv1alpha1.VkOptionsTemplate) *appsv1.Deployment {
 	matchLabels := VirtualKubeletLabels(virtualNode) // these are the minimum set of labels used as selector
 	depLabels := labels.Merge(opts.Spec.ExtraLabels, matchLabels)
 	depAnnotations := opts.Spec.ExtraAnnotations
@@ -64,7 +64,7 @@ func VirtualKubeletDeployment(homeCluster liqov1alpha1.ClusterID, localPodCIDR, 
 }
 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
-func VirtualKubeletLabels(virtualNode *vkv1alpha1.VirtualNode) map[string]string {
+func VirtualKubeletLabels(virtualNode *offloadingv1alpha1.VirtualNode) map[string]string {
 	return labels.Merge(vkMachinery.KubeletBaseLabels, map[string]string{
 		consts.RemoteClusterID:  string(virtualNode.Spec.ClusterID),
 		consts.VirtualNodeLabel: virtualNode.Name,

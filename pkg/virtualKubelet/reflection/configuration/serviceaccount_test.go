@@ -34,7 +34,7 @@ import (
 	"k8s.io/utils/pointer"
 	"k8s.io/utils/trace"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -48,7 +48,7 @@ import (
 var _ = Describe("ServiceAccount Reflection", func() {
 	Describe("NewServiceAccountReflector", func() {
 		It("should create a non-nil reflector", func() {
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[resources.ServiceAccount],
 			}
@@ -141,7 +141,7 @@ var _ = Describe("ServiceAccount Reflection", func() {
 		JustBeforeEach(func() {
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 			secretsLister = factory.Core().V1().Secrets().Lister().Secrets(RemoteNamespace)
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.ServiceAccount],
 			}
@@ -365,7 +365,7 @@ var _ = Describe("ServiceAccount Reflection", func() {
 		JustBeforeEach(func() {
 			client := fake.NewSimpleClientset(&local)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.ServiceAccount],
 			}

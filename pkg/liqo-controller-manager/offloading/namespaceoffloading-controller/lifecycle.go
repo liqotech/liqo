@@ -22,11 +22,10 @@ import (
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 func (r *NamespaceOffloadingReconciler) deletionLogic(ctx context.Context,
-	nsoff *offv1alpha1.NamespaceOffloading, clusterIDMap map[string]*mapsv1alpha1.NamespaceMap) error {
+	nsoff *offv1alpha1.NamespaceOffloading, clusterIDMap map[string]*offv1alpha1.NamespaceMap) error {
 	klog.Infof("The NamespaceOffloading of the namespace %q is requested to be deleted", nsoff.Namespace)
 	// 1 - remove Liqo scheduling label from the associated namespace.
 	if err := r.enforceSchedulingLabelAbsence(ctx, nsoff.Namespace); err != nil {

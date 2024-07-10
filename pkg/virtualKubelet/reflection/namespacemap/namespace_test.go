@@ -20,7 +20,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/namespacemap/fake"
 )
@@ -29,7 +29,7 @@ var _ = Describe("NamespaceMapEventHandler tests", func() {
 	var (
 		nmh          *Handler
 		fakeManager  *fake.NamespaceStartStopper
-		namespaceMap *vkv1alpha1.NamespaceMap
+		namespaceMap *offloadingv1alpha1.NamespaceMap
 	)
 
 	BeforeEach(func() {
@@ -39,24 +39,24 @@ var _ = Describe("NamespaceMapEventHandler tests", func() {
 		nmh = NewHandler(fakeLiqoClient, "ns", 0)
 		nmh.Start(context.Background(), fakeManager)
 
-		namespaceMap = &vkv1alpha1.NamespaceMap{
-			Status: vkv1alpha1.NamespaceMapStatus{
-				CurrentMapping: map[string]vkv1alpha1.RemoteNamespaceStatus{
+		namespaceMap = &offloadingv1alpha1.NamespaceMap{
+			Status: offloadingv1alpha1.NamespaceMapStatus{
+				CurrentMapping: map[string]offloadingv1alpha1.RemoteNamespaceStatus{
 					"mappingAcceptedlocalNs1": {
 						RemoteNamespace: "remoteNs1",
-						Phase:           vkv1alpha1.MappingAccepted,
+						Phase:           offloadingv1alpha1.MappingAccepted,
 					},
 					"creationLoopBackOfflocalNs": {
 						RemoteNamespace: "remoteNs2",
-						Phase:           vkv1alpha1.MappingCreationLoopBackOff,
+						Phase:           offloadingv1alpha1.MappingCreationLoopBackOff,
 					},
 					"terminating": {
 						RemoteNamespace: "remoteNs3",
-						Phase:           vkv1alpha1.MappingTerminating,
+						Phase:           offloadingv1alpha1.MappingTerminating,
 					},
 					"mappingAcceptedlocalNs2": {
 						RemoteNamespace: "remoteNs4",
-						Phase:           vkv1alpha1.MappingAccepted,
+						Phase:           offloadingv1alpha1.MappingAccepted,
 					},
 				},
 			},
@@ -105,62 +105,62 @@ var _ = Describe("NamespaceMapEventHandler tests", func() {
 
 	Describe("updateNamespaceMap", func() {
 		BeforeEach(func() {
-			oldNamespaceMap := &vkv1alpha1.NamespaceMap{
-				Status: vkv1alpha1.NamespaceMapStatus{
-					CurrentMapping: map[string]vkv1alpha1.RemoteNamespaceStatus{
+			oldNamespaceMap := &offloadingv1alpha1.NamespaceMap{
+				Status: offloadingv1alpha1.NamespaceMapStatus{
+					CurrentMapping: map[string]offloadingv1alpha1.RemoteNamespaceStatus{
 						"mappingAcceptedlocalNs1": {
 							RemoteNamespace: "remoteNs1",
-							Phase:           vkv1alpha1.MappingAccepted,
+							Phase:           offloadingv1alpha1.MappingAccepted,
 						},
 						"creationLoopBackOfflocalNs": {
 							RemoteNamespace: "remoteNs2",
-							Phase:           vkv1alpha1.MappingCreationLoopBackOff,
+							Phase:           offloadingv1alpha1.MappingCreationLoopBackOff,
 						},
 						"terminating": {
 							RemoteNamespace: "remoteNs3",
-							Phase:           vkv1alpha1.MappingTerminating,
+							Phase:           offloadingv1alpha1.MappingTerminating,
 						},
 						"oldMappingAcceptedlocalNs2": {
 							RemoteNamespace: "remoteNs4",
-							Phase:           vkv1alpha1.MappingAccepted,
+							Phase:           offloadingv1alpha1.MappingAccepted,
 						},
 						"creationLoopBackOfflocalNsThatWillRecover": {
 							RemoteNamespace: "remoteNs5",
-							Phase:           vkv1alpha1.MappingCreationLoopBackOff,
+							Phase:           offloadingv1alpha1.MappingCreationLoopBackOff,
 						},
 						"mappingAcceptedlocalNsThatWillCrash": {
 							RemoteNamespace: "remoteNs6",
-							Phase:           vkv1alpha1.MappingAccepted,
+							Phase:           offloadingv1alpha1.MappingAccepted,
 						},
 					},
 				},
 			}
-			newNamespaceMap := &vkv1alpha1.NamespaceMap{
-				Status: vkv1alpha1.NamespaceMapStatus{
-					CurrentMapping: map[string]vkv1alpha1.RemoteNamespaceStatus{
+			newNamespaceMap := &offloadingv1alpha1.NamespaceMap{
+				Status: offloadingv1alpha1.NamespaceMapStatus{
+					CurrentMapping: map[string]offloadingv1alpha1.RemoteNamespaceStatus{
 						"mappingAcceptedlocalNs1": {
 							RemoteNamespace: "remoteNs1",
-							Phase:           vkv1alpha1.MappingAccepted,
+							Phase:           offloadingv1alpha1.MappingAccepted,
 						},
 						"creationLoopBackOfflocalNs": {
 							RemoteNamespace: "remoteNs2",
-							Phase:           vkv1alpha1.MappingCreationLoopBackOff,
+							Phase:           offloadingv1alpha1.MappingCreationLoopBackOff,
 						},
 						"terminating": {
 							RemoteNamespace: "remoteNs3",
-							Phase:           vkv1alpha1.MappingTerminating,
+							Phase:           offloadingv1alpha1.MappingTerminating,
 						},
 						"creationLoopBackOfflocalNsThatWillRecover": {
 							RemoteNamespace: "remoteNs5",
-							Phase:           vkv1alpha1.MappingAccepted,
+							Phase:           offloadingv1alpha1.MappingAccepted,
 						},
 						"mappingAcceptedlocalNsThatWillCrash": {
 							RemoteNamespace: "remoteNs6",
-							Phase:           vkv1alpha1.MappingCreationLoopBackOff,
+							Phase:           offloadingv1alpha1.MappingCreationLoopBackOff,
 						},
 						"newMappingAcceptedlocalNs2": {
 							RemoteNamespace: "remoteNs7",
-							Phase:           vkv1alpha1.MappingAccepted,
+							Phase:           offloadingv1alpha1.MappingAccepted,
 						},
 					},
 				},

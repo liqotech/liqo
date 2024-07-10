@@ -33,7 +33,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/uninstaller"
 	"github.com/liqotech/liqo/pkg/utils"
 )
@@ -47,7 +46,6 @@ func init() {
 
 	_ = liqov1alpha1.AddToScheme(scheme)
 	_ = offloadingv1alpha1.AddToScheme(scheme)
-	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
 	_ = ipamv1alpha1.AddToScheme(scheme)
 	_ = networkingv1alpha1.AddToScheme(scheme)
 	_ = authv1alpha1.AddToScheme(scheme)
@@ -59,7 +57,7 @@ func init() {
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update;delete;deletecollection;
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;patch;update;delete;
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=internalnodes,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=networks,verbs=get;list;watch;patch;update;delete;
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;patch;update;delete;

@@ -111,7 +111,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - virtualkubelet.liqo.io
+  - offloading.liqo.io
   resources:
   - virtualnodes
   verbs:

@@ -19,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -35,7 +35,7 @@ type Resource struct {
 func GetResourcesToReplicate() []Resource {
 	return []Resource{
 		{
-			GroupVersionResource: vkv1alpha1.NamespaceMapGroupVersionResource,
+			GroupVersionResource: offloadingv1alpha1.NamespaceMapGroupVersionResource,
 			Ownership:            consts.OwnershipShared,
 		},
 		{

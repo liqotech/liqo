@@ -32,7 +32,7 @@ import (
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -47,7 +47,7 @@ import (
 )
 
 func init() {
-	utilruntime.Must(vkv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme.Scheme))
 }
 
 // InitConfig is the config passed to initialize the LiqoPodProvider.
@@ -65,7 +65,7 @@ type InitConfig struct {
 	LocalPodCIDR         string
 	InformerResyncPeriod time.Duration
 
-	ReflectorsConfigs map[resources.ResourceReflected]vkv1alpha1.ReflectorConfig
+	ReflectorsConfigs map[resources.ResourceReflected]offloadingv1alpha1.ReflectorConfig
 
 	EnableAPIServerSupport          bool
 	EnableStorage                   bool
@@ -80,7 +80,7 @@ type InitConfig struct {
 	HomeAPIServerHost string
 	HomeAPIServerPort string
 
-	OffloadingPatch *vkv1alpha1.OffloadingPatch
+	OffloadingPatch *offloadingv1alpha1.OffloadingPatch
 
 	NetConfiguration *networkingv1alpha1.Configuration // only available if network module is enabled
 }

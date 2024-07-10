@@ -29,7 +29,7 @@ import (
 	"k8s.io/utils/trace"
 	ctrclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -43,7 +43,7 @@ import (
 var _ = Describe("Event Reflection Tests", func() {
 	Describe("the NewEventReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := vkv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[resources.Event],
 			}
@@ -56,7 +56,7 @@ var _ = Describe("Event Reflection Tests", func() {
 
 		var (
 			reflector      manager.NamespacedReflector
-			reflectionType vkv1alpha1.ReflectionType
+			reflectionType offloadingv1alpha1.ReflectionType
 
 			local, remote                             corev1.Event
 			involvedObjectLocal, involvedObjectRemote ctrclient.Object
@@ -256,7 +256,7 @@ var _ = Describe("Event Reflection Tests", func() {
 
 		When("the reflection type is AllowList", func() {
 			BeforeEach(func() {
-				reflectionType = vkv1alpha1.AllowList
+				reflectionType = offloadingv1alpha1.AllowList
 			})
 
 			When("the remote object does exist, but does not have the allow annotation", func() {

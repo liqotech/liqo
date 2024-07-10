@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -85,17 +85,17 @@ func NewVirtualNodeReconciler(
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch;delete;create;update;patch
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes/status,verbs=get;list;watch;delete;create;update;patch
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes/finalizers,verbs=get;list;watch;delete;create;update;patch
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes/status,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes/finalizers,verbs=get;list;watch;delete;create;update;patch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
 
 // Reconcile manage NamespaceMaps associated with the virtual-node.
 func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	virtualNode := &virtualkubeletv1alpha1.VirtualNode{}
+	virtualNode := &offloadingv1alpha1.VirtualNode{}
 	if err := r.Get(ctx, req.NamespacedName, virtualNode); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no a virtual-node called '%s' in '%s'", req.Name, req.Namespace)
@@ -162,7 +162,7 @@ var deploymentHandler = &handler.Funcs{
 func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, o client.Object) []reconcile.Request {
-			nm, ok := o.(*virtualkubeletv1alpha1.NamespaceMap)
+			nm, ok := o.(*offloadingv1alpha1.NamespaceMap)
 			if !ok {
 				return []reconcile.Request{}
 			}
@@ -200,8 +200,8 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&virtualkubeletv1alpha1.VirtualNode{}).
+		For(&offloadingv1alpha1.VirtualNode{}).
 		Watches(&appsv1.Deployment{}, deploymentHandler, builder.WithPredicates(deployPredicate)).
-		Watches(&virtualkubeletv1alpha1.NamespaceMap{}, r.enqueFromNamespaceMap()).
+		Watches(&offloadingv1alpha1.NamespaceMap{}, r.enqueFromNamespaceMap()).
 		Complete(r)
 }

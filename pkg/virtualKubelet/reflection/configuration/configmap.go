@@ -28,7 +28,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -51,7 +51,7 @@ type NamespacedConfigMapReflector struct {
 }
 
 // NewConfigMapReflector builds a ConfigMapReflector.
-func NewConfigMapReflector(reflectorConfig *vkv1alpha1.ReflectorConfig) manager.Reflector {
+func NewConfigMapReflector(reflectorConfig *offloadingv1alpha1.ReflectorConfig) manager.Reflector {
 	return generic.NewReflector(ConfigMapReflectorName, NewNamespacedConfigMapReflector,
 		generic.WithoutFallback(), reflectorConfig.NumWorkers, reflectorConfig.Type, generic.ConcurrencyModeLeader)
 }
@@ -117,7 +117,7 @@ func (ncr *NamespacedConfigMapReflector) Handle(ctx context.Context, name string
 			return err
 		}
 		if skipReflection {
-			if ncr.GetReflectionType() == vkv1alpha1.DenyList {
+			if ncr.GetReflectionType() == offloadingv1alpha1.DenyList {
 				klog.Infof("Skipping reflection of local ConfigMap %q as marked with the skip annotation", ncr.LocalRef(name))
 			} else { // AllowList
 				klog.Infof("Skipping reflection of local ConfigMap %q as not marked with the allow annotation", ncr.LocalRef(name))

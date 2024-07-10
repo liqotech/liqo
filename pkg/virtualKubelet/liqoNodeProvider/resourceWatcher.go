@@ -28,7 +28,7 @@ import (
 	"k8s.io/klog/v2"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -42,7 +42,7 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 		p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
 			opt.FieldSelector = "metadata.name=" + p.nodeName
 		})
-	virtualNodeInformer := virtualNodeInformerFactory.ForResource(virtualkubeletv1alpha1.VirtualNodeGroupVersionResource).Informer()
+	virtualNodeInformer := virtualNodeInformerFactory.ForResource(offloadingv1alpha1.VirtualNodeGroupVersionResource).Informer()
 	_, err := virtualNodeInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromVirtualNode))
 	runtime.Must(err)
 

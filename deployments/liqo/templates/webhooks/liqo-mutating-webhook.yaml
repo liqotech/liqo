@@ -39,7 +39,7 @@ webhooks:
         port: {{ .Values.webhook.port }}
     rules:
       - operations: ["CREATE", "UPDATE", "DELETE"]
-        apiGroups: ["virtualkubelet.liqo.io"]
+        apiGroups: ["offloading.liqo.io"]
         apiVersions: ["v1alpha1"]
         resources: ["shadowpods"]
     sideEffects: None
@@ -73,7 +73,7 @@ webhooks:
         port: {{ .Values.webhook.port }}
     rules:
       - operations: ["CREATE","UPDATE"]
-        apiGroups: ["virtualkubelet.liqo.io"]
+        apiGroups: ["offloading.liqo.io"]
         apiVersions: ["v1alpha1"]
         resources: ["virtualnodes"]
     sideEffects: None

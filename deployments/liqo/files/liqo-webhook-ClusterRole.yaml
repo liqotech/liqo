@@ -60,7 +60,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - virtualkubelet.liqo.io
+  - offloading.liqo.io
   resources:
   - shadowpods
   verbs:
@@ -68,7 +68,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - virtualkubelet.liqo.io
+  - offloading.liqo.io
   resources:
   - virtualnodes
   verbs:
@@ -78,7 +78,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - virtualkubelet.liqo.io
+  - offloading.liqo.io
   resources:
   - vkoptionstemplates
   verbs:

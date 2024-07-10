@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -31,7 +31,7 @@ func TestNamespacemapController(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	Expect(vkv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(offloadingv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	testutil.LogsToGinkgoWriter()
 })
