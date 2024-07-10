@@ -31,7 +31,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -61,10 +61,10 @@ var _ = Describe("Reflector tests", func() {
 	BeforeEach(func() {
 		scheme := runtime.NewScheme()
 		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-		utilruntime.Must(vkv1alpha1.AddToScheme(scheme))
+		utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme))
 
 		ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
-		gvr = vkv1alpha1.NamespaceMapGroupVersionResource
+		gvr = offloadingv1alpha1.NamespaceMapGroupVersionResource
 		res = resources.Resource{GroupVersionResource: gvr, Ownership: consts.OwnershipLocal}
 
 		local = fake.NewSimpleDynamicClient(scheme)
@@ -84,7 +84,7 @@ var _ = Describe("Reflector tests", func() {
 
 		CreateLocalObject := func() {
 			obj := &unstructured.Unstructured{}
-			obj.SetGroupVersionKind(vkv1alpha1.SchemeGroupVersion.WithKind("NamespaceMap"))
+			obj.SetGroupVersionKind(offloadingv1alpha1.SchemeGroupVersion.WithKind("NamespaceMap"))
 			obj.SetNamespace(localNamespace)
 			obj.SetName(name)
 			obj.SetLabels(map[string]string{
@@ -97,7 +97,7 @@ var _ = Describe("Reflector tests", func() {
 
 		CreateRemoteObject := func() {
 			obj := &unstructured.Unstructured{}
-			obj.SetGroupVersionKind(vkv1alpha1.SchemeGroupVersion.WithKind("NamespaceMap"))
+			obj.SetGroupVersionKind(offloadingv1alpha1.SchemeGroupVersion.WithKind("NamespaceMap"))
 			obj.SetNamespace(remoteNamespace)
 			obj.SetName(name)
 			obj.SetLabels(map[string]string{

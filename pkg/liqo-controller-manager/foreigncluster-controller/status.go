@@ -26,7 +26,7 @@ import (
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
@@ -338,7 +338,7 @@ func clearModule(module *liqov1alpha1.Module) {
 	module.Conditions = nil
 }
 
-func expectedNodes(virtualNodes []vkv1alpha1.VirtualNode) int {
+func expectedNodes(virtualNodes []offloadingv1alpha1.VirtualNode) int {
 	expectedNodes := 0
 	for i := range virtualNodes {
 		if virtualNodes[i].Spec.CreateNode != nil && *virtualNodes[i].Spec.CreateNode {

@@ -596,6 +596,26 @@ rules:
 - apiGroups:
   - offloading.liqo.io
   resources:
+  - namespacemaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - namespacemaps/finalizers
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - offloading.liqo.io
+  resources:
   - namespaceoffloadings
   verbs:
   - get
@@ -627,6 +647,91 @@ rules:
   - offloading.liqo.io
   resources:
   - quotas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - shadowendpointslices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - shadowpods
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - shadowpods/finalizers
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - shadowpods/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - virtualnode
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - virtualnodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - virtualnodes/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - virtualnodes/status
   verbs:
   - create
   - delete
@@ -687,109 +792,4 @@ rules:
   verbs:
   - get
   - list
-  - watch
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - namespacemaps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - namespacemaps/finalizers
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - shadowendpointslices
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - shadowpods
-  verbs:
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - shadowpods/finalizers
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - shadowpods/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - virtualnode
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - virtualnodes
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - virtualnodes/finalizers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - virtualkubelet.liqo.io
-  resources:
-  - virtualnodes/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
   - watch

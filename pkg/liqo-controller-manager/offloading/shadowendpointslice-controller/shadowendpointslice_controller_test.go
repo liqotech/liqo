@@ -34,7 +34,7 @@ import (
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -60,7 +60,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		fakeClientBuilder *fake.ClientBuilder
 		fakeClient        client.WithWatch
 
-		testShadowEps *vkv1alpha1.ShadowEndpointSlice
+		testShadowEps *offloadingv1alpha1.ShadowEndpointSlice
 		testEps       *discoveryv1.EndpointSlice
 		testFc        *liqov1alpha1.ForeignCluster
 		testConf      *networkingv1alpha1.Configuration
@@ -108,13 +108,13 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			}
 		}
 
-		newShadowEps = func(endpointsReady bool) *vkv1alpha1.ShadowEndpointSlice {
+		newShadowEps = func(endpointsReady bool) *offloadingv1alpha1.ShadowEndpointSlice {
 			ready := ptr.To(true)
 			if !endpointsReady {
 				ready = ptr.To(false)
 			}
 
-			return &vkv1alpha1.ShadowEndpointSlice{
+			return &offloadingv1alpha1.ShadowEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      shadowEpsName,
 					Namespace: shadowEpsNamespace,
@@ -127,8 +127,8 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 						"annotation1-key": "annotation1-value",
 					},
 				},
-				Spec: vkv1alpha1.ShadowEndpointSliceSpec{
-					Template: vkv1alpha1.EndpointSliceTemplate{
+				Spec: offloadingv1alpha1.ShadowEndpointSliceSpec{
+					Template: offloadingv1alpha1.EndpointSliceTemplate{
 						Endpoints: []discoveryv1.Endpoint{{
 							NodeName: ptr.To(testFcID),
 							Conditions: discoveryv1.EndpointConditions{

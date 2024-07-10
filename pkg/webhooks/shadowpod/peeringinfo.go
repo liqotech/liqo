@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 // PeeringInfo is the struct that holds the information about the peering with a remote cluster.
@@ -123,7 +122,7 @@ func (pi *peeringInfo) removeShadowPod(spd *Description) {
 }
 
 func (pi *peeringInfo) testAndUpdateCreation(ctx context.Context, c client.Client,
-	sp *vkv1alpha1.ShadowPod, limitsEnforcement offloadingv1alpha1.LimitsEnforcement, dryRun bool) error {
+	sp *offloadingv1alpha1.ShadowPod, limitsEnforcement offloadingv1alpha1.LimitsEnforcement, dryRun bool) error {
 	pi.mu.Lock()
 	defer pi.mu.Unlock()
 
@@ -150,7 +149,7 @@ func (pi *peeringInfo) testAndUpdateCreation(ctx context.Context, c client.Clien
 	return nil
 }
 
-func (pi *peeringInfo) updateDeletion(sp *vkv1alpha1.ShadowPod, dryRun bool) error {
+func (pi *peeringInfo) updateDeletion(sp *offloadingv1alpha1.ShadowPod, dryRun bool) error {
 	pi.mu.Lock()
 	defer pi.mu.Unlock()
 

@@ -166,18 +166,18 @@ rules:
   - list
   - watch
 - apiGroups:
-  - storage.k8s.io
+  - offloading.liqo.io
   resources:
-  - storageclasses
+  - namespacemaps
+  - virtualnodes
   verbs:
   - get
   - list
   - watch
 - apiGroups:
-  - virtualkubelet.liqo.io
+  - storage.k8s.io
   resources:
-  - namespacemaps
-  - virtualnodes
+  - storageclasses
   verbs:
   - get
   - list

@@ -45,7 +45,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	"github.com/liqotech/liqo/cmd/liqo-controller-manager/modules"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -76,7 +75,6 @@ func init() {
 
 	_ = liqov1alpha1.AddToScheme(scheme)
 	_ = offloadingv1alpha1.AddToScheme(scheme)
-	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
 	_ = ipamv1alpha1.AddToScheme(scheme)
 	_ = networkingv1alpha1.AddToScheme(scheme)
 	_ = authv1alpha1.AddToScheme(scheme)

@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
@@ -48,16 +48,16 @@ type Reconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowpods,verbs=get;list;watch;update;patch;delete
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowpods/finalizers,verbs=get;update;patch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowpods,verbs=get;list;watch;update;patch;delete
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowpods/finalizers,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowpods/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=shadowpods/status,verbs=get;update;patch
 
 // Reconcile ShadowPods objects.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	nsName := req.NamespacedName
 	klog.V(4).Infof("reconcile shadowpod %s", nsName)
-	shadowPod := vkv1alpha1.ShadowPod{}
+	shadowPod := offloadingv1alpha1.ShadowPod{}
 	if err := r.Get(ctx, nsName, &shadowPod); err != nil {
 		err = client.IgnoreNotFound(err)
 		if err == nil {
@@ -155,7 +155,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&vkv1alpha1.ShadowPod{}).
+		For(&offloadingv1alpha1.ShadowPod{}).
 		Owns(&corev1.Pod{}, builder.WithPredicates(reconciledPredicates)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)

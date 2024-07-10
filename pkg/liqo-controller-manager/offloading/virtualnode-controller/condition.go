@@ -17,21 +17,21 @@ package virtualnodectrl
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 )
 
 // VnConditionMap is a map of virtual node conditions.
-type VnConditionMap map[virtualkubeletv1alpha1.VirtualNodeConditionType]VnCondition
+type VnConditionMap map[offloadingv1alpha1.VirtualNodeConditionType]VnCondition
 
 // VnCondition is a virtual node condition.
 type VnCondition struct {
-	Status  virtualkubeletv1alpha1.VirtualNodeConditionStatusType
+	Status  offloadingv1alpha1.VirtualNodeConditionStatusType
 	Message string
 }
 
 // ForgeCondition forges a virtual node condition.
 func ForgeCondition(
-	virtualNode *virtualkubeletv1alpha1.VirtualNode,
+	virtualNode *offloadingv1alpha1.VirtualNode,
 	vnConditions VnConditionMap) {
 	for nameCondition, vnCondition := range vnConditions {
 		for i := range virtualNode.Status.Conditions {
@@ -41,20 +41,20 @@ func ForgeCondition(
 			if virtualNode.Status.Conditions[i].Status == vnCondition.Status {
 				return
 			}
-			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.RunningConditionStatusType) &&
-				(vnCondition.Status == virtualkubeletv1alpha1.CreatingConditionStatusType) {
+			if (virtualNode.Status.Conditions[i].Status == offloadingv1alpha1.RunningConditionStatusType) &&
+				(vnCondition.Status == offloadingv1alpha1.CreatingConditionStatusType) {
 				return
 			}
-			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.NoneConditionStatusType) &&
-				(vnCondition.Status == virtualkubeletv1alpha1.DrainingConditionStatusType) {
+			if (virtualNode.Status.Conditions[i].Status == offloadingv1alpha1.NoneConditionStatusType) &&
+				(vnCondition.Status == offloadingv1alpha1.DrainingConditionStatusType) {
 				return
 			}
-			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.NoneConditionStatusType) &&
-				(vnCondition.Status == virtualkubeletv1alpha1.DeletingConditionStatusType) {
+			if (virtualNode.Status.Conditions[i].Status == offloadingv1alpha1.NoneConditionStatusType) &&
+				(vnCondition.Status == offloadingv1alpha1.DeletingConditionStatusType) {
 				return
 			}
-			if (virtualNode.Status.Conditions[i].Status == virtualkubeletv1alpha1.DeletingConditionStatusType) &&
-				vnCondition.Status == virtualkubeletv1alpha1.DrainingConditionStatusType {
+			if (virtualNode.Status.Conditions[i].Status == offloadingv1alpha1.DeletingConditionStatusType) &&
+				vnCondition.Status == offloadingv1alpha1.DrainingConditionStatusType {
 				return
 			}
 			virtualNode.Status.Conditions[i].Status = vnCondition.Status
@@ -62,7 +62,7 @@ func ForgeCondition(
 			virtualNode.Status.Conditions[i].Message = vnCondition.Message
 		}
 		virtualNode.Status.Conditions = append(virtualNode.Status.Conditions,
-			virtualkubeletv1alpha1.VirtualNodeCondition{
+			offloadingv1alpha1.VirtualNodeCondition{
 				Type:               nameCondition,
 				Status:             vnCondition.Status,
 				LastTransitionTime: metav1.Now(),
@@ -72,8 +72,8 @@ func ForgeCondition(
 }
 
 // GetCondition returns the condition of the virtual node.
-func GetCondition(virtualNode *virtualkubeletv1alpha1.VirtualNode,
-	condition virtualkubeletv1alpha1.VirtualNodeConditionType) *virtualkubeletv1alpha1.VirtualNodeCondition {
+func GetCondition(virtualNode *offloadingv1alpha1.VirtualNode,
+	condition offloadingv1alpha1.VirtualNodeConditionType) *offloadingv1alpha1.VirtualNodeCondition {
 	if virtualNode == nil {
 		return nil
 	}

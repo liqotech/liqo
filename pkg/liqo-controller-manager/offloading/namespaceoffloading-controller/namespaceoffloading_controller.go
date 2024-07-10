@@ -33,7 +33,6 @@ import (
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/syncset"
 )
@@ -56,8 +55,8 @@ const (
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch;patch;update
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings/finalizers,verbs=get;update;patch
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;patch;update
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnode, verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespacemaps,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnode, verbs=get;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
@@ -134,8 +133,8 @@ func (r *NamespaceOffloadingReconciler) SetupWithManager(mgr ctrl.Manager) error
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&offv1alpha1.NamespaceOffloading{}, builder.WithPredicates(filter)).
-		Watches(&mapsv1alpha1.NamespaceMap{}, r.namespaceMapHandlers()).
-		Watches(&mapsv1alpha1.VirtualNode{}, r.enqueueAll()).
+		Watches(&offv1alpha1.NamespaceMap{}, r.namespaceMapHandlers()).
+		Watches(&offv1alpha1.VirtualNode{}, r.enqueueAll()).
 		Watches(&corev1.Node{}, r.enqueueAll()).
 		Complete(r)
 }
@@ -154,8 +153,8 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 			r.namespaces.ForEach(func(namespace string) { enqueue(rli, namespace) })
 		},
 		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
-			oldMappings := ue.ObjectOld.(*mapsv1alpha1.NamespaceMap).Status.CurrentMapping
-			newMappings := ue.ObjectNew.(*mapsv1alpha1.NamespaceMap).Status.CurrentMapping
+			oldMappings := ue.ObjectOld.(*offv1alpha1.NamespaceMap).Status.CurrentMapping
+			newMappings := ue.ObjectNew.(*offv1alpha1.NamespaceMap).Status.CurrentMapping
 
 			// Enqueue an event for all elements that are different between the old and the new object.
 			for namespace, oldStatus := range oldMappings {

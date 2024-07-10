@@ -26,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 // Description is a struct that contains the main informations about a shadow pod.
@@ -49,7 +48,7 @@ func createShadowPodDescription(name, namespace string, uid types.UID, resources
 }
 
 func (pi *peeringInfo) getOrCreateShadowPodDescription(ctx context.Context, c client.Client,
-	sp *vkv1alpha1.ShadowPod, limitsEnforcement offloadingv1alpha1.LimitsEnforcement) (*Description, error) {
+	sp *offloadingv1alpha1.ShadowPod, limitsEnforcement offloadingv1alpha1.LimitsEnforcement) (*Description, error) {
 	nsname := types.NamespacedName{Name: sp.Name, Namespace: sp.Namespace}
 	spQuota, err := getQuotaFromShadowPod(sp, limitsEnforcement)
 	if err != nil {
@@ -72,7 +71,7 @@ func (pi *peeringInfo) getOrCreateShadowPodDescription(ctx context.Context, c cl
 	return createShadowPodDescription(sp.GetName(), sp.GetNamespace(), sp.GetUID(), *spQuota), nil
 }
 
-func (pi *peeringInfo) getShadowPodDescription(sp *vkv1alpha1.ShadowPod) (*Description, error) {
+func (pi *peeringInfo) getShadowPodDescription(sp *offloadingv1alpha1.ShadowPod) (*Description, error) {
 	nsname := types.NamespacedName{Name: sp.Name, Namespace: sp.Namespace}
 	spd, found := pi.shadowPods[nsname.String()]
 	if !found {
@@ -91,7 +90,7 @@ func (spd *Description) terminate() {
 }
 
 func checkShadowPodExistence(ctx context.Context, spvclient client.Client, namespacedName types.NamespacedName) error {
-	sp := &vkv1alpha1.ShadowPod{}
+	sp := &offloadingv1alpha1.ShadowPod{}
 	err := spvclient.Get(ctx, namespacedName, sp)
 	if err != nil {
 		return client.IgnoreNotFound(err)
@@ -99,7 +98,7 @@ func checkShadowPodExistence(ctx context.Context, spvclient client.Client, names
 	return fmt.Errorf("ShadowPod still exists in the system")
 }
 
-func getQuotaFromShadowPod(shadowpod *vkv1alpha1.ShadowPod,
+func getQuotaFromShadowPod(shadowpod *offloadingv1alpha1.ShadowPod,
 	limitsEnforcement offloadingv1alpha1.LimitsEnforcement) (*corev1.ResourceList, error) {
 	conResources := corev1.ResourceList{}
 	initConResources := corev1.ResourceList{}

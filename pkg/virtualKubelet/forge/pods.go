@@ -28,7 +28,7 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	"k8s.io/utils/ptr"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/maps"
 )
@@ -149,13 +149,13 @@ func LocalRejectedPodStatus(local *corev1.PodStatus, phase corev1.PodPhase, reas
 }
 
 // RemoteShadowPod forges the reflected shadowpod, given the local one.
-func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod,
-	targetNamespace string, forgingOpts *ForgingOpts, mutators ...RemotePodSpecMutator) *vkv1alpha1.ShadowPod {
+func RemoteShadowPod(local *corev1.Pod, remote *offloadingv1alpha1.ShadowPod,
+	targetNamespace string, forgingOpts *ForgingOpts, mutators ...RemotePodSpecMutator) *offloadingv1alpha1.ShadowPod {
 	var creation bool
 	if remote == nil {
 		// The remote is nil if not already created.
 		creation = true
-		remote = &vkv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
+		remote = &offloadingv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: local.GetName(), Namespace: targetNamespace}}
 	}
 
 	// Remove the label which identifies offloaded pods, as meaningful only locally.
@@ -182,9 +182,9 @@ func RemoteShadowPod(local *corev1.Pod, remote *vkv1alpha1.ShadowPod,
 			AntiAffinityHardMutator(FilterAntiAffinityLabels(localMetaFiltered.GetLabels(), local.Annotations[liqoconst.PodAntiAffinityLabelsKey])))
 	}
 
-	return &vkv1alpha1.ShadowPod{
+	return &offloadingv1alpha1.ShadowPod{
 		ObjectMeta: RemoteObjectMeta(localMetaFiltered, &remote.ObjectMeta),
-		Spec: vkv1alpha1.ShadowPodSpec{
+		Spec: offloadingv1alpha1.ShadowPodSpec{
 			Pod: RemotePodSpec(creation, local.Spec.DeepCopy(), remote.Spec.Pod.DeepCopy(), mutators...),
 		},
 	}
@@ -374,7 +374,7 @@ func TolerationsMutator(tolerations []corev1.Toleration) RemotePodSpecMutator {
 }
 
 // AffinityMutator is a mutator which implements the support to propagate affinity constraints.
-func AffinityMutator(affinity *vkv1alpha1.Affinity) RemotePodSpecMutator {
+func AffinityMutator(affinity *offloadingv1alpha1.Affinity) RemotePodSpecMutator {
 	return func(remote *corev1.PodSpec) {
 		if affinity == nil || affinity.NodeAffinity == nil {
 			return

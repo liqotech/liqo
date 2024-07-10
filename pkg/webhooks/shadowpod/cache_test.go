@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -32,14 +32,14 @@ var _ = Describe("Webhook Cache", func() {
 	var (
 		err            error
 		spValidator    *Validator
-		fakeShadowPod3 *vkv1alpha1.ShadowPod
-		fakeShadowPod4 *vkv1alpha1.ShadowPod
+		fakeShadowPod3 *offloadingv1alpha1.ShadowPod
+		fakeShadowPod4 *offloadingv1alpha1.ShadowPod
 		fakeClient     client.Client
 		fakeCache      *peeringCache
 		spvClient      client.Client
 		peering        *peeringInfo
 		errClient      error
-		spList         *vkv1alpha1.ShadowPodList
+		spList         *offloadingv1alpha1.ShadowPodList
 	)
 
 	BeforeEach(func() {

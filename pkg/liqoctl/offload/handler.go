@@ -129,7 +129,7 @@ func (o *Options) output() error {
 	}
 
 	nsoff := offloadingv1alpha1.NamespaceOffloading{
-		TypeMeta:   metav1.TypeMeta{APIVersion: offloadingv1alpha1.GroupVersion.String(), Kind: "NamespaceOffloading"},
+		TypeMeta:   metav1.TypeMeta{APIVersion: offloadingv1alpha1.SchemeGroupVersion.String(), Kind: "NamespaceOffloading"},
 		ObjectMeta: metav1.ObjectMeta{Name: consts.DefaultNamespaceOffloadingName, Namespace: o.Namespace},
 		Spec: offloadingv1alpha1.NamespaceOffloadingSpec{
 			PodOffloadingStrategy:    o.PodOffloadingStrategy,
