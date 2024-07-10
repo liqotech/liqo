@@ -37,7 +37,7 @@ import (
 	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
@@ -67,7 +67,7 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=gatewayclients,verbs=get;list;watch
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=tenants,verbs=get;list;watch
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=identities,verbs=get;list;watch
-// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=virtualnodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;
 
@@ -175,7 +175,7 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers in
 		Watches(&networkingv1alpha1.GatewayClient{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		Watches(&authv1alpha1.Tenant{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		Watches(&authv1alpha1.Identity{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
-		Watches(&vkv1alpha1.VirtualNode{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
+		Watches(&offloadingv1alpha1.VirtualNode{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer)).
 		Watches(&corev1.Node{}, handler.EnqueueRequestsFromMapFunc(r.foreignclusterEnqueuer), builder.WithPredicates(virtualNodePredicate)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)

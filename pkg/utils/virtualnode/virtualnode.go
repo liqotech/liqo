@@ -26,13 +26,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // ForgeFakeNodeFromVirtualNode creates a fake node from a virtual node.
-func ForgeFakeNodeFromVirtualNode(ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1.VirtualNode) (*corev1.Node, error) {
+func ForgeFakeNodeFromVirtualNode(ctx context.Context, cl client.Client, vn *offloadingv1alpha1.VirtualNode) (*corev1.Node, error) {
 	l, err := GetLabelSelectors(ctx, cl, vn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve label selectors: %w", err)
@@ -48,7 +48,7 @@ func ForgeFakeNodeFromVirtualNode(ctx context.Context, cl client.Client, vn *vir
 // GetLabelSelectors returns the labels that can be used to target a remote cluster.
 // If virtualnode spec.CreateNode is true, the labels are taken from the created node.
 // If virtualnode spec.CreateNode is false, the labels are taken from the virtual node spec.Labels and spec.Template .
-func GetLabelSelectors(ctx context.Context, cl client.Client, vn *virtualkubeletv1alpha1.VirtualNode) (labels.Set, error) {
+func GetLabelSelectors(ctx context.Context, cl client.Client, vn *offloadingv1alpha1.VirtualNode) (labels.Set, error) {
 	n, err := getters.GetNodeFromVirtualNode(ctx, cl, vn)
 	switch {
 	case errors.IsNotFound(err):
@@ -64,7 +64,7 @@ func GetLabelSelectors(ctx context.Context, cl client.Client, vn *virtualkubelet
 }
 
 // GetVirtualNodeClusterID returns the clusterID given a virtual node.
-func GetVirtualNodeClusterID(vn *virtualkubeletv1alpha1.VirtualNode) (liqov1alpha1.ClusterID, bool) {
+func GetVirtualNodeClusterID(vn *offloadingv1alpha1.VirtualNode) (liqov1alpha1.ClusterID, bool) {
 	remoteClusterID := vn.Spec.ClusterID
 	if remoteClusterID == "" {
 		return "", false

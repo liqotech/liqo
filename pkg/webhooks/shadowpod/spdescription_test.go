@@ -26,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 )
 
 var _ = Describe("ShadowPod Description", func() {
@@ -34,7 +33,7 @@ var _ = Describe("ShadowPod Description", func() {
 		spValidator       *Validator
 		err               error
 		errTest           error
-		shadowPod         *vkv1alpha1.ShadowPod
+		shadowPod         *offloadingv1alpha1.ShadowPod
 		spDescription     *Description
 		spDescriptionTest *Description
 		spNamespacedName  types.NamespacedName

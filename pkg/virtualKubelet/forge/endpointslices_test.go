@@ -25,7 +25,7 @@ import (
 	listerscorev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/utils/pointer"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -65,7 +65,7 @@ var _ = Describe("EndpointSlices Forging", func() {
 	Describe("the RemoteEndpointSlice function", func() {
 		var (
 			input       *discoveryv1.EndpointSlice
-			output      *vkv1alpha1.ShadowEndpointSlice
+			output      *offloadingv1alpha1.ShadowEndpointSlice
 			forgingOpts *forge.ForgingOpts
 		)
 

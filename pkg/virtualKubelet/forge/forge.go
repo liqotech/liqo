@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 )
 
 // ReflectionFieldManager -> The name associated with the fields modified by virtual kubelet reflection.
@@ -76,11 +76,11 @@ type ForgingOpts struct {
 	AnnotationsNotReflected []string
 	NodeSelector            map[string]string
 	Tolerations             []corev1.Toleration
-	Affinity                *virtualkubeletv1alpha1.Affinity
+	Affinity                *offloadingv1alpha1.Affinity
 }
 
 // NewForgingOpts returns a new ForgingOpts instance.
-func NewForgingOpts(offloadingPatch *virtualkubeletv1alpha1.OffloadingPatch) ForgingOpts {
+func NewForgingOpts(offloadingPatch *offloadingv1alpha1.OffloadingPatch) ForgingOpts {
 	if offloadingPatch == nil {
 		return NewEmptyForgingOpts()
 	}

@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
@@ -34,7 +34,7 @@ import (
 )
 
 // ensureNamespaceMapPresence creates a new NamespaceMap associated with that virtual-node if it is not already present.
-func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, vn *virtualkubeletv1alpha1.VirtualNode) error {
+func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, vn *offloadingv1alpha1.VirtualNode) error {
 	l := map[string]string{
 		liqoconst.RemoteClusterID:             string(vn.Spec.ClusterID),
 		liqoconst.ReplicationRequestedLabel:   strconv.FormatBool(true),
@@ -55,7 +55,7 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 		return err
 	}
 
-	nm = &virtualkubeletv1alpha1.NamespaceMap{ObjectMeta: metav1.ObjectMeta{
+	nm = &offloadingv1alpha1.NamespaceMap{ObjectMeta: metav1.ObjectMeta{
 		Name:      foreignclusterutils.UniqueName(vn.Spec.ClusterID),
 		Namespace: nmNamespace.Name,
 	}}
@@ -75,8 +75,8 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 }
 
 // removeAssociatedNamespaceMaps forces the deletion of virtual-node's NamespaceMaps before deleting it.
-func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, vn *virtualkubeletv1alpha1.VirtualNode) error {
-	namespaceMapList := &virtualkubeletv1alpha1.NamespaceMapList{}
+func (r *VirtualNodeReconciler) ensureNamespaceMapAbsence(ctx context.Context, vn *offloadingv1alpha1.VirtualNode) error {
+	namespaceMapList := &offloadingv1alpha1.NamespaceMapList{}
 	virtualNodeRemoteClusterID := vn.Spec.ClusterID
 	if err := r.List(ctx, namespaceMapList, client.InNamespace(corev1.NamespaceAll),
 		client.MatchingLabels{liqoconst.ReplicationDestinationLabel: string(virtualNodeRemoteClusterID)}); err != nil {

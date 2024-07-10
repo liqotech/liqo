@@ -23,13 +23,12 @@ import (
 	"k8s.io/klog/v2"
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
 
 // enforceStatus realigns the status of the NamespaceOffloading, depending on that of the NamespaceMaps.
 func (r *NamespaceOffloadingReconciler) enforceStatus(ctx context.Context, nsoff *offv1alpha1.NamespaceOffloading,
-	nsmaps map[string]*mapsv1alpha1.NamespaceMap) error {
+	nsmaps map[string]*offv1alpha1.NamespaceMap) error {
 	nsoff.Status.RemoteNamespaceName = r.remoteNamespaceName(nsoff)
 
 	// Update the observed generation.
@@ -71,7 +70,7 @@ func (r *NamespaceOffloadingReconciler) remoteNamespaceName(nsoff *offv1alpha1.N
 // ensureRemoteConditionsConsistence checks for every remote condition of the NamespaceOffloading resource that the
 // corresponding NamespaceMap is still there. If the peering is deleted also the corresponding remote condition
 // must be deleted.
-func ensureRemoteConditionsConsistence(nsoff *offv1alpha1.NamespaceOffloading, nsmaps map[string]*mapsv1alpha1.NamespaceMap) {
+func ensureRemoteConditionsConsistence(nsoff *offv1alpha1.NamespaceOffloading, nsmaps map[string]*offv1alpha1.NamespaceMap) {
 outer:
 	for nmname := range nsoff.Status.RemoteNamespacesConditions {
 		for _, nsmap := range nsmaps {
@@ -88,7 +87,7 @@ outer:
 // setRemoteConditionsForEveryCluster configures the conditions depending on whether the namespace has been offloaded, and its status.
 // It additionally returns the number of clusters selected as targets for offloading, and the number of ready and failed ones.
 func setRemoteConditionsForEveryCluster(nsoff *offv1alpha1.NamespaceOffloading,
-	nsmaps map[string]*mapsv1alpha1.NamespaceMap) (requestedCount, readyCount, failedCount uint) {
+	nsmaps map[string]*offv1alpha1.NamespaceMap) (requestedCount, readyCount, failedCount uint) {
 	if nsoff.Status.RemoteNamespacesConditions == nil {
 		nsoff.Status.RemoteNamespacesConditions = map[string]offv1alpha1.RemoteNamespaceConditions{}
 	}
@@ -101,12 +100,12 @@ func setRemoteConditionsForEveryCluster(nsoff *offv1alpha1.NamespaceOffloading,
 		}
 
 		// Get the information for the NamespaceReady condition.
-		var phase mapsv1alpha1.MappingPhase
+		var phase offv1alpha1.MappingPhase
 		if mapping, ok := nsmap.Status.CurrentMapping[nsoff.Namespace]; ok {
 			phase = mapping.Phase
-			if phase == mapsv1alpha1.MappingAccepted {
+			if phase == offv1alpha1.MappingAccepted {
 				readyCount++
-			} else if phase == mapsv1alpha1.MappingCreationLoopBackOff {
+			} else if phase == offv1alpha1.MappingCreationLoopBackOff {
 				failedCount++
 			}
 		}
@@ -166,19 +165,19 @@ func nsoffRequiredCondition(required bool) *offv1alpha1.RemoteNamespaceCondition
 }
 
 // nsoffRequiredCondition returns a condition stating the offloading status, based on the corresponding NamespaceMap.
-func nsoffReadyCondition(phase mapsv1alpha1.MappingPhase) *offv1alpha1.RemoteNamespaceCondition {
+func nsoffReadyCondition(phase offv1alpha1.MappingPhase) *offv1alpha1.RemoteNamespaceCondition {
 	condition := &offv1alpha1.RemoteNamespaceCondition{Type: offv1alpha1.NamespaceReady, LastTransitionTime: metav1.Now()}
 
 	switch {
-	case phase == mapsv1alpha1.MappingAccepted:
+	case phase == offv1alpha1.MappingAccepted:
 		condition.Status = corev1.ConditionTrue
 		condition.Reason = "NamespaceCreated"
 		condition.Message = "Namespace correctly offloaded to the remote cluster"
-	case phase == mapsv1alpha1.MappingCreationLoopBackOff:
+	case phase == offv1alpha1.MappingCreationLoopBackOff:
 		condition.Status = corev1.ConditionFalse
 		condition.Reason = "CreationLoopBackOff"
 		condition.Message = "Some problems occurred during remote namespace creation"
-	case phase == mapsv1alpha1.MappingTerminating:
+	case phase == offv1alpha1.MappingTerminating:
 		condition.Status = corev1.ConditionFalse
 		condition.Reason = "Terminating"
 		condition.Message = "The remote namespace is being deleted"

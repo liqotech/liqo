@@ -32,13 +32,13 @@ import (
 
 const (
 	// LiqoSASecretForPodNameKey is the key of a label identifying the name of the pod associated with the given service account tokens.
-	LiqoSASecretForPodNameKey = "virtualkubelet.liqo.io/service-account-for-pod-name"
+	LiqoSASecretForPodNameKey = "offloading.liqo.io/service-account-for-pod-name"
 	// LiqoSASecretForServiceAccountKey is the key of a label identifying the name of the service account originating the given tokens.
-	LiqoSASecretForServiceAccountKey = "virtualkubelet.liqo.io/service-account-name"
+	LiqoSASecretForServiceAccountKey = "offloading.liqo.io/service-account-name"
 	// LiqoSASecretForPodUIDKey is the key of an annotation identifying the uid of the pod associated with the given service account tokens.
-	LiqoSASecretForPodUIDKey = "virtualkubelet.liqo.io/service-account-for-pod-uid"
+	LiqoSASecretForPodUIDKey = "offloading.liqo.io/service-account-for-pod-uid"
 	// LiqoSASecretExpirationKey is the key of an annotation storing the expiration timestamp of the given service account tokens.
-	LiqoSASecretExpirationKey = "virtualkubelet.liqo.io/service-account-expiration"
+	LiqoSASecretExpirationKey = "offloading.liqo.io/service-account-expiration"
 
 	// TokenRefreshAtLifespanPercentage is the percentage of the token lifespan when it should be refreshed.
 	TokenRefreshAtLifespanPercentage = 80.0

@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	vkMachineryForge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
 	vkutils "github.com/liqotech/liqo/pkg/vkMachinery/utils"
@@ -64,7 +64,7 @@ func RunDeletionRoutine(ctx context.Context, r *VirtualNodeReconciler) (*Deletio
 }
 
 // EnsureNodeAbsence adds a virtual node to the deletion queue.
-func (dr *DeletionRoutine) EnsureNodeAbsence(vn *virtualkubeletv1alpha1.VirtualNode) error {
+func (dr *DeletionRoutine) EnsureNodeAbsence(vn *offloadingv1alpha1.VirtualNode) error {
 	key, err := cache.MetaNamespaceKeyFunc(vn)
 	if err != nil {
 		return fmt.Errorf("error getting key: %w", err)
@@ -111,7 +111,7 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 		return err
 	}
 	ref := types.NamespacedName{Namespace: namespace, Name: name}
-	vn := &virtualkubeletv1alpha1.VirtualNode{}
+	vn := &offloadingv1alpha1.VirtualNode{}
 	if err = dr.vnr.Client.Get(ctx, ref, vn); err != nil {
 		if k8serrors.IsNotFound(err) {
 			err = nil
@@ -133,8 +133,8 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 	klog.Infof("Deletion routine started for virtual node %s", vn.Name)
 	ForgeCondition(vn,
 		VnConditionMap{
-			virtualkubeletv1alpha1.NodeConditionType: VnCondition{
-				Status: virtualkubeletv1alpha1.DrainingConditionStatusType,
+			offloadingv1alpha1.NodeConditionType: VnCondition{
+				Status: offloadingv1alpha1.DrainingConditionStatusType,
 			}})
 
 	var node *corev1.Node
@@ -179,8 +179,8 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 		// Node is being deleted, but the VirtualNode resource is not.
 		// The VirtualNode .Spec.CreateNode field is set to false.
 		ForgeCondition(vn, VnConditionMap{
-			virtualkubeletv1alpha1.NodeConditionType: VnCondition{
-				Status: virtualkubeletv1alpha1.NoneConditionStatusType,
+			offloadingv1alpha1.NodeConditionType: VnCondition{
+				Status: offloadingv1alpha1.NoneConditionStatusType,
 			}})
 	}
 
@@ -189,7 +189,7 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 }
 
 // deleteNode deletes the Node created by VirtualNode.
-func (dr *DeletionRoutine) deleteNode(ctx context.Context, node *corev1.Node, vn *virtualkubeletv1alpha1.VirtualNode) error {
+func (dr *DeletionRoutine) deleteNode(ctx context.Context, node *corev1.Node, vn *offloadingv1alpha1.VirtualNode) error {
 	if err := cordonNode(ctx, dr.vnr.Client, node); err != nil {
 		return fmt.Errorf("error cordoning node: %w", err)
 	}
@@ -205,8 +205,8 @@ func (dr *DeletionRoutine) deleteNode(ctx context.Context, node *corev1.Node, vn
 	if !vn.DeletionTimestamp.IsZero() {
 		ForgeCondition(vn,
 			VnConditionMap{
-				virtualkubeletv1alpha1.VirtualKubeletConditionType: VnCondition{
-					Status: virtualkubeletv1alpha1.DeletingConditionStatusType,
+				offloadingv1alpha1.VirtualKubeletConditionType: VnCondition{
+					Status: offloadingv1alpha1.DeletingConditionStatusType,
 				},
 			},
 		)
@@ -218,8 +218,8 @@ func (dr *DeletionRoutine) deleteNode(ctx context.Context, node *corev1.Node, vn
 
 	ForgeCondition(vn,
 		VnConditionMap{
-			virtualkubeletv1alpha1.NodeConditionType: VnCondition{
-				Status: virtualkubeletv1alpha1.DeletingConditionStatusType,
+			offloadingv1alpha1.NodeConditionType: VnCondition{
+				Status: offloadingv1alpha1.DeletingConditionStatusType,
 			},
 		})
 	if err := client.IgnoreNotFound(dr.vnr.Client.Delete(ctx, node, &client.DeleteOptions{})); err != nil {

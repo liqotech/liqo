@@ -29,7 +29,7 @@ import (
 	versioned "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/liqotech/liqo/pkg/client/informers/externalversions/internalinterfaces"
 	ipam "github.com/liqotech/liqo/pkg/client/informers/externalversions/ipam"
-	virtualkubelet "github.com/liqotech/liqo/pkg/client/informers/externalversions/virtualkubelet"
+	offloading "github.com/liqotech/liqo/pkg/client/informers/externalversions/offloading"
 )
 
 // SharedInformerOption defines the functional option type for SharedInformerFactory.
@@ -254,13 +254,13 @@ type SharedInformerFactory interface {
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
 	Ipam() ipam.Interface
-	Virtualkubelet() virtualkubelet.Interface
+	Offloading() offloading.Interface
 }
 
 func (f *sharedInformerFactory) Ipam() ipam.Interface {
 	return ipam.New(f, f.namespace, f.tweakListOptions)
 }
 
-func (f *sharedInformerFactory) Virtualkubelet() virtualkubelet.Interface {
-	return virtualkubelet.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Offloading() offloading.Interface {
+	return offloading.New(f, f.namespace, f.tweakListOptions)
 }

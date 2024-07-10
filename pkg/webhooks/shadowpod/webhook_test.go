@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 )
 
 var _ = Describe("Validating webhook", func() {
@@ -40,7 +40,7 @@ var _ = Describe("Validating webhook", func() {
 		spValidatorWithResources *Validator
 		request                  admission.Request
 		response                 admission.Response
-		fakeNewShadowPod         *vkv1alpha1.ShadowPod
+		fakeNewShadowPod         *offloadingv1alpha1.ShadowPod
 		fakeNamespace            *corev1.Namespace
 		fakeClient               client.Client
 		spvClient                client.Client
@@ -56,7 +56,7 @@ var _ = Describe("Validating webhook", func() {
 			WithObjects(fakeNamespace, foreignCluster, quota, quota2).
 			WithStatusSubresource(
 				&liqov1alpha1.ForeignCluster{},
-				&vkv1alpha1.ShadowPod{}).
+				&offloadingv1alpha1.ShadowPod{}).
 			Build()
 
 		spValidator = webhook.Admission{Handler: NewValidator(fakeClient, false)}.Handler.(*Validator)

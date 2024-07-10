@@ -22,7 +22,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
@@ -70,7 +70,7 @@ func forgeVKContainers(
 	homeCluster, remoteCluster liqov1alpha1.ClusterID,
 	nodeName, vkNamespace, localPodCIDR, liqoNamespace string,
 	storageClasses []liqov1alpha1.StorageType, ingressClasses []liqov1alpha1.IngressType, loadBalancerClasses []liqov1alpha1.LoadBalancerType,
-	opts *vkv1alpha1.VkOptionsTemplate) []v1.Container {
+	opts *offloadingv1alpha1.VkOptionsTemplate) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
@@ -164,7 +164,7 @@ func forgeVKContainers(
 }
 
 func forgeVKPodSpec(vkNamespace string, homeCluster liqov1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
-	virtualNode *vkv1alpha1.VirtualNode, opts *vkv1alpha1.VkOptionsTemplate) v1.PodSpec {
+	virtualNode *offloadingv1alpha1.VirtualNode, opts *offloadingv1alpha1.VkOptionsTemplate) v1.PodSpec {
 	return v1.PodSpec{
 		Containers: forgeVKContainers(
 			homeCluster, virtualNode.Spec.ClusterID,
@@ -175,7 +175,7 @@ func forgeVKPodSpec(vkNamespace string, homeCluster liqov1alpha1.ClusterID, loca
 	}
 }
 
-func appendArgsReflectorsWorkers(args []string, reflectorsConfig map[string]vkv1alpha1.ReflectorConfig) []string {
+func appendArgsReflectorsWorkers(args []string, reflectorsConfig map[string]offloadingv1alpha1.ReflectorConfig) []string {
 	if reflectorsConfig == nil {
 		return args
 	}
@@ -192,7 +192,7 @@ func appendArgsReflectorsWorkers(args []string, reflectorsConfig map[string]vkv1
 	return args
 }
 
-func appendArgsReflectorsType(args []string, reflectorsConfig map[string]vkv1alpha1.ReflectorConfig) []string {
+func appendArgsReflectorsType(args []string, reflectorsConfig map[string]offloadingv1alpha1.ReflectorConfig) []string {
 	if reflectorsConfig == nil {
 		return args
 	}

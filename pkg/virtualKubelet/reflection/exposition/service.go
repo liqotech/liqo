@@ -26,7 +26,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/virtualkubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -57,7 +57,7 @@ type NamespacedServiceReflector struct {
 }
 
 // NewServiceReflector returns a new ServiceReflector instance.
-func NewServiceReflector(reflectorConfig *vkv1alpha1.ReflectorConfig,
+func NewServiceReflector(reflectorConfig *offloadingv1alpha1.ReflectorConfig,
 	enableLoadBalancer bool, remoteRealLoadBalancerClassName string) manager.Reflector {
 	return generic.NewReflector(ServiceReflectorName,
 		NewNamespacedServiceReflector(enableLoadBalancer, remoteRealLoadBalancerClassName), generic.WithoutFallback(),
@@ -122,7 +122,7 @@ func (nsr *NamespacedServiceReflector) Handle(ctx context.Context, name string) 
 			return err
 		}
 		if skipReflection {
-			if nsr.GetReflectionType() == vkv1alpha1.DenyList {
+			if nsr.GetReflectionType() == offloadingv1alpha1.DenyList {
 				klog.Infof("Skipping reflection of local Service %q as marked with the skip annotation", nsr.LocalRef(name))
 			} else { // AllowList
 				klog.Infof("Skipping reflection of local Service %q as not marked with the allow annotation", nsr.LocalRef(name))

@@ -22,7 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
-	vkv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
@@ -60,15 +60,15 @@ var DefaultReflectorsWorkers = map[resources.ResourceReflected]uint{
 }
 
 // DefaultReflectorsTypes contains the default type of reflection for each reflected resource.
-var DefaultReflectorsTypes = map[resources.ResourceReflected]vkv1alpha1.ReflectionType{
-	resources.Pod:                   vkv1alpha1.CustomLiqo,
-	resources.Service:               vkv1alpha1.DenyList,
-	resources.Ingress:               vkv1alpha1.DenyList,
-	resources.ConfigMap:             vkv1alpha1.DenyList,
-	resources.Secret:                vkv1alpha1.DenyList,
-	resources.ServiceAccount:        vkv1alpha1.CustomLiqo,
-	resources.PersistentVolumeClaim: vkv1alpha1.CustomLiqo,
-	resources.Event:                 vkv1alpha1.DenyList,
+var DefaultReflectorsTypes = map[resources.ResourceReflected]offloadingv1alpha1.ReflectionType{
+	resources.Pod:                   offloadingv1alpha1.CustomLiqo,
+	resources.Service:               offloadingv1alpha1.DenyList,
+	resources.Ingress:               offloadingv1alpha1.DenyList,
+	resources.ConfigMap:             offloadingv1alpha1.DenyList,
+	resources.Secret:                offloadingv1alpha1.DenyList,
+	resources.ServiceAccount:        offloadingv1alpha1.CustomLiqo,
+	resources.PersistentVolumeClaim: offloadingv1alpha1.CustomLiqo,
+	resources.Event:                 offloadingv1alpha1.DenyList,
 }
 
 // Opts stores all the options for configuring the root virtual-kubelet command.

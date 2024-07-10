@@ -33,7 +33,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualkubelet/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
@@ -117,7 +117,7 @@ var _ = Describe("NodeProvider", func() {
 	})
 
 	type nodeProviderTestcase struct {
-		virtualNode        *virtualkubeletv1alpha1.VirtualNode
+		virtualNode        *offloadingv1alpha1.VirtualNode
 		connection         *networkingv1alpha1.Connection
 		expectedConditions []types.GomegaMatcher
 	}
@@ -136,7 +136,7 @@ var _ = Describe("NodeProvider", func() {
 			if c.virtualNode != nil {
 				unstructVirtualNode, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.virtualNode)
 				Expect(err).To(BeNil())
-				_, err = dynClient.Resource(virtualkubeletv1alpha1.VirtualNodeGroupVersionResource).
+				_, err = dynClient.Resource(offloadingv1alpha1.VirtualNodeGroupVersionResource).
 					Namespace(kubeletNamespace).Create(ctx, &unstructured.Unstructured{
 					Object: unstructVirtualNode,
 				}, metav1.CreateOptions{})
@@ -173,16 +173,16 @@ var _ = Describe("NodeProvider", func() {
 		},
 
 		Entry("update from VirtualNode", nodeProviderTestcase{
-			virtualNode: &virtualkubeletv1alpha1.VirtualNode{
+			virtualNode: &offloadingv1alpha1.VirtualNode{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "VirtualNode",
-					APIVersion: virtualkubeletv1alpha1.VirtualNodeGroupVersionResource.GroupVersion().String(),
+					APIVersion: offloadingv1alpha1.VirtualNodeGroupVersionResource.GroupVersion().String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      nodeName,
 					Namespace: kubeletNamespace,
 				},
-				Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
+				Spec: offloadingv1alpha1.VirtualNodeSpec{
 					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
@@ -230,16 +230,16 @@ var _ = Describe("NodeProvider", func() {
 		}),
 
 		Entry("update from both", nodeProviderTestcase{
-			virtualNode: &virtualkubeletv1alpha1.VirtualNode{
+			virtualNode: &offloadingv1alpha1.VirtualNode{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "VirtualNode",
-					APIVersion: virtualkubeletv1alpha1.VirtualNodeGroupVersionResource.GroupVersion().String(),
+					APIVersion: offloadingv1alpha1.VirtualNodeGroupVersionResource.GroupVersion().String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      nodeName,
 					Namespace: kubeletNamespace,
 				},
-				Spec: virtualkubeletv1alpha1.VirtualNodeSpec{
+				Spec: offloadingv1alpha1.VirtualNodeSpec{
 					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
