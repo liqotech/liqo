@@ -22,10 +22,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
-	"github.com/liqotech/liqo/pkg/utils/pod"
+	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 )
 
 // PodType -> defines the type of a pod (local/remote).
@@ -39,15 +43,15 @@ const (
 )
 
 // IsPodUp waits for a specific namespace/podName to be ready. It returns true if the pod within the timeout, false otherwise.
-func IsPodUp(ctx context.Context, client kubernetes.Interface, namespace, podName string, podType PodType) bool {
+func IsPodUp(ctx context.Context, clientset kubernetes.Interface, namespace, podName string, podType PodType) bool {
 	klog.Infof("checking if %s pod %s/%s is ready", podType, namespace, podName)
-	podToCheck, err := client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+	podToCheck, err := clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("an error occurred while getting %s pod %s/%s: %v", podType, namespace, podName, err)
 		return false
 	}
 
-	ready, reason := pod.IsPodReady(podToCheck)
+	ready, reason := podutils.IsPodReady(podToCheck)
 	message := "ready"
 	if !ready {
 		message = "NOT ready"
@@ -66,7 +70,7 @@ func ArePodsUp(ctx context.Context, clientset kubernetes.Interface, namespace st
 		return nil, nil, retErr
 	}
 	for index := range pods.Items {
-		if ready, _ := pod.IsPodReady(&pods.Items[index]); !ready {
+		if ready, _ := podutils.IsPodReady(&pods.Items[index]); !ready {
 			notReady = append(notReady, pods.Items[index].Name)
 		}
 		ready = append(ready, pods.Items[index].Name)
@@ -106,4 +110,69 @@ func ResourceRequirements() corev1.ResourceRequirements {
 		corev1.ResourceCPU:    *resource.NewScaledQuantity(250, resource.Milli),
 		corev1.ResourceMemory: *resource.NewScaledQuantity(100, resource.Mega),
 	}}
+}
+
+// PodOption is a function that modifies a Pod.
+type PodOption func(*corev1.Pod)
+
+// RemotePodOption sets the Pod to be scheduled on remote nodes.
+func RemotePodOption(virtualNode bool, nodeName *string) PodOption {
+	var nodeSelectors []corev1.NodeSelectorRequirement
+	if virtualNode {
+		nodeSelectors = append(nodeSelectors, corev1.NodeSelectorRequirement{
+			Key:      consts.TypeLabel,
+			Operator: corev1.NodeSelectorOpExists,
+		})
+	}
+
+	node := ptr.Deref(nodeName, "")
+
+	return func(pod *corev1.Pod) {
+		pod.Spec.NodeName = node
+
+		if len(nodeSelectors) > 0 {
+			if pod.Spec.Affinity == nil {
+				pod.Spec.Affinity = &corev1.Affinity{}
+			}
+			if pod.Spec.Affinity.NodeAffinity == nil {
+				pod.Spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
+			}
+			if pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+				pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{}
+			}
+			pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = []corev1.NodeSelectorTerm{
+				{
+					MatchExpressions: nodeSelectors,
+				},
+			}
+		}
+	}
+}
+
+// EnforcePod creates or updates a Pod with the given name in the given namespace.
+func EnforcePod(ctx context.Context, cl client.Client, namespace, name string, options ...PodOption) error {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	return Second(controllerutil.CreateOrUpdate(ctx, cl, pod, func() error {
+		pod.Spec = corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:            name,
+					Image:           "nginx",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+				},
+			},
+		}
+
+		for _, opt := range options {
+			opt(pod)
+		}
+
+		return nil
+	}))
 }
