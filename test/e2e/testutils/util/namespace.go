@@ -95,6 +95,13 @@ func CreateNamespaceOffloading(ctx context.Context, cl client.Client, namespace 
 	return cl.Create(ctx, nsoff)
 }
 
+// GetNamespaceOffloading returns the NamespaceOffloading resource for the given namespace.
+func GetNamespaceOffloading(ctx context.Context, cl client.Client, namespace string) (*offloadingv1alpha1.NamespaceOffloading, error) {
+	nsoff := &offloadingv1alpha1.NamespaceOffloading{}
+	err := cl.Get(ctx, client.ObjectKey{Name: consts.DefaultNamespaceOffloadingName, Namespace: namespace}, nsoff)
+	return nsoff, err
+}
+
 // OffloadNamespace offloads a namespace using liqoctl.
 func OffloadNamespace(kubeconfig, namespace string, args ...string) error {
 	return ExecLiqoctl(kubeconfig, append([]string{"offload", "namespace", namespace}, args...), ginkgo.GinkgoWriter)
