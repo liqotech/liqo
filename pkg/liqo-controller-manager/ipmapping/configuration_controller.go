@@ -34,7 +34,6 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam/utils"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 )
 
 // cluster-role
@@ -108,8 +107,8 @@ func (r *ConfigurationReconciler) createOrUpdateUnknownSourceIPResource(ctx cont
 			Name:      forgeUnknownSourceIPName(cfg),
 			Namespace: cfg.Namespace,
 			Labels: map[string]string{
-				remapping.IPCategoryTargetKey: remapping.IPCategoryTargetValueMapping,
-				consts.RemoteClusterID:        cfg.GetName(),
+				consts.IPCategoryTargetKey: consts.IPCategoryTargetValueMapping,
+				consts.RemoteClusterID:     cfg.GetName(),
 			},
 		},
 	}
