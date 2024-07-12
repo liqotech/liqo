@@ -57,7 +57,7 @@ func ForgePodTargetForProvider(ctx context.Context, cl *client.Client, name stri
 		if err := cl.Providers[name].List(ctx, &eps,
 			ctrlclient.InNamespace(setup.NamespaceName),
 			ctrlclient.MatchingLabels{
-				"kubernetes.io/service-name": setup.DeploymentName,
+				discoveryv1.LabelServiceName: setup.DeploymentName,
 			},
 		); err != nil {
 			return false, err
@@ -95,7 +95,7 @@ func ForgePodTargetForConsumer(ctx context.Context, cl *client.Client, totalRepl
 		if err := cl.Consumer.List(ctx, &eps,
 			ctrlclient.InNamespace(setup.NamespaceName),
 			ctrlclient.MatchingLabels{
-				"kubernetes.io/service-name": setup.DeploymentName,
+				discoveryv1.LabelServiceName: setup.DeploymentName,
 			},
 		); err != nil {
 			return false, err

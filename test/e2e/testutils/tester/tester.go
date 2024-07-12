@@ -169,6 +169,28 @@ func getClusterNumberFromEnv() (int, error) {
 	return clusterNumber, nil
 }
 
+// GetConsumers returns a slice of clusters having role Consumer.
+func GetConsumers(clusters []ClusterContext) []ClusterContext {
+	consumers := []ClusterContext{}
+	for i := range clusters {
+		if clusters[i].Role == liqov1alpha1.ConsumerRole {
+			consumers = append(consumers, clusters[i])
+		}
+	}
+	return consumers
+}
+
+// GetProviders returns a slice of clusters having role Provider.
+func GetProviders(clusters []ClusterContext) []ClusterContext {
+	providers := []ClusterContext{}
+	for i := range clusters {
+		if clusters[i].Role == liqov1alpha1.ProviderRole {
+			providers = append(providers, clusters[i])
+		}
+	}
+	return providers
+}
+
 func getScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
