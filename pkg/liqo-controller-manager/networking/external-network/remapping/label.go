@@ -14,14 +14,12 @@
 
 package remapping
 
-import "github.com/liqotech/liqo/pkg/firewall"
+import (
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/firewall"
+)
 
 const (
-	// IPCategoryTargetKey is the key used by the IPAM controller to reconcile only resources related to a group.
-	IPCategoryTargetKey = "ipam.liqo.io/ip-category"
-	// IPCategoryTargetValueMapping is the value used by the IPAM controller to reconcile only resources related to a group.
-	IPCategoryTargetValueMapping = "ip-mapping"
-
 	// FirewallCategoryTargetValueGw is the value used by the firewallconfiguration controller to reconcile only resources related to a gateway.
 	FirewallCategoryTargetValueGw = "gateway"
 	// FirewallCategoryTargetValueFabric is the value used by the firewallconfiguration controller to reconcile only resources related to fabric.
@@ -34,7 +32,7 @@ const (
 // ForgeIPTargetLabelsMapping returns the labels used by the IPAM controller to reconcile only resources related to a single IP.
 func ForgeIPTargetLabelsMapping() map[string]string {
 	return map[string]string{
-		IPCategoryTargetKey: IPCategoryTargetValueMapping,
+		consts.IPCategoryTargetKey: consts.IPCategoryTargetValueMapping,
 	}
 }
 
