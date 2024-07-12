@@ -16,6 +16,7 @@ package util
 
 import (
 	"context"
+	"slices"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,6 +30,28 @@ import (
 
 // DeploymentOption is a function that modifies a Deployment.
 type DeploymentOption func(*appsv1.Deployment)
+
+// LocalDeploymentOption sets the Deployment to be scheduled on local nodes.
+func LocalDeploymentOption() DeploymentOption {
+	return func(deploy *appsv1.Deployment) {
+		deploy.Spec.Template.Spec.Affinity = &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      consts.TypeLabel,
+									Operator: corev1.NodeSelectorOpDoesNotExist,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+}
 
 // RemoteDeploymentOption sets the Deployment to be scheduled on remote nodes.
 func RemoteDeploymentOption() DeploymentOption {
@@ -49,6 +72,13 @@ func RemoteDeploymentOption() DeploymentOption {
 				},
 			},
 		}
+	}
+}
+
+// RuntimeClassOption sets the RuntimeClass of the Deployment.
+func RuntimeClassOption(runtimeClass string) DeploymentOption {
+	return func(deploy *appsv1.Deployment) {
+		deploy.Spec.Template.Spec.RuntimeClassName = &runtimeClass
 	}
 }
 
@@ -97,7 +127,7 @@ func EnsureDeploymentDeletion(ctx context.Context, cl client.Client, namespace, 
 			Namespace: namespace,
 		},
 	}
-	return cl.Delete(ctx, deploy)
+	return client.IgnoreNotFound(cl.Delete(ctx, deploy))
 }
 
 // GetPodsFromDeployment returns the Pods of a Deployment with the given name in the given namespace.
@@ -108,4 +138,44 @@ func GetPodsFromDeployment(ctx context.Context, cl client.Client, namespace, nam
 	}
 
 	return pods.Items, nil
+}
+
+// AddArgumentToDeployment adds an argument to the containers of a Deployment with the given name in the given namespace.
+func AddArgumentToDeployment(ctx context.Context, cl client.Client, namespace, name, argument string, index int) error {
+	deploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	if err := cl.Get(ctx, client.ObjectKeyFromObject(deploy), deploy); err != nil {
+		return err
+	}
+
+	deploy.Spec.Template.Spec.Containers[index].Args = append(deploy.Spec.Template.Spec.Containers[index].Args, argument)
+
+	return cl.Update(ctx, deploy)
+}
+
+// RemoveArgumentFromDeployment removes an argument from the containers of a Deployment with the given name in the given namespace.
+func RemoveArgumentFromDeployment(ctx context.Context, cl client.Client, namespace, name, argument string, index int) error {
+	deploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	if err := cl.Get(ctx, client.ObjectKeyFromObject(deploy), deploy); err != nil {
+		return err
+	}
+
+	container := &deploy.Spec.Template.Spec.Containers[index]
+	for j, arg := range container.Args {
+		if arg == argument {
+			deploy.Spec.Template.Spec.Containers[index].Args = slices.Delete(deploy.Spec.Template.Spec.Containers[index].Args, j, j+1)
+			break
+		}
+	}
+
+	return cl.Update(ctx, deploy)
 }
