@@ -28,7 +28,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -53,7 +52,7 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 			ip.Labels = map[string]string{}
 		}
 
-		ip.Labels[remapping.IPCategoryTargetKey] = remapping.IPCategoryTargetValueMapping
+		ip.Labels[consts.IPCategoryTargetKey] = consts.IPCategoryTargetValueMapping
 		ip.Labels[consts.IPTypeLabelKey] = consts.IPTypeAPIServer
 
 		ip.Spec.IP = networkingv1alpha1.IP(k8sSvc.Spec.ClusterIP)
