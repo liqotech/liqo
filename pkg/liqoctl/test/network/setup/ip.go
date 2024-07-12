@@ -26,7 +26,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
 )
 
@@ -64,7 +64,7 @@ func CreateIP(ctx context.Context, cl ctrlclient.Client, dstip string) error {
 			Name:      IPName,
 			Namespace: IPNamespace,
 			Labels: map[string]string{
-				remapping.IPCategoryTargetKey: remapping.IPCategoryTargetValueMapping,
+				consts.IPCategoryTargetKey: consts.IPCategoryTargetValueMapping,
 			},
 		},
 		Spec: ipamv1alpha1.IPSpec{

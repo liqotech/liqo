@@ -15,6 +15,11 @@
 package consts
 
 const (
+	// IPCategoryTargetKey is the key used by the IPAM controller to reconcile only resources related to a group.
+	IPCategoryTargetKey = "ipam.liqo.io/ip-category"
+	// IPCategoryTargetValueMapping is the value used by the IPAM controller to reconcile only resources related to a group.
+	IPCategoryTargetValueMapping = "ip-mapping"
+
 	// GatewayResourceLabel is the label added to a gateway resource.
 	GatewayResourceLabel = "networking.liqo.io/gateway-resource"
 	// GatewayResourceLabelValue is the value of the label added to a gateway resource.
