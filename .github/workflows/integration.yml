@@ -133,7 +133,7 @@ jobs:
             echo "path=build/common/Dockerfile") >> $GITHUB_OUTPUT
 
       - name: Build (and Publish) ${{ matrix.component }} image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: ${{ needs.configure.outputs.architectures }}
