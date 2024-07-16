@@ -101,7 +101,7 @@ jobs:
           --privileged=true
         image: ghcr.io/${{ github.repository_owner }}/liqo-test:${{ needs.configure.outputs.commit-ref }}
         run: |
-          go-acc ./... --ignore liqo/test/e2e
+          go test ./cmd/... ./pkg/... ./apis/... ./internal/... -count=1 -failfast -coverprofile=coverage.out -covermode=atomic
 
       # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
     - uses: octokit/request-action@v2.x
@@ -119,5 +119,5 @@ jobs:
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1.9.0
       with:
-        path-to-profile: coverage.txt
+        path-to-profile: coverage.out
       if: github.event_name == 'push'

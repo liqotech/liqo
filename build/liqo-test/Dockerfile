@@ -1,10 +1,6 @@
-FROM golang:1.22 as builder
-ENV PATH /go/bin:/usr/local/go/bin:$PATH
-ENV GOPATH /go
-ENV K8S_VERSION=1.25.0
+FROM golang:1.22
 
-# Install required go binaries
-RUN go install github.com/ory/go-acc@v0.2.8
+ENV K8S_VERSION=1.29.0
 
 WORKDIR /go/src/github.com/liqotech/liqo
 COPY go.mod ./go.mod
@@ -22,5 +18,9 @@ RUN apt-get update && apt-get install iptables iproute2 -y
 # Fix for go version 1.19.5
 ENV GOFLAGS=-buildvcs=false
 
-ENTRYPOINT [ "go-acc" ]
-CMD [ "./...", "--ignore", "liqo/test/e2e", "--", "-vet=off" ]
+ENTRYPOINT [ "go", "test" ]
+
+# Remove the -count=1 flag to enable caching of successful tests
+# Remove the -failfast flag to run all tests even if some fail
+# Add the -v flag to increase verbosity
+CMD [ "./cmd/...", "./pkg/...", "./apis/...", "./internal/...", "-count=1", "-failfast", "-covermode atomic", "-coverprofile=coverage.out" ]
