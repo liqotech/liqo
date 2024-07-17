@@ -23,7 +23,7 @@ import (
 )
 
 // EnsureGeneveInterfacePresence ensures that a geneve interface exists for the given internal node.
-func EnsureGeneveInterfacePresence(interfaceName, localIP, remoteIP string, id uint32, enableARP bool) error {
+func EnsureGeneveInterfacePresence(interfaceName, localIP, remoteIP string, id uint32, disableARP bool) error {
 	remoteIPNet := net.ParseIP(remoteIP)
 	if remoteIPNet == nil {
 		remoteIPsNet, err := net.LookupIP(remoteIP)
@@ -36,7 +36,7 @@ func EnsureGeneveInterfacePresence(interfaceName, localIP, remoteIP string, id u
 		net.ParseIP(localIP),
 		remoteIPNet,
 		id,
-		enableARP,
+		disableARP,
 	)
 }
 
@@ -62,7 +62,7 @@ func ForgeGeneveInterface(name string, remote net.IP, id uint32) *netlink.Geneve
 }
 
 // CreateGeneveInterface creates a geneve interface with the given name, remote IP and ID.
-func CreateGeneveInterface(name string, local, remote net.IP, id uint32, enableARP bool) error {
+func CreateGeneveInterface(name string, local, remote net.IP, id uint32, disableARP bool) error {
 	var geneveLink *netlink.Geneve
 	link := ExistGeneveInterface(name)
 
@@ -86,7 +86,7 @@ func CreateGeneveInterface(name string, local, remote net.IP, id uint32, enableA
 		}
 	}
 
-	if !enableARP {
+	if disableARP {
 		if err := netlink.LinkSetARPOff(geneveLink); err != nil {
 			return fmt.Errorf("cannot set geneve link arp off: %w", err)
 		}

@@ -14,6 +14,10 @@
 
 package fabric
 
+import (
+	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
+)
+
 // Options contains the options for the wireguard interface.
 type Options struct {
 	NodeName string
@@ -22,10 +26,15 @@ type Options struct {
 	MetricsAddress string
 	ProbeAddr      string
 
-	EnableARP bool
+	DisableARP bool
+
+	DisableKernelVersionCheck bool
+	MinimumKernelVersion      kernelversion.KernelVersion
 }
 
 // NewOptions returns a new Options struct.
 func NewOptions() *Options {
-	return &Options{}
+	return &Options{
+		MinimumKernelVersion: kernelversion.MinimumKernelVersion,
+	}
 }

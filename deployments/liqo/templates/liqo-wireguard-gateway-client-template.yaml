@@ -57,6 +57,9 @@ spec:
                 {{- if gt .Values.networking.gatewayTemplates.replicas 1.0 }}
                 - --leader-election=true
                 {{- end }}
+                {{- if .Values.requirements.kernel.disabled }}
+                - --disable-kernel-version-check
+                {{- end }}
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8080
@@ -117,7 +120,6 @@ spec:
                 - --metrics-address=:8084
                 {{- end }}
                 - --health-probe-bind-address=:8085
-                - --enable-arp=true
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8084

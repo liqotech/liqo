@@ -57,6 +57,11 @@ const (
 	FlagNameMetricsAddress FlagName = "metrics-address"
 	// FlagNameProbeAddr is the address for the health probe endpoint.
 	FlagNameProbeAddr FlagName = "health-probe-bind-address"
+
+	// FlagNameDisableKernelVersionCheck is the flag to enable the kernel version check.
+	FlagNameDisableKernelVersionCheck FlagName = "disable-kernel-version-check"
+	// FlagNameMinimumKernelVersion is the minimum kernel version required by Liqo.
+	FlagNameMinimumKernelVersion FlagName = "minimum-kernel-version"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
@@ -90,6 +95,9 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), "0", "Address for the metrics endpoint")
 	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")
+
+	flagset.BoolVar(&opts.DisableKernelVersionCheck, FlagNameDisableKernelVersionCheck.String(), false, "Disable the kernel version check")
+	flagset.Var(&opts.MinimumKernelVersion, FlagNameMinimumKernelVersion.String(), "Minimum kernel version required by Liqo")
 }
 
 // MarkFlagsRequired marks the flags as required.
