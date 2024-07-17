@@ -17,11 +17,16 @@ package reflection
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	dto "github.com/prometheus/client_model/go"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -31,10 +36,14 @@ import (
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
+	httputils "github.com/liqotech/liqo/test/e2e/testutils/http"
+	metricsutils "github.com/liqotech/liqo/test/e2e/testutils/metrics"
+	"github.com/liqotech/liqo/test/e2e/testutils/portforward"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -44,6 +53,9 @@ const (
 	clustersRequired = 2
 	// testName is the name of this E2E test.
 	testName = "REFLECTION"
+
+	metricReflectionCounter = "liqo_virtual_kubelet_reflection_item_counter"
+	targePortMetrics        = 5872
 )
 
 func TestE2E(t *testing.T) {
@@ -81,6 +93,88 @@ var (
 				return util.GetResource(ctx, provider.ControllerClient, res)
 			}, timeout, interval).Should(BeNotFound())
 		}
+	}
+
+	// retrieveMetrics port-forwards a pod to the local machine and retrieves the metrics.
+	retrieveMetrics = func(ctx context.Context, podName, podNamespace string, localPort int) map[string]*dto.MetricFamily {
+		// Portforward virtualkubelet pod to retrieve metrics
+		ppf := portforward.NewPodPortForwarderOptions(consumer.Config, consumer.ControllerClient,
+			podName, podNamespace, localPort, targePortMetrics)
+
+		// Managing termination signal from the terminal.
+		// The stopCh gets closed to gracefully handle its termination.
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(signals)
+
+		returnCtx, returnCtxCancel := context.WithCancel(ctx)
+		defer returnCtxCancel()
+
+		go func() {
+			select {
+			case <-signals:
+			case <-returnCtx.Done():
+			}
+			if ppf.StopCh != nil {
+				close(ppf.StopCh)
+			}
+		}()
+
+		go func() {
+			err := ppf.PortForwardPod(ctx)
+			Expect(err).ToNot(HaveOccurred())
+		}()
+
+		// We need to wait some seconds to allow the port-forward to be ready.
+		time.Sleep(2 * time.Second)
+
+		// Curl metrics from port forwarded addess.
+		metrics := curlMetrics("localhost", localPort)
+
+		// Parse the metrics.
+		metricFamilies, err := metricsutils.ParseMetrics(metrics)
+		Expect(err).ToNot(HaveOccurred())
+
+		return metricFamilies
+	}
+
+	// Curl metrics from the port-forwarded address.
+	curlMetrics = func(url string, port int) string {
+		// Get the metrics from the virtual-kubelet pod
+		resp, body, err := httputils.NewHTTPClient(timeout).Curl(ctx, fmt.Sprintf("http://%s:%d/metrics", url, port))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(resp.StatusCode).To(Equal(http.StatusOK))
+		Expect(body).ToNot(Or(BeNil(), (BeEmpty())))
+		return string(body)
+	}
+
+	// Retrieve the counter of reflections for the given resource.
+	// This metrics is used to check that no infinite or excessive reconciliations are happening
+	// (likely caused by race conditions), meaning so the value should be reasonably low.
+	retrieveMetricReflectionCounter = func(metricFamilies map[string]*dto.MetricFamily,
+		clusterID, namespace, nodeName, resource string) float64 {
+		counter, err := metricsutils.RetrieveCounter(metricFamilies, metricReflectionCounter, map[string]string{
+			"cluster_id":         clusterID,
+			"namespace":          namespace,
+			"node_name":          nodeName,
+			"reflector_resource": resource,
+		})
+		Expect(err).ToNot(HaveOccurred())
+		return counter
+	}
+
+	getVirtualKubeletPod = func(providerClusterID liqov1alpha1.ClusterID) *corev1.Pod {
+		// Get virtualnode
+		vNodes, err := getters.ListVirtualNodesByClusterID(ctx, consumer.ControllerClient, providerClusterID)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(vNodes)).To(Equal(1))
+
+		// Get virtual-kubelet pod
+		vkPods, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, consumer.ControllerClient, &vNodes[0])
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(vkPods.Items)).To(Equal(1))
+
+		return &vkPods.Items[0]
 	}
 )
 
@@ -154,6 +248,16 @@ var _ = Describe("Liqo E2E", func() {
 						}
 						return nil
 					}, timeout, interval).Should(Succeed())
+
+					// Get metrics from virtual-kubelet pod, using local portforwarding.
+					localPort := targePortMetrics // we use the same port for all providers
+					vkPod := getVirtualKubeletPod(provider.Cluster)
+					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
+
+					// Check the reflection counter for the resources
+					counter := retrieveMetricReflectionCounter(metrics,
+						string(provider.Cluster), namespaceName, string(provider.Cluster), "Pod")
+					Expect(counter).To(BeNumerically("<", 100))
 				}
 			})
 		})
@@ -208,6 +312,19 @@ var _ = Describe("Liqo E2E", func() {
 						}
 						return nil
 					}, timeout, interval).Should(Succeed())
+
+					// Get metrics from virtual-kubelet pod, using local portforwarding.
+					localPort := targePortMetrics // we use the same port for all providers
+					vkPod := getVirtualKubeletPod(provider.Cluster)
+					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
+
+					// Check the reflection counter for the resources
+					counter := retrieveMetricReflectionCounter(metrics,
+						string(provider.Cluster), namespaceName, string(provider.Cluster), "Service")
+					Expect(counter).To(BeNumerically("<", 100))
+					counter = retrieveMetricReflectionCounter(metrics,
+						string(provider.Cluster), namespaceName, string(provider.Cluster), "EndpointSlice")
+					Expect(counter).To(BeNumerically("<", 100))
 				}
 			})
 		})
@@ -242,6 +359,16 @@ var _ = Describe("Liqo E2E", func() {
 						ingress := getIngress()
 						return util.GetResource(ctx, provider.ControllerClient, ingress)
 					}, timeout, interval).Should(Succeed())
+
+					// Get metrics from virtual-kubelet pod, using local portforwarding.
+					localPort := targePortMetrics // we use the same port for all providers
+					vkPod := getVirtualKubeletPod(provider.Cluster)
+					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
+
+					// Check the reflection counter for Ithe resource
+					counter := retrieveMetricReflectionCounter(metrics,
+						string(provider.Cluster), namespaceName, string(provider.Cluster), "Ingress")
+					Expect(counter).To(BeNumerically("<", 100))
 				}
 			})
 		})
@@ -276,6 +403,16 @@ var _ = Describe("Liqo E2E", func() {
 						cm := getConfigMap()
 						return util.GetResource(ctx, provider.ControllerClient, cm)
 					}, timeout, interval).Should(Succeed())
+
+					// Get metrics from virtual-kubelet pod, using local portforwarding.
+					localPort := targePortMetrics // we use the same port for all providers
+					vkPod := getVirtualKubeletPod(provider.Cluster)
+					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
+
+					// Check the reflection counter for Ithe resource
+					counter := retrieveMetricReflectionCounter(metrics,
+						string(provider.Cluster), namespaceName, string(provider.Cluster), "ConfigMap")
+					Expect(counter).To(BeNumerically("<", 100))
 				}
 			})
 		})
@@ -310,6 +447,16 @@ var _ = Describe("Liqo E2E", func() {
 						secret := getSecret()
 						return util.GetResource(ctx, provider.ControllerClient, secret)
 					}, timeout, interval).Should(Succeed())
+
+					// Get metrics from virtual-kubelet pod, using local portforwarding.
+					localPort := targePortMetrics // we use the same port for all providers
+					vkPod := getVirtualKubeletPod(provider.Cluster)
+					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
+
+					// Check the reflection counter for Ithe resource
+					counter := retrieveMetricReflectionCounter(metrics,
+						string(provider.Cluster), namespaceName, string(provider.Cluster), "Secret")
+					Expect(counter).To(BeNumerically("<", 100))
 				}
 			})
 		})
@@ -347,6 +494,16 @@ var _ = Describe("Liqo E2E", func() {
 							Name:       "secret-test-event",
 						},
 					)).To(Succeed())
+
+					// Get metrics from virtual-kubelet pod, using local portforwarding.
+					localPort := targePortMetrics // we use the same port for all providers
+					vkPod := getVirtualKubeletPod(provider.Cluster)
+					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
+
+					// Check the reflection counter for Ithe resource
+					counter := retrieveMetricReflectionCounter(metrics,
+						string(provider.Cluster), namespaceName, string(provider.Cluster), "Event")
+					Expect(counter).To(BeNumerically("<", 1000))
 				}
 			})
 

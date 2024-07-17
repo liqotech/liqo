@@ -41,7 +41,7 @@ const (
 	// clustersRequired is the number of clusters required in this E2E test.
 	clustersRequired = 2
 	// testName is the name of this E2E test.
-	testName = "RESOURCEENFORCEMENT"
+	testName = "RESOURCE_ENFORCEMENT"
 )
 
 func TestE2E(t *testing.T) {
