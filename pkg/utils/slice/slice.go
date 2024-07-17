@@ -68,3 +68,12 @@ func ToPointerSlice[T any](s []T) []*T {
 	}
 	return p
 }
+
+// Map applies a function to each element of a slice and returns a new slice with the results.
+func Map[K, V any](s []K, f func(K) V) []V {
+	mapped := make([]V, len(s))
+	for i, item := range s {
+		mapped[i] = f(item)
+	}
+	return mapped
+}
