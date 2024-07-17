@@ -103,15 +103,7 @@ func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster l
 	// The namespace was not found, hence create it. Since GetNamespace was cached, a race condition might occur,
 	// and the creation might fail because the namespace already exists. Still, in this case the controller will
 	// exit with an error, and retry during the next iteration.
-	ns = &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: GetNameForNamespace(cluster),
-			Labels: map[string]string{
-				consts.RemoteClusterID:      string(cluster),
-				consts.TenantNamespaceLabel: "true",
-			},
-		},
-	}
+	ns = nm.ForgeNamespace(cluster, nil)
 
 	ns, err = nm.client.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	if err != nil {
@@ -121,6 +113,29 @@ func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster l
 
 	klog.V(4).Infof("Namespace %v created for the remote cluster %v", ns.Name, cluster)
 	return ns, nil
+}
+
+// ForgeNamespace returns a Tenant Namespace resource object given name and clusterid.
+func (nm *tenantNamespaceManager) ForgeNamespace(cluster liqov1alpha1.ClusterID, name *string) *v1.Namespace {
+	// If no name is provided use the default one provided by the GetNameForNamespace() function
+	nsname := GetNameForNamespace(cluster)
+	if name != nil {
+		nsname = *name
+	}
+
+	return &v1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: v1.SchemeGroupVersion.Version,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nsname,
+			Labels: map[string]string{
+				consts.RemoteClusterID:      string(cluster),
+				consts.TenantNamespaceLabel: "true",
+			},
+		},
+	}
 }
 
 // GetNamespace gets a Tenant Namespace given the clusterid.
