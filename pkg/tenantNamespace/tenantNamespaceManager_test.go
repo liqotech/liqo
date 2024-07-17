@@ -52,6 +52,15 @@ var _ = Describe("TenantNamespace", func() {
 		Expect(ns2).To(Equal(ns))
 	})
 
+	It("Should forge a namespace with a custom name", func() {
+		By("Forging a new namespace providing the name")
+		nsname := "custom-cluster-name"
+		ns := namespaceManager.ForgeNamespace(homeCluster, &nsname)
+		Expect(ns).NotTo(BeNil())
+		Expect(ns.Name).To(Equal(nsname))
+		Expect(ns.Labels).NotTo(BeNil())
+	})
+
 	It("Get Namespace", func() {
 		ns, err := namespaceManager.GetNamespace(ctx, homeCluster)
 		Expect(err).To(BeNil())
