@@ -33,6 +33,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/install/openshift"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils/args"
+	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
 )
 
 const liqoctlInstallLongHelp = `Install/upgrade Liqo in the selected cluster.
@@ -108,8 +109,14 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		Long:    WithTemplate(liqoctlInstallLongHelp),
 		Args:    cobra.NoArgs,
 
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			singleClusterPersistentPreRun(cmd, f)
+
+			if !options.DisableKernelVersionCheck {
+				if err := kernelversion.CheckKernelVersionFromNodes(ctx, f.CRClient, &kernelversion.MinimumKernelVersion); err != nil {
+					options.Printer.ExitWithMessage(fmt.Sprintf("%v, disable this check with --%s", err, "disable-kernel-version-check"))
+				}
+			}
 
 			options.ClusterID = clusterIDFlag.GetClusterID()
 			options.ClusterLabels = clusterLabels.StringMap
@@ -174,6 +181,8 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&options.EnableMetrics, "enable-metrics", false, "Enable metrics exposition through prometheus (default false)")
 	cmd.PersistentFlags().BoolVar(&options.DisableTelemetry, "disable-telemetry", false,
 		"Disable the anonymous and aggregated Liqo telemetry collection (default false)")
+	cmd.PersistentFlags().BoolVar(&options.DisableKernelVersionCheck, "disable-kernel-version-check", false,
+		"Disable the check of the minimum kernel version required to run the wireguard interface (default false)")
 
 	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
@@ -197,7 +206,7 @@ func newInstallProviderCommand(ctx context.Context, options *install.Options, cr
 		Long:  WithTemplate(fmt.Sprintf(liqoctlInstallProviderLongHelp, provider.Name(), provider.Name(), provider.Examples())),
 		Args:  cobra.NoArgs,
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.Run(ctx, provider))
 		},
 	}

@@ -1,0 +1,336 @@
+apiServer:
+    address: ""
+    ca: ""
+    trustedCA: false
+authentication:
+    awsConfig:
+        accessKeyId: ""
+        clusterName: ""
+        region: ""
+        secretAccessKey: ""
+        useExistingSecret: false
+    enabled: true
+common:
+    affinity: {}
+    extraArgs: []
+    nodeSelector: {}
+    tolerations: []
+controllerManager:
+    config:
+        defaultLimitsEnforcement: None
+        enableNodeFailureController: false
+        enableResourceEnforcement: true
+    image:
+        name: ghcr.io/liqotech/liqo-controller-manager
+        version: ""
+    metrics:
+        service:
+            annotations: {}
+            labels: {}
+        serviceMonitor:
+            enabled: false
+            interval: ""
+            labels: {}
+            scrapeTimeout: ""
+    pod:
+        annotations: {}
+        extraArgs: []
+        labels: {}
+        priorityClassName: ""
+        resources:
+            limits: {}
+            requests: {}
+    replicas: 1
+crdReplicator:
+    image:
+        name: ghcr.io/liqotech/crd-replicator
+        version: ""
+    metrics:
+        podMonitor:
+            enabled: false
+            interval: ""
+            labels: {}
+            scrapeTimeout: ""
+    pod:
+        annotations: {}
+        extraArgs: []
+        labels: {}
+        priorityClassName: ""
+        resources:
+            limits: {}
+            requests: {}
+discovery:
+    config:
+        clusterID: cheina-cluster1
+        clusterLabels:
+            liqo.io/provider: kind
+fullnameOverride: ""
+ipam:
+    additionalPools: []
+    external:
+        enabled: false
+        url: ""
+    externalCIDR: 10.70.0.0/16
+    internal:
+        image:
+            name: ghcr.io/liqotech/ipam
+            version: ""
+        pod:
+            annotations: {}
+            extraArgs: []
+            labels: {}
+            priorityClassName: ""
+            resources:
+                limits: {}
+                requests: {}
+        replicas: 1
+    internalCIDR: 10.80.0.0/16
+    podCIDR: 10.112.0.0/16
+    reservedSubnets: []
+    serviceCIDR: 10.111.0.0/16
+metricAgent:
+    config:
+        timeout:
+            read: 30s
+            write: 30s
+    enable: true
+    image:
+        name: ghcr.io/liqotech/metric-agent
+        version: ""
+    initContainer:
+        image:
+            name: ghcr.io/liqotech/cert-creator
+            version: ""
+    pod:
+        annotations: {}
+        extraArgs: []
+        labels: {}
+        priorityClassName: ""
+        resources:
+            limits: {}
+            requests: {}
+metrics:
+    enabled: false
+    prometheusOperator:
+        enabled: false
+nameOverride: ""
+networking:
+    clientResources:
+        - apiVersion: networking.liqo.io/v1alpha1
+          resource: wggatewayclients
+    enabled: true
+    fabric:
+        config:
+            fullMasquerade: false
+            gatewayMasqueradeBypass: true
+        image:
+            name: ghcr.io/liqotech/fabric
+            version: ""
+        pod:
+            annotations: {}
+            extraArgs: []
+            labels: {}
+            priorityClassName: ""
+            resources:
+                limits: {}
+                requests: {}
+        tolerations: []
+    gatewayTemplates:
+        container:
+            gateway:
+                image:
+                    name: ghcr.io/liqotech/gateway
+                    version: ""
+            geneve:
+                image:
+                    name: ghcr.io/liqotech/gateway/geneve
+                    version: ""
+            wireguard:
+                image:
+                    name: ghcr.io/liqotech/gateway/wireguard
+                    version: ""
+        ping:
+            interval: 2s
+            lossThreshold: 5
+            updateStatusInterval: 10s
+        replicas: 1
+        server:
+            service:
+                allocateLoadBalancerNodePorts: ""
+                annotations: null
+        wireguard:
+            implementation: kernel
+    reflectIPs: true
+    serverResources:
+        - apiVersion: networking.liqo.io/v1alpha1
+          resource: wggatewayservers
+offloading:
+    createNode: true
+    defaultNodeResources:
+        cpu: "4"
+        ephemeralStorage: 20Gi
+        memory: 8Gi
+        pods: "110"
+    disableNetworkCheck: false
+    enabled: true
+    reflection:
+        configmap:
+            type: DenyList
+            workers: 3
+        endpointslice:
+            workers: 10
+        event:
+            type: DenyList
+            workers: 3
+        ingress:
+            ingressClasses: []
+            type: DenyList
+            workers: 3
+        persistentvolumeclaim:
+            workers: 3
+        pod:
+            workers: 10
+        secret:
+            type: DenyList
+            workers: 3
+        service:
+            loadBalancerClasses: []
+            type: DenyList
+            workers: 3
+        serviceaccount:
+            workers: 3
+        skip:
+            annotations:
+                - cloud.google.com/neg
+                - cloud.google.com/neg-status
+                - kubernetes.digitalocean.com/load-balancer-id
+                - ingress.kubernetes.io/backends
+                - ingress.kubernetes.io/forwarding-rule
+                - ingress.kubernetes.io/target-proxy
+                - ingress.kubernetes.io/url-map
+                - metallb.universe.tf/address-pool
+                - metallb.universe.tf/ip-allocated-from-pool
+                - metallb.universe.tf/loadBalancerIPs
+                - loadbalancer.openstack.org/load-balancer-id
+            labels: []
+    runtimeClass:
+        annotations: {}
+        enable: false
+        handler: liqo
+        labels: {}
+        name: liqo
+        nodeSelector:
+            enable: true
+            labels:
+                liqo.io/type: virtual-node
+        tolerations:
+            enable: true
+            tolerations:
+                - effect: NoExecute
+                  key: virtual-node.liqo.io/not-allowed
+                  operator: Exists
+openshiftConfig:
+    enable: false
+    virtualKubeletSCCs:
+        - anyuid
+proxy:
+    config:
+        listeningPort: 8118
+    image:
+        name: ghcr.io/liqotech/proxy
+        version: ""
+    pod:
+        annotations: {}
+        extraArgs: []
+        labels: {}
+        priorityClassName: ""
+        resources:
+            limits: {}
+            requests: {}
+    service:
+        annotations: {}
+        type: ClusterIP
+pullPolicy: IfNotPresent
+requirements:
+    kernel:
+        disabled: true
+storage:
+    enable: true
+    realStorageClassName: ""
+    storageNamespace: liqo-storage
+    virtualStorageClassName: liqo
+tag: aaaa
+telemetry:
+    config:
+        schedule: ""
+    enable: false
+    image:
+        name: ghcr.io/liqotech/telemetry
+        version: ""
+    pod:
+        annotations: {}
+        extraArgs: []
+        labels: {}
+        resources:
+            limits: {}
+            requests: {}
+uninstaller:
+    image:
+        name: ghcr.io/liqotech/uninstaller
+        version: ""
+    pod:
+        annotations: {}
+        extraArgs: []
+        labels: {}
+        resources:
+            limits: {}
+            requests: {}
+virtualKubelet:
+    extra:
+        annotations: {}
+        args: []
+        labels: {}
+        resources:
+            limits: {}
+            requests: {}
+    image:
+        name: ghcr.io/liqotech/virtual-kubelet
+        version: ""
+    metrics:
+        enabled: false
+        podMonitor:
+            enabled: false
+            interval: ""
+            labels: {}
+            scrapeTimeout: ""
+        port: 5872
+    virtualNode:
+        extra:
+            annotations: {}
+            labels: {}
+webhook:
+    failurePolicy: Fail
+    image:
+        name: ghcr.io/liqotech/webhook
+        version: ""
+    metrics:
+        service:
+            annotations: {}
+            labels: {}
+        serviceMonitor:
+            enabled: false
+            interval: ""
+            labels: {}
+            scrapeTimeout: ""
+    patch:
+        image: k8s.gcr.io/ingress-nginx/kube-webhook-certgen:v1.1.1
+    pod:
+        annotations: {}
+        extraArgs: []
+        labels: {}
+        priorityClassName: ""
+        resources:
+            limits: {}
+            requests: {}
+    port: 9443
+    replicas: 1

@@ -17,6 +17,8 @@ package gateway
 import (
 	"fmt"
 	"time"
+
+	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
 )
 
 // Options contains the options for the wireguard interface.
@@ -37,11 +39,16 @@ type Options struct {
 
 	MetricsAddress string
 	ProbeAddr      string
+
+	DisableKernelVersionCheck bool
+	MinimumKernelVersion      kernelversion.KernelVersion
 }
 
 // NewOptions returns a new Options struct.
 func NewOptions() *Options {
-	return &Options{}
+	return &Options{
+		MinimumKernelVersion: kernelversion.MinimumKernelVersion,
+	}
 }
 
 // Mode is the mode in which the gateway is configured.

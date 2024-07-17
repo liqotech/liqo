@@ -12,21 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fabric
+package version
 
-import (
-	"github.com/liqotech/liqo/pkg/gateway"
-)
-
-// Options contains the options for the wireguard interface.
-type Options struct {
-	GwOptions  *gateway.Options
-	DisableARP bool
-}
-
-// NewOptions returns a new Options struct.
-func NewOptions(options *gateway.Options) *Options {
-	return &Options{
-		GwOptions: options,
+var (
+	// MinimumKernelVersion is the minimum kernel version required by Liqo.
+	MinimumKernelVersion = KernelVersion{
+		Kernel: 5,
+		Major:  10,
+		Minor:  0,
 	}
-}
+)
