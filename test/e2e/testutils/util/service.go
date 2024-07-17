@@ -46,7 +46,7 @@ func EnforceService(ctx context.Context, cl client.Client, namespace, name strin
 			},
 		}
 		svc.Spec.Selector = map[string]string{"app": name}
-		svc.Spec.Type = corev1.ServiceTypeNodePort
+		svc.Spec.Type = corev1.ServiceTypeClusterIP
 
 		for _, opt := range options {
 			opt(svc)
@@ -54,4 +54,11 @@ func EnforceService(ctx context.Context, cl client.Client, namespace, name strin
 
 		return nil
 	}))
+}
+
+// WithNodePort sets the Service type to NodePort.
+func WithNodePort() ServiceOption {
+	return func(svc *corev1.Service) {
+		svc.Spec.Type = corev1.ServiceTypeNodePort
+	}
 }
