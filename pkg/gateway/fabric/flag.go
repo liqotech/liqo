@@ -26,11 +26,11 @@ func (fn FlagName) String() string {
 }
 
 const (
-	// FlagNameEnableARP is the flag to enable ARP.
-	FlagNameEnableARP FlagName = "enable-arp"
+	// FlagNameDisableARP is the flag to enable ARP.
+	FlagNameDisableARP FlagName = "disable-arp"
 )
 
 // InitFlags initializes the flags for the gateway.
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
-	flagset.BoolVar(&opts.EnableARP, FlagNameEnableARP.String(), false, "Enable ARP")
+	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
 }

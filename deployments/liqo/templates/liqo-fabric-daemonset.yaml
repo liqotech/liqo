@@ -44,7 +44,9 @@ spec:
           args:
           - --podname=$(POD_NAME)
           - --nodename=$(NODE_NAME)
-          - --enable-arp=true
+          {{- if .Values.requirements.kernel.disabled }}
+          - --disable-kernel-version-check
+          {{- end }}
           {{- if .Values.common.extraArgs }}
           {{- toYaml .Values.common.extraArgs | nindent 10 }}
           {{- end }}

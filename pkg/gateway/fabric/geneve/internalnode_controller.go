@@ -102,7 +102,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		internalFabric.Spec.Interface.Gateway.IP.String(),
 		remoteIP.String(),
 		id,
-		r.Options.EnableARP,
+		r.Options.DisableARP,
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface presence: %w", err)
 	}

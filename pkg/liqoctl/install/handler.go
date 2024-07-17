@@ -98,6 +98,8 @@ type Options struct {
 	DisableAPIServerSanityChecks bool
 	DisableAPIServerDefaulting   bool
 	SkipValidation               bool
+
+	DisableKernelVersionCheck bool
 }
 
 // NewOptions returns a new Options struct.
@@ -348,6 +350,12 @@ func (o *Options) preProviderValues() map[string]interface{} {
 
 	return map[string]interface{}{
 		"tag": o.Version,
+
+		"requirements": map[string]interface{}{
+			"kernel": map[string]interface{}{
+				"disabled": o.DisableKernelVersionCheck,
+			},
+		},
 
 		"apiServer": map[string]interface{}{
 			"address": o.APIServer,

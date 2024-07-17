@@ -155,6 +155,7 @@
 | proxy.service.annotations | object | `{}` |  |
 | proxy.service.type | string | `"ClusterIP"` |  |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods. |
+| requirements.kernel.disabled | bool | `false` | Enable/Disable the kernel requirements check. |
 | storage.enable | bool | `true` | Enable/Disable the liqo virtual storage class on the local cluster. You will be able to offload your persistent volumes, while other clusters will be able to schedule their persistent workloads on the current cluster. |
 | storage.realStorageClassName | string | `""` | Name of the real storage class to use in the local cluster. |
 | storage.storageNamespace | string | `"liqo-storage"` | Namespace where liqo will deploy specific PVCs. Internal parameter, do not change. |

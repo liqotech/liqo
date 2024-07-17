@@ -10,6 +10,11 @@ nameOverride: ""
 # -- Override the standard full name used by Helm and associated to Kubernetes/Liqo resources.
 fullnameOverride: ""
 
+requirements:
+  kernel:
+    # -- Enable/Disable the kernel requirements check.
+    disabled: false
+
 metrics:
   # -- Enable/Disable the metrics server in every liqo component.
   enabled: false

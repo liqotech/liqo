@@ -27,32 +27,40 @@ func (fn FlagName) String() string {
 }
 
 const (
-	// FlagNodeNameName is the name of the node where the pod is scheduled.
-	FlagNodeNameName FlagName = "nodename"
+	// FlagNameNodeName is the name of the node where the pod is scheduled.
+	FlagNameNodeName FlagName = "nodename"
 
 	// FlagNameMetricsAddress is the address for the metrics endpoint.
 	FlagNameMetricsAddress FlagName = "metrics-address"
 	// FlagNameProbeAddr is the address for the health probe endpoint.
 	FlagNameProbeAddr FlagName = "health-probe-bind-address"
 
-	// FlagEnableARP is the flag to enable ARP.
-	FlagEnableARP FlagName = "enable-arp"
+	// FlagNameDisableARP is the flag to enable ARP.
+	FlagNameDisableARP FlagName = "disable-arp"
+
+	// FlagNameDisableKernelVersionCheck is the flag to enable the kernel version check.
+	FlagNameDisableKernelVersionCheck FlagName = "disable-kernel-version-check"
+	// FlagNameMinimumKernelVersion is the minimum kernel version required to run the wireguard interface.
+	FlagNameMinimumKernelVersion FlagName = "minimum-kernel-version"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
 var RequiredFlags = []FlagName{
-	FlagNodeNameName,
+	FlagNameNodeName,
 }
 
 // InitFlags initializes the flags for the wireguard tunnel.
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
-	flagset.StringVar(&opts.NodeName, FlagNodeNameName.String(), "", "Name of the node where the pod is scheduled")
+	flagset.StringVar(&opts.NodeName, FlagNameNodeName.String(), "", "Name of the node where the pod is scheduled")
 	flagset.StringVar(&opts.PodName, "podname", "", "Name of the pod")
 
 	flagset.StringVar(&opts.MetricsAddress, FlagNameMetricsAddress.String(), ":8080", "Address for the metrics endpoint")
 	flagset.StringVar(&opts.ProbeAddr, FlagNameProbeAddr.String(), ":8081", "Address for the health probe endpoint")
 
-	flagset.BoolVar(&opts.EnableARP, FlagEnableARP.String(), true, "Enable ARP")
+	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
+
+	flagset.BoolVar(&opts.DisableKernelVersionCheck, FlagNameDisableKernelVersionCheck.String(), false, "Disable the kernel version check")
+	flagset.Var(&opts.MinimumKernelVersion, string(FlagNameMinimumKernelVersion), "Minimum kernel version required to run the wireguard interface")
 }
 
 // MarkFlagsRequired marks the flags as required.

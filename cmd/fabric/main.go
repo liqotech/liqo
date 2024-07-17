@@ -43,6 +43,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
+	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -82,6 +83,13 @@ func main() {
 
 func run(cmd *cobra.Command, _ []string) error {
 	var err error
+
+	// Check if the minimum kernel version is satisfied.
+	if !options.DisableKernelVersionCheck {
+		if err := kernelversion.CheckKernelVersion(&options.MinimumKernelVersion); err != nil {
+			return fmt.Errorf("kernel version check failed: %w, disable this check with --%s", err, fabric.FlagNameDisableKernelVersionCheck)
+		}
+	}
 
 	// Set controller-runtime logger.
 	log.SetLogger(klog.NewKlogr())
