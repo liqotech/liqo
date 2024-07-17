@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/printers"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 	authutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
@@ -81,17 +82,18 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
+
+	if opts.OutputFormat != "" {
+		opts.Printer.CheckErr(o.output(ctx))
+		return nil
+	}
+
 	waiter := wait.NewWaiterFromFactory(opts.Factory)
 
 	tenantNs, err := o.namespaceManager.CreateNamespace(ctx, o.clusterID.GetClusterID())
 	if err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to create tenant namespace: %v", output.PrettyErr(err)))
 		return err
-	}
-
-	if opts.OutputFormat != "" {
-		opts.Printer.CheckErr(o.output(tenantNs.GetName()))
-		return nil
 	}
 
 	// Ensure the presence of the nonce secret.
@@ -120,7 +122,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 }
 
 // output implements the logic to output the generated Nonce secret.
-func (o *Options) output(tenantNamespace string) error {
+func (o *Options) output(ctx context.Context) error {
 	opts := o.createOptions
 	var printer printers.ResourcePrinter
 	switch opts.OutputFormat {
@@ -132,8 +134,28 @@ func (o *Options) output(tenantNamespace string) error {
 		return fmt.Errorf("unsupported output format %q", opts.OutputFormat)
 	}
 
-	nonce := forge.Nonce(tenantNamespace)
+	// Before printing the namespace we need to check whether a tenant namespace for the given clusterid
+	// already exists. In that case forge a new namespace with the name of the existing one and place the
+	// nonce secret in the existing namespace.
+	exitingTenantNs, err := o.namespaceManager.GetNamespace(ctx, o.clusterID.GetClusterID())
+	if client.IgnoreNotFound(err) != nil {
+		opts.Printer.CheckErr(fmt.Errorf("unable to get tenant namespace: %v", output.PrettyErr(err)))
+		return err
+	}
+
+	var nsname *string
+	if exitingTenantNs != nil {
+		nsname = &exitingTenantNs.Name
+	}
+	tenantNs := o.namespaceManager.ForgeNamespace(o.clusterID.GetClusterID(), nsname)
+
+	nonce := forge.Nonce(tenantNs.GetName())
 	if err := forge.MutateNonce(nonce, o.clusterID.GetClusterID()); err != nil {
+		return err
+	}
+
+	// We need to print first the Tenant namespace and only then the nonce, as the latter is created in the tenant namespace
+	if err := printer.PrintObj(tenantNs, os.Stdout); err != nil {
 		return err
 	}
 

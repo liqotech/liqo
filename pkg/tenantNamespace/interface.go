@@ -17,7 +17,7 @@ package tenantnamespace
 import (
 	"context"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -27,8 +27,9 @@ import (
 // Manager provides the methods to handle the creation and
 // the management of tenant namespaces.
 type Manager interface {
-	CreateNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*v1.Namespace, error)
-	GetNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*v1.Namespace, error)
+	CreateNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*corev1.Namespace, error)
+	ForgeNamespace(cluster liqov1alpha1.ClusterID, name *string) *corev1.Namespace
+	GetNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*corev1.Namespace, error)
 	BindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID,
 		owner metav1.Object, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error)
 	UnbindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID, clusterRoles ...string) error
