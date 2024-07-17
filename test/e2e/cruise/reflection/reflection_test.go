@@ -170,7 +170,7 @@ var _ = Describe("Liqo E2E", func() {
 					}
 				}
 				createService = func(name string) {
-					Expect(util.EnforceService(ctx, consumer.ControllerClient, namespaceName, name)).To(Succeed())
+					Expect(util.EnforceService(ctx, consumer.ControllerClient, namespaceName, name, util.WithNodePort())).To(Succeed())
 				}
 			)
 
