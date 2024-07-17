@@ -102,7 +102,7 @@ To this end, you can leverage the dedicated *liqo-test* Docker image (the Docker
 # Build the liqo-test Docker image
 make test-container
 
-# Run all unit tests, and retrieve coverage
+# Run all unit tests
 make unit
 
 # Run the tests for a specific package.

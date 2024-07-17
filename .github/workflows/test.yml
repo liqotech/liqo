@@ -51,9 +51,6 @@ jobs:
     needs: configure
     steps:
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
     - name: Check out code into the Go module directory
       uses: actions/checkout@v4
       with:
@@ -61,47 +58,8 @@ jobs:
         repository: "${{ needs.configure.outputs.repo-name }}"
         persist-credentials: false
 
-    - name: Cache Docker layers
-      uses: actions/cache@v4
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-${{ matrix.component }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-${{ matrix.component }}-buildx-
-
-    - name: Build (and Publish) liqo-test image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/amd64
-        tags: |
-          ghcr.io/${{ github.repository_owner }}/liqo-test:${{ needs.configure.outputs.commit-ref }}
-        push: false
-        load: true
-        file: build/liqo-test/Dockerfile
-        cache-from: type=local,src=/tmp/.buildx-cache
-        cache-to: type=local,dest=/tmp/.buildx-cache-new
-        # This ugly bit is necessary if you don't want your cache to grow forever
-        # till it hits GitHub's limit of 5GB.
-        # Temp fix
-        # https://github.com/docker/build-push-action/issues/252
-        # https://github.com/moby/buildkit/issues/1896
-
-    - name: Move cache
-      run: |
-        rm -rf /tmp/.buildx-cache
-        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
     - name: Launch Test (Docker Container)
-      uses: addnab/docker-run-action@v3
-      with:
-        options: |
-          --mount type=bind,src=${{ github.workspace }},dst=/go/src/liqotech/liqo
-          --workdir /go/src/liqotech/liqo
-          --privileged=true
-        image: ghcr.io/${{ github.repository_owner }}/liqo-test:${{ needs.configure.outputs.commit-ref }}
-        run: |
-          go test ./cmd/... ./pkg/... ./apis/... ./internal/... -count=1 -failfast -coverprofile=coverage.out -covermode=atomic
+      run: make unit
 
       # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
     - uses: octokit/request-action@v2.x
@@ -115,9 +73,3 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
       if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
-
-    - name: Send coverage
-      uses: shogo82148/actions-goveralls@v1.9.0
-      with:
-        path-to-profile: coverage.out
-      if: github.event_name == 'push'
