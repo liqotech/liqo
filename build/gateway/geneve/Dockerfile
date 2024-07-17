@@ -1,4 +1,4 @@
-FROM golang:1.22 as goBuilder
+FROM golang:1.22 AS gobuilder
 WORKDIR /tmp/builder
 
 COPY go.mod ./go.mod
@@ -15,6 +15,6 @@ RUN apk update && \
     apk add iproute2 nftables bash tcpdump conntrack-tools curl iputils && \
     rm -rf /var/cache/apk/*
 
-COPY --from=goBuilder /tmp/builder/geneve /usr/bin/liqo-geneve
+COPY --from=gobuilder /tmp/builder/geneve /usr/bin/liqo-geneve
 
 ENTRYPOINT [ "/usr/bin/liqo-geneve" ]
