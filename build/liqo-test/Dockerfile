@@ -23,4 +23,4 @@ ENTRYPOINT [ "go", "test" ]
 # Remove the -count=1 flag to enable caching of successful tests
 # Remove the -failfast flag to run all tests even if some fail
 # Add the -v flag to increase verbosity
-CMD [ "./cmd/...", "./pkg/...", "./apis/...", "./internal/...", "-count=1", "-failfast", "-covermode atomic", "-coverprofile=coverage.out" ]
+CMD [ "./cmd/...", "./pkg/...", "./apis/...", "./internal/...", "-count=1", "-failfast" ]
