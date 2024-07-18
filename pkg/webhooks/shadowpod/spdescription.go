@@ -110,10 +110,10 @@ func getQuotaFromShadowPod(shadowpod *offloadingv1alpha1.ShadowPod,
 
 	// Calculating the sum of the resources of all containers
 	for i := range shadowpod.Spec.Pod.Containers {
-		// This flags are used to check if each container in range has CPU and Memory limits defined
+		// This flags are used to check if each container in range has CPU and Memory requests defined
 		cpuFlag := false
 		memoryFlag := false
-		for key, value := range shadowpod.Spec.Pod.Containers[i].Resources.Limits {
+		for key, value := range shadowpod.Spec.Pod.Containers[i].Resources.Requests {
 			if key == corev1.ResourceCPU {
 				cpuFlag = true
 			}
@@ -136,21 +136,21 @@ func getQuotaFromShadowPod(shadowpod *offloadingv1alpha1.ShadowPod,
 				}
 			}
 		}
-		// If the container has no CPU or Memory limits defined and this kind of validation is required, an error is returned
+		// If the container has no CPU or Memory requests defined and this kind of validation is required, an error is returned
 		if limitsEnforcement == offloadingv1alpha1.NoLimitsEnforcement {
 			continue
 		}
 		if !cpuFlag || !memoryFlag {
-			return nil, fmt.Errorf("CPU and/or memory limits not set for container %s", shadowpod.Spec.Pod.Containers[i].Name)
+			return nil, fmt.Errorf("CPU and/or memory requests not set for container %s", shadowpod.Spec.Pod.Containers[i].Name)
 		}
 	}
 
 	// Calculating the max of each resource type between the init containers
 	for i := range shadowpod.Spec.Pod.InitContainers {
-		// This flags are used to check if each container in range has CPU and Memory limits defined
+		// This flags are used to check if each container in range has CPU and Memory requests defined
 		cpuFlag := false
 		memoryFlag := false
-		for key, value := range shadowpod.Spec.Pod.InitContainers[i].Resources.Limits {
+		for key, value := range shadowpod.Spec.Pod.InitContainers[i].Resources.Requests {
 			if key == corev1.ResourceCPU {
 				cpuFlag = true
 			}
@@ -174,12 +174,12 @@ func getQuotaFromShadowPod(shadowpod *offloadingv1alpha1.ShadowPod,
 				}
 			}
 		}
-		// If the init container has no CPU or Memory limits defined and this kind of validation is required, an error is returned
+		// If the init container has no CPU or Memory requests defined and this kind of validation is required, an error is returned
 		if limitsEnforcement == offloadingv1alpha1.NoLimitsEnforcement {
 			continue
 		}
 		if !cpuFlag || !memoryFlag {
-			return nil, fmt.Errorf("CPU and/or memory limits not set for initContainer %s",
+			return nil, fmt.Errorf("CPU and/or memory requests not set for initContainer %s",
 				shadowpod.Spec.Pod.InitContainers[i].Name)
 		}
 	}
