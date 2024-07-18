@@ -57,7 +57,7 @@ var _ = Describe("Peering Info", func() {
 
 		containers = []containerResource{{cpu: int64(resourceCPU), memory: int64(resourceMemory)}}
 
-		shadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+		shadowPod = forgeShadowPodWithResourceRequests(containers, nil)
 	})
 
 	Describe("Get or Create a PeeringInfo", func() {

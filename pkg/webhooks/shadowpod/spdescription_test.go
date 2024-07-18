@@ -62,7 +62,7 @@ var _ = Describe("ShadowPod Description", func() {
 		JustBeforeEach(func() {
 			containers = append(containers, containerResource{cpu: 100, memory: 100})
 			spDescription, err = peeringInfo.getOrCreateShadowPodDescription(ctx, spValidator.client,
-				forgeShadowPodWithResourceLimits(containers, nil), offloadingv1alpha1.SoftLimitsEnforcement)
+				forgeShadowPodWithResourceRequests(containers, nil), offloadingv1alpha1.SoftLimitsEnforcement)
 		})
 
 		When("The ShadowPod Description does not exist", func() {
@@ -94,7 +94,7 @@ var _ = Describe("ShadowPod Description", func() {
 				errTest = fmt.Errorf("ShadowPod still exists in the system")
 				peeringInfo.shadowPods[spNamespacedName.String()] = spDescriptionTest
 				containers = append(containers, containerResource{cpu: 100, memory: 100})
-				Expect(fakeClient.Create(ctx, forgeShadowPodWithResourceLimits(containers, nil))).ToNot(HaveOccurred())
+				Expect(fakeClient.Create(ctx, forgeShadowPodWithResourceRequests(containers, nil))).ToNot(HaveOccurred())
 			})
 			It("should return an error", func() {
 				Expect(spDescription).To(BeNil())
@@ -118,7 +118,7 @@ var _ = Describe("ShadowPod Description", func() {
 	Describe("Get a ShadowPod Description", func() {
 		JustBeforeEach(func() {
 			containers = append(containers, containerResource{cpu: 100, memory: 100})
-			spDescription, err = peeringInfo.getShadowPodDescription(forgeShadowPodWithResourceLimits(containers, nil))
+			spDescription, err = peeringInfo.getShadowPodDescription(forgeShadowPodWithResourceRequests(containers, nil))
 		})
 
 		When("The ShadowPod Description exists", func() {
@@ -161,11 +161,11 @@ var _ = Describe("ShadowPod Description", func() {
 			quota, err = getQuotaFromShadowPod(shadowPod, offloadingv1alpha1.SoftLimitsEnforcement)
 		})
 
-		When("at least one ShadowPod container has not cpu or memory limits defined", func() {
+		When("at least one ShadowPod container has not cpu or memory requests defined", func() {
 			BeforeEach(func() {
 				containers = append(containers, containerResource{cpu: 100})
-				shadowPod = forgeShadowPodWithResourceLimits(containers, nil)
-				errTest = fmt.Errorf("CPU and/or memory limits not set for container test-container")
+				shadowPod = forgeShadowPodWithResourceRequests(containers, nil)
+				errTest = fmt.Errorf("CPU and/or memory requests not set for container test-container")
 			})
 			It("should return an error", func() {
 				Expect(quota).To(BeNil())
@@ -173,14 +173,14 @@ var _ = Describe("ShadowPod Description", func() {
 				Expect(err.Error()).To(Equal(errTest.Error()))
 			})
 		})
-		When("at least one ShadowPod initContainer has not cpu or memory limits defined", func() {
+		When("at least one ShadowPod initContainer has not cpu or memory requests defined", func() {
 			BeforeEach(func() {
 				containers = nil
 				containers = append(containers, containerResource{cpu: 100, memory: 100})
 				initContainers = nil
 				initContainers = append(containers, containerResource{cpu: 100})
-				shadowPod = forgeShadowPodWithResourceLimits(containers, initContainers)
-				errTest = fmt.Errorf("CPU and/or memory limits not set for initContainer test-init-container")
+				shadowPod = forgeShadowPodWithResourceRequests(containers, initContainers)
+				errTest = fmt.Errorf("CPU and/or memory requests not set for initContainer test-init-container")
 			})
 			It("should return an error", func() {
 				Expect(quota).To(BeNil())
@@ -192,7 +192,7 @@ var _ = Describe("ShadowPod Description", func() {
 			BeforeEach(func() {
 				containers = nil
 				initContainers = nil
-				shadowPod = forgeShadowPodWithResourceLimits(containers, initContainers)
+				shadowPod = forgeShadowPodWithResourceRequests(containers, initContainers)
 				errTest = fmt.Errorf("ShadowPod %s has no containers defined", shadowPod.GetName())
 			})
 			It("should return an error", func() {
@@ -208,7 +208,7 @@ var _ = Describe("ShadowPod Description", func() {
 				containers = append(containers, containerResource{cpu: 200, memory: 100})
 				initContainers = nil
 				initContainers = append(containers, containerResource{cpu: 100, memory: 300})
-				shadowPod = forgeShadowPodWithResourceLimits(containers, initContainers)
+				shadowPod = forgeShadowPodWithResourceRequests(containers, initContainers)
 				errTest = fmt.Errorf("ShadowPod %s has no containers defined", shadowPod.GetName())
 			})
 			It("should return a ResourceList which is the Max between the sum of all containers resources and the Max of initContainers", func() {

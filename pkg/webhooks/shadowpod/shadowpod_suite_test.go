@@ -174,7 +174,7 @@ func forgeShadowPod(name, namespace, uid, creatorName string) *offloadingv1alpha
 						Name:  "test-container",
 						Image: "test-image",
 						Resources: corev1.ResourceRequirements{
-							Limits: *forgeResourceList(int64(resourceCPU/4), int64(resourceMemory/4)),
+							Requests: *forgeResourceList(int64(resourceCPU/4), int64(resourceMemory/4)),
 						},
 					},
 				},
@@ -183,7 +183,7 @@ func forgeShadowPod(name, namespace, uid, creatorName string) *offloadingv1alpha
 	}
 }
 
-func forgeShadowPodWithResourceLimits(containers, initContainer []containerResource) *offloadingv1alpha1.ShadowPod {
+func forgeShadowPodWithResourceRequests(containers, initContainer []containerResource) *offloadingv1alpha1.ShadowPod {
 	sp := &offloadingv1alpha1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testShadowPodName,
@@ -202,7 +202,7 @@ func forgeShadowPodWithResourceLimits(containers, initContainer []containerResou
 				Name:  "test-container",
 				Image: "test-image",
 				Resources: corev1.ResourceRequirements{
-					Limits: *forgeResourceList(container.cpu, container.memory),
+					Requests: *forgeResourceList(container.cpu, container.memory),
 				},
 			}
 		}
@@ -214,7 +214,7 @@ func forgeShadowPodWithResourceLimits(containers, initContainer []containerResou
 				Name:  "test-init-container",
 				Image: "test-image",
 				Resources: corev1.ResourceRequirements{
-					Limits: *forgeResourceList(container.cpu, container.memory),
+					Requests: *forgeResourceList(container.cpu, container.memory),
 				},
 			}
 		}
