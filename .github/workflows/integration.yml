@@ -95,7 +95,7 @@ jobs:
         - fabric
     steps:
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3.0.0
+        uses: docker/setup-qemu-action@v3.1.0
         with:
           platforms: all
 
