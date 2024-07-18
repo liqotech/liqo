@@ -115,7 +115,7 @@ var _ = Describe("Validating webhook", func() {
 			BeforeEach(func() {
 				containers = nil
 				containers = append(containers, containerResource{cpu: int64(resourceCPU), memory: int64(resourceMemory)})
-				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+				fakeNewShadowPod = forgeShadowPodWithResourceRequests(containers, nil)
 				request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
 			})
 			It("request is allowed", func() {
@@ -126,7 +126,7 @@ var _ = Describe("Validating webhook", func() {
 			BeforeEach(func() {
 				containers = nil
 				containers = append(containers, containerResource{cpu: int64(resourceCPU * 2), memory: int64(resourceMemory)})
-				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+				fakeNewShadowPod = forgeShadowPodWithResourceRequests(containers, nil)
 				request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
 			})
 			It("request is denied with error 403", func() {
@@ -140,7 +140,7 @@ var _ = Describe("Validating webhook", func() {
 				Expect(errClient).ToNot(HaveOccurred())
 				containers = nil
 				containers = append(containers, containerResource{cpu: int64(resourceCPU * 2), memory: int64(resourceMemory)})
-				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+				fakeNewShadowPod = forgeShadowPodWithResourceRequests(containers, nil)
 				request = forgeRequest(admissionv1.Create, fakeNewShadowPod, nil)
 			})
 			It("request is denied with error 403", func() {
@@ -163,7 +163,7 @@ var _ = Describe("Validating webhook", func() {
 				spValidatorWithResources.PeeringCache.peeringInfo.Store(userName, peeringInfo)
 				containers = nil
 				containers = append(containers, containerResource{cpu: int64(resourceCPU), memory: int64(resourceMemory)})
-				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+				fakeNewShadowPod = forgeShadowPodWithResourceRequests(containers, nil)
 				request = forgeRequest(admissionv1.Delete, nil, fakeNewShadowPod)
 			})
 			It("request is allowed without errors and all resources are restored", func() {
@@ -180,7 +180,7 @@ var _ = Describe("Validating webhook", func() {
 				spValidatorWithResources.PeeringCache.peeringInfo.Store(userName, peeringInfo)
 				containers = nil
 				containers = append(containers, containerResource{cpu: int64(resourceCPU), memory: int64(resourceMemory)})
-				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+				fakeNewShadowPod = forgeShadowPodWithResourceRequests(containers, nil)
 				request = forgeRequest(admissionv1.Delete, nil, fakeNewShadowPod)
 			})
 			It("request is allowed with error (Cache Problem)", func() {
@@ -192,7 +192,7 @@ var _ = Describe("Validating webhook", func() {
 			BeforeEach(func() {
 				containers = nil
 				containers = append(containers, containerResource{cpu: int64(resourceCPU), memory: int64(resourceMemory)})
-				fakeNewShadowPod = forgeShadowPodWithResourceLimits(containers, nil)
+				fakeNewShadowPod = forgeShadowPodWithResourceRequests(containers, nil)
 				request = forgeRequest(admissionv1.Delete, nil, fakeNewShadowPod)
 			})
 			It("request is allowed with error (PeeringInfo not found)", func() {
