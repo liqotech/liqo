@@ -15,6 +15,8 @@
 package test
 
 import (
+	"time"
+
 	"github.com/spf13/pflag"
 )
 
@@ -22,6 +24,8 @@ import (
 type FlagNames string
 
 const (
+	// FlagNamesTimeout is the flag name for the timeout.
+	FlagNamesTimeout FlagNames = "timeout"
 	// FlagNamesVerbose is the flag name for the verbose output.
 	FlagNamesVerbose FlagNames = "verbose"
 	// FlagNamesFailFast is the flag name for the fail-fast option.
@@ -30,6 +34,7 @@ const (
 
 // AddFlags adds the flags to the flag set.
 func (o *Options) AddFlags(fs *pflag.FlagSet) {
+	fs.DurationVar(&o.Timeout, string(FlagNamesTimeout), 5*time.Minute, "Timeout for the test")
 	fs.BoolVarP(&o.Verbose, string(FlagNamesVerbose), "v", false, "Verbose output")
 	fs.BoolVar(&o.FailFast, string(FlagNamesFailFast), false, "Stop the test as soon as an error is encountered")
 }

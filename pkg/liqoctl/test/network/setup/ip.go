@@ -33,8 +33,6 @@ import (
 const (
 	// IPName is the name of the IP resource.
 	IPName = "external-ip"
-	// IPNamespace is the namespace of the IP resource.
-	IPNamespace = "default"
 	// ExternalURL is the external URL to use for the IP.
 	ExternalURL = "liqo.io"
 )
@@ -62,7 +60,7 @@ func CreateIP(ctx context.Context, cl ctrlclient.Client, dstip string) error {
 	ip := ipamv1alpha1.IP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      IPName,
-			Namespace: IPNamespace,
+			Namespace: NamespaceName,
 			Labels: map[string]string{
 				consts.IPCategoryTargetKey: consts.IPCategoryTargetValueMapping,
 			},
@@ -85,7 +83,7 @@ func WaitIPRemapped(ctx context.Context, cl ctrlclient.Client) error {
 	defer cancel()
 	return wait.PollUntilContextCancel(timeout, time.Second, true, func(ctx context.Context) (done bool, err error) {
 		ip := ipamv1alpha1.IP{}
-		if err := cl.Get(ctx, ctrlclient.ObjectKey{Name: IPName, Namespace: IPNamespace}, &ip); err != nil {
+		if err := cl.Get(ctx, ctrlclient.ObjectKey{Name: IPName, Namespace: NamespaceName}, &ip); err != nil {
 			return false, err
 		}
 		if len(ip.Status.IPMappings) == 0 {

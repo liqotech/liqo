@@ -15,6 +15,8 @@
 package test
 
 import (
+	"time"
+
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 )
 
@@ -29,6 +31,7 @@ func NewOptions(f *factory.Factory) *Options {
 type Options struct {
 	LocalFactory *factory.Factory
 
+	Timeout  time.Duration
 	Verbose  bool
 	FailFast bool
 }
