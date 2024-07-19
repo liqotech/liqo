@@ -103,7 +103,7 @@ func CreateDeployment(ctx context.Context, cl ctrlclient.Client, replicas int32,
 					Containers: []corev1.Container{
 						{
 							Name:    "netshoot",
-							Image:   "nicolaka/netshoot",
+							Image:   "ghcr.io/nicolaka/netshoot",
 							Command: []string{"python3", "-m", "http.server", "80"},
 							Ports:   ports},
 					},

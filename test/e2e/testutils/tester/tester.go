@@ -35,6 +35,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -46,6 +47,9 @@ type Tester struct {
 	// ClustersNumber represents the number of available clusters
 	ClustersNumber   int
 	OverlappingCIDRs bool
+	LiqoctlPath      string
+	Cni              string
+	Infrastructure   string
 }
 
 // ClusterContext encapsulate all information and objects used to access a test cluster.
@@ -104,6 +108,9 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 	var err error
 	namespace := testutils.GetEnvironmentVariableOrDie(testconsts.NamespaceEnvVar)
 	TmpDir := testutils.GetEnvironmentVariableOrDie(testconsts.KubeconfigDirVarName)
+	liqoctlPath := testutils.GetEnvironmentVariableOrDie(testconsts.LiqoctlPathEnvVar)
+	infrastructure := testutils.GetEnvironmentVariableOrDie(testconsts.InfrastructureEnvVar)
+	cni := testutils.GetEnvironmentVariableOrDie(testconsts.CniEnvVar)
 
 	overlappingCIDRsString := testutils.GetEnvironmentVariableOrDie(testconsts.OverlappingCIDRsEnvVar)
 
@@ -113,6 +120,9 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 	tester = &Tester{
 		Namespace:        namespace,
 		OverlappingCIDRs: strings.EqualFold(overlappingCIDRsString, "true"),
+		LiqoctlPath:      liqoctlPath,
+		Infrastructure:   infrastructure,
+		Cni:              cni,
 	}
 
 	tester.ClustersNumber, err = getClusterNumberFromEnv()
@@ -127,7 +137,7 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 			return nil, err
 		}
 		var c = ClusterContext{
-			Config:         testutils.GetRestConfigOrDie(kubeconfigPath),
+			Config:         restcfg.SetRateLimiter(testutils.GetRestConfigOrDie(kubeconfigPath)),
 			KubeconfigPath: kubeconfigPath,
 			HomeCluster:    i == 1,
 		}
