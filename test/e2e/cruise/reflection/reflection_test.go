@@ -30,13 +30,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	netv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	podutils "github.com/liqotech/liqo/pkg/utils/pod"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -56,6 +59,8 @@ const (
 
 	metricReflectionCounter = "liqo_virtual_kubelet_reflection_item_counter"
 	targePortMetrics        = 5872
+	localPort               = 5872 // we use the same port for all virtual-kubelet pods
+
 )
 
 func TestE2E(t *testing.T) {
@@ -67,14 +72,16 @@ func TestE2E(t *testing.T) {
 type objectRetriever func() client.Object
 
 var (
-	ctx           = context.Background()
-	testContext   = tester.GetTester(ctx)
-	interval      = config.Interval
-	timeout       = config.Timeout
-	namespaceName = util.GetNameNamespaceTest(testName)
-	indexCons     = 0 // the first should always be a consumer
-	consumer      = testContext.Clusters[indexCons]
-	providers     = tester.GetProviders(testContext.Clusters)
+	ctx               = context.Background()
+	testContext       = tester.GetTester(ctx)
+	interval          = config.Interval
+	timeout           = config.Timeout
+	namespaceName     = util.GetNameNamespaceTest(testName)
+	indexCons         = 0 // the first should always be a consumer
+	consumer          = testContext.Clusters[indexCons]
+	providers         = tester.GetProviders(testContext.Clusters)
+	virtualNodes      = make(map[liqov1alpha1.ClusterID]types.NamespacedName)
+	extraVirtualNodes = make(map[liqov1alpha1.ClusterID]types.NamespacedName)
 
 	ensureResourcesDeletion = func(getObj objectRetriever, consumer tester.ClusterContext, providers ...tester.ClusterContext) {
 		// Delete the object on the consumer cluster
@@ -159,22 +166,42 @@ var (
 			"node_name":          nodeName,
 			"reflector_resource": resource,
 		})
-		Expect(err).ToNot(HaveOccurred())
+		Expect(client.IgnoreNotFound(err)).ToNot(HaveOccurred())
+
+		if apierrors.IsNotFound(err) {
+			return 0
+		}
 		return counter
 	}
 
-	getVirtualKubeletPod = func(providerClusterID liqov1alpha1.ClusterID) *corev1.Pod {
-		// Get virtualnode
-		vNodes, err := getters.ListVirtualNodesByClusterID(ctx, consumer.ControllerClient, providerClusterID)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(len(vNodes)).To(Equal(1))
+	getVirtualKubeletPod = func(vnNsName types.NamespacedName) *corev1.Pod {
+		var vn offv1alpha1.VirtualNode
+		Expect(consumer.ControllerClient.Get(ctx, vnNsName, &vn)).To(Succeed())
 
 		// Get virtual-kubelet pod
-		vkPods, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, consumer.ControllerClient, &vNodes[0])
+		vkPods, err := getters.ListVirtualKubeletPodsFromVirtualNode(ctx, consumer.ControllerClient, &vn)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(len(vkPods.Items)).To(Equal(1))
 
 		return &vkPods.Items[0]
+	}
+
+	testMetricReflectionCounter = func(providerClusterID liqov1alpha1.ClusterID, resource string, maxReflection int) {
+		// Check that the reflection counter for the provided resource is reasonably low.
+		vkPod := getVirtualKubeletPod(virtualNodes[providerClusterID])
+		metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
+		counter := retrieveMetricReflectionCounter(metrics,
+			string(providerClusterID), namespaceName, virtualNodes[providerClusterID].Name, resource)
+		Expect(counter).To(BeNumerically(">", 0))
+		Expect(counter).To(BeNumerically("<", maxReflection))
+
+		// Check that the reflection counter in the extra virtual-kubelet for the provided resource is 0.
+		// (the extra virtual node should not reflect the resources as it is not the current leader)
+		vkPod = getVirtualKubeletPod(extraVirtualNodes[providerClusterID])
+		metrics = retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
+		counter = retrieveMetricReflectionCounter(metrics,
+			string(providerClusterID), namespaceName, extraVirtualNodes[providerClusterID].Name, resource)
+		Expect(counter).To(BeNumerically("==", 0))
 	}
 )
 
@@ -191,6 +218,37 @@ var _ = BeforeSuite(func() {
 	)).To(Succeed())
 	// wait for the namespace to be offloaded, this avoids race conditions
 	time.Sleep(2 * time.Second)
+
+	// Create an additional virtual node on the consumer for each provider cluster
+	for _, provider := range providers {
+		// Get virtual nodes from peering and save it on the map
+		vn, err := getters.ListVirtualNodesByClusterID(ctx, consumer.ControllerClient, provider.Cluster)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(vn)).To(Equal(1))
+		virtualNodes[provider.Cluster] = types.NamespacedName{
+			Namespace: vn[0].Namespace,
+			Name:      vn[0].Name,
+		}
+
+		// Create an extra virtual node using the existing resourceslice and save it on the map
+		rs, err := getters.ListResourceSlicesByLabel(ctx, consumer.ControllerClient,
+			corev1.NamespaceAll, liqolabels.LocalLabelSelectorForCluster(string(provider.Cluster)))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(rs)).To(BeNumerically(">", 0))
+
+		extraVirtualNodeName := fmt.Sprintf("vn-test-%s", provider.Cluster)
+		Expect(util.ExecLiqoctl(consumer.KubeconfigPath,
+			[]string{"create", "virtualnode", extraVirtualNodeName,
+				"--remote-cluster-id", string(provider.Cluster),
+				"--resource-slice-name", rs[0].Name},
+			GinkgoWriter,
+		)).To(Succeed())
+		extraVirtualNodes[provider.Cluster] = types.NamespacedName{
+			Namespace: rs[0].Namespace,
+			Name:      extraVirtualNodeName,
+		}
+	}
+
 })
 
 var _ = Describe("Liqo E2E", func() {
@@ -249,15 +307,7 @@ var _ = Describe("Liqo E2E", func() {
 						return nil
 					}, timeout, interval).Should(Succeed())
 
-					// Get metrics from virtual-kubelet pod, using local portforwarding.
-					localPort := targePortMetrics // we use the same port for all providers
-					vkPod := getVirtualKubeletPod(provider.Cluster)
-					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
-
-					// Check the reflection counter for the resources
-					counter := retrieveMetricReflectionCounter(metrics,
-						string(provider.Cluster), namespaceName, string(provider.Cluster), "Pod")
-					Expect(counter).To(BeNumerically("<", 100))
+					testMetricReflectionCounter(provider.Cluster, "Pod", 100)
 				}
 			})
 		})
@@ -313,18 +363,8 @@ var _ = Describe("Liqo E2E", func() {
 						return nil
 					}, timeout, interval).Should(Succeed())
 
-					// Get metrics from virtual-kubelet pod, using local portforwarding.
-					localPort := targePortMetrics // we use the same port for all providers
-					vkPod := getVirtualKubeletPod(provider.Cluster)
-					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
-
-					// Check the reflection counter for the resources
-					counter := retrieveMetricReflectionCounter(metrics,
-						string(provider.Cluster), namespaceName, string(provider.Cluster), "Service")
-					Expect(counter).To(BeNumerically("<", 100))
-					counter = retrieveMetricReflectionCounter(metrics,
-						string(provider.Cluster), namespaceName, string(provider.Cluster), "EndpointSlice")
-					Expect(counter).To(BeNumerically("<", 100))
+					testMetricReflectionCounter(provider.Cluster, "Service", 100)
+					testMetricReflectionCounter(provider.Cluster, "EndpointSlice", 100)
 				}
 			})
 		})
@@ -360,15 +400,7 @@ var _ = Describe("Liqo E2E", func() {
 						return util.GetResource(ctx, provider.ControllerClient, ingress)
 					}, timeout, interval).Should(Succeed())
 
-					// Get metrics from virtual-kubelet pod, using local portforwarding.
-					localPort := targePortMetrics // we use the same port for all providers
-					vkPod := getVirtualKubeletPod(provider.Cluster)
-					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
-
-					// Check the reflection counter for Ithe resource
-					counter := retrieveMetricReflectionCounter(metrics,
-						string(provider.Cluster), namespaceName, string(provider.Cluster), "Ingress")
-					Expect(counter).To(BeNumerically("<", 100))
+					testMetricReflectionCounter(provider.Cluster, "Ingress", 100)
 				}
 			})
 		})
@@ -404,15 +436,7 @@ var _ = Describe("Liqo E2E", func() {
 						return util.GetResource(ctx, provider.ControllerClient, cm)
 					}, timeout, interval).Should(Succeed())
 
-					// Get metrics from virtual-kubelet pod, using local portforwarding.
-					localPort := targePortMetrics // we use the same port for all providers
-					vkPod := getVirtualKubeletPod(provider.Cluster)
-					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
-
-					// Check the reflection counter for Ithe resource
-					counter := retrieveMetricReflectionCounter(metrics,
-						string(provider.Cluster), namespaceName, string(provider.Cluster), "ConfigMap")
-					Expect(counter).To(BeNumerically("<", 100))
+					testMetricReflectionCounter(provider.Cluster, "ConfigMap", 100)
 				}
 			})
 		})
@@ -448,15 +472,7 @@ var _ = Describe("Liqo E2E", func() {
 						return util.GetResource(ctx, provider.ControllerClient, secret)
 					}, timeout, interval).Should(Succeed())
 
-					// Get metrics from virtual-kubelet pod, using local portforwarding.
-					localPort := targePortMetrics // we use the same port for all providers
-					vkPod := getVirtualKubeletPod(provider.Cluster)
-					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
-
-					// Check the reflection counter for Ithe resource
-					counter := retrieveMetricReflectionCounter(metrics,
-						string(provider.Cluster), namespaceName, string(provider.Cluster), "Secret")
-					Expect(counter).To(BeNumerically("<", 100))
+					testMetricReflectionCounter(provider.Cluster, "Secret", 100)
 				}
 			})
 		})
@@ -495,15 +511,7 @@ var _ = Describe("Liqo E2E", func() {
 						},
 					)).To(Succeed())
 
-					// Get metrics from virtual-kubelet pod, using local portforwarding.
-					localPort := targePortMetrics // we use the same port for all providers
-					vkPod := getVirtualKubeletPod(provider.Cluster)
-					metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
-
-					// Check the reflection counter for Ithe resource
-					counter := retrieveMetricReflectionCounter(metrics,
-						string(provider.Cluster), namespaceName, string(provider.Cluster), "Event")
-					Expect(counter).To(BeNumerically("<", 1000))
+					testMetricReflectionCounter(provider.Cluster, "Event", 1000)
 				}
 			})
 
@@ -529,6 +537,17 @@ var _ = Describe("Liqo E2E", func() {
 })
 
 var _ = AfterSuite(func() {
+	// Delete extra virtual nodes
+	for _, v := range extraVirtualNodes {
+		vn := offv1alpha1.VirtualNode{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      v.Name,
+				Namespace: v.Namespace,
+			},
+		}
+		Expect(consumer.ControllerClient.Delete(ctx, &vn)).To(Succeed())
+	}
+
 	for i := range testContext.Clusters {
 		Eventually(func() error {
 			return util.EnsureNamespaceDeletion(ctx, testContext.Clusters[i].NativeClient, namespaceName)
