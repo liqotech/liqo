@@ -140,7 +140,7 @@ func GetLocalIPRemapped(ctx context.Context, cl *client.Client) (map[string]stri
 	ip := ipamv1alpha1.IP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      setup.IPName,
-			Namespace: setup.IPNamespace,
+			Namespace: setup.NamespaceName,
 		},
 	}
 
@@ -155,7 +155,7 @@ func GetLocalIPRemapped(ctx context.Context, cl *client.Client) (map[string]stri
 		ip := ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      setup.IPName,
-				Namespace: setup.IPNamespace,
+				Namespace: setup.NamespaceName,
 			},
 		}
 

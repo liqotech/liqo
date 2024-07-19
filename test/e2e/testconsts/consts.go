@@ -19,6 +19,9 @@ const (
 	NamespaceEnvVar        = "NAMESPACE"
 	ClusterNumberVarKey    = "CLUSTER_NUMBER"
 	KubeconfigDirVarName   = "KUBECONFIGDIR"
+	LiqoctlPathEnvVar      = "LIQOCTL"
+	InfrastructureEnvVar   = "INFRA"
+	CniEnvVar              = "CNI"
 	OverlappingCIDRsEnvVar = "POD_CIDR_OVERLAPPING"
 )
 

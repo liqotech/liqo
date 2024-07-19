@@ -16,7 +16,7 @@ package setup
 
 const (
 	// NamespaceName is the namespace where the test resources are created.
-	NamespaceName = "liqo-network-test"
+	NamespaceName = "liqo-test-network"
 	// DeploymentName is the name of the deployment used for the tests.
 	DeploymentName = "netshoot"
 	// ControlPlaneTaintKey is the key of the taint applied to the control plane nodes.

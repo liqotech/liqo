@@ -129,11 +129,20 @@ function install_local_path_storage() {
 }
 
 function install_metrics_server() {
-    local kubeconfig=$1
+  local kubeconfig=$1
 
-    "${HELM}" repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
-    "${HELM}" upgrade --install metrics-server metrics-server/metrics-server \
-        --set 'args={"--kubelet-insecure-tls=true"}' \
-        --namespace kube-system --kubeconfig "${kubeconfig}"
-    "${KUBECTL}" -n kube-system rollout status deployment metrics-server --kubeconfig "${kubeconfig}"
+  "${HELM}" repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+  "${HELM}" upgrade --install metrics-server metrics-server/metrics-server \
+      --set 'args={"--kubelet-insecure-tls=true"}' \
+      --namespace kube-system --kubeconfig "${kubeconfig}"
+  "${KUBECTL}" -n kube-system rollout status deployment metrics-server --kubeconfig "${kubeconfig}"
+}
+
+function install_kyverno() {
+  local kubeconfig=$1
+
+  "${HELM}" repo add kyverno https://kyverno.github.io/kyverno/
+  "${HELM}" repo update
+  "${HELM}" install kyverno kyverno/kyverno -n kyverno --create-namespace --kubeconfig "${kubeconfig}" \
+    --set "global.image.registry=harbor.crownlabs.polito.it/proxy"
 }

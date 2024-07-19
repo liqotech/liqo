@@ -77,6 +77,8 @@ func newTestNetworkCommand(ctx context.Context, topts *test.Options) *cobra.Comm
 		Long:    WithTemplate(liqoctlTestNetworkLongHelp),
 		Args:    cobra.NoArgs,
 		Run: func(_ *cobra.Command, _ []string) {
+			ctx, cancel := context.WithTimeout(ctx, topts.Timeout)
+			defer cancel()
 			if err := options.RunNetworkTest(ctx); err != nil {
 				topts.LocalFactory.Printer.ExitWithMessage(output.PrettyErr(err))
 			}
