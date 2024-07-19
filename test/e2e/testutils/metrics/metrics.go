@@ -20,6 +20,8 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // ParseMetrics parses a Prometheus metrics file and returns a map of metric families.
@@ -64,5 +66,5 @@ func RetrieveCounter(metricFamilies map[string]*dto.MetricFamily, metricName str
 		}
 	}
 
-	return 0, fmt.Errorf("metric %s not found", metricName)
+	return 0, errors.NewNotFound(schema.GroupResource{}, "metricName")
 }
