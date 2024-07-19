@@ -20,6 +20,18 @@ set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
 set -o pipefail  # Fail if one of the piped commands fails
 
+function check_no_resources() {
+  local query="$1"
+  local name="$2"
+
+  nl=$(eval "${query}" | wc -l)
+  if [ "${nl}" -ne 0 ]; then
+    echo "Error: the peering is not correctly removed, resources ${name} found"
+    eval "${query}"
+    exit 1
+  fi
+}
+
 error() {
    local sourcefile=$1
    local lineno=$2
@@ -35,4 +47,47 @@ do
   export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
   "${LIQOCTL}" unpeer --kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}" --skip-confirm
+done;
+
+# check that the peering is correctly removed
+for i in $(seq 1 "${CLUSTER_NUMBER}");
+do
+  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+
+  check_no_resources "${KUBECTL} get tenants.authentication.liqo.io" "Tenants"
+  check_no_resources "${KUBECTL} get identities.authentication.liqo.io -A" "Identities"
+  check_no_resources "${KUBECTL} get resourceslices.authentication.liqo.io -A" "ResourceSlices"
+
+  check_no_resources "${KUBECTL} get gatewayclients.networking.liqo.io -A" "GatewayClients"
+  check_no_resources "${KUBECTL} get gatewayservers.networking.liqo.io -A" "GatewayServers"
+  check_no_resources "${KUBECTL} get publickeies.networking.liqo.io -A" "PublicKeys"
+  check_no_resources "${KUBECTL} get wggatewayclients.networking.liqo.io -A" "WgGatewayClients"
+  check_no_resources "${KUBECTL} get wggatewayservers.networking.liqo.io -A" "WgGatewayServers"
+  check_no_resources "${KUBECTL} get connections.networking.liqo.io -A" "Connections"
+  check_no_resources "${KUBECTL} get configurations.networking.liqo.io -A" "Configurations"
+
+  check_no_resources "${KUBECTL} get namespacemaps.offloading.liqo.io -A" "NamespaceMaps"
+  check_no_resources "${KUBECTL} get shadowendpointslices.offloading.liqo.io -A" "ShadowEndpointSlices"
+  check_no_resources "${KUBECTL} get shadowpods.offloading.liqo.io -A" "ShadowPods"
+  check_no_resources "${KUBECTL} get virtualnodes.offloading.liqo.io -A" "VirtualNodes"
+
+  fc=$("${KUBECTL}" get foreignclusters.core.liqo.io -o json)
+  auth_module=$(echo "${fc}" | jq -r '.items[0].status.modules.authentication.enabled')
+  if [ "${auth_module}" == "true" ]; then
+    echo "Error: the authentication module is still enabled"
+    echo "${fc}"
+    exit 1
+  fi
+  net_module=$(echo "${fc}" | jq -r '.items[0].status.modules.networking.enabled')
+  if [ "${net_module}" == "true" ]; then
+    echo "Error: the networking module is still enabled"
+    echo "${fc}"
+    exit 1
+  fi
+  off_module=$(echo "${fc}" | jq -r '.items[0].status.modules.offloading.enabled')
+  if [ "${off_module}" == "true" ]; then
+    echo "Error: the offloading module is still enabled"
+    echo "${fc}"
+    exit 1
+  fi
 done;

@@ -16,6 +16,7 @@ package util
 
 import (
 	"context"
+	"os"
 	"slices"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -27,6 +28,18 @@ import (
 
 	"github.com/liqotech/liqo/pkg/consts"
 )
+
+var (
+	image = "nginx"
+)
+
+func init() {
+	// get the DOCKER_PROXY variable from the environment, if set.
+	dockerProxy, ok := os.LookupEnv("DOCKER_PROXY")
+	if ok {
+		image = dockerProxy + "/" + image
+	}
+}
 
 // DeploymentOption is a function that modifies a Deployment.
 type DeploymentOption func(*appsv1.Deployment)
@@ -104,7 +117,7 @@ func EnforceDeployment(ctx context.Context, cl client.Client, namespace, name st
 				Containers: []corev1.Container{
 					{
 						Name:            name,
-						Image:           "nginx",
+						Image:           image,
 						ImagePullPolicy: corev1.PullIfNotPresent,
 					},
 				},
