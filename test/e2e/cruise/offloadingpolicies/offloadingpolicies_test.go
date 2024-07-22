@@ -161,8 +161,8 @@ var _ = Describe("Liqo E2E", func() {
 		When("the offloading policy is set to Local", func() {
 
 			BeforeEach(func() {
-				Expect(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath,
-					namespaceName, "--pod-offloading-strategy=Local")).To(Succeed())
+				Eventually(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath,
+					namespaceName, "--pod-offloading-strategy=Local"), timeout, interval).Should(Succeed())
 
 				// wait for the namespace to be offloaded, this avoids race conditions
 				time.Sleep(2 * time.Second)
@@ -183,8 +183,8 @@ var _ = Describe("Liqo E2E", func() {
 		When("the offloading policy is set to Remote", func() {
 
 			BeforeEach(func() {
-				Expect(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath,
-					namespaceName, "--pod-offloading-strategy=Remote")).To(Succeed())
+				Eventually(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath,
+					namespaceName, "--pod-offloading-strategy=Remote"), timeout, interval).Should(Succeed())
 
 				// wait for the namespace to be offloaded, this avoids race conditions
 				time.Sleep(2 * time.Second)
@@ -205,8 +205,8 @@ var _ = Describe("Liqo E2E", func() {
 		When("the offloading policy is set to LocalAndRemote", func() {
 
 			BeforeEach(func() {
-				Expect(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath,
-					namespaceName, "--pod-offloading-strategy=LocalAndRemote")).To(Succeed())
+				Eventually(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath,
+					namespaceName, "--pod-offloading-strategy=LocalAndRemote"), timeout, interval).Should(Succeed())
 
 				// wait for the namespace to be offloaded, this avoids race conditions
 				time.Sleep(2 * time.Second)
@@ -230,8 +230,6 @@ var _ = Describe("Liqo E2E", func() {
 				Expect(util.RemoveArgumentFromDeployment(ctx, testContext.Clusters[0].ControllerClient,
 					"liqo", "liqo-webhook", "--add-virtual-node-toleration-on-offloaded-pods", 0)).To(Succeed())
 
-				// wait for deployment to be updated
-				time.Sleep(2 * time.Second)
 				Eventually(func() appsv1.DeploymentStatus {
 					var d appsv1.Deployment
 					_ = testContext.Clusters[0].ControllerClient.Get(ctx, client.ObjectKey{Namespace: "liqo", Name: "liqo-webhook"}, &d)
@@ -241,6 +239,8 @@ var _ = Describe("Liqo E2E", func() {
 					"UpdatedReplicas": BeNumerically("==", 1),
 					"Replicas":        BeNumerically("==", 1),
 				}))
+				// wait for deployment to be updated
+				time.Sleep(2 * time.Second)
 
 				_ = util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath, namespaceName)
 
@@ -252,8 +252,6 @@ var _ = Describe("Liqo E2E", func() {
 				Expect(util.AddArgumentToDeployment(ctx, testContext.Clusters[0].ControllerClient,
 					"liqo", "liqo-webhook", "--add-virtual-node-toleration-on-offloaded-pods", 0)).To(Succeed())
 
-				// wait for deployment to be updated
-				time.Sleep(2 * time.Second)
 				Eventually(func() appsv1.DeploymentStatus {
 					var d appsv1.Deployment
 					_ = testContext.Clusters[0].ControllerClient.Get(ctx, client.ObjectKey{Namespace: "liqo", Name: "liqo-webhook"}, &d)
@@ -263,6 +261,8 @@ var _ = Describe("Liqo E2E", func() {
 					"UpdatedReplicas": BeNumerically("==", 1),
 					"Replicas":        BeNumerically("==", 1),
 				}))
+				// wait for deployment to be updated
+				time.Sleep(2 * time.Second)
 
 				deleteDeployment()
 			})
