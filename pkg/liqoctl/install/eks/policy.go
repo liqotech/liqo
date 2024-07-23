@@ -37,6 +37,8 @@ var policy = PolicyDocument{
 			Action: []string{
 				"iam:CreateUser",
 				"iam:CreateAccessKey",
+				"iam:ListAccessKeys",
+				"iam:DeleteAccessKey",
 			},
 			Resource: "*",
 		},
