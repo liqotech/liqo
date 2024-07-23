@@ -229,6 +229,8 @@ var _ = Describe("Liqo E2E", func() {
 			BeforeEach(func() {
 				Expect(util.RemoveArgumentFromDeployment(ctx, testContext.Clusters[0].ControllerClient,
 					"liqo", "liqo-webhook", "--add-virtual-node-toleration-on-offloaded-pods", 0)).To(Succeed())
+				// wait for deployment to be updated
+				time.Sleep(2 * time.Second)
 
 				Eventually(func() appsv1.DeploymentStatus {
 					var d appsv1.Deployment
@@ -251,6 +253,8 @@ var _ = Describe("Liqo E2E", func() {
 			AfterEach(func() {
 				Expect(util.AddArgumentToDeployment(ctx, testContext.Clusters[0].ControllerClient,
 					"liqo", "liqo-webhook", "--add-virtual-node-toleration-on-offloaded-pods", 0)).To(Succeed())
+				// wait for deployment to be updated
+				time.Sleep(2 * time.Second)
 
 				Eventually(func() appsv1.DeploymentStatus {
 					var d appsv1.Deployment

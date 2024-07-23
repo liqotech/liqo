@@ -240,7 +240,11 @@ func (r *WgGatewayServerReconciler) mutateFnWgServerService(service *corev1.Serv
 	mapsutil.SmartMergeAnnotations(service, wgServer.Spec.Service.Metadata.GetAnnotations())
 
 	// Forge spec
+	serviceClassName := service.Spec.LoadBalancerClass
 	service.Spec = wgServer.Spec.Service.Spec
+	if wgServer.Spec.Service.Spec.LoadBalancerClass == nil {
+		service.Spec.LoadBalancerClass = serviceClassName
+	}
 
 	// Set WireGuard server as owner of the service
 	return controllerutil.SetControllerReference(wgServer, service, r.Scheme)
