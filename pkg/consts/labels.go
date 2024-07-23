@@ -23,8 +23,14 @@ package consts
 const (
 	// K8sAppNameKey = key of the label used to denote a deployed application name.
 	K8sAppNameKey = "app.kubernetes.io/name"
+	// K8sAppInstanceKey = key of the label used to denote a deployed application instance.
+	K8sAppInstanceKey = "app.kubernetes.io/instance"
+	// K8sAppManagedByKey = key of the label used to denote which app is managing the resource.
+	K8sAppManagedByKey = "app.kubernetes.io/managed-by"
 	// K8sAppComponentKey = key of the label used to denote a deployed application component.
 	K8sAppComponentKey = "app.kubernetes.io/component"
+	// K8sAppPartOfKey = key of the label used to denote the application a resource is part of.
+	K8sAppPartOfKey = "app.kubernetes.io/part-of"
 
 	// ControllerManagerAppName label value that denotes the name of the liqo-controller-manager deployment.
 	ControllerManagerAppName = "controller-manager"

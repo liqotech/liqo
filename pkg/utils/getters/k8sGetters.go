@@ -23,6 +23,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -171,6 +172,42 @@ func GetPodByLabel(ctx context.Context, cl client.Client, ns string, lSelector l
 		return nil, fmt.Errorf("multiple resources of type {%s} found for label selector {%s} in namespace {%s},"+
 			" when only one was expected", podGR.String(), lSelector.String(), ns)
 	}
+}
+
+// ListRolesByLabel returns the Roles that match the given label selector.
+func ListRolesByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) ([]rbacv1.Role, error) {
+	var rList rbacv1.RoleList
+	if err := cl.List(ctx, &rList, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+	return rList.Items, nil
+}
+
+// ListClusterRolesByLabel returns the ClusterRoles that match the given label selector.
+func ListClusterRolesByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) ([]rbacv1.ClusterRole, error) {
+	var crList rbacv1.ClusterRoleList
+	if err := cl.List(ctx, &crList, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+		return nil, err
+	}
+	return crList.Items, nil
+}
+
+// ListRoleBindingsByLabel returns the RoleBindings that match the given label selector.
+func ListRoleBindingsByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) ([]rbacv1.RoleBinding, error) {
+	var rbList rbacv1.RoleBindingList
+	if err := cl.List(ctx, &rbList, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
+		return nil, err
+	}
+	return rbList.Items, nil
+}
+
+// ListClusterRoleBindingsByLabel returns the ClusterRoleBindings that match the given label selector.
+func ListClusterRoleBindingsByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) ([]rbacv1.ClusterRoleBinding, error) {
+	var crbList rbacv1.ClusterRoleBindingList
+	if err := cl.List(ctx, &crbList, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+		return nil, err
+	}
+	return crbList.Items, nil
 }
 
 // ListNodesByClusterID returns the node list that matches the given cluster id.

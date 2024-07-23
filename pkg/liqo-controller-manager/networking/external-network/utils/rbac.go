@@ -79,7 +79,7 @@ func EnsureServiceAccountAndClusterRoleBinding(ctx context.Context, cl client.Cl
 	// ensure cluster role binding
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s-%s", namespace, name, saName),
+			Name: fmt.Sprintf("%s-%s-%s", clusterRoleName, namespace, name),
 		},
 	}
 	if _, err := controllerutil.CreateOrUpdate(ctx, cl, crb, func() error {
@@ -88,14 +88,15 @@ func EnsureServiceAccountAndClusterRoleBinding(ctx context.Context, cl client.Cl
 		}
 		crb.Labels[consts.GatewayNameLabel] = name
 		crb.Labels[consts.GatewayNamespaceLabel] = namespace
+		crb.Labels[consts.K8sAppManagedByKey] = consts.LiqoAppLabelValue
 
 		crb.RoleRef = rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
+			APIGroup: rbacv1.GroupName,
 			Kind:     "ClusterRole",
 			Name:     clusterRoleName,
 		}
 		crb.Subjects = []rbacv1.Subject{{
-			Kind:      "ServiceAccount",
+			Kind:      rbacv1.ServiceAccountKind,
 			Name:      saName,
 			Namespace: namespace,
 		}}

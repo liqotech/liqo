@@ -109,7 +109,7 @@ func (o *Options) Run(ctx context.Context) error {
 
 func (o *Options) checkUninstalled(ctx context.Context) error {
 	var clusterRoles rbacv1.ClusterRoleList
-	if err := o.CRClient.List(ctx, &clusterRoles, client.MatchingLabels{"app.kubernetes.io/part-of": install.LiqoReleaseName}); err != nil {
+	if err := o.CRClient.List(ctx, &clusterRoles, client.MatchingLabels{consts.K8sAppPartOfKey: install.LiqoReleaseName}); err != nil {
 		return fmt.Errorf("failed checking whether cluster-wide resources have been removed: %w", err)
 	}
 
