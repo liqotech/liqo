@@ -20,4 +20,7 @@ const (
 
 	// VirtualNodeLabel used to mark the virtual nodes.
 	VirtualNodeLabel = "liqo.io/virtual-node"
+
+	// LiqoAppLabelValue is the value of the label used to identify Liqo app.
+	LiqoAppLabelValue = "liqo"
 )
