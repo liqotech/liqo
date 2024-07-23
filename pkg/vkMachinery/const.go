@@ -14,6 +14,8 @@
 
 package vkMachinery
 
+import "github.com/liqotech/liqo/pkg/consts"
+
 // LocalClusterRoleName represents the name of the local cluster role associated with the virtual kubelet.
 const LocalClusterRoleName = "liqo-virtual-kubelet-local"
 
@@ -28,16 +30,16 @@ const CRBPrefix = "liqo-node-"
 
 // KubeletBaseLabels are the static labels that are set on every VirtualKubelet.
 var KubeletBaseLabels = map[string]string{
-	"app.kubernetes.io/name":       "virtual-kubelet",
-	"app.kubernetes.io/instance":   "virtual-kubelet",
-	"app.kubernetes.io/managed-by": "advertisementoperator",
-	"app.kubernetes.io/component":  "virtual-kubelet",
-	"app.kubernetes.io/part-of":    "liqo",
+	consts.K8sAppNameKey:      "virtual-kubelet",
+	consts.K8sAppInstanceKey:  "virtual-kubelet",
+	consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
+	consts.K8sAppComponentKey: "virtual-kubelet",
+	consts.K8sAppPartOfKey:    "liqo",
 }
 
-// ClusterRoleBindingLabels are the static labels that are set on every ClusterRoleBinding managed by the Advertisement Operator.
+// ClusterRoleBindingLabels are the static labels that are set on every ClusterRoleBinding managed by Liqo.
 var ClusterRoleBindingLabels = map[string]string{
-	"app.kubernetes.io/managed-by": "advertisementoperator",
+	consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
 }
 
 // MetricsAddress is the default address used to expose metrics.

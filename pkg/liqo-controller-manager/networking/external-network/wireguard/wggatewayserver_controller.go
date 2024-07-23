@@ -72,7 +72,7 @@ func NewWgGatewayServerReconciler(cl client.Client, s *runtime.Scheme,
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;delete;create;update;patch
 // +kubectl:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
 
-// Reconcile manage GatewayServer lifecycle.
+// Reconcile manage WgGatewayServer lifecycle.
 func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
 	wgServer := &networkingv1alpha1.WgGatewayServer{}
 	if err = r.Get(ctx, req.NamespacedName, wgServer); err != nil {

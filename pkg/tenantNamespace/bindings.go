@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // add the bindings for the remote clusterid for the given ClusterRoles
@@ -76,6 +77,10 @@ func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster l
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace.Name,
+			Labels: map[string]string{
+				consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
+				consts.RemoteClusterID:    string(cluster),
+			},
 		},
 		Subjects: []rbacv1.Subject{
 			{
@@ -140,6 +145,10 @@ func (nm *tenantNamespaceManager) bindClusterRoleClusterWide(ctx context.Context
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
+			Labels: map[string]string{
+				consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
+				consts.RemoteClusterID:    string(cluster),
+			},
 		},
 		Subjects: []rbacv1.Subject{
 			{

@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 )
@@ -41,7 +41,7 @@ import (
 func (r *NamespaceMapReconciler) createNamespace(ctx context.Context, name, originName string,
 	nm *offloadingv1alpha1.NamespaceMap) (ignorable bool, err error) {
 	// The label is guaranteed to exist, since it is part of the filter predicate.
-	origin := nm.Labels[liqoconst.ReplicationOriginLabel]
+	origin := nm.Labels[consts.ReplicationOriginLabel]
 	nmID, err := cache.MetaNamespaceKeyFunc(nm)
 	utilruntime.Must(err)
 
@@ -57,16 +57,16 @@ func (r *NamespaceMapReconciler) createNamespace(ctx context.Context, name, orig
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 				Annotations: map[string]string{
-					liqoconst.RemoteNamespaceManagedByAnnotationKey:    nmID,
-					liqoconst.RemoteNamespaceOriginalNameAnnotationKey: originName,
+					consts.RemoteNamespaceManagedByAnnotationKey:    nmID,
+					consts.RemoteNamespaceOriginalNameAnnotationKey: originName,
 				},
 				Labels: map[string]string{
-					liqoconst.RemoteClusterID: origin,
+					consts.RemoteClusterID: origin,
 				},
 			},
 		}
 
-		if err = r.Create(ctx, &namespace); liqoerrors.IgnoreAlreadyExists(err) != nil {
+		if err := liqoerrors.IgnoreAlreadyExists(r.Create(ctx, &namespace)); err != nil {
 			return false, fmt.Errorf("failed to create namespace %q: %w", name, err)
 		}
 
@@ -74,7 +74,7 @@ func (r *NamespaceMapReconciler) createNamespace(ctx context.Context, name, orig
 	}
 
 	// Check whether this namespace is controlled by the NamespaceMap controller.
-	if value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]; !ok || value != nmID {
+	if value, ok := namespace.Annotations[consts.RemoteNamespaceManagedByAnnotationKey]; !ok || value != nmID {
 		err := fmt.Errorf("namespace %q already exists and it is not managed by NamespaceMap %q", name, nmID)
 		return false, err
 	}
@@ -85,11 +85,16 @@ func (r *NamespaceMapReconciler) createNamespace(ctx context.Context, name, orig
 	binding := rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Namespace: name, Name: nm.GetNamespace()}}
 	result, err := controllerutil.CreateOrUpdate(ctx, r.Client, &binding, func() error {
 		binding.Annotations = labels.Merge(binding.GetAnnotations(), map[string]string{
-			liqoconst.RemoteNamespaceManagedByAnnotationKey: nmID})
+			consts.RemoteNamespaceManagedByAnnotationKey: nmID,
+		})
+		binding.Labels = labels.Merge(binding.GetLabels(), map[string]string{
+			consts.K8sAppManagedByKey: consts.LiqoAppLabelValue,
+			consts.RemoteClusterID:    origin,
+		})
 
 		if binding.CreationTimestamp.IsZero() {
 			binding.Subjects = []rbacv1.Subject{{APIGroup: rbacv1.GroupName, Kind: rbacv1.GroupKind, Name: origin}}
-			binding.RoleRef = rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "ClusterRole", Name: liqoconst.RemoteNamespaceClusterRoleName}
+			binding.RoleRef = rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "ClusterRole", Name: consts.RemoteNamespaceClusterRoleName}
 		}
 
 		return nil
@@ -138,7 +143,7 @@ func (r *NamespaceMapReconciler) deleteNamespace(ctx context.Context, namespaceN
 	}
 
 	// Check if it is a namespace has been created by the NamespaceMap controller.
-	if value, ok := namespace.Annotations[liqoconst.RemoteNamespaceManagedByAnnotationKey]; !ok || value != nmID {
+	if value, ok := namespace.Annotations[consts.RemoteNamespaceManagedByAnnotationKey]; !ok || value != nmID {
 		klog.Warningf("Namespace %q is not associated with NamespaceMap %q", namespaceName, nmID)
 		return false, nil
 	}
