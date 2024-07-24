@@ -1,4 +1,5 @@
 #!/bin/bash
+#shellcheck disable=SC1091
 
 # This scripts expects the following variables to be set:
 # CLUSTER_NUMBER        -> the number of liqo clusters
@@ -26,6 +27,14 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
+FILEPATH=$(realpath "$0")
+WORKDIR=$(dirname "$FILEPATH")
+
+# shellcheck source=../../utils.sh
+source "$WORKDIR/../../utils.sh"
+
+KIND="${BINDIR}/kind"
+
 CLUSTER_NAME=cluster
 export DISABLE_KINDNET=false
 
@@ -50,7 +59,6 @@ do
 	${KIND} create cluster --name "${CLUSTER_NAME}${i}" --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" --config "${TMPDIR}/liqo-cluster-${CLUSTER_NAME}${i}.yaml" --wait 2m
 
 	# Install metrics-server
-	"${KUBECTL}" apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.6.4/components.yaml --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-	"${KUBECTL}" -n kube-system patch deployment metrics-server --type json --patch '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]' --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+	install_metrics_server "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done
 

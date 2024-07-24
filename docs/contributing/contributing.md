@@ -58,17 +58,19 @@ Once all requirements are met, it is necessary to export the set of environment 
 In most scenarios, the only variable that needs to be modified is `LIQO_VERSION`, which should point to the SHA of the commit referring to the Liqo development version to be tested (the appropriate Docker images shall have been built in advance through the appropriate GitHub Actions pipeline).
 
 ```bash
-export CLUSTER_NUMBER=4
-export K8S_VERSION=v1.22.0
+export CLUSTER_NUMBER=2
+export K8S_VERSION=v1.29.2
+export INFRA=kind
 export CNI=kindnet
 export TMPDIR=$(mktemp -d)
 export BINDIR=${TMPDIR}/bin
+export KUBECTL=${BINDIR}/kubectl
+export LIQOCTL=${BINDIR}/liqoctl
+export HELM=${BINDIR}/helm
+export KUBECONFIGDIR=${TMPDIR}/kubeconfigs
 export TEMPLATE_DIR=${PWD}/test/e2e/pipeline/infra/kind
 export NAMESPACE=liqo
-export KUBECONFIGDIR=${TMPDIR}/kubeconfigs
 export LIQO_VERSION=<YOUR_COMMIT_ID>
-export INFRA=kind
-export LIQOCTL=${BINDIR}/liqoctl
 export POD_CIDR_OVERLAPPING=false
 export TEMPLATE_FILE=cluster-templates.yaml.tmpl
 ```
