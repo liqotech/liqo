@@ -28,4 +28,6 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
 # Cleaning all remaining clusters
 
+K3D="${BINDIR}/k3d"
+
 ${K3D} cluster delete --all

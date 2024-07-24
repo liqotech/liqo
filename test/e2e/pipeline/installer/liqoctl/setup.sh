@@ -13,6 +13,7 @@
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
 # KUBECTL               -> the path where kubectl is stored
+# HELM                  -> the path where helm is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -29,10 +30,11 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # shellcheck disable=SC1091
-# shellcheck source=./helm-utils.sh
-source "${SCRIPT_DIR}/helm-utils.sh"
+# shellcheck source=./utils.sh
+source "${SCRIPT_DIR}/../../utils.sh"
 
-download_helm
+setup_arch_and_os
+install_helm "${OS}" "${ARCH}"
 
 function get_cluster_labels() {
   case $1 in
