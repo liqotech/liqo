@@ -1,4 +1,5 @@
 #!/bin/bash
+#shellcheck disable=SC1091
 
 # This scripts expects the following variables to be set:
 # CLUSTER_NUMBER        -> the number of liqo clusters
@@ -13,6 +14,7 @@
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
 # KUBECTL               -> the path where kubectl is stored
+# HELM                  -> the path where helm is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -27,41 +29,25 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-K3D_VERSION="v5.4.7"
+FILEPATH=$(realpath "$0")
+WORKDIR=$(dirname "$FILEPATH")
 
-function setup_arch_and_os(){
-  ARCH=$(uname -m)
-  case $ARCH in
-    armv5*) ARCH="armv5";;
-    armv6*) ARCH="armv6";;
-    armv7*) ARCH="arm";;
-    aarch64) ARCH="arm64";;
-    x86) ARCH="386";;
-    x86_64) ARCH="amd64";;
-    i686) ARCH="386";;
-    i386) ARCH="386";;
-    *) echo "Error architecture '${ARCH}' unknown"; exit 1 ;;
-  esac
-
-  OS=$(uname |tr '[:upper:]' '[:lower:]')
-  case "$OS" in
-    # Minimalist GNU for Windows
-    "mingw"*) OS='windows'; return ;;
-  esac
-
-  # list is available for k3d at https://github.com/k3d-io/k3d/releases
-  # kubectl supported architecture list is a superset of the K3D one. No need to further compatibility check.
-  local supported="darwin-amd64\n\nlinux-amd64\nlinux-arm64\nwindows-amd64"
-  if ! echo "${supported}" | grep -q "${OS}-${ARCH}"; then
-    echo "Error: No version of k3d for '${OS}-${ARCH}'"
-    return 1
-  fi
-
-}
+# shellcheck source=../../utils.sh
+source "$WORKDIR/../../utils.sh"
 
 setup_arch_and_os
 
+# list is available for k3d at https://github.com/k3d-io/k3d/releases
+# kubectl supported architecture list is a superset of the K3D one. No need to further compatibility check.
+SUPPORTED="darwin-amd64\ndarwin-arm64\nlinux-386\nlinux-amd64\nlinux-arm\nlinux-arm64\nwindows-amd64"
+check_supported_arch_and_os "${SUPPORTED}" "${OS}" "${ARCH}" k3d
 
+# shellcheck disable=SC2153
+install_kubectl "${OS}" "${ARCH}" "${K8S_VERSION}"
+
+install_helm "${OS}" "${ARCH}"
+
+K3D_VERSION="v5.4.7"
 
 echo "Downloading K3D ${K3D_VERSION}"
 
@@ -69,17 +55,6 @@ if ! command -v docker &> /dev/null;
 then
 	echo "MISSING REQUIREMENT: docker engine could not be found on your system. Please install docker engine to continue: https://docs.docker.com/get-docker/"
 	return 1
-fi
-
-if ! command -v kubectl &> /dev/null
-then
-    echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
-    if ! curl --fail -Lo "${KUBECTL}" "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/${OS}/${ARCH}/kubectl"; then
-        echo "Error: Unable to download kubectl for '${OS}-${ARCH}'"
-        return 1
-    fi
-    chmod +x "${KUBECTL}"
-    "${KUBECTL}" version --client
 fi
 
 if [[ ! -f "${BINDIR}/k3d" ]]; then
