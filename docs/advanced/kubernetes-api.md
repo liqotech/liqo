@@ -1,4 +1,4 @@
-# Kubernetes API
+# Access K8S API from offloaded pods
 
 This section describes the possible configurations for accessing the Kubernetes API from offloaded pods.
 
