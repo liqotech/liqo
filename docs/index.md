@@ -11,7 +11,8 @@ myst:
 
 <!-- markdownlint-disable first-line-h1 -->
 <!-- Badges above the Liqo logo -->
-```{centered} {{ github_badge }} {{ license_badge }} {{ slack_badge }} {{ twitter_badge }} {{ documentation_badge }}
+```{cssclass} flex items-center justify-center gap-2
+{{ github_badge }} {{ license_badge }} {{ slack_badge }} {{ twitter_badge }} {{ documentation_badge }}
 ```
 
 <!-- Liqo logo image -->
