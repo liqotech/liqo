@@ -1,7 +1,43 @@
+/* Customize background color */
+.dark {
+    --background: 210 100% 6%;
+}
+
+/* Customize sidebars according to theme colors */
+div {
+    scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--background));
+}
+
+/* Add a background to all the images in the documentation body */
+#content img {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 0.7rem;
+}
+
+/* Customize admonion color */
+.admonition-note, .admonition-tip {
+    background: #88c9cb70;
+    border-color: #5f9ea0;
+}
+
 /* Increase the marging around the homepage Liqo logo */
 .custom-logo-image {
     margin-top: 2ex !important;
     margin-bottom: 5ex !important;
+}
+
+/* Invert logo in dark mode */
+.dark .custom-logo-image {
+    filter: brightness(0) invert(1)
+}
+
+.custom-logo-image img {
+    background: none !important;
+}
+
+.reference.external img{
+    background: none !important;
 }
 
 /* Smaller font size compared to the alternatives provided by sphinx-design */
