@@ -1,12 +1,8 @@
 root: index
 subtrees:
-
-  - caption: Features
-    entries:
-      - file: features/peering.md
-      - file: features/offloading.md
-      - file: features/network-fabric.md
-      - file: features/storage-fabric.md
+  - entries:
+      - file: introduction.md
+      - file: examples/quick-start.md
 
   - caption: Installation
     entries:
@@ -18,45 +14,52 @@ subtrees:
   - caption: Examples
     entries:
       - file: examples/requirements.md
-      - file: examples/quick-start.md
       - file: examples/offloading-with-policies.md
+      - file: examples/replicated-deployments.md
       - file: examples/service-offloading.md
       - file: examples/stateful-applications.md
       - file: examples/global-ingress.md
-      - file: examples/replicated-deployments.md
-      - file: examples/provision-with-terraform.md
+
+  - caption: Features
+    entries:
+      - file: features/peering.md
+      - file: features/offloading.md
+      - file: features/network-fabric.md
+      - file: features/storage-fabric.md
 
   - caption: Usage
     entries:
       - file: usage/peer.md
       - file: usage/namespace-offloading.md
-      - file: usage/kubernetes-api.md
       - file: usage/reflection.md
       - file: usage/stateful-applications.md
       - file: usage/prometheus-metrics.md
-      - file: usage/disable-networking.md
-      - file: usage/inter-cluster-network.md
       - file: usage/service-continuity.md
+
+  - caption: Advanced usage
+    entries:
+      - file: advanced/peering-strategies.md
+      - file: advanced/manual-peering.md
+        entries:
+          - file: advanced/peering/inter-cluster-network.md
+          - file: advanced/peering/inter-cluster-authentication.md
+          - file: advanced/peering/namespace-offloading.md
+      - file: advanced/disable-networking.md
+      - file: advanced/external-ip-remapping.md
+      - file: advanced/multiple-resource-slices.md
+      - file: advanced/kubernetes-api.md
 
   - caption: Contributing
     entries:
       - file: contributing/contributing.md
 
-  - caption: Add-Ons
-    entries:
-      - url: https://github.com/liqotech/liqo-resource-plugins
-        title: Liqo Resource Plugins
-      - url: https://github.com/LucaRocco/liqo-public-peering-dashboard
-        title: Public Peering Dashboard
-
   - caption: More
     entries:
       - file: faq/faq.md
+      - file: more/papers.md
       - url: https://github.com/liqotech/liqo
         title: GitHub Repository
       - url: https://medium.com/the-liqo-blog
         title: The Liqo Blog
-      - url: https://arxiv.org/pdf/2204.05710.pdf
-        title: The Liqo Paper
       - url: https://www.youtube.com/channel/UCYbWJMfwy3P6xT4JI_K84xw
         title: Liqo on YouTube

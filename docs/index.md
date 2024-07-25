@@ -93,40 +93,34 @@ All without the complexity of managing multiple independent cluster and applicat
 ```{grid-item-card}
 :class-header: sd-fs-5 sd-pt-3
 :class-footer: sd-text-center sd-font-italic custom-fs-7
+:link: examples/quick-start
+:link-type: doc
 
-{fa}`bolt;1.5rem` Features
+{fa}`bolt;1.5rem` Quick start
 ^^^
 
 New to Liqo? Would you like to know more?
-Here you can find an in-depth overview of what a **peering** is, how the *virtual node* abstraction enables **workload offloading**, as well as discover about the **network and storage fabric** subsystems, ensuring the seamless functioning of unmodified multi-cluster applications.
-
-+++
-[](features/peering) ·
-[](features/offloading) ·
-[](features/network-fabric) ·
-[](features/storage-fabric)
+Here you can find everything needed to set up an testing evironment, install Liqo and experiment its functionality with an "Hello World!" example.
 ```
 
 ```{grid-item-card}
 :class-header: sd-fs-5 sd-pt-3
 :class-footer: sd-text-center sd-font-italic custom-fs-7
+:link: installation/requirements
+:link-type: doc
 
 {fa}`cloud-download;1.5rem` Installation
 ^^^
 
 Ready to give Liqo a try?
 Learn about installation and connectivity **requirements**, discover how to download and install **liqoctl**, the CLI tool to streamline the installation and management of Liqo, and explore the **customization options**, based on the target environment characteristics.
-
-+++
-[](installation/requirements.md) ·
-[](installation/liqoctl.md) ·
-[](installation/install.md) ·
-[](installation/uninstall.md)
 ```
 
 ```{grid-item-card}
 :class-header: sd-fs-5 sd-pt-3
 :class-footer: sd-text-center sd-font-italic custom-fs-7
+:link: examples/requirements
+:link-type: doc
 
 {fa}`search;1.5rem` Examples
 ^^^
@@ -134,20 +128,13 @@ Learn about installation and connectivity **requirements**, discover how to down
 Would you like to quickly join the fray and experiment with Liqo?
 Set up your playground and check out the **getting started examples**, which will guide you through a scenario-driven tour of the most notable features of Liqo.
 Discover how to **offload** (a subset of) your workloads, **access services** provided by remote clusters, **expose** multi-cluster applications, and more.
-
-+++
-[](examples/quick-start.md) ·
-[](examples/offloading-with-policies.md) ·
-[](examples/service-offloading.md) ·
-[](examples/stateful-applications.md) ·
-[](examples/global-ingress.md) ·
-[](examples/replicated-deployments.md) ·
-[](examples/provision-with-terraform.md)
 ```
 
 ```{grid-item-card}
 :class-header: sd-fs-5 sd-pt-3
 :class-footer: sd-text-center sd-font-italic custom-fs-7
+:link: usage/peer
+:link-type: doc
 
 {fa}`cogs;1.5rem` Usage
 ^^^
@@ -156,14 +143,5 @@ Do you want to make a step further and discover all the Liqo configuration optio
 These guides get you covered!
 Find out how to **establish and configure a peering** between two clusters, as well as how to enable and customize **namespace offloading**.
 Explore the details about which and how native resources are **reflected** to remote clusters, and learn more about the support for **stateful applications**.
-
-+++
-[](usage/peer.md) ·
-[](usage/namespace-offloading.md) ·
-[](usage/reflection.md) ·
-[](usage/stateful-applications.md)
-[](usage/prometheus-metrics.md)
-[](usage/disable-networking.md)
-[](usage/service-continuity)
 ```
 ````
