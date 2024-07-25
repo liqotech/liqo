@@ -1,4 +1,4 @@
-# Replicated Deployments
+# Multi-cluster deployments
 
 In this tutorial you will learn how to deploy an application, and use Liqo to replicate it on multiple clusters.
 
@@ -199,8 +199,8 @@ Now you can uninstall Liqo from your clusters:
 
 ```bash
 liqoctl uninstall
-liqoctl uninstall --kubeconfig="$KUBECONFIG_EUROPE_ROME_EDGE" 
-liqoctl uninstall --kubeconfig="$KUBECONFIG_EUROPE_MILAN_EDGE" 
+liqoctl uninstall --kubeconfig="$KUBECONFIG_EUROPE_ROME_EDGE"
+liqoctl uninstall --kubeconfig="$KUBECONFIG_EUROPE_MILAN_EDGE"
 ```
 
 ```{admonition} Purge

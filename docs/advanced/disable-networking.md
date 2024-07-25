@@ -1,4 +1,4 @@
-# Disable Networking Module
+# Use only offloading
 
 Since Liqo v0.8.0, it is possible to enable [**resource reflection**](/usage/reflection) and [**namespace offloading**](/usage/namespace-offloading) without the need to use the default Liqo networking module to establish network connectivity between the clusters.
 In this section, we will see how to enable/disable this module and how to use this feature.
