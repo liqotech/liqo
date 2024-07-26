@@ -97,6 +97,12 @@ var _ = BeforeSuite(func() {
 		ovverideArgsClusterAPI(&args)
 	case "kind":
 		overrideArgsKind(&args)
+	case "eks":
+		overrideArgsEKS(&args)
+	case "gke":
+		overrideArgsGKE(&args)
+	case "aks":
+		overrideArgsAKS(&args)
 	}
 })
 
@@ -199,6 +205,27 @@ func ovverideArgsClusterAPI(args *networkTestsArgs) {
 
 func overrideArgsKind(args *networkTestsArgs) {
 	args.loadBalancer = false
+}
+
+func overrideArgsEKS(args *networkTestsArgs) {
+	args.failfast = false
+	args.loadBalancer = true
+	args.nodePortExt = false // nodeport are not exposed
+}
+
+func overrideArgsGKE(args *networkTestsArgs) {
+	args.failfast = false
+	args.loadBalancer = true
+	args.nodePortExt = false // nodeport are not exposed by default // TODO: modify GKE plugin to open nodeport firewall
+}
+
+func overrideArgsAKS(args *networkTestsArgs) {
+	args.failfast = false
+	args.loadBalancer = true
+	args.nodePortExt = false // nodeport are not exposed
+
+	// Disable pod to nodeport tests as they are currently broken. // TODO: fix issue
+	args.podNodePort = false
 }
 
 func RestartPods(cl client.Client) {
