@@ -16,6 +16,7 @@
 # HELM                  -> the path where helm is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
+# AZ_SUBSCRIPTION_ID    -> the ID of the Azure subscription to use (only for AKS)
 
 set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
@@ -89,6 +90,12 @@ do
       COMMON_ARGS=("${COMMON_ARGS[@]}" --policy-name "${LIQO_AWS_POLICY_NAME}")
     fi
     set -u
+  fi
+  if [[ "${INFRA}" == "aks" ]]; then
+    AKS_RESOURCE_GROUP="liqo${i}"
+    RUNNER_NAME=${RUNNER_NAME:-"test"}
+    AKS_CLUSTER_NAME="${RUNNER_NAME}-cluster${i}"
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --subscription-id "${AZ_SUBSCRIPTION_ID}" --resource-group-name "${AKS_RESOURCE_GROUP}" --resource-name "${AKS_CLUSTER_NAME}")
   fi
   if [[ "${INFRA}" == "cluster-api" ]]; then
     LIQO_PROVIDER="kubeadm"
