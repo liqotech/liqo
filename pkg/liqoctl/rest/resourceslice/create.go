@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
@@ -111,7 +111,7 @@ func (o *Options) HandleCreate(ctx context.Context) error {
 	resourceSlice := forge.ResourceSlice(opts.Name, namespace)
 	_, err = controllerutil.CreateOrUpdate(ctx, opts.CRClient, resourceSlice, func() error {
 		return forge.MutateResourceSlice(resourceSlice, o.RemoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
-			Class: authv1alpha1.ResourceSliceClass(o.Class),
+			Class: authv1beta1.ResourceSliceClass(o.Class),
 			Resources: map[corev1.ResourceName]string{
 				corev1.ResourceCPU:    o.CPU,
 				corev1.ResourceMemory: o.Memory,
@@ -135,8 +135,8 @@ func (o *Options) HandleCreate(ctx context.Context) error {
 	if err := opts.CRClient.Get(ctx, client.ObjectKeyFromObject(resourceSlice), resourceSlice); err != nil {
 		return err
 	}
-	resourcesCondition := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeResources)
-	if resourcesCondition == nil || resourcesCondition.Status != authv1alpha1.ResourceSliceConditionAccepted {
+	resourcesCondition := authentication.GetCondition(resourceSlice, authv1beta1.ResourceSliceConditionTypeResources)
+	if resourcesCondition == nil || resourcesCondition.Status != authv1beta1.ResourceSliceConditionAccepted {
 		opts.Printer.Warning.Printfln("ResourceSlice resources not accepted. The provider cluster may have cordoned the tenant or the resourceslice")
 		return nil
 	}
@@ -177,7 +177,7 @@ func (o *Options) output(ctx context.Context) error {
 
 	resourceSlice := forge.ResourceSlice(opts.Name, namespace)
 	err = forge.MutateResourceSlice(resourceSlice, o.RemoteClusterID.GetClusterID(), &forge.ResourceSliceOptions{
-		Class: authv1alpha1.ResourceSliceClass(o.Class),
+		Class: authv1beta1.ResourceSliceClass(o.Class),
 		Resources: map[corev1.ResourceName]string{
 			corev1.ResourceCPU:    o.CPU,
 			corev1.ResourceMemory: o.Memory,

@@ -25,20 +25,20 @@ import (
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/ipam/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
 )
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	IpamV1alpha1() ipamv1alpha1.IpamV1alpha1Interface
-	OffloadingV1alpha1() offloadingv1alpha1.OffloadingV1alpha1Interface
+	OffloadingV1beta1() offloadingv1beta1.OffloadingV1beta1Interface
 }
 
 // Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	ipamV1alpha1       *ipamv1alpha1.IpamV1alpha1Client
-	offloadingV1alpha1 *offloadingv1alpha1.OffloadingV1alpha1Client
+	ipamV1alpha1      *ipamv1alpha1.IpamV1alpha1Client
+	offloadingV1beta1 *offloadingv1beta1.OffloadingV1beta1Client
 }
 
 // IpamV1alpha1 retrieves the IpamV1alpha1Client
@@ -46,9 +46,9 @@ func (c *Clientset) IpamV1alpha1() ipamv1alpha1.IpamV1alpha1Interface {
 	return c.ipamV1alpha1
 }
 
-// OffloadingV1alpha1 retrieves the OffloadingV1alpha1Client
-func (c *Clientset) OffloadingV1alpha1() offloadingv1alpha1.OffloadingV1alpha1Interface {
-	return c.offloadingV1alpha1
+// OffloadingV1beta1 retrieves the OffloadingV1beta1Client
+func (c *Clientset) OffloadingV1beta1() offloadingv1beta1.OffloadingV1beta1Interface {
+	return c.offloadingV1beta1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -99,7 +99,7 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 	if err != nil {
 		return nil, err
 	}
-	cs.offloadingV1alpha1, err = offloadingv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	cs.offloadingV1beta1, err = offloadingv1beta1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.ipamV1alpha1 = ipamv1alpha1.New(c)
-	cs.offloadingV1alpha1 = offloadingv1alpha1.New(c)
+	cs.offloadingV1beta1 = offloadingv1beta1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

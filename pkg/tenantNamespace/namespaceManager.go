@@ -29,7 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
@@ -91,7 +91,7 @@ func NewCachedManager(ctx context.Context, client kubernetes.Interface, scheme *
 
 // CreateNamespace creates a new Tenant Namespace given the clusterid
 // This method is idempotent, multiple calls of it will not lead to multiple namespace creations.
-func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (ns *v1.Namespace, err error) {
+func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster liqov1beta1.ClusterID) (ns *v1.Namespace, err error) {
 	// Let immediately check if the namespace already exists, since this might be cached and thus fast
 	if ns, err = nm.GetNamespace(ctx, cluster); err == nil {
 		return ns, nil
@@ -116,7 +116,7 @@ func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster l
 }
 
 // ForgeNamespace returns a Tenant Namespace resource object given name and clusterid.
-func (nm *tenantNamespaceManager) ForgeNamespace(cluster liqov1alpha1.ClusterID, name *string) *v1.Namespace {
+func (nm *tenantNamespaceManager) ForgeNamespace(cluster liqov1beta1.ClusterID, name *string) *v1.Namespace {
 	// If no name is provided use the default one provided by the GetNameForNamespace() function
 	nsname := GetNameForNamespace(cluster)
 	if name != nil {
@@ -139,7 +139,7 @@ func (nm *tenantNamespaceManager) ForgeNamespace(cluster liqov1alpha1.ClusterID,
 }
 
 // GetNamespace gets a Tenant Namespace given the clusterid.
-func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster liqov1alpha1.ClusterID) (*v1.Namespace, error) {
+func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster liqov1beta1.ClusterID) (*v1.Namespace, error) {
 	req, err := labels.NewRequirement(consts.RemoteClusterID, selection.Equals, []string{string(cluster)})
 	utilruntime.Must(err)
 
@@ -166,6 +166,6 @@ func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster liqo
 }
 
 // GetNameForNamespace given a cluster identity it returns the name of the tenant namespace for the cluster.
-func GetNameForNamespace(cluster liqov1alpha1.ClusterID) string {
+func GetNameForNamespace(cluster liqov1beta1.ClusterID) string {
 	return fmt.Sprintf("%s-%s", NamePrefix, foreignclusterutils.UniqueName(cluster))
 }

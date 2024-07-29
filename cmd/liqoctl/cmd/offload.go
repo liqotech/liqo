@@ -20,7 +20,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/offload"
@@ -79,16 +79,16 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 	var selectors []string
 
 	podOffloadingStrategy := args.NewEnum([]string{
-		string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType),
-		string(offloadingv1alpha1.RemotePodOffloadingStrategyType),
-		string(offloadingv1alpha1.LocalPodOffloadingStrategyType)},
-		string(offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType))
+		string(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType),
+		string(offloadingv1beta1.RemotePodOffloadingStrategyType),
+		string(offloadingv1beta1.LocalPodOffloadingStrategyType)},
+		string(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType))
 
 	namespaceMappingStrategy := args.NewEnum([]string{
-		string(offloadingv1alpha1.EnforceSameNameMappingStrategyType),
-		string(offloadingv1alpha1.DefaultNameMappingStrategyType),
-		string(offloadingv1alpha1.SelectedNameMappingStrategyType)},
-		string(offloadingv1alpha1.DefaultNameMappingStrategyType))
+		string(offloadingv1beta1.EnforceSameNameMappingStrategyType),
+		string(offloadingv1beta1.DefaultNameMappingStrategyType),
+		string(offloadingv1beta1.SelectedNameMappingStrategyType)},
+		string(offloadingv1beta1.DefaultNameMappingStrategyType))
 
 	var remoteNamespaceName = ""
 
@@ -105,8 +105,8 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 		ValidArgsFunction: completion.Namespaces(ctx, f, 1),
 
 		PreRun: func(cmd *cobra.Command, args []string) {
-			options.PodOffloadingStrategy = offloadingv1alpha1.PodOffloadingStrategyType(podOffloadingStrategy.Value)
-			options.NamespaceMappingStrategy = offloadingv1alpha1.NamespaceMappingStrategyType(namespaceMappingStrategy.Value)
+			options.PodOffloadingStrategy = offloadingv1beta1.PodOffloadingStrategyType(podOffloadingStrategy.Value)
+			options.NamespaceMappingStrategy = offloadingv1beta1.NamespaceMappingStrategyType(namespaceMappingStrategy.Value)
 			options.RemoteNamespaceName = remoteNamespaceName
 			options.OutputFormat = outputFormat.Value
 			options.Printer.CheckErr(options.ParseClusterSelectors(selectors))

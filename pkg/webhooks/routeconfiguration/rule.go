@@ -17,10 +17,10 @@ package routeconfiguration
 import (
 	"fmt"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
-func checkUniqueRules(rules []networkingv1alpha1.Rule) error {
+func checkUniqueRules(rules []networkingv1beta1.Rule) error {
 	uniqueKeys := make(map[string]interface{})
 	for i := range rules {
 		key := ""

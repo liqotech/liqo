@@ -20,23 +20,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // ResourceSliceOptions contains the options to forge a ResourceSlice resource.
 type ResourceSliceOptions struct {
-	Class     authv1alpha1.ResourceSliceClass
+	Class     authv1beta1.ResourceSliceClass
 	Resources map[corev1.ResourceName]string
 }
 
 // ResourceSlice forges a ResourceSlice resource.
-func ResourceSlice(name, namespace string) *authv1alpha1.ResourceSlice {
-	return &authv1alpha1.ResourceSlice{
+func ResourceSlice(name, namespace string) *authv1beta1.ResourceSlice {
+	return &authv1beta1.ResourceSlice{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: authv1alpha1.GroupVersion.String(),
-			Kind:       authv1alpha1.ResourceSliceKind,
+			APIVersion: authv1beta1.GroupVersion.String(),
+			Kind:       authv1beta1.ResourceSliceKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -46,7 +46,7 @@ func ResourceSlice(name, namespace string) *authv1alpha1.ResourceSlice {
 }
 
 // MutateResourceSlice mutates a ResourceSlice resource.
-func MutateResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, remoteClusterID liqov1alpha1.ClusterID,
+func MutateResourceSlice(resourceSlice *authv1beta1.ResourceSlice, remoteClusterID liqov1beta1.ClusterID,
 	opts *ResourceSliceOptions, createVirtualNode bool) error {
 	if resourceSlice.Labels == nil {
 		resourceSlice.Labels = map[string]string{}
@@ -67,7 +67,7 @@ func MutateResourceSlice(resourceSlice *authv1alpha1.ResourceSlice, remoteCluste
 		return err
 	}
 
-	resourceSlice.Spec = authv1alpha1.ResourceSliceSpec{
+	resourceSlice.Spec = authv1beta1.ResourceSliceSpec{
 		Class:             opts.Class,
 		ProviderClusterID: ptr.To(remoteClusterID),
 		Resources:         rl,

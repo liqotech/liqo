@@ -18,7 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	v1alpha1networking "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 var (
@@ -39,13 +39,13 @@ var (
 type NetworkSpec struct {
 	// CIDR is the desired CIDR for the remote cluster.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="CIDR field is immutable"
-	CIDR v1alpha1networking.CIDR `json:"cidr"`
+	CIDR networkingv1beta1.CIDR `json:"cidr"`
 }
 
 // NetworkStatus defines the observed state of Network.
 type NetworkStatus struct {
 	// CIDR is the remapped CIDR for the remote cluster.
-	CIDR v1alpha1networking.CIDR `json:"cidr,omitempty"`
+	CIDR networkingv1beta1.CIDR `json:"cidr,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -21,33 +21,33 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/auth"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 )
 
 // IdentityReader provides the interface to retrieve the identities for the remote clusters.
 type IdentityReader interface {
-	GetConfig(remoteCluster liqov1alpha1.ClusterID, namespace string) (*rest.Config, error)
-	GetConfigFromSecret(remoteCluster liqov1alpha1.ClusterID, secret *corev1.Secret) (*rest.Config, error)
-	GetRemoteTenantNamespace(remoteCluster liqov1alpha1.ClusterID, namespace string) (string, error)
-	GetSecretNamespacedName(remoteCluster liqov1alpha1.ClusterID, namespace string) (types.NamespacedName, error)
+	GetConfig(remoteCluster liqov1beta1.ClusterID, namespace string) (*rest.Config, error)
+	GetConfigFromSecret(remoteCluster liqov1beta1.ClusterID, secret *corev1.Secret) (*rest.Config, error)
+	GetRemoteTenantNamespace(remoteCluster liqov1beta1.ClusterID, namespace string) (string, error)
+	GetSecretNamespacedName(remoteCluster liqov1beta1.ClusterID, namespace string) (types.NamespacedName, error)
 }
 
 // IdentityManager interface provides the methods to manage identities for the remote clusters.
 type IdentityManager interface {
 	IdentityReader
 
-	StoreIdentity(ctx context.Context, remoteCluster liqov1alpha1.ClusterID, namespace string, key []byte,
+	StoreIdentity(ctx context.Context, remoteCluster liqov1beta1.ClusterID, namespace string, key []byte,
 		remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error
 }
 
 // SigningRequestOptions contains the options to handle a signing request.
 type SigningRequestOptions struct {
-	Cluster         liqov1alpha1.ClusterID
+	Cluster         liqov1beta1.ClusterID
 	TenantNamespace string
-	IdentityType    authv1alpha1.IdentityType
+	IdentityType    authv1beta1.IdentityType
 	Name            string
 	SigningRequest  []byte
 
@@ -55,7 +55,7 @@ type SigningRequestOptions struct {
 	APIServerAddressOverride string
 	CAOverride               []byte
 	TrustedCA                bool
-	ResourceSlice            *authv1alpha1.ResourceSlice
+	ResourceSlice            *authv1beta1.ResourceSlice
 }
 
 // IdentityProvider provides the interface to retrieve and approve remote cluster identities.
@@ -64,7 +64,7 @@ type IdentityProvider interface {
 	GetRemoteCertificate(ctx context.Context, options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error)
 	// deprecated
 	ApproveSigningRequest(ctx context.Context, options *SigningRequestOptions) (response *responsetypes.SigningRequestResponse, err error)
-	ForgeAuthParams(ctx context.Context, options *SigningRequestOptions) (*authv1alpha1.AuthParams, error)
+	ForgeAuthParams(ctx context.Context, options *SigningRequestOptions) (*authv1beta1.AuthParams, error)
 }
 
 var _ IdentityProvider = &certificateIdentityProvider{}

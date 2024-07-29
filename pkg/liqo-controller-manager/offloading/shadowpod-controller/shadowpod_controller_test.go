@@ -30,7 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/shadowpod-controller"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -55,8 +55,8 @@ var _ = Describe("Reconcile", func() {
 		err    error
 		buffer *bytes.Buffer
 
-		testShadowPod        offloadingv1alpha1.ShadowPod
-		testShadowPodSuccess offloadingv1alpha1.ShadowPod
+		testShadowPod        offloadingv1beta1.ShadowPod
+		testShadowPodSuccess offloadingv1beta1.ShadowPod
 		testPod              corev1.Pod
 	)
 
@@ -65,7 +65,7 @@ var _ = Describe("Reconcile", func() {
 		buffer = &bytes.Buffer{}
 		klog.SetOutput(buffer)
 
-		testShadowPod = offloadingv1alpha1.ShadowPod{
+		testShadowPod = offloadingv1beta1.ShadowPod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      shadowPodName,
 				Namespace: shadowPodNamespace,
@@ -79,7 +79,7 @@ var _ = Describe("Reconcile", func() {
 					"annotation2-key": "annotation2-value",
 				},
 			},
-			Spec: offloadingv1alpha1.ShadowPodSpec{
+			Spec: offloadingv1beta1.ShadowPodSpec{
 				Pod: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:  "nginx",
@@ -87,11 +87,11 @@ var _ = Describe("Reconcile", func() {
 					},
 				}},
 			},
-			Status: offloadingv1alpha1.ShadowPodStatus{
+			Status: offloadingv1beta1.ShadowPodStatus{
 				Phase: corev1.PodUnknown,
 			},
 		}
-		testShadowPodSuccess = offloadingv1alpha1.ShadowPod{
+		testShadowPodSuccess = offloadingv1beta1.ShadowPod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      shadowPodName,
 				Namespace: shadowPodNamespace,
@@ -105,7 +105,7 @@ var _ = Describe("Reconcile", func() {
 					"annotation2-key": "annotation2-value",
 				},
 			},
-			Spec: offloadingv1alpha1.ShadowPodSpec{
+			Spec: offloadingv1beta1.ShadowPodSpec{
 				Pod: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:  "nginx",
@@ -113,7 +113,7 @@ var _ = Describe("Reconcile", func() {
 					},
 				}},
 			},
-			Status: offloadingv1alpha1.ShadowPodStatus{
+			Status: offloadingv1beta1.ShadowPodStatus{
 				Phase: corev1.PodSucceeded,
 			},
 		}
@@ -238,6 +238,6 @@ var _ = Describe("Reconcile", func() {
 })
 
 func deleteAllShadowPodsAndPods(ctx context.Context, ns string) {
-	Expect(k8sClient.DeleteAllOf(ctx, &offloadingv1alpha1.ShadowPod{}, client.InNamespace(ns))).Should(Succeed())
+	Expect(k8sClient.DeleteAllOf(ctx, &offloadingv1beta1.ShadowPod{}, client.InNamespace(ns))).Should(Succeed())
 	Expect(k8sClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace(ns))).Should(Succeed())
 }

@@ -33,7 +33,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/leaderelection"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -67,7 +67,7 @@ type reflector struct {
 	fallbackFactory   FallbackReflectorFactoryFunc
 
 	concurrencyMode ConcurrencyMode
-	reflectionType  offloadingv1alpha1.ReflectionType
+	reflectionType  offloadingv1beta1.ReflectionType
 }
 
 // String returns the name of the reflector.
@@ -87,7 +87,7 @@ const (
 
 // NewReflector returns a new reflector to implement the reflection towards a remote clusters, of a dummy one if no workers are specified.
 func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
-	workers uint, reflectionType offloadingv1alpha1.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
+	workers uint, reflectionType offloadingv1beta1.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
 	if workers == 0 {
 		// Return a dummy reflector in case no workers are specified, to avoid starting the working queue and registering the infromers.
 		return &dummyreflector{name: name}
@@ -98,7 +98,7 @@ func NewReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallba
 
 // newReflector returns a new reflector to implement the reflection towards a remote clusters.
 func newReflector(name string, namespaced NamespacedReflectorFactoryFunc, fallback FallbackReflectorFactoryFunc,
-	workers uint, reflectionType offloadingv1alpha1.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
+	workers uint, reflectionType offloadingv1beta1.ReflectionType, concurrencyMode ConcurrencyMode) manager.Reflector {
 	return &reflector{
 		name:    name,
 		workers: workers,

@@ -25,7 +25,7 @@ import (
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // Description is a struct that contains the main informations about a shadow pod.
@@ -48,7 +48,7 @@ func createShadowPodDescription(name, namespace string, uid types.UID, resources
 }
 
 func (pi *peeringInfo) getOrCreateShadowPodDescription(ctx context.Context, c client.Client,
-	sp *offloadingv1alpha1.ShadowPod, limitsEnforcement offloadingv1alpha1.LimitsEnforcement) (*Description, error) {
+	sp *offloadingv1beta1.ShadowPod, limitsEnforcement offloadingv1beta1.LimitsEnforcement) (*Description, error) {
 	nsname := types.NamespacedName{Name: sp.Name, Namespace: sp.Namespace}
 	spQuota, err := getQuotaFromShadowPod(sp, limitsEnforcement)
 	if err != nil {
@@ -71,7 +71,7 @@ func (pi *peeringInfo) getOrCreateShadowPodDescription(ctx context.Context, c cl
 	return createShadowPodDescription(sp.GetName(), sp.GetNamespace(), sp.GetUID(), *spQuota), nil
 }
 
-func (pi *peeringInfo) getShadowPodDescription(sp *offloadingv1alpha1.ShadowPod) (*Description, error) {
+func (pi *peeringInfo) getShadowPodDescription(sp *offloadingv1beta1.ShadowPod) (*Description, error) {
 	nsname := types.NamespacedName{Name: sp.Name, Namespace: sp.Namespace}
 	spd, found := pi.shadowPods[nsname.String()]
 	if !found {
@@ -90,7 +90,7 @@ func (spd *Description) terminate() {
 }
 
 func checkShadowPodExistence(ctx context.Context, spvclient client.Client, namespacedName types.NamespacedName) error {
-	sp := &offloadingv1alpha1.ShadowPod{}
+	sp := &offloadingv1beta1.ShadowPod{}
 	err := spvclient.Get(ctx, namespacedName, sp)
 	if err != nil {
 		return client.IgnoreNotFound(err)
@@ -98,8 +98,8 @@ func checkShadowPodExistence(ctx context.Context, spvclient client.Client, names
 	return fmt.Errorf("ShadowPod still exists in the system")
 }
 
-func getQuotaFromShadowPod(shadowpod *offloadingv1alpha1.ShadowPod,
-	limitsEnforcement offloadingv1alpha1.LimitsEnforcement) (*corev1.ResourceList, error) {
+func getQuotaFromShadowPod(shadowpod *offloadingv1beta1.ShadowPod,
+	limitsEnforcement offloadingv1beta1.LimitsEnforcement) (*corev1.ResourceList, error) {
 	conResources := corev1.ResourceList{}
 	initConResources := corev1.ResourceList{}
 
@@ -127,7 +127,7 @@ func getQuotaFromShadowPod(shadowpod *offloadingv1alpha1.ShadowPod,
 				conResources[key] = value.DeepCopy()
 			}
 
-			if limitsEnforcement == offloadingv1alpha1.HardLimitsEnforcement {
+			if limitsEnforcement == offloadingv1beta1.HardLimitsEnforcement {
 				req := shadowpod.Spec.Pod.Containers[i].Resources.Requests[key]
 				lim := shadowpod.Spec.Pod.Containers[i].Resources.Limits[key]
 				if req.Cmp(lim) != 0 {
@@ -137,7 +137,7 @@ func getQuotaFromShadowPod(shadowpod *offloadingv1alpha1.ShadowPod,
 			}
 		}
 		// If the container has no CPU or Memory requests defined and this kind of validation is required, an error is returned
-		if limitsEnforcement == offloadingv1alpha1.NoLimitsEnforcement {
+		if limitsEnforcement == offloadingv1beta1.NoLimitsEnforcement {
 			continue
 		}
 		if !cpuFlag || !memoryFlag {
@@ -165,7 +165,7 @@ func getQuotaFromShadowPod(shadowpod *offloadingv1alpha1.ShadowPod,
 				initConResources[key] = value.DeepCopy()
 			}
 
-			if limitsEnforcement == offloadingv1alpha1.HardLimitsEnforcement {
+			if limitsEnforcement == offloadingv1beta1.HardLimitsEnforcement {
 				req := shadowpod.Spec.Pod.InitContainers[i].Resources.Requests[key]
 				lim := shadowpod.Spec.Pod.InitContainers[i].Resources.Limits[key]
 				if req.Cmp(lim) != 0 {
@@ -175,7 +175,7 @@ func getQuotaFromShadowPod(shadowpod *offloadingv1alpha1.ShadowPod,
 			}
 		}
 		// If the init container has no CPU or Memory requests defined and this kind of validation is required, an error is returned
-		if limitsEnforcement == offloadingv1alpha1.NoLimitsEnforcement {
+		if limitsEnforcement == offloadingv1beta1.NoLimitsEnforcement {
 			continue
 		}
 		if !cpuFlag || !memoryFlag {

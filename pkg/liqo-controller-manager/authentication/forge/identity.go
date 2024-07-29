@@ -17,24 +17,24 @@ package forge
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // ControlPlaneIdentityName forges the name of a ControlPlane Identity resource given the remote cluster name.
-func ControlPlaneIdentityName(remoteClusterID liqov1alpha1.ClusterID) string {
+func ControlPlaneIdentityName(remoteClusterID liqov1beta1.ClusterID) string {
 	return "controlplane-" + string(remoteClusterID)
 }
 
 // ResourceSliceIdentityName forges the name of a ResourceSlice Identity.
-func ResourceSliceIdentityName(resourceSlice *authv1alpha1.ResourceSlice) string {
+func ResourceSliceIdentityName(resourceSlice *authv1beta1.ResourceSlice) string {
 	return "resourceslice-" + resourceSlice.Name
 }
 
 // IdentityForRemoteCluster forges a Identity resource to be applied on a remote cluster.
-func IdentityForRemoteCluster(name, namespace string, localClusterID liqov1alpha1.ClusterID,
-	identityType authv1alpha1.IdentityType, authParams *authv1alpha1.AuthParams, defaultKubeConfigNs *string) *authv1alpha1.Identity {
+func IdentityForRemoteCluster(name, namespace string, localClusterID liqov1beta1.ClusterID,
+	identityType authv1beta1.IdentityType, authParams *authv1beta1.AuthParams, defaultKubeConfigNs *string) *authv1beta1.Identity {
 	identity := Identity(name, namespace)
 	MutateIdentity(identity, localClusterID, identityType, authParams, defaultKubeConfigNs)
 
@@ -42,11 +42,11 @@ func IdentityForRemoteCluster(name, namespace string, localClusterID liqov1alpha
 }
 
 // Identity forges a Identity resource.
-func Identity(name, namespace string) *authv1alpha1.Identity {
-	return &authv1alpha1.Identity{
+func Identity(name, namespace string) *authv1beta1.Identity {
+	return &authv1beta1.Identity{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: authv1alpha1.GroupVersion.String(),
-			Kind:       authv1alpha1.IdentityKind,
+			APIVersion: authv1beta1.GroupVersion.String(),
+			Kind:       authv1beta1.IdentityKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -56,14 +56,14 @@ func Identity(name, namespace string) *authv1alpha1.Identity {
 }
 
 // MutateIdentity mutates a Identity resource.
-func MutateIdentity(identity *authv1alpha1.Identity, remoteClusterID liqov1alpha1.ClusterID,
-	identityType authv1alpha1.IdentityType, authParams *authv1alpha1.AuthParams, defaultKubeConfigNs *string) {
+func MutateIdentity(identity *authv1beta1.Identity, remoteClusterID liqov1beta1.ClusterID,
+	identityType authv1beta1.IdentityType, authParams *authv1beta1.AuthParams, defaultKubeConfigNs *string) {
 	if identity.Labels == nil {
 		identity.Labels = map[string]string{}
 	}
 	identity.Labels[consts.RemoteClusterID] = string(remoteClusterID)
 
-	identity.Spec = authv1alpha1.IdentitySpec{
+	identity.Spec = authv1beta1.IdentitySpec{
 		ClusterID:  remoteClusterID,
 		Type:       identityType,
 		AuthParams: *authParams,

@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 )
@@ -60,7 +60,7 @@ type IdentityReconciler struct {
 
 // Reconcile Identitiy resources and ensure the secret containing the associated kubeconfig.
 func (r *IdentityReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var identity authv1alpha1.Identity
+	var identity authv1beta1.Identity
 	if err := r.Get(ctx, req.NamespacedName, &identity); err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("identity %q not found", req.NamespacedName)
@@ -89,12 +89,12 @@ func (r *IdentityReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 // SetupWithManager sets up the controller with the Manager.
 func (r *IdentityReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&authv1alpha1.Identity{}).
+		For(&authv1beta1.Identity{}).
 		Owns(&corev1.Secret{}).
 		Complete(r)
 }
 
-func (r *IdentityReconciler) ensureKubeconfigSecret(ctx context.Context, identity *authv1alpha1.Identity) (*corev1.Secret, error) {
+func (r *IdentityReconciler) ensureKubeconfigSecret(ctx context.Context, identity *authv1beta1.Identity) (*corev1.Secret, error) {
 	// Get the private Key encoded in PEM format.
 	privateKey, _, err := authentication.GetClusterKeysPEM(ctx, r.Client, r.liqoNamespace)
 	if err != nil {
@@ -104,7 +104,7 @@ func (r *IdentityReconciler) ensureKubeconfigSecret(ctx context.Context, identit
 	// If it's an identity used for the CRD Replicator (type: ControlPlane) we set the remote namespace as default
 	// for the kubeconfig.
 	var namespace *string
-	if identity.Spec.Type == authv1alpha1.ControlPlaneIdentityType {
+	if identity.Spec.Type == authv1beta1.ControlPlaneIdentityType {
 		namespace = identity.Spec.Namespace
 	}
 
@@ -129,7 +129,7 @@ func (r *IdentityReconciler) ensureKubeconfigSecret(ctx context.Context, identit
 }
 
 // handleIdentityStatus updates the identity status to reference the kubeconfig secret.
-func (r *IdentityReconciler) handleIdentityStatus(identity *authv1alpha1.Identity, secretName string) {
+func (r *IdentityReconciler) handleIdentityStatus(identity *authv1beta1.Identity, secretName string) {
 	identity.Status.KubeconfigSecretRef = &corev1.LocalObjectReference{
 		Name: secretName,
 	}

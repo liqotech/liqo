@@ -21,8 +21,8 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	authutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -38,8 +38,8 @@ type Cluster struct {
 
 	localNamespaceManager tenantnamespace.Manager
 
-	LocalClusterID  liqov1alpha1.ClusterID
-	RemoteClusterID liqov1alpha1.ClusterID
+	LocalClusterID  liqov1beta1.ClusterID
+	RemoteClusterID liqov1beta1.ClusterID
 
 	TenantNamespace string
 }
@@ -68,7 +68,7 @@ func (c *Cluster) SetLocalClusterID(ctx context.Context) error {
 }
 
 // EnsureTenantNamespace ensure the presence of the tenant namespace on the local cluster given a remote cluster id.
-func (c *Cluster) EnsureTenantNamespace(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
+func (c *Cluster) EnsureTenantNamespace(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Ensuring tenant namespace")
 
 	c.RemoteClusterID = remoteClusterID
@@ -146,7 +146,7 @@ func (c *Cluster) EnsureSignedNonce(ctx context.Context, nonce []byte) ([]byte, 
 }
 
 // GenerateTenant generate the tenant resource to be applied on the provider cluster.
-func (c *Cluster) GenerateTenant(ctx context.Context, signedNonce []byte, proxyURL *string) (*authv1alpha1.Tenant, error) {
+func (c *Cluster) GenerateTenant(ctx context.Context, signedNonce []byte, proxyURL *string) (*authv1beta1.Tenant, error) {
 	s := c.local.Printer.StartSpinner("Generating tenant")
 	tenant, err := authutils.GenerateTenant(ctx, c.local.CRClient, c.LocalClusterID, c.local.LiqoNamespace, signedNonce, proxyURL)
 	if err != nil {
@@ -159,7 +159,7 @@ func (c *Cluster) GenerateTenant(ctx context.Context, signedNonce []byte, proxyU
 }
 
 // EnsureTenant apply the tenant resource on the provider cluster and wait for the status to be updated.
-func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1alpha1.Tenant) error {
+func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1beta1.Tenant) error {
 	s := c.local.Printer.StartSpinner("Applying tenant on provider cluster")
 	if _, err := controllerutil.CreateOrUpdate(ctx, c.local.CRClient, tenant, func() error {
 		return nil
@@ -178,7 +178,7 @@ func (c *Cluster) EnsureTenant(ctx context.Context, tenant *authv1alpha1.Tenant)
 }
 
 // GenerateIdentity generate the identity resource to be applied on the consumer cluster.
-func (c *Cluster) GenerateIdentity(ctx context.Context, remoteTenantNamespace string) (*authv1alpha1.Identity, error) {
+func (c *Cluster) GenerateIdentity(ctx context.Context, remoteTenantNamespace string) (*authv1beta1.Identity, error) {
 	s := c.local.Printer.StartSpinner("Generating identity")
 	identity, err := authutils.GenerateIdentityControlPlane(ctx, c.local.CRClient,
 		c.RemoteClusterID, remoteTenantNamespace, c.LocalClusterID)
@@ -192,7 +192,7 @@ func (c *Cluster) GenerateIdentity(ctx context.Context, remoteTenantNamespace st
 }
 
 // EnsureIdentity apply the identity resource on the consumer cluster and wait for the status to be updated.
-func (c *Cluster) EnsureIdentity(ctx context.Context, identity *authv1alpha1.Identity) error {
+func (c *Cluster) EnsureIdentity(ctx context.Context, identity *authv1beta1.Identity) error {
 	s := c.local.Printer.StartSpinner("Applying identity on consumer cluster")
 	if _, err := controllerutil.CreateOrUpdate(ctx, c.local.CRClient, identity, func() error {
 		return nil

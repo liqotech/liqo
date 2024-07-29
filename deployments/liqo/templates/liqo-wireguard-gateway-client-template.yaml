@@ -5,7 +5,7 @@
 
 {{- if .Values.networking.enabled }}
 
-apiVersion: networking.liqo.io/v1alpha1
+apiVersion: networking.liqo.io/v1beta1
 kind: WgGatewayClientTemplate
 metadata:
   name: {{ $templateConfig.name  }}
@@ -13,7 +13,7 @@ metadata:
     {{- include "liqo.labels" $templateConfig | nindent 4 }}
 spec:
   objectKind:
-    apiVersion: networking.liqo.io/v1alpha1
+    apiVersion: networking.liqo.io/v1beta1
     kind: WgGatewayClient
   template:
     metadata:

@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 )
 
@@ -64,7 +64,7 @@ func NewRemappingReconciler(cl client.Client, s *runtime.Scheme, er record.Event
 
 // Reconcile manage Configuration resources.
 func (r *RemappingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	conf := &networkingv1alpha1.Configuration{}
+	conf := &networkingv1beta1.Configuration{}
 	if err := r.Client.Get(ctx, req.NamespacedName, conf); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no configuration %s", req.String())
@@ -102,6 +102,6 @@ func (r *RemappingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
 }

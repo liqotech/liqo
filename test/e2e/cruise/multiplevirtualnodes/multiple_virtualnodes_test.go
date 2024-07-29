@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -67,7 +67,7 @@ var (
 		return *req
 	}
 
-	createTestResourceSlice = func(cl client.Client, name string, providerClusterID liqov1alpha1.ClusterID, createVirtualNode bool) {
+	createTestResourceSlice = func(cl client.Client, name string, providerClusterID liqov1beta1.ClusterID, createVirtualNode bool) {
 		tenantNs := tenantnamespace.GetNameForNamespace(providerClusterID)
 		resSlice := forge.ResourceSlice(name, tenantNs)
 		if resSlice.Labels == nil {
@@ -75,7 +75,7 @@ var (
 		}
 		resSlice.Labels[testResSliceLabel] = "true"
 		Expect(forge.MutateResourceSlice(resSlice, providerClusterID, &forge.ResourceSliceOptions{
-			Class: authv1alpha1.ResourceSliceClassDefault,
+			Class: authv1beta1.ResourceSliceClassDefault,
 		}, createVirtualNode)).To(Succeed())
 		Expect(cl.Create(ctx, resSlice)).To(Succeed())
 	}
@@ -89,7 +89,7 @@ var (
 		}
 	}
 
-	checkCleanUp = func(cl client.Client, role liqov1alpha1.RoleType, numPeeredProviders int) error {
+	checkCleanUp = func(cl client.Client, role liqov1beta1.RoleType, numPeeredProviders int) error {
 		resSlices, err := getters.ListResourceSlicesByLabel(ctx, cl,
 			corev1.NamespaceAll, labels.NewSelector().Add(testResourceRequirement()))
 		if err != nil {
@@ -102,7 +102,7 @@ var (
 		// Number of expected VirtualNodes/Nodes after cleanup.
 		var expectedNum int
 		switch role {
-		case liqov1alpha1.ConsumerRole:
+		case liqov1beta1.ConsumerRole:
 			expectedNum = numPeeredProviders
 		default:
 			expectedNum = 0
@@ -149,12 +149,12 @@ var _ = Describe("Liqo E2E", func() {
 				for i := range testContext.Clusters {
 					cluster := testContext.Clusters[i]
 					switch cluster.Role {
-					case liqov1alpha1.ConsumerRole:
+					case liqov1beta1.ConsumerRole:
 						resSlices, err := getters.ListResourceSlicesByLabel(ctx, cluster.ControllerClient,
 							corev1.NamespaceAll, liqolabels.LocalLabelSelector())
 						Expect(err).To(Not(HaveOccurred()))
 						Expect(len(resSlices)).To(Equal(cluster.NumPeeredProviders))
-					case liqov1alpha1.ProviderRole:
+					case liqov1beta1.ProviderRole:
 						resSlices, err := getters.ListResourceSlicesByLabel(ctx, cluster.ControllerClient,
 							corev1.NamespaceAll, liqolabels.RemoteLabelSelector())
 						Expect(err).To(Not(HaveOccurred()))
@@ -173,10 +173,10 @@ var _ = Describe("Liqo E2E", func() {
 			It("Should replicate the ResourceSlices to the provider, and create VirtualNodes and Nodes", func() {
 				// On every consumer cluster, create a ResourceSlice for each provider cluster.
 				for i := range testContext.Clusters {
-					if testContext.Clusters[i].Role == liqov1alpha1.ConsumerRole {
+					if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 						consumer := testContext.Clusters[i]
 						for j := range testContext.Clusters {
-							if testContext.Clusters[j].Role == liqov1alpha1.ProviderRole {
+							if testContext.Clusters[j].Role == liqov1beta1.ProviderRole {
 								provider := testContext.Clusters[j]
 								createTestResourceSlice(consumer.ControllerClient, fmt.Sprintf("rs-test-%s", provider.Cluster), provider.Cluster, true)
 							}
@@ -188,10 +188,10 @@ var _ = Describe("Liqo E2E", func() {
 				for i := range testContext.Clusters {
 					switch testContext.Clusters[i].Role {
 					// CONSUMERS
-					case liqov1alpha1.ConsumerRole:
+					case liqov1beta1.ConsumerRole:
 						consumer := testContext.Clusters[i]
 
-						var resSlices []authv1alpha1.ResourceSlice
+						var resSlices []authv1beta1.ResourceSlice
 
 						// List all ResourceSlices created by the consumer
 						// (filtering out the resourceslices from the original peering)
@@ -210,7 +210,7 @@ var _ = Describe("Liqo E2E", func() {
 						}, timeout, interval).Should(Succeed())
 
 						for j := range resSlices {
-							var vNodes *offv1alpha1.VirtualNodeList
+							var vNodes *offloadingv1beta1.VirtualNodeList
 
 							// Test if every resourceSlice has the associated VirtualNode.
 							Eventually(func() error {
@@ -240,10 +240,10 @@ var _ = Describe("Liqo E2E", func() {
 						}
 
 					// PROVIDERS
-					case liqov1alpha1.ProviderRole:
+					case liqov1beta1.ProviderRole:
 						provider := testContext.Clusters[i]
 
-						var resSlices []authv1alpha1.ResourceSlice
+						var resSlices []authv1beta1.ResourceSlice
 
 						// List all ResourceSlices replicated on the provider
 						// (filtering out the resourceslices from the original peering)

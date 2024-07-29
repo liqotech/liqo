@@ -26,16 +26,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/fabric"
 )
 
-func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context, internalFabric *networkingv1alpha1.InternalFabric) error {
+func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context, internalFabric *networkingv1beta1.InternalFabric) error {
 	if internalFabric.Spec.Interface.Node.Name == "" {
 		return fmt.Errorf("internal fabric %q has node interface name empty", client.ObjectKeyFromObject(internalFabric))
 	}
 
-	route := &networkingv1alpha1.RouteConfiguration{
+	route := &networkingv1beta1.RouteConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GenerateRouteConfigurationName(internalFabric),
 			Namespace: internalFabric.Namespace,
@@ -49,15 +49,15 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 		route.SetLabels(labels.Merge(route.Labels, fabric.ForgeRouteTargetLabels()))
 
 		// Add route rule for every remote CIDR
-		var rules []networkingv1alpha1.Rule
+		var rules []networkingv1beta1.Rule
 
-		rules = append(rules, networkingv1alpha1.Rule{
-			Dst: ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", internalFabric.Spec.Interface.Gateway.IP))),
-			Routes: []networkingv1alpha1.Route{
+		rules = append(rules, networkingv1beta1.Rule{
+			Dst: ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", internalFabric.Spec.Interface.Gateway.IP))),
+			Routes: []networkingv1beta1.Route{
 				{
-					Dst:   ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", internalFabric.Spec.Interface.Gateway.IP))),
+					Dst:   ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", internalFabric.Spec.Interface.Gateway.IP))),
 					Dev:   ptr.To(internalFabric.Spec.Interface.Node.Name),
-					Scope: ptr.To(networkingv1alpha1.LinkScope),
+					Scope: ptr.To(networkingv1beta1.LinkScope),
 				},
 			},
 		})
@@ -68,8 +68,8 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 			return remoteCIDRs[i] < remoteCIDRs[j]
 		})
 		for _, remoteCIDR := range remoteCIDRs {
-			rule := networkingv1alpha1.Rule{
-				Routes: []networkingv1alpha1.Route{
+			rule := networkingv1beta1.Rule{
+				Routes: []networkingv1beta1.Route{
 					{
 						Dst: ptr.To(remoteCIDR),
 						Gw:  ptr.To(internalFabric.Spec.Interface.Gateway.IP),
@@ -80,8 +80,8 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 			rules = append(rules, rule)
 		}
 
-		route.Spec = networkingv1alpha1.RouteConfigurationSpec{
-			Table: networkingv1alpha1.Table{
+		route.Spec = networkingv1beta1.RouteConfigurationSpec{
+			Table: networkingv1beta1.Table{
 				Name:  route.Name,
 				Rules: rules,
 			},
@@ -98,6 +98,6 @@ func (r *InternalFabricReconciler) ensureRouteConfiguration(ctx context.Context,
 }
 
 // GenerateRouteConfigurationName returns the name of the RouteConfiguration associated to the InternalFabric.
-func GenerateRouteConfigurationName(internalFabric *networkingv1alpha1.InternalFabric) string {
+func GenerateRouteConfigurationName(internalFabric *networkingv1beta1.InternalFabric) string {
 	return fmt.Sprintf("%s-node-gw", internalFabric.Name)
 }

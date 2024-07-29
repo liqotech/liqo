@@ -30,8 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -43,14 +43,14 @@ type QuotaCreatorReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 
-	DefaultLimitsEnforcement offloadingv1alpha1.LimitsEnforcement
+	DefaultLimitsEnforcement offloadingv1beta1.LimitsEnforcement
 }
 
 // NewQuotaCreatorReconciler returns a new QuotaCreatorReconciler.
 func NewQuotaCreatorReconciler(
 	cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
-	defaultLimitsEnforcement offloadingv1alpha1.LimitsEnforcement,
+	defaultLimitsEnforcement offloadingv1beta1.LimitsEnforcement,
 ) *QuotaCreatorReconciler {
 	return &QuotaCreatorReconciler{
 		Client:         cl,
@@ -67,7 +67,7 @@ func NewQuotaCreatorReconciler(
 
 // Reconcile manage Quotas resources.
 func (r *QuotaCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	resourceSlice := &authv1alpha1.ResourceSlice{}
+	resourceSlice := &authv1beta1.ResourceSlice{}
 	if err := r.Get(ctx, req.NamespacedName, resourceSlice); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -75,8 +75,8 @@ func (r *QuotaCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("unable to get the ResourceSlice %q: %w", req.NamespacedName, err)
 	}
 
-	resourcesCond := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeResources)
-	resourcesAccepted := resourcesCond != nil && resourcesCond.Status == authv1alpha1.ResourceSliceConditionAccepted
+	resourcesCond := authentication.GetCondition(resourceSlice, authv1beta1.ResourceSliceConditionTypeResources)
+	resourcesAccepted := resourcesCond != nil && resourcesCond.Status == authv1beta1.ResourceSliceConditionAccepted
 	if !resourcesAccepted {
 		klog.V(3).Infof("ResourceSlice %s/%s resources not accepted yet", resourceSlice.Namespace, resourceSlice.Name)
 		return ctrl.Result{}, nil
@@ -84,7 +84,7 @@ func (r *QuotaCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	userName := authentication.CommonNameResourceSliceCSR(resourceSlice)
 
-	quota := offloadingv1alpha1.Quota{
+	quota := offloadingv1beta1.Quota{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      userName,
 			Namespace: resourceSlice.Namespace,
@@ -111,7 +111,7 @@ func (r *QuotaCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
-func hasToBeCordoned(resourceSlice *authv1alpha1.ResourceSlice) bool {
+func hasToBeCordoned(resourceSlice *authv1beta1.ResourceSlice) bool {
 	if resourceSlice.Annotations == nil {
 		return false
 	}
@@ -137,8 +137,8 @@ func (r *QuotaCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&authv1alpha1.ResourceSlice{},
+		For(&authv1beta1.ResourceSlice{},
 			builder.WithPredicates(remoteResSliceFilter)).
-		Owns(&offloadingv1alpha1.Quota{}).
+		Owns(&offloadingv1beta1.Quota{}).
 		Complete(r)
 }

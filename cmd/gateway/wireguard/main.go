@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/wireguard"
@@ -53,7 +53,7 @@ var (
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
-	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(networkingv1beta1.AddToScheme(scheme))
 	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme))
 }
 

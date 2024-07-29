@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
@@ -47,8 +47,8 @@ func generateInternalNodeExtCIDRRouteConfigurationName(nodename string) string {
 }
 
 func enforceRouteWithConntrackPresence(ctx context.Context, cl client.Client,
-	internalnode *networkingv1alpha1.InternalNode, scheme *runtime.Scheme, mark int, nodePortSrcIP string, opts *Options) error {
-	fwcfg := &networkingv1alpha1.FirewallConfiguration{
+	internalnode *networkingv1beta1.InternalNode, scheme *runtime.Scheme, mark int, nodePortSrcIP string, opts *Options) error {
+	fwcfg := &networkingv1beta1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: configurationNameSvc, Namespace: opts.Namespace},
 	}
 
@@ -57,7 +57,7 @@ func enforceRouteWithConntrackPresence(ctx context.Context, cl client.Client,
 		return fmt.Errorf("an error occurred while creating or updating the firewall configuration: %w", err)
 	}
 
-	routecfg := &networkingv1alpha1.RouteConfiguration{
+	routecfg := &networkingv1beta1.RouteConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: generateInternalNodeSvcRouteConfigurationName(internalnode.Name), Namespace: opts.Namespace},
 	}
 
@@ -70,8 +70,8 @@ func enforceRouteWithConntrackPresence(ctx context.Context, cl client.Client,
 }
 
 func enforceRouteWithConntrackAbsence(ctx context.Context, cl client.Client,
-	internalnode *networkingv1alpha1.InternalNode, opts *Options) error {
-	fwcfg := &networkingv1alpha1.FirewallConfiguration{
+	internalnode *networkingv1beta1.InternalNode, opts *Options) error {
+	fwcfg := &networkingv1beta1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: configurationNameSvc, Namespace: opts.Namespace},
 	}
 
@@ -88,7 +88,7 @@ func enforceRouteWithConntrackAbsence(ctx context.Context, cl client.Client,
 	return nil
 }
 
-func deleteVoidFwcfg(ctx context.Context, cl client.Client, fwcfg *networkingv1alpha1.FirewallConfiguration) error {
+func deleteVoidFwcfg(ctx context.Context, cl client.Client, fwcfg *networkingv1beta1.FirewallConfiguration) error {
 	if len(fwcfg.Spec.Table.Chains) > 0 && len(fwcfg.Spec.Table.Chains[0].Rules.FilterRules) == 0 {
 		if err := cl.Delete(ctx, fwcfg); err != nil {
 			return fmt.Errorf("an error occurred while deleting the firewall configuration: %w", err)
@@ -97,8 +97,8 @@ func deleteVoidFwcfg(ctx context.Context, cl client.Client, fwcfg *networkingv1a
 	return nil
 }
 
-func forgeFirewallConfigurationMutateFunction(internalnode *networkingv1alpha1.InternalNode,
-	fwcfg *networkingv1alpha1.FirewallConfiguration, mark int, nodePortSrcIP string) controllerutil.MutateFn {
+func forgeFirewallConfigurationMutateFunction(internalnode *networkingv1beta1.InternalNode,
+	fwcfg *networkingv1beta1.FirewallConfiguration, mark int, nodePortSrcIP string) controllerutil.MutateFn {
 	return func() error {
 		fwcfg.SetLabels(gateway.ForgeFirewallInternalTargetLabels())
 		fwcfg.Spec.Table.Name = ptr.To(configurationNameSvc)
@@ -109,8 +109,8 @@ func forgeFirewallConfigurationMutateFunction(internalnode *networkingv1alpha1.I
 	}
 }
 
-func enforceFirewallConfigurationForwardChain(fwcfg *networkingv1alpha1.FirewallConfiguration,
-	internalnode *networkingv1alpha1.InternalNode, mark int, nodePortSrcIP string) {
+func enforceFirewallConfigurationForwardChain(fwcfg *networkingv1beta1.FirewallConfiguration,
+	internalnode *networkingv1beta1.InternalNode, mark int, nodePortSrcIP string) {
 	if len(fwcfg.Spec.Table.Chains) == 0 {
 		fwcfg.Spec.Table.Chains = append(fwcfg.Spec.Table.Chains, firewall.Chain{})
 	}
@@ -122,8 +122,8 @@ func enforceFirewallConfigurationForwardChain(fwcfg *networkingv1alpha1.Firewall
 	enforceFirewallConfigurationForwardChainRules(fwcfg, internalnode, mark, nodePortSrcIP)
 }
 
-func enforceFirewallConfigurationForwardChainRules(fwcfg *networkingv1alpha1.FirewallConfiguration,
-	internalnode *networkingv1alpha1.InternalNode, mark int, nodePortSrcIP string) {
+func enforceFirewallConfigurationForwardChainRules(fwcfg *networkingv1beta1.FirewallConfiguration,
+	internalnode *networkingv1beta1.InternalNode, mark int, nodePortSrcIP string) {
 	rules := &fwcfg.Spec.Table.Chains[0].Rules
 	rule := forgeFirewallConfigurationForwardChainRule(internalnode, mark, nodePortSrcIP)
 	if !existsFirewallConfigurationChainRule(rules.FilterRules, &rule) {
@@ -131,7 +131,7 @@ func enforceFirewallConfigurationForwardChainRules(fwcfg *networkingv1alpha1.Fir
 	}
 }
 
-func forgeFirewallConfigurationForwardChainRule(internalnode *networkingv1alpha1.InternalNode, mark int, nodePortSrcIP string) firewall.FilterRule {
+func forgeFirewallConfigurationForwardChainRule(internalnode *networkingv1beta1.InternalNode, mark int, nodePortSrcIP string) firewall.FilterRule {
 	return firewall.FilterRule{
 		Name:   &internalnode.Name,
 		Action: firewall.ActionCtMark,
@@ -155,7 +155,7 @@ func forgeFirewallConfigurationForwardChainRule(internalnode *networkingv1alpha1
 	}
 }
 
-func enforceFirewallConfigurationPreroutingChain(fwcfg *networkingv1alpha1.FirewallConfiguration, nodePortSrcIP string) {
+func enforceFirewallConfigurationPreroutingChain(fwcfg *networkingv1beta1.FirewallConfiguration, nodePortSrcIP string) {
 	if len(fwcfg.Spec.Table.Chains) == 1 {
 		fwcfg.Spec.Table.Chains = append(fwcfg.Spec.Table.Chains, firewall.Chain{})
 	}
@@ -201,8 +201,8 @@ func existsFirewallConfigurationChainRule(rules []firewall.FilterRule, rule *fir
 	return false
 }
 
-func forgeRouteConfigurationMutateFunction(internalnode *networkingv1alpha1.InternalNode,
-	routecfg *networkingv1alpha1.RouteConfiguration, scheme *runtime.Scheme, mark int, nodePortSrcIP string) controllerutil.MutateFn {
+func forgeRouteConfigurationMutateFunction(internalnode *networkingv1beta1.InternalNode,
+	routecfg *networkingv1beta1.RouteConfiguration, scheme *runtime.Scheme, mark int, nodePortSrcIP string) controllerutil.MutateFn {
 	return func() error {
 		routecfg.SetLabels(gateway.ForgeRouteInternalTargetLabels())
 		if err := controllerutil.SetOwnerReference(internalnode, routecfg, scheme); err != nil {
@@ -214,48 +214,48 @@ func forgeRouteConfigurationMutateFunction(internalnode *networkingv1alpha1.Inte
 	}
 }
 
-func enforceRouteConfigurationRules(routecfg *networkingv1alpha1.RouteConfiguration,
-	internalnode *networkingv1alpha1.InternalNode, mark int, nodePortSrcIP string) {
+func enforceRouteConfigurationRules(routecfg *networkingv1beta1.RouteConfiguration,
+	internalnode *networkingv1beta1.InternalNode, mark int, nodePortSrcIP string) {
 	routecfg.Spec.Table.Rules = forgeRouteConfigurationRules(internalnode, mark, nodePortSrcIP)
 }
 
-func forgeRouteConfigurationRules(internalnode *networkingv1alpha1.InternalNode, mark int, nodePortSrcIP string) []networkingv1alpha1.Rule {
-	return []networkingv1alpha1.Rule{
+func forgeRouteConfigurationRules(internalnode *networkingv1beta1.InternalNode, mark int, nodePortSrcIP string) []networkingv1beta1.Rule {
+	return []networkingv1beta1.Rule{
 		{
 			FwMark: &mark,
-			Dst:    ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", nodePortSrcIP))),
-			Routes: []networkingv1alpha1.Route{
+			Dst:    ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", nodePortSrcIP))),
+			Routes: []networkingv1beta1.Route{
 				{
-					Dst: ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", nodePortSrcIP))),
+					Dst: ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", nodePortSrcIP))),
 					Dev: ptr.To(internalnode.Spec.Interface.Gateway.Name),
 					Gw:  ptr.To(internalnode.Spec.Interface.Node.IP),
 				},
 			},
 			TargetRef: &corev1.ObjectReference{
 				Name: internalnode.Name,
-				Kind: networkingv1alpha1.InternalNodeKind,
+				Kind: networkingv1beta1.InternalNodeKind,
 			},
 		},
 	}
 }
 
-func cleanFirewallConfigurationMutateFunction(internalnode *networkingv1alpha1.InternalNode,
-	fwcfg *networkingv1alpha1.FirewallConfiguration) controllerutil.MutateFn {
+func cleanFirewallConfigurationMutateFunction(internalnode *networkingv1beta1.InternalNode,
+	fwcfg *networkingv1beta1.FirewallConfiguration) controllerutil.MutateFn {
 	return func() error {
 		cleanFirewallConfigurationChains(fwcfg, internalnode)
 		return nil
 	}
 }
 
-func cleanFirewallConfigurationChains(fwcfg *networkingv1alpha1.FirewallConfiguration,
-	internalnode *networkingv1alpha1.InternalNode) {
+func cleanFirewallConfigurationChains(fwcfg *networkingv1beta1.FirewallConfiguration,
+	internalnode *networkingv1beta1.InternalNode) {
 	for i := range fwcfg.Spec.Table.Chains {
 		cleanFirewallConfigurationChain(&fwcfg.Spec.Table.Chains[i], internalnode)
 	}
 }
 
 func cleanFirewallConfigurationChain(chain *firewall.Chain,
-	internalnode *networkingv1alpha1.InternalNode) {
+	internalnode *networkingv1beta1.InternalNode) {
 	chain.Rules.FilterRules = slices.DeleteFunc(
 		chain.Rules.FilterRules, func(r firewall.FilterRule) bool {
 			return *r.Name == internalnode.Name
@@ -263,9 +263,9 @@ func cleanFirewallConfigurationChain(chain *firewall.Chain,
 }
 
 func enforceRouteConfigurationExtCIDR(ctx context.Context, cl client.Client,
-	internalnode *networkingv1alpha1.InternalNode, configurations []networkingv1alpha1.Configuration,
+	internalnode *networkingv1beta1.InternalNode, configurations []networkingv1beta1.Configuration,
 	ips []ipamv1alpha1.IP, scheme *runtime.Scheme, opts *Options) error {
-	routecfg := &networkingv1alpha1.RouteConfiguration{
+	routecfg := &networkingv1beta1.RouteConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: generateInternalNodeExtCIDRRouteConfigurationName(internalnode.Name), Namespace: opts.Namespace},
 	}
 
@@ -276,8 +276,8 @@ func enforceRouteConfigurationExtCIDR(ctx context.Context, cl client.Client,
 	return nil
 }
 
-func forgeRouteConfigurationExtCIDRMutateFunction(internalnode *networkingv1alpha1.InternalNode,
-	routecfg *networkingv1alpha1.RouteConfiguration, configurations []networkingv1alpha1.Configuration,
+func forgeRouteConfigurationExtCIDRMutateFunction(internalnode *networkingv1beta1.InternalNode,
+	routecfg *networkingv1beta1.RouteConfiguration, configurations []networkingv1beta1.Configuration,
 	ips []ipamv1alpha1.IP, scheme *runtime.Scheme) controllerutil.MutateFn {
 	return func() error {
 		routecfg.SetLabels(gateway.ForgeRouteInternalTargetLabelsByNode(internalnode.Name))
@@ -290,25 +290,25 @@ func forgeRouteConfigurationExtCIDRMutateFunction(internalnode *networkingv1alph
 	}
 }
 
-func forgeRouteConfigurationExtCIDRRules(internalnode *networkingv1alpha1.InternalNode,
-	configurations []networkingv1alpha1.Configuration, ips []ipamv1alpha1.IP) []networkingv1alpha1.Rule {
-	rules := []networkingv1alpha1.Rule{}
+func forgeRouteConfigurationExtCIDRRules(internalnode *networkingv1beta1.InternalNode,
+	configurations []networkingv1beta1.Configuration, ips []ipamv1alpha1.IP) []networkingv1beta1.Rule {
+	rules := []networkingv1beta1.Rule{}
 	for i := range configurations {
-		rules = append(rules, networkingv1alpha1.Rule{
+		rules = append(rules, networkingv1beta1.Rule{
 			Dst:    &configurations[i].Status.Remote.CIDR.Pod,
 			Iif:    ptr.To(tunnel.TunnelInterfaceName),
 			Routes: forgeRouteConfigurationExtCIDRRoutes(internalnode, &configurations[i].Status.Remote.CIDR.Pod),
 		})
 	}
-	rules = append(rules, networkingv1alpha1.Rule{
+	rules = append(rules, networkingv1beta1.Rule{
 		Iif:    ptr.To(tunnel.TunnelInterfaceName),
 		Routes: forgeRouteConfigurationExtCIDRRoutesIP(internalnode, ips),
 	})
 	return rules
 }
 
-func forgeRouteConfigurationExtCIDRRoutes(internalnode *networkingv1alpha1.InternalNode, dst *networkingv1alpha1.CIDR) []networkingv1alpha1.Route {
-	return []networkingv1alpha1.Route{
+func forgeRouteConfigurationExtCIDRRoutes(internalnode *networkingv1beta1.InternalNode, dst *networkingv1beta1.CIDR) []networkingv1beta1.Route {
+	return []networkingv1beta1.Route{
 		{
 			Dst: dst,
 			Dev: ptr.To(internalnode.Spec.Interface.Gateway.Name),
@@ -316,11 +316,11 @@ func forgeRouteConfigurationExtCIDRRoutes(internalnode *networkingv1alpha1.Inter
 		},
 	}
 }
-func forgeRouteConfigurationExtCIDRRoutesIP(internalnode *networkingv1alpha1.InternalNode, ips []ipamv1alpha1.IP) []networkingv1alpha1.Route {
-	routes := []networkingv1alpha1.Route{}
+func forgeRouteConfigurationExtCIDRRoutesIP(internalnode *networkingv1beta1.InternalNode, ips []ipamv1alpha1.IP) []networkingv1beta1.Route {
+	routes := []networkingv1beta1.Route{}
 	for i := range ips {
-		routes = append(routes, networkingv1alpha1.Route{
-			Dst: ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", ips[i].Spec.IP.String()))),
+		routes = append(routes, networkingv1beta1.Route{
+			Dst: ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", ips[i].Spec.IP.String()))),
 			Dev: ptr.To(internalnode.Spec.Interface.Gateway.Name),
 			Gw:  ptr.To(internalnode.Spec.Interface.Node.IP),
 		})

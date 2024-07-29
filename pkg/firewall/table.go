@@ -18,7 +18,7 @@ import (
 	"github.com/google/nftables"
 	"k8s.io/klog/v2"
 
-	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
 func addTable(nftconn *nftables.Conn, table *firewallapi.Table) *nftables.Table {

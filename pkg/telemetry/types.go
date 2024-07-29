@@ -20,8 +20,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // NodeInfo contains information about a node.
@@ -33,11 +33,11 @@ type NodeInfo struct {
 
 // NamespaceInfo contains information about an offloaded namespace.
 type NamespaceInfo struct {
-	UID                string                                          `json:"uid,omitempty"`
-	MappingStrategy    offloadingv1alpha1.NamespaceMappingStrategyType `json:"mappingStrategy,omitempty"`
-	OffloadingStrategy offloadingv1alpha1.PodOffloadingStrategyType    `json:"offloadingStrategy,omitempty"`
-	HasClusterSelector bool                                            `json:"hasClusterSelector,omitempty"`
-	NumOffloadedPods   map[string]int64                                `json:"numOffloadedPods,omitempty"`
+	UID                string                                         `json:"uid,omitempty"`
+	MappingStrategy    offloadingv1beta1.NamespaceMappingStrategyType `json:"mappingStrategy,omitempty"`
+	OffloadingStrategy offloadingv1beta1.PodOffloadingStrategyType    `json:"offloadingStrategy,omitempty"`
+	HasClusterSelector bool                                           `json:"hasClusterSelector,omitempty"`
+	NumOffloadedPods   map[string]int64                               `json:"numOffloadedPods,omitempty"`
 }
 
 // PeeringDetails contains information about a peering direction.
@@ -60,13 +60,13 @@ type ModulesInfo struct {
 
 // PeeringInfo contains information about a peering.
 type PeeringInfo struct {
-	RemoteClusterID     liqov1alpha1.ClusterID `json:"remoteClusterID"`
-	Modules             ModulesInfo            `json:"modules,omitempty"`
-	Role                liqov1alpha1.RoleType  `json:"role,omitempty"`
-	Latency             time.Duration          `json:"latency,omitempty"`
-	NodesNumber         int                    `json:"nodesNumber"`
-	VirtualNodesNumber  int                    `json:"virtualNodesNumber"`
-	ResourceSliceNumber int                    `json:"resourceSliceNumber"`
+	RemoteClusterID     liqov1beta1.ClusterID `json:"remoteClusterID"`
+	Modules             ModulesInfo           `json:"modules,omitempty"`
+	Role                liqov1beta1.RoleType  `json:"role,omitempty"`
+	Latency             time.Duration         `json:"latency,omitempty"`
+	NodesNumber         int                   `json:"nodesNumber"`
+	VirtualNodesNumber  int                   `json:"virtualNodesNumber"`
+	ResourceSliceNumber int                   `json:"resourceSliceNumber"`
 }
 
 // Telemetry contains information about the cluster.

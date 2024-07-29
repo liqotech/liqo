@@ -22,24 +22,24 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/getters"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
 )
 
 // DefaultPublicKeyName returns the default name of a PublicKey.
-func DefaultPublicKeyName(remoteClusterID liqov1alpha1.ClusterID) string {
+func DefaultPublicKeyName(remoteClusterID liqov1beta1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
 // PublicKey forges a PublicKey.
-func PublicKey(name, namespace string, remoteClusterID liqov1alpha1.ClusterID, key []byte) (*networkingv1alpha1.PublicKey, error) {
-	pubKey := &networkingv1alpha1.PublicKey{
+func PublicKey(name, namespace string, remoteClusterID liqov1beta1.ClusterID, key []byte) (*networkingv1beta1.PublicKey, error) {
+	pubKey := &networkingv1beta1.PublicKey{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       networkingv1alpha1.PublicKeyKind,
-			APIVersion: networkingv1alpha1.GroupVersion.String(),
+			Kind:       networkingv1beta1.PublicKeyKind,
+			APIVersion: networkingv1beta1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -58,9 +58,9 @@ func PublicKey(name, namespace string, remoteClusterID liqov1alpha1.ClusterID, k
 }
 
 // MutatePublicKey mutates a PublicKey.
-func MutatePublicKey(pubKey *networkingv1alpha1.PublicKey, remoteClusterID liqov1alpha1.ClusterID, key []byte) error {
-	pubKey.Kind = networkingv1alpha1.PublicKeyKind
-	pubKey.APIVersion = networkingv1alpha1.GroupVersion.String()
+func MutatePublicKey(pubKey *networkingv1beta1.PublicKey, remoteClusterID liqov1beta1.ClusterID, key []byte) error {
+	pubKey.Kind = networkingv1beta1.PublicKeyKind
+	pubKey.APIVersion = networkingv1beta1.GroupVersion.String()
 
 	if pubKey.Labels == nil {
 		pubKey.Labels = make(map[string]string)
@@ -76,16 +76,16 @@ func MutatePublicKey(pubKey *networkingv1alpha1.PublicKey, remoteClusterID liqov
 
 // PublicKeyForRemoteCluster forges a PublicKey to be applied on a remote cluster.
 func PublicKeyForRemoteCluster(ctx context.Context, cl client.Client,
-	liqoNamespace, namespace, gatewayName, gatewayType string) (*networkingv1alpha1.PublicKey, error) {
+	liqoNamespace, namespace, gatewayName, gatewayType string) (*networkingv1beta1.PublicKey, error) {
 	clusterID, err := liqoutils.GetClusterIDWithControllerClient(ctx, cl, liqoNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get cluster identity: %w", err)
 	}
 
-	pubKey := &networkingv1alpha1.PublicKey{
+	pubKey := &networkingv1beta1.PublicKey{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       networkingv1alpha1.PublicKeyKind,
-			APIVersion: networkingv1alpha1.GroupVersion.String(),
+			Kind:       networkingv1beta1.PublicKeyKind,
+			APIVersion: networkingv1beta1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: DefaultPublicKeyName(clusterID),
@@ -109,7 +109,7 @@ func PublicKeyForRemoteCluster(ctx context.Context, cl client.Client,
 	if err != nil {
 		return nil, err
 	}
-	pubKey.Spec = networkingv1alpha1.PublicKeySpec{
+	pubKey.Spec = networkingv1beta1.PublicKeySpec{
 		PublicKey: key,
 	}
 

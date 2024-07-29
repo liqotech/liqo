@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/uuid"
 
-	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/firewall"
 	firewallutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )

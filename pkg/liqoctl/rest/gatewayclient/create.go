@@ -27,7 +27,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	forge "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -42,7 +42,7 @@ The GatewayClient resource is used to define a Gateway Client for the external n
 Examples:
   $ {{ .Executable }} create gatewayclient my-gw-client \
   --remote-cluster-id remote-cluster-id \
-  --type networking.liqo.io/v1alpha1/wggatewayclients`
+  --type networking.liqo.io/v1beta1/wggatewayclients`
 
 // Create creates a GatewayClient.
 func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobra.Command {
@@ -121,7 +121,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 		s = opts.Printer.StartSpinner("Waiting for gatewayclient to be ready")
 		interval := 1 * time.Second
 		if err := wait.PollUntilContextCancel(ctx, interval, false, func(context.Context) (done bool, err error) {
-			var appliedGwClient networkingv1alpha1.GatewayClient
+			var appliedGwClient networkingv1beta1.GatewayClient
 			err = opts.CRClient.Get(ctx, types.NamespacedName{
 				Namespace: gwClient.Namespace,
 				Name:      gwClient.Name,
@@ -142,7 +142,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 }
 
 // output implements the logic to output the generated Gateway Client resource.
-func (o *Options) output(gwClient *networkingv1alpha1.GatewayClient) error {
+func (o *Options) output(gwClient *networkingv1beta1.GatewayClient) error {
 	var outputFormat string
 	switch {
 	case o.createOptions != nil:

@@ -24,9 +24,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -53,14 +53,14 @@ func RetrieveRemoteClusterIDFromNode(node *corev1.Node) (string, error) {
 }
 
 // RetrieveClusterIDFromConfigMap retrieves ClusterID from a given configmap.
-func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (liqov1alpha1.ClusterID, error) {
+func RetrieveClusterIDFromConfigMap(cm *corev1.ConfigMap) (liqov1beta1.ClusterID, error) {
 	id, found := cm.Data[liqoconsts.ClusterIDConfigMapKey]
 	if !found {
 		return "", fmt.Errorf("unable to get cluster ID: field {%s} not found in configmap {%s/%s}",
 			liqoconsts.ClusterIDConfigMapKey, cm.Namespace, cm.Name)
 	}
 
-	return liqov1alpha1.ClusterID(id), nil
+	return liqov1beta1.ClusterID(id), nil
 }
 
 // RetrieveEndpointFromService retrieves an ip address and port from a given service object
@@ -169,7 +169,7 @@ func RetrieveNetworkConfiguration(ipamS *ipamv1alpha1.IpamStorage) (*NetworkConf
 }
 
 // RetrieveClusterIDsFromVirtualNodes returns the remote cluster IDs in a list of VirtualNodes avoiding duplicates.
-func RetrieveClusterIDsFromVirtualNodes(virtualNodes *offloadingv1alpha1.VirtualNodeList) []string {
+func RetrieveClusterIDsFromVirtualNodes(virtualNodes *offloadingv1beta1.VirtualNodeList) []string {
 	clusterIDs := make(map[string]interface{})
 	for i := range virtualNodes.Items {
 		clusterIDs[string(virtualNodes.Items[i].Spec.ClusterID)] = nil

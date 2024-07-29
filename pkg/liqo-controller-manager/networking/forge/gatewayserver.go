@@ -19,29 +19,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 )
 
 // Default values for the GatewayServer.
 const (
-	DefaultGwServerType         = "networking.liqo.io/v1alpha1/wggatewayservertemplates"
+	DefaultGwServerType         = "networking.liqo.io/v1beta1/wggatewayservertemplates"
 	DefaultGwServerTemplateName = "wireguard-server"
 	DefaultGwServerServiceType  = corev1.ServiceTypeLoadBalancer
 	DefaultGwServerPort         = 51820
 )
 
 // DefaultGatewayServerName returns the default name for a GatewayServer.
-func DefaultGatewayServerName(remoteClusterID liqov1alpha1.ClusterID) string {
+func DefaultGatewayServerName(remoteClusterID liqov1beta1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
 // GwServerOptions encapsulate the options to forge a GatewayServer.
 type GwServerOptions struct {
 	KubeClient        kubernetes.Interface
-	RemoteClusterID   liqov1alpha1.ClusterID
+	RemoteClusterID   liqov1beta1.ClusterID
 	GatewayType       string
 	TemplateName      string
 	TemplateNamespace string
@@ -53,11 +53,11 @@ type GwServerOptions struct {
 }
 
 // GatewayServer forges a GatewayServer.
-func GatewayServer(name, namespace string, o *GwServerOptions) (*networkingv1alpha1.GatewayServer, error) {
-	gwServer := &networkingv1alpha1.GatewayServer{
+func GatewayServer(name, namespace string, o *GwServerOptions) (*networkingv1beta1.GatewayServer, error) {
+	gwServer := &networkingv1beta1.GatewayServer{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       networkingv1alpha1.GatewayServerKind,
-			APIVersion: networkingv1alpha1.GroupVersion.String(),
+			Kind:       networkingv1beta1.GatewayServerKind,
+			APIVersion: networkingv1beta1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -75,10 +75,10 @@ func GatewayServer(name, namespace string, o *GwServerOptions) (*networkingv1alp
 }
 
 // MutateGatewayServer mutates a GatewayServer.
-func MutateGatewayServer(gwServer *networkingv1alpha1.GatewayServer, o *GwServerOptions) error {
+func MutateGatewayServer(gwServer *networkingv1beta1.GatewayServer, o *GwServerOptions) error {
 	// Metadata
-	gwServer.Kind = networkingv1alpha1.GatewayServerKind
-	gwServer.APIVersion = networkingv1alpha1.GroupVersion.String()
+	gwServer.Kind = networkingv1beta1.GatewayServerKind
+	gwServer.APIVersion = networkingv1beta1.GroupVersion.String()
 
 	if gwServer.Labels == nil {
 		gwServer.Labels = make(map[string]string)
@@ -89,7 +89,7 @@ func MutateGatewayServer(gwServer *networkingv1alpha1.GatewayServer, o *GwServer
 	gwServer.Spec.MTU = o.MTU
 
 	// Server Endpoint
-	gwServer.Spec.Endpoint = networkingv1alpha1.Endpoint{
+	gwServer.Spec.Endpoint = networkingv1beta1.Endpoint{
 		Port:        o.Port,
 		ServiceType: o.ServiceType,
 	}

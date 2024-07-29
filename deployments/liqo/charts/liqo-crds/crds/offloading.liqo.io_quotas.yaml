@@ -32,7 +32,7 @@ spec:
       name: User
       priority: 1
       type: string
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: Quota is the Schema for the quota API.

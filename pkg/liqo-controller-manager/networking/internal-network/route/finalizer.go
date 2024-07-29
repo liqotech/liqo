@@ -19,7 +19,7 @@ import (
 
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 const (
@@ -28,13 +28,13 @@ const (
 )
 
 func (r *InternalNodeReconciler) enforceInternalNodeFinalizerPresence(
-	ctx context.Context, internalNode *networkingv1alpha1.InternalNode) error {
+	ctx context.Context, internalNode *networkingv1beta1.InternalNode) error {
 	ctrlutil.AddFinalizer(internalNode, internalNodesControllerFinalizer)
 	return r.Client.Update(ctx, internalNode)
 }
 
 func (r *InternalNodeReconciler) enforceInternalNodeFinalizerAbsence(
-	ctx context.Context, internalNode *networkingv1alpha1.InternalNode) error {
+	ctx context.Context, internalNode *networkingv1beta1.InternalNode) error {
 	ctrlutil.RemoveFinalizer(internalNode, internalNodesControllerFinalizer)
 	return r.Client.Update(ctx, internalNode)
 }

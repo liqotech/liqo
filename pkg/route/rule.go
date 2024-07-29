@@ -20,11 +20,11 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // EnsureRulePresence ensures the presence of the given rule.
-func EnsureRulePresence(rule *networkingv1alpha1.Rule, tableID uint32) error {
+func EnsureRulePresence(rule *networkingv1beta1.Rule, tableID uint32) error {
 	rules, err := GetRulesByTableID(tableID)
 	if err != nil {
 		return err
@@ -42,7 +42,7 @@ func EnsureRulePresence(rule *networkingv1alpha1.Rule, tableID uint32) error {
 }
 
 // EnsureRuleAbsence ensures the absence of the given rule.
-func EnsureRuleAbsence(rule *networkingv1alpha1.Rule, tableID uint32) error {
+func EnsureRuleAbsence(rule *networkingv1beta1.Rule, tableID uint32) error {
 	rules, err := GetRulesByTableID(tableID)
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func EnsureRuleAbsence(rule *networkingv1alpha1.Rule, tableID uint32) error {
 }
 
 // AddRule adds the given rule to the rules list.
-func AddRule(rule *networkingv1alpha1.Rule, tableID uint32) error {
+func AddRule(rule *networkingv1beta1.Rule, tableID uint32) error {
 	newrule := netlink.NewRule()
 	newrule.Table = int(tableID)
 
@@ -116,7 +116,7 @@ func GetRulesByTableID(tableID uint32) ([]netlink.Rule, error) {
 }
 
 // ExistsRule checks if the given rule is already present in the rules list.
-func ExistsRule(rule *networkingv1alpha1.Rule, rules []netlink.Rule) (*netlink.Rule, bool, error) {
+func ExistsRule(rule *networkingv1beta1.Rule, rules []netlink.Rule) (*netlink.Rule, bool, error) {
 	for i := range rules {
 		if RuleIsEqual(rule, &rules[i]) {
 			return &rules[i], true, nil
@@ -126,7 +126,7 @@ func ExistsRule(rule *networkingv1alpha1.Rule, rules []netlink.Rule) (*netlink.R
 }
 
 // RuleIsEqual checks if the given rule is equal to the given netlink rule.
-func RuleIsEqual(rule *networkingv1alpha1.Rule, netlinkRule *netlink.Rule) bool {
+func RuleIsEqual(rule *networkingv1beta1.Rule, netlinkRule *netlink.Rule) bool {
 	if rule == nil || netlinkRule == nil {
 		return false
 	}
@@ -166,7 +166,7 @@ func RuleIsEqual(rule *networkingv1alpha1.Rule, netlinkRule *netlink.Rule) bool 
 }
 
 // CleanRules deletes all the rules which are not contained anymore in the given rules list.
-func CleanRules(rules []networkingv1alpha1.Rule, tableID uint32) error {
+func CleanRules(rules []networkingv1beta1.Rule, tableID uint32) error {
 	existingrules, err := GetRulesByTableID(tableID)
 	if err != nil {
 		return err
@@ -182,7 +182,7 @@ func CleanRules(rules []networkingv1alpha1.Rule, tableID uint32) error {
 }
 
 // IsContainedRule checks if the given rule is contained in the given rules list.
-func IsContainedRule(existingrule *netlink.Rule, rules []networkingv1alpha1.Rule) bool {
+func IsContainedRule(existingrule *netlink.Rule, rules []networkingv1beta1.Rule) bool {
 	for i := range rules {
 		if RuleIsEqual(&rules[i], existingrule) {
 			return true

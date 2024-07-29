@@ -33,8 +33,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
@@ -57,7 +57,7 @@ type Reconciler struct {
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	nsName := req.NamespacedName
 	klog.V(4).Infof("reconcile shadowpod %s", nsName)
-	shadowPod := offloadingv1alpha1.ShadowPod{}
+	shadowPod := offloadingv1beta1.ShadowPod{}
 	if err := r.Get(ctx, nsName, &shadowPod); err != nil {
 		err = client.IgnoreNotFound(err)
 		if err == nil {
@@ -155,14 +155,14 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&offloadingv1alpha1.ShadowPod{}).
+		For(&offloadingv1beta1.ShadowPod{}).
 		Owns(&corev1.Pod{}, builder.WithPredicates(reconciledPredicates)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
 }
 
 func (r *Reconciler) mutatePodSpec(ctx context.Context,
-	podSpec *corev1.PodSpec, remoteClusterID liqov1alpha1.ClusterID) error {
+	podSpec *corev1.PodSpec, remoteClusterID liqov1beta1.ClusterID) error {
 	if len(podSpec.HostAliases) == 0 {
 		return nil
 	}

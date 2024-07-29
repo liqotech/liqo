@@ -25,8 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	gwforge "github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
@@ -47,10 +47,10 @@ type Cluster struct {
 	localNamespaceManager  tenantnamespace.Manager
 	remoteNamespaceManager tenantnamespace.Manager
 
-	localClusterID  liqov1alpha1.ClusterID
-	remoteClusterID liqov1alpha1.ClusterID
+	localClusterID  liqov1beta1.ClusterID
+	remoteClusterID liqov1beta1.ClusterID
 
-	networkConfiguration *networkingv1alpha1.Configuration
+	networkConfiguration *networkingv1beta1.Configuration
 }
 
 // NewCluster returns a new Cluster struct.
@@ -145,7 +145,7 @@ func (c *Cluster) SetLocalConfiguration(ctx context.Context) error {
 }
 
 // SetupConfiguration sets up the network configuration.
-func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1alpha1.Configuration) error {
+func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1beta1.Configuration) error {
 	s := c.local.Printer.StartSpinner("Setting up network configuration")
 	conf.Namespace = c.local.Namespace
 	confCopy := conf.DeepCopy()
@@ -171,7 +171,7 @@ func (c *Cluster) SetupConfiguration(ctx context.Context, conf *networkingv1alph
 }
 
 // CheckNetworkInitialized checks if the network is initialized correctly.
-func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
+func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Checking network is initialized correctly")
 
 	confReady, err := configuration.IsConfigurationStatusSet(ctx, c.local.CRClient,
@@ -194,8 +194,8 @@ func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID l
 }
 
 // GetGatewayServer retrieves a GatewayServer.
-func (c *Cluster) GetGatewayServer(ctx context.Context, name string) (*networkingv1alpha1.GatewayServer, error) {
-	gwServer := &networkingv1alpha1.GatewayServer{
+func (c *Cluster) GetGatewayServer(ctx context.Context, name string) (*networkingv1beta1.GatewayServer, error) {
+	gwServer := &networkingv1beta1.GatewayServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: c.local.Namespace,
@@ -208,8 +208,8 @@ func (c *Cluster) GetGatewayServer(ctx context.Context, name string) (*networkin
 }
 
 // GetGatewayClient retrieves a GatewayClient.
-func (c *Cluster) GetGatewayClient(ctx context.Context, name string) (*networkingv1alpha1.GatewayClient, error) {
-	gwClient := &networkingv1alpha1.GatewayClient{
+func (c *Cluster) GetGatewayClient(ctx context.Context, name string) (*networkingv1beta1.GatewayClient, error) {
+	gwClient := &networkingv1beta1.GatewayClient{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: c.local.Namespace,
@@ -221,7 +221,7 @@ func (c *Cluster) GetGatewayClient(ctx context.Context, name string) (*networkin
 	return gwClient, nil
 }
 
-func endpointHasChanged(endpoint *networkingv1alpha1.Endpoint, service *corev1.Service) bool {
+func endpointHasChanged(endpoint *networkingv1beta1.Endpoint, service *corev1.Service) bool {
 	if endpoint.ServiceType != service.Spec.Type {
 		return true
 	}
@@ -242,7 +242,7 @@ func endpointHasChanged(endpoint *networkingv1alpha1.Endpoint, service *corev1.S
 }
 
 // EnsureGatewayServer create or updates a GatewayServer.
-func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *forge.GwServerOptions) (*networkingv1alpha1.GatewayServer, error) {
+func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *forge.GwServerOptions) (*networkingv1beta1.GatewayServer, error) {
 	s := c.local.Printer.StartSpinner("Setting up gateway server")
 	gwServer, err := forge.GatewayServer(name, c.local.Namespace, opts)
 	if err != nil {
@@ -282,7 +282,7 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *fo
 }
 
 // EnsureGatewayClient create or updates a GatewayClient.
-func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *forge.GwClientOptions) (*networkingv1alpha1.GatewayClient, error) {
+func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *forge.GwClientOptions) (*networkingv1beta1.GatewayClient, error) {
 	s := c.local.Printer.StartSpinner("Setting up gateway client")
 	gwClient, err := forge.GatewayClient(name, c.local.Namespace, opts)
 	if err != nil {
@@ -302,7 +302,7 @@ func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *fo
 }
 
 // EnsurePublicKey create or updates a PublicKey.
-func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID,
+func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1beta1.ClusterID,
 	key []byte, ownerGateway metav1.Object) error {
 	s := c.local.Printer.StartSpinner("Creating public key")
 	pubKey, err := forge.PublicKey(forge.DefaultPublicKeyName(remoteClusterID), c.local.Namespace,
@@ -330,7 +330,7 @@ func (c *Cluster) EnsurePublicKey(ctx context.Context, remoteClusterID liqov1alp
 func (c *Cluster) DeleteConfiguration(ctx context.Context, name string) error {
 	s := c.local.Printer.StartSpinner("Deleting network configuration")
 
-	conf := &networkingv1alpha1.Configuration{
+	conf := &networkingv1beta1.Configuration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: c.local.Namespace,
@@ -355,7 +355,7 @@ func (c *Cluster) DeleteConfiguration(ctx context.Context, name string) error {
 func (c *Cluster) DeleteGatewayServer(ctx context.Context, name string) error {
 	s := c.local.Printer.StartSpinner("Deleting gateway server")
 
-	gwServer := &networkingv1alpha1.GatewayServer{
+	gwServer := &networkingv1beta1.GatewayServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: c.local.Namespace,
@@ -380,7 +380,7 @@ func (c *Cluster) DeleteGatewayServer(ctx context.Context, name string) error {
 func (c *Cluster) DeleteGatewayClient(ctx context.Context, name string) error {
 	s := c.local.Printer.StartSpinner("Deleting gateway client")
 
-	gwClient := &networkingv1alpha1.GatewayClient{
+	gwClient := &networkingv1beta1.GatewayClient{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: c.local.Namespace,

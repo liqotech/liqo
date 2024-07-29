@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/utils/events"
@@ -39,7 +39,7 @@ type ConfigurationReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 
-	localCIDR  *networkingv1alpha1.ClusterConfigCIDR
+	localCIDR  *networkingv1beta1.ClusterConfigCIDR
 	ipamClient ipam.IpamClient
 }
 
@@ -63,7 +63,7 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.E
 
 // Reconcile manage Configurations, remapping cidrs with Networks resources.
 func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	configuration := &networkingv1alpha1.Configuration{}
+	configuration := &networkingv1beta1.Configuration{}
 	if err := r.Get(ctx, req.NamespacedName, configuration); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no configuration %s", req.String())
@@ -111,7 +111,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, err
 }
 
-func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *networkingv1alpha1.Configuration) error {
+func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *networkingv1beta1.Configuration) error {
 	if r.localCIDR == nil {
 		podCIDR, err := ipamutils.GetPodCIDR(ctx, r.Client)
 		if err != nil {
@@ -123,20 +123,20 @@ func (r *ConfigurationReconciler) defaultLocalNetwork(ctx context.Context, cfg *
 			return fmt.Errorf("unable to retrieve the externalCIDR: %w", err)
 		}
 
-		r.localCIDR = &networkingv1alpha1.ClusterConfigCIDR{
-			Pod:      networkingv1alpha1.CIDR(podCIDR),
-			External: networkingv1alpha1.CIDR(externalCIDR),
+		r.localCIDR = &networkingv1beta1.ClusterConfigCIDR{
+			Pod:      networkingv1beta1.CIDR(podCIDR),
+			External: networkingv1beta1.CIDR(externalCIDR),
 		}
 	}
 
-	cfg.Spec.Local = &networkingv1alpha1.ClusterConfig{
+	cfg.Spec.Local = &networkingv1beta1.ClusterConfig{
 		CIDR: *r.localCIDR,
 	}
 	return r.Client.Update(ctx, cfg)
 }
 
 // RemapConfiguration remap the configuration using ipamv1alpha1.Network.
-func (r *ConfigurationReconciler) RemapConfiguration(ctx context.Context, cfg *networkingv1alpha1.Configuration,
+func (r *ConfigurationReconciler) RemapConfiguration(ctx context.Context, cfg *networkingv1beta1.Configuration,
 	er record.EventRecorder) error {
 	// Checks if the configuration is already remapped.
 	for _, cidrType := range LabelCIDRTypeValues {
@@ -153,7 +153,7 @@ func (r *ConfigurationReconciler) RemapConfiguration(ctx context.Context, cfg *n
 }
 
 // UpdateConfigurationStatus update the configuration.
-func (r *ConfigurationReconciler) UpdateConfigurationStatus(ctx context.Context, cfg *networkingv1alpha1.Configuration) error {
+func (r *ConfigurationReconciler) UpdateConfigurationStatus(ctx context.Context, cfg *networkingv1beta1.Configuration) error {
 	if err := r.Client.Status().Update(ctx, cfg); err != nil {
 		return fmt.Errorf("unable to update the status of the configuration %q: %w", client.ObjectKeyFromObject(cfg), err)
 	}
@@ -161,11 +161,11 @@ func (r *ConfigurationReconciler) UpdateConfigurationStatus(ctx context.Context,
 }
 
 // ForgeConfigurationStatus create the status of the configuration.
-func ForgeConfigurationStatus(cfg *networkingv1alpha1.Configuration, net *ipamv1alpha1.Network, cidrType LabelCIDRTypeValue) {
+func ForgeConfigurationStatus(cfg *networkingv1beta1.Configuration, net *ipamv1alpha1.Network, cidrType LabelCIDRTypeValue) {
 	if cfg.Status.Remote == nil {
-		cfg.Status.Remote = &networkingv1alpha1.ClusterConfig{}
+		cfg.Status.Remote = &networkingv1beta1.ClusterConfig{}
 	}
-	var cidrNew, cidrOld networkingv1alpha1.CIDR
+	var cidrNew, cidrOld networkingv1beta1.CIDR
 	cidrNew = net.Status.CIDR
 	switch cidrType {
 	case LabelCIDRTypePod:
@@ -178,7 +178,7 @@ func ForgeConfigurationStatus(cfg *networkingv1alpha1.Configuration, net *ipamv1
 	klog.Infof("Configuration %s %s CIDR: %s -> %s", client.ObjectKeyFromObject(cfg).String(), cidrType, cidrOld, cidrNew)
 }
 
-func isConfigurationConfigured(cfg *networkingv1alpha1.Configuration) bool {
+func isConfigurationConfigured(cfg *networkingv1beta1.Configuration) bool {
 	if cfg.Status.Remote == nil {
 		return false
 	}
@@ -188,7 +188,7 @@ func isConfigurationConfigured(cfg *networkingv1alpha1.Configuration) bool {
 // SetupWithManager register the ConfigurationReconciler to the manager.
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.Configuration{}).
+		For(&networkingv1beta1.Configuration{}).
 		Owns(&ipamv1alpha1.Network{}).
 		Complete(r)
 }

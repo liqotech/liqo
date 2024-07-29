@@ -23,9 +23,9 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -39,7 +39,7 @@ var _ = BeforeSuite(func() {
 
 	Expect(corev1.AddToScheme(scheme.Scheme)).To(Succeed())
 	Expect(discoveryv1.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(offloadingv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(liqov1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(networkingv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(offloadingv1beta1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(liqov1beta1.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(networkingv1beta1.AddToScheme(scheme.Scheme)).To(Succeed())
 })

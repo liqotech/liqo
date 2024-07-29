@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
 	authetication "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -58,8 +58,8 @@ func NewValidator(cl client.Client) *webhook.Admission {
 }
 
 // DecodeResourceSlice decodes the ResourceSlice from the incoming request.
-func (w *rswh) DecodeResourceSlice(obj runtime.RawExtension) (*authv1alpha1.ResourceSlice, error) {
-	var rs authv1alpha1.ResourceSlice
+func (w *rswh) DecodeResourceSlice(obj runtime.RawExtension) (*authv1beta1.ResourceSlice, error) {
+	var rs authv1beta1.ResourceSlice
 	err := w.decoder.DecodeRaw(obj, &rs)
 	return &rs, err
 }

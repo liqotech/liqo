@@ -25,13 +25,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // StoreIdentity stores the identity to authenticate with a remote cluster.
-func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteCluster liqov1alpha1.ClusterID,
+func (certManager *identityManager) StoreIdentity(ctx context.Context, remoteCluster liqov1beta1.ClusterID,
 	namespace string, key []byte, remoteProxyURL string, identityResponse *auth.CertificateIdentityResponse) error {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	podutils "github.com/liqotech/liqo/pkg/utils/pod"
@@ -79,7 +79,7 @@ func ArePodsUp(ctx context.Context, clientset kubernetes.Interface, namespace st
 }
 
 // NumPodsInTenantNs returns the number of pods that should be present in a tenant namespace.
-func NumPodsInTenantNs(networkingEnabled bool, role liqov1alpha1.RoleType) int {
+func NumPodsInTenantNs(networkingEnabled bool, role liqov1beta1.RoleType) int {
 	count := 0
 	// If the network is enabled, it should have the gateway pod.
 	if networkingEnabled {
@@ -93,7 +93,7 @@ func NumPodsInTenantNs(networkingEnabled bool, role liqov1alpha1.RoleType) int {
 }
 
 // NumTenantNamespaces returns the number of tenant namespaces that should be present in a cluster.
-func NumTenantNamespaces(numPeeredConsumers, numPeeredProviders int, role liqov1alpha1.RoleType) int {
+func NumTenantNamespaces(numPeeredConsumers, numPeeredProviders int, role liqov1beta1.RoleType) int {
 	switch {
 	case fcutils.IsConsumer(role):
 		return numPeeredProviders

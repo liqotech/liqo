@@ -37,7 +37,7 @@ import (
 	"helm.sh/helm/v3/pkg/strvals"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/util"
@@ -82,7 +82,7 @@ type Options struct {
 
 	Timeout time.Duration
 
-	ClusterID     liqov1alpha1.ClusterID
+	ClusterID     liqov1beta1.ClusterID
 	ClusterLabels map[string]string
 
 	APIServer         string

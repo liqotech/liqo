@@ -23,7 +23,7 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -154,10 +154,10 @@ func (pc *PrometheusCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func isConnected(conn *networkingv1alpha1.Connection) bool {
-	return conn.Status.Value == networkingv1alpha1.Connected
+func isConnected(conn *networkingv1beta1.Connection) bool {
+	return conn.Status.Value == networkingv1beta1.Connected
 }
 
-func getLatency(conn *networkingv1alpha1.Connection) (time.Duration, error) {
+func getLatency(conn *networkingv1beta1.Connection) (time.Duration, error) {
 	return time.ParseDuration(conn.Status.Latency.Value)
 }

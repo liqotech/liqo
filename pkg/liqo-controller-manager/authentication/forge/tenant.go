@@ -17,14 +17,14 @@ package forge
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // TenantForRemoteCluster forges a Tenant resource to be applied on a remote cluster.
-func TenantForRemoteCluster(localClusterID liqov1alpha1.ClusterID,
-	publicKey, csr, signature []byte, proxyURL *string) *authv1alpha1.Tenant {
+func TenantForRemoteCluster(localClusterID liqov1beta1.ClusterID,
+	publicKey, csr, signature []byte, proxyURL *string) *authv1beta1.Tenant {
 	tenant := Tenant(localClusterID)
 	MutateTenant(tenant, localClusterID, publicKey, csr, signature, proxyURL)
 
@@ -32,11 +32,11 @@ func TenantForRemoteCluster(localClusterID liqov1alpha1.ClusterID,
 }
 
 // Tenant forges a Tenant resource.
-func Tenant(remoteClusterID liqov1alpha1.ClusterID) *authv1alpha1.Tenant {
-	return &authv1alpha1.Tenant{
+func Tenant(remoteClusterID liqov1beta1.ClusterID) *authv1beta1.Tenant {
+	return &authv1beta1.Tenant{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: authv1alpha1.GroupVersion.String(),
-			Kind:       authv1alpha1.TenantKind,
+			APIVersion: authv1beta1.GroupVersion.String(),
+			Kind:       authv1beta1.TenantKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: string(remoteClusterID),
@@ -45,7 +45,7 @@ func Tenant(remoteClusterID liqov1alpha1.ClusterID) *authv1alpha1.Tenant {
 }
 
 // MutateTenant mutates a Tenant resource.
-func MutateTenant(tenant *authv1alpha1.Tenant, remoteClusterID liqov1alpha1.ClusterID,
+func MutateTenant(tenant *authv1beta1.Tenant, remoteClusterID liqov1beta1.ClusterID,
 	publicKey, csr, signature []byte, proxyURL *string) {
 	if tenant.Labels == nil {
 		tenant.Labels = map[string]string{}
@@ -57,7 +57,7 @@ func MutateTenant(tenant *authv1alpha1.Tenant, remoteClusterID liqov1alpha1.Clus
 		proxyURLPtr = proxyURL
 	}
 
-	tenant.Spec = authv1alpha1.TenantSpec{
+	tenant.Spec = authv1beta1.TenantSpec{
 		ClusterID: remoteClusterID,
 		PublicKey: publicKey,
 		CSR:       csr,

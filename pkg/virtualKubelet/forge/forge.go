@@ -21,8 +21,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // ReflectionFieldManager -> The name associated with the fields modified by virtual kubelet reflection.
@@ -30,9 +30,9 @@ const ReflectionFieldManager = "reflection.liqo.io"
 
 var (
 	// LocalCluster -> the cluster id associated with the local cluster.
-	LocalCluster liqov1alpha1.ClusterID
+	LocalCluster liqov1beta1.ClusterID
 	// RemoteCluster -> the cluster id associated with the remote cluster.
-	RemoteCluster liqov1alpha1.ClusterID
+	RemoteCluster liqov1beta1.ClusterID
 
 	// LiqoNodeName -> the name of the node associated with the current virtual-kubelet.
 	LiqoNodeName string
@@ -46,7 +46,7 @@ var (
 )
 
 // Init initializes the forging logic.
-func Init(localCluster, remoteCluster liqov1alpha1.ClusterID, nodeName, nodeIP string) {
+func Init(localCluster, remoteCluster liqov1beta1.ClusterID, nodeName, nodeIP string) {
 	LocalCluster = localCluster
 	RemoteCluster = remoteCluster
 
@@ -76,11 +76,11 @@ type ForgingOpts struct {
 	AnnotationsNotReflected []string
 	NodeSelector            map[string]string
 	Tolerations             []corev1.Toleration
-	Affinity                *offloadingv1alpha1.Affinity
+	Affinity                *offloadingv1beta1.Affinity
 }
 
 // NewForgingOpts returns a new ForgingOpts instance.
-func NewForgingOpts(offloadingPatch *offloadingv1alpha1.OffloadingPatch) ForgingOpts {
+func NewForgingOpts(offloadingPatch *offloadingv1beta1.OffloadingPatch) ForgingOpts {
 	if offloadingPatch == nil {
 		return NewEmptyForgingOpts()
 	}

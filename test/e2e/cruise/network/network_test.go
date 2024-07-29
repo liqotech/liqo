@@ -31,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
 	networkflags "github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
@@ -76,12 +76,12 @@ var (
 
 var _ = BeforeSuite(func() {
 	for i := range testContext.Clusters {
-		if testContext.Clusters[i].Role == liqov1.ProviderRole {
+		if testContext.Clusters[i].Role == liqov1beta1.ProviderRole {
 			providers = append(providers, testContext.Clusters[i].KubeconfigPath)
 		}
 	}
 	for i := range testContext.Clusters {
-		if testContext.Clusters[i].Role == liqov1.ConsumerRole {
+		if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 			consumer = testContext.Clusters[i].KubeconfigPath
 			break
 		}

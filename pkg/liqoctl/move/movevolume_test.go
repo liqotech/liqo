@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -498,11 +498,11 @@ var _ = Context("Move Volumes", func() {
 		BeforeEach(func() {
 			scheme = runtime.NewScheme()
 			Expect(corev1.AddToScheme(scheme)).To(Succeed())
-			Expect(offv1alpha1.AddToScheme(scheme)).To(Succeed())
+			Expect(offloadingv1beta1.AddToScheme(scheme)).To(Succeed())
 
 			cl = fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithStatusSubresource(&offv1alpha1.NamespaceOffloading{}).
+				WithStatusSubresource(&offloadingv1beta1.NamespaceOffloading{}).
 				Build()
 		})
 
@@ -536,12 +536,12 @@ var _ = Context("Move Volumes", func() {
 			It("creates the NamespaceOffloading resource", func() {
 				Expect(offloadLiqoStorageNamespace(ctx, cl, originNode, targetNode)).To(Succeed())
 
-				var nsOffload offv1alpha1.NamespaceOffloading
+				var nsOffload offloadingv1beta1.NamespaceOffloading
 				Expect(cl.Get(ctx, types.NamespacedName{
 					Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: liqoStorageNamespace}, &nsOffload)).To(Succeed())
 
-				Expect(nsOffload.Spec.NamespaceMappingStrategy).To(Equal(offv1alpha1.DefaultNameMappingStrategyType))
-				Expect(nsOffload.Spec.PodOffloadingStrategy).To(Equal(offv1alpha1.LocalPodOffloadingStrategyType))
+				Expect(nsOffload.Spec.NamespaceMappingStrategy).To(Equal(offloadingv1beta1.DefaultNameMappingStrategyType))
+				Expect(nsOffload.Spec.PodOffloadingStrategy).To(Equal(offloadingv1beta1.LocalPodOffloadingStrategyType))
 				Expect(nsOffload.Spec.ClusterSelector).To(Equal(corev1.NodeSelector{
 					NodeSelectorTerms: []corev1.NodeSelectorTerm{
 						{
@@ -560,18 +560,18 @@ var _ = Context("Move Volumes", func() {
 			It("does not overwrite existing NamespaceOffloading resource", func() {
 				Expect(offloadLiqoStorageNamespace(ctx, cl, originNode, targetNode)).To(Succeed())
 
-				var nsOffload offv1alpha1.NamespaceOffloading
+				var nsOffload offloadingv1beta1.NamespaceOffloading
 				Expect(cl.Get(ctx, types.NamespacedName{
 					Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: liqoStorageNamespace}, &nsOffload)).To(Succeed())
 
-				nsOffload.Spec.NamespaceMappingStrategy = offv1alpha1.EnforceSameNameMappingStrategyType
+				nsOffload.Spec.NamespaceMappingStrategy = offloadingv1beta1.EnforceSameNameMappingStrategyType
 				Expect(cl.Update(ctx, &nsOffload)).To(Succeed())
 
 				Expect(offloadLiqoStorageNamespace(ctx, cl, originNode, targetNode)).To(Succeed())
 
 				Expect(cl.Get(ctx, types.NamespacedName{
 					Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: liqoStorageNamespace}, &nsOffload)).To(Succeed())
-				Expect(nsOffload.Spec.NamespaceMappingStrategy).To(Equal(offv1alpha1.EnforceSameNameMappingStrategyType))
+				Expect(nsOffload.Spec.NamespaceMappingStrategy).To(Equal(offloadingv1beta1.EnforceSameNameMappingStrategyType))
 			})
 
 		})
@@ -579,7 +579,7 @@ var _ = Context("Move Volumes", func() {
 		Context("teardown", func() {
 
 			JustBeforeEach(func() {
-				namespaceOffloading := &offv1alpha1.NamespaceOffloading{
+				namespaceOffloading := &offloadingv1beta1.NamespaceOffloading{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      liqoconst.DefaultNamespaceOffloadingName,
 						Namespace: liqoStorageNamespace,
@@ -592,7 +592,7 @@ var _ = Context("Move Volumes", func() {
 				By("deleting it once")
 				Expect(repatriateLiqoStorageNamespace(ctx, cl)).To(Succeed())
 
-				var nsOffload offv1alpha1.NamespaceOffloading
+				var nsOffload offloadingv1beta1.NamespaceOffloading
 				Eventually(func() error {
 					return cl.Get(ctx, types.NamespacedName{
 						Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: liqoStorageNamespace}, &nsOffload)
@@ -613,7 +613,7 @@ var _ = Context("Move Volumes", func() {
 			const remoteNamespaceName = "remote-ns"
 
 			type getRemoteStorageNamespaceNameTestcase struct {
-				nsOffloading  *offv1alpha1.NamespaceOffloading
+				nsOffloading  *offloadingv1beta1.NamespaceOffloading
 				backoff       *wait.Backoff
 				expected      string
 				expectedError OmegaMatcher
@@ -629,26 +629,26 @@ var _ = Context("Move Volumes", func() {
 				Expect(err).To(c.expectedError)
 				Expect(nsName).To(Equal(c.expected))
 			}, Entry("namespace offloading not ready", getRemoteStorageNamespaceNameTestcase{
-				nsOffloading: &offv1alpha1.NamespaceOffloading{
+				nsOffloading: &offloadingv1beta1.NamespaceOffloading{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      liqoconst.DefaultNamespaceOffloadingName,
 						Namespace: liqoStorageNamespace,
 					},
-					Status: offv1alpha1.NamespaceOffloadingStatus{
-						OffloadingPhase: offv1alpha1.InProgressOffloadingPhaseType,
+					Status: offloadingv1beta1.NamespaceOffloadingStatus{
+						OffloadingPhase: offloadingv1beta1.InProgressOffloadingPhaseType,
 					},
 				},
 				backoff:       &retry.DefaultBackoff,
 				expected:      "",
 				expectedError: HaveOccurred(),
 			}), Entry("namespace offloading with empty namespace name", getRemoteStorageNamespaceNameTestcase{
-				nsOffloading: &offv1alpha1.NamespaceOffloading{
+				nsOffloading: &offloadingv1beta1.NamespaceOffloading{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      liqoconst.DefaultNamespaceOffloadingName,
 						Namespace: liqoStorageNamespace,
 					},
-					Status: offv1alpha1.NamespaceOffloadingStatus{
-						OffloadingPhase:     offv1alpha1.ReadyOffloadingPhaseType,
+					Status: offloadingv1beta1.NamespaceOffloadingStatus{
+						OffloadingPhase:     offloadingv1beta1.ReadyOffloadingPhaseType,
 						RemoteNamespaceName: "",
 					},
 				},
@@ -656,13 +656,13 @@ var _ = Context("Move Volumes", func() {
 				expected:      "",
 				expectedError: HaveOccurred(),
 			}), Entry("ready namespace offloading", getRemoteStorageNamespaceNameTestcase{
-				nsOffloading: &offv1alpha1.NamespaceOffloading{
+				nsOffloading: &offloadingv1beta1.NamespaceOffloading{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      liqoconst.DefaultNamespaceOffloadingName,
 						Namespace: liqoStorageNamespace,
 					},
-					Status: offv1alpha1.NamespaceOffloadingStatus{
-						OffloadingPhase:     offv1alpha1.ReadyOffloadingPhaseType,
+					Status: offloadingv1beta1.NamespaceOffloadingStatus{
+						OffloadingPhase:     offloadingv1beta1.ReadyOffloadingPhaseType,
 						RemoteNamespaceName: remoteNamespaceName,
 					},
 				},

@@ -20,27 +20,27 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 )
 
 // Default values for the GatewayClient.
 const (
-	DefaultGwClientType         = "networking.liqo.io/v1alpha1/wggatewayclienttemplates"
+	DefaultGwClientType         = "networking.liqo.io/v1beta1/wggatewayclienttemplates"
 	DefaultGwClientTemplateName = "wireguard-client"
 )
 
 // DefaultGatewayClientName returns the default name for a GatewayClient.
-func DefaultGatewayClientName(remoteClusterID liqov1alpha1.ClusterID) string {
+func DefaultGatewayClientName(remoteClusterID liqov1beta1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
 // GwClientOptions encapsulate the options to forge a GatewayClient.
 type GwClientOptions struct {
 	KubeClient        kubernetes.Interface
-	RemoteClusterID   liqov1alpha1.ClusterID
+	RemoteClusterID   liqov1beta1.ClusterID
 	GatewayType       string
 	TemplateName      string
 	TemplateNamespace string
@@ -51,11 +51,11 @@ type GwClientOptions struct {
 }
 
 // GatewayClient forges a GatewayClient.
-func GatewayClient(name, namespace string, o *GwClientOptions) (*networkingv1alpha1.GatewayClient, error) {
-	gwClient := &networkingv1alpha1.GatewayClient{
+func GatewayClient(name, namespace string, o *GwClientOptions) (*networkingv1beta1.GatewayClient, error) {
+	gwClient := &networkingv1beta1.GatewayClient{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       networkingv1alpha1.GatewayClientKind,
-			APIVersion: networkingv1alpha1.GroupVersion.String(),
+			Kind:       networkingv1beta1.GatewayClientKind,
+			APIVersion: networkingv1beta1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -73,10 +73,10 @@ func GatewayClient(name, namespace string, o *GwClientOptions) (*networkingv1alp
 }
 
 // MutateGatewayClient mutates a GatewayClient.
-func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *GwClientOptions) error {
+func MutateGatewayClient(gwClient *networkingv1beta1.GatewayClient, o *GwClientOptions) error {
 	// Metadata
-	gwClient.Kind = networkingv1alpha1.GatewayClientKind
-	gwClient.APIVersion = networkingv1alpha1.GroupVersion.String()
+	gwClient.Kind = networkingv1beta1.GatewayClientKind
+	gwClient.APIVersion = networkingv1beta1.GroupVersion.String()
 
 	if gwClient.Labels == nil {
 		gwClient.Labels = make(map[string]string)
@@ -87,7 +87,7 @@ func MutateGatewayClient(gwClient *networkingv1alpha1.GatewayClient, o *GwClient
 	gwClient.Spec.MTU = o.MTU
 
 	// Server Endpoint
-	gwClient.Spec.Endpoint = networkingv1alpha1.EndpointStatus{
+	gwClient.Spec.Endpoint = networkingv1beta1.EndpointStatus{
 		Addresses: o.Addresses,
 		Port:      o.Port,
 		Protocol:  ptr.To(corev1.Protocol(o.Protocol)),

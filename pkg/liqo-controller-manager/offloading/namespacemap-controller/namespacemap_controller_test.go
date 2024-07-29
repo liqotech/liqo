@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	namespacemapctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/namespacemap-controller"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -41,14 +41,14 @@ var _ = Describe("Enforcement logic", func() {
 		clientBuilder fake.ClientBuilder
 		reconciler    namespacemapctrl.NamespaceMapReconciler
 
-		nm  offloadingv1alpha1.NamespaceMap
+		nm  offloadingv1beta1.NamespaceMap
 		err error
 	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
 		clientBuilder = fake.ClientBuilder{}
-		nm = offloadingv1alpha1.NamespaceMap{ObjectMeta: metav1.ObjectMeta{
+		nm = offloadingv1beta1.NamespaceMap{ObjectMeta: metav1.ObjectMeta{
 			Name: "name", Namespace: "tenant-namespace",
 			Labels: map[string]string{liqoconst.ReplicationOriginLabel: "origin"}},
 		}
@@ -56,7 +56,7 @@ var _ = Describe("Enforcement logic", func() {
 
 	JustBeforeEach(func() {
 		reconciler = namespacemapctrl.NamespaceMapReconciler{Client: clientBuilder.WithObjects(&nm).
-			WithStatusSubresource(&offloadingv1alpha1.NamespaceMap{}).
+			WithStatusSubresource(&offloadingv1beta1.NamespaceMap{}).
 			Build()}
 		_, err = reconciler.Reconcile(ctx, controllerruntime.Request{NamespacedName: client.ObjectKeyFromObject(&nm)})
 	})
@@ -65,7 +65,7 @@ var _ = Describe("Enforcement logic", func() {
 		Context("finalizer enforcement", func() {
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 			It("should ensure the finalizer is present", func() {
-				var updated offloadingv1alpha1.NamespaceMap
+				var updated offloadingv1beta1.NamespaceMap
 				Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 				Expect(ctrlutils.ContainsFinalizer(&updated, namespacemapctrl.NamespaceMapControllerFinalizer)).To(BeTrue())
 			})
@@ -94,10 +94,10 @@ var _ = Describe("Enforcement logic", func() {
 					Expect(binding.GetAnnotations()).To(HaveKeyWithValue(liqoconst.RemoteNamespaceManagedByAnnotationKey, "tenant-namespace/name"))
 				})
 				It("should correctly update the NamespaceMap status", func() {
-					var updated offloadingv1alpha1.NamespaceMap
+					var updated offloadingv1beta1.NamespaceMap
 					Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 					Expect(updated.Status.CurrentMapping).To(HaveKeyWithValue("namespace",
-						offloadingv1alpha1.RemoteNamespaceStatus{RemoteNamespace: "namespace-remote", Phase: offloadingv1alpha1.MappingAccepted}))
+						offloadingv1beta1.RemoteNamespaceStatus{RemoteNamespace: "namespace-remote", Phase: offloadingv1beta1.MappingAccepted}))
 				})
 			}
 
@@ -129,10 +129,10 @@ var _ = Describe("Enforcement logic", func() {
 				Describe("perform checks", func() {
 					It("should fail", func() { Expect(err).To(HaveOccurred()) })
 					It("should correctly update the NamespaceMap status", func() {
-						var updated offloadingv1alpha1.NamespaceMap
+						var updated offloadingv1beta1.NamespaceMap
 						Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 						Expect(updated.Status.CurrentMapping).To(HaveKeyWithValue("namespace",
-							offloadingv1alpha1.RemoteNamespaceStatus{RemoteNamespace: "namespace-remote", Phase: offloadingv1alpha1.MappingCreationLoopBackOff}))
+							offloadingv1beta1.RemoteNamespaceStatus{RemoteNamespace: "namespace-remote", Phase: offloadingv1beta1.MappingCreationLoopBackOff}))
 					})
 				})
 			})
@@ -150,11 +150,11 @@ var _ = Describe("Enforcement logic", func() {
 			When("all namespaces are valid", func() {
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 				It("should correctly update the NamespaceMap status", func() {
-					var updated offloadingv1alpha1.NamespaceMap
+					var updated offloadingv1beta1.NamespaceMap
 					Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 					for origin, remapped := range nm.Spec.DesiredMapping {
 						Expect(updated.Status.CurrentMapping).To(HaveKeyWithValue(origin,
-							offloadingv1alpha1.RemoteNamespaceStatus{RemoteNamespace: remapped, Phase: offloadingv1alpha1.MappingAccepted}))
+							offloadingv1beta1.RemoteNamespaceStatus{RemoteNamespace: remapped, Phase: offloadingv1beta1.MappingAccepted}))
 					}
 				})
 			})
@@ -167,22 +167,22 @@ var _ = Describe("Enforcement logic", func() {
 
 				It("should fail", func() { Expect(err).To(HaveOccurred()) })
 				It("should correctly update the NamespaceMap status", func() {
-					var updated offloadingv1alpha1.NamespaceMap
+					var updated offloadingv1beta1.NamespaceMap
 					Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 					Expect(updated.Status.CurrentMapping).To(HaveKeyWithValue("first",
-						offloadingv1alpha1.RemoteNamespaceStatus{RemoteNamespace: "first-remote", Phase: offloadingv1alpha1.MappingAccepted}))
+						offloadingv1beta1.RemoteNamespaceStatus{RemoteNamespace: "first-remote", Phase: offloadingv1beta1.MappingAccepted}))
 					Expect(updated.Status.CurrentMapping).To(HaveKeyWithValue("second",
-						offloadingv1alpha1.RemoteNamespaceStatus{RemoteNamespace: "second-remote", Phase: offloadingv1alpha1.MappingCreationLoopBackOff}))
+						offloadingv1beta1.RemoteNamespaceStatus{RemoteNamespace: "second-remote", Phase: offloadingv1beta1.MappingCreationLoopBackOff}))
 					Expect(updated.Status.CurrentMapping).To(HaveKeyWithValue("third",
-						offloadingv1alpha1.RemoteNamespaceStatus{RemoteNamespace: "third-remote", Phase: offloadingv1alpha1.MappingAccepted}))
+						offloadingv1beta1.RemoteNamespaceStatus{RemoteNamespace: "third-remote", Phase: offloadingv1beta1.MappingAccepted}))
 				})
 			})
 		})
 
 		Context("deletion", func() {
 			BeforeEach(func() {
-				nm.Status.CurrentMapping = map[string]offloadingv1alpha1.RemoteNamespaceStatus{
-					"namespace": {RemoteNamespace: "namespace-remote", Phase: offloadingv1alpha1.MappingAccepted},
+				nm.Status.CurrentMapping = map[string]offloadingv1beta1.RemoteNamespaceStatus{
+					"namespace": {RemoteNamespace: "namespace-remote", Phase: offloadingv1beta1.MappingAccepted},
 				}
 			})
 
@@ -193,7 +193,7 @@ var _ = Describe("Enforcement logic", func() {
 					Expect(reconciler.Get(ctx, types.NamespacedName{Name: "namespace-remote"}, &namespace)).To(BeNotFound())
 				})
 				It("should correctly update the NamespaceMap status", func() {
-					var updated offloadingv1alpha1.NamespaceMap
+					var updated offloadingv1beta1.NamespaceMap
 					Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 					Expect(updated.Status.CurrentMapping).ToNot(HaveKey("namespace"))
 				})
@@ -217,11 +217,11 @@ var _ = Describe("Enforcement logic", func() {
 					Expect(reconciler.Get(ctx, types.NamespacedName{Name: "namespace-remote"}, &namespace)).To(BeNotFound())
 				})
 				It("should correctly update the NamespaceMap status", func() {
-					var updated offloadingv1alpha1.NamespaceMap
+					var updated offloadingv1beta1.NamespaceMap
 					Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 					// The entry will be removed when the deletion event is received by the reconciler.
 					Expect(updated.Status.CurrentMapping).To(HaveKeyWithValue("namespace",
-						offloadingv1alpha1.RemoteNamespaceStatus{RemoteNamespace: "namespace-remote", Phase: offloadingv1alpha1.MappingTerminating}))
+						offloadingv1beta1.RemoteNamespaceStatus{RemoteNamespace: "namespace-remote", Phase: offloadingv1beta1.MappingTerminating}))
 				})
 			})
 
@@ -238,7 +238,7 @@ var _ = Describe("Enforcement logic", func() {
 						Expect(reconciler.Get(ctx, types.NamespacedName{Name: "namespace-remote"}, &namespace)).To(Succeed())
 					})
 					It("should correctly update the NamespaceMap status", func() {
-						var updated offloadingv1alpha1.NamespaceMap
+						var updated offloadingv1beta1.NamespaceMap
 						Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 						Expect(updated.Status.CurrentMapping).ToNot(HaveKey("namespace"))
 					})
@@ -257,31 +257,31 @@ var _ = Describe("Enforcement logic", func() {
 		When("no current mappings are present", func() {
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 			It("should have removed the finalizer", func() {
-				var updated offloadingv1alpha1.NamespaceMap
+				var updated offloadingv1beta1.NamespaceMap
 				Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(BeNotFound())
 			})
 		})
 
 		When("all current mappings have already terminated", func() {
 			BeforeEach(func() {
-				nm.Status.CurrentMapping = map[string]offloadingv1alpha1.RemoteNamespaceStatus{
-					"first":  {RemoteNamespace: "first-remote", Phase: offloadingv1alpha1.MappingTerminating},
-					"second": {RemoteNamespace: "second-remote", Phase: offloadingv1alpha1.MappingTerminating},
+				nm.Status.CurrentMapping = map[string]offloadingv1beta1.RemoteNamespaceStatus{
+					"first":  {RemoteNamespace: "first-remote", Phase: offloadingv1beta1.MappingTerminating},
+					"second": {RemoteNamespace: "second-remote", Phase: offloadingv1beta1.MappingTerminating},
 				}
 			})
 
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 			It("should have removed the finalizer", func() {
-				var updated offloadingv1alpha1.NamespaceMap
+				var updated offloadingv1beta1.NamespaceMap
 				Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(BeNotFound())
 			})
 		})
 
 		When("some namespaces should still be deleted", func() {
 			BeforeEach(func() {
-				nm.Status.CurrentMapping = map[string]offloadingv1alpha1.RemoteNamespaceStatus{
-					"first":  {RemoteNamespace: "first-remote", Phase: offloadingv1alpha1.MappingTerminating},
-					"second": {RemoteNamespace: "second-remote", Phase: offloadingv1alpha1.MappingAccepted},
+				nm.Status.CurrentMapping = map[string]offloadingv1beta1.RemoteNamespaceStatus{
+					"first":  {RemoteNamespace: "first-remote", Phase: offloadingv1beta1.MappingTerminating},
+					"second": {RemoteNamespace: "second-remote", Phase: offloadingv1beta1.MappingAccepted},
 				}
 
 				namespace := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "second-remote",
@@ -296,16 +296,16 @@ var _ = Describe("Enforcement logic", func() {
 
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
 			It("should ensure the finalizer is present", func() {
-				var updated offloadingv1alpha1.NamespaceMap
+				var updated offloadingv1beta1.NamespaceMap
 				Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 				Expect(ctrlutils.ContainsFinalizer(&updated, namespacemapctrl.NamespaceMapControllerFinalizer)).To(BeTrue())
 			})
 			It("should correctly update the NamespaceMap status", func() {
-				var updated offloadingv1alpha1.NamespaceMap
+				var updated offloadingv1beta1.NamespaceMap
 				Expect(reconciler.Get(ctx, client.ObjectKeyFromObject(&nm), &updated)).To(Succeed())
 				Expect(updated.Status.CurrentMapping).ToNot(HaveKey("first"))
 				Expect(updated.Status.CurrentMapping).To(HaveKeyWithValue("second",
-					offloadingv1alpha1.RemoteNamespaceStatus{RemoteNamespace: "second-remote", Phase: offloadingv1alpha1.MappingTerminating}))
+					offloadingv1beta1.RemoteNamespaceStatus{RemoteNamespace: "second-remote", Phase: offloadingv1beta1.MappingTerminating}))
 			})
 		})
 	})

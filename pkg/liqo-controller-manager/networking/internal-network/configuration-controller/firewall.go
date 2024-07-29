@@ -24,15 +24,15 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/fabric"
 	"github.com/liqotech/liqo/pkg/ipam/utils"
 )
 
 func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Context,
-	cfg *networkingv1alpha1.Configuration, opts *Options) error {
-	firewall := &networkingv1alpha1.FirewallConfiguration{
+	cfg *networkingv1beta1.Configuration, opts *Options) error {
+	firewall := &networkingv1beta1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateFirewallConfigurationName(cfg),
 			Namespace: cfg.GetNamespace(),
@@ -45,8 +45,8 @@ func (r *ConfigurationReconciler) ensureFirewallConfiguration(ctx context.Contex
 	return nil
 }
 
-func forgeMutateFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration,
-	cfg *networkingv1alpha1.Configuration, scheme *runtime.Scheme, opts *Options) func() error {
+func forgeMutateFirewallConfiguration(fwcfg *networkingv1beta1.FirewallConfiguration,
+	cfg *networkingv1beta1.Configuration, scheme *runtime.Scheme, opts *Options) func() error {
 	return func() error {
 		if fwcfg.Labels == nil {
 			fwcfg.Labels = make(map[string]string)
@@ -92,7 +92,7 @@ func forgeFirewallChain() *firewallapi.Chain {
 	}
 }
 
-func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration, opts *Options) (natrules []firewallapi.NatRule, err error) {
+func forgeFirewallNatRule(cfg *networkingv1beta1.Configuration, opts *Options) (natrules []firewallapi.NatRule, err error) {
 	unknownSourceIP, err := utils.GetUnknownSourceIP(cfg.Spec.Local.CIDR.External.String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to get first IP from CIDR: %w", err)
@@ -198,27 +198,27 @@ func forgeFirewallNatRule(cfg *networkingv1alpha1.Configuration, opts *Options) 
 	return natrules, nil
 }
 
-func generateFirewallConfigurationName(cfg *networkingv1alpha1.Configuration) string {
+func generateFirewallConfigurationName(cfg *networkingv1beta1.Configuration) string {
 	return fmt.Sprintf("%s-masquerade-bypass", cfg.Name)
 }
 
-func generatePodNatRuleName(cfg *networkingv1alpha1.Configuration) string {
+func generatePodNatRuleName(cfg *networkingv1beta1.Configuration) string {
 	return fmt.Sprintf("podcidr-%s", cfg.Name)
 }
 
-func generateNodePortSvcNatRuleName(cfg *networkingv1alpha1.Configuration) string {
+func generateNodePortSvcNatRuleName(cfg *networkingv1beta1.Configuration) string {
 	return fmt.Sprintf("service-nodeport-%s", cfg.Name)
 }
 
-func generatePodNatRuleNameExt(cfg *networkingv1alpha1.Configuration) string {
+func generatePodNatRuleNameExt(cfg *networkingv1beta1.Configuration) string {
 	return fmt.Sprintf("podcidr-%s-ext", cfg.Name)
 }
 
-func generateNodePortSvcNatRuleNameExt(cfg *networkingv1alpha1.Configuration) string {
+func generateNodePortSvcNatRuleNameExt(cfg *networkingv1beta1.Configuration) string {
 	return fmt.Sprintf("service-nodeport-%s-ext", cfg.Name)
 }
 
-func isNatRuleAlreadyPresentInChain(cfg *networkingv1alpha1.Configuration, chain *firewallapi.Chain) bool {
+func isNatRuleAlreadyPresentInChain(cfg *networkingv1beta1.Configuration, chain *firewallapi.Chain) bool {
 	natRuleNames := []string{generatePodNatRuleName(cfg), generateNodePortSvcNatRuleName(cfg)}
 	if chain.Rules.NatRules == nil {
 		return false

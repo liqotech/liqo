@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -40,8 +40,8 @@ func New() *webhook.Admission {
 }
 
 // DecodeNamespaceOffloading decodes the NamespaceOffloading from the incoming request.
-func (w *nsoffwh) DecodeNamespaceOffloading(obj runtime.RawExtension) (*offv1alpha1.NamespaceOffloading, error) {
-	var nsoff offv1alpha1.NamespaceOffloading
+func (w *nsoffwh) DecodeNamespaceOffloading(obj runtime.RawExtension) (*offloadingv1beta1.NamespaceOffloading, error) {
+	var nsoff offloadingv1beta1.NamespaceOffloading
 	err := w.decoder.DecodeRaw(obj, &nsoff)
 	return &nsoff, err
 }
@@ -71,8 +71,8 @@ func (w *nsoffwh) Handle(ctx context.Context, req admission.Request) admission.R
 	}
 }
 
-func (w *nsoffwh) handleCreate(_ context.Context, _ *admission.Request, nsoff *offv1alpha1.NamespaceOffloading) admission.Response {
-	if nsoff.Spec.NamespaceMappingStrategy == offv1alpha1.SelectedNameMappingStrategyType &&
+func (w *nsoffwh) handleCreate(_ context.Context, _ *admission.Request, nsoff *offloadingv1beta1.NamespaceOffloading) admission.Response {
+	if nsoff.Spec.NamespaceMappingStrategy == offloadingv1beta1.SelectedNameMappingStrategyType &&
 		nsoff.Spec.RemoteNamespaceName == "" {
 		return admission.Denied("The RemoteNamespaceName value cannot be empty when using the SelectedName NamespaceMappingStrategy")
 	}
@@ -80,7 +80,7 @@ func (w *nsoffwh) handleCreate(_ context.Context, _ *admission.Request, nsoff *o
 	return admission.Allowed("")
 }
 
-func (w *nsoffwh) handleUpdate(_ context.Context, req *admission.Request, nsoff *offv1alpha1.NamespaceOffloading) admission.Response {
+func (w *nsoffwh) handleUpdate(_ context.Context, req *admission.Request, nsoff *offloadingv1beta1.NamespaceOffloading) admission.Response {
 	var warnings []string
 
 	// In case of updates, validate the modified fields.
@@ -98,7 +98,7 @@ func (w *nsoffwh) handleUpdate(_ context.Context, req *admission.Request, nsoff 
 		return admission.Denied("The RemoteNamespaceName value cannot be modified after creation")
 	}
 
-	if nsoff.Spec.PodOffloadingStrategy != offv1alpha1.LocalAndRemotePodOffloadingStrategyType &&
+	if nsoff.Spec.PodOffloadingStrategy != offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType &&
 		old.Spec.PodOffloadingStrategy != nsoff.Spec.PodOffloadingStrategy {
 		const msg = "The PodOffloadingStrategy was mutated to a more restrictive setting: existing pods violating this policy might still be running"
 		warnings = append(warnings, msg)

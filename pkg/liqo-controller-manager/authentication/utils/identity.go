@@ -20,8 +20,8 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/forge"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -29,8 +29,8 @@ import (
 // GenerateIdentityControlPlane generates an Identity resource of type ControlPlane to be
 // applied on the consumer cluster.
 func GenerateIdentityControlPlane(ctx context.Context, cl client.Client,
-	remoteClusterID liqov1alpha1.ClusterID, remoteTenantNamespace string,
-	localClusterID liqov1alpha1.ClusterID) (*authv1alpha1.Identity, error) {
+	remoteClusterID liqov1beta1.ClusterID, remoteTenantNamespace string,
+	localClusterID liqov1beta1.ClusterID) (*authv1beta1.Identity, error) {
 	// Get tenant with the given remote clusterID.
 	tenant, err := getters.GetTenantByClusterID(ctx, cl, remoteClusterID)
 	if err != nil {
@@ -43,7 +43,7 @@ func GenerateIdentityControlPlane(ctx context.Context, cl client.Client,
 	}
 
 	// Forge Identity resource for the remote cluster and output it.
-	authParams := authv1alpha1.AuthParams{
+	authParams := authv1beta1.AuthParams{
 		CA:        tenant.Status.AuthParams.CA,
 		SignedCRT: tenant.Status.AuthParams.SignedCRT,
 		APIServer: tenant.Status.AuthParams.APIServer,
@@ -52,7 +52,7 @@ func GenerateIdentityControlPlane(ctx context.Context, cl client.Client,
 		AwsConfig: tenant.Status.AuthParams.AwsConfig,
 	}
 	identity := forge.IdentityForRemoteCluster(forge.ControlPlaneIdentityName(localClusterID), remoteTenantNamespace,
-		localClusterID, authv1alpha1.ControlPlaneIdentityType, &authParams, &tenant.Status.TenantNamespace)
+		localClusterID, authv1beta1.ControlPlaneIdentityType, &authParams, &tenant.Status.TenantNamespace)
 
 	return identity, nil
 }

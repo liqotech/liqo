@@ -38,11 +38,11 @@ networking:
   reflectIPs: true
   # -- Set the list of resources that implement the GatewayServer
   serverResources:
-    - apiVersion: networking.liqo.io/v1alpha1
+    - apiVersion: networking.liqo.io/v1beta1
       resource: wggatewayservers
   # -- Set the list of resources that implement the GatewayClient
   clientResources:
-    - apiVersion: networking.liqo.io/v1alpha1
+    - apiVersion: networking.liqo.io/v1beta1
       resource: wggatewayclients
   # -- Set the options for the default gateway (server/client) templates.
   # The default templates use a WireGuard implementation to connect the gateway of the clusters.

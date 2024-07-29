@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -40,12 +40,12 @@ func forgeInterfaceName() string {
 // If it cannot find a free name, it returns an error.
 func FindFreeInterfaceName(ctx context.Context, cl client.Client, i interface{}) (string, error) {
 	switch obj := i.(type) {
-	case *networkingv1alpha1.InternalNode:
+	case *networkingv1beta1.InternalNode:
 		if obj.Spec.Interface.Gateway.Name != "" {
 			return obj.Spec.Interface.Gateway.Name, nil
 		}
 		return findFreeInterfaceNameForInternalNode(ctx, cl)
-	case *networkingv1alpha1.InternalFabric:
+	case *networkingv1beta1.InternalFabric:
 		if obj.Spec.Interface.Node.Name != "" {
 			return obj.Spec.Interface.Node.Name, nil
 		}

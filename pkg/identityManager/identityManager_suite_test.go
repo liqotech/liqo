@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/auth"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -43,8 +43,8 @@ var (
 
 	cluster       testutil.Cluster
 	k8sClient     kubernetes.Interface
-	localCluster  liqov1alpha1.ClusterID
-	remoteCluster liqov1alpha1.ClusterID
+	localCluster  liqov1beta1.ClusterID
+	remoteCluster liqov1beta1.ClusterID
 	mgr           manager.Manager
 
 	namespace *corev1.Namespace
@@ -75,8 +75,8 @@ var _ = BeforeSuite(func() {
 	certificateSecretData = make(map[string]string)
 	iamSecretData = make(map[string]string)
 
-	localCluster = liqov1alpha1.ClusterID("local-cluster-id")
-	remoteCluster = liqov1alpha1.ClusterID("remote-cluster-id")
+	localCluster = liqov1beta1.ClusterID("local-cluster-id")
+	remoteCluster = liqov1beta1.ClusterID("remote-cluster-id")
 
 	notFoundError = kerrors.NewNotFound(schema.GroupResource{
 		Group:    "v1",

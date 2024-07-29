@@ -21,18 +21,18 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/utils/ptr"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 )
 
 // GenerateKubeconfigSecretName generates the name of the kubeconfig secret associated to an identity.
-func GenerateKubeconfigSecretName(identity *authv1alpha1.Identity) string {
+func GenerateKubeconfigSecretName(identity *authv1beta1.Identity) string {
 	return "kubeconfig-" + identity.Name
 }
 
 // KubeconfigSecret forges a new Secret object stroing the kubeconfig associated to the provided identity.
-func KubeconfigSecret(identity *authv1alpha1.Identity) *corev1.Secret {
+func KubeconfigSecret(identity *authv1beta1.Identity) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: corev1.SchemeGroupVersion.String(),
@@ -46,7 +46,7 @@ func KubeconfigSecret(identity *authv1alpha1.Identity) *corev1.Secret {
 }
 
 // MutateKubeconfigSecret mutate a Secret object storing the kubeconfig associated to the provided identity.
-func MutateKubeconfigSecret(secret *corev1.Secret, identity *authv1alpha1.Identity, clientKey []byte, namespace *string) error {
+func MutateKubeconfigSecret(secret *corev1.Secret, identity *authv1beta1.Identity, clientKey []byte, namespace *string) error {
 	if secret.Labels == nil {
 		secret.Labels = make(map[string]string)
 	}

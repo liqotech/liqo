@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // cluster-role
@@ -45,14 +45,14 @@ func NewValidator(cl client.Client) *admission.Webhook {
 }
 
 // DecodeRouteConfiguration decodes the routeconfiguration from the incoming request.
-func (w *webhook) DecodeRouteConfiguration(obj runtime.RawExtension) (*networkingv1alpha1.RouteConfiguration, error) {
-	var routeConfiguration networkingv1alpha1.RouteConfiguration
+func (w *webhook) DecodeRouteConfiguration(obj runtime.RawExtension) (*networkingv1beta1.RouteConfiguration, error) {
+	var routeConfiguration networkingv1beta1.RouteConfiguration
 	err := w.decoder.DecodeRaw(obj, &routeConfiguration)
 	return &routeConfiguration, err
 }
 
 // CreatePatchResponse creates an admission response with the given routeconfiguration.
-func (w *webhook) CreatePatchResponse(req *admission.Request, routeConfiguration *networkingv1alpha1.RouteConfiguration) admission.Response {
+func (w *webhook) CreatePatchResponse(req *admission.Request, routeConfiguration *networkingv1beta1.RouteConfiguration) admission.Response {
 	marshaledRouteConfiguration, err := json.Marshal(routeConfiguration)
 	if err != nil {
 		klog.Errorf("Failed encoding routeconfiguration in admission response: %v", err)

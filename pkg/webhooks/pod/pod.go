@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -82,7 +82,7 @@ func (w *podwh) Handle(ctx context.Context, req admission.Request) admission.Res
 
 	// Get the NamespaceOffloading associated with the pod Namespace. If there is no NamespaceOffloading for that
 	// Namespace, it is an error, since the liqo.io/scheduling label should not be present on this namespace.
-	nsoff := &offv1alpha1.NamespaceOffloading{}
+	nsoff := &offloadingv1beta1.NamespaceOffloading{}
 	if err = w.client.Get(ctx, types.NamespacedName{
 		Namespace: req.Namespace, // Using req.Namespace, as pod.Namespace appears to be unset.
 		Name:      liqoconst.DefaultNamespaceOffloadingName,

@@ -26,15 +26,16 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	virtualnodeutils "github.com/liqotech/liqo/pkg/utils/virtualnode"
 )
 
-func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Context, nsoff *offv1alpha1.NamespaceOffloading,
-	clusterIDMap map[string]*offv1alpha1.NamespaceMap) error {
+func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Context,
+	nsoff *offloadingv1beta1.NamespaceOffloading,
+	clusterIDMap map[string]*offloadingv1beta1.NamespaceMap) error {
 	virtualNodes, err := getters.ListVirtualNodesByLabels(ctx, r.Client, labels.Everything())
 	if err != nil {
 		return fmt.Errorf("failed to retrieve VirtualNodes: %w", err)
@@ -73,18 +74,18 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 	return returnErr
 }
 
-func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (map[string]*offv1alpha1.NamespaceMap, error) {
+func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (map[string]*offloadingv1beta1.NamespaceMap, error) {
 	// Build the selector to consider only local NamespaceMaps.
 	metals := reflection.LocalResourcesLabelSelector()
 	selector, err := metav1.LabelSelectorAsSelector(&metals)
 	utilruntime.Must(err)
 
-	nms := &offv1alpha1.NamespaceMapList{}
+	nms := &offloadingv1beta1.NamespaceMapList{}
 	if err := r.List(ctx, nms, client.MatchingLabelsSelector{Selector: selector}); err != nil {
 		return nil, fmt.Errorf("failed to retrieve NamespaceMaps: %w", err)
 	}
 
-	clusterIDMap := make(map[string]*offv1alpha1.NamespaceMap)
+	clusterIDMap := make(map[string]*offloadingv1beta1.NamespaceMap)
 	if len(nms.Items) == 0 {
 		klog.Info("No NamespaceMaps are present at the moment in the cluster")
 		return clusterIDMap, nil
@@ -97,7 +98,7 @@ func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (ma
 }
 
 // MatchVirtualNodeSelectorTerms checks if the node match the node selector.
-func MatchVirtualNodeSelectorTerms(ctx context.Context, cl client.Client, virtualNode *offv1alpha1.VirtualNode,
+func MatchVirtualNodeSelectorTerms(ctx context.Context, cl client.Client, virtualNode *offloadingv1beta1.VirtualNode,
 	selector *corev1.NodeSelector) (bool, error) {
 	// Shortcircuit the matching logic, to always return a positive outcome in case no selector is specified.
 	if len(selector.NodeSelectorTerms) == 0 {

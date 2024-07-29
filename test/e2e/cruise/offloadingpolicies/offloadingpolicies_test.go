@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
@@ -139,7 +139,7 @@ var _ = Describe("Liqo E2E", func() {
 		)
 
 		BeforeEach(func() {
-			Expect(testContext.Clusters[0].Role).To(Equal(liqov1alpha1.ConsumerRole))
+			Expect(testContext.Clusters[0].Role).To(Equal(liqov1beta1.ConsumerRole))
 
 			// ensure the namespace is created
 			Expect(util.Second(util.EnforceNamespace(ctx, testContext.Clusters[0].NativeClient,

@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
@@ -69,7 +69,7 @@ var _ = Describe("Liqo E2E", func() {
 		It(fmt.Sprintf("Create a namespace inside the cluster '%d' and check what happen "+
 			"if a remote namespaace in the cluster '%d' already exists.", localIndex, remoteIndex), func() {
 			namespace := &corev1.Namespace{}
-			namespaceOffloading := &offloadingv1alpha1.NamespaceOffloading{}
+			namespaceOffloading := &offloadingv1beta1.NamespaceOffloading{}
 
 			By(fmt.Sprintf(" 1 - Creating the remote namespace inside the cluster '%d'", remoteIndex))
 			Eventually(func() error {
@@ -87,7 +87,7 @@ var _ = Describe("Liqo E2E", func() {
 
 				// Do not use liqoctl to create the resource, since it will fail waiting for offloading to complete.
 				return util.CreateNamespaceOffloading(ctx, testContext.Clusters[localIndex].ControllerClient, namespaceName,
-					offloadingv1alpha1.EnforceSameNameMappingStrategyType, offloadingv1alpha1.LocalAndRemotePodOffloadingStrategyType)
+					offloadingv1beta1.EnforceSameNameMappingStrategyType, offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
 
 			}, timeout, interval).Should(BeNil())
 
@@ -97,7 +97,7 @@ var _ = Describe("Liqo E2E", func() {
 					types.NamespacedName{Namespace: namespaceName, Name: liqoconst.DefaultNamespaceOffloadingName}, namespaceOffloading); err != nil {
 					return err
 				}
-				if namespaceOffloading.Status.OffloadingPhase != offloadingv1alpha1.SomeFailedOffloadingPhaseType {
+				if namespaceOffloading.Status.OffloadingPhase != offloadingv1beta1.SomeFailedOffloadingPhaseType {
 					return fmt.Errorf("the NamespaceOffloading resource has the wrong OffloadingPhase: %s",
 						namespaceOffloading.Status.OffloadingPhase)
 				}
@@ -134,7 +134,7 @@ var _ = Describe("Liqo E2E", func() {
 		It("Delete the NamespaceOffloading resource in the local namespace "+
 			"and check if the remote namespaces are deleted", func() {
 			By(" 1 - Getting the NamespaceOffloading in the local namespace and delete it")
-			namespaceOffloading := &offloadingv1alpha1.NamespaceOffloading{}
+			namespaceOffloading := &offloadingv1beta1.NamespaceOffloading{}
 			Eventually(func() metav1.StatusReason {
 				err := testContext.Clusters[localIndex].ControllerClient.Get(ctx,
 					types.NamespacedName{Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: namespaceName},

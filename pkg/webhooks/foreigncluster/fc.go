@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -46,8 +46,8 @@ func NewMutator() *webhook.Admission {
 }
 
 // DecodeForeignCluster decodes the ForeignCluster from the incoming request.
-func (w *fcwh) DecodeForeignCluster(obj runtime.RawExtension) (*liqov1alpha1.ForeignCluster, error) {
-	var fc liqov1alpha1.ForeignCluster
+func (w *fcwh) DecodeForeignCluster(obj runtime.RawExtension) (*liqov1beta1.ForeignCluster, error) {
+	var fc liqov1beta1.ForeignCluster
 	err := w.decoder.DecodeRaw(obj, &fc)
 	return &fc, err
 }

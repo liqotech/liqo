@@ -208,7 +208,7 @@ When you don't have access to both clusters, or you want to configure it in a de
 You need to apply in both clusters the Configuration resource:
 
 ```yaml
-apiVersion: networking.liqo.io/v1alpha1
+apiVersion: networking.liqo.io/v1beta1
 kind: Configuration
 metadata:
   labels:
@@ -230,7 +230,7 @@ You can generate this file with the command `liqoctl generate configuration` run
 Now, in the cluster that will expose the service and act as a server, you need to apply the GatewayServer resource:
 
 ```yaml
-apiVersion: networking.liqo.io/v1alpha1
+apiVersion: networking.liqo.io/v1beta1
 kind: GatewayServer
 metadata:
   labels:
@@ -242,7 +242,7 @@ spec:
     serviceType: NodePort
   mtu: 1340
   serverTemplateRef:
-    apiVersion: networking.liqo.io/v1alpha1
+    apiVersion: networking.liqo.io/v1beta1
     kind: WgGatewayServerTemplate
     name: wireguard-server
     namespace: liqo
@@ -266,7 +266,7 @@ default     server   wireguard-server   10.42.3.54   32133   84s
 Now, in the cluster that will connect to the service and act as a client, you need to apply the GatewayClient resource:
 
 ```yaml
-apiVersion: networking.liqo.io/v1alpha1
+apiVersion: networking.liqo.io/v1beta1
 kind: GatewayClient
 metadata:
   creationTimestamp: null
@@ -276,7 +276,7 @@ metadata:
   namespace: default
 spec:
   clientTemplateRef:
-    apiVersion: networking.liqo.io/v1alpha1
+    apiVersion: networking.liqo.io/v1beta1
     kind: WgGatewayClientTemplate
     name: wireguard-client
     namespace: liqo
@@ -303,7 +303,7 @@ liqoctl generate publickey --gateway-type client --gateway-name client
 You should see the following output:
 
 ```yaml
-apiVersion: networking.liqo.io/v1alpha1
+apiVersion: networking.liqo.io/v1beta1
 kind: PublicKey
 metadata:
   creationTimestamp: null
@@ -326,7 +326,7 @@ liqoctl generate publickey --gateway-type server --gateway-name server
 You should see the following output:
 
 ```yaml
-apiVersion: networking.liqo.io/v1alpha1
+apiVersion: networking.liqo.io/v1beta1
 kind: PublicKey
 metadata:
   creationTimestamp: null
@@ -401,7 +401,7 @@ The template is referenced in the spec of the API, as shown here:
 ```yaml
 spec:
   serverTemplateRef:
-    apiVersion: networking.liqo.io/v1alpha1
+    apiVersion: networking.liqo.io/v1beta1
     kind: WgGatewayServerTemplate
     name: wireguard-server
     namespace: liqo

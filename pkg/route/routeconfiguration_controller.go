@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/network/netmonitor"
 )
 
@@ -85,7 +85,7 @@ func NewRouteConfigurationReconcilerWithoutFinalizer(cl client.Client, s *runtim
 // Reconcile manage RouteConfigurations, applying nftables configuration.
 func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	routeconfiguration := &networkingv1alpha1.RouteConfiguration{}
+	routeconfiguration := &networkingv1beta1.RouteConfiguration{}
 	if err = r.Get(ctx, req.NamespacedName, routeconfiguration); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no routeconfiguration %s", req.String())
@@ -147,7 +147,7 @@ func (r *RouteConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	allRoutes := []networkingv1alpha1.Route{}
+	allRoutes := []networkingv1beta1.Route{}
 	for i := range routeconfiguration.Spec.Table.Rules {
 		// Append all the routes in the same table in a single array.
 		// This is necessary because we can't list the route rules filtering per rule.
@@ -192,7 +192,7 @@ func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&networkingv1beta1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewRouteWatchSource(src), NewRouteWatchEventHandler(r.Client, r.LabelsSets)).
 		Complete(r)
 }
@@ -209,8 +209,8 @@ func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) 
 	return predicate.Or(labelPredicates...), nil
 }
 
-func getConditionRef(rcfg *networkingv1alpha1.RouteConfiguration, podname string) *networkingv1alpha1.RouteConfigurationStatusCondition {
-	var conditionRef *networkingv1alpha1.RouteConfigurationStatusCondition
+func getConditionRef(rcfg *networkingv1beta1.RouteConfiguration, podname string) *networkingv1beta1.RouteConfigurationStatusCondition {
+	var conditionRef *networkingv1beta1.RouteConfigurationStatusCondition
 	for i := range rcfg.Status.Conditions {
 		if rcfg.Status.Conditions[i].Host == podname {
 			conditionRef = &rcfg.Status.Conditions[i]
@@ -218,7 +218,7 @@ func getConditionRef(rcfg *networkingv1alpha1.RouteConfiguration, podname string
 		}
 	}
 	if conditionRef == nil {
-		conditionRef = &networkingv1alpha1.RouteConfigurationStatusCondition{
+		conditionRef = &networkingv1beta1.RouteConfigurationStatusCondition{
 			Host: podname,
 		}
 		rcfg.Status.Conditions = append(rcfg.Status.Conditions, *conditionRef)
@@ -228,10 +228,10 @@ func getConditionRef(rcfg *networkingv1alpha1.RouteConfiguration, podname string
 
 // UpdateStatus updates the status of the given RouteConfiguration.
 func (r *RouteConfigurationReconciler) UpdateStatus(ctx context.Context, er record.EventRecorder,
-	routeconfiguration *networkingv1alpha1.RouteConfiguration, podname string, err error) error {
+	routeconfiguration *networkingv1beta1.RouteConfiguration, podname string, err error) error {
 	conditionRef := getConditionRef(routeconfiguration, podname)
 	conditionRef.Host = podname
-	conditionRef.Type = networkingv1alpha1.RouteConfigurationStatusConditionTypeApplied
+	conditionRef.Type = networkingv1beta1.RouteConfigurationStatusConditionTypeApplied
 
 	oldStatus := conditionRef.Status
 	if err == nil {

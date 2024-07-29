@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -163,7 +163,7 @@ func CreateNetwork(ctx context.Context, cl client.Client, name, namespace, cidr 
 		}
 
 		network.Spec = ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1alpha1.CIDR(cidr),
+			CIDR: networkingv1beta1.CIDR(cidr),
 		}
 		return nil
 	}); err != nil {

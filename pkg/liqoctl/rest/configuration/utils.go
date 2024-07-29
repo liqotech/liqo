@@ -20,12 +20,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // IsConfigurationStatusSet check if a Configuration is ready by checking if its status is correctly set.
 func IsConfigurationStatusSet(ctx context.Context, cl client.Client, name, namespace string) (bool, error) {
-	conf := &networkingv1alpha1.Configuration{}
+	conf := &networkingv1beta1.Configuration{}
 	if err := cl.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, conf); err != nil {
 		return false, err
 	}

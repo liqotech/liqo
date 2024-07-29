@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/network/netmonitor"
 )
 
@@ -92,7 +92,7 @@ func NewFirewallConfigurationReconcilerWithoutFinalizer(cl client.Client, s *run
 // Reconcile manage FirewallConfigurations, applying nftables configuration.
 func (r *FirewallConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	fwcfg := &networkingv1alpha1.FirewallConfiguration{}
+	fwcfg := &networkingv1beta1.FirewallConfiguration{}
 	if err = r.Get(ctx, req.NamespacedName, fwcfg); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no firewallconfiguration %s", req.String())
@@ -173,7 +173,7 @@ func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, 
 		utilruntime.Must(netmonitor.InterfacesMonitoring(ctx, src, &netmonitor.Options{Nftables: &netmonitor.OptionsNftables{Delete: true}}))
 	}()
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&networkingv1beta1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		WatchesRawSource(NewFirewallWatchSource(src), NewFirewallWatchEventHandler(r.Client, r.LabelsSets)).
 		Complete(r)
 }
@@ -190,8 +190,8 @@ func forgeLabelsPredicate(labelsSets []labels.Set) (predicate.Predicate, error) 
 	return predicate.Or(labelPredicates...), nil
 }
 
-func getConditionRef(fwcfg *networkingv1alpha1.FirewallConfiguration, podname string) *networkingv1alpha1.FirewallConfigurationStatusCondition {
-	var conditionRef *networkingv1alpha1.FirewallConfigurationStatusCondition
+func getConditionRef(fwcfg *networkingv1beta1.FirewallConfiguration, podname string) *networkingv1beta1.FirewallConfigurationStatusCondition {
+	var conditionRef *networkingv1beta1.FirewallConfigurationStatusCondition
 	for i := range fwcfg.Status.Conditions {
 		if fwcfg.Status.Conditions[i].Host == podname {
 			conditionRef = &fwcfg.Status.Conditions[i]
@@ -199,7 +199,7 @@ func getConditionRef(fwcfg *networkingv1alpha1.FirewallConfiguration, podname st
 		}
 	}
 	if conditionRef == nil {
-		conditionRef = &networkingv1alpha1.FirewallConfigurationStatusCondition{
+		conditionRef = &networkingv1beta1.FirewallConfigurationStatusCondition{
 			Host: podname,
 		}
 		fwcfg.Status.Conditions = append(fwcfg.Status.Conditions, *conditionRef)
@@ -209,10 +209,10 @@ func getConditionRef(fwcfg *networkingv1alpha1.FirewallConfiguration, podname st
 
 // UpdateStatus updates the status of the given FirewallConfiguration.
 func (r *FirewallConfigurationReconciler) UpdateStatus(ctx context.Context, er record.EventRecorder,
-	fwcfg *networkingv1alpha1.FirewallConfiguration, podname string, err error) error {
+	fwcfg *networkingv1beta1.FirewallConfiguration, podname string, err error) error {
 	conditionRef := getConditionRef(fwcfg, podname)
 	conditionRef.Host = podname
-	conditionRef.Type = networkingv1alpha1.FirewallConfigurationStatusConditionTypeApplied
+	conditionRef.Type = networkingv1beta1.FirewallConfigurationStatusConditionTypeApplied
 
 	oldStatus := conditionRef.Status
 	if err == nil {

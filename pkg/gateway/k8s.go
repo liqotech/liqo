@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // SetOwnerReferenceWithMode sets the owner reference of the object according to the mode.
@@ -34,9 +34,9 @@ func SetOwnerReferenceWithMode(opts *Options, obj metav1.Object, scheme *runtime
 	}
 	switch opts.Mode {
 	case ModeServer:
-		return controllerutil.SetOwnerReference(&networkingv1alpha1.GatewayServer{ObjectMeta: meta}, obj, scheme)
+		return controllerutil.SetOwnerReference(&networkingv1beta1.GatewayServer{ObjectMeta: meta}, obj, scheme)
 	case ModeClient:
-		return controllerutil.SetOwnerReference(&networkingv1alpha1.GatewayClient{ObjectMeta: meta}, obj, scheme)
+		return controllerutil.SetOwnerReference(&networkingv1beta1.GatewayClient{ObjectMeta: meta}, obj, scheme)
 	}
 	return fmt.Errorf("invalid mode %v", opts.Mode)
 }

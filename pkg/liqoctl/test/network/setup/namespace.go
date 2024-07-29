@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
 )
@@ -43,14 +43,14 @@ func CreateNamespace(ctx context.Context, cl *client.Client) error {
 
 // OffloadNamespace offloads the namespace.
 func OffloadNamespace(ctx context.Context, cl *client.Client) error {
-	nsoff := v1alpha1.NamespaceOffloading{
+	nsoff := offloadingv1beta1.NamespaceOffloading{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      consts.DefaultNamespaceOffloadingName,
 			Namespace: NamespaceName,
 		},
-		Spec: v1alpha1.NamespaceOffloadingSpec{
-			NamespaceMappingStrategy: v1alpha1.EnforceSameNameMappingStrategyType,
-			PodOffloadingStrategy:    v1alpha1.LocalAndRemotePodOffloadingStrategyType,
+		Spec: offloadingv1beta1.NamespaceOffloadingSpec{
+			NamespaceMappingStrategy: offloadingv1beta1.EnforceSameNameMappingStrategyType,
+			PodOffloadingStrategy:    offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType,
 			ClusterSelector: corev1.NodeSelector{
 				NodeSelectorTerms: []corev1.NodeSelectorTerm{},
 			},

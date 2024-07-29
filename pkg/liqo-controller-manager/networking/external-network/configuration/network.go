@@ -24,13 +24,13 @@ import (
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/events"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // ForgeNetworkMetadata creates the metadata of a ipamv1alpha1.Network resource.
-func ForgeNetworkMetadata(net *ipamv1alpha1.Network, cfg *networkingv1alpha1.Configuration, cidrType LabelCIDRTypeValue) error {
+func ForgeNetworkMetadata(net *ipamv1alpha1.Network, cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue) error {
 	labels, err := ForgeNetworkLabel(cfg, cidrType)
 	if err != nil {
 		return err
@@ -42,12 +42,12 @@ func ForgeNetworkMetadata(net *ipamv1alpha1.Network, cfg *networkingv1alpha1.Con
 }
 
 // ForgeNetwork creates a ipamv1alpha1.Network resource.
-func ForgeNetwork(net *ipamv1alpha1.Network, cfg *networkingv1alpha1.Configuration, cidrType LabelCIDRTypeValue,
+func ForgeNetwork(net *ipamv1alpha1.Network, cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue,
 	scheme *runtime.Scheme) (err error) {
 	if err := ForgeNetworkMetadata(net, cfg, cidrType); err != nil {
 		return err
 	}
-	var cidr networkingv1alpha1.CIDR
+	var cidr networkingv1beta1.CIDR
 	switch cidrType {
 	case LabelCIDRTypePod:
 		cidr = cfg.Spec.Remote.CIDR.Pod
@@ -66,7 +66,7 @@ func ForgeNetwork(net *ipamv1alpha1.Network, cfg *networkingv1alpha1.Configurati
 
 // CreateOrGetNetwork creates or gets a ipamv1alpha1.Network resource.
 func CreateOrGetNetwork(ctx context.Context, cl client.Client, scheme *runtime.Scheme, er record.EventRecorder,
-	cfg *networkingv1alpha1.Configuration, cidrType LabelCIDRTypeValue) (*ipamv1alpha1.Network, error) {
+	cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue) (*ipamv1alpha1.Network, error) {
 	ls, err := ForgeNetworkLabelSelector(cfg, cidrType)
 	if err != nil {
 		return nil, err

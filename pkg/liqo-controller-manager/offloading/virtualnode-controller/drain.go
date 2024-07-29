@@ -28,7 +28,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 )
@@ -39,7 +39,7 @@ const waitForPodTerminationCheckPeriod = 10 * time.Second
 // PodDisruptionBudget policies set in the home cluster will be respected.
 // The implementation is inspired (even if very simplified) by the kubectl
 // implementation (https://github.com/kubernetes/kubectl/blob/v0.21.2/pkg/drain/drain.go).
-func drainNode(ctx context.Context, cl client.Client, vn *offloadingv1alpha1.VirtualNode) error {
+func drainNode(ctx context.Context, cl client.Client, vn *offloadingv1beta1.VirtualNode) error {
 	podsToEvict, err := getPodsForDeletion(ctx, cl, vn)
 	if err != nil {
 		klog.Error(err)
@@ -55,7 +55,7 @@ func drainNode(ctx context.Context, cl client.Client, vn *offloadingv1alpha1.Vir
 }
 
 // getPodsForDeletion lists the pods that are running on our virtual node.
-func getPodsForDeletion(ctx context.Context, cl client.Client, vn *offloadingv1alpha1.VirtualNode) (*corev1.PodList, error) {
+func getPodsForDeletion(ctx context.Context, cl client.Client, vn *offloadingv1beta1.VirtualNode) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
 	err := cl.List(ctx, podList, &client.ListOptions{
 		FieldSelector: client.MatchingFieldsSelector{

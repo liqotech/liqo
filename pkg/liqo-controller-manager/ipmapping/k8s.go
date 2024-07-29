@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // CreateOrUpdateIP creates or updates an IP resource for the given pod.
@@ -49,7 +49,7 @@ func mutateIP(ip *ipamv1alpha1.IP, pod *corev1.Pod, scheme *runtime.Scheme) cont
 			return fmt.Errorf("unable to set owner reference for IP %q: %w", ip.Name, err)
 		}
 		ip.SetLabels(labels.Merge(ip.GetLabels(), forgeIPLabels(pod)))
-		ip.Spec.IP = networkingv1alpha1.IP(pod.Status.PodIP)
+		ip.Spec.IP = networkingv1beta1.IP(pod.Status.PodIP)
 		return nil
 	}
 }

@@ -17,14 +17,14 @@ package utils
 import (
 	"github.com/google/nftables"
 
-	firewallv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
 var _ Rule = &FilterRuleWrapper{}
 
 // RouteRuleWrapper is a wrapper for a RouteRule.
 type RouteRuleWrapper struct {
-	*firewallv1alpha1.RouteRule
+	*firewallv1beta1.RouteRule
 }
 
 // GetName returns the name of the rule.

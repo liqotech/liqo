@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	basePath = "/apis/metrics.liqo.io/v1alpha1"
+	basePath = "/apis/metrics.liqo.io/v1beta1"
 )
 
 var (
@@ -71,8 +71,8 @@ func health(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	list := &metav1.APIResourceList{}
 
 	list.Kind = "APIResourceList"
-	list.GroupVersion = "metrics.liqo.io/v1alpha1"
-	list.APIVersion = "v1alpha1"
+	list.GroupVersion = "metrics.liqo.io/v1beta1"
+	list.APIVersion = "v1beta1"
 	list.APIResources = []metav1.APIResource{
 		{
 			Name:       "scrape/metrics",
@@ -95,13 +95,13 @@ func getAPIGroup() *metav1.APIGroup {
 		},
 		Name: "metrics.liqo.io",
 		PreferredVersion: metav1.GroupVersionForDiscovery{
-			GroupVersion: "metrics.liqo.io/v1alpha1",
-			Version:      "v1alpha1",
+			GroupVersion: "metrics.liqo.io/v1beta1",
+			Version:      "v1beta1",
 		},
 		Versions: []metav1.GroupVersionForDiscovery{
 			{
-				GroupVersion: "metrics.liqo.io/v1alpha1",
-				Version:      "v1alpha1",
+				GroupVersion: "metrics.liqo.io/v1beta1",
+				Version:      "v1beta1",
 			},
 		},
 		ServerAddressByClientCIDRs: []metav1.ServerAddressByClientCIDR{

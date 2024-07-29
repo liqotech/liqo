@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 )
 
@@ -58,7 +58,7 @@ func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme,
 // Reconcile manage InternalFabrics.
 func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	internalfabric := &networkingv1alpha1.InternalFabric{}
+	internalfabric := &networkingv1beta1.InternalFabric{}
 	if err = r.Get(ctx, req.NamespacedName, internalfabric); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no internalfabric %s", req.String())
@@ -67,7 +67,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalfabric %q: %w", req.NamespacedName, err)
 	}
 
-	internalnode := &networkingv1alpha1.InternalNode{}
+	internalnode := &networkingv1beta1.InternalNode{}
 	if err = r.Get(ctx, types.NamespacedName{Name: r.Options.NodeName}, internalnode); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalnode %q: %w", r.Options.NodeName, err)
 	}
@@ -126,6 +126,6 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 // SetupWithManager register the InternalFabricReconciler to the manager.
 func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.InternalFabric{}).
+		For(&networkingv1beta1.InternalFabric{}).
 		Complete(r)
 }

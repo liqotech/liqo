@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 )
 
@@ -53,7 +53,7 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, opts *Optio
 
 // Reconcile manage Configuration lifecycle.
 func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
-	cfg := &networkingv1alpha1.Configuration{}
+	cfg := &networkingv1beta1.Configuration{}
 	if err = r.Get(ctx, req.NamespacedName, cfg); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("Configuration %q not found", req.NamespacedName)
@@ -89,6 +89,6 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.Configuration{}, builder.WithPredicates(p)).
+		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(p)).
 		Complete(r)
 }

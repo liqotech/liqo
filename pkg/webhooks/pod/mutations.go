@@ -20,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 )
@@ -36,10 +36,10 @@ func getVirtualNodeToleration() corev1.Toleration {
 
 // createTolerationFromNamespaceOffloading creates a new virtualNodeToleration in case of LocalAndRemotePodOffloadingStrategyType
 // or RemotePodOffloadingStrategyType. In case of PodOffloadingStrategyType not recognized, returns an error.
-func createTolerationFromNamespaceOffloading(strategy offv1alpha1.PodOffloadingStrategyType) (corev1.Toleration, error) {
+func createTolerationFromNamespaceOffloading(strategy offloadingv1beta1.PodOffloadingStrategyType) (corev1.Toleration, error) {
 	var toleration corev1.Toleration
 	switch {
-	case strategy == offv1alpha1.LocalAndRemotePodOffloadingStrategyType, strategy == offv1alpha1.RemotePodOffloadingStrategyType:
+	case strategy == offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType, strategy == offloadingv1beta1.RemotePodOffloadingStrategyType:
 		// The virtual-node toleration must be added.
 		toleration = getVirtualNodeToleration()
 	default:
@@ -51,10 +51,10 @@ func createTolerationFromNamespaceOffloading(strategy offv1alpha1.PodOffloadingS
 }
 
 // createNodeSelectorFromNamespaceOffloading creates the right NodeSelector according to the PodOffloadingStrategy chosen.
-func createNodeSelectorFromNamespaceOffloading(nsoff *offv1alpha1.NamespaceOffloading) (*corev1.NodeSelector, error) {
+func createNodeSelectorFromNamespaceOffloading(nsoff *offloadingv1beta1.NamespaceOffloading) (*corev1.NodeSelector, error) {
 	nodeSelector := nsoff.Spec.ClusterSelector
 	switch {
-	case nsoff.Spec.PodOffloadingStrategy == offv1alpha1.RemotePodOffloadingStrategyType:
+	case nsoff.Spec.PodOffloadingStrategy == offloadingv1beta1.RemotePodOffloadingStrategyType:
 		// To ensure that the pod is not scheduled on local nodes is necessary to add to every NodeSelectorTerm a
 		// new NodeSelectorRequirement. This NodeSelectorRequirement requires explicitly the label
 		// "liqo.io/type=virtual-node" to exclude local nodes from the scheduler choice.
@@ -71,7 +71,7 @@ func createNodeSelectorFromNamespaceOffloading(nsoff *offv1alpha1.NamespaceOfflo
 				})
 		}
 
-	case nsoff.Spec.PodOffloadingStrategy == offv1alpha1.LocalAndRemotePodOffloadingStrategyType:
+	case nsoff.Spec.PodOffloadingStrategy == offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType:
 		// In case the selector is empty, it is not necessary to modify anything, as it already allows pods to be scheduled on all nodes.
 		if len(nodeSelector.NodeSelectorTerms) == 0 {
 			return nil, nil
@@ -130,13 +130,13 @@ func fillPodWithTheNewNodeSelector(imposedNodeSelector *corev1.NodeSelector, pod
 // chosen in the CR. Two possible modifications:
 // - The VirtualNodeToleration is added to the Pod Toleration if necessary.
 // - The old Pod NodeSelector is substituted with a new one according to the PodOffloadingStrategyType.
-func mutatePod(namespaceOffloading *offv1alpha1.NamespaceOffloading, pod *corev1.Pod, addVirtualNodeToleration bool) error {
+func mutatePod(namespaceOffloading *offloadingv1beta1.NamespaceOffloading, pod *corev1.Pod, addVirtualNodeToleration bool) error {
 	// The NamespaceOffloading CR contains information about the PodOffloadingStrategy and
 	// the NodeSelector inserted by the user (ClusterSelector field).
 	klog.V(5).Infof("Chosen strategy: %s", namespaceOffloading.Spec.PodOffloadingStrategy)
 
 	// If strategy is equal to LocalPodOffloadingStrategy there is nothing to do
-	if namespaceOffloading.Spec.PodOffloadingStrategy == offv1alpha1.LocalPodOffloadingStrategyType {
+	if namespaceOffloading.Spec.PodOffloadingStrategy == offloadingv1beta1.LocalPodOffloadingStrategyType {
 		return nil
 	}
 

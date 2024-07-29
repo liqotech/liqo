@@ -32,9 +32,9 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -49,15 +49,15 @@ var _ = Describe("Handler tests", func() {
 		ctx    context.Context
 		cancel context.CancelFunc
 
-		localCluster  liqov1alpha1.ClusterID
-		remoteCluster liqov1alpha1.ClusterID
+		localCluster  liqov1beta1.ClusterID
+		remoteCluster liqov1beta1.ClusterID
 
 		gvr       schema.GroupVersionResource
 		ownership consts.OwnershipType
 
 		reflector                 Reflector
 		local, remote             dynamic.Interface
-		localBefore, remoteBefore offloadingv1alpha1.NamespaceMap
+		localBefore, remoteBefore offloadingv1beta1.NamespaceMap
 
 		key item
 		err error
@@ -74,19 +74,19 @@ var _ = Describe("Handler tests", func() {
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
-		gvr = offloadingv1alpha1.NamespaceMapGroupVersionResource
+		gvr = offloadingv1beta1.NamespaceMapGroupVersionResource
 		ownership = consts.OwnershipLocal
 
 		// Fill with fake data, to avoid issues if not overwritten later with real parameters
-		localBefore = offloadingv1alpha1.NamespaceMap{
-			TypeMeta:   metav1.TypeMeta{APIVersion: offloadingv1alpha1.SchemeGroupVersion.String(), Kind: "NamespaceMap"},
+		localBefore = offloadingv1beta1.NamespaceMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: offloadingv1beta1.SchemeGroupVersion.String(), Kind: "NamespaceMap"},
 			ObjectMeta: metav1.ObjectMeta{Name: "not-existing", Namespace: "not-existing"}}
-		remoteBefore = offloadingv1alpha1.NamespaceMap{
-			TypeMeta:   metav1.TypeMeta{APIVersion: offloadingv1alpha1.SchemeGroupVersion.String(), Kind: "NamespaceMap"},
+		remoteBefore = offloadingv1beta1.NamespaceMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: offloadingv1beta1.SchemeGroupVersion.String(), Kind: "NamespaceMap"},
 			ObjectMeta: metav1.ObjectMeta{Name: "not-existing", Namespace: "not-existing"}}
 
-		localCluster = liqov1alpha1.ClusterID("local-cluster-id")
-		remoteCluster = liqov1alpha1.ClusterID("remote-cluster-id")
+		localCluster = liqov1beta1.ClusterID("local-cluster-id")
+		remoteCluster = liqov1beta1.ClusterID("remote-cluster-id")
 	})
 
 	AfterEach(func() { cancel() })
@@ -150,7 +150,7 @@ var _ = Describe("Handler tests", func() {
 
 	When("the local object is being deleted", func() {
 		const name = "existing"
-		var localAfter offloadingv1alpha1.NamespaceMap
+		var localAfter offloadingv1beta1.NamespaceMap
 
 		BeforeEach(func() {
 			localBefore.ObjectMeta = metav1.ObjectMeta{
@@ -202,7 +202,7 @@ var _ = Describe("Handler tests", func() {
 
 	When("the local object does exist", func() {
 		const name = "existing"
-		var localAfter, remoteAfter offloadingv1alpha1.NamespaceMap
+		var localAfter, remoteAfter offloadingv1beta1.NamespaceMap
 
 		BeforeEach(func() {
 			localBefore.ObjectMeta = metav1.ObjectMeta{
@@ -213,9 +213,9 @@ var _ = Describe("Handler tests", func() {
 					consts.LocalResourceOwnership:      "tester",
 					"foo":                              "bar"},
 			}
-			localBefore.Spec = offloadingv1alpha1.NamespaceMapSpec{DesiredMapping: map[string]string{"foo": "bar"}}
-			localBefore.Status = offloadingv1alpha1.NamespaceMapStatus{
-				CurrentMapping: map[string]offloadingv1alpha1.RemoteNamespaceStatus{"foo": {RemoteNamespace: "bar"}}}
+			localBefore.Spec = offloadingv1beta1.NamespaceMapSpec{DesiredMapping: map[string]string{"foo": "bar"}}
+			localBefore.Status = offloadingv1beta1.NamespaceMapStatus{
+				CurrentMapping: map[string]offloadingv1beta1.RemoteNamespaceStatus{"foo": {RemoteNamespace: "bar"}}}
 			key = Item(name)
 		})
 
@@ -279,11 +279,11 @@ var _ = Describe("Handler tests", func() {
 		When("the remote object already exists", func() {
 			BeforeEach(func() {
 				remoteBefore.ObjectMeta = metav1.ObjectMeta{Name: name, Namespace: remoteNamespace}
-				localBefore.Spec = offloadingv1alpha1.NamespaceMapSpec{
+				localBefore.Spec = offloadingv1beta1.NamespaceMapSpec{
 					DesiredMapping: map[string]string{"something": "wrong"},
 				}
-				localBefore.Status = offloadingv1alpha1.NamespaceMapStatus{
-					CurrentMapping: map[string]offloadingv1alpha1.RemoteNamespaceStatus{"something": {RemoteNamespace: "wrong"}}}
+				localBefore.Status = offloadingv1beta1.NamespaceMapStatus{
+					CurrentMapping: map[string]offloadingv1beta1.RemoteNamespaceStatus{"something": {RemoteNamespace: "wrong"}}}
 			})
 
 			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
