@@ -257,7 +257,6 @@ e2e-dir:
 e2e-infra:
 	${PWD}/test/e2e/pipeline/infra/${INFRA}/pre-requirements.sh
 	${PWD}/test/e2e/pipeline/infra/${INFRA}/clean.sh
-	${PWD}/test/e2e/pipeline/infra/${INFRA}/setup.sh
 
 installer/%:
 	${PWD}/test/e2e/pipeline/$@.sh

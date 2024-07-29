@@ -72,9 +72,15 @@ do
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi
+  
   if [[ "${INFRA}" == "k3s" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
   fi
+
+  if [[ "${INFRA}" == "gke" ]]; then
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
+  fi
+
   if [[ "${INFRA}" == "cluster-api" ]]; then
     LIQO_PROVIDER="kubeadm"
     COMMON_ARGS=("${COMMON_ARGS[@]}")
