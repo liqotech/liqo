@@ -34,6 +34,10 @@ SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # shellcheck source=./utils.sh
 source "${SCRIPT_DIR}/../../utils.sh"
 
+# shellcheck disable=SC1091
+# shellcheck source=../gke/const.sh
+source "${SCRIPT_DIR}/../../infra/gke/const.sh"
+
 setup_arch_and_os
 install_helm "${OS}" "${ARCH}"
 
@@ -60,27 +64,32 @@ export SERVICE_CIDR=10.100.0.0/16
 export POD_CIDR=10.200.0.0/16
 export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
 
+RUNNER_NAME=${RUNNER_NAME:-"test"}
+BASE_CLUSTER_NAME="${RUNNER_NAME}-cluster"
+
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
   CLUSTER_LABELS="$(get_cluster_labels "${i}")"
+  CLUSTER_NAME="${BASE_CLUSTER_NAME}${i}"
+  
   if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
 		# this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
-  COMMON_ARGS=(--cluster-id "cluster-${i}" --local-chart-path ./deployments/liqo
+
+  COMMON_ARGS=(--cluster-id "${CLUSTER_NAME}" --local-chart-path ./deployments/liqo
     --version "${LIQO_VERSION}" --set metrics.enabled=true)
   if [[ "${CLUSTER_LABELS}" != "" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
   fi
+  
   if [[ "${INFRA}" == "k3s" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
   fi
+
   if [[ "${INFRA}" == "eks" ]]; then
-    CLUSTER_NAME=cluster
-    RUNNER_NAME=${RUNNER_NAME:-"test"}
-    CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}"
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --eks-cluster-region="eu-central-1" --eks-cluster-name="${CLUSTER_NAME}${i}")
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --eks-cluster-region="eu-central-1" --eks-cluster-name="${CLUSTER_NAME}")
     # do not fail if variables are not set
     set +u
     if [[ "${LIQO_AWS_USERNAME}" != "" ]]; then
@@ -91,12 +100,16 @@ do
     fi
     set -u
   fi
+  
   if [[ "${INFRA}" == "aks" ]]; then
     AKS_RESOURCE_GROUP="liqo${i}"
-    RUNNER_NAME=${RUNNER_NAME:-"test"}
-    AKS_CLUSTER_NAME="${RUNNER_NAME}-cluster${i}"
-    COMMON_ARGS=("${COMMON_ARGS[@]}" --subscription-id "${AZ_SUBSCRIPTION_ID}" --resource-group-name "${AKS_RESOURCE_GROUP}" --resource-name "${AKS_CLUSTER_NAME}")
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --subscription-id "${AZ_SUBSCRIPTION_ID}" --resource-group-name "${AKS_RESOURCE_GROUP}" --resource-name "${CLUSTER_NAME}")
   fi
+
+  if [[ "${INFRA}" == "gke" ]]; then
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --project-id "${GCLOUD_PROJECT_ID}" --zone "${GKE_ZONES[$i-1]}" --credentials-path "${GCLOUD_KEY_FILE}")
+  fi
+
   if [[ "${INFRA}" == "cluster-api" ]]; then
     LIQO_PROVIDER="kubeadm"
     COMMON_ARGS=("${COMMON_ARGS[@]}")
