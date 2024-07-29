@@ -24,9 +24,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -55,7 +55,7 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 		ip.Labels[consts.IPCategoryTargetKey] = consts.IPCategoryTargetValueMapping
 		ip.Labels[consts.IPTypeLabelKey] = consts.IPTypeAPIServer
 
-		ip.Spec.IP = networkingv1alpha1.IP(k8sSvc.Spec.ClusterIP)
+		ip.Spec.IP = networkingv1beta1.IP(k8sSvc.Spec.ClusterIP)
 
 		return nil
 	}); err != nil {
@@ -67,7 +67,7 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 
 // MapAddress maps the address with the network configuration of the cluster.
 func MapAddress(ctx context.Context, cl client.Client,
-	clusterID liqov1alpha1.ClusterID, address string) (string, error) {
+	clusterID liqov1beta1.ClusterID, address string) (string, error) {
 	cfg, err := getters.GetConfigurationByClusterID(ctx, cl, clusterID)
 	if err != nil {
 		return "", err
@@ -77,7 +77,7 @@ func MapAddress(ctx context.Context, cl client.Client,
 }
 
 // MapAddressWithConfiguration maps the address with the network configuration of the cluster.
-func MapAddressWithConfiguration(cfg *networkingv1alpha1.Configuration, address string) (string, error) {
+func MapAddressWithConfiguration(cfg *networkingv1beta1.Configuration, address string) (string, error) {
 	var (
 		podnet, podnetMapped, extnet, extnetMapped *net.IPNet
 		podNetMaskLen, extNetMaskLen               int

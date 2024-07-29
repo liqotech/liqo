@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
@@ -41,7 +41,7 @@ func (o *Options) Run(ctx context.Context) error {
 	defer cancel()
 
 	s := o.Printer.StartSpinner(fmt.Sprintf("Disabling namespace offloading for %q", o.Namespace))
-	nsoff := &offloadingv1alpha1.NamespaceOffloading{ObjectMeta: metav1.ObjectMeta{
+	nsoff := &offloadingv1beta1.NamespaceOffloading{ObjectMeta: metav1.ObjectMeta{
 		Name: consts.DefaultNamespaceOffloadingName, Namespace: o.Namespace}}
 	if err := o.CRClient.Delete(ctx, nsoff); client.IgnoreNotFound(err) != nil {
 		s.Fail(fmt.Sprintf("Failed disabling namespace offloading: %v", err))

@@ -20,14 +20,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // DeleteAllForeignClusters deletes all ForeignCluster resources.
 func DeleteAllForeignClusters(ctx context.Context, client dynamic.Interface) error {
-	r1 := client.Resource(liqov1alpha1.ForeignClusterGroupVersionResource)
+	r1 := client.Resource(liqov1beta1.ForeignClusterGroupVersionResource)
 	err := r1.DeleteCollection(ctx,
 		metav1.DeleteOptions{TypeMeta: metav1.TypeMeta{}}, metav1.ListOptions{TypeMeta: metav1.TypeMeta{}})
 	return err
@@ -35,7 +35,7 @@ func DeleteAllForeignClusters(ctx context.Context, client dynamic.Interface) err
 
 // DeleteInternalNodes deletes all InternalNode resources.
 func DeleteInternalNodes(ctx context.Context, client dynamic.Interface) error {
-	r1 := client.Resource(networkingv1alpha1.InternalNodeGroupVersionResource)
+	r1 := client.Resource(networkingv1beta1.InternalNodeGroupVersionResource)
 	unstructured, err := r1.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err

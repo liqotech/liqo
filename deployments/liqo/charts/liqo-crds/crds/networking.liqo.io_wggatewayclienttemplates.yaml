@@ -19,7 +19,7 @@ spec:
     singular: wggatewayclienttemplate
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: WgGatewayClientTemplate contains a template for a wireguard gateway

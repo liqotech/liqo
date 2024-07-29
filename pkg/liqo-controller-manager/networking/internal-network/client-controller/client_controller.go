@@ -26,8 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
@@ -57,7 +57,7 @@ func NewClientReconciler(cl client.Client, s *runtime.Scheme) *ClientReconciler 
 
 // Reconcile manage GatewayClient lifecycle.
 func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
-	gwClient := &networkingv1alpha1.GatewayClient{}
+	gwClient := &networkingv1beta1.GatewayClient{}
 	if err = r.Get(ctx, req.NamespacedName, gwClient); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("Gateway client %q not found", req.NamespacedName)
@@ -93,8 +93,8 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	return ctrl.Result{}, nil
 }
 
-func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *networkingv1alpha1.GatewayClient,
-	configuration *networkingv1alpha1.Configuration, remoteClusterID liqov1alpha1.ClusterID, ipam *fabricipam.IPAM) error {
+func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *networkingv1beta1.GatewayClient,
+	configuration *networkingv1beta1.Configuration, remoteClusterID liqov1beta1.ClusterID, ipam *fabricipam.IPAM) error {
 	if configuration.Status.Remote == nil {
 		return fmt.Errorf("remote configuration not found for the gateway client %q", gwClient.Name)
 	}
@@ -102,7 +102,7 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 		return fmt.Errorf("internal endpoint not found for the gateway client %q", gwClient.Name)
 	}
 
-	internalFabric := &networkingv1alpha1.InternalFabric{
+	internalFabric := &networkingv1beta1.InternalFabric{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gwClient.Name,
 			Namespace: gwClient.Namespace,
@@ -126,9 +126,9 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 		if err != nil {
 			return err
 		}
-		internalFabric.Spec.Interface.Gateway.IP = networkingv1alpha1.IP(ip.String())
+		internalFabric.Spec.Interface.Gateway.IP = networkingv1beta1.IP(ip.String())
 
-		internalFabric.Spec.RemoteCIDRs = []networkingv1alpha1.CIDR{
+		internalFabric.Spec.RemoteCIDRs = []networkingv1beta1.CIDR{
 			configuration.Status.Remote.CIDR.Pod,
 			configuration.Status.Remote.CIDR.External,
 		}
@@ -144,7 +144,7 @@ func (r *ClientReconciler) ensureInternalFabric(ctx context.Context, gwClient *n
 // SetupWithManager register the ClientReconciler to the manager.
 func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		Owns(&networkingv1alpha1.InternalFabric{}).
-		For(&networkingv1alpha1.GatewayClient{}).
+		Owns(&networkingv1beta1.InternalFabric{}).
+		For(&networkingv1beta1.GatewayClient{}).
 		Complete(r)
 }

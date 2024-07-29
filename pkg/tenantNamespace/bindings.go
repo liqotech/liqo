@@ -25,13 +25,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // add the bindings for the remote clusterid for the given ClusterRoles
 // This method creates RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID,
+func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster liqov1beta1.ClusterID,
 	owner metav1.Object, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error) {
 	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
@@ -52,7 +52,7 @@ func (nm *tenantNamespaceManager) BindClusterRoles(ctx context.Context, cluster 
 
 // remove the bindings for the remote clusterid for the given ClusterRoles
 // This method deletes RoleBindings in the Tenant Namespace for a remote identity.
-func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster liqov1alpha1.ClusterID, clusterRoles ...string) error {
+func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluster liqov1beta1.ClusterID, clusterRoles ...string) error {
 	namespace, err := nm.GetNamespace(ctx, cluster)
 	if err != nil {
 		klog.Error(err)
@@ -69,7 +69,7 @@ func (nm *tenantNamespaceManager) UnbindClusterRoles(ctx context.Context, cluste
 }
 
 // create a RoleBinding for the given clusterid in the given Namespace.
-func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster liqov1alpha1.ClusterID,
+func (nm *tenantNamespaceManager) bindClusterRole(ctx context.Context, cluster liqov1beta1.ClusterID,
 	owner metav1.Object, namespace *v1.Namespace, clusterRole *rbacv1.ClusterRole) (*rbacv1.RoleBinding, error) {
 	name := getRoleBindingName(clusterRole.Name)
 
@@ -119,12 +119,12 @@ func getRoleBindingName(clusterRoleName string) string {
 	return roleBindingRoot + "-" + clusterRoleName
 }
 
-func getClusterRoleBindingName(clusterRoleName string, cluster liqov1alpha1.ClusterID) string {
+func getClusterRoleBindingName(clusterRoleName string, cluster liqov1beta1.ClusterID) string {
 	return roleBindingRoot + "-" + clusterRoleName + "-" + string(cluster)
 }
 
 // BindClusterRolesClusterWide creates ClusterRoleBindings for the given ClusterRoles.
-func (nm *tenantNamespaceManager) BindClusterRolesClusterWide(ctx context.Context, cluster liqov1alpha1.ClusterID,
+func (nm *tenantNamespaceManager) BindClusterRolesClusterWide(ctx context.Context, cluster liqov1beta1.ClusterID,
 	owner metav1.Object, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.ClusterRoleBinding, error) {
 	var err error
 	bindings := make([]*rbacv1.ClusterRoleBinding, len(clusterRoles))
@@ -138,7 +138,7 @@ func (nm *tenantNamespaceManager) BindClusterRolesClusterWide(ctx context.Contex
 	return bindings, nil
 }
 
-func (nm *tenantNamespaceManager) bindClusterRoleClusterWide(ctx context.Context, cluster liqov1alpha1.ClusterID,
+func (nm *tenantNamespaceManager) bindClusterRoleClusterWide(ctx context.Context, cluster liqov1beta1.ClusterID,
 	owner metav1.Object, clusterRole *rbacv1.ClusterRole) (*rbacv1.ClusterRoleBinding, error) {
 	name := getClusterRoleBindingName(clusterRole.Name, cluster)
 
@@ -178,7 +178,7 @@ func (nm *tenantNamespaceManager) bindClusterRoleClusterWide(ctx context.Context
 }
 
 // UnbindClusterRolesClusterWide deletes ClusterRoleBindings for the given ClusterRoles.
-func (nm *tenantNamespaceManager) UnbindClusterRolesClusterWide(ctx context.Context, cluster liqov1alpha1.ClusterID,
+func (nm *tenantNamespaceManager) UnbindClusterRolesClusterWide(ctx context.Context, cluster liqov1beta1.ClusterID,
 	clusterRoles ...string) error {
 	for _, clusterRole := range clusterRoles {
 		if err := nm.unbindClusterRoleClusterWide(ctx, clusterRole, cluster); err != nil {
@@ -190,7 +190,7 @@ func (nm *tenantNamespaceManager) UnbindClusterRolesClusterWide(ctx context.Cont
 }
 
 func (nm *tenantNamespaceManager) unbindClusterRoleClusterWide(ctx context.Context, clusterRole string,
-	cluster liqov1alpha1.ClusterID) error {
+	cluster liqov1beta1.ClusterID) error {
 	name := getClusterRoleBindingName(clusterRole, cluster)
 	return client.IgnoreNotFound(nm.client.RbacV1().ClusterRoleBindings().Delete(ctx, name, metav1.DeleteOptions{}))
 }

@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/rest"
@@ -62,7 +62,7 @@ func (o *Options) handleDelete(ctx context.Context) error {
 	opts := o.deleteOptions
 	s := opts.Printer.StartSpinner("Deleting GatewayServer")
 
-	gatewayServer := &networkingv1alpha1.GatewayServer{
+	gatewayServer := &networkingv1beta1.GatewayServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      opts.Name,
 			Namespace: opts.Namespace,

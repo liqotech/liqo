@@ -23,20 +23,20 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	timeutils "github.com/liqotech/liqo/pkg/utils/time"
 )
 
 // UpdateConnectionStatus updates the status of a connection.
-func UpdateConnectionStatus(ctx context.Context, cl client.Client, opts *Options, connection *networkingv1alpha1.Connection,
-	value networkingv1alpha1.ConnectionStatusValue, latency time.Duration, timestamp time.Time) error {
+func UpdateConnectionStatus(ctx context.Context, cl client.Client, opts *Options, connection *networkingv1beta1.Connection,
+	value networkingv1beta1.ConnectionStatusValue, latency time.Duration, timestamp time.Time) error {
 	if connection.Status.Value != value ||
 		timestamp.Sub(connection.Status.Latency.Timestamp.Time) > opts.PingUpdateStatusInterval {
 		if connection.Status.Value != value {
 			klog.Infof("changing connection %q status to %q",
 				client.ObjectKeyFromObject(connection).String(), value)
 		}
-		connection.Status.Latency = networkingv1alpha1.ConnectionLatency{
+		connection.Status.Latency = networkingv1beta1.ConnectionLatency{
 			Value:     timeutils.FormatLatency(latency),
 			Timestamp: metav1.NewTime(timestamp),
 		}

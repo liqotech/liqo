@@ -32,9 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -60,47 +60,47 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 		fakeClientBuilder *fake.ClientBuilder
 		fakeClient        client.WithWatch
 
-		testShadowEps *offloadingv1alpha1.ShadowEndpointSlice
+		testShadowEps *offloadingv1beta1.ShadowEndpointSlice
 		testEps       *discoveryv1.EndpointSlice
-		testFc        *liqov1alpha1.ForeignCluster
-		testConf      *networkingv1alpha1.Configuration
+		testFc        *liqov1beta1.ForeignCluster
+		testConf      *networkingv1beta1.Configuration
 
-		newFc = func(networkReady, apiServerReady bool) *liqov1alpha1.ForeignCluster {
-			networkStatus := liqov1alpha1.ConditionStatusEstablished
+		newFc = func(networkReady, apiServerReady bool) *liqov1beta1.ForeignCluster {
+			networkStatus := liqov1beta1.ConditionStatusEstablished
 			if !networkReady {
-				networkStatus = liqov1alpha1.ConditionStatusError
+				networkStatus = liqov1beta1.ConditionStatusError
 			}
 
-			apiServerStatus := liqov1alpha1.ConditionStatusEstablished
+			apiServerStatus := liqov1beta1.ConditionStatusEstablished
 			if !apiServerReady {
-				apiServerStatus = liqov1alpha1.ConditionStatusError
+				apiServerStatus = liqov1beta1.ConditionStatusError
 			}
 
-			return &liqov1alpha1.ForeignCluster{
+			return &liqov1beta1.ForeignCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: testFcID,
 					Labels: map[string]string{
 						consts.RemoteClusterID: testFcID,
 					},
 				},
-				Spec: liqov1alpha1.ForeignClusterSpec{
-					ClusterID: liqov1alpha1.ClusterID(testFcID),
+				Spec: liqov1beta1.ForeignClusterSpec{
+					ClusterID: liqov1beta1.ClusterID(testFcID),
 				},
-				Status: liqov1alpha1.ForeignClusterStatus{
-					Modules: liqov1alpha1.Modules{
-						Networking: liqov1alpha1.Module{
+				Status: liqov1beta1.ForeignClusterStatus{
+					Modules: liqov1beta1.Modules{
+						Networking: liqov1beta1.Module{
 							Enabled: true,
-							Conditions: []liqov1alpha1.Condition{
+							Conditions: []liqov1beta1.Condition{
 								{
-									Type:   liqov1alpha1.NetworkConnectionStatusCondition,
+									Type:   liqov1beta1.NetworkConnectionStatusCondition,
 									Status: networkStatus,
 								},
 							},
 						},
 					},
-					Conditions: []liqov1alpha1.Condition{
+					Conditions: []liqov1beta1.Condition{
 						{
-							Type:   liqov1alpha1.APIServerStatusCondition,
+							Type:   liqov1beta1.APIServerStatusCondition,
 							Status: apiServerStatus,
 						},
 					},
@@ -108,13 +108,13 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			}
 		}
 
-		newShadowEps = func(endpointsReady bool) *offloadingv1alpha1.ShadowEndpointSlice {
+		newShadowEps = func(endpointsReady bool) *offloadingv1beta1.ShadowEndpointSlice {
 			ready := ptr.To(true)
 			if !endpointsReady {
 				ready = ptr.To(false)
 			}
 
-			return &offloadingv1alpha1.ShadowEndpointSlice{
+			return &offloadingv1beta1.ShadowEndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      shadowEpsName,
 					Namespace: shadowEpsNamespace,
@@ -127,8 +127,8 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 						"annotation1-key": "annotation1-value",
 					},
 				},
-				Spec: offloadingv1alpha1.ShadowEndpointSliceSpec{
-					Template: offloadingv1alpha1.EndpointSliceTemplate{
+				Spec: offloadingv1beta1.ShadowEndpointSliceSpec{
+					Template: offloadingv1beta1.EndpointSliceTemplate{
 						Endpoints: []discoveryv1.Endpoint{{
 							NodeName: ptr.To(testFcID),
 							Conditions: discoveryv1.EndpointConditions{
@@ -167,8 +167,8 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 
 		}
 
-		newConfiguration = func(remapped bool) *networkingv1alpha1.Configuration {
-			var remappedPodCIDR, remappedExternalCIDR networkingv1alpha1.CIDR
+		newConfiguration = func(remapped bool) *networkingv1beta1.Configuration {
+			var remappedPodCIDR, remappedExternalCIDR networkingv1beta1.CIDR
 			if remapped {
 				remappedPodCIDR = "10.30.0.0/16"
 				remappedExternalCIDR = "10.40.0.0/16"
@@ -177,7 +177,7 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 				remappedExternalCIDR = "10.20.0.0/16"
 			}
 
-			return &networkingv1alpha1.Configuration{
+			return &networkingv1beta1.Configuration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test",
 					Namespace: "default",
@@ -185,17 +185,17 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 						consts.RemoteClusterID: testFcID,
 					},
 				},
-				Spec: networkingv1alpha1.ConfigurationSpec{
-					Remote: networkingv1alpha1.ClusterConfig{
-						CIDR: networkingv1alpha1.ClusterConfigCIDR{
+				Spec: networkingv1beta1.ConfigurationSpec{
+					Remote: networkingv1beta1.ClusterConfig{
+						CIDR: networkingv1beta1.ClusterConfigCIDR{
 							Pod:      "10.10.0.0/16",
 							External: "10.20.0.0/16",
 						},
 					},
 				},
-				Status: networkingv1alpha1.ConfigurationStatus{
-					Remote: &networkingv1alpha1.ClusterConfig{
-						CIDR: networkingv1alpha1.ClusterConfigCIDR{
+				Status: networkingv1beta1.ConfigurationStatus{
+					Remote: &networkingv1beta1.ClusterConfig{
+						CIDR: networkingv1beta1.ClusterConfigCIDR{
 							Pod:      remappedPodCIDR,
 							External: remappedExternalCIDR,
 						},

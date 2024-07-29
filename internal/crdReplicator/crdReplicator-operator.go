@@ -33,8 +33,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -51,7 +51,7 @@ const (
 type Controller struct {
 	Scheme *runtime.Scheme
 	client.Client
-	ClusterID liqov1alpha1.ClusterID
+	ClusterID liqov1beta1.ClusterID
 
 	// RegisteredResources is a list of GVRs of resources to be replicated.
 	RegisteredResources []resources.Resource
@@ -59,7 +59,7 @@ type Controller struct {
 	// ReflectionManager is the object managing the reflection towards remote clusters.
 	ReflectionManager *reflection.Manager
 	// Reflectors is a map containing the reflectors towards each remote cluster.
-	Reflectors map[liqov1alpha1.ClusterID]*reflection.Reflector
+	Reflectors map[liqov1beta1.ClusterID]*reflection.Reflector
 
 	// IdentityReader is an interface to manage remote identities, and to get the rest config.
 	IdentityReader identitymanager.IdentityReader
@@ -99,7 +99,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	}
 
 	// Extract remote cluster informations from the secret
-	remoteClusterID := liqov1alpha1.ClusterID(secret.Labels[consts.RemoteClusterID])
+	remoteClusterID := liqov1beta1.ClusterID(secret.Labels[consts.RemoteClusterID])
 	localTenantNamespace := secret.Namespace
 	remoteTenantNamespace := secret.Annotations[consts.RemoteTenantNamespaceAnnotKey]
 
@@ -183,7 +183,7 @@ func (c *Controller) controlPlaneIdentitySecretLabelSelector() metav1.LabelSelec
 			{
 				Key:      consts.IdentityTypeLabelKey,
 				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{string(authv1alpha1.ControlPlaneIdentityType)},
+				Values:   []string{string(authv1beta1.ControlPlaneIdentityType)},
 			},
 		},
 	}
@@ -196,7 +196,7 @@ func (c *Controller) validateSecret(secret *corev1.Secret) error {
 		return fmt.Errorf("secret %q does not have the required labels and annotations", nsName)
 	}
 
-	if idType, ok := secret.Labels[consts.IdentityTypeLabelKey]; ok && idType != string(authv1alpha1.ControlPlaneIdentityType) {
+	if idType, ok := secret.Labels[consts.IdentityTypeLabelKey]; ok && idType != string(authv1beta1.ControlPlaneIdentityType) {
 		return fmt.Errorf("secret %q does not contain a control plane identity", nsName)
 	}
 
@@ -223,7 +223,7 @@ func (c *Controller) ensureFinalizer(ctx context.Context, secret *corev1.Secret,
 }
 
 func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config *rest.Config,
-	remoteClusterID liqov1alpha1.ClusterID, localNamespace, remoteNamespace string) error {
+	remoteClusterID liqov1beta1.ClusterID, localNamespace, remoteNamespace string) error {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		klog.Errorf("%sUnable to create dynamic client for remote cluster: %v", remoteClusterID, err)
@@ -236,7 +236,7 @@ func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config
 	return nil
 }
 
-func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID, deleting bool) error {
+func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, deleting bool) error {
 	reflector, found := c.Reflectors[remoteClusterID]
 	if !found {
 		// The reflector object has not yet been setup

@@ -19,32 +19,32 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 )
 
 // ActivateTenants sets the TenantCondition of all Tenants to Active.
 func ActivateTenants(ctx context.Context, cl client.Client) error {
-	return modifyTenants(ctx, cl, func(tenant *authv1alpha1.Tenant) {
-		tenant.Spec.TenantCondition = authv1alpha1.TenantConditionActive
+	return modifyTenants(ctx, cl, func(tenant *authv1beta1.Tenant) {
+		tenant.Spec.TenantCondition = authv1beta1.TenantConditionActive
 	})
 }
 
 // CordonTenants sets the TenantCondition of all Tenants to Cordoned.
 func CordonTenants(ctx context.Context, cl client.Client) error {
-	return modifyTenants(ctx, cl, func(tenant *authv1alpha1.Tenant) {
-		tenant.Spec.TenantCondition = authv1alpha1.TenantConditionCordoned
+	return modifyTenants(ctx, cl, func(tenant *authv1beta1.Tenant) {
+		tenant.Spec.TenantCondition = authv1beta1.TenantConditionCordoned
 	})
 }
 
 // DrainTenants sets the TenantCondition of all Tenants to Drained.
 func DrainTenants(ctx context.Context, cl client.Client) error {
-	return modifyTenants(ctx, cl, func(tenant *authv1alpha1.Tenant) {
-		tenant.Spec.TenantCondition = authv1alpha1.TenantConditionDrained
+	return modifyTenants(ctx, cl, func(tenant *authv1beta1.Tenant) {
+		tenant.Spec.TenantCondition = authv1beta1.TenantConditionDrained
 	})
 }
 
-func modifyTenants(ctx context.Context, cl client.Client, mutation func(*authv1alpha1.Tenant)) error {
-	var tenants authv1alpha1.TenantList
+func modifyTenants(ctx context.Context, cl client.Client, mutation func(*authv1beta1.Tenant)) error {
+	var tenants authv1beta1.TenantList
 	if err := cl.List(ctx, &tenants); err != nil {
 		return err
 	}

@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
@@ -71,7 +71,7 @@ func NewWgGatewayClientReconciler(cl client.Client, s *runtime.Scheme,
 
 // Reconcile manage WgGatewayClient lifecycle.
 func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
-	wgClient := &networkingv1alpha1.WgGatewayClient{}
+	wgClient := &networkingv1beta1.WgGatewayClient{}
 	if err = r.Get(ctx, req.NamespacedName, wgClient); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("WireGuard gateway client %q not found", req.NamespacedName)
@@ -159,7 +159,7 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 // SetupWithManager register the WgGatewayClientReconciler to the manager.
 func (r *WgGatewayClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.WgGatewayClient{}).
+		For(&networkingv1beta1.WgGatewayClient{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ServiceAccount{}).
 		Watches(&rbacv1.ClusterRoleBinding{},
@@ -170,7 +170,7 @@ func (r *WgGatewayClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *WgGatewayClientReconciler) ensureDeployment(ctx context.Context, wgClient *networkingv1alpha1.WgGatewayClient,
+func (r *WgGatewayClientReconciler) ensureDeployment(ctx context.Context, wgClient *networkingv1beta1.WgGatewayClient,
 	depNsName types.NamespacedName) (*appsv1.Deployment, error) {
 	dep := appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{
 		Name:      depNsName.Name,
@@ -189,7 +189,7 @@ func (r *WgGatewayClientReconciler) ensureDeployment(ctx context.Context, wgClie
 	return &dep, nil
 }
 
-func (r *WgGatewayClientReconciler) mutateFnWgClientDeployment(deployment *appsv1.Deployment, wgClient *networkingv1alpha1.WgGatewayClient) error {
+func (r *WgGatewayClientReconciler) mutateFnWgClientDeployment(deployment *appsv1.Deployment, wgClient *networkingv1beta1.WgGatewayClient) error {
 	// Forge metadata
 	mapsutil.SmartMergeLabels(deployment, wgClient.Spec.Deployment.Metadata.GetLabels())
 	mapsutil.SmartMergeAnnotations(deployment, wgClient.Spec.Deployment.Metadata.GetAnnotations())
@@ -201,7 +201,7 @@ func (r *WgGatewayClientReconciler) mutateFnWgClientDeployment(deployment *appsv
 	return controllerutil.SetControllerReference(wgClient, deployment, r.Scheme)
 }
 
-func (r *WgGatewayClientReconciler) handleSecretRefStatus(ctx context.Context, wgClient *networkingv1alpha1.WgGatewayClient) error {
+func (r *WgGatewayClientReconciler) handleSecretRefStatus(ctx context.Context, wgClient *networkingv1beta1.WgGatewayClient) error {
 	secret, err := getWireGuardSecret(ctx, r.Client, wgClient)
 	if err != nil {
 		return err
@@ -222,7 +222,7 @@ func (r *WgGatewayClientReconciler) handleSecretRefStatus(ctx context.Context, w
 }
 
 func (r *WgGatewayClientReconciler) handleInternalEndpointStatus(ctx context.Context,
-	wgClient *networkingv1alpha1.WgGatewayClient, dep *appsv1.Deployment) error {
+	wgClient *networkingv1beta1.WgGatewayClient, dep *appsv1.Deployment) error {
 	podsFromDepSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)}
 	var podList corev1.PodList
 	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
@@ -250,8 +250,8 @@ func (r *WgGatewayClientReconciler) handleInternalEndpointStatus(ctx context.Con
 		return err
 	}
 
-	wgClient.Status.InternalEndpoint = &networkingv1alpha1.InternalGatewayEndpoint{
-		IP:   ptr.To(networkingv1alpha1.IP(podList.Items[0].Status.PodIP)),
+	wgClient.Status.InternalEndpoint = &networkingv1beta1.InternalGatewayEndpoint{
+		IP:   ptr.To(networkingv1beta1.IP(podList.Items[0].Status.PodIP)),
 		Node: &podList.Items[0].Spec.NodeName,
 	}
 	return nil

@@ -20,11 +20,11 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // EnsureRoutesPresence ensures the presence of the given routes.
-func EnsureRoutesPresence(routes []networkingv1alpha1.Route, tableID uint32) error {
+func EnsureRoutesPresence(routes []networkingv1beta1.Route, tableID uint32) error {
 	for i := range routes {
 		route, err := forgeNetlinkRoute(&routes[i], tableID)
 		if err != nil {
@@ -50,7 +50,7 @@ func EnsureRoutesPresence(routes []networkingv1alpha1.Route, tableID uint32) err
 }
 
 // EnsureRoutesAbsence ensures the absence of the given routes.
-func EnsureRoutesAbsence(routes []networkingv1alpha1.Route, tableID uint32) error {
+func EnsureRoutesAbsence(routes []networkingv1beta1.Route, tableID uint32) error {
 	for i := range routes {
 		if routes[i].Dst == nil {
 			continue
@@ -77,7 +77,7 @@ func EnsureRoutesAbsence(routes []networkingv1alpha1.Route, tableID uint32) erro
 }
 
 // ExistsRoute checks if the given route is already present in the route list.
-func ExistsRoute(route *networkingv1alpha1.Route, tableID uint32) (*netlink.Route, bool, error) {
+func ExistsRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink.Route, bool, error) {
 	_, dst, err := net.ParseCIDR(route.Dst.String())
 	if err != nil {
 		return nil, false, err
@@ -123,7 +123,7 @@ func IsEqualRoute(route1, route2 *netlink.Route) bool {
 }
 
 // CleanRoutes cleans the routes that are not contained in the given route list.
-func CleanRoutes(routes []networkingv1alpha1.Route, tableID uint32) error {
+func CleanRoutes(routes []networkingv1beta1.Route, tableID uint32) error {
 	existingrules, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{Table: int(tableID)}, netlink.RT_FILTER_TABLE)
 	if err != nil {
 		return err
@@ -139,7 +139,7 @@ func CleanRoutes(routes []networkingv1alpha1.Route, tableID uint32) error {
 }
 
 // IsContainedRoute checks if the given route is contained in the route list.
-func IsContainedRoute(route *netlink.Route, routes []networkingv1alpha1.Route) bool {
+func IsContainedRoute(route *netlink.Route, routes []networkingv1beta1.Route) bool {
 	for i := range routes {
 		r, err := forgeNetlinkRoute(&routes[i], uint32(route.Table))
 		if err != nil {
@@ -152,7 +152,7 @@ func IsContainedRoute(route *netlink.Route, routes []networkingv1alpha1.Route) b
 	return false
 }
 
-func forgeNetlinkRoute(route *networkingv1alpha1.Route, tableID uint32) (*netlink.Route, error) {
+func forgeNetlinkRoute(route *networkingv1beta1.Route, tableID uint32) (*netlink.Route, error) {
 	var flags int
 	var err error
 	var dst *net.IPNet
@@ -189,15 +189,15 @@ func forgeNetlinkRoute(route *networkingv1alpha1.Route, tableID uint32) (*netlin
 
 	if route.Scope != nil {
 		switch *route.Scope {
-		case networkingv1alpha1.GlobalScope:
+		case networkingv1beta1.GlobalScope:
 			scope = netlink.SCOPE_UNIVERSE
-		case networkingv1alpha1.LinkScope:
+		case networkingv1beta1.LinkScope:
 			scope = netlink.SCOPE_LINK
-		case networkingv1alpha1.HostScope:
+		case networkingv1beta1.HostScope:
 			scope = netlink.SCOPE_HOST
-		case networkingv1alpha1.SiteScope:
+		case networkingv1beta1.SiteScope:
 			scope = netlink.SCOPE_SITE
-		case networkingv1alpha1.NowhereScope:
+		case networkingv1beta1.NowhereScope:
 			scope = netlink.SCOPE_NOWHERE
 		default:
 		}

@@ -21,7 +21,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 )
@@ -47,13 +47,13 @@ func (o *Options) RunActivateTenant(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
-	var tenant authv1alpha1.Tenant
+	var tenant authv1beta1.Tenant
 	if err := o.CRClient.Get(ctx, client.ObjectKey{Name: o.Name}, &tenant); err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to get tenant: %v", output.PrettyErr(err)))
 		return err
 	}
 
-	tenant.Spec.TenantCondition = authv1alpha1.TenantConditionActive
+	tenant.Spec.TenantCondition = authv1beta1.TenantConditionActive
 	if err := o.CRClient.Update(ctx, &tenant); err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to update tenant: %v", output.PrettyErr(err)))
 		return err

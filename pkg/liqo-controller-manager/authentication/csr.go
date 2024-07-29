@@ -25,8 +25,8 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 )
 
 // CSRChecker is a function that checks a CSR.
@@ -34,12 +34,12 @@ type CSRChecker func(*x509.CertificateRequest) error
 
 // GenerateCSRForResourceSlice generates a new CSR given a private key and a resource slice.
 func GenerateCSRForResourceSlice(key ed25519.PrivateKey,
-	resourceSlice *authv1alpha1.ResourceSlice) (csrBytes []byte, err error) {
+	resourceSlice *authv1beta1.ResourceSlice) (csrBytes []byte, err error) {
 	return generateCSR(key, CommonNameResourceSliceCSR(resourceSlice), OrganizationResourceSliceCSR(resourceSlice))
 }
 
 // CommonNameResourceSliceCSR returns the common name for a resource slice CSR.
-func CommonNameResourceSliceCSR(resourceSlice *authv1alpha1.ResourceSlice) string {
+func CommonNameResourceSliceCSR(resourceSlice *authv1beta1.ResourceSlice) string {
 	// hash the clusterID and take the first 6 chars
 	// to avoid too long common names
 	// this is not a security measure, just a way to keep the common name short
@@ -59,17 +59,17 @@ func CommonNameResourceSliceCSR(resourceSlice *authv1alpha1.ResourceSlice) strin
 }
 
 // OrganizationResourceSliceCSR returns the organization for a resource slice CSR.
-func OrganizationResourceSliceCSR(resourceSlice *authv1alpha1.ResourceSlice) string {
+func OrganizationResourceSliceCSR(resourceSlice *authv1beta1.ResourceSlice) string {
 	return string(*resourceSlice.Spec.ConsumerClusterID)
 }
 
 // GenerateCSRForControlPlane generates a new CSR given a private key and a subject.
-func GenerateCSRForControlPlane(key ed25519.PrivateKey, clusterID liqov1alpha1.ClusterID) (csrBytes []byte, err error) {
+func GenerateCSRForControlPlane(key ed25519.PrivateKey, clusterID liqov1beta1.ClusterID) (csrBytes []byte, err error) {
 	return generateCSR(key, CommonNameControlPlaneCSR(clusterID), OrganizationControlPlaneCSR())
 }
 
 // CommonNameControlPlaneCSR returns the common name for a control plane CSR.
-func CommonNameControlPlaneCSR(clusterID liqov1alpha1.ClusterID) string {
+func CommonNameControlPlaneCSR(clusterID liqov1beta1.ClusterID) string {
 	return string(clusterID)
 }
 
@@ -89,7 +89,7 @@ func IsControlPlaneUser(groups []string) bool {
 }
 
 // CheckCSRForControlPlane checks a CSR for a control plane.
-func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1alpha1.ClusterID) error {
+func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1beta1.ClusterID) error {
 	return checkCSR(csr, publicKey,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameControlPlaneCSR(remoteClusterID) {
@@ -106,7 +106,7 @@ func CheckCSRForControlPlane(csr, publicKey []byte, remoteClusterID liqov1alpha1
 }
 
 // CheckCSRForResourceSlice checks a CSR for a resource slice.
-func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1alpha1.ResourceSlice) error {
+func CheckCSRForResourceSlice(publicKey []byte, resourceSlice *authv1beta1.ResourceSlice) error {
 	return checkCSR(resourceSlice.Spec.CSR, publicKey,
 		func(x509Csr *x509.CertificateRequest) error {
 			if x509Csr.Subject.CommonName != CommonNameResourceSliceCSR(resourceSlice) {

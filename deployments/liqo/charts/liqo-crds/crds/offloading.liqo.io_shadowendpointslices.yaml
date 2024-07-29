@@ -20,7 +20,7 @@ spec:
     singular: shadowendpointslice
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: ShadowEndpointSlice is the Schema for the ShadowEndpointSlices

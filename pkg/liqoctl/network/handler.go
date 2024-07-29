@@ -22,8 +22,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/getters"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
@@ -294,7 +294,7 @@ func (o *Options) RunDisconnect(ctx context.Context) error {
 	return cluster2.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster1.localClusterID))
 }
 
-func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID liqov1alpha1.ClusterID) *forge.GwServerOptions {
+func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID liqov1beta1.ClusterID) *forge.GwServerOptions {
 	if o.ServerTemplateNamespace == "" {
 		o.ServerTemplateNamespace = o.RemoteFactory.LiqoNamespace
 	}
@@ -313,8 +313,8 @@ func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, 
 	}
 }
 
-func (o *Options) newGatewayClientForgeOptions(kubeClient kubernetes.Interface, remoteClusterID liqov1alpha1.ClusterID,
-	serverEndpoint *networkingv1alpha1.EndpointStatus) *forge.GwClientOptions {
+func (o *Options) newGatewayClientForgeOptions(kubeClient kubernetes.Interface, remoteClusterID liqov1beta1.ClusterID,
+	serverEndpoint *networkingv1beta1.EndpointStatus) *forge.GwClientOptions {
 	if o.ClientTemplateNamespace == "" {
 		o.ClientTemplateNamespace = o.LocalFactory.LiqoNamespace
 	}

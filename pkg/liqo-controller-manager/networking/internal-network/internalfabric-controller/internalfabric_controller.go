@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -53,7 +53,7 @@ func NewInternalFabricReconciler(cl client.Client, s *runtime.Scheme) *InternalF
 
 // Reconcile manage InternalFabric lifecycle.
 func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
-	internalFabric := &networkingv1alpha1.InternalFabric{}
+	internalFabric := &networkingv1beta1.InternalFabric{}
 	if err = r.Get(ctx, req.NamespacedName, internalFabric); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("InternalFabric %q not found", req.NamespacedName)
@@ -78,7 +78,7 @@ func (r *InternalFabricReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// geneve tunnel
 
-	var internalNodeList networkingv1alpha1.InternalNodeList
+	var internalNodeList networkingv1beta1.InternalNodeList
 	if err = r.List(ctx, &internalNodeList); err != nil {
 		klog.Errorf("Unable to list InternalNodes: %s", err)
 		return ctrl.Result{}, err
@@ -103,7 +103,7 @@ func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		func(ctx context.Context, _ client.Object) []reconcile.Request {
 			var requests []reconcile.Request
 
-			var internalFabricList networkingv1alpha1.InternalFabricList
+			var internalFabricList networkingv1beta1.InternalFabricList
 			if err := r.List(ctx, &internalFabricList); err != nil {
 				klog.Errorf("Unable to list InternalFabrics: %s", err)
 				return nil
@@ -122,9 +122,9 @@ func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
-		Watches(&networkingv1alpha1.InternalNode{}, internalNodeEnqueuer).
-		Owns(&networkingv1alpha1.RouteConfiguration{}).
-		Owns(&networkingv1alpha1.GeneveTunnel{}).
-		For(&networkingv1alpha1.InternalFabric{}).
+		Watches(&networkingv1beta1.InternalNode{}, internalNodeEnqueuer).
+		Owns(&networkingv1beta1.RouteConfiguration{}).
+		Owns(&networkingv1beta1.GeneveTunnel{}).
+		For(&networkingv1beta1.InternalFabric{}).
 		Complete(r)
 }

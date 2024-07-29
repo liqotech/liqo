@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
@@ -46,12 +46,12 @@ func enforceRoutePodPresence(ctx context.Context, cl client.Client, scheme *runt
 		return "", nil
 	}
 
-	internalnode := &networkingv1alpha1.InternalNode{}
+	internalnode := &networkingv1beta1.InternalNode{}
 	if err := cl.Get(ctx, client.ObjectKey{Name: pod.Spec.NodeName}, internalnode); err != nil {
 		return "", err
 	}
 
-	routecfg := &networkingv1alpha1.RouteConfiguration{
+	routecfg := &networkingv1beta1.RouteConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: generatePodRouteConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
 
@@ -68,7 +68,7 @@ func enforceRoutePodAbsence(ctx context.Context, cl client.Client, opts *Options
 	if nodeName == "" {
 		return fmt.Errorf("unable to get node name from pod %s/%s", pod.GetNamespace(), pod.GetName())
 	}
-	routecfg := networkingv1alpha1.RouteConfiguration{}
+	routecfg := networkingv1beta1.RouteConfiguration{}
 	if err := cl.Get(ctx, client.ObjectKey{Name: generatePodRouteConfigurationName(nodeName), Namespace: opts.Namespace}, &routecfg); err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func enforceRoutePodAbsence(ctx context.Context, cl client.Client, opts *Options
 	return nil
 }
 
-func forgeRoutePodUpdateFunction(internalnode *networkingv1alpha1.InternalNode, routecfg *networkingv1alpha1.RouteConfiguration,
+func forgeRoutePodUpdateFunction(internalnode *networkingv1beta1.InternalNode, routecfg *networkingv1beta1.RouteConfiguration,
 	pod *corev1.Pod, scheme *runtime.Scheme) controllerutil.MutateFn {
 	return func() error {
 		if err := controllerutil.SetOwnerReference(internalnode, routecfg, scheme); err != nil {
@@ -94,8 +94,8 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1alpha1.InternalNode, 
 		routecfg.Spec.Table.Name = pod.Spec.NodeName
 
 		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) < 1 {
-			routecfg.Spec.Table.Rules = make([]networkingv1alpha1.Rule, 1)
-			routecfg.Spec.Table.Rules[0].Dst = ptr.To(networkingv1alpha1.CIDR(
+			routecfg.Spec.Table.Rules = make([]networkingv1beta1.Rule, 1)
+			routecfg.Spec.Table.Rules[0].Dst = ptr.To(networkingv1beta1.CIDR(
 				fmt.Sprintf("%s/32", internalnode.Spec.Interface.Node.IP),
 			))
 		}
@@ -111,7 +111,7 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1alpha1.InternalNode, 
 		}
 
 		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) < 2 {
-			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1alpha1.Rule{})
+			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules, networkingv1beta1.Rule{})
 			routecfg.Spec.Table.Rules[1].Iif = ptr.To(tunnel.TunnelInterfaceName)
 		}
 
@@ -126,14 +126,14 @@ func forgeRoutePodUpdateFunction(internalnode *networkingv1alpha1.InternalNode, 
 }
 
 // forgeRoutePodDeleteFunction removes the pod entries from the route configuration.
-func forgeRoutePodDeleteFunction(pod *corev1.Pod, routecfg *networkingv1alpha1.RouteConfiguration) controllerutil.MutateFn {
+func forgeRoutePodDeleteFunction(pod *corev1.Pod, routecfg *networkingv1beta1.RouteConfiguration) controllerutil.MutateFn {
 	return func() error {
 		if routecfg.Spec.Table.Rules == nil || len(routecfg.Spec.Table.Rules) == 0 {
 			return nil
 		}
 
 		if existingroute, exists := routeContainsPod(pod, &routecfg.Spec.Table.Rules[1]); exists {
-			routecfg.Spec.Table.Rules[1].Routes = slices.DeleteFunc(routecfg.Spec.Table.Rules[1].Routes, func(r networkingv1alpha1.Route) bool {
+			routecfg.Spec.Table.Rules[1].Routes = slices.DeleteFunc(routecfg.Spec.Table.Rules[1].Routes, func(r networkingv1beta1.Route) bool {
 				return r.Dst == existingroute.Dst
 			})
 		}
@@ -142,7 +142,7 @@ func forgeRoutePodDeleteFunction(pod *corev1.Pod, routecfg *networkingv1alpha1.R
 	}
 }
 
-func routeContainsPod(pod *corev1.Pod, rule *networkingv1alpha1.Rule) (*networkingv1alpha1.Route, bool) {
+func routeContainsPod(pod *corev1.Pod, rule *networkingv1beta1.Rule) (*networkingv1beta1.Route, bool) {
 	for i := range rule.Routes {
 		if string(*rule.Routes[i].Dst) == fmt.Sprintf("%s/32", pod.Status.PodIP) {
 			return &rule.Routes[i], true
@@ -157,7 +157,7 @@ func routeContainsPod(pod *corev1.Pod, rule *networkingv1alpha1.Rule) (*networki
 	return nil, false
 }
 
-func routeContainsNode(internalnode *networkingv1alpha1.InternalNode, rule *networkingv1alpha1.Rule) bool {
+func routeContainsNode(internalnode *networkingv1beta1.InternalNode, rule *networkingv1beta1.Rule) bool {
 	for i := range rule.Routes {
 		if rule.Routes[i].Dst.String() == fmt.Sprintf("%s/32", internalnode.Spec.Interface.Node.IP) {
 			return true
@@ -166,9 +166,9 @@ func routeContainsNode(internalnode *networkingv1alpha1.InternalNode, rule *netw
 	return false
 }
 
-func addPodToRoute(pod *corev1.Pod, internalnode *networkingv1alpha1.InternalNode, rule *networkingv1alpha1.Rule) {
-	rule.Routes = append(rule.Routes, networkingv1alpha1.Route{
-		Dst: ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", pod.Status.PodIP))),
+func addPodToRoute(pod *corev1.Pod, internalnode *networkingv1beta1.InternalNode, rule *networkingv1beta1.Rule) {
+	rule.Routes = append(rule.Routes, networkingv1beta1.Route{
+		Dst: ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", pod.Status.PodIP))),
 		Gw:  ptr.To(internalnode.Spec.Interface.Node.IP),
 		TargetRef: &corev1.ObjectReference{
 			Kind:      pod.GetObjectKind().GroupVersionKind().Kind,
@@ -179,17 +179,17 @@ func addPodToRoute(pod *corev1.Pod, internalnode *networkingv1alpha1.InternalNod
 	})
 }
 
-func addNodeToRoute(internlnode *networkingv1alpha1.InternalNode, rule *networkingv1alpha1.Rule) {
-	rule.Routes = []networkingv1alpha1.Route{
+func addNodeToRoute(internlnode *networkingv1beta1.InternalNode, rule *networkingv1beta1.Rule) {
+	rule.Routes = []networkingv1beta1.Route{
 		{
-			Dst:   ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", internlnode.Spec.Interface.Node.IP))),
+			Dst:   ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", internlnode.Spec.Interface.Node.IP))),
 			Dev:   &internlnode.Spec.Interface.Gateway.Name,
-			Scope: ptr.To(networkingv1alpha1.LinkScope),
+			Scope: ptr.To(networkingv1beta1.LinkScope),
 		},
 	}
 }
 
-func updatePodToRoute(pod *corev1.Pod, internalnode *networkingv1alpha1.InternalNode, route *networkingv1alpha1.Route) {
-	route.Dst = ptr.To(networkingv1alpha1.CIDR(fmt.Sprintf("%s/32", pod.Status.PodIP)))
+func updatePodToRoute(pod *corev1.Pod, internalnode *networkingv1beta1.InternalNode, route *networkingv1beta1.Route) {
+	route.Dst = ptr.To(networkingv1beta1.CIDR(fmt.Sprintf("%s/32", pod.Status.PodIP)))
 	route.Gw = ptr.To(internalnode.Spec.Interface.Node.IP)
 }

@@ -31,11 +31,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
@@ -44,11 +44,11 @@ import (
 )
 
 var liqoGroupVersions = []schema.GroupVersion{
-	liqov1alpha1.GroupVersion,
-	offv1alpha1.SchemeGroupVersion,
-	networkingv1alpha1.GroupVersion,
+	liqov1beta1.GroupVersion,
+	offloadingv1beta1.SchemeGroupVersion,
+	networkingv1beta1.GroupVersion,
 	ipamv1alpha1.SchemeGroupVersion,
-	authv1alpha1.GroupVersion,
+	authv1beta1.GroupVersion,
 }
 
 // Options encapsulates the arguments of the uninstall command.

@@ -25,12 +25,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // ParseEndpoint parses an endpoint from a map.
-func ParseEndpoint(endpoint map[string]interface{}) *networkingv1alpha1.EndpointStatus {
-	res := &networkingv1alpha1.EndpointStatus{}
+func ParseEndpoint(endpoint map[string]interface{}) *networkingv1beta1.EndpointStatus {
+	res := &networkingv1beta1.EndpointStatus{}
 	if value, ok := endpoint["addresses"]; ok {
 		res.Addresses = interfaceListToList[string](value.([]interface{}))
 	}
@@ -45,10 +45,10 @@ func ParseEndpoint(endpoint map[string]interface{}) *networkingv1alpha1.Endpoint
 }
 
 // ParseInternalEndpoint parses an internal endpoint from a map.
-func ParseInternalEndpoint(internalEndpoint map[string]interface{}) *networkingv1alpha1.InternalGatewayEndpoint {
-	res := &networkingv1alpha1.InternalGatewayEndpoint{}
+func ParseInternalEndpoint(internalEndpoint map[string]interface{}) *networkingv1beta1.InternalGatewayEndpoint {
+	res := &networkingv1beta1.InternalGatewayEndpoint{}
 	if value, ok := internalEndpoint["ip"]; ok {
-		res.IP = ptr.To(networkingv1alpha1.IP(value.(string)))
+		res.IP = ptr.To(networkingv1beta1.IP(value.(string)))
 	}
 	if value, ok := internalEndpoint["node"]; ok {
 		res.Node = ptr.To(value.(string))

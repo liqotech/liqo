@@ -16,7 +16,7 @@ package ipam
 
 import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -27,7 +27,7 @@ func IsAPIServerIP(ip *ipamv1alpha1.IP) bool {
 }
 
 // GetRemappedIP returns the remapped IP of the given IP resource.
-func GetRemappedIP(ip *ipamv1alpha1.IP) networkingv1alpha1.IP {
+func GetRemappedIP(ip *ipamv1alpha1.IP) networkingv1beta1.IP {
 	for _, ipremapped := range ip.Status.IPMappings {
 		return ipremapped
 	}

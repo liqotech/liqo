@@ -30,10 +30,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/telemetry"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -46,10 +46,10 @@ var scheme = runtime.NewScheme()
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = liqov1alpha1.AddToScheme(scheme)
-	_ = offloadingv1alpha1.AddToScheme(scheme)
+	_ = liqov1beta1.AddToScheme(scheme)
+	_ = offloadingv1beta1.AddToScheme(scheme)
 	_ = ipamv1alpha1.AddToScheme(scheme)
-	_ = authv1alpha1.AddToScheme(scheme)
+	_ = authv1beta1.AddToScheme(scheme)
 }
 
 // cluster-role

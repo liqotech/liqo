@@ -27,14 +27,14 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 )
 
 // EnforceNamespace creates and returns a namespace. If it already exists, it just returns the namespace.
-func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster liqov1alpha1.ClusterID,
+func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, cluster liqov1beta1.ClusterID,
 	name string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -84,10 +84,10 @@ func EnsureNamespacesDeletionWithSelector(ctx context.Context, cl kubernetes.Int
 
 // CreateNamespaceOffloading creates a new NamespaceOffloading resource, with the given parameters.
 func CreateNamespaceOffloading(ctx context.Context, cl client.Client, namespace string,
-	nms offloadingv1alpha1.NamespaceMappingStrategyType, pof offloadingv1alpha1.PodOffloadingStrategyType) error {
-	nsoff := &offloadingv1alpha1.NamespaceOffloading{
+	nms offloadingv1beta1.NamespaceMappingStrategyType, pof offloadingv1beta1.PodOffloadingStrategyType) error {
+	nsoff := &offloadingv1beta1.NamespaceOffloading{
 		ObjectMeta: metav1.ObjectMeta{Name: consts.DefaultNamespaceOffloadingName, Namespace: namespace},
-		Spec: offloadingv1alpha1.NamespaceOffloadingSpec{
+		Spec: offloadingv1beta1.NamespaceOffloadingSpec{
 			NamespaceMappingStrategy: nms, PodOffloadingStrategy: pof,
 			ClusterSelector: corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}}},
 	}
@@ -96,8 +96,8 @@ func CreateNamespaceOffloading(ctx context.Context, cl client.Client, namespace 
 }
 
 // GetNamespaceOffloading returns the NamespaceOffloading resource for the given namespace.
-func GetNamespaceOffloading(ctx context.Context, cl client.Client, namespace string) (*offloadingv1alpha1.NamespaceOffloading, error) {
-	nsoff := &offloadingv1alpha1.NamespaceOffloading{}
+func GetNamespaceOffloading(ctx context.Context, cl client.Client, namespace string) (*offloadingv1beta1.NamespaceOffloading, error) {
+	nsoff := &offloadingv1beta1.NamespaceOffloading{}
 	err := cl.Get(ctx, client.ObjectKey{Name: consts.DefaultNamespaceOffloadingName, Namespace: namespace}, nsoff)
 	return nsoff, err
 }

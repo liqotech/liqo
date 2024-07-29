@@ -21,8 +21,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/resources"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
@@ -39,7 +39,7 @@ func DestringifyArgument(arg string) (key, value string) {
 	return split[0], split[1]
 }
 
-func getDefaultStorageClass(storageClasses []liqov1alpha1.StorageType) liqov1alpha1.StorageType {
+func getDefaultStorageClass(storageClasses []liqov1beta1.StorageType) liqov1beta1.StorageType {
 	for _, storageClass := range storageClasses {
 		if storageClass.Default {
 			return storageClass
@@ -48,7 +48,7 @@ func getDefaultStorageClass(storageClasses []liqov1alpha1.StorageType) liqov1alp
 	return storageClasses[0]
 }
 
-func getDefaultIngressClass(ingressClasses []liqov1alpha1.IngressType) liqov1alpha1.IngressType {
+func getDefaultIngressClass(ingressClasses []liqov1beta1.IngressType) liqov1beta1.IngressType {
 	for _, ingressClass := range ingressClasses {
 		if ingressClass.Default {
 			return ingressClass
@@ -57,7 +57,7 @@ func getDefaultIngressClass(ingressClasses []liqov1alpha1.IngressType) liqov1alp
 	return ingressClasses[0]
 }
 
-func getDefaultLoadBalancerClass(loadBalancerClasses []liqov1alpha1.LoadBalancerType) liqov1alpha1.LoadBalancerType {
+func getDefaultLoadBalancerClass(loadBalancerClasses []liqov1beta1.LoadBalancerType) liqov1beta1.LoadBalancerType {
 	for _, loadBalancerClass := range loadBalancerClasses {
 		if loadBalancerClass.Default {
 			return loadBalancerClass
@@ -67,10 +67,10 @@ func getDefaultLoadBalancerClass(loadBalancerClasses []liqov1alpha1.LoadBalancer
 }
 
 func forgeVKContainers(
-	homeCluster, remoteCluster liqov1alpha1.ClusterID,
+	homeCluster, remoteCluster liqov1beta1.ClusterID,
 	nodeName, vkNamespace, localPodCIDR, liqoNamespace string,
-	storageClasses []liqov1alpha1.StorageType, ingressClasses []liqov1alpha1.IngressType, loadBalancerClasses []liqov1alpha1.LoadBalancerType,
-	opts *offloadingv1alpha1.VkOptionsTemplate) []v1.Container {
+	storageClasses []liqov1beta1.StorageType, ingressClasses []liqov1beta1.IngressType, loadBalancerClasses []liqov1beta1.LoadBalancerType,
+	opts *offloadingv1beta1.VkOptionsTemplate) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
@@ -163,8 +163,8 @@ func forgeVKContainers(
 	}
 }
 
-func forgeVKPodSpec(vkNamespace string, homeCluster liqov1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
-	virtualNode *offloadingv1alpha1.VirtualNode, opts *offloadingv1alpha1.VkOptionsTemplate) v1.PodSpec {
+func forgeVKPodSpec(vkNamespace string, homeCluster liqov1beta1.ClusterID, localPodCIDR, liqoNamespace string,
+	virtualNode *offloadingv1beta1.VirtualNode, opts *offloadingv1beta1.VkOptionsTemplate) v1.PodSpec {
 	return v1.PodSpec{
 		Containers: forgeVKContainers(
 			homeCluster, virtualNode.Spec.ClusterID,
@@ -175,7 +175,7 @@ func forgeVKPodSpec(vkNamespace string, homeCluster liqov1alpha1.ClusterID, loca
 	}
 }
 
-func appendArgsReflectorsWorkers(args []string, reflectorsConfig map[string]offloadingv1alpha1.ReflectorConfig) []string {
+func appendArgsReflectorsWorkers(args []string, reflectorsConfig map[string]offloadingv1beta1.ReflectorConfig) []string {
 	if reflectorsConfig == nil {
 		return args
 	}
@@ -192,7 +192,7 @@ func appendArgsReflectorsWorkers(args []string, reflectorsConfig map[string]offl
 	return args
 }
 
-func appendArgsReflectorsType(args []string, reflectorsConfig map[string]offloadingv1alpha1.ReflectorConfig) []string {
+func appendArgsReflectorsType(args []string, reflectorsConfig map[string]offloadingv1beta1.ReflectorConfig) []string {
 	if reflectorsConfig == nil {
 		return args
 	}

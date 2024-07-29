@@ -24,10 +24,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	utilsvirtualnode "github.com/liqotech/liqo/pkg/utils/virtualnode"
@@ -95,7 +95,7 @@ func Namespaces(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 // OffloadedNamespaces returns a function to autocomplete namespace names (only offloaded ones).
 func OffloadedNamespaces(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var nsoff offloadingv1alpha1.NamespaceOffloadingList
+		var nsoff offloadingv1beta1.NamespaceOffloadingList
 		if err := f.CRClient.List(ctx, &nsoff); err != nil {
 			return nil, err
 		}
@@ -131,7 +131,7 @@ func Nodes(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 // VirtualNodes returns a function to autocomplete virtual node names.
 func VirtualNodes(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var virtualNodes offloadingv1alpha1.VirtualNodeList
+		var virtualNodes offloadingv1beta1.VirtualNodeList
 		if err := f.CRClient.List(ctx, &virtualNodes, client.InNamespace(f.Namespace)); err != nil {
 			return nil, err
 		}
@@ -151,7 +151,7 @@ func LabelsSelector(ctx context.Context, f *factory.Factory, argsLimit int) FnTy
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
 		// labelsCounter contains a 'key=value' string as key and the number of times it appears as value.
 		labelsCounter := map[string]int{}
-		var virtualNodes offloadingv1alpha1.VirtualNodeList
+		var virtualNodes offloadingv1beta1.VirtualNodeList
 		if err := f.CRClient.List(ctx, &virtualNodes); err != nil {
 			return nil, err
 		}
@@ -192,7 +192,7 @@ func parseLabelSelectors(labelset map[string]int, max int) []string {
 // ForeignClusters returns a function to autocomplete ForeignCluster names.
 func ForeignClusters(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var foreignClusters liqov1alpha1.ForeignClusterList
+		var foreignClusters liqov1beta1.ForeignClusterList
 		if err := f.CRClient.List(ctx, &foreignClusters); err != nil {
 			return nil, err
 		}
@@ -230,7 +230,7 @@ func ClusterIDs(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 // Tenants returns a function to autocomplete Tenant names.
 func Tenants(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var tenants authv1alpha1.TenantList
+		var tenants authv1beta1.TenantList
 		if err := f.CRClient.List(ctx, &tenants); err != nil {
 			return nil, err
 		}
@@ -248,7 +248,7 @@ func Tenants(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 // ResourceSlices returns a function to autocomplete ResourceSlice names.
 func ResourceSlices(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var resourceSlices authv1alpha1.ResourceSliceList
+		var resourceSlices authv1beta1.ResourceSliceList
 		if err := f.CRClient.List(ctx, &resourceSlices); err != nil {
 			return nil, err
 		}
@@ -264,7 +264,7 @@ func ResourceSlices(ctx context.Context, f *factory.Factory, argsLimit int) FnTy
 }
 
 // KubeconfigSecretNames returns a function to autocomplete kubeconfig secret names.
-func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit int, namespace string, identityType authv1alpha1.IdentityType) FnType {
+func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit int, namespace string, identityType authv1beta1.IdentityType) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
 		matchingLabels := client.MatchingLabels{
 			consts.IdentityTypeLabelKey: string(identityType),
@@ -288,7 +288,7 @@ func KubeconfigSecretNames(ctx context.Context, f *factory.Factory, argsLimit in
 // ResourceSliceNames returns a function to autocomplete ResourceSlice names.
 func ResourceSliceNames(ctx context.Context, f *factory.Factory, argsLimit int, namespace string) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var resourceSlices authv1alpha1.ResourceSliceList
+		var resourceSlices authv1beta1.ResourceSliceList
 		if err := f.CRClient.List(ctx, &resourceSlices, client.InNamespace(namespace)); err != nil {
 			return nil, err
 		}
@@ -326,7 +326,7 @@ func Gateways(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
 		var names []string
 
-		var gwServers networkingv1alpha1.GatewayServerList
+		var gwServers networkingv1beta1.GatewayServerList
 		if err := f.CRClient.List(ctx, &gwServers, client.InNamespace(f.Namespace)); err != nil {
 			return nil, err
 		}
@@ -334,7 +334,7 @@ func Gateways(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 			names = append(names, gwServers.Items[i].Name)
 		}
 
-		var gwClients networkingv1alpha1.GatewayClientList
+		var gwClients networkingv1beta1.GatewayClientList
 		if err := f.CRClient.List(ctx, &gwClients, client.InNamespace(f.Namespace)); err != nil {
 			return nil, err
 		}
@@ -351,7 +351,7 @@ func Gateways(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 // GatewayServers returns a function to autocomplete GatewayServers names.
 func GatewayServers(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var gwServers networkingv1alpha1.GatewayServerList
+		var gwServers networkingv1beta1.GatewayServerList
 		if err := f.CRClient.List(ctx, &gwServers, client.InNamespace(f.Namespace)); err != nil {
 			return nil, err
 		}
@@ -369,7 +369,7 @@ func GatewayServers(ctx context.Context, f *factory.Factory, argsLimit int) FnTy
 // GatewayClients returns a function to autocomplete GatewayClients names.
 func GatewayClients(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var gwClients networkingv1alpha1.GatewayClientList
+		var gwClients networkingv1beta1.GatewayClientList
 		if err := f.CRClient.List(ctx, &gwClients, client.InNamespace(f.Namespace)); err != nil {
 			return nil, err
 		}
@@ -387,7 +387,7 @@ func GatewayClients(ctx context.Context, f *factory.Factory, argsLimit int) FnTy
 // PublicKeys returns a function to autocomplete PublicKeys names.
 func PublicKeys(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var publicKeys networkingv1alpha1.PublicKeyList
+		var publicKeys networkingv1beta1.PublicKeyList
 		if err := f.CRClient.List(ctx, &publicKeys, client.InNamespace(f.Namespace)); err != nil {
 			return nil, err
 		}
@@ -405,7 +405,7 @@ func PublicKeys(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 // Configurations returns a function to autocomplete Configurations names.
 func Configurations(ctx context.Context, f *factory.Factory, argsLimit int) FnType {
 	retriever := func(ctx context.Context, f *factory.Factory) ([]string, error) {
-		var configurations networkingv1alpha1.ConfigurationList
+		var configurations networkingv1beta1.ConfigurationList
 		if err := f.CRClient.List(ctx, &configurations, client.InNamespace(f.Namespace)); err != nil {
 			return nil, err
 		}

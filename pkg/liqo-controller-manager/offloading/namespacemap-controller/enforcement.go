@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
@@ -39,7 +39,7 @@ import (
 // createNamespace creates a new namespace associated with a NamespaceMap. It returns whether a possible error
 // could be ignored if previously successful or it refers to an hard failure.
 func (r *NamespaceMapReconciler) createNamespace(ctx context.Context, name, originName string,
-	nm *offloadingv1alpha1.NamespaceMap) (ignorable bool, err error) {
+	nm *offloadingv1beta1.NamespaceMap) (ignorable bool, err error) {
 	// The label is guaranteed to exist, since it is part of the filter predicate.
 	origin := nm.Labels[consts.ReplicationOriginLabel]
 	nmID, err := cache.MetaNamespaceKeyFunc(nm)
@@ -109,23 +109,23 @@ func (r *NamespaceMapReconciler) createNamespace(ctx context.Context, name, orig
 
 // For every entry of DesiredMapping create remote Namespace if it has not already being created.
 // ensureNamespacesExistence tries to create all the remote namespaces requested in DesiredMapping (NamespaceMap->Spec->DesiredMapping).
-func (r *NamespaceMapReconciler) ensureNamespacesExistence(ctx context.Context, nm *offloadingv1alpha1.NamespaceMap) error {
+func (r *NamespaceMapReconciler) ensureNamespacesExistence(ctx context.Context, nm *offloadingv1beta1.NamespaceMap) error {
 	var err error
 
 	for originName, destinationName := range nm.Spec.DesiredMapping {
-		phase := offloadingv1alpha1.MappingAccepted
+		phase := offloadingv1beta1.MappingAccepted
 		if ignorable, creationError := r.createNamespace(ctx, destinationName, originName, nm); creationError != nil {
 			// Do not overwrite the phase in case the mapping was already present, and this is marked as a temporary error.
 			previous, found := nm.Status.CurrentMapping[originName]
-			if !ignorable || !found || previous.Phase != offloadingv1alpha1.MappingAccepted {
-				phase = offloadingv1alpha1.MappingCreationLoopBackOff
+			if !ignorable || !found || previous.Phase != offloadingv1beta1.MappingAccepted {
+				phase = offloadingv1beta1.MappingCreationLoopBackOff
 			}
 
 			klog.Errorf("Namespace enforcement failure: %v", creationError)
 			err = creationError
 		}
 
-		nm.Status.CurrentMapping[originName] = offloadingv1alpha1.RemoteNamespaceStatus{RemoteNamespace: destinationName, Phase: phase}
+		nm.Status.CurrentMapping[originName] = offloadingv1beta1.RemoteNamespaceStatus{RemoteNamespace: destinationName, Phase: phase}
 	}
 
 	return err
@@ -163,7 +163,7 @@ func (r *NamespaceMapReconciler) deleteNamespace(ctx context.Context, namespaceN
 
 // If DesiredMapping field has less entries than CurrentMapping, is necessary to remove some remote namespaces.
 // This function checks if remote namespaces requested to be deleted are really deleted.
-func (r *NamespaceMapReconciler) ensureNamespacesDeletion(ctx context.Context, nm *offloadingv1alpha1.NamespaceMap) error {
+func (r *NamespaceMapReconciler) ensureNamespacesDeletion(ctx context.Context, nm *offloadingv1beta1.NamespaceMap) error {
 	nmID, err := cache.MetaNamespaceKeyFunc(nm)
 	utilruntime.Must(err)
 
@@ -180,9 +180,9 @@ func (r *NamespaceMapReconciler) ensureNamespacesDeletion(ctx context.Context, n
 		}
 
 		if existing {
-			nm.Status.CurrentMapping[originName] = offloadingv1alpha1.RemoteNamespaceStatus{
+			nm.Status.CurrentMapping[originName] = offloadingv1beta1.RemoteNamespaceStatus{
 				RemoteNamespace: destinationStatus.RemoteNamespace,
-				Phase:           offloadingv1alpha1.MappingTerminating,
+				Phase:           offloadingv1beta1.MappingTerminating,
 			}
 		} else {
 			delete(nm.Status.CurrentMapping, originName)
@@ -194,9 +194,9 @@ func (r *NamespaceMapReconciler) ensureNamespacesDeletion(ctx context.Context, n
 
 // EnsureNamespaces checks if there are Namespaces that have to be created or deleted, in accordance with DesiredMapping
 // field. It updates also NamespaceOffloading status in according to the remote Namespace Status.
-func (r *NamespaceMapReconciler) EnsureNamespaces(ctx context.Context, nm *offloadingv1alpha1.NamespaceMap) error {
+func (r *NamespaceMapReconciler) EnsureNamespaces(ctx context.Context, nm *offloadingv1beta1.NamespaceMap) error {
 	if nm.Status.CurrentMapping == nil {
-		nm.Status.CurrentMapping = map[string]offloadingv1alpha1.RemoteNamespaceStatus{}
+		nm.Status.CurrentMapping = map[string]offloadingv1beta1.RemoteNamespaceStatus{}
 	}
 
 	errorCreationPhase := r.ensureNamespacesExistence(ctx, nm)
@@ -220,7 +220,7 @@ func (r *NamespaceMapReconciler) EnsureNamespaces(ctx context.Context, nm *offlo
 
 // NamespaceMapDeletionProcess handles the graceful termination of a NamespaceMap, deleting all namespaces and
 // eventually removing the finalizer.
-func (r *NamespaceMapReconciler) NamespaceMapDeletionProcess(ctx context.Context, nm *offloadingv1alpha1.NamespaceMap) error {
+func (r *NamespaceMapReconciler) NamespaceMapDeletionProcess(ctx context.Context, nm *offloadingv1beta1.NamespaceMap) error {
 	errorDeletionPhase := r.ensureNamespacesDeletion(ctx, nm)
 
 	// Regardless of the outcome, update the status of the NamespaceMap, as part of the namespaces might have changed.

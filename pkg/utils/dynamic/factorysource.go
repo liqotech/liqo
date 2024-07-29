@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // NewFactorySource returns a new FactorySource.
@@ -66,7 +66,7 @@ type factoryEventHandler struct {
 func (h *factoryEventHandler) OnAdd(obj interface{}, _ bool) {
 	unstructObj := obj.(*unstructured.Unstructured)
 	h.C <- event.GenericEvent{
-		Object: &networkingv1alpha1.GatewayServer{
+		Object: &networkingv1beta1.GatewayServer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            unstructObj.GetName(),
 				Namespace:       unstructObj.GetNamespace(),
@@ -82,7 +82,7 @@ func (h *factoryEventHandler) OnAdd(obj interface{}, _ bool) {
 func (h *factoryEventHandler) OnUpdate(_, newObj interface{}) {
 	unstructObj := newObj.(*unstructured.Unstructured)
 	h.C <- event.GenericEvent{
-		Object: &networkingv1alpha1.GatewayServer{
+		Object: &networkingv1beta1.GatewayServer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            unstructObj.GetName(),
 				Namespace:       unstructObj.GetNamespace(),
@@ -98,7 +98,7 @@ func (h *factoryEventHandler) OnUpdate(_, newObj interface{}) {
 func (h *factoryEventHandler) OnDelete(obj interface{}) {
 	unstructObj := obj.(*unstructured.Unstructured)
 	h.C <- event.GenericEvent{
-		Object: &networkingv1alpha1.GatewayServer{
+		Object: &networkingv1beta1.GatewayServer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            unstructObj.GetName(),
 				Namespace:       unstructObj.GetNamespace(),

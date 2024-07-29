@@ -18,19 +18,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 // GetNamespaceOffloading gets the right NamespaceOffloading according to the specified strategy.
-func GetNamespaceOffloading(strategy offv1alpha1.PodOffloadingStrategyType) offv1alpha1.NamespaceOffloading {
-	return offv1alpha1.NamespaceOffloading{
+func GetNamespaceOffloading(strategy offloadingv1beta1.PodOffloadingStrategyType) offloadingv1beta1.NamespaceOffloading {
+	return offloadingv1beta1.NamespaceOffloading{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "offloading",
 			Namespace: "test",
 		},
-		Spec: offv1alpha1.NamespaceOffloadingSpec{
-			NamespaceMappingStrategy: offv1alpha1.EnforceSameNameMappingStrategyType,
+		Spec: offloadingv1beta1.NamespaceOffloadingSpec{
+			NamespaceMappingStrategy: offloadingv1beta1.EnforceSameNameMappingStrategyType,
 			PodOffloadingStrategy:    strategy,
 			ClusterSelector:          GetImposedNodeSelector(""),
 		},
@@ -38,10 +38,10 @@ func GetNamespaceOffloading(strategy offv1alpha1.PodOffloadingStrategyType) offv
 }
 
 // GetImposedNodeSelector gets the right imposedSelector according to the specified strategy.
-func GetImposedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) corev1.NodeSelector {
+func GetImposedNodeSelector(strategy offloadingv1beta1.PodOffloadingStrategyType) corev1.NodeSelector {
 	var nodeSelector corev1.NodeSelector
 	switch {
-	case strategy == offv1alpha1.RemotePodOffloadingStrategyType:
+	case strategy == offloadingv1beta1.RemotePodOffloadingStrategyType:
 		nodeSelector = corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{
 			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
@@ -80,7 +80,7 @@ func GetImposedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) core
 				},
 			},
 		}}
-	case strategy == offv1alpha1.LocalAndRemotePodOffloadingStrategyType:
+	case strategy == offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType:
 		nodeSelector = corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{
 			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
@@ -175,10 +175,10 @@ func GetPodNodeSelector() corev1.NodeSelector {
 }
 
 // GetMergedNodeSelector gets the right mergedNodeSelector according to the specified strategy.
-func GetMergedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) corev1.NodeSelector {
+func GetMergedNodeSelector(strategy offloadingv1beta1.PodOffloadingStrategyType) corev1.NodeSelector {
 	var mergedNodeSelector corev1.NodeSelector
 	switch {
-	case strategy == offv1alpha1.RemotePodOffloadingStrategyType:
+	case strategy == offloadingv1beta1.RemotePodOffloadingStrategyType:
 		mergedNodeSelector = corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{
 			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
@@ -271,7 +271,7 @@ func GetMergedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) corev
 				},
 			},
 		}}
-	case strategy == offv1alpha1.LocalAndRemotePodOffloadingStrategyType:
+	case strategy == offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType:
 		mergedNodeSelector = corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{
 			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{

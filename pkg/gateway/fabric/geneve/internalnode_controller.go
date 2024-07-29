@@ -27,7 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 )
@@ -60,7 +60,7 @@ func NewInternalNodeReconciler(cl client.Client, s *runtime.Scheme,
 // Reconcile manage InternalNodes.
 func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	internalnode := &networkingv1alpha1.InternalNode{}
+	internalnode := &networkingv1beta1.InternalNode{}
 	if err = r.Get(ctx, req.NamespacedName, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no internalnode %s", req.String())
@@ -78,13 +78,13 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("unable to get the geneve tunnel id: %w", err)
 	}
 
-	internalFabric := &networkingv1alpha1.InternalFabric{}
+	internalFabric := &networkingv1beta1.InternalFabric{}
 	if err = r.Get(ctx, types.NamespacedName{
 		Name: internalFabricName, Namespace: r.Options.GwOptions.Namespace}, internalFabric); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to get the internalfabric %q: %w", internalFabricName, err)
 	}
 
-	var remoteIP *networkingv1alpha1.IP
+	var remoteIP *networkingv1beta1.IP
 	switch {
 	case r.Options.GwOptions.NodeName == internalnode.Name:
 		remoteIP = internalnode.Status.NodeIP.Local
@@ -116,6 +116,6 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 // SetupWithManager register the InternalNodeReconciler to the manager.
 func (r *InternalNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.InternalNode{}).
+		For(&networkingv1beta1.InternalNode{}).
 		Complete(r)
 }

@@ -29,14 +29,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	mapsutil "github.com/liqotech/liqo/pkg/utils/maps"
 )
 
 // EnsureMetrics ensures that the metrics service and service monitor are created or deleted.
 func EnsureMetrics(ctx context.Context,
 	cl client.Client, s *runtime.Scheme,
-	metrics *networkingv1alpha1.Metrics, owner metav1.Object) error {
+	metrics *networkingv1beta1.Metrics, owner metav1.Object) error {
 	if metrics == nil || !metrics.Enabled {
 		if err := deleteMetricsService(ctx, cl, owner); err != nil {
 			klog.Errorf("error while deleting service %q: %v", fmt.Sprintf("%s-metrics", owner.GetName()), err)
@@ -112,7 +112,7 @@ func deleteMetricsServiceMonitor(ctx context.Context,
 
 func createMetricsService(ctx context.Context,
 	cl client.Client, s *runtime.Scheme,
-	metrics *networkingv1alpha1.Metrics, owner metav1.Object) error {
+	metrics *networkingv1beta1.Metrics, owner metav1.Object) error {
 	svc := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-metrics", owner.GetName()),
@@ -135,7 +135,7 @@ func createMetricsService(ctx context.Context,
 
 func createMetricsServiceMonitor(ctx context.Context,
 	cl client.Client, s *runtime.Scheme,
-	metrics *networkingv1alpha1.Metrics, owner metav1.Object) error {
+	metrics *networkingv1beta1.Metrics, owner metav1.Object) error {
 	svcMonitor := monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-metrics", owner.GetName()),

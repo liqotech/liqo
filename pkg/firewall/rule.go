@@ -18,7 +18,7 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/userdata"
 
-	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	firewallutils "github.com/liqotech/liqo/pkg/firewall/utils"
 )
 

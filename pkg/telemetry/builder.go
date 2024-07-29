@@ -24,8 +24,8 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
@@ -71,7 +71,7 @@ func (c *Builder) getProvider() string {
 }
 
 func (c *Builder) getNamespacesInfo(ctx context.Context) []NamespaceInfo {
-	var namespaceOffloadings offloadingv1alpha1.NamespaceOffloadingList
+	var namespaceOffloadings offloadingv1beta1.NamespaceOffloadingList
 	err := c.Client.List(ctx, &namespaceOffloadings)
 	runtime.Must(err)
 
@@ -94,7 +94,7 @@ func (c *Builder) getNamespacesInfo(ctx context.Context) []NamespaceInfo {
 }
 
 func (c *Builder) getNamespaceInfo(ctx context.Context,
-	namespaceOffloading *offloadingv1alpha1.NamespaceOffloading, nodeNameClusterIDMap map[string]string) NamespaceInfo {
+	namespaceOffloading *offloadingv1beta1.NamespaceOffloading, nodeNameClusterIDMap map[string]string) NamespaceInfo {
 	namespaceInfo := NamespaceInfo{
 		UID:                string(namespaceOffloading.GetUID()),
 		MappingStrategy:    namespaceOffloading.Spec.NamespaceMappingStrategy,
@@ -124,7 +124,7 @@ func (c *Builder) getNamespaceInfo(ctx context.Context,
 }
 
 func (c *Builder) getPeeringInfoSlice(ctx context.Context) []PeeringInfo {
-	var foreignClusterList liqov1alpha1.ForeignClusterList
+	var foreignClusterList liqov1beta1.ForeignClusterList
 	err := c.Client.List(ctx, &foreignClusterList)
 	runtime.Must(err)
 
@@ -136,7 +136,7 @@ func (c *Builder) getPeeringInfoSlice(ctx context.Context) []PeeringInfo {
 	return peeringInfoSlice
 }
 
-func getNodesNumber(cl client.Client, fc *liqov1alpha1.ForeignCluster) int {
+func getNodesNumber(cl client.Client, fc *liqov1beta1.ForeignCluster) int {
 	var nodesNumber int
 	nodeList, err := liqogetters.ListNodesByClusterID(context.Background(), cl, fc.Spec.ClusterID)
 	runtime.Must(client.IgnoreNotFound(err))
@@ -148,20 +148,20 @@ func getNodesNumber(cl client.Client, fc *liqov1alpha1.ForeignCluster) int {
 	return nodesNumber
 }
 
-func getVirtualNodesNumber(cl client.Client, fc *liqov1alpha1.ForeignCluster) int {
+func getVirtualNodesNumber(cl client.Client, fc *liqov1beta1.ForeignCluster) int {
 	virtualNodes, err := liqogetters.ListVirtualNodesByClusterID(context.Background(), cl, fc.Spec.ClusterID)
 	runtime.Must(err)
 	return len(virtualNodes)
 }
 
-func getResourceSliceNumber(cl client.Client, fc *liqov1alpha1.ForeignCluster) int {
+func getResourceSliceNumber(cl client.Client, fc *liqov1beta1.ForeignCluster) int {
 	resSlicesList, err := liqogetters.ListResourceSlicesByLabel(context.Background(), cl, corev1.NamespaceAll,
 		liqolabels.LocalLabelSelectorForCluster(string(fc.Spec.ClusterID)))
 	runtime.Must(err)
 	return len(resSlicesList)
 }
 
-func (c *Builder) getPeeringInfo(foreignCluster *liqov1alpha1.ForeignCluster) PeeringInfo {
+func (c *Builder) getPeeringInfo(foreignCluster *liqov1beta1.ForeignCluster) PeeringInfo {
 	var latency time.Duration
 
 	peeringInfo := PeeringInfo{

@@ -17,7 +17,7 @@ package firewallconfiguration
 import (
 	"fmt"
 
-	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
 // ChainError is an error that occurs during the validation of a chain.

@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/client/clientset/versioned/scheme"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/resources"
@@ -59,7 +59,7 @@ var _ = Describe("Shared Resources utility functions", func() {
 		ctx = context.Background()
 		clientBuilder = *fake.NewClientBuilder().WithScheme(scheme.Scheme)
 		clientBuilder.WithObjects(
-			&authv1alpha1.ResourceSlice{
+			&authv1beta1.ResourceSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "sliceLocal",
 					Labels: map[string]string{
@@ -67,8 +67,8 @@ var _ = Describe("Shared Resources utility functions", func() {
 						consts.ReplicationRequestedLabel:   "true",
 					},
 				},
-				Spec: authv1alpha1.ResourceSliceSpec{},
-				Status: authv1alpha1.ResourceSliceStatus{
+				Spec: authv1beta1.ResourceSliceSpec{},
+				Status: authv1beta1.ResourceSliceStatus{
 					Resources: corev1.ResourceList{
 						corev1.ResourceCPU:    *cpuQuantityAcquired,
 						corev1.ResourceMemory: *memQuantityAcquired,
@@ -77,7 +77,7 @@ var _ = Describe("Shared Resources utility functions", func() {
 					},
 				},
 			},
-			&authv1alpha1.ResourceSlice{
+			&authv1beta1.ResourceSlice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "sliceRemote",
 					Labels: map[string]string{
@@ -85,8 +85,8 @@ var _ = Describe("Shared Resources utility functions", func() {
 						consts.ReplicationStatusLabel: "true",
 					},
 				},
-				Spec: authv1alpha1.ResourceSliceSpec{},
-				Status: authv1alpha1.ResourceSliceStatus{
+				Spec: authv1beta1.ResourceSliceSpec{},
+				Status: authv1beta1.ResourceSliceStatus{
 					Resources: corev1.ResourceList{
 						corev1.ResourceCPU:    *cpuQuantityShared,
 						corev1.ResourceMemory: *memQuantityShared,

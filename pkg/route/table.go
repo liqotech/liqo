@@ -24,14 +24,14 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // RTTablesFilename contains path to the file with ID to routing tables IDs mapping in Linux.
 const RTTablesFilename = "/etc/iproute2/rt_tables"
 
 // EnsureTablePresence ensures the presence of the given table.
-func EnsureTablePresence(routeconfiguration *networkingv1alpha1.RouteConfiguration, tableID uint32) error {
+func EnsureTablePresence(routeconfiguration *networkingv1beta1.RouteConfiguration, tableID uint32) error {
 	exists, err := ExistsTableID(tableID)
 	if err != nil {
 		return err

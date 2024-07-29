@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -30,7 +30,7 @@ import (
 )
 
 func deleteResourceSlicesByClusterID(ctx context.Context, f *factory.Factory,
-	remoteClusterID liqov1alpha1.ClusterID, waitForActualDeletion bool) error {
+	remoteClusterID liqov1beta1.ClusterID, waitForActualDeletion bool) error {
 	s := f.Printer.StartSpinner("Deleting resourceslices")
 
 	rsSelector := labels.Set{
@@ -69,7 +69,7 @@ func deleteResourceSlicesByClusterID(ctx context.Context, f *factory.Factory,
 }
 
 func deleteVirtualNodesByClusterID(ctx context.Context, f *factory.Factory,
-	remoteClusterID liqov1alpha1.ClusterID, waitForActualDeletion bool) error {
+	remoteClusterID liqov1beta1.ClusterID, waitForActualDeletion bool) error {
 	s := f.Printer.StartSpinner("Deleting virtualnodes")
 
 	virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, f.CRClient, remoteClusterID)

@@ -25,8 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
 )
@@ -43,7 +43,7 @@ const (
 
 // CreateOrUpdateNatMappingCIDR creates or updates the NAT mapping for a CIDR type.
 func CreateOrUpdateNatMappingCIDR(ctx context.Context, cl client.Client, opts *Options,
-	cfg *networkingv1alpha1.Configuration, scheme *runtime.Scheme, cidrtype CIDRType) error {
+	cfg *networkingv1beta1.Configuration, scheme *runtime.Scheme, cidrtype CIDRType) error {
 	var tableCIDRName string
 	switch cidrtype {
 	case PodCIDR:
@@ -51,7 +51,7 @@ func CreateOrUpdateNatMappingCIDR(ctx context.Context, cl client.Client, opts *O
 	case ExternalCIDR:
 		tableCIDRName = TableExternalCIDRName
 	}
-	fwcfg := &networkingv1alpha1.FirewallConfiguration{
+	fwcfg := &networkingv1beta1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", cfg.Name, tableCIDRName),
 			Namespace: cfg.Namespace,
@@ -72,7 +72,7 @@ func CreateOrUpdateNatMappingCIDR(ctx context.Context, cl client.Client, opts *O
 	return nil
 }
 
-func mutateCIDRFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration, cfg *networkingv1alpha1.Configuration,
+func mutateCIDRFirewallConfiguration(fwcfg *networkingv1beta1.FirewallConfiguration, cfg *networkingv1beta1.Configuration,
 	opts *Options, scheme *runtime.Scheme, cidrtype CIDRType) func() error {
 	return func() error {
 		if cfg.Labels == nil {
@@ -85,8 +85,8 @@ func mutateCIDRFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfigura
 	}
 }
 
-func forgeCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration, opts *Options,
-	cidrtype CIDRType) networkingv1alpha1.FirewallConfigurationSpec {
+func forgeCIDRFirewallConfigurationSpec(cfg *networkingv1beta1.Configuration, opts *Options,
+	cidrtype CIDRType) networkingv1beta1.FirewallConfigurationSpec {
 	var tableCIDRName string
 	switch cidrtype {
 	case PodCIDR:
@@ -95,7 +95,7 @@ func forgeCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration, o
 		tableCIDRName = TableExternalCIDRName
 	}
 
-	return networkingv1alpha1.FirewallConfigurationSpec{
+	return networkingv1beta1.FirewallConfigurationSpec{
 		Table: firewall.Table{
 			Name:   &tableCIDRName,
 			Family: ptr.To(firewall.TableFamilyIPv4),
@@ -107,7 +107,7 @@ func forgeCIDRFirewallConfigurationSpec(cfg *networkingv1alpha1.Configuration, o
 	}
 }
 
-func forgeCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configuration, opts *Options, cidrtype CIDRType) firewall.Chain {
+func forgeCIDRFirewallConfigurationDNATChain(cfg *networkingv1beta1.Configuration, opts *Options, cidrtype CIDRType) firewall.Chain {
 	return firewall.Chain{
 		Name:     &DNATChainName,
 		Policy:   ptr.To(firewall.ChainPolicyAccept),
@@ -120,7 +120,7 @@ func forgeCIDRFirewallConfigurationDNATChain(cfg *networkingv1alpha1.Configurati
 	}
 }
 
-func forgeCIDRFirewallConfigurationSNATChain(cfg *networkingv1alpha1.Configuration,
+func forgeCIDRFirewallConfigurationSNATChain(cfg *networkingv1beta1.Configuration,
 	opts *Options, cidrtype CIDRType) firewall.Chain {
 	return firewall.Chain{
 		Name:     &SNATChainName,
@@ -134,7 +134,7 @@ func forgeCIDRFirewallConfigurationSNATChain(cfg *networkingv1alpha1.Configurati
 	}
 }
 
-func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configuration, opts *Options, cidrtype CIDRType) []firewall.NatRule {
+func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1beta1.Configuration, opts *Options, cidrtype CIDRType) []firewall.NatRule {
 	var remoteCIDR, remoteRemapCIDR string
 	switch cidrtype {
 	case PodCIDR:
@@ -175,7 +175,7 @@ func forgeCIDRFirewallConfigurationDNATRules(cfg *networkingv1alpha1.Configurati
 	}
 }
 
-func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1alpha1.Configuration,
+func forgeCIDRFirewallConfigurationSNATRules(cfg *networkingv1beta1.Configuration,
 	opts *Options, cidrtype CIDRType) []firewall.NatRule {
 	var localCIDR, remoteRemapCIDR string
 	switch cidrtype {

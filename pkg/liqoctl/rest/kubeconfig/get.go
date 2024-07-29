@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -77,7 +77,7 @@ func (o *Options) handleGet(ctx context.Context) error {
 		return err
 	}
 
-	var identity authv1alpha1.Identity
+	var identity authv1beta1.Identity
 	if err := opts.CRClient.Get(ctx, types.NamespacedName{Name: o.identityName, Namespace: namespace.Name}, &identity); err != nil {
 		opts.Printer.CheckErr(fmt.Errorf("unable to get identity: %v", output.PrettyErr(err)))
 		return err

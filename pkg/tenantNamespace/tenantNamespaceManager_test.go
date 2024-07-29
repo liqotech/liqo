@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -86,7 +86,7 @@ var _ = Describe("TenantNamespace", func() {
 		BeforeEach(func() {
 			cnt++
 			clusterPrefix := fmt.Sprintf("test-permission-%v", cnt)
-			homeCluster = liqov1alpha1.ClusterID(clusterPrefix + "-id")
+			homeCluster = liqov1beta1.ClusterID(clusterPrefix + "-id")
 			client = cluster.GetClient()
 
 			cr := &rbacv1.ClusterRole{
@@ -206,7 +206,7 @@ var _ = Describe("TenantNamespace", func() {
 
 })
 
-func checkRoleBinding(rb *rbacv1.RoleBinding, namespace string, homeCluster liqov1alpha1.ClusterID,
+func checkRoleBinding(rb *rbacv1.RoleBinding, namespace string, homeCluster liqov1beta1.ClusterID,
 	clusterRoleName string) {
 	Expect(rb.Namespace).To(Equal(namespace))
 	Expect(len(rb.Subjects)).To(Equal(1))

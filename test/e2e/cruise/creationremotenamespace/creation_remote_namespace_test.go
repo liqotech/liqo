@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
@@ -83,7 +83,7 @@ var _ = Describe("Liqo E2E", func() {
 		It(fmt.Sprintf("Create a namespace inside the cluster '%d', offload it and check if the remote namespaces"+
 			"are created inside all remote clusters", localIndex), func() {
 			namespace := &corev1.Namespace{}
-			namespaceMapsList := &offloadingv1alpha1.NamespaceMapList{}
+			namespaceMapsList := &offloadingv1beta1.NamespaceMapList{}
 
 			By(fmt.Sprintf(" 1 - Creating the local namespace inside the cluster '%d'", localIndex))
 			Eventually(func() error {
@@ -126,7 +126,7 @@ var _ = Describe("Liqo E2E", func() {
 							namespaceMapsList.Items[i].Labels[liqoconst.RemoteClusterID], namespaceName,
 							currentMapping.RemoteNamespace, remoteNamespaceName)
 					}
-					if currentMapping.Phase != offloadingv1alpha1.MappingAccepted {
+					if currentMapping.Phase != offloadingv1beta1.MappingAccepted {
 						return fmt.Errorf(" In the NamespaceMap corresponding to the cluster %q, "+
 							"the CurrentMapping for the namespace %q has the wrong phase: %q",
 							namespaceMapsList.Items[i].Labels[liqoconst.RemoteClusterID], namespaceName,
@@ -176,8 +176,8 @@ var _ = Describe("Liqo E2E", func() {
 
 		It("Unoffload the namespace and check the deletion of the remote namespaces.", func() {
 			namespace := &corev1.Namespace{}
-			namespaceOffloading := &offloadingv1alpha1.NamespaceOffloading{}
-			namespaceMapsList := &offloadingv1alpha1.NamespaceMapList{}
+			namespaceOffloading := &offloadingv1beta1.NamespaceOffloading{}
+			namespaceMapsList := &offloadingv1beta1.NamespaceMapList{}
 
 			By(fmt.Sprintf(" 1 - Unoffloading the namespace inside the cluster %d", localIndex))
 			Expect(util.UnoffloadNamespace(testContext.Clusters[localIndex].KubeconfigPath, namespaceName)).To(Succeed())

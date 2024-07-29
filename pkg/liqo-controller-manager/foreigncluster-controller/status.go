@@ -24,9 +24,9 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/utils"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
@@ -34,19 +34,19 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/pod"
 )
 
-func (r *ForeignClusterReconciler) clearStatusExceptConditions(foreignCluster *liqov1alpha1.ForeignCluster) {
-	foreignCluster.Status = liqov1alpha1.ForeignClusterStatus{
-		Role: liqov1alpha1.UnknownRole,
-		Modules: liqov1alpha1.Modules{
-			Networking: liqov1alpha1.Module{
+func (r *ForeignClusterReconciler) clearStatusExceptConditions(foreignCluster *liqov1beta1.ForeignCluster) {
+	foreignCluster.Status = liqov1beta1.ForeignClusterStatus{
+		Role: liqov1beta1.UnknownRole,
+		Modules: liqov1beta1.Modules{
+			Networking: liqov1beta1.Module{
 				Enabled:    false,
 				Conditions: foreignCluster.Status.Modules.Networking.Conditions,
 			},
-			Authentication: liqov1alpha1.Module{
+			Authentication: liqov1beta1.Module{
 				Enabled:    false,
 				Conditions: foreignCluster.Status.Modules.Authentication.Conditions,
 			},
-			Offloading: liqov1alpha1.Module{
+			Offloading: liqov1beta1.Module{
 				Enabled:    false,
 				Conditions: foreignCluster.Status.Modules.Offloading.Conditions,
 			},
@@ -56,7 +56,7 @@ func (r *ForeignClusterReconciler) clearStatusExceptConditions(foreignCluster *l
 }
 
 func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Context,
-	fc *liqov1alpha1.ForeignCluster, moduleEnabled bool) error {
+	fc *liqov1beta1.ForeignCluster, moduleEnabled bool) error {
 	if !moduleEnabled {
 		clearModule(&fc.Status.Modules.Networking)
 		return nil
@@ -68,24 +68,24 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 	switch {
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("Connection resource not found for ForeignCluster %q", clusterID)
-		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1alpha1.NetworkConnectionStatusCondition)
+		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1beta1.NetworkConnectionStatusCondition)
 	case err != nil:
 		klog.Errorf("an error occurred while getting the Connection resource for the ForeignCluster %q: %s", clusterID, err)
 		return err
 	default:
 		fcutils.EnableModuleNetworking(fc)
 		switch connection.Status.Value {
-		case networkingv1alpha1.Connected:
+		case networkingv1beta1.Connected:
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
-				liqov1alpha1.NetworkConnectionStatusCondition, liqov1alpha1.ConditionStatusEstablished,
+				liqov1beta1.NetworkConnectionStatusCondition, liqov1beta1.ConditionStatusEstablished,
 				connectionEstablishedReason, connectionEstablishedMessage)
-		case networkingv1alpha1.Connecting:
+		case networkingv1beta1.Connecting:
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
-				liqov1alpha1.NetworkConnectionStatusCondition, liqov1alpha1.ConditionStatusPending,
+				liqov1beta1.NetworkConnectionStatusCondition, liqov1beta1.ConditionStatusPending,
 				connectionPendingReason, connectionPendingMessage)
 		default:
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
-				liqov1alpha1.NetworkConnectionStatusCondition, liqov1alpha1.ConditionStatusError,
+				liqov1beta1.NetworkConnectionStatusCondition, liqov1beta1.ConditionStatusError,
 				connectionErrorReason, connectionErrorMessage)
 		}
 	}
@@ -94,7 +94,7 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 	switch {
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("GatewayServer resource not found for ForeignCluster %q", clusterID)
-		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1alpha1.NetworkGatewayServerStatusCondition)
+		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1beta1.NetworkGatewayServerStatusCondition)
 	case err != nil:
 		klog.Errorf("an error occurred while getting the GatewayServer resource for the ForeignCluster %q: %s", clusterID, err)
 		return err
@@ -113,15 +113,15 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 		switch {
 		case gwDeployment.Status.ReadyReplicas == 0:
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
-				liqov1alpha1.NetworkGatewayServerStatusCondition, liqov1alpha1.ConditionStatusNotReady,
+				liqov1beta1.NetworkGatewayServerStatusCondition, liqov1beta1.ConditionStatusNotReady,
 				gatewaysNotReadyReason, gatewaysNotReadyMessage)
 		case gwDeployment.Status.UnavailableReplicas > 0:
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
-				liqov1alpha1.NetworkGatewayServerStatusCondition, liqov1alpha1.ConditionStatusSomeNotReady,
+				liqov1beta1.NetworkGatewayServerStatusCondition, liqov1beta1.ConditionStatusSomeNotReady,
 				gatewaySomeNotReadyReason, gatewaySomeNotReadyMessage)
 		default:
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
-				liqov1alpha1.NetworkGatewayServerStatusCondition, liqov1alpha1.ConditionStatusReady,
+				liqov1beta1.NetworkGatewayServerStatusCondition, liqov1beta1.ConditionStatusReady,
 				gatewaysReadyReason, gatewaysReadyMessage)
 		}
 	}
@@ -130,7 +130,7 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 	switch {
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("GatewayClient resource not found for ForeignCluster %q", clusterID)
-		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1alpha1.NetworkGatewayClientStatusCondition)
+		fcutils.DeleteModuleCondition(&fc.Status.Modules.Networking, liqov1beta1.NetworkGatewayClientStatusCondition)
 	case err != nil:
 		klog.Errorf("an error occurred while getting the GatewayClient resource for the ForeignCluster %q: %s", clusterID, err)
 		return err
@@ -149,15 +149,15 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 		switch {
 		case gwDeployment.Status.ReadyReplicas == 0:
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
-				liqov1alpha1.NetworkGatewayClientStatusCondition, liqov1alpha1.ConditionStatusNotReady,
+				liqov1beta1.NetworkGatewayClientStatusCondition, liqov1beta1.ConditionStatusNotReady,
 				gatewaysNotReadyReason, gatewaysNotReadyMessage)
 		case gwDeployment.Status.UnavailableReplicas > 0:
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
-				liqov1alpha1.NetworkGatewayClientStatusCondition, liqov1alpha1.ConditionStatusSomeNotReady,
+				liqov1beta1.NetworkGatewayClientStatusCondition, liqov1beta1.ConditionStatusSomeNotReady,
 				gatewaySomeNotReadyReason, gatewaySomeNotReadyMessage)
 		default:
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Networking,
-				liqov1alpha1.NetworkGatewayClientStatusCondition, liqov1alpha1.ConditionStatusReady,
+				liqov1beta1.NetworkGatewayClientStatusCondition, liqov1beta1.ConditionStatusReady,
 				gatewaysReadyReason, gatewaysReadyMessage)
 		}
 	}
@@ -166,7 +166,7 @@ func (r *ForeignClusterReconciler) handleNetworkingModuleStatus(ctx context.Cont
 }
 
 func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.Context,
-	fc *liqov1alpha1.ForeignCluster, moduleEnabled bool, consumer, provider *bool) error {
+	fc *liqov1beta1.ForeignCluster, moduleEnabled bool, consumer, provider *bool) error {
 	if !moduleEnabled {
 		clearModule(&fc.Status.Modules.Authentication)
 		return nil
@@ -179,7 +179,7 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 	switch {
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("Tenant resource not found for ForeignCluster %q", clusterID)
-		fcutils.DeleteModuleCondition(&fc.Status.Modules.Authentication, liqov1alpha1.AuthTenantStatusCondition)
+		fcutils.DeleteModuleCondition(&fc.Status.Modules.Authentication, liqov1beta1.AuthTenantStatusCondition)
 	case err != nil:
 		klog.Errorf("an error occurred while getting the Tenant resource for the ForeignCluster %q: %s", clusterID, err)
 		return err
@@ -192,11 +192,11 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 
 		if tenant.Status.AuthParams == nil || tenant.Status.TenantNamespace == "" {
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Authentication,
-				liqov1alpha1.AuthTenantStatusCondition, liqov1alpha1.ConditionStatusNotReady,
+				liqov1beta1.AuthTenantStatusCondition, liqov1beta1.ConditionStatusNotReady,
 				tenantNotReadyReason, tenantNotReadyMessage)
 		} else {
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Authentication,
-				liqov1alpha1.AuthTenantStatusCondition, liqov1alpha1.ConditionStatusReady,
+				liqov1beta1.AuthTenantStatusCondition, liqov1beta1.ConditionStatusReady,
 				tenantReadyReason, tenantReadyMessage)
 		}
 	}
@@ -206,7 +206,7 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 	switch {
 	case errors.IsNotFound(err):
 		klog.V(6).Infof("Identity resource not found for ForeignCluster %q", clusterID)
-		fcutils.DeleteModuleCondition(&fc.Status.Modules.Authentication, liqov1alpha1.AuthIdentityControlPlaneStatusCondition)
+		fcutils.DeleteModuleCondition(&fc.Status.Modules.Authentication, liqov1beta1.AuthIdentityControlPlaneStatusCondition)
 	case err != nil:
 		klog.Errorf("an error occurred while getting the Identity resource for the ForeignCluster %q: %s", clusterID, err)
 		return err
@@ -226,11 +226,11 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 
 		if identity.Status.KubeconfigSecretRef == nil || identity.Status.KubeconfigSecretRef.Name == "" {
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Authentication,
-				liqov1alpha1.AuthIdentityControlPlaneStatusCondition, liqov1alpha1.ConditionStatusNotReady,
+				liqov1beta1.AuthIdentityControlPlaneStatusCondition, liqov1beta1.ConditionStatusNotReady,
 				identityNotReadyReason, identityNotReadyMessage)
 		} else {
 			fcutils.EnsureModuleCondition(&fc.Status.Modules.Authentication,
-				liqov1alpha1.AuthIdentityControlPlaneStatusCondition, liqov1alpha1.ConditionStatusReady,
+				liqov1beta1.AuthIdentityControlPlaneStatusCondition, liqov1beta1.ConditionStatusReady,
 				identityReadyReason, identityReadyMessage)
 		}
 	}
@@ -239,7 +239,7 @@ func (r *ForeignClusterReconciler) handleAuthenticationModuleStatus(ctx context.
 }
 
 func (r *ForeignClusterReconciler) handleOffloadingModuleStatus(ctx context.Context,
-	fc *liqov1alpha1.ForeignCluster, moduleEnabled bool, provider *bool) error {
+	fc *liqov1beta1.ForeignCluster, moduleEnabled bool, provider *bool) error {
 	if !moduleEnabled {
 		clearModule(&fc.Status.Modules.Offloading)
 		return nil
@@ -256,8 +256,8 @@ func (r *ForeignClusterReconciler) handleOffloadingModuleStatus(ctx context.Cont
 
 	if len(virtualNodes) == 0 {
 		klog.V(6).Infof("No VirtualNodes found for ForeignCluster %q", clusterID)
-		fcutils.DeleteModuleCondition(&fc.Status.Modules.Offloading, liqov1alpha1.OffloadingVirtualNodeStatusCondition)
-		fcutils.DeleteModuleCondition(&fc.Status.Modules.Offloading, liqov1alpha1.OffloadingNodeStatusCondition)
+		fcutils.DeleteModuleCondition(&fc.Status.Modules.Offloading, liqov1beta1.OffloadingVirtualNodeStatusCondition)
+		fcutils.DeleteModuleCondition(&fc.Status.Modules.Offloading, liqov1beta1.OffloadingNodeStatusCondition)
 		return nil
 	}
 
@@ -303,42 +303,42 @@ func (r *ForeignClusterReconciler) handleOffloadingModuleStatus(ctx context.Cont
 	switch readyVirtualNodes {
 	case numVirtualNodes:
 		fcutils.EnsureModuleCondition(&fc.Status.Modules.Offloading,
-			liqov1alpha1.OffloadingVirtualNodeStatusCondition, liqov1alpha1.ConditionStatusReady,
+			liqov1beta1.OffloadingVirtualNodeStatusCondition, liqov1beta1.ConditionStatusReady,
 			virtualNodesReadyReason, virtualNodesReadyMessage)
 	case 0:
 		fcutils.EnsureModuleCondition(&fc.Status.Modules.Offloading,
-			liqov1alpha1.OffloadingVirtualNodeStatusCondition, liqov1alpha1.ConditionStatusNotReady,
+			liqov1beta1.OffloadingVirtualNodeStatusCondition, liqov1beta1.ConditionStatusNotReady,
 			virtualNodesNotReadyReason, virtualNodesNotReadyMessage)
 	default:
 		fcutils.EnsureModuleCondition(&fc.Status.Modules.Offloading,
-			liqov1alpha1.OffloadingVirtualNodeStatusCondition, liqov1alpha1.ConditionStatusSomeNotReady,
+			liqov1beta1.OffloadingVirtualNodeStatusCondition, liqov1beta1.ConditionStatusSomeNotReady,
 			virtualNodesSomeNotReadyReason, virtualNodesSomeNotReadyMessage)
 	}
 
 	switch readyNodes {
 	case expectedNodes:
 		fcutils.EnsureModuleCondition(&fc.Status.Modules.Offloading,
-			liqov1alpha1.OffloadingNodeStatusCondition, liqov1alpha1.ConditionStatusReady,
+			liqov1beta1.OffloadingNodeStatusCondition, liqov1beta1.ConditionStatusReady,
 			nodesReadyReason, nodesReadyMessage)
 	case 0:
 		fcutils.EnsureModuleCondition(&fc.Status.Modules.Offloading,
-			liqov1alpha1.OffloadingNodeStatusCondition, liqov1alpha1.ConditionStatusNotReady,
+			liqov1beta1.OffloadingNodeStatusCondition, liqov1beta1.ConditionStatusNotReady,
 			nodesNotReadyReason, nodesNotReadyMessage)
 	default:
 		fcutils.EnsureModuleCondition(&fc.Status.Modules.Offloading,
-			liqov1alpha1.OffloadingNodeStatusCondition, liqov1alpha1.ConditionStatusSomeNotReady,
+			liqov1beta1.OffloadingNodeStatusCondition, liqov1beta1.ConditionStatusSomeNotReady,
 			nodesSomeNotReadyReason, nodesSomeNotReadyMessage)
 	}
 
 	return nil
 }
 
-func clearModule(module *liqov1alpha1.Module) {
+func clearModule(module *liqov1beta1.Module) {
 	module.Enabled = false
 	module.Conditions = nil
 }
 
-func expectedNodes(virtualNodes []offloadingv1alpha1.VirtualNode) int {
+func expectedNodes(virtualNodes []offloadingv1beta1.VirtualNode) int {
 	expectedNodes := 0
 	for i := range virtualNodes {
 		if virtualNodes[i].Spec.CreateNode != nil && *virtualNodes[i].Spec.CreateNode {

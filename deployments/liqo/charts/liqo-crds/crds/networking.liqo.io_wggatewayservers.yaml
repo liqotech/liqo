@@ -19,7 +19,7 @@ spec:
     singular: wggatewayserver
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: WgGatewayServer defines a wireguard gateway server that will

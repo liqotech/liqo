@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/fabric"
 	"github.com/liqotech/liqo/pkg/gateway"
 )
@@ -72,7 +72,7 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("unable to get the gateway pod %q: %w", req.NamespacedName, err)
 	}
 
-	internalnode := &networkingv1alpha1.InternalNode{}
+	internalnode := &networkingv1beta1.InternalNode{}
 	if err = r.Get(ctx, client.ObjectKey{Name: r.Options.NodeName}, internalnode); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Errorf("There is no internalnode %s", r.Options.NodeName)
@@ -94,10 +94,10 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	if pod.Spec.NodeName == r.Options.NodeName {
-		internalnode.Status.NodeIP.Local = ptr.To(networkingv1alpha1.IP(src))
+		internalnode.Status.NodeIP.Local = ptr.To(networkingv1beta1.IP(src))
 		klog.Infof("Enforced internal node local IP %s", src)
 	} else {
-		internalnode.Status.NodeIP.Remote = ptr.To(networkingv1alpha1.IP(src))
+		internalnode.Status.NodeIP.Remote = ptr.To(networkingv1beta1.IP(src))
 		klog.Infof("Enforced internal node remote IP %s", src)
 	}
 

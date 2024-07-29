@@ -23,7 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -44,7 +44,7 @@ func IsNodeControlPlane(taints []corev1.Taint) bool {
 
 // GetNodes returns the list of nodes of the cluster matching the given labels.
 func GetNodes(ctx context.Context, client kubernetes.Interface,
-	clusterID liqov1alpha1.ClusterID, labelSelector string) (*corev1.NodeList, error) {
+	clusterID liqov1beta1.ClusterID, labelSelector string) (*corev1.NodeList, error) {
 	remoteNodes, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})

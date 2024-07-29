@@ -28,11 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/uninstaller"
 	"github.com/liqotech/liqo/pkg/utils"
 )
@@ -44,11 +44,11 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = liqov1alpha1.AddToScheme(scheme)
-	_ = offloadingv1alpha1.AddToScheme(scheme)
+	_ = liqov1beta1.AddToScheme(scheme)
+	_ = offloadingv1beta1.AddToScheme(scheme)
 	_ = ipamv1alpha1.AddToScheme(scheme)
-	_ = networkingv1alpha1.AddToScheme(scheme)
-	_ = authv1alpha1.AddToScheme(scheme)
+	_ = networkingv1beta1.AddToScheme(scheme)
+	_ = authv1beta1.AddToScheme(scheme)
 }
 
 // cluster-role

@@ -77,7 +77,7 @@
 | metrics.enabled | bool | `false` | Enable/Disable the metrics server in every liqo component. |
 | metrics.prometheusOperator.enabled | bool | `false` | Enable/Disable the creation of a Prometheus servicemonitor/podmonitor for the metrics servers. Turn on this flag when the Prometheus Operator runs in your cluster. |
 | nameOverride | string | `""` | Override the standard name used by Helm and associated to Kubernetes/Liqo resources. |
-| networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
+| networking.clientResources | list | `[{"apiVersion":"networking.liqo.io/v1beta1","resource":"wggatewayclients"}]` | Set the list of resources that implement the GatewayClient |
 | networking.enabled | bool | `true` | Use the default Liqo networking module. |
 | networking.fabric.config.fullMasquerade | bool | `false` | Enabe/Disable the full masquerade mode for the fabric pod. It means that all traffic will be masquerade using the first external cidr IP, instead of using the pod IP. Full masquerade is useful when the cluster nodeports uses a PodCIDR IP to masqerade the incoming traffic. IMPORTANT: Please consider that enabling this feature will masquerade the source IP of traffic towards a remote cluster,  making impossible for a pod that receives the traffic to know the original source IP.  |
 | networking.fabric.config.gatewayMasqueradeBypass | bool | `false` | Enable/Disable the masquerade bypass for the gateway pods. It means that the packets from gateway pods will not be masqueraded from the host where the pod is scheduled. This is useful in scenarios where CNIs masquerade the traffic from pod to nodes. For example this is required when using the Azure CNI or Kindnet. |
@@ -107,7 +107,7 @@
 | networking.gatewayTemplates.server.service.annotations | string | `nil` | Annotations for the server service. |
 | networking.gatewayTemplates.wireguard.implementation | string | `"kernel"` | Set the implementation used for the WireGuard connection. Possible values are "kernel" and "userspace". |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
-| networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1alpha1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |
+| networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1beta1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |
 | offloading.createNode | bool | `true` | Enable/Disable the creation of a k8s node for each VirtualNode. This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode  by setting the "createNode" field in the resource Spec. |
 | offloading.defaultNodeResources.cpu | string | `"4"` | The amount of CPU to reserve for a virtual node targeting this cluster. |
 | offloading.defaultNodeResources.ephemeral-storage | string | `"20Gi"` | The amount of ephemeral storage to reserve for a virtual node targeting this cluster. |

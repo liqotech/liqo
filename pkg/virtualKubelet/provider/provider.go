@@ -30,9 +30,9 @@ import (
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 	"k8s.io/utils/ptr"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -47,15 +47,15 @@ import (
 )
 
 func init() {
-	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(offloadingv1beta1.AddToScheme(scheme.Scheme))
 }
 
 // InitConfig is the config passed to initialize the LiqoPodProvider.
 type InitConfig struct {
 	LocalConfig   *rest.Config
 	RemoteConfig  *rest.Config
-	LocalCluster  liqov1alpha1.ClusterID
-	RemoteCluster liqov1alpha1.ClusterID
+	LocalCluster  liqov1beta1.ClusterID
+	RemoteCluster liqov1beta1.ClusterID
 	Namespace     string
 	LiqoNamespace string
 
@@ -65,7 +65,7 @@ type InitConfig struct {
 	LocalPodCIDR         string
 	InformerResyncPeriod time.Duration
 
-	ReflectorsConfigs map[resources.ResourceReflected]offloadingv1alpha1.ReflectorConfig
+	ReflectorsConfigs map[resources.ResourceReflected]offloadingv1beta1.ReflectorConfig
 
 	EnableAPIServerSupport          bool
 	EnableStorage                   bool
@@ -80,9 +80,9 @@ type InitConfig struct {
 	HomeAPIServerHost string
 	HomeAPIServerPort string
 
-	OffloadingPatch *offloadingv1alpha1.OffloadingPatch
+	OffloadingPatch *offloadingv1beta1.OffloadingPatch
 
-	NetConfiguration *networkingv1alpha1.Configuration // only available if network module is enabled
+	NetConfiguration *networkingv1beta1.Configuration // only available if network module is enabled
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.

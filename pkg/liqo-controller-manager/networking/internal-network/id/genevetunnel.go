@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 var geneveTunnelManager *Manager[uint32]
@@ -32,7 +32,7 @@ func GetGeneveTunnelManager(ctx context.Context, cl client.Client) *Manager[uint
 	geneveTunnelOnce.Do(func() {
 		geneveTunnelManager = New[uint32]()
 
-		var tunnelList networkingv1alpha1.GeneveTunnelList
+		var tunnelList networkingv1beta1.GeneveTunnelList
 		err := cl.List(ctx, &tunnelList)
 		runtime.Must(err)
 

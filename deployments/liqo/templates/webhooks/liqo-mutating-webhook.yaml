@@ -40,7 +40,7 @@ webhooks:
     rules:
       - operations: ["CREATE", "UPDATE", "DELETE"]
         apiGroups: ["offloading.liqo.io"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1beta1"]
         resources: ["shadowpods"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
@@ -56,8 +56,8 @@ webhooks:
         port: {{ .Values.webhook.port }}
     rules:
       - operations: ["CREATE","UPDATE"]
-        apiGroups: ["discovery.liqo.io"]
-        apiVersions: ["v1alpha1"]
+        apiGroups: ["core.liqo.io"]
+        apiVersions: ["v1beta1"]
         resources: ["foreignclusters"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
@@ -74,7 +74,7 @@ webhooks:
     rules:
       - operations: ["CREATE","UPDATE"]
         apiGroups: ["offloading.liqo.io"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1beta1"]
         resources: ["virtualnodes"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
@@ -91,7 +91,7 @@ webhooks:
     rules:
       - operations: ["CREATE","UPDATE"]
         apiGroups: ["networking.liqo.io"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1beta1"]
         resources: ["firewallconfigurations"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}

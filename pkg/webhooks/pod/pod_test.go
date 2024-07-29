@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -53,40 +53,40 @@ var _ = Describe("Webhook", func() {
 	Context("1 - Check the new created toleration according to the PodOffloadingStrategy", func() {
 		emptyToleration := corev1.Toleration{}
 		DescribeTable("3 Different type of PodOffloadingStrategy",
-			func(strategy offv1alpha1.PodOffloadingStrategyType, expectedToleration corev1.Toleration) {
+			func(strategy offloadingv1beta1.PodOffloadingStrategyType, expectedToleration corev1.Toleration) {
 				By(fmt.Sprintf("Testing %s", strategy))
 				toleration, err := createTolerationFromNamespaceOffloading(strategy)
-				if strategy == offv1alpha1.LocalPodOffloadingStrategyType {
+				if strategy == offloadingv1beta1.LocalPodOffloadingStrategyType {
 					Expect(err).To(HaveOccurred())
 				} else {
 					Expect(err).ToNot(HaveOccurred())
 				}
 				Expect(toleration.MatchToleration(&expectedToleration)).To(BeTrue())
 			},
-			Entry("LocalPodOffloadingStrategyType", offv1alpha1.LocalPodOffloadingStrategyType, emptyToleration),
-			Entry("RemotePodOffloadingStrategyType", offv1alpha1.RemotePodOffloadingStrategyType, virtualNodeToleration),
-			Entry("LocalAndRemotePodOffloadingStrategyType", offv1alpha1.LocalAndRemotePodOffloadingStrategyType, virtualNodeToleration),
+			Entry("LocalPodOffloadingStrategyType", offloadingv1beta1.LocalPodOffloadingStrategyType, emptyToleration),
+			Entry("RemotePodOffloadingStrategyType", offloadingv1beta1.RemotePodOffloadingStrategyType, virtualNodeToleration),
+			Entry("LocalAndRemotePodOffloadingStrategyType", offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType, virtualNodeToleration),
 		)
 	})
 
 	Context("2 - Check the NodeSelector imposed by the NamespaceOffloading", func() {
 		// slice with 3 namespaceOffloading one for each PodOffloadingStrategy
-		namespaceOffloadings := []offv1alpha1.NamespaceOffloading{
-			testutils.GetNamespaceOffloading(offv1alpha1.LocalPodOffloadingStrategyType),
-			testutils.GetNamespaceOffloading(offv1alpha1.RemotePodOffloadingStrategyType),
-			testutils.GetNamespaceOffloading(offv1alpha1.LocalAndRemotePodOffloadingStrategyType),
+		namespaceOffloadings := []offloadingv1beta1.NamespaceOffloading{
+			testutils.GetNamespaceOffloading(offloadingv1beta1.LocalPodOffloadingStrategyType),
+			testutils.GetNamespaceOffloading(offloadingv1beta1.RemotePodOffloadingStrategyType),
+			testutils.GetNamespaceOffloading(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType),
 		}
 
 		nodeSelectors := []corev1.NodeSelector{
 			{},
-			testutils.GetImposedNodeSelector(offv1alpha1.RemotePodOffloadingStrategyType),
-			testutils.GetImposedNodeSelector(offv1alpha1.LocalAndRemotePodOffloadingStrategyType),
+			testutils.GetImposedNodeSelector(offloadingv1beta1.RemotePodOffloadingStrategyType),
+			testutils.GetImposedNodeSelector(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType),
 		}
 		DescribeTable("3 Different type of PodOffloadingStrategy",
-			func(namespaceOffloading offv1alpha1.NamespaceOffloading, expectedNodeSelector corev1.NodeSelector) {
+			func(namespaceOffloading offloadingv1beta1.NamespaceOffloading, expectedNodeSelector corev1.NodeSelector) {
 				By(fmt.Sprintf("Testing %s", namespaceOffloading.Spec.PodOffloadingStrategy))
 				nodeSelector, err := createNodeSelectorFromNamespaceOffloading(&namespaceOffloading)
-				if namespaceOffloading.Spec.PodOffloadingStrategy == offv1alpha1.LocalPodOffloadingStrategyType {
+				if namespaceOffloading.Spec.PodOffloadingStrategy == offloadingv1beta1.LocalPodOffloadingStrategyType {
 					Expect(nodeSelector).To(BeNil())
 					Expect(err).To(HaveOccurred())
 				} else {
@@ -261,18 +261,18 @@ var _ = Describe("Webhook", func() {
 		}
 
 		It("Check the toleration added and the new NodeSelector", func() {
-			namespaceOffloading := testutils.GetNamespaceOffloading(offv1alpha1.LocalAndRemotePodOffloadingStrategyType)
+			namespaceOffloading := testutils.GetNamespaceOffloading(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
 			podTest := pod.DeepCopy()
 			err := mutatePod(&namespaceOffloading, podTest, true)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(podTest.Spec.Tolerations) == 2).To(BeTrue())
 			Expect(podTest.Spec.Tolerations[1].MatchToleration(&virtualNodeToleration)).To(BeTrue())
-			mergedNodeSelector := testutils.GetMergedNodeSelector(offv1alpha1.LocalAndRemotePodOffloadingStrategyType)
+			mergedNodeSelector := testutils.GetMergedNodeSelector(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
 			Expect(*podTest.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).To(Equal(mergedNodeSelector))
 		})
 
 		It("With LocalPodOffloadingStrategy check that pod is not mutated ", func() {
-			namespaceOffloading := testutils.GetNamespaceOffloading(offv1alpha1.LocalPodOffloadingStrategyType)
+			namespaceOffloading := testutils.GetNamespaceOffloading(offloadingv1beta1.LocalPodOffloadingStrategyType)
 			podTest := pod.DeepCopy()
 			oldPodNodeSelector := *podTest.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
 			err := mutatePod(&namespaceOffloading, podTest, true)
@@ -282,13 +282,13 @@ var _ = Describe("Webhook", func() {
 		})
 
 		It("With disable add toleration check that pod is mutated ", func() {
-			namespaceOffloading := testutils.GetNamespaceOffloading(offv1alpha1.LocalAndRemotePodOffloadingStrategyType)
+			namespaceOffloading := testutils.GetNamespaceOffloading(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
 			podTest := pod.DeepCopy()
 			err := mutatePod(&namespaceOffloading, podTest, false)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(podTest.Spec.Tolerations)).To(BeNumerically("==", 1))
 			Expect(podTest.Spec.Tolerations[0].MatchToleration(&pod.Spec.Tolerations[0])).To(BeTrue())
-			mergedNodeSelector := testutils.GetMergedNodeSelector(offv1alpha1.LocalAndRemotePodOffloadingStrategyType)
+			mergedNodeSelector := testutils.GetMergedNodeSelector(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType)
 			Expect(*podTest.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).To(Equal(mergedNodeSelector))
 		})
 	})

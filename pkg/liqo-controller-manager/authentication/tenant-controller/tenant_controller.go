@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -102,7 +102,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, err
 	}
 
-	tenant := &authv1alpha1.Tenant{}
+	tenant := &authv1beta1.Tenant{}
 	if err = r.Get(ctx, req.NamespacedName, tenant); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("Tenant %q not found", req.Name)
@@ -115,13 +115,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	// If the Tenant is drained we remove the binding of cluster roles used to replicate resources and
 	// delete all replicated resources.
 	switch tenant.Spec.TenantCondition {
-	case authv1alpha1.TenantConditionDrained:
+	case authv1beta1.TenantConditionDrained:
 		if err := r.handleTenantDrained(ctx, tenant); err != nil {
 			klog.Errorf("Unable to handle drained Tenant %q: %s", req.Name, err)
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
-	case authv1alpha1.TenantConditionCordoned:
+	case authv1beta1.TenantConditionCordoned:
 		if err := r.handleTenantCordoned(ctx, tenant); err != nil {
 			klog.Errorf("Unable to handle cordoned Tenant %q: %s", req.Name, err)
 			return ctrl.Result{}, err
@@ -198,7 +198,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	authParams, err := r.IdentityProvider.ForgeAuthParams(ctx, &identitymanager.SigningRequestOptions{
 		Cluster:         tenant.Spec.ClusterID,
 		TenantNamespace: tenant.Status.TenantNamespace,
-		IdentityType:    authv1alpha1.ControlPlaneIdentityType,
+		IdentityType:    authv1beta1.ControlPlaneIdentityType,
 		Name:            tenant.Name,
 		SigningRequest:  tenant.Spec.CSR,
 
@@ -279,12 +279,12 @@ func (r *TenantReconciler) ensureSetup(ctx context.Context) error {
 // SetupWithManager sets up the TenantReconciler with the Manager.
 func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&authv1alpha1.Tenant{}).
+		For(&authv1beta1.Tenant{}).
 		Owns(&corev1.Namespace{}).
 		Complete(r)
 }
 
-func (r *TenantReconciler) handleTenantCordoned(ctx context.Context, tenant *authv1alpha1.Tenant) error {
+func (r *TenantReconciler) handleTenantCordoned(ctx context.Context, tenant *authv1beta1.Tenant) error {
 	// Cordon all the resourceslices related to the tenant
 	resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll,
 		liqolabels.RemoteLabelSelectorForCluster(string(tenant.Spec.ClusterID)))
@@ -309,7 +309,7 @@ func (r *TenantReconciler) handleTenantCordoned(ctx context.Context, tenant *aut
 	return nil
 }
 
-func (r *TenantReconciler) handleTenantUncordoned(ctx context.Context, tenant *authv1alpha1.Tenant) error {
+func (r *TenantReconciler) handleTenantUncordoned(ctx context.Context, tenant *authv1beta1.Tenant) error {
 	// Uncordon all the resourceslices related to the tenant
 	resSlices, err := getters.ListResourceSlicesByLabel(ctx, r.Client, corev1.NamespaceAll,
 		liqolabels.RemoteLabelSelectorForCluster(string(tenant.Spec.ClusterID)))
@@ -339,7 +339,7 @@ func (r *TenantReconciler) handleTenantUncordoned(ctx context.Context, tenant *a
 	return nil
 }
 
-func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *authv1alpha1.Tenant) error {
+func (r *TenantReconciler) handleTenantDrained(ctx context.Context, tenant *authv1beta1.Tenant) error {
 	// Delete binding of cluster roles cluster wide
 	if err := r.NamespaceManager.UnbindClusterRolesClusterWide(ctx, tenant.Spec.ClusterID,
 		tenantClusterRolesClusterWide...); err != nil {

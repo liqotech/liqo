@@ -24,11 +24,11 @@ import (
 	"github.com/google/nftables/expr"
 	"golang.org/x/sys/unix"
 
-	firewallv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/utils/network/port"
 )
 
-func applyMatch(m *firewallv1alpha1.Match, rule *nftables.Rule) error {
+func applyMatch(m *firewallv1beta1.Match, rule *nftables.Rule) error {
 	op, err := getMatchCmpOp(m)
 	if err != nil {
 		return err
@@ -61,23 +61,23 @@ func applyMatch(m *firewallv1alpha1.Match, rule *nftables.Rule) error {
 	return nil
 }
 
-func applyMatchIP(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
-	matchIPValueType, err := firewallv1alpha1.GetIPValueType(&m.IP.Value)
+func applyMatchIP(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+	matchIPValueType, err := firewallv1beta1.GetIPValueType(&m.IP.Value)
 	if err != nil {
 		return err
 	}
 
 	switch matchIPValueType {
-	case firewallv1alpha1.IPValueTypeIP:
+	case firewallv1beta1.IPValueTypeIP:
 		return applyMatchIPSingleIP(m, rule, op)
-	case firewallv1alpha1.IPValueTypeSubnet:
+	case firewallv1beta1.IPValueTypeSubnet:
 		return applyMatchIPPoolSubnet(m, rule, op)
 	default:
 		return fmt.Errorf("invalid match value type %s", matchIPValueType)
 	}
 }
 
-func applyMatchIPSingleIP(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+func applyMatchIPSingleIP(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
 	posOffset, err := getMatchIPPositionOffset(m)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func applyMatchIPSingleIP(m *firewallv1alpha1.Match, rule *nftables.Rule, op exp
 	return nil
 }
 
-func applyMatchIPPoolSubnet(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+func applyMatchIPPoolSubnet(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
 	posOffset, err := getMatchIPPositionOffset(m)
 	if err != nil {
 		return err
@@ -133,7 +133,7 @@ func applyMatchIPPoolSubnet(m *firewallv1alpha1.Match, rule *nftables.Rule, op e
 	return nil
 }
 
-func applyMatchPortSinglePort(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+func applyMatchPortSinglePort(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
 	posOffset, err := getMatchPortPositionOffset(m)
 	if err != nil {
 		return err
@@ -159,7 +159,7 @@ func applyMatchPortSinglePort(m *firewallv1alpha1.Match, rule *nftables.Rule, op
 	return nil
 }
 
-func applyMatchPortRange(m *firewallv1alpha1.Match, rule *nftables.Rule) error {
+func applyMatchPortRange(m *firewallv1beta1.Match, rule *nftables.Rule) error {
 	posOffset, err := getMatchPortPositionOffset(m)
 	if err != nil {
 		return err
@@ -194,7 +194,7 @@ func applyMatchPortRange(m *firewallv1alpha1.Match, rule *nftables.Rule) error {
 	return nil
 }
 
-func applyMatchProto(m *firewallv1alpha1.Match, rule *nftables.Rule) error {
+func applyMatchProto(m *firewallv1beta1.Match, rule *nftables.Rule) error {
 	p, err := getMatchProtoValue(m)
 	if err != nil {
 		return fmt.Errorf("invalid match proto value %s", m.Proto.Value)
@@ -211,7 +211,7 @@ func applyMatchProto(m *firewallv1alpha1.Match, rule *nftables.Rule) error {
 	return nil
 }
 
-func applyMatchDev(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+func applyMatchDev(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
 	metakey, err := getMatchDevMetaKey(m)
 	if err != nil {
 		return err
@@ -232,67 +232,67 @@ func applyMatchDev(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp
 	return nil
 }
 
-func applyMatchPort(m *firewallv1alpha1.Match, rule *nftables.Rule, op expr.CmpOp) error {
-	matchPortValueType, err := firewallv1alpha1.GetPortValueType(&m.IP.Value)
+func applyMatchPort(m *firewallv1beta1.Match, rule *nftables.Rule, op expr.CmpOp) error {
+	matchPortValueType, err := firewallv1beta1.GetPortValueType(&m.IP.Value)
 	if err != nil {
 		return err
 	}
 
 	switch matchPortValueType {
-	case firewallv1alpha1.PortValueTypePort:
+	case firewallv1beta1.PortValueTypePort:
 		return applyMatchPortSinglePort(m, rule, op)
-	case firewallv1alpha1.PortValueTypeRange:
+	case firewallv1beta1.PortValueTypeRange:
 		return applyMatchPortRange(m, rule)
 	default:
 		return fmt.Errorf("invalid match value type %s", matchPortValueType)
 	}
 }
 
-func getMatchCmpOp(m *firewallv1alpha1.Match) (expr.CmpOp, error) {
+func getMatchCmpOp(m *firewallv1beta1.Match) (expr.CmpOp, error) {
 	switch m.Op {
-	case firewallv1alpha1.MatchOperationEq:
+	case firewallv1beta1.MatchOperationEq:
 		return expr.CmpOpEq, nil
-	case firewallv1alpha1.MatchOperationNeq:
+	case firewallv1beta1.MatchOperationNeq:
 		return expr.CmpOpNeq, nil
 	}
 	return expr.CmpOp(0), fmt.Errorf("invalid match operation %s", m.Op)
 }
 
-func getMatchIPPositionOffset(m *firewallv1alpha1.Match) (uint32, error) {
+func getMatchIPPositionOffset(m *firewallv1beta1.Match) (uint32, error) {
 	switch m.IP.Position {
-	case firewallv1alpha1.MatchPositionSrc:
+	case firewallv1beta1.MatchPositionSrc:
 		return 12, nil
-	case firewallv1alpha1.MatchPositionDst:
+	case firewallv1beta1.MatchPositionDst:
 		return 16, nil
 	}
 	return 0, fmt.Errorf("invalid match IP position %s", m.Dev.Position)
 }
 
-func getMatchPortPositionOffset(m *firewallv1alpha1.Match) (uint32, error) {
+func getMatchPortPositionOffset(m *firewallv1beta1.Match) (uint32, error) {
 	switch m.Port.Position {
-	case firewallv1alpha1.MatchPositionSrc:
+	case firewallv1beta1.MatchPositionSrc:
 		return 0, nil
-	case firewallv1alpha1.MatchPositionDst:
+	case firewallv1beta1.MatchPositionDst:
 		return 2, nil
 	}
 	return 0, fmt.Errorf("invalid match IP position %s", m.Dev.Position)
 }
 
-func getMatchProtoValue(m *firewallv1alpha1.Match) (uint8, error) {
+func getMatchProtoValue(m *firewallv1beta1.Match) (uint8, error) {
 	switch m.Proto.Value {
-	case firewallv1alpha1.L4ProtoTCP:
+	case firewallv1beta1.L4ProtoTCP:
 		return unix.IPPROTO_TCP, nil
-	case firewallv1alpha1.L4ProtoUDP:
+	case firewallv1beta1.L4ProtoUDP:
 		return unix.IPPROTO_UDP, nil
 	}
 	return 0, fmt.Errorf("invalid match IP position %s", m.Dev.Position)
 }
 
-func getMatchDevMetaKey(m *firewallv1alpha1.Match) (expr.MetaKey, error) {
+func getMatchDevMetaKey(m *firewallv1beta1.Match) (expr.MetaKey, error) {
 	switch m.Dev.Position {
-	case firewallv1alpha1.MatchDevPositionIn:
+	case firewallv1beta1.MatchDevPositionIn:
 		return expr.MetaKeyIIFNAME, nil
-	case firewallv1alpha1.MatchDevPositionOut:
+	case firewallv1beta1.MatchDevPositionOut:
 		return expr.MetaKeyOIFNAME, nil
 	}
 	return 0, fmt.Errorf("invalid match IP position %s", m.Dev.Position)

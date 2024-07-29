@@ -26,8 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
@@ -35,12 +35,12 @@ import (
 )
 
 // GenerateRouteConfigurationName generates the name of the RouteConfiguration object.
-func GenerateRouteConfigurationName(cfg *networkingv1alpha1.Configuration) string {
+func GenerateRouteConfigurationName(cfg *networkingv1beta1.Configuration) string {
 	return fmt.Sprintf("%s-gw-ext", cfg.Name)
 }
 
 // GetRemoteClusterID returns the remote cluster ID of the Configuration.
-func GetRemoteClusterID(cfg *networkingv1alpha1.Configuration) (liqov1alpha1.ClusterID, error) {
+func GetRemoteClusterID(cfg *networkingv1beta1.Configuration) (liqov1beta1.ClusterID, error) {
 	if cfg.GetLabels() == nil {
 		return "", fmt.Errorf("configuration %s/%s has no labels", cfg.Namespace, cfg.Name)
 	}
@@ -48,12 +48,12 @@ func GetRemoteClusterID(cfg *networkingv1alpha1.Configuration) (liqov1alpha1.Clu
 	if !ok {
 		return "", fmt.Errorf("configuration %s/%s has no remote cluster ID label", cfg.Namespace, cfg.Name)
 	}
-	return liqov1alpha1.ClusterID(remoteID), nil
+	return liqov1beta1.ClusterID(remoteID), nil
 }
 
 // enforceRouteConfigurationPresence creates or updates a RouteConfiguration object.
 func enforeRouteConfigurationPresence(ctx context.Context, cl client.Client, scheme *runtime.Scheme,
-	cfg *networkingv1alpha1.Configuration) error {
+	cfg *networkingv1beta1.Configuration) error {
 	remoteClusterID, err := GetRemoteClusterID(cfg)
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func enforeRouteConfigurationPresence(ctx context.Context, cl client.Client, sch
 		return err
 	}
 
-	routecfg := &networkingv1alpha1.RouteConfiguration{
+	routecfg := &networkingv1beta1.RouteConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GenerateRouteConfigurationName(cfg),
 			Namespace: cfg.Namespace,
@@ -91,10 +91,10 @@ func enforeRouteConfigurationPresence(ctx context.Context, cl client.Client, sch
 }
 
 // forgeMutateRouteConfiguration mutates a RouteConfiguration object.
-func forgeMutateRouteConfiguration(cfg *networkingv1alpha1.Configuration,
-	routecfg *networkingv1alpha1.RouteConfiguration, scheme *runtime.Scheme,
-	remoteClusterID liqov1alpha1.ClusterID,
-	remoteInterfaceIP string, internalNodes *networkingv1alpha1.InternalNodeList) func() error {
+func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
+	routecfg *networkingv1beta1.RouteConfiguration, scheme *runtime.Scheme,
+	remoteClusterID liqov1beta1.ClusterID,
+	remoteInterfaceIP string, internalNodes *networkingv1beta1.InternalNodeList) func() error {
 	return func() error {
 		var err error
 
@@ -104,32 +104,32 @@ func forgeMutateRouteConfiguration(cfg *networkingv1alpha1.Configuration,
 
 		routecfg.ObjectMeta.Labels = gateway.ForgeRouteExternalTargetLabels(string(remoteClusterID))
 
-		routecfg.Spec = networkingv1alpha1.RouteConfigurationSpec{
-			Table: networkingv1alpha1.Table{
+		routecfg.Spec = networkingv1beta1.RouteConfigurationSpec{
+			Table: networkingv1beta1.Table{
 				Name: cfg.Name,
 			},
 		}
 
 		for i := range internalNodes.Items {
 			routecfg.Spec.Table.Rules = append(routecfg.Spec.Table.Rules,
-				[]networkingv1alpha1.Rule{
+				[]networkingv1beta1.Rule{
 					{
 						Iif: &internalNodes.Items[i].Spec.Interface.Gateway.Name,
 						Dst: &cfg.Spec.Remote.CIDR.Pod,
-						Routes: []networkingv1alpha1.Route{
+						Routes: []networkingv1beta1.Route{
 							{
 								Dst: &cfg.Spec.Remote.CIDR.Pod,
-								Gw:  ptr.To(networkingv1alpha1.IP(remoteInterfaceIP)),
+								Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
 							},
 						},
 					},
 					{
 						Iif: &internalNodes.Items[i].Spec.Interface.Gateway.Name,
 						Dst: &cfg.Spec.Remote.CIDR.External,
-						Routes: []networkingv1alpha1.Route{
+						Routes: []networkingv1beta1.Route{
 							{
 								Dst: &cfg.Spec.Remote.CIDR.External,
-								Gw:  ptr.To(networkingv1alpha1.IP(remoteInterfaceIP)),
+								Gw:  ptr.To(networkingv1beta1.IP(remoteInterfaceIP)),
 							},
 						},
 					},
@@ -140,7 +140,7 @@ func forgeMutateRouteConfiguration(cfg *networkingv1alpha1.Configuration,
 }
 
 // GetGatewayMode returns the mode of the Gateway related to the Configuration.
-func GetGatewayMode(ctx context.Context, cl client.Client, remoteClusterID liqov1alpha1.ClusterID) (gateway.Mode, error) {
+func GetGatewayMode(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID) (gateway.Mode, error) {
 	gwclient, err := getters.GetGatewayClientByClusterID(ctx, cl, remoteClusterID)
 	if err != nil && !kerrors.IsNotFound(err) {
 		return "", err

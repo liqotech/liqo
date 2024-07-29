@@ -27,8 +27,8 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -42,7 +42,7 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 		p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
 			opt.FieldSelector = "metadata.name=" + p.nodeName
 		})
-	virtualNodeInformer := virtualNodeInformerFactory.ForResource(offloadingv1alpha1.VirtualNodeGroupVersionResource).Informer()
+	virtualNodeInformer := virtualNodeInformerFactory.ForResource(offloadingv1beta1.VirtualNodeGroupVersionResource).Informer()
 	_, err := virtualNodeInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromVirtualNode))
 	runtime.Must(err)
 
@@ -52,7 +52,7 @@ func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct
 			func(opt *metav1.ListOptions) {
 				opt.LabelSelector = consts.RemoteClusterID + "=" + string(p.foreignClusterID)
 			})
-		fcInformer := fcInformerFactory.ForResource(liqov1alpha1.ForeignClusterGroupVersionResource).Informer()
+		fcInformer := fcInformerFactory.ForResource(liqov1beta1.ForeignClusterGroupVersionResource).Informer()
 		_, err := fcInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromForeignCluster))
 		runtime.Must(err)
 	}

@@ -25,7 +25,7 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
@@ -51,7 +51,7 @@ func init() {
 
 // ConnectivityCheckNodeToPod creates a NodePort Service and check its availability.
 func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernetes.Interface,
-	clusterID liqov1alpha1.ClusterID, remotePodName string) error {
+	clusterID liqov1beta1.ClusterID, remotePodName string) error {
 	nodePort, err := EnsureNodePortService(ctx, homeClusterClient, remotePodName)
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func EnsureNodePortService(ctx context.Context, homeClusterClient kubernetes.Int
 
 // CheckNodeToPortConnectivity contacts the nodePortValue and returns the result.
 func CheckNodeToPortConnectivity(ctx context.Context, homeClusterClient kubernetes.Interface,
-	homeClusterID liqov1alpha1.ClusterID, nodePortValue int) error {
+	homeClusterID liqov1beta1.ClusterID, nodePortValue int) error {
 	localNodes, err := util.GetNodes(ctx, homeClusterClient, homeClusterID, labelSelectorNodes)
 	if err != nil {
 		return err

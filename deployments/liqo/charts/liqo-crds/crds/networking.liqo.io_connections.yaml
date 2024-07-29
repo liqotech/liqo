@@ -32,7 +32,7 @@ spec:
       name: Latency
       priority: 1
       type: string
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: Connection contains the status of a connection between two clusters

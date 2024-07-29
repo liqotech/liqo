@@ -36,8 +36,8 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	podutils "github.com/liqotech/liqo/pkg/utils/pod"
@@ -80,8 +80,8 @@ var (
 	indexCons         = 0 // the first should always be a consumer
 	consumer          = testContext.Clusters[indexCons]
 	providers         = tester.GetProviders(testContext.Clusters)
-	virtualNodes      = make(map[liqov1alpha1.ClusterID]types.NamespacedName)
-	extraVirtualNodes = make(map[liqov1alpha1.ClusterID]types.NamespacedName)
+	virtualNodes      = make(map[liqov1beta1.ClusterID]types.NamespacedName)
+	extraVirtualNodes = make(map[liqov1beta1.ClusterID]types.NamespacedName)
 
 	ensureResourcesDeletion = func(getObj objectRetriever, consumer tester.ClusterContext, providers ...tester.ClusterContext) {
 		// Delete the object on the consumer cluster
@@ -185,7 +185,7 @@ var (
 	}
 
 	getVirtualKubeletPod = func(vnNsName types.NamespacedName) *corev1.Pod {
-		var vn offv1alpha1.VirtualNode
+		var vn offloadingv1beta1.VirtualNode
 		Expect(consumer.ControllerClient.Get(ctx, vnNsName, &vn)).To(Succeed())
 
 		// Get virtual-kubelet pod
@@ -196,7 +196,7 @@ var (
 		return &vkPods.Items[0]
 	}
 
-	testMetricReflectionCounter = func(providerClusterID liqov1alpha1.ClusterID, resource string, maxReflection int) {
+	testMetricReflectionCounter = func(providerClusterID liqov1beta1.ClusterID, resource string, maxReflection int) {
 		// Check that the reflection counter for the provided resource is reasonably low.
 		vkPod := getVirtualKubeletPod(virtualNodes[providerClusterID])
 		metrics := retrieveMetrics(ctx, vkPod.Name, vkPod.Namespace, localPort)
@@ -216,15 +216,15 @@ var (
 )
 
 var _ = BeforeSuite(func() {
-	Expect(consumer.Role).To(Equal(liqov1alpha1.ConsumerRole))
+	Expect(consumer.Role).To(Equal(liqov1beta1.ConsumerRole))
 
 	// ensure the namespace is created
 	Expect(util.Second(util.EnforceNamespace(ctx, consumer.NativeClient,
 		consumer.Cluster, namespaceName))).To(Succeed())
 
 	Expect(util.OffloadNamespace(consumer.KubeconfigPath, namespaceName,
-		"--namespace-mapping-strategy", string(offv1alpha1.EnforceSameNameMappingStrategyType),
-		"--pod-offloading-strategy", string(offv1alpha1.LocalAndRemotePodOffloadingStrategyType),
+		"--namespace-mapping-strategy", string(offloadingv1beta1.EnforceSameNameMappingStrategyType),
+		"--pod-offloading-strategy", string(offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType),
 	)).To(Succeed())
 	// wait for the namespace to be offloaded, this avoids race conditions
 	time.Sleep(2 * time.Second)
@@ -267,10 +267,10 @@ var _ = Describe("Liqo E2E", func() {
 		When("Offloading pods to remote provider clusters", func() {
 			var (
 				podNamePrefix    = "pod-test"
-				getRemotePodName = func(clusterID liqov1alpha1.ClusterID) string {
+				getRemotePodName = func(clusterID liqov1beta1.ClusterID) string {
 					return fmt.Sprintf("%s-%s", podNamePrefix, clusterID)
 				}
-				getPod = func(clusterID liqov1alpha1.ClusterID) *corev1.Pod {
+				getPod = func(clusterID liqov1beta1.ClusterID) *corev1.Pod {
 					return &corev1.Pod{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      getRemotePodName(clusterID),
@@ -490,10 +490,10 @@ var _ = Describe("Liqo E2E", func() {
 		When("Creating an event on the provider cluster", func() {
 			var (
 				eventNamePrefix    = "event-test"
-				getRemoteEventName = func(clusterID liqov1alpha1.ClusterID) string {
+				getRemoteEventName = func(clusterID liqov1beta1.ClusterID) string {
 					return fmt.Sprintf("%s-%s", eventNamePrefix, clusterID)
 				}
-				getEvent = func(clusterID liqov1alpha1.ClusterID) client.Object {
+				getEvent = func(clusterID liqov1beta1.ClusterID) client.Object {
 					return &corev1.Event{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      getRemoteEventName(clusterID),
@@ -549,7 +549,7 @@ var _ = Describe("Liqo E2E", func() {
 var _ = AfterSuite(func() {
 	// Delete extra virtual nodes
 	for _, v := range extraVirtualNodes {
-		vn := offv1alpha1.VirtualNode{
+		vn := offloadingv1beta1.VirtualNode{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      v.Name,
 				Namespace: v.Namespace,

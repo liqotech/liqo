@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -145,10 +145,10 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(ctx context.C
 	var organization string
 
 	switch options.IdentityType {
-	case authv1alpha1.ControlPlaneIdentityType:
+	case authv1beta1.ControlPlaneIdentityType:
 		username = authentication.CommonNameControlPlaneCSR(options.Cluster)
 		organization = authentication.OrganizationControlPlaneCSR()
-	case authv1alpha1.ResourceSliceIdentityType:
+	case authv1beta1.ResourceSliceIdentityType:
 		if options.ResourceSlice == nil {
 			klog.Error("resource slice is nil")
 			return response, fmt.Errorf("resource slice is nil")
@@ -178,7 +178,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(ctx context.C
 		managedByTagKey:       managedByTagValue,
 		identityTypeTagKey:    string(options.IdentityType),
 	}
-	if options.IdentityType == authv1alpha1.ResourceSliceIdentityType {
+	if options.IdentityType == authv1beta1.ResourceSliceIdentityType {
 		tags[consts.ResourceSliceNameLabelKey] = options.ResourceSlice.Name
 	}
 
@@ -221,7 +221,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(ctx context.C
 }
 
 func (identityProvider *iamIdentityProvider) ForgeAuthParams(ctx context.Context,
-	options *SigningRequestOptions) (*authv1alpha1.AuthParams, error) {
+	options *SigningRequestOptions) (*authv1beta1.AuthParams, error) {
 	resp, err := EnsureCertificate(ctx, identityProvider, options)
 	if err != nil {
 		return nil, err
@@ -241,10 +241,10 @@ func (identityProvider *iamIdentityProvider) ForgeAuthParams(ctx context.Context
 		apiServer = resp.AwsIdentityResponse.EksClusterEndpoint
 	}
 
-	return &authv1alpha1.AuthParams{
+	return &authv1beta1.AuthParams{
 		CA:        ca,
 		APIServer: apiServer,
-		AwsConfig: &authv1alpha1.AwsConfig{
+		AwsConfig: &authv1beta1.AwsConfig{
 			AwsUserArn:         resp.AwsIdentityResponse.IamUserArn,
 			AwsAccessKeyID:     resp.AwsIdentityResponse.AccessKeyID,
 			AwsSecretAccessKey: resp.AwsIdentityResponse.SecretAccessKey,

@@ -24,20 +24,20 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqocmd "github.com/liqotech/liqo/cmd/liqoctl/cmd"
 )
 
 func init() {
-	utilruntime.Must(liqov1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(liqov1beta1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(offloadingv1beta1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(networkingv1beta1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(authv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(authv1beta1.AddToScheme(scheme.Scheme))
 }
 
 func main() {

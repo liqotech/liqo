@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -59,7 +59,7 @@ func TestEvent(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(offloadingv1beta1.AddToScheme(scheme.Scheme))
 
 	testutil.LogsToGinkgoWriter()
 

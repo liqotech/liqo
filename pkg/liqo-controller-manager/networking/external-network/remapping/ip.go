@@ -26,8 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/consts"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -42,7 +42,7 @@ func generateNatMappingIPFabricName(ip *ipamv1alpha1.IP) string {
 
 // CreateOrUpdateNatMappingIP creates or updates the NAT mapping for an IP.
 func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv1alpha1.IP) error {
-	fwcfg := &networkingv1alpha1.FirewallConfiguration{
+	fwcfg := &networkingv1beta1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generateNatMappingIPGwName(ip),
 			Namespace: ip.Namespace,
@@ -54,7 +54,7 @@ func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv
 	)
 
 	if ip.Spec.Masquerade != nil && *ip.Spec.Masquerade {
-		fwcfgMasq := &networkingv1alpha1.FirewallConfiguration{
+		fwcfgMasq := &networkingv1beta1.FirewallConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      generateNatMappingIPFabricName(ip),
 				Namespace: ip.Namespace,
@@ -71,7 +71,7 @@ func CreateOrUpdateNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv
 
 // DeleteNatMappingIP deletes the NAT mapping for an IP.
 func DeleteNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv1alpha1.IP) error {
-	var fwcfg networkingv1alpha1.FirewallConfiguration
+	var fwcfg networkingv1beta1.FirewallConfiguration
 
 	err := cl.Get(ctx, client.ObjectKey{Name: generateNatMappingIPGwName(ip), Namespace: ip.Namespace}, &fwcfg)
 	switch {
@@ -105,7 +105,7 @@ func DeleteNatMappingIP(ctx context.Context, cl client.Client, ip *ipamv1alpha1.
 
 // deleteNatMappingIPWithFirewallconfiguration deletes the NAT mapping for an IP in a specific firewallconfiguration.
 func deleteNatMappingIPWithFirewallconfiguration(ctx context.Context, cl client.Client,
-	ip *ipamv1alpha1.IP, fwcfg *networkingv1alpha1.FirewallConfiguration) error {
+	ip *ipamv1alpha1.IP, fwcfg *networkingv1beta1.FirewallConfiguration) error {
 	err := cl.Update(ctx, cleanFirewallConfiguration(fwcfg, ip))
 	switch {
 	case errors.IsNotFound(err):
@@ -117,7 +117,7 @@ func deleteNatMappingIPWithFirewallconfiguration(ctx context.Context, cl client.
 	return deleteFirewallConfiguration(ctx, cl, fwcfg)
 }
 
-func cleanFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) *networkingv1alpha1.FirewallConfiguration {
+func cleanFirewallConfiguration(fwcfg *networkingv1beta1.FirewallConfiguration, ip *ipamv1alpha1.IP) *networkingv1beta1.FirewallConfiguration {
 	for i := range fwcfg.Spec.Table.Chains {
 		chain := &fwcfg.Spec.Table.Chains[i]
 		chain.Rules.NatRules = slices.DeleteFunc(chain.Rules.NatRules, func(r firewall.NatRule) bool {
@@ -127,7 +127,7 @@ func cleanFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration,
 	return fwcfg
 }
 
-func deleteFirewallConfiguration(ctx context.Context, cl client.Client, fwcfg *networkingv1alpha1.FirewallConfiguration) error {
+func deleteFirewallConfiguration(ctx context.Context, cl client.Client, fwcfg *networkingv1beta1.FirewallConfiguration) error {
 	allChainsVoid := true
 	for i := range fwcfg.Spec.Table.Chains {
 		chain := &fwcfg.Spec.Table.Chains[i]
@@ -144,7 +144,7 @@ func deleteFirewallConfiguration(ctx context.Context, cl client.Client, fwcfg *n
 	return nil
 }
 
-func mutateFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) func() error {
+func mutateFirewallConfiguration(fwcfg *networkingv1beta1.FirewallConfiguration, ip *ipamv1alpha1.IP) func() error {
 	return func() error {
 		fwcfg.SetLabels(ForgeFirewallTargetLabelsIPMappingGw())
 		enforceFirewallConfigurationSpec(fwcfg, ip)
@@ -152,7 +152,7 @@ func mutateFirewallConfiguration(fwcfg *networkingv1alpha1.FirewallConfiguration
 	}
 }
 
-func mutateFirewallConfigurationMasquerade(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) func() error {
+func mutateFirewallConfigurationMasquerade(fwcfg *networkingv1beta1.FirewallConfiguration, ip *ipamv1alpha1.IP) func() error {
 	return func() error {
 		fwcfg.SetLabels(ForgeFirewallTargetLabelsIPMappingFabric())
 		enforceFirewallConfigurationMasqSpec(fwcfg, ip)
@@ -160,21 +160,21 @@ func mutateFirewallConfigurationMasquerade(fwcfg *networkingv1alpha1.FirewallCon
 	}
 }
 
-func enforceFirewallConfigurationSpec(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
+func enforceFirewallConfigurationSpec(fwcfg *networkingv1beta1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
 	table := &fwcfg.Spec.Table
 	table.Name = ptr.To(fmt.Sprintf("%s-%s", generateNatMappingIPGwName(ip), fwcfg.Namespace))
 	table.Family = ptr.To(firewall.TableFamilyIPv4)
 	enforceFirewallConfigurationChains(fwcfg, ip)
 }
 
-func enforceFirewallConfigurationMasqSpec(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
+func enforceFirewallConfigurationMasqSpec(fwcfg *networkingv1beta1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
 	table := &fwcfg.Spec.Table
 	table.Name = ptr.To(fmt.Sprintf("%s-%s", generateNatMappingIPFabricName(ip), fwcfg.Namespace))
 	table.Family = ptr.To(firewall.TableFamilyIPv4)
 	enforceFirewallConfigurationMasqChains(fwcfg, ip)
 }
 
-func enforceFirewallConfigurationChains(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
+func enforceFirewallConfigurationChains(fwcfg *networkingv1beta1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
 	if fwcfg.Spec.Table.Chains == nil || len(fwcfg.Spec.Table.Chains) != 2 {
 		fwcfg.Spec.Table.Chains = make([]firewall.Chain, 2)
 	}
@@ -195,7 +195,7 @@ func enforceFirewallConfigurationChains(fwcfg *networkingv1alpha1.FirewallConfig
 	ensureFirewallConfigurationSNATRules(&chainPost.Rules, ip)
 }
 
-func enforceFirewallConfigurationMasqChains(fwcfg *networkingv1alpha1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
+func enforceFirewallConfigurationMasqChains(fwcfg *networkingv1beta1.FirewallConfiguration, ip *ipamv1alpha1.IP) {
 	if fwcfg.Spec.Table.Chains == nil || len(fwcfg.Spec.Table.Chains) != 2 {
 		fwcfg.Spec.Table.Chains = make([]firewall.Chain, 2)
 	}

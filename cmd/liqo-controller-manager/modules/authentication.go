@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 	identitycontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/identity-controller"
@@ -39,7 +39,7 @@ import (
 type AuthOption struct {
 	IdentityProvider         identitymanager.IdentityProvider
 	NamespaceManager         tenantnamespace.Manager
-	LocalClusterID           liqov1alpha1.ClusterID
+	LocalClusterID           liqov1beta1.ClusterID
 	LiqoNamespace            string
 	APIServerAddressOverride string
 	CAOverrideB64            string

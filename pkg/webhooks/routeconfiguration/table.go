@@ -21,11 +21,11 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
-func checkUniqueTableName(ctx context.Context, cl client.Client, routeconfiguration *networkingv1alpha1.RouteConfiguration) error {
-	routeConfigurationList := &networkingv1alpha1.RouteConfigurationList{}
+func checkUniqueTableName(ctx context.Context, cl client.Client, routeconfiguration *networkingv1beta1.RouteConfiguration) error {
+	routeConfigurationList := &networkingv1beta1.RouteConfigurationList{}
 	if err := cl.List(ctx, routeConfigurationList); err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func checkUniqueTableName(ctx context.Context, cl client.Client, routeconfigurat
 	return nil
 }
 
-func checkImmutableTableName(newroutecfg, oldroutecfg *networkingv1alpha1.RouteConfiguration) error {
+func checkImmutableTableName(newroutecfg, oldroutecfg *networkingv1beta1.RouteConfiguration) error {
 	if newroutecfg.Spec.Table.Name != oldroutecfg.Spec.Table.Name {
 		return fmt.Errorf("table name is immutable and cannot be changed: %s -> %s",
 			oldroutecfg.Spec.Table.Name, newroutecfg.Spec.Table.Name)

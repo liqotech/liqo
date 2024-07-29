@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	"github.com/liqotech/liqo/pkg/utils/csr"
 )
@@ -48,7 +48,7 @@ var _ = Describe("IdentityManager", func() {
 			opts := &SigningRequestOptions{
 				Cluster:         remoteCluster,
 				SigningRequest:  csrBytes,
-				IdentityType:    authv1alpha1.ControlPlaneIdentityType,
+				IdentityType:    authv1beta1.ControlPlaneIdentityType,
 				TenantNamespace: namespace.Name,
 			}
 			certificate, err := identityProvider.ApproveSigningRequest(ctx, opts)
@@ -61,7 +61,7 @@ var _ = Describe("IdentityManager", func() {
 			opts := &SigningRequestOptions{
 				Cluster:         remoteCluster,
 				SigningRequest:  csrBytes,
-				IdentityType:    authv1alpha1.ControlPlaneIdentityType,
+				IdentityType:    authv1beta1.ControlPlaneIdentityType,
 				TenantNamespace: namespace.Name,
 			}
 			certificate, err := identityProvider.GetRemoteCertificate(ctx, opts)

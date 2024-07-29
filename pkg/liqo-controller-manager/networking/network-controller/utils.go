@@ -19,12 +19,12 @@ import (
 
 	"k8s.io/klog/v2"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/ipam"
 )
 
 // getExternalCIDR returns the remapped external CIDR for the given CIDR.
-func getOrSetExternalCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1alpha1.CIDR) (networkingv1alpha1.CIDR, error) {
+func getOrSetExternalCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1beta1.CIDR) (networkingv1beta1.CIDR, error) {
 	switch ipamClient.(type) {
 	case nil:
 		// IPAM is not enabled, use original CIDR from spec
@@ -37,12 +37,12 @@ func getOrSetExternalCIDR(ctx context.Context, ipamClient ipam.IpamClient, desir
 			return "", err
 		}
 		klog.Infof("IPAM: mapped network external CIDR %s to %s", desiredCIDR, response.RemappedExtCIDR)
-		return networkingv1alpha1.CIDR(response.RemappedExtCIDR), nil
+		return networkingv1beta1.CIDR(response.RemappedExtCIDR), nil
 	}
 }
 
 // getRemappedCIDR returns the remapped CIDR for the given CIDR.
-func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1alpha1.CIDR) (networkingv1alpha1.CIDR, error) {
+func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCIDR networkingv1beta1.CIDR) (networkingv1beta1.CIDR, error) {
 	switch ipamClient.(type) {
 	case nil:
 		// IPAM is not enabled, use original CIDR from spec
@@ -55,12 +55,12 @@ func getRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, desiredCID
 			return "", err
 		}
 		klog.Infof("IPAM: mapped network CIDR %s to %s", desiredCIDR, response.Cidr)
-		return networkingv1alpha1.CIDR(response.Cidr), nil
+		return networkingv1beta1.CIDR(response.Cidr), nil
 	}
 }
 
 // deleteRemappedCIDR unmaps the given CIDR.
-func deleteRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, remappedCIDR networkingv1alpha1.CIDR) error {
+func deleteRemappedCIDR(ctx context.Context, ipamClient ipam.IpamClient, remappedCIDR networkingv1beta1.CIDR) error {
 	switch ipamClient.(type) {
 	case nil:
 		// If the IPAM is not enabled we do not need to free the network CIDR.

@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/connection/conncheck"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel"
@@ -68,7 +68,7 @@ func NewConnectionsReconciler(ctx context.Context, cl client.Client,
 
 // Reconcile manage PublicKey resources.
 func (r *ConnectionsReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	connection := &networkingv1alpha1.Connection{}
+	connection := &networkingv1beta1.Connection{}
 	if err := r.Client.Get(ctx, req.NamespacedName, connection); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no connection %s", req.String())
@@ -118,23 +118,23 @@ func (r *ConnectionsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.Connection{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&networkingv1beta1.Connection{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
 }
 
 // ForgeUpdateConnectionCallback forges the UpdateConnectionStatus function.
 func ForgeUpdateConnectionCallback(ctx context.Context, cl client.Client, opts *Options, req ctrl.Request) conncheck.UpdateFunc {
 	return func(connected bool, latency time.Duration, timestamp time.Time) error {
-		connection := &networkingv1alpha1.Connection{}
+		connection := &networkingv1beta1.Connection{}
 		if err := cl.Get(ctx, req.NamespacedName, connection); err != nil {
 			return err
 		}
-		var connStatusValue networkingv1alpha1.ConnectionStatusValue
+		var connStatusValue networkingv1beta1.ConnectionStatusValue
 		switch connected {
 		case true:
-			connStatusValue = networkingv1alpha1.Connected
+			connStatusValue = networkingv1beta1.Connected
 		case false:
-			connStatusValue = networkingv1alpha1.ConnectionError
+			connStatusValue = networkingv1beta1.ConnectionError
 		}
 		return UpdateConnectionStatus(ctx, cl, opts, connection, connStatusValue, latency, timestamp)
 	}

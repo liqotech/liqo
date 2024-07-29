@@ -28,7 +28,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -43,7 +43,7 @@ type NamespacedReflector struct {
 	local  string
 	remote string
 
-	reflectionType offloadingv1alpha1.ReflectionType
+	reflectionType offloadingv1beta1.ReflectionType
 
 	ForgingOpts *forge.ForgingOpts
 }
@@ -114,13 +114,13 @@ func (gnr *NamespacedReflector) DeleteLocal(ctx context.Context, deleter Resourc
 // ShouldSkipReflection returns whether the reflection of the given object should be skipped.
 func (gnr *NamespacedReflector) ShouldSkipReflection(obj metav1.Object) (bool, error) {
 	switch gnr.reflectionType {
-	case offloadingv1alpha1.AllowList:
+	case offloadingv1beta1.AllowList:
 		value, ok := obj.GetAnnotations()[consts.AllowReflectionAnnotationKey]
 		if ok && strings.EqualFold(value, "false") {
 			return true, nil
 		}
 		return !ok, nil
-	case offloadingv1alpha1.DenyList:
+	case offloadingv1beta1.DenyList:
 		value, ok := obj.GetAnnotations()[consts.SkipReflectionAnnotationKey]
 		if ok && strings.EqualFold(value, "false") {
 			return false, nil
@@ -132,7 +132,7 @@ func (gnr *NamespacedReflector) ShouldSkipReflection(obj metav1.Object) (bool, e
 }
 
 // GetReflectionType returns the reflection type of the reflector.
-func (gnr *NamespacedReflector) GetReflectionType() offloadingv1alpha1.ReflectionType {
+func (gnr *NamespacedReflector) GetReflectionType() offloadingv1beta1.ReflectionType {
 	return gnr.reflectionType
 }
 

@@ -21,8 +21,8 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
 func checkUniqueChainName(chains []firewallapi.Chain) error {
@@ -41,7 +41,7 @@ func checkUniqueChainName(chains []firewallapi.Chain) error {
 }
 
 // checkImmutableTableName checks if the table name is immutable.
-func checkImmutableTableName(fwcfg, oldFwcfg *networkingv1alpha1.FirewallConfiguration) error {
+func checkImmutableTableName(fwcfg, oldFwcfg *networkingv1beta1.FirewallConfiguration) error {
 	if fwcfg.Spec.Table.Name == nil || oldFwcfg.Spec.Table.Name == nil {
 		return fmt.Errorf("table name is nil")
 	}
@@ -51,7 +51,7 @@ func checkImmutableTableName(fwcfg, oldFwcfg *networkingv1alpha1.FirewallConfigu
 	return nil
 }
 
-func checkUniqueTableName(ctx context.Context, cl client.Client, currentFwcfg *networkingv1alpha1.FirewallConfiguration) error {
+func checkUniqueTableName(ctx context.Context, cl client.Client, currentFwcfg *networkingv1beta1.FirewallConfiguration) error {
 	if currentFwcfg == nil {
 		return fmt.Errorf("firewallconfiguration is nil")
 	}
@@ -60,7 +60,7 @@ func checkUniqueTableName(ctx context.Context, cl client.Client, currentFwcfg *n
 	}
 	currentTableName := currentFwcfg.Spec.Table.Name
 
-	fwcfglist := networkingv1alpha1.FirewallConfigurationList{}
+	fwcfglist := networkingv1beta1.FirewallConfigurationList{}
 	if err := cl.List(ctx, &fwcfglist); err != nil {
 		return err
 	}

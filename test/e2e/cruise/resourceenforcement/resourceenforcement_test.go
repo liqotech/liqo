@@ -28,8 +28,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
@@ -62,7 +62,7 @@ var (
 	tenantNamespace = ""
 
 	wakeUpResourceSlice = func() {
-		var slices authv1alpha1.ResourceSliceList
+		var slices authv1beta1.ResourceSliceList
 		Expect(testContext.Clusters[0].ControllerClient.List(ctx, &slices)).To(Succeed())
 
 		for i := range slices.Items {
@@ -77,7 +77,7 @@ var (
 
 	activateTenants = func() {
 		for i := range testContext.Clusters {
-			if testContext.Clusters[i].Role == liqov1alpha1.ProviderRole {
+			if testContext.Clusters[i].Role == liqov1beta1.ProviderRole {
 				Expect(util.ActivateTenants(ctx, testContext.Clusters[i].ControllerClient)).To(Succeed())
 			}
 		}
@@ -86,7 +86,7 @@ var (
 	}
 	cordonTenants = func() {
 		for i := range testContext.Clusters {
-			if testContext.Clusters[i].Role == liqov1alpha1.ProviderRole {
+			if testContext.Clusters[i].Role == liqov1beta1.ProviderRole {
 				Expect(util.CordonTenants(ctx, testContext.Clusters[i].ControllerClient)).To(Succeed())
 			}
 		}
@@ -95,7 +95,7 @@ var (
 	}
 	drainTenants = func() {
 		for i := range testContext.Clusters {
-			if testContext.Clusters[i].Role == liqov1alpha1.ProviderRole {
+			if testContext.Clusters[i].Role == liqov1beta1.ProviderRole {
 				Expect(util.DrainTenants(ctx, testContext.Clusters[i].ControllerClient)).To(Succeed())
 			}
 		}
@@ -132,7 +132,7 @@ var _ = Describe("Liqo E2E", func() {
 
 			// ensure the namespace is created
 			for i := range testContext.Clusters {
-				if testContext.Clusters[i].Role == liqov1alpha1.ConsumerRole {
+				if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 					// ensure the namespace is created
 					Expect(util.Second(util.EnforceNamespace(ctx, testContext.Clusters[i].NativeClient,
 						testContext.Clusters[i].Cluster, namespaceName))).To(Succeed())
@@ -284,10 +284,10 @@ var _ = Describe("Liqo E2E", func() {
 					GinkgoWriter,
 				)).To(Succeed())
 
-				var slices authv1alpha1.ResourceSliceList
+				var slices authv1beta1.ResourceSliceList
 				Expect(testContext.Clusters[0].ControllerClient.List(ctx, &slices)).To(Succeed())
 
-				var slice *authv1alpha1.ResourceSlice
+				var slice *authv1beta1.ResourceSlice
 				for i := range slices.Items {
 					if slices.Items[i].Name == sliceName {
 						slice = &slices.Items[i]
@@ -298,20 +298,20 @@ var _ = Describe("Liqo E2E", func() {
 				Expect(slice.Namespace).ToNot(BeEmpty())
 				tenantNamespace = slice.Namespace
 
-				Consistently(func() authv1alpha1.ResourceSliceConditionStatus {
-					var s authv1alpha1.ResourceSlice
+				Consistently(func() authv1beta1.ResourceSliceConditionStatus {
+					var s authv1beta1.ResourceSlice
 					if err := testContext.Clusters[0].ControllerClient.Get(ctx,
 						client.ObjectKey{Name: sliceName, Namespace: tenantNamespace}, &s); err != nil {
-						return authv1alpha1.ResourceSliceConditionAccepted
+						return authv1beta1.ResourceSliceConditionAccepted
 					}
 
 					for i := range s.Status.Conditions {
-						if s.Status.Conditions[i].Type == authv1alpha1.ResourceSliceConditionTypeResources {
+						if s.Status.Conditions[i].Type == authv1beta1.ResourceSliceConditionTypeResources {
 							return s.Status.Conditions[i].Status
 						}
 					}
-					return authv1alpha1.ResourceSliceConditionDenied
-				}, consistentlyTimeout, interval).Should(Or(Equal(authv1alpha1.ResourceSliceConditionDenied), Equal("")))
+					return authv1beta1.ResourceSliceConditionDenied
+				}, consistentlyTimeout, interval).Should(Or(Equal(authv1beta1.ResourceSliceConditionDenied), Equal("")))
 
 				Expect(testContext.Clusters[0].ControllerClient.Delete(ctx, slice)).To(Succeed())
 			})
@@ -325,7 +325,7 @@ var _ = AfterSuite(func() {
 	activateTenants()
 
 	if tenantNamespace != "" {
-		Expect(client.IgnoreNotFound(testContext.Clusters[0].ControllerClient.Delete(ctx, &authv1alpha1.ResourceSlice{
+		Expect(client.IgnoreNotFound(testContext.Clusters[0].ControllerClient.Delete(ctx, &authv1beta1.ResourceSlice{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      sliceName,
 				Namespace: tenantNamespace,

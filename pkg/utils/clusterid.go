@@ -15,17 +15,17 @@
 package utils
 
 import (
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // GetClusterIDFromLabels returns the clusterID from the given labels.
-func GetClusterIDFromLabels(labels map[string]string) (liqov1alpha1.ClusterID, bool) {
+func GetClusterIDFromLabels(labels map[string]string) (liqov1beta1.ClusterID, bool) {
 	return GetClusterIDFromLabelsWithKey(labels, consts.RemoteClusterID)
 }
 
 // GetClusterIDFromLabelsWithKey returns the clusterID from the given labels with the given key.
-func GetClusterIDFromLabelsWithKey(labels map[string]string, key string) (liqov1alpha1.ClusterID, bool) {
+func GetClusterIDFromLabelsWithKey(labels map[string]string, key string) (liqov1beta1.ClusterID, bool) {
 	if labels == nil {
 		return "", false
 	}
@@ -33,5 +33,5 @@ func GetClusterIDFromLabelsWithKey(labels map[string]string, key string) (liqov1
 	if !ok {
 		return "", false
 	}
-	return liqov1alpha1.ClusterID(tmp), true
+	return liqov1beta1.ClusterID(tmp), true
 }

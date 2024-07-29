@@ -14,11 +14,9 @@
 
 package foreigncluster
 
-import (
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-)
+import liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 
 // UniqueName returns a unique name for the given cluster.
-func UniqueName(cluster liqov1alpha1.ClusterID) string {
+func UniqueName(cluster liqov1beta1.ClusterID) string {
 	return string(cluster)
 }

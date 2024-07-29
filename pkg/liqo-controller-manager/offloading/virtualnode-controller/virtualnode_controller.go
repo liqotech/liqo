@@ -35,8 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -54,7 +54,7 @@ type VirtualNodeReconciler struct {
 	Scheme         *runtime.Scheme
 	EventsRecorder record.EventRecorder
 
-	HomeClusterID    liqov1alpha1.ClusterID
+	HomeClusterID    liqov1beta1.ClusterID
 	namespaceManager tenantnamespace.Manager
 	dr               *DeletionRoutine
 }
@@ -64,7 +64,7 @@ func NewVirtualNodeReconciler(
 	ctx context.Context,
 	cl client.Client,
 	s *runtime.Scheme, er record.EventRecorder,
-	hci liqov1alpha1.ClusterID,
+	hci liqov1beta1.ClusterID,
 	namespaceManager tenantnamespace.Manager,
 ) (*VirtualNodeReconciler, error) {
 	vnr := &VirtualNodeReconciler{
@@ -95,7 +95,7 @@ func NewVirtualNodeReconciler(
 
 // Reconcile manage NamespaceMaps associated with the virtual-node.
 func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	virtualNode := &offloadingv1alpha1.VirtualNode{}
+	virtualNode := &offloadingv1beta1.VirtualNode{}
 	if err := r.Get(ctx, req.NamespacedName, virtualNode); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no a virtual-node called '%s' in '%s'", req.Name, req.Namespace)
@@ -162,7 +162,7 @@ var deploymentHandler = &handler.Funcs{
 func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, o client.Object) []reconcile.Request {
-			nm, ok := o.(*offloadingv1alpha1.NamespaceMap)
+			nm, ok := o.(*offloadingv1beta1.NamespaceMap)
 			if !ok {
 				return []reconcile.Request{}
 			}
@@ -173,7 +173,7 @@ func (r *VirtualNodeReconciler) enqueFromNamespaceMap() handler.EventHandler {
 			clusterID := nm.Labels[consts.RemoteClusterID]
 
 			// list virtualnode resources with the remote cluster ID label
-			virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, liqov1alpha1.ClusterID(clusterID))
+			virtualnodes, err := getters.ListVirtualNodesByClusterID(ctx, r.Client, liqov1beta1.ClusterID(clusterID))
 			if err != nil {
 				klog.Errorf("unable to list virtualnodes with clusterID %s: %v", clusterID, err)
 				return []reconcile.Request{}
@@ -200,8 +200,8 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&offloadingv1alpha1.VirtualNode{}).
+		For(&offloadingv1beta1.VirtualNode{}).
 		Watches(&appsv1.Deployment{}, deploymentHandler, builder.WithPredicates(deployPredicate)).
-		Watches(&offloadingv1alpha1.NamespaceMap{}, r.enqueFromNamespaceMap()).
+		Watches(&offloadingv1beta1.NamespaceMap{}, r.enqueFromNamespaceMap()).
 		Complete(r)
 }

@@ -29,14 +29,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 func ForgeFakeVirtualNode(nameVirtualNode, tenantNamespaceName string,
-	remoteClusterID liqov1alpha1.ClusterID) *offloadingv1alpha1.VirtualNode {
-	return &offloadingv1alpha1.VirtualNode{
+	remoteClusterID liqov1beta1.ClusterID) *offloadingv1beta1.VirtualNode {
+	return &offloadingv1beta1.VirtualNode{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameVirtualNode,
 			Namespace: tenantNamespaceName,
@@ -44,10 +44,10 @@ func ForgeFakeVirtualNode(nameVirtualNode, tenantNamespaceName string,
 				liqoconst.RemoteClusterID: string(remoteClusterID),
 			},
 		},
-		Spec: offloadingv1alpha1.VirtualNodeSpec{
+		Spec: offloadingv1beta1.VirtualNodeSpec{
 			ClusterID:  remoteClusterID,
 			CreateNode: ptr.To(true),
-			Template: &offloadingv1alpha1.DeploymentTemplate{
+			Template: &offloadingv1beta1.DeploymentTemplate{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      nameVirtualNode,
 					Namespace: tenantNamespaceName,
@@ -99,7 +99,7 @@ var _ = Describe("VirtualNode controller", func() {
 		})
 
 		AfterEach(func() {
-			vn := &offloadingv1alpha1.VirtualNode{}
+			vn := &offloadingv1beta1.VirtualNode{}
 			By(fmt.Sprintf("Delete the virtual-node '%s'", nameVirtualNode1))
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1, Namespace: tenantNamespace1.Name}, vn)).Should(Succeed())
 			Expect(k8sClient.Delete(ctx, vn)).Should(Succeed())

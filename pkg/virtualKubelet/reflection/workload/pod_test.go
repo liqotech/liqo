@@ -30,8 +30,8 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"k8s.io/utils/trace"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -44,7 +44,7 @@ import (
 var _ = Describe("Pod Reflection Tests", func() {
 	Describe("the NewPodReflector function", func() {
 		It("should not return a nil reflector", func() {
-			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1beta1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
@@ -65,24 +65,24 @@ var _ = Describe("Pod Reflection Tests", func() {
 
 		BeforeEach(func() {
 			metricsFactory := func(string) metricsv1beta1.PodMetricsInterface { return nil }
-			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1beta1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}
 			reflector := workload.NewPodReflector(nil, metricsFactory,
 				&workload.PodReflectorConfig{forge.APIServerSupportDisabled, false, "", "",
-					fakeAPIServerRemapping("192.168.200.1"), &networkingv1alpha1.Configuration{
-						Spec: networkingv1alpha1.ConfigurationSpec{
-							Remote: networkingv1alpha1.ClusterConfig{
-								CIDR: networkingv1alpha1.ClusterConfigCIDR{
+					fakeAPIServerRemapping("192.168.200.1"), &networkingv1beta1.Configuration{
+						Spec: networkingv1beta1.ConfigurationSpec{
+							Remote: networkingv1beta1.ClusterConfig{
+								CIDR: networkingv1beta1.ClusterConfigCIDR{
 									Pod:      "192.168.200.0/24",
 									External: "192.168.100.0/24",
 								},
 							},
 						},
-						Status: networkingv1alpha1.ConfigurationStatus{
-							Remote: &networkingv1alpha1.ClusterConfig{
-								CIDR: networkingv1alpha1.ClusterConfigCIDR{
+						Status: networkingv1beta1.ConfigurationStatus{
+							Remote: &networkingv1beta1.ClusterConfig{
+								CIDR: networkingv1beta1.ClusterConfigCIDR{
 									Pod:      "192.168.201.0/24",
 									External: "192.168.101.0/24",
 								},
@@ -130,7 +130,7 @@ var _ = Describe("Pod Reflection Tests", func() {
 			client = fake.NewSimpleClientset(&local)
 			factory := informers.NewSharedInformerFactory(client, 10*time.Hour)
 
-			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1beta1.ReflectorConfig{
 				NumWorkers: 0,
 				Type:       root.DefaultReflectorsTypes[resources.Pod],
 			}

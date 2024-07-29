@@ -20,11 +20,11 @@ import (
 
 	"k8s.io/cli-runtime/pkg/printers"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 )
 
 // output implements the logic to output the generated tenant resource.
-func (o *Options) output(tenant *authv1alpha1.Tenant) error {
+func (o *Options) output(tenant *authv1beta1.Tenant) error {
 	var outputFormat string
 	switch {
 	case o.generateOptions != nil:

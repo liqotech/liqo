@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
@@ -74,7 +74,7 @@ func NewWgGatewayServerReconciler(cl client.Client, s *runtime.Scheme,
 
 // Reconcile manage WgGatewayServer lifecycle.
 func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
-	wgServer := &networkingv1alpha1.WgGatewayServer{}
+	wgServer := &networkingv1beta1.WgGatewayServer{}
 	if err = r.Get(ctx, req.NamespacedName, wgServer); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("WireGuard gateway server %q not found", req.NamespacedName)
@@ -172,7 +172,7 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 // SetupWithManager register the WgGatewayServerReconciler to the manager.
 func (r *WgGatewayServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.WgGatewayServer{}).
+		For(&networkingv1beta1.WgGatewayServer{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ServiceAccount{}).
@@ -184,7 +184,7 @@ func (r *WgGatewayServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *WgGatewayServerReconciler) ensureDeployment(ctx context.Context, wgServer *networkingv1alpha1.WgGatewayServer,
+func (r *WgGatewayServerReconciler) ensureDeployment(ctx context.Context, wgServer *networkingv1beta1.WgGatewayServer,
 	depNsName types.NamespacedName) (*appsv1.Deployment, error) {
 	dep := appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{
 		Name:      depNsName.Name,
@@ -203,7 +203,7 @@ func (r *WgGatewayServerReconciler) ensureDeployment(ctx context.Context, wgServ
 	return &dep, nil
 }
 
-func (r *WgGatewayServerReconciler) ensureService(ctx context.Context, wgServer *networkingv1alpha1.WgGatewayServer,
+func (r *WgGatewayServerReconciler) ensureService(ctx context.Context, wgServer *networkingv1beta1.WgGatewayServer,
 	svcNsName types.NamespacedName) (*corev1.Service, error) {
 	svc := corev1.Service{ObjectMeta: metav1.ObjectMeta{
 		Name:      svcNsName.Name,
@@ -222,7 +222,7 @@ func (r *WgGatewayServerReconciler) ensureService(ctx context.Context, wgServer 
 	return &svc, nil
 }
 
-func (r *WgGatewayServerReconciler) mutateFnWgServerDeployment(deployment *appsv1.Deployment, wgServer *networkingv1alpha1.WgGatewayServer) error {
+func (r *WgGatewayServerReconciler) mutateFnWgServerDeployment(deployment *appsv1.Deployment, wgServer *networkingv1beta1.WgGatewayServer) error {
 	// Forge metadata
 	mapsutil.SmartMergeLabels(deployment, wgServer.Spec.Deployment.Metadata.GetLabels())
 	mapsutil.SmartMergeAnnotations(deployment, wgServer.Spec.Deployment.Metadata.GetAnnotations())
@@ -234,7 +234,7 @@ func (r *WgGatewayServerReconciler) mutateFnWgServerDeployment(deployment *appsv
 	return controllerutil.SetControllerReference(wgServer, deployment, r.Scheme)
 }
 
-func (r *WgGatewayServerReconciler) mutateFnWgServerService(service *corev1.Service, wgServer *networkingv1alpha1.WgGatewayServer) error {
+func (r *WgGatewayServerReconciler) mutateFnWgServerService(service *corev1.Service, wgServer *networkingv1beta1.WgGatewayServer) error {
 	// Forge metadata
 	mapsutil.SmartMergeLabels(service, wgServer.Spec.Service.Metadata.GetLabels())
 	mapsutil.SmartMergeAnnotations(service, wgServer.Spec.Service.Metadata.GetAnnotations())
@@ -250,7 +250,7 @@ func (r *WgGatewayServerReconciler) mutateFnWgServerService(service *corev1.Serv
 	return controllerutil.SetControllerReference(wgServer, service, r.Scheme)
 }
 
-func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wgServer *networkingv1alpha1.WgGatewayServer,
+func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wgServer *networkingv1beta1.WgGatewayServer,
 	svcNsName types.NamespacedName, dep *appsv1.Deployment) error {
 	// Handle WireGuard server Service
 	var service corev1.Service
@@ -261,7 +261,7 @@ func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wg
 	}
 
 	// Put service endpoint in WireGuard server status
-	var endpointStatus *networkingv1alpha1.EndpointStatus
+	var endpointStatus *networkingv1beta1.EndpointStatus
 	switch service.Spec.Type {
 	case corev1.ServiceTypeNodePort:
 		endpointStatus, _, err = r.forgeEndpointStatusNodePort(ctx, &service, dep)
@@ -283,7 +283,7 @@ func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wg
 }
 
 func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Context, service *corev1.Service,
-	dep *appsv1.Deployment) (*networkingv1alpha1.EndpointStatus, *networkingv1alpha1.InternalGatewayEndpoint, error) {
+	dep *appsv1.Deployment) (*networkingv1beta1.EndpointStatus, *networkingv1beta1.InternalGatewayEndpoint, error) {
 	if len(service.Spec.Ports) == 0 {
 		err := fmt.Errorf("service %s/%s has no ports", service.Namespace, service.Name)
 		klog.Error(err)
@@ -384,12 +384,12 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Cont
 		return nil, nil, err
 	}
 
-	return &networkingv1alpha1.EndpointStatus{
+	return &networkingv1beta1.EndpointStatus{
 			Protocol:  protocol,
 			Port:      port,
 			Addresses: addresses,
-		}, &networkingv1alpha1.InternalGatewayEndpoint{
-			IP:   ptr.To(networkingv1alpha1.IP(internalAddress)),
+		}, &networkingv1beta1.InternalGatewayEndpoint{
+			IP:   ptr.To(networkingv1beta1.IP(internalAddress)),
 			Node: &nodeName,
 		}, nil
 }
@@ -414,7 +414,7 @@ func (r *WgGatewayServerReconciler) numPodsMatchesDesiredReplicas(numPods int, d
 	return nil
 }
 
-func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *corev1.Service) (*networkingv1alpha1.EndpointStatus, error) {
+func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *corev1.Service) (*networkingv1beta1.EndpointStatus, error) {
 	if len(service.Spec.Ports) == 0 {
 		err := fmt.Errorf("service %s/%s has no ports", service.Namespace, service.Name)
 		klog.Error(err)
@@ -438,14 +438,14 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *cor
 		return nil, err
 	}
 
-	return &networkingv1alpha1.EndpointStatus{
+	return &networkingv1beta1.EndpointStatus{
 		Protocol:  protocol,
 		Port:      port,
 		Addresses: addresses,
 	}, nil
 }
 
-func (r *WgGatewayServerReconciler) handleSecretRefStatus(ctx context.Context, wgServer *networkingv1alpha1.WgGatewayServer) error {
+func (r *WgGatewayServerReconciler) handleSecretRefStatus(ctx context.Context, wgServer *networkingv1beta1.WgGatewayServer) error {
 	secret, err := getWireGuardSecret(ctx, r.Client, wgServer)
 	if err != nil {
 		return err
@@ -465,7 +465,7 @@ func (r *WgGatewayServerReconciler) handleSecretRefStatus(ctx context.Context, w
 	return nil
 }
 
-func (r *WgGatewayServerReconciler) handleInternalEndpointStatus(ctx context.Context, wgServer *networkingv1alpha1.WgGatewayServer,
+func (r *WgGatewayServerReconciler) handleInternalEndpointStatus(ctx context.Context, wgServer *networkingv1beta1.WgGatewayServer,
 	svcNsName types.NamespacedName, dep *appsv1.Deployment) error {
 	var service corev1.Service
 	err := r.Get(ctx, svcNsName, &service)

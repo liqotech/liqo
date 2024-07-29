@@ -23,9 +23,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -66,11 +66,11 @@ func FakeControllerManagerDeployment(argsClusterLabels []string, networkEnabled 
 
 // FakeForeignCluster returns a fake ForeignCluster.
 func FakeForeignCluster(
-	clusterID liqov1alpha1.ClusterID, modules *liqov1alpha1.Modules) *liqov1alpha1.ForeignCluster {
-	return &liqov1alpha1.ForeignCluster{
+	clusterID liqov1beta1.ClusterID, modules *liqov1beta1.Modules) *liqov1beta1.ForeignCluster {
+	return &liqov1beta1.ForeignCluster{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       liqov1alpha1.ForeignClusterKind,
-			APIVersion: liqov1alpha1.ForeignClusterGroupVersionResource.GroupVersion().String(),
+			Kind:       liqov1beta1.ForeignClusterKind,
+			APIVersion: liqov1beta1.ForeignClusterGroupVersionResource.GroupVersion().String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: string(clusterID),
@@ -78,12 +78,12 @@ func FakeForeignCluster(
 				liqoconsts.RemoteClusterID: string(clusterID),
 			},
 		},
-		Spec: liqov1alpha1.ForeignClusterSpec{
+		Spec: liqov1beta1.ForeignClusterSpec{
 			ClusterID: clusterID,
 		},
-		Status: liqov1alpha1.ForeignClusterStatus{
+		Status: liqov1beta1.ForeignClusterStatus{
 			Modules:      *modules,
-			Role:         liqov1alpha1.UnknownRole,
+			Role:         liqov1beta1.UnknownRole,
 			APIServerURL: ForeignAPIServerURL,
 		},
 	}
@@ -109,7 +109,7 @@ func FakeNetworkPodCIDR() *ipamv1alpha1.Network {
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1alpha1.CIDR(PodCIDR),
+			CIDR: networkingv1beta1.CIDR(PodCIDR),
 		},
 	}
 }
@@ -126,7 +126,7 @@ func FakeNetworkServiceCIDR() *ipamv1alpha1.Network {
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1alpha1.CIDR(ServiceCIDR),
+			CIDR: networkingv1beta1.CIDR(ServiceCIDR),
 		},
 	}
 }
@@ -142,10 +142,10 @@ func FakeNetworkExternalCIDR() *ipamv1alpha1.Network {
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1alpha1.CIDR(ExternalCIDR),
+			CIDR: networkingv1beta1.CIDR(ExternalCIDR),
 		},
 		Status: ipamv1alpha1.NetworkStatus{
-			CIDR: networkingv1alpha1.CIDR(ExternalCIDR),
+			CIDR: networkingv1beta1.CIDR(ExternalCIDR),
 		},
 	}
 }
@@ -161,10 +161,10 @@ func FakeNetworkInternalCIDR() *ipamv1alpha1.Network {
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1alpha1.CIDR(InternalCIDR),
+			CIDR: networkingv1beta1.CIDR(InternalCIDR),
 		},
 		Status: ipamv1alpha1.NetworkStatus{
-			CIDR: networkingv1alpha1.CIDR(InternalCIDR),
+			CIDR: networkingv1beta1.CIDR(InternalCIDR),
 		},
 	}
 }
@@ -181,15 +181,15 @@ func FakeNetworkReservedSubnet(i int) *ipamv1alpha1.Network {
 			},
 		},
 		Spec: ipamv1alpha1.NetworkSpec{
-			CIDR: networkingv1alpha1.CIDR(ReservedSubnets[i]),
+			CIDR: networkingv1beta1.CIDR(ReservedSubnets[i]),
 		},
 	}
 }
 
 // FakeConfiguration returns a fake Configuration.
 func FakeConfiguration(remoteClusterID, podCIDR, extCIDR, remotePodCIDR, remoteExtCIDR,
-	remoteRemappedPodCIDR, remoteRemappedExtCIDR string) *networkingv1alpha1.Configuration {
-	return &networkingv1alpha1.Configuration{
+	remoteRemappedPodCIDR, remoteRemappedExtCIDR string) *networkingv1beta1.Configuration {
+	return &networkingv1beta1.Configuration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-configuration",
 			Namespace: "fake-tentant-namespace",
@@ -197,25 +197,25 @@ func FakeConfiguration(remoteClusterID, podCIDR, extCIDR, remotePodCIDR, remoteE
 				liqoconsts.RemoteClusterID: remoteClusterID,
 			},
 		},
-		Spec: networkingv1alpha1.ConfigurationSpec{
-			Local: &networkingv1alpha1.ClusterConfig{
-				CIDR: networkingv1alpha1.ClusterConfigCIDR{
-					Pod:      networkingv1alpha1.CIDR(podCIDR),
-					External: networkingv1alpha1.CIDR(extCIDR),
+		Spec: networkingv1beta1.ConfigurationSpec{
+			Local: &networkingv1beta1.ClusterConfig{
+				CIDR: networkingv1beta1.ClusterConfigCIDR{
+					Pod:      networkingv1beta1.CIDR(podCIDR),
+					External: networkingv1beta1.CIDR(extCIDR),
 				},
 			},
-			Remote: networkingv1alpha1.ClusterConfig{
-				CIDR: networkingv1alpha1.ClusterConfigCIDR{
-					Pod:      networkingv1alpha1.CIDR(remotePodCIDR),
-					External: networkingv1alpha1.CIDR(remoteExtCIDR),
+			Remote: networkingv1beta1.ClusterConfig{
+				CIDR: networkingv1beta1.ClusterConfigCIDR{
+					Pod:      networkingv1beta1.CIDR(remotePodCIDR),
+					External: networkingv1beta1.CIDR(remoteExtCIDR),
 				},
 			},
 		},
-		Status: networkingv1alpha1.ConfigurationStatus{
-			Remote: &networkingv1alpha1.ClusterConfig{
-				CIDR: networkingv1alpha1.ClusterConfigCIDR{
-					Pod:      networkingv1alpha1.CIDR(remoteRemappedPodCIDR),
-					External: networkingv1alpha1.CIDR(remoteRemappedExtCIDR),
+		Status: networkingv1beta1.ConfigurationStatus{
+			Remote: &networkingv1beta1.ClusterConfig{
+				CIDR: networkingv1beta1.ClusterConfigCIDR{
+					Pod:      networkingv1beta1.CIDR(remoteRemappedPodCIDR),
+					External: networkingv1beta1.CIDR(remoteRemappedExtCIDR),
 				},
 			},
 		},
@@ -223,8 +223,8 @@ func FakeConfiguration(remoteClusterID, podCIDR, extCIDR, remotePodCIDR, remoteE
 }
 
 // FakeConnection returns a fake Connection.
-func FakeConnection(remoteClusterID string) *networkingv1alpha1.Connection {
-	return &networkingv1alpha1.Connection{
+func FakeConnection(remoteClusterID string) *networkingv1beta1.Connection {
+	return &networkingv1beta1.Connection{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-connection",
 			Namespace: "fake-tentant-namespace",
@@ -232,22 +232,22 @@ func FakeConnection(remoteClusterID string) *networkingv1alpha1.Connection {
 				liqoconsts.RemoteClusterID: remoteClusterID,
 			},
 		},
-		Spec: networkingv1alpha1.ConnectionSpec{
-			Type: networkingv1alpha1.ConnectionTypeServer,
+		Spec: networkingv1beta1.ConnectionSpec{
+			Type: networkingv1beta1.ConnectionTypeServer,
 		},
-		Status: networkingv1alpha1.ConnectionStatus{
-			Latency: networkingv1alpha1.ConnectionLatency{
+		Status: networkingv1beta1.ConnectionStatus{
+			Latency: networkingv1beta1.ConnectionLatency{
 				Value:     "fake-latency",
 				Timestamp: metav1.Now(),
 			},
-			Value: networkingv1alpha1.Connected,
+			Value: networkingv1beta1.Connected,
 		},
 	}
 }
 
 // FakeGatewayServer returns a fake GatewayServer.
-func FakeGatewayServer(remoteClusterID string) *networkingv1alpha1.GatewayServer {
-	return &networkingv1alpha1.GatewayServer{
+func FakeGatewayServer(remoteClusterID string) *networkingv1beta1.GatewayServer {
+	return &networkingv1beta1.GatewayServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-gateway-server",
 			Namespace: "fake-tentant-namespace",
@@ -255,15 +255,15 @@ func FakeGatewayServer(remoteClusterID string) *networkingv1alpha1.GatewayServer
 				liqoconsts.RemoteClusterID: remoteClusterID,
 			},
 		},
-		Spec: networkingv1alpha1.GatewayServerSpec{
+		Spec: networkingv1beta1.GatewayServerSpec{
 			MTU: 1500,
-			Endpoint: networkingv1alpha1.Endpoint{
+			Endpoint: networkingv1beta1.Endpoint{
 				ServiceType: "fake-service-type",
 				Port:        1234,
 			},
 		},
-		Status: networkingv1alpha1.GatewayServerStatus{
-			Endpoint: &networkingv1alpha1.EndpointStatus{
+		Status: networkingv1beta1.GatewayServerStatus{
+			Endpoint: &networkingv1beta1.EndpointStatus{
 				Addresses: []string{"fake-address"},
 				Port:      1234,
 				Protocol:  ptr.To(corev1.ProtocolTCP),
@@ -273,8 +273,8 @@ func FakeGatewayServer(remoteClusterID string) *networkingv1alpha1.GatewayServer
 }
 
 // FakeGatewayClient returns a fake GatewayClient.
-func FakeGatewayClient(remoteClusterID string) *networkingv1alpha1.GatewayClient {
-	return &networkingv1alpha1.GatewayClient{
+func FakeGatewayClient(remoteClusterID string) *networkingv1beta1.GatewayClient {
+	return &networkingv1beta1.GatewayClient{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-gateway-client",
 			Namespace: "fake-tentant-namespace",
@@ -282,9 +282,9 @@ func FakeGatewayClient(remoteClusterID string) *networkingv1alpha1.GatewayClient
 				liqoconsts.RemoteClusterID: remoteClusterID,
 			},
 		},
-		Spec: networkingv1alpha1.GatewayClientSpec{
+		Spec: networkingv1beta1.GatewayClientSpec{
 			MTU: 1500,
-			Endpoint: networkingv1alpha1.EndpointStatus{
+			Endpoint: networkingv1beta1.EndpointStatus{
 				Addresses: []string{"fake-address"},
 				Port:      1234,
 				Protocol:  ptr.To(corev1.ProtocolTCP),

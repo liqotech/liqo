@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
@@ -37,7 +37,7 @@ const (
 
 // APIServerCheckers manage the foreign API server checker functions.
 type APIServerCheckers struct {
-	cancelFuncs  map[liqov1alpha1.ClusterID]context.CancelFunc
+	cancelFuncs  map[liqov1beta1.ClusterID]context.CancelFunc
 	mutex        sync.RWMutex
 	pingInterval time.Duration
 	pingTimeout  time.Duration
@@ -48,7 +48,7 @@ type APIServerCheckers struct {
 // NewAPIServerCheckers returns a new APIServerCheckers struct.
 func NewAPIServerCheckers(idManager identitymanager.IdentityManager, pingInterval, pingTimeout time.Duration) APIServerCheckers {
 	return APIServerCheckers{
-		cancelFuncs:  make(map[liqov1alpha1.ClusterID]context.CancelFunc),
+		cancelFuncs:  make(map[liqov1beta1.ClusterID]context.CancelFunc),
 		mutex:        sync.RWMutex{},
 		pingInterval: pingInterval,
 		pingTimeout:  pingTimeout,
@@ -58,7 +58,7 @@ func NewAPIServerCheckers(idManager identitymanager.IdentityManager, pingInterva
 }
 
 func (r *ForeignClusterReconciler) handleAPIServerChecker(ctx context.Context,
-	foreignCluster *liqov1alpha1.ForeignCluster) (cont bool, res ctrl.Result, err error) {
+	foreignCluster *liqov1beta1.ForeignCluster) (cont bool, res ctrl.Result, err error) {
 	r.APIServerCheckers.mutex.Lock()
 	defer r.APIServerCheckers.mutex.Unlock()
 
@@ -70,8 +70,8 @@ func (r *ForeignClusterReconciler) handleAPIServerChecker(ctx context.Context,
 	// If checker disabled, we consider the foreign API server as always ready.
 	if needCondition && checkerDisabled {
 		fcutils.EnsureGenericCondition(foreignCluster,
-			liqov1alpha1.APIServerStatusCondition,
-			liqov1alpha1.ConditionStatusEstablished,
+			liqov1beta1.APIServerStatusCondition,
+			liqov1beta1.ConditionStatusEstablished,
 			apiServerReadyReason,
 			apiServerReadyMessage)
 
@@ -130,7 +130,7 @@ func (r *ForeignClusterReconciler) handleAPIServerChecker(ctx context.Context,
 			delete(r.APIServerCheckers.cancelFuncs, clusterID)
 		}
 
-		fcutils.DeleteGenericCondition(foreignCluster, liqov1alpha1.APIServerStatusCondition)
+		fcutils.DeleteGenericCondition(foreignCluster, liqov1beta1.APIServerStatusCondition)
 
 		// remove the finalizer from the list and update it.
 		if controllerutil.ContainsFinalizer(foreignCluster, apiServerCheckerFinalizer) {
@@ -148,7 +148,7 @@ func (r *ForeignClusterReconciler) handleAPIServerChecker(ctx context.Context,
 }
 
 // ensureFinalizer updates the ForeignCluster to ensure the presence/absence of the API server checker finalizer.
-func (r *ForeignClusterReconciler) ensureFinalizer(ctx context.Context, foreignCluster *liqov1alpha1.ForeignCluster,
+func (r *ForeignClusterReconciler) ensureFinalizer(ctx context.Context, foreignCluster *liqov1beta1.ForeignCluster,
 	updater func(client.Object, string) bool) error {
 	// Do not perform any action if the finalizer is already as expected
 	if !updater(foreignCluster, apiServerCheckerFinalizer) {
@@ -158,9 +158,9 @@ func (r *ForeignClusterReconciler) ensureFinalizer(ctx context.Context, foreignC
 	return r.Client.Update(ctx, foreignCluster)
 }
 
-func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clusterID liqov1alpha1.ClusterID,
+func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clusterID liqov1beta1.ClusterID,
 	discoveryClient *discovery.DiscoveryClient) {
-	var oldStatus, newStatus liqov1alpha1.ConditionStatusType
+	var oldStatus, newStatus liqov1beta1.ConditionStatusType
 	var reason, message string
 
 	// We delay for a bit to not update the foreign cluster too soon, avoiding possible collision with the
@@ -179,18 +179,18 @@ func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clus
 		oldStatus = fcutils.GetAPIServerStatus(fc)
 
 		if r.isForeignAPIServerReady(ctx, discoveryClient, clusterID) {
-			newStatus = liqov1alpha1.ConditionStatusEstablished
+			newStatus = liqov1beta1.ConditionStatusEstablished
 			reason = apiServerReadyReason
 			message = apiServerReadyMessage
 		} else {
-			newStatus = liqov1alpha1.ConditionStatusError
+			newStatus = liqov1beta1.ConditionStatusError
 			reason = apiServerNotReadyReason
 			message = apiServerNotReadyMessage
 		}
 
 		if oldStatus != newStatus {
 			fcutils.EnsureGenericCondition(fc,
-				liqov1alpha1.APIServerStatusCondition, newStatus, reason, message)
+				liqov1beta1.APIServerStatusCondition, newStatus, reason, message)
 			if err := r.Status().Update(ctx, fc); err != nil {
 				klog.Errorf("[%s] error while updating foreign API server status: %v", clusterID, err)
 				return false, nil
@@ -210,7 +210,7 @@ func (r *ForeignClusterReconciler) runAPIServerChecker(ctx context.Context, clus
 }
 
 func (r *ForeignClusterReconciler) isForeignAPIServerReady(ctx context.Context, discoveryClient *discovery.DiscoveryClient,
-	id liqov1alpha1.ClusterID) bool {
+	id liqov1beta1.ClusterID) bool {
 	pingCtx, cancel := context.WithTimeout(ctx, r.APIServerCheckers.pingTimeout)
 	defer cancel()
 
