@@ -27,13 +27,15 @@ source "$WORKDIR/../utils.sh"
 
 export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1" # consumer cluster
 
+RUNNER_NAME=${RUNNER_NAME:-"test"}
+BASE_CLUSTER_NAME="${RUNNER_NAME}-cluster"
+
 for i in $(seq 2 "${CLUSTER_NUMBER}")
 do
-  provider_cluster="cluster-${i}"
-  virtualnode=$provider_cluster
-  if ! waitandretry 5s 12 "$KUBECTL top node ${virtualnode}";
+  CLUSTER_NAME="${BASE_CLUSTER_NAME}${i}"
+  if ! waitandretry 5s 12 "$KUBECTL top node ${CLUSTER_NAME}";
   then
-      echo "Failed to get metrics from virtual node ${virtualnode} in cluster ${provider_cluster}"
+      echo "Failed to get metrics from virtual node ${CLUSTER_NAME}"
       exit 1
   fi
 done

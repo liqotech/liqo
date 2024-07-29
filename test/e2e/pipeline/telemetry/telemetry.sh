@@ -18,6 +18,8 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
+LIQO_VERSION="${LIQO_VERSION:-$(git rev-parse HEAD)}"
+
 for i in $(seq 1 "${CLUSTER_NUMBER}")
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"

@@ -139,6 +139,20 @@ function install_metrics_server() {
   "${KUBECTL}" -n kube-system rollout status deployment metrics-server --kubeconfig "${kubeconfig}"
 }
 
+function install_gcloud() {
+  #Download and install gcloud
+  cd "${BINDIR}"
+  curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz
+  tar -xf google-cloud-cli-linux-x86_64.tar.gz
+  ./google-cloud-sdk/install.sh --path-update true -q
+  cd -
+
+  #Login to gcloud
+  echo "${GCLOUD_KEY}" | base64 -d > "${GCLOUD_KEY_FILE}" 
+  "${GCLOUD}" auth activate-service-account --key-file="${BINDIR}/gke_key_file.json" 
+  "${GCLOUD}" config set project "${GCLOUD_PROJECT_ID}" -q
+}
+
 function install_kyverno() {
   local kubeconfig=$1
 
