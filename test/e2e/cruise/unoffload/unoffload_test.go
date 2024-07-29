@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	sliceutils "github.com/liqotech/liqo/pkg/utils/slice"
@@ -145,7 +145,7 @@ var (
 
 		// check the service
 		for i := range testContext.Clusters {
-			if testContext.Clusters[i].Role == liqov1alpha1.ConsumerRole {
+			if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 				continue
 			}
 
@@ -155,7 +155,7 @@ var (
 
 		// check the config map
 		for i := range testContext.Clusters {
-			if testContext.Clusters[i].Role == liqov1alpha1.ConsumerRole {
+			if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 				continue
 			}
 
@@ -171,7 +171,7 @@ var _ = Describe("Liqo E2E", func() {
 		BeforeEach(func() {
 			// ensure the namespace is created
 			for i := range testContext.Clusters {
-				if testContext.Clusters[i].Role == liqov1alpha1.ConsumerRole {
+				if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 					// ensure the namespace is created
 					Expect(util.Second(util.EnforceNamespace(ctx, testContext.Clusters[i].NativeClient,
 						testContext.Clusters[i].Cluster, namespaceName))).To(Succeed())
@@ -200,7 +200,7 @@ var _ = Describe("Liqo E2E", func() {
 			It("should not found resources in the remote cluster", func() {
 				// check the pod
 				for i := range testContext.Clusters {
-					if testContext.Clusters[i].Role == liqov1alpha1.ConsumerRole {
+					if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 						continue
 					}
 
@@ -213,7 +213,7 @@ var _ = Describe("Liqo E2E", func() {
 
 				// check the service
 				for i := range testContext.Clusters {
-					if testContext.Clusters[i].Role == liqov1alpha1.ConsumerRole {
+					if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 						continue
 					}
 
@@ -225,7 +225,7 @@ var _ = Describe("Liqo E2E", func() {
 
 				// check the config map
 				for i := range testContext.Clusters {
-					if testContext.Clusters[i].Role == liqov1alpha1.ConsumerRole {
+					if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 						continue
 					}
 
@@ -237,7 +237,7 @@ var _ = Describe("Liqo E2E", func() {
 
 				// check the namespace is deleted
 				for i := range testContext.Clusters {
-					if testContext.Clusters[i].Role == liqov1alpha1.ConsumerRole {
+					if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 						continue
 					}
 

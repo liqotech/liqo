@@ -24,7 +24,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -108,7 +108,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 }
 
 // output implements the logic to output the generated PublicKey resource.
-func (o *Options) output(pubKey *networkingv1alpha1.PublicKey) error {
+func (o *Options) output(pubKey *networkingv1beta1.PublicKey) error {
 	var outputFormat string
 	switch {
 	case o.createOptions != nil:

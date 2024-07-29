@@ -21,7 +21,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -51,18 +51,18 @@ func (o *Options) RunUncordonTenant(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
-	var tenant authv1alpha1.Tenant
+	var tenant authv1beta1.Tenant
 	if err := o.CRClient.Get(ctx, client.ObjectKey{Name: o.Name}, &tenant); err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to get tenant: %v", output.PrettyErr(err)))
 		return err
 	}
 
-	if tenant.Spec.TenantCondition != authv1alpha1.TenantConditionCordoned {
+	if tenant.Spec.TenantCondition != authv1beta1.TenantConditionCordoned {
 		o.Printer.Warning.Printfln("Tenant %q is not cordoned", o.Name)
 		return nil
 	}
 
-	tenant.Spec.TenantCondition = authv1alpha1.TenantConditionActive
+	tenant.Spec.TenantCondition = authv1beta1.TenantConditionActive
 	if err := o.CRClient.Update(ctx, &tenant); err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to update tenant: %v", output.PrettyErr(err)))
 		return err
@@ -86,7 +86,7 @@ func (o *Options) RunUncordonResourceSlice(ctx context.Context) error {
 		return err
 	}
 
-	var rs authv1alpha1.ResourceSlice
+	var rs authv1beta1.ResourceSlice
 	if err := o.CRClient.Get(ctx, client.ObjectKey{Name: o.Name, Namespace: ns.Name}, &rs); err != nil {
 		o.Printer.CheckErr(fmt.Errorf("unable to get ResourceSlice: %v", output.PrettyErr(err)))
 		return err

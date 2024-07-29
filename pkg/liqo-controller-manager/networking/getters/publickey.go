@@ -21,7 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -42,13 +42,13 @@ func ExtractKeyFromSecretRef(ctx context.Context, cl client.Client, secretRef *c
 func GetGatewaySecretReference(ctx context.Context, cl client.Client, namespace, gatewayName, gatewayType string) (*corev1.ObjectReference, error) {
 	switch gatewayType {
 	case consts.GatewayTypeServer:
-		var gwServer networkingv1alpha1.GatewayServer
+		var gwServer networkingv1beta1.GatewayServer
 		if err := cl.Get(ctx, client.ObjectKey{Namespace: namespace, Name: gatewayName}, &gwServer); err != nil {
 			return nil, err
 		}
 		return gwServer.Status.SecretRef, nil
 	case consts.GatewayTypeClient:
-		var gwClient networkingv1alpha1.GatewayClient
+		var gwClient networkingv1beta1.GatewayClient
 		if err := cl.Get(ctx, client.ObjectKey{Namespace: namespace, Name: gatewayName}, &gwClient); err != nil {
 			return nil, err
 		}

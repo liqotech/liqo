@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
@@ -35,7 +35,7 @@ import (
 
 // GetClusterIDWithNativeClient returns cluster identity using a kubernetes.Interface client.
 func GetClusterIDWithNativeClient(ctx context.Context,
-	nativeClient kubernetes.Interface, namespace string) (liqov1alpha1.ClusterID, error) {
+	nativeClient kubernetes.Interface, namespace string) (liqov1beta1.ClusterID, error) {
 	cmClient := nativeClient.CoreV1().ConfigMaps(namespace)
 	configMapList, err := cmClient.List(ctx, metav1.ListOptions{
 		LabelSelector: consts.ClusterIDConfigMapSelector().String(),
@@ -58,7 +58,7 @@ func GetClusterIDWithNativeClient(ctx context.Context,
 }
 
 // GetClusterIDWithControllerClient returns cluster identity using a client.Client client.
-func GetClusterIDWithControllerClient(ctx context.Context, cl client.Client, namespace string) (liqov1alpha1.ClusterID, error) {
+func GetClusterIDWithControllerClient(ctx context.Context, cl client.Client, namespace string) (liqov1beta1.ClusterID, error) {
 	selector, err := metav1.LabelSelectorAsSelector(&liqolabels.ClusterIDConfigMapLabelSelector)
 	if err != nil {
 		return "", err
@@ -75,7 +75,7 @@ func GetClusterIDWithControllerClient(ctx context.Context, cl client.Client, nam
 }
 
 // GetClusterID returns the local clusterID.
-func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string) (liqov1alpha1.ClusterID, error) {
+func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string) (liqov1beta1.ClusterID, error) {
 	clusterID, err := GetClusterIDWithNativeClient(ctx, cl, namespace)
 	if err != nil {
 		return "", err

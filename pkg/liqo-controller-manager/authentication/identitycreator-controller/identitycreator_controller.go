@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -40,7 +40,7 @@ import (
 // NewIdentityCreatorReconciler returns a new IdentityCreatorReconciler.
 func NewIdentityCreatorReconciler(cl client.Client, s *runtime.Scheme,
 	recorder record.EventRecorder, liqoNamespace string,
-	localClusterID liqov1alpha1.ClusterID) *IdentityCreatorReconciler {
+	localClusterID liqov1beta1.ClusterID) *IdentityCreatorReconciler {
 	return &IdentityCreatorReconciler{
 		Client: cl,
 		Scheme: s,
@@ -60,7 +60,7 @@ type IdentityCreatorReconciler struct {
 	eventRecorder record.EventRecorder
 
 	liqoNamespace  string
-	localClusterID liqov1alpha1.ClusterID
+	localClusterID liqov1beta1.ClusterID
 }
 
 // cluster-role
@@ -70,7 +70,7 @@ type IdentityCreatorReconciler struct {
 
 // Reconcile local ResourceSlice resources.
 func (r *IdentityCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var resourceSlice authv1alpha1.ResourceSlice
+	var resourceSlice authv1beta1.ResourceSlice
 	if err := r.Get(ctx, req.NamespacedName, &resourceSlice); err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("resourceSlice %q not found", req.NamespacedName)
@@ -108,7 +108,7 @@ func (r *IdentityCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// Create or update the Identity resource.
 	identity := forge.Identity(forge.ResourceSliceIdentityName(&resourceSlice), resourceSlice.Namespace)
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, identity, func() error {
-		forge.MutateIdentity(identity, *resourceSlice.Spec.ProviderClusterID, authv1alpha1.ResourceSliceIdentityType,
+		forge.MutateIdentity(identity, *resourceSlice.Spec.ProviderClusterID, authv1beta1.ResourceSliceIdentityType,
 			resourceSlice.Status.AuthParams, nil)
 		if identity.Labels == nil {
 			identity.Labels = make(map[string]string)
@@ -136,24 +136,24 @@ func (r *IdentityCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&authv1alpha1.ResourceSlice{}, builder.WithPredicates(predicate.And(localResSliceFilter, withAuthCondition()))).
-		Owns(&authv1alpha1.Identity{}).
+		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(predicate.And(localResSliceFilter, withAuthCondition()))).
+		Owns(&authv1beta1.Identity{}).
 		Complete(r)
 }
 
 func withAuthCondition() predicate.Funcs {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		rs, ok := obj.(*authv1alpha1.ResourceSlice)
+		rs, ok := obj.(*authv1beta1.ResourceSlice)
 		if !ok {
 			return false
 		}
 
-		return authentication.GetCondition(rs, authv1alpha1.ResourceSliceConditionTypeAuthentication) != nil
+		return authentication.GetCondition(rs, authv1beta1.ResourceSliceConditionTypeAuthentication) != nil
 	})
 }
 
-func authenticationDenied(resourceSlice *authv1alpha1.ResourceSlice) bool {
-	authCondition := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeAuthentication)
+func authenticationDenied(resourceSlice *authv1beta1.ResourceSlice) bool {
+	authCondition := authentication.GetCondition(resourceSlice, authv1beta1.ResourceSliceConditionTypeAuthentication)
 
-	return authCondition.Status == authv1alpha1.ResourceSliceConditionDenied
+	return authCondition.Status == authv1beta1.ResourceSliceConditionDenied
 }

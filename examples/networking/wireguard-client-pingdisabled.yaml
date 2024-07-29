@@ -1,11 +1,11 @@
-apiVersion: networking.liqo.io/v1alpha1
+apiVersion: networking.liqo.io/v1beta1
 kind: WgGatewayClientTemplate
 metadata:
   name: wireguard-client-pingdisabled
   # namespace: liqo # or custom namespace
 spec:
   objectKind:
-    apiVersion: networking.liqo.io/v1alpha1
+    apiVersion: networking.liqo.io/v1beta1
     kind: WgGatewayClient
   template:
     metadata:

@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -53,7 +53,7 @@ func DeleteClusterRoleBinding(ctx context.Context, cl client.Client, obj client.
 
 // EnsureServiceAccountAndClusterRoleBinding ensures that the service account and the cluster role binding are created or deleted.
 func EnsureServiceAccountAndClusterRoleBinding(ctx context.Context, cl client.Client, s *runtime.Scheme,
-	deploy *networkingv1alpha1.DeploymentTemplate, owner client.Object, clusterRoleName string) error {
+	deploy *networkingv1beta1.DeploymentTemplate, owner client.Object, clusterRoleName string) error {
 	namespace := owner.GetNamespace()
 	name := owner.GetName()
 

@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/trace"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"github.com/liqotech/liqo/pkg/consts"
 	. "github.com/liqotech/liqo/pkg/utils/testutil"
@@ -41,7 +41,7 @@ import (
 var _ = Describe("ConfigMap Reflection", func() {
 	Describe("NewConfigMapReflector", func() {
 		It("should create a non-nil reflector", func() {
-			reflectorConfig := offloadingv1alpha1.ReflectorConfig{
+			reflectorConfig := offloadingv1beta1.ReflectorConfig{
 				NumWorkers: 1,
 				Type:       root.DefaultReflectorsTypes[resources.ConfigMap],
 			}
@@ -54,7 +54,7 @@ var _ = Describe("ConfigMap Reflection", func() {
 
 		var (
 			reflector      manager.NamespacedReflector
-			reflectionType offloadingv1alpha1.ReflectionType
+			reflectionType offloadingv1beta1.ReflectionType
 
 			name          string
 			local, remote corev1.ConfigMap
@@ -208,7 +208,7 @@ var _ = Describe("ConfigMap Reflection", func() {
 
 		When("the reflection type is AllowList", func() {
 			BeforeEach(func() {
-				reflectionType = offloadingv1alpha1.AllowList
+				reflectionType = offloadingv1beta1.AllowList
 			})
 
 			When("the local object does exist, but does not have the allow annotation", func() {
@@ -251,7 +251,7 @@ var _ = Describe("ConfigMap Reflection", func() {
 
 			When("the reflection type is AllowList", func() {
 				BeforeEach(func() {
-					reflectionType = offloadingv1alpha1.AllowList
+					reflectionType = offloadingv1beta1.AllowList
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })

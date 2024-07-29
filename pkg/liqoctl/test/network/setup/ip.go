@@ -25,7 +25,7 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
 )
@@ -66,7 +66,7 @@ func CreateIP(ctx context.Context, cl ctrlclient.Client, dstip string) error {
 			},
 		},
 		Spec: ipamv1alpha1.IPSpec{
-			IP:         networkingv1alpha1.IP(dstip),
+			IP:         networkingv1beta1.IP(dstip),
 			Masquerade: ptr.To(true),
 		},
 	}

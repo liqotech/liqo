@@ -20,7 +20,7 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // Init initializes the IPAM.
@@ -34,7 +34,7 @@ func Init(ctx context.Context, cl client.Client, ipam *IPAM) error {
 
 // initInternalNodes initializes the IPAM with the internal nodes.
 func initInternalNodes(ctx context.Context, cl client.Client, ipam *IPAM) error {
-	list := &networkingv1alpha1.InternalNodeList{}
+	list := &networkingv1beta1.InternalNodeList{}
 	if err := cl.List(ctx, list); err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func initInternalNodes(ctx context.Context, cl client.Client, ipam *IPAM) error 
 
 // initInternalFabrics initializes the IPAM with the internal fabrics.
 func initInternalFabrics(ctx context.Context, cl client.Client, ipam *IPAM) error {
-	list := &networkingv1alpha1.InternalFabricList{}
+	list := &networkingv1beta1.InternalFabricList{}
 	if err := cl.List(ctx, list); err != nil {
 		return err
 	}

@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
@@ -84,7 +84,7 @@ func CreateKeysSecret(ctx context.Context, cl client.Client, opts *Options, pri,
 
 // EnsureConnection creates or updates the connection resource.
 func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Scheme, opts *Options) error {
-	conn := &networkingv1alpha1.Connection{ObjectMeta: metav1.ObjectMeta{
+	conn := &networkingv1beta1.Connection{ObjectMeta: metav1.ObjectMeta{
 		Name: forge.GatewayResourceName(opts.GwOptions.Name), Namespace: opts.GwOptions.Namespace,
 		Labels: map[string]string{
 			string(consts.RemoteClusterID): opts.GwOptions.RemoteClusterID,
@@ -97,17 +97,17 @@ func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Sch
 		if err := gateway.SetOwnerReferenceWithMode(opts.GwOptions, conn, scheme); err != nil {
 			return err
 		}
-		conn.Spec.GatewayRef.APIVersion = networkingv1alpha1.GroupVersion.String()
+		conn.Spec.GatewayRef.APIVersion = networkingv1beta1.GroupVersion.String()
 		conn.Spec.GatewayRef.Name = opts.GwOptions.Name
 		conn.Spec.GatewayRef.Namespace = opts.GwOptions.Namespace
 		conn.Spec.GatewayRef.UID = types.UID(opts.GwOptions.GatewayUID)
 		switch opts.GwOptions.Mode {
 		case gateway.ModeServer:
-			conn.Spec.Type = networkingv1alpha1.ConnectionTypeServer
-			conn.Spec.GatewayRef.Kind = networkingv1alpha1.WgGatewayServerKind
+			conn.Spec.Type = networkingv1beta1.ConnectionTypeServer
+			conn.Spec.GatewayRef.Kind = networkingv1beta1.WgGatewayServerKind
 		case gateway.ModeClient:
-			conn.Spec.Type = networkingv1alpha1.ConnectionTypeClient
-			conn.Spec.GatewayRef.Kind = networkingv1alpha1.WgGatewayClientKind
+			conn.Spec.Type = networkingv1beta1.ConnectionTypeClient
+			conn.Spec.GatewayRef.Kind = networkingv1beta1.WgGatewayClientKind
 		}
 		return nil
 	})
@@ -118,6 +118,6 @@ func EnsureConnection(ctx context.Context, cl client.Client, scheme *runtime.Sch
 
 	klog.Infof("Connection %q created", conn.Name)
 
-	conn.Status.Value = networkingv1alpha1.Connecting
+	conn.Status.Value = networkingv1beta1.Connecting
 	return cl.Status().Update(ctx, conn)
 }

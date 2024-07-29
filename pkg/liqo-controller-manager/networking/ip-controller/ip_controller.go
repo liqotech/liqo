@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/ipam"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
@@ -74,7 +74,7 @@ func NewIPReconciler(cl client.Client, s *runtime.Scheme, ipamClient ipam.IpamCl
 // Reconcile Ip objects.
 func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var ip ipamv1alpha1.IP
-	var desiredIP networkingv1alpha1.IP
+	var desiredIP networkingv1beta1.IP
 
 	// Fetch the IP instance
 	if err := r.Get(ctx, req.NamespacedName, &ip); err != nil {
@@ -188,18 +188,18 @@ func (r *IPReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, w
 		For(&ipamv1alpha1.IP{}).
 		Owns(&v1.Service{}).
 		Owns(&discoveryv1.EndpointSlice{}).
-		Watches(&networkingv1alpha1.Configuration{}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
+		Watches(&networkingv1beta1.Configuration{}, handler.EnqueueRequestsFromMapFunc(enqueuer)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)
 }
 
 // forgeIPMappings forge the IP mappings for each remote cluster. Return true if the status must be updated, false otherwise.
-func (r *IPReconciler) forgeIPMappings(ctx context.Context, clusterIDs []string, desiredIP networkingv1alpha1.IP, ip *ipamv1alpha1.IP) (bool, error) {
+func (r *IPReconciler) forgeIPMappings(ctx context.Context, clusterIDs []string, desiredIP networkingv1beta1.IP, ip *ipamv1alpha1.IP) (bool, error) {
 	// Update IP status for each remote cluster
 	needUpdate := false
 
 	if ip.Status.IPMappings == nil {
-		ip.Status.IPMappings = make(map[string]networkingv1alpha1.IP)
+		ip.Status.IPMappings = make(map[string]networkingv1beta1.IP)
 	}
 
 	for i := range clusterIDs {
@@ -233,7 +233,7 @@ func (r *IPReconciler) forgeIPMappings(ctx context.Context, clusterIDs []string,
 }
 
 // handleDelete handles the deletion of the IP resource. It call the IPAM to unmap the IPs of each remote cluster.
-func (r *IPReconciler) handleDelete(ctx context.Context, clusterIDs []string, desiredIP networkingv1alpha1.IP, ip *ipamv1alpha1.IP) error {
+func (r *IPReconciler) handleDelete(ctx context.Context, clusterIDs []string, desiredIP networkingv1beta1.IP, ip *ipamv1alpha1.IP) error {
 	for i := range clusterIDs {
 		remoteClusterID := &clusterIDs[i]
 		if err := deleteRemappedIP(ctx, r.ipamClient, *remoteClusterID, desiredIP); err != nil {
@@ -251,7 +251,7 @@ func (r *IPReconciler) handleDelete(ctx context.Context, clusterIDs []string, de
 
 // getRemappedIP returns the remapped IP for the given IP and remote clusterID.
 func getRemappedIP(ctx context.Context, ipamClient ipam.IpamClient, remoteClusterID string,
-	desiredIP networkingv1alpha1.IP) (networkingv1alpha1.IP, error) {
+	desiredIP networkingv1beta1.IP) (networkingv1beta1.IP, error) {
 	switch ipamClient.(type) {
 	case nil:
 		// IPAM is not enabled, use original IP from spec
@@ -265,12 +265,12 @@ func getRemappedIP(ctx context.Context, ipamClient ipam.IpamClient, remoteCluste
 			return "", err
 		}
 		klog.Infof("IPAM: mapped IP %s to %s for remote cluster %q", desiredIP, response.Ip, remoteClusterID)
-		return networkingv1alpha1.IP(response.Ip), nil
+		return networkingv1beta1.IP(response.Ip), nil
 	}
 }
 
 // deleteRemappedIP unmaps the IP for the given remote clusterID.
-func deleteRemappedIP(ctx context.Context, ipamClient ipam.IpamClient, remoteClusterID string, desiredIP networkingv1alpha1.IP) error {
+func deleteRemappedIP(ctx context.Context, ipamClient ipam.IpamClient, remoteClusterID string, desiredIP networkingv1beta1.IP) error {
 	switch ipamClient.(type) {
 	case nil:
 		// If the IPAM is not enabled we do not need to release the translation.

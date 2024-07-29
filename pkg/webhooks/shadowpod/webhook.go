@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	pod "github.com/liqotech/liqo/pkg/utils/pod"
@@ -239,8 +239,8 @@ func (spv *Validator) validateShadowPodClusterID(ctx context.Context, ns, spClus
 }
 
 // decodeShadowPod decodes a shadow pod from a given runtime object.
-func decodeShadowPod(decoder *admission.Decoder, obj runtime.RawExtension) (shadowpod *offloadingv1alpha1.ShadowPod, err error) {
-	shadowpod = &offloadingv1alpha1.ShadowPod{}
+func decodeShadowPod(decoder *admission.Decoder, obj runtime.RawExtension) (shadowpod *offloadingv1beta1.ShadowPod, err error) {
+	shadowpod = &offloadingv1beta1.ShadowPod{}
 	err = decoder.DecodeRaw(obj, shadowpod)
 	return
 }

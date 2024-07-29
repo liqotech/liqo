@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/ipam/utils"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -66,7 +66,7 @@ func NewInternalNodeReconciler(cl client.Client, s *runtime.Scheme,
 // Reconcile manage InternalNodes.
 func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	internalnode := &networkingv1alpha1.InternalNode{
+	internalnode := &networkingv1beta1.InternalNode{
 		ObjectMeta: ctrl.ObjectMeta{
 			Name:      req.Name,
 			Namespace: req.Namespace,
@@ -151,8 +151,8 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 // SetupWithManager register the InternalNodeReconciler to the manager.
 func (r *InternalNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.InternalNode{}).
-		Watches(&networkingv1alpha1.Configuration{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).
+		For(&networkingv1beta1.InternalNode{}).
+		Watches(&networkingv1beta1.Configuration{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).
 		Watches(&ipamv1alpha1.IP{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).
 		Complete(r)
 }

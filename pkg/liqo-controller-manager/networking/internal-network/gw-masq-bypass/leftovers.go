@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -78,7 +78,7 @@ func (r *PodReconciler) CheckLeftoverRules(ctx context.Context) error {
 	return r.processFirewallConfiguration(ctx, fwcfglist)
 }
 
-func (r *PodReconciler) processFirewallConfiguration(ctx context.Context, fwcfglist *networkingv1alpha1.FirewallConfigurationList) error {
+func (r *PodReconciler) processFirewallConfiguration(ctx context.Context, fwcfglist *networkingv1beta1.FirewallConfigurationList) error {
 	if fwcfglist == nil {
 		return fmt.Errorf("firewall configuration list is nil")
 	}

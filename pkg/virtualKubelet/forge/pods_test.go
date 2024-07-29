@@ -29,7 +29,7 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	"k8s.io/utils/pointer"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -141,7 +141,7 @@ var _ = Describe("Pod forging", func() {
 	Describe("the RemoteShadowPod function", func() {
 		var (
 			local          *corev1.Pod
-			remote, output *offloadingv1alpha1.ShadowPod
+			remote, output *offloadingv1beta1.ShadowPod
 			forgingOpts    *forge.ForgingOpts
 		)
 
@@ -196,7 +196,7 @@ var _ = Describe("Pod forging", func() {
 
 		Context("the remote pod already exists", func() {
 			BeforeEach(func() {
-				remote = &offloadingv1alpha1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: "remote-name", Namespace: "remote-namespace", UID: "remote-uid"}}
+				remote = &offloadingv1beta1.ShadowPod{ObjectMeta: metav1.ObjectMeta{Name: "remote-name", Namespace: "remote-namespace", UID: "remote-uid"}}
 			})
 
 			It("should correctly update the object meta", func() {

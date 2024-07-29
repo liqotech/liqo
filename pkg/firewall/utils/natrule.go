@@ -25,14 +25,14 @@ import (
 	"github.com/google/nftables/userdata"
 	"k8s.io/klog/v2"
 
-	firewallv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
 var _ Rule = &NatRuleWrapper{}
 
 // NatRuleWrapper wraps a NatRule.
 type NatRuleWrapper struct {
-	*firewallv1alpha1.NatRule
+	*firewallv1beta1.NatRule
 }
 
 // GetName returns the name of the rule.
@@ -91,7 +91,7 @@ func (nr *NatRuleWrapper) Equal(currentrule *nftables.Rule) bool {
 	return true
 }
 
-func forgeNatRule(nr *firewallv1alpha1.NatRule, chain *nftables.Chain) (*nftables.Rule, error) {
+func forgeNatRule(nr *firewallv1beta1.NatRule, chain *nftables.Chain) (*nftables.Rule, error) {
 	rule := &nftables.Rule{
 		Table:    chain.Table,
 		Chain:    chain,
@@ -111,8 +111,8 @@ func forgeNatRule(nr *firewallv1alpha1.NatRule, chain *nftables.Chain) (*nftable
 	return rule, nil
 }
 
-func applyNatRule(nr *firewallv1alpha1.NatRule, rule *nftables.Rule) error {
-	ipType, err := firewallv1alpha1.GetIPValueType(nr.To)
+func applyNatRule(nr *firewallv1beta1.NatRule, rule *nftables.Rule) error {
+	ipType, err := firewallv1beta1.GetIPValueType(nr.To)
 	if err != nil {
 		return err
 	}
@@ -123,11 +123,11 @@ func applyNatRule(nr *firewallv1alpha1.NatRule, rule *nftables.Rule) error {
 	}
 
 	switch ipType {
-	case firewallv1alpha1.IPValueTypeIP:
+	case firewallv1beta1.IPValueTypeIP:
 		return applyNatIP(nr.To, natType, rule)
-	case firewallv1alpha1.IPValueTypeSubnet:
+	case firewallv1beta1.IPValueTypeSubnet:
 		return applyNatSubnet(nr.To, natType, rule)
-	case firewallv1alpha1.IPValueTypeVoid:
+	case firewallv1beta1.IPValueTypeVoid:
 		return applyNatVoid(rule)
 	}
 	return nil
@@ -197,11 +197,11 @@ func applyNatSubnet(ip *string, natType expr.NATType, rule *nftables.Rule) error
 	return nil
 }
 
-func getNatRuleType(natrule *firewallv1alpha1.NatRule) (expr.NATType, error) {
+func getNatRuleType(natrule *firewallv1beta1.NatRule) (expr.NATType, error) {
 	switch natrule.NatType {
-	case firewallv1alpha1.NatTypeDestination:
+	case firewallv1beta1.NatTypeDestination:
 		return expr.NATTypeDestNAT, nil
-	case firewallv1alpha1.NatTypeSource, firewallv1alpha1.NatTypeMasquerade:
+	case firewallv1beta1.NatTypeSource, firewallv1beta1.NatTypeMasquerade:
 		return expr.NATTypeSourceNAT, nil
 	default:
 		return expr.NATType(0), fmt.Errorf("invalid nat type %s", natrule.NatType)

@@ -19,7 +19,7 @@ import (
 
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 const (
@@ -28,13 +28,13 @@ const (
 )
 
 func (r *RouteConfigurationReconciler) ensureRouteConfigurationFinalizerPresence(
-	ctx context.Context, fwcfg *networkingv1alpha1.RouteConfiguration) error {
+	ctx context.Context, fwcfg *networkingv1beta1.RouteConfiguration) error {
 	ctrlutil.AddFinalizer(fwcfg, routeconfigurationControllerFinalizer)
 	return r.Client.Update(ctx, fwcfg)
 }
 
 func (r *RouteConfigurationReconciler) ensureRouteConfigurationFinalizerAbsence(
-	ctx context.Context, fwcfg *networkingv1alpha1.RouteConfiguration) error {
+	ctx context.Context, fwcfg *networkingv1beta1.RouteConfiguration) error {
 	ctrlutil.RemoveFinalizer(fwcfg, routeconfigurationControllerFinalizer)
 	return r.Client.Update(ctx, fwcfg)
 }

@@ -34,11 +34,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 	vkforge "github.com/liqotech/liqo/pkg/vkMachinery/forge"
@@ -64,27 +64,27 @@ func GetIPAMStorageByLabel(ctx context.Context, cl client.Client, lSelector labe
 
 // GetNamespaceMapByLabel returns the NamespaceMapping with the given labels.
 func GetNamespaceMapByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) (*offloadingv1alpha1.NamespaceMap, error) {
-	var namespaceMapList offloadingv1alpha1.NamespaceMapList
+	ns string, lSelector labels.Selector) (*offloadingv1beta1.NamespaceMap, error) {
+	var namespaceMapList offloadingv1beta1.NamespaceMapList
 	if err := cl.List(ctx, &namespaceMapList, client.MatchingLabelsSelector{Selector: lSelector}, client.InNamespace(ns)); err != nil {
 		return nil, err
 	}
 
 	switch len(namespaceMapList.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(offloadingv1alpha1.NamespaceMapGroupResource, offloadingv1alpha1.NamespaceMapResource)
+		return nil, kerrors.NewNotFound(offloadingv1beta1.NamespaceMapGroupResource, offloadingv1beta1.NamespaceMapResource)
 	case 1:
 		return &namespaceMapList.Items[0], nil
 	default:
 		return nil, fmt.Errorf("multiple resources of type %q found for label selector %q,"+
-			" when only one was expected", offloadingv1alpha1.NamespaceMapGroupResource.String(), lSelector.String())
+			" when only one was expected", offloadingv1beta1.NamespaceMapGroupResource.String(), lSelector.String())
 	}
 }
 
 // ListNamespaceMapsByLabel returns the NamespaceMaps that match the given label selector.
 func ListNamespaceMapsByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) ([]offloadingv1alpha1.NamespaceMap, error) {
-	var namespaceMapList offloadingv1alpha1.NamespaceMapList
+	ns string, lSelector labels.Selector) ([]offloadingv1beta1.NamespaceMap, error) {
+	var namespaceMapList offloadingv1beta1.NamespaceMapList
 	if err := cl.List(ctx, &namespaceMapList, client.MatchingLabelsSelector{Selector: lSelector}, client.InNamespace(ns)); err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func ListClusterRoleBindingsByLabel(ctx context.Context, cl client.Client, lSele
 }
 
 // ListNodesByClusterID returns the node list that matches the given cluster id.
-func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID liqov1alpha1.ClusterID) (*corev1.NodeList, error) {
+func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID liqov1beta1.ClusterID) (*corev1.NodeList, error) {
 	list := new(corev1.NodeList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -233,7 +233,7 @@ func ListNodesByClusterID(ctx context.Context, cl client.Client, clusterID liqov
 }
 
 // GetNonceSecretByClusterID returns the secret containing the nonce to be signed by the consumer cluster.
-func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID liqov1alpha1.ClusterID) (*corev1.Secret, error) {
+func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID) (*corev1.Secret, error) {
 	var secrets corev1.SecretList
 	if err := cl.List(ctx, &secrets, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
@@ -255,7 +255,7 @@ func GetNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClus
 }
 
 // GetSignedNonceSecretByClusterID returns the secret containing the nonce signed by the consumer cluster.
-func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID liqov1alpha1.ClusterID) (*corev1.Secret, error) {
+func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID) (*corev1.Secret, error) {
 	var secrets corev1.SecretList
 	if err := cl.List(ctx, &secrets, client.MatchingLabels{
 		consts.RemoteClusterID:           string(remoteClusterID),
@@ -275,8 +275,8 @@ func GetSignedNonceSecretByClusterID(ctx context.Context, cl client.Client, remo
 }
 
 // GetTenantByClusterID returns the Tenant resource for the given cluster id.
-func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID liqov1alpha1.ClusterID) (*authv1alpha1.Tenant, error) {
-	list := new(authv1alpha1.TenantList)
+func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID liqov1beta1.ClusterID) (*authv1beta1.Tenant, error) {
+	list := new(authv1beta1.TenantList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			consts.RemoteClusterID: string(clusterID),
@@ -287,19 +287,19 @@ func GetTenantByClusterID(ctx context.Context, cl client.Client, clusterID liqov
 
 	switch len(list.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(authv1alpha1.TenantGroupResource, string(clusterID))
+		return nil, kerrors.NewNotFound(authv1beta1.TenantGroupResource, string(clusterID))
 	case 1:
 		return &list.Items[0], nil
 	default:
 		return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
-			" when only one was expected", authv1alpha1.TenantResource, clusterID)
+			" when only one was expected", authv1beta1.TenantResource, clusterID)
 	}
 }
 
 // GetControlPlaneIdentityByClusterID returns the Identity of type ControlPlane for the given cluster id.
 func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client,
-	clusterID liqov1alpha1.ClusterID) (*authv1alpha1.Identity, error) {
-	list := new(authv1alpha1.IdentityList)
+	clusterID liqov1beta1.ClusterID) (*authv1beta1.Identity, error) {
+	list := new(authv1beta1.IdentityList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			consts.RemoteClusterID: string(clusterID),
@@ -308,20 +308,20 @@ func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client,
 		return nil, err
 	}
 
-	var controlPlaneIdentity *authv1alpha1.Identity
+	var controlPlaneIdentity *authv1beta1.Identity
 	found := false
 	for i := range list.Items {
-		if list.Items[i].Spec.Type == authv1alpha1.ControlPlaneIdentityType {
+		if list.Items[i].Spec.Type == authv1beta1.ControlPlaneIdentityType {
 			if found {
 				return nil, fmt.Errorf("multiple resources of type {%s} found for cluster {%s},"+
-					" when only one was expected", authv1alpha1.IdentityResource, clusterID)
+					" when only one was expected", authv1beta1.IdentityResource, clusterID)
 			}
 			controlPlaneIdentity = &list.Items[i]
 			found = true
 		}
 	}
 	if !found {
-		return nil, kerrors.NewNotFound(authv1alpha1.IdentityGroupResource, string(clusterID))
+		return nil, kerrors.NewNotFound(authv1beta1.IdentityGroupResource, string(clusterID))
 	}
 
 	return controlPlaneIdentity, nil
@@ -329,8 +329,8 @@ func GetControlPlaneIdentityByClusterID(ctx context.Context, cl client.Client,
 
 // GetResourceSliceIdentitiesByClusterID returns the list of Identities of type ResourceSlice for the given cluster id.
 func GetResourceSliceIdentitiesByClusterID(ctx context.Context, cl client.Client,
-	clusterID liqov1alpha1.ClusterID) ([]authv1alpha1.Identity, error) {
-	list := new(authv1alpha1.IdentityList)
+	clusterID liqov1beta1.ClusterID) ([]authv1beta1.Identity, error) {
+	list := new(authv1beta1.IdentityList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			consts.RemoteClusterID: string(clusterID),
@@ -339,9 +339,9 @@ func GetResourceSliceIdentitiesByClusterID(ctx context.Context, cl client.Client
 		return nil, err
 	}
 
-	var identities []authv1alpha1.Identity
+	var identities []authv1beta1.Identity
 	for i := range list.Items {
-		if list.Items[i].Spec.Type == authv1alpha1.ResourceSliceIdentityType {
+		if list.Items[i].Spec.Type == authv1beta1.ResourceSliceIdentityType {
 			identities = append(identities, list.Items[i])
 		}
 	}
@@ -351,7 +351,7 @@ func GetResourceSliceIdentitiesByClusterID(ctx context.Context, cl client.Client
 
 // GetIdentityFromResourceSlice returns the Identity of type ResourceSlice for the given cluster id and resourceslice name.
 func GetIdentityFromResourceSlice(ctx context.Context, cl client.Client,
-	clusterID liqov1alpha1.ClusterID, resourceSliceName string) (*authv1alpha1.Identity, error) {
+	clusterID liqov1beta1.ClusterID, resourceSliceName string) (*authv1beta1.Identity, error) {
 	identities, err := GetResourceSliceIdentitiesByClusterID(ctx, cl, clusterID)
 	if err != nil {
 		return nil, err
@@ -363,18 +363,18 @@ func GetIdentityFromResourceSlice(ctx context.Context, cl client.Client,
 		}
 	}
 
-	return nil, kerrors.NewNotFound(authv1alpha1.IdentityGroupResource, string(clusterID))
+	return nil, kerrors.NewNotFound(authv1beta1.IdentityGroupResource, string(clusterID))
 }
 
 // GetControlPlaneKubeconfigSecretByClusterID returns the Secret containing the Kubeconfig of
 // a ControlPlane Identity given the cluster id.
 func GetControlPlaneKubeconfigSecretByClusterID(ctx context.Context, cl client.Client,
-	clusterID liqov1alpha1.ClusterID) (*corev1.Secret, error) {
+	clusterID liqov1beta1.ClusterID) (*corev1.Secret, error) {
 	list := new(corev1.SecretList)
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			consts.RemoteClusterID:      string(clusterID),
-			consts.IdentityTypeLabelKey: string(authv1alpha1.ControlPlaneIdentityType),
+			consts.IdentityTypeLabelKey: string(authv1beta1.ControlPlaneIdentityType),
 		}),
 	}); err != nil {
 		return nil, err
@@ -397,7 +397,7 @@ func GetResourceSliceKubeconfigSecretsByClusterID(ctx context.Context, cl client
 	if err := cl.List(ctx, list, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			consts.RemoteClusterID:      clusterID,
-			consts.IdentityTypeLabelKey: string(authv1alpha1.ResourceSliceIdentityType),
+			consts.IdentityTypeLabelKey: string(authv1beta1.ResourceSliceIdentityType),
 		}),
 	}); err != nil {
 		return nil, err
@@ -408,8 +408,8 @@ func GetResourceSliceKubeconfigSecretsByClusterID(ctx context.Context, cl client
 
 // ListResourceSlicesByLabel returns the ResourceSlice list that matches the given label selector.
 func ListResourceSlicesByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) ([]authv1alpha1.ResourceSlice, error) {
-	var list authv1alpha1.ResourceSliceList
+	ns string, lSelector labels.Selector) ([]authv1beta1.ResourceSlice, error) {
+	var list authv1beta1.ResourceSliceList
 	if err := cl.List(ctx, &list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns)); err != nil {
 		return nil, err
 	}
@@ -417,7 +417,7 @@ func ListResourceSlicesByLabel(ctx context.Context, cl client.Client,
 }
 
 // GetKubeconfigSecretFromIdentity returns the Secret referenced in the status of the given Identity.
-func GetKubeconfigSecretFromIdentity(ctx context.Context, cl client.Client, identity *authv1alpha1.Identity) (*corev1.Secret, error) {
+func GetKubeconfigSecretFromIdentity(ctx context.Context, cl client.Client, identity *authv1beta1.Identity) (*corev1.Secret, error) {
 	if identity.Status.KubeconfigSecretRef == nil || identity.Status.KubeconfigSecretRef.Name == "" {
 		return nil, fmt.Errorf("identity %q does not contain the kubeconfig secret reference", identity.Name)
 	}
@@ -432,8 +432,8 @@ func GetKubeconfigSecretFromIdentity(ctx context.Context, cl client.Client, iden
 }
 
 // ListShadowPodsByCreator returns the list of ShadowPods created by the given user.
-func ListShadowPodsByCreator(ctx context.Context, cl client.Client, creator string) (*offloadingv1alpha1.ShadowPodList, error) {
-	list := new(offloadingv1alpha1.ShadowPodList)
+func ListShadowPodsByCreator(ctx context.Context, cl client.Client, creator string) (*offloadingv1beta1.ShadowPodList, error) {
+	list := new(offloadingv1beta1.ShadowPodList)
 	if err := cl.List(ctx, list, client.MatchingLabels{consts.CreatorLabelKey: creator}); err != nil {
 		return nil, err
 	}
@@ -442,8 +442,8 @@ func ListShadowPodsByCreator(ctx context.Context, cl client.Client, creator stri
 
 // GetQuotaByUser returns the list of Quotas for the given user.
 func GetQuotaByUser(ctx context.Context, cl client.Client,
-	user string) (*offloadingv1alpha1.Quota, error) {
-	var quotas offloadingv1alpha1.QuotaList
+	user string) (*offloadingv1beta1.Quota, error) {
+	var quotas offloadingv1beta1.QuotaList
 	err := cl.List(ctx, &quotas, &client.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -455,12 +455,12 @@ func GetQuotaByUser(ctx context.Context, cl client.Client,
 		}
 	}
 
-	return nil, kerrors.NewNotFound(offloadingv1alpha1.QuotaGroupResource, user)
+	return nil, kerrors.NewNotFound(offloadingv1beta1.QuotaGroupResource, user)
 }
 
 // GetOffloadingByNamespace returns the NamespaceOffloading resource for the given namespace.
-func GetOffloadingByNamespace(ctx context.Context, cl client.Client, namespace string) (*offloadingv1alpha1.NamespaceOffloading, error) {
-	var nsOffloading offloadingv1alpha1.NamespaceOffloading
+func GetOffloadingByNamespace(ctx context.Context, cl client.Client, namespace string) (*offloadingv1beta1.NamespaceOffloading, error) {
+	var nsOffloading offloadingv1beta1.NamespaceOffloading
 	if err := cl.Get(ctx, types.NamespacedName{
 		Namespace: namespace,
 		Name:      consts.DefaultNamespaceOffloadingName,
@@ -480,15 +480,15 @@ func ListOffloadedPods(ctx context.Context, cl client.Client, namespace string) 
 }
 
 // ListVirtualNodesByLabels returns the list of virtual nodes.
-func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector labels.Selector) (*offloadingv1alpha1.VirtualNodeList, error) {
-	var virtualNodes offloadingv1alpha1.VirtualNodeList
+func ListVirtualNodesByLabels(ctx context.Context, cl client.Client, lSelector labels.Selector) (*offloadingv1beta1.VirtualNodeList, error) {
+	var virtualNodes offloadingv1beta1.VirtualNodeList
 	err := cl.List(ctx, &virtualNodes, &client.ListOptions{LabelSelector: lSelector})
 	return &virtualNodes, err
 }
 
 // ListVirtualNodesByClusterID returns the list of virtual nodes for the given cluster id.
 func ListVirtualNodesByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID liqov1alpha1.ClusterID) ([]offloadingv1alpha1.VirtualNode, error) {
+	remoteClusterID liqov1beta1.ClusterID) ([]offloadingv1beta1.VirtualNode, error) {
 	virtualNodes, err := ListVirtualNodesByLabels(ctx, cl, labels.SelectorFromSet(map[string]string{
 		consts.RemoteClusterID: string(remoteClusterID),
 	}))
@@ -499,7 +499,7 @@ func ListVirtualNodesByClusterID(ctx context.Context, cl client.Client,
 }
 
 // GetNodeFromVirtualNode returns the node object from the given virtual node name.
-func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *offloadingv1alpha1.VirtualNode) (*corev1.Node, error) {
+func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *offloadingv1beta1.VirtualNode) (*corev1.Node, error) {
 	nodename := virtualNode.Name
 	nodes, err := ListNodesByClusterID(ctx, cl, virtualNode.Spec.ClusterID)
 	if err != nil {
@@ -517,9 +517,9 @@ func GetNodeFromVirtualNode(ctx context.Context, cl client.Client, virtualNode *
 
 // MapForeignClustersByLabel returns a map of foreign clusters indexed their names.
 func MapForeignClustersByLabel(ctx context.Context, cl client.Client,
-	lSelector labels.Selector) (map[string]liqov1alpha1.ForeignCluster, error) {
-	result := make(map[string]liqov1alpha1.ForeignCluster)
-	list := new(liqov1alpha1.ForeignClusterList)
+	lSelector labels.Selector) (map[string]liqov1beta1.ForeignCluster, error) {
+	result := make(map[string]liqov1beta1.ForeignCluster)
+	list := new(liqov1beta1.ForeignClusterList)
 	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
 		return nil, err
 	}
@@ -531,7 +531,7 @@ func MapForeignClustersByLabel(ctx context.Context, cl client.Client,
 
 // ListVirtualKubeletPodsFromVirtualNode returns the list of pods running a VirtualNode's VirtualKubelet.
 func ListVirtualKubeletPodsFromVirtualNode(ctx context.Context, cl client.Client,
-	vn *offloadingv1alpha1.VirtualNode) (*corev1.PodList, error) {
+	vn *offloadingv1beta1.VirtualNode) (*corev1.PodList, error) {
 	list := &corev1.PodList{}
 	vklabels := vkforge.VirtualKubeletLabels(vn)
 	err := cl.List(ctx, list, client.MatchingLabels(vklabels))
@@ -619,8 +619,8 @@ func ListNetworksByLabel(ctx context.Context, cl client.Client, ns string, lSele
 }
 
 // ListPublicKeysByLabel returns the PublicKey resource with the given labels.
-func ListPublicKeysByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*networkingv1alpha1.PublicKeyList, error) {
-	list := &networkingv1alpha1.PublicKeyList{}
+func ListPublicKeysByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*networkingv1beta1.PublicKeyList, error) {
+	list := &networkingv1beta1.PublicKeyList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
 	if err != nil {
 		return nil, err
@@ -629,8 +629,8 @@ func ListPublicKeysByLabel(ctx context.Context, cl client.Client, ns string, lSe
 }
 
 // ListConnectionsByLabel returns the Connection resource with the given labels.
-func ListConnectionsByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*networkingv1alpha1.ConnectionList, error) {
-	list := &networkingv1alpha1.ConnectionList{}
+func ListConnectionsByLabel(ctx context.Context, cl client.Client, ns string, lSelector labels.Selector) (*networkingv1beta1.ConnectionList, error) {
+	list := &networkingv1beta1.ConnectionList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
 	if err != nil {
 		return nil, err
@@ -640,8 +640,8 @@ func ListConnectionsByLabel(ctx context.Context, cl client.Client, ns string, lS
 
 // ListRouteConfigurationsByLabel returns the RouteConfiguration resource with the given labels.
 func ListRouteConfigurationsByLabel(ctx context.Context, cl client.Client,
-	lSelector labels.Selector) (*networkingv1alpha1.RouteConfigurationList, error) {
-	list := &networkingv1alpha1.RouteConfigurationList{}
+	lSelector labels.Selector) (*networkingv1beta1.RouteConfigurationList, error) {
+	list := &networkingv1beta1.RouteConfigurationList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector})
 	if err != nil {
 		return nil, err
@@ -651,8 +651,8 @@ func ListRouteConfigurationsByLabel(ctx context.Context, cl client.Client,
 
 // ListRouteConfigurationsInNamespaceByLabel returns the RouteConfiguration resource in a namespace with the given labels.
 func ListRouteConfigurationsInNamespaceByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) (*networkingv1alpha1.RouteConfigurationList, error) {
-	list := &networkingv1alpha1.RouteConfigurationList{}
+	ns string, lSelector labels.Selector) (*networkingv1beta1.RouteConfigurationList, error) {
+	list := &networkingv1beta1.RouteConfigurationList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
 	if err != nil {
 		return nil, err
@@ -662,8 +662,8 @@ func ListRouteConfigurationsInNamespaceByLabel(ctx context.Context, cl client.Cl
 
 // ListFirewallConfigurationsByLabel returns the FirewallConfiguration resource with the given labels.
 func ListFirewallConfigurationsByLabel(ctx context.Context, cl client.Client,
-	lSelector labels.Selector) (*networkingv1alpha1.FirewallConfigurationList, error) {
-	list := &networkingv1alpha1.FirewallConfigurationList{}
+	lSelector labels.Selector) (*networkingv1beta1.FirewallConfigurationList, error) {
+	list := &networkingv1beta1.FirewallConfigurationList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector})
 	if err != nil {
 		return nil, err
@@ -673,8 +673,8 @@ func ListFirewallConfigurationsByLabel(ctx context.Context, cl client.Client,
 
 // ListFirewallConfigurationsInNamespaceByLabel returns the FirewallConfiguration resource with the given labels.
 func ListFirewallConfigurationsInNamespaceByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) (*networkingv1alpha1.FirewallConfigurationList, error) {
-	list := &networkingv1alpha1.FirewallConfigurationList{}
+	ns string, lSelector labels.Selector) (*networkingv1beta1.FirewallConfigurationList, error) {
+	list := &networkingv1beta1.FirewallConfigurationList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
 	if err != nil {
 		return nil, err
@@ -684,8 +684,8 @@ func ListFirewallConfigurationsInNamespaceByLabel(ctx context.Context, cl client
 
 // ListConfigurationsInNamespaceByLabel returns the Configuration resources with the given labels.
 func ListConfigurationsInNamespaceByLabel(ctx context.Context, cl client.Client,
-	ns string, lSelector labels.Selector) (*networkingv1alpha1.ConfigurationList, error) {
-	list := &networkingv1alpha1.ConfigurationList{}
+	ns string, lSelector labels.Selector) (*networkingv1beta1.ConfigurationList, error) {
+	list := &networkingv1beta1.ConfigurationList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}, client.InNamespace(ns))
 	if err != nil {
 		return nil, err
@@ -694,8 +694,8 @@ func ListConfigurationsInNamespaceByLabel(ctx context.Context, cl client.Client,
 }
 
 // ListConfigurationsByLabel returns the Configuration resource with the given labels.
-func ListConfigurationsByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*networkingv1alpha1.ConfigurationList, error) {
-	list := &networkingv1alpha1.ConfigurationList{}
+func ListConfigurationsByLabel(ctx context.Context, cl client.Client, lSelector labels.Selector) (*networkingv1beta1.ConfigurationList, error) {
+	list := &networkingv1beta1.ConfigurationList{}
 	err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector})
 	if err != nil {
 		return nil, err
@@ -705,7 +705,7 @@ func ListConfigurationsByLabel(ctx context.Context, cl client.Client, lSelector 
 
 // GetConfigurationByClusterID returns the Configuration resource with the given clusterID.
 func GetConfigurationByClusterID(ctx context.Context, cl client.Client,
-	clusterID liqov1alpha1.ClusterID) (*networkingv1alpha1.Configuration, error) {
+	clusterID liqov1beta1.ClusterID) (*networkingv1beta1.Configuration, error) {
 	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: string(clusterID)}.AsSelector()
 	configurations, err := ListConfigurationsInNamespaceByLabel(ctx, cl, corev1.NamespaceAll, remoteClusterIDSelector)
 	if err != nil {
@@ -714,7 +714,7 @@ func GetConfigurationByClusterID(ctx context.Context, cl client.Client,
 
 	switch len(configurations.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(networkingv1alpha1.ConfigurationGroupResource, networkingv1alpha1.ConfigurationResource)
+		return nil, kerrors.NewNotFound(networkingv1beta1.ConfigurationGroupResource, networkingv1beta1.ConfigurationResource)
 	case 1:
 		return &configurations.Items[0], nil
 	default:
@@ -733,7 +733,7 @@ func ListIPsByLabel(ctx context.Context, cl client.Client, lSelector labels.Sele
 }
 
 // GetConnectionByClusterID returns the Connection resource with the given clusterID.
-func GetConnectionByClusterID(ctx context.Context, cl client.Client, clusterID string) (*networkingv1alpha1.Connection, error) {
+func GetConnectionByClusterID(ctx context.Context, cl client.Client, clusterID string) (*networkingv1beta1.Connection, error) {
 	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: clusterID}.AsSelector()
 	connections, err := ListConnectionsByLabel(ctx, cl, corev1.NamespaceAll, remoteClusterIDSelector)
 	if err != nil {
@@ -742,7 +742,7 @@ func GetConnectionByClusterID(ctx context.Context, cl client.Client, clusterID s
 
 	switch len(connections.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(networkingv1alpha1.ConnectionGroupResource, networkingv1alpha1.ConnectionResource)
+		return nil, kerrors.NewNotFound(networkingv1beta1.ConnectionGroupResource, networkingv1beta1.ConnectionResource)
 	case 1:
 		return &connections.Items[0], nil
 	default:
@@ -751,7 +751,7 @@ func GetConnectionByClusterID(ctx context.Context, cl client.Client, clusterID s
 }
 
 // GetConnectionByClusterIDInNamespace returns the Connection resource with the given clusterID in the given namespace.
-func GetConnectionByClusterIDInNamespace(ctx context.Context, cl client.Client, clusterID, namespace string) (*networkingv1alpha1.Connection, error) {
+func GetConnectionByClusterIDInNamespace(ctx context.Context, cl client.Client, clusterID, namespace string) (*networkingv1beta1.Connection, error) {
 	remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: clusterID}.AsSelector()
 	connections, err := ListConnectionsByLabel(ctx, cl, namespace, remoteClusterIDSelector)
 	if err != nil {
@@ -760,7 +760,7 @@ func GetConnectionByClusterIDInNamespace(ctx context.Context, cl client.Client, 
 
 	switch len(connections.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(networkingv1alpha1.ConnectionGroupResource, networkingv1alpha1.ConnectionResource)
+		return nil, kerrors.NewNotFound(networkingv1beta1.ConnectionGroupResource, networkingv1beta1.ConnectionResource)
 	case 1:
 		return &connections.Items[0], nil
 	default:
@@ -770,8 +770,8 @@ func GetConnectionByClusterIDInNamespace(ctx context.Context, cl client.Client, 
 
 // GetGatewayServerByClusterID returns the GatewayServer resource with the given clusterID.
 func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID liqov1alpha1.ClusterID) (*networkingv1alpha1.GatewayServer, error) {
-	var gwServers networkingv1alpha1.GatewayServerList
+	remoteClusterID liqov1beta1.ClusterID) (*networkingv1beta1.GatewayServer, error) {
+	var gwServers networkingv1beta1.GatewayServerList
 	if err := cl.List(ctx, &gwServers, client.MatchingLabels{
 		consts.RemoteClusterID: string(remoteClusterID),
 	}); err != nil {
@@ -780,7 +780,7 @@ func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
 
 	switch len(gwServers.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(networkingv1alpha1.GatewayServerGroupResource, networkingv1alpha1.GatewayServerResource)
+		return nil, kerrors.NewNotFound(networkingv1beta1.GatewayServerGroupResource, networkingv1beta1.GatewayServerResource)
 	case 1:
 		return &gwServers.Items[0], nil
 	default:
@@ -790,8 +790,8 @@ func GetGatewayServerByClusterID(ctx context.Context, cl client.Client,
 
 // GetGatewayClientByClusterID returns the GatewayClient resource with the given clusterID.
 func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
-	remoteClusterID liqov1alpha1.ClusterID) (*networkingv1alpha1.GatewayClient, error) {
-	var gwClients networkingv1alpha1.GatewayClientList
+	remoteClusterID liqov1beta1.ClusterID) (*networkingv1beta1.GatewayClient, error) {
+	var gwClients networkingv1beta1.GatewayClientList
 	if err := cl.List(ctx, &gwClients, client.MatchingLabels{
 		consts.RemoteClusterID: string(remoteClusterID),
 	}); err != nil {
@@ -800,7 +800,7 @@ func GetGatewayClientByClusterID(ctx context.Context, cl client.Client,
 
 	switch len(gwClients.Items) {
 	case 0:
-		return nil, kerrors.NewNotFound(networkingv1alpha1.GatewayClientGroupResource, networkingv1alpha1.GatewayClientResource)
+		return nil, kerrors.NewNotFound(networkingv1beta1.GatewayClientGroupResource, networkingv1beta1.GatewayClientResource)
 	case 1:
 		return &gwClients.Items[0], nil
 	default:
@@ -858,8 +858,8 @@ func ListNotLiqoNodes(ctx context.Context, cl client.Client) (*corev1.NodeList, 
 
 // ListInternalNodesByLabels returns the list of internalnodes resources. (i.e. nodes created by Liqo).
 func ListInternalNodesByLabels(ctx context.Context, cl client.Client,
-	lSelector labels.Selector) (*networkingv1alpha1.InternalNodeList, error) {
-	list := new(networkingv1alpha1.InternalNodeList)
+	lSelector labels.Selector) (*networkingv1beta1.InternalNodeList, error) {
+	list := new(networkingv1beta1.InternalNodeList)
 	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
 		return nil, err
 	}
@@ -868,8 +868,8 @@ func ListInternalNodesByLabels(ctx context.Context, cl client.Client,
 
 // ListInternalFabricsByLabels returns the list of internalfabrics resources.
 func ListInternalFabricsByLabels(ctx context.Context, cl client.Client,
-	lSelector labels.Selector) (*networkingv1alpha1.InternalFabricList, error) {
-	list := new(networkingv1alpha1.InternalFabricList)
+	lSelector labels.Selector) (*networkingv1beta1.InternalFabricList, error) {
+	list := new(networkingv1beta1.InternalFabricList)
 	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
 		return nil, err
 	}
@@ -878,8 +878,8 @@ func ListInternalFabricsByLabels(ctx context.Context, cl client.Client,
 
 // ListGeneveTunnelsByLabels returns the list of genevetunnels resources.
 func ListGeneveTunnelsByLabels(ctx context.Context, cl client.Client,
-	lSelector labels.Selector) (*networkingv1alpha1.GeneveTunnelList, error) {
-	list := new(networkingv1alpha1.GeneveTunnelList)
+	lSelector labels.Selector) (*networkingv1beta1.GeneveTunnelList, error) {
+	list := new(networkingv1beta1.GeneveTunnelList)
 	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
 		return nil, err
 	}

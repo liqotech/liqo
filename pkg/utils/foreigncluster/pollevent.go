@@ -21,13 +21,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 )
 
-type fcEventChecker func(fc *liqov1alpha1.ForeignCluster) bool
+type fcEventChecker func(fc *liqov1beta1.ForeignCluster) bool
 
 // PollForEvent polls until the given events occurs on the foreign cluster corresponding to the identity.
-func PollForEvent(ctx context.Context, cl client.Client, id liqov1alpha1.ClusterID,
+func PollForEvent(ctx context.Context, cl client.Client, id liqov1beta1.ClusterID,
 	checker fcEventChecker, interval time.Duration) error {
 	err := wait.PollImmediateUntilWithContext(ctx, interval, func(ctx context.Context) (done bool, err error) {
 		fc, err := GetForeignClusterByID(ctx, cl, id)

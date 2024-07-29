@@ -25,8 +25,8 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
@@ -66,7 +66,7 @@ func InitMark(ctx context.Context, cl client.Client, options *Options) {
 // RegisterMarksFromRouteconfigurations registers the marks used in the routeconfigurations.
 // It fullfills the marks map with the marks used in the routeconfigurations
 // and the marksreverse map with the nodename and the mark used.
-func RegisterMarksFromRouteconfigurations(routecfgs []networkingv1alpha1.RouteConfiguration) {
+func RegisterMarksFromRouteconfigurations(routecfgs []networkingv1beta1.RouteConfiguration) {
 	for i := range routecfgs {
 		rules := routecfgs[i].Spec.Table.Rules
 		for j := range rules {
@@ -82,7 +82,7 @@ func RegisterMarksFromRouteconfigurations(routecfgs []networkingv1alpha1.RouteCo
 // RegisterMarksFromFirewallconfigurations registers the marks used in the firewallconfigurations.
 // It fullfills the marks map with the marks used in the firewallconfigurations
 // and the marksreverse map with the nodename and the mark used.
-func RegisterMarksFromFirewallconfigurations(fwcfgs []networkingv1alpha1.FirewallConfiguration) error {
+func RegisterMarksFromFirewallconfigurations(fwcfgs []networkingv1beta1.FirewallConfiguration) error {
 	for i := range fwcfgs {
 		chains := fwcfgs[i].Spec.Table.Chains
 		for j := range chains {

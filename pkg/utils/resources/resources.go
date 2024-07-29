@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
@@ -95,7 +95,7 @@ func GetSharedTotal(ctx context.Context, cl client.Client, clusterID string) (co
 }
 
 // SumResourceSlices sums the resources of a list of resource offers.
-func SumResourceSlices(resourceslices []authv1alpha1.ResourceSlice) corev1.ResourceList {
+func SumResourceSlices(resourceslices []authv1beta1.ResourceSlice) corev1.ResourceList {
 	tot := corev1.ResourceList{}
 	for i := range resourceslices {
 		h := resourceslices[i].Status.Resources

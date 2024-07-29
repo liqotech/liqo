@@ -25,10 +25,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 type Cluster struct {
@@ -71,10 +71,10 @@ func NewTestCluster(crdPath []string) (Cluster, manager.Manager, error) {
 
 	cluster.client = kubernetes.NewForConfigOrDie(cluster.cfg)
 
-	utilruntime.Must(liqov1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(liqov1beta1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(ipamv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(networkingv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(offloadingv1beta1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(networkingv1beta1.AddToScheme(scheme.Scheme))
 
 	mgr, err := ctrl.NewManager(cluster.cfg, ctrl.Options{
 		Scheme:  scheme.Scheme,

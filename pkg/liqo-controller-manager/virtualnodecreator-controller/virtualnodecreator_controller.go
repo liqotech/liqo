@@ -29,9 +29,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -65,7 +65,7 @@ func NewVirtualNodeCreatorReconciler(cl client.Client, s *runtime.Scheme, record
 
 // Reconcile resourceslices and create their associated virtualnodes.
 func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var resourceSlice authv1alpha1.ResourceSlice
+	var resourceSlice authv1beta1.ResourceSlice
 	if err := r.Get(ctx, req.NamespacedName, &resourceSlice); err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("resourceSlice %q not found", req.NamespacedName)
@@ -93,7 +93,7 @@ func (r *VirtualNodeCreatorReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	remoteClusterID := liqov1alpha1.ClusterID(resourceSlice.Labels[consts.RemoteClusterID])
+	remoteClusterID := liqov1beta1.ClusterID(resourceSlice.Labels[consts.RemoteClusterID])
 
 	// Get the associated Identity for the remote cluster.
 	identity, err := getters.GetIdentityFromResourceSlice(ctx, r.Client, remoteClusterID, resourceSlice.Name)
@@ -145,15 +145,15 @@ func (r *VirtualNodeCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&authv1alpha1.ResourceSlice{}, builder.WithPredicates(predicate.And(localResSliceFilter, withConditionsAccepeted()))).
-		Owns(&offloadingv1alpha1.VirtualNode{}).
-		Owns(&authv1alpha1.Identity{}).
+		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(predicate.And(localResSliceFilter, withConditionsAccepeted()))).
+		Owns(&offloadingv1beta1.VirtualNode{}).
+		Owns(&authv1beta1.Identity{}).
 		Complete(r)
 }
 
 func withConditionsAccepeted() predicate.Funcs {
 	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		rs, ok := obj.(*authv1alpha1.ResourceSlice)
+		rs, ok := obj.(*authv1beta1.ResourceSlice)
 		if !ok {
 			return false
 		}
@@ -162,12 +162,12 @@ func withConditionsAccepeted() predicate.Funcs {
 	})
 }
 
-func allConditionsAccepted(rs *authv1alpha1.ResourceSlice) bool {
-	authCond := authentication.GetCondition(rs, authv1alpha1.ResourceSliceConditionTypeAuthentication)
-	authAccepted := authCond != nil && authCond.Status == authv1alpha1.ResourceSliceConditionAccepted
+func allConditionsAccepted(rs *authv1beta1.ResourceSlice) bool {
+	authCond := authentication.GetCondition(rs, authv1beta1.ResourceSliceConditionTypeAuthentication)
+	authAccepted := authCond != nil && authCond.Status == authv1beta1.ResourceSliceConditionAccepted
 
-	resourcesCond := authentication.GetCondition(rs, authv1alpha1.ResourceSliceConditionTypeResources)
-	resourcesAccepted := resourcesCond != nil && resourcesCond.Status == authv1alpha1.ResourceSliceConditionAccepted
+	resourcesCond := authentication.GetCondition(rs, authv1beta1.ResourceSliceConditionTypeResources)
+	resourcesAccepted := resourcesCond != nil && resourcesCond.Status == authv1beta1.ResourceSliceConditionAccepted
 
 	return authAccepted && resourcesAccepted
 }

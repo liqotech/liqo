@@ -20,7 +20,7 @@ webhooks:
     rules:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["offloading.liqo.io"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1beta1"]
         resources: ["namespaceoffloadings"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
@@ -37,7 +37,7 @@ webhooks:
     rules:
       - operations: ["CREATE", "UPDATE", "DELETE"]
         apiGroups: ["offloading.liqo.io"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1beta1"]
         resources: ["shadowpods"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
@@ -54,7 +54,7 @@ webhooks:
     rules:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["networking.liqo.io"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1beta1"]
         resources: ["firewallconfigurations"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
@@ -71,7 +71,7 @@ webhooks:
     rules:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["networking.liqo.io"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1beta1"]
         resources: ["routeconfigurations"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}
@@ -88,7 +88,7 @@ webhooks:
     rules:
       - operations: ["CREATE", "UPDATE"]
         apiGroups: ["authentication.liqo.io"]
-        apiVersions: ["v1alpha1"]
+        apiVersions: ["v1beta1"]
         resources: ["resourceslices"]
     sideEffects: None
     failurePolicy: {{ .Values.webhook.failurePolicy }}

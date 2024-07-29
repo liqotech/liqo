@@ -30,8 +30,8 @@ import (
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	testutil "github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -53,9 +53,9 @@ var (
 	testShadowPodUID3       types.UID = "test-shadowpod-uid-3"
 	testShadowPodUID4       types.UID = "test-shadowpod-uid-4"
 	testShadowPodUIDInvalid types.UID = "test-shadowpod-uid-invalid"
-	clusterID                         = liqov1alpha1.ClusterID("test-cluster-id")
-	clusterID2                        = liqov1alpha1.ClusterID("test-cluster-id-2")
-	clusterIDInvalid                  = liqov1alpha1.ClusterID("test-cluster-id-invalid")
+	clusterID                         = liqov1beta1.ClusterID("test-cluster-id")
+	clusterID2                        = liqov1beta1.ClusterID("test-cluster-id-2")
+	clusterIDInvalid                  = liqov1beta1.ClusterID("test-cluster-id-invalid")
 	userName                string    = "test-user-name"
 	userName2               string    = "test-user-name-2"
 	userName3               string    = "test-user-name-3"
@@ -90,8 +90,8 @@ var _ = BeforeSuite(func() {
 	scheme = runtime.NewScheme()
 	testutil.LogsToGinkgoWriter()
 	Expect(corev1.AddToScheme(scheme)).To(Succeed())
-	Expect(liqov1alpha1.AddToScheme(scheme)).To(Succeed())
-	Expect(offloadingv1alpha1.AddToScheme(scheme)).To(Succeed())
+	Expect(liqov1beta1.AddToScheme(scheme)).To(Succeed())
+	Expect(offloadingv1beta1.AddToScheme(scheme)).To(Succeed())
 })
 
 func TestShadowpod(t *testing.T) {
@@ -99,13 +99,13 @@ func TestShadowpod(t *testing.T) {
 	RunSpecs(t, "Shadowpod Suite")
 }
 
-func serializeShadowPod(sp *offloadingv1alpha1.ShadowPod) runtime.RawExtension {
+func serializeShadowPod(sp *offloadingv1beta1.ShadowPod) runtime.RawExtension {
 	data, err := json.Marshal(sp)
 	Expect(err).ToNot(HaveOccurred())
 	return runtime.RawExtension{Raw: data}
 }
 
-func forgeNamespaceWithClusterID(clusterID liqov1alpha1.ClusterID) *corev1.Namespace {
+func forgeNamespaceWithClusterID(clusterID liqov1beta1.ClusterID) *corev1.Namespace {
 	return &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: testNamespace,
@@ -116,7 +116,7 @@ func forgeNamespaceWithClusterID(clusterID liqov1alpha1.ClusterID) *corev1.Names
 	}
 }
 
-func forgeRequest(op admissionv1.Operation, newShadowPod, oldShadowPod *offloadingv1alpha1.ShadowPod) admission.Request {
+func forgeRequest(op admissionv1.Operation, newShadowPod, oldShadowPod *offloadingv1beta1.ShadowPod) admission.Request {
 	req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{Operation: op}}
 	if oldShadowPod != nil {
 		req.OldObject = serializeShadowPod(oldShadowPod)
@@ -144,8 +144,8 @@ func forgeResourceList(cpu, memory int64, gpu ...int64) *corev1.ResourceList {
 	return &resourceList
 }
 
-func forgeShadowPodWithClusterID(clusterID liqov1alpha1.ClusterID, userName, namespace string) *offloadingv1alpha1.ShadowPod {
-	return &offloadingv1alpha1.ShadowPod{
+func forgeShadowPodWithClusterID(clusterID liqov1beta1.ClusterID, userName, namespace string) *offloadingv1beta1.ShadowPod {
+	return &offloadingv1beta1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testShadowPodName,
 			Namespace: namespace,
@@ -157,8 +157,8 @@ func forgeShadowPodWithClusterID(clusterID liqov1alpha1.ClusterID, userName, nam
 	}
 }
 
-func forgeShadowPod(name, namespace, uid, creatorName string) *offloadingv1alpha1.ShadowPod {
-	return &offloadingv1alpha1.ShadowPod{
+func forgeShadowPod(name, namespace, uid, creatorName string) *offloadingv1beta1.ShadowPod {
+	return &offloadingv1beta1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -167,7 +167,7 @@ func forgeShadowPod(name, namespace, uid, creatorName string) *offloadingv1alpha
 				consts.CreatorLabelKey: creatorName,
 			},
 		},
-		Spec: offloadingv1alpha1.ShadowPodSpec{
+		Spec: offloadingv1beta1.ShadowPodSpec{
 			Pod: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
@@ -183,8 +183,8 @@ func forgeShadowPod(name, namespace, uid, creatorName string) *offloadingv1alpha
 	}
 }
 
-func forgeShadowPodWithResourceRequests(containers, initContainer []containerResource) *offloadingv1alpha1.ShadowPod {
-	sp := &offloadingv1alpha1.ShadowPod{
+func forgeShadowPodWithResourceRequests(containers, initContainer []containerResource) *offloadingv1beta1.ShadowPod {
+	sp := &offloadingv1beta1.ShadowPod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testShadowPodName,
 			Namespace: testNamespace,
@@ -222,8 +222,8 @@ func forgeShadowPodWithResourceRequests(containers, initContainer []containerRes
 	return sp
 }
 
-func forgeShadowPodList(shadowPods ...*offloadingv1alpha1.ShadowPod) *offloadingv1alpha1.ShadowPodList {
-	spList := &offloadingv1alpha1.ShadowPodList{}
+func forgeShadowPodList(shadowPods ...*offloadingv1beta1.ShadowPod) *offloadingv1beta1.ShadowPodList {
+	spList := &offloadingv1beta1.ShadowPodList{}
 
 	for _, sp := range shadowPods {
 		spList.Items = append(spList.Items, *sp)
@@ -232,13 +232,13 @@ func forgeShadowPodList(shadowPods ...*offloadingv1alpha1.ShadowPod) *offloading
 	return spList
 }
 
-func forgeQuotaWithLabel(namespace, clusterID, userName string) *offloadingv1alpha1.Quota {
-	q := &offloadingv1alpha1.Quota{
+func forgeQuotaWithLabel(namespace, clusterID, userName string) *offloadingv1beta1.Quota {
+	q := &offloadingv1beta1.Quota{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      userName,
 			Namespace: namespace,
 		},
-		Spec: offloadingv1alpha1.QuotaSpec{
+		Spec: offloadingv1beta1.QuotaSpec{
 			User:      userName,
 			Resources: *forgeResourceList(int64(resourceCPU), int64(resourceMemory)),
 		},
@@ -254,15 +254,15 @@ func forgeQuotaWithLabel(namespace, clusterID, userName string) *offloadingv1alp
 	return q
 }
 
-func forgeForeignCluster(clusterID liqov1alpha1.ClusterID) *liqov1alpha1.ForeignCluster {
-	return &liqov1alpha1.ForeignCluster{
+func forgeForeignCluster(clusterID liqov1beta1.ClusterID) *liqov1beta1.ForeignCluster {
+	return &liqov1beta1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: string(clusterID),
 			Labels: map[string]string{
 				consts.RemoteClusterID: string(clusterID),
 			},
 		},
-		Spec: liqov1alpha1.ForeignClusterSpec{
+		Spec: liqov1beta1.ForeignClusterSpec{
 			ClusterID: clusterID,
 		},
 	}

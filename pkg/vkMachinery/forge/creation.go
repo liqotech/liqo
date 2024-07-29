@@ -24,20 +24,20 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/utils/strings"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 // VirtualKubeletName returns the name of the virtual-kubelet.
-func VirtualKubeletName(virtualNode *offloadingv1alpha1.VirtualNode) string {
+func VirtualKubeletName(virtualNode *offloadingv1beta1.VirtualNode) string {
 	return "vk-" + virtualNode.Name
 }
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(homeCluster liqov1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
-	virtualNode *offloadingv1alpha1.VirtualNode, opts *offloadingv1alpha1.VkOptionsTemplate) *appsv1.Deployment {
+func VirtualKubeletDeployment(homeCluster liqov1beta1.ClusterID, localPodCIDR, liqoNamespace string,
+	virtualNode *offloadingv1beta1.VirtualNode, opts *offloadingv1beta1.VkOptionsTemplate) *appsv1.Deployment {
 	matchLabels := VirtualKubeletLabels(virtualNode) // these are the minimum set of labels used as selector
 	depLabels := labels.Merge(opts.Spec.ExtraLabels, matchLabels)
 	depAnnotations := opts.Spec.ExtraAnnotations
@@ -64,7 +64,7 @@ func VirtualKubeletDeployment(homeCluster liqov1alpha1.ClusterID, localPodCIDR, 
 }
 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
-func VirtualKubeletLabels(virtualNode *offloadingv1alpha1.VirtualNode) map[string]string {
+func VirtualKubeletLabels(virtualNode *offloadingv1beta1.VirtualNode) map[string]string {
 	return labels.Merge(vkMachinery.KubeletBaseLabels, map[string]string{
 		consts.RemoteClusterID:  string(virtualNode.Spec.ClusterID),
 		consts.VirtualNodeLabel: virtualNode.Name,
@@ -72,7 +72,7 @@ func VirtualKubeletLabels(virtualNode *offloadingv1alpha1.VirtualNode) map[strin
 }
 
 // ClusterRoleLabels returns the labels to be set on a ClusterRoleBinding related to a VirtualKubelet.
-func ClusterRoleLabels(remoteClusterID liqov1alpha1.ClusterID) map[string]string {
+func ClusterRoleLabels(remoteClusterID liqov1beta1.ClusterID) map[string]string {
 	return labels.Merge(vkMachinery.ClusterRoleBindingLabels, map[string]string{
 		consts.RemoteClusterID: string(remoteClusterID),
 	})
@@ -80,7 +80,7 @@ func ClusterRoleLabels(remoteClusterID liqov1alpha1.ClusterID) map[string]string
 
 // VirtualKubeletClusterRoleBinding forges a ClusterRoleBinding for a VirtualKubelet.
 func VirtualKubeletClusterRoleBinding(kubeletNamespace, kubeletName string,
-	remoteCluster liqov1alpha1.ClusterID) *rbacv1.ClusterRoleBinding {
+	remoteCluster liqov1beta1.ClusterID) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   strings.ShortenString(fmt.Sprintf("%s%s", vkMachinery.CRBPrefix, kubeletName), 253),

@@ -23,7 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 	"github.com/liqotech/liqo/pkg/utils/kubeconfig"
@@ -31,7 +31,7 @@ import (
 
 // GetConfig gets a rest config from the secret, given the remote clusterID and (optionally) the namespace.
 // This rest config con be used to create a client to the remote cluster.
-func (certManager *identityManager) GetConfig(remoteCluster liqov1alpha1.ClusterID, _ string) (*rest.Config, error) {
+func (certManager *identityManager) GetConfig(remoteCluster liqov1beta1.ClusterID, _ string) (*rest.Config, error) {
 	ctx := context.TODO()
 
 	// Get Secret with ControlPlane Identity associated to the given remote cluster.
@@ -52,7 +52,7 @@ func (certManager *identityManager) GetConfig(remoteCluster liqov1alpha1.Cluster
 	return cnf, nil
 }
 
-func (certManager *identityManager) GetSecretNamespacedName(remoteCluster liqov1alpha1.ClusterID,
+func (certManager *identityManager) GetSecretNamespacedName(remoteCluster liqov1beta1.ClusterID,
 	_ string) (types.NamespacedName, error) {
 	ctx := context.TODO()
 
@@ -66,7 +66,7 @@ func (certManager *identityManager) GetSecretNamespacedName(remoteCluster liqov1
 }
 
 // GetConfigFromSecret gets a rest config from a secret.
-func (certManager *identityManager) GetConfigFromSecret(remoteCluster liqov1alpha1.ClusterID,
+func (certManager *identityManager) GetConfigFromSecret(remoteCluster liqov1beta1.ClusterID,
 	secret *corev1.Secret) (*rest.Config, error) {
 	cnf, err := kubeconfig.BuildConfigFromSecret(secret)
 	if err != nil {
@@ -82,7 +82,7 @@ func (certManager *identityManager) GetConfigFromSecret(remoteCluster liqov1alph
 
 // GetRemoteTenantNamespace returns the tenant namespace that
 // the remote cluster assigned to this peering.
-func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster liqov1alpha1.ClusterID, _ string) (string, error) {
+func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster liqov1beta1.ClusterID, _ string) (string, error) {
 	ctx := context.TODO()
 
 	// Get Secret with ControlPlane Identity associated to the given remote cluster.
@@ -101,6 +101,6 @@ func (certManager *identityManager) GetRemoteTenantNamespace(remoteCluster liqov
 }
 
 func (certManager *identityManager) mutateIAMConfig(
-	secret *corev1.Secret, remoteCluster liqov1alpha1.ClusterID, cnf *rest.Config) (*rest.Config, error) {
+	secret *corev1.Secret, remoteCluster liqov1beta1.ClusterID, cnf *rest.Config) (*rest.Config, error) {
 	return certManager.iamTokenManager.mutateConfig(secret, remoteCluster, cnf)
 }

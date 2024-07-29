@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
 )
@@ -64,7 +64,7 @@ func NewPublicKeysReconciler(cl client.Client, s *runtime.Scheme, er record.Even
 
 // Reconcile manage PublicKey resources.
 func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	publicKey := &networkingv1alpha1.PublicKey{}
+	publicKey := &networkingv1beta1.PublicKey{}
 	if err := r.Client.Get(ctx, req.NamespacedName, publicKey); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no publicKey %s", req.String())
@@ -89,7 +89,7 @@ func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 // SetupWithManager register the ConfigurationReconciler to the manager.
 func (r *PublicKeysReconciler) SetupWithManager(mgr ctrl.Manager, src <-chan event.GenericEvent) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.PublicKey{}, r.Predicates()).
+		For(&networkingv1beta1.PublicKey{}, r.Predicates()).
 		WatchesRawSource(NewDNSSource(src), NewDNSEventHandler(r.Client, r.Options)).
 		Complete(r)
 }

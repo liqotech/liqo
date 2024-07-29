@@ -30,8 +30,8 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -39,11 +39,11 @@ import (
 var _ = Describe("Manager tests", func() {
 
 	const (
-		localNamespace                         = "foo"
-		remoteNamespace                        = "bar"
-		localClusterID  liqov1alpha1.ClusterID = "local-id"
-		remoteClusterID liqov1alpha1.ClusterID = "remote-id"
-		workers                                = 2
+		localNamespace                        = "foo"
+		remoteNamespace                       = "bar"
+		localClusterID  liqov1beta1.ClusterID = "local-id"
+		remoteClusterID liqov1beta1.ClusterID = "remote-id"
+		workers                               = 2
 	)
 
 	var (
@@ -55,7 +55,7 @@ var _ = Describe("Manager tests", func() {
 	BeforeEach(func() {
 		scheme := runtime.NewScheme()
 		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-		utilruntime.Must(offloadingv1alpha1.AddToScheme(scheme))
+		utilruntime.Must(offloadingv1beta1.AddToScheme(scheme))
 
 		local = fake.NewSimpleDynamicClient(scheme)
 		remote = fake.NewSimpleDynamicClient(scheme)
@@ -115,12 +115,12 @@ var _ = Describe("Manager tests", func() {
 
 		BeforeEach(func() {
 			ctx, cancel = context.WithCancel(context.Background())
-			gvr = offloadingv1alpha1.NamespaceMapGroupVersionResource
+			gvr = offloadingv1beta1.NamespaceMapGroupVersionResource
 			res = []resources.Resource{{GroupVersionResource: gvr}}
 
 			objNamespace = localNamespace
-			objGVK = offloadingv1alpha1.SchemeGroupVersion.WithKind("NamespaceMap")
-			objGVR = offloadingv1alpha1.NamespaceMapGroupVersionResource
+			objGVK = offloadingv1beta1.SchemeGroupVersion.WithKind("NamespaceMap")
+			objGVR = offloadingv1beta1.NamespaceMapGroupVersionResource
 
 			skipCreation = false
 			receiver = make(chan item, 1)
@@ -176,8 +176,8 @@ var _ = Describe("Manager tests", func() {
 
 				When("the object matches the namespace but not the GVR of the registered handler", func() {
 					BeforeEach(func() {
-						objGVK = offloadingv1alpha1.SchemeGroupVersion.WithKind(offloadingv1alpha1.VirtualNodeKind)
-						objGVR = offloadingv1alpha1.VirtualNodeGroupVersionResource
+						objGVK = offloadingv1beta1.SchemeGroupVersion.WithKind(offloadingv1beta1.VirtualNodeKind)
+						objGVR = offloadingv1beta1.VirtualNodeGroupVersionResource
 					})
 					It("should not trigger the handler", func() { Consistently(receiver).ShouldNot(Receive()) })
 				})

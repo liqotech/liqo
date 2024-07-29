@@ -40,7 +40,7 @@ spec:
       name: ClusterID
       priority: 1
       type: string
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: |-

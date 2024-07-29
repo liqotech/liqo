@@ -26,20 +26,20 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
 func offloadLiqoStorageNamespace(ctx context.Context, cl client.Client, originNode, targetNode *corev1.Node) error {
-	namespaceOffloading := &offv1alpha1.NamespaceOffloading{
+	namespaceOffloading := &offloadingv1beta1.NamespaceOffloading{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      liqoconst.DefaultNamespaceOffloadingName,
 			Namespace: liqoStorageNamespace,
 		},
-		Spec: offv1alpha1.NamespaceOffloadingSpec{
-			NamespaceMappingStrategy: offv1alpha1.DefaultNameMappingStrategyType,
-			PodOffloadingStrategy:    offv1alpha1.LocalPodOffloadingStrategyType,
+		Spec: offloadingv1beta1.NamespaceOffloadingSpec{
+			NamespaceMappingStrategy: offloadingv1beta1.DefaultNameMappingStrategyType,
+			PodOffloadingStrategy:    offloadingv1beta1.LocalPodOffloadingStrategyType,
 			ClusterSelector: corev1.NodeSelector{
 				NodeSelectorTerms: []corev1.NodeSelectorTerm{
 					{
@@ -63,7 +63,7 @@ func offloadLiqoStorageNamespace(ctx context.Context, cl client.Client, originNo
 }
 
 func repatriateLiqoStorageNamespace(ctx context.Context, cl client.Client) error {
-	namespaceOffloading := &offv1alpha1.NamespaceOffloading{
+	namespaceOffloading := &offloadingv1beta1.NamespaceOffloading{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      liqoconst.DefaultNamespaceOffloadingName,
 			Namespace: liqoStorageNamespace,
@@ -84,7 +84,7 @@ func getRemoteNodeNames(nodes ...*corev1.Node) []string {
 }
 
 func getRemoteStorageNamespaceName(ctx context.Context, cl client.Client, backoff *wait.Backoff) (string, error) {
-	var nsOffloading offv1alpha1.NamespaceOffloading
+	var nsOffloading offloadingv1beta1.NamespaceOffloading
 
 	if backoff == nil {
 		backoff = &wait.Backoff{
@@ -103,7 +103,7 @@ func getRemoteStorageNamespaceName(ctx context.Context, cl client.Client, backof
 			return err
 		}
 
-		if nsOffloading.Status.OffloadingPhase != offv1alpha1.ReadyOffloadingPhaseType {
+		if nsOffloading.Status.OffloadingPhase != offloadingv1beta1.ReadyOffloadingPhaseType {
 			return fmt.Errorf("namespace offloading is not ready")
 		}
 		if nsOffloading.Status.RemoteNamespaceName == "" {

@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	reflectionfake "github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic/fake"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/options"
@@ -66,7 +66,7 @@ var _ = Describe("Reflector tests", func() {
 		Context("a new reflector is created", func() {
 			JustBeforeEach(func() {
 				rfl = NewReflector(reflectorName, NewFakeNamespacedReflector, NewFakeFallbackReflector,
-					workers, offloadingv1alpha1.CustomLiqo, ConcurrencyModeAll)
+					workers, offloadingv1beta1.CustomLiqo, ConcurrencyModeAll)
 			})
 
 			When("no workers are specified", func() {
@@ -85,7 +85,7 @@ var _ = Describe("Reflector tests", func() {
 			JustBeforeEach(func() {
 				// Here, we use the internal function, to retrieve the real reflector also in case no workers are set.
 				rfl = newReflector(reflectorName, NewFakeNamespacedReflector, NewFakeFallbackReflector,
-					workers, offloadingv1alpha1.CustomLiqo, ConcurrencyModeAll)
+					workers, offloadingv1beta1.CustomLiqo, ConcurrencyModeAll)
 			})
 			It("should return a non nil reflector", func() { Expect(rfl).ToNot(BeNil()) })
 			It("should correctly populate the reflector fields", func() {

@@ -20,7 +20,7 @@ spec:
     singular: publickey
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: PublicKey contains a public key data required by some interconnection

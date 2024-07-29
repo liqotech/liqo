@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam/utils"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
@@ -48,7 +48,7 @@ type ConfigurationReconciler struct {
 	EventsRecorder record.EventRecorder
 }
 
-func forgeUnknownSourceIPName(cfg *networkingv1alpha1.Configuration) string {
+func forgeUnknownSourceIPName(cfg *networkingv1beta1.Configuration) string {
 	return cfg.Name + "-unknown-source"
 }
 
@@ -63,7 +63,7 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme, er record.E
 
 // Reconcile manage Configuration resources.
 func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	cfg := &networkingv1alpha1.Configuration{}
+	cfg := &networkingv1beta1.Configuration{}
 	if err := r.Client.Get(ctx, req.NamespacedName, cfg); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no configuration %s", req.String())
@@ -96,12 +96,12 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
 }
 
 func (r *ConfigurationReconciler) createOrUpdateUnknownSourceIPResource(ctx context.Context,
-	cfg *networkingv1alpha1.Configuration, remoteUnknownSourceIP string) error {
+	cfg *networkingv1beta1.Configuration, remoteUnknownSourceIP string) error {
 	ip := &ipamv1alpha1.IP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      forgeUnknownSourceIPName(cfg),
@@ -114,7 +114,7 @@ func (r *ConfigurationReconciler) createOrUpdateUnknownSourceIPResource(ctx cont
 	}
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, ip, func() error {
 		ip.Spec = ipamv1alpha1.IPSpec{
-			IP: networkingv1alpha1.IP(remoteUnknownSourceIP),
+			IP: networkingv1beta1.IP(remoteUnknownSourceIP),
 		}
 		return controllerutil.SetOwnerReference(cfg, ip, r.Scheme)
 	}); err != nil {

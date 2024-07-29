@@ -22,7 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -44,7 +44,7 @@ var LabelCIDRTypeValues = []LabelCIDRTypeValue{LabelCIDRTypePod, LabelCIDRTypeEx
 
 // ForgeNetworkLabel creates a label to target a ipamv1alpha1.Network resource.
 // The label is composed by the remote cluster ID and the CIDR type.
-func ForgeNetworkLabel(cfg *networkingv1alpha1.Configuration, cidrType LabelCIDRTypeValue) (netLabels map[string]string, err error) {
+func ForgeNetworkLabel(cfg *networkingv1beta1.Configuration, cidrType LabelCIDRTypeValue) (netLabels map[string]string, err error) {
 	remoteClusterID, ok := cfg.Labels[consts.RemoteClusterID]
 	if !ok {
 		return nil, fmt.Errorf("missing label %s", consts.RemoteClusterID)
@@ -57,7 +57,7 @@ func ForgeNetworkLabel(cfg *networkingv1alpha1.Configuration, cidrType LabelCIDR
 
 // ForgeNetworkLabelSelector creates a labels.Selector to target a ipamv1alpha1.Network resource.
 // The label is composed by the remote cluster ID and the CIDR type.
-func ForgeNetworkLabelSelector(cfg *networkingv1alpha1.Configuration,
+func ForgeNetworkLabelSelector(cfg *networkingv1beta1.Configuration,
 	cidrType LabelCIDRTypeValue) (labelsSelector labels.Selector, err error) {
 	result, err := ForgeNetworkLabel(cfg, cidrType)
 	if err != nil {
@@ -74,7 +74,7 @@ const (
 )
 
 // SetConfigurationConfigured sets the Configured label of the given configuration to true.
-func SetConfigurationConfigured(ctx context.Context, cl client.Client, cfg *networkingv1alpha1.Configuration) error {
+func SetConfigurationConfigured(ctx context.Context, cl client.Client, cfg *networkingv1beta1.Configuration) error {
 	_, err := ctrl.CreateOrUpdate(ctx, cl, cfg, func() error {
 		if cfg.Labels == nil {
 			cfg.Labels = map[string]string{}

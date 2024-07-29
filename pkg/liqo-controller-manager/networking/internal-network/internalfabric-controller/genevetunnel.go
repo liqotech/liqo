@@ -25,17 +25,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/id"
 )
 
-func geneveTunnelName(internalFabric *networkingv1alpha1.InternalFabric, internalNode *networkingv1alpha1.InternalNode) string {
+func geneveTunnelName(internalFabric *networkingv1beta1.InternalFabric, internalNode *networkingv1beta1.InternalNode) string {
 	return fmt.Sprintf("%s-%s", internalFabric.Name, internalNode.Name)
 }
 
-func mutateGeneveTunnel(ctx context.Context, cl client.Client, tunnel *networkingv1alpha1.GeneveTunnel,
-	internalFabric *networkingv1alpha1.InternalFabric, internalNode *networkingv1alpha1.InternalNode) error {
+func mutateGeneveTunnel(ctx context.Context, cl client.Client, tunnel *networkingv1beta1.GeneveTunnel,
+	internalFabric *networkingv1beta1.InternalFabric, internalNode *networkingv1beta1.InternalNode) error {
 	if tunnel.Labels == nil {
 		tunnel.Labels = make(map[string]string)
 	}
@@ -61,8 +61,8 @@ func mutateGeneveTunnel(ctx context.Context, cl client.Client, tunnel *networkin
 }
 
 func cleanupGeneveTunnels(ctx context.Context, cl client.Client,
-	internalFabric *networkingv1alpha1.InternalFabric, internalNodeList *networkingv1alpha1.InternalNodeList) error {
-	var tunnelList networkingv1alpha1.GeneveTunnelList
+	internalFabric *networkingv1beta1.InternalFabric, internalNodeList *networkingv1beta1.InternalNodeList) error {
+	var tunnelList networkingv1beta1.GeneveTunnelList
 	if err := cl.List(ctx, &tunnelList, client.InNamespace(internalFabric.Namespace), client.MatchingLabels{
 		consts.InternalFabricName: internalFabric.Name,
 	}); err != nil {
@@ -89,12 +89,12 @@ func cleanupGeneveTunnels(ctx context.Context, cl client.Client,
 }
 
 func ensureGeneveTunnels(ctx context.Context, cl client.Client, s *runtime.Scheme,
-	internalFabric *networkingv1alpha1.InternalFabric, internalNodeList *networkingv1alpha1.InternalNodeList) error {
+	internalFabric *networkingv1beta1.InternalFabric, internalNodeList *networkingv1beta1.InternalNodeList) error {
 	for i := range internalNodeList.Items {
 		node := &internalNodeList.Items[i]
 
 		name := geneveTunnelName(internalFabric, node)
-		tunnel := &networkingv1alpha1.GeneveTunnel{
+		tunnel := &networkingv1beta1.GeneveTunnel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: internalFabric.Namespace,
@@ -127,9 +127,9 @@ func ensureGeneveTunnels(ctx context.Context, cl client.Client, s *runtime.Schem
 }
 
 func deleteGeneveTunnels(ctx context.Context, cl client.Client,
-	internalFabric *networkingv1alpha1.InternalFabric) error {
+	internalFabric *networkingv1beta1.InternalFabric) error {
 	// delete geneve tunnels
-	var geneveTunnelList networkingv1alpha1.GeneveTunnelList
+	var geneveTunnelList networkingv1beta1.GeneveTunnelList
 	if err := cl.List(ctx, &geneveTunnelList, client.InNamespace(internalFabric.Namespace), client.MatchingLabels{
 		consts.InternalFabricName: internalFabric.Name,
 	}); err != nil {

@@ -25,8 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	firewallapi "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	firewallapi "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
 // cluster-role
@@ -64,14 +64,14 @@ func NewMutator() *admission.Webhook {
 }
 
 // DecodeFirewallConfiguration decodes the firewallconfiguration from the incoming request.
-func (w *webhook) DecodeFirewallConfiguration(obj runtime.RawExtension) (*networkingv1alpha1.FirewallConfiguration, error) {
-	var firewallConfiguration networkingv1alpha1.FirewallConfiguration
+func (w *webhook) DecodeFirewallConfiguration(obj runtime.RawExtension) (*networkingv1beta1.FirewallConfiguration, error) {
+	var firewallConfiguration networkingv1beta1.FirewallConfiguration
 	err := w.decoder.DecodeRaw(obj, &firewallConfiguration)
 	return &firewallConfiguration, err
 }
 
 // CreatePatchResponse creates an admission response with the given firewallconfiguration.
-func (w *webhook) CreatePatchResponse(req *admission.Request, firewallConfiguration *networkingv1alpha1.FirewallConfiguration) admission.Response {
+func (w *webhook) CreatePatchResponse(req *admission.Request, firewallConfiguration *networkingv1beta1.FirewallConfiguration) admission.Response {
 	marshaledFirewallConfiguration, err := json.Marshal(firewallConfiguration)
 	if err != nil {
 		klog.Errorf("Failed encoding firewallconfiguration in admission response: %v", err)
@@ -100,7 +100,7 @@ func (w *webhookMutate) Handle(_ context.Context, req admission.Request) admissi
 //nolint:gocritic // The signature of this method is imposed by controller runtime.
 func (w *webhookValidate) Handle(ctx context.Context, req admission.Request) admission.Response {
 	var err error
-	var firewallConfiguration, oldFirewallConfiguration *networkingv1alpha1.FirewallConfiguration
+	var firewallConfiguration, oldFirewallConfiguration *networkingv1beta1.FirewallConfiguration
 	firewallConfiguration, err = w.DecodeFirewallConfiguration(req.Object)
 	if err != nil {
 		klog.Errorf("Failed decoding FirewallConfiguration object: %v", err)

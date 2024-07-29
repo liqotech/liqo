@@ -47,9 +47,9 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	offloadingv1alpha1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1alpha1"
-	offloadingv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
+	offloadingv1beta1clients "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
+	offloadingv1beta1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
 	podstatusctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/podstatus-controller"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 	"github.com/liqotech/liqo/pkg/utils/pod"
@@ -83,12 +83,12 @@ type NamespacedPodReflector struct {
 
 	localPods        corev1listers.PodNamespaceLister
 	remotePods       corev1listers.PodNamespaceLister
-	remoteShadowPods offloadingv1alpha1listers.ShadowPodNamespaceLister
+	remoteShadowPods offloadingv1beta1listers.ShadowPodNamespaceLister
 	remoteSecrets    corev1listers.SecretNamespaceLister
 
 	localPodsClient        corev1clients.PodInterface
 	remotePodsClient       corev1clients.PodInterface
-	remoteShadowPodsClient offloadingv1alpha1clients.ShadowPodInterface
+	remoteShadowPodsClient offloadingv1beta1clients.ShadowPodInterface
 
 	remoteRESTClient rest.Interface
 	remoteRESTConfig *rest.Config
@@ -297,7 +297,7 @@ func (npr *NamespacedPodReflector) HandleLabels(ctx context.Context, local *core
 
 // ForgeShadowPod forges the ShadowPod object to be enforced by the reflection process.
 func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *corev1.Pod,
-	shadow *offloadingv1alpha1.ShadowPod, info *PodInfo, forgingOpts *forge.ForgingOpts) (*offloadingv1alpha1.ShadowPod, error) {
+	shadow *offloadingv1beta1.ShadowPod, info *PodInfo, forgingOpts *forge.ForgingOpts) (*offloadingv1beta1.ShadowPod, error) {
 	var saerr, kserr error
 
 	// Wrap the secret name retrieval from the service account, so that we do not have to handle errors in the forge logic.
@@ -358,7 +358,7 @@ func (npr *NamespacedPodReflector) ForgeShadowPod(ctx context.Context, local *co
 }
 
 // ShouldUpdateShadowPod checks whether it is necessary to update the remote shadowpod, based on the forged one.
-func (npr *NamespacedPodReflector) ShouldUpdateShadowPod(ctx context.Context, shadow, target *offloadingv1alpha1.ShadowPod) bool {
+func (npr *NamespacedPodReflector) ShouldUpdateShadowPod(ctx context.Context, shadow, target *offloadingv1beta1.ShadowPod) bool {
 	defer trace.FromContext(ctx).Step("Checked whether a shadowpod update was needed")
 	return !labels.Equals(shadow.ObjectMeta.GetLabels(), target.ObjectMeta.GetLabels()) ||
 		!labels.Equals(shadow.ObjectMeta.GetAnnotations(), target.ObjectMeta.GetAnnotations()) ||
@@ -744,7 +744,7 @@ func (npr *NamespacedPodReflector) InferAdditionalRestarts(local, remote *corev1
 
 // List retrieves the list of reflected pods.
 func (npr *NamespacedPodReflector) List() ([]interface{}, error) {
-	listShPod, err := virtualkubelet.List[virtualkubelet.Lister[*offloadingv1alpha1.ShadowPod], *offloadingv1alpha1.ShadowPod](
+	listShPod, err := virtualkubelet.List[virtualkubelet.Lister[*offloadingv1beta1.ShadowPod], *offloadingv1beta1.ShadowPod](
 		npr.remoteShadowPods,
 	)
 	if err != nil {

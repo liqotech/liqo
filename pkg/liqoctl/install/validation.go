@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 
-	discoverv1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -70,7 +70,7 @@ func (o *Options) validateClusterID() (err error) {
 	// If at this point the name is still empty, generate a new cluster name
 	if o.ClusterID == "" {
 		randomName := namegenerator.NewNameGenerator(rand.Int63()).Generate() //nolint:gosec // don't need crypto/rand
-		o.ClusterID = discoverv1alpha1.ClusterID(strings.ReplaceAll(randomName, "_", "-"))
+		o.ClusterID = liqov1beta1.ClusterID(strings.ReplaceAll(randomName, "_", "-"))
 		o.Printer.Info.Printf("No cluster id specified. Generated: %q", o.ClusterID)
 	}
 

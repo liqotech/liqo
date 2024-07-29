@@ -23,7 +23,7 @@ import (
 	clientctrl "sigs.k8s.io/controller-runtime/pkg/client"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
@@ -92,7 +92,7 @@ func forgeIPTarget(ctx context.Context, cl clientctrl.Client, localIPRemapped ma
 		localIPRemapped[localName],
 	}
 
-	cfgs := networkingv1alpha1.ConfigurationList{}
+	cfgs := networkingv1beta1.ConfigurationList{}
 	if err := cl.List(ctx, &cfgs); err != nil {
 		return nil, fmt.Errorf("failed to list configurations: %w", err)
 	}

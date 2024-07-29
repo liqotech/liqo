@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 )
 
 // ClusterIDFlags stores the values of flags representing a ClusterID.
@@ -61,7 +61,7 @@ func NewClusterIDFlags(local bool, flags *flag.FlagSet) ClusterIDFlags {
 }
 
 // Read performs validation on the values passed and returns a ClusterID if successful.
-func (f ClusterIDFlags) Read() (liqov1alpha1.ClusterID, error) {
+func (f ClusterIDFlags) Read() (liqov1beta1.ClusterID, error) {
 	var clusterWord string
 	if f.local {
 		clusterWord = "cluster"
@@ -78,11 +78,11 @@ func (f ClusterIDFlags) Read() (liqov1alpha1.ClusterID, error) {
 			fmt.Errorf("the %s ID may only contain lowercase letters, numbers and hyphens, and must not be no longer than 63 characters", clusterWord)
 	}
 
-	return liqov1alpha1.ClusterID(*f.ClusterID), nil
+	return liqov1beta1.ClusterID(*f.ClusterID), nil
 }
 
 // ReadOrDie returns a ClusterID. It prints an error message and exits if the values are not valid.
-func (f ClusterIDFlags) ReadOrDie() liqov1alpha1.ClusterID {
+func (f ClusterIDFlags) ReadOrDie() liqov1beta1.ClusterID {
 	identity, err := f.Read()
 	if err != nil {
 		klog.Error(err)
@@ -111,9 +111,9 @@ func (f ClusterIDFlags) Type() string {
 }
 
 // GetClusterID returns the ClusterID stored in the flags.
-func (f ClusterIDFlags) GetClusterID() liqov1alpha1.ClusterID {
+func (f ClusterIDFlags) GetClusterID() liqov1beta1.ClusterID {
 	if f.ClusterID == nil {
 		return ""
 	}
-	return liqov1alpha1.ClusterID(*f.ClusterID)
+	return liqov1beta1.ClusterID(*f.ClusterID)
 }

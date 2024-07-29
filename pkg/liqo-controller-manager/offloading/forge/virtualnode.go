@@ -19,9 +19,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -30,20 +30,20 @@ type VirtualNodeOptions struct {
 	KubeconfigSecretRef  corev1.LocalObjectReference `json:"kubeconfigSecretRef,omitempty"`
 	VkOptionsTemplateRef *corev1.ObjectReference     `json:"vkOptionsTemplateRef,omitempty"`
 
-	ResourceList        corev1.ResourceList             `json:"resourceList,omitempty"`
-	StorageClasses      []liqov1alpha1.StorageType      `json:"storageClasses,omitempty"`
-	IngressClasses      []liqov1alpha1.IngressType      `json:"ingressClasses,omitempty"`
-	LoadBalancerClasses []liqov1alpha1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
-	NodeLabels          map[string]string               `json:"nodeLabels,omitempty"`
-	NodeSelector        map[string]string               `json:"nodeSelector,omitempty"`
+	ResourceList        corev1.ResourceList            `json:"resourceList,omitempty"`
+	StorageClasses      []liqov1beta1.StorageType      `json:"storageClasses,omitempty"`
+	IngressClasses      []liqov1beta1.IngressType      `json:"ingressClasses,omitempty"`
+	LoadBalancerClasses []liqov1beta1.LoadBalancerType `json:"loadBalancerClasses,omitempty"`
+	NodeLabels          map[string]string              `json:"nodeLabels,omitempty"`
+	NodeSelector        map[string]string              `json:"nodeSelector,omitempty"`
 }
 
 // VirtualNode forges a VirtualNode resource.
-func VirtualNode(name, namespace string) *offloadingv1alpha1.VirtualNode {
-	return &offloadingv1alpha1.VirtualNode{
+func VirtualNode(name, namespace string) *offloadingv1beta1.VirtualNode {
+	return &offloadingv1beta1.VirtualNode{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: offloadingv1alpha1.VirtualNodeGroupVersionResource.GroupVersion().String(),
-			Kind:       offloadingv1alpha1.VirtualNodeKind,
+			APIVersion: offloadingv1beta1.VirtualNodeGroupVersionResource.GroupVersion().String(),
+			Kind:       offloadingv1beta1.VirtualNodeKind,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -53,8 +53,8 @@ func VirtualNode(name, namespace string) *offloadingv1alpha1.VirtualNode {
 }
 
 // MutateVirtualNode mutates a VirtualNode resource.
-func MutateVirtualNode(virtualNode *offloadingv1alpha1.VirtualNode,
-	remoteClusterID liqov1alpha1.ClusterID, opts *VirtualNodeOptions, createNode, disableNetworkCheck *bool) error {
+func MutateVirtualNode(virtualNode *offloadingv1beta1.VirtualNode,
+	remoteClusterID liqov1beta1.ClusterID, opts *VirtualNodeOptions, createNode, disableNetworkCheck *bool) error {
 	// VirtualNode metadata
 	if virtualNode.ObjectMeta.Labels == nil {
 		virtualNode.ObjectMeta.Labels = make(map[string]string)
@@ -87,7 +87,7 @@ func MutateVirtualNode(virtualNode *offloadingv1alpha1.VirtualNode,
 
 	if len(opts.NodeSelector) > 0 {
 		if virtualNode.Spec.OffloadingPatch == nil {
-			virtualNode.Spec.OffloadingPatch = &offloadingv1alpha1.OffloadingPatch{}
+			virtualNode.Spec.OffloadingPatch = &offloadingv1beta1.OffloadingPatch{}
 		}
 
 		virtualNode.Spec.OffloadingPatch.NodeSelector = opts.NodeSelector
@@ -97,7 +97,7 @@ func MutateVirtualNode(virtualNode *offloadingv1alpha1.VirtualNode,
 }
 
 // VirtualNodeOptionsFromResourceSlice extracts the VirtualNodeOptions from a ResourceSlice.
-func VirtualNodeOptionsFromResourceSlice(resourceSlice *authv1alpha1.ResourceSlice,
+func VirtualNodeOptionsFromResourceSlice(resourceSlice *authv1beta1.ResourceSlice,
 	kubeconfigSecretName string, vkOptionsTemplateRef *corev1.ObjectReference) *VirtualNodeOptions {
 	return &VirtualNodeOptions{
 		KubeconfigSecretRef:  corev1.LocalObjectReference{Name: kubeconfigSecretName},

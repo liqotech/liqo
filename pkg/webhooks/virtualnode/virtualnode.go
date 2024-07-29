@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // cluster-role
@@ -43,14 +43,14 @@ type vnwh struct {
 	client  client.Client
 	decoder *admission.Decoder
 
-	clusterID             liqov1alpha1.ClusterID
+	clusterID             liqov1beta1.ClusterID
 	localPodCIDR          string
 	liqoNamespace         string
 	vkOptsDefaultTemplate *corev1.ObjectReference
 }
 
 // New returns a new VirtualNodeWebhook instance.
-func New(cl client.Client, clusterID liqov1alpha1.ClusterID, localPodCIDR, liqoNamespace string,
+func New(cl client.Client, clusterID liqov1beta1.ClusterID, localPodCIDR, liqoNamespace string,
 	vkOptsDefaultTemplate *corev1.ObjectReference) *admission.Webhook {
 	return &admission.Webhook{Handler: &vnwh{
 		client:  cl,
@@ -64,14 +64,14 @@ func New(cl client.Client, clusterID liqov1alpha1.ClusterID, localPodCIDR, liqoN
 }
 
 // DecodeVirtualNode decodes the virtualnode from the incoming request.
-func (w *vnwh) DecodeVirtualNode(obj runtime.RawExtension) (*offloadingv1alpha1.VirtualNode, error) {
-	var virtualnode offloadingv1alpha1.VirtualNode
+func (w *vnwh) DecodeVirtualNode(obj runtime.RawExtension) (*offloadingv1beta1.VirtualNode, error) {
+	var virtualnode offloadingv1beta1.VirtualNode
 	err := w.decoder.DecodeRaw(obj, &virtualnode)
 	return &virtualnode, err
 }
 
 // CreatePatchResponse creates an admission response with the given virtualnode.
-func (w *vnwh) CreatePatchResponse(req *admission.Request, virtualnode *offloadingv1alpha1.VirtualNode) admission.Response {
+func (w *vnwh) CreatePatchResponse(req *admission.Request, virtualnode *offloadingv1beta1.VirtualNode) admission.Response {
 	marshaledVn, err := json.Marshal(virtualnode)
 	if err != nil {
 		klog.Errorf("Failed encoding virtualnode in admission response: %v", err)
@@ -108,7 +108,7 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 			vkOptsRef = virtualnode.Spec.VkOptionsTemplateRef
 		}
 		nsName := types.NamespacedName{Namespace: vkOptsRef.Namespace, Name: vkOptsRef.Name}
-		var vkOpts offloadingv1alpha1.VkOptionsTemplate
+		var vkOpts offloadingv1beta1.VkOptionsTemplate
 		if err = w.client.Get(ctx, nsName, &vkOpts); err != nil {
 			klog.Errorf("Failed getting VkOptionsTemplate %q: %v", nsName, err)
 			return admission.Denied(err.Error())
@@ -125,7 +125,7 @@ func (w *vnwh) Handle(ctx context.Context, req admission.Request) admission.Resp
 }
 
 // checkNodeDuplicate checks if the node already exists in the cluster.
-func checkNodeDuplicate(ctx context.Context, w *vnwh, virtualnode *offloadingv1alpha1.VirtualNode) error {
+func checkNodeDuplicate(ctx context.Context, w *vnwh, virtualnode *offloadingv1beta1.VirtualNode) error {
 	node := &corev1.Node{}
 	err := w.client.Get(ctx, client.ObjectKey{Name: virtualnode.Name}, node)
 	if err != nil {

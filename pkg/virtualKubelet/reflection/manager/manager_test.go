@@ -24,7 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoclientfake "github.com/liqotech/liqo/pkg/client/clientset/versioned/fake"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -44,7 +44,7 @@ var _ = Describe("Manager tests", func() {
 		localLiqoClient  liqoclient.Interface
 		remoteLiqoClient liqoclient.Interface
 		broadcaster      record.EventBroadcaster
-		offloadingPatch  offloadingv1alpha1.OffloadingPatch
+		offloadingPatch  offloadingv1beta1.OffloadingPatch
 		forgingOpts      forge.ForgingOpts
 
 		ctx    context.Context

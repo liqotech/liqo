@@ -29,11 +29,11 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
@@ -57,10 +57,10 @@ type ClusterContext struct {
 	Config             *rest.Config
 	NativeClient       *kubernetes.Clientset
 	ControllerClient   client.Client
-	Cluster            liqov1alpha1.ClusterID
+	Cluster            liqov1beta1.ClusterID
 	KubeconfigPath     string
 	HomeCluster        bool
-	Role               liqov1alpha1.RoleType
+	Role               liqov1beta1.RoleType
 	NumPeeredConsumers int
 	NumPeeredProviders int
 }
@@ -153,11 +153,11 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 		// The topology is one consumer (the first cluster) peered with multiple provider (the remaining clusters).
 		// TODO: test also topology with multiple consumers peered with a single provider.
 		if i == 1 {
-			c.Role = liqov1alpha1.ConsumerRole
+			c.Role = liqov1beta1.ConsumerRole
 			c.NumPeeredConsumers = 0
 			c.NumPeeredProviders = tester.ClustersNumber - 1
 		} else {
-			c.Role = liqov1alpha1.ProviderRole
+			c.Role = liqov1beta1.ProviderRole
 			c.NumPeeredConsumers = 1
 			c.NumPeeredProviders = 0
 		}
@@ -183,7 +183,7 @@ func getClusterNumberFromEnv() (int, error) {
 func GetConsumers(clusters []ClusterContext) []ClusterContext {
 	consumers := []ClusterContext{}
 	for i := range clusters {
-		if clusters[i].Role == liqov1alpha1.ConsumerRole {
+		if clusters[i].Role == liqov1beta1.ConsumerRole {
 			consumers = append(consumers, clusters[i])
 		}
 	}
@@ -194,7 +194,7 @@ func GetConsumers(clusters []ClusterContext) []ClusterContext {
 func GetProviders(clusters []ClusterContext) []ClusterContext {
 	providers := []ClusterContext{}
 	for i := range clusters {
-		if clusters[i].Role == liqov1alpha1.ProviderRole {
+		if clusters[i].Role == liqov1beta1.ProviderRole {
 			providers = append(providers, clusters[i])
 		}
 	}
@@ -204,10 +204,10 @@ func GetProviders(clusters []ClusterContext) []ClusterContext {
 func getScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = offv1alpha1.AddToScheme(scheme)
-	_ = liqov1alpha1.AddToScheme(scheme)
+	_ = offloadingv1beta1.AddToScheme(scheme)
+	_ = liqov1beta1.AddToScheme(scheme)
 	_ = ipamv1alpha1.AddToScheme(scheme)
-	_ = authv1alpha1.AddToScheme(scheme)
-	_ = netv1alpha1.AddToScheme(scheme)
+	_ = authv1beta1.AddToScheme(scheme)
+	_ = networkingv1beta1.AddToScheme(scheme)
 	return scheme
 }

@@ -18,12 +18,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 )
 
 // GetCondition returns the condition with the given type.
-func GetCondition(resourceSlice *authv1alpha1.ResourceSlice,
-	conditionType authv1alpha1.ResourceSliceConditionType) *authv1alpha1.ResourceSliceCondition {
+func GetCondition(resourceSlice *authv1beta1.ResourceSlice,
+	conditionType authv1beta1.ResourceSliceConditionType) *authv1beta1.ResourceSliceCondition {
 	for i := range resourceSlice.Status.Conditions {
 		if resourceSlice.Status.Conditions[i].Type == conditionType {
 			return &resourceSlice.Status.Conditions[i]
@@ -33,8 +33,8 @@ func GetCondition(resourceSlice *authv1alpha1.ResourceSlice,
 }
 
 // EnsureCondition ensures the condition with the given type, status, reason, and message.
-func EnsureCondition(resourceSlice *authv1alpha1.ResourceSlice,
-	conditionType authv1alpha1.ResourceSliceConditionType, status authv1alpha1.ResourceSliceConditionStatus,
+func EnsureCondition(resourceSlice *authv1beta1.ResourceSlice,
+	conditionType authv1beta1.ResourceSliceConditionType, status authv1beta1.ResourceSliceConditionStatus,
 	reason, message string) controllerutil.OperationResult {
 	condition := GetCondition(resourceSlice, conditionType)
 	if condition != nil {
@@ -48,7 +48,7 @@ func EnsureCondition(resourceSlice *authv1alpha1.ResourceSlice,
 		return controllerutil.OperationResultNone
 	}
 
-	resourceSlice.Status.Conditions = append(resourceSlice.Status.Conditions, authv1alpha1.ResourceSliceCondition{
+	resourceSlice.Status.Conditions = append(resourceSlice.Status.Conditions, authv1beta1.ResourceSliceCondition{
 		Type:               conditionType,
 		Status:             status,
 		Reason:             reason,

@@ -19,7 +19,7 @@ import (
 
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 const (
@@ -28,13 +28,13 @@ const (
 )
 
 func (r *FirewallConfigurationReconciler) ensureFirewallConfigurationFinalizerPresence(
-	ctx context.Context, fwcfg *networkingv1alpha1.FirewallConfiguration) error {
+	ctx context.Context, fwcfg *networkingv1beta1.FirewallConfiguration) error {
 	ctrlutil.AddFinalizer(fwcfg, firewallConfigurationsControllerFinalizer)
 	return r.Client.Update(ctx, fwcfg)
 }
 
 func (r *FirewallConfigurationReconciler) ensureFirewallConfigurationFinalizerAbsence(
-	ctx context.Context, fwcfg *networkingv1alpha1.FirewallConfiguration) error {
+	ctx context.Context, fwcfg *networkingv1beta1.FirewallConfiguration) error {
 	ctrlutil.RemoveFinalizer(fwcfg, firewallConfigurationsControllerFinalizer)
 	return r.Client.Update(ctx, fwcfg)
 }

@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	internalnetwork "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/internal-network/fabricipam"
@@ -86,7 +86,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		return ctrl.Result{}, fmt.Errorf("unable to initialize the IPAM: %w", err)
 	}
 
-	internalNode := &networkingv1alpha1.InternalNode{
+	internalNode := &networkingv1beta1.InternalNode{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: node.Name,
 		},
@@ -100,7 +100,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res c
 		if err != nil {
 			return err
 		}
-		internalNode.Spec.Interface.Node.IP = networkingv1alpha1.IP(ip.String())
+		internalNode.Spec.Interface.Node.IP = networkingv1beta1.IP(ip.String())
 
 		return controllerutil.SetControllerReference(node, internalNode, r.Scheme)
 	}); err != nil {
@@ -121,7 +121,7 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		Owns(&networkingv1alpha1.InternalNode{}).
+		Owns(&networkingv1beta1.InternalNode{}).
 		For(&corev1.Node{}, builder.WithPredicates(predicate.Not(filterByLabelsPredicate))).
 		Complete(r)
 }

@@ -20,7 +20,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 const (
@@ -30,7 +30,7 @@ const (
 
 // SetNamespaceMapControllerFinalizer adds NamespaceMapControllerFinalizer to
 // a NamespaceMap, if it is not already there.
-func (r *NamespaceMapReconciler) SetNamespaceMapControllerFinalizer(ctx context.Context, nm *mapsv1alpha1.NamespaceMap) error {
+func (r *NamespaceMapReconciler) SetNamespaceMapControllerFinalizer(ctx context.Context, nm *offloadingv1beta1.NamespaceMap) error {
 	if ctrlutils.ContainsFinalizer(nm, NamespaceMapControllerFinalizer) {
 		return nil
 	}
@@ -46,7 +46,7 @@ func (r *NamespaceMapReconciler) SetNamespaceMapControllerFinalizer(ctx context.
 }
 
 // RemoveNamespaceMapControllerFinalizer remove the NamespaceMapController finalizer.
-func (r *NamespaceMapReconciler) RemoveNamespaceMapControllerFinalizer(ctx context.Context, nm *mapsv1alpha1.NamespaceMap) error {
+func (r *NamespaceMapReconciler) RemoveNamespaceMapControllerFinalizer(ctx context.Context, nm *offloadingv1beta1.NamespaceMap) error {
 	if !ctrlutils.ContainsFinalizer(nm, NamespaceMapControllerFinalizer) {
 		return nil
 	}

@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -63,7 +63,7 @@ func NewConfigurationReconciler(cl client.Client, s *runtime.Scheme,
 // Reconcile manage Configurations.
 func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
-	conf := &networkingv1alpha1.Configuration{}
+	conf := &networkingv1beta1.Configuration{}
 	if err = r.Get(ctx, req.NamespacedName, conf); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("There is no configuration %s", req.String())
@@ -91,13 +91,13 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&networkingv1alpha1.Configuration{}, builder.WithPredicates(p)).
+		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(p)).
 		Watches(
-			&networkingv1alpha1.GatewayServer{},
+			&networkingv1beta1.GatewayServer{},
 			handler.EnqueueRequestsFromMapFunc(r.configurationEnqueuerByRemoteID()),
 		).
 		Watches(
-			&networkingv1alpha1.GatewayClient{},
+			&networkingv1beta1.GatewayClient{},
 			handler.EnqueueRequestsFromMapFunc(r.configurationEnqueuerByRemoteID()),
 		).
 		Complete(r)

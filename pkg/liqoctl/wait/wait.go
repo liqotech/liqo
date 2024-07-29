@@ -29,10 +29,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
@@ -66,7 +66,7 @@ func NewWaiterFromFactory(f *factory.Factory) *Waiter {
 }
 
 // ForNetwork waits until the networking has been established with the remote cluster or the timeout expires.
-func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
+func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	remName := remoteClusterID
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for network to the remote cluster %q", remName))
 	err := fcutils.PollForEvent(ctx, w.CRClient, remoteClusterID, fcutils.IsNetworkingEstablishedOrDisabled, 1*time.Second)
@@ -79,7 +79,7 @@ func (w *Waiter) ForNetwork(ctx context.Context, remoteClusterID liqov1alpha1.Cl
 }
 
 // ForResourceSliceAuthentication waits until the ResourceSlice authentication has been accepted or the timeout expires.
-func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSlice *authv1alpha1.ResourceSlice) error {
+func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSlice *authv1beta1.ResourceSlice) error {
 	s := w.Printer.StartSpinner("Waiting for ResourceSlice authentication to be accepted")
 
 	nsName := client.ObjectKeyFromObject(resourceSlice)
@@ -88,8 +88,8 @@ func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSli
 			return false, client.IgnoreNotFound(err)
 		}
 
-		authCondition := authentication.GetCondition(resourceSlice, authv1alpha1.ResourceSliceConditionTypeAuthentication)
-		if authCondition != nil && authCondition.Status == authv1alpha1.ResourceSliceConditionAccepted {
+		authCondition := authentication.GetCondition(resourceSlice, authv1beta1.ResourceSliceConditionTypeAuthentication)
+		if authCondition != nil && authCondition.Status == authv1beta1.ResourceSliceConditionAccepted {
 			return true, nil
 		}
 		return false, nil
@@ -99,7 +99,7 @@ func (w *Waiter) ForResourceSliceAuthentication(ctx context.Context, resourceSli
 		return err
 	}
 
-	s.Success("ResourceSlice authentication: ", authv1alpha1.ResourceSliceConditionAccepted)
+	s.Success("ResourceSlice authentication: ", authv1beta1.ResourceSliceConditionAccepted)
 	return nil
 }
 
@@ -132,7 +132,7 @@ func (w *Waiter) ForNodeReady(ctx context.Context, nodeName string) error {
 func (w *Waiter) ForOffloading(ctx context.Context, namespace string) error {
 	s := w.Printer.StartSpinner(fmt.Sprintf("Waiting for offloading of namespace %q to complete", namespace))
 	noClusterSelected := false
-	var offload *offloadingv1alpha1.NamespaceOffloading
+	var offload *offloadingv1beta1.NamespaceOffloading
 	err := wait.PollUntilContextCancel(ctx, 100*time.Millisecond, true, func(ctx context.Context) (done bool, err error) {
 		offload, err = getters.GetOffloadingByNamespace(ctx, w.CRClient, namespace)
 		if err != nil {
@@ -144,14 +144,14 @@ func (w *Waiter) ForOffloading(ctx context.Context, namespace string) error {
 			return false, nil
 		}
 
-		someFailed := offload.Status.OffloadingPhase == offloadingv1alpha1.SomeFailedOffloadingPhaseType
-		allFailed := offload.Status.OffloadingPhase == offloadingv1alpha1.AllFailedOffloadingPhaseType
+		someFailed := offload.Status.OffloadingPhase == offloadingv1beta1.SomeFailedOffloadingPhaseType
+		allFailed := offload.Status.OffloadingPhase == offloadingv1beta1.AllFailedOffloadingPhaseType
 		if someFailed || allFailed {
 			return true, fmt.Errorf("the offloading is in %q state", offload.Status.OffloadingPhase)
 		}
 
-		ready := offload.Status.OffloadingPhase == offloadingv1alpha1.ReadyOffloadingPhaseType
-		noClusterSelected = offload.Status.OffloadingPhase == offloadingv1alpha1.NoClusterSelectedOffloadingPhaseType
+		ready := offload.Status.OffloadingPhase == offloadingv1beta1.ReadyOffloadingPhaseType
+		noClusterSelected = offload.Status.OffloadingPhase == offloadingv1beta1.NoClusterSelectedOffloadingPhaseType
 
 		return ready || noClusterSelected, nil
 	})
@@ -185,7 +185,7 @@ func (w *Waiter) ForUnoffloading(ctx context.Context, namespace string) error {
 
 // ForConfiguration waits until the status on the Configuration resource states that the configuration has been
 // successfully applied.
-func (w *Waiter) ForConfiguration(ctx context.Context, conf *networkingv1alpha1.Configuration) error {
+func (w *Waiter) ForConfiguration(ctx context.Context, conf *networkingv1beta1.Configuration) error {
 	s := w.Printer.StartSpinner("Waiting for configuration to be applied")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		ok, err := configuration.IsConfigurationStatusSet(ctx, w.CRClient, conf.Name, conf.Namespace)
@@ -228,7 +228,7 @@ func (w *Waiter) ForGatewayPodReady(ctx context.Context, gateway client.Object) 
 
 // ForGatewayServerStatusEndpoint waits until the service of a Gateway resource has been created
 // (i.e., until its endpoint status is not set).
-func (w *Waiter) ForGatewayServerStatusEndpoint(ctx context.Context, gwServer *networkingv1alpha1.GatewayServer) error {
+func (w *Waiter) ForGatewayServerStatusEndpoint(ctx context.Context, gwServer *networkingv1beta1.GatewayServer) error {
 	s := w.Printer.StartSpinner("Waiting for gateway server Service to be created")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		err = w.CRClient.Get(ctx, client.ObjectKey{Name: gwServer.Name, Namespace: gwServer.Namespace}, gwServer)
@@ -247,7 +247,7 @@ func (w *Waiter) ForGatewayServerStatusEndpoint(ctx context.Context, gwServer *n
 
 // ForGatewayServerSecretRef waits until the secret containing the public key of a gateway server has been created
 // (i.e., until its secret reference status is not set).
-func (w *Waiter) ForGatewayServerSecretRef(ctx context.Context, gwServer *networkingv1alpha1.GatewayServer) error {
+func (w *Waiter) ForGatewayServerSecretRef(ctx context.Context, gwServer *networkingv1beta1.GatewayServer) error {
 	s := w.Printer.StartSpinner("Waiting for gateway server Secret to be created")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		err = w.CRClient.Get(ctx, client.ObjectKeyFromObject(gwServer), gwServer)
@@ -266,7 +266,7 @@ func (w *Waiter) ForGatewayServerSecretRef(ctx context.Context, gwServer *networ
 
 // ForGatewayClientSecretRef waits until the secret containing the public key of a gateway client has been created
 // (i.e., until its secret reference status is not set).
-func (w *Waiter) ForGatewayClientSecretRef(ctx context.Context, gwClient *networkingv1alpha1.GatewayClient) error {
+func (w *Waiter) ForGatewayClientSecretRef(ctx context.Context, gwClient *networkingv1beta1.GatewayClient) error {
 	s := w.Printer.StartSpinner("Waiting for gateway client Secret to be created")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		err = w.CRClient.Get(ctx, client.ObjectKeyFromObject(gwClient), gwClient)
@@ -285,9 +285,9 @@ func (w *Waiter) ForGatewayClientSecretRef(ctx context.Context, gwClient *networ
 
 // ForConnection waits until the Connection resource has been created.
 func (w *Waiter) ForConnection(ctx context.Context, namespace string,
-	remoteCluster liqov1alpha1.ClusterID) (*networkingv1alpha1.Connection, error) {
+	remoteCluster liqov1beta1.ClusterID) (*networkingv1beta1.Connection, error) {
 	s := w.Printer.StartSpinner("Waiting for Connection to be created")
-	var conn *networkingv1alpha1.Connection
+	var conn *networkingv1beta1.Connection
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		remoteClusterIDSelector := labels.Set{consts.RemoteClusterID: string(remoteCluster)}.AsSelector()
 		connections, err := getters.ListConnectionsByLabel(ctx, w.CRClient, namespace, remoteClusterIDSelector)
@@ -314,14 +314,14 @@ func (w *Waiter) ForConnection(ctx context.Context, namespace string,
 }
 
 // ForConnectionEstablished waits until the status of the Connection is established.
-func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv1alpha1.Connection) error {
+func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv1beta1.Connection) error {
 	s := w.Printer.StartSpinner("Waiting for Connection status to be established")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		err = w.CRClient.Get(ctx, client.ObjectKeyFromObject(conn), conn)
 		if err != nil {
 			return false, client.IgnoreNotFound(err)
 		}
-		return conn.Status.Value == networkingv1alpha1.Connected, nil
+		return conn.Status.Value == networkingv1beta1.Connected, nil
 	})
 	if err != nil {
 		s.Fail(fmt.Sprintf("Failed waiting for Connection status to be established: %s", output.PrettyErr(err)))
@@ -333,7 +333,7 @@ func (w *Waiter) ForConnectionEstablished(ctx context.Context, conn *networkingv
 }
 
 // ForNonce waits until the secret containing the nonce has been created or the timeout expires.
-func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID, silent bool) error {
+func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, silent bool) error {
 	var s *pterm.SpinnerPrinter
 
 	if !silent {
@@ -366,7 +366,7 @@ func (w *Waiter) ForNonce(ctx context.Context, remoteClusterID liqov1alpha1.Clus
 }
 
 // ForSignedNonce waits until the signed nonce secret has been signed and returns the signature.
-func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID, silent bool) error {
+func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, silent bool) error {
 	var s *pterm.SpinnerPrinter
 
 	if !silent {
@@ -398,7 +398,7 @@ func (w *Waiter) ForSignedNonce(ctx context.Context, remoteClusterID liqov1alpha
 }
 
 // ForTenantStatus waits until the tenant status has been updated or the timeout expires.
-func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
+func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for tenant status to be filled")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		tenant, err := getters.GetTenantByClusterID(ctx, w.CRClient, remoteClusterID)
@@ -425,7 +425,7 @@ func (w *Waiter) ForTenantStatus(ctx context.Context, remoteClusterID liqov1alph
 }
 
 // ForIdentityStatus waits until the identity status has been updated or the timeout expires.
-func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
+func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for identity status to be filled")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		identity, err := getters.GetControlPlaneIdentityByClusterID(ctx, w.CRClient, remoteClusterID)
@@ -448,7 +448,7 @@ func (w *Waiter) ForIdentityStatus(ctx context.Context, remoteClusterID liqov1al
 }
 
 // ForTenantNamespaceAbsence waits until the tenant namespace has been deleted or the timeout expires.
-func (w *Waiter) ForTenantNamespaceAbsence(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
+func (w *Waiter) ForTenantNamespaceAbsence(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for tenant namespace to be deleted")
 	namespaceManager := tenantnamespace.NewManager(w.KubeClient, w.CRClient.Scheme())
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
@@ -482,7 +482,7 @@ func (w *Waiter) ForResourceSlicesAbsence(ctx context.Context, namespace string,
 }
 
 // ForVirtualNodesAbsence waits until the virtual nodes with the given selector have been deleted or the timeout expires.
-func (w *Waiter) ForVirtualNodesAbsence(ctx context.Context, remoteClusterID liqov1alpha1.ClusterID) error {
+func (w *Waiter) ForVirtualNodesAbsence(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := w.Printer.StartSpinner("Waiting for virtual nodes to be deleted")
 	err := wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		virtualNodes, err := getters.ListVirtualNodesByClusterID(ctx, w.CRClient, remoteClusterID)

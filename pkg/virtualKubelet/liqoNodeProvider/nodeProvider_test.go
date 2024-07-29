@@ -32,8 +32,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -116,8 +116,8 @@ var _ = Describe("NodeProvider", func() {
 	})
 
 	type nodeProviderTestcase struct {
-		foreignCluster     *liqov1alpha1.ForeignCluster
-		virtualNode        *offloadingv1alpha1.VirtualNode
+		foreignCluster     *liqov1beta1.ForeignCluster
+		virtualNode        *offloadingv1beta1.VirtualNode
 		expectedConditions []types.GomegaMatcher
 	}
 
@@ -135,7 +135,7 @@ var _ = Describe("NodeProvider", func() {
 			if c.virtualNode != nil {
 				unstructVirtualNode, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.virtualNode)
 				Expect(err).To(BeNil())
-				_, err = dynClient.Resource(offloadingv1alpha1.VirtualNodeGroupVersionResource).
+				_, err = dynClient.Resource(offloadingv1beta1.VirtualNodeGroupVersionResource).
 					Namespace(kubeletNamespace).Create(ctx, &unstructured.Unstructured{
 					Object: unstructVirtualNode,
 				}, metav1.CreateOptions{})
@@ -145,7 +145,7 @@ var _ = Describe("NodeProvider", func() {
 			if c.foreignCluster != nil {
 				unstructConn, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.foreignCluster)
 				Expect(err).To(BeNil())
-				unstruct, err := dynClient.Resource(liqov1alpha1.ForeignClusterGroupVersionResource).
+				unstruct, err := dynClient.Resource(liqov1beta1.ForeignClusterGroupVersionResource).
 					Create(ctx, &unstructured.Unstructured{
 						Object: unstructConn,
 					}, metav1.CreateOptions{})
@@ -153,7 +153,7 @@ var _ = Describe("NodeProvider", func() {
 
 				unstruct.Object["status"] = unstructConn["status"]
 
-				_, err = dynClient.Resource(liqov1alpha1.ForeignClusterGroupVersionResource).
+				_, err = dynClient.Resource(liqov1beta1.ForeignClusterGroupVersionResource).
 					UpdateStatus(ctx, unstruct, metav1.UpdateOptions{})
 				Expect(err).To(BeNil())
 			}
@@ -169,27 +169,27 @@ var _ = Describe("NodeProvider", func() {
 		},
 
 		Entry("Networking disabled, Offloading Enabled", nodeProviderTestcase{
-			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1alpha1.Modules{
-				Offloading: liqov1alpha1.Module{
+			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1beta1.Modules{
+				Offloading: liqov1beta1.Module{
 					Enabled: true,
 				},
-				Networking: liqov1alpha1.Module{
+				Networking: liqov1beta1.Module{
 					Enabled: false,
 				},
-				Authentication: liqov1alpha1.Module{
+				Authentication: liqov1beta1.Module{
 					Enabled: true,
 				},
 			}),
-			virtualNode: &offloadingv1alpha1.VirtualNode{
+			virtualNode: &offloadingv1beta1.VirtualNode{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "VirtualNode",
-					APIVersion: offloadingv1alpha1.VirtualNodeGroupVersionResource.GroupVersion().String(),
+					APIVersion: offloadingv1beta1.VirtualNodeGroupVersionResource.GroupVersion().String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      nodeName,
 					Namespace: kubeletNamespace,
 				},
-				Spec: offloadingv1alpha1.VirtualNodeSpec{
+				Spec: offloadingv1beta1.VirtualNodeSpec{
 					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{
@@ -208,14 +208,14 @@ var _ = Describe("NodeProvider", func() {
 		}),
 
 		Entry("Networking enabled (disconnected), Offloading disabled ", nodeProviderTestcase{
-			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1alpha1.Modules{
-				Offloading: liqov1alpha1.Module{
+			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1beta1.Modules{
+				Offloading: liqov1beta1.Module{
 					Enabled: false,
 				},
-				Networking: liqov1alpha1.Module{
+				Networking: liqov1beta1.Module{
 					Enabled: true,
 				},
-				Authentication: liqov1alpha1.Module{
+				Authentication: liqov1beta1.Module{
 					Enabled: false,
 				},
 			}),
@@ -230,18 +230,18 @@ var _ = Describe("NodeProvider", func() {
 		}),
 
 		Entry("Networking enabled (connected), Offloading disabled ", nodeProviderTestcase{
-			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1alpha1.Modules{
-				Offloading: liqov1alpha1.Module{
+			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1beta1.Modules{
+				Offloading: liqov1beta1.Module{
 					Enabled: false,
 				},
-				Networking: liqov1alpha1.Module{
+				Networking: liqov1beta1.Module{
 					Enabled: true,
-					Conditions: []liqov1alpha1.Condition{{
-						Type:   liqov1alpha1.NetworkConnectionStatusCondition,
-						Status: liqov1alpha1.ConditionStatusEstablished,
+					Conditions: []liqov1beta1.Condition{{
+						Type:   liqov1beta1.NetworkConnectionStatusCondition,
+						Status: liqov1beta1.ConditionStatusEstablished,
 					}},
 				},
-				Authentication: liqov1alpha1.Module{
+				Authentication: liqov1beta1.Module{
 					Enabled: false,
 				},
 			}),
@@ -256,31 +256,31 @@ var _ = Describe("NodeProvider", func() {
 		}),
 
 		Entry("Networking enabled (connected), Offloading enabled", nodeProviderTestcase{
-			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1alpha1.Modules{
-				Offloading: liqov1alpha1.Module{
+			foreignCluster: testutil.FakeForeignCluster(foreignClusterID, &liqov1beta1.Modules{
+				Offloading: liqov1beta1.Module{
 					Enabled: true,
 				},
-				Networking: liqov1alpha1.Module{
+				Networking: liqov1beta1.Module{
 					Enabled: true,
-					Conditions: []liqov1alpha1.Condition{{
-						Type:   liqov1alpha1.NetworkConnectionStatusCondition,
-						Status: liqov1alpha1.ConditionStatusEstablished,
+					Conditions: []liqov1beta1.Condition{{
+						Type:   liqov1beta1.NetworkConnectionStatusCondition,
+						Status: liqov1beta1.ConditionStatusEstablished,
 					}},
 				},
-				Authentication: liqov1alpha1.Module{
+				Authentication: liqov1beta1.Module{
 					Enabled: true,
 				},
 			}),
-			virtualNode: &offloadingv1alpha1.VirtualNode{
+			virtualNode: &offloadingv1beta1.VirtualNode{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "VirtualNode",
-					APIVersion: offloadingv1alpha1.VirtualNodeGroupVersionResource.GroupVersion().String(),
+					APIVersion: offloadingv1beta1.VirtualNodeGroupVersionResource.GroupVersion().String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      nodeName,
 					Namespace: kubeletNamespace,
 				},
-				Spec: offloadingv1alpha1.VirtualNodeSpec{
+				Spec: offloadingv1beta1.VirtualNodeSpec{
 					ClusterID: "remote-id",
 					ResourceQuota: v1.ResourceQuotaSpec{
 						Hard: v1.ResourceList{

@@ -24,10 +24,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoclient "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	liqoinformers "github.com/liqotech/liqo/pkg/client/informers/externalversions"
-	offloadingv1alpha1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1alpha1"
+	offloadingv1beta1listers "github.com/liqotech/liqo/pkg/client/listers/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
@@ -35,7 +35,7 @@ import (
 
 // Handler implements the logic to start and stop the reflection of resources.
 type Handler struct {
-	lister          offloadingv1alpha1listers.NamespaceMapNamespaceLister
+	lister          offloadingv1beta1listers.NamespaceMapNamespaceLister
 	informerFactory liqoinformers.SharedInformerFactory
 
 	namespaceStartStopper manager.NamespaceStartStopper
@@ -52,7 +52,7 @@ func NewHandler(localLiqoClient liqoclient.Interface, namespace string, resyncPe
 
 	return &Handler{
 		informerFactory: localLiqoInformerFactory,
-		lister:          localLiqoInformerFactory.Offloading().V1alpha1().NamespaceMaps().Lister().NamespaceMaps(namespace),
+		lister:          localLiqoInformerFactory.Offloading().V1beta1().NamespaceMaps().Lister().NamespaceMaps(namespace),
 	}
 }
 
@@ -70,7 +70,7 @@ func (nh *Handler) Start(ctx context.Context, namespaceStartStopper manager.Name
 			DeleteFunc: nh.onDeleteNamespaceMap,
 		},
 	}
-	_, err := nh.informerFactory.Offloading().V1alpha1().NamespaceMaps().Informer().AddEventHandler(eh)
+	_, err := nh.informerFactory.Offloading().V1beta1().NamespaceMaps().Informer().AddEventHandler(eh)
 	utilruntime.Must(err)
 
 	nh.informerFactory.Start(ctx.Done())
@@ -80,7 +80,7 @@ func (nh *Handler) Start(ctx context.Context, namespaceStartStopper manager.Name
 }
 
 func (nh *Handler) onAddNamespaceMap(obj interface{}) {
-	namespaceMap := obj.(*offloadingv1alpha1.NamespaceMap)
+	namespaceMap := obj.(*offloadingv1beta1.NamespaceMap)
 
 	for localNs, remoteNamespaceStatus := range namespaceMap.Status.CurrentMapping {
 		nh.startNamespace(localNs, remoteNamespaceStatus)
@@ -88,7 +88,7 @@ func (nh *Handler) onAddNamespaceMap(obj interface{}) {
 }
 
 func (nh *Handler) onDeleteNamespaceMap(obj interface{}) {
-	namespaceMap := obj.(*offloadingv1alpha1.NamespaceMap)
+	namespaceMap := obj.(*offloadingv1beta1.NamespaceMap)
 
 	for localNs, remoteNamespaceStatus := range namespaceMap.Status.CurrentMapping {
 		nh.stopNamespace(localNs, remoteNamespaceStatus)
@@ -96,15 +96,15 @@ func (nh *Handler) onDeleteNamespaceMap(obj interface{}) {
 }
 
 func (nh *Handler) onUpdateNamespaceMap(oldObj, newObj interface{}) {
-	oldNamespaceMap := oldObj.(*offloadingv1alpha1.NamespaceMap)
-	newNamespaceMap := newObj.(*offloadingv1alpha1.NamespaceMap)
+	oldNamespaceMap := oldObj.(*offloadingv1beta1.NamespaceMap)
+	newNamespaceMap := newObj.(*offloadingv1beta1.NamespaceMap)
 
 	// Stop namespaces that are in the old NamespaceMap and:
 	// - Are not in the new NamespaceMap.
 	// - Are not in the new NamespaceMap but they have just transitioned from MappingAccepted phase to another phase.
 	for localNs, oldRemoteNamespaceStatus := range oldNamespaceMap.Status.CurrentMapping {
 		newRemoteNamespaceStatus, newRemoteNamespaceStatusFound := newNamespaceMap.Status.CurrentMapping[localNs]
-		if !newRemoteNamespaceStatusFound || newRemoteNamespaceStatus.Phase != offloadingv1alpha1.MappingAccepted {
+		if !newRemoteNamespaceStatusFound || newRemoteNamespaceStatus.Phase != offloadingv1beta1.MappingAccepted {
 			nh.stopNamespace(localNs, oldRemoteNamespaceStatus)
 		}
 	}
@@ -114,7 +114,7 @@ func (nh *Handler) onUpdateNamespaceMap(oldObj, newObj interface{}) {
 	// - Are in the old NamespaceMap but they have just transitioned to MappingAccepted phase.
 	for localNs, newRemoteNamespaceStatus := range newNamespaceMap.Status.CurrentMapping {
 		oldRemoteNamespaceStatus, oldRemoteNamespaceStatusFound := oldNamespaceMap.Status.CurrentMapping[localNs]
-		if !oldRemoteNamespaceStatusFound || oldRemoteNamespaceStatus.Phase != offloadingv1alpha1.MappingAccepted {
+		if !oldRemoteNamespaceStatusFound || oldRemoteNamespaceStatus.Phase != offloadingv1beta1.MappingAccepted {
 			nh.startNamespace(localNs, newRemoteNamespaceStatus)
 		}
 	}
@@ -132,8 +132,8 @@ func (nh *Handler) checkNamespaceMapUniqueness(_ interface{}) bool {
 	return true
 }
 
-func (nh *Handler) startNamespace(localNs string, remoteNamespaceStatus offloadingv1alpha1.RemoteNamespaceStatus) {
-	if remoteNamespaceStatus.Phase != offloadingv1alpha1.MappingAccepted {
+func (nh *Handler) startNamespace(localNs string, remoteNamespaceStatus offloadingv1beta1.RemoteNamespaceStatus) {
+	if remoteNamespaceStatus.Phase != offloadingv1beta1.MappingAccepted {
 		return
 	}
 
@@ -142,8 +142,8 @@ func (nh *Handler) startNamespace(localNs string, remoteNamespaceStatus offloadi
 	nh.namespaceStartStopper.StartNamespace(localNs, remoteNs)
 }
 
-func (nh *Handler) stopNamespace(localNs string, remoteNamespaceStatus offloadingv1alpha1.RemoteNamespaceStatus) {
-	if remoteNamespaceStatus.Phase != offloadingv1alpha1.MappingAccepted {
+func (nh *Handler) stopNamespace(localNs string, remoteNamespaceStatus offloadingv1beta1.RemoteNamespaceStatus) {
+	if remoteNamespaceStatus.Phase != offloadingv1beta1.MappingAccepted {
 		return
 	}
 

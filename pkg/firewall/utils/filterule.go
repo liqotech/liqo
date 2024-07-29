@@ -25,14 +25,14 @@ import (
 	"github.com/google/nftables/userdata"
 	"k8s.io/klog/v2"
 
-	firewallv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	firewallv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 )
 
 var _ Rule = &FilterRuleWrapper{}
 
 // FilterRuleWrapper is a wrapper for a FilterRule.
 type FilterRuleWrapper struct {
-	*firewallv1alpha1.FilterRule
+	*firewallv1beta1.FilterRule
 }
 
 // GetName returns the name of the rule.
@@ -66,7 +66,7 @@ func (fr *FilterRuleWrapper) Equal(currentrule *nftables.Rule) bool {
 	// Generated expr: &{1 true 3}
 	// We think that this error should be caused by a library bug.
 	// We are going to investigate it further.
-	if fr.FilterRule.Action == firewallv1alpha1.ActionCtMark {
+	if fr.FilterRule.Action == firewallv1beta1.ActionCtMark {
 		return true
 	}
 	if err != nil {
@@ -101,7 +101,7 @@ func (fr *FilterRuleWrapper) Equal(currentrule *nftables.Rule) bool {
 }
 
 // forgeFilterRule forges a nftables rule from a FilterRule.
-func forgeFilterRule(fr *firewallv1alpha1.FilterRule, chain *nftables.Chain) (*nftables.Rule, error) {
+func forgeFilterRule(fr *firewallv1beta1.FilterRule, chain *nftables.Chain) (*nftables.Rule, error) {
 	rule := &nftables.Rule{
 		Table:    chain.Table,
 		Chain:    chain,
@@ -115,12 +115,12 @@ func forgeFilterRule(fr *firewallv1alpha1.FilterRule, chain *nftables.Chain) (*n
 	}
 
 	switch fr.Action {
-	case firewallv1alpha1.ActionCtMark:
+	case firewallv1beta1.ActionCtMark:
 		err := applyCtMarkAction(fr.Value, rule)
 		if err != nil {
 			return nil, fmt.Errorf("cannot apply ctmark action: %w", err)
 		}
-	case firewallv1alpha1.ActionSetMetaMarkFromCtMark:
+	case firewallv1beta1.ActionSetMetaMarkFromCtMark:
 		applySetMetaMarkFromCtMarkAction(rule)
 	default:
 	}

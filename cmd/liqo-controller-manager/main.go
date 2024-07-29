@@ -40,11 +40,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/cmd/liqo-controller-manager/modules"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -73,11 +73,11 @@ func init() {
 
 	_ = monitoringv1.AddToScheme(scheme)
 
-	_ = liqov1alpha1.AddToScheme(scheme)
-	_ = offloadingv1alpha1.AddToScheme(scheme)
+	_ = liqov1beta1.AddToScheme(scheme)
+	_ = offloadingv1beta1.AddToScheme(scheme)
 	_ = ipamv1alpha1.AddToScheme(scheme)
-	_ = networkingv1alpha1.AddToScheme(scheme)
-	_ = authv1alpha1.AddToScheme(scheme)
+	_ = networkingv1beta1.AddToScheme(scheme)
+	_ = authv1beta1.AddToScheme(scheme)
 }
 
 func main() {
@@ -113,7 +113,7 @@ func main() {
 		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
 	foreignClusterPingTimeout := flag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
 		"The timeout of the ForeignCluster API server readiness check")
-	defaultLimitsEnforcement := flag.String("default-limits-enforcement", string(offloadingv1alpha1.NoLimitsEnforcement),
+	defaultLimitsEnforcement := flag.String("default-limits-enforcement", string(offloadingv1beta1.NoLimitsEnforcement),
 		"The default limits enforcement policy for the offloading module")
 
 	// NETWORKING MODULE
@@ -348,7 +348,7 @@ func main() {
 		// Configure controller that create quotas from resourceslices.
 		quotaCreatorReconciler := quotacreatorcontroller.NewQuotaCreatorReconciler(
 			mgr.GetClient(), mgr.GetScheme(), mgr.GetEventRecorderFor("quotacreator-controller"),
-			offloadingv1alpha1.LimitsEnforcement(*defaultLimitsEnforcement))
+			offloadingv1beta1.LimitsEnforcement(*defaultLimitsEnforcement))
 		if err := quotaCreatorReconciler.SetupWithManager(mgr); err != nil {
 			klog.Errorf("Unable to setup the quotacreator reconciler: %v", err)
 			os.Exit(1)

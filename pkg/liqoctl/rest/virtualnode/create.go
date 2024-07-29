@@ -28,8 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/offloading/forge"
 	"github.com/liqotech/liqo/pkg/liqoctl/completion"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
@@ -109,7 +109,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 	runtime.Must(cmd.RegisterFlagCompletionFunc("remote-cluster-id", completion.ClusterIDs(ctx,
 		o.createOptions.Factory, completion.NoLimit)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("kubeconfig-secret-name", completion.KubeconfigSecretNames(ctx,
-		o.createOptions.Factory, completion.NoLimit, options.Namespace, authv1alpha1.ResourceSliceIdentityType)))
+		o.createOptions.Factory, completion.NoLimit, options.Namespace, authv1beta1.ResourceSliceIdentityType)))
 	runtime.Must(cmd.RegisterFlagCompletionFunc("resource-slice-name", completion.ResourceSliceNames(ctx,
 		o.createOptions.Factory, completion.NoLimit, options.Namespace)))
 
@@ -186,7 +186,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 func (o *Options) forgeVirtualNodeOptionsFromResourceSlice(ctx context.Context,
 	cl client.Client, tenantNamespace string, vkOptionsTemplateRef *corev1.ObjectReference) (*forge.VirtualNodeOptions, error) {
 	// Get the associated ResourceSlice.
-	var resourceSlice authv1alpha1.ResourceSlice
+	var resourceSlice authv1beta1.ResourceSlice
 	if err := cl.Get(ctx, client.ObjectKey{Name: o.resourceSliceName, Namespace: tenantNamespace}, &resourceSlice); err != nil {
 		return nil, fmt.Errorf("unable to get resourceslice %q: %w", o.resourceSliceName, err)
 	}
@@ -223,9 +223,9 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 		return nil, fmt.Errorf("unable to parse pod quantity: %w", err)
 	}
 
-	storageClasses := make([]liqov1alpha1.StorageType, len(o.storageClasses))
+	storageClasses := make([]liqov1beta1.StorageType, len(o.storageClasses))
 	for i, storageClass := range o.storageClasses {
-		sc := liqov1alpha1.StorageType{
+		sc := liqov1beta1.StorageType{
 			StorageClassName: storageClass,
 		}
 		if i == 0 {
@@ -234,9 +234,9 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 		storageClasses[i] = sc
 	}
 
-	ingressClasses := make([]liqov1alpha1.IngressType, len(o.ingressClasses))
+	ingressClasses := make([]liqov1beta1.IngressType, len(o.ingressClasses))
 	for i, ingressClass := range o.ingressClasses {
-		ic := liqov1alpha1.IngressType{
+		ic := liqov1beta1.IngressType{
 			IngressClassName: ingressClass,
 		}
 		if i == 0 {
@@ -245,9 +245,9 @@ func (o *Options) forgeVirtualNodeOptions(vkOptionsTemplateRef *corev1.ObjectRef
 		ingressClasses[i] = ic
 	}
 
-	loadBalancerClasses := make([]liqov1alpha1.LoadBalancerType, len(o.loadBalancerClasses))
+	loadBalancerClasses := make([]liqov1beta1.LoadBalancerType, len(o.loadBalancerClasses))
 	for i, loadBalancerClass := range o.loadBalancerClasses {
-		lbc := liqov1alpha1.LoadBalancerType{
+		lbc := liqov1beta1.LoadBalancerType{
 			LoadBalancerClassName: loadBalancerClass,
 		}
 		if i == 0 {

@@ -17,10 +17,10 @@ package routeconfiguration
 import (
 	"fmt"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
-func checkUniqueRoutes(routes []networkingv1alpha1.Route) error {
+func checkUniqueRoutes(routes []networkingv1beta1.Route) error {
 	uniqueKeys := make(map[string]interface{})
 	for i := range routes {
 		if _, ok := uniqueKeys[routes[i].Dst.String()]; ok {

@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -161,7 +161,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(ctx c
 }
 
 func (identityProvider *certificateIdentityProvider) ForgeAuthParams(ctx context.Context,
-	options *SigningRequestOptions) (*authv1alpha1.AuthParams, error) {
+	options *SigningRequestOptions) (*authv1beta1.AuthParams, error) {
 	resp, err := EnsureCertificate(ctx, identityProvider, options)
 	if err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func (identityProvider *certificateIdentityProvider) ForgeAuthParams(ctx context
 		return nil, err
 	}
 
-	return &authv1alpha1.AuthParams{
+	return &authv1beta1.AuthParams{
 		CA:        ca,
 		SignedCRT: resp.Certificate,
 		APIServer: apiServer,
@@ -187,7 +187,7 @@ func (identityProvider *certificateIdentityProvider) ForgeAuthParams(ctx context
 
 func remoteCertificateSecretName(options *SigningRequestOptions) string {
 	switch options.IdentityType {
-	case authv1alpha1.ResourceSliceIdentityType:
+	case authv1beta1.ResourceSliceIdentityType:
 		return fmt.Sprintf("%s-%s", remoteCertificateSecret, options.Name)
 	default:
 		return remoteCertificateSecret

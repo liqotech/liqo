@@ -36,9 +36,9 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/leaderelection"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -58,9 +58,9 @@ var (
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = offloadingv1alpha1.AddToScheme(scheme)
-	_ = liqov1alpha1.AddToScheme(scheme)
-	_ = networkingv1alpha1.AddToScheme(scheme)
+	_ = offloadingv1beta1.AddToScheme(scheme)
+	_ = liqov1beta1.AddToScheme(scheme)
+	_ = networkingv1beta1.AddToScheme(scheme)
 }
 
 const defaultVersion = "v1.25.0" // This should follow the version of k8s.io/kubernetes we are importing
@@ -133,7 +133,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	// Get virtual node
 	vnName := os.Getenv("VIRTUALNODE_NAME")
 	ns := os.Getenv("POD_NAMESPACE")
-	var vn offloadingv1alpha1.VirtualNode
+	var vn offloadingv1beta1.VirtualNode
 	if err := cl.Get(ctx, client.ObjectKey{Name: vnName, Namespace: ns}, &vn); err != nil {
 		klog.Errorf("Unable to get virtual node: %v", err)
 		return err
@@ -145,7 +145,7 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		return err
 	}
 
-	var netConfiguration *networkingv1alpha1.Configuration
+	var netConfiguration *networkingv1beta1.Configuration
 	if fcutils.IsNetworkingModuleEnabled(foreignCluster) {
 		netConfiguration, err = getters.GetConfigurationByClusterID(ctx, cl, c.ForeignCluster.GetClusterID())
 		if err != nil {
@@ -341,27 +341,27 @@ func isReflectionTypeNotCustomizable(resource resources.ResourceReflected) bool 
 	return resource == resources.Pod || resource == resources.ServiceAccount || resource == resources.PersistentVolumeClaim
 }
 
-func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]offloadingv1alpha1.ReflectorConfig, error) {
-	reflectorsConfigs := make(map[resources.ResourceReflected]offloadingv1alpha1.ReflectorConfig)
+func getReflectorsConfigs(c *Opts) (map[resources.ResourceReflected]offloadingv1beta1.ReflectorConfig, error) {
+	reflectorsConfigs := make(map[resources.ResourceReflected]offloadingv1beta1.ReflectorConfig)
 	for i := range resources.Reflectors {
 		resource := &resources.Reflectors[i]
 		numWorkers := *c.ReflectorsWorkers[string(*resource)]
-		var reflectionType offloadingv1alpha1.ReflectionType
+		var reflectionType offloadingv1beta1.ReflectionType
 		if isReflectionTypeNotCustomizable(*resource) {
 			reflectionType = DefaultReflectorsTypes[*resource]
 		} else {
 			if *resource == resources.EndpointSlice {
 				// the endpointslice reflector inherits the reflection type from the service reflector.
-				reflectionType = offloadingv1alpha1.ReflectionType(*c.ReflectorsType[string(resources.Service)])
+				reflectionType = offloadingv1beta1.ReflectionType(*c.ReflectorsType[string(resources.Service)])
 			} else {
-				reflectionType = offloadingv1alpha1.ReflectionType(*c.ReflectorsType[string(*resource)])
+				reflectionType = offloadingv1beta1.ReflectionType(*c.ReflectorsType[string(*resource)])
 			}
-			if reflectionType != offloadingv1alpha1.DenyList && reflectionType != offloadingv1alpha1.AllowList {
+			if reflectionType != offloadingv1beta1.DenyList && reflectionType != offloadingv1beta1.AllowList {
 				return nil, fmt.Errorf("reflection type %q is not valid for resource %s. Ammitted values: %q, %q",
-					reflectionType, *resource, offloadingv1alpha1.DenyList, offloadingv1alpha1.AllowList)
+					reflectionType, *resource, offloadingv1beta1.DenyList, offloadingv1beta1.AllowList)
 			}
 		}
-		reflectorsConfigs[*resource] = offloadingv1alpha1.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
+		reflectorsConfigs[*resource] = offloadingv1beta1.ReflectorConfig{NumWorkers: numWorkers, Type: reflectionType}
 	}
 	return reflectorsConfigs, nil
 }

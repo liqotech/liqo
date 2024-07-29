@@ -21,7 +21,7 @@ import (
 	"github.com/pterm/pterm"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
 )
 
@@ -53,7 +53,7 @@ func ForgeTableData() pterm.TableData {
 // PrintConfigurations prints the configurations of the clusters.
 func PrintConfigurations(ctx context.Context, cl ctrlclient.Client, table *pterm.TablePrinter) error {
 	td := ForgeTableData()
-	cfglist := networkingv1alpha1.ConfigurationList{}
+	cfglist := networkingv1beta1.ConfigurationList{}
 	if err := cl.List(ctx, &cfglist); err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func PrintConfigurations(ctx context.Context, cl ctrlclient.Client, table *pterm
 }
 
 // AppendLocalConfigurationTableData appends the local configuration to the table data.
-func AppendLocalConfigurationTableData(cfg *networkingv1alpha1.Configuration, td pterm.TableData) pterm.TableData {
+func AppendLocalConfigurationTableData(cfg *networkingv1beta1.Configuration, td pterm.TableData) pterm.TableData {
 	return append(td, []string{
 		"local",
 		cfg.Spec.Local.CIDR.Pod.String(), "N/R",
@@ -78,7 +78,7 @@ func AppendLocalConfigurationTableData(cfg *networkingv1alpha1.Configuration, td
 }
 
 // AppendRemoteConfigurationTableData appends the remote configuration to the table data.
-func AppendRemoteConfigurationTableData(cfg *networkingv1alpha1.Configuration, td pterm.TableData) pterm.TableData {
+func AppendRemoteConfigurationTableData(cfg *networkingv1beta1.Configuration, td pterm.TableData) pterm.TableData {
 	return append(td, []string{
 		cfg.Name,
 		cfg.Spec.Remote.CIDR.Pod.String(), cfg.Status.Remote.CIDR.Pod.String(),

@@ -31,8 +31,8 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoctlutil "github.com/liqotech/liqo/pkg/liqoctl/utils"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
@@ -61,7 +61,7 @@ var (
 	namespaceName = util.GetNameNamespaceTest(testName)
 	localIndex    = 0
 
-	getTableEntries = func(role *liqov1alpha1.RoleType) []TableEntry {
+	getTableEntries = func(role *liqov1beta1.RoleType) []TableEntry {
 		res := []TableEntry{}
 		for i := 0; i < 3; i++ {
 			// If the role is specified, check only the clusters that match the role.
@@ -118,7 +118,7 @@ var _ = Describe("Liqo E2E", func() {
 						continue
 					}
 					// Skip clusters that are not consumers since there is no virtual node.
-					if testContext.Clusters[i].Role != liqov1alpha1.ConsumerRole {
+					if testContext.Clusters[i].Role != liqov1beta1.ConsumerRole {
 						continue
 					}
 					Eventually(func() error {
@@ -130,7 +130,7 @@ var _ = Describe("Liqo E2E", func() {
 					}
 				}
 			},
-			getTableEntries(ptr.To(liqov1alpha1.ProviderRole))...,
+			getTableEntries(ptr.To(liqov1beta1.ProviderRole))...,
 		)...)
 
 	})
@@ -176,7 +176,7 @@ var _ = Describe("Liqo E2E", func() {
 				remoteClusterID := virtualNodesList.Items[i].Labels[liqoconst.RemoteClusterID]
 
 				var cl kubernetes.Interface
-				var id liqov1alpha1.ClusterID
+				var id liqov1beta1.ClusterID
 				for j := range testContext.Clusters {
 					cluster := &testContext.Clusters[j]
 					if string(cluster.Cluster) == remoteClusterID {
@@ -216,7 +216,7 @@ var _ = Describe("Liqo E2E", func() {
 		It("Delete the NamespaceOffloading resource in the local namespace "+
 			"and check if the remote namespaces are deleted", func() {
 			By(" 1 - Getting the NamespaceOffloading in the local namespace and delete it")
-			namespaceOffloading := &offloadingv1alpha1.NamespaceOffloading{}
+			namespaceOffloading := &offloadingv1beta1.NamespaceOffloading{}
 			Eventually(func() metav1.StatusReason {
 				err := testContext.Clusters[localIndex].ControllerClient.Get(ctx,
 					types.NamespacedName{Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: namespaceName},

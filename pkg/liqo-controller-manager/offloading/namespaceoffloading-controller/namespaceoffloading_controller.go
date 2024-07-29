@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/syncset"
 )
@@ -41,7 +41,7 @@ import (
 type NamespaceOffloadingReconciler struct {
 	client.Client
 	Recorder     record.EventRecorder
-	LocalCluster liqov1alpha1.ClusterID
+	LocalCluster liqov1beta1.ClusterID
 
 	// namespaces tracks the set of namespaces for which a NamespaceOffloading resource exists.
 	namespaces *syncset.SyncSet
@@ -63,7 +63,7 @@ const (
 
 // Reconcile implements the NamespaceOffloading reconciliation logic.
 func (r *NamespaceOffloadingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
-	nsoff := &offv1alpha1.NamespaceOffloading{}
+	nsoff := &offloadingv1beta1.NamespaceOffloading{}
 	if err := r.Get(ctx, req.NamespacedName, nsoff); err != nil {
 		if apierrors.IsNotFound(err) {
 			r.namespaces.Remove(req.Namespace)
@@ -114,7 +114,7 @@ func (r *NamespaceOffloadingReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	switch nsoff.Spec.PodOffloadingStrategy {
-	case offv1alpha1.LocalAndRemotePodOffloadingStrategyType, offv1alpha1.RemotePodOffloadingStrategyType:
+	case offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType, offloadingv1beta1.RemotePodOffloadingStrategyType:
 		// If the offloading policy includes remote clusters, then ensure the corresponding namespace has the liqo scheduling label.
 		return ctrl.Result{}, r.enforceSchedulingLabelPresence(ctx, nsoff.Namespace)
 	default:
@@ -132,9 +132,9 @@ func (r *NamespaceOffloadingReconciler) SetupWithManager(mgr ctrl.Manager) error
 	})
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&offv1alpha1.NamespaceOffloading{}, builder.WithPredicates(filter)).
-		Watches(&offv1alpha1.NamespaceMap{}, r.namespaceMapHandlers()).
-		Watches(&offv1alpha1.VirtualNode{}, r.enqueueAll()).
+		For(&offloadingv1beta1.NamespaceOffloading{}, builder.WithPredicates(filter)).
+		Watches(&offloadingv1beta1.NamespaceMap{}, r.namespaceMapHandlers()).
+		Watches(&offloadingv1beta1.VirtualNode{}, r.enqueueAll()).
 		Watches(&corev1.Node{}, r.enqueueAll()).
 		Complete(r)
 }
@@ -153,8 +153,8 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 			r.namespaces.ForEach(func(namespace string) { enqueue(rli, namespace) })
 		},
 		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
-			oldMappings := ue.ObjectOld.(*offv1alpha1.NamespaceMap).Status.CurrentMapping
-			newMappings := ue.ObjectNew.(*offv1alpha1.NamespaceMap).Status.CurrentMapping
+			oldMappings := ue.ObjectOld.(*offloadingv1beta1.NamespaceMap).Status.CurrentMapping
+			newMappings := ue.ObjectNew.(*offloadingv1beta1.NamespaceMap).Status.CurrentMapping
 
 			// Enqueue an event for all elements that are different between the old and the new object.
 			for namespace, oldStatus := range oldMappings {
@@ -179,7 +179,7 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 
 func (r *NamespaceOffloadingReconciler) enqueueAll() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, _ client.Object) []reconcile.Request {
-		var nsolist offv1alpha1.NamespaceOffloadingList
+		var nsolist offloadingv1beta1.NamespaceOffloadingList
 		if err := r.Client.List(ctx, &nsolist); err != nil {
 			klog.Errorf("Failed to retrieve NamespaceOffloadingList: %v", err)
 			return nil

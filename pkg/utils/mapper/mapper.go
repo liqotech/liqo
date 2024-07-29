@@ -32,11 +32,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 // LiqoMapper is a function that returns a RESTMapper for the resources used by Liqo.
@@ -73,19 +73,19 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	var err error
 
 	// Liqo groups
-	if err = addGroup(dClient, liqov1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
+	if err = addGroup(dClient, liqov1beta1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, offv1alpha1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
+	if err = addGroup(dClient, offloadingv1beta1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
 	if err = addGroup(dClient, ipamv1alpha1.SchemeGroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, networkingv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
+	if err = addGroup(dClient, networkingv1beta1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
-	if err = addGroup(dClient, authv1alpha1.GroupVersion, mapper, GroupRequired); err != nil {
+	if err = addGroup(dClient, authv1beta1.GroupVersion, mapper, GroupRequired); err != nil {
 		return err
 	}
 

@@ -31,7 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
@@ -47,7 +47,7 @@ type ClientReconciler struct {
 }
 
 type templateData struct {
-	Spec       networkingv1alpha1.GatewayClientSpec
+	Spec       networkingv1beta1.GatewayClientSpec
 	Name       string
 	Namespace  string
 	GatewayUID string
@@ -76,7 +76,7 @@ func NewClientReconciler(cl client.Client, dynClient dynamic.Interface,
 
 // Reconcile manage GatewayClient lifecycle.
 func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
-	gwClient := &networkingv1alpha1.GatewayClient{}
+	gwClient := &networkingv1beta1.GatewayClient{}
 	if err = r.Get(ctx, req.NamespacedName, gwClient); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("Gateway client %q not found", req.NamespacedName)
@@ -106,7 +106,7 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 }
 
 // EnsureGatewayClient ensures the GatewayClient is correctly configured.
-func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *networkingv1alpha1.GatewayClient) error {
+func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *networkingv1beta1.GatewayClient) error {
 	if gwClient.Labels == nil {
 		gwClient.Labels = map[string]string{}
 	}
@@ -256,7 +256,7 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 
 // SetupWithManager register the ClientReconciler to the manager.
 func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	ownerEnqueuer := enutils.NewOwnerEnqueuer(networkingv1alpha1.GatewayClientKind)
+	ownerEnqueuer := enutils.NewOwnerEnqueuer(networkingv1beta1.GatewayClientKind)
 	factorySource := dynamicutils.NewFactorySource(r.Factory)
 
 	for _, resource := range r.ClientResources {
@@ -269,6 +269,6 @@ func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		WatchesRawSource(factorySource.Source(), ownerEnqueuer).
-		For(&networkingv1alpha1.GatewayClient{}).
+		For(&networkingv1beta1.GatewayClient{}).
 		Complete(r)
 }

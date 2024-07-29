@@ -24,14 +24,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
 
 var _ = Describe("Namespace controller", func() {
-	StatusCheck := func(remoteNamespaceName string, phase offv1alpha1.OffloadingPhaseType,
-		conditionsChecker func(string, offv1alpha1.RemoteNamespaceConditions) error) {
+	StatusCheck := func(remoteNamespaceName string, phase offloadingv1beta1.OffloadingPhaseType,
+		conditionsChecker func(string, offloadingv1beta1.RemoteNamespaceConditions) error) {
 		Eventually(func() error {
 			Expect(cl.Get(ctx, client.ObjectKeyFromObject(nsoff), nsoff)).To(Succeed())
 
@@ -60,44 +60,44 @@ var _ = Describe("Namespace controller", func() {
 		}).Should(Succeed())
 	}
 
-	ConditionsReady := func(nmname string, conditions offv1alpha1.RemoteNamespaceConditions) error {
+	ConditionsReady := func(nmname string, conditions offloadingv1beta1.RemoteNamespaceConditions) error {
 		if len(conditions) != 2 {
 			return fmt.Errorf("NamespaceOffloading conditions for NamespaceMap %q are not correct, actual len: %d", nmname, len(conditions))
 		}
 
-		if conditions[0].Type != offv1alpha1.NamespaceOffloadingRequired || conditions[0].Status != corev1.ConditionTrue {
+		if conditions[0].Type != offloadingv1beta1.NamespaceOffloadingRequired || conditions[0].Status != corev1.ConditionTrue {
 			return fmt.Errorf("NamespaceOffloading conditions for NamespaceMap %q are not correct, actual: %v", nmname, conditions)
 		}
 
-		if conditions[1].Type != offv1alpha1.NamespaceReady || conditions[1].Status != corev1.ConditionTrue {
+		if conditions[1].Type != offloadingv1beta1.NamespaceReady || conditions[1].Status != corev1.ConditionTrue {
 			return fmt.Errorf("NamespaceOffloading conditions for NamespaceMap %q are not correct, actual: %v", nmname, conditions)
 		}
 
 		return nil
 	}
 
-	ConditionsNotReady := func(nmname string, conditions offv1alpha1.RemoteNamespaceConditions) error {
+	ConditionsNotReady := func(nmname string, conditions offloadingv1beta1.RemoteNamespaceConditions) error {
 		if len(conditions) != 2 {
 			return fmt.Errorf("NamespaceOffloading conditions for NamespaceMap %q are not correct, actual len: %d", nmname, len(conditions))
 		}
 
-		if conditions[0].Type != offv1alpha1.NamespaceOffloadingRequired || conditions[0].Status != corev1.ConditionTrue {
+		if conditions[0].Type != offloadingv1beta1.NamespaceOffloadingRequired || conditions[0].Status != corev1.ConditionTrue {
 			return fmt.Errorf("NamespaceOffloading conditions for NamespaceMap %q are not correct, actual: %v", nmname, conditions)
 		}
 
-		if conditions[1].Type != offv1alpha1.NamespaceReady || conditions[1].Status != corev1.ConditionFalse {
+		if conditions[1].Type != offloadingv1beta1.NamespaceReady || conditions[1].Status != corev1.ConditionFalse {
 			return fmt.Errorf("NamespaceOffloading conditions for NamespaceMap %q are not correct, actual: %v", nmname, conditions)
 		}
 
 		return nil
 	}
 
-	ConditionsNotSelected := func(nmname string, conditions offv1alpha1.RemoteNamespaceConditions) error {
+	ConditionsNotSelected := func(nmname string, conditions offloadingv1beta1.RemoteNamespaceConditions) error {
 		if len(conditions) != 1 {
 			return fmt.Errorf("NamespaceOffloading conditions for NamespaceMap %q are not correct, actual len: %d", nmname, len(conditions))
 		}
 
-		if conditions[0].Type != offv1alpha1.NamespaceOffloadingRequired || conditions[0].Status != corev1.ConditionFalse {
+		if conditions[0].Type != offloadingv1beta1.NamespaceOffloadingRequired || conditions[0].Status != corev1.ConditionFalse {
 			return fmt.Errorf("NamespaceOffloading conditions for NamespaceMap %q are not correct, actual: %v", nmname, conditions)
 		}
 
@@ -105,16 +105,16 @@ var _ = Describe("Namespace controller", func() {
 	}
 
 	BeforeEach(func() {
-		nsoff = &offv1alpha1.NamespaceOffloading{}
-		nm1.Status = offv1alpha1.NamespaceMapStatus{}
-		nm2.Status = offv1alpha1.NamespaceMapStatus{}
-		nm3.Status = offv1alpha1.NamespaceMapStatus{}
+		nsoff = &offloadingv1beta1.NamespaceOffloading{}
+		nm1.Status = offloadingv1beta1.NamespaceMapStatus{}
+		nm2.Status = offloadingv1beta1.NamespaceMapStatus{}
+		nm3.Status = offloadingv1beta1.NamespaceMapStatus{}
 
 		// Delete NamespaceOffloading resources
-		Expect(client.IgnoreNotFound(cl.DeleteAllOf(ctx, &offv1alpha1.NamespaceOffloading{}, client.InNamespace(namespaceName)))).Should(Succeed())
+		Expect(client.IgnoreNotFound(cl.DeleteAllOf(ctx, &offloadingv1beta1.NamespaceOffloading{}, client.InNamespace(namespaceName)))).Should(Succeed())
 
 		// Clean NamespaceMaps
-		var nms offv1alpha1.NamespaceMapList
+		var nms offloadingv1beta1.NamespaceMapList
 		Eventually(func() error {
 			Expect(cl.List(ctx, &nms)).To(Succeed())
 			Expect(nms.Items).To(HaveLen(mapNumber))
@@ -125,7 +125,7 @@ var _ = Describe("Namespace controller", func() {
 					return err
 				}
 
-				nms.Items[i].Status = offv1alpha1.NamespaceMapStatus{}
+				nms.Items[i].Status = offloadingv1beta1.NamespaceMapStatus{}
 				if err := cl.Status().Update(ctx, &nms.Items[i]); err != nil {
 					return err
 				}
@@ -148,8 +148,8 @@ var _ = Describe("Namespace controller", func() {
 		}).Should(Succeed())
 
 		// Check that the NamespaceOffloading has been deleted
-		Eventually(func() ([]offv1alpha1.NamespaceOffloading, error) {
-			var nsoffs offv1alpha1.NamespaceOffloadingList
+		Eventually(func() ([]offloadingv1beta1.NamespaceOffloading, error) {
+			var nsoffs offloadingv1beta1.NamespaceOffloadingList
 			err := cl.List(ctx, &nsoffs)
 			return nsoffs.Items, err
 		}).Should(HaveLen(0))
@@ -157,17 +157,17 @@ var _ = Describe("Namespace controller", func() {
 
 	Context("Create a NamespaceOffloading resource with an empty clusterSelector", func() {
 		var (
-			nm                  offv1alpha1.NamespaceMap
+			nm                  offloadingv1beta1.NamespaceMap
 			remoteNamespaceName string
 		)
 
 		BeforeEach(func() {
 			remoteNamespaceName = fmt.Sprintf("%s-%s", namespaceName, foreignclusterutils.UniqueName(localCluster))
-			nsoff = &offv1alpha1.NamespaceOffloading{
+			nsoff = &offloadingv1beta1.NamespaceOffloading{
 				ObjectMeta: metav1.ObjectMeta{Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: namespaceName},
-				Spec: offv1alpha1.NamespaceOffloadingSpec{
-					NamespaceMappingStrategy: offv1alpha1.DefaultNameMappingStrategyType,
-					PodOffloadingStrategy:    offv1alpha1.LocalAndRemotePodOffloadingStrategyType,
+				Spec: offloadingv1beta1.NamespaceOffloadingSpec{
+					NamespaceMappingStrategy: offloadingv1beta1.DefaultNameMappingStrategyType,
+					PodOffloadingStrategy:    offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType,
 					ClusterSelector:          corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
 				},
 			}
@@ -177,7 +177,7 @@ var _ = Describe("Namespace controller", func() {
 		})
 
 		It("NamespaceMaps of virtual nodes should be updated", func() {
-			for _, obj := range []*offv1alpha1.NamespaceMap{nm1, nm2, nm3} {
+			for _, obj := range []*offloadingv1beta1.NamespaceMap{nm1, nm2, nm3} {
 				Eventually(func() map[string]string {
 					Expect(cl.Get(ctx, client.ObjectKeyFromObject(obj), &nm)).To(Succeed())
 					return nm.Spec.DesiredMapping
@@ -200,13 +200,13 @@ var _ = Describe("Namespace controller", func() {
 		})
 
 		Context("Status propagation checks", func() {
-			ForgeCurrentMapping := func(phase offv1alpha1.MappingPhase) map[string]offv1alpha1.RemoteNamespaceStatus {
-				return map[string]offv1alpha1.RemoteNamespaceStatus{
+			ForgeCurrentMapping := func(phase offloadingv1beta1.MappingPhase) map[string]offloadingv1beta1.RemoteNamespaceStatus {
+				return map[string]offloadingv1beta1.RemoteNamespaceStatus{
 					namespaceName: {RemoteNamespace: remoteNamespaceName, Phase: phase}}
 			}
 
 			JustBeforeEach(func() {
-				for _, obj := range []*offv1alpha1.NamespaceMap{nm1, nm2, nm3} {
+				for _, obj := range []*offloadingv1beta1.NamespaceMap{nm1, nm2, nm3} {
 					status := obj.Status.DeepCopy()
 					Eventually(func() error {
 						Expect(cl.Get(ctx, client.ObjectKeyFromObject(obj), &nm)).To(Succeed())
@@ -218,25 +218,25 @@ var _ = Describe("Namespace controller", func() {
 
 			When("All remote namespaces have been correctly created", func() {
 				BeforeEach(func() {
-					nm1.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingAccepted)
-					nm2.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingAccepted)
-					nm3.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingAccepted)
+					nm1.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingAccepted)
+					nm2.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingAccepted)
+					nm3.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingAccepted)
 				})
 
 				It("Should converge to the ready status", func() {
-					StatusCheck(remoteNamespaceName, offv1alpha1.ReadyOffloadingPhaseType, ConditionsReady)
+					StatusCheck(remoteNamespaceName, offloadingv1beta1.ReadyOffloadingPhaseType, ConditionsReady)
 				})
 			})
 
 			When("Some remote namespace creations are still in progress", func() {
 				BeforeEach(func() {
-					nm1.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingAccepted)
-					nm3.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingAccepted)
+					nm1.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingAccepted)
+					nm3.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingAccepted)
 				})
 
 				It("Should converge to the in progress status", func() {
-					StatusCheck(remoteNamespaceName, offv1alpha1.InProgressOffloadingPhaseType,
-						func(nmname string, conditions offv1alpha1.RemoteNamespaceConditions) error {
+					StatusCheck(remoteNamespaceName, offloadingv1beta1.InProgressOffloadingPhaseType,
+						func(nmname string, conditions offloadingv1beta1.RemoteNamespaceConditions) error {
 							if nmname == nm2.Name {
 								return ConditionsNotReady(nmname, conditions)
 							}
@@ -247,26 +247,26 @@ var _ = Describe("Namespace controller", func() {
 
 			When("All remote namespace creations have failed", func() {
 				BeforeEach(func() {
-					nm1.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingCreationLoopBackOff)
-					nm2.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingCreationLoopBackOff)
-					nm3.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingCreationLoopBackOff)
+					nm1.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingCreationLoopBackOff)
+					nm2.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingCreationLoopBackOff)
+					nm3.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingCreationLoopBackOff)
 				})
 
 				It("Should converge to the all failed status", func() {
-					StatusCheck(remoteNamespaceName, offv1alpha1.AllFailedOffloadingPhaseType, ConditionsNotReady)
+					StatusCheck(remoteNamespaceName, offloadingv1beta1.AllFailedOffloadingPhaseType, ConditionsNotReady)
 				})
 			})
 
 			When("Some remote namespace creations have failed", func() {
 				BeforeEach(func() {
-					nm1.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingAccepted)
-					nm2.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingCreationLoopBackOff)
-					nm3.Status.CurrentMapping = ForgeCurrentMapping(offv1alpha1.MappingAccepted)
+					nm1.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingAccepted)
+					nm2.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingCreationLoopBackOff)
+					nm3.Status.CurrentMapping = ForgeCurrentMapping(offloadingv1beta1.MappingAccepted)
 				})
 
 				It("Should converge to the some failed status", func() {
-					StatusCheck(remoteNamespaceName, offv1alpha1.SomeFailedOffloadingPhaseType,
-						func(nmname string, conditions offv1alpha1.RemoteNamespaceConditions) error {
+					StatusCheck(remoteNamespaceName, offloadingv1beta1.SomeFailedOffloadingPhaseType,
+						func(nmname string, conditions offloadingv1beta1.RemoteNamespaceConditions) error {
 							if nmname == nm2.Name {
 								return ConditionsNotReady(nmname, conditions)
 							}
@@ -278,12 +278,12 @@ var _ = Describe("Namespace controller", func() {
 	})
 
 	It("Create a NamespaceOffloading with a valid cluster selector", func() {
-		var nm offv1alpha1.NamespaceMap
-		nsoff = &offv1alpha1.NamespaceOffloading{
+		var nm offloadingv1beta1.NamespaceMap
+		nsoff = &offloadingv1beta1.NamespaceOffloading{
 			ObjectMeta: metav1.ObjectMeta{Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: namespaceName},
-			Spec: offv1alpha1.NamespaceOffloadingSpec{
-				NamespaceMappingStrategy: offv1alpha1.EnforceSameNameMappingStrategyType,
-				PodOffloadingStrategy:    offv1alpha1.LocalAndRemotePodOffloadingStrategyType,
+			Spec: offloadingv1beta1.NamespaceOffloadingSpec{
+				NamespaceMappingStrategy: offloadingv1beta1.EnforceSameNameMappingStrategyType,
+				PodOffloadingStrategy:    offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType,
 				ClusterSelector: corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 					MatchExpressions: []corev1.NodeSelectorRequirement{{
 						Key:      liqoconst.TopologyRegionClusterLabel,
@@ -328,18 +328,18 @@ var _ = Describe("Namespace controller", func() {
 		}).Should(HaveKeyWithValue(liqoconst.SchedulingLiqoLabel, liqoconst.SchedulingLiqoLabelValue))
 
 		By("Fill the NamespaceMap status")
-		for _, obj := range []*offv1alpha1.NamespaceMap{nm1, nm3} {
+		for _, obj := range []*offloadingv1beta1.NamespaceMap{nm1, nm3} {
 			Eventually(func() error {
 				Expect(cl.Get(ctx, client.ObjectKeyFromObject(obj), &nm)).To(Succeed())
-				nm.Status.CurrentMapping = map[string]offv1alpha1.RemoteNamespaceStatus{
-					namespaceName: {RemoteNamespace: namespaceName, Phase: offv1alpha1.MappingAccepted}}
+				nm.Status.CurrentMapping = map[string]offloadingv1beta1.RemoteNamespaceStatus{
+					namespaceName: {RemoteNamespace: namespaceName, Phase: offloadingv1beta1.MappingAccepted}}
 				return cl.Status().Update(ctx, &nm)
 			}).Should(Succeed())
 		}
 
 		By("Check that the NamespaceOffloading status is correct")
-		StatusCheck(namespaceName, offv1alpha1.ReadyOffloadingPhaseType,
-			func(nmname string, conditions offv1alpha1.RemoteNamespaceConditions) error {
+		StatusCheck(namespaceName, offloadingv1beta1.ReadyOffloadingPhaseType,
+			func(nmname string, conditions offloadingv1beta1.RemoteNamespaceConditions) error {
 				if nmname == nm2.Name {
 					return ConditionsNotSelected(nmname, conditions)
 				}
@@ -350,7 +350,7 @@ var _ = Describe("Namespace controller", func() {
 		Expect(cl.Delete(ctx, nsoff)).To(Succeed())
 
 		By("Check if there are no DesiredMapping")
-		for _, obj := range []*offv1alpha1.NamespaceMap{nm1, nm2, nm3} {
+		for _, obj := range []*offloadingv1beta1.NamespaceMap{nm1, nm2, nm3} {
 			Eventually(func() map[string]string {
 				Expect(cl.Get(ctx, client.ObjectKeyFromObject(obj), &nm)).To(Succeed())
 				return nm.Spec.DesiredMapping
@@ -366,12 +366,12 @@ var _ = Describe("Namespace controller", func() {
 	})
 
 	It("Create a NamespaceOffloading resource with a wrong clusterSelector", func() {
-		var nm offv1alpha1.NamespaceMap
-		nsoff = &offv1alpha1.NamespaceOffloading{
+		var nm offloadingv1beta1.NamespaceMap
+		nsoff = &offloadingv1beta1.NamespaceOffloading{
 			ObjectMeta: metav1.ObjectMeta{Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: namespaceName},
-			Spec: offv1alpha1.NamespaceOffloadingSpec{
-				NamespaceMappingStrategy: offv1alpha1.EnforceSameNameMappingStrategyType,
-				PodOffloadingStrategy:    offv1alpha1.LocalAndRemotePodOffloadingStrategyType,
+			Spec: offloadingv1beta1.NamespaceOffloadingSpec{
+				NamespaceMappingStrategy: offloadingv1beta1.EnforceSameNameMappingStrategyType,
+				PodOffloadingStrategy:    offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType,
 				ClusterSelector: corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 					MatchExpressions: []corev1.NodeSelectorRequirement{{
 						Key:      liqoconst.TopologyRegionClusterLabel,
@@ -405,7 +405,7 @@ var _ = Describe("Namespace controller", func() {
 		}).Should(BeTrue())
 
 		By("Check NamespaceMaps to be empty")
-		for _, obj := range []*offv1alpha1.NamespaceMap{nm1, nm2, nm3} {
+		for _, obj := range []*offloadingv1beta1.NamespaceMap{nm1, nm2, nm3} {
 			Consistently(func() map[string]string {
 				Expect(cl.Get(ctx, client.ObjectKeyFromObject(obj), &nm)).To(Succeed())
 				return nm.Spec.DesiredMapping
@@ -413,16 +413,16 @@ var _ = Describe("Namespace controller", func() {
 		}
 
 		By("Check that the NamespaceOffloading status is correct")
-		StatusCheck(namespaceName, offv1alpha1.NoClusterSelectedOffloadingPhaseType, ConditionsNotSelected)
+		StatusCheck(namespaceName, offloadingv1beta1.NoClusterSelectedOffloadingPhaseType, ConditionsNotSelected)
 	})
 
 	It("Create a NamespaceOffloading resource that doesn't select any cluster", func() {
-		var nm offv1alpha1.NamespaceMap
-		nsoff = &offv1alpha1.NamespaceOffloading{
+		var nm offloadingv1beta1.NamespaceMap
+		nsoff = &offloadingv1beta1.NamespaceOffloading{
 			ObjectMeta: metav1.ObjectMeta{Name: liqoconst.DefaultNamespaceOffloadingName, Namespace: namespaceName},
-			Spec: offv1alpha1.NamespaceOffloadingSpec{
-				NamespaceMappingStrategy: offv1alpha1.EnforceSameNameMappingStrategyType,
-				PodOffloadingStrategy:    offv1alpha1.LocalAndRemotePodOffloadingStrategyType,
+			Spec: offloadingv1beta1.NamespaceOffloadingSpec{
+				NamespaceMappingStrategy: offloadingv1beta1.EnforceSameNameMappingStrategyType,
+				PodOffloadingStrategy:    offloadingv1beta1.LocalAndRemotePodOffloadingStrategyType,
 				ClusterSelector: corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{
 					MatchExpressions: []corev1.NodeSelectorRequirement{{
 						Key:      liqoconst.TopologyRegionClusterLabel,
@@ -449,7 +449,7 @@ var _ = Describe("Namespace controller", func() {
 		}).Should(BeTrue())
 
 		By("Check NamespaceMaps to be empty")
-		for _, obj := range []*offv1alpha1.NamespaceMap{nm1, nm2, nm3} {
+		for _, obj := range []*offloadingv1beta1.NamespaceMap{nm1, nm2, nm3} {
 			Consistently(func() map[string]string {
 				Expect(cl.Get(ctx, client.ObjectKeyFromObject(obj), &nm)).To(Succeed())
 				return nm.Spec.DesiredMapping

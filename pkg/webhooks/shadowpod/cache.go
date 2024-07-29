@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -47,7 +47,7 @@ func (spv *Validator) CacheRefresher(interval time.Duration) func(ctx context.Co
 }
 
 func (spv *Validator) initializeCache(ctx context.Context) (err error) {
-	quotaList := offloadingv1alpha1.QuotaList{}
+	quotaList := offloadingv1beta1.QuotaList{}
 	if err := spv.client.List(ctx, &quotaList); err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (spv *Validator) refreshCache(ctx context.Context) (done bool, err error) {
 	return false, nil
 }
 
-func (pi *peeringInfo) alignTerminatingOrNotExistingShadowPods(shadowPodList *offloadingv1alpha1.ShadowPodList) {
+func (pi *peeringInfo) alignTerminatingOrNotExistingShadowPods(shadowPodList *offloadingv1beta1.ShadowPodList) {
 	pi.mu.Lock()
 	defer pi.mu.Unlock()
 	spMap := make(map[string]struct{})
@@ -143,7 +143,7 @@ func (pi *peeringInfo) alignTerminatingShadowPodDescriptions(spMap map[string]st
 	}
 }
 
-func (pi *peeringInfo) alignExistingShadowPods(shadowPodList *offloadingv1alpha1.ShadowPodList) {
+func (pi *peeringInfo) alignExistingShadowPods(shadowPodList *offloadingv1beta1.ShadowPodList) {
 	pi.mu.Lock()
 	defer pi.mu.Unlock()
 	for i := range shadowPodList.Items {
@@ -155,18 +155,18 @@ func (pi *peeringInfo) alignExistingShadowPods(shadowPodList *offloadingv1alpha1
 	}
 }
 
-func (pi *peeringInfo) checkAndAddShadowPods(shadowPod *offloadingv1alpha1.ShadowPod, nsname types.NamespacedName) (found bool) {
+func (pi *peeringInfo) checkAndAddShadowPods(shadowPod *offloadingv1beta1.ShadowPod, nsname types.NamespacedName) (found bool) {
 	_, found = pi.shadowPods[nsname.String()]
 	if !found {
 		// Errors are intentionally ignored here.
-		spQuota, _ := getQuotaFromShadowPod(shadowPod, offloadingv1alpha1.NoLimitsEnforcement)
+		spQuota, _ := getQuotaFromShadowPod(shadowPod, offloadingv1beta1.NoLimitsEnforcement)
 		pi.addShadowPod(createShadowPodDescription(shadowPod.GetName(), shadowPod.GetNamespace(), shadowPod.GetUID(), *spQuota))
 	}
 	return
 }
 
 func (spv *Validator) checkAlignmentQuotaPeeringInfo(ctx context.Context) error {
-	quotaList := offloadingv1alpha1.QuotaList{}
+	quotaList := offloadingv1beta1.QuotaList{}
 	quotaMap := make(map[string]struct{})
 
 	// Get the List of quotas

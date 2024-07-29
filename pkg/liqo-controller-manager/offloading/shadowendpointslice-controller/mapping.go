@@ -20,13 +20,13 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 )
 
 // MapEndpointsWithConfiguration maps the endpoints of the shadowendpointslice.
 func MapEndpointsWithConfiguration(ctx context.Context, cl client.Client,
-	clusterID liqov1alpha1.ClusterID, endpoints []discoveryv1.Endpoint) error {
+	clusterID liqov1beta1.ClusterID, endpoints []discoveryv1.Endpoint) error {
 	for i := range endpoints {
 		for j := range endpoints[i].Addresses {
 			addr := endpoints[i].Addresses[j]

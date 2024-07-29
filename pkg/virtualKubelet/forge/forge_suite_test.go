@@ -21,15 +21,15 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 const (
-	LocalClusterID  liqov1alpha1.ClusterID = "local-cluster-id"
-	RemoteClusterID liqov1alpha1.ClusterID = "remote-cluster-id"
-	LiqoNodeName                           = "local-node"
-	LiqoNodeIP                             = "1.1.1.1"
+	LocalClusterID  liqov1beta1.ClusterID = "local-cluster-id"
+	RemoteClusterID liqov1beta1.ClusterID = "remote-cluster-id"
+	LiqoNodeName                          = "local-node"
+	LiqoNodeIP                            = "1.1.1.1"
 )
 
 func TestForge(t *testing.T) {

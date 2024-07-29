@@ -22,13 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
 
 // enforceStatus realigns the status of the NamespaceOffloading, depending on that of the NamespaceMaps.
-func (r *NamespaceOffloadingReconciler) enforceStatus(ctx context.Context, nsoff *offv1alpha1.NamespaceOffloading,
-	nsmaps map[string]*offv1alpha1.NamespaceMap) error {
+func (r *NamespaceOffloadingReconciler) enforceStatus(ctx context.Context, nsoff *offloadingv1beta1.NamespaceOffloading,
+	nsmaps map[string]*offloadingv1beta1.NamespaceMap) error {
 	nsoff.Status.RemoteNamespaceName = r.remoteNamespaceName(nsoff)
 
 	// Update the observed generation.
@@ -52,17 +52,17 @@ func (r *NamespaceOffloadingReconciler) enforceStatus(ctx context.Context, nsoff
 }
 
 // remoteNamespaceName returns the remapped name corresponding to a given namespace.
-func (r *NamespaceOffloadingReconciler) remoteNamespaceName(nsoff *offv1alpha1.NamespaceOffloading) string {
+func (r *NamespaceOffloadingReconciler) remoteNamespaceName(nsoff *offloadingv1beta1.NamespaceOffloading) string {
 	switch nsoff.Spec.NamespaceMappingStrategy {
-	case offv1alpha1.EnforceSameNameMappingStrategyType:
+	case offloadingv1beta1.EnforceSameNameMappingStrategyType:
 		return nsoff.Namespace
-	case offv1alpha1.DefaultNameMappingStrategyType:
+	case offloadingv1beta1.DefaultNameMappingStrategyType:
 		return nsoff.Namespace + "-" + foreignclusterutils.UniqueName(r.LocalCluster)
-	case offv1alpha1.SelectedNameMappingStrategyType:
+	case offloadingv1beta1.SelectedNameMappingStrategyType:
 		return nsoff.Spec.RemoteNamespaceName
 	default:
 		klog.Errorf("NamespaceOffloading %q: unknown NamespaceMappingStrategy %q, falling back to %q",
-			klog.KObj(nsoff), nsoff.Spec.NamespaceMappingStrategy, offv1alpha1.DefaultNameMappingStrategyType)
+			klog.KObj(nsoff), nsoff.Spec.NamespaceMappingStrategy, offloadingv1beta1.DefaultNameMappingStrategyType)
 		return nsoff.Namespace + "-" + foreignclusterutils.UniqueName(r.LocalCluster)
 	}
 }
@@ -70,7 +70,7 @@ func (r *NamespaceOffloadingReconciler) remoteNamespaceName(nsoff *offv1alpha1.N
 // ensureRemoteConditionsConsistence checks for every remote condition of the NamespaceOffloading resource that the
 // corresponding NamespaceMap is still there. If the peering is deleted also the corresponding remote condition
 // must be deleted.
-func ensureRemoteConditionsConsistence(nsoff *offv1alpha1.NamespaceOffloading, nsmaps map[string]*offv1alpha1.NamespaceMap) {
+func ensureRemoteConditionsConsistence(nsoff *offloadingv1beta1.NamespaceOffloading, nsmaps map[string]*offloadingv1beta1.NamespaceMap) {
 outer:
 	for nmname := range nsoff.Status.RemoteNamespacesConditions {
 		for _, nsmap := range nsmaps {
@@ -86,10 +86,10 @@ outer:
 
 // setRemoteConditionsForEveryCluster configures the conditions depending on whether the namespace has been offloaded, and its status.
 // It additionally returns the number of clusters selected as targets for offloading, and the number of ready and failed ones.
-func setRemoteConditionsForEveryCluster(nsoff *offv1alpha1.NamespaceOffloading,
-	nsmaps map[string]*offv1alpha1.NamespaceMap) (requestedCount, readyCount, failedCount uint) {
+func setRemoteConditionsForEveryCluster(nsoff *offloadingv1beta1.NamespaceOffloading,
+	nsmaps map[string]*offloadingv1beta1.NamespaceMap) (requestedCount, readyCount, failedCount uint) {
 	if nsoff.Status.RemoteNamespacesConditions == nil {
-		nsoff.Status.RemoteNamespacesConditions = map[string]offv1alpha1.RemoteNamespaceConditions{}
+		nsoff.Status.RemoteNamespacesConditions = map[string]offloadingv1beta1.RemoteNamespaceConditions{}
 	}
 
 	for _, nsmap := range nsmaps {
@@ -100,12 +100,12 @@ func setRemoteConditionsForEveryCluster(nsoff *offv1alpha1.NamespaceOffloading,
 		}
 
 		// Get the information for the NamespaceReady condition.
-		var phase offv1alpha1.MappingPhase
+		var phase offloadingv1beta1.MappingPhase
 		if mapping, ok := nsmap.Status.CurrentMapping[nsoff.Namespace]; ok {
 			phase = mapping.Phase
-			if phase == offv1alpha1.MappingAccepted {
+			if phase == offloadingv1beta1.MappingAccepted {
 				readyCount++
-			} else if phase == offv1alpha1.MappingCreationLoopBackOff {
+			} else if phase == offloadingv1beta1.MappingCreationLoopBackOff {
 				failedCount++
 			}
 		}
@@ -127,7 +127,7 @@ func setRemoteConditionsForEveryCluster(nsoff *offv1alpha1.NamespaceOffloading,
 
 // setRemoteCondition configures the conditions referring to a single remote cluster,
 // depending on whether the namespace has been offloaded, and its status.
-func setRemoteCondition(nsoff *offv1alpha1.NamespaceOffloading, nmname string, condition *offv1alpha1.RemoteNamespaceCondition) {
+func setRemoteCondition(nsoff *offloadingv1beta1.NamespaceOffloading, nmname string, condition *offloadingv1beta1.RemoteNamespaceCondition) {
 	// Iterate over the existing conditions, and check whether it is up-to-date
 	conditions := nsoff.Status.RemoteNamespacesConditions[nmname]
 	for i := range conditions {
@@ -148,8 +148,8 @@ func setRemoteCondition(nsoff *offv1alpha1.NamespaceOffloading, nmname string, c
 }
 
 // nsoffRequiredCondition returns a condition stating whether the namespace shall be offladed to the remote cluster or not.
-func nsoffRequiredCondition(required bool) *offv1alpha1.RemoteNamespaceCondition {
-	condition := &offv1alpha1.RemoteNamespaceCondition{Type: offv1alpha1.NamespaceOffloadingRequired, LastTransitionTime: metav1.Now()}
+func nsoffRequiredCondition(required bool) *offloadingv1beta1.RemoteNamespaceCondition {
+	condition := &offloadingv1beta1.RemoteNamespaceCondition{Type: offloadingv1beta1.NamespaceOffloadingRequired, LastTransitionTime: metav1.Now()}
 
 	if required {
 		condition.Status = corev1.ConditionTrue
@@ -165,19 +165,19 @@ func nsoffRequiredCondition(required bool) *offv1alpha1.RemoteNamespaceCondition
 }
 
 // nsoffRequiredCondition returns a condition stating the offloading status, based on the corresponding NamespaceMap.
-func nsoffReadyCondition(phase offv1alpha1.MappingPhase) *offv1alpha1.RemoteNamespaceCondition {
-	condition := &offv1alpha1.RemoteNamespaceCondition{Type: offv1alpha1.NamespaceReady, LastTransitionTime: metav1.Now()}
+func nsoffReadyCondition(phase offloadingv1beta1.MappingPhase) *offloadingv1beta1.RemoteNamespaceCondition {
+	condition := &offloadingv1beta1.RemoteNamespaceCondition{Type: offloadingv1beta1.NamespaceReady, LastTransitionTime: metav1.Now()}
 
 	switch {
-	case phase == offv1alpha1.MappingAccepted:
+	case phase == offloadingv1beta1.MappingAccepted:
 		condition.Status = corev1.ConditionTrue
 		condition.Reason = "NamespaceCreated"
 		condition.Message = "Namespace correctly offloaded to the remote cluster"
-	case phase == offv1alpha1.MappingCreationLoopBackOff:
+	case phase == offloadingv1beta1.MappingCreationLoopBackOff:
 		condition.Status = corev1.ConditionFalse
 		condition.Reason = "CreationLoopBackOff"
 		condition.Message = "Some problems occurred during remote namespace creation"
-	case phase == offv1alpha1.MappingTerminating:
+	case phase == offloadingv1beta1.MappingTerminating:
 		condition.Status = corev1.ConditionFalse
 		condition.Reason = "Terminating"
 		condition.Message = "The remote namespace is being deleted"
@@ -191,19 +191,19 @@ func nsoffReadyCondition(phase offv1alpha1.MappingPhase) *offv1alpha1.RemoteName
 }
 
 // setNamespaceOffloadingStatus sets the global offloading status according to the remote namespace conditions.
-func setNamespaceOffloadingStatus(nsoff *offv1alpha1.NamespaceOffloading, required, ready, failed uint) {
+func setNamespaceOffloadingStatus(nsoff *offloadingv1beta1.NamespaceOffloading, required, ready, failed uint) {
 	switch {
 	case !nsoff.DeletionTimestamp.IsZero():
-		nsoff.Status.OffloadingPhase = offv1alpha1.TerminatingOffloadingPhaseType
+		nsoff.Status.OffloadingPhase = offloadingv1beta1.TerminatingOffloadingPhaseType
 	case required == 0:
-		nsoff.Status.OffloadingPhase = offv1alpha1.NoClusterSelectedOffloadingPhaseType
+		nsoff.Status.OffloadingPhase = offloadingv1beta1.NoClusterSelectedOffloadingPhaseType
 	case ready == required:
-		nsoff.Status.OffloadingPhase = offv1alpha1.ReadyOffloadingPhaseType
+		nsoff.Status.OffloadingPhase = offloadingv1beta1.ReadyOffloadingPhaseType
 	case failed == required:
-		nsoff.Status.OffloadingPhase = offv1alpha1.AllFailedOffloadingPhaseType
+		nsoff.Status.OffloadingPhase = offloadingv1beta1.AllFailedOffloadingPhaseType
 	case failed > 0:
-		nsoff.Status.OffloadingPhase = offv1alpha1.SomeFailedOffloadingPhaseType
+		nsoff.Status.OffloadingPhase = offloadingv1beta1.SomeFailedOffloadingPhaseType
 	default:
-		nsoff.Status.OffloadingPhase = offv1alpha1.InProgressOffloadingPhaseType
+		nsoff.Status.OffloadingPhase = offloadingv1beta1.InProgressOffloadingPhaseType
 	}
 }

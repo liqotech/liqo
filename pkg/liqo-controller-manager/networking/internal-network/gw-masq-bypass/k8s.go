@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
-	"github.com/liqotech/liqo/apis/networking/v1alpha1/firewall"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/apis/networking/v1beta1/firewall"
 	"github.com/liqotech/liqo/pkg/fabric"
 )
 
@@ -47,12 +47,12 @@ func enforceFirewallPodPresence(ctx context.Context, cl client.Client, scheme *r
 		return "", nil
 	}
 
-	internalnode := &networkingv1alpha1.InternalNode{}
+	internalnode := &networkingv1beta1.InternalNode{}
 	if err := cl.Get(ctx, client.ObjectKey{Name: pod.Spec.NodeName}, internalnode); err != nil {
 		return "", err
 	}
 
-	fwcfg := &networkingv1alpha1.FirewallConfiguration{
+	fwcfg := &networkingv1beta1.FirewallConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: generateFirewallConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
 
@@ -69,7 +69,7 @@ func enforceFirewallPodAbsence(ctx context.Context, cl client.Client, opts *Opti
 	if nodeName == "" {
 		return fmt.Errorf("unable to get node name from pod %s/%s", pod.GetNamespace(), pod.GetName())
 	}
-	fwcfg := networkingv1alpha1.FirewallConfiguration{ObjectMeta: metav1.ObjectMeta{
+	fwcfg := networkingv1beta1.FirewallConfiguration{ObjectMeta: metav1.ObjectMeta{
 		Name: generateFirewallConfigurationName(nodeName), Namespace: opts.Namespace,
 	}}
 	if err := cl.Get(ctx, client.ObjectKeyFromObject(&fwcfg), &fwcfg); err != nil {
@@ -93,8 +93,8 @@ func enforceFirewallPodAbsence(ctx context.Context, cl client.Client, opts *Opti
 	return nil
 }
 
-func forgeFirewallPodUpdateFunction(internalnode *networkingv1alpha1.InternalNode,
-	fwcfg *networkingv1alpha1.FirewallConfiguration, pod *corev1.Pod, scheme *runtime.Scheme) controllerutil.MutateFn {
+func forgeFirewallPodUpdateFunction(internalnode *networkingv1beta1.InternalNode,
+	fwcfg *networkingv1beta1.FirewallConfiguration, pod *corev1.Pod, scheme *runtime.Scheme) controllerutil.MutateFn {
 	return func() error {
 		if err := controllerutil.SetOwnerReference(internalnode, fwcfg, scheme); err != nil {
 			return err
@@ -134,7 +134,7 @@ func setFirewallPodChain(chain *firewall.Chain) {
 	chain.Priority = ptr.To(firewall.ChainPriorityNATSource - 1)
 }
 
-func forgeFirewallPodDeleteFunction(pod *corev1.Pod, fwcfg *networkingv1alpha1.FirewallConfiguration) controllerutil.MutateFn {
+func forgeFirewallPodDeleteFunction(pod *corev1.Pod, fwcfg *networkingv1beta1.FirewallConfiguration) controllerutil.MutateFn {
 	return func() error {
 		if fwcfg.Spec.Table.Chains == nil || len(fwcfg.Spec.Table.Chains) != 1 {
 			return fmt.Errorf("firewall configuration table should contain only one chain, it contains %d", len(fwcfg.Spec.Table.Chains))

@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 )
 
 var _ = Describe("ShadowPod Description", func() {
@@ -33,7 +33,7 @@ var _ = Describe("ShadowPod Description", func() {
 		spValidator       *Validator
 		err               error
 		errTest           error
-		shadowPod         *offloadingv1alpha1.ShadowPod
+		shadowPod         *offloadingv1beta1.ShadowPod
 		spDescription     *Description
 		spDescriptionTest *Description
 		spNamespacedName  types.NamespacedName
@@ -62,7 +62,7 @@ var _ = Describe("ShadowPod Description", func() {
 		JustBeforeEach(func() {
 			containers = append(containers, containerResource{cpu: 100, memory: 100})
 			spDescription, err = peeringInfo.getOrCreateShadowPodDescription(ctx, spValidator.client,
-				forgeShadowPodWithResourceRequests(containers, nil), offloadingv1alpha1.SoftLimitsEnforcement)
+				forgeShadowPodWithResourceRequests(containers, nil), offloadingv1beta1.SoftLimitsEnforcement)
 		})
 
 		When("The ShadowPod Description does not exist", func() {
@@ -158,7 +158,7 @@ var _ = Describe("ShadowPod Description", func() {
 
 	Describe("Get Quota from a ShadowPod", func() {
 		JustBeforeEach(func() {
-			quota, err = getQuotaFromShadowPod(shadowPod, offloadingv1alpha1.SoftLimitsEnforcement)
+			quota, err = getQuotaFromShadowPod(shadowPod, offloadingv1beta1.SoftLimitsEnforcement)
 		})
 
 		When("at least one ShadowPod container has not cpu or memory requests defined", func() {

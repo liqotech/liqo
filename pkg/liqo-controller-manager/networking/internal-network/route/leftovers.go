@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	networkingv1alpha1 "github.com/liqotech/liqo/apis/networking/v1alpha1"
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
@@ -74,7 +74,7 @@ func (r *PodReconciler) CheckLeftoverRoutes(ctx context.Context) error {
 	return r.processRouteConfigurations(ctx, routecfglist)
 }
 
-func (r *PodReconciler) processRouteConfigurations(ctx context.Context, routecfglist *networkingv1alpha1.RouteConfigurationList) error {
+func (r *PodReconciler) processRouteConfigurations(ctx context.Context, routecfglist *networkingv1beta1.RouteConfigurationList) error {
 	for i := range routecfglist.Items {
 		if routecfglist.Items[i].Spec.Table.Rules == nil || len(routecfglist.Items[i].Spec.Table.Rules) == 0 {
 			continue
@@ -86,7 +86,7 @@ func (r *PodReconciler) processRouteConfigurations(ctx context.Context, routecfg
 	return nil
 }
 
-func (r *PodReconciler) processRules(ctx context.Context, routecfg *networkingv1alpha1.RouteConfiguration) error {
+func (r *PodReconciler) processRules(ctx context.Context, routecfg *networkingv1beta1.RouteConfiguration) error {
 	for j := range routecfg.Spec.Table.Rules {
 		if err := r.processRoutes(ctx, &routecfg.Spec.Table.Rules[j], routecfg.Spec.Table.Name); err != nil {
 			return err
@@ -95,7 +95,7 @@ func (r *PodReconciler) processRules(ctx context.Context, routecfg *networkingv1
 	return nil
 }
 
-func (r *PodReconciler) processRoutes(ctx context.Context, rule *networkingv1alpha1.Rule, nodeName string) error {
+func (r *PodReconciler) processRoutes(ctx context.Context, rule *networkingv1beta1.Rule, nodeName string) error {
 	for k := range rule.Routes {
 		if rule.Routes[k].TargetRef == nil {
 			continue
@@ -107,7 +107,7 @@ func (r *PodReconciler) processRoutes(ctx context.Context, rule *networkingv1alp
 	return nil
 }
 
-func (r *PodReconciler) processRoute(ctx context.Context, route *networkingv1alpha1.Route, nodeName string) error {
+func (r *PodReconciler) processRoute(ctx context.Context, route *networkingv1beta1.Route, nodeName string) error {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      route.TargetRef.Name,

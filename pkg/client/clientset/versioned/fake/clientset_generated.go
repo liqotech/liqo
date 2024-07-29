@@ -26,8 +26,8 @@ import (
 	clientset "github.com/liqotech/liqo/pkg/client/clientset/versioned"
 	ipamv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/ipam/v1alpha1"
 	fakeipamv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/ipam/v1alpha1/fake"
-	offloadingv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1alpha1"
-	fakeoffloadingv1alpha1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1alpha1/fake"
+	offloadingv1beta1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1"
+	fakeoffloadingv1beta1 "github.com/liqotech/liqo/pkg/client/clientset/versioned/typed/offloading/v1beta1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.
@@ -85,7 +85,7 @@ func (c *Clientset) IpamV1alpha1() ipamv1alpha1.IpamV1alpha1Interface {
 	return &fakeipamv1alpha1.FakeIpamV1alpha1{Fake: &c.Fake}
 }
 
-// OffloadingV1alpha1 retrieves the OffloadingV1alpha1Client
-func (c *Clientset) OffloadingV1alpha1() offloadingv1alpha1.OffloadingV1alpha1Interface {
-	return &fakeoffloadingv1alpha1.FakeOffloadingV1alpha1{Fake: &c.Fake}
+// OffloadingV1beta1 retrieves the OffloadingV1beta1Client
+func (c *Clientset) OffloadingV1beta1() offloadingv1beta1.OffloadingV1beta1Interface {
+	return &fakeoffloadingv1beta1.FakeOffloadingV1beta1{Fake: &c.Fake}
 }
