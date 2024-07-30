@@ -143,7 +143,7 @@ func InterfacesMonitoring(ctx context.Context, eventChannel chan event.GenericEv
 				handleRouteUpdate(&updateRoute, options.Route, eventChannel)
 			}
 		case updateNft := <-chNft:
-			if options.Nftables != nil {
+			if updateNft != nil && options.Nftables != nil {
 				handleNftUpdate(updateNft, options.Nftables, eventChannel)
 			}
 		case <-ctx.Done():
