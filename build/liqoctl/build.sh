@@ -23,6 +23,6 @@ docker run -v "$PWD:/liqo" -w /liqo -e="CGO_ENABLED=${CGO_ENABLED}" \
    -e "LIQOCTLVERSION=${LIQOCTLVERSION}" \
    --rm "golang:${GO_VERSION}" \
    sh -c "go mod tidy && go build -o \"./liqoctl-${GOOS}-${GOARCH}\" \
-   -ldflags=\"-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=${LIQOCTLVERSION}'\" \
+   -ldflags=\"-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.LiqoctlVersion=${LIQOCTLVERSION}'\" \
    -buildvcs=false \
    ./cmd/liqoctl"
