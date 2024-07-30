@@ -36,7 +36,7 @@ TARGET?=kind
 CGO_ENABLED?=0
 ctl:
 	$(eval GIT_COMMIT=$(shell git rev-parse HEAD 2>/dev/null || echo "unknown"))
-	go build -o ${BINDIR} -buildvcs=false -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=$(GIT_COMMIT)'" ./cmd/liqoctl
+	go build -o ${BINDIR} -buildvcs=false -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.LiqoctlVersion=$(GIT_COMMIT)'" ./cmd/liqoctl
 
 # Install LIQO into a cluster
 install: manifests ctl

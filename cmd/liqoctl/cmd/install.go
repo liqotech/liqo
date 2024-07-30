@@ -32,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/openshift"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
+	"github.com/liqotech/liqo/pkg/liqoctl/version"
 	"github.com/liqotech/liqo/pkg/utils/args"
 	kernelversion "github.com/liqotech/liqo/pkg/utils/kernel/version"
 )
@@ -138,8 +139,8 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		},
 	}
 
-	cmd.PersistentFlags().StringVar(&options.Version, "version", "",
-		"The version of Liqo to be installed, among releases and commit SHAs. Defaults to the latest stable release")
+	cmd.PersistentFlags().StringVar(&options.Version, "version", version.LiqoctlVersion,
+		"The version of Liqo to be installed, among releases and commit SHAs. Defaults to the liqoctl version")
 	cmd.PersistentFlags().StringVar(&options.RepoURL, "repo-url", defaultRepoURL,
 		"The URL of the git repository used to retrieve the Helm chart, if a non released version is specified")
 	cmd.PersistentFlags().StringVar(&options.ChartPath, "local-chart-path", "",
