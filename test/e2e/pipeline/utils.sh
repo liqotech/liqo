@@ -143,6 +143,5 @@ function install_kyverno() {
 
   "${HELM}" repo add kyverno https://kyverno.github.io/kyverno/
   "${HELM}" repo update
-  "${HELM}" install kyverno kyverno/kyverno -n kyverno --create-namespace --kubeconfig "${kubeconfig}" \
-    --set "global.image.registry=harbor.crownlabs.polito.it/proxy"
+  "${HELM}" install kyverno kyverno/kyverno -n kyverno --create-namespace --kubeconfig "${kubeconfig}"
 }

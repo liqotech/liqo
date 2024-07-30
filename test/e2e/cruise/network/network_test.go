@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -58,9 +59,11 @@ var (
 	interval    = config.Interval
 	timeout     = time.Minute * 5
 
-	providers     []string
-	consumer      string
-	nodePortNodes = networkflags.NodePortNodesAll
+	consumer       string
+	nodePortNodes  = networkflags.NodePortNodesAll
+	nodePortExt    = true
+	providers      []string
+	cloudProviders = []string{"aks", "eks", "gke"}
 )
 
 var _ = BeforeSuite(func() {
@@ -78,6 +81,9 @@ var _ = BeforeSuite(func() {
 	if testContext.Cni == "flannel" {
 		nodePortNodes = networkflags.NodePortNodesWorkers
 	}
+	if slices.Contains(cloudProviders, testContext.Infrastructure) {
+		nodePortExt = false
+	}
 })
 
 var _ = Describe("Liqo E2E", func() {
@@ -88,7 +94,7 @@ var _ = Describe("Liqo E2E", func() {
 				Eventually(func() error {
 					return runLiqoctlNetworkTests(networkTestsArgs{
 						nodePortNodes: nodePortNodes,
-						nodePortExt:   true,
+						nodePortExt:   nodePortExt,
 						podNodePort:   true,
 						ip:            true,
 						info:          true,
@@ -104,7 +110,7 @@ var _ = Describe("Liqo E2E", func() {
 				Eventually(func() error {
 					return runLiqoctlNetworkTests(networkTestsArgs{
 						nodePortNodes: nodePortNodes,
-						nodePortExt:   true,
+						nodePortExt:   nodePortExt,
 						podNodePort:   true,
 						ip:            true,
 						info:          true,
