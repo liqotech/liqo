@@ -23,7 +23,8 @@ import (
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
 )
 
-var liqoctlVersion = "unknown"
+// LiqoctlVersion is the version of the Liqo CLI. It is set at build time.
+var LiqoctlVersion = "unknown"
 
 // Options encapsulates the arguments of the version command.
 type Options struct {
@@ -34,7 +35,7 @@ type Options struct {
 
 // Run implements the version command.
 func (o *Options) Run(ctx context.Context) error {
-	fmt.Printf("Client version: %s\n", liqoctlVersion)
+	fmt.Printf("Client version: %s\n", LiqoctlVersion)
 
 	if o.ClientOnly {
 		return nil
