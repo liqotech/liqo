@@ -18,15 +18,18 @@ import (
 	"context"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	liqogetters "github.com/liqotech/liqo/pkg/utils/getters"
+	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
 // ForgeTelemetryItem returns a Telemetry item with the current status of the cluster.
@@ -40,10 +43,27 @@ func (c *Builder) ForgeTelemetryItem(ctx context.Context) (*Telemetry, error) {
 		ClusterID:         string(clusterID),
 		LiqoVersion:       c.LiqoVersion,
 		KubernetesVersion: c.KubernetesVersion,
+		NodesInfo:         c.getNodesInfo(ctx),
 		Provider:          c.getProvider(),
 		PeeringInfo:       c.getPeeringInfoSlice(ctx),
 		NamespacesInfo:    c.getNamespacesInfo(ctx),
 	}, nil
+}
+
+func (c *Builder) getNodesInfo(ctx context.Context) map[string]NodeInfo {
+	nodes, err := liqogetters.ListNotLiqoNodes(ctx, c.Client)
+	runtime.Must(err)
+
+	nodeInfoMap := make(map[string]NodeInfo, len(nodes.Items))
+	for i := range nodes.Items {
+		node := &nodes.Items[i]
+		nodeInfoMap[node.Name] = NodeInfo{
+			KernelVersion: node.Status.NodeInfo.KernelVersion,
+			OsImage:       node.Status.NodeInfo.OSImage,
+			Architecture:  node.Status.NodeInfo.Architecture,
+		}
+	}
+	return nodeInfoMap
 }
 
 func (c *Builder) getProvider() string {
@@ -111,19 +131,51 @@ func (c *Builder) getPeeringInfoSlice(ctx context.Context) []PeeringInfo {
 	peeringInfoSlice := make([]PeeringInfo, len(foreignClusterList.Items))
 	for i := range foreignClusterList.Items {
 		foreignCluster := &foreignClusterList.Items[i]
-		peeringInfoSlice[i] = c.getPeeringInfo(ctx, foreignCluster)
+		peeringInfoSlice[i] = c.getPeeringInfo(foreignCluster)
 	}
 	return peeringInfoSlice
 }
 
-func (c *Builder) getPeeringInfo(ctx context.Context,
-	foreignCluster *liqov1alpha1.ForeignCluster) PeeringInfo {
+func getNodesNumber(cl client.Client, fc *liqov1alpha1.ForeignCluster) int {
+	var nodesNumber int
+	nodeList, err := liqogetters.ListNodesByClusterID(context.Background(), cl, fc.Spec.ClusterID)
+	runtime.Must(client.IgnoreNotFound(err))
+	if nodeList == nil {
+		nodesNumber = 0
+	} else {
+		nodesNumber = len(nodeList.Items)
+	}
+	return nodesNumber
+}
+
+func getVirtualNodesNumber(cl client.Client, fc *liqov1alpha1.ForeignCluster) int {
+	virtualNodes, err := liqogetters.ListVirtualNodesByClusterID(context.Background(), cl, fc.Spec.ClusterID)
+	runtime.Must(err)
+	return len(virtualNodes)
+}
+
+func getResourceSliceNumber(cl client.Client, fc *liqov1alpha1.ForeignCluster) int {
+	resSlicesList, err := liqogetters.ListResourceSlicesByLabel(context.Background(), cl, corev1.NamespaceAll,
+		liqolabels.LocalLabelSelectorForCluster(string(fc.Spec.ClusterID)))
+	runtime.Must(err)
+	return len(resSlicesList)
+}
+
+func (c *Builder) getPeeringInfo(foreignCluster *liqov1alpha1.ForeignCluster) PeeringInfo {
 	var latency time.Duration
 
 	peeringInfo := PeeringInfo{
 		RemoteClusterID: foreignCluster.Spec.ClusterID,
-		Role:            foreignCluster.Status.Role,
-		Latency:         latency,
+		Modules: ModulesInfo{
+			Networking:     ModuleInfo{Enabled: foreignCluster.Status.Modules.Networking.Enabled},
+			Authentication: ModuleInfo{Enabled: foreignCluster.Status.Modules.Authentication.Enabled},
+			Offloading:     ModuleInfo{Enabled: foreignCluster.Status.Modules.Offloading.Enabled},
+		},
+		Role:                foreignCluster.Status.Role,
+		Latency:             latency,
+		NodesNumber:         getNodesNumber(c.Client, foreignCluster),
+		VirtualNodesNumber:  getVirtualNodesNumber(c.Client, foreignCluster),
+		ResourceSliceNumber: getResourceSliceNumber(c.Client, foreignCluster),
 	}
 	return peeringInfo
 }

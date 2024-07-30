@@ -20,15 +20,24 @@
 //   - Cluster ID
 //   - Liqo version
 //   - Kubernetes version
+//   - Node info
+//     -- Kernel version
+//     -- OS image
 //   - Security mode
 //   - Provider (e.g. GKE, EKS, AKS, ...)
 //   - Peering info
 //     -- RemoteClusterID
-//     -- PeeringType (OutOfBand/InBand)
-//     -- DiscoveryType (LAN/Manual/IncomingPeering)
+//     -- Modules
+//     ---- Networking
+//     ------ Enabled
+//     ---- Authentication
+//     ------ Enabled
+//     ---- Offloading
+//     ------ Enabled
+//     -- Role
 //     -- Latency
-//     -- Incoming (enabled, resources)
-//     -- Outgoing (enabled, resources)
+//     -- NodesNumber
+//     -- VirtualNodesNumber
 //   - Namespaces info
 //     -- UID
 //     -- MappingStrategy (EnforceSameName/DefaultName)

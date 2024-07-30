@@ -24,6 +24,13 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 )
 
+// NodeInfo contains information about a node.
+type NodeInfo struct {
+	KernelVersion string `json:"kernelVersion,omitempty"`
+	OsImage       string `json:"osImage,omitempty"`
+	Architecture  string `json:"architecture,omitempty"`
+}
+
 // NamespaceInfo contains information about an offloaded namespace.
 type NamespaceInfo struct {
 	UID                string                                          `json:"uid,omitempty"`
@@ -39,21 +46,38 @@ type PeeringDetails struct {
 	Resources corev1.ResourceList `json:"resources,omitempty"`
 }
 
+// ModuleInfo contains information about a module.
+type ModuleInfo struct {
+	Enabled bool `json:"enabled"`
+}
+
+// ModulesInfo contains information about the modules.
+type ModulesInfo struct {
+	Networking     ModuleInfo `json:"networking"`
+	Authentication ModuleInfo `json:"authentication"`
+	Offloading     ModuleInfo `json:"offloading"`
+}
+
 // PeeringInfo contains information about a peering.
 type PeeringInfo struct {
-	RemoteClusterID liqov1alpha1.ClusterID `json:"remoteClusterID"`
-	Role            liqov1alpha1.RoleType  `json:"role,omitempty"`
-	Latency         time.Duration          `json:"latency,omitempty"`
+	RemoteClusterID     liqov1alpha1.ClusterID `json:"remoteClusterID"`
+	Modules             ModulesInfo            `json:"modules,omitempty"`
+	Role                liqov1alpha1.RoleType  `json:"role,omitempty"`
+	Latency             time.Duration          `json:"latency,omitempty"`
+	NodesNumber         int                    `json:"nodesNumber"`
+	VirtualNodesNumber  int                    `json:"virtualNodesNumber"`
+	ResourceSliceNumber int                    `json:"resourceSliceNumber"`
 }
 
 // Telemetry contains information about the cluster.
 type Telemetry struct {
-	ClusterID         string          `json:"clusterID"`
-	LiqoVersion       string          `json:"liqoVersion,omitempty"`
-	KubernetesVersion string          `json:"kubernetesVersion,omitempty"`
-	Provider          string          `json:"provider,omitempty"`
-	PeeringInfo       []PeeringInfo   `json:"peeringInfo,omitempty"`
-	NamespacesInfo    []NamespaceInfo `json:"namespacesInfo,omitempty"`
+	ClusterID         string              `json:"clusterID"`
+	LiqoVersion       string              `json:"liqoVersion,omitempty"`
+	KubernetesVersion string              `json:"kubernetesVersion,omitempty"`
+	NodesInfo         map[string]NodeInfo `json:"nodesInfo,omitempty"`
+	Provider          string              `json:"provider,omitempty"`
+	PeeringInfo       []PeeringInfo       `json:"peeringInfo,omitempty"`
+	NamespacesInfo    []NamespaceInfo     `json:"namespacesInfo,omitempty"`
 }
 
 // Builder is the constructor for the Telemetry struct.

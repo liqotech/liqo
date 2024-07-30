@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	authv1alpha1 "github.com/liqotech/liqo/apis/authentication/v1alpha1"
 	liqov1alpha1 "github.com/liqotech/liqo/apis/core/v1alpha1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -48,6 +49,7 @@ func init() {
 	_ = liqov1alpha1.AddToScheme(scheme)
 	_ = offloadingv1alpha1.AddToScheme(scheme)
 	_ = ipamv1alpha1.AddToScheme(scheme)
+	_ = authv1alpha1.AddToScheme(scheme)
 }
 
 // cluster-role
@@ -55,6 +57,7 @@ func init() {
 // +kubebuilder:rbac:groups=core.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=virtualnodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices,verbs=get;list;watch
 
 func main() {
 	var clusterLabels argsutils.StringMap
