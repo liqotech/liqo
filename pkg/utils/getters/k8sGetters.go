@@ -840,6 +840,22 @@ func ListLiqoNodes(ctx context.Context, cl client.Client) (*corev1.NodeList, err
 	return list, nil
 }
 
+// ListNotLiqoNodes returns the list of nodes not created by Liqo.
+func ListNotLiqoNodes(ctx context.Context, cl client.Client) (*corev1.NodeList, error) {
+	req, err := labels.NewRequirement(consts.TypeLabel, selection.DoesNotExist, []string{})
+	if err != nil {
+		return nil, err
+	}
+
+	lSelector := labels.NewSelector().Add(*req)
+
+	list := new(corev1.NodeList)
+	if err := cl.List(ctx, list, &client.ListOptions{LabelSelector: lSelector}); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
 // ListInternalNodesByLabels returns the list of internalnodes resources. (i.e. nodes created by Liqo).
 func ListInternalNodesByLabels(ctx context.Context, cl client.Client,
 	lSelector labels.Selector) (*networkingv1alpha1.InternalNodeList, error) {
