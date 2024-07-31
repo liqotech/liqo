@@ -103,19 +103,18 @@ var _ = BeforeSuite(func() {
 var _ = Describe("Liqo E2E", func() {
 
 	Context("Network", func() {
-		When("\"liqoctl test network\" runs after gateway restart", func() {
-			It("should succeed", func() {
-				Eventually(func() error {
-					return runLiqoctlNetworkTests(args)
-				}, timeout, interval).Should(Succeed())
-			})
-			for i := range testContext.Clusters {
-				RestartPods(testContext.Clusters[i].ControllerClient)
-			}
-			It("should succeed", func() {
-				Eventually(func() error {
-					return runLiqoctlNetworkTests(args)
-				}, timeout, interval).Should(Succeed())
+		When("\"liqoctl test network\" runs", func() {
+			It("should succeed both before and after gateway pods restart", func() {
+				// Run the tests.
+				Eventually(runLiqoctlNetworkTests(args), timeout, interval).Should(Succeed())
+
+				// Restart the gateway pods.
+				for i := range testContext.Clusters {
+					RestartPods(testContext.Clusters[i].ControllerClient)
+				}
+
+				// Run the tests again.
+				Eventually(runLiqoctlNetworkTests(args), timeout, interval).Should(Succeed())
 			})
 		})
 	})
