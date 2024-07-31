@@ -35,7 +35,7 @@ Additional in-depth details about the networking requirements are presented in t
 The standard peering approach is referred to as **out-of-band control plane**, since the **Liqo control plane traffic** (i.e., including both the initial authentication process and the communication with the remote Kubernetes API server) **flows outside the VPN tunnel** interconnecting the two clusters (still, TLS is used to ensure secure communications).
 Indeed, this tunnel is dynamically started in a later stage of the peering process, and it is leveraged only for cross-cluster pods traffic.
 
-The single cross-cluster traffic flow required by this approach is schematized at a high level in the figure below (agnostic from how services are exposed, which is presented in the [dedicated installation requirements section](InstallationRequirementsOutOfBandControlPlane)).
+The single cross-cluster traffic flow required by this approach is schematized at a high level in the figure below (agnostic from how services are exposed, which is presented in the dedicated installation requirements section).
 
 ![Out-of-band control plane peering representation](/_static/images/features/peering/out-of-band.drawio.svg)
 
@@ -51,7 +51,7 @@ Overall, the out-of-band control plane approach:
 
 The alternative peering approach is referred to as **in-band control plane**, since the **Liqo control plane traffic flows inside the VPN tunnel** interconnecting the two clusters.
 In this case, the tunnel is statically established at the beginning of the peering process (i.e., part of the negotiation process is carried out directly by the Liqo CLI tool), and it is leveraged from that moment on for all inter-cluster traffic.
-The three different cross-cluster traffic flows required by this approach are schematized at a high level in figure below (agnostic from how services are exposed, which is presented in the [dedicated installation requirements section](InstallationRequirementsInBandControlPlane)).
+The three different cross-cluster traffic flows required by this approach are schematized at a high level in figure below (agnostic from how services are exposed, which is presented in the dedicated installation requirements section).
 
 ![In-band control plane peering representation](/_static/images/features/peering/in-band.drawio.svg)
 
