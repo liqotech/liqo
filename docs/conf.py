@@ -219,3 +219,5 @@ html_context = {
     'github_repo': 'liqo',
     'display_github': True,
 }
+
+suppress_warnings = ["myst.header"]
