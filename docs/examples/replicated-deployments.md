@@ -34,30 +34,13 @@ The setup script named them **europe-cloud**, **europe-rome-edge** and **europe-
 * *europe-rome-edge*: `topology.liqo.io/type=destination`
 * *europe-milan-edge*: `topology.liqo.io/type=destination`
 
-You can check that the clusters are correctly labeled through:
-
-```bash
-liqoctl status
-liqoctl status --kubeconfig "$KUBECONFIG_EUROPE_ROME_EDGE"
-liqoctl status --kubeconfig "$KUBECONFIG_EUROPE_MILAN_EDGE"
-```
-
 ## Peer the clusters
 
-Now, you can establish new Liqo *peerings* from *origin* to *destination* clusters, e.g., using the [out-of-band peering approach](FeaturesPeeringOutOfBandControlPlane):
-
-To implement the desired scenario, let's first retrieve the *peer command* from the *destination* clusters:
+Now, you can establish new Liqo *peerings* from *origin* to *destination* clusters:
 
 ```bash
-PEER_EUROPE_ROME_EDGE=$(liqoctl generate peer-command --only-command --kubeconfig $KUBECONFIG_EUROPE_ROME_EDGE)
-PEER_EUROPE_MILAN_EDGE=$(liqoctl generate peer-command --only-command --kubeconfig $KUBECONFIG_EUROPE_MILAN_EDGE)
-```
-
-Then, establish the peerings from the *origin* cluster:
-
-```bash
-echo "$PEER_EUROPE_ROME_EDGE" | bash
-echo "$PEER_EUROPE_MILAN_EDGE" | bash
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_EUROPE_ROME_EDGE" --server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_EUROPE_MILAN_EDGE" --server-service-type NodePort
 ```
 
 When the above commands return successfully, you can check the peering status by running:
@@ -69,9 +52,9 @@ kubectl get foreignclusters
 The output should look like the following, indicating that an outgoing peering is currently active towards both the *europe-rome-edge* and the *europe-milan-edge* clusters, and that the cross-cluster network tunnels have been established:
 
 ```text
-NAME                TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-europe-rome-edge    OutOfBand   Established        None               Established   Established      41s
-europe-milan-edge   OutOfBand   Established        None               Established   Established      7s
+NAME                ROLE       AGE
+europe-milan-edge   Provider   27s
+europe-rome-edge    Provider   55s
 ```
 
 Additionally, you should have two new virtual nodes in the *origin* cluster, characterized by the labels set at install-time:
@@ -81,9 +64,9 @@ kubectl get node --selector=liqo.io/type=virtual-node --show-labels
 ```
 
 ```text
-NAME                     STATUS   ROLES   AGE   VERSION   LABELS
-liqo-europe-milan-edge   Ready    agent   27s   v1.25.0   liqo.io/remote-cluster-id=9636366f-2718-464e-b1df-3eca5a71aaf6,liqo.io/type=virtual-node,topology.liqo.io/type=destination
-liqo-europe-rome-edge    Ready    agent   34s   v1.25.0   liqo.io/remote-cluster-id=7a0f5f75-e98e-4927-b65f-d0274ca03d9c,liqo.io/type=virtual-node,topology.liqo.io/type=destination
+NAME                STATUS   ROLES   AGE    VERSION   LABELS
+europe-milan-edge   Ready    agent   100s   v1.30.0   [...] liqo.io/provider=kind,liqo.io/remote-cluster-id=europe-milan-edge,liqo.io/type=virtual-node,node.kubernetes.io/exclude-from-external-load-balancers=true,storage.liqo.io/available=true,topology.liqo.io/type=destination
+europe-rome-edge    Ready    agent   2m     v1.30.0   [...] liqo.io/provider=kind,liqo.io/remote-cluster-id=europe-rome-edge,liqo.io/type=virtual-node,node.kubernetes.io/exclude-from-external-load-balancers=true,storage.liqo.io/available=true,topology.liqo.io/type=destination
 ```
 
 ```{admonition} Note
@@ -110,8 +93,9 @@ liqoctl offload namespace liqo-demo \
 
 The above command configures Liqo with the following behaviour (see the dedicated [usage page](/usage/namespace-offloading.md) for additional information concerning namespace offloading configurations):
 
-* the `liqo-demo` namespace, and the contained resources, are offloaded only to the clusters with the `topology.liqo.io/type=destination` label.
-* the pods living in the `liqo-demo` namespace only on virtual nodes.
+* The `liqo-demo` namespace, and the contained resources, are offloaded only to the clusters with the `topology.liqo.io/type=destination` label.
+* The pods living in the `liqo-demo` namespace are scheduled only on virtual nodes.
+* With the `EnforceSameName` mapping strategy, we instruct Liqo to create the offloaded namespace in the remote cluster with the same name as the local one. This is not required, but it has been done for the sake of clarity in this example.
 
 ```{admonition} Selectors
 This example uses **selectors**, but they are not strictly necessary here, as all *peered* clusters have been targeted as *destination*.
@@ -187,8 +171,8 @@ liqoctl unoffload namespace liqo-demo
 Similarly, make sure that all the peerings are revoked:
 
 ```bash
-liqoctl unpeer out-of-band europe-rome-edge
-liqoctl unpeer out-of-band europe-milan-edge
+liqoctl unpeer --remote-kubeconfig "$KUBECONFIG_EUROPE_ROME_EDGE"
+liqoctl unpeer --remote-kubeconfig "$KUBECONFIG_EUROPE_MILAN_EDGE"
 ```
 
 At the end of the process, the virtual nodes are removed from the local cluster.
@@ -198,9 +182,9 @@ At the end of the process, the virtual nodes are removed from the local cluster.
 Now you can uninstall Liqo from your clusters:
 
 ```bash
-liqoctl uninstall
-liqoctl uninstall --kubeconfig="$KUBECONFIG_EUROPE_ROME_EDGE"
-liqoctl uninstall --kubeconfig="$KUBECONFIG_EUROPE_MILAN_EDGE"
+liqoctl uninstall --skip-confirm
+liqoctl uninstall --kubeconfig="$KUBECONFIG_EUROPE_ROME_EDGE" --skip-confirm
+liqoctl uninstall --kubeconfig="$KUBECONFIG_EUROPE_MILAN_EDGE" --skip-confirm
 ```
 
 ```{admonition} Purge

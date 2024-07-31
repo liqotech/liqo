@@ -14,7 +14,7 @@ LIQO_CLUSTER_CONFIG_DNS_YAML="$here/manifests/edge-dns.yaml"
 LIQO_CLUSTER_CONFIG1_YAML="$here/manifests/gslb-eu.yaml"
 LIQO_CLUSTER_CONFIG2_YAML="$here/manifests/gslb-us.yaml"
 
-check_requirements "k3d"
+check_requirements "k3d" "helm"
 
 delete_k3d_clusters "$CLUSTER_NAME_DNS" "$CLUSTER_NAME_1" "$CLUSTER_NAME_2"
 
