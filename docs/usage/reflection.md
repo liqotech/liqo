@@ -117,7 +117,7 @@ affinity:
 ## Service exposition
 
 The reflection of **Service** and **EndpointSlice** resources is a key element to allow the seamless **intercommunication** between microservices spread across multiple clusters, enabling the usage of standard DNS discovery mechanisms.
-In addition, the propagation of **Ingresses** enables the definition of multiple points of entrance for the external traffic, especially when combined with additional tools such as [K8GB](https://www.k8gb.io/) (see the [global ingress example](/examples/global-ingress.md) for additional details).
+In addition, the propagation of **Ingresses** enables the definition of multiple points of entrance for the external traffic.
 
 ### Services
 
@@ -189,5 +189,5 @@ More specifically, an event is propagated if it belongs to an offloaded namespac
 
 ```{admonition} Note
 The event reflector is the only one that propagates a resource from the remote cluster to the local cluster.
-Local events are not reflected to the remote cluster.  
+Local events are not reflected to the remote cluster.
 ```
