@@ -22,15 +22,19 @@ import (
 // MergeMaps merges two maps recursively writing the result to resultMap.
 // In case keys are found in both maps, patchMap's values will be chosen over baseMap's.
 func MergeMaps(baseMap, patchMap map[string]interface{}) (resultMap map[string]interface{}, err error) {
+	if baseMap == nil {
+		return patchMap, nil
+	}
+
 	resultMap = make(map[string]interface{})
 	for _, key := range extractKeys(baseMap, patchMap) {
 		v, ok := baseMap[key]
 		v2, ok2 := patchMap[key]
 
-		if ok && !ok2 {
+		if ok && (!ok2 || v2 == nil) {
 			resultMap[key] = v
 			continue
-		} else if !ok && ok2 {
+		} else if (!ok || v == nil) && ok2 {
 			resultMap[key] = v2
 			continue
 		}

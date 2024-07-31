@@ -70,6 +70,9 @@ var _ = Describe("Liqo E2E", func() {
 			Expect(err).ToNot(HaveOccurred())
 			v, err = client.ServerVersion()
 			Expect(err).ToNot(HaveOccurred())
+			// trim special characters from the version string
+			v.Major = strings.Trim(v.Major, "+")
+			v.Minor = strings.Trim(v.Minor, "+")
 
 			options = k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespaceName)
 		})

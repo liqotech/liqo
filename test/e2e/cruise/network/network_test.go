@@ -58,9 +58,20 @@ var (
 	interval    = config.Interval
 	timeout     = time.Minute * 5
 
-	providers     []string
-	consumer      string
-	nodePortNodes = networkflags.NodePortNodesAll
+	providers []string
+	consumer  string
+
+	// Default network tests args.
+	args = networkTestsArgs{
+		nodePortNodes: networkflags.NodePortNodesAll,
+		nodePortExt:   true,
+		podNodePort:   true,
+		ip:            true,
+		loadBalancer:  true,
+		info:          true,
+		remove:        true,
+		failfast:      true,
+	}
 )
 
 var _ = BeforeSuite(func() {
@@ -75,8 +86,17 @@ var _ = BeforeSuite(func() {
 			break
 		}
 	}
-	if testContext.Cni == "flannel" {
-		nodePortNodes = networkflags.NodePortNodesWorkers
+
+	switch testContext.Cni {
+	case "flannel":
+		overrideArgsFlannel(&args)
+	}
+
+	switch testContext.Infrastructure {
+	case "cluster-api":
+		ovverideArgsClusterAPI(&args)
+	case "kind":
+		overrideArgsKind(&args)
 	}
 })
 
@@ -86,15 +106,7 @@ var _ = Describe("Liqo E2E", func() {
 		When("\"liqoctl test network\" runs after gateway restart", func() {
 			It("should succeed", func() {
 				Eventually(func() error {
-					return runLiqoctlNetworkTests(networkTestsArgs{
-						nodePortNodes: nodePortNodes,
-						nodePortExt:   true,
-						podNodePort:   true,
-						ip:            true,
-						info:          true,
-						remove:        true,
-						failfast:      true,
-					})
+					return runLiqoctlNetworkTests(args)
 				}, timeout, interval).Should(Succeed())
 			})
 			for i := range testContext.Clusters {
@@ -102,15 +114,7 @@ var _ = Describe("Liqo E2E", func() {
 			}
 			It("should succeed", func() {
 				Eventually(func() error {
-					return runLiqoctlNetworkTests(networkTestsArgs{
-						nodePortNodes: nodePortNodes,
-						nodePortExt:   true,
-						podNodePort:   true,
-						ip:            true,
-						info:          true,
-						remove:        true,
-						failfast:      true,
-					})
+					return runLiqoctlNetworkTests(args)
 				}, timeout, interval).Should(Succeed())
 			})
 		})
@@ -186,6 +190,18 @@ func forgeFlags(args networkTestsArgs) []string {
 	return flags
 }
 
+func overrideArgsFlannel(args *networkTestsArgs) {
+	args.nodePortNodes = networkflags.NodePortNodesWorkers
+}
+
+func ovverideArgsClusterAPI(args *networkTestsArgs) {
+	args.loadBalancer = false
+}
+
+func overrideArgsKind(args *networkTestsArgs) {
+	args.loadBalancer = false
+}
+
 func RestartPods(cl client.Client) {
 	podList := &corev1.PodList{}
 	Expect(
@@ -200,6 +216,9 @@ func RestartPods(cl client.Client) {
 		pod := &podList.Items[i]
 		Expect(cl.Delete(ctx, pod)).To(Succeed())
 	}
+
+	// Sleep few seconds to be sure that the deployment controller has updated the number of ready replicas.
+	time.Sleep(2 * time.Second)
 
 	Eventually(func() error {
 		deploymentList := &appsv1.DeploymentList{}

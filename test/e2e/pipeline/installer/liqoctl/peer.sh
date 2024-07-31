@@ -31,8 +31,14 @@ do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
   export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
-  "${LIQOCTL}" peer --kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}" --server-service-type NodePort
+  ARGS=(--kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}")
+  if [[ "${INFRA}" == "cluster-api" ]]; then
+    ARGS=("${ARGS[@]}" --server-service-type NodePort)
+  fi
 
+  ARGS=("${ARGS[@]}")
+  "${LIQOCTL}" peer "${ARGS[@]}"
+  
   # Sleep a bit, to avoid generating a race condition with the
   # authentication process triggered by the incoming peering.
   sleep 1
