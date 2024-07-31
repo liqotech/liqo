@@ -62,8 +62,6 @@ Examples:
 or (configure the cluster id and labels)
   $ {{ .Executable }} install --cluster-id engaged-weevil --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 \
       --reserved-subnets 172.16.0.0/16,192.16.254.0/24 --cluster-labels region=europe,environment=staging
-or (configure the sharing percentage)
-  $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 --sharing-percentage 50
 or (generate and output the values file, instead of performing the installation)
   $ {{ .Executable }} install --pod-cidr 10.0.0.0/16 --service-cidr 10.1.0.0/16 --only-output-values
 or (install a specific Liqo version)
@@ -95,7 +93,6 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	options := install.NewOptions(f, liqoctl)
 	base := generic.New(options)
 	clusterLabels := args.StringMap{StringMap: map[string]string{}}
-	sharingPercentage := args.Percentage{Val: 90}
 	reservedSubnets := args.CIDRList{}
 
 	defaultRepoURL := "https://github.com/liqotech/liqo"
@@ -120,7 +117,6 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 
 			options.ClusterID = clusterIDFlag.GetClusterID()
 			options.ClusterLabels = clusterLabels.StringMap
-			options.SharingPercentage = sharingPercentage.Val
 			options.ReservedSubnets = reservedSubnets.StringList.StringList
 
 			switch {
@@ -133,7 +129,7 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 			}
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.Run(ctx, base))
 		},
 	}
@@ -159,8 +155,6 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	cmd.PersistentFlags().Var(&clusterLabels, "cluster-labels",
 		"The set of labels (i.e., key/value pairs, separated by comma) identifying the current cluster, and propagated to the virtual nodes")
 
-	cmd.PersistentFlags().Var(&sharingPercentage, "sharing-percentage",
-		"The maximum percentage of available cluster resources that could be shared with remote clusters (0-100)")
 	cmd.PersistentFlags().BoolVar(&options.EnableHA, "enable-ha", false,
 		"Enable the support for high-availability of Liqo components, currently supported by the gateway and the controller manager.")
 	cmd.PersistentFlags().Var(&reservedSubnets, "reserved-subnets",

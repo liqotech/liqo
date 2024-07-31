@@ -85,11 +85,10 @@ type Options struct {
 	ClusterID     liqov1alpha1.ClusterID
 	ClusterLabels map[string]string
 
-	APIServer         string
-	SharingPercentage uint64
-	EnableHA          bool
-	EnableMetrics     bool
-	DisableTelemetry  bool
+	APIServer        string
+	EnableHA         bool
+	EnableMetrics    bool
+	DisableTelemetry bool
 
 	PodCIDR         string
 	ServiceCIDR     string
