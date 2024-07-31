@@ -34,34 +34,16 @@ The setup script named them **venice**, **florence** and **naples**, and respect
 * *florence*: `topology.liqo.io/region=center`
 * *naples*: `topology.liqo.io/region=south`
 
-You can check that the clusters are correctly labeled through:
-
-```bash
-liqoctl status
-liqoctl --kubeconfig $KUBECONFIG_FLORENCE status
-liqoctl --kubeconfig $KUBECONFIG_NAPLES status
-```
-
 These labels will be propagated to the virtual nodes corresponding to each cluster.
 In this way, you can easily identify the clusters through their characterizing labels, and define the appropriate scheduling policies.
 
 ## Peer the clusters
 
-Once Liqo is installed in your clusters, you can establish new *peerings*.
-In this example, since the two API Servers are mutually reachable, you will use the [out-of-band peering approach](FeaturesPeeringOutOfBandControlPlane).
-
-To implement the desired scenario, let's first retrieve the *peer command* from the *Florence* and *Naples* clusters:
+Once Liqo is installed in your clusters, you can establish new *peerings*:
 
 ```bash
-PEER_FLORENCE=$(liqoctl generate peer-command --only-command --kubeconfig $KUBECONFIG_FLORENCE)
-PEER_NAPLES=$(liqoctl generate peer-command --only-command --kubeconfig $KUBECONFIG_NAPLES)
-```
-
-Then, establish the peerings from the *Venice* cluster:
-
-```bash
-echo "$PEER_FLORENCE" | bash
-echo "$PEER_NAPLES" | bash
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_FLORENCE" --server-service-type NodePort
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_NAPLES" --server-service-type NodePort
 ```
 
 When the above commands return successfully, you can check the peering status by running:
@@ -70,12 +52,12 @@ When the above commands return successfully, you can check the peering status by
 kubectl get foreignclusters
 ```
 
-The output should look like the following, indicating that an outgoing peering is currently active towards both the *Florence* and the *Naples* clusters, as well as the cross-cluster network tunnels have been established:
+The output should look like the following, indicating that a peering is currently active towards both the *Florence* and the *Naples* clusters:
 
 ```text
-NAME       TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-florence   OutOfBand   Established        None               Established   Established      111s
-naples     OutOfBand   Established        None               Established   Established      98s
+NAME       ROLE       AGE
+florence   Provider   2m1s
+naples     Provider   89s
 ```
 
 Additionally, you should have two new virtual nodes in the *Venice* cluster, characterized by the install-time provided labels:
@@ -86,8 +68,8 @@ kubectl get node --selector=liqo.io/type=virtual-node --show-labels
 
 ```text
 NAME            STATUS   ROLES   AGE   VERSION   LABELS
-liqo-florence   Ready    agent   19s   v1.25.0   liqo.io/remote-cluster-id=5f3b5abd-cccb-4f75-931b-d6b1ca95fa7d,liqo.io/type=virtual-node,topology.liqo.io/region=center
-liqo-naples     Ready    agent   14s   v1.25.0   liqo.io/remote-cluster-id=edc8c24a-4c11-48b8-8b0e-2a95cf7464af,liqo.io/type=virtual-node,topology.liqo.io/region=south
+liqo-florence   Ready    agent   19s   v1.30.0   liqo.io/remote-cluster-id=5f3b5abd-cccb-4f75-931b-d6b1ca95fa7d,liqo.io/type=virtual-node,topology.liqo.io/region=center
+liqo-naples     Ready    agent   14s   v1.30.0   liqo.io/remote-cluster-id=edc8c24a-4c11-48b8-8b0e-2a95cf7464af,liqo.io/type=virtual-node,topology.liqo.io/region=south
 ```
 
 ```{admonition} Note
@@ -116,9 +98,9 @@ liqoctl offload namespace liqo-demo \
 
 The above command configures the following aspects (see the dedicated [usage page](/usage/namespace-offloading.md) for additional information concerning namespace offloading configurations):
 
-* the `liqo-demo` namespace is replicated with the same name in the other clusters.
-* the `liqo-demo` namespace, and the contained resources, are offloaded only to the clusters with the `topology.liqo.io/region=south` label.
-* the pods living in the `liqo-demo` namespace are free to be scheduled onto both physical and virtual nodes.
+* With the `EnforceSameName` mapping strategy, we instruct Liqo to create the offloaded namespace in the remote cluster with the same name as the local one. This is not required, but it has been done for the sake of clarity in this example.
+* The `liqo-demo` namespace, and the contained resources, are offloaded only to the clusters with the `topology.liqo.io/region=south` label.
+* The pods living in the `liqo-demo` namespace are free to be scheduled onto both physical and virtual nodes.
 
 The *NamespaceOffloading* resource created by *liqoctl* in the `liqo-demo` namespace exposes the status of the offloading process, including a global *OffloadingPhase*, which is expected to be `Ready`, and a list of *RemoteNamespaceConditions*, one for each remote cluster.
 
@@ -138,19 +120,20 @@ status:
   offloadingPhase: Ready
   remoteNamespaceName: liqo-demo
   remoteNamespacesConditions:
-    florence-7ab115:
-    - lastTransitionTime: "2023-01-30T09:50:05Z"
-      message: The remote cluster has not been selected through the ClusterSelector field
+    florence:
+    - lastTransitionTime: "2024-07-29T08:36:47Z"
+      message: The remote cluster has not been selected through the ClusterSelector
+        field
       reason: ClusterNotSelected
       status: "False"
       type: OffloadingRequired
-    naples-5eada1:
-    - lastTransitionTime: "2023-01-30T09:50:05Z"
+    naples:
+    - lastTransitionTime: "2024-07-29T08:36:47Z"
       message: The remote cluster has been selected through the ClusterSelector field
       reason: ClusterSelected
       status: "True"
       type: OffloadingRequired
-    - lastTransitionTime: "2023-01-30T09:50:05Z"
+    - lastTransitionTime: "2024-07-29T08:36:47Z"
       message: Namespace correctly offloaded to the remote cluster
       reason: NamespaceCreated
       status: "True"
@@ -224,8 +207,8 @@ Every pod that was offloaded to a remote cluster is going to be rescheduled onto
 Similarly, make sure that all the peerings are revoked:
 
 ```bash
-liqoctl unpeer out-of-band florence
-liqoctl unpeer out-of-band naples
+liqoctl unpeer --remote-kubeconfig "$KUBECONFIG_FLORENCE"
+liqoctl unpeer --remote-kubeconfig "$KUBECONFIG_NAPLES"
 ```
 
 At the end of the process, the virtual nodes are removed from the local cluster.
@@ -235,9 +218,9 @@ At the end of the process, the virtual nodes are removed from the local cluster.
 Now you can uninstall Liqo from your clusters with *liqoctl*:
 
 ```bash
-liqoctl uninstall
-liqoctl uninstall --kubeconfig="$KUBECONFIG_FLORENCE"
-liqoctl uninstall --kubeconfig="$KUBECONFIG_NAPLES"
+liqoctl uninstall --skip-confirm
+liqoctl uninstall --kubeconfig="$KUBECONFIG_FLORENCE" --skip-confirm
+liqoctl uninstall --kubeconfig="$KUBECONFIG_NAPLES" --skip-confirm
 ```
 
 ```{admonition} Purge

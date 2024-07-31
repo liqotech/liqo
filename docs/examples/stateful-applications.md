@@ -14,15 +14,15 @@ Each cluster is made by a single combined control-plane + worker node.
 
 Export the kubeconfigs environment variables to use them in the rest of the tutorial:
 
-```bash
-export KUBECONFIG="$PWD/liqo_kubeconf_turin"
-export KUBECONFIG_LYON="$PWD/liqo_kubeconf_lyon"
-```
-
-```{admonition} Note
+```{warning}
 The install script creates two clusters with no overlapping pod CIDRs.
 This is required by the *mariadb-galera* application to work correctly.
 Given it needs to know the real IP of the connected masters, it will not work correctly when natting is enabled.
+```
+
+```bash
+export KUBECONFIG="$PWD/liqo_kubeconf_turin"
+export KUBECONFIG_LYON="$PWD/liqo_kubeconf_lyon"
 ```
 
 ```{admonition} Note
@@ -31,19 +31,10 @@ We suggest exporting the kubeconfig of the first cluster as default (i.e., `KUBE
 
 ## Peer the clusters
 
-Once Liqo is installed in your clusters, you can establish new *peerings*.
-In this example, since the two API Servers are mutually reachable, you will use the [out-of-band peering approach](FeaturesPeeringOutOfBandControlPlane).
-
-To implement the desired scenario, let’s first retrieve the *peer command* from the *Lyon* cluster:
+Once Liqo is installed in your clusters, you can establish new *peerings*:
 
 ```bash
-PEER_LYON=$(liqoctl generate peer-command --only-command --kubeconfig $KUBECONFIG_LYON)
-```
-
-Then, establish the peering from the *Turin* cluster:
-
-```bash
-echo "$PEER_LYON" | bash
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_LYON" --server-service-type NodePort
 ```
 
 When the above command returns successfully, you can check the peering status by running:
@@ -52,11 +43,11 @@ When the above command returns successfully, you can check the peering status by
 kubectl get foreignclusters
 ```
 
-The output should look like the following, indicating that an outgoing peering is currently active towards the *Lyon* cluster,, as well as that the cross-cluster network tunnel has been established:
+The output should look like the following, indicating that an outgoing peering is currently active towards the *Lyon* cluster:
 
 ```text
-NAME   TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-lyon   OutOfBand   Established        None               Established   Established      1m28s
+NAME   ROLE       AGE
+lyon   Provider   18s
 ```
 
 ## Deploy a stateful application
@@ -67,6 +58,10 @@ First, you need to add the helm repository:
 
 ```bash
 helm repo add bitnami https://charts.bitnami.com/bitnami
+```
+
+```{admonition} Tip
+You can install the Helm package manager by checking its [**documentation**](https://helm.sh/docs/intro/install/).
 ```
 
 Then, create the namespace and offload it to remote clusters:
@@ -199,7 +194,7 @@ Every pod that was offloaded to a remote cluster is going to be rescheduled onto
 Similarly, make sure that all the peerings are revoked:
 
 ```bash
-liqoctl unpeer out-of-band lyon
+liqoctl unpeer --remote-kubeconfig "$KUBECONFIG_LYON" --skip-confirm
 ```
 
 At the end of the process, the virtual node is removed from the local cluster.
@@ -209,8 +204,8 @@ At the end of the process, the virtual node is removed from the local cluster.
 Now you can remove Liqo from your clusters with *liqoctl*:
 
 ```bash
-liqoctl uninstall
-liqoctl uninstall --kubeconfig="$KUBECONFIG_LYON"
+liqoctl uninstall --skip-confirm
+liqoctl uninstall --kubeconfig="$KUBECONFIG_LYON" --skip-confirm
 ```
 
 ```{admonition} Purge
