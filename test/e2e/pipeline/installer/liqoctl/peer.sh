@@ -32,7 +32,10 @@ do
   export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
   ARGS=(--kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}")
+  
   if [[ "${INFRA}" == "cluster-api" ]]; then
+    ARGS=("${ARGS[@]}" --server-service-type NodePort)
+  elif [[ "${INFRA}" == "kind" ]]; then
     ARGS=("${ARGS[@]}" --server-service-type NodePort)
   fi
 
