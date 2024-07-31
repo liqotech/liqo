@@ -39,7 +39,7 @@ func RetrieveCounter(metricFamilies map[string]*dto.MetricFamily, metricName str
 
 	mf, ok := metricFamilies[metricName]
 	if !ok {
-		return 0, fmt.Errorf("metric %s not found", metricName)
+		return 0, errors.NewNotFound(schema.GroupResource{}, metricName)
 	}
 
 	// Find the specific metric

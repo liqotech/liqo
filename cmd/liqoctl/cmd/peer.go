@@ -74,7 +74,7 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 		},
 	}
 
-	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 120*time.Second, "Timeout for peering completion")
+	cmd.PersistentFlags().DurationVar(&options.Timeout, "timeout", 10*time.Minute, "Timeout for peering completion")
 
 	options.LocalFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)
 	options.RemoteFactory.AddFlags(cmd.PersistentFlags(), cmd.RegisterFlagCompletionFunc)

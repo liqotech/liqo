@@ -132,6 +132,7 @@ function install_metrics_server() {
   local kubeconfig=$1
 
   "${HELM}" repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+  "${HELM}" repo update
   "${HELM}" upgrade --install metrics-server metrics-server/metrics-server \
       --set 'args={"--kubelet-insecure-tls=true"}' \
       --namespace kube-system --kubeconfig "${kubeconfig}"
