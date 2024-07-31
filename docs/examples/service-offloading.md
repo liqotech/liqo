@@ -29,19 +29,10 @@ The setup script named them **london** and **newyork**.
 
 ## Peer the clusters
 
-Once Liqo is installed in your clusters, you can establish new *peerings*.
-In this example, since the two API Servers are mutually reachable, you will use the [out-of-band peering approach](FeaturesPeeringOutOfBandControlPlane).
-
-To implement the desired scenario, let's first retrieve the *peer command* from the *New York* cluster:
+Once Liqo is installed in your clusters, you can establish new *peerings*:
 
 ```bash
-PEER_NEW_YORK=$(liqoctl generate peer-command --only-command --kubeconfig $KUBECONFIG_NEWYORK)
-```
-
-Then, establish the peering from the *London* cluster:
-
-```bash
-echo "$PEER_NEW_YORK" | bash
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_NEWYORK" --server-service-type NodePort
 ```
 
 When the above command returns successfully, you can check the peering status by running:
@@ -50,11 +41,11 @@ When the above command returns successfully, you can check the peering status by
 kubectl get foreignclusters
 ```
 
-The output should look like the following, indicating that an outgoing peering is currently active towards the *New York* cluster, as well as that the cross-cluster network tunnel has been established:
+The output should look like the following, indicating that an outgoing peering is currently active towards the *New York* cluster:
 
 ```text
-NAME      TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-newyork   OutOfBand   Established        None               Established   Established      61s
+NAME      ROLE       AGE
+newyork   Provider   41s
 ```
 
 ## Offload a service
@@ -73,7 +64,7 @@ Then, deploy the application in the *London* cluster:
 kubectl apply -f manifests/app.yaml -n liqo-demo
 ```
 
-At this moment, you have an HTTP application serving JSON data through a Service, and running in the *London* cluster (i.e., locally).
+At this point, you should have an HTTP application serving JSON data through a Service, and running in the *London* cluster (i.e., locally).
 If you look at the *New York* cluster, you will not see the application yet.
 
 To make it visible, you need to enable the Liqo offloading of the Services in the desired namespace to the *New York* cluster:
@@ -86,9 +77,8 @@ liqoctl offload namespace liqo-demo \
 
 This command enables the offloading of the Services in the *London* cluster to the *New York* cluster and sets:
 
-* the namespace mapping strategy to *EnforceSameName*, which means that the namespace in the remote cluster is created with the same name as of the local one.
-This is particularly useful when you want to consume the Services in the remote cluster using the Kubernetes DNS service discovery (i.e. with `svc-name.namespace-name.svc.cluster.local`).
-* the pod offloading strategy to *Local*, which means that the pods running in this namespace will be kept local and not scheduled on virtual nodes (i.e., no pod is offloaded to remote clusters).
+* With the `EnforceSameName` mapping strategy, we instruct Liqo to create the offloaded namespace in the remote cluster with the same name as the local one. This is particularly useful when you want to consume the Services in the remote cluster using the Kubernetes DNS service discovery (i.e. with `svc-name.namespace-name.svc.cluster.local`).
+* The pod offloading strategy to *Local*, which means that the pods running in this namespace will be kept local and not scheduled on virtual nodes (i.e., no pod is offloaded to remote clusters).
 
 Refer to the dedicated [usage page](/usage/namespace-offloading.md) for additional information concerning namespace offloading configurations.
 
@@ -121,24 +111,16 @@ Let's now consume the Service from both clusters from a different pod (e.g., a t
 Starting from the *London* cluster:
 
 ```bash
-kubectl run consumer --rm -i --tty --image dwdraju/alpine-curl-jq -- /bin/sh
-```
-
-When the shell is ready, you can access the Service with `curl`:
-
-```bash
-curl -s -H 'accept: application/json' http://flights-service.liqo-demo:7999/schedule | jq .
+kubectl run consumer --image=curlimages/curl --rm --restart=Never \
+    -- curl -s -H 'accept: application/json' http://flights-service.liqo-demo:7999/schedule
 ```
 
 A similar result is obtained executing the same command in a shell running in the *New York* cluster, although the backend pod is effectively running in the *London* cluster:
 
 ```bash
-kubectl run consumer --rm -i --tty --image dwdraju/alpine-curl-jq \
-    --kubeconfig $KUBECONFIG_NEWYORK -- /bin/sh
-```
-
-```bash
-curl -s -H 'accept: application/json' http://flights-service.liqo-demo:7999/schedule | jq .
+kubectl run consumer --image=curlimages/curl --rm --restart=Never \
+    --kubeconfig $KUBECONFIG_NEWYORK \
+    -- curl -s -H 'accept: application/json' http://flights-service.liqo-demo:7999/schedule
 ```
 
 This quick example demonstrated how Liqo can **upgrade *ClusterIP* Services to multi-cluster Services**, allowing your local pods to transparently serve traffic originating from remote clusters with no additional configuration neither in the local cluster and/or applications nor in the remote ones.
@@ -162,7 +144,7 @@ Every pod that was offloaded to a remote cluster is going to be rescheduled onto
 Similarly, make sure that all the peerings are revoked:
 
 ```bash
-liqoctl unpeer out-of-band newyork
+liqoctl unpeer --remote-kubeconfig "$KUBECONFIG_NEWYORK" --skip-confirm
 ```
 
 At the end of the process, the virtual node is removed from the local cluster.
