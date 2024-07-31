@@ -49,16 +49,14 @@ In this example, since the two API Servers are mutually reachable, you will use 
 Specifically, to implement the desired scenario, you should enable a peering from the *gslb-eu* cluster to the *gslb-us* cluster.
 This will allow Liqo to [offload workloads and reflect services](/features/offloading.md) from the first cluster to the second cluster.
 
-To proceed, first generate a new *peer command* from the *gslb-us* cluster:
+To proceed, first we need to peer the *gslb-eu* cluster with *gslb-us*:
 
 ```bash
-PEER_US=$(liqoctl generate peer-command --only-command --kubeconfig $KUBECONFIG_US)
+liqoctl peer --remote-kubeconfig "$KUBECONFIG_US" --server-service-type NodePort
 ```
 
-And then, run the generated command from the *gslb-eu* cluster:
-
-```bash
-echo "$PEER_US" | bash
+```{admonition} Note
+As no LoadBalancer is configured in the example environments, we need to expose the Liqo gateway with a `NodePort` service.
 ```
 
 When the above command returns successfully, you can check the peering status by running:
@@ -67,11 +65,11 @@ When the above command returns successfully, you can check the peering status by
 kubectl get foreignclusters
 ```
 
-The output should look like the following, indicating that an outgoing peering is currently active towards the *gslb-us* cluster, as well as that the cross-cluster network tunnel has been established:
+The output should look like the following, indicating that a peering is currently active towards the *gslb-us* cluster:
 
 ```text
-NAME      TYPE        OUTGOING PEERING   INCOMING PEERING   NETWORKING    AUTHENTICATION   AGE
-gslb-us   OutOfBand   Established        None               Established   Established      57s
+NAME      ROLE       AGE
+gslb-us   Provider   32s
 ```
 
 Additionally, you should see a new virtual node (`liqo-gslb-us`) in the *gslb-eu* cluster, and representing the whole *gslb-us* cluster.
@@ -85,7 +83,7 @@ The output should be similar to:
 
 ```text
 NAME           STATUS   ROLES   AGE   VERSION
-liqo-gslb-us   Ready    agent   14s   v1.25.0+k3s1
+liqo-gslb-us   Ready    agent   14s   v1.30.2+k3s2
 ```
 
 ## Deploy an application
@@ -103,7 +101,7 @@ liqoctl offload namespace podinfo --namespace-mapping-strategy EnforceSameName
 At this point, it is possible to deploy the *podinfo* helm chart in the `podinfo` namespace:
 
 ```bash
-helm upgrade --install podinfo --namespace podinfo \
+helm install podinfo --namespace podinfo \
     podinfo/podinfo -f manifests/values/podinfo.yaml
 ```
 
@@ -148,6 +146,10 @@ The output in the *gslb-eu* cluster should be similar to:
 ```text
 NAME      CLASS   HOSTS                    ADDRESS                 PORTS   AGE
 podinfo   nginx   liqo.cloud.example.com   172.19.0.3,172.19.0.4   80      6m9s
+```
+
+```bash
+kubectl get ingress -n podinfo --kubeconfig $KUBECONFIG_US
 ```
 
 While the output in the *gslb-us* cluster should be similar to:

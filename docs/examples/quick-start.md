@@ -5,7 +5,7 @@ You will learn how to create a *virtual cluster* by peering two Kubernetes clust
 
 ## Provision the playground
 
-First, check that you are compliant with the [requirements](/examples/requirements.md).
+First, check that you are compliant with the [requirements](/examples/requirements.md) and install all the necessary tools, including [liqoctl](/installation/liqoctl.md), which will be used in this guide to install Liqo and to create the pairing between the clusters.
 
 Then, let's open a terminal on your machine and launch the following script, which creates a pair of clusters with KinD.
 Each cluster is made of two nodes (one for the control plane and one as a simple worker):
@@ -129,7 +129,7 @@ In this example, we will leverage the *liqoctl peer* command to peer the two clu
 This approach requires the user to have access to the `kubeconfig` of both clusters.
 
 Let's issue the peering command from the consumer cluster, which is Rome in this case.
-The `--remote-kubeconfig` flag is used to specify the `kubeconfig` of the remote provider cluster, which is Milan in this case.
+The `--remote-kubeconfig` flag is used to specify the `kubeconfig` of the remote provider cluster, which is Milan in this case. Moreover, as no load balancer is configured in the clusters, we will set `--server-service-type` to `NodePort` to use a port of the nodes of the clusters to expose the Liqo gateway.
 
 ```bash
 liqoctl peer --remote-kubeconfig "$KUBECONFIG_MILAN" --server-service-type NodePort
@@ -330,7 +330,7 @@ kubectl run --image=curlimages/curl curl -n default -it --rm --restart=Never -- 
 ```
 
 ```{admonition} Note
-Executing the previous command multiple times, you will observe that part of the requests are answered by the pod running in the *local* cluster, and in part by that in the *remote* cluster (i.e., the Server value changes).
+Executing the previous command multiple times, the requests will be answered by both, the pod running in the *local* cluster, and in part by the one running in the *remote* cluster.
 ```
 
 ## Play with a microservice application
@@ -345,12 +345,7 @@ kubectl apply -k ./manifests/demo-application -n liqo-demo
 ```
 
 By default, Kubernetes schedules each pod either in the local or in the remote cluster, optimizing each deployment based on the available resources.
-However, you can play with *affinity* constraints to force Kubernetes to schedule each component in a specific location, and see that everything continues to work smoothly.
-Specifically, the manifest above forces the frontend component to be executed in the *local* cluster, as this is required to enable *port-forwarding*, which is leveraged below.
-
-Each demo component is exposed as a Service and accessed by other components.
-However, given that nobody knows, a priori, where each Service will be deployed (either locally or in the remote cluster), Liqo [*replicates*](FeatureResourceReflection) all Kubernetes Services across both clusters, although the corresponding pod may be running only in one location.
-Hence, each microservice deployed across clusters can reach the others seamlessly: independently of the cluster a pod is deployed in, each pod can contact other Services and leverage the traditional Kubernetes discovery mechanisms (e.g., DNS discovery and environment variables).
+However, you can play with *affinity* constraints to force Kubernetes to schedule each component in a specific location, and see that everything continues to work smoothly. That's because Liqo takes care of the inter-pod communication across the clusters in the offloaded namespace, and of the [*replication*](FeatureResourceReflection) of the `Service` resources, so that each pod can contact each others, reach the Services and leverage the traditional Kubernetes discovery mechanisms (e.g., DNS discovery and environment variables).
 
 Additionally, several other objects (e.g. `ConfigMaps` and `Secrets`) inside a namespace are replicated in the remote cluster within the *twin namespace*, thus, ensuring that complex applications can work seamlessly across clusters.
 
@@ -420,7 +415,7 @@ Every pod that was offloaded to a remote cluster is going to be rescheduled onto
 Similarly, make sure that all the peerings are revoked:
 
 ```bash
-liqoctl unpeer --remote-kubeconfig "$KUBECONFIG_MILAN" 
+liqoctl unpeer --remote-kubeconfig "$KUBECONFIG_MILAN"
 ```
 
 At the end of the process, the virtual node is removed from the local cluster.
@@ -430,8 +425,8 @@ At the end of the process, the virtual node is removed from the local cluster.
 Now you can uninstall Liqo from your clusters with *liqoctl*:
 
 ```bash
-liqoctl uninstall
-liqoctl uninstall --kubeconfig="$KUBECONFIG_MILAN"
+liqoctl uninstall --skip-confirm
+liqoctl uninstall --kubeconfig="$KUBECONFIG_MILAN" --skip-confirm
 ```
 
 ```{admonition} Purge
