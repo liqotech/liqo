@@ -1,17 +1,19 @@
 # Install
 
-Liqo can be easily installed with *liqoctl*, which automatically handles all the customized settings required to set up the software on  the multiple provider/distribution supported (e.g., AWS, EKS, GKE, Kubeadm, etc.).
+Liqo can be easily installed with *liqoctl*, which automatically handles all the customized settings required to set up the software on the multiple providers/distributions supported (e.g., AWS, EKS, GKE, Kubeadm, etc.).
 Under the hood, *liqoctl* uses [Helm 3](https://helm.sh/) to configure and install all the Liqo components, using the Helm chart available in the official repository.
 
 Alternatively, you can install Liqo manually with Helm.
-However, we suggest to use *liqoctl* also in this case. In fact, *liqoctl* can also generate a local file with **pre-configured values**, which can be further customized and used for your manual installation.
+However, we suggest using *liqoctl* also in this case.
+In fact, *liqoctl* can also generate a local file with **pre-configured values**, which can be further customized and used for your manual installation.
 
 You can refer to the previous section about [downloading and installing *liqoctl*](liqoctl.md).
 
 ## Install with liqoctl
 
 Below, you can find the basic information to install and configure Liqo, depending on the selected **Kubernetes distribution** and/or **cloud provider**.
-By default, *liqoctl install* installs the latest *stable* version of Liqo, although this can be changed with the `--version` flag.
+
+By default, the `liqoctl install` command installs the same Liqo version of the *liqoctl* client, although it can be overridden with the `--version` flag.
 
 The rest of this page presents **additional customization options** that apply to all setups, as well as advanced options that are cloud/distribution-specific.
 
@@ -26,7 +28,7 @@ Hence, make sure you selected the correct target cluster before issuing *liqoctl
 
 **Supported CNIs**
 
-Liqo supports Kubernetes clusters using the following CNIs: [Cilium](https://cilium.io/), [Flannel](https://github.com/flannel-io/flannel), [Calico](https://www.tigera.io/project-calico/), [Canal](https://docs.tigera.io/calico/latest/getting-started/kubernetes/flannel/install-for-flannel), [Weave](https://github.com/weaveworks/weave).
+Liqo supports Kubernetes clusters using the following CNIs: [Cilium](https://cilium.io/), [Flannel](https://github.com/flannel-io/flannel), [Calico](https://www.tigera.io/project-calico/).
 
 ```{warning}
 If you are installing Liqo on a cluster using the **Calico** or **Cilium** CNI, you MUST read the [dedicated configuration section](InstallationCNIConfiguration) to avoid unwanted misconfigurations.
@@ -43,33 +45,6 @@ liqoctl install kubeadm
 The id of the cluster is automatically generated, then used during the peering and offloading processes.
 Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
 
-```{admonition} Service Type
-By default, the **kubeadm** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
-To change this behavior, check the [network flags](NetworkFlags).
-```
-````
-
-````{tab-item} OpenShift
-
-**Supported versions**
-
-Liqo was tested on OpenShift Container Platform (OCP) 4.8.
-
-**Installation**
-
-Liqo can be installed on an OpenShift Container Platform (OCP) cluster with the following command:
-
-```bash
-liqoctl install openshift
-```
-
-The id of the cluster is automatically generated, then used during the peering and offloading processes.
-Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
-
-```{admonition} Service Type
-By default, the **openshift** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
-To change this behavior, check the [network flags](NetworkFlags).
-```
 ````
 
 ````{tab-item} AKS
@@ -118,13 +93,6 @@ Alternatively, you can manually set a different name with the `--cluster-id` *li
 If you are running an [AKS private cluster](https://learn.microsoft.com/en-us/azure/aks/private-clusters), you may need to set the `--disable-api-server-sanity-check` *liqoctl* flag, since the API Server in your kubeconfig may be different from the one retrieved from the Azure APIs.
 
 If the private cluster uses private link, you can set the `--private-link` *liqoctl* flag to use the private FQDN for the API server.
-
-Additionally, since your API Server is not accessible from the public Internet, you shall leverage the [in-band peering approach](FeaturesPeeringInBandControlPlane) towards the clusters not attached to the same Azure Virtual Network.
-```
-
-```{admonition} Service Type
-By default, the **AKS** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
-To change this behavior, check the [network flags](NetworkFlags).
 ```
 
 ```{admonition} Virtual Network Resource Group
@@ -217,10 +185,6 @@ liqoctl install eks --eks-cluster-region=${EKS_CLUSTER_REGION} \
 The id of the cluster will be equal to the one specified in the `--eks-cluster-name` parameter.
 Alternatively, you can manually set a different id with the `--cluster-id` *liqoctl* flag.
 
-```{admonition} Service Type
-By default, the **EKS** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
-To change this behavior, check the [network flags](NetworkFlags).
-```
 ````
 
 ````{tab-item} GKE
@@ -233,8 +197,8 @@ Liqo supports GKE clusters using the default CNI: [Google GKE - VPC-Native](http
 Liqo does NOT support:
 
 * GKE Autopilot Clusters
-* Container-Optimized OS with containerd (*cos_containerd*) as image type. Use Ubuntu with containerd (*ubuntu_containerd*) instead
 * Intranode visibility: make sure this option is disabled or use the `--no-enable-intra-node-visibility` flag. 
+* Accessing offloaded pods from NodePort/LoadBalancer services [**only on Dataplane V2**].
 ```
 
 **Configuration**
@@ -326,11 +290,6 @@ liqoctl install gke --project-id ${GKE_PROJECT_ID} \
 
 The id of the cluster will be equal to the one defined in GCP.
 Alternatively, you can manually set a different id with the `--cluster-id` *liqoctl* flag.
-
-```{admonition} Service Type
-By default, the **GKE** provider exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
-To change this behavior, check the [network flags](NetworkFlags).
-```
 ````
 
 ````{tab-item} K3s
@@ -354,10 +313,6 @@ This operation is necessary in case the default address (`https://<control-plane
 The id of the cluster is automatically generated, then used during the peering and offloading processes.
 Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
 
-```{admonition} Service Type
-By default, the **k3s** provider exposes *liqo-auth* and *liqo-gateway* with **NodePort** services.
-To change this behavior, check the [network flags](NetworkFlags).
-```
 ````
 
 ````{tab-item} KinD
@@ -372,10 +327,7 @@ liqoctl install kind
 
 The id of the cluster is automatically generated, then used during the peering and offloading processes.
 Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
-```{admonition} Service Type
-By default, the **kind** provider exposes *liqo-auth* and *liqo-gateway* with **NodePort** services.
-To change this behavior, check the [network flags](NetworkFlags).
-```
+
 ````
 
 ````{tab-item} Other
@@ -400,10 +352,6 @@ liqoctl install --api-server-url=<API-SERVER-URL> \
 The id of the cluster is automatically generated, then used during the peering and offloading processes.
 Alternatively, you can manually specify a desired id with the `--cluster-id` flag.
 
-```{admonition} Service Type
-By default, liqoctl exposes *liqo-auth* and *liqo-gateway* with **LoadBalancer** services.
-To change this behavior, check the [network flags](NetworkFlags).
-```
 ````
 `````
 
@@ -416,19 +364,20 @@ This section lists the main **customization parameters** supported by the *liqoc
 Before listing all the parameters, we start here with some general considerations:
 
 * **Getting help**: You can type `liqoctl install --help` to get the list of available options.
-* **Changing arbitrary parameters**: all the parameters defined in the Helm *values* file (the full list is provided in the dedicated [repository page](https://github.com/liqotech/liqo/tree/master/deployments/liqo)) can be modified either at install time or, if supported by the parameter itself, also at run-time using one of the following methods:
+* **Changing arbitrary parameters**: all the parameters defined in the Helm *values* file (the full list is provided on the dedicated [repository page](https://github.com/liqotech/liqo/tree/master/deployments/liqo)) can be modified either at install time or, if supported by the parameter itself, also at run-time using one of the following methods:
   * **`liqoctl install --values [file]`**: it accepts as input a file containing all the parameters that you want to set.
   * **`liqoctl install --set [param=value]`**: it changes a single parameter, using the standard Helm syntax. Multiple parameters can be changed by issuing multiple `set` commands on the command line.
+  * **`liqoctl install --set-string [param=value]`**: it changes a single parameter (forcing it to be a string), using the standard Helm syntax. Multiple parameters can be changed by issuing multiple `set-string` commands on the command line.
 
   The following order, which is displayed in decreasing order of priority, is used to generate the final values:
 
-  1. values provided with `--set`
+  1. values provided with `--set` (or `--set-string`)
   2. values provided with `--values` file
-  3. liqoctl specific flags (e.g., `--service-type` flag)
+  3. liqoctl specific flags (e.g., `--api-server-url` flag)
   4. provider specific values
   5. chart values
 
-  For the parameters that are updated after the initial installation (either by updating their values and re-applying the Helm chart or by re-issuing the proper `liqoctl install [--values | --set]` command), please note that not all parameters can be changed at run-time; hence, please check that the command triggered the desired effect.
+  For the parameters that are updated after the initial installation (either by updating their values and re-applying the Helm chart or by re-issuing the proper `liqoctl install [--values | --set | --set-string]` command), please note that not all parameters can be changed at run-time; hence, please check that the command triggered the desired effect.
   A precise list of commands that can be changed at run-time is left for our future work.
 
 ### Global
@@ -451,12 +400,9 @@ The main global flags, besides those concerning the installation of [development
 The main control plane flags include:
 
 * `--cluster-id`: configures a **name identifying the cluster** in Liqo.
-This id is propagated to remote clusters during the peering process, and used to identify the corresponding virtual nodes and the Liqo resources used in the peering process. Additionally, the cluster id is used as part of the suffix to ensure namespace names uniqueness during the offloading process. In case a cluster name is not specified, it is defaulted to that of the cluster in the cloud provider, if any, or it is automatically generated.
+This ID is propagated to remote clusters during the peering process, and used to identify the corresponding remote resource (e.g., virtual nodes, gateways, etc..) used. Additionally, the cluster ID is used as part of the suffix to ensure namespace name uniqueness during the offloading process. In case a cluster name is not specified, it is defaulted to that of the cluster in the cloud provider, if any, or it is automatically generated.
 * `--cluster-labels`: a set of **labels** (i.e., key/value pairs) **identifying the cluster in Liqo** (e.g., geographical region, Kubernetes distribution, cloud provider, ...) and automatically propagated during the peering process to the corresponding virtual nodes.
 These labels can be used later to **restrict workload offloading to a subset of clusters**, as detailed in the [namespace offloading usage section](/usage/namespace-offloading).
-* `--sharing-percentage`: the maximum percentage of available **cluster resources** that could be shared with remote clusters. This is the Liqo's default behavior, which can be changed by deploying a custom [resource plugin](https://github.com/liqotech/liqo-resource-plugins).
-More details about the amount of resources shared by a cluster is available in the [Resource Offloading](FeatureOffloadingAssignedResources) page.
-**Note**: the `--sharing-percentage` can be updated (e.g., via helm) dynamically, without reinstalling Liqo.
 
 (NetworkFlags)=
 
@@ -466,7 +412,6 @@ The main networking flags include:
 
 * `--reserved-subnets`: the list of **private CIDRs to be excluded** from the ones used by Liqo to remap remote clusters in case of address conflicts, as already in use (e.g., the subnet of the cluster nodes).
 The Pod CIDR and the Service CIDR shall not be manually specified, as automatically included in the reserved list.
-* `--service-type`: overrides the service type used by **liqo-gateway** and **liqo-auth** services. Possible values are: `LoadBalancer`, `NodePort`, and `ClusterIP`. By default, the service type is the one specified by the selected provider (check the provider's specific installation) or `LoadBalancer`.
 
 (InstallationHelm)=
 
@@ -504,7 +449,7 @@ To install Liqo directly with Helm, you can proceed as follows:
    ````
 
 4. Appropriately configure the *values* file.
-   The full list of options is provided in the dedicated [repository page](https://github.com/liqotech/liqo/tree/master/deployments/liqo).
+   The full list of options is provided on the dedicated [repository page](https://github.com/liqotech/liqo/tree/master/deployments/liqo).
 
 5. Install Liqo:
 
@@ -523,7 +468,7 @@ Development versions include:
 * All commits merged into the master branch of Liqo.
 * The commits of *pull requests* to the Liqo repository, whose images have been built through the appropriate bot command.
 
-The installation of a development version of Liqo can be triggered specifying a **commit *SHA*** through the `--version` flag.
+The installation of a development version of Liqo can be triggered by specifying a **commit *SHA*** through the `--version` flag.
 In this case, *liqoctl* proceeds to **clone the repository** (either from the official repository, or from a fork configured through the `--repo-url` flag) at the given revision, and to leverage the Helm chart therein contained:
 
 ```bash
@@ -536,15 +481,6 @@ Alternatively, the Helm chart can be retrieved from a **local path**, as configu
 liqoctl install <provider> --version <commit-sha> --local-chart-path <path-to-local-chart>
 ```
 
-## Check installation
-
-After the installation, you can check the status of the Liqo components.
-In particular, the following command can be used to check the status of the Liqo **pods** and get **local information**:
-
-```bash
-liqoctl status
-```
-
 (InstallationCNIConfiguration)=
 
 ## CNIs
@@ -553,11 +489,11 @@ liqoctl status
 
 Liqo creates a new node for each remote cluster, however we do not schedule daemonsets on these nodes.
 
-From version **1.14.2** cilum adds a taint to the nodes where the daemonset is not scheduled, so that pods are not scheduled on them.
-This taint prevents also Liqo pods to be scheduled on the remote nodes.
+From version **1.14.2** cilium adds a taint to the nodes where the daemonset is not scheduled, so that pods are not scheduled on them.
+This taint prevents also Liqo pods from being scheduled on the remote nodes.
 
 To solve this issue we need to specify to cilium daemonsets to ignore the Liqo node.
-This can be done by adding the following helm values to cilium installation:
+This can be done by adding the following helm values to the cilium installation:
 
 ```yaml
 affinity:
