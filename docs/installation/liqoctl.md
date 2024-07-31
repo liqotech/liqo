@@ -3,7 +3,7 @@
 ## Introduction
 
 Liqoctl is the CLI tool to streamline the **installation** and **management** of Liqo.
-Specifically, it abstracts the creation and modification of Liqo defined custom resources, allowing to:
+Specifically, it abstracts the creation and modification of Liqo-defined custom resources, allowing to:
 
 * **Install/uninstall** Liqo, wrapping the corresponding Helm commands and automatically retrieving the appropriate parameters based on the target cluster configuration.
 * Establish and revoke **peering** relationships towards remote clusters.
@@ -18,7 +18,7 @@ Make sure to always **use the *liqoctl* version matching that of Liqo** installe
 
 ```{admonition} Note
 *liqoctl* displays a *kubectl* compatible behavior concerning Kubernetes API access, hence supporting the `KUBECONFIG` environment variable, as well as all the standard flags, including `--kubeconfig` and `--context`.
-Moreover, subcommands interacting with two clusters (e.g., *liqoctl peer in-band*) feature a parallel set of flags concerning Kubernetes API access to the remote cluster, in the form `--remote-<flag>` (e.g., `--remote-kubeconfig`, `--remote-context`).
+Moreover, subcommands interacting with two clusters (e.g., *liqoctl peer*) feature a parallel set of flags concerning Kubernetes API access to the remote cluster, in the form `--remote-<flag>` (e.g., `--remote-kubeconfig`, `--remote-context`).
 ```
 
 (InstallationLiqoctlWithHomebrew)=
