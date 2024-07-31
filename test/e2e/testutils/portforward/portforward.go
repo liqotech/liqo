@@ -21,7 +21,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	corev1 "k8s.io/api/core/v1"
@@ -109,15 +108,18 @@ func (o *PodPortForwarderOptions) PortForwardPod(ctx context.Context) error {
 		return fmt.Errorf("unable to forward port because pod is not running. Current status=%v", pod.Status.Phase)
 	}
 
-	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", o.PodNamespace, o.PodName)
-	hostIP := strings.TrimLeft(o.Config.Host, "htps:/")
+	pwPath := fmt.Sprintf("api/v1/namespaces/%s/pods/%s/portforward", o.PodNamespace, o.PodName)
+	pwURL, err := url.Parse(fmt.Sprintf("%s/%s", o.Config.Host, pwPath))
+	if err != nil {
+		return err
+	}
 
 	transport, upgrader, err := spdy.RoundTripperFor(o.Config)
 	if err != nil {
 		return err
 	}
 
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, &url.URL{Scheme: "https", Path: path, Host: hostIP})
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, pwURL)
 
 	fw, err := portforward.New(dialer,
 		[]string{fmt.Sprintf("%d:%d", o.LocalPort, o.TargetPort)},
