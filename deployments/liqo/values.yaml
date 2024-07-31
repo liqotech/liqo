@@ -172,7 +172,7 @@ offloading:
     # -- The amount of pods that can be scheduled on a virtual node targeting this cluster.
     pods: "110"
     # -- The amount of ephemeral storage to reserve for a virtual node targeting this cluster.
-    ephemeralStorage: "20Gi"
+    ephemeral-storage: "20Gi"
   # -- Enable/Disable the creation of a k8s node for each VirtualNode.
   # This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode 
   # by setting the "createNode" field in the resource Spec.
