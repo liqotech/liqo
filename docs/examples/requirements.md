@@ -4,7 +4,6 @@ Before starting the tutorials below, you should ensure the following software is
 
 * [**Docker**](https://www.docker.com/), the container runtime.
 * [**Kubectl**](https://kubernetes.io/docs/tasks/tools/#kubectl), the command-line tool for Kubernetes.
-* [**Helm**](https://helm.sh/docs/intro/install/), the package manager for Kubernetes.
 * [**curl**](https://curl.se/), to interact with the tutorial applications through HTTP/HTTPS.
 * [**KinD**](https://kind.sigs.k8s.io/docs/user/quick-start/#installation), the Kubernetes in Docker runtime.
 * [**liqoctl**](/installation/liqoctl.md) command-line tool to interact with Liqo.

@@ -18,7 +18,6 @@ subtrees:
       - file: examples/replicated-deployments.md
       - file: examples/service-offloading.md
       - file: examples/stateful-applications.md
-      - file: examples/global-ingress.md
 
   - caption: Features
     entries:

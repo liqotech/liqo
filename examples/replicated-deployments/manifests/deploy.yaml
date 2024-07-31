@@ -14,13 +14,13 @@ spec:
     spec:
       topologySpreadConstraints:
       - maxSkew: 1
-        topologyKey: kubernetes.io/hostname 
+        topologyKey: kubernetes.io/hostname
         whenUnsatisfiable: DoNotSchedule
         labelSelector:
           matchLabels:
             app: liqo-demo-app
       containers:
       - name: nginx
-        image: nginxdemos/hello
+        image: nginx
         ports:
         - containerPort: 80

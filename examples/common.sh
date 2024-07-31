@@ -66,12 +66,6 @@ function check_requirements() {
         exit 1
     fi
 
-    if ! command -v helm &> /dev/null;
-    then
-        error "Helm could not be found on your system. Please install helm to continue: https://helm.sh/docs/intro/install/"
-        exit 1
-    fi
-
     if ! command -v kind &> /dev/null;
     then
         error "Kind could not be found on your system. Please install kind to continue: https://kind.sigs.k8s.io/docs/user/quick-start/#installation"
