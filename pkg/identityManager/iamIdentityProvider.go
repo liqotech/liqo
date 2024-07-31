@@ -162,7 +162,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(ctx context.C
 	}
 
 	// the IAM username has to have <= 64 characters
-	s := fmt.Sprintf("%s-%s", username, organization)
+	s := fmt.Sprintf("%s-%s-%s", username, organization, identityProvider.localClusterID)
 	h := sha256.New()
 	_, _ = h.Write([]byte(s))
 	bs := h.Sum(nil)
@@ -317,6 +317,42 @@ func (identityProvider *iamIdentityProvider) ensureIamAccessKey(ctx context.Cont
 	}
 
 	createAccessKeyResult, err := iamSvc.CreateAccessKeyWithContext(ctx, createAccessKey)
+	if err == nil {
+		return createAccessKeyResult.AccessKey, nil
+	}
+
+	// if the error is limit exceeded, we have to delete an existing access key
+	if aerr, ok := err.(awserr.Error); ok { //nolint:errorlint // aws does not export a specific error type
+		if aerr.Code() == iam.ErrCodeLimitExceededException {
+			klog.Warningf("IAM user %v has reached the limit of access keys, Liqo will delete an existing access key", username)
+			var accessKeyList *iam.ListAccessKeysOutput
+			accessKeyList, err = iamSvc.ListAccessKeysWithContext(ctx, &iam.ListAccessKeysInput{
+				UserName: aws.String(username),
+			})
+			if err != nil {
+				klog.Error(err)
+				return nil, err
+			}
+
+			if len(accessKeyList.AccessKeyMetadata) == 0 {
+				klog.Error("no access key found")
+				return nil, fmt.Errorf("no access key found")
+			}
+			for _, accessKey := range accessKeyList.AccessKeyMetadata {
+				_, err = iamSvc.DeleteAccessKeyWithContext(ctx, &iam.DeleteAccessKeyInput{
+					AccessKeyId: accessKey.AccessKeyId,
+					UserName:    aws.String(username),
+				})
+				if err != nil {
+					klog.Error(err)
+					return nil, err
+				}
+			}
+
+			createAccessKeyResult, err = iamSvc.CreateAccessKeyWithContext(ctx, createAccessKey)
+		}
+	}
+
 	if err != nil {
 		klog.Error(err)
 		return nil, err

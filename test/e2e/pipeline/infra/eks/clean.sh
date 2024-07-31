@@ -12,6 +12,9 @@
 # LIQO_VERSION          -> the liqo version to test
 # INFRA                 -> the Kubernetes provider for the infrastructure
 # LIQOCTL               -> the path where liqoctl is stored
+# KUBECTL               -> the path where kubectl is stored
+# EKSCTL                -> the path where eksctl is stored
+# AWS_CLI               -> the path where aws-cli is stored
 # POD_CIDR_OVERLAPPING  -> the pod CIDR of the clusters is overlapping
 # CLUSTER_TEMPLATE_FILE -> the file where the cluster template is stored
 
@@ -26,20 +29,26 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-for i in $(seq 2 "${CLUSTER_NUMBER}")
+CLUSTER_NAME=cluster
+RUNNER_NAME=${RUNNER_NAME:-"test"}
+CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}"
+
+PIDS=()
+
+# Cleaning all remaining clusters
+for i in $(seq 1 "${CLUSTER_NUMBER}")
 do
-  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
-  export PROVIDER_KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+    # if the cluster exists, delete it
+    if "${EKSCTL}" get cluster --name "${CLUSTER_NAME}${i}" --region "eu-central-1" &> /dev/null; then
+        echo "Deleting cluster ${CLUSTER_NAME}${i}"
+    else
+        echo "Cluster ${CLUSTER_NAME}${i} does not exist"
+        continue
+    fi
+    "${EKSCTL}" delete cluster --name "${CLUSTER_NAME}${i}" --region "eu-central-1" --wait --force &
+    PIDS+=($!)
+done
 
-  ARGS=(--kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}")
-  if [[ "${INFRA}" == "cluster-api" ]]; then
-    ARGS=("${ARGS[@]}" --server-service-type NodePort)
-  fi
-
-  ARGS=("${ARGS[@]}")
-  "${LIQOCTL}" peer "${ARGS[@]}"
-
-  # Sleep a bit, to avoid generating a race condition with the
-  # authentication process triggered by the incoming peering.
-  sleep 1
+for PID in "${PIDS[@]}"; do
+    wait "${PID}"
 done

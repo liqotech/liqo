@@ -75,6 +75,21 @@ do
   if [[ "${INFRA}" == "k3s" ]]; then
     COMMON_ARGS=("${COMMON_ARGS[@]}" --pod-cidr "${POD_CIDR}" --service-cidr "${SERVICE_CIDR}")
   fi
+  if [[ "${INFRA}" == "eks" ]]; then
+    CLUSTER_NAME=cluster
+    RUNNER_NAME=${RUNNER_NAME:-"test"}
+    CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}"
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --eks-cluster-region="eu-central-1" --eks-cluster-name="${CLUSTER_NAME}${i}")
+    # do not fail if variables are not set
+    set +u
+    if [[ "${LIQO_AWS_USERNAME}" != "" ]]; then
+      COMMON_ARGS=("${COMMON_ARGS[@]}" --user-name "${LIQO_AWS_USERNAME}")
+    fi
+    if [[ "${LIQO_AWS_POLICY_NAME}" != "" ]]; then
+      COMMON_ARGS=("${COMMON_ARGS[@]}" --policy-name "${LIQO_AWS_POLICY_NAME}")
+    fi
+    set -u
+  fi
   if [[ "${INFRA}" == "cluster-api" ]]; then
     LIQO_PROVIDER="kubeadm"
     COMMON_ARGS=("${COMMON_ARGS[@]}")

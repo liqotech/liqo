@@ -148,7 +148,17 @@ var (
 	// Curl metrics from the port-forwarded address.
 	curlMetrics = func(url string, port int) string {
 		// Get the metrics from the virtual-kubelet pod
-		resp, body, err := httputils.NewHTTPClient(timeout).Curl(ctx, fmt.Sprintf("http://%s:%d/metrics", url, port))
+		retries := 5
+		var resp *http.Response
+		var body []byte
+		var err error
+		for i := 0; i < retries; i++ {
+			resp, body, err = httputils.NewHTTPClient(timeout).Curl(ctx, fmt.Sprintf("http://%s:%d/metrics", url, port))
+			if err == nil && resp.StatusCode == http.StatusOK {
+				break
+			}
+			time.Sleep(2 * time.Second)
+		}
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		Expect(body).ToNot(Or(BeNil(), (BeEmpty())))
