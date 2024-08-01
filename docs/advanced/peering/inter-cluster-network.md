@@ -2,15 +2,6 @@
 
 ## Overview
 
-Liqo allows you to establish network connectivity between clusters to enable [**resource reflection**](/usage/reflection) and [**namespace offloading**](/usage/namespace-offloading).
-You have different options to establish network connectivity between clusters, depending on your use case and your network configuration:
-
-* **Automatic**: Liqo automatically establishes network connectivity between clusters by deploying a Liqo Gateway for each cluster in the tenant namespace when the peering is established. You will work with the [liqoctl](/installation/liqoctl) command line tool.
-* **Manual on cluster couple**: you can manually establish network connectivity between clusters by deploying a Liqo Gateway for each cluster in the tenant namespace. You need contemporary access to both clusters. You will work with the [liqoctl](/installation/liqoctl) command line tool.
-* **Manual on single cluster**: you can manually establish network connectivity between clusters by deploying a Liqo Gateway for each cluster in the tenant namespace for each cluster. You will work with the [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/) command line tool to apply the required resources.
-
-### Resources
-
 The following resources are involved in the network connectivity:
 
 * **GatewayServer**: this resource is used to deploy the Liqo Gateway on the cluster, it exposes a service to the outside of the cluster.
