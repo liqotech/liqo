@@ -34,6 +34,8 @@ do
   ARGS=(--kubeconfig "${KUBECONFIG}" --remote-kubeconfig "${PROVIDER_KUBECONFIG}")
   if [[ "${INFRA}" == "cluster-api" ]]; then
     ARGS=("${ARGS[@]}" --server-service-type NodePort)
+  elif [[ "${INFRA}" == "kind" ]]; then
+    ARGS=("${ARGS[@]}" --server-service-type NodePort)
   fi
 
   ARGS=("${ARGS[@]}")

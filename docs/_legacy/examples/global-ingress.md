@@ -44,7 +44,6 @@ We suggest exporting the kubeconfig of the *gslb-eu* as default (i.e., `KUBECONF
 ## Peer the clusters
 
 Once Liqo is installed in your clusters, you can establish new *peerings*.
-In this example, since the two API Servers are mutually reachable, you will use the [out-of-band peering approach](FeaturesPeeringOutOfBandControlPlane).
 
 Specifically, to implement the desired scenario, you should enable a peering from the *gslb-eu* cluster to the *gslb-us* cluster.
 This will allow Liqo to [offload workloads and reflect services](/features/offloading.md) from the first cluster to the second cluster.
