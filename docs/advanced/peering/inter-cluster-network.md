@@ -33,13 +33,19 @@ Automatic network configuration
 
 The unpeer process will automatically remove the Liqo Gateway from the tenant namespace.
 
-### Configuration
+### NAT Firewall
 
-You can configure the settings for the automatic Liqo networking by setting the following parameters in the `values.yaml` file or by using the `liqoctl` command line `--set` option:
+In Case a **gateway server** is behind a NAT firewall, the following steps are required to establish the connection:
+You can configure the settings for the connection by setting the following *annotations* in the `values.yaml` file or by using the `liqoctl` command line `--set` option:
 
-* `peering.networking.gateway.mtu` (default: `1340`): the MTU of the Gateway interface.
-* `peering.networking.gateway.server.service.port` (default: `51820`): the port of the Gateway service.
-* `peering.networking.gateway.server.service.type` (default: `LoadBalancer`): the type of the Gateway service, it can be `NodePort` or `LoadBalancer`.
+Under the `networking.gatewayTemplates.server.service.annotations` key, you can set the following annotations:
+
+* **liqo.io/override-address**: the public IP address of the NAT firewall.
+* **liqo.io/override-port**: the public port of the NAT firewall.
+
+```{admonition} Tip
+In case you need to have multiple gateways behind the same NAT firewall, you need to override the port for each peer using the `--server-port` flag at peering time.
+```
 
 ## Manual on cluster couple
 
@@ -248,9 +254,10 @@ spec:
     namespace: liqo
 ```
 
-```{admonition} Tip
-You can generate this file with the command `liqoctl create gatewayserver server --remote-cluster-id 35d83766-f466-46ef-b5b3-d253b6d465f1 --service-type NodePort -o yaml` and then edit it.
-```
+You can generate this file with the following command, and then edit it:
+
+``` bash
+liqoctl create gatewayserver server --remote-cluster-id 35d83766-f466-46ef-b5b3-d253b6d465f1 --service-type NodePort -o yaml
 
 Some seconds after you will find an assigned IP and a port in the status of the GatewayServer resource:
 
@@ -288,8 +295,10 @@ spec:
   mtu: 1340
 ```
 
-```{admonition} Tip
-You can generate this file with the command `liqoctl create gatewayclient client --remote-cluster-id ef7a1f41-c753-4a0e-83e5-bed013e7fe4f --addresses 10.42.3.54 --port 32133 -o yaml`
+You can generate this file with the command:
+
+``` bash
+liqoctl create gatewayclient client --remote-cluster-id ef7a1f41-c753-4a0e-83e5-bed013e7fe4f --addresses 10.42.3.54 --port 32133 -o yaml
 ```
 
 Lastly, you need to exchange the public keys between the two clusters.
