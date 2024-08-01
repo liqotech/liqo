@@ -40,3 +40,11 @@ The approach is schematized at a high level in the figure below.
 The standard *liqoctl* peer command requires the machine running it to have simultaneous access to both cluster API servers, through their *kubeconfigs*.
 If this is not possible, refer to the advanced guide to learn how to perform the [peering manually](/advanced/manual-peering) without having contemporary access to both clusters.
 ```
+
+```{warning}
+Starting from Liqo 1.0 the concept of *out-of-band* and *in-band* peering is deprecated.
+The user can adopt different peering approaches depending if it has contemporary access to both clusters or not, as described in the [dedicated page](/advanced/peering-strategies.md). 
+
+If the user can not expose the API server to the public, there is the possibility to leverage the Liqo networking to let the API server traffic flow into the cross-cluster VPN tunnel and use the *liqo-gateway* as a proxy for the API server.
+The procedure to achieve this will be explained in detail in the next releases.  
+```
