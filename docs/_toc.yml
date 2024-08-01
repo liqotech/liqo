@@ -43,7 +43,8 @@ subtrees:
           - file: advanced/peering/inter-cluster-network.md
           - file: advanced/peering/inter-cluster-authentication.md
           - file: advanced/peering/namespace-offloading.md
-      - file: advanced/disable-networking.md
+      - file: advanced/use-only-offloading.md
+      - file: advanced/enable-external-networking.md
       - file: advanced/external-ip-remapping.md
       - file: advanced/multiple-resource-slices.md
       - file: advanced/kubernetes-api.md
