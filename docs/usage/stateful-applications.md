@@ -6,15 +6,14 @@ As introduced in the [storage fabric features section](/features/storage-fabric.
 
 ## Liqo virtual storage class
 
-The Liqo virtual storage class is a [*Storage Class*](https://kubernetes.io/docs/concepts/storage/storage-classes/) that embeds the logic to create the appropriate *PersistentVolumes*, depending on the target cluster the mounting pod is scheduled onto.
-All operations performed on virtual objects (i.e., *PersistentVolumeClaims (PVCs)* and *PersistentVolumes (PVs)* associated with the *liqo* storage class) are then automatically propagated by Liqo to the corresponding real ones (i.e., associated with the storage class available in the target cluster).
+The Liqo virtual storage class is a [*Storage Class*](https://kubernetes.io/docs/concepts/storage/storage-classes/) that embeds the logic to manage some virtual `PersistentVolumeClaims` and `PersistentVolumes`, bound to a real copy of those resources, managed by the storage class configured in the target cluster.  depending on the target cluster the mounting pod is scheduled onto.
+The storage binding the deferred until its first consumer is scheduled onto a given cluster (either local or remote), ensuring that the **new storage pools** are created where their associated pods have just been scheduled.
 
-Additionally, once a real *PV* gets created, the corresponding virtual one is enriched with a set of policies to attract mounting pods in the appropriate cluster, following the **data gravity** approach.
+All operations performed on virtual objects (i.e., *PersistentVolumeClaims (PVCs)* and *PersistentVolumes (PVs)* associated with the *liqo* storage class) are then automatically propagated by Liqo to the corresponding real ones.
 
-The figure below shows an application pod consuming a virtual *PVC*, which in turn led to the creation of the associated virtual *PV*.
+Additionally, once a real *PV* gets created, the corresponding virtual one is enriched with a set of policies to attract mounting pods in the appropriate cluster, guaranteeing that pods requesting **existing pools of storage** are scheduled onto the cluster physically hosting the corresponding data, following the **data gravity** approach.
+
 This process is **completely transparent** from the management point of view, with the only difference being the name of the storage class.
-
-![Virtual Storage Class](/_static/images/usage/stateful-applications/virtual-storage-class.drawio.svg)
 
 ```{warning}
 The deletion of the virtual *PVC* will cause the deletion of the real *PVC/PV*, and the stored data will be **permanently lost**.
@@ -37,7 +36,7 @@ Currently, the virtual storage class does not support the configuration of [Kube
 
 ### Remote cluster binding
 
-In case a virtual *PVC* is bound to a pod initially **scheduled onto a remote cluster** (i.e., a virtual node), the Liqo control plane takes care of creating a twin *PVC* (in turn originating the corresponding twin *PV*) in the *offloaded* namespace, while mutating the *storage class* to that negotiated at peering time (i.e., configured at Liqo installation time in the remote cluster, with a fallback to the default one).
+In case a virtual *PVC* is bound to a pod initially **scheduled onto a remote cluster** (i.e., a virtual node), the Liqo control plane takes care of creating a twin *PVC* (in turn originating the corresponding twin *PV*) in the *offloaded* namespace, while mutating the *storage class* to that configured at Liqo installation time in the remote cluster (with a fallback to the default one).
 A virtual *PV* is eventually created by Liqo to mirror the real one, effectively allowing pods to mount it and enforcing the *data gravity* constraints.
 
 The resulting configuration is depicted in the figure below.
