@@ -2,15 +2,17 @@
 
 This section describes the procedure to **establish a peering** with a remote provider cluster.
 
-```{warning}
-The establishment of a peering with a remote cluster leveraging a **different version of Liqo**, net of patch releases, is currently **not supported**, and could lead to unexpected results.
-```
-
 ## Overview
 
 The peering process leverages **[liqoctl](/installation/liqoctl.md)** to interact with the clusters, abstracting the creation and update of the appropriate custom resources.
-To this end, it creates the networking fabric to securely enable the communication between the two clusters, authenticates the consumer with the provider, and creates a VirtualNode on the consumer to schedule workloads and consume provider resources.
-As a result, a new ***ForeignCluster*** resource is created, which **represents a remote cluster** and is univocally identified by its identity (e.g., cluster ID).
+To this end, it:
+
+- creates the networking fabric to securely enable the communication between the two clusters,
+- authenticates the consumer with the provider
+- ask the provider for a certain amount of resource to schedule the workloads
+- creates a VirtualNode on the consumer to schedule workloads and consume provider resources.
+
+As a result, a new `ForeignCluster` resource is created, which **represents a remote cluster** and is univocally identified by its identity (i.e., cluster ID).
 Additionally, its status reports a **summary of the current peering status**, including the role (i.e, *consumer* and/or *provider*), the associated authentication and networking endpoints, and the peering conditions for each module (i.e., whether the networking/authentication/offloading is established, and the status of its associated resources).
 
 The following sections present the respective procedures to **peer a local cluster A** (i.e., the *consumer*), with a **remote cluster B** (i.e., the *provider*).
@@ -37,26 +39,33 @@ The peering command enables all 3 liqo modules and performs the following steps:
 Exchanges network configurations and creates the two **gateways** (server in the provider, client in the consumer) to let the two clusters communicate over a secure tunnel.
 2. **enables authentication**.
 Authenticates the consumer with the provider.
-In this step, the consumer obtains an ***Identity*** (*kubeconfig*) to replicate resources to the provider cluster.
+In this step, the consumer obtains an `Identity` (*kubeconfig*) to replicate resources to the provider cluster.
 3. **enables offloading**.
-The consumer creates and replicates to the provider a ***ResourceSlice***, to ask and obtain an *Identity* to consume a fixed amount of resources from the provider.
+The consumer creates and replicates to the provider a `ResourceSlice`, to ask and obtain an `Identity` to consume a fixed amount of resources from the provider.
 At the end of the process, the consumer obtains a **virtual node** to schedule workloads.
 
 The command is intended to be a wrapper to simplify the peering process.
 You can configure and fine-tune each module separately using the individual commands:
 
-1. `liqoctl network` (networking module)
+1. [`liqoctl network` (networking module)](/advanced/peering/inter-cluster-network.md)
 
-2. `liqoctl authenticate` (authentication module)
+2. [`liqoctl authenticate` (authentication module)](/advanced/peering/inter-cluster-authentication.md)
 
-3. `liqoctl create resourceslice` or `liqoctl create virtualnode` (offloading module)
+3. [`liqoctl create resourceslice` or `liqoctl create virtualnode` (offloading module)](/advanced/peering/namespace-offloading.md)
+
+For the majority and the cases the `liqoctl peer` is enough.
+However, **to know the best strategy for each case and the requirements of each approach, check the [peering strategies guide](/advanced/peering-strategies.md)**.
 
 ### Peering establishment
 
 To proceed, ensure that you are operating in the *consumer* cluster, and then issue the *liqoctl peer* command:
 
 ```bash
-liqoctl --context=consumer peer --remote-kubeconfig <kubeconfig-provider>
+liqoctl --kubeconfig=$CONSUMER_KUBECONFIG_PATH peer --remote-kubeconfig $PROVIDER_KUBECONFIG_PATH 
+```
+
+```{warning}
+The establishment of a peering with a remote cluster leveraging a **different version of Liqo**, net of patch releases, is currently **not supported**, and could lead to unexpected results.
 ```
 
 You should see the following output:
@@ -111,29 +120,31 @@ At the end, a new *ForeignCluster* resource will appear on both clusters, contai
 The *ForeignCluster* resource can be inspected through *kubectl*:
 
 ```bash
-kubectl --context=consumer get foreignclusters -o wide
+kubectl --kubeconfig $CONSUMER_KUBECONFIG_PATH get foreignclusters
 ```
 
 If the peering process is completed successfully, you should observe an output similar to the following.
 In the consumer cluster:
 
 ```text
+:caption: "Cluster consumer"
 NAME       ROLE       AGE
-provider   Provider   110s
+cl-provider   Provider   110s
 ```
 
 In the provider cluster:
 
 ```text
+:caption: "Cluster provider"
 NAME       ROLE       AGE
-consumer   Consumer   3m16s
+cl-consumer   Consumer   3m16s
 ```
 
-At the same time, a new *virtual node* should have been created in the *consumer* cluster.
+At the same time, a new *virtual node* has been created in the *consumer* cluster.
 Specifically:
 
 ```bash
-kubectl --context=consumer get nodes -l liqo.io/type=virtual-node
+kubectl --kubeconfig $CONSUMER_KUBECONFIG_PATH get nodes -l liqo.io/type=virtual-node
 ```
 
 Should return an output similar to the following:
@@ -144,7 +155,7 @@ provider   Ready    agent   4m53s   v1.29.1
 ```
 
 ```{admonition} Note
-The name of the *ForeignCluster* resources, as well as that of the *virtual node*, reflects the cluster IDs specified for the two clusters.
+The name of the `ForeignCluster` resources, as well as that of the *virtual node*, reflects the cluster IDs specified for the two clusters.
 ```
 
 ## Bidirectional peering
@@ -152,20 +163,20 @@ The name of the *ForeignCluster* resources, as well as that of the *virtual node
 Once the peering from the *consumer* to the *provider* has been established, the reverse direction (i.e., leading to a bidirectional peering) can be enabled through the same procedure.
 
 ```bash
-liqoctl --context=provider peer --remote-kubeconfig <kubeconfig-consumer>
+liqoctl --kubeconfig $PROVIDER_KUBECONFIG_PATH peer --remote-kubeconfig $CONSUMER_KUBECONFIG_PATH
 ```
 
 ## Tear down
 
-A peering can be disabled by leveraging the symmetric *liqoctl unpeer* command, causing the local virtual node (abstracting the remote cluster) to be destroyed, and all offloaded workloads to be rescheduled:
+A peering can be disabled by leveraging the symmetric `liqoctl unpeer` command, causing the local virtual node (abstracting the remote cluster) to be destroyed, and all offloaded workloads to be rescheduled:
 
 ```bash
-liqoctl --context=consumer unpeer --remote-kubeconfig <kubeconfig-provider>
+liqoctl --kubeconfig $CONSUMER_KUBECONFIG_PATH unpeer --remote-kubeconfig $PROVIDER_KUBECONFIG_PATH
 ```
 
 The reverse peering direction, if any, is preserved, and the remote cluster can continue offloading workloads to its virtual node representing the local cluster.
 Hence, the specular command shall be executed on the opposite clusters to completely tear down a bidirectional peering.
 
 ```bash
-liqoctl --context=provider unpeer --remote-kubeconfig <kubeconfig-consumer>
+liqoctl --kubeconfig $PROVIDER_KUBECONFIG_PATH unpeer --remote-kubeconfig $CONSUMER_KUBECONFIG_PATH
 ```
