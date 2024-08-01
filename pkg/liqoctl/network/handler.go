@@ -179,6 +179,20 @@ func (o *Options) RunConnect(ctx context.Context) error {
 		return err
 	}
 
+	// Check if the reverse Networking is already established on cluster 1
+	if established, err := cluster1.CheckAlreadyEstablishedForGwServer(ctx); err != nil {
+		return err
+	} else if established {
+		return nil
+	}
+
+	// Check if the reverse Networking is already established on cluster 2
+	if established, err := cluster2.CheckAlreadyEstablishedForGwClient(ctx); err != nil {
+		return err
+	} else if established {
+		return nil
+	}
+
 	// Create gateway server on cluster 2
 	gwServer, err := cluster2.EnsureGatewayServer(ctx,
 		forge.DefaultGatewayServerName(cluster1.localClusterID),
