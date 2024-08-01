@@ -400,3 +400,25 @@ func (c *Cluster) DeleteGatewayClient(ctx context.Context, name string) error {
 
 	return nil
 }
+
+// CheckAlreadyEstablishedForGwServer checks if a GatewayServer is already established.
+func (c *Cluster) CheckAlreadyEstablishedForGwServer(ctx context.Context) (bool, error) {
+	_, err := c.GetGatewayServer(ctx, forge.DefaultGatewayServerName(c.remoteClusterID))
+	if err == nil {
+		return true, nil
+	} else if client.IgnoreNotFound(err) != nil {
+		return false, err
+	}
+	return false, nil
+}
+
+// CheckAlreadyEstablishedForGwClient checks if a GatewayClient is already established.
+func (c *Cluster) CheckAlreadyEstablishedForGwClient(ctx context.Context) (bool, error) {
+	_, err := c.GetGatewayClient(ctx, forge.DefaultGatewayClientName(c.remoteClusterID))
+	if err == nil {
+		return true, nil
+	} else if client.IgnoreNotFound(err) != nil {
+		return false, err
+	}
+	return false, nil
+}
