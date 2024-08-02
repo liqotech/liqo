@@ -24,20 +24,6 @@ Automatic network configuration
 
 The unpeer process will automatically remove the Liqo Gateway from the tenant namespace.
 
-### NAT Firewall
-
-In Case a **gateway server** is behind a NAT firewall, the following steps are required to establish the connection:
-You can configure the settings for the connection by setting the following *annotations* in the `values.yaml` file or by using the `liqoctl` command line `--set` option:
-
-Under the `networking.gatewayTemplates.server.service.annotations` key, you can set the following annotations:
-
-* **liqo.io/override-address**: the public IP address of the NAT firewall.
-* **liqo.io/override-port**: the public port of the NAT firewall.
-
-```{admonition} Tip
-In case you need to have multiple gateways behind the same NAT firewall, you need to override the port for each peer using the `--server-port` flag at peering time.
-```
-
 ## Manual on cluster couple
 
 When you have access to both clusters, you can configure the network connectivity for all the successive peering creations.
@@ -188,7 +174,7 @@ INFO   (local) Network configuration correctly deleted
 INFO   (remote) Network configuration correctly deleted
 ```
 
-### Configuration
+### Customization
 
 You can configure how to expose the Liqo Gateway Server service by using the following flags for the `liqoctl network connect` command on the server side:
 
@@ -198,18 +184,22 @@ You can configure how to expose the Liqo Gateway Server service by using the fol
 * `--load-balancer-ip` (default `""`): set it to force the LoadBalancer service to bind to a specific IP address. If set to `""`, the system will allocate an IP address automatically.
 * `--mtu` (default `1340`): the MTU of the Gateway interface. Note that the MTU must be the same on both sides.
 
+Use the `liqoctl network connect --help` command to see all the available options.
+
 ## Manual on single cluster
 
 When you don't have access to both clusters, or you want to configure it in a declarative way, you can configure it by applying CRDs.
 
-You need to apply in both clusters the Configuration resource:
+### Configuration CRDs
+
+You need to apply in both clusters the **Configuration** resource:
 
 ```yaml
 apiVersion: networking.liqo.io/v1beta1
 kind: Configuration
 metadata:
   labels:
-    liqo.io/remote-cluster-id: 506f88d4-9918-4848-ab74-2a75ae32647f     # the remote cluster ID
+    liqo.io/remote-cluster-id: <REMOTE_CLUSTER_ID>   # the remote cluster ID
   name: dry-paper
 spec:
   remote:
@@ -218,20 +208,28 @@ spec:
       pod: 10.243.0.0/16            # the pod CIDR of the remote cluster
 ```
 
-You can find these parameters in the output of the `liqoctl status` command in the remote cluster.
+You can find *REMOTE_CLUSTER_ID* these parameters in the output of the `kubectl get configmaps -n liqo liqo-clusterid-configmap --template {{.data.CLUSTER_ID}}` command in the remote cluster.
 
 ```{admonition} Tip
 You can generate this file with the command `liqoctl generate configuration` run in the remote cluster.
 ```
 
-Now, in the cluster that will expose the service and act as a server, you need to apply the GatewayServer resource:
+```{important}
+You need to apply this resource in both clusters.
+```
+
+### Gateway CRDs
+
+#### Gateway Server
+
+Now, in the cluster that will expose the service and act as a server, you need to apply the **GatewayServer** resource:
 
 ```yaml
 apiVersion: networking.liqo.io/v1beta1
 kind: GatewayServer
 metadata:
   labels:
-    liqo.io/remote-cluster-id: 506f88d4-9918-4848-ab74-2a75ae32647f
+    liqo.io/remote-cluster-id: <REMOTE_CLUSTER_ID>   # the remote cluster ID
   name: server
 spec:
   endpoint:
@@ -245,10 +243,14 @@ spec:
     namespace: liqo
 ```
 
+````{admonition} Tip
 You can generate this file with the following command, and then edit it:
 
 ``` bash
-liqoctl create gatewayserver server --remote-cluster-id 35d83766-f466-46ef-b5b3-d253b6d465f1 --service-type NodePort -o yaml
+liqoctl create gatewayserver server --remote-cluster-id <REMOTE_CLUSTER_ID> \
+  --service-type NodePort -o yaml
+```
+````
 
 Some seconds after you will find an assigned IP and a port in the status of the GatewayServer resource:
 
@@ -261,7 +263,17 @@ NAMESPACE   NAME     TEMPLATE NAME      IP           PORT    AGE
 default     server   wireguard-server   10.42.3.54   32133   84s
 ```
 
-Now, in the cluster that will connect to the service and act as a client, you need to apply the GatewayClient resource:
+```bash
+kubectl get gatewayservers --template {{.status.endpoint}}
+```
+
+```text
+map[addresses:[172.19.0.9] port:32701 protocol:UDP]
+```
+
+#### Gateway Client
+
+Now, in the cluster that will connect to the service and act as a client, you need to apply the **GatewayClient** resource:
 
 ```yaml
 apiVersion: networking.liqo.io/v1beta1
@@ -269,7 +281,7 @@ kind: GatewayClient
 metadata:
   creationTimestamp: null
   labels:
-    liqo.io/remote-cluster-id: ef7a1f41-c753-4a0e-83e5-bed013e7fe4f
+    liqo.io/remote-cluster-id: <REMOTE_CLUSTER_ID>   # the remote cluster ID
   name: client
   namespace: default
 spec:
@@ -280,19 +292,26 @@ spec:
     namespace: liqo
   endpoint:
     addresses:
-    - 10.42.3.54
-    port: 32133
+    - <REMOTE_IP>
+    port: <REMOTE_PORT>
     protocol: UDP
   mtu: 1340
 ```
 
+The *REMOTE_IP* and *REMOTE_PORT* are the IP and the port of the GatewayServer service in the server cluster, generated in the previous section.
+
+````{admonition} Tip
 You can generate this file with the command:
 
 ``` bash
-liqoctl create gatewayclient client --remote-cluster-id ef7a1f41-c753-4a0e-83e5-bed013e7fe4f --addresses 10.42.3.54 --port 32133 -o yaml
+liqoctl create gatewayclient client --remote-cluster-id <REMOTE_CLUSTER_ID> \
+  --addresses <REMOTE_IP> --port <REMOTE_PORT> -o yaml
 ```
+````
 
-Lastly, you need to exchange the public keys between the two clusters.
+### Public keys CRDs
+
+Finally, you need to exchange the **public keys** between the two clusters.
 
 In the client cluster, you will run the following command:
 
@@ -308,11 +327,11 @@ kind: PublicKey
 metadata:
   creationTimestamp: null
   labels:
-    liqo.io/remote-cluster-id: ef7a1f41-c753-4a0e-83e5-bed013e7fe4f
+    liqo.io/remote-cluster-id: <REMOTE_CLUSTER_ID>   # the remote cluster ID
     networking.liqo.io/gateway-resource: "true"
   name: dry-paper
 spec:
-  publicKey: GExyYe7RJ3Lo5nQVa6K2Tp9zobXCvWmJawsLxu7hn10=
+  publicKey: <PUBLIC_KEY>
 ```
 
 You need to apply this resource in the server cluster.
@@ -331,61 +350,102 @@ kind: PublicKey
 metadata:
   creationTimestamp: null
   labels:
-    liqo.io/remote-cluster-id: 506f88d4-9918-4848-ab74-2a75ae32647f
+    liqo.io/remote-cluster-id: <REMOTE_CLUSTER_ID>   # the remote cluster ID
     networking.liqo.io/gateway-resource: "true"
   name: crimson-field
 spec:
-  publicKey: NB+3xA4a0SIVsta9zwWn/mPc4J86GPmUdSChJG5rxlk=
+  publicKey: <PUBLIC_KEY>
 ```
 
 You need to apply this resource in the client cluster.
 
-Now, you will find the Connection resource in both clusters.
+### Connection CRDs
 
-Resuming, you can implement the network connectivity between two clusters with a script like the following:
+Now, you will find the **Connection** resource in both clusters.
+
+In each cluster, you can run the following command:
 
 ```bash
-#!/bin/bash
+kubectl get connections.networking.liqo.io -A
+```
 
-set -o nounset   # Fail if undefined variables are used
+On the server cluster, you will see:
 
+```text
+NAMESPACE   NAME                  TYPE     STATUS      AGE
+default     <REMOTE_CLUSTER_ID>   Server   Connected   2m
+```
+
+On the client cluster, you will see:
+
+```text
+NAMESPACE   NAME                  TYPE     STATUS      AGE
+default     <REMOTE_CLUSTER_ID>   Client   Connected   2m
+```
+
+### Summary
+
+Resuming, you can implement the network connectivity between two clusters with these steps:
+
+Export the kubeconfigs environment variables:
+
+```bash
 export KUBE_SERVER=PATH_TO_CLUSTER_1_KUBECONFIG
 export KUBE_CLIENT=PATH_TO_CLUSTER_2_KUBECONFIG
+```
 
-# Create configuration
+Create the Configuration resources and apply them:
+
+```bash
 liqoctl --kubeconfig $KUBE_SERVER generate configuration > conf-server.yaml
 liqoctl --kubeconfig $KUBE_CLIENT generate configuration > conf-client.yaml
 
 kubectl --kubeconfig $KUBE_SERVER apply -f conf-client.yaml
 kubectl --kubeconfig $KUBE_CLIENT apply -f conf-server.yaml
+```
 
-SERVER_CONFIGURATION_NAME=$(kubectl --kubeconfig $KUBE_SERVER get configuration -o json | jq -r '.items[0].metadata.name')
-CLIENT_CONFIGURATION_NAME=$(kubectl --kubeconfig $KUBE_CLIENT get configuration -o json | jq -r '.items[0].metadata.name')
+Get the cluster IDs:
 
-kubectl wait --for jsonpath='{.status.remote.cidr.pod}' configuration $SERVER_CONFIGURATION_NAME --timeout=300s --kubeconfig $KUBE_SERVER
-kubectl wait --for jsonpath='{.status.remote.cidr.pod}' configuration $CLIENT_CONFIGURATION_NAME --timeout=300s --kubeconfig $KUBE_CLIENT
+```bash
+CLUSTER_ID_SERVER=$(kubectl get --kubeconfig $KUBE_SERVER -n liqo configmaps \
+  liqo-clusterid-configmap -o json | jq -r '.data.CLUSTER_ID')
+CLUSTER_ID_CLIENT=$(kubectl get --kubeconfig $KUBE_CLIENT -n liqo configmaps \
+  liqo-clusterid-configmap -o json | jq -r '.data.CLUSTER_ID')
+```
 
-# Get cluster IDs
-CLUSTER_ID_SERVER=$(kubectl get --kubeconfig $KUBE_SERVER -n liqo configmaps liqo-clusterid-configmap -o json | jq -r '.data.CLUSTER_ID')
-CLUSTER_ID_CLIENT=$(kubectl get --kubeconfig $KUBE_CLIENT -n liqo configmaps liqo-clusterid-configmap -o json | jq -r '.data.CLUSTER_ID')
+Create the Gateway resources and apply them:
 
-# Create gateways
-liqoctl --kubeconfig $KUBE_SERVER create gatewayserver server --remote-cluster-id $CLUSTER_ID_CLIENT --service-type NodePort
+```bash
+liqoctl --kubeconfig $KUBE_SERVER create gatewayserver server \
+  --remote-cluster-id $CLUSTER_ID_CLIENT --service-type NodePort
 
-kubectl wait --for jsonpath='{.status.endpoint.addresses[0]}' gatewayserver server --timeout=300s --kubeconfig $KUBE_SERVER
-kubectl wait --for jsonpath='{.status.endpoint.port}' gatewayserver server --timeout=300s --kubeconfig $KUBE_SERVER
-kubectl wait --for jsonpath='{.status.internalEndpoint.ip}' gatewayserver server --timeout=300s --kubeconfig $KUBE_SERVER
+kubectl wait --for jsonpath='{.status.endpoint.addresses[0]}' gatewayserver server \
+  --timeout=300s --kubeconfig $KUBE_SERVER
+kubectl wait --for jsonpath='{.status.endpoint.port}' gatewayserver server \
+  --timeout=300s --kubeconfig $KUBE_SERVER
+kubectl wait --for jsonpath='{.status.internalEndpoint.ip}' gatewayserver server \
+  --timeout=300s --kubeconfig $KUBE_SERVER
 
-ADDRESS_SERVER=$(kubectl --kubeconfig $KUBE_SERVER get gatewayserver server -o json | jq -r '.status.endpoint.addresses[0]')
-PORT_SERVER=$(kubectl --kubeconfig $KUBE_SERVER get gatewayserver server -o json | jq -r '.status.endpoint.port')
+ADDRESS_SERVER=$(kubectl --kubeconfig $KUBE_SERVER get gatewayserver server \
+  -o json | jq -r '.status.endpoint.addresses[0]')
+PORT_SERVER=$(kubectl --kubeconfig $KUBE_SERVER get gatewayserver server \
+  -o json | jq -r '.status.endpoint.port')
 
-liqoctl --kubeconfig $KUBE_CLIENT create gatewayclient client --remote-cluster-id $CLUSTER_ID_SERVER --addresses $ADDRESS_SERVER --port $PORT_SERVER
+liqoctl --kubeconfig $KUBE_CLIENT create gatewayclient client \
+  --remote-cluster-id $CLUSTER_ID_SERVER \
+  --addresses $ADDRESS_SERVER --port $PORT_SERVER
 
-kubectl wait --for jsonpath='{.status.internalEndpoint.ip}' gatewayclient client --timeout=300s --kubeconfig $KUBE_CLIENT
+kubectl wait --for jsonpath='{.status.internalEndpoint.ip}' gatewayclient client \
+  --timeout=300s --kubeconfig $KUBE_CLIENT
+```
 
-# Create publickeys
-liqoctl --kubeconfig $KUBE_SERVER generate publickey --gateway-type server --gateway-name server > publickey-server.yaml
-liqoctl --kubeconfig $KUBE_CLIENT generate publickey --gateway-type client --gateway-name client > publickey-client.yaml
+Create the public keys and apply them:
+
+```bash
+liqoctl --kubeconfig $KUBE_SERVER generate publickey --gateway-type server \
+  --gateway-name server > publickey-server.yaml
+liqoctl --kubeconfig $KUBE_CLIENT generate publickey --gateway-type client \
+  --gateway-name client > publickey-client.yaml
 
 kubectl --kubeconfig $KUBE_SERVER apply -f publickey-client.yaml
 kubectl --kubeconfig $KUBE_CLIENT apply -f publickey-server.yaml
@@ -412,5 +472,5 @@ This allows the user to reference custom-made templates, giving also the possibi
 The `examples/networking` folder contains a bunch of template manifests, showing possible customizations to the default WireGuard template.
 
 ```{admonition} Tip
-A field with a value in the form of `'{{ EXAMPLE }}'` will be templated automatically by the Gateway operator with the value(s) from the `GatewayServer`/`GatewayClient` resource.  
+A field with a value in the form of `'{{ EXAMPLE }}'` (**go-template** syntax) will be templated automatically by the Gateway operator with the value(s) from the `GatewayServer`/`GatewayClient` resource.
 ```
