@@ -164,7 +164,7 @@ liqoctl generate tenant --remote-cluster-id $CLUSTER_PROVIDER_ID --nonce $NONCE
 As a result, the command above **generates a `Tenant` resource to be applied on the cluster provider**, which contains the signed nonce and the CSR:
 
 ```yaml
-apiVersion: authentication.liqo.io/v1alpha1
+apiVersion: authentication.liqo.io/v1beta1
 kind: Tenant
 metadata:
   creationTimestamp: null
@@ -227,7 +227,7 @@ liqoctl generate identity --remote-cluster-id $CLUSTER_CONSUMER_ID
 When successful, the command above generates an Identity resource like the following:
 
 ```yaml
-apiVersion: authentication.liqo.io/v1alpha1
+apiVersion: authentication.liqo.io/v1beta1
 kind: Identity
 metadata:
   creationTimestamp: null
