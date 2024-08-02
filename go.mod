@@ -6,9 +6,8 @@ require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.29
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.12
-	github.com/aws/aws-sdk-go v1.44.332
 	github.com/go-git/go-git/v5 v5.12.0
-	github.com/google/nftables v0.1.1-0.20240112203004-33ee8df9d8e2
+	github.com/google/nftables v0.2.0
 	github.com/google/uuid v1.6.0
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/gruntwork-io/terratest v0.46.13
@@ -162,10 +161,9 @@ require (
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/josharian/native v1.0.0 // indirect
+	github.com/josharian/native v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
@@ -180,8 +178,8 @@ require (
 	github.com/mattn/go-zglob v0.0.3 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/mdlayher/genetlink v1.2.0 // indirect
-	github.com/mdlayher/netlink v1.7.1 // indirect
-	github.com/mdlayher/socket v0.4.0 // indirect
+	github.com/mdlayher/netlink v1.7.2 // indirect
+	github.com/mdlayher/socket v0.5.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
