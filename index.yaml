@@ -2,6 +2,21 @@ apiVersion: v1
 entries:
   liqo:
   - apiVersion: v2
+    appVersion: v1.0.0-rc.1
+    created: "2024-08-02T17:43:50.243484446Z"
+    dependencies:
+    - name: liqo-crds
+      repository: file://./charts/liqo-crds
+      version: 0.1.0
+    description: A Helm chart for Liqo
+    digest: 44bbe26c21a348fcee013c51d626c29c7aaf9a9b7fbf78cd8a10be69a16d181f
+    icon: https://liqo.io/imgs/favicon.svg
+    name: liqo
+    type: application
+    urls:
+    - https://github.com/liqotech/liqo/releases/download/v1.0.0-rc.1/liqo-v1.0.0-rc.1.tgz
+    version: v1.0.0-rc.1
+  - apiVersion: v2
     appVersion: v0.11.0-rc.3
     created: "2024-07-02T10:19:05.256056995Z"
     dependencies:
@@ -18,13 +33,13 @@ entries:
     version: v0.11.0-rc.3
   - apiVersion: v2
     appVersion: v0.11.0-rc.2
-    created: "2024-06-03T15:58:31.385846323Z"
+    created: "2024-06-03T10:03:04.219030236Z"
     dependencies:
     - name: liqo-crds
       repository: file://./charts/liqo-crds
       version: 0.1.0
     description: A Helm chart for Liqo
-    digest: 16dcdd925e257c19e19e70b5adfea8161eac29c892671b0aab5860278a8e8580
+    digest: ab172be26445cace938ed433c5f0a3d14aa923287fc2faaac572e179ea3bb077
     icon: https://liqo.io/imgs/favicon.svg
     name: liqo
     type: application
@@ -33,13 +48,13 @@ entries:
     version: v0.11.0-rc.2
   - apiVersion: v2
     appVersion: v0.11.0-rc.2
-    created: "2024-06-03T10:03:04.219030236Z"
+    created: "2024-06-03T15:58:31.385846323Z"
     dependencies:
     - name: liqo-crds
       repository: file://./charts/liqo-crds
       version: 0.1.0
     description: A Helm chart for Liqo
-    digest: ab172be26445cace938ed433c5f0a3d14aa923287fc2faaac572e179ea3bb077
+    digest: 16dcdd925e257c19e19e70b5adfea8161eac29c892671b0aab5860278a8e8580
     icon: https://liqo.io/imgs/favicon.svg
     name: liqo
     type: application
@@ -408,4 +423,4 @@ entries:
     urls:
     - https://github.com/liqotech/liqo/releases/download/v0.2/liqo-v0.2.tgz
     version: v0.2
-generated: "2024-07-02T10:19:05.256417006Z"
+generated: "2024-08-02T17:43:50.243802263Z"
