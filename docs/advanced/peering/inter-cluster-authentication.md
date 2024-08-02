@@ -67,7 +67,7 @@ NAME   AGE   CONDITION
 cl01   16m   Active
 ```
 
-Check the [offloading guide](/advanced/peering/namespace-offloading) to understand how to start the pod offloading and the reflection of the resources.
+Check the [offloading guide](/advanced/peering/offloading-in-depth) to understand how to start the pod offloading and the reflection of the resources.
 
 ### Undo the authentication
 
@@ -252,7 +252,7 @@ Which can be applied **on the cluster consumer**:
 kubectl apply -f $IDENTITY_RESOURCE_YAML_PATH
 ```
 
-Once the Identity resource is correctly applied, the clusters are able to negotiate the resources for the [offloading](/advanced/peering/namespace-offloading).
+Once the Identity resource is correctly applied, the clusters are able to negotiate the resources for the [offloading](/advanced/peering/offloading-in-depth).
 
 ### Summary
 
