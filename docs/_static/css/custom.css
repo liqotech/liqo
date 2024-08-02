@@ -8,6 +8,11 @@ div {
     scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--background));
 }
 
+/* Hide search kbd */
+header kbd {
+    display: none !important;
+}
+
 /* Add a background to all the images in the documentation body */
 #content img {
     background: #fff;
