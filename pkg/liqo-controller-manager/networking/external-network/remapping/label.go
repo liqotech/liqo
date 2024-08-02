@@ -15,7 +15,6 @@
 package remapping
 
 import (
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/firewall"
 )
 
@@ -28,13 +27,6 @@ const (
 	// to reconcile only resources related to the IP mapping.
 	FirewallSubCategoryTargetValueIPMapping = "ip-mapping"
 )
-
-// ForgeIPTargetLabelsMapping returns the labels used by the IPAM controller to reconcile only resources related to a single IP.
-func ForgeIPTargetLabelsMapping() map[string]string {
-	return map[string]string{
-		consts.IPCategoryTargetKey: consts.IPCategoryTargetValueMapping,
-	}
-}
 
 // ForgeFirewallTargetLabels returns the labels used by the firewallconfiguration controller
 // to reconcile only resources related to a single gateway.

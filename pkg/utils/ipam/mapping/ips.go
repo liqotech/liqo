@@ -52,7 +52,6 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 			ip.Labels = map[string]string{}
 		}
 
-		ip.Labels[consts.IPCategoryTargetKey] = consts.IPCategoryTargetValueMapping
 		ip.Labels[consts.IPTypeLabelKey] = consts.IPTypeAPIServer
 
 		ip.Spec.IP = networkingv1beta1.IP(k8sSvc.Spec.ClusterIP)

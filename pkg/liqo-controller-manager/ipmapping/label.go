@@ -16,8 +16,6 @@ package ipmapping
 
 import (
 	corev1 "k8s.io/api/core/v1"
-
-	"github.com/liqotech/liqo/pkg/consts"
 )
 
 const (
@@ -27,7 +25,6 @@ const (
 
 func forgeIPLabels(pod *corev1.Pod) map[string]string {
 	return map[string]string{
-		consts.IPCategoryTargetKey:    consts.IPCategoryTargetValueMapping,
 		offloadedPodNameLabelKey:      pod.Name,
 		offloadedPodNamespaceLabelKey: pod.Namespace,
 	}

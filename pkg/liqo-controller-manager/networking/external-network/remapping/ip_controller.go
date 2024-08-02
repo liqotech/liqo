@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // IPReconciler manage IP.
@@ -100,12 +101,14 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 // SetupWithManager register the IPReconciler to the manager.
 func (r *IPReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	filterByLabelsPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchLabels: ForgeIPTargetLabelsMapping(),
+		MatchLabels: map[string]string{
+			consts.IPHostUnreachableKey: consts.IPHostUnreachableValue,
+		},
 	})
 	if err != nil {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ipamv1alpha1.IP{}, builder.WithPredicates(filterByLabelsPredicate)).
+		For(&ipamv1alpha1.IP{}, builder.WithPredicates(predicate.Not(filterByLabelsPredicate))).
 		Complete(r)
 }
