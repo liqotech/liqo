@@ -46,7 +46,7 @@ subtrees:
       - file: advanced/use-only-offloading.md
       - file: advanced/enable-external-networking.md
       - file: advanced/external-ip-remapping.md
-      - file: advanced/multiple-resource-slices.md
+      - file: advanced/virtualnode-customizations.md
       - file: advanced/kubernetes-api.md
 
   - caption: Contributing
