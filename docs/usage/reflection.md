@@ -50,10 +50,11 @@ In some cases, it could be useful to **not propagate** to the remote clusters so
 This can be useful to avoid reflecting labels/annotations that lead to conflicts between the local and remote resources (e.g., the ones added by cloud providers and that are tied to the configuration of the hosting cluster), thus **preventing infinite reconciliations** of the reflected resource.
 
 You can disable the reflection of custom labels and annotations by configuring at install-time respectively the Helm values `offloading.reflection.skip.labels` and `offloading.reflection.skip.annotations` with the list of **keys** that must not be reflected.
-To modify the list of not-reflected labels/annotations if Liqo is already installed you can either:
+To modify the list of not-reflected labels/annotations if Liqo is already installed, or if you want to customize it for each virtual node, you can either:
 
-* Patch the individual virtual nodes fields `spec.offloadingPatch.labelsNotReflected` and `spec.offloadingPatch.annotationsNotReflected`.
-* Patch the *liqo-controller-manager* args or upgrade Liqo with the new Helm values (but keep in mind that existing virtual nodes will not be updated dynamically, so you should unpeer first and peer again to apply the new changes to existing peers).
+* Set the [`OffloadingPatch`](OffloadingPatch) of the individual virtual nodes using the fields `spec.offloadingPatch.labelsNotReflected` and `spec.offloadingPatch.annotationsNotReflected`.
+* Reference a custom [`VkOptionsTemplate`](VkOptionsTemplate) CR in the virtual node spec.
+* Patch the default [`VkOptionsTemplate`](VkOptionsTemplate) CR or upgrade Liqo with the new Helm values (but keep in mind that existing virtual nodes will not be updated dynamically, so you should unpeer first and peer again to apply the new changes to existing peers).
 
 (UsageReflectionPods)=
 

@@ -284,4 +284,4 @@ A provider cluster can allocate more resources than the ones it currently has.
 The default enforcement (which can be disabled) only checks that the consumer does not use more resources than the ones negotiated in the `ResourceSlice`.
 This is done to allow use cases where the provider cluster has an autoscaler so it can expand dynamically its resources.
 
-See [VirtualNode customization](/advanced/multiple-resource-slices) for more information on how to customize the `VirtualNode` resources.
+See [VirtualNode customization](/advanced/virtualnode-customizations) for more information on how to customize the `VirtualNode` resources.
