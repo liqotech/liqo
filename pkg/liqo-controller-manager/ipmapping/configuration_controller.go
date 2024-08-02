@@ -107,8 +107,7 @@ func (r *ConfigurationReconciler) createOrUpdateUnknownSourceIPResource(ctx cont
 			Name:      forgeUnknownSourceIPName(cfg),
 			Namespace: cfg.Namespace,
 			Labels: map[string]string{
-				consts.IPCategoryTargetKey: consts.IPCategoryTargetValueMapping,
-				consts.RemoteClusterID:     cfg.GetName(),
+				consts.RemoteClusterID: cfg.GetName(),
 			},
 		},
 	}

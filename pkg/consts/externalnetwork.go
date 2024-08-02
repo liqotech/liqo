@@ -15,10 +15,12 @@
 package consts
 
 const (
-	// IPCategoryTargetKey is the key used by the IPAM controller to reconcile only resources related to a group.
-	IPCategoryTargetKey = "ipam.liqo.io/ip-category"
-	// IPCategoryTargetValueMapping is the value used by the IPAM controller to reconcile only resources related to a group.
-	IPCategoryTargetValueMapping = "ip-mapping"
+	// IPHostUnreachableKey is the key used to prevent the gateways from adding
+	// the firewall rules to make the remapped IP reachable from a remote cluster.
+	IPHostUnreachableKey = "networking.liqo.io/host-unreachable"
+	// IPHostUnreachableValue is the value used to prevent the gateways from adding
+	// the firewall rules to make the remapped IP reachable from a remote cluster.
+	IPHostUnreachableValue = "true"
 
 	// GatewayResourceLabel is the label added to a gateway resource.
 	GatewayResourceLabel = "networking.liqo.io/gateway-resource"

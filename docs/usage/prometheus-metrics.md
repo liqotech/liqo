@@ -28,7 +28,12 @@ These metrics are available for each peered remote cluster, providing statistics
 We provide a {download}`sample Grafana dashboard </_downloads/grafana/liqonetwork.json>` to monitor the network interconnection of an arbitrary number of Liqo peerings.
 As presented in the screenshot below, it includes an overview section presenting the overall cross-cluster throughput, followed by detailed per-peering throughput and latency information.
 
-![Grafana Network Dashboard](/_static/images/usage/prometheus-metrics/network-dashboard.png)
+```{figure} /_static/images/usage/prometheus-metrics/network-dashboard.png
+---
+align: center
+---
+Grafana Network Dashboard
+```
 
 ## Virtual kubelet metrics
 
@@ -43,4 +48,9 @@ We offer a {download}`sample Grafana dashboard </_downloads/grafana/liqovirtualk
 As shown in the screenshot below, it contains visual representations of the total number of reflected resources and the average rate per second.
 Additionally, there are detailed tables that provide information on the total number of each type of resource, as well as an overall summary of all reflected items during a certain time period.
 
-![Grafana Network Dashboard](/_static/images/usage/prometheus-metrics/virtualkubelet-dashboard.png)
+```{figure} /_static/images/usage/prometheus-metrics/virtualkubelet-dashboard.png
+---
+align: center
+---
+Grafana Virtual-Kubelet Dashboard
+```

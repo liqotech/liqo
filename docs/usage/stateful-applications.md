@@ -28,9 +28,14 @@ A virtual *PV* is eventually created by Liqo to mirror the real one, effectively
 
 The resulting configuration is depicted in the figure below.
 
-![Virtual Storage Class Local](/_static/images/usage/stateful-applications/virtual-storage-class-local.drawio.svg)
+```{figure} /_static/images/usage/stateful-applications/virtual-storage-class-local.drawio.svg
+---
+align: center
+---
+Virtual Storage Class Local
+```
 
-```{admonition} Current Limitations
+```{admonition} Note
 Currently, the virtual storage class does not support the configuration of [Kubernetes mount options](https://kubernetes.io/docs/concepts/storage/storage-classes/#mount-options) and parameters.
 ```
 
@@ -41,7 +46,12 @@ A virtual *PV* is eventually created by Liqo to mirror the real one, effectively
 
 The resulting configuration is depicted in the figure below.
 
-![Virtual Storage Class Remote](/_static/images/usage/stateful-applications/virtual-storage-class-remote.drawio.svg)
+```{figure} /_static/images/usage/stateful-applications/virtual-storage-class-remote.drawio.svg
+---
+align: center
+---
+Virtual Storage Class Remote
+```
 
 ```{warning}
 The tearing down of the peering and/or the deletion of the offloaded namespace will cause the deletion of the real PVC, and the stored data will be **permanently lost**.
