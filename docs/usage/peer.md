@@ -51,7 +51,7 @@ You can configure and fine-tune each module separately using the individual comm
 
 2. [`liqoctl authenticate` (authentication module)](/advanced/peering/inter-cluster-authentication.md)
 
-3. [`liqoctl create resourceslice` or `liqoctl create virtualnode` (offloading module)](/advanced/peering/namespace-offloading.md)
+3. [`liqoctl create resourceslice` or `liqoctl create virtualnode` (offloading module)](/advanced/peering/offloading-in-depth.md)
 
 For the majority and the cases the `liqoctl peer` is enough.
 However, **to know the best strategy for each case and the requirements of each approach, check the [peering strategies guide](/advanced/peering-strategies.md)**.
