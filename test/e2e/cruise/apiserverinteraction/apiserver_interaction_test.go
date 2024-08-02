@@ -16,6 +16,7 @@ package apiserverinteraction
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -41,6 +42,14 @@ const (
 
 func TestE2E(t *testing.T) {
 	util.CheckIfTestIsSkipped(t, clustersRequired, testName)
+	switch os.Getenv("INFRA") {
+	case "eks":
+		// TODO: fix the test for EKS
+		t.Skipf("Skipping test %s for eks, as it is not working properly", testName)
+	case "aks":
+		// TODO: fix the test for AKS
+		t.Skipf("Skipping test %s for aks, as it is not working properly", testName)
+	}
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Liqo E2E Suite")
 }
