@@ -45,7 +45,6 @@ subtrees:
           - file: advanced/peering/offloading-in-depth.md
       - file: advanced/use-only-offloading.md
       - file: advanced/enable-external-networking.md
-      - file: advanced/external-ip-remapping.md
       - file: advanced/virtualnode-customizations.md
       - file: advanced/kubernetes-api.md
       - file: advanced/nat.md
