@@ -14,7 +14,7 @@ The consumer cluster can negotiate the amount of resources (CPU, memory, pods, e
 The provider cluster can accept or deny the request, and if positive, it gives the consumer user an identity `kubeconfig` to consume the requested resources.
 The provider forces the consumer to not consume more than what has been negotiated (although this behavior can be optionally disabled).
 If the consumer needs more resources, it can re-negotiate the resources for that virtual node or start a new negotiation and obtain a new virtual node.
-You can find more information on the [advanced offloading](/advanced/peering/namespace-offloading.md) page.
+You can find more information on the [advanced offloading](/advanced/peering/offloading-in-depth.md) page.
 
 ## Virtual kubelet
 
@@ -40,7 +40,7 @@ Finally, each virtual node includes a set of **characterizing labels** (e.g., ge
 This enables the enforcement of **fine-grained scheduling policies** (e.g., through *affinity* constraints), in addition to playing a key role in the namespace extension process presented below.
 
 Starting from Liqo 1.0, there is the possibility to create multiple virtual nodes associated with the same remote provider cluster.
-Refer to the [advanced offloading](/advanced/peering/namespace-offloading.md) page for additional info.
+Refer to the [advanced offloading](/advanced/peering/offloading-in-depth.md) page for additional info.
 
 (FeatureOffloadingNamespaceExtension)=
 
