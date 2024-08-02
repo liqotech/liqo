@@ -48,6 +48,7 @@ subtrees:
       - file: advanced/external-ip-remapping.md
       - file: advanced/virtualnode-customizations.md
       - file: advanced/kubernetes-api.md
+      - file: advanced/nat.md
 
   - caption: Contributing
     entries:
