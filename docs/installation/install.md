@@ -104,6 +104,10 @@ correct Resource Group name where the Virtual Network Resource is located.
 
 ````{tab-item} EKS
 
+```{admonition} Note
+If you are planning to use an EKS cluster as [network server](/advanced/peering/inter-cluster-network), you need to install the [AWS Load Balancer V2 Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.8/) on the EKS cluster.
+```
+
 **Supported CNIs**
 
 Liqo supports EKS clusters using the default CNI: [AWS EKS - amazon-vpc-cni-k8s](https://github.com/aws/amazon-vpc-cni-k8s).
