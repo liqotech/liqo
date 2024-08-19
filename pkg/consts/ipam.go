@@ -43,6 +43,8 @@ const (
 	IPTypeLabelKey = "ipam.liqo.io/ip-type"
 	// IPTypeAPIServer is the constant representing an IP of type APIServer.
 	IPTypeAPIServer = "api-server"
+	// IPTypeAPIServerProxy is the constant representing an IP of type APIServerProxy.
+	IPTypeAPIServerProxy = "api-server-proxy"
 
 	// DefaultCIDRValue is the default value for a string that contains a CIDR.
 	DefaultCIDRValue = "None"

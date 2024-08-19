@@ -43,16 +43,9 @@ func GenerateIdentityControlPlane(ctx context.Context, cl client.Client,
 	}
 
 	// Forge Identity resource for the remote cluster and output it.
-	authParams := authv1beta1.AuthParams{
-		CA:        tenant.Status.AuthParams.CA,
-		SignedCRT: tenant.Status.AuthParams.SignedCRT,
-		APIServer: tenant.Status.AuthParams.APIServer,
-		ProxyURL:  tenant.Spec.ProxyURL,
-
-		AwsConfig: tenant.Status.AuthParams.AwsConfig,
-	}
+	authParams := tenant.Status.AuthParams
 	identity := forge.IdentityForRemoteCluster(forge.ControlPlaneIdentityName(localClusterID), remoteTenantNamespace,
-		localClusterID, authv1beta1.ControlPlaneIdentityType, &authParams, &tenant.Status.TenantNamespace)
+		localClusterID, authv1beta1.ControlPlaneIdentityType, authParams, &tenant.Status.TenantNamespace)
 
 	return identity, nil
 }

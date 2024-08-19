@@ -64,6 +64,51 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 	return nil
 }
 
+func EnforceAPIServerProxyIPRemapping(ctx context.Context, cl client.Client, liqoNamespace string) error {
+	var svcList corev1.ServiceList
+	if err := cl.List(ctx, &svcList, client.InNamespace(liqoNamespace), client.MatchingLabels{
+		consts.K8sAppNameKey: "proxy",
+	}); err != nil {
+		return fmt.Errorf("unable to get the proxy service: %w", err)
+	}
+
+	var proxySvc corev1.Service
+	switch len(svcList.Items) {
+	case 0:
+		return fmt.Errorf("no proxy service found")
+	case 1:
+		proxySvc = svcList.Items[0]
+	default:
+		return fmt.Errorf("multiple proxy services found")
+	}
+
+	if proxySvc.Spec.ClusterIP == "" {
+		return fmt.Errorf("the proxy service has no cluster IP")
+	}
+
+	ip := &ipamv1alpha1.IP{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      consts.IPTypeAPIServerProxy,
+			Namespace: liqoNamespace,
+		},
+	}
+	if _, err := controllerutil.CreateOrUpdate(ctx, cl, ip, func() error {
+		if ip.Labels == nil {
+			ip.Labels = map[string]string{}
+		}
+
+		ip.Labels[consts.IPTypeLabelKey] = consts.IPTypeAPIServerProxy
+
+		ip.Spec.IP = networkingv1beta1.IP(proxySvc.Spec.ClusterIP)
+
+		return nil
+	}); err != nil {
+		return fmt.Errorf("unable to create or update the IP %q: %w", ip.Name, err)
+	}
+
+	return nil
+}
+
 // MapAddress maps the address with the network configuration of the cluster.
 func MapAddress(ctx context.Context, cl client.Client,
 	clusterID liqov1beta1.ClusterID, address string) (string, error) {

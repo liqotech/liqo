@@ -164,6 +164,9 @@ func PreUninstall(ctx context.Context, cl client.Client) error {
 		if ipamutils.IsAPIServerIP(&ips.Items[i]) {
 			continue
 		}
+		if ipamutils.IsAPIServerProxyIP(&ips.Items[i]) {
+			continue
+		}
 
 		if len(ips.Items[i].GetFinalizers()) > 0 {
 			errMap.networking = addResourceToErrMap(&ips.Items[i], &errMap, errMap.networking, &foreignClusterList)
