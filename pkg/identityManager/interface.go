@@ -56,6 +56,7 @@ type SigningRequestOptions struct {
 	CAOverride               []byte
 	TrustedCA                bool
 	ResourceSlice            *authv1beta1.ResourceSlice
+	ProxyURL                 *string
 }
 
 // IdentityProvider provides the interface to retrieve and approve remote cluster identities.

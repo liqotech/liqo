@@ -205,6 +205,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		APIServerAddressOverride: r.APIServerAddressOverride,
 		CAOverride:               r.CAOverride,
 		TrustedCA:                r.TrustedCA,
+		ProxyURL:                 tenant.Spec.ProxyURL,
 	})
 	if err != nil {
 		klog.Errorf("Unable to forge the AuthParams for the Tenant %q: %s", req.Name, err)

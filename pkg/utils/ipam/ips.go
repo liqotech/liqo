@@ -26,6 +26,12 @@ func IsAPIServerIP(ip *ipamv1alpha1.IP) bool {
 	return ok && ipType == consts.IPTypeAPIServer
 }
 
+// IsAPIServerProxyIP checks if the resource is an IP of type API server proxy.
+func IsAPIServerProxyIP(ip *ipamv1alpha1.IP) bool {
+	ipType, ok := ip.Labels[consts.IPTypeLabelKey]
+	return ok && ipType == consts.IPTypeAPIServerProxy
+}
+
 // GetRemappedIP returns the remapped IP of the given IP resource.
 func GetRemappedIP(ip *ipamv1alpha1.IP) networkingv1beta1.IP {
 	for _, ipremapped := range ip.Status.IPMappings {

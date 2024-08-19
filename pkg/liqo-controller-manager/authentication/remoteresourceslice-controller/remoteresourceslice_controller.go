@@ -169,6 +169,7 @@ func (r *RemoteResourceSliceReconciler) handleAuthenticationStatus(ctx context.C
 		CAOverride:               r.caOverride,
 		TrustedCA:                r.trustedCA,
 		ResourceSlice:            resourceSlice,
+		ProxyURL:                 tenant.Spec.ProxyURL,
 	})
 	if err != nil {
 		klog.Errorf("Unable to forge the AuthParams for the ResourceSlice %q: %s", client.ObjectKeyFromObject(resourceSlice), err)

@@ -182,6 +182,7 @@ func (identityProvider *certificateIdentityProvider) ForgeAuthParams(ctx context
 		CA:        ca,
 		SignedCRT: resp.Certificate,
 		APIServer: apiServer,
+		ProxyURL:  options.ProxyURL,
 	}, nil
 }
 
