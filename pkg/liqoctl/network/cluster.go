@@ -100,6 +100,8 @@ func (c *Cluster) SetClusterIDs(ctx context.Context) error {
 // unless the user has explicitly set custom namespaces with the `--namespace` and/or `--remote-namespace` flags.
 // All the external network resources will be created in these namespaces in their respective clusters.
 func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error {
+	var err error
+
 	if c.localClusterID == "" || c.remoteClusterID == "" {
 		if err := c.SetClusterIDs(ctx); err != nil {
 			return err
@@ -107,23 +109,44 @@ func (c *Cluster) SetNamespaces(ctx context.Context, createTenantNs bool) error 
 	}
 
 	if c.local.Namespace == "" || c.local.Namespace == corev1.NamespaceDefault {
+		var localTenantNs *corev1.Namespace
+
 		if createTenantNs {
-			if _, err := c.localNamespaceManager.CreateNamespace(ctx, c.remoteClusterID); err != nil {
-				c.local.Printer.CheckErr(fmt.Errorf("an error occurred while creating tenant namespace: %v", output.PrettyErr(err)))
+			localTenantNs, err = c.localNamespaceManager.CreateNamespace(ctx, c.remoteClusterID)
+			if err != nil {
+				c.local.Printer.CheckErr(fmt.Errorf("an error occurred while creating local tenant namespace: %v", output.PrettyErr(err)))
+				return err
+			}
+		} else {
+			localTenantNs, err = c.localNamespaceManager.GetNamespace(ctx, c.remoteClusterID)
+			if err != nil {
+				c.local.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving local tenant namespace: %v", output.PrettyErr(err)))
 				return err
 			}
 		}
-		c.local.Namespace = tenantnamespace.GetNameForNamespace(c.remoteClusterID)
+
+		// Set the local namespace to the tenant namespace.
+		c.local.Namespace = localTenantNs.Name
 	}
 
 	if c.remote.Namespace == "" || c.remote.Namespace == corev1.NamespaceDefault {
+		var remoteTenantNs *corev1.Namespace
+
 		if createTenantNs {
-			if _, err := c.remoteNamespaceManager.CreateNamespace(ctx, c.localClusterID); err != nil {
-				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while creating tenant namespace: %v", output.PrettyErr(err)))
+			remoteTenantNs, err = c.remoteNamespaceManager.CreateNamespace(ctx, c.localClusterID)
+			if err != nil {
+				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while creating remote tenant namespace: %v", output.PrettyErr(err)))
+				return err
+			}
+		} else {
+			remoteTenantNs, err = c.remoteNamespaceManager.GetNamespace(ctx, c.localClusterID)
+			if err != nil {
+				c.remote.Printer.CheckErr(fmt.Errorf("an error occurred while retrieving remote tenant namespace: %v", output.PrettyErr(err)))
 				return err
 			}
 		}
-		c.remote.Namespace = tenantnamespace.GetNameForNamespace(c.localClusterID)
+
+		c.remote.Namespace = remoteTenantNs.Name
 	}
 
 	return nil

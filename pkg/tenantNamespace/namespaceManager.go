@@ -75,7 +75,7 @@ func NewCachedManager(ctx context.Context, client kubernetes.Interface, scheme *
 		func(lo *metav1.ListOptions) { lo.LabelSelector = labels.NewSelector().Add(*req).String() },
 	))
 	namespaceLister := factory.Core().V1().Namespaces().Lister()
-	listNamespaces := func(ctx context.Context, selector labels.Selector) (ret []*v1.Namespace, err error) {
+	listNamespaces := func(_ context.Context, selector labels.Selector) (ret []*v1.Namespace, err error) {
 		return namespaceLister.List(selector)
 	}
 
@@ -117,8 +117,8 @@ func (nm *tenantNamespaceManager) CreateNamespace(ctx context.Context, cluster l
 
 // ForgeNamespace returns a Tenant Namespace resource object given name and clusterid.
 func (nm *tenantNamespaceManager) ForgeNamespace(cluster liqov1beta1.ClusterID, name *string) *v1.Namespace {
-	// If no name is provided use the default one provided by the GetNameForNamespace() function
-	nsname := GetNameForNamespace(cluster)
+	// If no name is provided use the default one provided by the getNameForNamespace() function
+	nsname := getNameForNamespace(cluster)
 	if name != nil {
 		nsname = *name
 	}
@@ -153,7 +153,7 @@ func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster liqo
 	}
 
 	if nItems := len(namespaces); nItems == 0 {
-		err = kerrors.NewNotFound(v1.Resource("Namespace"), GetNameForNamespace(cluster))
+		err = kerrors.NewNotFound(v1.Resource("Namespace"), string(cluster))
 		// do not log it always, since it is also used in the preliminary stage of the create method
 		klog.V(4).Info(err)
 		return nil, err
@@ -165,7 +165,7 @@ func (nm *tenantNamespaceManager) GetNamespace(ctx context.Context, cluster liqo
 	return namespaces[0].DeepCopy(), nil
 }
 
-// GetNameForNamespace given a cluster identity it returns the name of the tenant namespace for the cluster.
-func GetNameForNamespace(cluster liqov1beta1.ClusterID) string {
+// getNameForNamespace given a cluster identity it returns the default name of the tenant namespace for the cluster.
+func getNameForNamespace(cluster liqov1beta1.ClusterID) string {
 	return fmt.Sprintf("%s-%s", NamePrefix, foreignclusterutils.UniqueName(cluster))
 }
