@@ -73,11 +73,12 @@ func (c *Cluster) EnsureTenantNamespace(ctx context.Context, remoteClusterID liq
 
 	c.RemoteClusterID = remoteClusterID
 
-	if _, err := c.localNamespaceManager.CreateNamespace(ctx, c.RemoteClusterID); err != nil {
+	tenantNs, err := c.localNamespaceManager.CreateNamespace(ctx, c.RemoteClusterID)
+	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while ensuring tenant namespace: %v", output.PrettyErr(err)))
 		return err
 	}
-	c.TenantNamespace = tenantnamespace.GetNameForNamespace(c.RemoteClusterID)
+	c.TenantNamespace = tenantNs.Name
 
 	s.Success("Tenant namespace correctly ensured")
 

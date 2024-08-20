@@ -67,8 +67,7 @@ var (
 		return *req
 	}
 
-	createTestResourceSlice = func(cl client.Client, name string, providerClusterID liqov1beta1.ClusterID, createVirtualNode bool) {
-		tenantNs := tenantnamespace.GetNameForNamespace(providerClusterID)
+	createTestResourceSlice = func(cl client.Client, name, tenantNs string, providerClusterID liqov1beta1.ClusterID, createVirtualNode bool) {
 		resSlice := forge.ResourceSlice(name, tenantNs)
 		if resSlice.Labels == nil {
 			resSlice.Labels = map[string]string{}
@@ -175,10 +174,14 @@ var _ = Describe("Liqo E2E", func() {
 				for i := range testContext.Clusters {
 					if testContext.Clusters[i].Role == liqov1beta1.ConsumerRole {
 						consumer := testContext.Clusters[i]
+						nsManager := tenantnamespace.NewManager(consumer.NativeClient, consumer.ControllerClient.Scheme())
 						for j := range testContext.Clusters {
 							if testContext.Clusters[j].Role == liqov1beta1.ProviderRole {
 								provider := testContext.Clusters[j]
-								createTestResourceSlice(consumer.ControllerClient, fmt.Sprintf("rs-test-%s", provider.Cluster), provider.Cluster, true)
+								tenantNs, err := nsManager.GetNamespace(ctx, provider.Cluster)
+								Expect(err).To(Not(HaveOccurred()))
+								createTestResourceSlice(consumer.ControllerClient,
+									fmt.Sprintf("rs-test-%s", provider.Cluster), tenantNs.Name, provider.Cluster, true)
 							}
 						}
 					}
