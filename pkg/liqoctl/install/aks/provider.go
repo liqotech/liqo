@@ -34,7 +34,7 @@ import (
 
 var _ install.Provider = (*Options)(nil)
 
-// Options encapsulates the arguments of the install command.
+// Options encapsulates the arguments of the install aks command.
 type Options struct {
 	*install.Options
 

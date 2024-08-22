@@ -52,7 +52,7 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 }
 
 // Initialize performs the initialization tasks to retrieve the provider-specific parameters.
-func (o *Options) Initialize(ctx context.Context) error { return nil }
+func (o *Options) Initialize(_ context.Context) error { return nil }
 
 // Values returns the customized provider-specifc values file parameters.
 func (o *Options) Values() map[string]interface{} {

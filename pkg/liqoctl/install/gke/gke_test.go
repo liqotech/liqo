@@ -34,7 +34,11 @@ var _ = Describe("Extract elements from GKE", func() {
 	var options Options
 
 	BeforeEach(func() {
-		options = Options{Options: &install.Options{ClusterLabels: map[string]string{}}}
+		options = Options{Options: &install.Options{
+			CommonOptions: &install.CommonOptions{
+				ClusterLabels: map[string]string{},
+			},
+		}}
 	})
 
 	It("test parse values", func() {

@@ -76,14 +76,14 @@ func newMoveVolumeCommand(ctx context.Context, f *factory.Factory) *cobra.Comman
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.PVCs(ctx, f, 1),
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			options.ContainersCPURequests = containersCPURequests.Quantity
 			options.ContainersCPULimits = containersCPULimits.Quantity
 			options.ContainersRAMRequests = containersRAMRequests.Quantity
 			options.ContainersRAMLimits = containersRAMLimits.Quantity
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			options.VolumeName = args[0]
 			output.ExitOnErr(options.Run(ctx))
 		},

@@ -84,10 +84,14 @@ var _ = Describe("Extract elements from apiServer", func() {
 	)
 
 	JustBeforeEach(func() {
-		options = Options{Options: &install.Options{Factory: &factory.Factory{
-			KubeClient: fake.NewSimpleClientset(pods...),
-			Printer:    output.NewFakePrinter(GinkgoWriter),
-		}}}
+		options = Options{Options: &install.Options{
+			CommonOptions: &install.CommonOptions{
+				Factory: &factory.Factory{
+					KubeClient: fake.NewSimpleClientset(pods...),
+					Printer:    output.NewFakePrinter(GinkgoWriter),
+				},
+			},
+		}}
 	})
 
 	When("no kube-controller-manager pods is present", func() {
