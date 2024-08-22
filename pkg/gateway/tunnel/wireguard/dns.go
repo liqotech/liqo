@@ -109,10 +109,8 @@ func IsDNSRoutineRequired(opts *Options) bool {
 }
 
 // NewDNSSource creates a new Source for the DNS watcher.
-func NewDNSSource(src <-chan event.GenericEvent) *source.Channel {
-	return &source.Channel{
-		Source: src,
-	}
+func NewDNSSource(src <-chan event.GenericEvent, eh handler.EventHandler) source.Source {
+	return source.Channel(src, eh)
 }
 
 // NewDNSEventHandler creates a new EventHandler.

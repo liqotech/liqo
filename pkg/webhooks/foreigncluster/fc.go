@@ -29,7 +29,7 @@ import (
 )
 
 type fcwh struct {
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
 type fcwhm struct {

@@ -35,10 +35,8 @@ import (
 )
 
 // NewLeftoverPodsSource returns a new LeftoversPodSource.
-func NewLeftoverPodsSource(src <-chan event.GenericEvent) *source.Channel {
-	return &source.Channel{
-		Source: src,
-	}
+func NewLeftoverPodsSource(src <-chan event.GenericEvent, eh handler.EventHandler) source.Source {
+	return source.Channel(src, eh)
 }
 
 // NewLeftoverPodsEventHandler returns a new LeftoverPodsEventHandler.

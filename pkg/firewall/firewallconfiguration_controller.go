@@ -174,7 +174,7 @@ func (r *FirewallConfigurationReconciler) SetupWithManager(ctx context.Context, 
 	}()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1beta1.FirewallConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
-		WatchesRawSource(NewFirewallWatchSource(src), NewFirewallWatchEventHandler(r.Client, r.LabelsSets)).
+		WatchesRawSource(NewFirewallWatchSource(src, NewFirewallWatchEventHandler(r.Client, r.LabelsSets))).
 		Complete(r)
 }
 

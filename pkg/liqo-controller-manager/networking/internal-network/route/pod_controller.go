@@ -124,8 +124,6 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}, builder.WithPredicates(predicate.Not(p))).
-		WatchesRawSource(
-			NewLeftoverPodsSource(r.GenericEvents),
-			NewLeftoverPodsEventHandler()).
+		WatchesRawSource(NewLeftoverPodsSource(r.GenericEvents, NewLeftoverPodsEventHandler())).
 		Complete(r)
 }

@@ -45,7 +45,7 @@ import (
 type Validator struct {
 	client                   client.Client
 	PeeringCache             *peeringCache
-	decoder                  *admission.Decoder
+	decoder                  admission.Decoder
 	enableResourceValidation bool
 }
 
@@ -239,7 +239,7 @@ func (spv *Validator) validateShadowPodClusterID(ctx context.Context, ns, spClus
 }
 
 // decodeShadowPod decodes a shadow pod from a given runtime object.
-func decodeShadowPod(decoder *admission.Decoder, obj runtime.RawExtension) (shadowpod *offloadingv1beta1.ShadowPod, err error) {
+func decodeShadowPod(decoder admission.Decoder, obj runtime.RawExtension) (shadowpod *offloadingv1beta1.ShadowPod, err error) {
 	shadowpod = &offloadingv1beta1.ShadowPod{}
 	err = decoder.DecodeRaw(obj, shadowpod)
 	return
@@ -250,7 +250,7 @@ var _ webhook.AdmissionHandler = &Mutator{}
 // Mutator is the handler used by the Mutating Webhook to mutate shadow pods.
 type Mutator struct {
 	client  client.Client
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
 // NewMutator creates a new shadow pod mutator.

@@ -193,7 +193,7 @@ func (r *RouteConfigurationReconciler) SetupWithManager(ctx context.Context, mgr
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&networkingv1beta1.RouteConfiguration{}, builder.WithPredicates(filterByLabelsPredicate)).
-		WatchesRawSource(NewRouteWatchSource(src), NewRouteWatchEventHandler(r.Client, r.LabelsSets)).
+		WatchesRawSource(NewRouteWatchSource(src, NewRouteWatchEventHandler(r.Client, r.LabelsSets))).
 		Complete(r)
 }
 

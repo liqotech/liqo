@@ -32,7 +32,7 @@ import (
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=routeconfigurations,verbs=get;list;watch;update;patch
 
 type webhook struct {
-	decoder *admission.Decoder
+	decoder admission.Decoder
 	cl      client.Client
 }
 

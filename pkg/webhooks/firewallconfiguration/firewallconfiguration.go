@@ -33,7 +33,7 @@ import (
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=firewallconfigurations,verbs=get;list;watch;update;patch
 
 type webhook struct {
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
 type webhookMutate struct {
