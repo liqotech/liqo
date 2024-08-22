@@ -24,7 +24,7 @@ import (
 
 var _ install.Provider = (*Options)(nil)
 
-// Options encapsulates the arguments of the install command.
+// Options encapsulates the arguments of the install k3s command.
 type Options struct {
 	*install.Options
 }
@@ -59,7 +59,7 @@ func (o *Options) RegisterFlags(cmd *cobra.Command) {
 }
 
 // Initialize performs the initialization tasks to retrieve the provider-specific parameters.
-func (o *Options) Initialize(ctx context.Context) error {
+func (o *Options) Initialize(_ context.Context) error {
 	// Typically, the URL refers to a localhost address.
 	o.DisableAPIServerSanityChecks = true
 	return nil

@@ -50,11 +50,11 @@ func newUninstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command
 		Long:  WithTemplate(liqoctlUninstallLongHelp),
 		Args:  cobra.NoArgs,
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.Printer.AskConfirm("uninstall", f.SkipConfirm))
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			output.ExitOnErr(options.Run(ctx))
 		},
 	}

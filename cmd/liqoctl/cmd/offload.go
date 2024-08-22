@@ -104,7 +104,7 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completion.Namespaces(ctx, f, 1),
 
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, _ []string) {
 			options.PodOffloadingStrategy = offloadingv1beta1.PodOffloadingStrategyType(podOffloadingStrategy.Value)
 			options.NamespaceMappingStrategy = offloadingv1beta1.NamespaceMappingStrategyType(namespaceMappingStrategy.Value)
 			options.RemoteNamespaceName = remoteNamespaceName
@@ -112,7 +112,7 @@ func newOffloadNamespaceCommand(ctx context.Context, f *factory.Factory) *cobra.
 			options.Printer.CheckErr(options.ParseClusterSelectors(selectors))
 		},
 
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, args []string) {
 			options.Namespace = args[0]
 			output.ExitOnErr(options.Run(ctx))
 		},

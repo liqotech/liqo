@@ -103,7 +103,7 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 		// The behavior can be customized in subcommands defining an appropriate PersistentPreRun function.
 		// Yet, the initialization is skipped for the __complete command, as characterized by a peculiar behavior
 		// in terms of flags parsing (https://github.com/spf13/cobra/issues/1291#issuecomment-739056690).
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			if cmd != nil && cmd.Name() != cobra.ShellCompRequestCmd {
 				singleClusterPersistentPreRun(cmd, f)
 			}

@@ -182,19 +182,22 @@ func newInstallCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	f.AddLiqoNamespaceFlag(cmd.PersistentFlags())
 
 	base.RegisterFlags(cmd)
-	cmd.AddCommand(newInstallProviderCommand(ctx, options, aks.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options, eks.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options, gke.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options, k3s.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options, kind.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options, kubeadm.New))
-	cmd.AddCommand(newInstallProviderCommand(ctx, options, openshift.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, aks.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, eks.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, gke.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, k3s.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, kind.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, kubeadm.New))
+	cmd.AddCommand(newInstallProviderCommand(ctx, options.CommonOptions, openshift.New))
 
 	return cmd
 }
 
-func newInstallProviderCommand(ctx context.Context, options *install.Options, creator func(*install.Options) install.Provider) *cobra.Command {
-	provider := creator(options)
+func newInstallProviderCommand(ctx context.Context, commonOpts *install.CommonOptions,
+	creator func(*install.Options) install.Provider) *cobra.Command {
+	options := install.Options{CommonOptions: commonOpts}
+	provider := creator(&options)
+
 	cmd := &cobra.Command{
 		Use:   provider.Name(),
 		Short: fmt.Sprintf("Install Liqo in the selected %s cluster", provider.Name()),

@@ -63,6 +63,15 @@ type Provider interface {
 
 // Options encapsulates the arguments of the install command.
 type Options struct {
+	*CommonOptions
+
+	APIServer   string
+	PodCIDR     string
+	ServiceCIDR string
+}
+
+// CommonOptions encapsulates common arguments (not modified by providers) of the install command.
+type CommonOptions struct {
 	*factory.Factory
 	CommandName string
 
@@ -85,13 +94,10 @@ type Options struct {
 	ClusterID     liqov1beta1.ClusterID
 	ClusterLabels map[string]string
 
-	APIServer        string
 	EnableHA         bool
 	EnableMetrics    bool
 	DisableTelemetry bool
 
-	PodCIDR         string
-	ServiceCIDR     string
 	ReservedSubnets []string
 
 	DisableAPIServerSanityChecks bool
@@ -104,8 +110,10 @@ type Options struct {
 // NewOptions returns a new Options struct.
 func NewOptions(f *factory.Factory, commandName string) *Options {
 	return &Options{
-		CommandName: commandName,
-		Factory:     f,
+		CommonOptions: &CommonOptions{
+			CommandName: commandName,
+			Factory:     f,
+		},
 	}
 }
 

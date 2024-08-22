@@ -28,7 +28,7 @@ import (
 
 var _ install.Provider = (*Options)(nil)
 
-// Options encapsulates the arguments of the install k3s command.
+// Options encapsulates the arguments of the install openshift command.
 type Options struct {
 	*install.Options
 }
@@ -50,7 +50,7 @@ func (o *Options) Examples() string {
 }
 
 // RegisterFlags registers the flags for the given provider.
-func (o *Options) RegisterFlags(cmd *cobra.Command) {}
+func (o *Options) RegisterFlags(_ *cobra.Command) {}
 
 // Initialize performs the initialization tasks to retrieve the provider-specific parameters.
 func (o *Options) Initialize(ctx context.Context) error {

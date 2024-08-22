@@ -30,7 +30,7 @@ var _ install.Provider = (*Options)(nil)
 
 var kubeControllerManagerLabels = map[string]string{"component": "kube-controller-manager", "tier": "control-plane"}
 
-// Options encapsulates the arguments of the install k3s command.
+// Options encapsulates the arguments of the install kubeadm command.
 type Options struct {
 	*install.Options
 }
@@ -52,7 +52,7 @@ func (o *Options) Examples() string {
 }
 
 // RegisterFlags registers the flags for the given provider.
-func (o *Options) RegisterFlags(cmd *cobra.Command) {}
+func (o *Options) RegisterFlags(_ *cobra.Command) {}
 
 // Initialize performs the initialization tasks to retrieve the provider-specific parameters.
 func (o *Options) Initialize(ctx context.Context) error {

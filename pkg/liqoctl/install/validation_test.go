@@ -43,7 +43,11 @@ var _ = Describe("Validation", func() {
 	)
 
 	BeforeEach(func() {
-		options = Options{Factory: &factory.Factory{}}
+		options = Options{
+			CommonOptions: &CommonOptions{
+				Factory: &factory.Factory{},
+			},
+		}
 		ctx = context.Background()
 	})
 
