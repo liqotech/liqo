@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
@@ -46,10 +47,8 @@ type FactorySource struct {
 }
 
 // Source returns a source that can be used to trigger a reconciliation.
-func (f *FactorySource) Source() source.Source {
-	return &source.Channel{
-		Source: f.c,
-	}
+func (f *FactorySource) Source(eh handler.EventHandler) source.Source {
+	return source.Channel(f.c, eh)
 }
 
 // ForResource registers the handler for the given resource.

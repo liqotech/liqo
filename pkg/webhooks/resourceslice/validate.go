@@ -39,7 +39,7 @@ import (
 // +kubebuilder:rbac:groups=authentication.liqo.io,resources=resourceslices,verbs=get;list;watch;
 
 type rswh struct {
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
 type rswhv struct {

@@ -37,7 +37,7 @@ import (
 
 type podwh struct {
 	client  client.Client
-	decoder *admission.Decoder
+	decoder admission.Decoder
 
 	addVirtualNodeToleration bool
 }

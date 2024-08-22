@@ -30,10 +30,8 @@ import (
 )
 
 // NewRouteWatchSource creates a new Source for the Route watcher.
-func NewRouteWatchSource(src <-chan event.GenericEvent) *source.Channel {
-	return &source.Channel{
-		Source: src,
-	}
+func NewRouteWatchSource(src <-chan event.GenericEvent, eh handler.EventHandler) source.Source {
+	return source.Channel(src, eh)
 }
 
 // NewRouteWatchEventHandler creates a new EventHandler.

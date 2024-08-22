@@ -30,10 +30,8 @@ import (
 )
 
 // NewFirewallWatchSource creates a new Source for the Firewall watcher.
-func NewFirewallWatchSource(src <-chan event.GenericEvent) *source.Channel {
-	return &source.Channel{
-		Source: src,
-	}
+func NewFirewallWatchSource(src <-chan event.GenericEvent, eh handler.EventHandler) source.Source {
+	return source.Channel(src, eh)
 }
 
 // NewFirewallWatchEventHandler creates a new EventHandler.

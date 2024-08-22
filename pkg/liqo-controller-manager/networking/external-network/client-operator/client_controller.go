@@ -268,7 +268,7 @@ func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		WatchesRawSource(factorySource.Source(), ownerEnqueuer).
+		WatchesRawSource(factorySource.Source(ownerEnqueuer)).
 		For(&networkingv1beta1.GatewayClient{}).
 		Complete(r)
 }

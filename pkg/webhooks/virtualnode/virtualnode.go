@@ -41,7 +41,7 @@ import (
 
 type vnwh struct {
 	client  client.Client
-	decoder *admission.Decoder
+	decoder admission.Decoder
 
 	clusterID             liqov1beta1.ClusterID
 	localPodCIDR          string

@@ -29,7 +29,7 @@ import (
 )
 
 type nsoffwh struct {
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
 // New returns a new NamespaceOffloadingWebhook instance.
