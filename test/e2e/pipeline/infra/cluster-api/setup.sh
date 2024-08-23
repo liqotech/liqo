@@ -41,10 +41,10 @@ source "$WORKDIR/cni.sh"
 
 CLUSTER_NAME=cluster
 
-export K8S_VERSION=${K8S_VERSION:-"1.27.4"}
+export K8S_VERSION=${K8S_VERSION:-"1.29.7"}
 K8S_VERSION=$(echo -n "$K8S_VERSION" | sed 's/v//g') # remove the leading v
 
-OS_IMAGE=${OS_IMAGE:-"ubuntu-2004"}
+OS_IMAGE=${OS_IMAGE:-"ubuntu-2204"}
 
 export CRI_PATH="/var/run/containerd/containerd.sock"
 export NODE_VM_IMAGE_TEMPLATE="harbor.crownlabs.polito.it/capk/${OS_IMAGE}-container-disk:v${K8S_VERSION}"

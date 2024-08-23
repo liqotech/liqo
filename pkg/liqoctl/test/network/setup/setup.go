@@ -17,6 +17,7 @@ package setup
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/client"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
@@ -53,6 +54,9 @@ func MakeInfrastructure(ctx context.Context, cl *client.Client, opts *flags.Opti
 			return 0, fmt.Errorf("error creating ip: %w", err)
 		}
 	}
+
+	// sleep for a while to let the network be ready
+	time.Sleep(5 * time.Second)
 
 	return totreplicas, nil
 }

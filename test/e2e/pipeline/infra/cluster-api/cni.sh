@@ -83,7 +83,7 @@ function install_cilium() {
         echo "Downloading Cilium CLI ${CILIUM_CLI_VERSION} for ${OS}-${ARCH}"
         curl -L --remote-name-all "https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-${OS}-${ARCH}.tar.gz{,.sha256sum}"
         sha256sum --check "cilium-${OS}-${ARCH}.tar.gz.sha256sum"
-        sudo tar -C "${BINDIR}" -xzvf "cilium-${OS}-${ARCH}.tar.gz"
+        tar -C "${BINDIR}" -xzvf "cilium-${OS}-${ARCH}.tar.gz"
         rm "cilium-${OS}-${ARCH}.tar.gz"
         rm "cilium-${OS}-${ARCH}.tar.gz.sha256sum"
     fi

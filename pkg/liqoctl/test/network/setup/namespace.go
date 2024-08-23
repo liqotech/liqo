@@ -59,6 +59,8 @@ func OffloadNamespace(ctx context.Context, cl *client.Client) error {
 	if err := cl.Consumer.Create(ctx, &nsoff); err != nil && ctrlclient.IgnoreAlreadyExists(err) != nil {
 		return err
 	}
+	// TODO: remove this sleep when the offloading race condition is fixed
+	time.Sleep(10 * time.Second)
 	return nil
 }
 

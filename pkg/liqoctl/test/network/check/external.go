@@ -27,7 +27,7 @@ func RunChecksPodToExternal(ctx context.Context, cl *client.Client,
 	cfg client.Configs, opts *flags.Options) (successCount, errorCount int32, err error) {
 	var successCountTot, errorCountTot int32
 
-	target := []string{"https://liqo.io"}
+	target := []string{"http://1.1.1.1"}
 
 	successCount, errorCount, err = RunCheckToTargets(ctx, cl.Consumer, cfg[cl.ConsumerName],
 		opts, cl.ConsumerName, target, false, ExecCurl)

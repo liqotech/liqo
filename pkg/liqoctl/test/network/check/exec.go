@@ -79,7 +79,9 @@ func ExecCurl(ctx context.Context, pod *corev1.Pod, clset *kubernetes.Clientset,
 	}
 
 	// Check if the curl command was successful
-	if strings.Contains(stdout, "200 OK") || strings.Contains(stdout, "HTTP/2 200") {
+	if strings.Contains(stdout, "200 OK") ||
+		strings.Contains(stdout, "HTTP/2 200") ||
+		strings.Contains(stdout, "301 Moved Permanently") {
 		if !quiet {
 			logger.Info("Curl command successful", logger.Args(
 				"pod", pod.Name, "target", endpoint,
