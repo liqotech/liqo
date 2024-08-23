@@ -16,6 +16,7 @@ package errors
 
 import (
 	"flag"
+	"strings"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -71,4 +72,12 @@ func IgnoreNoMatchError(err error) error {
 		return nil
 	}
 	return err
+}
+
+// CheckFakeClientServerSideApplyError check if an error is due to the fake client not supporting server-side apply.
+// Warning: it should only be used as a workaround to skip tests for error stemming from fake k8s client, which should
+// be revisited once dependencies are upgraded: "apply patches are not supported in the fake client.
+// Follow https://github.com/kubernetes/kubernetes/issues/115598 for the current status".
+func CheckFakeClientServerSideApplyError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "apply patches are not supported in the fake client")
 }
