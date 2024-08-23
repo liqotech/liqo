@@ -1,6 +1,6 @@
 FROM golang:1.22
 
-ENV K8S_VERSION=1.29.0
+ENV K8S_VERSION=1.30.0
 
 WORKDIR /go/src/github.com/liqotech/liqo
 COPY go.mod ./go.mod

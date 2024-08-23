@@ -36,6 +36,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
@@ -219,6 +220,9 @@ var _ = Describe("ShadowEndpointSlice Controller", func() {
 			Scheme: scheme.Scheme,
 		}
 		_, err = r.Reconcile(ctx, req)
+		if errors.CheckFakeClientServerSideApplyError(err) {
+			Skip("Skipping test due to fake client server-side apply error")
+		}
 		Expect(err).NotTo(HaveOccurred())
 		klog.Flush()
 	})
