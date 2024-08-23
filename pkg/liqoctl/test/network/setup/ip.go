@@ -16,7 +16,6 @@ package setup
 
 import (
 	"context"
-	"net"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,17 +32,11 @@ import (
 const (
 	// IPName is the name of the IP resource.
 	IPName = "external-ip"
-	// ExternalURL is the external URL to use for the IP.
-	ExternalURL = "liqo.io"
 )
 
 // CreateAllIP creates all the IP resources.
 func CreateAllIP(ctx context.Context, cl *client.Client) error {
-	dstips, err := net.LookupHost(ExternalURL)
-	if err != nil {
-		return err
-	}
-	dstip := dstips[0]
+	dstip := "1.1.1.1"
 	if err := CreateIP(ctx, cl.Consumer, dstip); err != nil {
 		return err
 	}

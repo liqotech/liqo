@@ -34,6 +34,7 @@ import (
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
 	networkflags "github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
+	"github.com/liqotech/liqo/pkg/liqoctl/test/network/setup"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
@@ -53,10 +54,11 @@ func TestE2E(t *testing.T) {
 }
 
 var (
-	ctx         = context.Background()
-	testContext = tester.GetTester(ctx)
-	interval    = config.Interval
-	timeout     = time.Minute * 5
+	ctx           = context.Background()
+	testContext   = tester.GetTester(ctx)
+	interval      = config.Interval
+	timeout       = time.Minute * 5
+	namespaceName = setup.NamespaceName
 
 	providers []string
 	consumer  string
@@ -118,6 +120,14 @@ var _ = Describe("Liqo E2E", func() {
 			})
 		})
 	})
+})
+
+var _ = AfterSuite(func() {
+	for i := range testContext.Clusters {
+		Eventually(func() error {
+			return util.EnsureNamespaceDeletion(ctx, testContext.Clusters[i].NativeClient, namespaceName)
+		}, timeout, interval).Should(Succeed())
+	}
 })
 
 type networkTestsArgs struct {

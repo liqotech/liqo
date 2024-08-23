@@ -137,7 +137,8 @@ var _ = Describe("Liqo E2E", func() {
 					Expect(util.Second(util.EnforceNamespace(ctx, testContext.Clusters[i].NativeClient,
 						testContext.Clusters[i].Cluster, namespaceName))).To(Succeed())
 
-					Expect(util.OffloadNamespace(testContext.Clusters[i].KubeconfigPath, namespaceName)).To(Succeed())
+					Eventually(util.OffloadNamespace(testContext.Clusters[i].KubeconfigPath, namespaceName),
+						timeout, interval).Should(Succeed())
 
 					// wait for the namespace to be offloaded, this avoids race conditions
 					time.Sleep(2 * time.Second)

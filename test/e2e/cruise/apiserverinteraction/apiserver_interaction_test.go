@@ -93,6 +93,7 @@ var _ = Describe("Liqo E2E", func() {
 
 			Expect(util.OffloadNamespace(testContext.Clusters[0].KubeconfigPath, namespaceName,
 				"--pod-offloading-strategy", "Remote")).To(Succeed())
+			time.Sleep(2 * time.Second)
 
 			Expect(apiserver.CreateServiceAccount(ctx, testContext.Clusters[0].ControllerClient, namespaceName)).To(Succeed())
 			Expect(apiserver.CreateRoleBinding(ctx, testContext.Clusters[0].ControllerClient, namespaceName)).To(Succeed())

@@ -31,9 +31,9 @@ const (
 )
 
 var (
-	timeout time.Duration
-	qps     uint
-	burst   uint
+	timeout time.Duration // = 0 means no timeout
+	qps     = DefaultQPS
+	burst   = DefaultBurst
 )
 
 // InitFlags initializes the flags to configure the rate limiter parameters.
