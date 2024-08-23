@@ -75,7 +75,7 @@ rbacs: controller-gen
 # Install gci if not available
 gci:
 ifeq (, $(shell which gci))
-	@go install github.com/daixiang0/gci@v0.11.2
+	@go install github.com/daixiang0/gci@v0.13.4
 GCI=$(GOBIN)/gci
 else
 GCI=$(shell which gci)
@@ -100,7 +100,7 @@ fmt: gci addlicense
 # Install golangci-lint if not available
 golangci-lint:
 ifeq (, $(shell which golangci-lint))
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59.1
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.3
 GOLANGCILINT=$(GOBIN)/golangci-lint
 else
 GOLANGCILINT=$(shell which golangci-lint)
