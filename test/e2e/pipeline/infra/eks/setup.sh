@@ -82,9 +82,6 @@ do
   # Install metrics-server
   install_metrics_server "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
-  # Install kyverno for network tests
-  install_kyverno "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-
   # Install AWS Load Balancer Controller
   "${HELM}" repo add eks https://aws.github.io/eks-charts
   "${HELM}" repo update

@@ -220,6 +220,7 @@ endif
 E2E_TARGETS = e2e-dir \
 	ctl \
 	e2e-infra \
+	installer/kyverno/install \
 	installer/liqoctl/setup \
 	telemetry \
 	installer/liqoctl/peer \

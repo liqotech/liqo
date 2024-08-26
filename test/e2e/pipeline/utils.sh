@@ -146,3 +146,14 @@ function install_kyverno() {
   "${HELM}" repo update
   "${HELM}" install kyverno kyverno/kyverno -n kyverno --create-namespace --kubeconfig "${kubeconfig}"
 }
+
+function wait_kyverno() {
+  local kubeconfig=$1
+
+  # Wait for the kyverno deployments to be ready
+  if ! waitandretry 5s 2 "${KUBECTL} rollout status deployment -n kyverno --kubeconfig ${kubeconfig}"
+  then
+    echo "Failed to wait for kyverno deployments to be ready"
+    exit 1
+  fi
+}

@@ -117,20 +117,3 @@ done
 for PID in "${PIDS[@]}"; do
     wait "${PID}"
 done
-
-# Install needed utilities
-PIDS=()
-
-for i in $(seq 1 "${CLUSTER_NUMBER}");
-do
-    KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-    
-    # Install kyverno for network tests
-    install_kyverno "$KUBECONFIG" &
-
-    PIDS+=($!)
-done
-
-for PID in "${PIDS[@]}"; do
-    wait "${PID}"
-done
