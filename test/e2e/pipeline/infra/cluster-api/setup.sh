@@ -101,10 +101,6 @@ do
 
   # Install metrics-server
   install_metrics_server "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-
-  # Install kyverno for network tests
-  install_kyverno "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-  
 done
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
