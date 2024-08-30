@@ -1,6 +1,7 @@
 # External IP remapping
 
-You can use liqo to map external IPs and make them reachable from a peered cluster. You can configure the external IP remapping using the **IP** CRD.
+You can use Liqo to map external IPs and make them reachable from a peered cluster. You can configure the external IP remapping using the **IP** CRD.
+This can be useful if you want to make a server (for example a legacy database) running outside the cluster, reachable from a peered cluster.
 
 ```{warning}
 This feature is available only if [network module](/advanced/manual-peering.md) is enabled.
@@ -17,6 +18,8 @@ Remap External IPs
 ```
 
 ## Forge an IP CRD
+
+The IP CRD allows you to remap an external IP to a new IP belonging to the **External CIDR**.
 
 Export the kubeconfig file of **cluster 2**:
 
@@ -49,7 +52,7 @@ Check the status of the **IP** CRD:
 kubectl get ip external-ip-remap -o yaml
 ```
 
-The status should be similar to the following:
+If everything went successfully, the status should be similar to the following:
 
 ```yaml
 apiVersion: ipam.liqo.io/v1alpha1
@@ -61,10 +64,16 @@ status:
 
 ```
 
-The **status** field shows how the **external host** has been remapped.
+The **status** field shows how the **external host** IP has been remapped.
+It is an IP belonging to the **External CIDR**.
+
 We are going to use the **remapped IP** on **cluster 1** to reach the **external host**.
 
 ## Connect to the *external host*
+
+If **cluster 1** and **cluster 2** have different **External CIDRs** (it can be customized at installation time), you can skip this section and use the IP obtianed in the previous section to reach the **external host**.
+
+However, in most cases, the **External CIDRs** are the same, we need to get how the **remote external CIDR** has been remapped and *forge* the IP to reach the **external host**.
 
 First of all, export the kubeconfig file of **cluster 1**:
 
@@ -75,7 +84,7 @@ export KUBECONFIG=./cluster1-kubeconfig
 Get the **configuration** CRD for **cluster 2**:
 
 ```bash
-kubectl get configuration -n liqo -o yaml cluster2
+kubectl get configuration -n liqo-tenant-cluster2 -o yaml cluster2
 ```
 
 The output should be similar to the following:
@@ -98,7 +107,7 @@ status:
       pod: <REMAPPED_POD_CIDR>
 ```
 
-Lets focus on the `REMAPPED_EXT_CIDR` value. Keep the *prefix* of that CIDR and replace it inside the `REMAPPED_IP` found in the **IP** CRD status (check the previous section).
+Let's focus on the `REMAPPED_EXT_CIDR` value. Keep the *prefix* of that CIDR and replace it inside the `REMAPPED_IP` found in the **IP** CRD status (check the previous section).
 
 For example, if the `REMAPPED_EXT_CIDR` is *10.81.0.0/16* and the `REMAPPED_IP` is *10.70.0.1* the final IP will be *10.81.0.1*.
 
