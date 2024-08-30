@@ -586,6 +586,20 @@ func GetControllerManagerDeploymentWithDynamicClient(ctx context.Context,
 	}
 }
 
+// GetContainerImageVersion gets the version of the image of the container with the given name from a list of containers.
+func GetContainerImageVersion(containers []corev1.Container, containerName string) (version string, err error) {
+	for i := range containers {
+		if containers[i].Name == containerName {
+			imageSplit := strings.Split(containers[i].Image, ":")
+			if len(imageSplit) == 1 {
+				return "", errors.New("missing version in container image")
+			}
+			return imageSplit[len(imageSplit)-1], nil
+		}
+	}
+	return "", fmt.Errorf("no container with name %q found", containerName)
+}
+
 // GetLiqoVersion returns the installed Liqo version.
 func GetLiqoVersion(ctx context.Context, cl client.Client, liqoNamespace string) (string, error) {
 	deployment, err := GetControllerManagerDeployment(ctx, cl, liqoNamespace)
@@ -595,17 +609,7 @@ func GetLiqoVersion(ctx context.Context, cl client.Client, liqoNamespace string)
 
 	// Get version from image version
 	containers := deployment.Spec.Template.Spec.Containers
-	for i := range containers {
-		if containers[i].Name == "controller-manager" {
-			version := strings.Split(containers[i].Image, ":")[1]
-			if version == "" {
-				return "", errors.New("missing version in liqo controller manager image")
-			}
-			return version, nil
-		}
-	}
-
-	return "", errors.New("retrieved an invalid liqo controller manager deployment")
+	return GetContainerImageVersion(containers, "controller-manager")
 }
 
 // ListNetworksByLabel returns the Network resource with the given labels.

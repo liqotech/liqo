@@ -23,6 +23,18 @@ import (
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 )
 
+// FakeLiqoNamespace returns a fake Liqo namespace.
+func FakeLiqoNamespace(name string) *corev1.Namespace {
+	return &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				"kubernetes.io/metadata.name": "liqo",
+			},
+		},
+	}
+}
+
 // FakeClusterIDConfigMap returns a fake ClusterID ConfigMap.
 func FakeClusterIDConfigMap(namespace, clusterID string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
