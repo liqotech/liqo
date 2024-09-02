@@ -79,6 +79,7 @@ func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
 		checkNetworkStatus:   cfg.CheckNetworkStatus,
 
 		nodeName:         cfg.NodeName,
+		nodeIP:           cfg.InternalIP,
 		foreignClusterID: cfg.RemoteClusterID,
 		tenantNamespace:  cfg.Namespace,
 	}

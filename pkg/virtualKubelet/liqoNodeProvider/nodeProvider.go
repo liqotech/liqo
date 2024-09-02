@@ -44,6 +44,7 @@ type LiqoNodeProvider struct {
 	lastAppliedTaints      []corev1.Taint
 
 	nodeName           string
+	nodeIP             string
 	foreignClusterID   liqov1beta1.ClusterID
 	tenantNamespace    string
 	resyncPeriod       time.Duration

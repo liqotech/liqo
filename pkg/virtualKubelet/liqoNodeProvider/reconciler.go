@@ -34,6 +34,11 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
+func (p *LiqoNodeProvider) reconcileNodeFromNode(_ watch.Event) error {
+	// enforce the node to be the same as the one we are managing
+	return p.updateNode()
+}
+
 func (p *LiqoNodeProvider) reconcileNodeFromVirtualNode(event watch.Event) error {
 	ctx := context.Background()
 	var virtualNode offloadingv1beta1.VirtualNode
@@ -162,6 +167,8 @@ func (p *LiqoNodeProvider) updateNode() error {
 	} else if !p.networkModuleEnabled || !p.checkNetworkStatus {
 		deleteCondition(p.node, v1.NodeNetworkUnavailable)
 	}
+
+	p.node.Status.Addresses = []v1.NodeAddress{{Type: v1.NodeInternalIP, Address: p.nodeIP}}
 
 	p.onNodeChangeCallback(p.node.DeepCopy())
 	return nil
