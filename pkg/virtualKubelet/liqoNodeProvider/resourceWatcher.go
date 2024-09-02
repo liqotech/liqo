@@ -32,18 +32,26 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// StartProvider starts the provider with its infromers on Liqo resources.
+// StartProvider starts the provider with its informers on Liqo resources.
 // These informers on sharing and network resources will be used to accordingly
 // update the virtual node.
 func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct{}) {
 	namespace := p.tenantNamespace
+
+	nodeInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+		p.dynClient, p.resyncPeriod, corev1.NamespaceAll, func(opt *metav1.ListOptions) {
+			opt.FieldSelector = "metadata.name=" + p.nodeName
+		})
+	nodeInformer := nodeInformerFactory.ForResource(corev1.SchemeGroupVersion.WithResource("nodes")).Informer()
+	_, err := nodeInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromNode))
+	runtime.Must(err)
 
 	virtualNodeInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
 			opt.FieldSelector = "metadata.name=" + p.nodeName
 		})
 	virtualNodeInformer := virtualNodeInformerFactory.ForResource(offloadingv1beta1.VirtualNodeGroupVersionResource).Informer()
-	_, err := virtualNodeInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromVirtualNode))
+	_, err = virtualNodeInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromVirtualNode))
 	runtime.Must(err)
 
 	var fcInformerFactory dynamicinformer.DynamicSharedInformerFactory
