@@ -17,6 +17,7 @@ package route
 import (
 	"bufio"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -27,8 +28,12 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
-// RTTablesFilename contains path to the file with ID to routing tables IDs mapping in Linux.
-const RTTablesFilename = "/etc/iproute2/rt_tables"
+const (
+	// RTTablesDir contains path to the directory with ID to routing tables IDs mapping in Linux.
+	RTTablesDir = "/etc/iproute2"
+	// RTTablesFilename contains path to the file with ID to routing tables IDs mapping in Linux.
+	RTTablesFilename = RTTablesDir + "/rt_tables"
+)
 
 // EnsureTablePresence ensures the presence of the given table.
 func EnsureTablePresence(routeconfiguration *networkingv1beta1.RouteConfiguration, tableID uint32) error {
@@ -71,8 +76,11 @@ func ExistsTableID(tableID uint32) (exists bool, err error) {
 	if tableID == 0 {
 		return false, fmt.Errorf("table ID is empty")
 	}
+
 	file, err := os.OpenFile(RTTablesFilename, os.O_RDONLY, 0o600)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	} else if err != nil {
 		return false, err
 	}
 	defer func() {
@@ -91,7 +99,13 @@ func ExistsTableID(tableID uint32) (exists bool, err error) {
 // AddTableID adds the given table ID to the rt_tables file.
 func AddTableID(tableID uint32, tableName string) error {
 	newEntry := forgeTableEntry(tableID, tableName)
-	file, err := os.OpenFile(RTTablesFilename, os.O_APPEND|os.O_WRONLY, 0o600)
+
+	// ensure the directory existence
+	if err := os.MkdirAll(RTTablesDir, 0o700); err != nil {
+		return err
+	}
+
+	file, err := os.OpenFile(RTTablesFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -111,7 +125,13 @@ func DeleteTableID(tableID uint32) error {
 	if err != nil {
 		return err
 	}
-	file, err := os.OpenFile(RTTablesFilename, os.O_WRONLY|os.O_TRUNC, 0o600)
+
+	// ensure the directory existence
+	if err := os.MkdirAll(RTTablesDir, 0o700); err != nil {
+		return err
+	}
+
+	file, err := os.OpenFile(RTTablesFilename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -128,7 +148,9 @@ func DeleteTableID(tableID uint32) error {
 
 func filterDeletedLines(tableID uint32) ([]string, error) {
 	file, err := os.OpenFile(RTTablesFilename, os.O_RDONLY, 0o600)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		return []string{}, nil
+	} else if err != nil {
 		return nil, err
 	}
 	defer func() {
