@@ -131,13 +131,6 @@ Create the file name of a cluster role starting from a prefix, it accepts a dict
 {{- end }}
 
 {{/*
-Auth pod labels
-*/}}
-{{- define "liqo.authServiceLabels" -}}
-run: auth-service
-{{- end }}
-
-{{/*
 Metrics pod labels
 */}}
 {{- define "liqo.metricAgentServiceLabels" -}}
