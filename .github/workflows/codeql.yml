@@ -49,17 +49,18 @@ jobs:
       fail-fast: false
       matrix:
         component:
-          - auth-service
           - crd-replicator
           - ipam
           - liqo-controller-manager
-          - discovery
           - uninstaller
           - virtual-kubelet
           - metric-agent
           - telemetry
           - gateway
           - gateway/wireguard
+          - gateway/geneve
+          - fabric
+          - webhook
           - liqoctl
           
         # CodeQL supports [ 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift' ]
