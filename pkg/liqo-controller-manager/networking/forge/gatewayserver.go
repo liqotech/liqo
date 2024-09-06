@@ -30,7 +30,7 @@ const (
 	DefaultGwServerType         = "networking.liqo.io/v1beta1/wggatewayservertemplates"
 	DefaultGwServerTemplateName = "wireguard-server"
 	DefaultGwServerServiceType  = corev1.ServiceTypeLoadBalancer
-	DefaultGwServerPort         = 51820
+	DefaultGwServerPort         = 51840
 )
 
 // DefaultGatewayServerName returns the default name for a GatewayServer.
