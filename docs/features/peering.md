@@ -42,9 +42,9 @@ If this is not possible, refer to the advanced guide to learn how to perform the
 ```
 
 ```{warning}
-Starting from Liqo 1.0 the concept of *out-of-band* and *in-band* peering is deprecated.
 The user can adopt different peering approaches depending if it has contemporary access to both clusters or not, as described in the [dedicated page](/advanced/peering-strategies.md). 
 
-If the user can not expose the API server to the public, there is the possibility to leverage the Liqo networking to let the API server traffic flow into the cross-cluster VPN tunnel and use the *liqo-gateway* as a proxy for the API server.
-The procedure to achieve this will be explained in detail in the next releases.  
+If you cannot expose the Kubernetes API Server to the public, you can leverage the Liqo networking to connect to the remote Kubernetes API Server, and the related traffic will flow into the cross-cluster VPN tunnel by leveraging the [IP remapping](../advanced/external-ip-remapping.md) (of the `liqo-proxy` service) and the [Kubernetes API Server proxy](../advanced/k8s-api-server-proxy.md) features.
+You can achieve this by setting the `--in-band` flag in the `liqoctl peer` or `liqoctl authenticate` commands, which automatically configure all the features needed for this mechanism to work (i.e., the API server proxy and the IP remapping).
+Note that, for this feature to work, the Liqo networking module must be enabled.
 ```
