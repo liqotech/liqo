@@ -192,7 +192,7 @@ INFO   (remote) Network configuration correctly deleted
 You can configure how to expose the Liqo Gateway Server service by using the following flags for the `liqoctl network connect` command on the server side:
 
 * `--server-service-type` (default `LoadBalancer`): the type of the Gateway service, it can be `NodePort` or `LoadBalancer`.
-* `--server-port` (default `51820`): the port of the Gateway service.
+* `--server-port` (default `51840`): the port of the Gateway service.
 * `--node-port` (default `0`): set it to force the NodePort binding to a specific port. If set to `0`, the system will allocate a port automatically.
 * `--load-balancer-ip` (default `""`): set it to force the LoadBalancer service to bind to a specific IP address. If set to `""`, the system will allocate an IP address automatically.
 * `--mtu` (default `1340`): the MTU of the Gateway interface. Note that the MTU must be the same on both sides.
@@ -260,7 +260,7 @@ metadata:
   name: server
 spec:
   endpoint:
-    port: 51820
+    port: 51840
     serviceType: NodePort
   mtu: 1340
   serverTemplateRef:

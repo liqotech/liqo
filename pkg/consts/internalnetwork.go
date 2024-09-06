@@ -16,7 +16,7 @@ package consts
 
 const (
 	// DefaultGenevePort is the default port used for the geneve tunnel.
-	DefaultGenevePort uint16 = 6081
+	DefaultGenevePort uint16 = 6091
 	// DefaultRouteTable is the name of the default table used for routes.
 	DefaultRouteTable = "liqo"
 	// InternalFabricName is the label used to identify the internal fabric name.

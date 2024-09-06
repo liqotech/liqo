@@ -37,7 +37,7 @@ networking:
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
   # -- The port used by the geneve tunnels.
-  genevePort: 6081
+  genevePort: 6091
   # -- Set the list of resources that implement the GatewayServer
   serverResources:
     - apiVersion: networking.liqo.io/v1beta1
@@ -77,7 +77,7 @@ networking:
           # liqo.io/override-address: "10.43.12.182"
           # -- Overrides the port where your network gateway service is available.
           # You should configure it if the network gateway is behind a reverse proxy or NAT and is different from the listening port.
-          # liqo.io/override-port: "51820"
+          # liqo.io/override-port: "51840"
     container:
       gateway:
         image:

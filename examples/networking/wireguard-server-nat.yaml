@@ -103,7 +103,7 @@ spec:
         metadata:
           annotations:
             liqo.io/override-address: 10.43.12.182
-            liqo.io/override-port: "51820"
+            liqo.io/override-port: "51840"
           labels:
             networking.liqo.io/component: gateway
           name: '{{ .Name }}'
