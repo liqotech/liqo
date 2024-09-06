@@ -44,6 +44,7 @@ spec:
           args:
           - --podname=$(POD_NAME)
           - --nodename=$(NODE_NAME)
+          - --geneve-port={{ .Values.networking.genevePort }}
           {{- if .Values.requirements.kernel.disabled }}
           - --disable-kernel-version-check
           {{- end }}

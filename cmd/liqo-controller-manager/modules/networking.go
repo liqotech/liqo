@@ -56,6 +56,8 @@ type NetworkingOption struct {
 	IPWorkers                      int
 	FabricFullMasquerade           bool
 	GwmasqbypassEnabled            bool
+
+	GenevePort uint16
 }
 
 // SetupNetworkingModule setup the networking module and initializes its controllers .
@@ -191,7 +193,8 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 			mgr.GetScheme(),
 			mgr.GetEventRecorderFor("gw-masq-bypass-controller"),
 			&gwmasqbypass.Options{
-				Namespace: opts.LiqoNamespace,
+				Namespace:  opts.LiqoNamespace,
+				GenevePort: opts.GenevePort,
 			},
 		)
 		if err := gwmasqbypassReconciler.SetupWithManager(mgr); err != nil {

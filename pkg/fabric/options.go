@@ -30,6 +30,8 @@ type Options struct {
 
 	DisableKernelVersionCheck bool
 	MinimumKernelVersion      kernelversion.KernelVersion
+
+	GenevePort uint16
 }
 
 // NewOptions returns a new Options struct.

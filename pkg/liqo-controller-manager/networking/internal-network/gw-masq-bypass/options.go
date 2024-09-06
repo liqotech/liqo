@@ -16,5 +16,6 @@ package gwmasqbypass
 
 // Options contains the options for the gwmasqbypass package.
 type Options struct {
-	Namespace string
+	Namespace  string
+	GenevePort uint16
 }

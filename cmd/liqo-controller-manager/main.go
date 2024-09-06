@@ -131,6 +131,7 @@ func main() {
 	gwmasqbypassEnabled := pflag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
 	networkWorkers := pflag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
 	ipWorkers := pflag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
+	genevePort := pflag.Uint16("geneve-port", consts.DefaultGenevePort, "The port used by the Geneve tunnel")
 
 	// AUTHENTICATION MODULE
 	pflag.StringVar(&apiServerAddressOverride,
@@ -274,6 +275,8 @@ func main() {
 			IPWorkers:                      *ipWorkers,
 			FabricFullMasquerade:           *fabricFullMasqueradeEnabled,
 			GwmasqbypassEnabled:            *gwmasqbypassEnabled,
+
+			GenevePort: *genevePort,
 		}); err != nil {
 			klog.Fatalf("Unable to setup the networking module: %v", err)
 		}

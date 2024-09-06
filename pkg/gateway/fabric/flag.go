@@ -16,6 +16,8 @@ package fabric
 
 import (
 	"github.com/spf13/pflag"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // FlagName is the type for the name of the flags.
@@ -28,9 +30,12 @@ func (fn FlagName) String() string {
 const (
 	// FlagNameDisableARP is the flag to enable ARP.
 	FlagNameDisableARP FlagName = "disable-arp"
+	// FlagNameGenevePort is the flag to set the Geneve port.
+	FlagNameGenevePort FlagName = "geneve-port"
 )
 
 // InitFlags initializes the flags for the gateway.
 func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.BoolVar(&opts.DisableARP, FlagNameDisableARP.String(), false, "Disable ARP")
+	flagset.Uint16Var(&opts.GenevePort, FlagNameGenevePort.String(), consts.DefaultGenevePort, "Geneve port")
 }

@@ -116,6 +116,7 @@ spec:
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --node-name={{"$(NODE_NAME)"}}
                 - --mode=server
+                - --geneve-port={{ .Values.networking.genevePort }}
                 {{- if .Values.metrics.enabled }}
                 - --metrics-address=:8084
                 {{- end }}

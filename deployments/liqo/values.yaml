@@ -36,6 +36,8 @@ networking:
   enabled: true
   # -- Reflect pod IPs and EnpointSlices to the remote clusters.
   reflectIPs: true
+  # -- The port used by the geneve tunnels.
+  genevePort: 6081
   # -- Set the list of resources that implement the GatewayServer
   serverResources:
     - apiVersion: networking.liqo.io/v1beta1

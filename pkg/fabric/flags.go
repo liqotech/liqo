@@ -17,6 +17,8 @@ package fabric
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // FlagName is the type for the name of the flags.
@@ -42,6 +44,9 @@ const (
 	FlagNameDisableKernelVersionCheck FlagName = "disable-kernel-version-check"
 	// FlagNameMinimumKernelVersion is the minimum kernel version required to run the wireguard interface.
 	FlagNameMinimumKernelVersion FlagName = "minimum-kernel-version"
+
+	// FlagNameGenevePort is the flag to set the Geneve port.
+	FlagNameGenevePort FlagName = "geneve-port"
 )
 
 // RequiredFlags contains the list of the mandatory flags.
@@ -61,6 +66,8 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 
 	flagset.BoolVar(&opts.DisableKernelVersionCheck, FlagNameDisableKernelVersionCheck.String(), false, "Disable the kernel version check")
 	flagset.Var(&opts.MinimumKernelVersion, string(FlagNameMinimumKernelVersion), "Minimum kernel version required to run the wireguard interface")
+
+	flagset.Uint16Var(&opts.GenevePort, FlagNameGenevePort.String(), consts.DefaultGenevePort, "Geneve port")
 }
 
 // MarkFlagsRequired marks the flags as required.
