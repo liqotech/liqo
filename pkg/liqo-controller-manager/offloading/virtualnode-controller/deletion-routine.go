@@ -176,8 +176,8 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 			return err
 		}
 	} else {
-		// Node is being deleted, but the VirtualNode resource is not.
-		// The VirtualNode .Spec.CreateNode field is set to false.
+		// Node is deleting/deleted, but the VirtualNode resource is not
+		// (the virtualNode .Spec.CreateNode field is set to false).
 		ForgeCondition(vn, VnConditionMap{
 			offloadingv1beta1.NodeConditionType: VnCondition{
 				Status: offloadingv1beta1.NoneConditionStatusType,
@@ -185,7 +185,7 @@ func (dr *DeletionRoutine) handle(ctx context.Context, key string) (err error) {
 	}
 
 	klog.Infof("Deletion routine completed for virtual node %s", vn.Name)
-	return err
+	return nil
 }
 
 // deleteNode deletes the Node created by VirtualNode.

@@ -98,7 +98,7 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	virtualNode := &offloadingv1beta1.VirtualNode{}
 	if err := r.Get(ctx, req.NamespacedName, virtualNode); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("There is no a virtual-node called '%s' in '%s'", req.Name, req.Namespace)
+			klog.Infof("There is no virtual-node called %q in %q", req.Name, req.Namespace)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("unable to get the virtual-node %q: %w", req.NamespacedName, err)
