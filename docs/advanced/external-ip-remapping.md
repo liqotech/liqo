@@ -69,6 +69,8 @@ It is an IP belonging to the **External CIDR**.
 
 We are going to use the **remapped IP** on **cluster 1** to reach the **external host**.
 
+(ExternalIPRemappingConnectToExternalHost)=
+
 ## Connect to the *external host*
 
 If **cluster 1** and **cluster 2** have different **External CIDRs** (it can be customized at installation time), you can skip this section and use the IP obtianed in the previous section to reach the **external host**.

@@ -49,6 +49,7 @@ subtrees:
       - file: advanced/kubernetes-api.md
       - file: advanced/nat.md
       - file: advanced/external-ip-remapping.md
+      - file: advanced/k8s-api-server-proxy.md
 
   - caption: Contributing
     entries:
