@@ -27,6 +27,7 @@ type Options struct {
 	RemoteFactory *factory.Factory
 	Timeout       time.Duration
 
+	InBand   bool
 	ProxyURL string
 }
 
@@ -74,6 +75,21 @@ func (o *Options) RunAuthenticate(ctx context.Context) error {
 	signedNonce, err := consumer.EnsureSignedNonce(ctx, nonce)
 	if err != nil {
 		return err
+	}
+
+	if o.InBand && o.ProxyURL == "" {
+		// In-band authentication: forge the proxy URL.
+		providerAPIServerProxyIP, err := provider.GetAPIServerProxyRemappedIP(ctx)
+		if err != nil {
+			return err
+		}
+
+		remappedIP, err := consumer.RemapIPExternalCIDR(ctx, providerAPIServerProxyIP)
+		if err != nil {
+			return err
+		}
+
+		o.ProxyURL = "http://" + remappedIP + ":8118"
 	}
 
 	// In the consumer cluster, forge a tenant resource to be applied on the provider cluster

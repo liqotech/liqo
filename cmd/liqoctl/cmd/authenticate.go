@@ -71,6 +71,7 @@ func newAuthenticateCommand(ctx context.Context, f *factory.Factory) *cobra.Comm
 	options.LocalFactory.Printer.CheckErr(cmd.RegisterFlagCompletionFunc("remote-namespace",
 		completion.Namespaces(ctx, options.RemoteFactory, completion.NoLimit)))
 
+	cmd.Flags().BoolVar(&options.InBand, "in-band", false, "Use in-band authentication. Use it only if required and if you know what you are doing")
 	cmd.Flags().StringVar(&options.ProxyURL, "proxy-url", "", "The URL of the proxy to use for the communication with the remote cluster")
 
 	return cmd
