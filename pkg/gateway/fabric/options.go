@@ -22,6 +22,7 @@ import (
 type Options struct {
 	GwOptions  *gateway.Options
 	DisableARP bool
+	GenevePort uint16
 }
 
 // NewOptions returns a new Options struct.

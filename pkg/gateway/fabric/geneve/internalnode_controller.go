@@ -104,6 +104,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		id,
 		r.Options.DisableARP,
 		internalFabric.Spec.MTU,
+		r.Options.GenevePort,
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to ensure the geneve interface presence: %w", err)
 	}

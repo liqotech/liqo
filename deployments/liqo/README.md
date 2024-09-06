@@ -106,6 +106,7 @@
 | networking.gatewayTemplates.server.service.allocateLoadBalancerNodePorts | string | `""` | Set to "false" if you expose the gateway service as LoadBalancer and you do not want to create also a NodePort associated to it (Note: this setting is useful only on cloud providers that support this feature). |
 | networking.gatewayTemplates.server.service.annotations | string | `nil` | Annotations for the server service. |
 | networking.gatewayTemplates.wireguard.implementation | string | `"kernel"` | Set the implementation used for the WireGuard connection. Possible values are "kernel" and "userspace". |
+| networking.genevePort | int | `6091` | The port used by the geneve tunnels. |
 | networking.reflectIPs | bool | `true` | Reflect pod IPs and EnpointSlices to the remote clusters. |
 | networking.serverResources | list | `[{"apiVersion":"networking.liqo.io/v1beta1","resource":"wggatewayservers"}]` | Set the list of resources that implement the GatewayServer |
 | offloading.createNode | bool | `true` | Enable/Disable the creation of a k8s node for each VirtualNode. This flag is cluster-wide, but you can configure the preferred behaviour for each VirtualNode  by setting the "createNode" field in the resource Spec. |

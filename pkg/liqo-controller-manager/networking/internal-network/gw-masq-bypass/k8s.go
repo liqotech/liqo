@@ -56,7 +56,7 @@ func enforceFirewallPodPresence(ctx context.Context, cl client.Client, scheme *r
 		ObjectMeta: metav1.ObjectMeta{Name: generateFirewallConfigurationName(pod.Spec.NodeName), Namespace: opts.Namespace},
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, cl, fwcfg, forgeFirewallPodUpdateFunction(internalnode, fwcfg, pod, scheme))
+	op, err := controllerutil.CreateOrUpdate(ctx, cl, fwcfg, forgeFirewallPodUpdateFunction(internalnode, fwcfg, pod, scheme, opts.GenevePort))
 
 	return op, err
 }
@@ -94,7 +94,7 @@ func enforceFirewallPodAbsence(ctx context.Context, cl client.Client, opts *Opti
 }
 
 func forgeFirewallPodUpdateFunction(internalnode *networkingv1beta1.InternalNode,
-	fwcfg *networkingv1beta1.FirewallConfiguration, pod *corev1.Pod, scheme *runtime.Scheme) controllerutil.MutateFn {
+	fwcfg *networkingv1beta1.FirewallConfiguration, pod *corev1.Pod, scheme *runtime.Scheme, genevePort uint16) controllerutil.MutateFn {
 	return func() error {
 		if err := controllerutil.SetOwnerReference(internalnode, fwcfg, scheme); err != nil {
 			return err
@@ -118,9 +118,9 @@ func forgeFirewallPodUpdateFunction(internalnode *networkingv1beta1.InternalNode
 		rules := &fwcfg.Spec.Table.Chains[0].Rules.NatRules
 
 		if rule, exists := rulesContainsPod(pod, *rules); exists {
-			updatePodToFw(pod, rule)
+			updatePodToFw(pod, rule, genevePort)
 		} else {
-			addPodToFw(pod, rules)
+			addPodToFw(pod, rules, genevePort)
 		}
 		return nil
 	}
@@ -163,7 +163,7 @@ func rulesContainsPod(pod *corev1.Pod, rules []firewall.NatRule) (*firewall.NatR
 	return nil, false
 }
 
-func addPodToFw(pod *corev1.Pod, rules *[]firewall.NatRule) {
+func addPodToFw(pod *corev1.Pod, rules *[]firewall.NatRule, genevePort uint16) {
 	*rules = append(*rules, firewall.NatRule{
 		Name:    &pod.Name,
 		NatType: firewall.NatTypeSource,
@@ -177,7 +177,7 @@ func addPodToFw(pod *corev1.Pod, rules *[]firewall.NatRule) {
 				},
 				Port: &firewall.MatchPort{
 					Position: firewall.MatchPositionDst,
-					Value:    "6081",
+					Value:    fmt.Sprintf("%d", genevePort),
 				},
 				Proto: &firewall.MatchProto{
 					Value: firewall.L4ProtoUDP,
@@ -188,7 +188,7 @@ func addPodToFw(pod *corev1.Pod, rules *[]firewall.NatRule) {
 	})
 }
 
-func updatePodToFw(pod *corev1.Pod, rule *firewall.NatRule) {
+func updatePodToFw(pod *corev1.Pod, rule *firewall.NatRule, genevePort uint16) {
 	rule.Name = ptr.To(pod.Name)
 	rule.NatType = firewall.NatTypeSource
 	rule.To = ptr.To(pod.Status.PodIP)
@@ -201,7 +201,7 @@ func updatePodToFw(pod *corev1.Pod, rule *firewall.NatRule) {
 			},
 			Port: &firewall.MatchPort{
 				Position: firewall.MatchPositionDst,
-				Value:    "6081",
+				Value:    fmt.Sprintf("%d", genevePort),
 			},
 			Proto: &firewall.MatchProto{
 				Value: firewall.L4ProtoUDP,

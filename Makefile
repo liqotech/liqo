@@ -91,7 +91,7 @@ ADDLICENSE=$(shell which addlicense)
 endif
 
 # Run go fmt against code
-fmt: gci addlicense
+fmt: gci addlicense docs
 	go mod tidy
 	go fmt ./...
 	find . -type f -name '*.go' -a ! -name '*zz_generated*' -exec $(GCI) write -s standard -s default -s "prefix(github.com/liqotech/liqo)" {} \;
