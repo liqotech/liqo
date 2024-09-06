@@ -382,51 +382,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		go func() {
-			createWithRetry := func(f func() error) error {
-				maxRetries := 5
-				for {
-					err := f()
-					if err == nil {
-						break
-					}
+		if err := ipamips.EnforceAPIServerIPRemapping(ctx, uncachedClient, *liqoNamespace); err != nil {
+			klog.Errorf("Unable to enforce the API server IP remapping: %v", err)
+			os.Exit(1)
+		}
 
-					klog.V(3).Infof("Unable to create the IP mapping: %v, retrying...", err)
-
-					maxRetries--
-					if maxRetries == 0 {
-						klog.Errorf("Unable to create the IP mapping: %v", err)
-						os.Exit(1)
-					}
-
-					select {
-					case <-ctx.Done():
-						return nil
-					case <-time.After(10 * time.Second):
-					}
-				}
-
-				return nil
-			}
-
-			// enforce IP remapping for the API Server
-			err := createWithRetry(func() error {
-				return ipamips.EnforceAPIServerIPRemapping(ctx, uncachedClient, *liqoNamespace)
-			})
-			if err != nil {
-				klog.Errorf("Unable to enforce the API Server IP remapping: %v", err)
-				os.Exit(1)
-			}
-
-			// enforce IP remapping for the API Server Proxy
-			err = createWithRetry(func() error {
-				return ipamips.EnforceAPIServerProxyIPRemapping(ctx, uncachedClient, *liqoNamespace)
-			})
-			if err != nil {
-				klog.Errorf("Unable to enforce the API Server Proxy IP remapping: %v", err)
-				os.Exit(1)
-			}
-		}()
+		if err := ipamips.EnforceAPIServerProxyIPRemapping(ctx, uncachedClient, *liqoNamespace); err != nil {
+			klog.Errorf("Unable to enforce the API server proxy IP remapping: %v", err)
+			os.Exit(1)
+		}
 	}
 
 	// Configure the foreigncluster controller.

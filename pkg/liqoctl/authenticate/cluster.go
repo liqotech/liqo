@@ -18,17 +18,21 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	authutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/utils"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/getters"
+	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 )
 
 // Cluster contains the information about a cluster.
@@ -209,4 +213,37 @@ func (c *Cluster) EnsureIdentity(ctx context.Context, identity *authv1beta1.Iden
 	}
 
 	return nil
+}
+
+// GetAPIServerProxyRemappedIP get the remapped IP of the API server proxy of the cluster.
+func (c *Cluster) GetAPIServerProxyRemappedIP(ctx context.Context) (string, error) {
+	var ip ipamv1alpha1.IP
+	err := c.local.CRClient.Get(ctx, types.NamespacedName{
+		Namespace: c.local.LiqoNamespace,
+		Name:      "api-server-proxy",
+	}, &ip)
+	if err != nil {
+		return "", err
+	}
+
+	for _, ipam := range ip.Status.IPMappings {
+		return ipam.String(), nil
+	}
+
+	return "", fmt.Errorf("no IP found, make sure the Liqo Networking module is enabled and working")
+}
+
+// RemapIPExternalCIDR remaps the given IP address to the external CIDR of the remote cluster.
+func (c *Cluster) RemapIPExternalCIDR(ctx context.Context, ip string) (string, error) {
+	conf, err := getters.GetConfigurationByClusterID(ctx, c.local.CRClient, c.RemoteClusterID)
+	if err != nil {
+		return "", err
+	}
+
+	remappedIP, err := ipamips.MapAddressWithConfiguration(conf, ip)
+	if err != nil {
+		return "", err
+	}
+
+	return remappedIP, nil
 }

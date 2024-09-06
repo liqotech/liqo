@@ -47,6 +47,7 @@ type Options struct {
 	// Authentication options
 	CreateResourceSlice bool
 	ResourceSliceClass  string
+	InBand              bool
 	ProxyURL            string
 
 	// Offloading options
@@ -136,6 +137,7 @@ func ensureAuthentication(ctx context.Context, o *Options) error {
 		RemoteFactory: o.RemoteFactory,
 		Timeout:       o.Timeout,
 
+		InBand:   o.InBand,
 		ProxyURL: o.ProxyURL,
 	}
 

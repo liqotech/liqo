@@ -64,6 +64,7 @@ func EnforceAPIServerIPRemapping(ctx context.Context, cl client.Client, liqoName
 	return nil
 }
 
+// EnforceAPIServerProxyIPRemapping creates or updates the IP resource for the API server proxy IP remapping.
 func EnforceAPIServerProxyIPRemapping(ctx context.Context, cl client.Client, liqoNamespace string) error {
 	var svcList corev1.ServiceList
 	if err := cl.List(ctx, &svcList, client.InNamespace(liqoNamespace), client.MatchingLabels{
