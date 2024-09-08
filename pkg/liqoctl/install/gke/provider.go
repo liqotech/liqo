@@ -109,7 +109,11 @@ func (o *Options) Initialize(ctx context.Context) error {
 		return fmt.Errorf("failed connecting to the Google compute API: %w", err)
 	}
 
-	subnet, err := netSvc.Subnetworks.Get(o.projectID, o.getRegion(), getSubnetName(cluster.NetworkConfig.Subnetwork)).
+	subnet, err := netSvc.Subnetworks.Get(
+		getSubnetProjectID(cluster.NetworkConfig.Subnetwork),
+		o.getRegion(),
+		getSubnetName(cluster.NetworkConfig.Subnetwork),
+	).
 		Context(ctx).Do()
 	if err != nil {
 		return fmt.Errorf("failed retrieving subnets information: %w", err)
@@ -165,8 +169,16 @@ func (o *Options) getRegion() string {
 	return strings.Join(strs[:2], "-")
 }
 
-func getSubnetName(subnetID string) string {
-	strs := strings.Split(subnetID, "/")
+func getSubnetProjectID(subnetPath string) string {
+	strs := strings.Split(subnetPath, "/")
+	if len(strs) == 0 {
+		return ""
+	}
+	return strs[1]
+}
+
+func getSubnetName(subnetPath string) string {
+	strs := strings.Split(subnetPath, "/")
 	if len(strs) == 0 {
 		return ""
 	}
