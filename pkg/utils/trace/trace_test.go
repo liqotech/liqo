@@ -15,30 +15,30 @@
 package trace_test
 
 import (
-	"flag"
 	"strconv"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/pflag"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/klog/v2"
 
+	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/trace"
 )
 
 var _ = Describe("Trace utilities", func() {
 
-	var fs flag.FlagSet
+	var fs pflag.FlagSet
 
 	BeforeEach(func() {
-		fs = *flag.NewFlagSet("test-flags", flag.PanicOnError)
-		klog.InitFlags(&fs)
+		fs = *pflag.NewFlagSet("test-flags", pflag.PanicOnError)
+		flagsutils.InitKlogFlags(&fs)
 	})
 
 	DescribeTable("The LongThreshold function",
 		func(level int, expected time.Duration) {
-			utilruntime.Must(fs.Set("v", strconv.FormatInt(int64(level), 10)))
+			utilruntime.Must(fs.Set("klog.v", strconv.FormatInt(int64(level), 10)))
 			Expect(trace.LongThreshold()).To(Equal(expected))
 		},
 		Entry("with log level 0", 0, time.Second),

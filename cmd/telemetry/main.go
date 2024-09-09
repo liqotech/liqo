@@ -16,13 +16,13 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
@@ -37,6 +37,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/telemetry"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
+	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/json"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -62,16 +63,18 @@ func init() {
 func main() {
 	var clusterLabels argsutils.StringMap
 
-	telemetryEndpoint := flag.String("telemetry-endpoint", "https://api.telemetry.liqo.io/v1", "telemetry endpoint")
-	timeout := flag.Duration("timeout", 10*time.Second, "timeout for requests")
-	namespace := flag.String("namespace", "liqo", "the namespace where liqo is deployed")
-	liqoVersion := flag.String("liqo-version", "", "the liqo version")
-	kubernetesVersion := flag.String("kubernetes-version", "", "the kubernetes version")
-	dryRun := flag.Bool("dry-run", false, "if true, do not send the telemetry item and print it on stdout")
-	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
+	telemetryEndpoint := pflag.String("telemetry-endpoint", "https://api.telemetry.liqo.io/v1", "telemetry endpoint")
+	timeout := pflag.Duration("timeout", 10*time.Second, "timeout for requests")
+	namespace := pflag.String("namespace", "liqo", "the namespace where liqo is deployed")
+	liqoVersion := pflag.String("liqo-version", "", "the liqo version")
+	kubernetesVersion := pflag.String("kubernetes-version", "", "the kubernetes version")
+	dryRun := pflag.Bool("dry-run", false, "if true, do not send the telemetry item and print it on stdout")
+	pflag.Var(&clusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
 
-	flag.Parse()
+	flagsutils.InitKlogFlags(nil)
+
+	pflag.Parse()
 
 	log.SetLogger(klog.NewKlogr())
 

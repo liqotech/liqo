@@ -15,13 +15,13 @@
 package args
 
 import (
-	"flag"
 	"net"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -219,7 +219,7 @@ var _ = Describe("ParseArguments", func() {
 
 		DescribeTable("ClusterID table",
 			func(c parseClusterIDTestCase) {
-				flagset := flag.NewFlagSet("test", flag.ContinueOnError)
+				flagset := pflag.NewFlagSet("test", pflag.ContinueOnError)
 				flags := NewClusterIDFlags(true, flagset)
 				Expect(flagset.Parse(c.args)).To(Succeed())
 				_, err := flags.Read()

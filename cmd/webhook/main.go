@@ -16,10 +16,10 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"time"
 
+	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -40,7 +40,7 @@ import (
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
-	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
+	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -70,28 +70,28 @@ func init() {
 
 func main() {
 	// Manager flags
-	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
-	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
-	probeAddr := flag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
-	leaderElection := flag.Bool("enable-leader-election", false, "Enable leader election for controller manager")
+	webhookPort := pflag.Uint("webhook-port", 9443, "The port the webhook server binds to")
+	metricsAddr := pflag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
+	probeAddr := pflag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
+	leaderElection := pflag.Bool("enable-leader-election", false, "Enable leader election for controller manager")
 
 	// Global parameters
 	clusterIDFlags := argsutils.NewClusterIDFlags(true, nil)
-	liqoNamespace := flag.String("liqo-namespace", consts.DefaultLiqoNamespace,
+	liqoNamespace := pflag.String("liqo-namespace", consts.DefaultLiqoNamespace,
 		"Name of the namespace where the liqo components are running")
-	podcidr := flag.String("podcidr", "", "The CIDR to use for the pod network")
-	vkOptsDefaultTemplate := flag.String("vk-options-default-template", "", "Namespaced name of the virtual-kubelet options template")
-	enableResourceValidation := flag.Bool("enable-resource-enforcement", false,
+	podcidr := pflag.String("podcidr", "", "The CIDR to use for the pod network")
+	vkOptsDefaultTemplate := pflag.String("vk-options-default-template", "", "Namespaced name of the virtual-kubelet options template")
+	enableResourceValidation := pflag.Bool("enable-resource-enforcement", false,
 		"Enforce offerer-side that offloaded pods do not exceed offered resources (based on container limits)")
-	refreshInterval := flag.Duration("resource-validator-refresh-interval",
+	refreshInterval := pflag.Duration("resource-validator-refresh-interval",
 		5*time.Minute, "The interval at which the resource validator cache is refreshed")
-	addVirtualNodeTolerationOnOffloadedPods := flag.Bool("add-virtual-node-toleration-on-offloaded-pods", false,
+	addVirtualNodeTolerationOnOffloadedPods := pflag.Bool("add-virtual-node-toleration-on-offloaded-pods", false,
 		"Automatically add the virtual node toleration on offloaded pods")
 
-	liqoerrors.InitFlags(nil)
-	restcfg.InitFlags(nil)
-	klog.InitFlags(nil)
-	flag.Parse()
+	flagsutils.InitKlogFlags(pflag.CommandLine)
+	restcfg.InitFlags(pflag.CommandLine)
+
+	pflag.Parse()
 
 	log.SetLogger(klog.NewKlogr())
 

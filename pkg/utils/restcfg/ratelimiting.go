@@ -15,9 +15,9 @@
 package restcfg
 
 import (
-	"flag"
 	"time"
 
+	"github.com/spf13/pflag"
 	"k8s.io/client-go/rest"
 )
 
@@ -37,9 +37,9 @@ var (
 )
 
 // InitFlags initializes the flags to configure the rate limiter parameters.
-func InitFlags(flagset *flag.FlagSet) {
+func InitFlags(flagset *pflag.FlagSet) {
 	if flagset == nil {
-		flagset = flag.CommandLine
+		flagset = pflag.CommandLine
 	}
 
 	flagset.DurationVar(&timeout, "client-timeout", DefaultClientTimeout,

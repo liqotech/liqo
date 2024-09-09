@@ -87,6 +87,8 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	flags.DurationVar(&o.VirtualKubeletLeaseRetryPeriod, "vk-lease-retry-period", 5*time.Second,
 		"the duration the LeaderElector clients should wait between tries of actions.")
 
+	restcfg.InitFlags(flags)
+
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)
 	flagset.VisitAll(func(f *flag.Flag) {
@@ -95,7 +97,6 @@ func InstallFlags(flags *pflag.FlagSet, o *Opts) {
 	})
 
 	flagset = flag.NewFlagSet("restcfg", flag.PanicOnError)
-	restcfg.InitFlags(flagset)
 	flags.AddGoFlagSet(flagset)
 }
 

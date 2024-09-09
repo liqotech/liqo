@@ -16,11 +16,11 @@ package apiserver_test
 
 import (
 	"encoding/base64"
-	"flag"
 	"strconv"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/pflag"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,10 +35,10 @@ var _ = Describe("The API server configuration", func() {
 
 	Describe("the GetConfig function", func() {
 		Context("configuring the API server parameters", func() {
-			var fs flag.FlagSet
+			var fs pflag.FlagSet
 
 			BeforeEach(func() {
-				fs = *flag.NewFlagSet("test-flags", flag.PanicOnError)
+				fs = *pflag.NewFlagSet("test-flags", pflag.PanicOnError)
 				apiserver.InitFlags(&fs)
 			})
 			JustBeforeEach(func() { cfg = apiserver.GetConfig() })

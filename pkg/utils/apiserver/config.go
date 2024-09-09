@@ -17,9 +17,9 @@ package apiserver
 import (
 	"context"
 	"encoding/base64"
-	"flag"
 	"os"
 
+	"github.com/spf13/pflag"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -41,9 +41,9 @@ type Config struct {
 }
 
 // InitFlags initializes the flags to configure the API server parameters.
-func InitFlags(flagset *flag.FlagSet) {
+func InitFlags(flagset *pflag.FlagSet) {
 	if flagset == nil {
-		flagset = flag.CommandLine
+		flagset = pflag.CommandLine
 	}
 
 	flagset.StringVar(&config.Address, "advertise-api-server-address", "",

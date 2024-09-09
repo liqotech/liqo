@@ -15,10 +15,10 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"time"
 
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -34,6 +34,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/args"
+	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -47,13 +48,13 @@ func init() {
 
 func main() {
 	clusterFlags := args.NewClusterIDFlags(true, nil)
-	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
-	workers := flag.Uint("workers", 1, "The number of workers managing the reflection of each remote cluster")
+	resyncPeriod := pflag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
+	workers := pflag.Uint("workers", 1, "The number of workers managing the reflection of each remote cluster")
 
 	restcfg.InitFlags(nil)
-	klog.InitFlags(nil)
+	flagsutils.InitKlogFlags(nil)
 
-	flag.Parse()
+	pflag.Parse()
 
 	log.SetLogger(klog.NewKlogr())
 

@@ -16,7 +16,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
@@ -62,10 +61,8 @@ func main() {
 		RunE: run,
 	}
 
-	legacyflags := flag.NewFlagSet("legacy", flag.ExitOnError)
-	restcfg.InitFlags(legacyflags)
-	klog.InitFlags(legacyflags)
-	flagsutils.FromFlagToPflag(legacyflags, cmd.Flags())
+	flagsutils.InitKlogFlags(cmd.Flags())
+	restcfg.InitFlags(cmd.Flags())
 
 	gwoptions := gateway.NewOptions()
 	connoptions = connection.NewOptions(
