@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
@@ -35,8 +34,6 @@ func CheckKernelVersionFromNodes(ctx context.Context, cl client.Client, minimum 
 	if !current.CheckRequirements(minimum) {
 		return fmt.Errorf("kernel version %s does not satisfy the minimum requirements %s", current.String(), minimum.String())
 	}
-
-	klog.Infof("Kernel version %s satisfies the minimum requirements %s", current.String(), minimum.String())
 	return nil
 }
 

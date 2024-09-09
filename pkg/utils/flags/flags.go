@@ -18,11 +18,19 @@ import (
 	"flag"
 
 	"github.com/spf13/pflag"
+	"k8s.io/klog/v2"
 )
 
-// FromFlagToPflag copies the flags from a flag.FlagSet to a pflag.FlagSet.
-func FromFlagToPflag(flags *flag.FlagSet, pflags *pflag.FlagSet) {
-	flags.VisitAll(func(f *flag.Flag) {
-		pflags.AddGoFlag(f)
+// InitKlogFlags initializes the klog flags.
+func InitKlogFlags(flags *pflag.FlagSet) {
+	if flags == nil {
+		flags = pflag.CommandLine
+	}
+
+	legacyflags := flag.NewFlagSet("legacy", flag.ExitOnError)
+	klog.InitFlags(legacyflags)
+	legacyflags.VisitAll(func(f *flag.Flag) {
+		f.Name = "klog." + f.Name
+		flags.AddGoFlag(f)
 	})
 }

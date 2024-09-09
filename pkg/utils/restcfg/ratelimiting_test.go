@@ -15,14 +15,15 @@
 package restcfg_test
 
 import (
-	"flag"
 	"strconv"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/pflag"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 
+	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -41,11 +42,12 @@ var _ = Describe("The rate limiting utility functions", func() {
 
 	Describe("the SetRateLimiter function", func() {
 		Context("configuring the rate limiting parameters", func() {
-			var fs flag.FlagSet
+			var fs pflag.FlagSet
 
 			BeforeEach(func() {
-				fs = *flag.NewFlagSet("test-flags", flag.PanicOnError)
+				fs = *pflag.NewFlagSet("test-flags", pflag.PanicOnError)
 				restcfg.InitFlags(&fs)
+				flagsutils.InitKlogFlags(&fs)
 			})
 			JustBeforeEach(func() { output = restcfg.SetRateLimiter(&cfg) })
 

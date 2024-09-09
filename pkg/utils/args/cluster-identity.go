@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
 
@@ -42,7 +43,7 @@ var _ flag.Value = &ClusterIDFlags{}
 //	fcFlags := NewClusterIDFlags(false, nil)
 //	flag.Parse()
 //	foreignClusterID := fcFlags.Read()
-func NewClusterIDFlags(local bool, flags *flag.FlagSet) ClusterIDFlags {
+func NewClusterIDFlags(local bool, flags *pflag.FlagSet) ClusterIDFlags {
 	var prefix, description string
 	if local {
 		prefix = "cluster" //nolint:goconst // No need to make the word "cluster" a const...
@@ -52,7 +53,7 @@ func NewClusterIDFlags(local bool, flags *flag.FlagSet) ClusterIDFlags {
 		description = "The %s of the foreign cluster"
 	}
 	if flags == nil {
-		flags = flag.CommandLine
+		flags = pflag.CommandLine
 	}
 	return ClusterIDFlags{
 		local:     local,

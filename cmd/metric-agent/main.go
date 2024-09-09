@@ -17,11 +17,11 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
 
+	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/remotemetrics"
 	clientutils "github.com/liqotech/liqo/pkg/utils/clients"
+	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -47,15 +48,16 @@ import (
 func main() {
 	ctx := context.Background()
 
-	keyPath := flag.String("key-path", "server.key", "Path to the key file")
-	certPath := flag.String("cert-path", "server.crt", "Path to the certificate file")
-	readTimeout := flag.Duration("read-timeout", 0, "Read timeout")
-	writeTimeout := flag.Duration("write-timeout", 0, "Write timeout")
-	port := flag.Int("port", 8443, "Port to listen on")
+	keyPath := pflag.String("key-path", "server.key", "Path to the key file")
+	certPath := pflag.String("cert-path", "server.crt", "Path to the certificate file")
+	readTimeout := pflag.Duration("read-timeout", 0, "Read timeout")
+	writeTimeout := pflag.Duration("write-timeout", 0, "Write timeout")
+	port := pflag.Int("port", 8443, "Port to listen on")
 
-	klog.InitFlags(nil)
-	restcfg.InitFlags(nil)
-	flag.Parse()
+	flagsutils.InitKlogFlags(pflag.CommandLine)
+	restcfg.InitFlags(pflag.CommandLine)
+
+	pflag.Parse()
 
 	log.SetLogger(klog.NewKlogr())
 

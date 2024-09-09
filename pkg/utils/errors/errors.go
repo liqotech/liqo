@@ -15,9 +15,9 @@
 package errors
 
 import (
-	"flag"
 	"strings"
 
+	"github.com/spf13/pflag"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/klog/v2"
@@ -26,9 +26,9 @@ import (
 var panicOnErrorMode = false
 
 // InitFlags initializes the flags to configure the errormanagement parameter.
-func InitFlags(flagset *flag.FlagSet) {
+func InitFlags(flagset *pflag.FlagSet) {
 	if flagset == nil {
-		flagset = flag.CommandLine
+		flagset = pflag.CommandLine
 	}
 
 	flagset.BoolVar(&panicOnErrorMode, "panic-on-unexpected-errors", panicOnErrorMode,
@@ -47,10 +47,9 @@ func Must(err error) bool {
 	if err != nil {
 		if panicOnErrorMode {
 			panic(err)
-		} else {
-			klog.Errorf("%s", err)
-			return false
 		}
+		klog.Errorf("%s", err)
+		return false
 	}
 	return true
 }

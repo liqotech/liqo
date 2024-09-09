@@ -15,20 +15,23 @@
 package testutil
 
 import (
-	"flag"
-
 	"github.com/onsi/ginkgo/v2"
+	"github.com/spf13/pflag"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
+
+	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 )
 
 // LogsToGinkgoWriter configures klog to output the logs to GinkgoWriter, instead of stdout.
 // This allows to output the logs only in case of failing tests, simplifying troubleshooting.
 func LogsToGinkgoWriter() {
 	klog.SetOutput(ginkgo.GinkgoWriter)
-	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
-	klog.InitFlags(flagset)
-	utilruntime.Must(flagset.Set("v", "5"))
-	utilruntime.Must(flagset.Set("stderrthreshold", "FATAL"))
+	flagset := pflag.NewFlagSet("klog", pflag.PanicOnError)
+
+	flagsutils.InitKlogFlags(flagset)
+
+	utilruntime.Must(flagset.Set("klog.v", "5"))
+	utilruntime.Must(flagset.Set("klog.stderrthreshold", "FATAL"))
 	klog.LogToStderr(false)
 }

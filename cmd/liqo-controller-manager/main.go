@@ -17,11 +17,11 @@ package main
 
 import (
 	"context"
-	"flag"
 	"os"
 	"time"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/spf13/pflag"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	corev1 "k8s.io/api/core/v1"
@@ -58,6 +58,7 @@ import (
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	dynamicutils "github.com/liqotech/liqo/pkg/utils/dynamic"
 	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
+	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
 	ipamips "github.com/liqotech/liqo/pkg/utils/ipam/mapping"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -93,78 +94,79 @@ func main() {
 	var awsConfig identitymanager.LocalAwsConfig
 
 	// Cluster-wide modules enable/disable flags.
-	networkingEnabled := flag.Bool("networking-enabled", true, "Enable/disable the networking module")
-	authenticationEnabled := flag.Bool("authentication-enabled", true, "Enable/disable the authentication module")
-	offloadingEnabled := flag.Bool("offloading-enabled", true, "Enable/disable the offloading module")
+	networkingEnabled := pflag.Bool("networking-enabled", true, "Enable/disable the networking module")
+	authenticationEnabled := pflag.Bool("authentication-enabled", true, "Enable/disable the authentication module")
+	offloadingEnabled := pflag.Bool("offloading-enabled", true, "Enable/disable the offloading module")
 
 	// Manager flags
-	webhookPort := flag.Uint("webhook-port", 9443, "The port the webhook server binds to")
-	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
-	probeAddr := flag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
-	leaderElection := flag.Bool("enable-leader-election", false, "Enable leader election for controller manager")
+	webhookPort := pflag.Uint("webhook-port", 9443, "The port the webhook server binds to")
+	metricsAddr := pflag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
+	probeAddr := pflag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
+	leaderElection := pflag.Bool("enable-leader-election", false, "Enable leader election for controller manager")
 
 	// Global parameters
-	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
+	resyncPeriod := pflag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
 	clusterIDFlags := argsutils.NewClusterIDFlags(true, nil)
-	liqoNamespace := flag.String("liqo-namespace", consts.DefaultLiqoNamespace,
+	liqoNamespace := pflag.String("liqo-namespace", consts.DefaultLiqoNamespace,
 		"Name of the namespace where the liqo components are running")
-	foreignClusterWorkers := flag.Int("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
-	foreignClusterPingInterval := flag.Duration("foreign-cluster-ping-interval", 15*time.Second,
+	foreignClusterWorkers := pflag.Int("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
+	foreignClusterPingInterval := pflag.Duration("foreign-cluster-ping-interval", 15*time.Second,
 		"The frequency of the ForeignCluster API server readiness check. Set 0 to disable the check")
-	foreignClusterPingTimeout := flag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
+	foreignClusterPingTimeout := pflag.Duration("foreign-cluster-ping-timeout", 5*time.Second,
 		"The timeout of the ForeignCluster API server readiness check")
-	defaultLimitsEnforcement := flag.String("default-limits-enforcement", string(offloadingv1beta1.NoLimitsEnforcement),
+	defaultLimitsEnforcement := pflag.String("default-limits-enforcement", string(offloadingv1beta1.NoLimitsEnforcement),
 		"The default limits enforcement policy for the offloading module")
 
 	// NETWORKING MODULE
-	ipamServer := flag.String("ipam-server", "", "The address of the IPAM server (set to empty string to disable IPAM)")
-	flag.Var(&gatewayServerResources, "gateway-server-resources",
+	ipamServer := pflag.String("ipam-server", "", "The address of the IPAM server (set to empty string to disable IPAM)")
+	pflag.Var(&gatewayServerResources, "gateway-server-resources",
 		"The list of resource types that implements the gateway server. They must be in the form <group>/<version>/<resource>")
-	flag.Var(&gatewayClientResources, "gateway-client-resources",
+	pflag.Var(&gatewayClientResources, "gateway-client-resources",
 		"The list of resource types that implements the gateway client. They must be in the form <group>/<version>/<resource>")
-	wgGatewayServerClusterRoleName := flag.String("wg-gateway-server-cluster-role-name", "liqo-gateway",
+	wgGatewayServerClusterRoleName := pflag.String("wg-gateway-server-cluster-role-name", "liqo-gateway",
 		"The name of the cluster role used by the wireguard gateway servers")
-	wgGatewayClientClusterRoleName := flag.String("wg-gateway-client-cluster-role-name", "liqo-gateway",
+	wgGatewayClientClusterRoleName := pflag.String("wg-gateway-client-cluster-role-name", "liqo-gateway",
 		"The name of the cluster role used by the wireguard gateway clients")
-	fabricFullMasqueradeEnabled := flag.Bool("fabric-full-masquerade-enabled", false, "Enable the full masquerade on the fabric network")
-	gwmasqbypassEnabled := flag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
-	networkWorkers := flag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
-	ipWorkers := flag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
+	fabricFullMasqueradeEnabled := pflag.Bool("fabric-full-masquerade-enabled", false, "Enable the full masquerade on the fabric network")
+	gwmasqbypassEnabled := pflag.Bool("gateway-masquerade-bypass-enabled", false, "Enable the gateway masquerade bypass")
+	networkWorkers := pflag.Int("network-ctrl-workers", 1, "The number of workers used to reconcile Network resources.")
+	ipWorkers := pflag.Int("ip-ctrl-workers", 1, "The number of workers used to reconcile IP resources.")
 
 	// AUTHENTICATION MODULE
-	flag.StringVar(&apiServerAddressOverride,
+	pflag.StringVar(&apiServerAddressOverride,
 		"api-server-address-override", "", "Override the API server address where the Kuberentes APIServer is exposed")
-	flag.StringVar(&caOverride, "ca-override", "", "Override the CA certificate used by Kubernetes to sign certificates (base64 encoded)")
-	flag.BoolVar(&trustedCA, "trusted-ca", false, "Whether the Kubernetes APIServer certificate is issue by a trusted CA")
+	pflag.StringVar(&caOverride, "ca-override", "", "Override the CA certificate used by Kubernetes to sign certificates (base64 encoded)")
+	pflag.BoolVar(&trustedCA, "trusted-ca", false, "Whether the Kubernetes APIServer certificate is issue by a trusted CA")
 	// AWS configurations
-	flag.StringVar(&awsConfig.AwsAccessKeyID, "aws-access-key-id", "", "AWS IAM AccessKeyID for the Liqo User")
-	flag.StringVar(&awsConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
-	flag.StringVar(&awsConfig.AwsRegion, "aws-region", "", "AWS region where the local cluster is running")
-	flag.StringVar(&awsConfig.AwsClusterName, "aws-cluster-name", "", "Name of the local EKS cluster")
+	pflag.StringVar(&awsConfig.AwsAccessKeyID, "aws-access-key-id", "", "AWS IAM AccessKeyID for the Liqo User")
+	pflag.StringVar(&awsConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
+	pflag.StringVar(&awsConfig.AwsRegion, "aws-region", "", "AWS region where the local cluster is running")
+	pflag.StringVar(&awsConfig.AwsClusterName, "aws-cluster-name", "", "Name of the local EKS cluster")
 	// Resource sharing parameters
-	flag.Var(&clusterLabels, consts.ClusterLabelsParameter,
+	pflag.Var(&clusterLabels, consts.ClusterLabelsParameter,
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
-	flag.Var(&ingressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
-	flag.Var(&loadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
-	flag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
+	pflag.Var(&ingressClasses, "ingress-classes", "List of ingress classes offered by the cluster. Example: \"nginx;default,traefik\"")
+	pflag.Var(&loadBalancerClasses, "load-balancer-classes", "List of load balancer classes offered by the cluster. Example:\"metallb;default\"")
+	pflag.Var(&defaultNodeResources, "default-node-resources", "Default resources assigned to the Virtual Node Pod")
 
 	// OFFLOADING MODULE
 	// Storage Provisioner parameters
-	enableStorage := flag.Bool("enable-storage", false, "enable the liqo virtual storage class")
-	virtualStorageClassName := flag.String("virtual-storage-class-name", "liqo", "Name of the virtual storage class")
-	realStorageClassName := flag.String("real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
-	storageNamespace := flag.String("storage-namespace", "liqo-storage", "Namespace where the liqo storage-related resources are stored")
+	enableStorage := pflag.Bool("enable-storage", false, "enable the liqo virtual storage class")
+	virtualStorageClassName := pflag.String("virtual-storage-class-name", "liqo", "Name of the virtual storage class")
+	realStorageClassName := pflag.String("real-storage-class-name", "", "Name of the real storage class to use for the actual volumes")
+	storageNamespace := pflag.String("storage-namespace", "liqo-storage", "Namespace where the liqo storage-related resources are stored")
 	// Service continuity
-	enableNodeFailureController := flag.Bool("enable-node-failure-controller", false, "Enable the node failure controller")
+	enableNodeFailureController := pflag.Bool("enable-node-failure-controller", false, "Enable the node failure controller")
 	// Controllers workers
-	shadowPodWorkers := flag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
-	shadowEndpointSliceWorkers := flag.Int("shadow-endpointslice-ctrl-workers", 10,
+	shadowPodWorkers := pflag.Int("shadow-pod-ctrl-workers", 10, "The number of workers used to reconcile ShadowPod resources.")
+	shadowEndpointSliceWorkers := pflag.Int("shadow-endpointslice-ctrl-workers", 10,
 		"The number of workers used to reconcile ShadowEndpointSlice resources.")
 
 	liqoerrors.InitFlags(nil)
 	restcfg.InitFlags(nil)
-	klog.InitFlags(nil)
-	flag.Parse()
+	flagsutils.InitKlogFlags(nil)
+
+	pflag.Parse()
 
 	log.SetLogger(klog.NewKlogr())
 
