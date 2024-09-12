@@ -48,3 +48,5 @@ docs/_build
 
 # development files
 /tmp
+
+/k3s-ansible

@@ -31,6 +31,7 @@ import (
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoctlmove "github.com/liqotech/liqo/pkg/liqoctl/move"
+	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
 	"github.com/liqotech/liqo/test/e2e/testutils/storage"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
@@ -46,6 +47,11 @@ const (
 
 func TestE2E(t *testing.T) {
 	util.CheckIfTestIsSkipped(t, clustersRequired, testName)
+
+	if util.GetEnvironmentVariableOrDie(testconsts.InfrastructureEnvVar) == testconsts.ProviderK3s {
+		t.Skipf("Skipping %s test on k3s", testName)
+	}
+
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Liqo E2E Suite")
 }

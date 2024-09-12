@@ -26,8 +26,16 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-# Cleaning all remaining clusters
+CLUSTER_NAME=cluster
+RUNNER_NAME=${RUNNER_NAME:-"test"}
 
-K3D="${BINDIR}/k3d"
+TARGET_NAMESPACE="liqo-ci"
 
-${K3D} cluster delete --all
+for i in $(seq 1 "${CLUSTER_NUMBER}");
+do
+  K3S_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}${i}"
+  echo "Deleting cluster ${K3S_CLUSTER_NAME}"
+  "${KUBECTL}" delete -n "${TARGET_NAMESPACE}" vms "${K3S_CLUSTER_NAME}-control-plane" --ignore-not-found
+  "${KUBECTL}" delete -n "${TARGET_NAMESPACE}" vms "${K3S_CLUSTER_NAME}-worker-1" --ignore-not-found
+  "${KUBECTL}" delete -n "${TARGET_NAMESPACE}" vms "${K3S_CLUSTER_NAME}-worker-2" --ignore-not-found
+done

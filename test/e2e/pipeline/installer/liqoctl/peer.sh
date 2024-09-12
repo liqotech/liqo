@@ -37,7 +37,18 @@ do
     ARGS=("${ARGS[@]}" --server-service-type NodePort)
   elif [[ "${INFRA}" == "kind" ]]; then
     ARGS=("${ARGS[@]}" --server-service-type NodePort)
+  elif [[ "${INFRA}" == "k3s" ]]; then
+    ARGS=("${ARGS[@]}" --server-service-type NodePort)
   fi
+
+  echo "Environment variables:"
+  env
+
+  echo "Kubeconfig consumer:"
+  cat "${KUBECONFIG}"
+
+  echo "Kubeconfig provider:"
+  cat "${PROVIDER_KUBECONFIG}"
 
   ARGS=("${ARGS[@]}")
   "${LIQOCTL}" peer "${ARGS[@]}"
