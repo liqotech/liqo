@@ -47,18 +47,26 @@ install_kubectl "${OS}" "${ARCH}" "${K8S_VERSION}"
 
 install_helm "${OS}" "${ARCH}"
 
-K3D_VERSION="v5.4.7"
+# install ansible
 
-echo "Downloading K3D ${K3D_VERSION}"
+# ensure pipx is installed
+if ! command -v pipx &> /dev/null; then
+   python3 -m pip install --user pipx
+   python3 -m pipx ensurepath --force
+   source "$HOME/.bashrc" || true
 
-if ! command -v docker &> /dev/null;
-then
-	echo "MISSING REQUIREMENT: docker engine could not be found on your system. Please install docker engine to continue: https://docs.docker.com/get-docker/"
-	return 1
+   sudo apt update
+   sudo apt install -y python3-venv
 fi
 
-if [[ ! -f "${BINDIR}/k3d" ]]; then
-    echo "k3d could not be found. Downloading https://k3d.sigs.k8s.io/dl/${K3D_VERSION}/k3d-${OS}-${ARCH} ..."
-	curl -Lo "${BINDIR}"/k3d "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-${OS}-${ARCH}"
-	chmod +x "${BINDIR}"/k3d
+# ensure envsubst is installed
+if ! command -v envsubst &> /dev/null; then
+   sudo apt update
+   sudo apt install -y gettext
+fi
+
+# ensure ansible is installed
+if ! command -v ansible &> /dev/null; then
+   pipx install --include-deps ansible
+   ansible-playbook --version
 fi

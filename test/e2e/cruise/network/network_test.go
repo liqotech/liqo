@@ -35,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/gateway"
 	networkflags "github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/setup"
+	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/config"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
@@ -49,6 +50,11 @@ const (
 
 func TestE2E(t *testing.T) {
 	util.CheckIfTestIsSkipped(t, clustersRequired, testName)
+
+	if util.GetEnvironmentVariableOrDie(testconsts.InfrastructureEnvVar) == testconsts.ProviderK3s {
+		t.Skipf("Skipping %s test on k3s", testName)
+	}
+
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Liqo E2E Suite")
 }
@@ -96,7 +102,9 @@ var _ = BeforeSuite(func() {
 
 	switch testContext.Infrastructure {
 	case "cluster-api":
-		ovverideArgsClusterAPI(&args)
+		overrideArgsClusterAPI(&args)
+	case "k3s":
+		overrideArgsK3s(&args)
 	case "kind":
 		overrideArgsKind(&args)
 	case "eks":
@@ -209,7 +217,11 @@ func overrideArgsFlannel(args *networkTestsArgs) {
 	args.nodePortNodes = networkflags.NodePortNodesWorkers
 }
 
-func ovverideArgsClusterAPI(args *networkTestsArgs) {
+func overrideArgsClusterAPI(args *networkTestsArgs) {
+	args.loadBalancer = false
+}
+
+func overrideArgsK3s(args *networkTestsArgs) {
 	args.loadBalancer = false
 }
 

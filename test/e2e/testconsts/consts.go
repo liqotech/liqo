@@ -46,6 +46,8 @@ const (
 	ProviderAWS = "AWS"
 	// ProviderGKE -> provider=GKE.
 	ProviderGKE = "GKE"
+	// ProviderK3s -> provider=K3s.
+	ProviderK3s = "k3s"
 	// RegionA -> region=A.
 	RegionA = "A"
 	// RegionB -> region=B.

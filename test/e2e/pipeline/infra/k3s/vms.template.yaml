@@ -1,0 +1,153 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+  namespace: liqo-ci
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vmpool: control-plane
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: root
+          - disk:
+              bus: virtio
+            name: cloud-init
+          networkInterfaceMultiqueue: true
+        machine:
+          type: q35
+        resources:
+          requests:
+            memory: 4Gi
+      volumes:
+        - dataVolume:
+            name: ${CLUSTER_NAME}-control-plane-data-volume
+          name: root
+        - name: cloud-init
+          cloudInitNoCloud:
+            secretRef:
+              name: cloud-init
+  dataVolumeTemplates:
+  - metadata:
+      creationTimestamp: null
+      name: ${CLUSTER_NAME}-control-plane-data-volume
+    spec:
+      storage:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 8Gi
+      source:
+        registry:
+          url: docker://ghcr.io/liqotech/ubuntu:22.04
+
+---
+
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ${CLUSTER_NAME}-worker-1
+  namespace: liqo-ci
+spec:
+  running: true
+  template:
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: root
+          - disk:
+              bus: virtio
+            name: cloud-init
+          networkInterfaceMultiqueue: true
+        machine:
+          type: q35
+        resources:
+          requests:
+            memory: 4Gi
+      volumes:
+        - dataVolume:
+            name: ${CLUSTER_NAME}-worker-1-data-volume
+          name: root
+        - name: cloud-init
+          cloudInitNoCloud:
+            secretRef:
+              name: cloud-init
+  dataVolumeTemplates:
+  - metadata:
+      creationTimestamp: null
+      name: ${CLUSTER_NAME}-worker-1-data-volume
+    spec:
+      storage:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 8Gi
+      source:
+        registry:
+          url: docker://ghcr.io/liqotech/ubuntu:22.04
+
+---
+
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ${CLUSTER_NAME}-worker-2
+  namespace: liqo-ci
+spec:
+  running: true
+  template:
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: root
+          - disk:
+              bus: virtio
+            name: cloud-init
+          networkInterfaceMultiqueue: true
+        machine:
+          type: q35
+        resources:
+          requests:
+            memory: 4Gi
+      volumes:
+        - dataVolume:
+            name: ${CLUSTER_NAME}-worker-2-data-volume
+          name: root
+        - name: cloud-init
+          cloudInitNoCloud:
+            secretRef:
+              name: cloud-init
+  dataVolumeTemplates:
+  - metadata:
+      creationTimestamp: null
+      name: ${CLUSTER_NAME}-worker-2-data-volume
+    spec:
+      storage:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 8Gi
+      source:
+        registry:
+          url: docker://ghcr.io/liqotech/ubuntu:22.04

@@ -26,9 +26,50 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-K3D="${BINDIR}/k3d"
+check_host_login() {
+  local host=$1
+  local user=$2
+  local key=$3
+  local timeout=${4:-"600"}
+
+  s=$(date +%s)
+  local start=${s}
+  while true; do
+    if ssh -i "${key}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 "${user}@${host}" exit; then
+      break
+    fi
+    if [[ $(( $(date +%s) - start )) -gt ${timeout} ]]; then
+      echo "Timeout reached while waiting for the host to be reachable"
+      exit 1
+    fi
+    sleep 5
+  done
+
+  sleep 5
+
+  # check apt is able to take the lock
+  start=$(date +%s)
+  while true; do
+    if ssh -i "${key}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 "${user}@${host}" sudo apt update; then
+      break
+    fi
+    if [[ $(( $(date +%s) - start )) -gt ${timeout} ]]; then
+      echo "Timeout reached while waiting for apt to be available"
+      exit 1
+    fi
+    sleep 5
+  done
+}
+
+# shellcheck disable=SC1091
+source "$HOME/.bashrc" || true
 
 CLUSTER_NAME=cluster
+RUNNER_NAME=${RUNNER_NAME:-"test"}
+
+TARGET_NAMESPACE="liqo-ci"
+
+BASE_DIR=$(dirname "$0")
 
 export SERVICE_CIDR=10.100.0.0/16
 export POD_CIDR=10.200.0.0/16
@@ -36,21 +77,67 @@ export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
-	if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
+  K3S_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}${i}"
+	echo "Creating cluster ${K3S_CLUSTER_NAME}"
+  CLUSTER_NAME="$K3S_CLUSTER_NAME" envsubst < "$BASE_DIR/vms.template.yaml" | "${KUBECTL}" apply -n "${TARGET_NAMESPACE}" -f -
+done
+
+# Wait for the clusters to be ready
+for i in $(seq 1 "${CLUSTER_NUMBER}");
+do
+  K3S_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}${i}"
+  "${KUBECTL}" wait --for=condition=Ready --timeout=20m vm "${K3S_CLUSTER_NAME}-control-plane" -n "${TARGET_NAMESPACE}"
+  "${KUBECTL}" wait --for=condition=Ready --timeout=20m vm "${K3S_CLUSTER_NAME}-worker-1" -n "${TARGET_NAMESPACE}"
+  "${KUBECTL}" wait --for=condition=Ready --timeout=20m vm "${K3S_CLUSTER_NAME}-worker-2" -n "${TARGET_NAMESPACE}"
+
+  "${KUBECTL}" wait --for=condition=Ready --timeout=20m vmi "${K3S_CLUSTER_NAME}-control-plane" -n "${TARGET_NAMESPACE}"
+  "${KUBECTL}" wait --for=condition=Ready --timeout=20m vmi "${K3S_CLUSTER_NAME}-worker-1" -n "${TARGET_NAMESPACE}"
+  "${KUBECTL}" wait --for=condition=Ready --timeout=20m vmi "${K3S_CLUSTER_NAME}-worker-2" -n "${TARGET_NAMESPACE}"
+done
+
+SSH_KEY_FILE="${TMPDIR}/id_rsa"
+echo "${SSH_KEY_PATH}" > "${SSH_KEY_FILE}"
+chmod 600 "${SSH_KEY_FILE}"
+
+rm -rf k3s-ansible || true
+git clone https://github.com/k3s-io/k3s-ansible.git
+cd k3s-ansible
+
+for i in $(seq 1 "${CLUSTER_NUMBER}");
+do
+  K3S_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}${i}"
+
+  if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
 		# this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
-	echo "Creating cluster ${CLUSTER_NAME}${i}"
-  ${K3D} cluster create "${CLUSTER_NAME}${i}" \
-    --k3s-arg "--cluster-cidr=${POD_CIDR}@server:*" \
-    --k3s-arg "--service-cidr=${SERVICE_CIDR}@server:*" \
-    --no-lb \
-    --network k3d \
-    --verbose
-  ${K3D} node create "${CLUSTER_NAME}${i}-agent" \
-    --cluster "${CLUSTER_NAME}${i}" \
-    --role agent \
-    --verbose
-  ${K3D} kubeconfig write "${CLUSTER_NAME}${i}" \
-    --output "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+
+  _CONTROL_PLANE_IP=$("${KUBECTL}" get vmi "${K3S_CLUSTER_NAME}-control-plane" -n "${TARGET_NAMESPACE}" -o jsonpath='{.status.interfaces[0].ipAddress}')
+  _WORKER_1_IP=$("${KUBECTL}" get vmi "${K3S_CLUSTER_NAME}-worker-1" -n "${TARGET_NAMESPACE}" -o jsonpath='{.status.interfaces[0].ipAddress}')
+  _WORKER_2_IP=$("${KUBECTL}" get vmi "${K3S_CLUSTER_NAME}-worker-2" -n "${TARGET_NAMESPACE}" -o jsonpath='{.status.interfaces[0].ipAddress}')
+  export CONTROL_PLANE_IP="${_CONTROL_PLANE_IP}"
+  export WORKER_1_IP="${_WORKER_1_IP}"
+  export WORKER_2_IP="${_WORKER_2_IP}"
+
+  check_host_login "${CONTROL_PLANE_IP}" "ubuntu" "${SSH_KEY_FILE}"
+  check_host_login "${WORKER_1_IP}" "ubuntu" "${SSH_KEY_FILE}"
+  check_host_login "${WORKER_2_IP}" "ubuntu" "${SSH_KEY_FILE}"
+
+  # if running in GitHub Actions
+  if [[ -n "${GITHUB_ACTIONS}" ]]; then
+    sudo python3 "${BASE_DIR}/ansible-blocking-io.py"
+  fi
+
+  ansible-playbook --version
+  envsubst < "$BASE_DIR/inventory.template.yml" > inventory.yml
+  ansible-playbook playbooks/site.yml -i inventory.yml --key-file "${SSH_KEY_FILE}"
+
+  mkdir -p "${TMPDIR}/kubeconfigs"
+  scp -i "${SSH_KEY_FILE}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@"${CONTROL_PLANE_IP}":~/.kube/config "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  sed -i "s/127.0.0.1/${CONTROL_PLANE_IP}/g" "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+
+  # add default namespace to kubeconfig
+  KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}" "${KUBECTL}" config set-context --current --namespace=default
 done
+
+cd ..
