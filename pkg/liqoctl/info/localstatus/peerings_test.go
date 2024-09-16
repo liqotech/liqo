@@ -31,6 +31,7 @@ import (
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 	"github.com/liqotech/liqo/pkg/liqoctl/info"
+	"github.com/liqotech/liqo/pkg/liqoctl/info/common"
 	"github.com/liqotech/liqo/pkg/liqoctl/info/localstatus"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -38,13 +39,13 @@ import (
 
 var _ = Describe("PeeringChecker tests", func() {
 
-	getFakeModuleFromStatus := func(status localstatus.ModuleStatus) liqov1beta1.Module {
+	getFakeModuleFromStatus := func(status common.ModuleStatus) liqov1beta1.Module {
 		var conditions []liqov1beta1.Condition
-		if status == localstatus.Disabled {
+		if status == common.ModuleDisabled {
 			return liqov1beta1.Module{
 				Enabled: false,
 			}
-		} else if status == localstatus.Healthy {
+		} else if status == common.ModuleHealthy {
 			conditions = append(conditions,
 				liqov1beta1.Condition{
 					Type:   "fake1",
@@ -75,9 +76,9 @@ var _ = Describe("PeeringChecker tests", func() {
 	}
 
 	type ForeignClusterDescription struct {
-		Authentication localstatus.ModuleStatus
-		Networking     localstatus.ModuleStatus
-		Offloading     localstatus.ModuleStatus
+		Authentication common.ModuleStatus
+		Networking     common.ModuleStatus
+		Offloading     common.ModuleStatus
 	}
 
 	type TestArgs struct {
@@ -165,32 +166,32 @@ var _ = Describe("PeeringChecker tests", func() {
 				Entry("Healthy 1 peering", TestArgs{
 					foreignClusterDescriptions: []ForeignClusterDescription{
 						{
-							Authentication: localstatus.Healthy,
-							Networking:     localstatus.Healthy,
-							Offloading:     localstatus.Healthy,
+							Authentication: common.ModuleHealthy,
+							Networking:     common.ModuleHealthy,
+							Offloading:     common.ModuleHealthy,
 						},
 					},
 				}),
 				Entry("Healthy and Unhealthy peerings", TestArgs{
 					foreignClusterDescriptions: []ForeignClusterDescription{
 						{
-							Authentication: localstatus.Healthy,
-							Networking:     localstatus.Healthy,
-							Offloading:     localstatus.Healthy,
+							Authentication: common.ModuleHealthy,
+							Networking:     common.ModuleHealthy,
+							Offloading:     common.ModuleHealthy,
 						},
 						{
-							Authentication: localstatus.Healthy,
-							Networking:     localstatus.Unhealthy,
-							Offloading:     localstatus.Healthy,
+							Authentication: common.ModuleHealthy,
+							Networking:     common.ModuleUnhealthy,
+							Offloading:     common.ModuleHealthy,
 						},
 					},
 				}),
 				Entry("Unhealthy peering with disable module", TestArgs{
 					foreignClusterDescriptions: []ForeignClusterDescription{
 						{
-							Authentication: localstatus.Healthy,
-							Networking:     localstatus.Disabled,
-							Offloading:     localstatus.Unhealthy,
+							Authentication: common.ModuleHealthy,
+							Networking:     common.ModuleDisabled,
+							Offloading:     common.ModuleUnhealthy,
 						},
 					},
 				}),

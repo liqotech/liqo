@@ -18,7 +18,10 @@ package info
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqoctl/factory"
 )
 
@@ -41,9 +44,10 @@ var LocalInfoQueryShortcuts = map[string]string{
 type Options struct {
 	*factory.Factory
 
-	Verbose  bool
-	Format   OutputFormat
-	GetQuery string
+	Verbose      bool
+	Format       OutputFormat
+	GetQuery     string
+	ClustersInfo map[liqov1beta1.ClusterID]*liqov1beta1.ForeignCluster
 }
 
 // NewOptions returns a new Options struct.
@@ -80,9 +84,11 @@ func (o *Options) RunInfo(ctx context.Context, checkers []Checker) error {
 		return nil
 	// If query specified try to retrieve the field from the output
 	case o.GetQuery != "":
-		output, err = o.sPrintField(o.GetQuery, checkers, LocalInfoQueryShortcuts)
+		data := o.collectDataFromCheckers(checkers)
+		output, err = o.sPrintField(o.GetQuery, data, LocalInfoQueryShortcuts)
 	default:
-		output, err = o.sPrintMachineReadable(checkers)
+		data := o.collectDataFromCheckers(checkers)
+		output, err = o.sPrintMachineReadable(data)
 	}
 
 	if err != nil {
@@ -95,6 +101,71 @@ func (o *Options) RunInfo(ctx context.Context, checkers []Checker) error {
 }
 
 // RunPeerInfo execute the `info peer` command.
-func (o *Options) RunPeerInfo(_ context.Context, _ []string) error {
-	panic("Not implemented")
+func (o *Options) RunPeerInfo(ctx context.Context, checkers []MultiClusterChecker, clusterIDs []string) error {
+	// Check whether Liqo is installed in the current cluster
+	if err := o.installationCheck(ctx); err != nil {
+		return err
+	}
+
+	if err := o.getForeignClusters(ctx, clusterIDs); err != nil {
+		return err
+	}
+
+	// Start collecting the data via the checkers
+	for i := range checkers {
+		checkers[i].Collect(ctx, *o)
+		for _, err := range checkers[i].GetCollectionErrors() {
+			o.Printer.Warning.Println(err)
+		}
+	}
+
+	var err error
+	var output string
+	switch {
+	// If no format is specified, format and print a user-friendly output
+	case o.Format == "" && o.GetQuery == "":
+		clustersCounter := 0
+		nPeers := len(o.ClustersInfo)
+		for clusterID := range o.ClustersInfo {
+			for i := range checkers {
+				o.Printer.BoxSetTitle(checkers[i].GetTitle())
+				o.Printer.BoxPrintln(checkers[i].FormatForClusterID(clusterID, *o))
+			}
+
+			clustersCounter++
+			if clustersCounter < nPeers {
+				fmt.Printf("\n\n")
+			}
+		}
+		return nil
+	// If query specified try to retrieve the field from the output
+	case o.GetQuery != "":
+		data, _ := o.collectDataFromMultiClusterCheckers(checkers)
+
+		selectedClusterIDs := slices.Collect(maps.Keys(o.ClustersInfo))
+		// Get the cluster selected by the query
+		query, selectedCluster := o.getClusterFromQuery(o.GetQuery, selectedClusterIDs)
+
+		// Get the field from the cluster data
+		if showData, ok := data[liqov1beta1.ClusterID(selectedCluster)]; ok {
+			output, err = o.sPrintField(query, showData, nil)
+		} else {
+			err = fmt.Errorf(
+				"cluster %q in query %q is not among the requested clusters",
+				selectedCluster,
+				o.GetQuery,
+			)
+		}
+	default:
+		data, _ := o.collectDataFromMultiClusterCheckers(checkers)
+		output, err = o.sPrintMachineReadable(data)
+	}
+
+	if err != nil {
+		o.Printer.Error.Println(err)
+	} else {
+		fmt.Println(output)
+	}
+
+	return err
 }

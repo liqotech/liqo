@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -141,13 +140,8 @@ func forgeMutateRouteConfiguration(cfg *networkingv1beta1.Configuration,
 
 // GetGatewayMode returns the mode of the Gateway related to the Configuration.
 func GetGatewayMode(ctx context.Context, cl client.Client, remoteClusterID liqov1beta1.ClusterID) (gateway.Mode, error) {
-	gwclient, err := getters.GetGatewayClientByClusterID(ctx, cl, remoteClusterID)
-	if err != nil && !kerrors.IsNotFound(err) {
-		return "", err
-	}
-
-	gwserver, err := getters.GetGatewayServerByClusterID(ctx, cl, remoteClusterID)
-	if err != nil && !kerrors.IsNotFound(err) {
+	gwserver, gwclient, err := getters.GetGatewaysByClusterID(ctx, cl, remoteClusterID)
+	if err != nil {
 		return "", err
 	}
 

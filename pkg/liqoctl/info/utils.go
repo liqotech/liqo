@@ -18,18 +18,24 @@ package info
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
+
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// collectData collect the data retrieved by the checkers in a map.
-func (o *Options) collectData(checkers []Checker) map[string]interface{} {
+// collectDataFromCheckers collect the data retrieved by the checkers in a map.
+func (o *Options) collectDataFromCheckers(checkers []Checker) map[string]interface{} {
 	data := map[string]interface{}{}
 
 	for i := range checkers {
@@ -37,6 +43,81 @@ func (o *Options) collectData(checkers []Checker) map[string]interface{} {
 	}
 
 	return data
+}
+
+// collectDataFromMultiClusterCheckers collect the data retrieved by the checkers in a map.
+func (o *Options) collectDataFromMultiClusterCheckers(checkers []MultiClusterChecker) (map[liqov1beta1.ClusterID]map[string]interface{}, error) {
+	data := map[liqov1beta1.ClusterID]map[string]interface{}{}
+	for clusterID := range o.ClustersInfo {
+		data[clusterID] = map[string]interface{}{}
+		for _, c := range checkers {
+			checkerID := c.GetID()
+			res, err := c.GetDataByClusterID(clusterID)
+			if err != nil {
+				o.Printer.Warning.Printfln("%s: %v", checkerID, err)
+				return nil, err
+			}
+
+			data[clusterID][checkerID] = res
+		}
+	}
+	return data, nil
+}
+
+func (o *Options) getClusterFromQuery(inQuery string, clusterIDs []liqov1beta1.ClusterID) (newQuery, selectedCluster string) {
+	// Get the cluster selected by the query
+	newQuery = strings.TrimPrefix(inQuery, ".")
+	splittedQuery := strings.Split(newQuery, ".")
+	selectedCluster = splittedQuery[0]
+	// If we have one single cluster, then allow the user to omit the cluster name
+	firstCluster := string(clusterIDs[0])
+	if len(clusterIDs) == 1 && selectedCluster != firstCluster {
+		selectedCluster = firstCluster
+	} else {
+		newQuery = strings.Join(splittedQuery[1:], ".")
+	}
+	return
+}
+
+func (o *Options) getForeignClusters(ctx context.Context, clusterIDs []string) error {
+	o.ClustersInfo = map[liqov1beta1.ClusterID]*liqov1beta1.ForeignCluster{}
+
+	var foreignClusterList liqov1beta1.ForeignClusterList
+
+	// Get all the clusters if no clusterID has been specified
+	labelSelector := labels.NewSelector()
+	if len(clusterIDs) > 0 {
+		labelFilter, _ := labels.NewRequirement(consts.RemoteClusterID, selection.In, clusterIDs)
+		labelSelector = labelSelector.Add(*labelFilter)
+	}
+
+	if err := o.CRClient.List(ctx, &foreignClusterList, &client.ListOptions{
+		LabelSelector: labelSelector,
+	}); err != nil {
+		errmsg := fmt.Sprintf("Unable to retrieve peer clusters: %v", err)
+		o.Printer.Error.Println(errmsg)
+		return errors.New(errmsg)
+	}
+
+	// Collect the results
+	for i := range foreignClusterList.Items {
+		cluster := &foreignClusterList.Items[i]
+		o.ClustersInfo[cluster.Spec.ClusterID] = cluster
+	}
+
+	if len(clusterIDs) > len(o.ClustersInfo) {
+		// Check what clusters are not found
+		var notfound []string
+		for _, id := range clusterIDs {
+			if _, ok := o.ClustersInfo[liqov1beta1.ClusterID(id)]; !ok {
+				notfound = append(notfound, id)
+			}
+		}
+		errmsg := fmt.Sprintf("Peer clusters %q not found in active peerings", strings.Join(notfound, ", "))
+		o.Printer.Error.Println(errmsg)
+		return errors.New(errmsg)
+	}
+	return nil
 }
 
 // installationCheck checks if Liqo is installed in the cluster.
@@ -59,9 +140,7 @@ func (o *Options) installationCheck(ctx context.Context) error {
 
 // sPrintField returns a specific field from the data collected from the checkers
 // given a query in dot notation.
-func (o *Options) sPrintField(query string, checkers []Checker, queryShortcuts map[string]string) (string, error) {
-	data := o.collectData(checkers)
-
+func (o *Options) sPrintField(query string, data map[string]interface{}, queryShortcuts map[string]string) (string, error) {
 	// Check whether the query is actually a shortcut
 	if shortcut, ok := queryShortcuts[strings.ToLower(query)]; ok {
 		query = shortcut
@@ -98,19 +177,11 @@ func (o *Options) sPrintField(query string, checkers []Checker, queryShortcuts m
 		return fmt.Sprint(currData), nil
 	}
 
-	return o.sPrintOutput(currData)
-}
-
-// sPrintMachineReadable returns the output collected by the checkers in a machine readable format. Either JSON or YAML,
-// according to the output format.
-func (o *Options) sPrintMachineReadable(checkers []Checker) (string, error) {
-	data := o.collectData(checkers)
-
-	return o.sPrintOutput(data)
+	return o.sPrintMachineReadable(currData)
 }
 
 // sPrintOutput format the data as the output format.
-func (o *Options) sPrintOutput(data interface{}) (string, error) {
+func (o *Options) sPrintMachineReadable(data interface{}) (string, error) {
 	var output string
 	if o.Format == JSON {
 		jsonRes, err := json.MarshalIndent(data, "", "  ")

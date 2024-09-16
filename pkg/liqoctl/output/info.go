@@ -28,6 +28,7 @@ type Section interface {
 	AddSectionInfo(title string) Section
 	AddSectionWithDetail(title, detail string) Section
 	AddEntry(key string, values ...string) Section
+	AddEntryWarning(key string, values ...string) Section
 	AddEntryWithoutStyle(key, value string) Section
 	SprintForBox(printer *Printer) string
 }
@@ -99,6 +100,12 @@ func (s *section) AddEntry(key string, values ...string) Section {
 	return s
 }
 
+// AddEntryWarning add a new entry with warning style.
+func (s *section) AddEntryWarning(key string, values ...string) Section {
+	s.entries = append(s.entries, &entry{key: key, values: values, style: StatusWarningStyle})
+	return s
+}
+
 // AddEntryWithoutStyle add a new entry without style.
 func (s *section) AddEntryWithoutStyle(key, value string) Section {
 	s.entries = append(s.entries, &entry{key: key, values: []string{value}, style: pterm.NewStyle(pterm.FgDefault)})
@@ -166,7 +173,7 @@ func (e *entry) print(level int, printer *Printer, longestKey int) {
 		)
 	case 1:
 		printer.BulletListAddItemWithoutBullet(pterm.Sprintf("%s: %s%s",
-			pterm.Bold.Sprint(e.key),
+			pterm.Sprint(e.key),
 			strings.Repeat(" ", longestKey-len(e.key)),
 			e.style.Sprint(e.values[0]),
 		),
@@ -174,7 +181,7 @@ func (e *entry) print(level int, printer *Printer, longestKey int) {
 		)
 	default:
 		printer.BulletListAddItemWithoutBullet(
-			pterm.Bold.Sprint(e.key),
+			pterm.Sprint(e.key),
 			level,
 		)
 		for _, v := range e.values {

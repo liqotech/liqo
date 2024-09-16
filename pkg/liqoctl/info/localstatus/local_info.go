@@ -41,7 +41,7 @@ type Installation struct {
 
 // InstallationChecker collects the info about the local Liqo installation.
 type InstallationChecker struct {
-	info.CheckerBase
+	info.CheckerCommon
 	data Installation
 }
 

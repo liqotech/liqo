@@ -17,14 +17,19 @@ package info
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
+
+	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 )
 
 type dummyChecker struct {
-	CheckerBase
+	CheckerCommon
 	title string
 	id    string
 	data  interface{}
@@ -60,7 +65,51 @@ func (d *dummyChecker) GetTitle() string {
 	return "Dummy"
 }
 
+type dummyMultiClusterChecker struct {
+	CheckerCommon
+	title string
+	id    string
+	data  map[liqov1beta1.ClusterID]interface{}
+
+	nCollectCalls int
+}
+
+func (d *dummyMultiClusterChecker) Collect(_ context.Context, _ Options) {
+	d.nCollectCalls++
+}
+
+func (d *dummyMultiClusterChecker) FormatForClusterID(clusterID liqov1beta1.ClusterID, options Options) string {
+	return ""
+}
+
+func (d *dummyMultiClusterChecker) GetDataByClusterID(clusterID liqov1beta1.ClusterID) (interface{}, error) {
+	if res, ok := d.data[clusterID]; ok {
+		return res, nil
+	}
+	return nil, fmt.Errorf("no data collected for cluster %q", clusterID)
+}
+
+// GetID returns the id of the section collected by the checker.
+func (d *dummyMultiClusterChecker) GetID() string {
+	if d.id != "" {
+		return d.id
+	}
+	return "dummy-multi-cluster"
+}
+
+// GetTitle returns the title of the section collected by the checker.
+func (d *dummyMultiClusterChecker) GetTitle() string {
+	if d.id != "" {
+		return d.title
+	}
+	return "DummyMultiCluster"
+}
+
 func TestLocal(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Local Suite")
 }
+
+var _ = BeforeSuite(func() {
+	utilruntime.Must(liqov1beta1.AddToScheme(scheme.Scheme))
+})
