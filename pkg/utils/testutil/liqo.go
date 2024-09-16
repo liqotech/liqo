@@ -23,9 +23,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
+	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	liqoconsts "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -58,6 +60,83 @@ func FakeControllerManagerDeployment(argsClusterLabels []string, networkEnabled 
 							Name:  "controller-manager",
 						},
 					},
+				},
+			},
+		},
+	}
+}
+
+// FakeIdentity returns a fake Identity.
+func FakeIdentity(clusterID liqov1beta1.ClusterID, identityType authv1beta1.IdentityType) *authv1beta1.Identity {
+	return &authv1beta1.Identity{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: string(clusterID),
+			Labels: map[string]string{
+				liqoconsts.RemoteClusterID: string(clusterID),
+			},
+		},
+		Spec: authv1beta1.IdentitySpec{
+			ClusterID: clusterID,
+			Type:      identityType,
+			AuthParams: authv1beta1.AuthParams{
+				APIServer: "https://192.168.0.6:6443",
+			},
+		},
+	}
+}
+
+// FakeResourceSlice returns a fake ResourceSlice.
+func FakeResourceSlice(name string, consumerClusterID, providerClusterID liqov1beta1.ClusterID,
+	status authv1beta1.ResourceSliceConditionStatus, resoucesList corev1.ResourceList) *authv1beta1.ResourceSlice {
+	return &authv1beta1.ResourceSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				liqoconsts.RemoteClusterID: string(providerClusterID),
+			},
+		},
+		Spec: authv1beta1.ResourceSliceSpec{
+			ConsumerClusterID: &consumerClusterID,
+			ProviderClusterID: &providerClusterID,
+			Resources:         resoucesList,
+		},
+		Status: authv1beta1.ResourceSliceStatus{
+			Resources: resoucesList,
+			Conditions: []authv1beta1.ResourceSliceCondition{
+				{
+					Type:    authv1beta1.ResourceSliceConditionTypeAuthentication,
+					Status:  status,
+					Message: fmt.Sprintf("Condition with status %s", status),
+				},
+			},
+		},
+	}
+}
+
+// FakeVirtualNode returns a fake VirtualNode.
+func FakeVirtualNode(name string, clusterID liqov1beta1.ClusterID,
+	status offloadingv1beta1.VirtualNodeConditionStatusType, resoucesList corev1.ResourceList) *offloadingv1beta1.VirtualNode {
+	return &offloadingv1beta1.VirtualNode{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				liqoconsts.RemoteClusterID:           string(clusterID),
+				liqoconsts.ResourceSliceNameLabelKey: name,
+			},
+		},
+		Spec: offloadingv1beta1.VirtualNodeSpec{
+			ClusterID: clusterID,
+			ResourceQuota: corev1.ResourceQuotaSpec{
+				Hard: resoucesList,
+			},
+			KubeconfigSecretRef: &corev1.LocalObjectReference{
+				Name: fmt.Sprintf("%s-secret", name),
+			},
+		},
+		Status: offloadingv1beta1.VirtualNodeStatus{
+			Conditions: []offloadingv1beta1.VirtualNodeCondition{
+				{
+					Status: status,
 				},
 			},
 		},

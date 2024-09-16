@@ -63,9 +63,11 @@ var (
 	// StatusSectionInfoStyle is the style of the info status section.
 	StatusSectionInfoStyle = pterm.NewStyle(pterm.FgDefault, pterm.Bold)
 	// StatusDataStyle is the style of the status data.
-	StatusDataStyle = pterm.NewStyle(pterm.FgLightYellow, pterm.Bold)
+	StatusDataStyle = pterm.NewStyle(pterm.FgDefault, pterm.Bold)
 	// StatusInfoStyle is the style of the status info.
 	StatusInfoStyle = pterm.NewStyle(pterm.FgCyan, pterm.Bold)
+	// StatusWarningStyle is the style of the status info.
+	StatusWarningStyle = pterm.NewStyle(pterm.FgYellow, pterm.Bold)
 	// BoxTitleStyle is the style of the box.
 	BoxTitleStyle = pterm.NewStyle(pterm.FgMagenta, pterm.Bold)
 )

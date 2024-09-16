@@ -19,32 +19,19 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pterm/pterm"
-
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/liqoctl/info"
+	"github.com/liqotech/liqo/pkg/liqoctl/info/common"
 	"github.com/liqotech/liqo/pkg/liqoctl/output"
-)
-
-// ModuleStatus represents the status of each of the modules.
-type ModuleStatus string
-
-const (
-	// Healthy indicates a module that works as expected.
-	Healthy ModuleStatus = "Healthy"
-	// Unhealthy indicates that there are issues with the module.
-	Unhealthy ModuleStatus = "Unhealthy"
-	// Disabled indicates that the modules is not currently used.
-	Disabled ModuleStatus = "Disabled"
 )
 
 // PeeringInfo represents the peering with another cluster.
 type PeeringInfo struct {
 	liqov1beta1.ClusterID `json:"clusterID"`
 	Role                  liqov1beta1.RoleType `json:"role"`
-	NetworkingStatus      ModuleStatus         `json:"networkingStatus"`
-	AuthenticationStatus  ModuleStatus         `json:"authenticationStatus"`
-	OffloadingStatus      ModuleStatus         `json:"offloadingStatus"`
+	NetworkingStatus      common.ModuleStatus  `json:"networkingStatus"`
+	AuthenticationStatus  common.ModuleStatus  `json:"authenticationStatus"`
+	OffloadingStatus      common.ModuleStatus  `json:"offloadingStatus"`
 }
 
 // Peerings contains some brief data about the active peering of the local cluster.
@@ -54,7 +41,7 @@ type Peerings struct {
 
 // PeeringChecker collects the data about the active peering of the local cluster.
 type PeeringChecker struct {
-	info.CheckerBase
+	info.CheckerCommon
 	data Peerings
 }
 
@@ -70,36 +57,27 @@ func (p *PeeringChecker) Collect(ctx context.Context, options info.Options) {
 	for i := range peeringsList.Items {
 		peer := &peeringsList.Items[i]
 
-		moduleStatus := map[string]ModuleStatus{}
+		moduleStatus := map[string]common.ModuleStatus{}
 
+		const NetworkingModuleName = "networking"
+		const AuthenticationModuleName = "authentication"
+		const OffloadingModuleName = "offloading"
 		modules := map[string]liqov1beta1.Module{
-			"networking":     peer.Status.Modules.Networking,
-			"authentication": peer.Status.Modules.Authentication,
-			"offloading":     peer.Status.Modules.Offloading,
+			NetworkingModuleName:     peer.Status.Modules.Networking,
+			AuthenticationModuleName: peer.Status.Modules.Authentication,
+			OffloadingModuleName:     peer.Status.Modules.Offloading,
 		}
 
 		for moduleName, moduleInfo := range modules {
-			if moduleInfo.Enabled {
-				for i := range moduleInfo.Conditions {
-					condition := &moduleInfo.Conditions[i]
-
-					if condition.Status == liqov1beta1.ConditionStatusEstablished || condition.Status == liqov1beta1.ConditionStatusReady {
-						moduleStatus[moduleName] = Healthy
-					} else {
-						moduleStatus[moduleName] = Unhealthy
-					}
-				}
-			} else {
-				moduleStatus[moduleName] = Disabled
-			}
+			moduleStatus[moduleName] = common.CheckModuleStatus(moduleInfo)
 		}
 
 		p.data.Peers = append(p.data.Peers, PeeringInfo{
 			ClusterID:            peer.Spec.ClusterID,
 			Role:                 peer.Status.Role,
-			NetworkingStatus:     moduleStatus["networking"],
-			AuthenticationStatus: moduleStatus["authentication"],
-			OffloadingStatus:     moduleStatus["offloading"],
+			NetworkingStatus:     moduleStatus[NetworkingModuleName],
+			AuthenticationStatus: moduleStatus[AuthenticationModuleName],
+			OffloadingStatus:     moduleStatus[OffloadingModuleName],
 		})
 	}
 }
@@ -111,9 +89,9 @@ func (p *PeeringChecker) Format(options info.Options) string {
 		peer := &p.data.Peers[i]
 		peerSection := main.AddSectionInfo(string(peer.ClusterID))
 		peerSection.AddEntry("Role", string(peer.Role))
-		peerSection.AddEntry("Networking status", p.formatStatus(peer.NetworkingStatus))
-		peerSection.AddEntry("Authentication status", p.formatStatus(peer.AuthenticationStatus))
-		peerSection.AddEntry("Offloading status", p.formatStatus(peer.OffloadingStatus))
+		peerSection.AddEntry("Networking status", common.FormatStatus(peer.NetworkingStatus))
+		peerSection.AddEntry("Authentication status", common.FormatStatus(peer.AuthenticationStatus))
+		peerSection.AddEntry("Offloading status", common.FormatStatus(peer.OffloadingStatus))
 	}
 
 	return main.SprintForBox(options.Printer)
@@ -132,17 +110,4 @@ func (p *PeeringChecker) GetID() string {
 // GetTitle returns the title of the section collected by the checker.
 func (p *PeeringChecker) GetTitle() string {
 	return "Active peerings"
-}
-
-func (p *PeeringChecker) formatStatus(moduleStatus ModuleStatus) string {
-	var color pterm.Color
-	switch moduleStatus {
-	case Healthy:
-		color = pterm.FgGreen
-	case Disabled:
-		color = pterm.FgLightCyan
-	default:
-		color = pterm.FgRed
-	}
-	return pterm.NewStyle(color, pterm.Bold).Sprint(moduleStatus)
 }

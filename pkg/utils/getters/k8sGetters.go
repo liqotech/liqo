@@ -416,6 +416,18 @@ func ListResourceSlicesByLabel(ctx context.Context, cl client.Client,
 	return list.Items, nil
 }
 
+// ListResourceSlicesByClusterID returns the list of ResourceSlices for the given cluster id.
+func ListResourceSlicesByClusterID(ctx context.Context, cl client.Client,
+	remoteClusterID liqov1beta1.ClusterID) ([]authv1beta1.ResourceSlice, error) {
+	resSlices, err := ListResourceSlicesByLabel(ctx, cl, corev1.NamespaceAll, labels.SelectorFromSet(map[string]string{
+		consts.RemoteClusterID: string(remoteClusterID),
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return resSlices, nil
+}
+
 // GetKubeconfigSecretFromIdentity returns the Secret referenced in the status of the given Identity.
 func GetKubeconfigSecretFromIdentity(ctx context.Context, cl client.Client, identity *authv1beta1.Identity) (*corev1.Secret, error) {
 	if identity.Status.KubeconfigSecretRef == nil || identity.Status.KubeconfigSecretRef.Name == "" {
@@ -770,6 +782,24 @@ func GetConnectionByClusterIDInNamespace(ctx context.Context, cl client.Client, 
 	default:
 		return nil, fmt.Errorf("multiple Connections found for ForeignCluster %s", clusterID)
 	}
+}
+
+// GetGatewaysByClusterID returns both the GatewayServer and GatewayClient resource with the given clusterID, if not
+// found it returns a nil pointer. Normally, with a common peering, this function should return only one gateway either
+// the client or the server.
+func GetGatewaysByClusterID(ctx context.Context, cl client.Client,
+	remoteClusterID liqov1beta1.ClusterID) (*networkingv1beta1.GatewayServer, *networkingv1beta1.GatewayClient, error) {
+	gwclient, err := GetGatewayClientByClusterID(ctx, cl, remoteClusterID)
+	if err != nil && !kerrors.IsNotFound(err) {
+		return nil, nil, err
+	}
+
+	gwserver, err := GetGatewayServerByClusterID(ctx, cl, remoteClusterID)
+	if err != nil && !kerrors.IsNotFound(err) {
+		return nil, nil, err
+	}
+
+	return gwserver, gwclient, nil
 }
 
 // GetGatewayServerByClusterID returns the GatewayServer resource with the given clusterID.

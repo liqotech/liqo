@@ -44,7 +44,7 @@ type Health struct {
 
 // HealthChecker collects the info about the local instance of Liqo.
 type HealthChecker struct {
-	info.CheckerBase
+	info.CheckerCommon
 	data Health
 }
 

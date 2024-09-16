@@ -41,7 +41,7 @@ func (l *Network) setProperty(propName, propValue string) {
 
 // NetworkChecker collects info about the local installation of Liqo.
 type NetworkChecker struct {
-	info.CheckerBase
+	info.CheckerCommon
 	data Network
 }
 
