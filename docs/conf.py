@@ -133,11 +133,22 @@ external_toc_exclude_missing = True
 
 # __get_download_url returns the download URL for the given file, for the latest or the given GitHub release.
 def __get_download_url(file: str) -> str:
-    version = generate_version()
+    version = generate_semantic_version()
+    return f"https://github.com/liqotech/liqo/releases/download/{version}/{file}"
+
+# generate_semantic_version generates the semantic version string for the current page.
+# latest: return the latest release (get the last release tag from GitHub API)
+# stable: return the latest release (get the last release tag from GitHub API)
+# tag: return the tag specified in the html_context[github_version]
+def generate_semantic_version() -> str:
+    version = html_context['github_version'] if 'github_version' in html_context else 'master'
+    if 'current_version' in html_context and html_context['current_version'] == 'stable':
+        x = requests.get('https://api.github.com/repos/liqotech/liqo/releases/latest')
+        version = x.json()['tag_name']
     if version == 'master':
         x = requests.get('https://api.github.com/repos/liqotech/liqo/releases/latest')
         version = x.json()['tag_name']
-    return f"https://github.com/liqotech/liqo/releases/download/{version}/{file}"
+    return version
 
 # generate_version generates the version string for the current page.
 # latest: return master
@@ -197,6 +208,13 @@ sudo mv liqoctl /usr/local/bin/liqoctl\n\
 curl --fail -LS \"{file}\" | tar -xz\n\
 sudo install -o root -g root -m 0755 liqoctl /usr/local/bin/liqoctl\n\
 ```\n"
+    
+def generate_helm_install() -> str:
+    version=generate_semantic_version()
+    return f"```bash\n\
+helm install liqo liqo/liqo --namespace liqo --version {version}\n\
+    --values <path-to-values-file> --create-namespace\n\
+```\n"
 
 # __is_sem_version returns True if the given string is a semantic version or the 'stable' string.
 def __is_sem_version(version: str) -> bool:
@@ -214,6 +232,7 @@ html_context = {
     'generate_clone_example': generate_clone_example,
     'generate_clone_example_tf': generate_clone_example_tf,
     'generate_liqoctl_install': generate_liqoctl_install,
+    'generate_helm_install': generate_helm_install,
     'generate_liqoctl_version_warning': generate_liqoctl_version_warning,
     'generate_telemetry_link': generate_telemetry_link,
     'github_repo': 'liqo',

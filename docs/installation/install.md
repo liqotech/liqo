@@ -457,10 +457,7 @@ To install Liqo directly with Helm, you can proceed as follows:
 
 5. Install Liqo:
 
-   ```bash
-   helm install liqo liqo/liqo --namespace liqo \
-          --values <path-to-values-file> --create-namespace
-   ```
+    {{ env.config.html_context.generate_helm_install() }}
 
 (InstallationDevelopmentVersions)=
 
