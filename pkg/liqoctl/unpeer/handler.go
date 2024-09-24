@@ -26,6 +26,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/unauthenticate"
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
+	fcutils "github.com/liqotech/liqo/pkg/utils/foreigncluster"
 )
 
 // Options encapsulates the arguments of the unpeer command.
@@ -34,8 +35,9 @@ type Options struct {
 	RemoteFactory *factory.Factory
 	waiter        *wait.Waiter
 
-	Timeout time.Duration
-	Wait    bool
+	Timeout        time.Duration
+	Wait           bool
+	KeepNamespaces bool
 
 	consumerClusterID liqov1beta1.ClusterID
 	providerClusterID liqov1beta1.ClusterID
@@ -70,15 +72,21 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 		return err
 	}
 
-	// Disable offloading
-	if err := o.disableOffloading(ctx); err != nil {
-		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable offloading: %w", err))
+	// check if there is a bidirectional peering between the two clusters
+	bidirectional, err := o.isBidirectionalPeering(ctx)
+	if err != nil {
+		o.LocalFactory.Printer.CheckErr(fmt.Errorf("an error occurred while checking bidirectional peering: %v", output.PrettyErr(err)))
+		return err
+	}
+	if bidirectional && !o.KeepNamespaces {
+		err = fmt.Errorf("cannot unpeer bidirectional peering without keeping namespaces, please set the --keep-namespaces flag")
+		o.LocalFactory.Printer.CheckErr(err)
 		return err
 	}
 
-	// Disable networking
-	if err := o.disableNetworking(ctx); err != nil {
-		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable networking: %w", err))
+	// Disable offloading
+	if err := o.disableOffloading(ctx); err != nil {
+		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable offloading: %w", err))
 		return err
 	}
 
@@ -86,6 +94,29 @@ func (o *Options) RunUnpeer(ctx context.Context) error {
 	if err := o.disableAuthentication(ctx); err != nil {
 		o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable authentication: %w", err))
 		return err
+	}
+
+	if !bidirectional {
+		// Disable networking
+		if err := o.disableNetworking(ctx); err != nil {
+			o.LocalFactory.Printer.CheckErr(fmt.Errorf("unable to disable networking: %w", err))
+			return err
+		}
+	}
+
+	if !o.KeepNamespaces {
+		consumer := unauthenticate.NewCluster(o.LocalFactory)
+		provider := unauthenticate.NewCluster(o.RemoteFactory)
+
+		// Delete tenant namespace on consumer cluster
+		if err := consumer.DeleteTenantNamespace(ctx, o.providerClusterID, o.Wait); err != nil {
+			return err
+		}
+
+		// Delete tenant namespace on provider cluster
+		if err := provider.DeleteTenantNamespace(ctx, o.consumerClusterID, o.Wait); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -135,4 +166,22 @@ func (o *Options) disableAuthentication(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (o *Options) isBidirectionalPeering(ctx context.Context) (bool, error) {
+	consumerFC, err := fcutils.GetForeignClusterByID(ctx, o.RemoteFactory.CRClient, o.consumerClusterID)
+	if err != nil {
+		return false, err
+	}
+
+	providerFC, err := fcutils.GetForeignClusterByID(ctx, o.LocalFactory.CRClient, o.providerClusterID)
+	if err != nil {
+		return false, err
+	}
+
+	if consumerFC.Status.Role == liqov1beta1.ConsumerAndProviderRole || providerFC.Status.Role == liqov1beta1.ConsumerAndProviderRole {
+		return true, nil
+	}
+
+	return false, nil
 }

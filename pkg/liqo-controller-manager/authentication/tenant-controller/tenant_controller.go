@@ -28,7 +28,6 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	authv1beta1 "github.com/liqotech/liqo/apis/authentication/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -214,21 +213,6 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 	}
 
 	tenant.Status.AuthParams = authParams
-
-	// own the tenant namespace
-
-	err = controllerutil.SetOwnerReference(tenant, tenantNamespace, r.Scheme)
-	if err != nil {
-		klog.Errorf("Unable to set the OwnerReference for the TenantNamespace %q: %s", tenantNamespace.Name, err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "OwnerReferenceFailed", err.Error())
-		return ctrl.Result{}, err
-	}
-
-	if err = r.Client.Update(ctx, tenantNamespace); err != nil {
-		klog.Errorf("Unable to set the OwnerReference for the TenantNamespace %q: %s", tenantNamespace.Name, err)
-		r.EventRecorder.Event(tenant, corev1.EventTypeWarning, "OwnerReferenceFailed", err.Error())
-		return ctrl.Result{}, err
-	}
 
 	// bind permissions
 

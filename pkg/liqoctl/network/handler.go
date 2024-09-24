@@ -138,6 +138,16 @@ func (o *Options) RunReset(ctx context.Context) error {
 		return err
 	}
 
+	// Delete gateway client on cluster 2
+	if err := cluster2.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster1.localClusterID)); err != nil {
+		return err
+	}
+
+	// Delete gateway server on cluster 1
+	if err := cluster1.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster2.localClusterID)); err != nil {
+		return err
+	}
+
 	// Delete gateway server on cluster 2
 	if err := cluster2.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster1.localClusterID)); err != nil {
 		return err
