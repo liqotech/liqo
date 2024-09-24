@@ -72,15 +72,5 @@ func (o *Options) RunUnauthenticate(ctx context.Context) error {
 		return err
 	}
 
-	// Delete tenant namespace on consumer cluster
-	if err := consumer.DeleteTenantNamespace(ctx, provider.localClusterID, o.Wait); err != nil {
-		return err
-	}
-
-	// Delete tenant namespace on provider cluster
-	if err := provider.DeleteTenantNamespace(ctx, consumer.localClusterID, o.Wait); err != nil {
-		return err
-	}
-
 	return nil
 }
