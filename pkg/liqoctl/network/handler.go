@@ -59,7 +59,8 @@ func NewOptions(localFactory *factory.Factory) *Options {
 	return &Options{
 		LocalFactory: localFactory,
 		ServerServiceType: argsutils.NewEnum(
-			[]string{string(corev1.ServiceTypeLoadBalancer), string(corev1.ServiceTypeNodePort)}, string(forge.DefaultGwServerServiceType)),
+			[]string{string(corev1.ServiceTypeLoadBalancer), string(corev1.ServiceTypeNodePort), string(corev1.ServiceTypeClusterIP)},
+			string(forge.DefaultGwServerServiceType)),
 	}
 }
 

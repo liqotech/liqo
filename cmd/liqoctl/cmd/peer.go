@@ -90,7 +90,9 @@ func newPeerCommand(ctx context.Context, f *factory.Factory) *cobra.Command {
 	// Networking flags
 	cmd.Flags().BoolVar(&options.NetworkingDisabled, "networking-disabled", false, "Disable networking between the two clusters")
 	cmd.Flags().Var(options.ServerServiceType, "server-service-type",
-		fmt.Sprintf("Service type of the Gateway Server. Default: %s", nwforge.DefaultGwServerServiceType))
+		fmt.Sprintf("Service type of the Gateway Server. Default: %s."+
+			" Note: use ClusterIP only if you know what you are doing and you have a proper network configuration",
+			nwforge.DefaultGwServerServiceType))
 	cmd.Flags().Int32Var(&options.ServerPort, "server-port", nwforge.DefaultGwServerPort,
 		fmt.Sprintf("Port of the Gateway Server. Default: %d", nwforge.DefaultGwServerPort))
 	cmd.Flags().IntVar(&options.MTU, "mtu", nwforge.DefaultMTU,

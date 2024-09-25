@@ -156,7 +156,9 @@ func newNetworkConnectCommand(ctx context.Context, options *network.Options) *co
 	cmd.Flags().StringVar(&options.ServerTemplateNamespace, "server-template-namespace", "",
 		"Namespace of the Gateway Server template")
 	cmd.Flags().Var(options.ServerServiceType, "server-service-type",
-		fmt.Sprintf("Service type of the Gateway Server. Default: %s", forge.DefaultGwServerServiceType))
+		fmt.Sprintf("Service type of the Gateway Server. Default: %s."+
+			" Note: use ClusterIP only if you know what you are doing and you have a proper network configuration",
+			forge.DefaultGwServerServiceType))
 	cmd.Flags().Int32Var(&options.ServerPort, "server-port", forge.DefaultGwServerPort,
 		fmt.Sprintf("Port of the Gateway Server. Default: %d", forge.DefaultGwServerPort))
 	cmd.Flags().Int32Var(&options.ServerNodePort, "node-port", 0,
