@@ -263,6 +263,8 @@ func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wg
 	// Put service endpoint in WireGuard server status
 	var endpointStatus *networkingv1beta1.EndpointStatus
 	switch service.Spec.Type {
+	case corev1.ServiceTypeClusterIP:
+		endpointStatus, err = r.forgeEndpointStatusClusterIP(&service)
 	case corev1.ServiceTypeNodePort:
 		endpointStatus, _, err = r.forgeEndpointStatusNodePort(ctx, &service, dep)
 	case corev1.ServiceTypeLoadBalancer:
@@ -280,6 +282,28 @@ func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wg
 	wgServer.Status.Endpoint = endpointStatus
 
 	return nil
+}
+
+func (r *WgGatewayServerReconciler) forgeEndpointStatusClusterIP(service *corev1.Service) (*networkingv1beta1.EndpointStatus, error) {
+	if len(service.Spec.Ports) == 0 {
+		err := fmt.Errorf("service %s/%s has no ports", service.Namespace, service.Name)
+		klog.Error(err)
+		return nil, err
+	}
+
+	port := service.Spec.Ports[0].Port
+	protocol := &service.Spec.Ports[0].Protocol
+	addresses := service.Spec.ClusterIPs
+
+	if err := checkServiceOverrides(service, &addresses, &port); err != nil {
+		return nil, err
+	}
+
+	return &networkingv1beta1.EndpointStatus{
+		Protocol:  protocol,
+		Port:      port,
+		Addresses: addresses,
+	}, nil
 }
 
 func (r *WgGatewayServerReconciler) forgeEndpointStatusNodePort(ctx context.Context, service *corev1.Service,
