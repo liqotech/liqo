@@ -4,9 +4,11 @@
 FILEPATH=$(realpath "$0")
 WORKDIR=$(dirname "$FILEPATH")
 
+# shellcheck disable=SC1091
 # shellcheck source=./pre-requirements.sh
 source "$WORKDIR/pre-requirements.sh"
 
+# shellcheck disable=SC1091
 # shellcheck source=../../utils.sh
 source "$WORKDIR/../../utils.sh"
 

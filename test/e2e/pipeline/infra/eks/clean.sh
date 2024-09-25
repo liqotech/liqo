@@ -29,23 +29,27 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-CLUSTER_NAME=cluster
-RUNNER_NAME=${RUNNER_NAME:-"test"}
-CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}"
+FILEPATH=$(realpath "$0")
+WORKDIR=$(dirname "$FILEPATH")
+
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
+source "$WORKDIR/../../utils.sh"
 
 PIDS=()
 
 # Cleaning all remaining clusters
 for i in $(seq 1 "${CLUSTER_NUMBER}")
 do
+    CLUSTER_NAME=$(forge_clustername "${i}")
     # if the cluster exists, delete it
-    if "${EKSCTL}" get cluster --name "${CLUSTER_NAME}${i}" --region "eu-central-1" &> /dev/null; then
-        echo "Deleting cluster ${CLUSTER_NAME}${i}"
+    if "${EKSCTL}" get cluster --name "${CLUSTER_NAME}" --region "eu-central-1" &> /dev/null; then
+        echo "Deleting cluster ${CLUSTER_NAME}"
     else
-        echo "Cluster ${CLUSTER_NAME}${i} does not exist"
+        echo "Cluster ${CLUSTER_NAME} does not exist"
         continue
     fi
-    "${EKSCTL}" delete cluster --name "${CLUSTER_NAME}${i}" --region "eu-central-1" --wait --force &
+    "${EKSCTL}" delete cluster --name "${CLUSTER_NAME}" --region "eu-central-1" --wait --force &
     PIDS+=($!)
 done
 

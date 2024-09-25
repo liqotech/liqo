@@ -27,12 +27,16 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-CLUSTER_NAME=cluster
-RUNNER_NAME=${RUNNER_NAME:-"test"}
-CAPI_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}"
+FILEPATH=$(realpath "$0")
+WORKDIR=$(dirname "$FILEPATH")
+
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
+source "$WORKDIR/../../utils.sh"
 
 # Cleaning all remaining clusters
 for i in $(seq 1 "${CLUSTER_NUMBER}")
 do
-  ${KUBECTL} delete clusters.cluster.x-k8s.io --namespace=liqo-ci "${CAPI_CLUSTER_NAME}${i}" --ignore-not-found
+  CAPI_CLUSTER_NAME=$(forge_clustername "${i}")
+  ${KUBECTL} delete clusters.cluster.x-k8s.io --namespace=liqo-ci "${CAPI_CLUSTER_NAME}" --ignore-not-found
 done

@@ -70,6 +70,14 @@ function check_supported_arch_and_os(){
   fi
 }
 
+function forge_clustername() {
+  local index=$1
+  RUNNER_NAME=${RUNNER_NAME:-"test"}
+  RUNNER_NAME=${RUNNER_NAME#liqo-runner-*-}
+  local BASE_CLUSTER_NAME="cl-${RUNNER_NAME}-"
+  echo "${BASE_CLUSTER_NAME}${index}"
+}
+
 function install_kubectl() {
   local os=$1
   local arch=$2

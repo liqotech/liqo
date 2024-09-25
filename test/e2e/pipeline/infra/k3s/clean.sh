@@ -26,14 +26,18 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-CLUSTER_NAME=cluster
-RUNNER_NAME=${RUNNER_NAME:-"test"}
+FILEPATH=$(realpath "$0")
+WORKDIR=$(dirname "$FILEPATH")
+
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
+source "$WORKDIR/../../utils.sh"
 
 TARGET_NAMESPACE="liqo-ci"
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
-  K3S_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}${i}"
+  K3S_CLUSTER_NAME=$(forge_clustername "${i}")
   echo "Deleting cluster ${K3S_CLUSTER_NAME}"
   "${KUBECTL}" delete -n "${TARGET_NAMESPACE}" vms "${K3S_CLUSTER_NAME}-control-plane" --ignore-not-found
   "${KUBECTL}" delete -n "${TARGET_NAMESPACE}" vms "${K3S_CLUSTER_NAME}-worker-1" --ignore-not-found

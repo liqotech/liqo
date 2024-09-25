@@ -35,6 +35,7 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 FILEPATH=$(realpath "$0")
 WORKDIR=$(dirname "$FILEPATH")
 
+# shellcheck disable=SC1091
 # shellcheck source=../../utils.sh
 source "$WORKDIR/../../utils.sh"
 
@@ -43,19 +44,17 @@ CLUSTER_NAME=cluster
 export POD_CIDR=10.200.0.0/16
 export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
 
-RUNNER_NAME=${RUNNER_NAME:-"test"}
-CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}"
-
 PIDS=()
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
+    CLUSTER_NAME=$(forge_clustername "${i}")
 	if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
 		export POD_CIDR="10.$((i * 10)).0.0/16"
 	fi
-	echo "Creating cluster ${CLUSTER_NAME}${i}"
+	echo "Creating cluster ${CLUSTER_NAME}"
     "${EKSCTL}" create cluster \
-        --name "${CLUSTER_NAME}${i}" \
+        --name "${CLUSTER_NAME}" \
         --region "eu-central-1" \
         --instance-types c4.large,c5.large \
         --nodes 2 \
@@ -73,6 +72,7 @@ done
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
+  CLUSTER_NAME=$(forge_clustername "${i}")
   CURRENT_CONTEXT=$("${KUBECTL}" config current-context --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}")
   "${KUBECTL}" config set contexts."${CURRENT_CONTEXT}".namespace default --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 
@@ -87,6 +87,6 @@ do
   "${HELM}" repo update
   "${HELM}" install aws-load-balancer-controller eks/aws-load-balancer-controller \
     -n kube-system \
-    --set clusterName="${CLUSTER_NAME}${i}" \
+    --set clusterName="${CLUSTER_NAME}" \
     --kubeconfig "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
 done

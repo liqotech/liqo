@@ -27,23 +27,18 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
-CLUSTER_NAME=cluster
-RUNNER_NAME=${RUNNER_NAME:-"test"}
-CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}"
-
 PIDS=()
 
 # Cleaning all remaining clusters
 for i in $(seq 1 "${CLUSTER_NUMBER}")
 do
     AKS_RESOURCE_GROUP="liqo${i}"
-    RUNNER_NAME=${RUNNER_NAME:-"test"}
-    AKS_CLUSTER_NAME="${RUNNER_NAME}-cluster${i}"
+    CLUSTER_NAME=$(forge_clustername "${i}")
 
     # if the cluster exists, delete it
-    if az aks show --resource-group "${AKS_RESOURCE_GROUP}" --name "${AKS_CLUSTER_NAME}" &> /dev/null; then
-        echo "Deleting cluster ${CLUSTER_NAME}${i}"
-        az aks delete --resource-group "${AKS_RESOURCE_GROUP}" --name "${AKS_CLUSTER_NAME}" --yes &
+    if az aks show --resource-group "${AKS_RESOURCE_GROUP}" --name "${CLUSTER_NAME}" &> /dev/null; then
+        echo "Deleting cluster ${CLUSTER_NAME}"
+        az aks delete --resource-group "${AKS_RESOURCE_GROUP}" --name "${CLUSTER_NAME}" --yes &
         PIDS+=($!)
     else
         echo "Cluster ${CLUSTER_NAME}${i} does not exist"
