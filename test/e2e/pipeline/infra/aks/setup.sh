@@ -32,6 +32,8 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 FILEPATH=$(realpath "$0")
 WORKDIR=$(dirname "$FILEPATH")
 
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
 source "$WORKDIR/../../utils.sh"
 
 NUM_NODES="2"
@@ -93,8 +95,7 @@ PIDS=()
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
     AKS_RESOURCE_GROUP="liqo${i}"
-    RUNNER_NAME=${RUNNER_NAME:-"test"}
-    AKS_CLUSTER_NAME="${RUNNER_NAME}-cluster${i}"
+    AKS_CLUSTER_NAME=$(forge_clustername "${i}")
     REGION=${REGIONS[$i-1]}
     KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
     

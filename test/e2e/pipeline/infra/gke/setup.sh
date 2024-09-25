@@ -74,19 +74,18 @@ function gke_generate_kubeconfig() {
 FILEPATH=$(realpath "$0")
 WORKDIR=$(dirname "$FILEPATH")
 
+# shellcheck disable=SC1091
 # shellcheck source=../../utils.sh
 source "$WORKDIR/../../utils.sh"
 
+# shellcheck disable=SC1091
 # shellcheck source=./const.sh
 source "$WORKDIR/const.sh"
-
-RUNNER_NAME=${RUNNER_NAME:-"test"}
-CLUSTER_NAME=${RUNNER_NAME}-cluster
 
 PIDS=()
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
-  GKE_CLUSTER_ID="${CLUSTER_NAME}${i}"
+  GKE_CLUSTER_ID=$(forge_clustername "${i}")
   GKE_CLUSTER_REGION=${GKE_REGIONS[$i-1]}
   GKE_CLUSTER_ZONE=${GKE_ZONES[$i-1]}
 
@@ -101,7 +100,7 @@ done
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
-  GKE_CLUSTER_ID="${CLUSTER_NAME}${i}"
+  GKE_CLUSTER_ID=$(forge_clustername "${i}")
   GKE_CLUSTER_ZONE=${GKE_ZONES[$i-1]}
 
   gke_generate_kubeconfig "${GKE_CLUSTER_ID}" "${GKE_CLUSTER_ZONE}" "${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"

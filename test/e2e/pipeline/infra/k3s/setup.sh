@@ -26,6 +26,16 @@ error() {
 }
 trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
+FILEPATH=$(realpath "$0")
+WORKDIR=$(dirname "$FILEPATH")
+
+# shellcheck disable=SC1091
+source "$HOME/.bashrc" || true
+
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
+source "$WORKDIR/../../utils.sh"  
+
 check_host_login() {
   local host=$1
   local user=$2
@@ -61,12 +71,6 @@ check_host_login() {
   done
 }
 
-# shellcheck disable=SC1091
-source "$HOME/.bashrc" || true
-
-CLUSTER_NAME=cluster
-RUNNER_NAME=${RUNNER_NAME:-"test"}
-
 TARGET_NAMESPACE="liqo-ci"
 
 BASE_DIR=$(dirname "$0")
@@ -77,7 +81,7 @@ export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
-  K3S_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}${i}"
+  K3S_CLUSTER_NAME=$(forge_clustername "${i}")
 	echo "Creating cluster ${K3S_CLUSTER_NAME}"
   CLUSTER_NAME="$K3S_CLUSTER_NAME" envsubst < "$BASE_DIR/vms.template.yaml" | "${KUBECTL}" apply -n "${TARGET_NAMESPACE}" -f -
 done
@@ -85,7 +89,7 @@ done
 # Wait for the clusters to be ready
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
-  K3S_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}${i}"
+  K3S_CLUSTER_NAME=$(forge_clustername "${i}")
   "${KUBECTL}" wait --for=condition=Ready --timeout=20m vm "${K3S_CLUSTER_NAME}-control-plane" -n "${TARGET_NAMESPACE}"
   "${KUBECTL}" wait --for=condition=Ready --timeout=20m vm "${K3S_CLUSTER_NAME}-worker-1" -n "${TARGET_NAMESPACE}"
   "${KUBECTL}" wait --for=condition=Ready --timeout=20m vm "${K3S_CLUSTER_NAME}-worker-2" -n "${TARGET_NAMESPACE}"
@@ -105,7 +109,7 @@ cd k3s-ansible
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
-  K3S_CLUSTER_NAME="${RUNNER_NAME}-${CLUSTER_NAME}${i}"
+  K3S_CLUSTER_NAME=$(forge_clustername "${i}")
 
   if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
 		# this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping

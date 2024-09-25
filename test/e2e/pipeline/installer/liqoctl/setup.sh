@@ -31,7 +31,7 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # shellcheck disable=SC1091
-# shellcheck source=./utils.sh
+# shellcheck source=../../utils.sh
 source "${SCRIPT_DIR}/../../utils.sh"
 
 # shellcheck disable=SC1091
@@ -64,14 +64,11 @@ export SERVICE_CIDR=10.100.0.0/16
 export POD_CIDR=10.200.0.0/16
 export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
 
-RUNNER_NAME=${RUNNER_NAME:-"test"}
-BASE_CLUSTER_NAME="${RUNNER_NAME}-cluster"
-
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
   CLUSTER_LABELS="$(get_cluster_labels "${i}")"
-  CLUSTER_NAME="${BASE_CLUSTER_NAME}${i}"
+  CLUSTER_NAME=$(forge_clustername "${i}")
   
   if [[ ${POD_CIDR_OVERLAPPING} != "true" ]]; then
 		# this should avoid the ipam to reserve a pod CIDR of another cluster as local external CIDR causing remapping

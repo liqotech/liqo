@@ -32,6 +32,8 @@ trap 'error "${BASH_SOURCE}" "${LINENO}"' ERR
 FILEPATH=$(realpath "$0")
 WORKDIR=$(dirname "$FILEPATH")
 
+# shellcheck disable=SC1091
+# shellcheck source=../../utils.sh
 source "$WORKDIR/../../utils.sh"
 
 setup_arch_and_os
