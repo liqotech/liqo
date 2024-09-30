@@ -95,14 +95,16 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 		return err
 	}
 
-	wgServerRec := wggatewaycontrollers.NewWgGatewayServerReconciler(
-		mgr.GetClient(), mgr.GetScheme(), opts.WgGatewayServerClusterRoleName)
+	wgServerRec := wggatewaycontrollers.NewWgGatewayServerReconciler(mgr.GetClient(), mgr.GetScheme(),
+		mgr.GetEventRecorderFor("wg-gateway-server-controller"),
+		opts.WgGatewayServerClusterRoleName)
 	if err := wgServerRec.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the wgGatewayServerReconciler: %v", err)
 		return err
 	}
 
 	wgClientRec := wggatewaycontrollers.NewWgGatewayClientReconciler(mgr.GetClient(), mgr.GetScheme(),
+		mgr.GetEventRecorderFor("wg-gateway-client-controller"),
 		opts.WgGatewayClientClusterRoleName)
 	if err := wgClientRec.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the wgGatewayClientReconciler: %v", err)
@@ -110,14 +112,18 @@ func SetupNetworkingModule(ctx context.Context, mgr manager.Manager, opts *Netwo
 	}
 
 	serverReconciler := serveroperator.NewServerReconciler(mgr.GetClient(),
-		opts.DynClient, opts.Factory, mgr.GetScheme(), opts.GatewayServerResources)
+		opts.DynClient, opts.Factory, mgr.GetScheme(),
+		mgr.GetEventRecorderFor("server-controller"),
+		opts.GatewayServerResources)
 	if err := serverReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the serverReconciler: %v", err)
 		return err
 	}
 
 	clientReconciler := clientoperator.NewClientReconciler(mgr.GetClient(),
-		opts.DynClient, opts.Factory, mgr.GetScheme(), opts.GatewayClientResources)
+		opts.DynClient, opts.Factory, mgr.GetScheme(),
+		mgr.GetEventRecorderFor("client-controller"),
+		opts.GatewayClientResources)
 	if err := clientReconciler.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Unable to start the clientReconciler: %v", err)
 		return err
