@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -44,6 +45,8 @@ type ClientReconciler struct {
 	DynClient       dynamic.Interface
 	Factory         *dynamicutils.RunnableFactory
 	ClientResources []string
+
+	eventRecorder record.EventRecorder
 }
 
 type templateData struct {
@@ -52,11 +55,13 @@ type templateData struct {
 	Namespace  string
 	GatewayUID string
 	ClusterID  string
+	SecretName string
 }
 
 // NewClientReconciler returns a new ClientReconciler.
 func NewClientReconciler(cl client.Client, dynClient dynamic.Interface,
 	factory *dynamicutils.RunnableFactory, s *runtime.Scheme,
+	eventRecorder record.EventRecorder,
 	clientResources []string) *ClientReconciler {
 	return &ClientReconciler{
 		Client:          cl,
@@ -64,6 +69,8 @@ func NewClientReconciler(cl client.Client, dynClient dynamic.Interface,
 		DynClient:       dynClient,
 		Factory:         factory,
 		ClientResources: clientResources,
+
+		eventRecorder: eventRecorder,
 	}
 }
 
@@ -94,7 +101,10 @@ func (r *ClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 			}
 			klog.Errorf("Unable to update the gateway client %q: %s", req.NamespacedName, newErr)
 			err = newErr
+			return
 		}
+
+		r.eventRecorder.Eventf(gwClient, corev1.EventTypeNormal, "Reconciled", "Reconciled GatewayClient %q", gwClient.Name)
 	}()
 
 	if err = r.EnsureGatewayClient(ctx, gwClient); err != nil {
@@ -168,6 +178,7 @@ func (r *ClientReconciler) EnsureGatewayClient(ctx context.Context, gwClient *ne
 			Namespace:  gwClient.Namespace,
 			GatewayUID: string(gwClient.UID),
 			ClusterID:  remoteClusterID,
+			SecretName: gwClient.Spec.SecretRef.Name,
 		}
 
 		name, err := enutils.RenderTemplate(objectTemplateMetadata["name"], td, true)

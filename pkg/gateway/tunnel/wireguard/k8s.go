@@ -54,20 +54,20 @@ func CheckKeysSecret(ctx context.Context, cl client.Client, opts *Options) (wgty
 }
 
 // CreateKeysSecret creates the private and public keys for the Wireguard interface and save them inside a Secret resource.
-func CreateKeysSecret(ctx context.Context, cl client.Client, opts *Options, pri, pub wgtypes.Key) error {
+func CreateKeysSecret(ctx context.Context, cl client.Client, opts *gateway.Options, pri, pub wgtypes.Key) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      forge.GatewayResourceName(opts.GwOptions.Name),
-			Namespace: opts.GwOptions.Namespace,
+			Name:      forge.GatewayResourceName(opts.Name),
+			Namespace: opts.Namespace,
 		},
 	}
 
 	if _, err := controllerutil.CreateOrUpdate(ctx, cl, secret, func() error {
 		secret.SetLabels(map[string]string{
-			string(consts.RemoteClusterID):      opts.GwOptions.RemoteClusterID,
+			string(consts.RemoteClusterID):      opts.RemoteClusterID,
 			string(consts.GatewayResourceLabel): string(consts.GatewayResourceLabelValue),
 		})
-		if err := gateway.SetOwnerReferenceWithMode(opts.GwOptions, secret, cl.Scheme()); err != nil {
+		if err := gateway.SetOwnerReferenceWithMode(opts, secret, cl.Scheme()); err != nil {
 			return err
 		}
 		secret.Data = map[string][]byte{
