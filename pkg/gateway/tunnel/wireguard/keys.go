@@ -15,37 +15,39 @@
 package wireguard
 
 import (
-	"context"
+	"encoding/base64"
+	"io"
+	"os"
+	"path"
+	"path/filepath"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// cluster-role
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete;update
+// LoadKeys loads the keys from the specified directory.
+func LoadKeys(options *Options) error {
+	// Load the keys
+	privKeyPath := path.Join(options.KeysDir, "privateKey")
 
-// EnsureKeysSecret ensure the presence of the private and public keys for the Wireguard interface and save them inside a Secret resource and Options.
-func EnsureKeysSecret(ctx context.Context, cl client.Client, opts *Options) error {
-	var pri, pub wgtypes.Key
-	var err error
-	pri, err = CheckKeysSecret(ctx, cl, opts)
+	// read the private key from the file
+	privKeyFile, err := os.Open(filepath.Clean(privKeyPath))
+	if err != nil {
+		return err
+	}
+	defer privKeyFile.Close()
 
-	switch {
-	case kerrors.IsNotFound(err) || len(pri) == 0:
-		pri, err = wgtypes.GeneratePrivateKey()
-		if err != nil {
-			return err
-		}
-		pub = pri.PublicKey()
-		if err := CreateKeysSecret(ctx, cl, opts, pri, pub); err != nil {
-			return err
-		}
-	case err != nil:
+	// base64 encoded private key
+	privKey, err := io.ReadAll(privKeyFile)
+	if err != nil {
 		return err
 	}
 
-	opts.PrivateKey = pri
+	base64PrivKey := base64.StdEncoding.EncodeToString(privKey)
+	wgtypesKey, err := wgtypes.ParseKey(base64PrivKey)
+	if err != nil {
+		return err
+	}
 
+	options.PrivateKey = wgtypesKey
 	return nil
 }

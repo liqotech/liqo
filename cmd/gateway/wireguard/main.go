@@ -28,7 +28,6 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -90,15 +89,6 @@ func run(cmd *cobra.Command, _ []string) error {
 	// Get the rest config.
 	cfg := config.GetConfigOrDie()
 
-	// Create the client. This client should be used only outside the reconciler.
-	// This client don't need a cache.
-	cl, err := client.New(cfg, client.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to create client: %w", err)
-	}
-
 	// Create the manager.
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapper.LiqoMapperProvider(scheme),
@@ -155,9 +145,9 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup public keys reconciler: %w", err)
 	}
 
-	// Ensure presence of Secret with private and public keys.
-	if err = wireguard.EnsureKeysSecret(cmd.Context(), cl, options); err != nil {
-		return fmt.Errorf("unable to manage wireguard keys secret: %w", err)
+	// Load keys.
+	if err := wireguard.LoadKeys(options); err != nil {
+		return fmt.Errorf("unable to load keys: %w", err)
 	}
 
 	// Create the wg-liqo interface and init the wireguard configuration depending on the mode (client/server).

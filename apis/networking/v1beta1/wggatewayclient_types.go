@@ -41,6 +41,9 @@ type WgGatewayClientSpec struct {
 	Deployment DeploymentTemplate `json:"deployment"`
 	// Metrics specifies the metrics configuration for the client.
 	Metrics *Metrics `json:"metrics,omitempty"`
+	// SecretRef specifies the reference to the secret containing the wireguard configuration.
+	// Leave it empty to let the operator create a new secret.
+	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // WgGatewayClientStatus defines the observed state of WgGatewayClient.

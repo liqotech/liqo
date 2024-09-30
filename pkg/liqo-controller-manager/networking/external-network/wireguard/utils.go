@@ -19,8 +19,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -29,9 +31,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
+	"github.com/liqotech/liqo/pkg/gateway/tunnel/wireguard"
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
+)
+
+const (
+	wireguardVolumeName = "wireguard-config"
 )
 
 func filterWireGuardSecretsPredicate() predicate.Predicate {
@@ -88,6 +97,73 @@ func clusterRoleBindingEnquerer(_ context.Context, obj client.Object) []ctrl.Req
 	}
 }
 
+// ensureKeysSecret ensure the presence of the private and public keys for the Wireguard interface and save them inside a Secret resource and Options.
+func ensureKeysSecret(ctx context.Context, cl client.Client, wgObj metav1.Object, mode gateway.Mode) error {
+	var controllerRef metav1.OwnerReference
+	for _, ref := range wgObj.GetOwnerReferences() {
+		if ref.Controller != nil && *ref.Controller {
+			switch ref.Kind {
+			case networkingv1beta1.GatewayClientKind:
+				controllerRef = ref
+			case networkingv1beta1.GatewayServerKind:
+				controllerRef = ref
+			}
+			break
+		}
+	}
+
+	opts := &gateway.Options{
+		Name:            controllerRef.Name,
+		Namespace:       wgObj.GetNamespace(),
+		RemoteClusterID: wgObj.GetLabels()[consts.RemoteClusterID],
+		GatewayUID:      string(controllerRef.UID),
+		Mode:            mode,
+	}
+
+	_, err := getWireGuardSecret(ctx, cl, wgObj)
+	switch {
+	case kerrors.IsNotFound(err):
+		pri, err := wgtypes.GeneratePrivateKey()
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		pub := pri.PublicKey()
+		if err := wireguard.CreateKeysSecret(ctx, cl, opts, pri, pub); err != nil {
+			klog.Error(err)
+			return err
+		}
+		klog.Infof("Keys secret for WireGuard gateway %q correctly enforced", wgObj.GetName())
+		return nil
+	case err != nil:
+		klog.Error(err)
+		return err
+	default:
+		return nil
+	}
+}
+
+func checkExistingKeysSecret(ctx context.Context, cl client.Client, secretName, namespace string) error {
+	var s corev1.Secret
+	if err := cl.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &s); err != nil {
+		return err
+	}
+
+	// check labels
+	if s.Labels == nil {
+		return fmt.Errorf("mandatory labels %q: \"true\" and %q are missing in secret %q", consts.GatewayResourceLabel, consts.RemoteClusterID, secretName)
+	}
+
+	if s.Labels[consts.GatewayResourceLabel] != consts.GatewayResourceLabelValue {
+		return fmt.Errorf("missing %q: \"true\" label in secret %q", consts.GatewayResourceLabel, secretName)
+	}
+	if v, ok := s.Labels[consts.RemoteClusterID]; !ok || v == "" {
+		return fmt.Errorf("missing %q label in secret %q", consts.RemoteClusterID, secretName)
+	}
+
+	return nil
+}
+
 func getWireGuardSecret(ctx context.Context, cl client.Client, wgObj metav1.Object) (*corev1.Secret, error) {
 	wgObjNsName := types.NamespacedName{Name: wgObj.GetName(), Namespace: wgObj.GetNamespace()}
 
@@ -111,8 +187,8 @@ func getWireGuardSecret(ctx context.Context, cl client.Client, wgObj metav1.Obje
 
 	switch len(secrets.Items) {
 	case 0:
-		klog.Warningf("Secret associated to WireGuard gateway %q not found", wgObjNsName)
-		return nil, nil
+		err = kerrors.NewNotFound(corev1.Resource("Secret"), wgObjNsName.Name)
+		return nil, err
 	case 1:
 		return &secrets.Items[0], nil
 	default:

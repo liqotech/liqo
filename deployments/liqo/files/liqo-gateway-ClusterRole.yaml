@@ -12,16 +12,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-- apiGroups:
   - coordination.k8s.io
   resources:
   - leases

@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,6 +39,7 @@ import (
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/gateway"
 	"github.com/liqotech/liqo/pkg/gateway/forge"
 	enutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/utils"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -49,15 +51,20 @@ type WgGatewayServerReconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
 	clusterRoleName string
+
+	eventRecorder record.EventRecorder
 }
 
 // NewWgGatewayServerReconciler returns a new WgGatewayServerReconciler.
 func NewWgGatewayServerReconciler(cl client.Client, s *runtime.Scheme,
+	recorder record.EventRecorder,
 	clusterRoleName string) *WgGatewayServerReconciler {
 	return &WgGatewayServerReconciler{
 		Client:          cl,
 		Scheme:          s,
 		clusterRoleName: clusterRoleName,
+
+		eventRecorder: recorder,
 	}
 }
 
@@ -67,7 +74,7 @@ func NewWgGatewayServerReconciler(cl client.Client, s *runtime.Scheme,
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;delete;create;update;patch
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete;update
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;delete;create;update;patch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;delete;create;update;patch
 // +kubectl:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;delete;create;update;patch
@@ -120,26 +127,20 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	// Ensure deployment (create or update)
 	deployNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: forge.GatewayResourceName(wgServer.Name)}
-	deploy, err := r.ensureDeployment(ctx, wgServer, deployNsName)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Ensure service (create or update)
 	svcNsName := types.NamespacedName{Namespace: wgServer.Namespace, Name: forge.GatewayResourceName(wgServer.Name)}
-	_, err = r.ensureService(ctx, wgServer, svcNsName)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 
-	// Ensure Metrics (if set)
-	err = enutils.EnsureMetrics(ctx,
-		r.Client, r.Scheme,
-		wgServer.Spec.Metrics, wgServer)
-	if err != nil {
+	var deploy *appsv1.Deployment
+	var d appsv1.Deployment
+	err = r.Get(ctx, deployNsName, &d)
+	switch {
+	case apierrors.IsNotFound(err):
+		deploy = nil
+	case err != nil:
+		klog.Errorf("Unable to get the deployment %q: %v", deployNsName, err)
 		return ctrl.Result{}, err
+	default:
+		deploy = &d
 	}
 
 	// Handle status
@@ -151,7 +152,10 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			}
 			klog.Errorf("Unable to update the WireGuard gateway server status %q: %s", req.NamespacedName, newErr)
 			err = newErr
+			return
 		}
+
+		r.eventRecorder.Event(wgServer, corev1.EventTypeNormal, "Reconciled", "WireGuard gateway server reconciled")
 	}()
 
 	if err := r.handleEndpointStatus(ctx, wgServer, svcNsName, deploy); err != nil {
@@ -159,12 +163,57 @@ func (r *WgGatewayServerReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	if err := r.handleSecretRefStatus(ctx, wgServer); err != nil {
+		klog.Errorf("Error while handling secret ref status: %v", err)
+		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "SecretRefStatusFailed",
+			fmt.Sprintf("Failed to handle secret ref status: %s", err))
 		return ctrl.Result{}, err
 	}
 
 	if err := r.handleInternalEndpointStatus(ctx, wgServer, svcNsName, deploy); err != nil {
+		klog.Errorf("Error while handling internal endpoint status: %v", err)
+		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "InternalEndpointStatusFailed",
+			fmt.Sprintf("Failed to handle internal endpoint status: %s", err))
 		return ctrl.Result{}, err
 	}
+
+	if wgServer.Spec.SecretRef.Name == "" {
+		// Ensure WireGuard keys secret (create or update)
+		if err = ensureKeysSecret(ctx, r.Client, wgServer, gateway.ModeServer); err != nil {
+			r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "KeysSecretEnforcedFailed", "Failed to enforce keys secret")
+			return ctrl.Result{}, err
+		}
+		r.eventRecorder.Event(wgServer, corev1.EventTypeNormal, "KeysSecretEnforced", "Enforced keys secret")
+	} else {
+		// Check that the secret exists and is correctly labeled
+		if err = checkExistingKeysSecret(ctx, r.Client, wgServer.Status.SecretRef.Name, wgServer.Namespace); err != nil {
+			r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "KeysSecretCheckFailed", fmt.Sprintf("Failed to check keys secret: %s", err))
+			return ctrl.Result{}, err
+		}
+		r.eventRecorder.Event(wgServer, corev1.EventTypeNormal, "KeysSecretChecked", "Checked keys secret")
+	}
+
+	// Ensure deployment (create or update)
+	_, err = r.ensureDeployment(ctx, wgServer, deployNsName)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	r.eventRecorder.Event(wgServer, corev1.EventTypeNormal, "DeploymentEnforced", "Enforced deployment")
+
+	// Ensure service (create or update)
+	_, err = r.ensureService(ctx, wgServer, svcNsName)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	r.eventRecorder.Event(wgServer, corev1.EventTypeNormal, "ServiceEnforced", "Enforced service")
+
+	// Ensure Metrics (if set)
+	err = enutils.EnsureMetrics(ctx,
+		r.Client, r.Scheme,
+		wgServer.Spec.Metrics, wgServer)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	r.eventRecorder.Event(wgServer, corev1.EventTypeNormal, "MetricsEnforced", "Enforced metrics")
 
 	return ctrl.Result{}, nil
 }
@@ -230,6 +279,19 @@ func (r *WgGatewayServerReconciler) mutateFnWgServerDeployment(deployment *appsv
 	// Forge spec
 	deployment.Spec = wgServer.Spec.Deployment.Spec
 
+	if wgServer.Status.SecretRef != nil {
+		for i := range deployment.Spec.Template.Spec.Volumes {
+			if deployment.Spec.Template.Spec.Volumes[i].Name == wireguardVolumeName {
+				deployment.Spec.Template.Spec.Volumes[i].Secret = &corev1.SecretVolumeSource{
+					SecretName: wgServer.Status.SecretRef.Name,
+				}
+				break
+			}
+		}
+	} else {
+		r.eventRecorder.Event(wgServer, corev1.EventTypeWarning, "MissingSecretRef", "WireGuard keys secret not found")
+	}
+
 	// Set WireGuard server as owner of the deployment
 	return controllerutil.SetControllerReference(wgServer, deployment, r.Scheme)
 }
@@ -252,6 +314,11 @@ func (r *WgGatewayServerReconciler) mutateFnWgServerService(service *corev1.Serv
 
 func (r *WgGatewayServerReconciler) handleEndpointStatus(ctx context.Context, wgServer *networkingv1beta1.WgGatewayServer,
 	svcNsName types.NamespacedName, dep *appsv1.Deployment) error {
+	if dep == nil {
+		wgServer.Status.Endpoint = nil
+		return nil
+	}
+
 	// Handle WireGuard server Service
 	var service corev1.Service
 	err := r.Get(ctx, svcNsName, &service)
@@ -471,26 +538,28 @@ func (r *WgGatewayServerReconciler) forgeEndpointStatusLoadBalancer(service *cor
 
 func (r *WgGatewayServerReconciler) handleSecretRefStatus(ctx context.Context, wgServer *networkingv1beta1.WgGatewayServer) error {
 	secret, err := getWireGuardSecret(ctx, r.Client, wgServer)
-	if err != nil {
-		return err
-	}
-
-	// Put secret reference in WireGuard server status
-	if secret == nil {
-		// if the secret is not found, we cancel the reference as it could be not valid anymore
+	switch {
+	case apierrors.IsNotFound(err):
 		wgServer.Status.SecretRef = nil
-	} else {
+		return nil
+	case err != nil:
+		return err
+	default:
 		wgServer.Status.SecretRef = &corev1.ObjectReference{
 			Name:      secret.Name,
 			Namespace: secret.Namespace,
 		}
+		return nil
 	}
-
-	return nil
 }
 
 func (r *WgGatewayServerReconciler) handleInternalEndpointStatus(ctx context.Context, wgServer *networkingv1beta1.WgGatewayServer,
 	svcNsName types.NamespacedName, dep *appsv1.Deployment) error {
+	if dep == nil {
+		wgServer.Status.InternalEndpoint = nil
+		return nil
+	}
+
 	var service corev1.Service
 	err := r.Get(ctx, svcNsName, &service)
 	if err != nil {

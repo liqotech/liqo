@@ -67,6 +67,7 @@ type Options struct {
 	ListenPort      int
 	EndpointAddress string
 	EndpointPort    int
+	KeysDir         string
 
 	EndpointIP      net.IP
 	EndpointIPMutex *sync.Mutex
