@@ -62,11 +62,13 @@ type Options struct {
 	GwOptions *gateway.Options
 
 	MTU             int
+	SecretName      string
 	PrivateKey      wgtypes.Key
 	InterfaceIP     string
 	ListenPort      int
 	EndpointAddress string
 	EndpointPort    int
+	KeysDir         string
 
 	EndpointIP      net.IP
 	EndpointIPMutex *sync.Mutex

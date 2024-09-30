@@ -42,6 +42,8 @@ const (
 	FlagNameEndpointAddress FlagName = "endpoint-address"
 	// FlagNameEndpointPort is the port of the endpoint for the wireguard interface.
 	FlagNameEndpointPort FlagName = "endpoint-port"
+	// FlagNameKeysDir is the directory where the keys are stored.
+	FlagNameKeysDir FlagName = "keys-dir"
 
 	// FlagNameDNSCheckInterval is the interval between two DNS checks.
 	FlagNameDNSCheckInterval FlagName = "dns-check-interval"
@@ -61,6 +63,7 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.IntVar(&opts.ListenPort, FlagNameListenPort.String(), forge.DefaultGwServerPort, "Listen port (server only)")
 	flagset.StringVar(&opts.EndpointAddress, FlagNameEndpointAddress.String(), "", "Endpoint address (client only)")
 	flagset.IntVar(&opts.EndpointPort, FlagNameEndpointPort.String(), forge.DefaultGwServerPort, "Endpoint port (client only)")
+	flagset.StringVar(&opts.KeysDir, FlagNameKeysDir.String(), forge.DefaultKeysDir, "Directory where the keys are stored")
 
 	flagset.DurationVar(&opts.DNSCheckInterval, FlagNameDNSCheckInterval.String(), 5*time.Minute, "Interval between two DNS checks")
 

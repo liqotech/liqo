@@ -21,16 +21,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-- apiGroups:
   - networking.liqo.io
   resources:
   - connections
