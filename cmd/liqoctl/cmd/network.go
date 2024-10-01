@@ -196,7 +196,7 @@ func newNetworkDisconnectCommand(ctx context.Context, options *network.Options) 
 		},
 
 		Run: func(_ *cobra.Command, _ []string) {
-			output.ExitOnErr(options.RunDisconnect(ctx))
+			output.ExitOnErr(options.RunDisconnect(ctx, nil, nil))
 		},
 	}
 

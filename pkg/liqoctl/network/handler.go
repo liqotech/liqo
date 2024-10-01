@@ -134,23 +134,8 @@ func (o *Options) RunReset(ctx context.Context) error {
 		return err
 	}
 
-	// Delete gateway client on cluster 1
-	if err := cluster1.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster2.localClusterID)); err != nil {
-		return err
-	}
-
-	// Delete gateway client on cluster 2
-	if err := cluster2.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster1.localClusterID)); err != nil {
-		return err
-	}
-
-	// Delete gateway server on cluster 1
-	if err := cluster1.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster2.localClusterID)); err != nil {
-		return err
-	}
-
-	// Delete gateway server on cluster 2
-	if err := cluster2.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster1.localClusterID)); err != nil {
+	// Run disconnect command to remove gateways.
+	if err := o.RunDisconnect(ctx, cluster1, cluster2); err != nil {
 		return err
 	}
 
@@ -294,24 +279,41 @@ func (o *Options) RunConnect(ctx context.Context) error {
 }
 
 // RunDisconnect disconnects two clusters.
-func (o *Options) RunDisconnect(ctx context.Context) error {
+// It deletes the gateways (if present) on both clusters.
+// Cluster1 and Cluster2 are optional, if not provided they will be created and initialized.
+func (o *Options) RunDisconnect(ctx context.Context, cluster1, cluster2 *Cluster) error {
+	var err error
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 
-	// Create and initialize cluster 1.
-	cluster1, err := NewCluster(ctx, o.LocalFactory, o.RemoteFactory, false)
-	if err != nil {
-		return err
+	if cluster1 == nil {
+		// Create and initialize cluster 1.
+		cluster1, err = NewCluster(ctx, o.LocalFactory, o.RemoteFactory, false)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Create and initialize cluster 2.
-	cluster2, err := NewCluster(ctx, o.RemoteFactory, o.LocalFactory, false)
-	if err != nil {
-		return err
+	if cluster2 == nil {
+		// Create and initialize cluster 2.
+		cluster2, err = NewCluster(ctx, o.RemoteFactory, o.LocalFactory, false)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete gateway client on cluster 1
 	if err := cluster1.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster2.localClusterID)); err != nil {
+		return err
+	}
+
+	// Delete gateway client on cluster 2
+	if err := cluster2.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster1.localClusterID)); err != nil {
+		return err
+	}
+
+	// Delete gateway server on cluster 1
+	if err := cluster1.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster2.localClusterID)); err != nil {
 		return err
 	}
 
