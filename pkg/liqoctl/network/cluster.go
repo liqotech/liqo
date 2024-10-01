@@ -36,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/wait"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	liqoutils "github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
 // Cluster contains the information about a cluster.
@@ -216,34 +217,6 @@ func (c *Cluster) CheckNetworkInitialized(ctx context.Context, remoteClusterID l
 	return nil
 }
 
-// GetGatewayServer retrieves a GatewayServer.
-func (c *Cluster) GetGatewayServer(ctx context.Context, name string) (*networkingv1beta1.GatewayServer, error) {
-	gwServer := &networkingv1beta1.GatewayServer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.local.Namespace,
-		},
-	}
-	if err := c.local.CRClient.Get(ctx, client.ObjectKeyFromObject(gwServer), gwServer); err != nil {
-		return nil, err
-	}
-	return gwServer, nil
-}
-
-// GetGatewayClient retrieves a GatewayClient.
-func (c *Cluster) GetGatewayClient(ctx context.Context, name string) (*networkingv1beta1.GatewayClient, error) {
-	gwClient := &networkingv1beta1.GatewayClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.local.Namespace,
-		},
-	}
-	if err := c.local.CRClient.Get(ctx, client.ObjectKeyFromObject(gwClient), gwClient); err != nil {
-		return nil, err
-	}
-	return gwClient, nil
-}
-
 func endpointHasChanged(endpoint *networkingv1beta1.Endpoint, service *corev1.Service) bool {
 	if endpoint.ServiceType != service.Spec.Type {
 		return true
@@ -265,9 +238,20 @@ func endpointHasChanged(endpoint *networkingv1beta1.Endpoint, service *corev1.Se
 }
 
 // EnsureGatewayServer create or updates a GatewayServer.
-func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *forge.GwServerOptions) (*networkingv1beta1.GatewayServer, error) {
+func (c *Cluster) EnsureGatewayServer(ctx context.Context, opts *forge.GwServerOptions) (*networkingv1beta1.GatewayServer, error) {
 	s := c.local.Printer.StartSpinner("Setting up gateway server")
-	gwServer, err := forge.GatewayServer(name, c.local.Namespace, opts)
+
+	// Check if the GatewayServer already exists.
+	var name *string
+	gwServer, err := getters.GetGatewayServerByClusterID(ctx, c.local.CRClient, c.remoteClusterID)
+	if client.IgnoreNotFound(err) != nil {
+		return nil, err
+	} else if err == nil {
+		name = &gwServer.Name // reutilize the existing GatewayServer name
+	}
+
+	// Forge GatewayServer.
+	gwServer, err = forge.GatewayServer(c.local.Namespace, name, opts)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while forging gateway server: %v", output.PrettyErr(err)))
 		return nil, err
@@ -305,9 +289,19 @@ func (c *Cluster) EnsureGatewayServer(ctx context.Context, name string, opts *fo
 }
 
 // EnsureGatewayClient create or updates a GatewayClient.
-func (c *Cluster) EnsureGatewayClient(ctx context.Context, name string, opts *forge.GwClientOptions) (*networkingv1beta1.GatewayClient, error) {
+func (c *Cluster) EnsureGatewayClient(ctx context.Context, opts *forge.GwClientOptions) (*networkingv1beta1.GatewayClient, error) {
 	s := c.local.Printer.StartSpinner("Setting up gateway client")
-	gwClient, err := forge.GatewayClient(name, c.local.Namespace, opts)
+
+	// Check if the GatewayClient already exists.
+	var name *string
+	gwClient, err := getters.GetGatewayClientByClusterID(ctx, c.local.CRClient, c.remoteClusterID)
+	if client.IgnoreNotFound(err) != nil {
+		return nil, err
+	} else if err == nil {
+		name = &gwClient.Name // reutilize the existing GatewayClient name
+	}
+
+	gwClient, err = forge.GatewayClient(c.local.Namespace, name, opts)
 	if err != nil {
 		s.Fail(fmt.Sprintf("An error occurred while forging gateway client: %v", output.PrettyErr(err)))
 		return nil, err
@@ -375,17 +369,21 @@ func (c *Cluster) DeleteConfiguration(ctx context.Context, name string) error {
 }
 
 // DeleteGatewayServer deletes a GatewayServer.
-func (c *Cluster) DeleteGatewayServer(ctx context.Context, name string) error {
+func (c *Cluster) DeleteGatewayServer(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Deleting gateway server")
 
-	gwServer := &networkingv1beta1.GatewayServer{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.local.Namespace,
-		},
+	// Retrieve GatewayServer.
+	gwServer, err := getters.GetGatewayServerByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail("An error occurred while retrieving gateway server: ", output.PrettyErr(err))
+		return err
+	} else if apierrors.IsNotFound(err) {
+		s.Success("Gateway server already deleted")
+		return nil
 	}
 
-	err := c.local.CRClient.Delete(ctx, gwServer)
+	// Delete GatewayServer.
+	err = c.local.CRClient.Delete(ctx, gwServer)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		s.Fail("An error occurred while deleting gateway server: ", output.PrettyErr(err))
@@ -400,17 +398,21 @@ func (c *Cluster) DeleteGatewayServer(ctx context.Context, name string) error {
 }
 
 // DeleteGatewayClient deletes a GatewayClient.
-func (c *Cluster) DeleteGatewayClient(ctx context.Context, name string) error {
+func (c *Cluster) DeleteGatewayClient(ctx context.Context, remoteClusterID liqov1beta1.ClusterID) error {
 	s := c.local.Printer.StartSpinner("Deleting gateway client")
 
-	gwClient := &networkingv1beta1.GatewayClient{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.local.Namespace,
-		},
+	// Retrieve GatewayClient.
+	gwClient, err := getters.GetGatewayClientByClusterID(ctx, c.local.CRClient, remoteClusterID)
+	if client.IgnoreNotFound(err) != nil {
+		s.Fail("An error occurred while retrieving gateway client: ", output.PrettyErr(err))
+		return err
+	} else if apierrors.IsNotFound(err) {
+		s.Success("Gateway client already deleted")
+		return nil
 	}
 
-	err := c.local.CRClient.Delete(ctx, gwClient)
+	// Delete GatewayClient.
+	err = c.local.CRClient.Delete(ctx, gwClient)
 	switch {
 	case client.IgnoreNotFound(err) != nil:
 		s.Fail("An error occurred while deleting gateway client: ", output.PrettyErr(err))
@@ -426,22 +428,26 @@ func (c *Cluster) DeleteGatewayClient(ctx context.Context, name string) error {
 
 // CheckAlreadyEstablishedForGwServer checks if a GatewayServer is already established.
 func (c *Cluster) CheckAlreadyEstablishedForGwServer(ctx context.Context) (bool, error) {
-	_, err := c.GetGatewayServer(ctx, forge.DefaultGatewayServerName(c.remoteClusterID))
-	if err == nil {
-		return true, nil
-	} else if client.IgnoreNotFound(err) != nil {
+	_, err := getters.GetGatewayServerByClusterID(ctx, c.local.CRClient, c.remoteClusterID)
+	switch {
+	case client.IgnoreNotFound(err) != nil:
 		return false, err
+	case apierrors.IsNotFound(err):
+		return false, nil
+	default:
+		return true, nil
 	}
-	return false, nil
 }
 
 // CheckAlreadyEstablishedForGwClient checks if a GatewayClient is already established.
 func (c *Cluster) CheckAlreadyEstablishedForGwClient(ctx context.Context) (bool, error) {
-	_, err := c.GetGatewayClient(ctx, forge.DefaultGatewayClientName(c.remoteClusterID))
-	if err == nil {
-		return true, nil
-	} else if client.IgnoreNotFound(err) != nil {
+	_, err := getters.GetGatewayClientByClusterID(ctx, c.local.CRClient, c.remoteClusterID)
+	switch {
+	case client.IgnoreNotFound(err) != nil:
 		return false, err
+	case apierrors.IsNotFound(err):
+		return false, nil
+	default:
+		return true, nil
 	}
-	return false, nil
 }

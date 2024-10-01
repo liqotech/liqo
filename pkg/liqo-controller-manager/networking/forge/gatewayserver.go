@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
@@ -33,8 +34,8 @@ const (
 	DefaultGwServerPort         = 51840
 )
 
-// DefaultGatewayServerName returns the default name for a GatewayServer.
-func DefaultGatewayServerName(remoteClusterID liqov1beta1.ClusterID) string {
+// defaultGatewayServerName returns the default name for a GatewayServer.
+func defaultGatewayServerName(remoteClusterID liqov1beta1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
@@ -53,14 +54,14 @@ type GwServerOptions struct {
 }
 
 // GatewayServer forges a GatewayServer.
-func GatewayServer(name, namespace string, o *GwServerOptions) (*networkingv1beta1.GatewayServer, error) {
+func GatewayServer(namespace string, name *string, o *GwServerOptions) (*networkingv1beta1.GatewayServer, error) {
 	gwServer := &networkingv1beta1.GatewayServer{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1beta1.GatewayServerKind,
 			APIVersion: networkingv1beta1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      ptr.Deref(name, defaultGatewayServerName(o.RemoteClusterID)),
 			Namespace: namespace,
 			Labels: map[string]string{
 				liqoconsts.RemoteClusterID: string(o.RemoteClusterID),

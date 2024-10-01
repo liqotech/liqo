@@ -453,7 +453,7 @@ Resuming, these are the steps to be followed by the administrators of each of th
 3. **Cluster client**: applies the server configuration:
 
    ```bash
-   kubectl apply -f server-client.yaml
+   kubectl apply -f conf-server.yaml
    ```
 
 4. **Cluster server**: sets up the `GatewayServer` and provides to the cluster client administrator port and address where the server is reachable:
