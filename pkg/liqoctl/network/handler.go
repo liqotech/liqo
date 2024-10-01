@@ -190,9 +190,7 @@ func (o *Options) RunConnect(ctx context.Context) error {
 	}
 
 	// Create gateway server on cluster 2
-	gwServer, err := cluster2.EnsureGatewayServer(ctx,
-		forge.DefaultGatewayServerName(cluster1.localClusterID),
-		o.newGatewayServerForgeOptions(o.RemoteFactory.KubeClient, cluster1.localClusterID))
+	gwServer, err := cluster2.EnsureGatewayServer(ctx, o.newGatewayServerForgeOptions(o.RemoteFactory.KubeClient, cluster1.localClusterID))
 	if err != nil {
 		return err
 	}
@@ -209,7 +207,6 @@ func (o *Options) RunConnect(ctx context.Context) error {
 
 	// Create gateway client on cluster 1
 	gwClient, err := cluster1.EnsureGatewayClient(ctx,
-		forge.DefaultGatewayClientName(cluster2.localClusterID),
 		o.newGatewayClientForgeOptions(o.LocalFactory.KubeClient, cluster2.localClusterID, gwServer.Status.Endpoint))
 	if err != nil {
 		return err
@@ -303,22 +300,22 @@ func (o *Options) RunDisconnect(ctx context.Context, cluster1, cluster2 *Cluster
 	}
 
 	// Delete gateway client on cluster 1
-	if err := cluster1.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster2.localClusterID)); err != nil {
+	if err := cluster1.DeleteGatewayClient(ctx, cluster2.localClusterID); err != nil {
 		return err
 	}
 
 	// Delete gateway client on cluster 2
-	if err := cluster2.DeleteGatewayClient(ctx, forge.DefaultGatewayClientName(cluster1.localClusterID)); err != nil {
+	if err := cluster2.DeleteGatewayClient(ctx, cluster1.localClusterID); err != nil {
 		return err
 	}
 
 	// Delete gateway server on cluster 1
-	if err := cluster1.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster2.localClusterID)); err != nil {
+	if err := cluster1.DeleteGatewayServer(ctx, cluster2.localClusterID); err != nil {
 		return err
 	}
 
 	// Delete gateway server on cluster 2
-	return cluster2.DeleteGatewayServer(ctx, forge.DefaultGatewayServerName(cluster1.localClusterID))
+	return cluster2.DeleteGatewayServer(ctx, cluster1.localClusterID)
 }
 
 func (o *Options) newGatewayServerForgeOptions(kubeClient kubernetes.Interface, remoteClusterID liqov1beta1.ClusterID) *forge.GwServerOptions {

@@ -32,8 +32,8 @@ const (
 	DefaultGwClientTemplateName = "wireguard-client"
 )
 
-// DefaultGatewayClientName returns the default name for a GatewayClient.
-func DefaultGatewayClientName(remoteClusterID liqov1beta1.ClusterID) string {
+// defaultGatewayClientName returns the default name for a GatewayClient.
+func defaultGatewayClientName(remoteClusterID liqov1beta1.ClusterID) string {
 	return string(remoteClusterID)
 }
 
@@ -51,14 +51,14 @@ type GwClientOptions struct {
 }
 
 // GatewayClient forges a GatewayClient.
-func GatewayClient(name, namespace string, o *GwClientOptions) (*networkingv1beta1.GatewayClient, error) {
+func GatewayClient(namespace string, name *string, o *GwClientOptions) (*networkingv1beta1.GatewayClient, error) {
 	gwClient := &networkingv1beta1.GatewayClient{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       networkingv1beta1.GatewayClientKind,
 			APIVersion: networkingv1beta1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      ptr.Deref(name, defaultGatewayClientName(o.RemoteClusterID)),
 			Namespace: namespace,
 			Labels: map[string]string{
 				liqoconsts.RemoteClusterID: string(o.RemoteClusterID),

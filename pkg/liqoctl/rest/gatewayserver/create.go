@@ -98,7 +98,7 @@ func (o *Options) Create(ctx context.Context, options *rest.CreateOptions) *cobr
 func (o *Options) handleCreate(ctx context.Context) error {
 	opts := o.createOptions
 
-	gwServer, err := forge.GatewayServer(opts.Name, opts.Namespace, o.getForgeOptions())
+	gwServer, err := forge.GatewayServer(opts.Namespace, &opts.Name, o.getForgeOptions())
 	if err != nil {
 		opts.Printer.CheckErr(err)
 		return err
