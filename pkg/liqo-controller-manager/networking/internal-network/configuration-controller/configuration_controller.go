@@ -30,6 +30,9 @@ import (
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 )
 
+// ControllerName is the name of the controller.
+const ControllerName = "internalConfiguration"
+
 // ConfigurationReconciler manage Configuration lifecycle.
 type ConfigurationReconciler struct {
 	client.Client
@@ -88,7 +91,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
 		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(p)).
 		Complete(r)
 }

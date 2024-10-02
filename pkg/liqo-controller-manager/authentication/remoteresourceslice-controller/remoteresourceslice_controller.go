@@ -42,6 +42,9 @@ import (
 	liqolabels "github.com/liqotech/liqo/pkg/utils/labels"
 )
 
+// ControllerName is the name of the controller.
+const ControllerName = "remoteResourceSlice"
+
 // NewRemoteResourceSliceReconciler returns a new RemoteResourceSliceReconciler.
 func NewRemoteResourceSliceReconciler(cl client.Client, s *runtime.Scheme, config *rest.Config,
 	recorder record.EventRecorder,
@@ -254,7 +257,7 @@ func (r *RemoteResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
 		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(predicate.And(remoteResSliceFilter, withCSR()))).
 		Watches(&authv1beta1.Tenant{}, handler.EnqueueRequestsFromMapFunc(r.resourceSlicesEnquer())).
 		Complete(r)

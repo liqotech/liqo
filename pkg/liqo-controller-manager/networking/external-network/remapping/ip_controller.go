@@ -32,6 +32,11 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
+const (
+	// IPControllerName is the name of the controller.
+	IPControllerName = "ipMapping"
+)
+
 // IPReconciler manage IP.
 type IPReconciler struct {
 	client.Client
@@ -86,7 +91,7 @@ func (r *IPReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 		return ctrl.Result{}, nil
 	}
 
-	if ip.Status.IPMappings == nil || len(ip.Status.IPMappings) == 0 {
+	if len(ip.Status.IPMappings) == 0 {
 		klog.Warningf("IP %s has no IP mappings yet", req.String())
 		return ctrl.Result{}, nil
 	}
@@ -108,7 +113,7 @@ func (r *IPReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(IPControllerName).
 		For(&ipamv1alpha1.IP{}, builder.WithPredicates(predicate.Not(filterByLabelsPredicate))).
 		Complete(r)
 }
