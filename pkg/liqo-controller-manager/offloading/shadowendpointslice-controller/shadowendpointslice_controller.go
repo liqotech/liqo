@@ -178,7 +178,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 // In particular, it reacts on changes on the NetworkStatus condition.
 func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.EventHandler {
 	return &handler.Funcs{
-		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+		UpdateFunc: func(_ context.Context, ue event.TypedUpdateEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			newForeignCluster, ok := ue.ObjectNew.(*liqov1beta1.ForeignCluster)
 			if !ok {
 				klog.Errorf("object %v is not a ForeignCluster", ue.ObjectNew)
@@ -200,7 +200,7 @@ func (r *Reconciler) getForeignClusterEventHandler(ctx context.Context) handler.
 
 			for i := range shadowList.Items {
 				shadow := &shadowList.Items[i]
-				rli.Add(reconcile.Request{
+				trli.Add(reconcile.Request{
 					NamespacedName: types.NamespacedName{
 						Name:      shadow.Name,
 						Namespace: shadow.Namespace,

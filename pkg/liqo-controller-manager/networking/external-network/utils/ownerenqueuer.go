@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	ctrl "sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -39,22 +40,22 @@ type OwnerEnqueuer struct {
 }
 
 // Create enqueues the owner of the object for a given kind.
-func (h *OwnerEnqueuer) Create(_ context.Context, _ event.CreateEvent, _ workqueue.RateLimitingInterface) {
+func (h *OwnerEnqueuer) Create(_ context.Context, _ event.CreateEvent, _ workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	panic("implement me")
 }
 
 // Update enqueues the owner of the object for a given kind.
-func (h *OwnerEnqueuer) Update(_ context.Context, _ event.UpdateEvent, _ workqueue.RateLimitingInterface) {
+func (h *OwnerEnqueuer) Update(_ context.Context, _ event.UpdateEvent, _ workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	panic("implement me")
 }
 
 // Delete enqueues the owner of the object for a given kind.
-func (h *OwnerEnqueuer) Delete(_ context.Context, _ event.DeleteEvent, _ workqueue.RateLimitingInterface) {
+func (h *OwnerEnqueuer) Delete(_ context.Context, _ event.DeleteEvent, _ workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	panic("implement me")
 }
 
 // Generic enqueues the owner of the object for a given kind.
-func (h *OwnerEnqueuer) Generic(_ context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (h *OwnerEnqueuer) Generic(_ context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	owners := evt.Object.GetOwnerReferences()
 
 	for _, owner := range owners {
