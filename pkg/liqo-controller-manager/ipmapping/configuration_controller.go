@@ -36,6 +36,9 @@ import (
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 )
 
+// ConfigurationControllerName is the name of the controller.
+const ConfigurationControllerName = "IpMappingConfiguration"
+
 // cluster-role
 // +kubebuilder:rbac:groups=networking.liqo.io,resources=configurations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=ipam.liqo.io,resources=ips,verbs=get;list;watch;create;update;patch;delete
@@ -95,7 +98,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(ConfigurationControllerName).
 		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
 }

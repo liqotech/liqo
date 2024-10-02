@@ -37,6 +37,11 @@ import (
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication"
 )
 
+const (
+	// ControllerName is the name of the controller.
+	ControllerName = "quotaCreator"
+)
+
 // QuotaCreatorReconciler manage Quota lifecycle.
 type QuotaCreatorReconciler struct {
 	client.Client
@@ -136,7 +141,7 @@ func (r *QuotaCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		klog.Error(err)
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
 		For(&authv1beta1.ResourceSlice{},
 			builder.WithPredicates(remoteResSliceFilter)).
 		Owns(&offloadingv1beta1.Quota{}).

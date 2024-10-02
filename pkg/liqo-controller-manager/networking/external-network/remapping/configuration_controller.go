@@ -48,6 +48,9 @@ type RemappingReconciler struct {
 	Options        *Options
 }
 
+// ConfigurationControllerName is the name of the controller.
+const ConfigurationControllerName = "configurationRemapping"
+
 // NewRemappingReconciler returns a new PublicKeysReconciler.
 func NewRemappingReconciler(cl client.Client, s *runtime.Scheme, er record.EventRecorder) (*RemappingReconciler, error) {
 	opts, err := NewOptions()
@@ -101,7 +104,7 @@ func (r *RemappingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(ConfigurationControllerName).
 		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(filterByLabelsPredicate)).
 		Complete(r)
 }

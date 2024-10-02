@@ -36,6 +36,9 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
+// ControllerName is the name of the controller.
+const ControllerName = "externalConfiguration"
+
 // ConfigurationReconciler manage Configuration.
 type ConfigurationReconciler struct {
 	client.Client
@@ -90,7 +93,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
 		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(p)).
 		Watches(
 			&networkingv1beta1.GatewayServer{},

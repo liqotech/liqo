@@ -36,6 +36,9 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
+// ControllerName is the name of the controller.
+const ControllerName = "localResourceSlice"
+
 // NewLocalResourceSliceReconciler returns a new LocalResourceSliceReconciler.
 func NewLocalResourceSliceReconciler(cl client.Client, s *runtime.Scheme,
 	recorder record.EventRecorder, liqoNamespace string,
@@ -150,7 +153,7 @@ func (r *LocalResourceSliceReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
 		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(localResSliceFilter)).
 		Complete(r)
 }

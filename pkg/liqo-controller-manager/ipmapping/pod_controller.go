@@ -33,6 +33,11 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
+const (
+	// PodControllerName is the name of the controller.
+	PodControllerName = "IPMappingPod"
+)
+
 // OffloadedPodReconciler manage offloaded pods lifecycle.
 type OffloadedPodReconciler struct {
 	client.Client
@@ -88,7 +93,7 @@ func (r *OffloadedPodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return fmt.Errorf("unable to create predicate: %w", err)
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(PodControllerName).
 		For(&corev1.Pod{}, builder.WithPredicates(p)).
 		Complete(r)
 }
