@@ -140,7 +140,7 @@ func (r *NamespaceOffloadingReconciler) SetupWithManager(mgr ctrl.Manager) error
 }
 
 func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHandler {
-	enqueue := func(rli workqueue.RateLimitingInterface, namespace string) {
+	enqueue := func(rli workqueue.TypedRateLimitingInterface[reconcile.Request], namespace string) {
 		rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{
 			Name:      liqoconst.DefaultNamespaceOffloadingName,
 			Namespace: namespace,
@@ -148,31 +148,31 @@ func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHand
 	}
 
 	return handler.Funcs{
-		CreateFunc: func(_ context.Context, _ event.CreateEvent, rli workqueue.RateLimitingInterface) {
+		CreateFunc: func(_ context.Context, _ event.TypedCreateEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			// Enqueue an event for all known NamespaceOffloadings.
-			r.namespaces.ForEach(func(namespace string) { enqueue(rli, namespace) })
+			r.namespaces.ForEach(func(namespace string) { enqueue(trli, namespace) })
 		},
-		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+		UpdateFunc: func(_ context.Context, ue event.TypedUpdateEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			oldMappings := ue.ObjectOld.(*offloadingv1beta1.NamespaceMap).Status.CurrentMapping
 			newMappings := ue.ObjectNew.(*offloadingv1beta1.NamespaceMap).Status.CurrentMapping
 
 			// Enqueue an event for all elements that are different between the old and the new object.
 			for namespace, oldStatus := range oldMappings {
 				if newStatus, found := newMappings[namespace]; !found || oldStatus.Phase != newStatus.Phase {
-					enqueue(rli, namespace)
+					enqueue(trli, namespace)
 				}
 			}
 
 			// Enqueue an event for all elements that have just been added.
 			for namespace := range newMappings {
 				if _, found := oldMappings[namespace]; !found {
-					enqueue(rli, namespace)
+					enqueue(trli, namespace)
 				}
 			}
 		},
-		DeleteFunc: func(_ context.Context, _ event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+		DeleteFunc: func(_ context.Context, _ event.TypedDeleteEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			// Enqueue an event for all known NamespaceOffloadings.
-			r.namespaces.ForEach(func(namespace string) { enqueue(rli, namespace) })
+			r.namespaces.ForEach(func(namespace string) { enqueue(trli, namespace) })
 		},
 	}
 }

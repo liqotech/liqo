@@ -91,7 +91,7 @@ func (r *NodeFailureReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // triggering the reconciliation of the related node hosting the pod.
 func getPodTerminatingEventHandler() handler.EventHandler {
 	return &handler.Funcs{
-		UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+		UpdateFunc: func(_ context.Context, ue event.TypedUpdateEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			ownedByShadowPod := ue.ObjectNew.GetLabels()[consts.ManagedByLabelKey] == consts.ManagedByShadowPodValue
 			isTerminating := !ue.ObjectNew.GetDeletionTimestamp().IsZero()
 			if ownedByShadowPod && isTerminating {
@@ -102,7 +102,7 @@ func getPodTerminatingEventHandler() handler.EventHandler {
 				}
 				nodeName := pod.Spec.NodeName
 				if nodeName != "" {
-					rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}})
+					trli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}})
 				}
 			}
 		}}

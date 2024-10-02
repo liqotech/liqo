@@ -137,7 +137,7 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func enqueFromDeployment(dep *appsv1.Deployment, rli workqueue.RateLimitingInterface) {
+func enqueFromDeployment(dep *appsv1.Deployment, rli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	rli.Add(
 		reconcile.Request{
 			NamespacedName: types.NamespacedName{
@@ -149,13 +149,13 @@ func enqueFromDeployment(dep *appsv1.Deployment, rli workqueue.RateLimitingInter
 }
 
 var deploymentHandler = &handler.Funcs{
-	DeleteFunc: func(_ context.Context, de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+	DeleteFunc: func(_ context.Context, de event.TypedDeleteEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 		dep := de.Object.(*appsv1.Deployment)
-		enqueFromDeployment(dep, rli)
+		enqueFromDeployment(dep, trli)
 	},
-	UpdateFunc: func(_ context.Context, ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+	UpdateFunc: func(_ context.Context, ue event.TypedUpdateEvent[client.Object], trli workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 		dep := ue.ObjectNew.(*appsv1.Deployment)
-		enqueFromDeployment(dep, rli)
+		enqueFromDeployment(dep, trli)
 	},
 }
 
