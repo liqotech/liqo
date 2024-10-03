@@ -227,14 +227,23 @@ spec:
       pod: 10.243.0.0/16            # the pod CIDR of the remote cluster
 ```
 
-You can find *REMOTE_CLUSTER_ID* these parameters in the output of the
+You can find the value of the *REMOTE_CLUSTER_ID* by launching the following command on the **remote cluster**:
+
+`````{tab-set}
+````{tab-item} liqoctl
+
+```bash
+liqoctl info --get clusterid
+```
+````
+````{tab-item} kubectl
 
 ```bash
 kubectl get configmaps -n liqo liqo-clusterid-configmap \
   --template {{.data.CLUSTER_ID}}
 ```
-
-command in the remote cluster.
+````
+`````
 
 ```{admonition} Tip
 You can generate this file with the command `liqoctl generate configuration` executed in the remote cluster.
@@ -291,13 +300,25 @@ NAMESPACE   NAME     TEMPLATE NAME      IP           PORT    AGE
 default     server   wireguard-server   10.42.3.54   32133   84s
 ```
 
+`````{tab-set}
+````{tab-item} liqoctl
+
 ```bash
-kubectl get gatewayservers --template {{.status.endpoint}}
+liqoctl info peer <REMOTE_CLUSTER_ID> --get network.gateway
+```
+````
+
+````{tab-item} kubectl
+
+```bash
+kubectl get gatewayservers --template {{.status.endpoint}} -n <GATEWAY_NS> <GATEWAY_NAME>
 ```
 
 ```text
 map[addresses:[172.19.0.9] port:32701 protocol:UDP]
 ```
+````
+`````
 
 #### Creation of a gateway client
 
@@ -474,6 +495,8 @@ Resuming, these are the steps to be followed by the administrators of each of th
    ```bash
    kubectl apply -f publickey-client.yaml
    ```
+
+You can check whether the procedure completed successfully by checking [the peering status](../../usage/peer.md#check-status-of-peerings).
 
 ## Custom templates
 

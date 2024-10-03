@@ -15,7 +15,7 @@ The figure below represents at a high level the network fabric established betwe
 The **controller-manager** (not shown in the figure) contains the **control plane** of the Liqo network fabric.
 It runs as a pod (**liqo-controller-manager**) and is responsible for **setting up the network CRDs** during the connection process to a remote cluster.
 This includes the management of potential **network conflicts** through the definition of high-level NAT rules (enforced by the data plane components).
-Specifically, network CRDs are used to handle the [Translation of Pod IPs] (usageReflectionPods) (i.e. during the synchronisation process from the remote to the local cluster), as well as during the [EndpointSlices reflection] (usageReflectionEndpointSlices) (i.e. propagation from the local to the remote cluster).
+Specifically, network CRDs are used to handle the [Translation of Pod IPs](usageReflectionPods) (i.e. during the synchronisation process from the remote to the local cluster), as well as during the [EndpointSlices reflection](usageReflectionEndpointSlices) (i.e. propagation from the local to the remote cluster).
 
 An **IP Address Management (IPAM) plugin** is included in another pod (**liqo-ipam**).
 It exposes an interface that is consumed by the **controller-manager** to handle **IPs acquisitions**.

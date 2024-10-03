@@ -111,14 +111,14 @@ Let's now consume the Service from both clusters from a different pod (e.g., a t
 Starting from the *London* cluster:
 
 ```bash
-kubectl run consumer --image=curlimages/curl --rm --restart=Never \
+kubectl run consumer -it --image=curlimages/curl --rm --restart=Never \
     -- curl -s -H 'accept: application/json' http://flights-service.liqo-demo:7999/schedule
 ```
 
 A similar result is obtained executing the same command in a shell running in the *New York* cluster, although the backend pod is effectively running in the *London* cluster:
 
 ```bash
-kubectl run consumer --image=curlimages/curl --rm --restart=Never \
+kubectl run consumer -it --image=curlimages/curl --rm --restart=Never \
     --kubeconfig $KUBECONFIG_NEWYORK \
     -- curl -s -H 'accept: application/json' http://flights-service.liqo-demo:7999/schedule
 ```
