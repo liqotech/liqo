@@ -122,6 +122,28 @@ liqo-proxy-599958d9b8-6fzfc                1/1     Running   0          8m15s
 liqo-webhook-8fbd8c664-pxrfh               1/1     Running   0          8m15s
 ```
 
+At this point, it is possible to check status and info about the current Liqo instance, runnning:
+
+```bash
+liqoctl info
+```
+
+```text
+─ Local installation info ────────────────────────────────────────────────────────
+  Cluster ID:     milan
+  Version:        v1.0.0-rc.2
+  K8s API server: https://172.19.0.10:6443
+  Cluster labels
+      liqo.io/provider: kind
+──────────────────────────────────────────────────────────────────────────────────
+─ Installation health ────────────────────────────────────────────────────────────
+  ✔    Liqo is healthy
+──────────────────────────────────────────────────────────────────────────────────
+─ Active peerings ────────────────────────────────────────────────────────────────
+
+──────────────────────────────────────────────────────────────────────────────────
+```
+
 ## Peer two clusters
 
 Once Liqo is installed in your clusters, you can establish new *peerings*.
@@ -182,17 +204,51 @@ The output should look like this:
 You can check the peering status by running:
 
 ```bash
-kubectl get foreignclusters
+liqoctl info
 ```
 
-The output should look like the following, indicating the relationship the foreign cluster has with the local cluster:
+Where in the output you should be able to see that a new peer appeared in the "Active peerings" section:
+
+```text
+─ Local installation info ────────────────────────────────────────────────────────
+  Cluster ID:     rome
+  Version:        v1.0.0-rc.2
+  K8s API server: https://172.19.0.9:6443
+  Cluster labels
+      liqo.io/provider: kind
+──────────────────────────────────────────────────────────────────────────────────
+─ Installation health ────────────────────────────────────────────────────────────
+  ✔    Liqo is healthy
+──────────────────────────────────────────────────────────────────────────────────
+─ Active peerings ────────────────────────────────────────────────────────────────
+  milan
+      Role:                  Provider
+      Networking status:     Healthy
+      Authentication status: Healthy
+      Offloading status:     Healthy
+──────────────────────────────────────────────────────────────────────────────────
+```
+
+````{admonition} Tip
+To get additional info about the specific peering you can run:
+
+```bash
+liqoctl info peer milan
+```
+````
+
+Additionally, you should be able to see a new CR describing the relationship with the foreign cluster:
+
+```bash
+kubectl get foreignclusters
+```
 
 ```text
 NAME    ROLE       AGE
 milan   Provider   52s
 ```
 
-At the same time, you should see a virtual node (`milan`) in addition to your physical nodes:
+Moreover, you should be able to see a new virtual node (`milan`) among the list of nodes in the cluster:
 
 ```bash
 kubectl get nodes

@@ -97,7 +97,7 @@ If the private cluster uses private link, you can set the `--private-link` *liqo
 
 ```{admonition} Virtual Network Resource Group
 By default, it is assumed the Virtual Network Resource for the AKS Subnet is located in the same Resource Group
-as the AKS Resource. If that is not the case, you will need to use the `--vnet-resource-group-name` flag to provide the 
+as the AKS Resource. If that is not the case, you will need to use the `--vnet-resource-group-name` flag to provide the
 correct Resource Group name where the Virtual Network Resource is located.
 ```
 ````
@@ -201,7 +201,7 @@ Liqo supports GKE clusters using the default CNI: [Google GKE - VPC-Native](http
 Liqo does NOT support:
 
 * GKE Autopilot Clusters
-* Intranode visibility: make sure this option is disabled or use the `--no-enable-intra-node-visibility` flag. 
+* Intranode visibility: make sure this option is disabled or use the `--no-enable-intra-node-visibility` flag.
 * Accessing offloaded pods from NodePort/LoadBalancer services [**only on Dataplane V2**].
 ```
 
@@ -483,6 +483,36 @@ liqoctl install <provider> --version <commit-sha> --local-chart-path <path-to-lo
 ```
 
 (InstallationCNIConfiguration)=
+
+## Check installation
+
+After the installation, you can check the status and info about the current instance of Liqo via `liqoctl`:
+
+```bash
+liqoctl info
+```
+
+The info command is a good way to check the:
+
+* Health of the installation
+* Current configuration
+* Status and info about active peerings
+
+By default the output is presented in a human-readable form.
+However, to simplify automate retrieval of the data, via the `-o` option it is possible to format the output in **JSON or YAML format**.
+Moreover via the `--get field.subfield` argument, each field of the reports can be individually retrieved.
+
+For example:
+
+```{code-block} bash
+:caption: Get the output in JSON format
+liqoctl info -o json
+```
+
+```{code-block} bash
+:caption: Get the podCIDR of the local Liqo instance
+liqoctl info --get network.podcidr
+```
 
 ## CNIs
 

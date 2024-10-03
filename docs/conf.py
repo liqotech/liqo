@@ -45,6 +45,8 @@ extensions = [
 myst_enable_extensions = [
     "substitution",
 ]
+# Enable slug generation for headings to reference them in markdown links
+myst_heading_anchors = 3
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -208,7 +210,7 @@ sudo mv liqoctl /usr/local/bin/liqoctl\n\
 curl --fail -LS \"{file}\" | tar -xz\n\
 sudo install -o root -g root -m 0755 liqoctl /usr/local/bin/liqoctl\n\
 ```\n"
-    
+
 def generate_helm_install() -> str:
     version=generate_semantic_version()
     return f"```bash\n\

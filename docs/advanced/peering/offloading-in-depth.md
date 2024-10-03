@@ -68,7 +68,7 @@ To add other resources like `ephemeral-storage`, `gpu` or any other custom resou
 :caption: "Cluster consumer"
 kubectl get resourceslices.authentication.liqo.io -A
 ```
-  
+
 ```text
 NAMESPACE                  NAME     AUTHENTICATION   RESOURCES   AGE
 liqo-tenant-cool-firefly   mypool   Accepted         Accepted    19s
@@ -80,7 +80,7 @@ At the same time, in the **provider cluster**, a `Quota` will be created to limi
 :caption: "Cluster provider"
 kubectl get quotas.offloading.liqo.io -A
 ```
-  
+
 ```text
 NAMESPACE                   NAME                  ENFORCEMENT   CORDONED   AGE
 liqo-tenant-wispy-firefly   mypool-c34af51dd912   None                     36s
@@ -92,7 +92,7 @@ After a few seconds, in the **consumer cluster**, a new `VirtualNode` will be cr
 :caption: "Cluster consumer"
 kubectl get virtualnodes.offloading.liqo.io -A
 ```
-  
+
 ```text
 NAMESPACE                  NAME     CLUSTERID      CREATE NODE   AGE
 liqo-tenant-cool-firefly   mypool   cool-firefly   true          59s
@@ -104,7 +104,7 @@ A new `Node` will be available in the consumer cluster with the name `mypool` pr
 :caption: "Cluster consumer"
 kubectl get node
 ```
-  
+
 ```text
 NAME                            STATUS   ROLES           AGE   VERSION
 cluster-1-control-plane-fsvkj   Ready    control-plane   30m   v1.27.4
@@ -177,7 +177,7 @@ This command will create a `VirtualNode` named `mynode` in the consumer cluster,
 :caption: "Cluster consumer"
 kubectl get virtualnodes.offloading.liqo.io -A
 ```
-  
+
 ```text
 NAMESPACE                  NAME     CLUSTERID      CREATE NODE   AGE
 liqo-tenant-cool-firefly   mynode   cool-firefly   true          7s
@@ -189,7 +189,7 @@ A new `Node` will be available in the consumer cluster with the name `mynode` pr
 :caption: "Cluster consumer"
 kubectl get node
 ```
-  
+
 ```text
 NAME                            STATUS   ROLES           AGE   VERSION
 cluster-1-control-plane-fsvkj   Ready    control-plane   52m   v1.27.4
@@ -257,6 +257,10 @@ metadata:
   namespace: liqo-tenant-cool-firefly
 type: Opaque
 ```
+
+### Check shared resources and virtual nodes
+
+Via `liqoctl` it is possible to check the amount of shared resources and the virtual nodes configured for a specific peerings looking at [the peering status](../../usage/peer.md#check-status-of-peerings).
 
 ### Delete VirtualNode
 

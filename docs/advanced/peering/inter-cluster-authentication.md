@@ -259,20 +259,20 @@ Once the Identity resource is correctly applied, the clusters are able to negoti
 All in all, these are the steps to be followed by the administrators of each of the clusters to manually complete the authentication process:
 
 1. **Cluster provider**: creates the nonce to be provided to the **cluster consumer** administrator:
-  
+
    ```bash
    liqoctl create nonce --remote-cluster-id $CLUSTER_CONSUMER_ID
    liqoctl get nonce --remote-cluster-id $CLUSTER_CONSUMER_ID > nonce.txt
    ```
 
 2. **Cluster consumer**: generates the `Tenant` resource to be applied by the **cluster provider**:
-  
+
    ```bash
    liqoctl generate tenant --remote-cluster-id $CLUSTER_PROVIDER_ID --nonce $(cat nonce.txt) > tenant.yaml
    ```
 
 3. **Cluster provider**: applies `tenant.yaml` and generates the `Identity` resource to be applied by the consumer:
-  
+
    ```bash
    kubectl apply -f tenant.yaml
    liqoctl generate identity --remote-cluster-id $CLUSTER_CONSUMER_ID > identity.yaml
@@ -283,3 +283,5 @@ All in all, these are the steps to be followed by the administrators of each of 
    ```bash
    kubectl apply -f identity.yaml
    ```
+
+You can check whether the procedure completed successfully by checking [the peering status](../../usage/peer.md#check-status-of-peerings).

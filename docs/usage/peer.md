@@ -61,7 +61,7 @@ However, **to know the best strategy for each case and the requirements of each 
 To proceed, ensure that you are operating in the *consumer* cluster, and then issue the *liqoctl peer* command:
 
 ```bash
-liqoctl --kubeconfig=$CONSUMER_KUBECONFIG_PATH peer --remote-kubeconfig $PROVIDER_KUBECONFIG_PATH 
+liqoctl --kubeconfig=$CONSUMER_KUBECONFIG_PATH peer --remote-kubeconfig $PROVIDER_KUBECONFIG_PATH
 ```
 
 ```{warning}
@@ -126,7 +126,7 @@ kubectl --kubeconfig $CONSUMER_KUBECONFIG_PATH get foreignclusters
 If the peering process is completed successfully, you should observe an output similar to the following.
 In the consumer cluster:
 
-```text
+```{code-block} text
 :caption: "Cluster consumer"
 NAME       ROLE       AGE
 cl-provider   Provider   110s
@@ -134,7 +134,7 @@ cl-provider   Provider   110s
 
 In the provider cluster:
 
-```text
+```{code-block} text
 :caption: "Cluster provider"
 NAME       ROLE       AGE
 cl-consumer   Consumer   3m16s
@@ -156,6 +156,45 @@ provider   Ready    agent   4m53s   v1.29.1
 
 ```{admonition} Note
 The name of the `ForeignCluster` resources, as well as that of the *virtual node*, reflects the cluster IDs specified for the two clusters.
+```
+
+### Check status of peerings
+
+Via `liqoctl` it is possible to check status and info about the active peerings:
+
+- To get some **brief info** about the health of the active peerings:
+
+  ```bash
+  liqoctl info
+  ```
+
+- To get **detailed info** about peerings:
+
+  ```bash
+  liqoctl info peer
+  ```
+
+By specifing one of more cluster IDs, you can get status and info of one or more peers.
+For example to get the status of the peerings with clusters `cl01` and `cl02`:
+
+```bash
+liqoctl info peer cl01 cl02
+```
+
+By default the output is presented in a human-readable form.
+However, to simplify automate retrieval of the data, via the `-o` option it is possible to format the output in **JSON or YAML format**.
+Moreover via the `--get field.subfield` argument, each field of the reports can be individually retrieved.
+
+For example:
+
+```{code-block} bash
+:caption: Get a complete dump of peerings in JSON format
+liqoctl info peer -o json
+```
+
+```{code-block} bash
+:caption: Get the amount of resources shared with peer `cl01`
+liqoctl info peer cl01 --get authentication.resourceslices
 ```
 
 ## Bidirectional peering
