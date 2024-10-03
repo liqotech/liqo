@@ -111,6 +111,17 @@ You should see the following output:
  INFO   (local) ResourceSlice resources: Accepted
 ```
 
+(UsagePeeringInBand)=
+
+### In-Band
+
+If you can't make the Kubernetes API Server of the **provider** cluster reachable from the **consumer**, you can leverage on **in-band** peering.
+You can enable this by setting the `--in-band` flag in the `liqoctl peer` command, which automatically configure all the features needed for this mechanism to work (i.e., the API server proxy and the IP remapping).
+
+```{admonition} Note
+For this feature to work, the Liqo **networking module** must be enabled.
+```
+
 ## Results
 
 The command configures the above-described modules.
