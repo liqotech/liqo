@@ -69,6 +69,15 @@ cl01   16m   Active
 
 Check the [offloading guide](/advanced/peering/offloading-in-depth) to understand how to start the pod offloading and the reflection of the resources.
 
+### In-Band
+
+If you can't make the Kubernetes API Server of the **Provider** cluster reachable from the **Consumer**, you can leverage on **in-band** peering.
+You can enable this by setting the `--in-band` flag in the `liqoctl authenticate` command, which automatically configure all the features needed for this mechanism to work (i.e., the API server proxy and the IP remapping).
+
+```{admonition} Note
+For this feature to work, the Liqo **networking module** must be enabled.
+```
+
 ### Undo the authentication
 
 `liqoctl unauthenticate` allows to undo the changes applied by the `authenticate` command. Even in this case, the user should be able to access both the involved clusters.
@@ -122,7 +131,7 @@ When successful the output of the command will be something like the following:
 ```
 
 ```{admonition} Tip
-**Take note of the nonce as it can will be used in the following step**.
+Take note of the **nonce** as it can will be used in the following step.
 ```
 
 As a result of this command, you should be able to see:
@@ -199,6 +208,11 @@ As a result of the command, you should be able to see:
   NAME                TYPE     DATA   AGE
   liqo-signed-nonce   Opaque   2      78s
   ```
+  
+```{admonition} Note
+If you want to use the [in-band](UsagePeeringInBand) approach, use the `spec.proxyURL` field inside the `Tenant` CRD. 
+Check the [Kubernetes API Server Proxy](/advanced/k8s-api-server-proxy.md) page
+```
 
 ### Creation of the Identity resource (cluster provider)
 
