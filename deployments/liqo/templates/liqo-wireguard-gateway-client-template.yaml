@@ -19,6 +19,8 @@ spec:
     metadata:
       {{- include "liqo.metadataTemplate" $templateConfig | nindent 6 }}
     spec:
+      secretRef:
+        name: "{{"{{ .Spec.SecretRef.Name }}"}}"
       deployment:
         metadata:
           {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
@@ -106,6 +108,9 @@ spec:
                   {{ if .Values.networking.gatewayTemplates.wireguard.implementation | eq "userspace" }}
                   privileged: true
                   {{ end }}
+                volumeMounts:
+                - name: wireguard-config
+                  mountPath: /etc/wireguard/keys
               - name: geneve
                 image: {{ .Values.networking.gatewayTemplates.container.geneve.image.name }}{{ include "liqo.suffix" $geneveConfig }}:{{ include "liqo.version" $geneveConfig }}
                 imagePullPolicy: {{ .Values.pullPolicy }}
@@ -138,4 +143,8 @@ spec:
                     - NET_RAW
               # Uncomment to set a priorityClassName
               # priorityClassName: ""
+              volumes:
+              - name: wireguard-config
+                secret:
+                  secretName: "{{"{{ .SecretName }}"}}"
 {{- end }}

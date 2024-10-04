@@ -31,6 +31,7 @@ const (
 	DefaultGwServerTemplateName = "wireguard-server"
 	DefaultGwServerServiceType  = corev1.ServiceTypeLoadBalancer
 	DefaultGwServerPort         = 51840
+	DefaultKeysDir              = "/etc/wireguard/keys"
 )
 
 // DefaultGatewayServerName returns the default name for a GatewayServer.
