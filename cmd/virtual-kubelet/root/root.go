@@ -210,8 +210,10 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 	// The leader election avoids that multiple virtual node targeting the same cluster reflect some resources.
 	if c.VirtualKubeletLeaseEnabled {
 		leaderelectionOpts := &leaderelection.Opts{
-			PodName:           c.PodName,
-			Namespace:         c.TenantNamespace,
+			PodInfo: leaderelection.PodInfo{
+				PodName:   c.PodName,
+				Namespace: c.TenantNamespace,
+			},
 			LeaderElectorName: leaderElectorName,
 			LeaseDuration:     c.VirtualKubeletLeaseLeaseDuration,
 			RenewDeadline:     c.VirtualKubeletLeaseRenewDeadline,

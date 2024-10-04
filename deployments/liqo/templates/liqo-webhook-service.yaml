@@ -9,6 +9,9 @@ metadata:
 spec:
   selector:
     {{- include "liqo.selectorLabels" $webhookConfig | nindent 4 }}
+    {{- if gt .Values.webhook.replicas 1.0 }}
+    leaderelection.liqo.io/leader: "true"
+    {{- end }}
   type: ClusterIP
   ports:
   - port: {{ .Values.webhook.port }}
@@ -34,6 +37,9 @@ metadata:
 spec:
   selector:
     {{- include "liqo.selectorLabels" $webhookConfig | nindent 4 }}
+    {{- if gt .Values.webhook.replicas 1.0 }}
+    leaderelection.liqo.io/leader: "true"
+    {{- end }}
   ports:
   - name: metrics
     port: 8080
