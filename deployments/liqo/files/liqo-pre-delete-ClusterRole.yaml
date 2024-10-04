@@ -1,5 +1,20 @@
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -21,21 +36,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - core.liqo.io
   resources:
   - foreignclusters
@@ -51,27 +51,7 @@ rules:
   - ipam.liqo.io
   resources:
   - ipamstorages
-  verbs:
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ipam.liqo.io
-  resources:
   - ips
-  verbs:
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ipam.liqo.io
-  resources:
   - networks
   verbs:
   - delete
@@ -84,16 +64,6 @@ rules:
   - networking.liqo.io
   resources:
   - configurations
-  verbs:
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
   - internalnodes
   verbs:
   - delete

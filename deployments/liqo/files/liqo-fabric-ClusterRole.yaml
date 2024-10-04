@@ -23,6 +23,14 @@ rules:
   - networking.liqo.io
   resources:
   - firewallconfigurations
+  - firewallconfigurations/status
+  - genevetunnels
+  - internalfabrics
+  - internalfabrics/status
+  - internalnodes
+  - internalnodes/status
+  - routeconfigurations
+  - routeconfigurations/status
   verbs:
   - get
   - list
@@ -33,91 +41,6 @@ rules:
   - networking.liqo.io
   resources:
   - firewallconfigurations/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - firewallconfigurations/status
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - genevetunnels
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - internalfabrics
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - internalfabrics/status
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - internalnodes
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - internalnodes/status
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - routeconfigurations
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
   - routeconfigurations/finalizers
   verbs:
   - update
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - routeconfigurations/status
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch

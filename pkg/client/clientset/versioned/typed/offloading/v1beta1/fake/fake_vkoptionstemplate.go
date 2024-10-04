@@ -40,22 +40,24 @@ var vkoptionstemplatesKind = v1beta1.SchemeGroupVersion.WithKind("VkOptionsTempl
 
 // Get takes name of the vkOptionsTemplate, and returns the corresponding vkOptionsTemplate object, and an error if there is any.
 func (c *FakeVkOptionsTemplates) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.VkOptionsTemplate, err error) {
+	emptyResult := &v1beta1.VkOptionsTemplate{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(vkoptionstemplatesResource, c.ns, name), &v1beta1.VkOptionsTemplate{})
+		Invokes(testing.NewGetActionWithOptions(vkoptionstemplatesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.VkOptionsTemplate), err
 }
 
 // List takes label and field selectors, and returns the list of VkOptionsTemplates that match those selectors.
 func (c *FakeVkOptionsTemplates) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.VkOptionsTemplateList, err error) {
+	emptyResult := &v1beta1.VkOptionsTemplateList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(vkoptionstemplatesResource, vkoptionstemplatesKind, c.ns, opts), &v1beta1.VkOptionsTemplateList{})
+		Invokes(testing.NewListActionWithOptions(vkoptionstemplatesResource, vkoptionstemplatesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -74,28 +76,30 @@ func (c *FakeVkOptionsTemplates) List(ctx context.Context, opts v1.ListOptions) 
 // Watch returns a watch.Interface that watches the requested vkOptionsTemplates.
 func (c *FakeVkOptionsTemplates) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(vkoptionstemplatesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(vkoptionstemplatesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a vkOptionsTemplate and creates it.  Returns the server's representation of the vkOptionsTemplate, and an error, if there is any.
 func (c *FakeVkOptionsTemplates) Create(ctx context.Context, vkOptionsTemplate *v1beta1.VkOptionsTemplate, opts v1.CreateOptions) (result *v1beta1.VkOptionsTemplate, err error) {
+	emptyResult := &v1beta1.VkOptionsTemplate{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(vkoptionstemplatesResource, c.ns, vkOptionsTemplate), &v1beta1.VkOptionsTemplate{})
+		Invokes(testing.NewCreateActionWithOptions(vkoptionstemplatesResource, c.ns, vkOptionsTemplate, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.VkOptionsTemplate), err
 }
 
 // Update takes the representation of a vkOptionsTemplate and updates it. Returns the server's representation of the vkOptionsTemplate, and an error, if there is any.
 func (c *FakeVkOptionsTemplates) Update(ctx context.Context, vkOptionsTemplate *v1beta1.VkOptionsTemplate, opts v1.UpdateOptions) (result *v1beta1.VkOptionsTemplate, err error) {
+	emptyResult := &v1beta1.VkOptionsTemplate{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(vkoptionstemplatesResource, c.ns, vkOptionsTemplate), &v1beta1.VkOptionsTemplate{})
+		Invokes(testing.NewUpdateActionWithOptions(vkoptionstemplatesResource, c.ns, vkOptionsTemplate, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.VkOptionsTemplate), err
 }
@@ -110,7 +114,7 @@ func (c *FakeVkOptionsTemplates) Delete(ctx context.Context, name string, opts v
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeVkOptionsTemplates) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(vkoptionstemplatesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(vkoptionstemplatesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.VkOptionsTemplateList{})
 	return err
@@ -118,11 +122,12 @@ func (c *FakeVkOptionsTemplates) DeleteCollection(ctx context.Context, opts v1.D
 
 // Patch applies the patch and returns the patched vkOptionsTemplate.
 func (c *FakeVkOptionsTemplates) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.VkOptionsTemplate, err error) {
+	emptyResult := &v1beta1.VkOptionsTemplate{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(vkoptionstemplatesResource, c.ns, name, pt, data, subresources...), &v1beta1.VkOptionsTemplate{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(vkoptionstemplatesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.VkOptionsTemplate), err
 }

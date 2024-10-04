@@ -1,18 +1,18 @@
 rules:
 - apiGroups:
-  - authentication.liqo.io
-  resources:
-  - resourceslices
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - ""
   resources:
   - configmaps
   - nodes
   - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - authentication.liqo.io
+  resources:
+  - resourceslices
   verbs:
   - get
   - list
@@ -29,13 +29,6 @@ rules:
   - offloading.liqo.io
   resources:
   - namespaceoffloadings
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - offloading.liqo.io
-  resources:
   - virtualnodes
   verbs:
   - get

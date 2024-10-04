@@ -1,14 +1,5 @@
 rules:
 - apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - create
-  - delete
-  - get
-  - update
-- apiGroups:
   - ""
   resources:
   - events
@@ -31,89 +22,18 @@ rules:
   - list
   - update
 - apiGroups:
-  - networking.liqo.io
+  - coordination.k8s.io
   resources:
-  - connections
+  - leases
   verbs:
   - create
   - delete
   - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - connections/status
-  verbs:
-  - get
-  - patch
   - update
 - apiGroups:
   - networking.liqo.io
   resources:
-  - firewallconfigurations
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - firewallconfigurations/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - firewallconfigurations/status
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - genevetunnels
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - internalfabrics
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - internalnodes
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
-  - internalnodes/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - networking.liqo.io
-  resources:
+  - connections
   - publickeies
   verbs:
   - create
@@ -125,7 +45,21 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - connections/status
+  - internalnodes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - networking.liqo.io
+  resources:
+  - firewallconfigurations
+  - firewallconfigurations/status
+  - genevetunnels
+  - internalnodes
   - routeconfigurations
+  - routeconfigurations/status
   verbs:
   - get
   - list
@@ -135,16 +69,15 @@ rules:
 - apiGroups:
   - networking.liqo.io
   resources:
+  - firewallconfigurations/finalizers
   - routeconfigurations/finalizers
   verbs:
   - update
 - apiGroups:
   - networking.liqo.io
   resources:
-  - routeconfigurations/status
+  - internalfabrics
   verbs:
   - get
   - list
-  - patch
-  - update
   - watch
