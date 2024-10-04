@@ -26,6 +26,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -39,6 +40,7 @@ import (
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/leaderelection"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/indexer"
@@ -166,6 +168,14 @@ func main() {
 	mgr.GetWebhookServer().Register("/validate/firewallconfigurations", fwcfgwh.NewValidator(mgr.GetClient()))
 	mgr.GetWebhookServer().Register("/mutate/firewallconfigurations", fwcfgwh.NewMutator())
 	mgr.GetWebhookServer().Register("/validate/routeconfigurations", routecfgwh.NewValidator(mgr.GetClient()))
+
+	if leaderElection != nil && *leaderElection {
+		leaderelection.LabelerOnElection(ctx, mgr, &leaderelection.PodInfo{
+			PodName:        os.Getenv("POD_NAME"),
+			Namespace:      os.Getenv("POD_NAMESPACE"),
+			DeploymentName: ptr.To(os.Getenv("DEPLOYMENT_NAME")),
+		})
+	}
 
 	// Start the manager.
 	klog.Info("starting webhooks manager")

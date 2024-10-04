@@ -50,11 +50,16 @@ var (
 	}
 )
 
+// PodInfo contains the information about the pod.
+type PodInfo struct {
+	PodName        string
+	Namespace      string
+	DeploymentName *string
+}
+
 // Opts contains the options to configure the leader election mechanism.
 type Opts struct {
-	PodName           string
-	Namespace         string
-	DeploymentName    *string
+	PodInfo
 	LeaderElectorName string
 	LeaseDuration     time.Duration
 	RenewDeadline     time.Duration
@@ -92,7 +97,7 @@ func Init(opts *Opts, rc *rest.Config, eb record.EventBroadcaster) (*leaderelect
 				defer lock.Unlock()
 				klog.Infof("Leader election: this pod is the leader")
 				if opts.LabelLeader {
-					if err := handleLeaderLabel(ctx, rc, scheme, opts); err != nil {
+					if err := handleLeaderLabel(ctx, rc, scheme, &opts.PodInfo); err != nil {
 						klog.Errorf("Leader election: unable to handle labeling of leader: %s", err)
 						os.Exit(1)
 					}
@@ -146,7 +151,7 @@ func IsLeader() bool {
 }
 
 // handleLeaderLabel labels the current pod as leader and unlabels eventual old leader.
-func handleLeaderLabel(ctx context.Context, rc *rest.Config, scheme *runtime.Scheme, opts *Opts) error {
+func handleLeaderLabel(ctx context.Context, rc *rest.Config, scheme *runtime.Scheme, opts *PodInfo) error {
 	klog.Infof("Leader election: labeling this pod as leader and unlabeling eventual old leader")
 	if opts.DeploymentName == nil {
 		return fmt.Errorf("deployment name not specified")
@@ -157,6 +162,11 @@ func handleLeaderLabel(ctx context.Context, rc *rest.Config, scheme *runtime.Sch
 		return fmt.Errorf("unable to create client: %w", err)
 	}
 
+	return handleLeaderLabelWithClient(ctx, cl, opts)
+}
+
+// handleLeaderLabelWithClient labels the current pod as leader and unlabels eventual old leader using the given client.
+func handleLeaderLabelWithClient(ctx context.Context, cl client.Client, opts *PodInfo) error {
 	var deployment appsv1.Deployment
 	if err := cl.Get(ctx, client.ObjectKey{
 		Namespace: opts.Namespace,
