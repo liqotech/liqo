@@ -122,9 +122,11 @@ func run(_ *cobra.Command, _ []string) error {
 
 	// Else, initialize the leader election mechanism to manage multiple replicas of the IPAM server running in active-passive mode.
 	leaderelectionOpts := &leaderelection.Opts{
-		PodName:           os.Getenv("POD_NAME"),
-		Namespace:         podNamespace,
-		DeploymentName:    ptr.To(os.Getenv("DEPLOYMENT_NAME")),
+		PodInfo: leaderelection.PodInfo{
+			PodName:        os.Getenv("POD_NAME"),
+			Namespace:      podNamespace,
+			DeploymentName: ptr.To(os.Getenv("DEPLOYMENT_NAME")),
+		},
 		LeaderElectorName: leaderElectorName,
 		LeaseDuration:     options.LeaseDuration,
 		RenewDeadline:     options.LeaseRenewDeadline,
