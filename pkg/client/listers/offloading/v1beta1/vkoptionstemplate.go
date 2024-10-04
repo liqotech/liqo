@@ -17,8 +17,8 @@
 package v1beta1
 
 import (
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 
 	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
@@ -37,25 +37,17 @@ type VkOptionsTemplateLister interface {
 
 // vkOptionsTemplateLister implements the VkOptionsTemplateLister interface.
 type vkOptionsTemplateLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1beta1.VkOptionsTemplate]
 }
 
 // NewVkOptionsTemplateLister returns a new VkOptionsTemplateLister.
 func NewVkOptionsTemplateLister(indexer cache.Indexer) VkOptionsTemplateLister {
-	return &vkOptionsTemplateLister{indexer: indexer}
-}
-
-// List lists all VkOptionsTemplates in the indexer.
-func (s *vkOptionsTemplateLister) List(selector labels.Selector) (ret []*v1beta1.VkOptionsTemplate, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.VkOptionsTemplate))
-	})
-	return ret, err
+	return &vkOptionsTemplateLister{listers.New[*v1beta1.VkOptionsTemplate](indexer, v1beta1.Resource("vkoptionstemplate"))}
 }
 
 // VkOptionsTemplates returns an object that can list and get VkOptionsTemplates.
 func (s *vkOptionsTemplateLister) VkOptionsTemplates(namespace string) VkOptionsTemplateNamespaceLister {
-	return vkOptionsTemplateNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return vkOptionsTemplateNamespaceLister{listers.NewNamespaced[*v1beta1.VkOptionsTemplate](s.ResourceIndexer, namespace)}
 }
 
 // VkOptionsTemplateNamespaceLister helps list and get VkOptionsTemplates.
@@ -73,26 +65,5 @@ type VkOptionsTemplateNamespaceLister interface {
 // vkOptionsTemplateNamespaceLister implements the VkOptionsTemplateNamespaceLister
 // interface.
 type vkOptionsTemplateNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all VkOptionsTemplates in the indexer for a given namespace.
-func (s vkOptionsTemplateNamespaceLister) List(selector labels.Selector) (ret []*v1beta1.VkOptionsTemplate, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.VkOptionsTemplate))
-	})
-	return ret, err
-}
-
-// Get retrieves the VkOptionsTemplate from the indexer for a given namespace and name.
-func (s vkOptionsTemplateNamespaceLister) Get(name string) (*v1beta1.VkOptionsTemplate, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1beta1.Resource("vkoptionstemplate"), name)
-	}
-	return obj.(*v1beta1.VkOptionsTemplate), nil
+	listers.ResourceIndexer[*v1beta1.VkOptionsTemplate]
 }

@@ -148,7 +148,7 @@ generate-controller: controller-gen
 
 generate-groups:
 	if [ ! -d  "hack/code-generator" ]; then \
-		git clone --depth 1 -b v0.30.0-rc.1 https://github.com/kubernetes/code-generator.git hack/code-generator; \
+		git clone --depth 1 -b v0.31.1 https://github.com/kubernetes/code-generator.git hack/code-generator; \
 	fi
 	rm -rf pkg/client
 	mkdir -p pkg/client/informers pkg/client/listers pkg/client/clientset

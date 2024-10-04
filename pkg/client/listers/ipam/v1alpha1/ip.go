@@ -17,8 +17,8 @@
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 
 	v1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
@@ -37,25 +37,17 @@ type IPLister interface {
 
 // iPLister implements the IPLister interface.
 type iPLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.IP]
 }
 
 // NewIPLister returns a new IPLister.
 func NewIPLister(indexer cache.Indexer) IPLister {
-	return &iPLister{indexer: indexer}
-}
-
-// List lists all IPs in the indexer.
-func (s *iPLister) List(selector labels.Selector) (ret []*v1alpha1.IP, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.IP))
-	})
-	return ret, err
+	return &iPLister{listers.New[*v1alpha1.IP](indexer, v1alpha1.Resource("ip"))}
 }
 
 // IPs returns an object that can list and get IPs.
 func (s *iPLister) IPs(namespace string) IPNamespaceLister {
-	return iPNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return iPNamespaceLister{listers.NewNamespaced[*v1alpha1.IP](s.ResourceIndexer, namespace)}
 }
 
 // IPNamespaceLister helps list and get IPs.
@@ -73,26 +65,5 @@ type IPNamespaceLister interface {
 // iPNamespaceLister implements the IPNamespaceLister
 // interface.
 type iPNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all IPs in the indexer for a given namespace.
-func (s iPNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.IP, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.IP))
-	})
-	return ret, err
-}
-
-// Get retrieves the IP from the indexer for a given namespace and name.
-func (s iPNamespaceLister) Get(name string) (*v1alpha1.IP, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("ip"), name)
-	}
-	return obj.(*v1alpha1.IP), nil
+	listers.ResourceIndexer[*v1alpha1.IP]
 }

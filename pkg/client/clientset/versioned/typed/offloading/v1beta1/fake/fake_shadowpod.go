@@ -40,22 +40,24 @@ var shadowpodsKind = v1beta1.SchemeGroupVersion.WithKind("ShadowPod")
 
 // Get takes name of the shadowPod, and returns the corresponding shadowPod object, and an error if there is any.
 func (c *FakeShadowPods) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.ShadowPod, err error) {
+	emptyResult := &v1beta1.ShadowPod{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(shadowpodsResource, c.ns, name), &v1beta1.ShadowPod{})
+		Invokes(testing.NewGetActionWithOptions(shadowpodsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.ShadowPod), err
 }
 
 // List takes label and field selectors, and returns the list of ShadowPods that match those selectors.
 func (c *FakeShadowPods) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.ShadowPodList, err error) {
+	emptyResult := &v1beta1.ShadowPodList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(shadowpodsResource, shadowpodsKind, c.ns, opts), &v1beta1.ShadowPodList{})
+		Invokes(testing.NewListActionWithOptions(shadowpodsResource, shadowpodsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -74,40 +76,43 @@ func (c *FakeShadowPods) List(ctx context.Context, opts v1.ListOptions) (result 
 // Watch returns a watch.Interface that watches the requested shadowPods.
 func (c *FakeShadowPods) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(shadowpodsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(shadowpodsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a shadowPod and creates it.  Returns the server's representation of the shadowPod, and an error, if there is any.
 func (c *FakeShadowPods) Create(ctx context.Context, shadowPod *v1beta1.ShadowPod, opts v1.CreateOptions) (result *v1beta1.ShadowPod, err error) {
+	emptyResult := &v1beta1.ShadowPod{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(shadowpodsResource, c.ns, shadowPod), &v1beta1.ShadowPod{})
+		Invokes(testing.NewCreateActionWithOptions(shadowpodsResource, c.ns, shadowPod, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.ShadowPod), err
 }
 
 // Update takes the representation of a shadowPod and updates it. Returns the server's representation of the shadowPod, and an error, if there is any.
 func (c *FakeShadowPods) Update(ctx context.Context, shadowPod *v1beta1.ShadowPod, opts v1.UpdateOptions) (result *v1beta1.ShadowPod, err error) {
+	emptyResult := &v1beta1.ShadowPod{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(shadowpodsResource, c.ns, shadowPod), &v1beta1.ShadowPod{})
+		Invokes(testing.NewUpdateActionWithOptions(shadowpodsResource, c.ns, shadowPod, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.ShadowPod), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeShadowPods) UpdateStatus(ctx context.Context, shadowPod *v1beta1.ShadowPod, opts v1.UpdateOptions) (*v1beta1.ShadowPod, error) {
+func (c *FakeShadowPods) UpdateStatus(ctx context.Context, shadowPod *v1beta1.ShadowPod, opts v1.UpdateOptions) (result *v1beta1.ShadowPod, err error) {
+	emptyResult := &v1beta1.ShadowPod{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(shadowpodsResource, "status", c.ns, shadowPod), &v1beta1.ShadowPod{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(shadowpodsResource, "status", c.ns, shadowPod, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.ShadowPod), err
 }
@@ -122,7 +127,7 @@ func (c *FakeShadowPods) Delete(ctx context.Context, name string, opts v1.Delete
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeShadowPods) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(shadowpodsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(shadowpodsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.ShadowPodList{})
 	return err
@@ -130,11 +135,12 @@ func (c *FakeShadowPods) DeleteCollection(ctx context.Context, opts v1.DeleteOpt
 
 // Patch applies the patch and returns the patched shadowPod.
 func (c *FakeShadowPods) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.ShadowPod, err error) {
+	emptyResult := &v1beta1.ShadowPod{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(shadowpodsResource, c.ns, name, pt, data, subresources...), &v1beta1.ShadowPod{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(shadowpodsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.ShadowPod), err
 }

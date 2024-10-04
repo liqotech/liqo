@@ -17,8 +17,8 @@
 package v1beta1
 
 import (
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 
 	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
@@ -37,25 +37,17 @@ type ShadowEndpointSliceLister interface {
 
 // shadowEndpointSliceLister implements the ShadowEndpointSliceLister interface.
 type shadowEndpointSliceLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1beta1.ShadowEndpointSlice]
 }
 
 // NewShadowEndpointSliceLister returns a new ShadowEndpointSliceLister.
 func NewShadowEndpointSliceLister(indexer cache.Indexer) ShadowEndpointSliceLister {
-	return &shadowEndpointSliceLister{indexer: indexer}
-}
-
-// List lists all ShadowEndpointSlices in the indexer.
-func (s *shadowEndpointSliceLister) List(selector labels.Selector) (ret []*v1beta1.ShadowEndpointSlice, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.ShadowEndpointSlice))
-	})
-	return ret, err
+	return &shadowEndpointSliceLister{listers.New[*v1beta1.ShadowEndpointSlice](indexer, v1beta1.Resource("shadowendpointslice"))}
 }
 
 // ShadowEndpointSlices returns an object that can list and get ShadowEndpointSlices.
 func (s *shadowEndpointSliceLister) ShadowEndpointSlices(namespace string) ShadowEndpointSliceNamespaceLister {
-	return shadowEndpointSliceNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return shadowEndpointSliceNamespaceLister{listers.NewNamespaced[*v1beta1.ShadowEndpointSlice](s.ResourceIndexer, namespace)}
 }
 
 // ShadowEndpointSliceNamespaceLister helps list and get ShadowEndpointSlices.
@@ -73,26 +65,5 @@ type ShadowEndpointSliceNamespaceLister interface {
 // shadowEndpointSliceNamespaceLister implements the ShadowEndpointSliceNamespaceLister
 // interface.
 type shadowEndpointSliceNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all ShadowEndpointSlices in the indexer for a given namespace.
-func (s shadowEndpointSliceNamespaceLister) List(selector labels.Selector) (ret []*v1beta1.ShadowEndpointSlice, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.ShadowEndpointSlice))
-	})
-	return ret, err
-}
-
-// Get retrieves the ShadowEndpointSlice from the indexer for a given namespace and name.
-func (s shadowEndpointSliceNamespaceLister) Get(name string) (*v1beta1.ShadowEndpointSlice, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1beta1.Resource("shadowendpointslice"), name)
-	}
-	return obj.(*v1beta1.ShadowEndpointSlice), nil
+	listers.ResourceIndexer[*v1beta1.ShadowEndpointSlice]
 }

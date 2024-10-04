@@ -40,22 +40,24 @@ var namespacemapsKind = v1beta1.SchemeGroupVersion.WithKind("NamespaceMap")
 
 // Get takes name of the namespaceMap, and returns the corresponding namespaceMap object, and an error if there is any.
 func (c *FakeNamespaceMaps) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.NamespaceMap, err error) {
+	emptyResult := &v1beta1.NamespaceMap{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(namespacemapsResource, c.ns, name), &v1beta1.NamespaceMap{})
+		Invokes(testing.NewGetActionWithOptions(namespacemapsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.NamespaceMap), err
 }
 
 // List takes label and field selectors, and returns the list of NamespaceMaps that match those selectors.
 func (c *FakeNamespaceMaps) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.NamespaceMapList, err error) {
+	emptyResult := &v1beta1.NamespaceMapList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(namespacemapsResource, namespacemapsKind, c.ns, opts), &v1beta1.NamespaceMapList{})
+		Invokes(testing.NewListActionWithOptions(namespacemapsResource, namespacemapsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -74,40 +76,43 @@ func (c *FakeNamespaceMaps) List(ctx context.Context, opts v1.ListOptions) (resu
 // Watch returns a watch.Interface that watches the requested namespaceMaps.
 func (c *FakeNamespaceMaps) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(namespacemapsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(namespacemapsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a namespaceMap and creates it.  Returns the server's representation of the namespaceMap, and an error, if there is any.
 func (c *FakeNamespaceMaps) Create(ctx context.Context, namespaceMap *v1beta1.NamespaceMap, opts v1.CreateOptions) (result *v1beta1.NamespaceMap, err error) {
+	emptyResult := &v1beta1.NamespaceMap{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(namespacemapsResource, c.ns, namespaceMap), &v1beta1.NamespaceMap{})
+		Invokes(testing.NewCreateActionWithOptions(namespacemapsResource, c.ns, namespaceMap, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.NamespaceMap), err
 }
 
 // Update takes the representation of a namespaceMap and updates it. Returns the server's representation of the namespaceMap, and an error, if there is any.
 func (c *FakeNamespaceMaps) Update(ctx context.Context, namespaceMap *v1beta1.NamespaceMap, opts v1.UpdateOptions) (result *v1beta1.NamespaceMap, err error) {
+	emptyResult := &v1beta1.NamespaceMap{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(namespacemapsResource, c.ns, namespaceMap), &v1beta1.NamespaceMap{})
+		Invokes(testing.NewUpdateActionWithOptions(namespacemapsResource, c.ns, namespaceMap, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.NamespaceMap), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeNamespaceMaps) UpdateStatus(ctx context.Context, namespaceMap *v1beta1.NamespaceMap, opts v1.UpdateOptions) (*v1beta1.NamespaceMap, error) {
+func (c *FakeNamespaceMaps) UpdateStatus(ctx context.Context, namespaceMap *v1beta1.NamespaceMap, opts v1.UpdateOptions) (result *v1beta1.NamespaceMap, err error) {
+	emptyResult := &v1beta1.NamespaceMap{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(namespacemapsResource, "status", c.ns, namespaceMap), &v1beta1.NamespaceMap{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(namespacemapsResource, "status", c.ns, namespaceMap, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.NamespaceMap), err
 }
@@ -122,7 +127,7 @@ func (c *FakeNamespaceMaps) Delete(ctx context.Context, name string, opts v1.Del
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeNamespaceMaps) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(namespacemapsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(namespacemapsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.NamespaceMapList{})
 	return err
@@ -130,11 +135,12 @@ func (c *FakeNamespaceMaps) DeleteCollection(ctx context.Context, opts v1.Delete
 
 // Patch applies the patch and returns the patched namespaceMap.
 func (c *FakeNamespaceMaps) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.NamespaceMap, err error) {
+	emptyResult := &v1beta1.NamespaceMap{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(namespacemapsResource, c.ns, name, pt, data, subresources...), &v1beta1.NamespaceMap{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(namespacemapsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.NamespaceMap), err
 }
