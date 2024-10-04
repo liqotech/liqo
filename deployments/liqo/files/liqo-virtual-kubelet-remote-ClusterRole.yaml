@@ -3,6 +3,8 @@ rules:
   - ""
   resources:
   - configmaps
+  - events
+  - persistentvolumeclaims
   - secrets
   - services
   verbs:
@@ -16,44 +18,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - events
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - persistentvolumeclaims
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - pods/attach
-  verbs:
-  - create
-- apiGroups:
-  - ""
-  resources:
   - pods/exec
   verbs:
   - create
@@ -72,6 +37,7 @@ rules:
   - create
   - get
 - apiGroups:
+  - ""
   - metrics.k8s.io
   resources:
   - pods
@@ -95,17 +61,6 @@ rules:
   - offloading.liqo.io
   resources:
   - shadowendpointslices
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - offloading.liqo.io
-  resources:
   - shadowpods
   verbs:
   - create

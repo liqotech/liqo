@@ -1,5 +1,15 @@
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - nodes
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - authentication.liqo.io
   resources:
   - resourceslices
@@ -8,42 +18,9 @@ rules:
   - list
   - watch
 - apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - networking.liqo.io
   resources:
   - firewallconfigurations
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.liqo.io
-  resources:
   - routeconfigurations
   verbs:
   - get
@@ -55,22 +32,9 @@ rules:
   - offloading.liqo.io
   resources:
   - namespaceoffloadings
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - offloading.liqo.io
-  resources:
   - quotas
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - offloading.liqo.io
-  resources:
   - shadowpods
+  - vkoptionstemplates
   verbs:
   - get
   - list
@@ -84,12 +48,4 @@ rules:
   - list
   - patch
   - update
-  - watch
-- apiGroups:
-  - offloading.liqo.io
-  resources:
-  - vkoptionstemplates
-  verbs:
-  - get
-  - list
   - watch

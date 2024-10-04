@@ -17,8 +17,8 @@
 package v1beta1
 
 import (
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 
 	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
@@ -37,25 +37,17 @@ type ShadowPodLister interface {
 
 // shadowPodLister implements the ShadowPodLister interface.
 type shadowPodLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1beta1.ShadowPod]
 }
 
 // NewShadowPodLister returns a new ShadowPodLister.
 func NewShadowPodLister(indexer cache.Indexer) ShadowPodLister {
-	return &shadowPodLister{indexer: indexer}
-}
-
-// List lists all ShadowPods in the indexer.
-func (s *shadowPodLister) List(selector labels.Selector) (ret []*v1beta1.ShadowPod, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.ShadowPod))
-	})
-	return ret, err
+	return &shadowPodLister{listers.New[*v1beta1.ShadowPod](indexer, v1beta1.Resource("shadowpod"))}
 }
 
 // ShadowPods returns an object that can list and get ShadowPods.
 func (s *shadowPodLister) ShadowPods(namespace string) ShadowPodNamespaceLister {
-	return shadowPodNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return shadowPodNamespaceLister{listers.NewNamespaced[*v1beta1.ShadowPod](s.ResourceIndexer, namespace)}
 }
 
 // ShadowPodNamespaceLister helps list and get ShadowPods.
@@ -73,26 +65,5 @@ type ShadowPodNamespaceLister interface {
 // shadowPodNamespaceLister implements the ShadowPodNamespaceLister
 // interface.
 type shadowPodNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all ShadowPods in the indexer for a given namespace.
-func (s shadowPodNamespaceLister) List(selector labels.Selector) (ret []*v1beta1.ShadowPod, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.ShadowPod))
-	})
-	return ret, err
-}
-
-// Get retrieves the ShadowPod from the indexer for a given namespace and name.
-func (s shadowPodNamespaceLister) Get(name string) (*v1beta1.ShadowPod, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1beta1.Resource("shadowpod"), name)
-	}
-	return obj.(*v1beta1.ShadowPod), nil
+	listers.ResourceIndexer[*v1beta1.ShadowPod]
 }

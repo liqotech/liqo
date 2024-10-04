@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	ctrl "sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // NewOwnerEnqueuer returns a new OwnerEnqueuer.
@@ -60,7 +59,7 @@ func (h *OwnerEnqueuer) Generic(_ context.Context, evt event.GenericEvent, q wor
 
 	for _, owner := range owners {
 		if owner.Kind == h.ownerKind {
-			q.Add(ctrl.Request{
+			q.Add(reconcile.Request{
 				NamespacedName: client.ObjectKey{
 					Namespace: evt.Object.GetNamespace(),
 					Name:      owner.Name,

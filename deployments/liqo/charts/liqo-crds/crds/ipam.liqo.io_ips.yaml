@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.3
   name: ips.ipam.liqo.io
 spec:
   group: ipam.liqo.io
@@ -141,7 +141,6 @@ spec:
                           clients must ensure that clusterIPs[0] and clusterIP have the same
                           value.
 
-
                           This field may hold a maximum of two entries (dual-stack IPs, in either order).
                           These IPs must correspond to the values of the ipFamilies field. Both
                           clusterIPs and ipFamilies are governed by the ipFamilyPolicy field.
@@ -221,7 +220,6 @@ spec:
                           NodePort, and LoadBalancer, and does apply to "headless" services.
                           This field will be wiped when updating a Service to type ExternalName.
 
-
                           This field may hold a maximum of two entries (dual-stack families, in
                           either order).  These families must correspond to the values of the
                           clusterIPs field, if specified. Both clusterIPs and ipFamilies are
@@ -292,16 +290,13 @@ spec:
                                 This field follows standard Kubernetes label syntax.
                                 Valid values are either:
 
-
                                 * Un-prefixed protocol names - reserved for IANA standard service names (as per
                                 RFC-6335 and https://www.iana.org/assignments/service-names).
-
 
                                 * Kubernetes-defined prefixed names:
                                   * 'kubernetes.io/h2c' - HTTP/2 prior knowledge over cleartext as described in https://www.rfc-editor.org/rfc/rfc9113.html#name-starting-http-2-with-prior-
                                   * 'kubernetes.io/ws'  - WebSocket over cleartext as described in https://www.rfc-editor.org/rfc/rfc6455
                                   * 'kubernetes.io/wss' - WebSocket over TLS as described in https://www.rfc-editor.org/rfc/rfc6455
-
 
                                 * Other protocols should use implementation-defined prefixed names such as
                                 mycompany.com/my-custom-protocol.

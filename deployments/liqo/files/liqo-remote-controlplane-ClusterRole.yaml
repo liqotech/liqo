@@ -3,18 +3,6 @@ rules:
   - authentication.liqo.io
   resources:
   - resourceslices
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - authentication.liqo.io
-  resources:
   - resourceslices/status
   verbs:
   - create
@@ -29,18 +17,6 @@ rules:
   - offloading.liqo.io
   resources:
   - namespacemaps
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - offloading.liqo.io
-  resources:
   - namespacemaps/status
   verbs:
   - create

@@ -1,27 +1,9 @@
 rules:
 - apiGroups:
-  - certificates.k8s.io
-  resources:
-  - certificatesigningrequests
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - create
-  - delete
-  - get
-  - update
-- apiGroups:
   - ""
   resources:
   - configmaps
-  - secrets
+  - namespaces
   - services
   - services/status
   verbs:
@@ -32,40 +14,11 @@ rules:
   - ""
   resources:
   - events
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - nodes
   - nodes/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - persistentvolumeclaims
   - persistentvolumes
+  - pods/status
   verbs:
   - create
   - delete
@@ -89,45 +42,42 @@ rules:
   - ""
   resources:
   - pods/eviction
+  - serviceaccounts/token
   verbs:
   - create
-- apiGroups:
-  - ""
-  resources:
-  - pods/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - ""
   resources:
   - secrets
   verbs:
   - create
+  - get
+  - list
   - patch
   - update
+  - watch
 - apiGroups:
-  - ""
+  - certificates.k8s.io
   resources:
-  - serviceaccounts/token
+  - certificatesigningrequests
   verbs:
   - create
-- apiGroups:
-  - core.liqo.io
-  resources:
-  - foreignclusters
-  verbs:
   - get
   - list
   - watch
 - apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+- apiGroups:
   - core.liqo.io
   resources:
+  - foreignclusters
   - foreignclusters/status
   verbs:
   - get

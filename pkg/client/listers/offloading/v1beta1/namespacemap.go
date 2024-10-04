@@ -17,8 +17,8 @@
 package v1beta1
 
 import (
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 
 	v1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
@@ -37,25 +37,17 @@ type NamespaceMapLister interface {
 
 // namespaceMapLister implements the NamespaceMapLister interface.
 type namespaceMapLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1beta1.NamespaceMap]
 }
 
 // NewNamespaceMapLister returns a new NamespaceMapLister.
 func NewNamespaceMapLister(indexer cache.Indexer) NamespaceMapLister {
-	return &namespaceMapLister{indexer: indexer}
-}
-
-// List lists all NamespaceMaps in the indexer.
-func (s *namespaceMapLister) List(selector labels.Selector) (ret []*v1beta1.NamespaceMap, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.NamespaceMap))
-	})
-	return ret, err
+	return &namespaceMapLister{listers.New[*v1beta1.NamespaceMap](indexer, v1beta1.Resource("namespacemap"))}
 }
 
 // NamespaceMaps returns an object that can list and get NamespaceMaps.
 func (s *namespaceMapLister) NamespaceMaps(namespace string) NamespaceMapNamespaceLister {
-	return namespaceMapNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return namespaceMapNamespaceLister{listers.NewNamespaced[*v1beta1.NamespaceMap](s.ResourceIndexer, namespace)}
 }
 
 // NamespaceMapNamespaceLister helps list and get NamespaceMaps.
@@ -73,26 +65,5 @@ type NamespaceMapNamespaceLister interface {
 // namespaceMapNamespaceLister implements the NamespaceMapNamespaceLister
 // interface.
 type namespaceMapNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all NamespaceMaps in the indexer for a given namespace.
-func (s namespaceMapNamespaceLister) List(selector labels.Selector) (ret []*v1beta1.NamespaceMap, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.NamespaceMap))
-	})
-	return ret, err
-}
-
-// Get retrieves the NamespaceMap from the indexer for a given namespace and name.
-func (s namespaceMapNamespaceLister) Get(name string) (*v1beta1.NamespaceMap, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1beta1.Resource("namespacemap"), name)
-	}
-	return obj.(*v1beta1.NamespaceMap), nil
+	listers.ResourceIndexer[*v1beta1.NamespaceMap]
 }
