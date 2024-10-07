@@ -83,7 +83,7 @@ func NumPodsInTenantNs(networkingEnabled bool, role liqov1beta1.RoleType) int {
 	count := 0
 	// If the network is enabled, it should have the gateway pod.
 	if networkingEnabled {
-		count++
+		count += 3
 	}
 	// If the cluster is a consumer, it should have the virtual-kubelet pod.
 	if fcutils.IsConsumer(role) {

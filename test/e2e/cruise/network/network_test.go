@@ -33,6 +33,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	networkflags "github.com/liqotech/liqo/pkg/liqoctl/test/network/flags"
 	"github.com/liqotech/liqo/pkg/liqoctl/test/network/setup"
 	"github.com/liqotech/liqo/test/e2e/testconsts"
@@ -46,6 +47,8 @@ const (
 	clustersRequired = 3
 	// testName is the name of this E2E test.
 	testName = "NETWORK"
+	// StressMax is the maximum number of stress iterations.
+	stressMax = 3
 )
 
 func TestE2E(t *testing.T) {
@@ -69,8 +72,8 @@ var (
 	providers []string
 	consumer  string
 
-	// Default network tests args.
-	args = networkTestsArgs{
+	// Default network tests defaultArgs.
+	defaultArgs = networkTestsArgs{
 		nodePortNodes: networkflags.NodePortNodesAll,
 		nodePortExt:   true,
 		podNodePort:   true,
@@ -79,6 +82,7 @@ var (
 		info:          true,
 		remove:        true,
 		failfast:      true,
+		basic:         false,
 	}
 )
 
@@ -97,22 +101,22 @@ var _ = BeforeSuite(func() {
 
 	switch testContext.Cni {
 	case "flannel":
-		overrideArgsFlannel(&args)
+		overrideArgsFlannel(&defaultArgs)
 	}
 
 	switch testContext.Infrastructure {
 	case "cluster-api":
-		overrideArgsClusterAPI(&args)
+		overrideArgsClusterAPI(&defaultArgs)
 	case "k3s":
-		overrideArgsK3s(&args)
+		overrideArgsK3s(&defaultArgs)
 	case "kind":
-		overrideArgsKind(&args)
+		overrideArgsKind(&defaultArgs)
 	case "eks":
-		overrideArgsEKS(&args)
+		overrideArgsEKS(&defaultArgs)
 	case "gke":
-		overrideArgsGKE(&args)
+		overrideArgsGKE(&defaultArgs)
 	case "aks":
-		overrideArgsAKS(&args)
+		overrideArgsAKS(&defaultArgs)
 	}
 })
 
@@ -122,7 +126,7 @@ var _ = Describe("Liqo E2E", func() {
 		When("\"liqoctl test network\" runs", func() {
 			It("should succeed both before and after gateway pods restart", func() {
 				// Run the tests.
-				Eventually(runLiqoctlNetworkTests(args), timeout, interval).Should(Succeed())
+				Eventually(runLiqoctlNetworkTests(defaultArgs), timeout, interval).Should(Succeed())
 
 				// Restart the gateway pods.
 				for i := range testContext.Clusters {
@@ -130,7 +134,25 @@ var _ = Describe("Liqo E2E", func() {
 				}
 
 				// Run the tests again.
-				Eventually(runLiqoctlNetworkTests(args), timeout, interval).Should(Succeed())
+				Eventually(runLiqoctlNetworkTests(defaultArgs), timeout, interval).Should(Succeed())
+			})
+			It("should succeed both before and after gateway pods restart (stress gateway deletion and run basic tests)", func() {
+				args := defaultArgs
+				args.basic = true
+				args.remove = false
+				for i := 0; i < stressMax; i++ {
+					// Restart the gateway pods.
+					for j := range testContext.Clusters {
+						RestartPods(testContext.Clusters[j].ControllerClient)
+					}
+
+					if i == stressMax-1 {
+						args.remove = true
+					}
+
+					// Run the tests.
+					Eventually(runLiqoctlNetworkTests(args), timeout, interval).Should(Succeed())
+				}
 			})
 		})
 	})
@@ -153,6 +175,7 @@ type networkTestsArgs struct {
 	info          bool
 	remove        bool
 	failfast      bool
+	basic         bool
 }
 
 func runLiqoctlNetworkTests(args networkTestsArgs) error {
@@ -209,6 +232,9 @@ func forgeFlags(args networkTestsArgs) []string {
 	if args.failfast {
 		flags = append(flags, "--fail-fast")
 	}
+	if args.basic {
+		flags = append(flags, "--basic")
+	}
 
 	return flags
 }
@@ -255,6 +281,7 @@ func RestartPods(cl client.Client) {
 		cl.List(ctx, podList, &client.ListOptions{
 			LabelSelector: labels.SelectorFromSet(labels.Set{
 				gateway.GatewayComponentKey: gateway.GatewayComponentGateway,
+				concurrent.ActiveGatewayKey: concurrent.ActiveGatewayValue,
 			}),
 		}),
 	).To(Succeed())
@@ -272,6 +299,7 @@ func RestartPods(cl client.Client) {
 		if err := cl.List(ctx, deploymentList, &client.ListOptions{
 			LabelSelector: labels.SelectorFromSet(labels.Set{
 				gateway.GatewayComponentKey: gateway.GatewayComponentGateway,
+				concurrent.ActiveGatewayKey: concurrent.ActiveGatewayValue,
 			}),
 		}); err != nil {
 			return err

@@ -63,6 +63,7 @@ LIQO_VERSION="${LIQO_VERSION:-$(git rev-parse HEAD)}"
 export SERVICE_CIDR=10.100.0.0/16
 export POD_CIDR=10.200.0.0/16
 export POD_CIDR_OVERLAPPING=${POD_CIDR_OVERLAPPING:-"false"}
+export HA_REPLICAS=3
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
@@ -109,7 +110,7 @@ do
 
   if [[ "${INFRA}" == "cluster-api" ]]; then
     LIQO_PROVIDER="kubeadm"
-    COMMON_ARGS=("${COMMON_ARGS[@]}")
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --set "networking.gatewayTemplates.replicas=$HA_REPLICAS" )
   else
     LIQO_PROVIDER="${INFRA}"
   fi

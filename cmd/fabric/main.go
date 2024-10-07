@@ -39,6 +39,7 @@ import (
 	sourcedetector "github.com/liqotech/liqo/pkg/fabric/source-detector"
 	"github.com/liqotech/liqo/pkg/firewall"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/remapping"
 	"github.com/liqotech/liqo/pkg/route"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
@@ -100,6 +101,11 @@ func run(cmd *cobra.Command, _ []string) error {
 		selection.Equals,
 		[]string{gateway.GatewayComponentGateway},
 	)
+	reqActiveGatewayPods, err := labels.NewRequirement(
+		concurrent.ActiveGatewayKey,
+		selection.Equals,
+		[]string{concurrent.ActiveGatewayValue},
+	)
 	utilruntime.Must(err)
 
 	// Create the manager.
@@ -114,7 +120,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.ByObject = map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
-					Label: labels.NewSelector().Add(*reqGatewayPods),
+					Label: labels.NewSelector().Add(*reqGatewayPods).Add(*reqActiveGatewayPods),
 				},
 			}
 			return cache.New(config, opts)

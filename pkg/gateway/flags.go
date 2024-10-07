@@ -37,12 +37,19 @@ const (
 	FlagNameRemoteClusterID FlagName = "remote-cluster-id"
 	// FlagNameNodeName is the name of the node.
 	FlagNameNodeName FlagName = "node-name"
+	// FlagNamePodName is the name of the pod.
+	FlagNamePodName FlagName = "pod-name"
+	// FlagContainerName is the name of the container.
+	FlagContainerName FlagName = "container-name"
 
 	// FlagNameGatewayUID is the UID of the Gateway resource.
 	FlagNameGatewayUID FlagName = "gateway-uid"
 
 	// FlagNameMode is the mode in which the gateway is configured.
 	FlagNameMode FlagName = "mode"
+
+	// FlagConcurrentContainersNames is the names of the containers that the gateway container must wait for.
+	FlagConcurrentContainersNames FlagName = "concurrent-containers-names"
 
 	// FlagNameLeaderElection is the flag to enable leader election.
 	FlagNameLeaderElection FlagName = "leader-election"
@@ -72,6 +79,8 @@ var RequiredFlags = []FlagName{
 	FlagNameMode,
 	FlagNameGatewayUID,
 	FlagNameNodeName,
+	FlagNamePodName,
+	FlagContainerName,
 }
 
 // InitFlags initializes the flags for the gateway.
@@ -80,10 +89,15 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringVar(&opts.Namespace, FlagNameNamespace.String(), "", "Parent gateway namespace")
 	flagset.StringVar(&opts.RemoteClusterID, FlagNameRemoteClusterID.String(), "", "ClusterID of the remote cluster")
 	flagset.StringVar(&opts.NodeName, FlagNameNodeName.String(), "", "Node name")
+	flagset.StringVar(&opts.PodName, FlagNamePodName.String(), "", "Pod name")
+	flagset.StringVar(&opts.ContainerName, FlagContainerName.String(), "", "Container name")
 
 	flagset.StringVar(&opts.GatewayUID, FlagNameGatewayUID.String(), "", "Parent gateway resource UID")
 
 	flagset.Var(&opts.Mode, FlagNameMode.String(), "Parent gateway mode")
+
+	flagset.StringSliceVar(&opts.ConcurrentContainersNames, FlagConcurrentContainersNames.String(),
+		[]string{}, "the container list that gateway container must wait for")
 
 	flagset.BoolVar(&opts.LeaderElection, FlagNameLeaderElection.String(), false, "Enable leader election")
 	flagset.DurationVar(&opts.LeaderElectionLeaseDuration, FlagNameLeaderElectionLeaseDuration.String(), 15*time.Second,
@@ -107,5 +121,12 @@ func MarkFlagsRequired(cmd *cobra.Command) error {
 			return err
 		}
 	}
+
+	if cmd.Name() == "liqo-gateway" {
+		if err := cmd.MarkFlagRequired(FlagConcurrentContainersNames.String()); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

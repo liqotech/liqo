@@ -97,6 +97,9 @@ helm.sh/chart: {{ quote (include "liqo.chart" .) }}
 app.kubernetes.io/version: {{ quote (include "liqo.version" .) }}
 app.kubernetes.io/managed-by: {{ quote .Release.Service }}
 networking.liqo.io/component: "gateway"
+{{- if .isService }}
+networking.liqo.io/active: "true"
+{{- end }}
 {{- end }}
 
 {{/*
