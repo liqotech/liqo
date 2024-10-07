@@ -71,6 +71,7 @@ spec:
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --node-name={{"$(NODE_NAME)"}}
+                - --pod-name={{"$(POD_NAME)"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
                 {{- if .Values.metrics.enabled }}
@@ -97,6 +98,10 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: spec.nodeName
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
                 securityContext:
                   privileged: true
                   capabilities:
@@ -140,6 +145,7 @@ spec:
                 - --namespace={{"{{ .Namespace }}"}}
                 - --remote-cluster-id={{"{{ .ClusterID }}"}}
                 - --node-name={{"$(NODE_NAME)"}}
+                - --pod-name={{"$(POD_NAME)"}}
                 - --gateway-uid={{"{{ .GatewayUID }}"}}
                 - --mode=server
                 - --geneve-port={{ .Values.networking.genevePort }}
@@ -157,6 +163,10 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: spec.nodeName
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
                 securityContext:
                   capabilities:
                     add:

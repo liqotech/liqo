@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -38,7 +37,6 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
-	"github.com/liqotech/liqo/pkg/gateway/forge"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/wireguard"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -112,17 +110,7 @@ func run(cmd *cobra.Command, _ []string) error {
 			BindAddress: options.GwOptions.MetricsAddress,
 		},
 		HealthProbeBindAddress: options.GwOptions.ProbeAddr,
-		LeaderElection:         options.GwOptions.LeaderElection,
-		LeaderElectionID: fmt.Sprintf(
-			"%s.%s.%s.wgtunnel.liqo.io",
-			forge.GatewayResourceName(options.GwOptions.Name), options.GwOptions.Namespace, options.GwOptions.Mode,
-		),
-		LeaderElectionNamespace:       options.GwOptions.Namespace,
-		LeaderElectionReleaseOnCancel: true,
-		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
-		LeaseDuration:                 &options.GwOptions.LeaderElectionLeaseDuration,
-		RenewDeadline:                 &options.GwOptions.LeaderElectionRenewDeadline,
-		RetryPeriod:                   &options.GwOptions.LeaderElectionRetryPeriod,
+		LeaderElection:         false,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
