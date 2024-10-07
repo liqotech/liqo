@@ -241,4 +241,4 @@ html_context = {
     'display_github': True,
 }
 
-suppress_warnings = ["myst.header"]
+suppress_warnings = ["config.cache"]
