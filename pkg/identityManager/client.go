@@ -40,16 +40,7 @@ func (certManager *identityManager) GetConfig(remoteCluster liqov1beta1.ClusterI
 		return nil, err
 	}
 
-	cnf, err := kubeconfig.BuildConfigFromSecret(secret)
-	if err != nil {
-		return nil, err
-	}
-
-	if certManager.isAwsIdentity(secret) {
-		return certManager.mutateIAMConfig(secret, remoteCluster, cnf)
-	}
-
-	return cnf, nil
+	return certManager.GetConfigFromSecret(remoteCluster, secret)
 }
 
 func (certManager *identityManager) GetSecretNamespacedName(remoteCluster liqov1beta1.ClusterID,
