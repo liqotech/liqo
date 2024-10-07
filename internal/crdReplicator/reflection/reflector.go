@@ -56,6 +56,8 @@ type Reflector struct {
 
 	resources map[schema.GroupVersionResource]*reflectedResource
 
+	secretHash string
+
 	workqueue workqueue.RateLimitingInterface
 	cancel    context.CancelFunc
 }
@@ -70,6 +72,16 @@ type reflectedResource struct {
 
 	cancel      context.CancelFunc
 	initialized bool
+}
+
+// GetRemoteTenantNamespace returns the remote namespace where the reflector reflects the resources.
+func (r *Reflector) GetRemoteTenantNamespace() string {
+	return r.remoteNamespace
+}
+
+// GetSecretHash returns the hash of the secret that generated this reflector.
+func (r *Reflector) GetSecretHash() string {
+	return r.secretHash
 }
 
 // Start starts the reflection towards the remote cluster.
@@ -87,21 +99,15 @@ func (r *Reflector) Start(ctx context.Context) {
 	}()
 }
 
-// Stop stops the reflection towards the remote cluster, and removes the replicated resources.
+// Stop stops the reflection towards the remote cluster, it returns an error if there are replicated resources.
 func (r *Reflector) Stop() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	return r.stop(false)
+}
 
-	klog.Infof("[%v] Stopping reflection towards remote cluster", r.remoteClusterID)
-
-	for gvr := range r.resources {
-		if err := r.stopForResource(gvr); err != nil {
-			return err
-		}
-	}
-
-	r.cancel()
-	return nil
+// StopForce stops the reflection towards the remote cluster, ignoring any replicated resource. This means that if replication is not
+// restored, then there might be some orphan replicated resource in the remote cluster.
+func (r *Reflector) StopForce() error {
+	return r.stop(true)
 }
 
 // ResourceStarted returns whether the reflection for the given resource has been started.
@@ -163,16 +169,32 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 	}()
 }
 
-// StopForResource stops the reflection of the given resource, and removes the replicated objects.
+// StopForResource stops the reflection of the given resource. It fails if there are replicated objects.
 func (r *Reflector) StopForResource(resource *resources.Resource) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	return r.stopForResource(resource.GroupVersionResource)
+	return r.stopForResource(resource.GroupVersionResource, false)
 }
 
-// stopForResource stops the reflection of the given resource, and removes the replicated objects.
-func (r *Reflector) stopForResource(gvr schema.GroupVersionResource) error {
+func (r *Reflector) stop(skipResourcePresenceCheck bool) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	klog.Infof("[%v] Stopping reflection towards remote cluster", r.remoteClusterID)
+
+	for gvr := range r.resources {
+		if err := r.stopForResource(gvr, skipResourcePresenceCheck); err != nil {
+			return err
+		}
+	}
+
+	r.cancel()
+	return nil
+}
+
+// stopForResource stops the reflection of the given resource. Unless skipResourcePresenceCheck is false, it fails if there are replicated objects.
+func (r *Reflector) stopForResource(gvr schema.GroupVersionResource, skipResourcePresenceCheck bool) error {
 	rs, found := r.resources[gvr]
 	if !found {
 		// This resource was already stopped, just return
@@ -181,24 +203,26 @@ func (r *Reflector) stopForResource(gvr schema.GroupVersionResource) error {
 
 	klog.Infof("[%v] Stopping reflection of %v", r.remoteClusterID, gvr)
 
-	// Check if any object is still present in the local or in the remote cluster
-	for key, lister := range map[string]cache.GenericNamespaceLister{"local": rs.local, "remote": rs.remote} {
-		objects, err := lister.List(labels.Everything())
+	if !skipResourcePresenceCheck {
+		// Check if any object is still present in the local or in the remote cluster
+		for key, lister := range map[string]cache.GenericNamespaceLister{"local": rs.local, "remote": rs.remote} {
+			objects, err := lister.List(labels.Everything())
 
-		if key == "remote" && apierrors.IsForbidden(err) {
-			// The remote cluster has probably removed the necessary permissions to operate on reflected resources, let's ignore the error
-			klog.Infof("[%v] Cannot list %v objects in the remote cluster (permission removed by provider).", r.remoteClusterID, gvr)
-			continue
-		}
+			if key == "remote" && apierrors.IsForbidden(err) {
+				// The remote cluster has probably removed the necessary permissions to operate on reflected resources, let's ignore the error
+				klog.Infof("[%v] Cannot list %v objects in the remote cluster (permission removed by provider).", r.remoteClusterID, gvr)
+				continue
+			}
 
-		if err != nil {
-			klog.Errorf("[%v] Failed to stop reflection of %v: %v", r.remoteClusterID, gvr, err)
-			return err
-		}
+			if err != nil {
+				klog.Errorf("[%v] Failed to stop reflection of %v: %v", r.remoteClusterID, gvr, err)
+				return err
+			}
 
-		if len(objects) > 0 {
-			klog.Errorf("[%v] Cannot stop reflection of %v, since %v objects are still present", r.remoteClusterID, gvr, key)
-			return fmt.Errorf("%v %v still present for cluster %v", key, gvr, r.remoteClusterID)
+			if len(objects) > 0 {
+				klog.Errorf("[%v] Cannot stop reflection of %v, since %v objects are still present", r.remoteClusterID, gvr, key)
+				return fmt.Errorf("%v %v still present for cluster %v", key, gvr, r.remoteClusterID)
+			}
 		}
 	}
 
