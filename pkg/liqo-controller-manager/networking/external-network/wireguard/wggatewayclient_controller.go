@@ -286,9 +286,9 @@ func (r *WgGatewayClientReconciler) handleInternalEndpointStatus(ctx context.Con
 		return nil
 	}
 
-	podsFromDepSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)}
+	podsSelector := client.MatchingLabelsSelector{Selector: labels.SelectorFromSet(gateway.ForgeActiveGatewayPodLabels())}
 	var podList corev1.PodList
-	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsFromDepSelector); err != nil {
+	if err := r.List(ctx, &podList, client.InNamespace(dep.Namespace), podsSelector); err != nil {
 		klog.Errorf("Unable to list pods of deployment %s/%s: %v", dep.Namespace, dep.Name, err)
 		return err
 	}

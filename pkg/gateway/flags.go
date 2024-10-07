@@ -37,6 +37,8 @@ const (
 	FlagNameRemoteClusterID FlagName = "remote-cluster-id"
 	// FlagNameNodeName is the name of the node.
 	FlagNameNodeName FlagName = "node-name"
+	// FlagNamePodName is the name of the pod.
+	FlagNamePodName FlagName = "pod-name"
 
 	// FlagNameGatewayUID is the UID of the Gateway resource.
 	FlagNameGatewayUID FlagName = "gateway-uid"
@@ -72,6 +74,7 @@ var RequiredFlags = []FlagName{
 	FlagNameMode,
 	FlagNameGatewayUID,
 	FlagNameNodeName,
+	FlagNamePodName,
 }
 
 // InitFlags initializes the flags for the gateway.
@@ -80,6 +83,7 @@ func InitFlags(flagset *pflag.FlagSet, opts *Options) {
 	flagset.StringVar(&opts.Namespace, FlagNameNamespace.String(), "", "Parent gateway namespace")
 	flagset.StringVar(&opts.RemoteClusterID, FlagNameRemoteClusterID.String(), "", "ClusterID of the remote cluster")
 	flagset.StringVar(&opts.NodeName, FlagNameNodeName.String(), "", "Node name")
+	flagset.StringVar(&opts.PodName, FlagNamePodName.String(), "", "Pod name")
 
 	flagset.StringVar(&opts.GatewayUID, FlagNameGatewayUID.String(), "", "Parent gateway resource UID")
 
