@@ -80,7 +80,7 @@ var _ = Describe("Manager tests", func() {
 	Describe("the NewForRemote function", func() {
 		var reflector *Reflector
 
-		JustBeforeEach(func() { reflector = manager.NewForRemote(remote, remoteClusterID, localNamespace, remoteNamespace) })
+		JustBeforeEach(func() { reflector = manager.NewForRemote(remote, remoteClusterID, localNamespace, remoteNamespace, "") })
 		It("Should return a non nil reflector", func() { Expect(reflector).ToNot(BeNil()) })
 		It("Should correctly reference the parent manager", func() { Expect(reflector.manager).To(Equal(manager)) })
 		It("Should correctly populate the reflector fields", func() {

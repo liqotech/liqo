@@ -16,6 +16,7 @@ package crdreplicator
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +40,7 @@ import (
 	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	"github.com/liqotech/liqo/pkg/utils/getters"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
@@ -107,13 +109,9 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		// the object is being deleted
 		if controllerutil.ContainsFinalizer(&secret, finalizer) {
 			// close remote watcher for remote cluster
-			reflector, ok := c.Reflectors[remoteClusterID]
-			if ok {
-				if err := reflector.Stop(); err != nil {
-					klog.Errorf("%sFailed to stop reflection: %v", prefix, err)
-					return ctrl.Result{}, err
-				}
-				delete(c.Reflectors, remoteClusterID)
+			if err := c.stopReflector(remoteClusterID, false); err != nil {
+				klog.Errorf("%sFailed to stop reflection: %v", prefix, err)
+				return ctrl.Result{}, err
 			}
 
 			// remove the finalizer from the list and update it.
@@ -139,17 +137,41 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 	}
 
 	// Check if reflection towards the remote cluster has already been started.
-	if _, found := c.Reflectors[remoteClusterID]; found {
+	if reflector, found := c.Reflectors[remoteClusterID]; found {
+		// We ignore the case in which the secret lacks of the kubeconfig, as in that case we still want to delete the reflector
+		// and manage the error.
+		secretContent := secret.Data[consts.KubeconfigSecretField]
+		secretHash := c.hashSecretConfig(secretContent)
+
+		// If there are no changes on the secret or on the remote namespace where the reflector operats, skip reconciliation.
+		if reflector.GetSecretHash() == secretHash && reflector.GetRemoteTenantNamespace() == remoteTenantNamespace {
+			return ctrl.Result{}, nil
+		}
+
+		// If there have been a change on the secret, delete the secret to allow the creation of a new reflector.
+		klog.Infof("%sChanges detected on the control plane secret %q for clusterID %q: recreating reflector",
+			prefix, req.NamespacedName, remoteClusterID)
+		// Stop the reflection to update the reflector
+		if err := c.stopReflector(remoteClusterID, true); err != nil {
+			klog.Errorf("%sFailed to stop reflection: %v", prefix, err)
+			return ctrl.Result{}, err
+		}
+	}
+
+	// We need to get the secret to make sure that there are not multiple secrets pointing to the same cluster
+	currSecret, err := getters.GetControlPlaneKubeconfigSecretByClusterID(ctx, c.Client, remoteClusterID)
+	if err != nil {
+		klog.Errorf("%sUnable to process secret for clusterID %q: %v", prefix, remoteClusterID, err)
 		return ctrl.Result{}, nil
 	}
 
-	config, err := c.IdentityReader.GetConfig(remoteClusterID, localTenantNamespace)
+	config, err := c.IdentityReader.GetConfigFromSecret(remoteClusterID, currSecret)
 	if err != nil {
 		klog.Errorf("%sUnable to retrieve config for clusterID %q: %v", prefix, remoteClusterID, err)
 		return ctrl.Result{}, nil
 	}
 
-	return ctrl.Result{}, c.setupReflectionToPeeringCluster(ctx, config, remoteClusterID, localTenantNamespace, remoteTenantNamespace)
+	return ctrl.Result{}, c.setupReflectionToPeeringCluster(ctx, currSecret, config, remoteClusterID, localTenantNamespace, remoteTenantNamespace)
 }
 
 // SetupWithManager registers a new controller for identity Secrets.
@@ -220,7 +242,7 @@ func (c *Controller) ensureFinalizer(ctx context.Context, secret *corev1.Secret,
 	return c.Client.Update(ctx, secret)
 }
 
-func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config *rest.Config,
+func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, secret *corev1.Secret, config *rest.Config,
 	remoteClusterID liqov1beta1.ClusterID, localNamespace, remoteNamespace string) error {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
@@ -228,10 +250,34 @@ func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config
 		return err
 	}
 
-	reflector := c.ReflectionManager.NewForRemote(dynamicClient, remoteClusterID, localNamespace, remoteNamespace)
+	secretHash := c.hashSecretConfig(secret.Data[consts.KubeconfigSecretField])
+
+	reflector := c.ReflectionManager.NewForRemote(dynamicClient, remoteClusterID, localNamespace, remoteNamespace, secretHash)
 	reflector.Start(ctx)
 	c.Reflectors[remoteClusterID] = reflector
 	return nil
+}
+
+func (c *Controller) stopReflector(remoteClusterID liqov1beta1.ClusterID, skipChecks bool) error {
+	reflector, ok := c.Reflectors[remoteClusterID]
+	if ok {
+		stopFn := reflector.Stop
+		// Use the StopForce function if we want to skip the checks
+		if skipChecks {
+			stopFn = reflector.StopForce
+		}
+
+		if err := stopFn(); err != nil {
+			return err
+		}
+		delete(c.Reflectors, remoteClusterID)
+	}
+	return nil
+}
+
+func (c *Controller) hashSecretConfig(secretData []byte) string {
+	hash := sha256.Sum256(secretData)
+	return fmt.Sprintf("%x", hash)
 }
 
 func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterID liqov1beta1.ClusterID, deleting bool) error {

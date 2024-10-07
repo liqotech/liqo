@@ -86,7 +86,8 @@ func (m *Manager) Start(ctx context.Context, registeredResources []resources.Res
 }
 
 // NewForRemote returns a new reflector for a given remote cluster.
-func (m *Manager) NewForRemote(client dynamic.Interface, clusterID liqov1beta1.ClusterID, localNamespace, remoteNamespace string) *Reflector {
+func (m *Manager) NewForRemote(client dynamic.Interface, clusterID liqov1beta1.ClusterID, localNamespace, remoteNamespace string,
+	secretHash string) *Reflector {
 	return &Reflector{
 		manager: m,
 
@@ -96,6 +97,8 @@ func (m *Manager) NewForRemote(client dynamic.Interface, clusterID liqov1beta1.C
 		remoteClient:    client,
 		remoteNamespace: remoteNamespace,
 		remoteClusterID: clusterID,
+
+		secretHash: secretHash,
 
 		resources: make(map[schema.GroupVersionResource]*reflectedResource),
 		workqueue: workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
