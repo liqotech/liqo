@@ -1,7 +1,7 @@
 # Liqo Documentation
 
 The Liqo documentation is available on [doc.liqo.io](https://doc.liqo.io).
-The Liqo documentation is built with [Read the Docs](https://readthedocs.org/) and the [Sphinx Theme](https://sphinx-rtd-theme.readthedocs.io/en/stable/).
+The Liqo documentation is built with [Read the Docs](https://readthedocs.org/) and [Awesome Sphinx Theme](https://sphinxawesome.xyz/).
 
 ## How to add/update documentation
 
