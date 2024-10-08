@@ -12,26 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package configuration
+package utils
 
 import (
-	"context"
-
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 )
 
 // IsConfigurationStatusSet check if a Configuration is ready by checking if its status is correctly set.
-func IsConfigurationStatusSet(ctx context.Context, cl client.Client, name, namespace string) (bool, error) {
-	conf := &networkingv1beta1.Configuration{}
-	if err := cl.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, conf); err != nil {
-		return false, err
-	}
-
-	return conf.Status.Remote != nil &&
-			conf.Status.Remote.CIDR.Pod.String() != "" &&
-			conf.Status.Remote.CIDR.External.String() != "",
-		nil
+func IsConfigurationStatusSet(confStatus networkingv1beta1.ConfigurationStatus) bool {
+	return confStatus.Remote != nil &&
+		confStatus.Remote.CIDR.Pod.String() != "" &&
+		confStatus.Remote.CIDR.External.String() != ""
 }

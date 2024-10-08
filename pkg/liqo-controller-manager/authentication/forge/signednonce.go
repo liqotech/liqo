@@ -22,8 +22,8 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// GenerateSignedNonceSecretName generates the name of the Secret object to store the signed nonce.
-func GenerateSignedNonceSecretName() string {
+// generateSignedNonceSecretName generates the name of the Secret object to store the signed nonce.
+func generateSignedNonceSecretName() string {
 	return "liqo-signed-nonce"
 }
 
@@ -35,7 +35,7 @@ func SignedNonce(remoteClusterID liqov1beta1.ClusterID, tenantNamespace, nonce s
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      GenerateSignedNonceSecretName(),
+			Name:      generateSignedNonceSecretName(),
 			Namespace: tenantNamespace,
 			Labels: map[string]string{
 				consts.SignedNonceSecretLabelKey: "true",
