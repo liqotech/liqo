@@ -35,6 +35,9 @@ spec:
             spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"
+              volumes: 
+              - name: ipc 
+                emptyDir: {} 
               containers:
               - name: gateway
                 image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
@@ -61,6 +64,9 @@ spec:
                 {{- if .Values.requirements.kernel.disabled }}
                 - --disable-kernel-version-check
                 {{- end }}
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8080
@@ -98,6 +104,9 @@ spec:
                 {{- end }}
                 - --health-probe-bind-address=:8083
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8082
@@ -127,6 +136,9 @@ spec:
                 - --metrics-address=:8084
                 {{- end }}
                 - --health-probe-bind-address=:8085
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8084

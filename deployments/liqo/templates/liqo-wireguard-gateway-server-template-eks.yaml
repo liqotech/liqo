@@ -1,4 +1,5 @@
 {{- $templateConfig := (merge (dict "name" "wireguard-server" "module" "networking") .) -}}
+{{- $templateConfigService := (merge (dict "name" "wireguard-server" "module" "networking" "isService" true) .) -}}
 {{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking" "version" .Values.networking.gatewayTemplates.container.gateway.image.version) .) -}}
 {{- $wireguardConfig := (merge (dict "name" "gateway-wireguard" "module" "networking" "version" .Values.networking.gatewayTemplates.container.wireguard.image.version) .) -}}
 {{- $geneveConfig := (merge (dict "name" "gateway-geneve" "module" "networking" "version" .Values.networking.gatewayTemplates.container.geneve.image.version) .) -}}
@@ -21,7 +22,7 @@ spec:
     spec:
       service:
         metadata:
-          {{- include "liqo.metadataTemplate" $templateConfig | nindent 10 }}
+          {{- include "liqo.metadataTemplate" $templateConfigService | nindent 10 }}
           {{- if .Values.networking.gatewayTemplates.server.service.annotations }}
           annotations:
             {{- toYaml .Values.networking.gatewayTemplates.server.service.annotations | nindent 12 }}
@@ -37,7 +38,7 @@ spec:
           {{- end }}
         spec:
           selector:
-            {{- include "liqo.labelsTemplate" $templateConfig | nindent 12 }}
+            {{- include "liqo.labelsTemplate" $templateConfigService | nindent 12 }}
           type: "{{"{{ .Spec.Endpoint.ServiceType }}"}}"
           ports:
           - port: "{{"{{ .Spec.Endpoint.Port }}"}}"
@@ -62,6 +63,9 @@ spec:
             spec:
               serviceAccount: "{{"{{ .Name }}"}}"
               serviceAccountName: "{{"{{ .Name }}"}}"
+              volumes: 
+              - name: ipc 
+                emptyDir: {} 
               containers:
               - name: gateway
                 image: {{ .Values.networking.gatewayTemplates.container.gateway.image.name }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
@@ -88,6 +92,9 @@ spec:
                 {{- if .Values.requirements.kernel.disabled }}
                 - --disable-kernel-version-check
                 {{- end }}
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8080
@@ -124,6 +131,9 @@ spec:
                 {{- end }}
                 - --health-probe-bind-address=:8083
                 - --implementation={{ .Values.networking.gatewayTemplates.wireguard.implementation }}
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8082
@@ -153,6 +163,9 @@ spec:
                 - --metrics-address=:8084
                 {{- end }}
                 - --health-probe-bind-address=:8085
+                volumeMounts: 
+                - name: ipc 
+                  mountPath: /ipc
                 {{- if .Values.metrics.enabled }}
                 ports:
                 - containerPort: 8084

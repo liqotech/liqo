@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package concurrent contains the logic to manage same gateway replicas.
-// They are managed using an active/passive approach.
-// The gateway container try to acquire the active role using the controller manager lease.
-// Then, the active gateway is labeled with the ActiveGatewayKey and ActiveGatewayValue, and the passive gateways are unlabeled.
-// The gateway service target the active gateway using the ActiveGatewayKey and ActiveGatewayValue labels.
-// In order to cohordinate the sidecar containers, the gateway uses a unix socket to manage the IPC, and to start the sidecars when it becomes leader.
 package concurrent
+
+// UnixSocketPath is the path of the Unix socket.
+const unixSocketPath string = "/ipc/leader.sock"
+
+// ContainerNames is the list of container names.
+var containerNames = []string{"wireguard", "geneve"}

@@ -37,6 +37,7 @@ import (
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
 	"github.com/liqotech/liqo/pkg/gateway"
+	"github.com/liqotech/liqo/pkg/gateway/concurrent"
 	"github.com/liqotech/liqo/pkg/gateway/tunnel/wireguard"
 	flagsutils "github.com/liqotech/liqo/pkg/utils/flags"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
@@ -165,6 +166,15 @@ func run(cmd *cobra.Command, _ []string) error {
 	if err := metrics.Registry.Register(promcollect); err != nil {
 		return fmt.Errorf("unable to register prometheus collector: %w", err)
 	}
+
+	runnable, err := concurrent.NewRunnableGuest("wireguard")
+	if err != nil {
+		return fmt.Errorf("unable to create runnable guest: %w", err)
+	}
+	if err := runnable.Start(cmd.Context()); err != nil {
+		return fmt.Errorf("unable to start runnable guest: %w", err)
+	}
+	defer runnable.Close()
 
 	// Start the manager.
 	return mgr.Start(cmd.Context())

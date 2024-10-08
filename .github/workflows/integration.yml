@@ -6,6 +6,7 @@ on:
     branches:
       - master
       - release
+      - frc/gwha
   repository_dispatch:
     types:
       - test-command

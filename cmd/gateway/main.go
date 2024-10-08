@@ -205,12 +205,17 @@ func run(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("unable to setup firewall configuration reconciler: %w", err)
 	}
 
-	if err := mgr.Add(concurrent.NewRunnable(
+	runnable, err := concurrent.NewRunnableGateway(
 		cl,
 		connoptions.GwOptions.PodName,
 		connoptions.GwOptions.Name,
 		connoptions.GwOptions.Namespace,
-	)); err != nil {
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create concurrent runnable: %w", err)
+	}
+
+	if err := mgr.Add(runnable); err != nil {
 		return fmt.Errorf("unable to add concurrent runnable: %w", err)
 	}
 

@@ -19,6 +19,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/consts"
@@ -46,6 +47,7 @@ func AddActiveGatewayLabel(ctx context.Context, cl client.Client, key client.Obj
 	if err := cl.Update(ctx, pod); err != nil {
 		return err
 	}
+	klog.Infof("Pod %s/%s is now the active gateway", pod.Namespace, pod.Name)
 	return nil
 }
 
@@ -71,6 +73,7 @@ func RemoveActiveGatewayLabel(ctx context.Context, cl client.Client, key client.
 	if err := cl.Update(ctx, pod); err != nil {
 		return err
 	}
+	klog.Infof("Pod %s/%s is no longer the active gateway", pod.Namespace, pod.Name)
 	return nil
 }
 
