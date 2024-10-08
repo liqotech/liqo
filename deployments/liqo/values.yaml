@@ -559,6 +559,8 @@ telemetry:
     # schedule: "0 */12 * * *"
 
 virtualKubelet:
+  # -- The number of virtual kubelet instances to run, which can be increased for active/passive high availability.
+  replicas: 1
   image:
     # -- Image repository for the virtual kubelet pod.
     name: "ghcr.io/liqotech/virtual-kubelet"

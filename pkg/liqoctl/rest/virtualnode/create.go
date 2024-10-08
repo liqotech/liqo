@@ -157,7 +157,7 @@ func (o *Options) handleCreate(ctx context.Context) error {
 	}
 
 	if opts.OutputFormat != "" {
-		opts.Printer.CheckErr(o.output(opts.Name, tenantNamespace, vnOpts))
+		opts.Printer.CheckErr(o.output(ctx, opts.Name, tenantNamespace, vnOpts))
 		return nil
 	}
 
@@ -165,7 +165,8 @@ func (o *Options) handleCreate(ctx context.Context) error {
 
 	virtualNode := forge.VirtualNode(opts.Name, tenantNamespace)
 	if _, err := controllerutil.CreateOrUpdate(ctx, opts.CRClient, virtualNode, func() error {
-		return forge.MutateVirtualNode(virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck)
+		return forge.MutateVirtualNode(ctx, opts.CRClient,
+			virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck)
 	}); err != nil {
 		s.Fail("Unable to create virtual node: ", output.PrettyErr(err))
 		return err
@@ -286,7 +287,7 @@ func (o *Options) getTenantNamespace(ctx context.Context) (string, error) {
 }
 
 // output implements the logic to output the generated VirtualNode resource.
-func (o *Options) output(name, namespace string, vnOpts *forge.VirtualNodeOptions) error {
+func (o *Options) output(ctx context.Context, name, namespace string, vnOpts *forge.VirtualNodeOptions) error {
 	opts := o.createOptions
 	var printer printers.ResourcePrinter
 	switch opts.OutputFormat {
@@ -299,7 +300,8 @@ func (o *Options) output(name, namespace string, vnOpts *forge.VirtualNodeOption
 	}
 
 	virtualNode := forge.VirtualNode(name, namespace)
-	if err := forge.MutateVirtualNode(virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck); err != nil {
+	if err := forge.MutateVirtualNode(ctx, opts.CRClient,
+		virtualNode, o.remoteClusterID.GetClusterID(), vnOpts, &o.createNode, &o.disableNetworkCheck); err != nil {
 		return err
 	}
 
