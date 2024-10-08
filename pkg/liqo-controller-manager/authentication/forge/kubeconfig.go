@@ -26,8 +26,8 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 )
 
-// GenerateKubeconfigSecretName generates the name of the kubeconfig secret associated to an identity.
-func GenerateKubeconfigSecretName(identity *authv1beta1.Identity) string {
+// generateKubeconfigSecretName generates the name of the kubeconfig secret associated to an identity.
+func generateKubeconfigSecretName(identity *authv1beta1.Identity) string {
 	return "kubeconfig-" + identity.Name
 }
 
@@ -39,7 +39,7 @@ func KubeconfigSecret(identity *authv1beta1.Identity) *corev1.Secret {
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      GenerateKubeconfigSecretName(identity),
+			Name:      generateKubeconfigSecretName(identity),
 			Namespace: identity.Namespace,
 		},
 	}
