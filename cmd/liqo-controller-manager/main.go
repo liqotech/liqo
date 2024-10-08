@@ -50,7 +50,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/ipam"
 	remoteresourceslicecontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/authentication/remoteresourceslice-controller"
-	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreigncluster-controller"
+	foreignclustercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/core/foreigncluster-controller"
 	ipmapping "github.com/liqotech/liqo/pkg/liqo-controller-manager/ipmapping"
 	quotacreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/quotacreator-controller"
 	virtualnodecreatorcontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualnodecreator-controller"
@@ -393,6 +393,7 @@ func main() {
 		}
 	}
 
+	// CORE OPERATORS
 	// Configure the foreigncluster controller.
 	idManager := identitymanager.NewCertificateIdentityManager(ctx, mgr.GetClient(), clientset, mgr.GetConfig(), clusterID, namespaceManager)
 	foreignClusterReconciler := &foreignclustercontroller.ForeignClusterReconciler{

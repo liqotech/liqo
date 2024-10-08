@@ -27,11 +27,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 )
-
-// ControllerName is the name of the controller.
-const ControllerName = "internalConfiguration"
 
 // ConfigurationReconciler manage Configuration lifecycle.
 type ConfigurationReconciler struct {
@@ -91,7 +89,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlConfigurationInternal).
 		For(&networkingv1beta1.Configuration{}, builder.WithPredicates(p)).
 		Complete(r)
 }

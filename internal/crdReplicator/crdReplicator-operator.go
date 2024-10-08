@@ -43,8 +43,7 @@ import (
 )
 
 const (
-	operatorName = "crdReplicator-operator"
-	finalizer    = "crdreplicator.liqo.io/operator"
+	finalizer = "crdreplicator.liqo.io/operator"
 )
 
 // Controller reconciles identity Secrets to start/stop the reflection of registered resources to remote clusters.
@@ -166,10 +165,9 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(operatorName).
-		WithEventFilter(resourceToBeProccesedPredicate).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlSecretCRDReplicator).
 		For(&corev1.Secret{}, builder.WithPredicates(secretsFilter)).
+		WithEventFilter(resourceToBeProccesedPredicate).
 		Complete(c)
 }
 

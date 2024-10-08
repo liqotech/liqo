@@ -31,6 +31,7 @@ import (
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam/utils"
 	configuration "github.com/liqotech/liqo/pkg/liqo-controller-manager/networking/external-network/configuration"
 	"github.com/liqotech/liqo/pkg/utils/getters"
@@ -150,7 +151,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // SetupWithManager register the InternalNodeReconciler to the manager.
 func (r *InternalNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlInternalNodeRoute).
 		For(&networkingv1beta1.InternalNode{}).
 		Watches(&networkingv1beta1.Configuration{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).
 		Watches(&ipamv1alpha1.IP{}, handler.EnqueueRequestsFromMapFunc(r.genericEnqueuerfunc)).

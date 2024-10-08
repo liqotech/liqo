@@ -158,7 +158,7 @@ func (r *WgGatewayClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 // SetupWithManager register the WgGatewayClientReconciler to the manager.
 func (r *WgGatewayClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlWGGatewayClient).
 		For(&networkingv1beta1.WgGatewayClient{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ServiceAccount{}).

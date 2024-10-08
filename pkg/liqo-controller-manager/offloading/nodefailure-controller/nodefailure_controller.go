@@ -110,7 +110,7 @@ func getPodTerminatingEventHandler() handler.EventHandler {
 
 // SetupWithManager monitors updates on nodes and watch for pods that are terminating and managed by a ShadowPod.
 func (r *NodeFailureReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlNodeFailure).
 		For(&corev1.Node{}).
 		Watches(&corev1.Pod{}, getPodTerminatingEventHandler()).
 		Complete(r)

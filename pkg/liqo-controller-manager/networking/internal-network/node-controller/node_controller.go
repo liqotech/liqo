@@ -120,7 +120,7 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlNode).
 		Owns(&networkingv1beta1.InternalNode{}).
 		For(&corev1.Node{}, builder.WithPredicates(predicate.Not(filterByLabelsPredicate))).
 		Complete(r)

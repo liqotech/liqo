@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway"
 )
 
@@ -117,7 +118,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err != nil {
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlPodGwMasq).
 		For(&corev1.Pod{}, builder.WithPredicates(p)).
 		WatchesRawSource(NewLeftoverPodsSource(r.GenericEvents, NewLeftoverPodsEventHandler())).
 		Complete(r)

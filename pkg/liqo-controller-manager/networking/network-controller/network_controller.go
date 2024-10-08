@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	ipamv1alpha1 "github.com/liqotech/liqo/apis/ipam/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/ipam"
 	ipamutils "github.com/liqotech/liqo/pkg/utils/ipam"
 )
@@ -92,7 +93,7 @@ func (r *NetworkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 // SetupWithManager monitors Network resources.
 func (r *NetworkReconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlNetwork).
 		For(&ipamv1alpha1.Network{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).
 		Complete(r)

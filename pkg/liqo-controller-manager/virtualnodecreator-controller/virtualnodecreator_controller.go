@@ -39,11 +39,6 @@ import (
 	"github.com/liqotech/liqo/pkg/utils/getters"
 )
 
-const (
-	// ControllerName is the name of the controller.
-	ControllerName = "virtualNodeCreator"
-)
-
 // VirtualNodeCreatorReconciler create virtualnodes from resourceslice resources.
 type VirtualNodeCreatorReconciler struct {
 	client.Client
@@ -149,7 +144,7 @@ func (r *VirtualNodeCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		klog.Error(err)
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).Named(ControllerName).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlResourceSliceVNCreator).
 		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(predicate.And(localResSliceFilter, withConditionsAccepeted()))).
 		Owns(&offloadingv1beta1.VirtualNode{}).
 		Owns(&authv1beta1.Identity{}).

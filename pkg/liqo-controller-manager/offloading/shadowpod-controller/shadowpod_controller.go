@@ -154,7 +154,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, workers int) error {
 		UpdateFunc:  func(_ event.UpdateEvent) bool { return true },
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlShadowPod).
 		For(&offloadingv1beta1.ShadowPod{}).
 		Owns(&corev1.Pod{}, builder.WithPredicates(reconciledPredicates)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: workers}).

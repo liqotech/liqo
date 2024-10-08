@@ -88,7 +88,7 @@ func (r *PublicKeysReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 // SetupWithManager register the ConfigurationReconciler to the manager.
 func (r *PublicKeysReconciler) SetupWithManager(mgr ctrl.Manager, src <-chan event.GenericEvent) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlPublicKey).
 		For(&networkingv1beta1.PublicKey{}, r.Predicates()).
 		WatchesRawSource(NewDNSSource(src, NewDNSEventHandler(r.Client, r.Options))).
 		Complete(r)

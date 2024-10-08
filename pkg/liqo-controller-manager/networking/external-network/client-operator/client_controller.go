@@ -267,7 +267,7 @@ func (r *ClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		factorySource.ForResource(gvr)
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlGatewayClientExternal).
 		WatchesRawSource(factorySource.Source(ownerEnqueuer)).
 		For(&networkingv1beta1.GatewayClient{}).
 		Complete(r)

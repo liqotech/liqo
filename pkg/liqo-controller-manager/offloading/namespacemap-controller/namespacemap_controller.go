@@ -33,7 +33,7 @@ import (
 
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
 	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // NamespaceMapReconciler creates remote namespaces and updates NamespaceMaps Status.
@@ -95,7 +95,7 @@ func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	utilruntime.Must(err)
 
 	enqueuer := func(_ context.Context, obj client.Object) []reconcile.Request {
-		nm, found := obj.GetAnnotations()[liqoconst.RemoteNamespaceManagedByAnnotationKey]
+		nm, found := obj.GetAnnotations()[consts.RemoteNamespaceManagedByAnnotationKey]
 		if !found {
 			return nil
 		}
@@ -109,7 +109,7 @@ func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}}}
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlNamespaceMap).
 		For(&offloadingv1beta1.NamespaceMap{}, builder.WithPredicates(filter)).
 		// It is not possible to use Owns, since a namespaced object cannot own a non-namespaced one,
 		// and cross namespace owners are disallowed by design.

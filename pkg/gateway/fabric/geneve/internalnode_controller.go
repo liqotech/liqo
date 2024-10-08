@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	networkingv1beta1 "github.com/liqotech/liqo/apis/networking/v1beta1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/gateway/fabric"
 	"github.com/liqotech/liqo/pkg/utils/network/geneve"
 )
@@ -116,7 +117,7 @@ func (r *InternalNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // SetupWithManager register the InternalNodeReconciler to the manager.
 func (r *InternalNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlInternalNodeGeneve).
 		For(&networkingv1beta1.InternalNode{}).
 		Complete(r)
 }

@@ -121,10 +121,10 @@ func (r *InternalFabricReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlInternalFabricCM).
+		For(&networkingv1beta1.InternalFabric{}).
 		Watches(&networkingv1beta1.InternalNode{}, internalNodeEnqueuer).
 		Owns(&networkingv1beta1.RouteConfiguration{}).
 		Owns(&networkingv1beta1.GeneveTunnel{}).
-		For(&networkingv1beta1.InternalFabric{}).
 		Complete(r)
 }

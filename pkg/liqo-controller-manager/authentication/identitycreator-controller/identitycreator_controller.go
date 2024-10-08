@@ -135,7 +135,7 @@ func (r *IdentityCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlIdentityCreator).
 		For(&authv1beta1.ResourceSlice{}, builder.WithPredicates(predicate.And(localResSliceFilter, withAuthCondition()))).
 		Owns(&authv1beta1.Identity{}).
 		Complete(r)

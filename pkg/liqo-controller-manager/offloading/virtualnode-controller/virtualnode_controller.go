@@ -199,7 +199,7 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		klog.Error(err)
 		return err
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlVirtualNode).
 		For(&offloadingv1beta1.VirtualNode{}).
 		Watches(&appsv1.Deployment{}, deploymentHandler, builder.WithPredicates(deployPredicate)).
 		Watches(&offloadingv1beta1.NamespaceMap{}, r.enqueFromNamespaceMap()).

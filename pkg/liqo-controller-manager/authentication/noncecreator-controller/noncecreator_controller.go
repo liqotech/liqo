@@ -148,7 +148,7 @@ func (r *NonceCreatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return selector.Matches(labels.Set(o.GetLabels()))
 	})
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlSecretNonceCreator).
 		For(&corev1.Secret{}, builder.WithPredicates(filter)).
 		Complete(r)
 }

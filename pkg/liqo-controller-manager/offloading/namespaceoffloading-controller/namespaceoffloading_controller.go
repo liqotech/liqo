@@ -33,7 +33,7 @@ import (
 
 	liqov1beta1 "github.com/liqotech/liqo/apis/core/v1beta1"
 	offloadingv1beta1 "github.com/liqotech/liqo/apis/offloading/v1beta1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/syncset"
 )
 
@@ -128,10 +128,10 @@ func (r *NamespaceOffloadingReconciler) SetupWithManager(mgr ctrl.Manager) error
 	r.namespaces = syncset.New()
 
 	filter := predicate.NewPredicateFuncs(func(object client.Object) bool {
-		return object.GetName() == liqoconst.DefaultNamespaceOffloadingName
+		return object.GetName() == consts.DefaultNamespaceOffloadingName
 	})
 
-	return ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).Named(consts.CtrlNamespaceOffloading).
 		For(&offloadingv1beta1.NamespaceOffloading{}, builder.WithPredicates(filter)).
 		Watches(&offloadingv1beta1.NamespaceMap{}, r.namespaceMapHandlers()).
 		Watches(&offloadingv1beta1.VirtualNode{}, r.enqueueAll()).
@@ -142,7 +142,7 @@ func (r *NamespaceOffloadingReconciler) SetupWithManager(mgr ctrl.Manager) error
 func (r *NamespaceOffloadingReconciler) namespaceMapHandlers() handler.EventHandler {
 	enqueue := func(rli workqueue.TypedRateLimitingInterface[reconcile.Request], namespace string) {
 		rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-			Name:      liqoconst.DefaultNamespaceOffloadingName,
+			Name:      consts.DefaultNamespaceOffloadingName,
 			Namespace: namespace,
 		}})
 	}
